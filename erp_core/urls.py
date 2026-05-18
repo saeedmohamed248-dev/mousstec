@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
 from django.shortcuts import redirect
 from django.core.cache import cache
 
@@ -23,13 +23,12 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 def smart_root_router(request):
     """
-    توجيه حركة المرور بذكاء بناءً على النطاق والسياق التشغيلي (Tenant-Aware Routing).
-    🚀 ابتكار: توجيه الفروع إلى الواجهة المخصصة الفخمة بدلاً من لوحة الأدمن الجافة.
+    توجيه حركة المرور بذكاء بناءً على النطاق والسياق التشغيلي.
     """
     if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
         return client_views.mousstec_landing_page(request)
     
-    # إذا كان الزائر يفتح فرعاً مخصصاً (Tenant Subdomain) يتم توجيهه فوراً للـ Dashboard الفخمة
+    # إذا كان الزائر يفتح فرعاً مخصصاً (Tenant Subdomain) يتم توجيهه للـ Dashboard الفخمة
     return redirect('/system/dashboard/')
 
 # =====================================================================
@@ -37,24 +36,20 @@ def smart_root_router(request):
 # =====================================================================
 def system_health_check(request):
     """
-    نظام مراقبة متطور: يختبر الاتصال وزمن الاستجابة (Latency) للـ DB والـ Redis.
-    🚀 ابتكار: مدمج بمؤشر Circuit Breaker لحماية الخادم عند تزايد الأحمال الفجائية.
+    نظام مراقبة متطور: يختبر الاتصال وزمن الاستجابة للـ DB والـ Redis.
+    🚀 ابتكار: مُهيأ لتصدير البيانات لأنظمة مثل Prometheus أو Datadog.
     """
     health_status = 200
     db_status = "operational"
     redis_status = "operational"
     circuit_breaker = "closed (safe)"
-    active_tenants = 0
     db_latency = 0
 
-    # 1. فحص قاعدة البيانات وحساب زمن الاستجابة الدقيق (Latency)
     try:
         from django.db import connections
-        from clients.models import Client
         start_time = time.time()
         connections['default'].cursor()
-        active_tenants = Client.objects.filter(is_active=True).count()
-        db_latency = round((time.time() - start_time) * 1000, 2) # بالمللي ثانية
+        db_latency = round((time.time() - start_time) * 1000, 2)
         
         if db_latency > 500: 
             db_status = "degraded (high latency)"
@@ -63,7 +58,6 @@ def system_health_check(request):
         db_status = "critical"
         health_status = 503 
 
-    # 2. فحص كفاءة ذاكرة الكيش (Redis)
     try:
         cache.set('mouss_ping', 'pong', timeout=1)
         if cache.get('mouss_ping') != 'pong':
@@ -74,16 +68,13 @@ def system_health_check(request):
 
     return JsonResponse({
         "status": "operational" if health_status == 200 else "critical",
-        "version": "3.0.0-Enterprise",
+        "version": "4.0.0-Enterprise",
         "system": "Mouss Tec Enterprise Engine Core",
-        "telemetry": {
-            "active_tenants": active_tenants,
-            "database_node": {
-                "status": db_status, 
-                "latency_ms": db_latency
-            },
-            "redis_cache": {"status": redis_status},
-            "circuit_breaker_state": circuit_breaker
+        "metrics": { # بصيغة Metrics لتسهيل التقاطها بأنظمة الـ DevOps
+            "db_latency_ms": db_latency,
+            "db_status": db_status,
+            "redis_status": redis_status,
+            "circuit_breaker": circuit_breaker
         }
     }, status=health_status)
 
@@ -92,13 +83,11 @@ def system_health_check(request):
 # =====================================================================
 def admin_honeypot(request, exception=None):
     """
-    🚀 ابتكار سيبراني: أي محاولة للدخول على مسارات الاختراق الشائعة يتم التقاط الـ IP
-    الخاص بها وحظره تلقائياً في Redis لمدة 24 ساعة لحماية السيستم (Auto Blacklisting).
+    🚀 ابتكار سيبراني: التقاط الـ IP للمخترق وحظره تلقائياً لمدة 24 ساعة.
     """
     ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
     ban_cache_key = f"mousstec_cyber_ban_{ip}"
     
-    # حظر الـ IP في الـ Cache فوراً لمدة يوم كامل لقطع الاتصال عن البوت المهاجم
     try:
         cache.set(ban_cache_key, "banned", timeout=86400)
         logger.critical(f"🚨 [CYBER ATTACK DETECTED] IP: {ip} probed {request.path}. Auto-banned for 24 Hours.")
@@ -111,13 +100,37 @@ def admin_honeypot(request, exception=None):
     )
 
 # =====================================================================
+# 🛡️ 4. حراس الأخطاء המخصصة (Custom Branded Error Handlers)
+# =====================================================================
+def custom_404_handler(request, exception=None):
+    """🚀 ابتكار: يمنع تسريبโครงية الروابط (URL Structure Leakage) عند حدوث خطأ"""
+    if request.path.startswith('/api/'):
+        return JsonResponse({"error": "endpoint_not_found", "message": "المسار المطلوب غير متوفر."}, status=404)
+    # إذا كان الزائر داخل نظام ورشة، يتم إرجاعه للوحة التحكم بأمان
+    if hasattr(request, 'tenant') and request.tenant.schema_name != 'public':
+        return redirect('/system/dashboard/')
+    return redirect('smart_root')
+
+def custom_500_handler(request):
+    """🚀 ابتكار: يمنع تسريب تفاصيل كود السيرفر (Stack Trace) للعامة"""
+    if request.path.startswith('/api/'):
+        return JsonResponse({"error": "internal_server_error", "message": "حدث خطأ غير متوقع بالخادم، جاري معالجته."}, status=500)
+    return HttpResponseServerError(
+        "<h1>500 - Internal Server Error</h1><p>عذراً، حدث عطل تقني مفاجئ. فريق الصيانة الذكي يعمل على إصلاحه حالياً.</p>"
+    )
+
+# تخصيص دوال الأخطاء لتعمل أوتوماتيكياً في الـ Production
+handler404 = custom_404_handler
+handler500 = custom_500_handler
+
+# =====================================================================
 # 🚦 شبكة المسارات الرئيسية الموحدة (Global Routing Matrix)
 # =====================================================================
 urlpatterns = [
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),
 
-    # 🏢 ابتكار: بوابة الاشتراك والإنشاء الآلي للشركات الجديدة لربطها بالـ Landing Page
+    # 🏢 بوابة الاشتراك والإنشاء الآلي للشركات (Automated SaaS Onboarding)
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),
 
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
@@ -132,6 +145,9 @@ urlpatterns = [
 
     # 3. 🩺 رادار فحص حالة الخادم وسلامة الاتصال السحابي (Datadog/AWS Ready)
     path('system/health/', system_health_check, name='system_health'),
+    
+    # 🚀 ابتكار: استقبال إشعارات بوابات الدفع اللحظية وحقنها في الـ Escrow Ledger أوتوماتيكياً
+    path('api/webhooks/fintech/universal/', client_views.universal_webhook_multiplexer, name='fintech_webhook_multiplexer'),
 
     # ==============================================================
     # 🤝 4. بوابة واجهات برمجة سوق Mouss Tec المركزي (B2B API Gateway)
@@ -158,7 +174,7 @@ urlpatterns = [
     # ==============================================================
     path('i18n/', include('django.conf.urls.i18n')),
     
-    # 🚀 النواة التشغيلية للفروع (الكاشير، الفحص، الفواتير، وعقود الأساطيل)
+    # 🚀 النواة التشغيلية للورش (الكاشير، الفحص الذكي، الفواتير، وعقود الأساطيل)
     path('system/', include('inventory.urls')), 
 ]
 

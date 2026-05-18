@@ -9,6 +9,7 @@ import uuid
 import json
 import logging
 from pathlib import Path
+import urllib.parse
 
 try:
     import resource # يعمل على أنظمة Linux/Mac لمراقبة الذاكرة بدقة
@@ -22,12 +23,10 @@ from django.core.wsgi import get_wsgi_application
 # =====================================================================
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erp_core.settings')
 
-# 🚀 ابتكار: مسار ملف الصيانة الديناميكي (Fast Lock File)
-# بمجرد إنشاء هذا الملف (touch /tmp/mousstec_maintenance.lock)، يدخل السيرفر وضع الصيانة فوراً بدون Restart
 MAINTENANCE_LOCK_FILE = Path('/tmp/mousstec_maintenance.lock')
 
 # =====================================================================
-# 🚀 2. نواة مراقبة الأداء اللحظي (APM Initialization - Enterprise Ready)
+# 🚀 2. نواة مراقبة الأداء اللحظي (APM Initialization)
 # =====================================================================
 def initialize_telemetry():
     """تهيئة نظام الـ APM إذا كان مفعلاً في السحابة"""
@@ -41,79 +40,111 @@ def initialize_telemetry():
 
 initialize_telemetry()
 
-# استدعاء تطبيق جانجو الأساسي (يجب أن يتم بعد التهيئة وقبل الـ Wrapper)
+# استدعاء تطبيق جانجو الأساسي
 django_application = get_wsgi_application()
 
 # =====================================================================
-# 🛡️ 3. درع الـ SaaS الخفي (Mouss Tec Enterprise WSGI Firewall)
+# 🛡️ 3. درع الـ SaaS الخفي (Mouss Tec Edge WAF & WSGI Firewall)
 # =====================================================================
 class MoussTecEnterpriseWrapper:
     """
-    غلاف WSGI ذكي يعترض الطلبات قبل وصولها لجانجو.
-    يقوم بحماية السيرفر من الهجمات، يراقب استهلاك الذاكرة، ويتيح الصيانة اللحظية.
+    غلاف WSGI ذكي يعترض الطلبات לפני وصولها لجانجو.
+    يحمي السيرفر من الهجمات (WAF)، يمنع اختناق הـ I/O، ويطبق Load Shedding.
     """
     def __init__(self, application):
         self.application = application
         self.logger = logging.getLogger('mousstec_wsgi')
         
-        # محاولة الاتصال بـ Redis لتوحيد حظر الـ IPs بين جميع الـ WSGI Workers
+        # 🚀 ابتكار: Micro-Cache لمنع اختناق الـ I/O عند فحص ملف الصيانة
+        self._maintenance_cached_status = False
+        self._maintenance_last_check = 0
+        
+        # 🚀 ابتكار: تتبع متوسط زمن الاستجابة (Latency) للـ Load Shedding
+        self._avg_response_time = 0.5 
+
+        # الاتصال بـ Redis
         self.redis_client = None
         try:
             import redis
             redis_url = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1')
             self.redis_client = redis.from_url(redis_url, socket_connect_timeout=1)
         except Exception:
-            self.ip_hits_fallback = {} # حماية بديلة في حال سقوط أو غياب الـ Redis
+            self.ip_hits_fallback = {} 
+
+        # بصمات الهجمات الشائعة للـ Edge WAF
+        self.malicious_signatures = [b'<script>', b'union select', b'base64_', b'eval(', b'../']
 
     def __call__(self, environ, start_response):
+        current_time = time.time()
+        
         # -------------------------------------------------------------
-        # 🛑 وضع الصيانة الديناميكي (Zero-Restart Maintenance)
+        # ⚡ كاش الصيانة الميكروي (Zero-I/O Maintenance Lock)
         # -------------------------------------------------------------
-        if MAINTENANCE_LOCK_FILE.exists():
+        # فحص الهارد ديسك مرة واحدة فقط كل 5 ثوانٍ للـ Worker الواحد
+        if current_time - self._maintenance_last_check > 5.0:
+            self._maintenance_cached_status = MAINTENANCE_LOCK_FILE.exists()
+            self._maintenance_last_check = current_time
+
+        if self._maintenance_cached_status:
             status = '503 Service Unavailable'
             headers = [('Content-Type', 'application/json')]
             start_response(status, headers)
             return [b'{"status": "maintenance", "message": "Mouss Tec Ecosystem is currently upgrading its core. Please try again in a few minutes."}']
 
-        # 🆔 توليد بصمة تتبع فريدة لكل طلب (Request ID Tracing)
+        # 🆔 تجهيز البصمات
         request_id = environ.get('HTTP_X_REQUEST_ID', str(uuid.uuid4()))
         environ['mousstec.request_id'] = request_id
         
         client_ip = environ.get('HTTP_X_FORWARDED_FOR', environ.get('REMOTE_ADDR', 'unknown')).split(',')[0].strip()
         path = environ.get('PATH_INFO', '')
+        query_string = environ.get('QUERY_STRING', '').lower().encode('utf-8')
         content_length = environ.get('CONTENT_LENGTH', '')
+        host = environ.get('HTTP_HOST', '')
+
+        # -------------------------------------------------------------
+        # 🛡️ جدار الحماية الطرفي (Edge WAF - Anti-Spoofing & SQLi)
+        # -------------------------------------------------------------
+        if not host:
+            status = '400 Bad Request'
+            start_response(status, [('Content-Type', 'text/plain')])
+            return [b"Mouss Tec WAF: Missing Host Header."]
+
+        # فحص سريع جداً للـ Query String ضد الهجمات
+        if query_string:
+            # استخدام urllib لفك التشفير (URL Decode) لكشف الحيل
+            decoded_query = urllib.parse.unquote_to_bytes(query_string)
+            if any(sig in decoded_query for sig in self.malicious_signatures):
+                self.logger.critical(f"🚨 [WAF SHIELD] Dropped malicious payload on {path} from {client_ip}.")
+                status = '403 Forbidden'
+                start_response(status, [('Content-Type', 'application/json')])
+                return [b'{"error": "security_policy_violation", "message": "Mouss Tec WAF: Malicious payload intercepted and blocked."}']
 
         # -------------------------------------------------------------
         # 💣 مصد القنابل البيانية (Anti-JSON Bomb Shield)
         # -------------------------------------------------------------
         if content_length and content_length.isdigit():
-            # حد أقصى 2.5 ميجابايت لطلبات الـ API (حماية الرامات من הـ Overload)
             if int(content_length) > 2.5 * 1024 * 1024 and '/api/' in path: 
                 status = '413 Payload Too Large'
-                headers = [('Content-Type', 'application/json')]
-                start_response(status, headers)
+                start_response(status, [('Content-Type', 'application/json')])
                 self.logger.warning(f"🚨 Bomb Shield: Blocked huge payload ({content_length} bytes) on {path} from {client_ip}.")
-                return [b'{"error": "payload_too_large", "message": "Mouss Tec Firewall: Request payload exceeds the maximum allowed size (2.5 MB)."}']
+                return [b'{"error": "payload_too_large", "message": "Mouss Tec Firewall: Payload exceeds 2.5 MB."}']
 
         # -------------------------------------------------------------
         # 🛑 خنق البوتات الموزع السريع (Distributed Rate Limiting)
         # -------------------------------------------------------------
-        # حماية مسارات المزادات والـ APIs الحساسة فقط (لتخفيف العبء)
         if '/api/v1/b2b/bidding/' in path or '/api/v1/b2b/market/' in path:
             limit_exceeded = False
             if self.redis_client:
                 try:
-                    cache_key = f"wsgi_rate_limit:{client_ip}"
+                    cache_key = f"wsgi_rl:{client_ip}"
                     hits = self.redis_client.incr(cache_key)
                     if hits == 1:
-                        self.redis_client.expire(cache_key, 60) # تصفير بعد 60 ثانية
-                    if hits > 120: # السماح بـ 120 طلب في الدقيقة كحد أقصى للمزادات
+                        self.redis_client.expire(cache_key, 60) 
+                    if hits > 120: 
                         limit_exceeded = True
                 except Exception:
-                    pass # تجاهل خطأ Redis (Fail-open) للتركيز على استقرار الخدمة
+                    pass 
             else:
-                # الفولباك (Fallback) للذاكرة المحلية (In-memory)
-                current_time = time.time()
                 self.ip_hits_fallback = {ip: h for ip, h in self.ip_hits_fallback.items() if current_time - h['time'] < 60}
                 if client_ip in self.ip_hits_fallback:
                     if self.ip_hits_fallback[client_ip]['count'] > 120:
@@ -124,34 +155,30 @@ class MoussTecEnterpriseWrapper:
 
             if limit_exceeded:
                 status = '429 Too Many Requests'
-                headers = [('Content-Type', 'application/json')]
-                start_response(status, headers)
-                return [b'{"error": "rate_limit", "message": "Mouss Tec Firewall: Too many requests. Please slow down your automated calls."}']
+                start_response(status, [('Content-Type', 'application/json')])
+                return [b'{"error": "rate_limit", "message": "Mouss Tec Firewall: Too many requests. Slow down."}']
 
-        # تسجيل وقت وبصمة الذاكرة قبل بدء التنفيذ داخل جانجو
         start_time = time.time()
         start_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
 
         # -------------------------------------------------------------
-        # ⚖️ التخفيف الذكي للحمل (Smart Load Shedding)
+        # ⚖️ التخفيف التنبؤي للأحمال (Predictive Latency & RAM Shedding)
         # -------------------------------------------------------------
         import sys
         is_mac = sys.platform == 'darwin'
         current_mem_mb = start_mem / (1024.0 * 1024.0) if is_mac else start_mem / 1024.0
         
-        # إذا كان הـ Worker الحالي يستهلك أكثر من 850 ميجا رامات (حالة طوارئ قصوى)
-        if current_mem_mb > 850.0:
-            # نرفض الطلبات غير الحرجة (مثل البحث الاستكشافي) للحفاظ على السيرفر
-            critical_paths = ['/escrow/', '/bidding/submit-offer/', '/admin/', '/pos/']
+        # 🚀 ابتكار: إذا كان الـ Worker يستهلك رامات ضخمة، أو زمن الاستجابة التراكمي أصبح بطيئاً جداً (> 3 ثوانٍ)
+        if current_mem_mb > 850.0 or self._avg_response_time > 3.0:
+            critical_paths = ['/escrow/', '/bidding/submit-offer/', '/admin/', '/pos/', '/webhooks/']
             if not any(crit in path for crit in critical_paths):
                 status = '503 Service Unavailable'
-                headers = [('Content-Type', 'application/json')]
-                start_response(status, headers)
-                self.logger.critical(f"🚨 Load Shedding Active! Rejected {path} due to extremely high memory usage ({current_mem_mb:.2f} MB).")
-                return [b'{"error": "server_overload", "message": "High traffic spike detected. Non-critical requests are temporarily paused to protect the core."}']
+                start_response(status, [('Content-Type', 'application/json')])
+                self.logger.critical(f"🚨 Load Shedding Active! Latency: {self._avg_response_time:.2f}s | RAM: {current_mem_mb:.2f} MB. Dropped: {path}")
+                return [b'{"error": "server_overload", "message": "High traffic spike. Non-critical requests paused to protect core operations."}']
 
         # -------------------------------------------------------------
-        # 🔄 معالجة الرد (Response Handling, Tracing & Telemetry)
+        # 🔄 معالجة الرد (Response Handling & Telemetry)
         # -------------------------------------------------------------
         status_code = [None]
         response_headers = []
@@ -160,20 +187,21 @@ class MoussTecEnterpriseWrapper:
             status_code[0] = status
             process_time = time.time() - start_time
             
+            # تحديث متوسط زمن الاستجابة (Moving Average)
+            self._avg_response_time = (self._avg_response_time * 0.9) + (process_time * 0.1)
+            
             # 🧠 مراقبة تسريب الذاكرة (Memory Leak Watchdog)
             if resource:
                 end_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 mem_diff_mb = (end_mem - start_mem) / (1024.0 * 1024.0) if is_mac else (end_mem - start_mem) / 1024.0
-                if mem_diff_mb > 60: # تنبيه إذا استهلك هذا الطلب بالذات أكثر من 60 ميجابايت فجأة
-                    self.logger.warning(f"⚠️ [MEMORY LEAK ALERT] Request {request_id} ({path}) consumed a massive {mem_diff_mb:.2f} MB!")
+                if mem_diff_mb > 60: 
+                    self.logger.warning(f"⚠️ [MEMORY LEAK] Req {request_id} ({path}) consumed {mem_diff_mb:.2f} MB!")
 
-            # إضافة بصمات Mouss Tec الاحترافية (Custom Headers) للردود
+            # إضافة بصمات Mouss Tec الاحترافية 
             headers.append(('X-Request-ID', request_id))
-            headers.append(('X-SaaS-Processing-Time', f"{process_time:.4f}s"))
-            headers.append(('X-Powered-By', 'Mouss Tec Ecosystem Engine'))
-            headers.append(('X-Server-Node', os.environ.get('NODE_NAME', 'Node-Prime-01')))
+            headers.append(('X-SaaS-Latency', f"{process_time:.4f}s"))
+            headers.append(('X-Powered-By', 'Mouss Tec Enterprise Engine'))
             
-            # منع الكاش לلـ APIs لضمان أقصى درجات الأمان المالي
             if '/api/' in path:
                 headers.append(('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
             
@@ -181,22 +209,20 @@ class MoussTecEnterpriseWrapper:
             return start_response(status, headers, exc_info)
 
         try:
-            # تمرير الطلب لـ Django الأساسي لمعالجته
             return self.application(environ, custom_start_response)
         
         except Exception as e:
-            # 🛡️ الدرع الواقي من الانهيار الكامل (API Crash Shield - Fail Gracefully)
-            self.logger.critical(f"🚨 [FATAL WSGI CRASH] Request {request_id} | Path {path}: {str(e)}")
+            # 🛡️ الدرع الواقي من الانهيار الكامل (Fail Gracefully)
+            self.logger.critical(f"🚨 [FATAL WSGI CRASH] Req {request_id} | Path {path}: {str(e)}")
             
             error_response = {
                 "error": "critical_system_failure",
-                "message": "Mouss Tec Core Engine intercepted a critical internal failure. Engineers have been notified.",
+                "message": "Mouss Tec Core intercepted a critical failure. Engineers notified.",
                 "request_id": request_id
             }
             
             status = '500 Internal Server Error'
-            headers = [('Content-Type', 'application/json')]
-            start_response(status, headers)
+            start_response(status, [('Content-Type', 'application/json')])
             return [json.dumps(error_response).encode('utf-8')]
 
 # =====================================================================

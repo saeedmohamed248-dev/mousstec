@@ -31,98 +31,86 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 def register_new_tenant_saas(request):
     """
-    يخلق مساحة عمل معزولة للورشة، يربط النطاق، ويزرع حساب الإدارة.
-    تم تجهيزه تلقائياً ليضع العميل على "باقة جولد" لمدة 3 أيام (حسب الـ Models).
+    محرك التأسيس السحابي (SaaS Onboarding Engine) مزود بنواة ضخ البيانات الذكية (Smart Seeding).
     """
     if request.method == 'POST':
         form = TenantSignupForm(request.POST)
         if form.is_valid():
             data = form.cleaned_data
             company_name = data['company_name']
+            business_type = data.get('business_type', 'service_center')
             
-            # 🚀 توليد الاسم المبدئي وتطهيره ميكانيكياً ليتوافق مع معايير شروط PostgreSQL
             subdomain_slug = slugify(company_name).replace('-', '_')
             if not subdomain_slug:
                 subdomain_slug = f"mt_{secrets.token_hex(3)}"
-            
-            # 🛡️ صمام أمان: إذا كان الاسم يبدأ برقم، ضع بادئة نصية لأن postgres يرفض أسماء الـ schemas البادئة بأرقام
             if subdomain_slug[0].isdigit():
                 subdomain_slug = f"tenant_{subdomain_slug}"
                 
             schema_name = subdomain_slug
-
             success = False
             attempts = 0
-            max_attempts = 10  # رفع سقف المحاولات لضمان التأسيس المرن
 
-            # 🛡️ محرك التكرار المرن لمنع التصادم في قاعدة البيانات
-            while not success and attempts < max_attempts:
+            while not success and attempts < 10:
                 try:
                     with transaction.atomic():
-                        # 1. إنشاء سجل الشركة والنطاق (الباقة ستصبح Gold تلقائياً من الـ Default)
+                        # 1. التأسيس السيادي للشركة
                         tenant = Client.objects.create(
                             schema_name=schema_name,
                             name=company_name,
                             owner_name=data.get('full_name', company_name),
                             email=data['email'],
                             phone=data.get('phone', ''),
+                            business_type=business_type,
                             is_active=True
                         )
                         
-                        # تعديل النطاق ليدعم الـ Slug النظيف الخالي من الشرطات العادية المتصادمة
                         url_safe_slug = schema_name.replace('_', '-')
-                        Domain.objects.create(
-                            domain=f"{url_safe_slug}.mousstec.com",
-                            tenant=tenant,
-                            is_primary=True
-                        )
+                        Domain.objects.create(domain=f"{url_safe_slug}.mousstec.com", tenant=tenant, is_primary=True)
 
-                        # 2. زراعة حساب المدير والبروفايل داخل الـ Schema الجديدة
+                        # 2. بناء الداتا الداخلية (Smart Context)
                         with schema_context(schema_name):
                             name_parts = data['full_name'].split(' ', 1)
-                            first_name = name_parts[0]
-                            last_name = name_parts[1] if len(name_parts) > 1 else ''
-                            
                             new_admin = User.objects.create_superuser(
                                 username=data['email'],
                                 email=data['email'],
                                 password=data['password'],
-                                first_name=first_name,
-                                last_name=last_name
+                                first_name=name_parts[0],
+                                last_name=name_parts[1] if len(name_parts) > 1 else ''
                             )
                             
                             try:
-                                from inventory.models import EmployeeProfile
-                                EmployeeProfile.objects.get_or_create(
-                                    user=new_admin,
-                                    defaults={'role': 'admin', 'can_edit_posted_invoices': True}
-                                )
+                                from inventory.models import EmployeeProfile, ProductCategory
+                                EmployeeProfile.objects.get_or_create(user=new_admin, defaults={'role': 'admin', 'can_edit_posted_invoices': True})
+                                
+                                # 🌱 ابتكار: Smart Seeding (تهيئة النظام آلياً بناءً على نشاط العميل)
+                                if business_type in ['service_center', 'both']:
+                                    ProductCategory.objects.get_or_create(name='أجور مصنعيات وخدمات', is_service=True)
+                                elif business_type == 'parts_dealer':
+                                    ProductCategory.objects.get_or_create(name='قطع غيار ميكانيكا', is_service=False)
+                                    ProductCategory.objects.get_or_create(name='زيوت وفلاتر', is_service=False)
                             except ImportError:
-                                pass # تجاوز آمن إذا لم يتم بناء تطبيق الـ inventory بعد
-                    
+                                pass # التجاوز الآمن لو لم يتم عمل Migrate بعد
+                                
                     success = True
 
                 except Exception as e:
-                    error_msg = str(e).lower()
-                    if "already exists" in error_msg or "unique constraint" in error_msg:
+                    if "already exists" in str(e).lower() or "unique constraint" in str(e).lower():
                         attempts += 1
-                        suffix = secrets.token_hex(2)
-                        schema_name = f"{subdomain_slug}_{suffix}"
+                        schema_name = f"{subdomain_slug}_{secrets.token_hex(2)}"
                     else:
                         logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
-                        form.add_error(None, f"🛑 فشل تأسيس السيرفر: {str(e)}")
+                        form.add_error(None, "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً.")
                         return render(request, 'clients/signup_register.html', {'form': form})
 
             if success:
                 url_safe_final = schema_name.replace('_', '-')
-                target_url = f"https://{url_safe_final}.mousstec.com/{ADMIN_URL}/"
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': target_url,
+                    'target_url': f"https://{url_safe_final}.mousstec.com/{ADMIN_URL}/",
                     'admin_email': data['email']
                 })
             else:
-                form.add_error(None, "🛑 فشل التأسيس: تم استنفاد كافة محاولات التسمية التلقائية الآمنة.")
+                form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
     else:
         form = TenantSignupForm()
 
@@ -132,19 +120,13 @@ def register_new_tenant_saas(request):
 # 🌍 2. واجهة الإمبراطورية المفتوحة (Public SaaS Landing Page)
 # =====================================================================
 def mousstec_landing_page(request):
-    total_clients = Client.objects.filter(is_active=True).count()
-    verified_merchants = Client.objects.filter(is_verified_merchant=True).count()
-    total_parts_in_market = GlobalB2BMarketplace.objects.aggregate(Sum('available_qty'))['available_qty__sum'] or 0
-    successful_bids = BlindBiddingRequest.objects.filter(status='completed').count()
-    
-    context = {
-        'total_clients': max(total_clients, 1), 
-        'verified_merchants': verified_merchants,
-        'total_parts': total_parts_in_market,
-        'successful_bids': successful_bids,
+    return render(request, 'clients/landing.html', {
+        'total_clients': max(Client.objects.filter(is_active=True).count(), 1), 
+        'verified_merchants': Client.objects.filter(is_verified_merchant=True).count(),
+        'total_parts': GlobalB2BMarketplace.objects.aggregate(Sum('available_qty'))['available_qty__sum'] or 0,
+        'successful_bids': BlindBiddingRequest.objects.filter(status='completed').count(),
         'system_uptime': "99.99%",
-    }
-    return render(request, 'clients/landing.html', context)
+    })
 
 # =====================================================================
 # 🌐 3. الموزع المركزي للإشعارات الخارجية (FinTech Webhook Multiplexer)
@@ -152,319 +134,200 @@ def mousstec_landing_page(request):
 @csrf_exempt
 def universal_webhook_multiplexer(request):
     """
-    بوابة استقبال إشعارات بوابات الدفع مع حماية من الاحتيال والتكرار.
+    بوابة FinTech محصنة: تمنع التكرار (Idempotency) وتطبق سياسات مكافحة غسيل الأموال (AML).
     """
     if request.method != 'POST': return HttpResponseForbidden("POST Only")
     
+    # 🛡️ الحماية السيبرانية: توثيق مصدر الـ Webhook (يجب تفعيله في الـ Production)
+    # expected_sig = request.headers.get('STRIPE_SIGNATURE', '')
+    # if not verify_stripe_signature(request.body, expected_sig): return HttpResponseForbidden()
+    
     try:
         payload = json.loads(request.body)
-        event_id = payload.get('id', 'evt_' + str(uuid.uuid4().hex[:12]))
-        event_type = payload.get('type', 'unknown')
+        event_id = payload.get('id', f'evt_{uuid.uuid4().hex[:12]}')
         
-        # 🛡️ درع منع التكرار (Idempotency)
-        cache_key = f"webhook_processed_{event_id}"
-        if cache.get(cache_key):
-            logger.warning(f"⏳ FinTech Safety: Webhook {event_id} already processed. Skipping.")
-            return JsonResponse({"status": "duplicate", "message": "Already processed safely."})
+        if cache.get(f"webhook_processed_{event_id}"):
+            return JsonResponse({"status": "duplicate"})
         
-        if event_type == 'payment_intent.succeeded':
+        if payload.get('type') == 'payment_intent.succeeded':
             client_id = payload['data']['metadata']['client_id']
             amount = Decimal(str(payload['data']['amount_received'])) / 100
             
             with transaction.atomic():
                 tenant = Client.objects.select_for_update().get(id=client_id)
-                tenant.wallet_balance = F('wallet_balance') + amount
-                tenant.save(update_fields=['wallet_balance'])
                 
-                EscrowLedger.objects.create(
-                    client=tenant, transaction_type='deposit', amount=amount,
-                    description=f"إيداع مالي سحابي موثق إلكترونياً (Ref: {event_id})"
-                )
+                # 🚀 ابتكار AML (مكافحة الاحتيال): إذا كان المبلغ ضخماً جداً، يتم تعليقه لحين المراجعة اليدوية
+                if amount > Decimal('100000'):
+                    logger.warning(f"🚨 [AML ALERT]: Large suspicious deposit of {amount} for {tenant.schema_name}.")
+                    EscrowLedger.objects.create(client=tenant, transaction_type='hold', amount=amount, description=f"إيداع معلق للمراجعة الأمنية ({event_id})")
+                    tenant.is_fraud_flagged = True
+                    tenant.save(update_fields=['is_fraud_flagged'])
+                else:
+                    tenant.wallet_balance = F('wallet_balance') + amount
+                    tenant.save(update_fields=['wallet_balance'])
+                    EscrowLedger.objects.create(client=tenant, transaction_type='deposit', amount=amount, description=f"إيداع سحابي ({event_id})")
             
-            cache.set(cache_key, "processed", timeout=86400)
-            logger.info(f"💰 FinTech Alert: {amount} EGP credited to {tenant.name} wallet.")
-            return JsonResponse({"status": "success", "message": "Payment secured."})
+            cache.set(f"webhook_processed_{event_id}", "processed", timeout=86400)
+            return JsonResponse({"status": "success"})
 
-        return JsonResponse({"status": "ignored", "reason": "Unhandled event"})
-        
+        return JsonResponse({"status": "ignored"})
     except Exception as e:
-        logger.error(f"🚨 Webhook Multiplexer Critical Failure: {e}")
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error(f"🚨 Webhook Failure: {e}")
+        return JsonResponse({"error": "Internal Error"}, status=500)
 
 # =====================================================================
 # 🛒 4. محرك بحث سوق التجار (B2B Global Search API)
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def b2b_market_search_api(request):
-    current_schema = connection.schema_name
-    if current_schema == 'public' and not request.user.is_superuser:
-        return JsonResponse({"error": "غير مصرح بدخول الشبكة التجارية."}, status=403)
+    if connection.schema_name == 'public' and not request.user.is_superuser:
+        return JsonResponse({"error": "غير مصرح"}, status=403)
 
     part_number = request.GET.get('part_number', '').strip()
-    if not part_number:
-        return JsonResponse({"error": "برجاء تزويد رقم القطعة."}, status=400)
+    if not part_number: return JsonResponse({"error": "برجاء تزويد رقم القطعة"}, status=400)
 
     results = GlobalB2BMarketplace.objects.filter(
-        part_number__iexact=part_number,
-        available_qty__gt=0,
-        tenant__is_active=True,
-        tenant__is_marketplace_active=True,
-        tenant__is_fraud_flagged=False
-    ).select_related('tenant').order_by('-tenant__is_verified_merchant', 'wholesale_price')[:10]
+        part_number__iexact=part_number, available_qty__gt=0, 
+        tenant__is_active=True, tenant__is_marketplace_active=True, tenant__is_fraud_flagged=False
+    ).select_related('tenant').order_by('-tenant__is_verified_merchant', 'wholesale_price')[:15]
 
     data = [{
-        "rank": rank + 1,
-        "dealer_name": item.tenant.name,
-        "is_verified": item.tenant.is_verified_merchant,
-        "rating": float(item.tenant.market_rating or 5.0),
-        "ai_confidence": item.ai_quality_confidence, 
-        "price": float(item.wholesale_price),
-        "qty_available": item.available_qty,
-    } for rank, item in enumerate(results)]
+        "dealer_name": item.tenant.name, "is_verified": item.tenant.is_verified_merchant,
+        "rating": float(item.tenant.market_rating or 5.0), "price": float(item.wholesale_price), 
+        "qty_available": item.available_qty, "condition": item.get_condition_display()
+    } for item in results]
 
     return JsonResponse({"status": "success", "results_count": len(data), "dealers": data})
 
 # =====================================================================
-# ⚖️ 5. محرك المزادات العكسية والترسية الذكية (Smart Blind Bidding Engine)
+# ⚖️ 5. محرك المزادات العكسية والترسية الذكية (Dynamic Blind Bidding)
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def active_blind_bids_api(request):
-    active_bids = BlindBiddingRequest.objects.filter(
-        status='open', expires_at__gt=timezone.now()
-    ).select_related('buyer').order_by('-created_at')
-
-    data = [{
-        "bid_id": bid.id,
-        "part_number": bid.part_number,
-        "required_qty": bid.required_qty,
-        "buyer_name": "مشتري سري" if bid.auto_award else bid.buyer.name, 
-        "expires_in_minutes": int((bid.expires_at - timezone.now()).total_seconds() / 60)
-    } for bid in active_bids]
-
-    return JsonResponse({"status": "success", "active_bids_count": len(data), "bids": data})
+    active_bids = BlindBiddingRequest.objects.filter(status='open', expires_at__gt=timezone.now()).select_related('buyer').order_by('-created_at')
+    data = [{"bid_id": b.id, "part_number": b.part_number, "required_qty": b.required_qty, "buyer_name": "مشتري سري" if b.auto_award else b.buyer.name, "urgency": "High" if (b.expires_at - timezone.now()).total_seconds() < 7200 else "Normal"} for b in active_bids]
+    return JsonResponse({"status": "success", "bids": data})
 
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def submit_bid_offer_api(request):
     """
-    محرك تقديم العروض مع الذكاء الاصطناعي لحساب درجة المطابقة، 
-    والحماية المالية الصارمة لمنع الـ Race Conditions قبل الترسية الآلية.
+    🚀 ابتكار الذكاء التنافسي: وزن الخوارزمية يتغير ديناميكياً بناءً على سرعة التوصيل وعمر المزاد.
     """
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
-    if getattr(request, 'tenant', None) is None or request.tenant.schema_name == 'public':
-        return JsonResponse({"error": "للشركات المفعلة فقط."}, status=403)
+    if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public': return JsonResponse({"error": "للشركات فقط"}, status=403)
 
     try:
         data = json.loads(request.body)
-        bid_id = data.get('bid_id')
-        offer_price = Decimal(str(data.get('offer_price', 0)))
-        delivery_days = int(data.get('delivery_days', 1))
+        bid_id, offer_price, delivery_days = data.get('bid_id'), Decimal(str(data.get('offer_price', 0))), int(data.get('delivery_days', 1))
 
         with transaction.atomic():
             bid = get_object_or_404(BlindBiddingRequest.objects.select_for_update(), id=bid_id, status='open')
-            
-            # 🚀 تصحيح الثغرة: قفل صف المشتري حصرلياً لمنع الـ Race Condition وتضارب الحسابات المالية
             buyer_tenant = Client.objects.select_for_update().get(id=bid.buyer_id)
             seller_tenant = request.tenant
             
-            if buyer_tenant == seller_tenant:
-                return JsonResponse({"error": "قانون المنصة يمنع المزايدة على طلباتك الشخصية."}, status=400)
+            if buyer_tenant == seller_tenant: return JsonResponse({"error": "لا يمكنك المزايدة على طلبك"}, status=400)
 
-            # 🤖 الابتكار: حساب الـ AI Match Score (السعر + سرعة التوصيل + ثقة التاجر)
+            # 🤖 خوارزمية الترسية الديناميكية (Dynamic Weights)
             target = bid.target_price or offer_price
-            price_score = min((target / offer_price) * 30, 30) if offer_price > 0 else 0
-            delivery_score = max(20 - (delivery_days * 2), 0)
-            trust_score = (getattr(seller_tenant, 'ai_trust_score', 100) / 100) * 50
+            base_price_score = min((target / offer_price) * 100, 100) if offer_price > 0 else 0
             
-            final_match_score = Decimal(str(price_score + delivery_score + trust_score))
+            # إذا كان التوصيل فورياً (0 أو 1 يوم)، نعطي وزن التوصيل أولوية قصوى (50%)، السعر (30%)، الثقة (20%)
+            if delivery_days <= 1:
+                final_match_score = Decimal(str((base_price_score * 0.3) + 50 + ((getattr(seller_tenant, 'ai_trust_score', 100) / 100) * 20)))
+            else:
+                # وزن عادي: سعر (50%)، ثقة (30%)، توصيل (20%)
+                del_score = max(20 - (delivery_days * 2), 0)
+                final_match_score = Decimal(str((base_price_score * 0.5) + del_score + ((getattr(seller_tenant, 'ai_trust_score', 100) / 100) * 30)))
 
-            offer, created = BidOffer.objects.update_or_create(
-                bidding_request=bid, seller=seller_tenant,
-                defaults={
-                    'offer_price': offer_price, 
-                    'estimated_delivery_days': delivery_days,
-                    'ai_match_score': final_match_score
-                }
-            )
+            offer, _ = BidOffer.objects.update_or_create(bidding_request=bid, seller=seller_tenant, defaults={'offer_price': offer_price, 'estimated_delivery_days': delivery_days, 'ai_match_score': final_match_score})
 
             if not bid.ai_recommended_winner or final_match_score > bid.ai_recommended_winner.ai_match_score:
                 bid.ai_recommended_winner = offer
                 bid.save(update_fields=['ai_recommended_winner'])
 
-            # 🛡️ الحماية المالية والترسية الآلية
+            # التنفيذ المالي والمقاصة
             if bid.auto_award and bid.target_price and offer_price <= bid.target_price:
-                total_parts_cost = offer_price * bid.required_qty
-                platform_fee_rate = getattr(buyer_tenant, 'platform_fee_rate', Decimal('2.5'))
-                platform_fee = total_parts_cost * (platform_fee_rate / Decimal('100.0'))
-                total_escrow_required = total_parts_cost + platform_fee
-
-                # 🚨 التحقق الصارم والمؤمن من رصيد المحفظة
-                if buyer_tenant.wallet_balance >= total_escrow_required:
-                    bid.status = 'escrow_held'
-                    bid.winner = seller_tenant
-                    bid.winning_price = offer_price
-                    bid.platform_fee_collected = platform_fee
-                    bid.save(update_fields=['status', 'winner', 'winning_price', 'platform_fee_collected'])
-                    
+                total_req = (offer_price * bid.required_qty) * (Decimal('1') + getattr(buyer_tenant, 'platform_fee_rate', Decimal('2.5')) / 100)
+                if buyer_tenant.wallet_balance >= total_req:
+                    bid.status, bid.winner, bid.winning_price = 'escrow_held', seller_tenant, offer_price
+                    bid.save(update_fields=['status', 'winner', 'winning_price'])
                     offer.is_winner = True
                     offer.save(update_fields=['is_winner'])
-                    
-                    # خصم وحجز أموال الضمان بامان كامل
-                    buyer_tenant.wallet_balance -= total_escrow_required
-                    buyer_tenant.escrow_held += total_escrow_required
+                    buyer_tenant.wallet_balance -= total_req
+                    buyer_tenant.escrow_held += total_req
                     buyer_tenant.save(update_fields=['wallet_balance', 'escrow_held'])
-                    
-                    EscrowLedger.objects.create(
-                        client=buyer_tenant, bidding_request=bid, transaction_type='hold', 
-                        amount=total_escrow_required, description=f"تجميد ضمان المزاد #{str(bid.request_id)[:8]}"
-                    )
-                    
-                    return JsonResponse({
-                        "status": "auto_awarded",
-                        "message": "🔥 تم قبول عرضك وترسية المزاد. تم حجز أموال المشتري في الضمان!"
-                    })
-                else:
-                    logger.warning(f"⚠️ فشل الترسية الآلية للمزاد {bid.id}: رصيد المشتري لا يكفي.")
+                    EscrowLedger.objects.create(client=buyer_tenant, bidding_request=bid, transaction_type='hold', amount=total_req, description=f"ضمان مزاد #{bid.id}")
+                    return JsonResponse({"status": "auto_awarded", "message": "تم الترسية وحجز الضمان!"})
 
-        return JsonResponse({
-            "status": "success", 
-            "ai_score": float(final_match_score),
-            "message": "تم تقديم عرضك المالي بنجاح."
-        })
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        return JsonResponse({"status": "success", "message": "تم تقديم عرضك بنجاح.", "ai_score": float(final_match_score)})
+    except Exception as e: return JsonResponse({"error": str(e)}, status=500)
 
 # =====================================================================
-# 🛡️ 6. محفظة الضامن المالي ودفتر الأستاذ (FinTech Escrow Ledger)
+# 🛡️ 6. محفظة الضامن المالي (Escrow Ledger)
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def my_escrow_wallet_api(request):
-    if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
-        return JsonResponse({"error": "متاح للمؤسسات فقط."}, status=403)
-
-    tenant = request.tenant
-    recent_transactions = EscrowLedger.objects.filter(client=tenant).order_by('-created_at')[:10]
-    
-    ledger_data = [{
-        "type": t.transaction_type,
-        "amount": float(t.amount),
-        "desc": t.description,
-        "date": t.created_at.strftime("%Y-%m-%d %H:%M")
-    } for t in recent_transactions]
-
-    return JsonResponse({
-        "status": "success",
-        "wallet": {
-            "available_to_withdraw": float(tenant.wallet_balance),
-            "held_in_escrow": float(tenant.escrow_held), 
-            "total_assets": float(tenant.wallet_balance + tenant.escrow_held)
-        },
-        "recent_ledger_entries": ledger_data
-    })
+    if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public': return JsonResponse({"error": "متاح للمؤسسات فقط."}, status=403)
+    return JsonResponse({"status": "success", "wallet": {"available": float(request.tenant.wallet_balance), "held": float(request.tenant.escrow_held)}})
 
 # =====================================================================
-# 🌍 7. رادار التنبؤ بطلب السوق (Advanced Market Demand AI Predictor)
+# 🌍 7. رادار التنبؤ (Advanced Market Demand AI Predictor)
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def market_demand_predictor_api(request):
     """
-    🚀 B2B Elastic Pricing Bands.
-    يعطي التاجر نطاقات الأسعار التنافسية لضمان عدم الخسارة في المزادات.
+    🚀 ابتكار: استبعاد القيم الشاذة (Outliers) لحساب متوسط الأسعار بدقة أعلى.
     """
-    thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
     
     trending_parts = BlindBiddingRequest.objects.filter(created_at__gte=thirty_days_ago, status__in=['completed', 'escrow_held']) \
-        .values('part_number') \
-        .annotate(
-            request_count=Count('id'), 
-            total_qty_demanded=Sum('required_qty'),
-            avg_win_price=Avg('winning_price'),
-            min_win_price=Min('winning_price'),
-            max_win_price=Max('winning_price')
-        ).order_by('-request_count')[:5]
+        .values('part_number').annotate(request_count=Count('id'), avg_win_price=Avg('winning_price'), min_win_price=Min('winning_price'), max_win_price=Max('winning_price')).order_by('-request_count')[:5]
 
     data = []
     for part in trending_parts:
-        req_count = part['request_count']
-        scarcity_status = "🔥 عجز وعقم شديد بالأسواق" if req_count > 10 else "📈 طلب مرتفع سريع الدوران"
-        
+        # استبعاد التذبذبات السعرية الوهمية من الرادار
+        if part['max_win_price'] > (part['avg_win_price'] * Decimal('3.0')):
+            part['max_win_price'] = part['avg_win_price'] * Decimal('1.5')
+
         data.append({
             "part_number": part['part_number'],
-            "demand_heat_index": req_count,
-            "market_scarcity": scarcity_status,
+            "demand_heat": part['request_count'],
             "pricing_band": {
-                "lowest_accepted": float(part['min_win_price']) if part['min_win_price'] else 0,
-                "highest_accepted": float(part['max_win_price']) if part['max_win_price'] else 0,
-                "ai_suggested_avg": float(part['avg_win_price']) if part['avg_win_price'] else 0
+                "lowest": float(part['min_win_price']) if part['min_win_price'] else 0,
+                "highest": float(part['max_win_price']) if part['max_win_price'] else 0,
+                "suggested": float(part['avg_win_price']) if part['avg_win_price'] else 0
             }
         })
-
-    return JsonResponse({
-        "status": "success",
-        "intelligence_report": "نوصي بضخ هذه المكونات في مستودعاتك لتحقيق أعلى عوائد بناءً على التسعير الديناميكي.",
-        "trending_parts": data
-    })
+    return JsonResponse({"status": "success", "trending_parts": data})
 
 # =====================================================================
-# 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Upgrades)
+# 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
 def saas_pricing_page(request):
-    """
-    بوابة الدفع المركزية للمنصة وتجديد الاشتراكات الشهرية.
-    """
     shop_schema = request.GET.get('shop', '')
-    tenant = None
-    
-    if shop_schema:
-        tenant = Client.objects.filter(schema_name=shop_schema).first()
+    tenant = Client.objects.filter(schema_name=shop_schema).first() if shop_schema else None
 
     if request.method == 'POST':
         selected_plan = request.POST.get('plan')
-        shop_schema_post = request.POST.get('shop')
+        target_tenant = Client.objects.filter(schema_name=request.POST.get('shop')).first()
         
-        target_tenant = Client.objects.filter(schema_name=shop_schema_post).first()
+        valid_plans = [c[0] for c in getattr(Client, 'SUBSCRIPTION_CHOICES', [('silver','S'), ('gold','G'), ('empire','E')])]
         
-        if not target_tenant:
-            messages.error(request, "🛑 لم نتمكن من العثور على بيانات مركزك. يرجى التأكد من الرابط.")
-            return redirect('saas_pricing')
-
-        # التحقق من صحة الباقة وتطبيق منطق التجديد المالي
-        valid_plans = [choice[0] for choice in getattr(Client, 'SUBSCRIPTION_CHOICES', [('silver', 'Silver'), ('gold', 'Gold'), ('empire', 'Empire')])]
-        if selected_plan in valid_plans:
+        if target_tenant and selected_plan in valid_plans:
             with transaction.atomic():
-                target_tenant.plan = selected_plan
-                target_tenant.status = 'active'
+                target_tenant.plan, target_tenant.status = selected_plan, 'active'
+                base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
                 
-                # حساب التاريخ الآمن تبعا للمنطقة الزمنية لتفادي أخطاء فروق الأيام
-                current_end = target_tenant.subscription_end_date
-                base_date = timezone.localdate()
-                if current_end and current_end > base_date:
-                    base_date = current_end
-                    
-                target_tenant.subscription_end_date = base_date + timedelta(days=30)
+                # 🚀 ابتكار (Churn Prevention): مكافأة ولاء - إعطاء 5 أيام مجانية إضافية عند التجديد المبكر
+                bonus_days = 5 if (target_tenant.subscription_end_date and target_tenant.subscription_end_date > timezone.localdate()) else 0
+                target_tenant.subscription_end_date = base_date + timedelta(days=30 + bonus_days)
+                
                 target_tenant.save()
-                
-                logger.info(f"💰 [SUBSCRIPTION RENEWED]: Tenant '{target_tenant.schema_name}' upgraded to {selected_plan} plan until {target_tenant.subscription_end_date}.")
-                
-                # توجيه المشتري تلقائياً بعد الفرز إلى لوحة تحكم ورشته المعزولة
-                url_safe_slug = target_tenant.schema_name.replace('_', '-')
-                tenant_url = f"https://{url_safe_slug}.mousstec.com/{ADMIN_URL}/"
-                return redirect(tenant_url)
-        else:
-            messages.error(request, "🛑 الباقة المختارة غير صحيحة.")
+                return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}.mousstec.com/{ADMIN_URL}/")
+        messages.error(request, "🛑 فشل تنفيذ عملية الاشتراك.")
 
-    pricing_data = {
-        'silver': {'price': 400, 'branches': 1, 'users': 2, 'cards': 150},
-        'gold': {'price': 1200, 'branches': 2, 'users': 5, 'cards': 'غير محدود'},
-        'empire': {'price': 3000, 'branches': 'غير محدود', 'users': 'غير محدود', 'cards': 'غير محدود'},
-        'addon_branch': 300,
-        'addon_user': 50
-    }
-
-    context = {
-        'tenant': tenant,
-        'shop': shop_schema,
-        'pricing': pricing_data
-    }
-    
-    return render(request, 'clients/pricing.html', context)
+    return render(request, 'clients/pricing.html', {
+        'tenant': tenant, 'shop': shop_schema,
+        'pricing': {'silver': {'price': 400}, 'gold': {'price': 1200}, 'empire': {'price': 3000}}
+    })

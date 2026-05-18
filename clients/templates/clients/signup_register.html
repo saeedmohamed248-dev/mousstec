@@ -25,23 +25,30 @@
             border-radius: 24px;
             padding: 40px;
             width: 100%;
-            max-width: 650px;
+            max-width: 700px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
         }
-.brand-logo {
-    font-size: 28px;
-    font-weight: 900;
-    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-    -webkit-background-clip: text;
-    background-clip: text; /* 💡 هذا هو السطر الذي يجب إضافته */
-    -webkit-text-fill-color: transparent;
-    text-align: center;
-    margin-bottom: 5px;
-}
+        /* تأثير الإضاءة العلوية */
+        .signup-container::before {
+            content: ''; position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 100px; background: rgba(139, 92, 246, 0.4); filter: blur(60px); z-index: -1;
+        }
+        .brand-logo {
+            font-size: 28px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin-bottom: 5px;
+        }
         .form-label {
             font-weight: 700;
             color: #cbd5e1;
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 8px;
         }
         .form-control, .form-select {
@@ -52,32 +59,37 @@
             padding: 12px 16px;
             font-weight: 600;
             transition: all 0.3s ease;
+            font-size: 14px;
         }
         .form-control:focus, .form-select:focus {
             border-color: #8b5cf6 !important;
             box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15) !important;
             outline: none;
         }
+        /* 🚀 هندسة حقل النطاق الفرعي */
         .subdomain-input-group {
             position: relative;
             display: flex;
             align-items: center;
             direction: ltr; 
         }
-        /* ✅ تصحيح هندسة الحواف المتصلة في وضع الـ LTR */
         .subdomain-input-group .form-control {
             border-radius: 12px 0 0 12px !important; 
             text-align: left;
             border-right: none !important;
+            font-family: monospace;
+            font-size: 15px;
+            color: #38bdf8 !important;
         }
         .subdomain-addon {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 0 12px 12px 0 !important; 
             padding: 12px 15px;
-            color: #38bdf8;
+            color: #94a3b8;
             font-weight: 700;
             white-space: nowrap;
+            font-family: monospace;
         }
         .btn-submit {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
@@ -89,11 +101,18 @@
             color: white;
             transition: all 0.3s ease;
             box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            position: relative;
+            overflow: hidden;
         }
-        .btn-submit:hover {
+        .btn-submit:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(79, 70, 229, 0.5);
             filter: brightness(1.1);
+        }
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            background: #475569;
         }
         .error-banner {
             background: rgba(239, 68, 68, 0.1);
@@ -101,15 +120,28 @@
             color: #fca5a5;
             border-radius: 12px;
             padding: 15px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
         }
         .field-error {
             color: #f87171;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             margin-top: 5px;
             display: block;
+        }
+        /* 🔐 مؤشر قوة الباسوورد */
+        .password-meter {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .meter-bar {
+            height: 4px;
+            flex: 1;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
         }
     </style>
 </head>
@@ -117,21 +149,26 @@
 
 <div class="signup-container">
     <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
-    <p class="text-center text-muted font-weight-bold mb-4" style="font-size: 14px;">انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ</p>
+    <p class="text-center text-slate-400 font-weight-bold mb-4" style="font-size: 13px;">انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ</p>
 
     <form method="POST" autocomplete="off" id="tenantSignupForm">
         {% csrf_token %}
 
+        <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+            <label for="id_website_url_honeypot">Leave this empty</label>
+            {{ form.website_url_honeypot }}
+        </div>
+
         {% if form.non_field_errors %}
             <div class="error-banner mb-4">
                 {% for error in form.non_field_errors %}
-                    <i class="fas fa-exclamation-triangle"></i> {{ error }}
+                    <i class="fas fa-exclamation-triangle"></i> {{ error }}<br>
                 {% endfor %}
             </div>
         {% endif %}
 
         <div class="row">
-            <h5 class="font-weight-bold mb-3" style="color: #a7f3d0;"><i class="fas fa-building"></i> 1. بيانات المؤسسة والفرع</h5>
+            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> 1. بيانات المؤسسة والفرع</h5>
             
             <div class="col-md-6 mb-3">
                 <label class="form-label">اسم المركز أو الشركة</label>
@@ -146,18 +183,18 @@
             </div>
 
             <div class="col-12 mb-3" style="direction: rtl; text-align: right;">
-                <label class="form-label">رابط النظام المحمي الخاص بك</label>
+                <label class="form-label">رابط النظام المحمي (Subdomain)</label>
                 <div class="subdomain-input-group">
                     {{ form.subdomain }}
                     <span class="subdomain-addon">.mousstec.com</span>
                 </div>
-                <small class="text-slate-400 d-block mt-1">اكتب اسماً فريداً بالإنجليزية بدون مسافات أو رموز (مثال: mouss-service).</small>
+                <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto).</small>
                 {% if form.subdomain.errors %}<span class="field-error">{{ form.subdomain.errors.0 }}</span>{% endif %}
             </div>
 
-            <hr class="my-4" style="border-color: rgba(255,255,255,0.1);">
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.05);">
 
-            <h5 class="font-weight-bold mb-3" style="color: #c084fc;"><i class="fas fa-user-shield"></i> 2. حساب المدير المسؤول (Root Admin)</h5>
+            <h5 class="font-weight-bold mb-3 mt-2" style="color: #c084fc; font-size: 15px;"><i class="fas fa-user-shield"></i> 2. حساب المدير المسؤول (Root Admin)</h5>
 
             <div class="col-md-6 mb-3">
                 <label class="form-label">الاسم بالكامل</label>
@@ -180,11 +217,17 @@
             <div class="col-md-6 mb-3">
                 <label class="form-label">كلمة المرور للنظام</label>
                 {{ form.password }}
+                <div class="password-meter" id="passMeter">
+                    <div class="meter-bar" id="bar1"></div>
+                    <div class="meter-bar" id="bar2"></div>
+                    <div class="meter-bar" id="bar3"></div>
+                </div>
+                <small class="text-slate-400" id="passHint" style="font-size: 10px; display: none;"></small>
                 {% if form.password.errors %}<span class="field-error">{{ form.password.errors.0 }}</span>{% endif %}
             </div>
         </div>
 
-        <button type="submit" class="btn btn-submit w-100 mt-4">
+        <button type="submit" id="submitBtn" class="btn btn-submit w-100 mt-3">
             <i class="fas fa-rocket"></i> إطلاق وتأسيس الخادم المعزول
         </button>
     </form>
@@ -192,16 +235,71 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // 🧠 ابتكار: مطهر النطاقات الفرعية لمنع أخطاء الـ URL والمسافات العشوائية لايف
     document.addEventListener('DOMContentLoaded', function() {
+        
+        // 1. 🧠 مطهر النطاقات الفرعية (Live Subdomain Sanitizer)
         const subdomainInput = document.querySelector('input[name="subdomain"]') || document.querySelector('[id*="subdomain"]');
+        const companyInput = document.querySelector('input[name="company_name"]') || document.querySelector('[id*="company_name"]');
+        
         if (subdomainInput) {
             subdomainInput.addEventListener('input', function(e) {
                 let sanitized = e.target.value
-                    .toLowerCase()                     // تحويل الحروف لـ Small
-                    .replace(/\s+/g, '-')              // استبدال أي مسافة بـ داش
-                    .replace(/[^a-z0-9\-]/g, '');      // حذف أي رموز خاصة أو حروف عربية تمنع عمل الرابط
+                    .toLowerCase()
+                    .replace(/\s+/g, '-')              // مسافة = داش
+                    .replace(/[^a-z0-9\-]/g, '')       // حذف الرموز والعربي
+                    .replace(/^-+/, '')                // منع الداش في البداية
+                    .replace(/-{2,}/g, '-');           // منع 2 داش ورا بعض
                 e.target.value = sanitized;
+            });
+
+            // 🚀 التوليد التلقائي للرابط إذا كان فارغاً وبدأ العميل بكتابة اسم شركة إنجليزي
+            if(companyInput) {
+                companyInput.addEventListener('input', function(e) {
+                    if (!subdomainInput.value || subdomainInput.value.length < 3) {
+                        let autoSlug = e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+                        if(autoSlug) subdomainInput.value = autoSlug;
+                    }
+                });
+            }
+        }
+
+        // 2. 🔐 رادار قوة كلمة المرور (Password Entropy Meter)
+        const passInput = document.querySelector('input[name="password"]') || document.querySelector('[type="password"]');
+        const bar1 = document.getElementById('bar1');
+        const bar2 = document.getElementById('bar2');
+        const bar3 = document.getElementById('bar3');
+        const passHint = document.getElementById('passHint');
+
+        if (passInput) {
+            passInput.addEventListener('input', function(e) {
+                const val = e.target.value;
+                let strength = 0;
+                
+                if (val.length >= 8) strength++;
+                if (val.match(/[a-zA-Z]/) && val.match(/[0-9]/)) strength++;
+                if (val.match(/[^a-zA-Z0-9]/)) strength++; // رموز خاصة
+
+                bar1.style.background = strength >= 1 ? '#ef4444' : 'rgba(255,255,255,0.1)'; // أحمر (ضعيف)
+                bar2.style.background = strength >= 2 ? '#f59e0b' : 'rgba(255,255,255,0.1)'; // أصفر (متوسط)
+                bar3.style.background = strength >= 3 ? '#10b981' : 'rgba(255,255,255,0.1)'; // أخضر (قوي)
+
+                passHint.style.display = 'block';
+                if (strength === 0) passHint.innerText = 'أدخل 8 رموز على الأقل.';
+                else if (strength === 1) { passHint.innerText = 'كلمة مرور ضعيفة، أضف حروف وأرقام.'; passHint.style.color = '#ef4444'; }
+                else if (strength === 2) { passHint.innerText = 'كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى.'; passHint.style.color = '#f59e0b'; }
+                else { passHint.innerText = 'كلمة مرور قوية جداً ومحمية!'; passHint.style.color = '#10b981'; }
+            });
+        }
+
+        // 3. ⚡ زر الإطلاق الذكي المانع للتكرار (Anti-Double-Submit)
+        const form = document.getElementById('tenantSignupForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if(form && submitBtn) {
+            form.addEventListener('submit', function() {
+                // تحويل الزر لوضعية التحميل لمنع نقرات الـ Race Condition
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري بناء الداتا بيز وتأسيس الخادم...';
             });
         }
     });

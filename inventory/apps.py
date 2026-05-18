@@ -81,7 +81,7 @@ def check_enterprise_configuration(app_configs, **kwargs):
                     id='mousstec.E001',
                 )
             )
-            
+
     # 7. 🚀 فحص محرك المهام غير المتزامنة (Celery Queue Sync)
     if not getattr(settings, 'CELERY_BROKER_URL', None):
         errors.append(
@@ -92,101 +92,116 @@ def check_enterprise_configuration(app_configs, **kwargs):
             )
         )
 
+    # 8. 🛡️ فحص حماية بوابات الدفع (FinTech Webhook Security Check)
+    if not settings.DEBUG and not getattr(settings, 'CORS_ALLOWED_ORIGINS', None):
+        errors.append(
+            Warning(
+                '🌐 جدار حماية הـ CORS غير مقيد في بيئة الإنتاج.',
+                hint='يجب تقييد CORS_ALLOWED_ORIGINS لمنع هجمات Cross-Site Scripting على بوابات הـ APIs.',
+                id='mousstec.W005',
+            )
+        )
+
     return errors
 
 
 # =====================================================================
-# 📦 2. إعدادات تطبيق المخزون والمحرك الخلفي (App Config)
+# 📦 2. إعدادات تطبيق المخزون والمحرك الخلفي (Enterprise App Config)
 # =====================================================================
 class InventoryConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'inventory'
     verbose_name = _('📦 إدارة المخزن والورشة (Mouss Tec Engine)')
 
+    def __init__(self, app_name, app_module):
+        super().__init__(app_name, app_module)
+        # 🚀 ابتكار: مفتاح تحكم لإيقاف الرادار بسلاسة عند تحديث السيرفر
+        self._stop_event = threading.Event()
+
     def ready(self):
-        # منع اشتعال الرادارات أثناء عمليات التأسيس الهيكلي (Migrations) أو أوامر الجرد النصي
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
         if not any(server in sys.argv[0] or server in sys.argv for server in active_servers):
             return
 
-        # 1. 🔗 ربط نظام الإشارات (Signals) لتنفيذ القيود المحاسبية وحماية هوامش الربح
+        # 1. 🔗 ربط نظام الإشارات (Signals) 
         try:
             import inventory.signals
             logger.info("🟢 Mouss Tec Engine: Inventory Framework Signals connected successfully.")
         except ImportError:
             logger.warning("⚠️ Mouss Tec Engine: Signals bridge failed to initialize automatically.")
 
-        # 2. 🔥 إطلاق محرك الذكاء الاصطناعي والتسخين الاستباقي للـ POS في الخلفية
-        warmup_thread = threading.Thread(target=self.smart_inventory_engine, daemon=True)
-        warmup_thread.start()
-
-        logger.info("🚀 Mouss Tec Inventory Command and Cache Warmup Engine is ONLINE.")
+        from django.conf import settings
+        # 🚀 ابتكار: تشغيل الـ Warmup في الـ Production فقط لتوفير موارد المطور المحلي
+        if not settings.DEBUG:
+            warmup_thread = threading.Thread(target=self.smart_inventory_engine, daemon=True)
+            warmup_thread.start()
+            logger.info("🚀 Mouss Tec Inventory Command and Cache Warmup Engine is ONLINE.")
 
     # =====================================================================
-    # 🧠 الابتكارات الحصرية الشاملة (Distributed Cache Warming Engine)
+    # 🧠 الابتكارات الحصرية الشاملة (Continuous Distributed Cache Warming Engine)
     # =====================================================================
     def smart_inventory_engine(self):
         """
-        🚀 محرك التسخين المسبق والمراقبة الاستباقية للمخازن المعزولة:
-        يقوم بقراءة الأصناف الأعلى مبيعاً وحقنها في الـ Redis لتسريع استجابة شاشات الـ POS،
-        معزز بـ Distributed Lock لمنع تعليق أو خنق الداتابيز عند تعدد الـ App Workers.
+        🚀 محرك التسخين المسبق والمراقبة الاستباقية المستمر (Continuous Warmup):
+        يعمل كل ساعتين لتحديث الـ POS Cache بأحدث الأسعار والمخزون، مزود بنظام
+        (Graceful Shutdown) للإغلاق الفوري دون تعليق السيرفرات.
         """
         import time
         from django.core.cache import cache
         from django.db import close_old_connections
+        from django.db.models import Count, Sum
         from django_tenants.utils import schema_context
         
         # انتظار تكتيكي حامٍ لمدة 15 ثانية حتى تستقر قنوات الـ Connection Pools للسيرفر تماماً
-        time.sleep(15) 
+        self._stop_event.wait(15) 
         
-        try:
-            # 🛡️ الحماية من الـ Thundering Herd Pattern بين الـ Gunicorn/Daphne Workers:
-            # العامل الأول فقط الذي يقتنص القفل هو من يقوم بتحديث وتحميل الكاش الاستباقي للـ SaaS
-            lock_acquired = cache.add('mousstec_catalog_warming_lock', 'active', 600) # قفل لمدة 10 دقائق
-            if not lock_acquired:
-                logger.info("📡 [CACHE WARMUP ENGINE]: Warmup loop bypassed. Already populated by another cluster node.")
-                return
-
-            close_old_connections() 
-            
-            # استدعاء داخلي مرن للموديلز لحماية السيرفر من الـ AppRegistryNotReady Error
-            from clients.models import Client
-            from inventory.models import Product
-            from django.db.models import Count
-            
-            # 🚀 العبور بالسياق المعماري للنطاق العام public لجلب قائمة الشركات المعتمدة بالنظام
-            with schema_context('public'):
-                active_tenants = list(Client.objects.filter(schema_name__isnull=False, is_active=True).exclude(schema_name='public'))
-            
-            warmed_count = 0
-            for tenant in active_tenants:
-                # عزل كامل لكل ورشة/شركة على حدة بناءً على الـ Tenant Schema المخصصة لها
-                with schema_context(tenant.schema_name):
-                    # جلب الـ Top 50 صنفاً الأكثر حركة ومبيعاً لتسخين الكاش السريع الخاص بنقاط البيع (POS)
-                    top_products = Product.objects.annotate(
-                        sales_count=Count('saleinvoiceitem')
-                    ).filter(sales_count__gt=0).order_by('-sales_count')[:50]
+        while not self._stop_event.is_set():
+            try:
+                # 🛡️ החماية من الـ Thundering Herd Pattern
+                lock_acquired = cache.add('mousstec_catalog_warming_lock', 'active', 600) # قفل لمدة 10 دقائق
+                
+                if lock_acquired:
+                    close_old_connections() 
                     
-                    if top_products.exists():
-                        cache_key = f"{tenant.schema_name}:pos_fast_catalog"
-                        product_data = [
-                            {
-                                "id": p.id, 
-                                "name": p.name, 
-                                "part_number": p.part_number, 
-                                "price": float(p.retail_price or 0)
-                            } for p in top_products
-                        ]
-                        
-                        # ترحيل وحقن البيانات المجهزة في طبقة كاش الـ Redis الموزع لمدة 12 ساعة كاملة
-                        cache.set(cache_key, product_data, timeout=43200)
-                        warmed_count += 1
+                    from clients.models import Client
+                    from inventory.models import Product
                     
-            if warmed_count > 0:
-                logger.info(f"🔥 [WARMUP ENGINE SUCCESS]: Multi-Tenant POS Fast-Catalog populated for {warmed_count} active domains.")
+                    # العبور بالسياق المعماري للنطاق العام
+                    with schema_context('public'):
+                        active_tenants = list(Client.objects.filter(schema_name__isnull=False, is_active=True).exclude(schema_name='public'))
+                    
+                    warmed_count = 0
+                    for tenant in active_tenants:
+                        with schema_context(tenant.schema_name):
+                            # 🚀 ابتكار: جلب הـ Top 50 صنفاً وحساب مخزونهم الحي لتسريع הـ POS Checkout
+                            top_products = Product.objects.annotate(
+                                sales_count=Count('saleinvoiceitem'),
+                                total_stock=Sum('inventory__quantity')
+                            ).filter(sales_count__gt=0).order_by('-sales_count')[:50]
+                            
+                            if top_products.exists():
+                                cache_key = f"{tenant.schema_name}:pos_fast_catalog"
+                                product_data = [
+                                    {
+                                        "id": p.id, 
+                                        "name": p.name, 
+                                        "part_number": p.part_number, 
+                                        "price": float(p.retail_price or 0),
+                                        "stock_available": p.total_stock or 0 # 🚀 تزويد الكاشير برصيد المخزن فوراً
+                                    } for p in top_products
+                                ]
+                                
+                                # حقن البيانات في طبقة كاش الـ Redis الموزع
+                                cache.set(cache_key, product_data, timeout=7200) # كاش لمدة ساعتين
+                                warmed_count += 1
+                            
+                    if warmed_count > 0:
+                        logger.info(f"🔥 [WARMUP ENGINE REFRESHED]: POS Fast-Catalog populated with live stock for {warmed_count} active domains.")
 
-        except Exception as e:
-            logger.error(f"🔴 [WARMUP ENGINE CRITICAL FAILURE]: Operation aborted - {e}")
-        finally:
-            # 🛡️ إغلاق وقفل القنوات المحلي بعد انتهاء المعالجة حمايةً للسيرفر من الـ Connection Leak
-            close_old_connections()
+            except Exception as e:
+                logger.error(f"🔴 [WARMUP ENGINE CRITICAL FAILURE]: Operation aborted - {e}")
+            finally:
+                close_old_connections()
+                
+            # 🚀 ابتكار الإغلاق السلس: ينام لمدة ساعتين (7200 ثانية)، لكنه يستيقظ فوراً لو طلب السيرفر الإغلاق
+            self._stop_event.wait(7200)

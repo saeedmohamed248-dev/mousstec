@@ -8,10 +8,10 @@ from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 from datetime import timedelta
 from django.contrib.auth.models import User
+from django.db.models import F # 🚀 الدرع المحاسبي الذري
 import uuid 
 import logging
 
-# 🚀 استيراد محدد السياق السحابي لحل مشكلة الـ NameError في الـ B2B Sync
 from django_tenants.utils import schema_context 
 
 logger = logging.getLogger('mouss_tec_core')
@@ -71,6 +71,10 @@ class Product(models.Model):
     car_year = models.CharField(max_length=100, verbose_name=_("سنة الصنع"))
     barcode = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name=_("الباركود"))
     
+    # 🚀 ابتكار: التوافق الدقيق لمنع أخطاء الصرف في الموديلات المعقدة
+    chassis_compatibility = models.JSONField(blank=True, null=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", verbose_name=_("توافقية الشاسيه"))
+    oem_cross_reference = models.JSONField(blank=True, null=True, help_text="أرقام الـ OEM البديلة المطابقة", verbose_name=_("أكواد الأجزاء البديلة"))
+
     min_stock_level = models.IntegerField(default=2, verbose_name=_("حد التنبيه الأساسي"))
     ai_calculated_min_stock = models.IntegerField(default=2, verbose_name=_("حد التنبيه الديناميكي (AI)"))
     
@@ -218,6 +222,10 @@ class VehicleTelemetryLog(models.Model):
     dtc_codes_found = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("أكواد الأعطال المرصودة"))
     battery_voltage = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name=_("فولتية البطارية"))
     raw_json_data = models.JSONField(blank=True, null=True, verbose_name=_("البيانات الخام من جهاز الفحص"))
+    
+    # 🚀 ابتكار: רادار التدخل السريع للحفاظ على سلامة العميل
+    requires_immediate_attention = models.BooleanField(default=False, verbose_name=_("تحذير: عطل حرج يتطلب تدخلاً فورياً"))
+    
     timestamp = models.DateTimeField(auto_now_add=True)
     class Meta: verbose_name_plural = _("سجل الفحوصات الرقمية الحية (IoT)")
 
@@ -471,15 +479,10 @@ def track_product_price_changes(sender, instance, **kwargs):
 # 🚀 وكيل مزامنة سوق B2B (Mouss Tec Central Marketplace Agent)
 @receiver(post_save, sender=Product)
 def sync_b2b_marketplace(sender, instance, **kwargs):
-    """
-    عند تفعيل 'is_b2b_published' على قطعة، يقوم الوكيل بنشرها في الدومين المركزي 
-    أو تحديث كمياتها وسعر الجملة. إذا نفدت، يسحبها آلياً من السوق!
-    """
-    if connection.schema_name == 'public': return # الحماية من الـ Loop
+    if connection.schema_name == 'public': return 
 
     try:
         from django.apps import apps
-        # جلب الموديلز من تطبيق الـ Clients عبر الـ Public Schema
         with schema_context('public'):
             GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
             Client = apps.get_model('clients', 'Client')
@@ -489,7 +492,6 @@ def sync_b2b_marketplace(sender, instance, **kwargs):
 
             total_qty = instance.total_inventory_qty
             
-            # إذا القطعة معروضة في السوق ولديها كمية > 0
             if instance.is_b2b_published and instance.is_active and total_qty > 0:
                 GlobalB2BMarketplace.objects.update_or_create(
                     tenant=tenant,
@@ -504,11 +506,10 @@ def sync_b2b_marketplace(sender, instance, **kwargs):
                 )
                 logger.info(f"🌐 [B2B AGENT]: Synced '{instance.part_number}' to central market. Qty: {total_qty}")
             else:
-                # سحب القطعة من السوق العام إذا انتهت الكمية أو تم إيقافها
                 deleted, _ = GlobalB2BMarketplace.objects.filter(
                     tenant=tenant, part_number=instance.part_number, condition=instance.condition
                 ).delete()
-                if deleted: logger.info(f"🛑 [B2B AGENT]: Removed '{instance.part_number}' from central market (Out of stock/Disabled).")
+                if deleted: logger.info(f"🛑 [B2B AGENT]: Removed '{instance.part_number}' from central market.")
     except Exception as e:
         logger.error(f"🔴 [B2B AGENT ERROR]: Market sync failed for '{instance.part_number}' - {e}")
 
@@ -520,20 +521,19 @@ def execute_scrap_dismantling_yield(sender, instance, **kwargs):
             for yield_item in instance.yields.all():
                 product = yield_item.product
                 
-                # 🚀 تصحيح لوجستي: تسجيل القطعة في فرع التخزين أولاً لقراءة كمية دقيقة
                 if instance.branch:
                     inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
-                    inv.quantity += yield_item.quantity
-                    inv.save()
+                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + yield_item.quantity) # 🚀 تحديث آمن
 
                 total_current_qty = product.total_inventory_qty
                 old_value = Decimal(str(max(total_current_qty - yield_item.quantity, 0))) * Decimal(str(product.average_cost))
                 new_value = Decimal(str(yield_item.quantity)) * Decimal(str(yield_item.estimated_cost_allocation))
                 
                 if total_current_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
-                    product.purchase_price = yield_item.estimated_cost_allocation 
-                    product.save(update_fields=['average_cost', 'purchase_price'])
+                    Product.objects.filter(pk=product.pk).update(
+                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
+                        purchase_price=yield_item.estimated_cost_allocation 
+                    )
 
 @receiver(pre_save, sender=SaleInvoiceItem)
 def handle_core_charge_refund(sender, instance, **kwargs):
@@ -544,8 +544,9 @@ def handle_core_charge_refund(sender, instance, **kwargs):
                 if instance.core_charge_applied > 0 and instance.invoice.customer:
                     with transaction.atomic():
                         total_refund = Decimal(str(instance.quantity)) * instance.core_charge_applied
-                        instance.invoice.customer.balance -= total_refund
-                        instance.invoice.customer.save(update_fields=['balance'])
+                        
+                        # 🚀 إغلاق الثغرة المحاسبية (Race Condition)
+                        Customer.objects.filter(pk=instance.invoice.customer.pk).update(balance=F('balance') - total_refund)
                         
                         if instance.invoice.treasury:
                             FinancialTransaction.objects.create(
@@ -555,7 +556,7 @@ def handle_core_charge_refund(sender, instance, **kwargs):
                             )
         except SaleInvoiceItem.DoesNotExist: pass
 
-# 🛡️ إشارات تحديث الفواتير (منع الـ Loop)
+# 🛡️ إشارات تحديث الفواتير
 @receiver(post_save, sender=SaleInvoiceItem)
 @receiver(post_delete, sender=SaleInvoiceItem)
 @receiver(post_save, sender=SaleInvoiceServiceItem)
@@ -572,26 +573,26 @@ def auto_update_purchase_invoice_items(sender, instance, **kwargs):
 
 @receiver(post_save, sender=FinancialTransaction)
 def update_treasury_balance(sender, instance, created, **kwargs):
+    """🚀 تحديث ذري (Atomic Update) لمنع تدمير حسابات الخزينة والموردين والعملاء"""
     if created:
         with transaction.atomic():
-            treasury = instance.treasury
             amount = Decimal(str(instance.amount)) 
-            if instance.transaction_type == 'in': treasury.balance += amount
-            elif instance.transaction_type == 'out': treasury.balance -= amount
-            treasury.save(update_fields=['balance'])
+            
+            if instance.transaction_type == 'in': 
+                Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') + amount)
+            elif instance.transaction_type == 'out': 
+                Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') - amount)
             
             if instance.customer and instance.transaction_type == 'in':
-                instance.customer.balance -= amount 
-                instance.customer.save(update_fields=['balance'])
+                Customer.objects.filter(pk=instance.customer.pk).update(balance=F('balance') - amount)
+                
             if instance.vendor and instance.transaction_type == 'out':
-                instance.vendor.balance -= amount 
-                instance.vendor.save(update_fields=['balance'])
+                Vendor.objects.filter(pk=instance.vendor.pk).update(balance=F('balance') - amount)
 
 @receiver(post_save, sender=SaleInvoice)
 def execute_sale_stock_and_finance(sender, instance, **kwargs):
     if instance.status == 'posted' and not instance.is_applied:
         with transaction.atomic():
-            # 🚀 ابتكار: إذا كانت الفاتورة تابعة لعقد صيانة، لا تضخ أموالاً
             if not instance.maintenance_contract:
                 if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
                     FinancialTransaction.objects.create(
@@ -601,17 +602,13 @@ def execute_sale_stock_and_finance(sender, instance, **kwargs):
                     )
                 
                 if instance.due_amount > Decimal('0.00'):
-                    instance.customer.balance += instance.due_amount
-                    instance.customer.save(update_fields=['balance'])
+                    Customer.objects.filter(pk=instance.customer.pk).update(balance=F('balance') + instance.due_amount)
 
-            # عمولات الفنيين
             for service_item in instance.service_items.select_related('technician', 'service'):
                 if service_item.technician and service_item.service.tech_commission_percent > 0:
                     commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
-                    service_item.technician.commission_balance += commission
-                    service_item.technician.save(update_fields=['commission_balance'])
+                    EmployeeProfile.objects.filter(pk=service_item.technician.pk).update(commission_balance=F('commission_balance') + commission)
 
-            # تتبع الكيلومترات للسيارات
             if instance.vehicle and instance.mileage and instance.mileage > instance.vehicle.last_mileage:
                 instance.vehicle.last_mileage = instance.mileage
                 instance.vehicle.estimated_next_visit = timezone.now().date() + timedelta(days=120)
@@ -619,17 +616,16 @@ def execute_sale_stock_and_finance(sender, instance, **kwargs):
                 
             if instance.total_amount > 0 and not instance.is_return:
                 points_earned = int(instance.total_amount / 100)
-                instance.customer.loyalty_points += points_earned
-                instance.customer.save(update_fields=['loyalty_points'])
+                Customer.objects.filter(pk=instance.customer.pk).update(loyalty_points=F('loyalty_points') + points_earned)
 
-            # 📦 وكيل المخازن: خصم أو رد الكميات
+            # 📦 وكيل المخازن الآمن
             for item in instance.items.select_related('product'):
                 inv, _ = Inventory.objects.get_or_create(product=item.product, branch=instance.branch, defaults={'quantity': 0})
-                if instance.is_return: inv.quantity += item.quantity 
-                else: inv.quantity -= item.quantity 
-                inv.save()
+                if instance.is_return: 
+                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + item.quantity)
+                else: 
+                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') - item.quantity)
                 
-                # 🚀 استدعاء وكيل السوق المركزي (بعد تحديث المخزن) ليعكس الأرقام الدقيقة
                 item.product.save(update_fields=['ai_price_elasticity']) 
                 
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
@@ -644,27 +640,26 @@ def execute_purchase_stock_and_finance(sender, instance, **kwargs):
                     amount=instance.paid_amount, description=f"سداد مشتريات PO #{instance.id}",
                     purchase_invoice=instance, vendor=instance.vendor
                 )
+            
             due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
             if due > Decimal('0.00'):
-                instance.vendor.balance += due
-                instance.vendor.save(update_fields=['balance'])
+                Vendor.objects.filter(pk=instance.vendor.pk).update(balance=F('balance') + due)
 
             for item in instance.items.select_related('product'):
                 product = item.product
                 
-                # 🚀 تحديث المخزون أولاً قبل حفظ موديل المنتج لتقرأ الكميات صح في السيرفر المركزي لـ B2B
                 inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
-                inv.quantity += item.quantity
-                inv.save()
+                Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + item.quantity)
 
                 total_current_qty = product.total_inventory_qty
                 old_value = Decimal(str(max(total_current_qty - item.quantity, 0))) * Decimal(str(product.average_cost))
                 new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
                 
                 if total_current_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
-                    product.purchase_price = item.cost_price 
-                    product.save(update_fields=['average_cost', 'purchase_price']) # يطلق وكيل التحديث المركزي
+                    Product.objects.filter(pk=product.pk).update(
+                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
+                        purchase_price=item.cost_price
+                    )
                 
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
 
@@ -677,17 +672,14 @@ def execute_stock_transfer(sender, instance, **kwargs):
             with transaction.atomic():
                 from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
                 if from_inv.quantity < instance.quantity: raise ValidationError("الكمية لا تكفي للتحويل!")
-                from_inv.quantity -= instance.quantity
-                from_inv.save()
+                Inventory.objects.filter(pk=from_inv.pk).update(quantity=F('quantity') - instance.quantity)
                 
         elif old_instance.status == 'in_transit' and instance.status == 'completed':
             with transaction.atomic():
                 to_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch=instance.to_branch, defaults={'quantity': 0})
-                to_inv.quantity += instance.quantity
-                to_inv.save()
+                Inventory.objects.filter(pk=to_inv.pk).update(quantity=F('quantity') + instance.quantity)
                 
         elif old_instance.status == 'in_transit' and instance.status == 'cancelled':
             with transaction.atomic():
                 from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
-                from_inv.quantity += instance.quantity
-                from_inv.save()
+                Inventory.objects.filter(pk=from_inv.pk).update(quantity=F('quantity') + instance.quantity)

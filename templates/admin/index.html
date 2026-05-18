@@ -16,20 +16,20 @@
         --mouss-tec-grad: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); 
     }
 
-    body { font-family: 'Cairo', sans-serif !important; }
+    body { font-family: 'Cairo', sans-serif !important; background-color: #f8fafc; }
 
     /* 🌟 أزرار الوصول السريع */
     .saas-quick-btn {
         transition: all 0.3s ease; border-radius: 10px; font-weight: 700; padding: 12px 24px; border: none;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
         text-decoration: none; cursor: pointer;
     }
-    .saas-quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); filter: brightness(1.1); color: #fff;}
+    .saas-quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); filter: brightness(1.1); color: #fff;}
     
     .glow-btn { animation: neon-glow 2s infinite alternate; }
     @keyframes neon-glow {
-        0% { box-shadow: 0 0 5px rgba(236, 72, 153, 0.5); }
-        100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.9); }
+        0% { box-shadow: 0 0 5px rgba(236, 72, 153, 0.4); }
+        100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.8); }
     }
 
     /* 🌟 الكروت العلوية (Stats) */
@@ -57,7 +57,7 @@
     @keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     .pulse-alert { animation: pulse-danger 2s infinite; border-inline-start-color: #ef4444; background-color: #fef2f2; }
 
-    /* 🚀 محرك البحث الشامل والصوتي (Omni-Search) */
+    /* 🚀 محرك البحث الشامل والصوتي */
     .omni-search-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
     .omni-search { border-radius: 12px; padding: 12px 45px 12px 80px; border: 2px solid #e2e8f0; font-weight: 600; box-shadow: none; transition: all 0.3s; width: 100%; }
     .omni-search:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
@@ -66,7 +66,7 @@
     .voice-search-btn:hover { color: #ec4899; transform: scale(1.1); }
     .voice-recording-glow { animation: neon-glow 1s infinite alternate; border-color: #ef4444 !important; }
     
-    /* 🚀 لوحة الأوامر الشاملة (Command Palette) */
+    /* 🚀 لوحة الأوامر الشاملة */
     #commandPalette { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 100000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; opacity: 0; transition: opacity 0.2s ease; }
     #commandPalette.active { display: flex; opacity: 1; }
     .palette-container { width: 90%; max-width: 650px; background: white; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); overflow: hidden; transform: scale(0.95); transition: transform 0.2s ease; }
@@ -79,16 +79,16 @@
     .chart-container { direction: ltr !important; }
     .b2b-badge { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: bold; margin-right: 10px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }
 
-    /* 🤖 شريط مستشار Mouss Tec الجانبي */
+    /* 🤖 شريط مستشار Mouss Tec */
     .ai-sidebar {
-        position: fixed; top: 0; left: -400px; width: 350px; height: 100vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+        position: fixed; top: 0; left: -400px; width: 360px; height: 100vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px);
         box-shadow: 10px 0 30px rgba(0,0,0,0.5); z-index: 99999; transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         padding: 20px; color: white; display: flex; flex-direction: column;
     }
     .ai-sidebar.open { left: 0; }
     .ai-sidebar-close { align-self: flex-end; cursor: pointer; color: #94a3b8; font-size: 20px; transition: 0.3s; }
     .ai-sidebar-close:hover { color: #ef4444; }
-    .ai-chat-box { flex-grow: 1; background: rgba(255,255,255,0.05); border-radius: 12px; margin-top: 20px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .ai-chat-box { flex-grow: 1; background: rgba(255,255,255,0.03); border-radius: 12px; margin-top: 20px; padding: 15px; border: 1px solid rgba(255,255,255,0.08); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
     
     /* 🛡️ نظام الإشعارات العائمة التلقائي */
     .mousstec-toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
@@ -104,16 +104,19 @@
 
 <div id="commandPalette" onclick="if(event.target===this) toggleCommandPalette()">
     <div class="palette-container">
-        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..." autocomplete="off">
+        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..." autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
-            <div class="palette-item" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-plus-circle text-emerald-500"></i> إنشاء أمر شغل جديد
+            <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-plus-circle text-emerald-500"></i> أمر شغل وفاتورة صيانة جديدة
             </div>
-            <div class="palette-item" data-url="{% url 'inventory:solutions_tour' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات B2B
+            <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:solutions_tour' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات سوق التجار المشترك B2B
             </div>
-            <div class="palette-item" onclick="toggleCommandPalette(); toggleAISidebar();">
-                <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (Copilot)
+            <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'admin:inventory_purchaseinvoice_add' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-truck-loading text-info"></i> توريد بضاعة وإنشاء فاتورة مشتريات
+            </div>
+            <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
+                <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (AI Copilot)
             </div>
         </div>
     </div>
@@ -161,13 +164,13 @@
             {% endif %}
 
             {% if business_type == 'parts_dealer' or business_type == 'both' %}
-            <a href="javascript:void(0)" onclick="simulateLiveToast('📦 مبيعات سريعة', 'تم فتح واجهة الـ POS لتاجر الجملة بنجاح.')" class="saas-quick-btn" style="background: var(--info-grad);">
+            <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
                 <i class="fas fa-cash-register"></i> مبيعات سريعة
             </a>
             {% endif %}
 
             {% if business_type == 'scrap_importer' or business_type == 'both' %}
-            <a href="javascript:void(0)" onclick="simulateLiveToast('🚢 حاسبة الإفراج', 'محرك حساب وتوزيع تكاليف الجمارك جاهز للتشغيل.')" class="saas-quick-btn" style="background: var(--danger-grad);">
+            <a href="{% url 'admin:inventory_scrapdismantlingjob_changelist' %}" class="saas-quick-btn" style="background: var(--danger-grad);">
                 <i class="fas fa-car-crash"></i> حاسبة الإفراج
             </a>
             {% endif %}
@@ -301,14 +304,6 @@
                         </div>
                     {% endif %}
 
-                    {% if delayed_orders_count > 0 and business_type == 'service_center' %}
-                    <div class="insight-card pulse-alert" style="border-inline-start-color: #f59e0b; background-color: #fffbeb;">
-                        <h6 class="font-weight-bold mb-1" style="color: #d97706;"><i class="fas fa-clock"></i> سيارات متأخرة بالمركز!</h6>
-                        <p class="mb-2 text-sm" style="color: #92400e;">يوجد <b>{{ delayed_orders_count }}</b> أوامر شغل مفتوحة منذ أكثر من 24 ساعة.</p>
-                        <a href="{% url 'admin:inventory_saleinvoice_changelist' %}?status__exact=draft" class="btn btn-sm w-100 text-white" style="background-color: #f59e0b; border-radius: 8px;">مراجعة السيارات المتأخرة</a>
-                    </div>
-                    {% endif %}
-
                 </div>
             </div>
         </div>
@@ -354,25 +349,36 @@
         }
     }
 
-    // 🤖 فتح وإغلاق مستشار الذكاء الاصطناعي
-    function toggleAISidebar() {
-        document.getElementById('aiSidebar').classList.toggle('open');
-    }
+    // 🤖 التحكم في الـ Copilot
+    function toggleAISidebar() { document.getElementById('aiSidebar').classList.toggle('open'); }
 
-    // 🚀 التحكم في لوحة الأوامر الشاملة (Command Palette)
+    // 🚀 التحكم الذكي في لوحة الأوامر (Fuzzy Filter)
     function toggleCommandPalette() {
         const palette = document.getElementById('commandPalette');
         const input = document.getElementById('paletteInput');
         if (palette.classList.contains('active')) {
             palette.classList.remove('active');
-            input.value = '';
+            input.value = ''; filterCommandPalette();
         } else {
             palette.classList.add('active');
             setTimeout(() => input.focus(), 100);
         }
     }
+    
+    function filterCommandPalette() {
+        const filter = document.getElementById('paletteInput').value.toLowerCase();
+        const items = document.querySelectorAll('.palette-item');
+        items.forEach(item => {
+            const name = item.getAttribute('data-name');
+            if (name && name.toLowerCase().indexOf(filter) > -1) {
+                item.style.display = "";
+            } else if (name) {
+                item.style.display = "none";
+            }
+        });
+    }
 
-    // 🔔 محرك الإشعارات اللحظية المستقلة للسحابة
+    // 🔔 محرك الإشعارات اللحظية 
     function simulateLiveToast(title, message) {
         const container = document.getElementById('mousstecToastContainer');
         const toast = document.createElement('div');
@@ -382,7 +388,29 @@
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // 🧠 🚀 معالجة شات المستشار الذكي وربطه بـ API الباك إند
+    // 🔌 🚀 الربط الحقيقي بمحرك הـ ASGI WebSockets (Live Data Sync)
+    document.addEventListener('DOMContentLoaded', () => {
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        try {
+            const dashboardSocket = new WebSocket(protocol + window.location.host + '/ws/dashboard/sync/');
+            
+            dashboardSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                if(data.type === 'notification') {
+                    simulateLiveToast(data.title, data.message);
+                }
+            };
+            
+            dashboardSocket.onclose = function(e) {
+                document.getElementById('liveSyncBadge').innerHTML = '<i class="fas fa-sync fa-spin"></i> Reconnecting...';
+                document.getElementById('liveSyncBadge').style.color = '#f59e0b';
+            };
+        } catch(e) {
+            console.warn("Mouss Tec WebSocket engine is inactive in this environment.");
+        }
+    });
+
+    // 🧠 معالجة شات المستشار الذكي 
     async function handleAiChat(e) {
         if(e.key === 'Enter' && e.target.value.trim()) {
             const query = e.target.value.trim();
@@ -396,7 +424,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
+                const res = await fetch(`/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 const typingEl = document.getElementById(typingId);
                 
@@ -418,7 +446,7 @@
         }
     }
 
-    // 🚀 ربط رادار فحص الأعطال الفوري مع الـ API الموحد لـ Gemini
+    // 🚀 رادار فحص الأعطال الفوري 
     async function triggerQuickDiagnostic() {
         const code = document.getElementById('quickDtcInput').value.trim().toUpperCase();
         const resultBox = document.getElementById('quickDtcResult');
@@ -428,7 +456,7 @@
         resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري استدعاء البصمة التشخيصية لـ Gemini...`;
 
         try {
-            const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
+            const response = await fetch(`/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
             if(!response.ok) throw new Error("API Crash");
             const data = await response.json();
             
@@ -450,7 +478,7 @@
         };
         setInterval(updateClock, 1000); updateClock();
 
-        // 🚀 محرك البحث الشامل (Omni-Search Hotkey) - يفتح لوحة الأوامر
+        // 🚀 محرك البحث الشامل
         document.addEventListener('keydown', function(e) {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
@@ -458,29 +486,37 @@
             }
         });
 
-        // 🚀 رادار الباركود المخفي الصامت (Silent Scanner)
+        // 🔫 🚀 محرك الباركود العتادي المُحصّن (Hardware-Grade Scanner Hook)
         let barcodeBuffer = '';
-        let barcodeTimer;
+        let lastKeyTime = Date.now();
+        
         document.addEventListener('keypress', function(e) {
+            // تجاهل الكتابة داخل الحقول
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (document.getElementById('commandPalette').classList.contains('active')) return;
 
+            const currentTime = Date.now();
+            // مسدس الباركود يقرأ الحروف بسرعة هائلة (أقل من 30-50 مللي ثانية للحرف)
+            // إذا كان الوقت أطول، فهذا يعني أن المستخدم يكتب من الكيبورد، فنتجاهله
+            if (currentTime - lastKeyTime > 50) { barcodeBuffer = ''; }
+            lastKeyTime = currentTime;
+
             if (e.key === 'Enter') {
-                if (barcodeBuffer.length > 3) {
+                if (barcodeBuffer.length >= 4) { // الطول الأدنى للباركود لضمان الدقة
                     simulateLiveToast('🔍 رادار الباركود النشط', `تم التقاط الكود: ${barcodeBuffer}. جاري تحويلك للمنتج...`);
-                    barcodeBuffer = '';
+                    // window.location.href = `/system/barcode-lookup/?code=${barcodeBuffer}`;
                 }
+                barcodeBuffer = '';
             } else {
                 barcodeBuffer += e.key;
-                clearTimeout(barcodeTimer); // ✅ تصحيح: تمرير المرجع الفعلي للمؤقت بدلاً من البافر النصي لقتل الـ Memory Leak
-                barcodeTimer = setTimeout(() => { barcodeBuffer = ''; }, 50); 
             }
         });
 
-        // 🎙️ الأوامر الصوتية
+        // 🎙️ الأوامر الصوتية المعززة
         const voiceBtn = document.getElementById('voiceSearchBtn');
-        if ('webkitSpeechRecognition' in window) {
-            const recognition = new webkitSpeechRecognition();
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
             recognition.lang = 'ar-EG'; 
             recognition.continuous = false;
             
@@ -491,12 +527,12 @@
             
             recognition.onresult = function(event) {
                 const transcript = event.results[0][0].transcript;
-                if(transcript.includes('أمر شغل') || transcript.includes('فاتوره جديده')) {
+                if(transcript.includes('أمر شغل') || transcript.includes('فاتوره جديده') || transcript.includes('صيانة')) {
                     window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}";
-                } else if(transcript.includes('المزاد') || transcript.includes('سوق')) {
+                } else if(transcript.includes('المزاد') || transcript.includes('سوق') || transcript.includes('تسعير')) {
                     window.location.href = "{% url 'inventory:solutions_tour' %}";
                 } else {
-                    simulateLiveToast('🎙️ أمر صوتي مسجل', `تم سماع: ${transcript}`);
+                    simulateLiveToast('🎙️ أمر صوتي مسجل', `تم سماع: ${transcript}. جاري معالجة الأمر...`);
                 }
             };
             
@@ -547,19 +583,18 @@
             catch { return fallback; }
         };
 
-        // 📈 إعدادات الشارت المتقدم (مع منع تسريب الذاكرة)
+        // 📈 إعدادات الشارت المتقدم (مع منع تداخل البيانات)
         const ctx = document.getElementById('financialChart').getContext('2d');
         
-        if (window.moussTecChart instanceof Chart) {
-            window.moussTecChart.destroy();
-        }
+        if (window.moussTecChart instanceof Chart) { window.moussTecChart.destroy(); }
 
         let gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
         gradientFill.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
         gradientFill.addColorStop(1, 'rgba(79, 70, 229, 0)');
 
         let actualProfitData = parseData('rawChartProfit', [0]);
-        let projectedProfit = [...actualProfitData];
+        // استنساخ المصفوفة بأمان لمنع الـ Pointer Mutation في الجافاسكريبت
+        let projectedProfit = [...actualProfitData]; 
         if(projectedProfit.length > 0) {
             let lastVal = projectedProfit[projectedProfit.length - 1];
             projectedProfit.push(lastVal * 1.15); 
@@ -598,10 +633,6 @@
                 }
             }
         });
-
-        setTimeout(() => {
-            simulateLiveToast('⚖️ تحديث محفظة الضمان (Escrow)', 'تم تجميد مبلغ ثمن الترسية لطلب المزاد رقم #M-8832 بنجاح بدفتر الأستاذ.');
-        }, 6000);
     });
 </script>
 {% endblock %}

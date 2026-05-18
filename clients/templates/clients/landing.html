@@ -4,23 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mouss Tec Ecosystem | المنصة المركزية لقطاع السيارات</title>
+    <meta name="description" content="نظام إدارة متكامل لقطاع السيارات: مراكز صيانة، تجارة قطع غيار، استيراد تقطيع، ومزادات B2B ذكية.">
+    
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         html { scroll-behavior: smooth; }
-        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
-        .glow-effect { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); transition: all 0.3s ease; }
-        .glow-effect:hover { box-shadow: 0 0 30px rgba(139, 92, 246, 0.3); transform: translateY(-5px); }
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; overflow-x: hidden;}
+        
+        .glow-effect { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); transition: box-shadow 0.3s ease; transform-style: preserve-3d; perspective: 1000px;}
+        .glow-effect:hover { box-shadow: 0 0 30px rgba(139, 92, 246, 0.3); }
+        
+        /* 🚀 تأثير النبض الخاص بالمحاكاة */
         .live-pulse { animation: pulse-green 2s infinite; }
         @keyframes pulse-green {
             0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
             70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
+        
+        /* 🤖 مؤشر الكتابة للذكاء الاصطناعي */
+        .typing-cursor::after {
+            content: '|'; animation: blink 1s step-start infinite; color: #ec4899; font-weight: bold;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Floating Animation */
+        .float-anim { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
     </style>
 </head>
-<body class="text-slate-200 min-h-screen flex flex-col justify-between overflow-x-hidden relative">
+<body class="text-slate-200 min-h-screen flex flex-col justify-between relative">
 
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10"></div>
 
@@ -34,10 +54,10 @@
         
         <div class="flex items-center gap-4">
             <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
-                <i class="fas fa-tags"></i> خطط وباقات الاشتراك
+                <i class="fas fa-tags"></i> الباقات والأسعار
             </a>
-            <a href="/secure-portal/" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition duration-300 text-sm flex items-center gap-2 backdrop-blur-sm">
-                <i class="fas fa-lock text-purple-400"></i> بوابة تسجيل الدخول
+            <a href="{% url 'saas_pricing' %}?action=login" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition duration-300 text-sm flex items-center gap-2 backdrop-blur-sm">
+                <i class="fas fa-lock text-purple-400"></i> تسجيل الدخول
             </a>
         </div>
     </header>
@@ -46,119 +66,107 @@
         
         <div class="lg:w-1/2 text-center lg:text-right space-y-6">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> الشبكة السحابية لقطاع السيارات (Uptime: {{ system_uptime|default:"99.99%" }})
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Network Uptime: {{ system_uptime|default:"99.99%" }}
             </span>
             <h1 class="text-4xl lg:text-6xl font-black text-white leading-tight">
                 النظام البيئي الرقمي <br>
                 <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لإدارة وتجارة السيارات</span>
             </h1>
             <p class="text-slate-400 text-base lg:text-lg max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
-                منصة الـ SaaS الشاملة والموحدة للربط اللحظي بين مراكز الصيانة المتطورة، مستوردي قطع الغيار (التقطيع)، وتجار الجملة مع محركات التسعير والتحليل المالي المدعومة بالذكاء الاصطناعي.
+                أول منصة SaaS عربية تدمج مراكز الصيانة، تجار الجملة، ومستوردي التقطيع في سوق موحد (Marketplace). مزود بمحرك ترسيّة ذكي لحماية أرباحك وإدارة المزادات.
             </p>
             
             <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
                 <a href="{% url 'saas_customer_signup' %}" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300 flex items-center gap-2">
-                    <i class="fas fa-rocket"></i> ابدأ خادمك التجريبي مجاناً
+                    <i class="fas fa-rocket"></i> أسس إمبراطوريتك الآن
                 </a>
                 <a href="#detailed-solutions" class="bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 font-bold px-8 py-4 rounded-xl border border-slate-800 transition duration-300 flex items-center gap-2">
-                    استكشاف الحلول المتاحة
+                    استكشاف الآلية <i class="fas fa-arrow-down"></i>
                 </a>
             </div>
         </div>
 
-        <div id="features" class="lg:w-1/2 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect space-y-4">
-                <div class="flex justify-between items-start">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl font-bold border border-purple-500/20">
-                        <i class="fas fa-tools"></i>
+        <div class="lg:w-1/2 w-full flex justify-center float-anim">
+            <div class="bg-slate-900/80 border border-slate-700/50 backdrop-blur-xl rounded-2xl w-full max-w-md overflow-hidden shadow-2xl shadow-indigo-900/20">
+                <div class="bg-slate-800/80 px-4 py-3 border-b border-slate-700/50 flex items-center gap-2">
+                    <div class="flex gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
                     </div>
-                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">{{ total_clients|default:"0" }} مركز نشط</span>
+                    <span class="text-xs font-bold text-slate-400 ms-3"><i class="fas fa-robot text-pink-400"></i> Mouss Tec AI Copilot</span>
                 </div>
-                <h3 class="text-lg font-bold text-white">🛠️ إدارة مراكز الصيانة الفنية</h3>
-                <p class="text-slate-400 text-xs leading-relaxed">إدارة كاملة لأوامر الشغل، الفحص الرقمي بالفيديو، تشخيص الأعطال بـ AI، وحساب العمولات اللحظية لحماية الأرباح.</p>
-            </div>
-
-            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect space-y-4">
-                <div class="flex justify-between items-start">
-                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl font-bold border border-indigo-500/20">
-                        <i class="fas fa-boxes"></i>
-                    </div>
-                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">{{ verified_merchants|default:"0" }} تاجر معتمد</span>
+                <div class="p-6 h-48 flex flex-col justify-end text-sm font-mono leading-relaxed" id="ai-simulation-box">
+                    <p class="text-indigo-400 mb-2">> جاري تحليل طلب المزاد #M-8832...</p>
+                    <p class="text-emerald-400 mb-2">> تم العثور على 14 عرض من التجار الموثوقين.</p>
+                    <p class="text-slate-300 typing-cursor" id="ai-typewriter"></p>
                 </div>
-                <h3 class="text-lg font-bold text-white">📦 منظومة تجار قطع الغيار</h3>
-                <p class="text-slate-400 text-xs leading-relaxed">قراءة الفواتير آلياً بـ AI OCR، طرح المخزون لايف في السوق المشترك، وتلبية طلبات التسعير الفورية (RFQs).</p>
             </div>
-
-            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect space-y-4">
-                <div class="flex justify-between items-start">
-                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl font-bold border border-pink-500/20">
-                        <i class="fas fa-car-crash"></i>
-                    </div>
-                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">{{ total_parts|default:"0" }} قطعة غيار بالسوق</span>
-                </div>
-                <h3 class="text-lg font-bold text-white">🚢 محرك حاسبة التقطيع</h3>
-                <p class="text-slate-400 text-xs leading-relaxed">خوارزمية ذكية لتوزيع تكلفة السيارات المستوردة على المكونات السليمة، وإدارة مستندات الإفجاج الجمركي للمحركات.</p>
-            </div>
-
-            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect space-y-4">
-                <div class="flex justify-between items-start">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl font-bold border border-emerald-500/20">
-                        <i class="fas fa-gavel"></i>
-                    </div>
-                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">{{ successful_bids|default:"0" }} Character تسوية ناجحة</span>
-                </div>
-                <h3 class="text-lg font-bold text-white">⚖️ المزاد المالي الآمن (Escrow)</h3>
-                <p class="text-slate-400 text-xs leading-relaxed">نظام المزايدة العمياء لتوفير النواقص بأقل سعر، مع حماية المعاملات المالية عبر محفظة الضمان الذكية.</p>
-            </div>
-
         </div>
     </main>
 
-    <section id="detailed-solutions" class="container mx-auto px-6 py-16 border-t border-slate-800/50 space-y-12 z-10 mt-8">
-        <div class="text-center space-y-4">
-            <h2 class="text-3xl font-black text-white">كيف يدعم نظام Mouss Tec أعمالك؟</h2>
-            <p class="text-slate-400 text-sm max-w-xl mx-auto">جولة سريعة في آليات التشغيل الذكية المخصصة لكل قطاع في المنظومة.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-slate-950/60 p-8 rounded-2xl border border-slate-800 hover:border-purple-500/50 transition duration-300 space-y-4 backdrop-blur-sm">
-                <span class="text-purple-400 font-bold text-xs flex items-center gap-2">
-                    <i class="fas fa-stopwatch"></i> دورة عمل مراكز الصيانة
-                </span>
-                <h4 class="text-xl font-bold text-white">من دخول السيارة حتى أمر الصرف</h4>
-                <ul class="text-slate-400 text-sm space-y-3 mt-4">
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-purple-500 mt-1"></i> <span>فتح أمر شغل رقمي وربطه برقم الشاسيه (VIN).</span></li>
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-purple-500 mt-1"></i> <span>فحص الأخطاء ورفع تقرير الأعطال مدعوماً بذكاء Gemini.</span></li>
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-purple-500 mt-1"></i> <span>محاسبة الفنيين وتوزيع نسب العمولات لحظياً في الخزنة.</span></li>
-                </ul>
+    <section id="features" class="container mx-auto px-6 py-12 z-10 relative">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl font-bold border border-purple-500/20">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">مراكز وورش</span>
+                </div>
+                <div>
+                    <h3 class="text-3xl font-black text-white mb-1"><span class="counter" data-target="{{ total_clients|default:'0' }}">0</span></h3>
+                    <p class="text-slate-400 text-xs font-bold">مركز صيانة نشط بالسحابة</p>
+                </div>
             </div>
 
-            <div class="bg-slate-950/60 p-8 rounded-2xl border border-slate-800 hover:border-emerald-500/50 transition duration-300 space-y-4 backdrop-blur-sm">
-                <span class="text-emerald-400 font-bold text-xs flex items-center gap-2">
-                    <i class="fas fa-balance-scale"></i> دورة عمل المزادات النظيفة
-                </span>
-                <h4 class="text-xl font-bold text-white">توفير النواقص عبر المزايدة العمياء</h4>
-                <ul class="text-slate-400 text-sm space-y-3 mt-4">
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span>المركز يطلب قطعة غيار نادرة لا تتوفر في مخزنه.</span></li>
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span>التجار يطرحون عروض أسعارهم بشكل سري دون كشف المنافس.</span></li>
-                    <li class="flex gap-2 items-start"><i class="fas fa-check-circle text-emerald-500 mt-1"></i> <span>يرسو النظام آلياً على السعر الأقل، وتُجمد الأموال بضمان (Escrow).</span></li>
-                </ul>
+            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl font-bold border border-indigo-500/20">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">موردين</span>
+                </div>
+                <div>
+                    <h3 class="text-3xl font-black text-white mb-1"><span class="counter" data-target="{{ verified_merchants|default:'0' }}">0</span></h3>
+                    <p class="text-slate-400 text-xs font-bold">تاجر قطع غيار موثق (KYC)</p>
+                </div>
             </div>
-        </div>
 
-        <div class="text-center pt-8">
-            <p class="text-slate-500 text-xs font-bold mb-3">هل أنت مستعد لتملك بوابتك المعزولة والمشفرة بالكامل؟</p>
-            <a href="{% url 'saas_customer_signup' %}" class="inline-flex items-center gap-2 text-sm font-bold text-purple-400 hover:text-purple-300 transition border-b border-purple-500/30 pb-1">
-                سجل شركتك الآن وانطلق في دقيقة واحدة <i class="fas fa-arrow-left text-xs"></i>
-            </a>
+            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl font-bold border border-pink-500/20">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">مخزون B2B</span>
+                </div>
+                <div>
+                    <h3 class="text-3xl font-black text-white mb-1"><span class="counter" data-target="{{ total_parts|default:'0' }}">0</span></h3>
+                    <p class="text-slate-400 text-xs font-bold">قطعة غيار معروضة للترسية</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl font-bold border border-emerald-500/20">
+                        <i class="fas fa-gavel"></i>
+                    </div>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">FinTech Escrow</span>
+                </div>
+                <div>
+                    <h3 class="text-3xl font-black text-white mb-1"><span class="counter" data-target="{{ successful_bids|default:'0' }}">0</span></h3>
+                    <p class="text-slate-400 text-xs font-bold">مزاد وتسوية مالية ناجحة</p>
+                </div>
+            </div>
+
         </div>
     </section>
 
-    <div class="fixed bottom-6 left-6 z-50">
+    <div class="fixed bottom-6 right-6 z-50">
         <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700 shadow-2xl rounded-full py-2 px-4 flex items-center gap-3 text-xs font-bold text-slate-300">
             <div class="w-2.5 h-2.5 bg-green-500 rounded-full live-pulse"></div>
-            <span>نبض السوق: <span class="text-white">نشط</span> | <span class="text-indigo-400">{{ successful_bids|default:"14" }} مزاد ناجح مؤخراً</span></span>
+            <span id="live-ticker">نبض السوق: <span class="text-emerald-400">متصل وآمن</span></span>
         </div>
     </div>
 
@@ -168,5 +176,105 @@
         </div>
     </footer>
 
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            
+            // 1. محاكاة الـ AI Typing في الـ Hero
+            const texts = [
+                "> تقييم الـ AI: التاجر (الفريد) يوفر القطعة بسعر 1200 ج.م.",
+                "> سرعة التوصيل المتوقعة: 24 ساعة.",
+                "> تم حجز المبلغ بالضمان (Escrow) وترسية المزاد بنجاح 🟢"
+            ];
+            let i = 0, j = 0, currentText = "";
+            const typewriter = document.getElementById("ai-typewriter");
+            
+            function type() {
+                if (i < texts.length) {
+                    currentText = texts[i];
+                    typewriter.innerHTML = `> <span class="text-pink-400">${currentText.substring(0, j + 1)}</span>`;
+                    j++;
+                    if (j === currentText.length) {
+                        i++; j = 0;
+                        setTimeout(type, 2000); // استراحة بين الجمل
+                    } else {
+                        setTimeout(type, 40); // سرعة الكتابة
+                    }
+                } else {
+                    i = 0; // إعادة التدوير
+                    setTimeout(type, 3000);
+                }
+            }
+            setTimeout(type, 1000);
+
+            // 2. محرك عداد الأرقام التفاعلي (Odometer)
+            const counters = document.querySelectorAll('.counter');
+            const speed = 100; // سرعة العد
+            
+            const animateCounters = () => {
+                counters.forEach(counter => {
+                    const updateCount = () => {
+                        const target = +counter.getAttribute('data-target');
+                        const count = +counter.innerText;
+                        const inc = target / speed;
+                        if (count < target) {
+                            counter.innerText = Math.ceil(count + inc);
+                            setTimeout(updateCount, 20);
+                        } else {
+                            counter.innerText = target;
+                        }
+                    };
+                    updateCount();
+                });
+            };
+
+            // تشغيل العداد فقط عند رؤية الأقسام
+            const observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting) {
+                    animateCounters();
+                    observer.disconnect();
+                }
+            }, { threshold: 0.5 });
+            
+            if(document.getElementById('features')){
+                observer.observe(document.getElementById('features'));
+            }
+
+            // 3. تأثير الـ 3D Tilt للكروت (Glassmorphism + Magnetic)
+            const cards = document.querySelectorAll('.tilt-card');
+            cards.forEach(card => {
+                card.addEventListener('mousemove', e => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    const rotateX = ((y - centerY) / centerY) * -10; // درجة الميل
+                    const rotateY = ((x - centerX) / centerX) * 10;
+                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)`;
+                });
+            });
+
+            // 4. شريط النبض الحي المتغير أسفل الشاشة
+            const tickerMsgs = [
+                `نبض السوق: <span class="text-emerald-400">متصل وآمن</span>`,
+                `رادار الـ B2B: <span class="text-indigo-400">يوجد {{ successful_bids|default:"14" }} مزاد نشط حالياً</span>`,
+                `المحفظة الذكية: <span class="text-purple-400">تم حجز ضمان لطلب #M-811</span>`
+            ];
+            let tickIdx = 0;
+            const tickerEl = document.getElementById('live-ticker');
+            setInterval(() => {
+                tickIdx = (tickIdx + 1) % tickerMsgs.length;
+                tickerEl.style.opacity = 0;
+                setTimeout(() => {
+                    tickerEl.innerHTML = tickerMsgs[tickIdx];
+                    tickerEl.style.opacity = 1;
+                }, 300);
+            }, 4000);
+            tickerEl.style.transition = "opacity 0.3s";
+        });
+    </script>
 </body>
 </html>

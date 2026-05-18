@@ -8,16 +8,15 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 from datetime import timedelta
-from celery import current_app # 🚀 استدعاء نواة كرفان المهام لمنع الـ Thread Explosion
+from celery import current_app 
 
 from .models import (Inventory, PurchaseInvoice, PurchaseInvoiceItem, Vendor,
                      SaleInvoice, SaleInvoiceItem, StockTransfer, FinancialTransaction)
 
-# تهيئة رادار تسجيل الحركات بدقة
 logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
-# 🧮 1. تحديث إجماليات الفواتير تلقائياً (Calculators)
+# 🧮 1. تحديث إجماليات الفواتير تلقائياً (Dynamic Calculators)
 # =====================================================================
 @receiver(post_save, sender=PurchaseInvoiceItem)
 @receiver(post_delete, sender=PurchaseInvoiceItem)
@@ -33,10 +32,13 @@ def update_sale_invoice_total(sender, instance, **kwargs):
 
 
 # =====================================================================
-# ♻️ 2. أتمتة استرداد تأمين التوالف (Core Charge Auto-Refund)
+# ♻️ 2. أتمتة استرداد تأمين التوالف (Double-Entry Core Charge Auto-Refund)
 # =====================================================================
 @receiver(pre_save, sender=SaleInvoiceItem)
 def handle_core_charge_return(sender, instance, **kwargs):
+    """
+    🚀 ابتكار: استرداد آمن ذو قيد مزدوج، يخصم من الخزينة ويضيف للعميل.
+    """
     if instance.pk:
         try:
             old_instance = SaleInvoiceItem.objects.get(pk=instance.pk)
@@ -49,17 +51,29 @@ def handle_core_charge_return(sender, instance, **kwargs):
                         customer.balance = F('balance') - refund_amount
                         customer.save(update_fields=['balance'])
                         
+                        # 🚀 🚀 تصليح الثغرة: خصم المبلغ المرتجع من الخزنة لضبط الميزانية
                         if instance.invoice.treasury:
+                            treasury = instance.invoice.treasury
+                            
+                            # حظر الإرجاع إذا لم تكن الخزنة بها سيولة نقدية
+                            if treasury.balance < refund_amount:
+                                raise ValidationError(f"❌ خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور.")
+                                
+                            treasury.balance = F('balance') - refund_amount
+                            treasury.save(update_fields=['balance'])
+                            
                             FinancialTransaction.objects.create(
-                                treasury=instance.invoice.treasury, 
+                                treasury=treasury, 
                                 transaction_type='out',
                                 amount=refund_amount, 
-                                description=f"استرداد تأمين توالف للقطعة {instance.product.part_number} - فاتورة #{instance.invoice.id}",
+                                description=f"استرداد تأمين توالف لقطعة {instance.product.part_number} (الفاتورة #{instance.invoice.id})",
                                 customer=customer
                             )
-                        logger.info(f"♻️ [CORE RETURN] Refunded {refund_amount} EGP to {customer.name}")
+                        logger.info(f"♻️ [CORE RETURN] Balanced Double-Entry: Refunded {refund_amount} EGP to {customer.name}")
+        except ValidationError as ve:
+            raise ve # تمرير التحذير للمستخدم عبر لوحة التحكم
         except Exception as e:
-            logger.error(f"🔴 [CORE RETURN ERROR] {e}")
+            logger.error(f"🔴 [CORE RETURN CRITICAL ERROR] {e}")
 
 
 # =====================================================================
@@ -71,7 +85,6 @@ def execute_purchase_posting(sender, instance, **kwargs):
         with transaction.atomic():
             logger.info(f"🚀 [PURCHASE EXECUTION] Starting execution for PO #{instance.id}")
             
-            # 1. المعاملة المالية للخزنة
             if instance.treasury and instance.paid_amount > Decimal('0.00') and not instance.payments.exists():
                 FinancialTransaction.objects.create(
                     treasury=instance.treasury, transaction_type='out',
@@ -85,7 +98,6 @@ def execute_purchase_posting(sender, instance, **kwargs):
                 instance.vendor.balance = F('balance') + due
                 instance.vendor.save(update_fields=['balance'])
 
-            # 2. تجميع الأصناف وترتيبها لمنع تصادم الـ Deadlocks في الداتابيز
             product_qty_map = defaultdict(int)
             product_cost_map = {}
             for item in instance.items.select_related('product').all():
@@ -101,14 +113,12 @@ def execute_purchase_posting(sender, instance, **kwargs):
                 added_qty = product_qty_map[product.id]
                 cost_price = product_cost_map[product.id]
                 
-                # تحديث رصيد الفرع المخزني أولاً لقراءة كمية دقيقة ومحدثة
                 inv, _ = Inventory.objects.select_for_update().get_or_create(
                     product=product, branch=instance.branch, defaults={'quantity': 0}
                 )
                 inv.quantity = F('quantity') + added_qty
                 inv.save()
                 
-                # حساب متوسط التكلفة بناءً على الكميات الجديدة المحدثة بالسيرفر
                 total_current_qty = product.total_inventory_qty
                 old_value = Decimal(str(max(total_current_qty - added_qty, 0))) * Decimal(str(product.average_cost))
                 new_value = Decimal(str(added_qty)) * Decimal(str(cost_price))
@@ -118,27 +128,22 @@ def execute_purchase_posting(sender, instance, **kwargs):
                     product.purchase_price = cost_price 
                     product.save(update_fields=['average_cost', 'purchase_price'])
                 
-            # 3. 🚀 🚀 الاندماج المالي الحقيقي مع حساب الضمان (Escrow Integration Fix):
             if instance.is_b2b_secured and instance.bidding_ref:
                 try:
                     from clients.models import BlindBiddingRequest
                     bid = BlindBiddingRequest.objects.get(request_id=instance.bidding_ref)
                     if bid.status != 'completed':
-                        # محاكاة حالة الشحن استباقياً لتمرير قيود الأمان لفك التجميد
                         bid.status = 'shipped'
-                        # استدعاء المحرك المحاسبي الحقيقي لتحرير الأموال وضخ الأرباح للتاجر الفائز وتسجيل الـ Ledger
                         bid.trigger_release_to_seller() 
-                        logger.info(f"⚖️ [ESCROW RELEASE]: B2B Bid {bid.request_id} safely unlocked and wired via trigger.")
+                        logger.info(f"⚖️ [ESCROW RELEASE]: B2B Bid {bid.request_id} safely unlocked.")
                 except Exception as e:
                     logger.error(f"🔴 [ESCROW INTEGRATION CRITICAL ERROR]: {e}")
 
-            # ترحيل نهائي للفاتورة لمنع التكرار
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
-            logger.info(f"✅ [PURCHASE SUCCESS] PO #{instance.id} executed safely.")
 
 
 # =====================================================================
-# 💸 4. الاعتماد الفعلي للمبيعات والصيانة (ماليات + مخزن + ولاء + AI)
+# 💸 4. الاعتماد الفعلي للمبيعات والصيانة (Performance Gamification & AI)
 # =====================================================================
 @receiver(post_save, sender=SaleInvoice)
 def execute_sale_posting(sender, instance, **kwargs):
@@ -158,7 +163,6 @@ def execute_sale_posting(sender, instance, **kwargs):
                 instance.customer.balance = F('balance') + instance.due_amount
                 instance.customer.save(update_fields=['balance'])
 
-            # 2. 🤖 الذكاء الاصطناعي للصيانة الوقائية (Upselling Engine)
             if hasattr(instance, 'vehicle') and instance.vehicle:
                 vehicle_updates = {}
                 if instance.mileage and instance.mileage > instance.vehicle.last_mileage:
@@ -188,13 +192,19 @@ def execute_sale_posting(sender, instance, **kwargs):
                 instance.customer.loyalty_points = F('loyalty_points') + points_earned
                 instance.customer.save(update_fields=['loyalty_points'])
 
+            # 🚀 ابتكار: مقيم كفاءة الفنيين ومضاعف العمولات الآلي (Gamification)
             for service_item in instance.service_items.select_related('technician', 'service').all():
                 if service_item.technician and service_item.service.tech_commission_percent > 0:
-                    commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
-                    service_item.technician.commission_balance = F('commission_balance') + commission
+                    base_commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
+                    
+                    # مكافأة إنجاز العمل أسرع من الوقت التقديري (Time-Saving Bonus +10%)
+                    if service_item.actual_hours > 0 and service_item.service.estimated_hours > 0:
+                        if service_item.actual_hours < service_item.service.estimated_hours:
+                            base_commission *= Decimal('1.10') # 10% بونص أداء سريع
+                            
+                    service_item.technician.commission_balance = F('commission_balance') + base_commission
                     service_item.technician.save(update_fields=['commission_balance'])
 
-            # 3. تجميع المبيعات وخصم رصيد المخزن بأمان للـ Concurrency
             product_qty_map = defaultdict(int)
             for item in instance.items.select_related('product').all():
                 product_qty_map[item.product_id] += item.quantity
@@ -217,7 +227,7 @@ def execute_sale_posting(sender, instance, **kwargs):
                 inv.save()
                 inv.refresh_from_db()
                 
-                # 🚀 وكيل إعادة الطلب الآلي والتنبؤ (Auto-Procurement Engine)
+                # 🚀 وكيل إعادة الطلب الآلي والتنبؤ
                 if inv.quantity <= product.min_stock_level and not getattr(instance, 'is_return', False):
                     logger.warning(f"⚠️ [LOW STOCK ALERT] Product {product.part_number} dropped to {inv.quantity}")
                     default_vendor = Vendor.objects.first()
@@ -230,21 +240,19 @@ def execute_sale_posting(sender, instance, **kwargs):
                             invoice=draft_po, product=product,
                             defaults={'quantity': product.min_stock_level * 2, 'cost_price': product.average_cost or product.purchase_price}
                         )
-                        if item_created:
-                            logger.info(f"🛒 [AUTO-PROCUREMENT] Draft PO generated for {product.name}.")
                     
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
             logger.info(f"✅ [SALE SUCCESS] INV #{instance.id} executed safely.")
 
 
 # =====================================================================
-# 🚚 5. النقل الآمن بين الفروع لمنع الاختناق (True Deadlock Prevention)
+# 🚚 5. النقل الآمن بين الفروع (Intelligent Deadlock Prevention)
 # =====================================================================
 @receiver(pre_save, sender=StockTransfer)
 def execute_stock_transfer(sender, instance, **kwargs):
     if instance.id:
         old_instance = StockTransfer.objects.get(id=instance.id)
-        if old_instance.status == 'pending' and instance.status == 'completed':
+        if old_instance.status == 'pending' and instance.status == 'in_transit':
             with transaction.atomic():
                 branch_ids = sorted([instance.from_branch_id, instance.to_branch_id])
                 
@@ -267,18 +275,28 @@ def execute_stock_transfer(sender, instance, **kwargs):
                 from_inv.save()
                 to_inv.save()
                 logger.info(f"📦 [TRANSFER SUCCESS] Moved {instance.quantity}x {instance.product.name} to {instance.to_branch}")
+        
+        # 🚀 ابتكار: "الجرد العكسي" الذكي عند الإلغاء
+        elif old_instance.status == 'in_transit' and instance.status == 'cancelled':
+            with transaction.atomic():
+                from_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch_id=instance.from_branch_id, defaults={'quantity': 0})
+                from_inv.quantity = F('quantity') + instance.quantity
+                from_inv.save()
+                
+                # خصمها من الفرع الوهمي للوجهة
+                to_inv = Inventory.objects.filter(product=instance.product, branch_id=instance.to_branch_id).first()
+                if to_inv:
+                    to_inv.quantity = F('quantity') - instance.quantity
+                    to_inv.save()
+                
+                logger.info(f"📦 [TRANSFER CANCELLED] Safely reverted {instance.quantity}x {instance.product.name} to {instance.from_branch}")
 
 
 # =====================================================================
-# 🌐 6. المزامنة اللحظية مع السوق المركزي (Celery Asynchronous Tasks)
+# 🌐 6. المزامنة اللحظية مع السوق المركزي (Celery Asynchronous Sync)
 # =====================================================================
 @receiver(post_save, sender=Inventory)
 def sync_to_global_b2b_marketplace(sender, instance, **kwargs):
-    """
-    🚀 🚀 الاندماج البرمي المعزز (Asynchronous Celery Sync - Thread Bomb Shield):
-    تم حذف خيوط المعالجة الخام وتوجيه المزامنة عبر طابور Celery المخصص، لضمان استقرار 
-    السيرفر وحماية عزل الـ Schema تماماً في الـ Multi-Tenant.
-    """
     current_schema = connection.schema_name
     if current_schema == 'public': return
     
@@ -286,13 +304,11 @@ def sync_to_global_b2b_marketplace(sender, instance, **kwargs):
 
     def dispatch_celery_sync():
         try:
-            # إرسال المهمة للـ Message Broker ليعمل في الخلفية بأمان وعزل كامل
             current_app.send_task('clients.tasks.async_sync_b2b_marketplace_product', args=[current_schema, product_id])
-            logger.info(f"🌐 [B2B AGENT ROUTER]: Dispatched marketplace sync task for product ID {product_id} under schema '{current_schema}'")
+            logger.info(f"🌐 [B2B ROUTER]: Dispatched sync for product ID {product_id} under '{current_schema}'")
         except Exception as e:
-            logger.error(f"🔴 [B2B AGENT ROUTER ERROR]: Failed to dispatch Celery task - {e}")
+            logger.error(f"🔴 [B2B ROUTER ERROR]: Celery fail - {e}")
 
-    # إطلاق الـ Worker فقط بعد إتمام الـ Database Commit الفعلي لضمان مطابقة رصيد المخزن
     transaction.on_commit(dispatch_celery_sync)
 
 
@@ -301,15 +317,14 @@ def remove_from_global_b2b_marketplace(sender, instance, **kwargs):
     current_schema = connection.schema_name
     if current_schema == 'public': return
     
-    # حفظ رقم القطعة والحالة قبل الحذف لتمريرهم للـ Worker
     part_number = instance.product.part_number
     condition = instance.product.condition
 
     def dispatch_celery_delete():
         try:
             current_app.send_task('clients.tasks.async_remove_b2b_marketplace_product', args=[current_schema, part_number, condition])
-            logger.info(f"🛑 [B2B AGENT ROUTER]: Dispatched deletion task for P/N {part_number} under schema '{current_schema}'")
+            logger.info(f"🛑 [B2B ROUTER]: Dispatched deletion for P/N {part_number} under '{current_schema}'")
         except Exception as e:
-            logger.error(f"🔴 [B2B AGENT ROUTER ERROR]: Deletion dispatch failed - {e}")
+            logger.error(f"🔴 [B2B ROUTER ERROR]: Deletion fail - {e}")
         
     transaction.on_commit(dispatch_celery_delete)

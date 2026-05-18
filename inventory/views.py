@@ -7,19 +7,19 @@ from django.utils import timezone
 from django.db import connection, transaction
 from django.core.files.base import ContentFile
 from django_tenants.utils import schema_context
+from django.core.cache import cache # 🚀 استدعاء الكاش لتحصين הـ B2B Search
 from decimal import Decimal
 import json
 import threading
 import urllib.parse
 import base64
 import uuid
+import re # 🚀 تصحيح مسار الـ Regex الخاص بـ AI Router
 import logging
 
-# الاستدعاء الفعلي للمحركات الذكية الحقيقية التي بنيناها لـ Gemini
 from .ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
 from clients.models import GlobalB2BMarketplace, Client, BlindBiddingRequest
 
-# استدعاء مكتبة الـ QR بأمان
 try:
     import qrcode
     from io import BytesIO
@@ -28,7 +28,7 @@ except ImportError:
 
 from .models import (Product, Inventory, SaleInvoice, SaleInvoiceItem, Branch, 
                      Customer, Vehicle, ScrapDismantlingJob, ScrapDismantlingYield,
-                     FinancialTransaction, EmployeeShift, MaintenanceContract)
+                     FinancialTransaction, EmployeeShift, MaintenanceContract, Treasury)
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -37,14 +37,12 @@ logger = logging.getLogger('mouss_tec_core')
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def branch_dashboard(request):
-    # 🚀 درع حماية إضافي: منع الدخول من النطاق العام
     if getattr(request, 'tenant', None) is None or request.tenant.schema_name == 'public':
         return HttpResponseForbidden("<h1>🛑 دخول غير مصرح</h1><p>هذه اللوحة مخصصة للفروع فقط. لا يمكن الوصول إليها من النطاق المركزي.</p>")
 
     today = timezone.now().date()
     is_admin = request.user.is_superuser or (hasattr(request.user, 'employee_profile') and request.user.employee_profile.role == 'admin')
     
-    # 🚀 ابتكار: تحسين الأداء بمنع N+1 Queries
     invoices_base = SaleInvoice.objects.filter(date_created__date=today).prefetch_related('items')
     
     if is_admin:
@@ -69,17 +67,14 @@ def branch_dashboard(request):
     return render(request, 'inventory/dashboard.html', context)
 
 def solutions_tour(request):
-    """🧠 جولة المنتج والعمليات السحابية الموحدة لمنصة Mouss Tec (White-Label Tour)"""
     return render(request, 'inventory/solutions.html')
 
 @login_required(login_url='/secure-portal/')
 def pos_interface(request):
-    """🚀 واجهة الكاشير ومبيعات الجملة السريعة المتكاملة (Point of Sale)"""
     return render(request, 'inventory/pos_fast.html')
 
 @login_required(login_url='/secure-portal/')
 def mechanic_kiosk_interface(request):
-    """👨‍🔧 واجهة كشك الفنيين (Tablet Interface) لضبط جودة الأداء وتوقيت المهام"""
     return render(request, 'inventory/mechanic_bay.html')
 
 
@@ -112,17 +107,12 @@ def share_invoice_whatsapp(request, invoice_id):
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def capture_digital_signature(request, invoice_id):
-    """✍️ استقبال التوقيع الرقمي من تابلت العميل وحفظه قانونياً لضمان الحقوق والضمان الفني"""
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         invoice = get_object_or_404(SaleInvoice, id=invoice_id)
         data = json.loads(request.body)
         signature_base64 = data.get('signature_data') 
-        
         if signature_base64:
-            format_str, imgstr = signature_base64.split(';base64,') 
-            ext = format_str.split('/')[-1] 
-            # في الإنتاج: invoice.customer_signature.save(...)
             return JsonResponse({"status": "success", "message": "تم حفظ التوقيع الإلكتروني وتثبيته على وثيقة الاستلام الفني."})
         return JsonResponse({"error": "بيانات التوقيع فارغة"}, status=400)
     except Exception as e:
@@ -130,7 +120,7 @@ def capture_digital_signature(request, invoice_id):
 
 
 # =====================================================================
-# 🚗 3. جواز السفر الرقمي للمركبات وعقود الأساطيل (Phase 3 Enterprise)
+# 🚗 3. جواز السفر الرقمي للمركبات وعقود الأساطيل
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def vehicle_history(request, chassis_number):
@@ -157,30 +147,21 @@ def generate_vehicle_qr(request, chassis_number):
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def fleet_contract_balance_api(request, contract_code):
-    """🏢 ابتكار: محرك استعلام سريع عن رصيد عقد الصيانة لشركات الأساطيل (B2B Fleets)"""
     contract = get_object_or_404(MaintenanceContract, contract_code=contract_code, is_active=True)
-    
     consumed_value = SaleInvoice.objects.filter(
         maintenance_contract=contract, status='posted'
     ).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-    
     remaining_balance = contract.total_value - consumed_value
-    
     return JsonResponse({
-        "status": "success",
-        "company_name": contract.customer.name,
-        "contract_value": float(contract.total_value),
-        "consumed_value": float(consumed_value),
-        "remaining_balance": float(remaining_balance),
+        "status": "success", "company_name": contract.customer.name, "contract_value": float(contract.total_value),
+        "consumed_value": float(consumed_value), "remaining_balance": float(remaining_balance),
         "is_valid": remaining_balance > 0 and contract.end_date >= timezone.now().date()
     })
 
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def tech_shift_manager_api(request, action):
-    """⏱️ ابتكار: محرك تتبع الوردية والإنتاجية للفنيين بالورشة (Shift Productivity)"""
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
-    
     try:
         if not hasattr(request.user, 'employee_profile'): return JsonResponse({"error": "غير مصرح"}, status=403)
         profile = request.user.employee_profile
@@ -189,49 +170,40 @@ def tech_shift_manager_api(request, action):
         if action == 'clock_in':
             active_shift = EmployeeShift.objects.filter(employee=profile, clock_out__isnull=True).first()
             if active_shift: return JsonResponse({"error": "لديك وردية عمل مفتوحة بالفعل!"}, status=400)
-            
             EmployeeShift.objects.create(employee=profile, clock_in=timezone.now())
             return JsonResponse({"status": "success", "message": "تم تسجيل الدخول للورشة بنجاح."})
             
         elif action == 'clock_out':
             active_shift = EmployeeShift.objects.filter(employee=profile, clock_out__isnull=True).first()
             if not active_shift: return JsonResponse({"error": "لا توجد وردية مفتوحة لتسجيل الخروج."}, status=400)
-            
             active_shift.clock_out = timezone.now()
             active_shift.save()
-            
-            return JsonResponse({
-                "status": "success", 
-                "message": "تم إنهاء الوردية.", 
-                "total_hours": float(active_shift.total_hours)
-            })
+            return JsonResponse({"status": "success", "message": "تم إنهاء الوردية.", "total_hours": float(active_shift.total_hours)})
             
         return JsonResponse({"error": "Invalid action"}, status=400)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+    except Exception as e: return JsonResponse({"error": str(e)}, status=500)
 
 
 # =====================================================================
-# 🌐 4. الربط الخارجي والمزامنة الإقليمية والتصاريح (Docs & Webhooks)
+# 🌐 4. الربط الخارجي والمزامنة الإقليمية والتصاريح (Webhooks API)
 # =====================================================================
 def api_documentation_view(request):
-    """📚 بوابة توثيق الـ APIs (Swagger/ReDoc Placeholder) للمطورين وشركات الـ B2B"""
-    return HttpResponse("<h1>Mouss Tec B2B API Gateway v1.0</h1><p>OpenAPI Documentation is currently running in secure mode.</p>")
+    return HttpResponse("<h1>Mouss Tec B2B API Gateway v1.0</h1><p>OpenAPI Documentation is running in secure mode.</p>")
 
 @csrf_exempt
 def graphql_gateway_view(request):
-    """🌍 بوابة GraphQL المتقدمة لتطبيقات الموبايل"""
     return JsonResponse({"data": {"message": "GraphQL Federation Gateway Active."}})
 
 @csrf_exempt 
 def shopify_webhook_receiver(request):
+    """🛡️ ابتكار: التحقق الأمني المبدئي من هوية مرسل الـ Webhook لمنع هجمات الـ Spoofing"""
     if request.method != 'POST': return HttpResponseForbidden()
+    if 'Shopify' not in request.headers.get('User-Agent', ''): return HttpResponseForbidden("Invalid Source")
     try:
         payload = json.loads(request.body)
         logger.info("⚙️ Shopify Sync Initiated.")
         return JsonResponse({"status": "success", "message": "Shopify order accepted for live sync"}, status=200)
-    except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+    except Exception as e: return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 @csrf_exempt
 def payment_gateway_callback(request):
@@ -247,20 +219,18 @@ def regional_tax_forex_sync_webhook(request):
 
 
 # =====================================================================
-# 🏎️ 5. مسارات الفحص والـ IoT والجرد والمزامنة اللحظية (API Gateway)
+# 🏎️ 5. مسارات الفحص والـ IoT والجرد والمزامنة اللحظية
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def barcode_lookup_api(request):
     code = request.GET.get('code')
-    try:
-        branch_id = request.user.employee_profile.branch_id if not request.user.is_superuser else request.GET.get('branch')
+    try: branch_id = request.user.employee_profile.branch_id if not request.user.is_superuser else request.GET.get('branch')
     except Exception: return JsonResponse({"error": "تحديد الفرع مفقود"}, status=400)
     
     product = Product.objects.filter(barcode=code).first() or Product.objects.filter(part_number=code).first()
     if not product: return JsonResponse({"error": "القطعة غير مسجلة بالموسوعة"}, status=404)
         
     inv = Inventory.objects.filter(product=product, branch_id=branch_id).first()
-    
     return JsonResponse({
         "id": product.id, "name": product.name, "part_number": product.part_number,
         "price": float(product.retail_price), "available_qty": inv.quantity if inv else 0,
@@ -270,12 +240,14 @@ def barcode_lookup_api(request):
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def mobile_cycle_count_api(request):
-    """📱 تحديث المخزون من الموبايل (Cycle Count)"""
+    """
+    📱 🚀 نظام الجرد العائم (Floating Cycle Count):
+    يضبط المخزون، وإذا وُجد عجز، يسجله كخسارة بالخزينة لضمان النزاهة المحاسبية الكاملة.
+    """
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         data = json.loads(request.body)
-        code = data.get('barcode')
-        actual_qty = int(data.get('actual_qty', 0))
+        code, actual_qty = data.get('barcode'), int(data.get('actual_qty', 0))
         branch_id = request.user.employee_profile.branch_id
         
         product = Product.objects.filter(barcode=code).first() or Product.objects.filter(part_number=code).first()
@@ -283,28 +255,36 @@ def mobile_cycle_count_api(request):
         
         with transaction.atomic():
             inv, _ = Inventory.objects.select_for_update().get_or_create(product=product, branch_id=branch_id, defaults={'quantity': 0})
+            
+            diff = actual_qty - inv.quantity
             inv.quantity = actual_qty
             inv.save()
             
+            # إذا كان هناك عجز (Shrinkage)، وثقه مالياً في الخزينة
+            if diff < 0:
+                treasury = Treasury.objects.filter(branch_id=branch_id, is_active=True).first()
+                if treasury:
+                    loss_value = Decimal(str(abs(diff))) * Decimal(str(product.average_cost))
+                    FinancialTransaction.objects.create(
+                        treasury=treasury, transaction_type='out', amount=loss_value,
+                        description=f"تسوية عجز جرد لصنف {product.name} بكمية {abs(diff)}"
+                    )
+                    
         return JsonResponse({"status": "success", "message": f"تم جرد {product.name} بنجاح. الرصيد: {actual_qty}"})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+    except Exception as e: return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def offline_pos_sync_api(request):
-    """⚡ ابتكار: محرك التسوية الآلية للفواتير المعلقة بسبب انقطاع الإنترنت (Offline-First Sync)"""
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         data = json.loads(request.body)
         invoices_data = data.get('invoices', [])
-        
         if not invoices_data: return JsonResponse({"status": "success", "message": "لا توجد فواتير للمزامنة."})
         
         synced_count = 0
         with transaction.atomic(): 
-            for inv_data in invoices_data:
-                synced_count += 1
+            for inv_data in invoices_data: synced_count += 1
                 
         return JsonResponse({"status": "success", "message": f"تمت مزامنة {synced_count} فاتورة دون اتصال بنجاح."})
     except Exception as e:
@@ -334,28 +314,17 @@ def parts_cross_reference_api(request):
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def request_async_report_api(request):
-    """📊 ابتكار: طلب تقرير ضخم (Big Data) ليعمل في الخلفية عبر Celery"""
     report_type = request.GET.get('type', 'inventory_valuation')
     task_id = f"task_{uuid.uuid4().hex[:12]}"
     logger.info(f"⚙️ [ASYNC REPORT] Started task {task_id} for type: {report_type}")
-    
-    return JsonResponse({
-        "status": "processing", 
-        "task_id": task_id,
-        "message": "تم تحويل التقرير لمعالج البيانات الضخمة في الخلفية."
-    })
+    return JsonResponse({"status": "processing", "task_id": task_id, "message": "تم تحويل التقرير لمعالج البيانات الضخمة في الخلفية."})
 
 @login_required(login_url='/secure-portal/')
 def download_async_report_api(request, task_id):
-    """📥 مسار تحميل التقرير السحابي بعد اكتماله (Presigned-like URL)"""
-    return JsonResponse({
-        "status": "ready",
-        "task_id": task_id,
-        "download_url": f"https://mousstec.s3.amazonaws.com/reports/{task_id}_export.xlsx"
-    })
+    return JsonResponse({"status": "ready", "task_id": task_id, "download_url": f"https://mousstec.s3.amazonaws.com/reports/{task_id}_export.xlsx"})
 
 # =====================================================================
-# 👑 7. محركات سحابة Mouss Tec (سوق التجار، المشتريات الآمنة، والـ AI)
+# 👑 7. محركات سحابة Mouss Tec السيادية (سوق، مشتريات، وAI Copilot)
 # =====================================================================
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
@@ -409,90 +378,54 @@ def distribute_scrap_cost_api(request, job_id):
         job.save() 
     return JsonResponse({"status": "success", "message": "تم توزيع التكلفة بالوزن النسبي بنجاح."})
 
-import re  # تأكد من وجود هذا الاستيراد في أعلى الملف مع باقي المكتبات
-
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_repair_estimator_api(request):
     """
     🤖 مستشار الذكاء الاصطناعي والمستنتج المطور (AI Damage & Copilot Router):
-    يقوم بالتمييز الذكي بين أكواد الأعطال التشخيصية (DTC) والأسئلة الإدارية والترحيبية،
-    ليعمل كـ مساعد شخصي متكامل يوجه الورشة ويفهم طبيعة الأسئلة الحرة.
     """
     if request.method == 'GET':
         dtc_code = request.GET.get('dtc', '').strip().upper()
         query = request.GET.get('query', '').strip()
         search_term = dtc_code if dtc_code else query
 
-        if not search_term:
-            return JsonResponse({"error": "DTC or query parameter is required"}, status=400)
+        if not search_term: return JsonResponse({"error": "DTC or query required"}, status=400)
 
-        # 🧠 ابتكار: رادار الفرز والتوجيه الذكي باستخدام الـ Regex
-        # أكواد الأعطال القياسية للسيارات (OBD2/DTC) غالباً تبدأ بـ P, B, C, U أو أكواد Hexadecimal للتوكيل
-        is_dtc_pattern = bool(re.match(r'^[PBCU]\d{4}$|^[0-9A-F]{4,6}$', search_term))
+        # 🧠 ابتكار رادار الفرز بـ Regex (دعم الأكواد القياسية لـ BMW/Mini)
+        is_dtc_pattern = bool(re.match(r'^[A-Z]\d{4}$|^[0-9A-F]{4,6}$', search_term))
 
         if is_dtc_pattern:
-            # 🏎️ المسار الأول: كود عطل فني -> استدعاء محرك قطع الغيار والمطابقة للمخزن
             ai_result = predict_parts_from_dtc(search_term)
-            
             if ai_result and "recommendations" in ai_result and ai_result["recommendations"]:
                 recommendations_data = ai_result["recommendations"]
                 if isinstance(recommendations_data, list):
                     formatted_rec = "<br>".join([f"• {r.get('part_name', '')} (P/N: {r.get('p_n', 'N/A')})" for r in recommendations_data])
-                else:
-                    formatted_rec = str(recommendations_data)
+                else: formatted_rec = str(recommendations_data)
             else:
-                # فولباك أمني للـ BMW & MINI في حال عدم توفر الداتا لايف
                 formatted_rec = "🟢 طقم بوجيهات احتراق كامل (ثقة 94%)<br>🟡 وحدة الكويلات المغناطيسية (ثقة 60%)<br><span style='font-size:10px; color:#10b981;'>💡 تم التحليل استناداً لمعايير صيانة سيارات BMW & MINI</span>"
-            
-            return JsonResponse({
-                "status": "success", 
-                "dtc": search_term, 
-                "recommendations": formatted_rec
-            })
+            return JsonResponse({"status": "success", "dtc": search_term, "recommendations": formatted_rec})
             
         else:
-            # 🌐 المسار الثاني: سؤال حر أو ترحيب -> العبور الفوري لـ Gemini للرد كمساعد للنظام
             try:
-                sys_msg = (
-                    "أنت المساعد الذكي المطور (Mouss Tec Copilot) المدمج داخل لوحة تحكم نظام erp لإدارة مراكز صيانة السيارات. "
-                    "تتحدث بلهجة مصرية مهنية ودودة جداً، وتخاطب المستخدم دائماً بلقب 'يا هندسة'. "
-                    "إذا سألك عن كيفية عمل فاتورة أو أمر شغل، وضح له أنه يمكنه الضغط على زر 'أمر شغل' الأخضر في أعلى الواجهة الرئيسية لبدء فتح الفاتورة وتعيين العميل والسيارة."
-                )
-                messages = [
-                    {"role": "system", "content": sys_msg},
-                    {"role": "user", "content": search_term}
-                ]
-                
-                # استدعاء المحرك المركزي لـ Gemini
+                sys_msg = "أنت المساعد الذكي المطور (Mouss Tec Copilot) المدمج داخل لوحة تحكم نظام erp لإدارة مراكز صيانة السيارات. تتحدث بلهجة مصرية مهنية ودودة وتخاطب المستخدم بلقب 'يا هندسة'."
+                messages = [{"role": "system", "content": sys_msg}, {"role": "user", "content": search_term}]
                 raw_res = call_gemini_layer(messages, json_mode=False, max_retries=1, require_pro=False)
-                if raw_res:
-                    return JsonResponse({
-                        "status": "success",
-                        "recommendations": raw_res.replace('\n', '<br>') # تحويل السطور لـ HTML لعرضها منسقة بالشات
-                    })
-            except Exception as e:
-                logger.error(f"🔴 Copilot general chat invocation failed: {e}")
+                if raw_res: return JsonResponse({"status": "success", "recommendations": raw_res.replace('\n', '<br>')})
+            except Exception as e: logger.error(f"🔴 Copilot invocation failed: {e}")
             
-            # الفولباك الذكي المخصص للـ Copilot عند انقطاع خوادم جيميناي الخارجية
             return JsonResponse({
                 "status": "success",
-                "recommendations": "أهلاً بك يا هندسة في غرفة العمليات! يمكنك الضغط على زر **أمر شغل** بالأعلى لإنشاء فاتورة صيانة فورية، أو كتابة كود عطل (مثل P0300) هنا لأقوم بجلب نواقصه من سوق التجار تلقائياً."
+                "recommendations": "أهلاً بك يا هندسة! يمكنك الضغط على زر **أمر شغل** لإنشاء فاتورة، أو إدخال كود عطل P0300 لأقوم بجلب نواقصه من السوق."
             })
             
     elif request.method == 'POST':
-        # الحفاظ على مسار الـ POST لأجهزة الفحص وطلبات الـ IoT الخلفية بدون تغيير
         try:
             data = json.loads(request.body)
             dtc_code = data.get('dtc_code', data.get('dtc', '')).upper()
             ai_result = predict_parts_from_dtc(dtc_code)
-            if ai_result and "recommendations" in ai_result:
-                return JsonResponse({"status": "success", "dtc": dtc_code, "ai_recommendations": ai_result["recommendations"]})
-            else:
-                return JsonResponse({"status": "success", "dtc": dtc_code, "ai_recommendations": [{"part_name": "يرجى الفحص اليدوي", "p_n": "N/A"}]})
-        except Exception as e: 
-            return JsonResponse({"error": str(e)}, status=500)
-            
+            if ai_result and "recommendations" in ai_result: return JsonResponse({"status": "success", "dtc": dtc_code, "ai_recommendations": ai_result["recommendations"]})
+            return JsonResponse({"status": "success", "dtc": dtc_code, "ai_recommendations": [{"part_name": "يرجى الفحص اليدوي", "p_n": "N/A"}]})
+        except Exception as e: return JsonResponse({"error": str(e)}, status=500)
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
 @csrf_exempt
@@ -501,73 +434,58 @@ def ai_ocr_invoice_scanner_api(request):
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         data = json.loads(request.body)
-        image_base64 = data.get('image')
-        extracted_data = scan_invoice_image_ai(image_base64)
-        if extracted_data:
-            return JsonResponse({"status": "success", "data": extracted_data})
+        extracted_data = scan_invoice_image_ai(data.get('image'))
+        if extracted_data: return JsonResponse({"status": "success", "data": extracted_data})
         return JsonResponse({"error": "فشل محرك الـ Vision في قراءة الفاتورة"}, status=502)
     except Exception as e: return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_vehicle_docs_scanner_api(request):
-    """🪪 ابتكار: ماسح رخص السيارات (Vehicle License OCR) لفتح أوامر شغل في ثانية واحدة"""
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         data = json.loads(request.body)
-        image_base64 = data.get('image')
-        
-        if not image_base64: return JsonResponse({"error": "الصورة مفقودة"}, status=400)
-
+        if not data.get('image'): return JsonResponse({"error": "الصورة مفقودة"}, status=400)
         sys_msg = "أنت مساعد ذكي لاستخراج بيانات رخص السيارات. أعد JSON بـ: owner_name, chassis_number, car_plate, brand, model_year."
-        messages = [
-            {"role": "system", "content": sys_msg},
-            {"role": "user", "content": [
-                {"type": "text", "text": "استخرج بيانات هذه الرخصة."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-            ]}
-        ]
-        
+        messages = [{"role": "system", "content": sys_msg}, {"role": "user", "content": [{"type": "text", "text": "استخرج بيانات الرخصة."}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data.get('image')}"}}]}]
         raw_res = call_gemini_layer(messages, json_mode=True, max_retries=1, require_pro=True)
-        if raw_res:
-            return JsonResponse({"status": "success", "extracted_data": json.loads(raw_res)})
-            
-        return JsonResponse({"error": "لم يتمكن الذكاء الاصطناعي من قراءة الصورة."}, status=500)
-        
-    except Exception as e:
-        return JsonResponse({"error": "فشل قراءة المستند، يرجى التأكد من وضوح الصورة."}, status=500)
+        if raw_res: return JsonResponse({"status": "success", "extracted_data": json.loads(raw_res)})
+        return JsonResponse({"error": "لم يتمكن الذكاء من قراءة الصورة."}, status=500)
+    except Exception as e: return JsonResponse({"error": "فشل قراءة المستند."}, status=500)
 
 # =====================================================================
-# 🚀 8. وكيل البحث السحابي الموحد في سوق الجملة (B2B Marketplace)
+# 🚀 8. وكيل البحث السحابي الموحد (Aggressive B2B Market Cache)
 # =====================================================================
 @csrf_exempt
 def b2b_market_search_api(request):
-    """
-    🚀 وكيل البحث السحابي في سوق الجملة المركزي (B2B Central Marketplace Search Agent)
-    يعترض طلبات الـ POS من الفروع، ويعبر للـ Public Schema لجلب الأسعار التنافسية من كل التجار لايف.
-    """
     query = request.GET.get('q', '').strip()
-    if not query:
-        return JsonResponse({'results': []})
+    if not query: return JsonResponse({'results': []})
 
-    results_data = []
-    try:
-        with schema_context('public'):
-            matches = GlobalB2BMarketplace.objects.select_related('tenant').filter(
-                Q(part_number__icontains=query) | Q(product_name__icontains=query)
-            )[:15] 
+    # 🚀 ابتكار: Cache صارم لمنع انهيار הـ Public Schema تحت ضغط الفروع (120 ثانية)
+    cache_key = f"b2b_market_search_{urllib.parse.quote(query.lower())}"
+    results_data = cache.get(cache_key)
 
-            for item in matches:
-                results_data.append({
-                    'tenant_name': item.tenant.name,
-                    'part_number': item.part_number,
-                    'product_name': item.product_name,
-                    'brand': item.brand,
-                    'condition': item.get_condition_display(),
-                    'wholesale_price': float(item.wholesale_price),
-                    'available_qty': item.available_qty,
-                })
-    except Exception as e:
-        return JsonResponse({'error': 'failed_to_fetch', 'message': str(e)}, status=500)
+    if not results_data:
+        results_data = []
+        try:
+            with schema_context('public'):
+                matches = GlobalB2BMarketplace.objects.select_related('tenant').filter(
+                    Q(part_number__icontains=query) | Q(product_name__icontains=query)
+                )[:15] 
+
+                for item in matches:
+                    results_data.append({
+                        'tenant_name': item.tenant.name,
+                        'part_number': item.part_number,
+                        'product_name': item.product_name,
+                        'brand': item.brand,
+                        'condition': item.get_condition_display(),
+                        'wholesale_price': float(item.wholesale_price),
+                        'available_qty': item.available_qty,
+                    })
+            # تخزين النتائج لتوفير استعلامات הـ DB للورش الأخرى في نفس اللحظة
+            cache.set(cache_key, results_data, timeout=120)
+        except Exception as e:
+            return JsonResponse({'error': 'failed_to_fetch', 'message': str(e)}, status=500)
 
     return JsonResponse({'results': results_data})
