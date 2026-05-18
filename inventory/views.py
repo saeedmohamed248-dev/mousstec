@@ -480,3 +480,40 @@ def ai_vehicle_docs_scanner_api(request):
         
     except Exception as e:
         return JsonResponse({"error": "فشل قراءة المستند، يرجى التأكد من وضوح الصورة."}, status=500)
+    from django.http import JsonResponse
+from django_tenants.utils import schema_context
+from django.db.models import Q
+from clients.models import GlobalB2BMarketplace
+
+def b2b_market_search_api(request):
+    """
+    🚀 وكيل البحث السحابي في سوق الجملة المركزي (B2B Central Marketplace Search Agent)
+    يعترض طلبات الـ POS من الفروع، ويعبر للـ Public Schema لجلب الأسعار التنافسية من كل التجار.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'results': []})
+
+    results_data = []
+    try:
+        # العبور الآمن للنطاق العام لقراءة عروض مخازن تجار قطاع السيارات المشتركين
+        with schema_context('public'):
+            # البحث برقم القطعة (P/N) أو الاسم
+            matches = GlobalB2BMarketplace.objects.select_related('tenant').filter(
+                Q(part_number__icontains=query) | Q(product_name__icontains=query)
+            )[:15] # حد أقصى 15 عرض لحماية سرعة استجابة الـ Network
+
+            for item in matches:
+                results_data.append({
+                    'tenant_name': item.tenant.name,
+                    'part_number': item.part_number,
+                    'product_name': item.product_name,
+                    'brand': item.brand,
+                    'condition': item.get_condition_display(),
+                    'wholesale_price': float(item.wholesale_price),
+                    'available_qty': item.available_qty,
+                })
+    except Exception as e:
+        return JsonResponse({'error': 'failed_to_fetch', 'message': str(e)}, status=500)
+
+    return JsonResponse({'results': results_data})
