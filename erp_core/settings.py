@@ -3,6 +3,7 @@ import os
 import environ # مدير الأسرار الذكي
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta # 🚀 ابتكار: للتحكم الدقيق في التوقيتات
+
 # 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404
 LOGIN_REDIRECT_URL = '/system/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
@@ -20,7 +21,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m(h@fwvt^ib4&sainhr8e55x&@_')
 DEBUG = env('DEBUG', default=True)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.localhost', 'localhost', '127.0.0.1', '[::1]'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.localhost', 'localhost', '127.0.0.1', '[::1]', '64.226.120.5'])
 
 # 🚀 ابتكار: جدار حماية صارم لمنع هجمات الـ Cross-Site
 CORS_ALLOW_ALL_ORIGINS = False
@@ -31,7 +32,8 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 ])
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     "http://localhost:8000",
-    "https://*.mousstec.com"
+    "https://*.mousstec.com",
+    "http://64.226.120.5"
 ])
 
 # 🛡️ حماية الجلسات السحابية (معزولة لتناسب الـ Multi-Tenant)
@@ -65,7 +67,8 @@ SHARED_APPS = (
     # 🛠️ أدوات الـ Enterprise السحابية
     'channels',        
     'rest_framework',  
-    'rest_framework_simplejwt', # 🚀 ابتكار: توثيق JWT للأجهزة الخارجية
+    'rest_framework_simplejwt', 
+    'rest_framework_simplejwt.token_blacklist', # ⚠️ ضروري جداً لعمل خاصية BLACKLIST_AFTER_ROTATION
     'corsheaders',     
     'storages',        
     'axes',            

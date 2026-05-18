@@ -1,4 +1,4 @@
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
@@ -459,7 +459,9 @@ class StockTransfer(models.Model):
 
 @receiver(post_save, sender=User)
 def create_employee_profile(sender, instance, created, **kwargs):
-    if created: EmployeeProfile.objects.create(user=instance)
+    # 🚀 ابتكار: منع إنشاء ملف موظف إذا كنا داخل النطاق العام (Public Schema) لمنع تعارض الـ SaaS
+    if created and connection.schema_name != 'public':
+        EmployeeProfile.objects.create(user=instance)
 
 @receiver(pre_save, sender=Product)
 def track_product_price_changes(sender, instance, **kwargs):
