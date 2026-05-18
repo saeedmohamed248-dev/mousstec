@@ -6,10 +6,12 @@ from django.db.models import Count, Min, Sum, F, Avg, Max
 from django.utils import timezone
 from django.db import transaction, connection
 from django.contrib.auth import get_user_model
-from django_tenants.utils import schema_context
+from django.contrib import messages
 from django.core.cache import cache
 from django.utils.text import slugify
+from django_tenants.utils import schema_context
 from decimal import Decimal
+from datetime import timedelta
 import json
 import logging
 import uuid
@@ -38,15 +40,20 @@ def register_new_tenant_saas(request):
             data = form.cleaned_data
             company_name = data['company_name']
             
-            # 🚀 توليد الاسم المبدئي من اسم الشركة
-            subdomain_slug = slugify(company_name)
+            # 🚀 توليد الاسم المبدئي وتطهيره ميكانيكياً ليتوافق مع معايير شروط PostgreSQL
+            subdomain_slug = slugify(company_name).replace('-', '_')
             if not subdomain_slug:
-                subdomain_slug = f"mt-{secrets.token_hex(3)}"
-            schema_name = subdomain_slug.replace('-', '_')
+                subdomain_slug = f"mt_{secrets.token_hex(3)}"
+            
+            # 🛡️ صمام أمان: إذا كان الاسم يبدأ برقم، ضع بادئة نصية لأن postgres يرفض أسماء الـ schemas البادئة بأرقام
+            if subdomain_slug[0].isdigit():
+                subdomain_slug = f"tenant_{subdomain_slug}"
+                
+            schema_name = subdomain_slug
 
             success = False
             attempts = 0
-            max_attempts = 5
+            max_attempts = 10  # رفع سقف المحاولات لضمان التأسيس المرن
 
             # 🛡️ محرك التكرار المرن لمنع التصادم في قاعدة البيانات
             while not success and attempts < max_attempts:
@@ -61,13 +68,16 @@ def register_new_tenant_saas(request):
                             phone=data.get('phone', ''),
                             is_active=True
                         )
+                        
+                        # تعديل النطاق ليدعم الـ Slug النظيف الخالي من الشرطات العادية المتصادمة
+                        url_safe_slug = schema_name.replace('_', '-')
                         Domain.objects.create(
-                            domain=f"{subdomain_slug}.mousstec.com", # تم التعديل للدومين الحقيقي بدلاً من localhost
+                            domain=f"{url_safe_slug}.mousstec.com",
                             tenant=tenant,
                             is_primary=True
                         )
 
-                        # 2. زراعة حساب المدير والبروفايل
+                        # 2. زراعة حساب المدير والبروفايل داخل الـ Schema الجديدة
                         with schema_context(schema_name):
                             name_parts = data['full_name'].split(' ', 1)
                             first_name = name_parts[0]
@@ -81,7 +91,6 @@ def register_new_tenant_saas(request):
                                 last_name=last_name
                             )
                             
-                            # نفترض وجود EmployeeProfile في تطبيق inventory
                             try:
                                 from inventory.models import EmployeeProfile
                                 EmployeeProfile.objects.get_or_create(
@@ -98,22 +107,22 @@ def register_new_tenant_saas(request):
                     if "already exists" in error_msg or "unique constraint" in error_msg:
                         attempts += 1
                         suffix = secrets.token_hex(2)
-                        subdomain_slug = f"{slugify(company_name)}-{suffix}"
-                        schema_name = subdomain_slug.replace('-', '_')
+                        schema_name = f"{subdomain_slug}_{suffix}"
                     else:
                         logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
-                        form.add_error(None, f"🛑 فشل تأسيس السيرفر: الرجاء المحاولة لاحقاً.")
+                        form.add_error(None, f"🛑 فشل تأسيس السيرفر: {str(e)}")
                         return render(request, 'clients/signup_register.html', {'form': form})
 
             if success:
-                target_url = f"https://{subdomain_slug}.mousstec.com/{ADMIN_URL}/"
+                url_safe_final = schema_name.replace('_', '-')
+                target_url = f"https://{url_safe_final}.mousstec.com/{ADMIN_URL}/"
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
                     'target_url': target_url,
                     'admin_email': data['email']
                 })
             else:
-                form.add_error(None, "🛑 فشل التأسيس: تم استنفاد محاولات التسمية التلقائية.")
+                form.add_error(None, "🛑 فشل التأسيس: تم استنفاد كافة محاولات التسمية التلقائية الآمنة.")
     else:
         form = TenantSignupForm()
 
@@ -147,10 +156,6 @@ def universal_webhook_multiplexer(request):
     """
     if request.method != 'POST': return HttpResponseForbidden("POST Only")
     
-    # 🛡️ ابتكار: التحقق من التوقيع (Signature Verification) لمنع الهاكرز
-    # signature = request.headers.get('Stripe-Signature')
-    # if not is_valid_signature(request.body, signature): return HttpResponseForbidden()
-    
     try:
         payload = json.loads(request.body)
         event_id = payload.get('id', 'evt_' + str(uuid.uuid4().hex[:12]))
@@ -167,8 +172,7 @@ def universal_webhook_multiplexer(request):
             amount = Decimal(str(payload['data']['amount_received'])) / 100
             
             with transaction.atomic():
-                tenant = Client.objects.get(id=client_id)
-                # استخدام F() لمنع الـ Race Conditions إذا تم الإيداع مرتين في نفس اللحظة
+                tenant = Client.objects.select_for_update().get(id=client_id)
                 tenant.wallet_balance = F('wallet_balance') + amount
                 tenant.save(update_fields=['wallet_balance'])
                 
@@ -205,7 +209,7 @@ def b2b_market_search_api(request):
         available_qty__gt=0,
         tenant__is_active=True,
         tenant__is_marketplace_active=True,
-        tenant__is_fraud_flagged=False # 🛡️ تجاهل النصابين آلياً
+        tenant__is_fraud_flagged=False
     ).select_related('tenant').order_by('-tenant__is_verified_merchant', 'wholesale_price')[:10]
 
     data = [{
@@ -244,7 +248,7 @@ def active_blind_bids_api(request):
 def submit_bid_offer_api(request):
     """
     محرك تقديم العروض مع الذكاء الاصطناعي لحساب درجة المطابقة، 
-    والحماية المالية الصارمة قبل الترسية الآلية.
+    والحماية المالية الصارمة لمنع الـ Race Conditions قبل الترسية الآلية.
     """
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     if getattr(request, 'tenant', None) is None or request.tenant.schema_name == 'public':
@@ -258,18 +262,19 @@ def submit_bid_offer_api(request):
 
         with transaction.atomic():
             bid = get_object_or_404(BlindBiddingRequest.objects.select_for_update(), id=bid_id, status='open')
-            buyer_tenant = bid.buyer
+            
+            # 🚀 تصحيح الثغرة: قفل صف المشتري حصرلياً لمنع الـ Race Condition وتضارب الحسابات المالية
+            buyer_tenant = Client.objects.select_for_update().get(id=bid.buyer_id)
             seller_tenant = request.tenant
             
             if buyer_tenant == seller_tenant:
                 return JsonResponse({"error": "قانون المنصة يمنع المزايدة على طلباتك الشخصية."}, status=400)
 
             # 🤖 الابتكار: حساب الـ AI Match Score (السعر + سرعة التوصيل + ثقة التاجر)
-            # مثال لمعادلة بسيطة: الثقة تمثل 50%، السعر التنافسي 30%، التوصيل 20%
             target = bid.target_price or offer_price
             price_score = min((target / offer_price) * 30, 30) if offer_price > 0 else 0
             delivery_score = max(20 - (delivery_days * 2), 0)
-            trust_score = (seller_tenant.ai_trust_score / 100) * 50
+            trust_score = (getattr(seller_tenant, 'ai_trust_score', 100) / 100) * 50
             
             final_match_score = Decimal(str(price_score + delivery_score + trust_score))
 
@@ -282,21 +287,19 @@ def submit_bid_offer_api(request):
                 }
             )
 
-            # تحديث الـ AI Recommended Winner إذا كان هذا أفضل عرض حتى الآن
             if not bid.ai_recommended_winner or final_match_score > bid.ai_recommended_winner.ai_match_score:
                 bid.ai_recommended_winner = offer
                 bid.save(update_fields=['ai_recommended_winner'])
 
             # 🛡️ الحماية المالية والترسية الآلية
             if bid.auto_award and bid.target_price and offer_price <= bid.target_price:
-                # حساب التكلفة الإجمالية المطلوبة من المشتري
                 total_parts_cost = offer_price * bid.required_qty
-                platform_fee = total_parts_cost * (buyer_tenant.platform_fee_rate / Decimal('100.0'))
+                platform_fee_rate = getattr(buyer_tenant, 'platform_fee_rate', Decimal('2.5'))
+                platform_fee = total_parts_cost * (platform_fee_rate / Decimal('100.0'))
                 total_escrow_required = total_parts_cost + platform_fee
 
-                # 🚨 التحقق الصارم من رصيد المشتري
+                # 🚨 التحقق الصارم والمؤمن من رصيد المحفظة
                 if buyer_tenant.wallet_balance >= total_escrow_required:
-                    # تجميد ونقل أموال الضمان
                     bid.status = 'escrow_held'
                     bid.winner = seller_tenant
                     bid.winning_price = offer_price
@@ -306,7 +309,7 @@ def submit_bid_offer_api(request):
                     offer.is_winner = True
                     offer.save(update_fields=['is_winner'])
                     
-                    # سحب الأموال إلى الـ Escrow
+                    # خصم وحجز أموال الضمان بامان كامل
                     buyer_tenant.wallet_balance -= total_escrow_required
                     buyer_tenant.escrow_held += total_escrow_required
                     buyer_tenant.save(update_fields=['wallet_balance', 'escrow_held'])
@@ -360,13 +363,13 @@ def my_escrow_wallet_api(request):
     })
 
 # =====================================================================
-# 🤖 7. رادار التنبؤ بطلب السوق (Advanced Market Demand AI Predictor)
+# 🌍 7. رادار التنبؤ بطلب السوق (Advanced Market Demand AI Predictor)
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def market_demand_predictor_api(request):
     """
-    🚀 ابتكار: التسعير الديناميكي (Elastic Pricing Bands).
-    يعطي التاجر أقل سعر وأعلى سعر تم الترسية به ليعرف هوامش المنافسة الحقيقية.
+    🚀 B2B Elastic Pricing Bands.
+    يعطي التاجر نطاقات الأسعار التنافسية لضمان عدم الخسارة في المزادات.
     """
     thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
     
@@ -401,28 +404,22 @@ def market_demand_predictor_api(request):
         "intelligence_report": "نوصي بضخ هذه المكونات في مستودعاتك لتحقيق أعلى عوائد بناءً على التسعير الديناميكي.",
         "trending_parts": data
     })
-from django.utils import timezone
-from datetime import timedelta
-from django.contrib import messages
 
 # =====================================================================
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Upgrades)
 # =====================================================================
 def saas_pricing_page(request):
     """
-    بوابة الدفع المركزية للمنصة. تقرأ كود الورشة من الرابط، 
-    وتسمح للعميل بتجديد اشتراكه وتوجيهه مباشرة لورشته بعد الدفع.
+    بوابة الدفع المركزية للمنصة وتجديد الاشتراكات الشهرية.
     """
-    # 1. التقاط اسم الورشة من الرابط (الفخ الذكي)
     shop_schema = request.GET.get('shop', '')
     tenant = None
     
     if shop_schema:
         tenant = Client.objects.filter(schema_name=shop_schema).first()
 
-    # 2. معالجة طلب الدفع/اختيار الباقة (POST Request)
     if request.method == 'POST':
-        selected_plan = request.POST.get('plan') # 'silver', 'gold', 'empire'
+        selected_plan = request.POST.get('plan')
         shop_schema_post = request.POST.get('shop')
         
         target_tenant = Client.objects.filter(schema_name=shop_schema_post).first()
@@ -431,36 +428,31 @@ def saas_pricing_page(request):
             messages.error(request, "🛑 لم نتمكن من العثور على بيانات مركزك. يرجى التأكد من الرابط.")
             return redirect('saas_pricing')
 
-        # 🚀 ابتكار: التحقق من صحة الباقة وتطبيق منطق التجديد المالي (FinTech Logic)
-        valid_plans = [choice[0] for choice in Client.SUBSCRIPTION_CHOICES]
+        # التحقق من صحة الباقة وتطبيق منطق التجديد المالي
+        valid_plans = [choice[0] for choice in getattr(Client, 'SUBSCRIPTION_CHOICES', [('silver', 'Silver'), ('gold', 'Gold'), ('empire', 'Empire')])]
         if selected_plan in valid_plans:
             with transaction.atomic():
-                # تحديث بيانات الباقة
                 target_tenant.plan = selected_plan
                 target_tenant.status = 'active'
                 
-                # إضافة 30 يوم من تاريخ اليوم (أو من تاريخ انتهاء اشتراكه لو لسه مخلصش)
+                # حساب التاريخ الآمن تبعا للمنطقة الزمنية لتفادي أخطاء فروق الأيام
                 current_end = target_tenant.subscription_end_date
-                base_date = timezone.now().date()
+                base_date = timezone.localdate()
                 if current_end and current_end > base_date:
                     base_date = current_end
                     
                 target_tenant.subscription_end_date = base_date + timedelta(days=30)
-                
-                # حفظ التعديلات (دالة save في الموديل هتقوم بتحديث حدود الـ users والفروع أوتوماتيك)
                 target_tenant.save()
                 
-                # تسجيل الحركة في دفتر المراقبة (Audit Log)
                 logger.info(f"💰 [SUBSCRIPTION RENEWED]: Tenant '{target_tenant.schema_name}' upgraded to {selected_plan} plan until {target_tenant.subscription_end_date}.")
                 
-                # 🚀 توجيه العميل السحري: إرجاعه إلى لوحة تحكم ورشته الخاصة فوراً!
-                tenant_url = f"https://{target_tenant.schema_name}.mousstec.com/{ADMIN_URL}/"
+                # توجيه المشتري تلقائياً بعد الفرز إلى لوحة تحكم ورشته المعزولة
+                url_safe_slug = target_tenant.schema_name.replace('_', '-')
+                tenant_url = f"https://{url_safe_slug}.mousstec.com/{ADMIN_URL}/"
                 return redirect(tenant_url)
         else:
             messages.error(request, "🛑 الباقة المختارة غير صحيحة.")
 
-    # 3. عرض صفحة الباقات (GET Request)
-    # نجهز بيانات الأسعار لإرسالها للفرونت إند
     pricing_data = {
         'silver': {'price': 400, 'branches': 1, 'users': 2, 'cards': 150},
         'gold': {'price': 1200, 'branches': 2, 'users': 5, 'cards': 'غير محدود'},

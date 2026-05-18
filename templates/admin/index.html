@@ -382,7 +382,7 @@
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // 🧠 🚀 تصحيح 4: تحويل الـ fetch endpoints لتضرب مسار الـ system المدمج من جانجو لايف
+    // 🧠 🚀 معالجة شات المستشار الذكي وربطه بـ API الباك إند
     async function handleAiChat(e) {
         if(e.key === 'Enter' && e.target.value.trim()) {
             const query = e.target.value.trim();
@@ -396,7 +396,6 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                // إضافة بادئة /system/ الصائبة لفض النزاع الشبكي
                 const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 const typingEl = document.getElementById(typingId);
@@ -419,7 +418,7 @@
         }
     }
 
-    // 🚀 🚀 تصحيح 5: إضافة بادئة /system/ لمسار فحص الأعطال الفوري مع الـ API الموحد لـ Gemini
+    // 🚀 ربط رادار فحص الأعطال الفوري مع الـ API الموحد لـ Gemini
     async function triggerQuickDiagnostic() {
         const code = document.getElementById('quickDtcInput').value.trim().toUpperCase();
         const resultBox = document.getElementById('quickDtcResult');
@@ -429,7 +428,6 @@
         resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري استدعاء البصمة التشخيصية لـ Gemini...`;
 
         try {
-            // إضافة بادئة /system/ الصائبة لفض النزاع الشبكي
             const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
             if(!response.ok) throw new Error("API Crash");
             const data = await response.json();
@@ -474,7 +472,7 @@
                 }
             } else {
                 barcodeBuffer += e.key;
-                clearTimeout(barcodeBuffer);
+                clearTimeout(barcodeTimer); // ✅ تصحيح: تمرير المرجع الفعلي للمؤقت بدلاً من البافر النصي لقتل الـ Memory Leak
                 barcodeTimer = setTimeout(() => { barcodeBuffer = ''; }, 50); 
             }
         });
@@ -601,7 +599,6 @@
             }
         });
 
-        // محاكاة إشعار لحظي سحابي لتأكيد عمل الـ Loop
         setTimeout(() => {
             simulateLiveToast('⚖️ تحديث محفظة الضمان (Escrow)', 'تم تجميد مبلغ ثمن الترسية لطلب المزاد رقم #M-8832 بنجاح بدفتر الأستاذ.');
         }, 6000);
