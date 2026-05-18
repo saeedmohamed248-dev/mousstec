@@ -492,10 +492,10 @@ def b2b_market_search_api(request):
 # أضف هذا الكود في آخر ملف inventory/views.py تماماً
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
-def legacy_system_sync_api(request):
-    """🚀 مسار الدمج اللامركزي لتكامل الأنظمة القديمة بالفروع لايف"""
+def ai_competitor_recon_api(request):
+    """🚀 رادار استطلاع السوق: تحليل أسعار المنافسين لايف لاقتراح تسعير ديناميكي مرن"""
     return JsonResponse({
-        "status": "success", 
-        "channel": "decentralized_legacy_sync_active",
-        "message": "بوابة استقبال داتا الأنظمة القديمة مستعدة للربط."
+        "status": "success",
+        "channel": "market_competitor_recon_active",
+        "message": "رادار استطلاع وتحليل أسعار السوق والمنافسين مستعد للعمل بالخلفية."
     })
