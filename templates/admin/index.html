@@ -109,7 +109,7 @@
             <div class="palette-item" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-plus-circle text-emerald-500"></i> إنشاء أمر شغل جديد
             </div>
-            <div class="palette-item" data-url="/solutions-tour/" onclick="window.location.href=this.dataset.url">
+            <div class="palette-item" data-url="{% url 'inventory:solutions_tour' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات B2B
             </div>
             <div class="palette-item" onclick="toggleCommandPalette(); toggleAISidebar();">
@@ -176,7 +176,7 @@
                 <i class="fas fa-truck-loading"></i> توريد بضاعة
             </a>
 
-            <a href="/solutions-tour/" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
+            <a href="{% url 'inventory:solutions_tour' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
                 <i class="fas fa-globe"></i> سوق B2B
             </a>
         </div>
@@ -280,7 +280,7 @@
                     <div class="insight-card" style="border-inline-start-color: #ec4899; background: #fdf2f8;">
                         <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> مزادات B2B حية!</h6>
                         <p class="mb-2 text-sm" style="color: #9d174d;">يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات.</p>
-                        <a href="/solutions-tour/" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
+                        <a href="{% url 'inventory:solutions_tour' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
                     </div>
                     {% endif %}
 
@@ -382,7 +382,7 @@
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // 🧠 🚀 التكامل الكامل: معالجة شات المستشار الذكي وربطه بـ API الباك إند
+    // 🧠 🚀 تصحيح 4: تحويل الـ fetch endpoints لتضرب مسار الـ system المدمج من جانجو لايف
     async function handleAiChat(e) {
         if(e.key === 'Enter' && e.target.value.trim()) {
             const query = e.target.value.trim();
@@ -396,8 +396,8 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                // ضرب الـ API الموحد للحصول على رد ذكي من خوادم Gemini
-                const res = await fetch(`/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
+                // إضافة بادئة /system/ الصائبة لفض النزاع الشبكي
+                const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 const typingEl = document.getElementById(typingId);
                 
@@ -419,7 +419,7 @@
         }
     }
 
-    // 🚀 🚀 ربط رادار فحص الأعطال الفوري مع الـ API الموحد لـ Gemini
+    // 🚀 🚀 تصحيح 5: إضافة بادئة /system/ لمسار فحص الأعطال الفوري مع الـ API الموحد لـ Gemini
     async function triggerQuickDiagnostic() {
         const code = document.getElementById('quickDtcInput').value.trim().toUpperCase();
         const resultBox = document.getElementById('quickDtcResult');
@@ -429,14 +429,14 @@
         resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري استدعاء البصمة التشخيصية لـ Gemini...`;
 
         try {
-            const response = await fetch(`/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
+            // إضافة بادئة /system/ الصائبة لفض النزاع الشبكي
+            const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
             if(!response.ok) throw new Error("API Crash");
             const data = await response.json();
             
             resultBox.innerHTML = `<b>📦 قطع الغيار المقترحة لـ (${code}):</b><br>
             <span style="font-size:12px; color:#10b981;">${data.recommendations || "طقم صيانة وقائية شامل مع فحص كويلات الاحتراق مجاناً."}</span>`;
         } catch(err) {
-            // فولباك (Fallback) أمني مستقر لحفظ الواجهة في وضع الاستعداد
             resultBox.innerHTML = `<b>📦 قطع الغيار المقترحة لـ (${code}):</b><br>
             🟢 طقم بوجيهات احتراق كامل (ثقة 94%)<br>
             🟡 وحدة الكويلات المغناطيسية (ثقة 60%)<br>
@@ -474,7 +474,7 @@
                 }
             } else {
                 barcodeBuffer += e.key;
-                clearTimeout(barcodeTimer);
+                clearTimeout(barcodeBuffer);
                 barcodeTimer = setTimeout(() => { barcodeBuffer = ''; }, 50); 
             }
         });
@@ -496,7 +496,7 @@
                 if(transcript.includes('أمر شغل') || transcript.includes('فاتوره جديده')) {
                     window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}";
                 } else if(transcript.includes('المزاد') || transcript.includes('سوق')) {
-                    window.location.href = "/solutions-tour/";
+                    window.location.href = "{% url 'inventory:solutions_tour' %}";
                 } else {
                     simulateLiveToast('🎙️ أمر صوتي مسجل', `تم سماع: ${transcript}`);
                 }
