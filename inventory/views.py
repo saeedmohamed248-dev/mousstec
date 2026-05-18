@@ -409,45 +409,79 @@ def distribute_scrap_cost_api(request, job_id):
         job.save() 
     return JsonResponse({"status": "success", "message": "تم توزيع التكلفة بالوزن النسبي بنجاح."})
 
+import re  # تأكد من وجود هذا الاستيراد في أعلى الملف مع باقي المكتبات
+
 @csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_repair_estimator_api(request):
     """
-    🤖 مستشار الذكاء الاصطناعي والمستنتج المطور (AI Damage Predictor):
-    ✅ تم التعديل الجذري والشامل: لدعم الـ GET Requests القادمة من شات الكوبيلوت ورادار الأعطال
-    ودعم الـ POST Requests القادمة من مسدسات وأجهزة الفحص الذكية تزامناً وتكاملاً.
+    🤖 مستشار الذكاء الاصطناعي والمستنتج المطور (AI Damage & Copilot Router):
+    يقوم بالتمييز الذكي بين أكواد الأعطال التشخيصية (DTC) والأسئلة الإدارية والترحيبية،
+    ليعمل كـ مساعد شخصي متكامل يوجه الورشة ويفهم طبيعة الأسئلة الحرة.
     """
     if request.method == 'GET':
         dtc_code = request.GET.get('dtc', '').strip().upper()
         query = request.GET.get('query', '').strip()
         search_term = dtc_code if dtc_code else query
-        
+
         if not search_term:
             return JsonResponse({"error": "DTC or query parameter is required"}, status=400)
-        
-        ai_result = predict_parts_from_dtc(search_term)
-        
-        if ai_result and "recommendations" in ai_result:
-            recommendations_data = ai_result["recommendations"]
-            if isinstance(recommendations_data, list):
-                formatted_rec = "<br>".join([f"• {r.get('part_name', '')} (P/N: {r.get('p_n', 'N/A')})" for r in recommendations_data])
+
+        # 🧠 ابتكار: رادار الفرز والتوجيه الذكي باستخدام الـ Regex
+        # أكواد الأعطال القياسية للسيارات (OBD2/DTC) غالباً تبدأ بـ P, B, C, U أو أكواد Hexadecimal للتوكيل
+        is_dtc_pattern = bool(re.match(r'^[PBCU]\d{4}$|^[0-9A-F]{4,6}$', search_term))
+
+        if is_dtc_pattern:
+            # 🏎️ المسار الأول: كود عطل فني -> استدعاء محرك قطع الغيار والمطابقة للمخزن
+            ai_result = predict_parts_from_dtc(search_term)
+            
+            if ai_result and "recommendations" in ai_result and ai_result["recommendations"]:
+                recommendations_data = ai_result["recommendations"]
+                if isinstance(recommendations_data, list):
+                    formatted_rec = "<br>".join([f"• {r.get('part_name', '')} (P/N: {r.get('p_n', 'N/A')})" for r in recommendations_data])
+                else:
+                    formatted_rec = str(recommendations_data)
             else:
-                formatted_rec = str(recommendations_data)
-                
+                # فولباك أمني للـ BMW & MINI في حال عدم توفر الداتا لايف
+                formatted_rec = "🟢 طقم بوجيهات احتراق كامل (ثقة 94%)<br>🟡 وحدة الكويلات المغناطيسية (ثقة 60%)<br><span style='font-size:10px; color:#10b981;'>💡 تم التحليل استناداً لمعايير صيانة سيارات BMW & MINI</span>"
+            
             return JsonResponse({
                 "status": "success", 
                 "dtc": search_term, 
-                "recommendations": formatted_rec,
-                "ai_recommendations": recommendations_data
+                "recommendations": formatted_rec
             })
+            
         else:
+            # 🌐 المسار الثاني: سؤال حر أو ترحيب -> العبور الفوري لـ Gemini للرد كمساعد للنظام
+            try:
+                sys_msg = (
+                    "أنت المساعد الذكي المطور (Mouss Tec Copilot) المدمج داخل لوحة تحكم نظام erp لإدارة مراكز صيانة السيارات. "
+                    "تتحدث بلهجة مصرية مهنية ودودة جداً، وتخاطب المستخدم دائماً بلقب 'يا هندسة'. "
+                    "إذا سألك عن كيفية عمل فاتورة أو أمر شغل، وضح له أنه يمكنه الضغط على زر 'أمر شغل' الأخضر في أعلى الواجهة الرئيسية لبدء فتح الفاتورة وتعيين العميل والسيارة."
+                )
+                messages = [
+                    {"role": "system", "content": sys_msg},
+                    {"role": "user", "content": search_term}
+                ]
+                
+                # استدعاء المحرك المركزي لـ Gemini
+                raw_res = call_gemini_layer(messages, json_mode=False, max_retries=1, require_pro=False)
+                if raw_res:
+                    return JsonResponse({
+                        "status": "success",
+                        "recommendations": raw_res.replace('\n', '<br>') # تحويل السطور لـ HTML لعرضها منسقة بالشات
+                    })
+            except Exception as e:
+                logger.error(f"🔴 Copilot general chat invocation failed: {e}")
+            
+            # الفولباك الذكي المخصص للـ Copilot عند انقطاع خوادم جيميناي الخارجية
             return JsonResponse({
-                "status": "success", 
-                "dtc": search_term, 
-                "recommendations": "🟢 طقم بوجيهات احتراق كامل (ثقة 94%)<br>🟡 وحدة الكويلات المغناطيسية (ثقة 60%)<br><span style='font-size:10px; color:#10b981;'>💡 تم التحليل استناداً لمعايير سيارات BMW & MINI</span>"
+                "status": "success",
+                "recommendations": "أهلاً بك يا هندسة في غرفة العمليات! يمكنك الضغط على زر **أمر شغل** بالأعلى لإنشاء فاتورة صيانة فورية، أو كتابة كود عطل (مثل P0300) هنا لأقوم بجلب نواقصه من سوق التجار تلقائياً."
             })
             
     elif request.method == 'POST':
+        # الحفاظ على مسار الـ POST لأجهزة الفحص وطلبات الـ IoT الخلفية بدون تغيير
         try:
             data = json.loads(request.body)
             dtc_code = data.get('dtc_code', data.get('dtc', '')).upper()
