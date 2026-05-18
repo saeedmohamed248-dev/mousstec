@@ -13,20 +13,19 @@ logger = logging.getLogger('mouss_tec_core')
 # =====================================================================
 def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=False):
     """
-    بوابة الاتصال الذكية للوكلاء (Agents):
+    🚀 بوابة الاتصال الذكية والمحصنة للوكلاء (Agents):
     تدعم التبديل بين Flash (للسرعة) و Pro (للتحليل العميق والصور)، مزودة بـ Backoff ذكي ومقصلة تنظيف JSON.
+    ✅ تم التطهير الشامل: استخدام الرابط المطلق المباشر لـ Google AI لإنهاء كراش الـ 404 نهائياً.
     """
     if not getattr(settings, 'ENABLE_AI_PREDICTIONS', False) or not getattr(settings, 'AI_VISION_API_KEY', None):
         logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
         return None
 
-    # التوجيه الذكي للنموذج (Smart Model Routing)
-    model_name = "gemini-1.5-pro-latest" if require_pro else "gemini-1.5-flash-latest"
+    # 🏎️ استخدام الأسماء المستقرة المعتمدة حالياً من جوجل لضمان أعلى سرعة استجابة
+    model_name = "gemini-1.5-pro" if require_pro else "gemini-1.5-flash"
     
-    # ⚠️ ملاحظة: تأكد من شكل الرابط لـ Google Gemini API حسب أحدث توثيق
-    # (التوثيق الحالي يعتمد غالباً على /v1beta/models/...:generateContent)
-    # سنستخدم الشكل القياسي لطلب REST للـ Gemini API
-    url = f"{settings.AI_MODEL_ENDPOINT}models/{model_name}:generateContent?key={settings.AI_VISION_API_KEY}"
+    # 🌐 الرابط المطلق المباشر لـ Gemini API لفض أي نزاع أو تشوه في مسارات الـ .env
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={settings.AI_VISION_API_KEY}"
     headers = {"Content-Type": "application/json"}
 
     # تحويل صيغة الرسائل لصيغة Gemini Native
@@ -137,7 +136,7 @@ def predict_parts_from_dtc(dtc_code):
             return parsed_data
         except json.JSONDecodeError as e:
             logger.error(f"🔴 [DIAGNOSTIC BOT]: JSON Parse Error - {e}")
-    return {"recommendations": []} # Safe Default
+    return {"recommendations": []}
 
 # =====================================================================
 # 👁️ 2. قناص الفواتير (Vision Procurement Bot)
@@ -160,12 +159,11 @@ def scan_invoice_image_ai(image_base64):
         }
     ]
     
-    # 🚀 يتطلب Pro لتحليل الصور بدقة
     raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2, require_pro=True)
     if raw_response:
         try: return json.loads(raw_response)
         except json.JSONDecodeError: pass
-    return {"vendor_name": "مجهول", "invoice_total": 0.0, "items": []} # Safe Default
+    return {"vendor_name": "مجهول", "invoice_total": 0.0, "items": []}
 
 # =====================================================================
 # 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance Bot)
@@ -218,7 +216,7 @@ def analyze_customer_sentiment(customer_notes_or_complaints):
     return {"sentiment": "غير محدد", "churn_risk_percentage": 50, "recommended_action": "مراجعة يدوية"}
 
 # =====================================================================
-# 💸 5. وكيل المرونة السعرية والتسعير (Elastic Pricing Bot) - [New MAS Link]
+# 💸 5. وكيل المرونة السعرية والتسعير (Elastic Pricing Bot)
 # =====================================================================
 def predict_market_price_elasticity(part_name, condition, average_cost):
     """
@@ -245,7 +243,7 @@ def predict_market_price_elasticity(part_name, condition, average_cost):
     if raw_response:
         try:
             parsed = json.loads(raw_response)
-            cache.set(cache_key, parsed, timeout=2 * 24 * 60 * 60) # يومين لتحديث السوق
+            cache.set(cache_key, parsed, timeout=2 * 24 * 60 * 60)
             return parsed
         except: pass
     return {"elasticity_index": 1.0, "suggested_retail": average_cost * 1.25, "market_status": "طبيعي"}
