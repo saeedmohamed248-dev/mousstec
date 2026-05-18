@@ -3,6 +3,7 @@ import os
 import environ # مدير الأسرار الذكي
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta # 🚀 ابتكار: للتحكم الدقيق في التوقيتات
+from celery.schedules import crontab # 🚀 للأتمتة والمهام المجدولة
 
 # 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404
 LOGIN_REDIRECT_URL = '/system/dashboard/'
@@ -22,6 +23,7 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m
 DEBUG = env('DEBUG', default=True)
 
 ALLOWED_HOSTS = ['mousstec.com', '.mousstec.com', '64.226.120.5', '127.0.0.1', 'localhost']
+
 # 🚀 ابتكار: جدار حماية صارم لمنع هجمات الـ Cross-Site
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
@@ -45,6 +47,12 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) لمنع اختراق الـ Escrow
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # إجبار المتصفح على HTTPS لمدة عام
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 # 🚧 منع إغراق السيرفر بالملفات الضخمة (حماية الرامات)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
 
@@ -55,6 +63,7 @@ SHARED_APPS = (
     'daphne',          # ⚡ محرك الاتصالات الحية (يجب أن يكون الأول)
     'django_tenants',  
     'clients',         # 👑 إدارة الإمبراطورية والمزادات
+    
     'jazzmin', 
     'django.contrib.admin',
     'django.contrib.auth',
@@ -67,11 +76,12 @@ SHARED_APPS = (
     'channels',        
     'rest_framework',  
     'rest_framework_simplejwt', 
-    'rest_framework_simplejwt.token_blacklist', # ⚠️ ضروري جداً لعمل خاصية BLACKLIST_AFTER_ROTATION
+    'rest_framework_simplejwt.token_blacklist', 
     'corsheaders',     
     'storages',        
     'axes',            
     'simple_history',  
+    'django_celery_beat', # 🚀 ابتكار: لجدولة تعليق الحسابات وتسعير الـ AI ليلاً
 )
 
 TENANT_APPS = (
@@ -97,6 +107,9 @@ TENANT_DOMAIN_MODEL = 'clients.Domain'
 # ==========================================
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware', 
+    
+   #🚀 ابتكار: حارس الباقات الديناميكي (يمنع العمل إذا انتهت الـ 3 أيام المجانية)
+     'clients.middleware.TenantQuotaMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'corsheaders.middleware.CorsMiddleware',      
@@ -116,6 +129,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 ROOT_URLCONF = 'erp_core.urls'
+PUBLIC_SCHEMA_URLCONF = 'erp_core.urls'
 
 TEMPLATES = [
     {
@@ -163,7 +177,7 @@ DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 # ==========================================
-# ⚡ الكيش الصاروخي المتقدم (Tenant-Aware Redis)
+# ⚡ الكيش الصاروخي المزدوج (Two-Tier Caching)
 # ==========================================
 def tenant_key_func(key, key_prefix, version):
     from django.db import connection
@@ -171,16 +185,21 @@ def tenant_key_func(key, key_prefix, version):
     return f"{tenant_schema}:{key_prefix}:{version}:{key}"
 
 CACHES = {
+    # الكاش الرئيسي باستخدام Redis (للمشاركة بين الـ Workers)
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "IGNORE_EXCEPTIONS": True, 
-            # 🚀 ابتكار: تفعيل الـ Connection Pool لمنع السقوط تحت الضغط
             "CONNECTION_POOL_KWARGS": {"max_connections": 100}
         },
         "KEY_FUNCTION": "erp_core.settings.tenant_key_func", 
+    },
+    # 🚀 ابتكار: كاش محلي سريع جداً لحالة الـ Tenant وقيود الباقة
+    "local_tier": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "mousstec-local-cache",
     }
 }
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -215,9 +234,8 @@ if USE_S3:
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     
-    # 🚀 ابتكار: تسريع السحابة وتقليل فاتورة AWS بالكاش المتقدم
     AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400', # تخزين الصور ليوم كامل في المتصفح
+        'CacheControl': 'max-age=86400', 
     }
     AWS_DEFAULT_ACL = 'public-read'
 else:
@@ -295,17 +313,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50, # 🚀 منع سحب الداتابيز بالكامل في ريكويست واحد
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle', # 🚀 للحماية من سحب أسعار سوق الـ B2B
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '30/minute',  
         'user': '300/minute', 
+        'marketplace_scraping': '100/hour', # 🚀 حماية سوق التجار من السرقة
     }
 }
 
-# 🚀 ابتكار: تأمين الأجهزة اللوحية والموبايل (Strict JWT)
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -320,10 +341,21 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# 🚀 ابتكار: توجيه ذكي للمهام لمنع اختناق السيرفر (Task Micro-routing)
 CELERY_TASK_ROUTES = {
     'inventory.tasks.process_ai_vision_*': {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.process_financial_*': {'queue': 'urgent_fintech_tasks'},
+}
+
+# 🚀 الطيار الآلي (Cron Jobs) للصيانة الدورية للسوق
+CELERY_BEAT_SCHEDULE = {
+    'suspend_expired_trials': {
+        'task': 'clients.tasks.suspend_expired_trials',
+        'schedule': crontab(hour=0, minute=5), # كل يوم 12:05 صباحاً
+    },
+    'update_ai_trust_scores': {
+        'task': 'clients.tasks.update_market_trust_scores',
+        'schedule': crontab(hour=2, minute=0), # كل يوم 2:00 فجراً
+    },
 }
 
 # ==========================================
@@ -381,8 +413,11 @@ AXES_META_PREPEND_PATH = True
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]] 
 
 # ==========================================
-# ⚖️ ثوابت Mouss Tec للسياسات المالية (B2B Policies)
+# ⚖️ ثوابت Mouss Tec للسياسات المالية (B2B SaaS Pricing Constants)
 # ==========================================
 MOUSS_TEC_ESCROW_FEE_PERCENTAGE = env.float('ESCROW_FEE_PERCENTAGE', default=2.5)
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# 🚀 إعدادات تسعير الإضافات (Add-ons Pricing)
+SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00  # بالجنيه شهرياً
+SAAS_ADDON_PRICE_EXTRA_USER = 50.00     # بالجنيه شهرياً
