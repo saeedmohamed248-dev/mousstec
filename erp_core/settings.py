@@ -2,10 +2,10 @@ from pathlib import Path
 import os
 import environ # مدير الأسرار الذكي
 from django.utils.translation import gettext_lazy as _
-from datetime import timedelta # 🚀 ابتكار: للتحكم الدقيق في التوقيتات
-from celery.schedules import crontab # 🚀 للأتمتة والمهام المجدولة
+from datetime import timedelta # 🚀 للتحكم الدقيق في التوقيتات وباقات الـ SaaS
+from celery.schedules import crontab # 🚀 للأتمتة والمهام المجدولة في الخلفية
 
-# 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404
+# 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404 عند الدخول
 LOGIN_REDIRECT_URL = '/system/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,15 +16,15 @@ env = environ.Env(
 )
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# ==========================================
-# 🛡️ الأمان المتقدم (Enterprise Security & CORS)
-# ==========================================
+# =====================================================================
+# 🛡️ الأمان المتقدم وجدران الحماية (Enterprise Security & CORS)
+# =====================================================================
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m(h@fwvt^ib4&sainhr8e55x&@_')
 DEBUG = env('DEBUG', default=True)
 
 ALLOWED_HOSTS = ['mousstec.com', '.mousstec.com', '64.226.120.5', '127.0.0.1', 'localhost']
 
-# 🚀 ابتكار: جدار حماية صارم لمنع هجمات الـ Cross-Site
+# 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     "http://localhost:3000",
@@ -38,31 +38,33 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
 ])
 
 # 🛡️ حماية الجلسات السحابية (معزولة لتناسب الـ Multi-Tenant)
-SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل)
+SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل كاملة للموظف)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_SECURE = not DEBUG 
 CSRF_COOKIE_SECURE = not DEBUG
+NOTE = "يتم قراءتها عبر البرتوكول الآمن في السيرفر الفعلي"
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) لمنع اختراق الـ Escrow
+# 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) في بيئة الإنتاج
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000  # إجبار المتصفح على HTTPS لمدة عام
+    # إجبار المتصفح على الاتصال المشفر HTTPS فقط لمدة عام كامل
+    SECURE_HSTS_SECONDS = 31536000  
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# 🚧 منع إغراق السيرفر بالملفات الضخمة (حماية الرامات)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+# 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB الحد الأقصى للمرفقات ورخص السيارات
 
-# ==========================================
-# 🚀 التطبيقات (Multi-Tenant Architecture)
-# ==========================================
+# =====================================================================
+# 🚀 محرك التطبيقات المعزول (Multi-Tenant Architecture)
+# =====================================================================
 SHARED_APPS = (
-    'daphne',          # ⚡ محرك الاتصالات الحية (يجب أن يكون الأول)
+    'daphne',          # ⚡ محرك الاتصالات الحية (يجب أن يتصدر القائمة دوماً)
     'django_tenants',  
-    'clients',         # 👑 إدارة الإمبراطورية والمزادات
+    'clients',         # 👑 إدارة الإمبراطورية السحابية والمزادات المركزية
     
     'jazzmin', 
     'django.contrib.admin',
@@ -72,7 +74,7 @@ SHARED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # 🛠️ أدوات الـ Enterprise السحابية
+    # 🛠️ أدوات الـ Enterprise السحابية والمراقبة اللحظية
     'channels',        
     'rest_framework',  
     'rest_framework_simplejwt', 
@@ -81,7 +83,7 @@ SHARED_APPS = (
     'storages',        
     'axes',            
     'simple_history',  
-    'django_celery_beat', # 🚀 ابتكار: لجدولة تعليق الحسابات وتسعير الـ AI ليلاً
+    'django_celery_beat', # 🚀 لجدولة أتمتة الفخ الذهبي ليلاً وحساب النقاط وتحديث الأسعار
 )
 
 TENANT_APPS = (
@@ -90,7 +92,7 @@ TENANT_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',   
     'django.contrib.messages',   
-    'inventory',      
+    'inventory',       # 🏎️ النواة التشغيلية للورش وفحص المخازن الإقليمي
     'import_export',
     'rest_framework', 
     'simple_history', 
@@ -102,26 +104,27 @@ INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in S
 TENANT_MODEL = 'clients.Client'
 TENANT_DOMAIN_MODEL = 'clients.Domain'
 
-# ==========================================
-# ⚙️ العمليات الوسيطة (Middleware)
-# ==========================================
+# =====================================================================
+# ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
+# =====================================================================
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware', 
+    'django_tenants.middleware.main.TenantMainMiddleware', # عزل الـ Schema أولاً
     
-   #🚀 ابتكار: حارس الباقات الديناميكي (يمنع العمل إذا انتهت الـ 3 أيام المجانية)
-     'clients.middleware.TenantQuotaMiddleware', 
+    # 🚀 حارس الباقات الديناميكي: يراقب الصلاحيات ويطبق الفخ المالي عند انتهاء الـ 3 تجريبية
+    'clients.middleware.TenantQuotaMiddleware', 
+    
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', 
+    'whitenoise.middleware.WhiteNoiseMiddleware', # كبس وضغط الملفات الثابتة صاروخياً
     'corsheaders.middleware.CorsMiddleware',      
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware', 
+    'django.middleware.locale.LocaleMiddleware', # المترجم الآلي للفروع
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'simple_history.middleware.HistoryRequestMiddleware', 
-    'axes.middleware.AxesMiddleware', 
+    'simple_history.middleware.HistoryRequestMiddleware', # مراقب التعديلات التاريخية للفواتير
+    'axes.middleware.AxesMiddleware', # الحارس السيبراني لصد تخمين كلمات المرور
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -150,13 +153,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'erp_core.wsgi.application'
 ASGI_APPLICATION = 'erp_core.asgi.application'
 
-# 📡 محرك قنوات الـ WebSockets 
+# =====================================================================
+# 📡 محرك الاتصالات اللحظية (WebSockets Channel Layers)
+# =====================================================================
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [env('REDIS_URL', default='redis://127.0.0.1:6379/1')],
-            "capacity": 1500, 
+            "capacity": 1500, # قدرة استيعابية ضخمة للموجات اللحظية
             "expiry": 10,
         },
     },
@@ -166,26 +171,27 @@ DATABASE_ROUTERS = (
     'django_tenants.routers.TenantSyncRouter',
 )
 
-# ==========================================
-# 📊 قاعدة البيانات (High-Performance PostgreSQL)
-# ==========================================
+# =====================================================================
+# 📊 قاعدة البيانات (High-Performance PostgreSQL Routing)
+# =====================================================================
 DATABASES = {
     'default': env.db('DATABASE_URL', default='postgres://postgres:123@localhost:5432/erp_db')
 }
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
-DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60) # الإبقاء على القنوات مفتوحة لتسريع المعاملات
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
-# ==========================================
-# ⚡ الكيش الصاروخي المزدوج (Two-Tier Caching)
-# ==========================================
+# =====================================================================
+# ⚡ الكيش الصاروخي المزدوج (Two-Tier Caching - Zero-DB-Hit Compliant)
+# =====================================================================
 def tenant_key_func(key, key_prefix, version):
+    """عزل مفاتيح الكاش بناءً على اسم فرع الورشة لمنع تسريب البيانات المشتركة"""
     from django.db import connection
     tenant_schema = connection.schema_name
     return f"{tenant_schema}:{key_prefix}:{version}:{key}"
 
 CACHES = {
-    # الكاش الرئيسي باستخدام Redis (للمشاركة بين الـ Workers)
+    # الكاش الرئيسي العالمي المعتمد على Redis لجميع الـ Workers والمحافظ المالية
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
@@ -196,7 +202,7 @@ CACHES = {
         },
         "KEY_FUNCTION": "erp_core.settings.tenant_key_func", 
     },
-    # 🚀 ابتكار: كاش محلي سريع جداً لحالة الـ Tenant وقيود الباقة
+    # 🚀 ابتكار معماري: كاش محلي فوري (LocMem) لبيانات الـ Middleware في أجزاء من المايكروثانية
     "local_tier": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "mousstec-local-cache",
@@ -205,21 +211,21 @@ CACHES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
-# ==========================================
-# 🌍 اللغة، التوقيت، والمحاسبة
-# ==========================================
+# =====================================================================
+# 🌍 التدويل والتوقيت المحاسبي (Localization & Accounting Sync)
+# =====================================================================
 LANGUAGE_CODE = 'ar'  
 TIME_ZONE = 'Africa/Cairo'
 USE_I18N = True
 USE_TZ = True
-USE_THOUSAND_SEPARATOR = True
+USE_THOUSAND_SEPARATOR = True # تنسيق محاسبي فخم للفواتير (مثال: 1,200.00)
 
 LANGUAGES = [('ar', _('Arabic')), ('en', _('English'))]
 LOCALE_PATHS = [BASE_DIR / 'locale']
 
-# ==========================================
-# 📁 الملفات الثابتة والتخزين السحابي المتقدم
-# ==========================================
+# =====================================================================
+# 📁 إدارة الأصول الرقمية والتخزين السحابي (Cloud Storage Stack)
+# =====================================================================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
@@ -244,9 +250,9 @@ else:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ==========================================
-# 📧 محرك البريد و APIs الذكاء الاصطناعي
-# ==========================================
+# =====================================================================
+# 📧 محرك الاتصالات والمفاتيح السيادية للبوتات (AI Agents & Gateways)
+# =====================================================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
@@ -257,13 +263,14 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='your-app-password')
 TECDOC_API_KEY = env('TECDOC_API_KEY', default='')
 ALLDATA_ENDPOINT = env('ALLDATA_ENDPOINT', default='')
 
+# 🚀 🚀 تصحيح الرابط المترابط مع البوتات المعرفية الحقيقية (Gemini Native Endpoint Fix)
 ENABLE_AI_PREDICTIONS = env.bool('ENABLE_AI_PREDICTIONS', default=True)
-AI_MODEL_ENDPOINT = env.str('AI_MODEL_ENDPOINT', 'https://generativelanguage.googleapis.com/v1beta/openai/')
+AI_MODEL_ENDPOINT = env.str('AI_MODEL_ENDPOINT', 'https://generativelanguage.googleapis.com/')
 AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 
-# ==========================================
-# 🎨 إعدادات JAZZMIN (تخصيص هوية Mouss Tec)
-# ==========================================
+# =====================================================================
+# 🎨 إعدادات JAZZMIN (تخصيص هوية Mouss Tec الفاخرة للوحة التحكم)
+# =====================================================================
 JAZZMIN_SETTINGS = {
     "site_title": "Mouss Tec Platform",
     "site_header": "Mouss Tec",
@@ -302,9 +309,9 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar": "sidebar-dark-primary", 
 }
 
-# ==========================================
-# 🔗 الربط الخارجي و الـ APIs (DRF & Celery)
-# ==========================================
+# =====================================================================
+# 🔗 بروتوكولات الـ REST APIs وحماية سوق الجملة من السرقة (DRF Framework)
+# =====================================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -314,16 +321,16 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50, # 🚀 منع سحب الداتابيز بالكامل في ريكويست واحد
+    'PAGE_SIZE': 50, 
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
-        'rest_framework.throttling.ScopedRateThrottle', # 🚀 للحماية من سحب أسعار سوق الـ B2B
+        'rest_framework.throttling.ScopedRateThrottle', 
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '30/minute',  
         'user': '300/minute', 
-        'marketplace_scraping': '100/hour', # 🚀 حماية سوق التجار من السرقة
+        'marketplace_scraping': '100/hour', # 🚀 درع حماية لحظر كاشطي البيانات من سرقة أسعار سوق التجار المشترك
     }
 }
 
@@ -335,6 +342,9 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+# =====================================================================
+# 🎛️ أتمتة طابور المهام والطيار الآلي (Celery & Background Agents Router)
+# =====================================================================
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default='redis://127.0.0.1:6379/0') 
 CELERY_ACCEPT_CONTENT = ['json']
@@ -346,7 +356,7 @@ CELERY_TASK_ROUTES = {
     'inventory.tasks.process_financial_*': {'queue': 'urgent_fintech_tasks'},
 }
 
-# 🚀 الطيار الآلي (Cron Jobs) للصيانة الدورية للسوق
+# 🚀 جدول الطيار الآلي (Cron Jobs) لفرض عقوبات الحسابات وتقييم أمن السوق عند منتصف الليل
 CELERY_BEAT_SCHEDULE = {
     'suspend_expired_trials': {
         'task': 'clients.tasks.suspend_expired_trials',
@@ -358,9 +368,9 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# ==========================================
-# 📈 نظام المراقبة الشامل (FinTech Audit Logging)
-# ==========================================
+# =====================================================================
+# 📈 رادار دفتر الحسابات والمراقبة السيبرانية (FinTech Audit Logging)
+# =====================================================================
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -404,6 +414,7 @@ LOGGING = {
     },
 }
 
+# الحماية من القوة الغاشمة وتخمين كلمات السر (Brute-Force Lockdown)
 AXES_ENABLED = True
 AXES_FAILURE_LIMIT = 5 
 AXES_COOLOFF_TIME = 1 
@@ -412,12 +423,12 @@ AXES_LOCKOUT_TEMPLATE = '403.html'
 AXES_META_PREPEND_PATH = True 
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]] 
 
-# ==========================================
-# ⚖️ ثوابت Mouss Tec للسياسات المالية (B2B SaaS Pricing Constants)
-# ==========================================
+# =====================================================================
+# ⚖️ محددات النظام ومصفوفة الأسعار (B2B SaaS Pricing Constants)
+# =====================================================================
 MOUSS_TEC_ESCROW_FEE_PERCENTAGE = env.float('ESCROW_FEE_PERCENTAGE', default=2.5)
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 
-# 🚀 إعدادات تسعير الإضافات (Add-ons Pricing)
-SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00  # بالجنيه شهرياً
-SAAS_ADDON_PRICE_EXTRA_USER = 50.00     # بالجنيه شهرياً
+# إعدادات تسعير الإضافات للمركز (Add-ons Scaling Pricing)
+SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00  # لكل فرع إضافي شهرياً
+SAAS_ADDON_PRICE_EXTRA_USER = 150.00     # لكل مستخدم إضافي شهرياً

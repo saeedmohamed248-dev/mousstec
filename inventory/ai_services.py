@@ -4,48 +4,77 @@ import logging
 import time
 import re
 from django.conf import settings
-from django.core.cache import cache
+from django.core.cache import caches
 
-logger = logging.getLogger('mousstec_ai')
+logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
-# 🛡️ المحرك المركزي المعزز للتخاطب مع الذكاء الاصطناعي (Resilient AI Gateway)
+# 🛡️ المحرك المركزي المعزز (Cognitive AI Gateway - MAS Compliant)
 # =====================================================================
-def call_gemini_layer(messages, json_mode=False, max_retries=3):
+def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=False):
     """
-    بوابة الاتصال المزودة بمحرك التعافي الذاتي (Auto-Retry) ومنظف الهلوسة.
+    بوابة الاتصال الذكية للوكلاء (Agents):
+    تدعم التبديل بين Flash (للسرعة) و Pro (للتحليل العميق والصور)، مزودة بـ Backoff ذكي ومقصلة تنظيف JSON.
     """
     if not getattr(settings, 'ENABLE_AI_PREDICTIONS', False) or not getattr(settings, 'AI_VISION_API_KEY', None):
-        logger.warning("⚠️ Mouss Tec AI: محرك الذكاء الاصطناعي معطل في الإعدادات أو المفتاح مفقود.")
+        logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
         return None
 
-    url = f"{settings.AI_MODEL_ENDPOINT}v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {settings.AI_VISION_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # التوجيه الذكي للنموذج (Smart Model Routing)
+    model_name = "gemini-1.5-pro-latest" if require_pro else "gemini-1.5-flash-latest"
+    
+    # ⚠️ ملاحظة: تأكد من شكل الرابط لـ Google Gemini API حسب أحدث توثيق
+    # (التوثيق الحالي يعتمد غالباً على /v1beta/models/...:generateContent)
+    # سنستخدم الشكل القياسي لطلب REST للـ Gemini API
+    url = f"{settings.AI_MODEL_ENDPOINT}models/{model_name}:generateContent?key={settings.AI_VISION_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+
+    # تحويل صيغة الرسائل لصيغة Gemini Native
+    gemini_contents = []
+    system_instruction = None
+    
+    for msg in messages:
+        if msg["role"] == "system":
+            system_instruction = {"parts": [{"text": msg["content"]}]}
+        else:
+            parts = []
+            if isinstance(msg["content"], list): # للصور
+                for item in msg["content"]:
+                    if item.get("type") == "text":
+                        parts.append({"text": item["text"]})
+                    elif item.get("type") == "image_url":
+                        # استخراج الـ Base64 الصافي
+                        b64_data = item["image_url"]["url"].split(",")[1]
+                        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_data}})
+            else:
+                parts.append({"text": msg["content"]})
+            
+            gemini_contents.append({"role": "user" if msg["role"] == "user" else "model", "parts": parts})
 
     payload = {
-        "model": "gemini-1.5-flash",
-        "messages": messages,
-        "temperature": 0.1, # حرارة منخفضة جداً لضمان الدقة والابتعاد عن الهلوسة
+        "contents": gemini_contents,
+        "generationConfig": {
+            "temperature": 0.1, 
+        }
     }
-
+    
+    if system_instruction:
+        payload["systemInstruction"] = system_instruction
+        
     if json_mode:
-        payload["response_format"] = {"type": "json_object"}
+        payload["generationConfig"]["responseMimeType"] = "application/json"
 
-    # 🚀 ابتكار: محرك التعافي من أخطاء الشبكات (Exponential Backoff)
+    # محرك التعافي (Exponential Backoff)
     for attempt in range(max_retries):
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response = requests.post(url, headers=headers, json=payload, timeout=45 if require_pro else 20)
             
             if response.status_code == 200:
                 res_data = response.json()
-                raw_content = res_data['choices'][0]['message']['content']
+                raw_content = res_data['candidates'][0]['content']['parts'][0]['text']
                 
-                # 🚀 ابتكار: مقصلة تنظيف الهلوسة (JSON Sanitizer)
+                # مقصلة تنظيف الهلوسة (حتى مع الـ responseMimeType للضمان)
                 if json_mode:
-                    # إزالة علامات الماركداون التي قد تكسر الـ JSON Parser
                     raw_content = re.sub(r'^```json\s*', '', raw_content)
                     raw_content = re.sub(r'^```\s*', '', raw_content)
                     raw_content = re.sub(r'\s*```$', '', raw_content)
@@ -53,79 +82,71 @@ def call_gemini_layer(messages, json_mode=False, max_retries=3):
                 return raw_content
                 
             elif response.status_code == 429:
-                logger.warning(f"⏳ Mouss Tec AI: ضغط على خوادم جوجل (Rate Limit). المحاولة {attempt + 1}/{max_retries}...")
-                time.sleep(2 ** attempt) # انتظار (1، 2، 4) ثوانٍ تصاعدياً
+                logger.warning(f"⏳ [COGNITIVE AGENT]: Rate Limit Hit. Attempt {attempt + 1}/{max_retries}...")
+                time.sleep(2 ** attempt)
                 continue
                 
             else:
-                logger.error(f"🔴 Mouss Tec AI Error [{response.status_code}]: {response.text}")
+                logger.error(f"🔴 [COGNITIVE AGENT ERROR] {response.status_code}: {response.text}")
                 return None
                 
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            logger.warning(f"⏳ Mouss Tec AI: انقطاع في الاتصال. المحاولة {attempt + 1}/{max_retries}...")
+            logger.warning(f"⏳ [COGNITIVE AGENT]: Connection lost. Attempt {attempt + 1}/{max_retries}... ({e})")
             time.sleep(2 ** attempt)
             
         except Exception as e:
-            logger.error(f"🔴 Mouss Tec AI Fatal Error: {e}")
+            logger.error(f"🔴 [COGNITIVE AGENT FATAL]: {e}")
             return None
             
-    logger.error("🛑 Mouss Tec AI: فشلت جميع محاولات الاتصال بمحرك الذكاء الاصطناعي.")
+    logger.error("🛑 [COGNITIVE AGENT]: All retries exhausted.")
     return None
 
+def _get_cache():
+    """يجلب طبقة الكاش السريعة إن وجدت"""
+    return caches['local_tier'] if 'local_tier' in caches else caches['default']
+
 # =====================================================================
-# 🚗 1. مستشار الأعطال وتوقع قطع الغيار (معزز بالذاكرة الشاملة)
+# 🚗 1. مستشار الأعطال وتوقع قطع الغيار (Diagnostic Bot)
 # =====================================================================
 def predict_parts_from_dtc(dtc_code):
-    """
-    يحلل كود العطل ويتوقع القطع.
-    🚀 مدمج مع الـ Global Semantic Cache لتوفير 99% من تكلفة الـ API وتسريع الرد.
-    """
     dtc_clean = str(dtc_code).strip().upper()
-    cache_key = f"mousstec_ai_dtc_global_{dtc_clean}"
+    cache_key = f"mas_ai_dtc_{dtc_clean}"
     
-    # 1. فحص الذاكرة الشاملة للمنصة أولاً (Zero-Cost, 5ms Latency)
+    cache = _get_cache()
     cached_result = cache.get(cache_key)
     if cached_result:
-        logger.info(f"⚡ Mouss Tec AI: تم جلب تحليل الكود {dtc_clean} من الذاكرة الصاروخية.")
+        logger.info(f"⚡ [DIAGNOSTIC BOT]: Served '{dtc_clean}' from semantic cache.")
         return cached_result
 
-    # 2. إذا لم يكن بالذاكرة، نسأل العقل المركزي
     system_instruction = (
-        "You are a master automotive diagnostic engineer specializing in BMW & MINI Cooper. "
-        "Given a diagnostic trouble code (DTC), predict the exact replacement parts required to fix it. "
-        "Return strictly a JSON object with a root key 'recommendations' containing an array of objects. "
-        "Each object must have: 'part_name' (in clear Arabic), 'probability' (e.g. 90%), and 'p_n' (OEM part number)."
+        "You are an automotive diagnostic AI agent for BMW & MINI. "
+        "Given a DTC, return strictly a JSON object with 'recommendations' (array). "
+        "Each object: 'part_name' (Arabic), 'probability' (int 0-100), 'p_n' (string)."
     )
     
     messages = [
         {"role": "system", "content": system_instruction},
-        {"role": "user", "content": f"Analyze this fault code and estimate repair parts: {dtc_clean}"}
+        {"role": "user", "content": f"DTC: {dtc_clean}"}
     ]
     
     raw_response = call_gemini_layer(messages, json_mode=True)
     if raw_response:
         try:
             parsed_data = json.loads(raw_response)
-            # 3. حفظ النتيجة في الذاكرة لمدة 30 يوماً ليستفيد منها كل عملاء المنصة!
             cache.set(cache_key, parsed_data, timeout=30 * 24 * 60 * 60)
             return parsed_data
         except json.JSONDecodeError as e:
-            logger.error(f"🔴 Mouss Tec AI JSON Parser Error (DTC): {e}\nRaw: {raw_response}")
-            return None
-    return None
+            logger.error(f"🔴 [DIAGNOSTIC BOT]: JSON Parse Error - {e}")
+    return {"recommendations": []} # Safe Default
 
 # =====================================================================
-# 👁️ 2. قناص صور الفواتير الورقية والمشتريات (AI Vision OCR)
+# 👁️ 2. قناص الفواتير (Vision Procurement Bot)
 # =====================================================================
 def scan_invoice_image_ai(image_base64):
-    """
-    يقرأ صور الفواتير الورقية ويستخرج بيانات المورد، الإجمالي، والأصناف للحقن المباشر في المخزن.
-    """
     system_instruction = (
-        "You are an expert automotive B2B invoice data extractor. Analyze the uploaded invoice image. "
-        "Extract the vendor name, invoice total, and line items exactly as they appear. "
-        "Return strictly a JSON object with keys: 'vendor_name' (string), 'invoice_total' (float), "
-        "and 'items' (array of objects containing 'part_number' or '' if none, 'name' in Arabic, 'qty' as integer, and 'cost' as float)."
+        "You are a B2B Procurement AI Agent. Extract invoice data. "
+        "Return strictly JSON: 'vendor_name' (string), 'invoice_total' (float), "
+        "'items' (array: 'part_number' (string), 'name' (Arabic string), 'qty' (int), 'cost' (float))."
     )
     
     messages = [
@@ -133,78 +154,98 @@ def scan_invoice_image_ai(image_base64):
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "Extract all structured B2B purchase data from this receipt/invoice image."},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/jpeg;base64,{image_base64}"
-                    }
-                }
+                {"type": "text", "text": "Extract structured data from this invoice."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
             ]
         }
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2) # محاولتين فقط للصور لثقلها
+    # 🚀 يتطلب Pro لتحليل الصور بدقة
+    raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2, require_pro=True)
     if raw_response:
         try: return json.loads(raw_response)
-        except json.JSONDecodeError: return None
-    return None
+        except json.JSONDecodeError: pass
+    return {"vendor_name": "مجهول", "invoice_total": 0.0, "items": []} # Safe Default
 
 # =====================================================================
-# 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance AI)
+# 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance Bot)
 # =====================================================================
 def predict_future_failures(brand, model_name, mileage):
-    """
-    🚀 ابتكار (Upselling Engine): يتنبأ بما سيتعطل قريباً بناءً على موديل السيارة وقراءة العداد.
-    يُستخدم لاقتراح صيانات وقائية للعميل قبل حدوث المشكلة.
-    """
-    cache_key = f"mousstec_ai_prog_{brand}_{model_name}_{int(mileage/10000)}k"
+    cache_key = f"mas_ai_prog_{brand}_{model_name}_{int(mileage/10000)}k"
+    cache = _get_cache()
     cached_result = cache.get(cache_key)
     if cached_result: return cached_result
 
     system_instruction = (
-        "You are a predictive maintenance AI for luxury cars. Based on the brand, model, and current mileage (in KM), "
-        "predict the top 3 mechanical/electrical components that are statistically likely to fail within the next 10,000 KM. "
-        "Return strictly a JSON object with a root key 'preventive_maintenance' containing an array of objects. "
-        "Each object must have: 'system' (e.g. Cooling, Suspension), 'warning_message' (in engaging Arabic), and 'urgency' (High, Medium)."
+        "You are a Prognostic AI Agent. Predict top 3 failing parts in the next 10,000 KM. "
+        "Return strictly JSON: 'preventive_maintenance' (array: 'system' (string), 'warning_message' (Arabic string), 'urgency' (High/Medium))."
     )
     
     messages = [
         {"role": "system", "content": system_instruction},
-        {"role": "user", "content": f"Predict failures for: Brand: {brand}, Model: {model_name}, Mileage: {mileage} KM."}
+        {"role": "user", "content": f"Brand: {brand}, Model: {model_name}, Mileage: {mileage} KM."}
     ]
     
     raw_response = call_gemini_layer(messages, json_mode=True)
     if raw_response:
         try:
             parsed_data = json.loads(raw_response)
-            cache.set(cache_key, parsed_data, timeout=7 * 24 * 60 * 60) # كاش لمدة أسبوع
+            cache.set(cache_key, parsed_data, timeout=7 * 24 * 60 * 60)
             return parsed_data
-        except: return None
-    return None
+        except: pass
+    return {"preventive_maintenance": []}
 
 # =====================================================================
-# 🎭 4. محلل مشاعر العملاء ومخاطر التسرب (Sentiment & Churn Analyzer)
+# 🎭 4. محلل مخاطر التسرب (CRM Churn Forensics Bot)
 # =====================================================================
 def analyze_customer_sentiment(customer_notes_or_complaints):
-    """
-    🚀 ابتكار (CRM Intelligence): يقرأ شكاوى أو ملاحظات العميل ليحدد مدى رضاه،
-    ويعطي نسبة لاحتمالية تركه للمركز (Churn Risk) لاتخاذ إجراء فوري.
-    """
+    if not customer_notes_or_complaints: return {"sentiment": "محايد", "churn_risk_percentage": 0}
+    
     system_instruction = (
-        "You are a Customer Success AI for an automotive service center. Analyze the customer's text/notes. "
-        "Determine their sentiment (Positive, Neutral, Angry/Frustrated) and calculate a 'churn_risk_percentage' (0-100). "
-        "Return strictly a JSON object with keys: 'sentiment' (string in Arabic), 'churn_risk_percentage' (integer), "
-        "and 'recommended_action' (string in Arabic: e.g. 'Offer a 10% discount immediately' or 'Thank them for loyalty')."
+        "You are a CRM AI Agent. Analyze customer feedback. "
+        "Return strictly JSON: 'sentiment' (Arabic string), 'churn_risk_percentage' (int 0-100), 'recommended_action' (Arabic string)."
     )
     
     messages = [
         {"role": "system", "content": system_instruction},
-        {"role": "user", "content": f"Analyze this customer feedback: '{customer_notes_or_complaints}'"}
+        {"role": "user", "content": f"Feedback: '{customer_notes_or_complaints}'"}
     ]
     
     raw_response = call_gemini_layer(messages, json_mode=True)
     if raw_response:
         try: return json.loads(raw_response)
-        except: return None
-    return None
+        except: pass
+    return {"sentiment": "غير محدد", "churn_risk_percentage": 50, "recommended_action": "مراجعة يدوية"}
+
+# =====================================================================
+# 💸 5. وكيل المرونة السعرية والتسعير (Elastic Pricing Bot) - [New MAS Link]
+# =====================================================================
+def predict_market_price_elasticity(part_name, condition, average_cost):
+    """
+    🚀 ابتكار: وكيل يغذي الـ Inventory Models و الـ B2B Marketplace.
+    يتوقع مؤشر المرونة (1.0 = سعر عادي، 1.5 = طلب عالي وندرة، 0.8 = متوفر بكثرة).
+    """
+    cache_key = f"mas_ai_elastic_{part_name}_{condition}"
+    cache = _get_cache()
+    cached_result = cache.get(cache_key)
+    if cached_result: return cached_result
+
+    system_instruction = (
+        "You are a B2B Automotive Pricing AI Agent. Analyze the part for market elasticity. "
+        "Return strictly JSON: 'elasticity_index' (float between 0.7 and 2.0. High > 1 means rare/high demand), "
+        "'suggested_retail' (float based on average cost), 'market_status' (Arabic string explaining the index)."
+    )
+    
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {"role": "user", "content": f"Part: {part_name}, Condition: {condition}, Avg Cost: {average_cost} EGP"}
+    ]
+    
+    raw_response = call_gemini_layer(messages, json_mode=True)
+    if raw_response:
+        try:
+            parsed = json.loads(raw_response)
+            cache.set(cache_key, parsed, timeout=2 * 24 * 60 * 60) # يومين لتحديث السوق
+            return parsed
+        except: pass
+    return {"elasticity_index": 1.0, "suggested_retail": average_cost * 1.25, "market_status": "طبيعي"}

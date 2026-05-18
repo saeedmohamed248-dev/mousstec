@@ -44,16 +44,44 @@
             70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
             100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
+.brand-logo {
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    background-clip: text; /* 💡 هذا هو السطر الذي يجب إضافته */
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    margin-bottom: 5px;
+}        .url-box-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
         .url-box {
             background: #0f172a;
             border: 1px solid rgba(255,255,255,0.1);
-            padding: 15px;
+            padding: 15px 50px 15px 15px;
             border-radius: 12px;
             font-family: monospace;
             font-size: 16px;
             color: #38bdf8;
             word-break: break-all;
+            width: 100%;
+            text-align: left;
+            direction: ltr;
         }
+        .btn-copy {
+            position: absolute;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 18px;
+        }
+        .btn-copy:hover { color: #38bdf8; }
         .btn-enter {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             border: none; color: white !important; font-weight: 700;
@@ -66,25 +94,50 @@
 <body>
 
 <div class="success-card">
+    <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
     <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+    
     <h2 class="font-weight-bold mb-2">تهانينا يا هندسة!</h2>
-    <h4 class="text-muted mb-4" style="color: #a7f3d0 !important;">تم تخليق مؤسسة "{{ company_name }}" بنجاح</h4>
+    <h4 class="mb-4" style="color: #a7f3d0 !important; font-weight: 700;">تم تخليق مؤسسة "{{ company_name }}" بنجاح</h4>
     
-    <p class="text-secondary mb-4" style="font-size: 15px;">قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتعيين حساب الـ Root الخاص بك بنجاح. يمكنك الآن الانتقال الفوري لإدارة إمبراطوريتك.</p>
+    <p class="text-secondary mb-4" style="font-size: 15px; line-height: 1.6;">
+        قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتعيين حساب الـ Root الخاص بك بنجاح. يمكنك الآن الانتقال الفوري لإدارة إمبراطوريتك.
+    </p>
     
-    <div class="mb-4">
-        <label class="text-muted d-block mb-2 font-weight-bold" style="font-size: 13px;">رابط الدخول الآمن لنظامك:</label>
-        <div class="url-box shadow-sm">{{ target_url }}</div>
+    <div class="mb-4 text-start">
+        <label class="text-slate-400 d-block mb-2 font-weight-bold text-center" style="font-size: 13px;">رابط الدخول الآمن لنظامك المعزول:</label>
+        <div class="url-box-container shadow-sm">
+            <div class="url-box" id="targetUrlBox">{{ target_url }}</div>
+            <button class="btn-copy" onclick="copyUrlToClipboard()" title="نسخ الرابط"><i class="far fa-copy"></i></button>
+        </div>
     </div>
 
     <div class="mb-3 text-secondary" style="font-size: 13px;">
-        <i class="fas fa-user"></i> حساب الأدمن: <b class="text-white">{{ admin_email }}</b>
+        <i class="fas fa-user"></i> حساب الأدمن المعتمد: <b class="text-white">{{ admin_email }}</b>
     </div>
 
-    <a href="{{ target_url }}" class="btn btn-enter mt-2">
-        <i class="fas fa-door-open"></i> دخول لوحة التحكم والعمليات
+    <div class="alert alert-success bg-emerald-500/10 border-emerald-500/20 text-emerald-400 rounded-xl text-center py-2 px-3 mb-4" style="font-size: 12px; font-weight: 600;">
+        <i class="fab fa-whatsapp animate-bounce"></i> 🤖 أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على كامل بيانات خادمك السحابي الآن.
+    </div>
+
+    <a href="{{ target_url }}" class="btn btn-enter mt-1">
+        <i class="fas fa-door-open"></i> دخول لوحة التحكم والعمليات <i class="fas fa-arrow-left text-xs ms-1"></i>
     </a>
 </div>
 
+<script>
+function copyUrlToClipboard() {
+    const urlText = document.getElementById('targetUrlBox').innerText;
+    navigator.clipboard.writeText(urlText).then(() => {
+        const copyBtn = document.querySelector('.btn-copy i');
+        copyBtn.className = "fas fa-check text-success";
+        setTimeout(() => { copyBtn.className = "far fa-copy text-secondary"; }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy URL: ', err);
+    });
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

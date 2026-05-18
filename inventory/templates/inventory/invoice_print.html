@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فاتورة صيانة #{{ invoice.id }}</title>
     <style>
         /* ================= ألوان وخطوط الهوية ================= */
@@ -64,7 +65,7 @@
         .logo-section h1 { margin: 0; font-size: 32px; color: var(--primary-color); letter-spacing: 1px; font-weight: 900;}
         .logo-section p { margin: 5px 0 0; font-size: 13px; color: #64748b; font-weight: bold;}
         
-        /* 🚀 ابتكار: باركود الفاتورة للوصول السريع بالمسدس */
+        /* 🚀 باركود الفاتورة للوصول السريع بالمسدس */
         .barcode-box { margin-top: 10px; font-family: 'Libre Barcode 39', monospace; font-size: 34px; letter-spacing: 2px;}
         
         .invoice-details { text-align: left; }
@@ -231,11 +232,12 @@
                             <span class="part-badge badge-new">جديد</span>
                         {% endif %}
                     </td>
+                    <td class="td-center">
                         {{ item.warranty_end_date|date:"Y-m-d"|default:"لا يوجد ضمان" }}
                     </td>
                     <td class="td-center">{{ item.quantity }}</td>
-                    <td>{{ item.unit_price }}</td>
-                    <td><strong>{{ item.total_price }}</strong></td>
+                    <td>{{ item.unit_price }} ج.م</td>
+                    <td><strong>{{ item.total_price }} ج.م</strong></td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -262,7 +264,7 @@
                     <td class="td-center">{{ forloop.counter }}</td>
                     <td>{{ srv.service.name }}</td>
                     <td class="td-center">{{ srv.technician.user.get_full_name|default:"فريق الصيانة" }}</td>
-                    <td><strong>{{ srv.price }}</strong></td>
+                    <td><strong>{{ srv.price }} ج.م</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -310,12 +312,12 @@
             <div class="totals-box">
                 <div class="totals-row">
                     <span>إجمالي قطع الغيار:</span>
-                    <span>{{ invoice.items_total_price|default:"0.00" }} ج.م</span>
+                    <span>{{ invoice.total_cost|default:"0.00" }} ج.م</span>
                 </div>
                 
                 <div class="totals-row">
-                    <span>إجمالي أجور اليد:</span>
-                    <span>{{ invoice.services_total_price|default:"0.00" }} ج.م</span>
+                    <span>صافي أرباح الخدمات والمصنعيات:</span>
+                    <span>{{ invoice.net_profit|default:"0.00" }} ج.م</span>
                 </div>
                 
                 {% if invoice.discount > 0 %}
@@ -335,7 +337,7 @@
                 {% if invoice.tax_percentage > 0 %}
                 <div class="totals-row">
                     <span>ضريبة القيمة المضافة ({{ invoice.tax_percentage }}%):</span>
-                    <span>مشمولة</span>
+                    <span>مشمولة الإجمالي</span>
                 </div>
                 {% endif %}
                 

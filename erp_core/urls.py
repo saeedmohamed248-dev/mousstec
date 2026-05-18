@@ -16,8 +16,8 @@ from clients import views as client_views
 logger = logging.getLogger('mouss_tec_router')
 
 # مسار لوحة التحكم المشفر المستخرج من البيئة الآمنة
-# تغيير الاسم ليكون عاماً لجميع المشتركين
-ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal') # أو 'system-portal'
+ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
+
 # =====================================================================
 # 🧠 1. الموجه السحابي الذكي والتكيفي (Smart Adaptive SaaS Router)
 # =====================================================================
@@ -119,6 +119,9 @@ urlpatterns = [
 
     # 🏢 ابتكار: بوابة الاشتراك والإنشاء الآلي للشركات الجديدة لربطها بالـ Landing Page
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),
+
+    # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
+    path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
 
     # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin Dashboard)
     path(f'{ADMIN_URL}/', admin.site.urls),

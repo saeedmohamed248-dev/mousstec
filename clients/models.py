@@ -1,9 +1,16 @@
-from django.db import models
+from django.db import models, transaction
 from django_tenants.models import TenantMixin, DomainMixin
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from datetime import timedelta
+from decimal import Decimal
 import uuid
+import logging
+
+logger = logging.getLogger('mouss_tec_core')
 
 # 🎯 أتمتة الفخ الذهبي: فترة تجريبية 3 أيام فقط لإجبار العميل على اتخاذ قرار
 def default_trial_end():
@@ -13,7 +20,6 @@ def default_trial_end():
 # 🏢 1. جدول المستأجرين (شركات Mouss Tec Ecosystem)
 # =====================================================================
 class Client(TenantMixin):
-    # 📝 البيانات الأساسية للشركة
     name = models.CharField(max_length=100, verbose_name=_("اسم المركز/الشركة"))
     owner_name = models.CharField(max_length=100, verbose_name=_("اسم المالك"))
     phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
@@ -37,7 +43,7 @@ class Client(TenantMixin):
     is_verified_merchant = models.BooleanField(default=False, verbose_name=_("تاجر موثق (علامة زرقاء)"))
     commercial_register = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("السجل التجاري"))
     
-    # 🤖 مؤشرات الثقة ومكافحة الاحتيال بالذكاء الاصطناعي (State-of-the-Art)
+    # 🤖 مؤشرات الثقة ومكافحة الاحتيال بالذكاء الاصطناعي (AI Shield Telemetry)
     market_rating = models.DecimalField(max_digits=3, decimal_places=2, default=5.00, verbose_name=_("التقييم العام"))
     successful_deals = models.IntegerField(default=0, verbose_name=_("الصفقات الناجحة"))
     dispute_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name=_("نسبة النزاعات (%)"))
@@ -52,17 +58,14 @@ class Client(TenantMixin):
     )
     plan = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default='gold', verbose_name=_("الباقة"))
     
-    # محددات الباقة الأساسية
     max_branches = models.IntegerField(default=2, verbose_name=_("الفروع المشمولة بالباقة"))
     max_users = models.IntegerField(default=5, verbose_name=_("المستخدمين المشمولين بالباقة"))
     max_repair_cards = models.IntegerField(default=0, help_text="0 تعني غير محدود", verbose_name=_("حد كروت الصيانة الشهري"))
     max_inventory_items = models.IntegerField(default=0, help_text="0 تعني غير محدود", verbose_name=_("حد أصناف المخزن"))
     
-    # إضافات مدفوعة (Add-ons)
     extra_branches_purchased = models.IntegerField(default=0, verbose_name=_("فروع إضافية مشتراة"))
     extra_users_purchased = models.IntegerField(default=0, verbose_name=_("مستخدمين إضافيين مشتراة"))
     
-    # إدارة الاشتراكات
     STATUS_CHOICES = (
         ('trial', _('فترة تجريبية')),
         ('active', _('نشط (مدفوع)')),
@@ -106,19 +109,17 @@ class Client(TenantMixin):
         return self.max_users + self.extra_users_purchased
 
     def save(self, *args, **kwargs):
-        # تطبيق محددات البيزنس آلياً عند الحفظ أو تغيير الباقة
         if self.plan == 'silver': 
             self.max_branches, self.max_users = 1, 2
             self.max_repair_cards, self.max_inventory_items = 150, 500
         elif self.plan == 'gold': 
             self.max_branches, self.max_users = 2, 5
-            self.max_repair_cards, self.max_inventory_items = 0, 0 # Unlimited
+            self.max_repair_cards, self.max_inventory_items = 0, 0 
         elif self.plan == 'empire': 
-            self.max_branches, self.max_users = 999, 9999 # Practically Unlimited
+            self.max_branches, self.max_users = 999, 9999 
             self.max_repair_cards, self.max_inventory_items = 0, 0
             
         super().save(*args, **kwargs)
-
 
 # =====================================================================
 # 🌐 2. جدول النطاقات
@@ -178,10 +179,8 @@ class BlindBiddingRequest(models.Model):
     
     auto_award = models.BooleanField(default=False, verbose_name=_("ترسية آلية لأفضل عرض؟"))
     
-    # 🤖 الابتكار: اقتراح الترسية الذكي
     ai_recommended_winner = models.ForeignKey('BidOffer', on_delete=models.SET_NULL, blank=True, null=True, related_name='recommended_for', help_text="أفضل عرض تم ترشيحه بواسطة محرك الـ AI بناءً على الجودة والسعر")
     
-    # الترسية الفعالة
     winner = models.ForeignKey(Client, on_delete=models.SET_NULL, blank=True, null=True, related_name='bids_won', verbose_name=_("التاجر الفائز"))
     winning_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name=_("سعر الترسية"))
     platform_fee_collected = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("عمولة المنصة المحصلة"))
@@ -197,6 +196,76 @@ class BlindBiddingRequest(models.Model):
     def __str__(self):
         return f"Bid #{self.id} - {self.part_number} (By: {self.buyer.name})"
 
+    # 🚀 ابتكارات أتمتة دورة حياة المزاد للمنظومة الذكية (MAS Atomic Triggers)
+    def trigger_escrow_hold(self):
+        """تجميد أموال المزاد في حساب الضمان للمشتري فور الترسية"""
+        if self.status != 'open':
+            raise ValidationError("المزاد ليس في الحالة المفتوحة للتجميد المالي.")
+        if not self.winning_price:
+            raise ValidationError("يجب تحديد سعر الترسية النهائي لخصم الضمان.")
+        
+        with transaction.atomic():
+            self.status = 'escrow_held'
+            self.save(update_fields=['status'])
+            
+            EscrowLedger.objects.create(
+                client=self.buyer,
+                bidding_request=self,
+                transaction_type='hold',
+                amount=self.winning_price,
+                description=f"🔒 تجميد مالي مؤقت لثمن قطعة {self.part_number} بالمزاد العكسي #{self.id}"
+            )
+
+    def trigger_release_to_seller(self):
+        """تحرير الأموال وإرسالها للتاجر الفائز بعد فحص القطعة وتجاوز مرحلة النزاعات الفنية"""
+        if self.status != 'shipped':
+            raise ValidationError("لا يمكن تحرير الضمان المالي إلا بعد إتمام عملية الشحن والتسليم للورشة.")
+        if not self.winner or not self.winning_price:
+            raise ValidationError("بيانات التاجر الفائز أو سعر الترسية غير مكتملة.")
+            
+        with transaction.atomic():
+            self.status = 'completed'
+            # حساب عمولة المنصة ديناميكياً بناءً على نسبة عقد المشتري
+            fee = (self.winning_price * self.buyer.platform_fee_rate) / Decimal('100.00')
+            self.platform_fee_collected = fee
+            self.save(update_fields=['status', 'platform_fee_collected'])
+            
+            # 1. إثبات تحرير الحركة من حساب الضمان للمشتري
+            EscrowLedger.objects.create(
+                client=self.buyer,
+                bidding_request=self,
+                transaction_type='release',
+                amount=self.winning_price,
+                description=f"💸 إفراج مالي عن ثمن قطعة {self.part_number} من حساب الضمان للمشتري للتاجر {self.winner.name}"
+            )
+            
+            # 2. قيد خصم عمولة Mouss Tec من أرباح التاجر الصافية
+            if fee > 0:
+                EscrowLedger.objects.create(
+                    client=self.winner,
+                    bidding_request=self,
+                    transaction_type='fee_deduction',
+                    amount=fee,
+                    description=f"⚙️ خصم عمولة تشغيل منصة Mouss Tec عن المزاد #{self.id}"
+                )
+
+    def trigger_refund_to_buyer(self):
+        """إعادة الأموال بالكامل لمحفظة المشتري في حال إلغاء المزاد أو ربح النزاع الفني (تيل فرامل غير مطابق مثلاً)"""
+        if self.status not in ['escrow_held', 'disputed']:
+            raise ValidationError("الوضعية التشغيلية الحالية للمزاد لا تسمح برد المبالغ المجمّدة.")
+            
+        with transaction.atomic():
+            self.status = 'cancelled'
+            self.save(update_fields=['status'])
+            
+            EscrowLedger.objects.create(
+                client=self.buyer,
+                bidding_request=self,
+                transaction_type='refund',
+                amount=self.winning_price,
+                description=f"🔄 رد الرصيد المجمد كاملاً لمحفظة المشتري لإلغاء المزاد أو فض النزاع الفني بنجاح."
+            )
+
 # =====================================================================
 # 📥 5. جدول عروض الأسعار (Bid Offers)
 # =====================================================================
@@ -208,7 +277,6 @@ class BidOffer(models.Model):
     condition = models.CharField(max_length=20, choices=GlobalB2BMarketplace.CONDITION_CHOICES, default='new', verbose_name=_("حالة القطعة المعروضة"))
     estimated_delivery_days = models.IntegerField(default=1, verbose_name=_("أيام التوصيل المتوقعة"))
     
-    # 🤖 تقييم العرض بواسطة الـ AI لترتيب العروض للمشتري
     ai_match_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="تقييم الـ AI الشامل لهذا العرض (سعر + موثوقية التاجر + سرعة التوصيل)")
     
     is_winner = models.BooleanField(default=False, verbose_name=_("هل هو العرض الفائز؟"))
@@ -252,3 +320,64 @@ class EscrowLedger(models.Model):
 
     def __str__(self):
         return f"{self.get_transaction_type_display()} - {self.amount} EGP ({self.client.name})"
+
+
+# =====================================================================
+# 🧠 الإشارات المحاسبية المؤتمتة (Atomic FinTech Ledger Signals)
+# =====================================================================
+
+@receiver(post_save, sender=EscrowLedger)
+def update_client_balances_on_ledger_entry(sender, instance, created, **kwargs):
+    """
+    محلل الحركات المحاسبية الفوري والمضاد للاختراق:
+    يضمن المزامنة الرياضية التامة بين قيد الدفتر وأرصدة المحافظ الفعلية داخل بيئة معزولة وذرية.
+    """
+    if created:
+        with transaction.atomic():
+            client = instance.client
+            amount = instance.amount
+            
+            if instance.transaction_type == 'deposit':
+                client.wallet_balance += amount
+                client.save(update_fields=['wallet_balance'])
+                logger.info(f"💰 [FINTECH ACC]: Deposited {amount} EGP to client '{client.name}' wallet.")
+                
+            elif instance.transaction_type == 'hold':
+                # 🛡️ منع تجميد أموال الورشة إذا كانت قيمة محفظتها أقل من ثمن الترسية المطلوب
+                if client.wallet_balance < amount:
+                    raise ValidationError(f"❌ الرصيد المتاح بمحفظة {client.name} لا يكفي لتجميد ثمن المزاد بقيمة ({amount}) ج.م")
+                client.wallet_balance -= amount
+                client.escrow_held += amount
+                client.save(update_fields=['wallet_balance', 'escrow_held'])
+                logger.info(f"🔒 [FINTECH ACC]: Frozen {amount} EGP into escrow from '{client.name}'.")
+                
+            elif instance.transaction_type == 'release':
+                # خصم الأموال المجمدة من حساب المشتري رسمياً
+                client.escrow_held -= amount
+                client.save(update_fields=['escrow_held'])
+                
+                # تحويل صافي الأرباح (السعر - العمولة) فوراً لمحفظة التاجر الفائز الموثق بالسيستم
+                if instance.bidding_request and instance.bidding_request.winner:
+                    seller = instance.bidding_request.winner
+                    fee = instance.bidding_request.platform_fee_collected
+                    seller.wallet_balance += (amount - fee)
+                    seller.save(update_fields=['wallet_balance'])
+                    logger.info(f"💸 [FINTECH ACC]: Released {amount - fee} EGP to seller '{seller.name}' (Fee {fee} EGP deducted).")
+                    
+            elif instance.transaction_type == 'refund':
+                # إعادة فك التجميد ورد الأموال من الضمان للمحفظة الأساسية
+                client.escrow_held -= amount
+                client.wallet_balance += amount
+                client.save(update_fields=['wallet_balance', 'escrow_held'])
+                logger.info(f"🔄 [FINTECH ACC]: Refunded {amount} EGP back to '{client.name}' wallet due to cancellation.")
+                
+            elif instance.transaction_type == 'fee_deduction':
+                # توثيق داخلي لعمولات منصة Mouss Tec 
+                pass
+                
+            elif instance.transaction_type == 'withdrawal':
+                if client.wallet_balance < amount:
+                    raise ValidationError("❌ الرصيد المتاح للسحب في المحفظة أقل من المبلغ المطلوب.")
+                client.wallet_balance -= amount
+                client.save(update_fields=['wallet_balance'])
+                logger.info(f"📤 [FINTECH ACC]: Processed successful withdrawal of {amount} EGP for '{client.name}'.")

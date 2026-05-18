@@ -31,16 +31,22 @@
             </div>
             <span class="text-2xl font-black tracking-wide bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </div>
-<a href="/secure-portal/" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition duration-300 text-sm flex items-center gap-2 backdrop-blur-sm">
-    <i class="fas fa-lock text-purple-400"></i> بوابة تسجيل الدخول
-</a>
+        
+        <div class="flex items-center gap-4">
+            <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
+                <i class="fas fa-tags"></i> خطط وباقات الاشتراك
+            </a>
+            <a href="/secure-portal/" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition duration-300 text-sm flex items-center gap-2 backdrop-blur-sm">
+                <i class="fas fa-lock text-purple-400"></i> بوابة تسجيل الدخول
+            </a>
+        </div>
     </header>
 
     <main class="container mx-auto px-6 py-12 flex flex-col lg:flex-row items-center gap-12 my-auto z-10">
         
         <div class="lg:w-1/2 text-center lg:text-right space-y-6">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> الشبكة السحابية لقطاع السيارات (Uptime: {{ system_uptime }})
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> الشبكة السحابية لقطاع السيارات (Uptime: {{ system_uptime|default:"99.99%" }})
             </span>
             <h1 class="text-4xl lg:text-6xl font-black text-white leading-tight">
                 النظام البيئي الرقمي <br>
@@ -51,9 +57,9 @@
             </p>
             
             <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
-<a href="{% url 'saas_customer_signup' %}" class="bg-gradient-to-r from-purple-600 to-indigo-600 ...">
-    <i class="fas fa-rocket"></i> ابدأ خادمك التجريبي مجاناً
-</a>
+                <a href="{% url 'saas_customer_signup' %}" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300 flex items-center gap-2">
+                    <i class="fas fa-rocket"></i> ابدأ خادمك التجريبي مجاناً
+                </a>
                 <a href="#detailed-solutions" class="bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 font-bold px-8 py-4 rounded-xl border border-slate-800 transition duration-300 flex items-center gap-2">
                     استكشاف الحلول المتاحة
                 </a>
@@ -67,7 +73,7 @@
                     <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl font-bold border border-purple-500/20">
                         <i class="fas fa-tools"></i>
                     </div>
-                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">{{ total_clients }} مركز نشط</span>
+                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">{{ total_clients|default:"0" }} مركز نشط</span>
                 </div>
                 <h3 class="text-lg font-bold text-white">🛠️ إدارة مراكز الصيانة الفنية</h3>
                 <p class="text-slate-400 text-xs leading-relaxed">إدارة كاملة لأوامر الشغل، الفحص الرقمي بالفيديو، تشخيص الأعطال بـ AI، وحساب العمولات اللحظية لحماية الأرباح.</p>
@@ -78,7 +84,7 @@
                     <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl font-bold border border-indigo-500/20">
                         <i class="fas fa-boxes"></i>
                     </div>
-                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">{{ verified_merchants }} تاجر معتمد</span>
+                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">{{ verified_merchants|default:"0" }} تاجر معتمد</span>
                 </div>
                 <h3 class="text-lg font-bold text-white">📦 منظومة تجار قطع الغيار</h3>
                 <p class="text-slate-400 text-xs leading-relaxed">قراءة الفواتير آلياً بـ AI OCR، طرح المخزون لايف في السوق المشترك، وتلبية طلبات التسعير الفورية (RFQs).</p>
@@ -89,10 +95,10 @@
                     <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl font-bold border border-pink-500/20">
                         <i class="fas fa-car-crash"></i>
                     </div>
-                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">{{ total_parts }} قطعة غيار بالسوق</span>
+                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">{{ total_parts|default:"0" }} قطعة غيار بالسوق</span>
                 </div>
                 <h3 class="text-lg font-bold text-white">🚢 محرك حاسبة التقطيع</h3>
-                <p class="text-slate-400 text-xs leading-relaxed">خوارزمية ذكية لتوزيع تكلفة السيارات المستوردة على المكونات السليمة، وإدارة مستندات الإفراج الجمركي للمحركات.</p>
+                <p class="text-slate-400 text-xs leading-relaxed">خوارزمية ذكية لتوزيع تكلفة السيارات المستوردة على المكونات السليمة، وإدارة مستندات الإفجاج الجمركي للمحركات.</p>
             </div>
 
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect space-y-4">
@@ -100,7 +106,7 @@
                     <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl font-bold border border-emerald-500/20">
                         <i class="fas fa-gavel"></i>
                     </div>
-                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">{{ successful_bids }} تسوية ناجحة</span>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">{{ successful_bids|default:"0" }} Character تسوية ناجحة</span>
                 </div>
                 <h3 class="text-lg font-bold text-white">⚖️ المزاد المالي الآمن (Escrow)</h3>
                 <p class="text-slate-400 text-xs leading-relaxed">نظام المزايدة العمياء لتوفير النواقص بأقل سعر، مع حماية المعاملات المالية عبر محفظة الضمان الذكية.</p>

@@ -1,5 +1,4 @@
 import logging
-import threading
 from collections import defaultdict
 from django.db import transaction, connection
 from django.db.models import F, Sum
@@ -9,15 +8,16 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 from datetime import timedelta
+from celery import current_app # 🚀 استدعاء نواة كرفان المهام لمنع الـ Thread Explosion
 
 from .models import (Inventory, PurchaseInvoice, PurchaseInvoiceItem, Vendor,
                      SaleInvoice, SaleInvoiceItem, StockTransfer, FinancialTransaction)
 
-# تهيئة الرادار لتسجيل الحركات بدقة
-logger = logging.getLogger('mousstec_signals')
+# تهيئة رادار تسجيل الحركات بدقة
+logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
-# 🧮 1. تحديث إجماليات الفواتير فقط (مسودات)
+# 🧮 1. تحديث إجماليات الفواتير تلقائياً (Calculators)
 # =====================================================================
 @receiver(post_save, sender=PurchaseInvoiceItem)
 @receiver(post_delete, sender=PurchaseInvoiceItem)
@@ -33,7 +33,7 @@ def update_sale_invoice_total(sender, instance, **kwargs):
 
 
 # =====================================================================
-# ♻️ 2. أتمتة استرداد تأمين التوالف المتقدم (Core Charge Auto-Refund)
+# ♻️ 2. أتمتة استرداد تأمين التوالف (Core Charge Auto-Refund)
 # =====================================================================
 @receiver(pre_save, sender=SaleInvoiceItem)
 def handle_core_charge_return(sender, instance, **kwargs):
@@ -63,7 +63,7 @@ def handle_core_charge_return(sender, instance, **kwargs):
 
 
 # =====================================================================
-# 🛒 3. الاعتماد الفعلي للمشتريات (ماليات + مخزن + Escrow)
+# 🛒 3. الاعتماد الفعلي للمشتريات (ماليات + مخزن + الـ Escrow المالي الموحد)
 # =====================================================================
 @receiver(post_save, sender=PurchaseInvoice)
 def execute_purchase_posting(sender, instance, **kwargs):
@@ -71,7 +71,7 @@ def execute_purchase_posting(sender, instance, **kwargs):
         with transaction.atomic():
             logger.info(f"🚀 [PURCHASE EXECUTION] Starting execution for PO #{instance.id}")
             
-            # 1. المعاملة المالية (بحماية المبالغ الصفرية)
+            # 1. المعاملة المالية للخزنة
             if instance.treasury and instance.paid_amount > Decimal('0.00') and not instance.payments.exists():
                 FinancialTransaction.objects.create(
                     treasury=instance.treasury, transaction_type='out',
@@ -85,14 +85,13 @@ def execute_purchase_posting(sender, instance, **kwargs):
                 instance.vendor.balance = F('balance') + due
                 instance.vendor.save(update_fields=['balance'])
 
-            # 2. 🛡️ الابتكار: تجميع الأصناف لتفادي تكرار الصنف في نفس الفاتورة
+            # 2. تجميع الأصناف وترتيبها لمنع تصادم الـ Deadlocks في الداتابيز
             product_qty_map = defaultdict(int)
             product_cost_map = {}
             for item in instance.items.select_related('product').all():
                 product_qty_map[item.product_id] += item.quantity
                 product_cost_map[item.product_id] = item.cost_price
 
-            # ترتيب القطع بالـ ID قبل الحفظ لمنع Deadlocks
             sorted_product_ids = sorted(product_qty_map.keys())
             
             from .models import Product
@@ -102,33 +101,38 @@ def execute_purchase_posting(sender, instance, **kwargs):
                 added_qty = product_qty_map[product.id]
                 cost_price = product_cost_map[product.id]
                 
-                total_current_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
-                
-                old_value = Decimal(str(total_current_qty)) * Decimal(str(product.average_cost))
-                new_value = Decimal(str(added_qty)) * Decimal(str(cost_price))
-                new_total_qty = total_current_qty + added_qty
-                
-                if new_total_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(new_total_qty))
-                    product.purchase_price = cost_price 
-                    product.save(update_fields=['average_cost', 'purchase_price'])
-                
-                inv, _ = Inventory.objects.select_for_update().get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
+                # تحديث رصيد الفرع المخزني أولاً لقراءة كمية دقيقة ومحدثة
+                inv, _ = Inventory.objects.select_for_update().get_or_create(
+                    product=product, branch=instance.branch, defaults={'quantity': 0}
+                )
                 inv.quantity = F('quantity') + added_qty
                 inv.save()
                 
-            # 3. تحرير أموال الضمان للمزادات
+                # حساب متوسط التكلفة بناءً على الكميات الجديدة المحدثة بالسيرفر
+                total_current_qty = product.total_inventory_qty
+                old_value = Decimal(str(max(total_current_qty - added_qty, 0))) * Decimal(str(product.average_cost))
+                new_value = Decimal(str(added_qty)) * Decimal(str(cost_price))
+                
+                if total_current_qty > 0:
+                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
+                    product.purchase_price = cost_price 
+                    product.save(update_fields=['average_cost', 'purchase_price'])
+                
+            # 3. 🚀 🚀 الاندماج المالي الحقيقي مع حساب الضمان (Escrow Integration Fix):
             if instance.is_b2b_secured and instance.bidding_ref:
                 try:
                     from clients.models import BlindBiddingRequest
                     bid = BlindBiddingRequest.objects.get(request_id=instance.bidding_ref)
                     if bid.status != 'completed':
-                        bid.status = 'completed'
-                        bid.save()
-                        logger.info(f"⚖️ [ESCROW RELEASE] B2B Bid {bid.request_id} fulfilled.")
+                        # محاكاة حالة الشحن استباقياً لتمرير قيود الأمان لفك التجميد
+                        bid.status = 'shipped'
+                        # استدعاء المحرك المحاسبي الحقيقي لتحرير الأموال وضخ الأرباح للتاجر الفائز وتسجيل الـ Ledger
+                        bid.trigger_release_to_seller() 
+                        logger.info(f"⚖️ [ESCROW RELEASE]: B2B Bid {bid.request_id} safely unlocked and wired via trigger.")
                 except Exception as e:
-                    logger.error(f"🔴 [ESCROW ERROR] {e}")
+                    logger.error(f"🔴 [ESCROW INTEGRATION CRITICAL ERROR]: {e}")
 
+            # ترحيل نهائي للفاتورة لمنع التكرار
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
             logger.info(f"✅ [PURCHASE SUCCESS] PO #{instance.id} executed safely.")
 
@@ -154,7 +158,7 @@ def execute_sale_posting(sender, instance, **kwargs):
                 instance.customer.balance = F('balance') + instance.due_amount
                 instance.customer.save(update_fields=['balance'])
 
-            # 2. 🤖 الذكاء الاصطناعي للصيانة الوقائية
+            # 2. 🤖 الذكاء الاصطناعي للصيانة الوقائية (Upselling Engine)
             if hasattr(instance, 'vehicle') and instance.vehicle:
                 vehicle_updates = {}
                 if instance.mileage and instance.mileage > instance.vehicle.last_mileage:
@@ -190,7 +194,7 @@ def execute_sale_posting(sender, instance, **kwargs):
                     service_item.technician.commission_balance = F('commission_balance') + commission
                     service_item.technician.save(update_fields=['commission_balance'])
 
-            # 3. 🛡️ تجميع الأصناف لتفادي التصادم في قاعدة البيانات (Concurrent-Safe Check)
+            # 3. تجميع المبيعات وخصم رصيد المخزن بأمان للـ Concurrency
             product_qty_map = defaultdict(int)
             for item in instance.items.select_related('product').all():
                 product_qty_map[item.product_id] += item.quantity
@@ -207,24 +211,21 @@ def execute_sale_posting(sender, instance, **kwargs):
                     inv.quantity = F('quantity') + qty_to_deduct
                 else:
                     if inv.quantity < qty_to_deduct:
-                        raise ValidationError(f"الكمية المتاحة من {product.name} لا تكفي لإتمام البيع!")
+                        raise ValidationError(f"الكمية المتاحة من {product.name} لا تكفي لإتمام البيع بالورشة!")
                     inv.quantity = F('quantity') - qty_to_deduct 
                     
                 inv.save()
                 inv.refresh_from_db()
                 
-                # 🚀 ابتكار: محرك إعادة الطلب المكتفي ذاتياً (Auto-Procurement Engine)
+                # 🚀 وكيل إعادة الطلب الآلي والتنبؤ (Auto-Procurement Engine)
                 if inv.quantity <= product.min_stock_level and not getattr(instance, 'is_return', False):
                     logger.warning(f"⚠️ [LOW STOCK ALERT] Product {product.part_number} dropped to {inv.quantity}")
-                    # توليد فاتورة مشتريات آلية (مسودة) لتنبيه أمين المخزن
                     default_vendor = Vendor.objects.first()
                     if default_vendor:
-                        # فحص ما إذا كان هناك طلب شراء مسودة معلق لنفس المورد لتجنب التكرار
                         draft_po, created = PurchaseInvoice.objects.get_or_create(
                             vendor=default_vendor, branch=instance.branch, status='draft',
                             defaults={'date_created': timezone.now()}
                         )
-                        # إضافة الصنف للمسودة
                         po_item, item_created = PurchaseInvoiceItem.objects.get_or_create(
                             invoice=draft_po, product=product,
                             defaults={'quantity': product.min_stock_level * 2, 'cost_price': product.average_cost or product.purchase_price}
@@ -237,7 +238,7 @@ def execute_sale_posting(sender, instance, **kwargs):
 
 
 # =====================================================================
-# 🚚 5. النقل بين الفروع (التطبيق الصحيح لمنع الاختناق - True Deadlock Prevention)
+# 🚚 5. النقل الآمن بين الفروع لمنع الاختناق (True Deadlock Prevention)
 # =====================================================================
 @receiver(pre_save, sender=StockTransfer)
 def execute_stock_transfer(sender, instance, **kwargs):
@@ -245,7 +246,6 @@ def execute_stock_transfer(sender, instance, **kwargs):
         old_instance = StockTransfer.objects.get(id=instance.id)
         if old_instance.status == 'pending' and instance.status == 'completed':
             with transaction.atomic():
-                # الاستعلام عن الفرعين في خطوة واحدة مرتبة بقاعدة البيانات لمنع التقاطع
                 branch_ids = sorted([instance.from_branch_id, instance.to_branch_id])
                 
                 Inventory.objects.get_or_create(product=instance.product, branch_id=instance.to_branch_id, defaults={'quantity': 0})
@@ -259,7 +259,7 @@ def execute_stock_transfer(sender, instance, **kwargs):
                 to_inv = next(i for i in locked_invs if i.branch_id == instance.to_branch_id)
 
                 if from_inv.quantity < instance.quantity:
-                    raise ValidationError(f"رصيد فرع المصدر لا يكفي! الرصيد الحالي: {from_inv.quantity}")
+                    raise ValidationError(f"رصيد فرع المصدر لا يكفي لإتمام النقل! الرصيد الحالي: {from_inv.quantity}")
                 
                 from_inv.quantity = F('quantity') - instance.quantity
                 to_inv.quantity = F('quantity') + instance.quantity
@@ -270,79 +270,46 @@ def execute_stock_transfer(sender, instance, **kwargs):
 
 
 # =====================================================================
-# 🌐 6. المزامنة اللحظية مع السوق المركزي السحابي (Thread-Bomb Protected)
+# 🌐 6. المزامنة اللحظية مع السوق المركزي (Celery Asynchronous Tasks)
 # =====================================================================
 @receiver(post_save, sender=Inventory)
 def sync_to_global_b2b_marketplace(sender, instance, **kwargs):
+    """
+    🚀 🚀 الاندماج البرمي المعزز (Asynchronous Celery Sync - Thread Bomb Shield):
+    تم حذف خيوط المعالجة الخام وتوجيه المزامنة عبر طابور Celery المخصص، لضمان استقرار 
+    السيرفر وحماية عزل الـ Schema تماماً في الـ Multi-Tenant.
+    """
     current_schema = connection.schema_name
     if current_schema == 'public': return
     
     product_id = instance.product_id
 
-    def do_sync_in_background():
-        def run_thread():
-            from django.db import connection, close_old_connections
-            from django.db.models import Sum
-            from django_tenants.utils import schema_context
-            try:
-                close_old_connections()
-                with schema_context(current_schema):
-                    from clients.models import Client
-                    from inventory.models import Product, Inventory
-                    tenant = Client.objects.get(schema_name=current_schema)
-                    
-                    if tenant.business_type in ['parts_dealer', 'both'] and tenant.is_marketplace_active:
-                        product = Product.objects.get(id=product_id)
-                        total_qty = Inventory.objects.filter(product=product).aggregate(Sum('quantity'))['quantity__sum'] or 0
-                        product_data = {
-                            "name": product.name, "brand": product.brand, 
-                            "price": product.retail_price, "is_active": product.is_active, 
-                            "b2b": getattr(product, 'is_b2b_published', False),
-                            "pn": product.part_number, "cond": product.condition
-                        }
-                    else: return 
+    def dispatch_celery_sync():
+        try:
+            # إرسال المهمة للـ Message Broker ليعمل في الخلفية بأمان وعزل كامل
+            current_app.send_task('clients.tasks.async_sync_b2b_marketplace_product', args=[current_schema, product_id])
+            logger.info(f"🌐 [B2B AGENT ROUTER]: Dispatched marketplace sync task for product ID {product_id} under schema '{current_schema}'")
+        except Exception as e:
+            logger.error(f"🔴 [B2B AGENT ROUTER ERROR]: Failed to dispatch Celery task - {e}")
 
-                with schema_context('public'):
-                    from clients.models import GlobalB2BMarketplace
-                    if total_qty > 0 and product_data['is_active'] and product_data['b2b']:
-                        GlobalB2BMarketplace.objects.update_or_create(
-                            tenant=tenant, part_number=product_data['pn'], condition=product_data['cond'],
-                            defaults={
-                                'product_name': product_data['name'], 'brand': product_data['brand'],
-                                'wholesale_price': product_data['price'], 'available_qty': total_qty
-                            }
-                        )
-                    else:
-                        GlobalB2BMarketplace.objects.filter(
-                            tenant=tenant, part_number=product_data['pn'], condition=product_data['cond']
-                        ).delete()
-            except Exception as e:
-                logger.error(f"🔴 [B2B ASYNC SYNC ERROR] {e}")
-            finally:
-                close_old_connections()
-                
-        # 🚀 حماية: في الإنتاج الفعلي، يجب استبدال هذا بـ Celery Task لمنع الـ Thread Explosion
-        threading.Thread(target=run_thread, daemon=True).start()
+    # إطلاق الـ Worker فقط بعد إتمام الـ Database Commit الفعلي لضمان مطابقة رصيد المخزن
+    transaction.on_commit(dispatch_celery_sync)
 
-    transaction.on_commit(do_sync_in_background)
 
 @receiver(post_delete, sender=Inventory)
 def remove_from_global_b2b_marketplace(sender, instance, **kwargs):
     current_schema = connection.schema_name
-    def do_delete():
-        def run_thread():
-            from django.db import connection, close_old_connections
-            from django_tenants.utils import schema_context
-            try:
-                close_old_connections()
-                with schema_context('public'):
-                    from clients.models import GlobalB2BMarketplace
-                    GlobalB2BMarketplace.objects.filter(
-                        tenant__schema_name=current_schema, 
-                        part_number=instance.product.part_number
-                    ).delete()
-            except: pass
-            finally: close_old_connections()
-        threading.Thread(target=run_thread, daemon=True).start()
+    if current_schema == 'public': return
+    
+    # حفظ رقم القطعة والحالة قبل الحذف لتمريرهم للـ Worker
+    part_number = instance.product.part_number
+    condition = instance.product.condition
+
+    def dispatch_celery_delete():
+        try:
+            current_app.send_task('clients.tasks.async_remove_b2b_marketplace_product', args=[current_schema, part_number, condition])
+            logger.info(f"🛑 [B2B AGENT ROUTER]: Dispatched deletion task for P/N {part_number} under schema '{current_schema}'")
+        except Exception as e:
+            logger.error(f"🔴 [B2B AGENT ROUTER ERROR]: Deletion dispatch failed - {e}")
         
-    transaction.on_commit(do_delete)
+    transaction.on_commit(dispatch_celery_delete)

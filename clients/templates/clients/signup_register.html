@@ -28,14 +28,16 @@
             max-width: 650px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-        .brand-logo {
-            font-size: 28px;
-            font-weight: 900;
-            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-            -webkit-text-fill-color: transparent;
-            text-align: center;
-            margin-bottom: 5px;
-        }
+.brand-logo {
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    -webkit-background-clip: text;
+    background-clip: text; /* 💡 هذا هو السطر الذي يجب إضافته */
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    margin-bottom: 5px;
+}
         .form-label {
             font-weight: 700;
             color: #cbd5e1;
@@ -60,24 +62,22 @@
             position: relative;
             display: flex;
             align-items: center;
+            direction: ltr; 
+        }
+        /* ✅ تصحيح هندسة الحواف المتصلة في وضع الـ LTR */
+        .subdomain-input-group .form-control {
+            border-radius: 12px 0 0 12px !important; 
+            text-align: left;
+            border-right: none !important;
         }
         .subdomain-addon {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-inline-start: none;
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 12px 12px 0 !important; 
             padding: 12px 15px;
-            color: #94a3b8;
+            color: #38bdf8;
             font-weight: 700;
-            direction: ltr;
-        }
-        html[dir="rtl"] .subdomain-input-group .form-control {
-            border-radius: 0 12px 12px 0 !important;
-        }
-        html[dir="rtl"] .subdomain-addon {
-            border-radius: 12px 0 0 12px !important;
-            border-inline-start: 1px solid rgba(255, 255, 255, 0.1);
-            border-inline-end: none;
+            white-space: nowrap;
         }
         .btn-submit {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
@@ -119,7 +119,7 @@
     <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
     <p class="text-center text-muted font-weight-bold mb-4" style="font-size: 14px;">انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ</p>
 
-    <form method="POST" autocomplete="off">
+    <form method="POST" autocomplete="off" id="tenantSignupForm">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -145,18 +145,30 @@
                 {% if form.business_type.errors %}<span class="field-error">{{ form.business_type.errors.0 }}</span>{% endif %}
             </div>
 
-                <small class="text-muted d-block mt-1">اكتب اسم فريد بالإنجليزية بدون مسافات (مثال: zaein).</small>
+            <div class="col-12 mb-3" style="direction: rtl; text-align: right;">
+                <label class="form-label">رابط النظام المحمي الخاص بك</label>
+                <div class="subdomain-input-group">
+                    {{ form.subdomain }}
+                    <span class="subdomain-addon">.mousstec.com</span>
+                </div>
+                <small class="text-slate-400 d-block mt-1">اكتب اسماً فريداً بالإنجليزية بدون مسافات أو رموز (مثال: mouss-fixit).</small>
                 {% if form.subdomain.errors %}<span class="field-error">{{ form.subdomain.errors.0 }}</span>{% endif %}
             </div>
 
-            <hr style="border-color: rgba(255,255,255,0.1);">
+            <hr class="my-4" style="border-color: rgba(255,255,255,0.1);">
 
             <h5 class="font-weight-bold mb-3" style="color: #c084fc;"><i class="fas fa-user-shield"></i> 2. حساب المدير المسؤول (Root Admin)</h5>
 
-            <div class="col-12 mb-3">
+            <div class="col-md-6 mb-3">
                 <label class="form-label">الاسم بالكامل</label>
                 {{ form.full_name }}
                 {% if form.full_name.errors %}<span class="field-error">{{ form.full_name.errors.0 }}</span>{% endif %}
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="form-label">رقم هاتف المالك / الإدارة</label>
+                {{ form.phone }}
+                {% if form.phone.errors %}<span class="field-error">{{ form.phone.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
@@ -172,12 +184,27 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-submit w-100 mt-3">
+        <button type="submit" class="btn btn-submit w-100 mt-4">
             <i class="fas fa-rocket"></i> إطلاق وتأسيس الخادم المعزول
         </button>
     </form>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 🧠 ابتكار: مطهر النطاقات الفرعية لمنع أخطاء الـ URL والمسافات العشوائية لايف
+    document.addEventListener('DOMContentLoaded', function() {
+        const subdomainInput = document.querySelector('input[name="subdomain"]') || document.querySelector('[id*="subdomain"]');
+        if (subdomainInput) {
+            subdomainInput.addEventListener('input', function(e) {
+                let sanitized = e.target.value
+                    .toLowerCase()                     // تحويل الحروف لـ Small
+                    .replace(/\s+/g, '-')              // استبدال أي مسافة بـ داش
+                    .replace(/[^a-z0-9\-]/g, '');      // حذف أي رموز خاصة أو حروف عربية تمنع عمل الرابط
+                e.target.value = sanitized;
+            });
+        }
+    });
+</script>
 </body>
 </html>

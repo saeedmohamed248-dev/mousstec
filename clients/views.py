@@ -401,3 +401,78 @@ def market_demand_predictor_api(request):
         "intelligence_report": "نوصي بضخ هذه المكونات في مستودعاتك لتحقيق أعلى عوائد بناءً على التسعير الديناميكي.",
         "trending_parts": data
     })
+from django.utils import timezone
+from datetime import timedelta
+from django.contrib import messages
+
+# =====================================================================
+# 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Upgrades)
+# =====================================================================
+def saas_pricing_page(request):
+    """
+    بوابة الدفع المركزية للمنصة. تقرأ كود الورشة من الرابط، 
+    وتسمح للعميل بتجديد اشتراكه وتوجيهه مباشرة لورشته بعد الدفع.
+    """
+    # 1. التقاط اسم الورشة من الرابط (الفخ الذكي)
+    shop_schema = request.GET.get('shop', '')
+    tenant = None
+    
+    if shop_schema:
+        tenant = Client.objects.filter(schema_name=shop_schema).first()
+
+    # 2. معالجة طلب الدفع/اختيار الباقة (POST Request)
+    if request.method == 'POST':
+        selected_plan = request.POST.get('plan') # 'silver', 'gold', 'empire'
+        shop_schema_post = request.POST.get('shop')
+        
+        target_tenant = Client.objects.filter(schema_name=shop_schema_post).first()
+        
+        if not target_tenant:
+            messages.error(request, "🛑 لم نتمكن من العثور على بيانات مركزك. يرجى التأكد من الرابط.")
+            return redirect('saas_pricing')
+
+        # 🚀 ابتكار: التحقق من صحة الباقة وتطبيق منطق التجديد المالي (FinTech Logic)
+        valid_plans = [choice[0] for choice in Client.SUBSCRIPTION_CHOICES]
+        if selected_plan in valid_plans:
+            with transaction.atomic():
+                # تحديث بيانات الباقة
+                target_tenant.plan = selected_plan
+                target_tenant.status = 'active'
+                
+                # إضافة 30 يوم من تاريخ اليوم (أو من تاريخ انتهاء اشتراكه لو لسه مخلصش)
+                current_end = target_tenant.subscription_end_date
+                base_date = timezone.now().date()
+                if current_end and current_end > base_date:
+                    base_date = current_end
+                    
+                target_tenant.subscription_end_date = base_date + timedelta(days=30)
+                
+                # حفظ التعديلات (دالة save في الموديل هتقوم بتحديث حدود الـ users والفروع أوتوماتيك)
+                target_tenant.save()
+                
+                # تسجيل الحركة في دفتر المراقبة (Audit Log)
+                logger.info(f"💰 [SUBSCRIPTION RENEWED]: Tenant '{target_tenant.schema_name}' upgraded to {selected_plan} plan until {target_tenant.subscription_end_date}.")
+                
+                # 🚀 توجيه العميل السحري: إرجاعه إلى لوحة تحكم ورشته الخاصة فوراً!
+                tenant_url = f"https://{target_tenant.schema_name}.mousstec.com/{ADMIN_URL}/"
+                return redirect(tenant_url)
+        else:
+            messages.error(request, "🛑 الباقة المختارة غير صحيحة.")
+
+    # 3. عرض صفحة الباقات (GET Request)
+    # نجهز بيانات الأسعار لإرسالها للفرونت إند
+    pricing_data = {
+        'silver': {'price': 400, 'branches': 1, 'users': 2, 'cards': 150},
+        'gold': {'price': 1200, 'branches': 2, 'users': 5, 'cards': 'غير محدود'},
+        'empire': {'price': 3000, 'branches': 'غير محدود', 'users': 'غير محدود', 'cards': 'غير محدود'},
+        'addon_branch': 300,
+        'addon_user': 50
+    }
+
+    context = {
+        'tenant': tenant,
+        'shop': shop_schema,
+        'pricing': pricing_data
+    }
+    
+    return render(request, 'clients/pricing.html', context)

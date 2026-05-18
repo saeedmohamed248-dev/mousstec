@@ -1,5 +1,5 @@
 (function() {
-    console.log("🚀 Mouss Tec Supreme POS Engine FULLY OPERATIONAL (AI, Hotkeys & Performance Activated)...");
+    console.log("🚀 Mouss Tec Supreme POS Engine FULLY OPERATED (Agents Linked, AI & Performance Activated)...");
 
     // =====================================================================
     // 🧠 0. خوارزميات الأداء والمساعدة (Performance Utilities)
@@ -16,10 +16,26 @@
         };
     }
 
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
     // =====================================================================
-    // 🛡️ 1. درع حماية البيانات المؤقت (Auto-Draft LocalStorage Shield)
+    // 🛡️ 1. درع حماية البيانات المؤقت (Tab-Aware LocalStorage Shield)
     // =====================================================================
-    const DRAFT_KEY = 'mousstec_pos_draft';
+    const DRAFT_KEY = 'mousstec_pos_draft_' + window.location.pathname; // 🚀 عزل المسودات
     
     function saveFormDraft() {
         const draftData = {};
@@ -86,10 +102,6 @@
                 const parentLi = tab.closest('li, .nav-item') || tab;
                 if (isSaleOnly) {
                     parentLi.style.setProperty('display', 'none', 'important');
-                    if (parentLi.classList.contains('active') || tab.classList.contains('active')) {
-                        const firstTab = document.querySelector('.nav-tabs .nav-link, ul.nav-tabs a');
-                        if (firstTab) firstTab.click();
-                    }
                 } else {
                     parentLi.style.setProperty('display', '', 'important');
                 }
@@ -122,7 +134,6 @@
                 const price = parseFloat(priceInput.value) || 0;
                 const rowTotal = qty * price;
 
-                // 🚨 رادار حماية المبيعات
                 if (price <= 0 && qty > 0) {
                     priceInput.style.border = "2px solid #dc3545";
                     priceInput.style.backgroundColor = "#fff5f5";
@@ -156,7 +167,6 @@
 
         let subTotalForCheck = grandTotal + (typeSelect && typeSelect.value !== 'sale' ? manualLabor : 0);
         
-        // 📉 درع حماية هوامش الربح
         if (discountInput) {
             if (subTotalForCheck > 0 && discount > (subTotalForCheck * 0.20)) {
                 discountInput.style.border = "2px solid #ffc107";
@@ -182,16 +192,16 @@
     const optimizedLiveTotals = debounce(calculateLiveTotals, 300);
 
     // =====================================================================
-    // 🤖 4. رادار البيع المتقاطع والذكاء الاصطناعي (AI Cross-Selling)
+    // 🤖 4. رادار البيع المتقاطع (Heuristic Cross-Selling)
     // =====================================================================
     function runAICrossSellRadar(selectElement) {
         const selectedText = selectElement.options[selectElement.selectedIndex]?.text.toLowerCase() || '';
         let suggestion = "";
         
         if (selectedText.includes('تيل') || selectedText.includes('brake')) {
-            suggestion = "✨ AI: هل نسيت إضافة حسّاس الفرامل أو سيرفيس الطنابير؟";
+            suggestion = "✨ AI: يُنصح ببيع حسّاس الفرامل وسيرفيس الطنابير.";
         } else if (selectedText.includes('زيت') || selectedText.includes('oil')) {
-            suggestion = "✨ AI: يُنصح ببيع فلتر الزيت وطبة الكارتيرة مع هذه القطعة.";
+            suggestion = "✨ AI: يُنصح ببيع فلتر الزيت وطبة الكارتيرة.";
         }
 
         let badge = selectElement.parentNode.querySelector('.ai-cross-sell-badge');
@@ -209,58 +219,73 @@
     }
 
     // =====================================================================
-    // 🌐 5. جسر سوق Mouss Tec (Live B2B Marketplace Injector)
+    // 🌐 5. جسر وكيل سوق Mouss Tec (LIVE B2B Marketplace Agent Integration)
     // =====================================================================
+    async function fetchB2BMarketData(productName) {
+        try {
+            // 🚀 دمج حقيقي مع مسار سوق الجملة اللي عملناه
+            const response = await fetch(`/api/v1/b2b/market/search/?q=${encodeURIComponent(productName)}`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (!response.ok) throw new Error("Network response was not ok");
+            const data = await response.json();
+            return data.results || [];
+        } catch (error) {
+            console.error("B2B Market Fetch Error:", error);
+            return null;
+        }
+    }
+
     function openB2BMarketModal(productName) {
         const modalId = 'mouss-b2b-modal';
         if(document.getElementById(modalId)) return;
 
         const modalHtml = `
-            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; display:flex; justify-content:center; align-items:center; opacity:0; transition: opacity 0.3s ease;">
+            <div id="${modalId}" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; display:flex; justify-content:center; align-items:center; opacity:0; transition: opacity 0.3s ease; font-family:Cairo, sans-serif;">
                 <div style="background:#fff; width:90%; max-width:650px; border-radius:12px; padding:25px; box-shadow:0 15px 30px rgba(0,0,0,0.5); transform: translateY(-20px); transition: transform 0.3s ease;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h3 style="margin:0; color:#4f46e5; font-family:Cairo;"><i class="fas fa-globe-africa"></i> رادار Mouss Tec للسوق المركزي</h3>
-                        <span onclick="closeB2BModal()" style="cursor:pointer; color:#999; font-size:20px;">&times;</span>
+                        <h3 style="margin:0; color:#4f46e5;"><i class="fas fa-globe-africa"></i> رادار Mouss Tec للسوق المركزي</h3>
+                        <span onclick="closeB2BModal()" style="cursor:pointer; color:#999; font-size:24px;">&times;</span>
                     </div>
-                    <p style="color:#64748b; font-size:13px;">البحث السحابي عن: <b style="color:#1e293b;">${productName}</b></p>
+                    <p style="color:#64748b; font-size:13px; margin-top:5px;">البحث السحابي عن: <b style="color:#1e293b;">${productName}</b></p>
                     
                     <div id="b2b-results" style="margin:20px 0; padding:30px; background:#f8f9fa; border-radius:8px; font-size:14px; text-align:center;">
                         <i class="fas fa-circle-notch fa-spin fa-2x" style="color:#4f46e5;"></i>
-                        <div style="margin-top:10px; color:#64748b;">جاري مسح مخازن التجار الموثوقين...</div>
+                        <div style="margin-top:10px; color:#64748b;">جاري الاتصال بوكلاء السوق المركزي...</div>
                     </div>
                 </div>
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-        // Trigger Animation
         setTimeout(() => {
             const modal = document.getElementById(modalId);
-            modal.style.opacity = '1';
-            modal.children[0].style.transform = 'translateY(0)';
+            if(modal) { modal.style.opacity = '1'; modal.children[0].style.transform = 'translateY(0)'; }
         }, 10);
 
-        // محاكاة الاتصال بالـ API الحقيقي
-        setTimeout(() => {
+        // 🚀 الجلب الفعلي للبيانات
+        fetchB2BMarketData(productName).then(results => {
             const resultsDiv = document.getElementById('b2b-results');
-            if(resultsDiv) {
-                resultsDiv.innerHTML = `
-                    <div style="text-align:right; color:#10b981; font-weight:bold; margin-bottom:15px;"><i class="fas fa-check-circle"></i> تم العثور على بدائل تنافسية!</div>
-                    <div style="text-align:right; font-size:13px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
-                        <b style="color:#1e293b;">الشركة الألمانية للاستيراد</b> <i class="fas fa-certificate text-primary" title="موثق"></i>
-                        <div style="color:#059669; font-weight:bold; float:left;">1,200 ج.م</div>
-                        <div style="clear:both;"></div>
-                    </div>
-                    <div style="text-align:right; font-size:13px; padding-bottom:8px;">
-                        <b style="color:#1e293b;">مركز التوحيد (شحن آمن)</b>
-                        <div style="color:#059669; font-weight:bold; float:left;">1,350 ج.م</div>
-                        <div style="clear:both;"></div>
-                    </div>
-                `;
-            }
-        }, 1200);
+            if(!resultsDiv) return;
 
-        // إغلاق النافذة بزر Esc (Power User Feature)
+            if (results && results.length > 0) {
+                let htmlList = `<div style="text-align:right; color:#10b981; font-weight:bold; margin-bottom:15px;"><i class="fas fa-check-circle"></i> تم العثور على عروض تنافسية!</div>`;
+                results.forEach(item => {
+                    htmlList += `
+                        <div style="text-align:right; font-size:13px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:10px;">
+                            <b style="color:#1e293b;">${item.tenant_name || 'شركة معتمدة'}</b> <i class="fas fa-certificate text-primary" title="موثق"></i>
+                            <div style="color:#059669; font-weight:bold; float:left;">${item.wholesale_price} ج.م</div>
+                            <div style="clear:both; color:#64748b; font-size:11px; margin-top:4px;">الكمية: ${item.available_qty} | الحالة: ${item.condition}</div>
+                        </div>`;
+                });
+                resultsDiv.innerHTML = htmlList;
+            } else {
+                resultsDiv.innerHTML = `<div style="color:#ef4444; font-weight:bold;"><i class="fas fa-exclamation-triangle"></i> القطعة غير متوفرة في السوق المركزي حالياً.</div>`;
+            }
+        });
+
         document.addEventListener('keydown', escListener);
     }
 
@@ -273,9 +298,7 @@
         document.removeEventListener('keydown', escListener);
     };
 
-    function escListener(e) {
-        if (e.key === 'Escape') closeB2BModal();
-    }
+    function escListener(e) { if (e.key === 'Escape') closeB2BModal(); }
 
     function injectMarketplaceButtons() {
         const productSelects = document.querySelectorAll('select[name$="-product"]');
@@ -300,25 +323,83 @@
     }
 
     // =====================================================================
-    // 🔫 6. محرك الباركود السريع (Hardware Barcode Scanner Support)
+    // 🔫 6. محرك الباركود الآلي (Hardware Scanner Auto-Injector API Hook)
     // =====================================================================
     let barcodeBuffer = '';
     let barcodeTimer;
+
+    async function processBarcodeScan(barcode) {
+        try {
+            // 🚀 ضرب مسار الـ API الحقيقي الذي صنعناه
+            const res = await fetch(`/api/v1/barcode-lookup/?code=${encodeURIComponent(barcode)}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (res.status === 404) {
+                alert(`⚠️ القطعة ذات الباركود (${barcode}) غير مسجلة بالموسوعة!`);
+                return;
+            }
+            if (!res.ok) throw new Error("Error fetching barcode");
+            
+            const product = await res.json();
+            
+            // 🚀 أتمتة حقن الصنف في الفاتورة (Django Admin JS Interop)
+            const addBtn = document.querySelector('.dynamic-items .add-row a') || document.querySelector('#items-group .add-row a');
+            if (addBtn) {
+                addBtn.click(); // يحفز جانجو لإضافة سطر جديد
+                
+                // انتظار جانجو ليرسم السطر الجديد
+                setTimeout(() => {
+                    const allRows = document.querySelectorAll('.dynamic-items:not(.empty-form), #items-group tr.form-row:not(.empty-form)');
+                    const latestRow = allRows[allRows.length - 1]; // السطر الأخير
+                    
+                    if(latestRow) {
+                        const selectEl = latestRow.querySelector('select[name$="-product"]');
+                        const priceInput = latestRow.querySelector('input[name$="-unit_price"]');
+                        const qtyInput = latestRow.querySelector('input[name$="-quantity"]');
+                        
+                        if (selectEl) {
+                            // اختيار الصنف لو كان موجود في الـ Select
+                            for (let i=0; i<selectEl.options.length; i++) {
+                                if (selectEl.options[i].value == product.id) {
+                                    selectEl.selectedIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                        if (priceInput) priceInput.value = product.price;
+                        if (qtyInput) qtyInput.value = 1;
+                        
+                        // 🤖 عرض مؤشر المرونة السعرية للـ AI إن وجد
+                        if (product.elasticity_indicator > 1.2 && selectEl) {
+                            let badge = document.createElement('div');
+                            badge.style.cssText = "color:#d97706; font-size:11px; margin-top:5px; font-weight:bold;";
+                            badge.innerHTML = `<i class="fas fa-fire"></i> طلب عالي بالسوق (مرونة ${product.elasticity_indicator})!`;
+                            selectEl.parentNode.appendChild(badge);
+                        }
+
+                        optimizedLiveTotals();
+                        console.log(`✅ Auto-Injected: ${product.name}`);
+                    }
+                }, 150);
+            }
+        } catch(e) {
+            console.error("Barcode Integration Error:", e);
+        }
+    }
+
     document.addEventListener('keypress', function(e) {
-        // إذا كان المستخدم يكتب يدوياً في حقل نصي، لا تتدخل
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         
         if (e.key === 'Enter') {
             if (barcodeBuffer.length > 3) {
-                console.log(`[Barcode Scanned]: ${barcodeBuffer}`);
-                // هنا يتم المناداة على API الباركود لإضافة الصنف آلياً للفاتورة
-                // fetch(`/api/v1/barcode-lookup/?code=${barcodeBuffer}`)
+                processBarcodeScan(barcodeBuffer);
                 barcodeBuffer = '';
             }
         } else {
             barcodeBuffer += e.key;
             clearTimeout(barcodeTimer);
-            barcodeTimer = setTimeout(() => { barcodeBuffer = ''; }, 50); // مسدس الباركود يكتب بسرعة فائقة جداً
+            barcodeTimer = setTimeout(() => { barcodeBuffer = ''; }, 50);
         }
     });
 
@@ -326,16 +407,14 @@
     // ⌨️ 7. اختصارات لوحة المفاتيح الاحترافية (Power-User Hotkeys)
     // =====================================================================
     document.addEventListener('keydown', function(e) {
-        // Ctrl+Enter للحفظ السريع (Save & Continue)
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
             const saveBtn = document.querySelector('input[name="_continue"]') || document.querySelector('input[name="_save"]');
             if(saveBtn) saveBtn.click();
         }
-        // Alt+N لإضافة سطر منتج جديد
         if (e.altKey && e.key.toLowerCase() === 'n') {
             e.preventDefault();
-            const addRowBtn = document.querySelector('.add-row a');
+            const addRowBtn = document.querySelector('.dynamic-items .add-row a') || document.querySelector('#items-group .add-row a');
             if(addRowBtn) addRowBtn.click();
         }
     });
@@ -346,7 +425,6 @@
     function injectVoiceAssistant() {
         if (!('webkitSpeechRecognition' in window)) return;
 
-        const headerDiv = document.querySelector('#content > h1') || document.body;
         const voiceBtn = document.createElement('button');
         voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         voiceBtn.style.cssText = "position:fixed; bottom:20px; left:20px; width:50px; height:50px; border-radius:50%; background:#ec4899; color:white; border:none; box-shadow:0 4px 15px rgba(236,72,153,0.5); cursor:pointer; z-index:999; font-size:18px; transition:0.3s;";
@@ -367,12 +445,12 @@
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript.toLowerCase();
             console.log("[Voice Command]:", transcript);
-            // ابتكار: تنفيذ الأوامر بالذكاء الاصطناعي (مثل: "اضغط حفظ" أو "صنف جديد")
+            
             if (transcript.includes('حفظ') || transcript.includes('اعتمد')) {
                 const saveBtn = document.querySelector('input[name="_save"]');
                 if(saveBtn) saveBtn.click();
             } else if (transcript.includes('صنف') || transcript.includes('اضافه')) {
-                const addRowBtn = document.querySelector('.add-row a');
+                const addRowBtn = document.querySelector('.dynamic-items .add-row a') || document.querySelector('#items-group .add-row a');
                 if(addRowBtn) addRowBtn.click();
             }
         };
@@ -387,7 +465,7 @@
     }
 
     // =====================================================================
-    // 📡 9. المستشعرات والمراقب الذكي (Mutation Observer & Initialization)
+    // 📡 9. المستشعرات والمراقب الذكي (Mutation Observer & Init)
     // =====================================================================
     const uiObserver = new MutationObserver(function(mutations) {
         uiObserver.disconnect();
@@ -405,7 +483,7 @@
     const formContainer = document.querySelector('#saleinvoice_form, #change-form, form');
     if (formContainer) {
         formContainer.addEventListener('input', function(e) {
-            optimizedSaveDraft(); // حفظ مسودة بعد كل نقرة
+            optimizedSaveDraft(); 
             if (e.target.name && (
                 e.target.name.includes('quantity') || 
                 e.target.name.includes('price') || 
@@ -425,19 +503,18 @@
             });
         }
         
-        // مسح المسودة عند الحفظ النهائي بنجاح
         formContainer.addEventListener('submit', () => localStorage.removeItem(DRAFT_KEY));
     }
 
-    const addItemBtn = document.querySelector('.add-row a');
-    if (addItemBtn) {
-        addItemBtn.addEventListener('click', () => {
+    const addItemBtns = document.querySelectorAll('.add-row a');
+    addItemBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
             setTimeout(() => {
                 injectMarketplaceButtons();
                 optimizedLiveTotals();
             }, 150);
         });
-    }
+    });
 
     window.addEventListener('load', () => {
         restoreFormDraft();

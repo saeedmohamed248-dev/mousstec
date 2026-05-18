@@ -9,6 +9,12 @@ from decimal import Decimal
 from datetime import timedelta
 from django.contrib.auth.models import User
 import uuid 
+import logging
+
+# 🚀 استيراد محدد السياق السحابي لحل مشكلة الـ NameError في الـ B2B Sync
+from django_tenants.utils import schema_context 
+
+logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
 # 🏢 1. الإعدادات الأساسية (فروع ومنتجات وموظفين)
@@ -41,7 +47,6 @@ class EmployeeProfile(models.Model):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
 
 class EmployeeShift(models.Model):
-    """🚀 ابتكار: محرك تتبع حضور وإنتاجية الفنيين"""
     employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, limit_choices_to={'role': 'tech'}, verbose_name=_("الفني"))
     clock_in = models.DateTimeField(default=timezone.now, verbose_name=_("وقت تسجيل الدخول"))
     clock_out = models.DateTimeField(blank=True, null=True, verbose_name=_("وقت تسجيل الخروج"))
@@ -51,7 +56,7 @@ class EmployeeShift(models.Model):
     def save(self, *args, **kwargs):
         if self.clock_out and self.clock_in:
             duration = self.clock_out - self.clock_in
-            self.total_hours = Decimal(str(duration.total_seconds() / 3600.0))
+            self.total_hours = Decimal(str(max(duration.total_seconds() / 3600.0, 0)))
         super().save(*args, **kwargs)
 
 class Product(models.Model):
@@ -66,7 +71,6 @@ class Product(models.Model):
     car_year = models.CharField(max_length=100, verbose_name=_("سنة الصنع"))
     barcode = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name=_("الباركود"))
     
-    # 🤖 مخزون الذكاء الاصطناعي الاستباقي
     min_stock_level = models.IntegerField(default=2, verbose_name=_("حد التنبيه الأساسي"))
     ai_calculated_min_stock = models.IntegerField(default=2, verbose_name=_("حد التنبيه الديناميكي (AI)"))
     
@@ -75,7 +79,7 @@ class Product(models.Model):
     
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("آخر سعر شراء"))
     retail_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع (قطاعي)"))
-    b2b_wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع (جملة/B2B)")) # 🚀 ابتكار: تسعير مزدوج
+    b2b_wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع (جملة/B2B)")) 
     average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("متوسط التكلفة"))
     
     core_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("تأمين التالف/الكور"))
@@ -86,8 +90,15 @@ class Product(models.Model):
     alternatives = models.ManyToManyField('self', blank=True, verbose_name=_("البدائل المتوافقة"))
     
     ai_suggested_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر السوق المقترح (AI)"))
+    ai_price_elasticity = models.DecimalField(max_digits=4, decimal_places=2, default=1.00, editable=False)
+    
     history = HistoricalRecords() 
     
+    @property
+    def total_inventory_qty(self):
+        from django.db.models import Sum
+        return self.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+        
     def __str__(self): return f"{self.name} ({self.part_number})"
 
 class ProductPriceHistory(models.Model):
@@ -109,9 +120,8 @@ class Inventory(models.Model):
         unique_together = ('product', 'branch') 
     def __str__(self): return f"{self.product.name} | {self.branch.name} | QTY: {self.quantity}"
 
-
 # =====================================================================
-# 🏎️ 2. محرك التفكيك والإفراج الجمركي (Scrap & Import Engine)
+# 🏎️ 2. محرك التفكيك والإفرج الجمركي (Scrap & Import Engine)
 # =====================================================================
 class ScrapDismantlingJob(models.Model):
     job_ref = models.CharField(max_length=50, unique=True, default=uuid.uuid4, verbose_name=_("كود عملية التقطيع"))
@@ -119,10 +129,8 @@ class ScrapDismantlingJob(models.Model):
     chassis_number = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("رقم الشاسيه الأصلي"))
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, null=True, verbose_name=_("فرع التخزين"))
     total_purchase_cost = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("تكلفة الشراء والاستيراد الكلية"))
-    
     customs_doc = models.FileField(upload_to='customs_docs/', blank=True, null=True, verbose_name=_("مستندات الإفراج الجمركي (PDF)"))
     engine_serial = models.CharField(max_length=100, blank=True, null=True, verbose_name=_("رقم المحرك المفرج عنه"))
-    
     date_dismantled = models.DateField(default=timezone.now, verbose_name=_("تاريخ التفكيك"))
     is_completed = models.BooleanField(default=False, verbose_name=_("تم التفكيك (إضافة للمخزن)"))
 
@@ -136,7 +144,6 @@ class ScrapDismantlingYield(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, limit_choices_to={'condition': 'used'}, verbose_name=_("القطعة المستخرجة"))
     quantity = models.IntegerField(default=1, verbose_name=_("الكمية المستخرجة"))
     estimated_cost_allocation = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("التكلفة التقديرية للقطعة"))
-
 
 # =====================================================================
 # 🛠️ 3. كتالوج الخدمات والمصنعيات
@@ -152,14 +159,13 @@ class ServiceCatalog(models.Model):
         verbose_name_plural = _("كتالوج الخدمات والمصنعيات")
     def __str__(self): return f"{self.name} ({self.labor_price} ج.م)"
 
-
 # =====================================================================
 # 🤝 4. نظام الـ CRM وعقود الـ B2B
 # =====================================================================
 class Customer(models.Model):
     name = models.CharField(max_length=200, verbose_name=_("اسم العميل أو الشركة"))
     phone = models.CharField(max_length=20, unique=True, verbose_name=_("رقم الهاتف"))
-    is_b2b_company = models.BooleanField(default=False, verbose_name=_("حساب شركة (B2B Fleet)")) # 🚀 تحديد الشركات الكبرى
+    is_b2b_company = models.BooleanField(default=False, verbose_name=_("حساب شركة (B2B Fleet)")) 
     tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("الرقم الضريبي"))
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الرصيد / المديونية"))
     loyalty_points = models.IntegerField(default=0, verbose_name=_("نقاط الولاء"))
@@ -179,7 +185,6 @@ class Customer(models.Model):
     def __str__(self): return f"{self.name} - {self.vip_tier}"
 
 class MaintenanceContract(models.Model):
-    """🚀 ابتكار: عقود الصيانة السنوية (B2B SLA) للشركات وأساطيل السيارات"""
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, limit_choices_to={'is_b2b_company': True}, related_name='contracts')
     contract_code = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     start_date = models.DateField(default=timezone.now, verbose_name=_("بداية العقد"))
@@ -209,7 +214,6 @@ class Vehicle(models.Model):
     def __str__(self): return f"{self.car_plate or 'بدون لوحة'} - {self.chassis_number[-6:]}"
 
 class VehicleTelemetryLog(models.Model):
-    """🚀 ابتكار: دفتر البصمات الحية (Digital Twin) لأجهزة الـ IoT و OBD2"""
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, related_name='telemetry_logs')
     dtc_codes_found = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("أكواد الأعطال المرصودة"))
     battery_voltage = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name=_("فولتية البطارية"))
@@ -227,7 +231,6 @@ class Vendor(models.Model):
         verbose_name = _("مورد")
         verbose_name_plural = _("سجل الموردين (SRM)")
     def __str__(self): return self.name
-
 
 # =====================================================================
 # 💰 5. النظام المالي وإدارة الخزائن الإقليمية
@@ -257,7 +260,6 @@ class FinancialTransaction(models.Model):
 
     treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, related_name='transactions', verbose_name=_("الخزنة"))
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name=_("النوع"))
-    
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='EGP', verbose_name=_("العملة"))
     exchange_rate = models.DecimalField(max_digits=10, decimal_places=4, default=1.0000, verbose_name=_("سعر الصرف وقت العملية"))
     amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("المبلغ (بالعملة المحلية)"))
@@ -273,7 +275,6 @@ class FinancialTransaction(models.Model):
     history = HistoricalRecords()
     class Meta: verbose_name_plural = _("الخزينة (حركات مالية)")
     def __str__(self): return f"{self.amount} {self.currency} - {self.treasury.name}"
-
 
 # =====================================================================
 # 📦 6. الفواتير والعمليات المتطورة (Odoo Standard Workflow)
@@ -310,7 +311,6 @@ class PurchaseInvoiceItem(models.Model):
 
 class SaleInvoice(models.Model):
     INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))
-    
     STATUS_CHOICES = (
         ('quotation', _('عرض سعر (مسودة)')), 
         ('in_progress', _('قيد العمل بالورشة')),
@@ -325,7 +325,6 @@ class SaleInvoice(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, verbose_name=_("العميل"))
     vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المركبة"))
     
-    # 🚀 ربط الفاتورة بعقد الصيانة للشركات لتصفية الحسابات آلياً
     maintenance_contract = models.ForeignKey(MaintenanceContract, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("مخصوم من عقد الصيانة"))
     
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
@@ -350,7 +349,6 @@ class SaleInvoice(models.Model):
 
     @property
     def due_amount(self):
-        # في حالة التعاقد، المديونية صفر على العميل لأنها تخصم من العقد
         if self.maintenance_contract: return Decimal('0.00')
         return max(Decimal(str(self.total_amount)) - Decimal(str(self.paid_amount)), Decimal('0.00'))
 
@@ -392,7 +390,6 @@ class SaleInvoiceItem(models.Model):
     
     core_charge_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
     is_core_returned = models.BooleanField(default=False, verbose_name=_("تم استلام القطعة التالفة؟"))
-    
     warranty_end_date = models.DateField(blank=True, null=True, verbose_name=_("تاريخ انتهاء الضمان"))
     
     @property
@@ -402,8 +399,7 @@ class SaleInvoiceItem(models.Model):
         if not self.pk and self.product:
             self.cost_at_sale = self.product.average_cost if self.product.average_cost > 0 else self.product.purchase_price
             self.core_charge_applied = self.product.core_charge
-            # 🚀 ابتكار: سحب السعر الجملة للشركات آلياً إذا كان العميل (شركة)
-            if self.invoice.customer and self.invoice.customer.is_b2b_company:
+            if self.invoice.customer and getattr(self.invoice.customer, 'is_b2b_company', False):
                 self.unit_price = self.product.b2b_wholesale_price if self.product.b2b_wholesale_price > 0 else self.product.retail_price
                 
             if self.product.warranty_months > 0:
@@ -436,10 +432,8 @@ class VehicleInspection(models.Model):
     tires_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("الإطارات"))
     battery_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("البطارية"))
     technician_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الفني"))
-    
     attachment = models.ImageField(upload_to='inspections/', blank=True, null=True, verbose_name=_("صورة إثبات التلف"))
     inspection_timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("بصمة زمنية للفحص"))
-    
     class Meta: verbose_name = _("فحص رقمي وتوثيق مرئي")
 
 class StockTransfer(models.Model):
@@ -452,16 +446,14 @@ class StockTransfer(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
     history = HistoricalRecords()
 
-
 # =====================================================================
 # 🧠 الإشارات الذكية والأتمتة (Atomic Smart Automation Signals)
 # =====================================================================
 
 @receiver(post_save, sender=User)
 def create_employee_profile(sender, instance, created, **kwargs):
-    # 🚀 ابتكار: منع إنشاء ملف موظف إذا كنا داخل النطاق العام (Public Schema) لمنع تعارض الـ SaaS
     if created and connection.schema_name != 'public':
-        EmployeeProfile.objects.create(user=instance)
+        EmployeeProfile.objects.get_or_create(user=instance)
 
 @receiver(pre_save, sender=Product)
 def track_product_price_changes(sender, instance, **kwargs):
@@ -476,28 +468,72 @@ def track_product_price_changes(sender, instance, **kwargs):
                 )
         except Product.DoesNotExist: pass
 
+# 🚀 وكيل مزامنة سوق B2B (Mouss Tec Central Marketplace Agent)
+@receiver(post_save, sender=Product)
+def sync_b2b_marketplace(sender, instance, **kwargs):
+    """
+    عند تفعيل 'is_b2b_published' على قطعة، يقوم الوكيل بنشرها في الدومين المركزي 
+    أو تحديث كمياتها وسعر الجملة. إذا نفدت، يسحبها آلياً من السوق!
+    """
+    if connection.schema_name == 'public': return # الحماية من الـ Loop
+
+    try:
+        from django.apps import apps
+        # جلب الموديلز من تطبيق الـ Clients عبر الـ Public Schema
+        with schema_context('public'):
+            GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
+            Client = apps.get_model('clients', 'Client')
+            
+            tenant = Client.objects.filter(schema_name=connection.schema_name).first()
+            if not tenant: return
+
+            total_qty = instance.total_inventory_qty
+            
+            # إذا القطعة معروضة في السوق ولديها كمية > 0
+            if instance.is_b2b_published and instance.is_active and total_qty > 0:
+                GlobalB2BMarketplace.objects.update_or_create(
+                    tenant=tenant,
+                    part_number=instance.part_number,
+                    condition=instance.condition,
+                    defaults={
+                        'product_name': instance.name,
+                        'brand': instance.brand,
+                        'wholesale_price': instance.b2b_wholesale_price if instance.b2b_wholesale_price > 0 else instance.retail_price,
+                        'available_qty': total_qty,
+                    }
+                )
+                logger.info(f"🌐 [B2B AGENT]: Synced '{instance.part_number}' to central market. Qty: {total_qty}")
+            else:
+                # سحب القطعة من السوق العام إذا انتهت الكمية أو تم إيقافها
+                deleted, _ = GlobalB2BMarketplace.objects.filter(
+                    tenant=tenant, part_number=instance.part_number, condition=instance.condition
+                ).delete()
+                if deleted: logger.info(f"🛑 [B2B AGENT]: Removed '{instance.part_number}' from central market (Out of stock/Disabled).")
+    except Exception as e:
+        logger.error(f"🔴 [B2B AGENT ERROR]: Market sync failed for '{instance.part_number}' - {e}")
+
 @receiver(post_save, sender=ScrapDismantlingJob)
 def execute_scrap_dismantling_yield(sender, instance, **kwargs):
-    if instance.is_completed and hasattr(instance, '_yield_processed') is False:
+    if instance.is_completed and not getattr(instance, '_yield_processed', False):
         instance._yield_processed = True
         with transaction.atomic():
             for yield_item in instance.yields.all():
                 product = yield_item.product
-                from django.db.models import Sum
-                total_current_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
-                old_value = Decimal(str(total_current_qty)) * product.average_cost
-                new_value = Decimal(str(yield_item.quantity)) * yield_item.estimated_cost_allocation
-                new_total_qty = total_current_qty + yield_item.quantity
                 
-                if new_total_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(new_total_qty))
-                    product.purchase_price = yield_item.estimated_cost_allocation 
-                    product.save(update_fields=['average_cost', 'purchase_price'])
-                
+                # 🚀 تصحيح لوجستي: تسجيل القطعة في فرع التخزين أولاً لقراءة كمية دقيقة
                 if instance.branch:
                     inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
                     inv.quantity += yield_item.quantity
                     inv.save()
+
+                total_current_qty = product.total_inventory_qty
+                old_value = Decimal(str(max(total_current_qty - yield_item.quantity, 0))) * Decimal(str(product.average_cost))
+                new_value = Decimal(str(yield_item.quantity)) * Decimal(str(yield_item.estimated_cost_allocation))
+                
+                if total_current_qty > 0:
+                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
+                    product.purchase_price = yield_item.estimated_cost_allocation 
+                    product.save(update_fields=['average_cost', 'purchase_price'])
 
 @receiver(pre_save, sender=SaleInvoiceItem)
 def handle_core_charge_refund(sender, instance, **kwargs):
@@ -514,32 +550,25 @@ def handle_core_charge_refund(sender, instance, **kwargs):
                         if instance.invoice.treasury:
                             FinancialTransaction.objects.create(
                                 treasury=instance.invoice.treasury, transaction_type='out',
-                                amount=total_refund, description=f"استرداد تأمين توالف لقطعة {instance.product.name} (فاتورة #{instance.invoice.id})",
+                                amount=total_refund, description=f"استرداد تأمين كور لقطعة {instance.product.name} (INV #{instance.invoice.id})",
                                 customer=instance.invoice.customer
                             )
         except SaleInvoiceItem.DoesNotExist: pass
 
+# 🛡️ إشارات تحديث الفواتير (منع الـ Loop)
 @receiver(post_save, sender=SaleInvoiceItem)
 @receiver(post_delete, sender=SaleInvoiceItem)
 @receiver(post_save, sender=SaleInvoiceServiceItem)
 @receiver(post_delete, sender=SaleInvoiceServiceItem)
 def auto_update_sale_invoice_items(sender, instance, **kwargs):
-    if hasattr(instance, 'invoice') and instance.invoice: instance.invoice.update_total()
-
-@receiver(post_save, sender=SaleInvoice)
-def auto_update_sale_invoice(sender, instance, created, **kwargs):
-    if kwargs.get('update_fields') and ('total_amount' in kwargs.get('update_fields') or 'paid_amount' in kwargs.get('update_fields')): return
-    instance.update_total()
+    if hasattr(instance, 'invoice') and instance.invoice: 
+        instance.invoice.update_total()
 
 @receiver(post_save, sender=PurchaseInvoiceItem)
 @receiver(post_delete, sender=PurchaseInvoiceItem)
 def auto_update_purchase_invoice_items(sender, instance, **kwargs):
-    if hasattr(instance, 'invoice') and instance.invoice: instance.invoice.update_total()
-
-@receiver(post_save, sender=PurchaseInvoice)
-def auto_update_purchase_invoice(sender, instance, created, **kwargs):
-    if kwargs.get('update_fields') and ('total_amount' in kwargs.get('update_fields') or 'paid_amount' in kwargs.get('update_fields')): return
-    instance.update_total()
+    if hasattr(instance, 'invoice') and instance.invoice: 
+        instance.invoice.update_total()
 
 @receiver(post_save, sender=FinancialTransaction)
 def update_treasury_balance(sender, instance, created, **kwargs):
@@ -562,13 +591,12 @@ def update_treasury_balance(sender, instance, created, **kwargs):
 def execute_sale_stock_and_finance(sender, instance, **kwargs):
     if instance.status == 'posted' and not instance.is_applied:
         with transaction.atomic():
-            # 🚀 ابتكار: إذا كانت الفاتورة تابعة لعقد صيانة للشركات الكبرى، لا تضخ أموالاً في الخزنة
-            # يتم الخصم معنوياً فقط من العقد
+            # 🚀 ابتكار: إذا كانت الفاتورة تابعة لعقد صيانة، لا تضخ أموالاً
             if not instance.maintenance_contract:
                 if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
                     FinancialTransaction.objects.create(
                         treasury=instance.treasury, transaction_type='in',
-                        amount=instance.paid_amount, description=f"إيراد فاتورة مبيعات/صيانة رقم #{instance.id}",
+                        amount=instance.paid_amount, description=f"إيراد مبيعات/صيانة INV #{instance.id}",
                         sale_invoice=instance, customer=instance.customer
                     )
                 
@@ -576,12 +604,14 @@ def execute_sale_stock_and_finance(sender, instance, **kwargs):
                     instance.customer.balance += instance.due_amount
                     instance.customer.save(update_fields=['balance'])
 
-            for service_item in instance.service_items.all():
+            # عمولات الفنيين
+            for service_item in instance.service_items.select_related('technician', 'service'):
                 if service_item.technician and service_item.service.tech_commission_percent > 0:
                     commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
                     service_item.technician.commission_balance += commission
                     service_item.technician.save(update_fields=['commission_balance'])
 
+            # تتبع الكيلومترات للسيارات
             if instance.vehicle and instance.mileage and instance.mileage > instance.vehicle.last_mileage:
                 instance.vehicle.last_mileage = instance.mileage
                 instance.vehicle.estimated_next_visit = timezone.now().date() + timedelta(days=120)
@@ -592,11 +622,15 @@ def execute_sale_stock_and_finance(sender, instance, **kwargs):
                 instance.customer.loyalty_points += points_earned
                 instance.customer.save(update_fields=['loyalty_points'])
 
-            for item in instance.items.all():
+            # 📦 وكيل المخازن: خصم أو رد الكميات
+            for item in instance.items.select_related('product'):
                 inv, _ = Inventory.objects.get_or_create(product=item.product, branch=instance.branch, defaults={'quantity': 0})
                 if instance.is_return: inv.quantity += item.quantity 
                 else: inv.quantity -= item.quantity 
                 inv.save()
+                
+                # 🚀 استدعاء وكيل السوق المركزي (بعد تحديث المخزن) ليعكس الأرقام الدقيقة
+                item.product.save(update_fields=['ai_price_elasticity']) 
                 
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
 
@@ -607,7 +641,7 @@ def execute_purchase_stock_and_finance(sender, instance, **kwargs):
             if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
                 FinancialTransaction.objects.create(
                     treasury=instance.treasury, transaction_type='out',
-                    amount=instance.paid_amount, description=f"سداد فاتورة مشتريات #{instance.id}",
+                    amount=instance.paid_amount, description=f"سداد مشتريات PO #{instance.id}",
                     purchase_invoice=instance, vendor=instance.vendor
                 )
             due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
@@ -615,22 +649,22 @@ def execute_purchase_stock_and_finance(sender, instance, **kwargs):
                 instance.vendor.balance += due
                 instance.vendor.save(update_fields=['balance'])
 
-            from django.db.models import Sum
-            for item in instance.items.all():
+            for item in instance.items.select_related('product'):
                 product = item.product
-                total_current_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
-                old_value = Decimal(str(total_current_qty)) * Decimal(str(product.average_cost))
-                new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
-                new_total_qty = total_current_qty + item.quantity
                 
-                if new_total_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(new_total_qty))
-                    product.purchase_price = item.cost_price 
-                    product.save(update_fields=['average_cost', 'purchase_price'])
-                
+                # 🚀 تحديث المخزون أولاً قبل حفظ موديل المنتج لتقرأ الكميات صح في السيرفر المركزي لـ B2B
                 inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
                 inv.quantity += item.quantity
                 inv.save()
+
+                total_current_qty = product.total_inventory_qty
+                old_value = Decimal(str(max(total_current_qty - item.quantity, 0))) * Decimal(str(product.average_cost))
+                new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
+                
+                if total_current_qty > 0:
+                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
+                    product.purchase_price = item.cost_price 
+                    product.save(update_fields=['average_cost', 'purchase_price']) # يطلق وكيل التحديث المركزي
                 
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
 
@@ -642,7 +676,7 @@ def execute_stock_transfer(sender, instance, **kwargs):
         if old_instance.status == 'pending' and instance.status == 'in_transit':
             with transaction.atomic():
                 from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
-                if from_inv.quantity < instance.quantity: raise ValidationError("الكمية لا تكفي للتحويل في فرع المصدر!")
+                if from_inv.quantity < instance.quantity: raise ValidationError("الكمية لا تكفي للتحويل!")
                 from_inv.quantity -= instance.quantity
                 from_inv.save()
                 

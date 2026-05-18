@@ -5,24 +5,27 @@ import logging
 import sys
 import threading 
 
-# 🟢 تهيئة مسجل الأحداث (Logger) بهوية Mouss Tec
-logger = logging.getLogger('mousstec_inventory')
+# 🟢 تهيئة مسجل الأحداث بهوية Mouss Tec الموحدة
+logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
 # 🛡️ 1. نظام الفحص الذاتي المتقدم (Enterprise System Checks)
-# 🚀 ابتكار: تم نقله خارج الكلاس ليتوافق مع معايير جانجو الصارمة ويمنع تسريب الذاكرة
 # =====================================================================
 @register(Tags.security, Tags.compatibility)
 def check_enterprise_configuration(app_configs, **kwargs):
+    """
+    نظام تشخيص استباقي يراقب إعدادات خادم الـ SaaS ويمنع تشغيل السيستم 
+    في بيئة الإنتاج إذا وجدت أخطاء كافية لتعطيل البوتات الحية.
+    """
     errors = []
     from django.conf import settings
     
-    # 1. 🛡️ حارس العمارة السحابية (Tenant Architecture Guard)
+    # 1. 🛡️ حارس المعمارية المعزولة (Tenant Architecture Guard)
     if hasattr(settings, 'TENANT_APPS') and 'inventory' not in settings.TENANT_APPS:
         errors.append(
             Error(
-                '🏢 خطأ معماري خطير: تطبيق المخزون يغرد خارج السرب!',
-                hint='تأكد من إضافة "inventory" داخل مصفوفة TENANT_APPS في ملف settings.py لمنع تسريب البيانات بين الفروع.',
+                '🏢 خطأ معماري خطير: تطبيق المخزون والورشة (inventory) يغرد خارج السرب!',
+                hint='تأكد من إضافة "inventory" داخل مصفوفة TENANT_APPS في ملف settings.py لمنع تداخل وبيانات الفروع.',
                 id='mousstec.E002',
             )
         )
@@ -31,8 +34,8 @@ def check_enterprise_configuration(app_configs, **kwargs):
     if hasattr(settings, 'SHARED_APPS') and 'clients' not in settings.SHARED_APPS:
         errors.append(
             Error(
-                '🌐 انقطاع الاتصال بالسوق المركزي!',
-                hint='تطبيق "clients" غير موجود في SHARED_APPS. الورش لن تتمكن من الدخول للمزاد العكسي.',
+                '🌐 خطأ في العبور السحابي: انقطاع الاتصال بالسوق المركزي للمنصة!',
+                hint='تطبيق "clients" غير موجود في SHARED_APPS. الورش لن تتمكن من الدخول لغرف الـ Blind Bidding.',
                 id='mousstec.E003',
             )
         )
@@ -41,51 +44,50 @@ def check_enterprise_configuration(app_configs, **kwargs):
     if 'daphne' not in settings.INSTALLED_APPS:
         errors.append(
             Warning(
-                '⚠️ محرك Daphne غير مفعل.',
-                hint='بدون Daphne، لن تعمل المزادات العكسية (Blind Bidding) بشكل لحظي.',
+                '⚠️ محرك الاتصالات اللحظية Daphne غير مفعل بصدر لوحة التحكم.',
+                hint='بدون دمج Daphne في مقدمة التطبيقات، لن تعمل غرف المزادات العكسية أو مزامنة الـ POS لايف.',
                 id='mousstec.W003',
             )
         )
 
-    # 4. 🧠 فحص كفاءة الذاكرة (Cache)
+    # 4. 🧠 فحص كفاءة كاش الخزائن (Two-Tier Cache Diagnostics)
     cache_backend = settings.CACHES.get('default', {}).get('BACKEND', '')
     if 'LocMemCache' in cache_backend:
         errors.append(
             Warning(
-                '⚠️ النظام يعمل بذاكرة كيش محلية ضعيفة (LocMemCache).',
-                hint='يُنصح بشدة تفعيل Redis لضمان سرعة سوق التجار العام وتسخين بيانات الـ POS.',
+                '⚠️ النظام يعمل بذاكرة كيش محلية ضعيفة (LocMemCache) كـ محرك أساسي.',
+                hint='يُنصح بشدة تفعيل Redis في بيئة الإنتاج الفعلي لتشغيل كاش السوق المشترك ومزامنة مسدس الباركود.',
                 id='mousstec.W001',
             )
         )
 
-    # 5. 📧 فحص محرك البريد الإلكتروني
+    # 5. 📧 فحص محرك التحصيل والبريد الإلكتروني (FinTech Notification Check)
     if not getattr(settings, 'EMAIL_HOST_USER', None) or settings.EMAIL_HOST_USER == 'your-email@gmail.com':
         errors.append(
             Warning(
-                '📧 محرك البريد الإلكتروني غير مهيأ بشكل كامل.',
-                hint='لن يتلقى التجار إشعارات بترسية المزادات عليهم (Escrow Alerts) حتى يتم ضبط الإيميل.',
+                '📧 محرك إشعارات البريد الإلكتروني المحاسبي غير مبرمج بالبيئة.',
+                hint='لن يتلقى التجار إشعارات بترسية المزادات عليهم وتحرير أموال الـ Escrow حتى يتم ضبط أسرار الـ SMTP.',
                 id='mousstec.W002',
             )
         )
 
-    # 6. 🤖 فحص نبض الذكاء الاصطناعي (AI Endpoint Check)
+    # 6. 🤖 فحص رادار ومفاتيح مستشار الذكاء الاصطناعي (AI Copilot Activation)
     if getattr(settings, 'ENABLE_AI_PREDICTIONS', False):
-        ai_url = getattr(settings, 'AI_MODEL_ENDPOINT', '')
         if not getattr(settings, 'AI_VISION_API_KEY', ''):
             errors.append(
                 Error(
-                    '🤖 ميزة الذكاء الاصطناعي (مترجم الأعطال) مفعلة ولكن المفتاح السري مفقود!',
-                    hint='ضع مفتاح الـ API الخاص بـ Gemini AI في ملف .env.',
+                    '🤖 ميزة مستشار الذكاء الاصطناعي مفعلة بالإعدادات ولكن المفتاح السري السيادي مفقود!',
+                    hint='يرجى وضع مفتاح الـ API المعتمد لـ Gemini AI داخل ملف الـ .env المخفي.',
                     id='mousstec.E001',
                 )
             )
             
-    # 7. 🚀 فحص محرك المهام الموزعة (Celery - للذكاء الاصطناعي والتقارير)
+    # 7. 🚀 فحص محرك المهام غير المتزامنة (Celery Queue Sync)
     if not getattr(settings, 'CELERY_BROKER_URL', None):
         errors.append(
             Warning(
-                '⚙️ محرك Celery غير متصل.',
-                hint='بدون Celery Broker، ستتم معالجة مهام الـ AI بشكل متزامن مما سيبطئ النظام.',
+                '⚙️ طابور المهام الخلفية Celery غير متصل برابط السيرفر الموزع.',
+                hint='بدون اتصال Celery Broker، ستتم معالجة تقارير الـ AI الثقيلة بشكل متزامن مما قد يسبب خنق السيرفر الأساسي.',
                 id='mousstec.W004',
             )
         )
@@ -102,75 +104,89 @@ class InventoryConfig(AppConfig):
     verbose_name = _('📦 إدارة المخزن والورشة (Mouss Tec Engine)')
 
     def ready(self):
-        # ⚡ التعرف على خوادم الـ ASGI / WSGI الفعلية لمنع تكرار التشغيل أثناء הـ Migrations
+        # منع اشتعال الرادارات أثناء عمليات التأسيس الهيكلي (Migrations) أو أوامر الجرد النصي
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
         if not any(server in sys.argv[0] or server in sys.argv for server in active_servers):
             return
 
-        # 1. 🔗 ربط نظام الإشارات (Signals)
+        # 1. 🔗 ربط نظام الإشارات (Signals) لتنفيذ القيود المحاسبية وحماية هوامش الربح
         try:
             import inventory.signals
-            logger.info("🟢 Mouss Tec Engine: Field Signals connected successfully.")
+            logger.info("🟢 Mouss Tec Engine: Inventory Framework Signals connected successfully.")
         except ImportError:
-            pass # تم الربط بالفعل في أماكن أخرى
+            logger.warning("⚠️ Mouss Tec Engine: Signals bridge failed to initialize automatically.")
 
-        # 2. 🔥 إطلاق محرك الذكاء الاصطناعي والتسخين (Smart Background Engine)
+        # 2. 🔥 إطلاق محرك الذكاء الاصطناعي والتسخين الاستباقي للـ POS في الخلفية
         warmup_thread = threading.Thread(target=self.smart_inventory_engine, daemon=True)
         warmup_thread.start()
 
-        logger.info("🚀 Mouss Tec Inventory Engine is FULLY OPERATIONAL.")
+        logger.info("🚀 Mouss Tec Inventory Command and Cache Warmup Engine is ONLINE.")
 
     # =====================================================================
-    # 🧠 الابتكارات الحصرية (Exclusive SaaS Logic)
+    # 🧠 الابتكارات الحصرية الشاملة (Distributed Cache Warming Engine)
     # =====================================================================
     def smart_inventory_engine(self):
         """
-        🚀 ابتكار عالمي: محرك التسخين المسبق والمراقبة (True Multi-Tenant Engine).
-        يقرأ الـ Top 50 صنف لكل شركة ויخزنهم في הـ Redis لتسريع نقاط البيع (POS).
+        🚀 محرك التسخين المسبق والمراقبة الاستباقية للمخازن المعزولة:
+        يقوم بقراءة الأصناف الأعلى مبيعاً وحقنها في الـ Redis لتسريع استجابة شاشات الـ POS،
+        معزز بـ Distributed Lock لمنع تعليق أو خنق الداتابيز عند تعدد الـ App Workers.
         """
         import time
         from django.core.cache import cache
         from django.db import close_old_connections
         from django_tenants.utils import schema_context
         
-        # انتظار 15 ثانية لضمان استقرار السيرفر وقواعد البيانات تماماً بعد الإقلاع
+        # انتظار تكتيكي حامٍ لمدة 15 ثانية حتى تستقر قنوات الـ Connection Pools للسيرفر تماماً
         time.sleep(15) 
         
         try:
-            close_old_connections() # 🛡️ حماية من استنزاف اتصالات הדاتا بيز (Connection Leak)
+            # 🛡️ الحماية من الـ Thundering Herd Pattern بين الـ Gunicorn/Daphne Workers:
+            # العامل الأول فقط الذي يقتنص القفل هو من يقوم بتحديث وتحميل الكاش الاستباقي للـ SaaS
+            lock_acquired = cache.add('mousstec_catalog_warming_lock', 'active', 600) # قفل لمدة 10 دقائق
+            if not lock_acquired:
+                logger.info("📡 [CACHE WARMUP ENGINE]: Warmup loop bypassed. Already populated by another cluster node.")
+                return
+
+            close_old_connections() 
             
-            # استيراد النماذج بالداخل لتجنب مشكلة (AppRegistryNotReady)
+            # استدعاء داخلي مرن للموديلز لحماية السيرفر من الـ AppRegistryNotReady Error
             from clients.models import Client
             from inventory.models import Product
             from django.db.models import Count
             
-            # جلب כל الشركات النشطة الفعالة فقط
-            active_tenants = Client.objects.filter(schema_name__isnull=False, is_active=True).exclude(schema_name='public')
+            # 🚀 العبور بالسياق المعماري للنطاق العام public لجلب قائمة الشركات المعتمدة بالنظام
+            with schema_context('public'):
+                active_tenants = list(Client.objects.filter(schema_name__isnull=False, is_active=True).exclude(schema_name='public'))
             
             warmed_count = 0
             for tenant in active_tenants:
+                # عزل كامل لكل ورشة/شركة على حدة بناءً على الـ Tenant Schema المخصصة لها
                 with schema_context(tenant.schema_name):
-                    # 💡 التسخين الفعلي لبيانات הـ POS (Cache Warming)
-                    # جلب أكثر 50 صنف مبيعاً في هذه الشركة تحديداً
+                    # جلب الـ Top 50 صنفاً الأكثر حركة ومبيعاً لتسخين الكاش السريع الخاص بنقاط البيع (POS)
                     top_products = Product.objects.annotate(
                         sales_count=Count('saleinvoiceitem')
                     ).filter(sales_count__gt=0).order_by('-sales_count')[:50]
                     
                     if top_products.exists():
                         cache_key = f"{tenant.schema_name}:pos_fast_catalog"
-                        product_data = [{"id": p.id, "name": p.name, "part_number": p.part_number, "price": float(p.retail_price or 0)} for p in top_products]
+                        product_data = [
+                            {
+                                "id": p.id, 
+                                "name": p.name, 
+                                "part_number": p.part_number, 
+                                "price": float(p.retail_price or 0)
+                            } for p in top_products
+                        ]
                         
-                        # التخزين في הـ Redis لمدة 12 ساعة
+                        # ترحيل وحقن البيانات المجهزة في طبقة كاش الـ Redis الموزع لمدة 12 ساعة كاملة
                         cache.set(cache_key, product_data, timeout=43200)
                         warmed_count += 1
                     
-                    # 🤖 2. رادار النواقص الذكي (Auto-Restock Watchdog Foundation)
-                    # (مساحة مخصصة لإطلاق Celery Tasks مستقبلاً لجرد المخازن ليلياً)
-
-            logger.info(f"🔥 Smart Inventory Engine [SUCCESS]: Multi-Tenant POS Cache Warmed Up for {warmed_count} active tenants.")
+            if warmed_count > 0:
+                logger.info(f"🔥 [WARMUP ENGINE SUCCESS]: Multi-Tenant POS Fast-Catalog populated for {warmed_count} active domains.")
 
         except Exception as e:
-            logger.error(f"🔴 Smart Inventory Engine [FAILED]: {e} - Will retry on next boot.")
+            logger.error(f"🔴 [WARMUP ENGINE CRITICAL FAILURE]: Operation aborted - {e}")
         finally:
-            # 🛡️ إغلاق الاتصال بأمان بعد انتهاء الـ Thread لمنع תעليق הـ DB
+            # 🛡️ إغلاق وقفل القنوات المحلي بعد انتهاء المعالجة حمايةً للسيرفر من الـ Connection Leak
             close_old_connections()

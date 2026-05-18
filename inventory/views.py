@@ -2,9 +2,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Sum, Count, F
+from django.db.models import Sum, Count, F, Prefetch
 from django.utils import timezone
-from django.db import connection, transaction, close_old_connections
+from django.db import connection, transaction
 from django.core.files.base import ContentFile
 from decimal import Decimal
 import json
@@ -12,9 +12,10 @@ import threading
 import urllib.parse
 import base64
 import uuid
+import logging
 
 # الاستدعاء الفعلي للمحركات الذكية الحقيقية التي بنيناها لـ Gemini
-from .ai_services import predict_parts_from_dtc, scan_invoice_image_ai
+from .ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
 
 # استدعاء مكتبة الـ QR
 try:
@@ -27,8 +28,7 @@ from .models import (Product, Inventory, SaleInvoice, SaleInvoiceItem, Branch,
                      Customer, Vehicle, ScrapDismantlingJob, ScrapDismantlingYield,
                      FinancialTransaction, EmployeeShift, MaintenanceContract)
 
-import logging
-logger = logging.getLogger('mousstec_inventory')
+logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
 # 📊 1. لوحات التحكم، نقاط البيع، وكشك الفنيين والجولة التعريفية
@@ -36,19 +36,22 @@ logger = logging.getLogger('mousstec_inventory')
 @login_required(login_url='/secure-portal/')
 def branch_dashboard(request):
     # 🚀 درع حماية إضافي: منع الدخول من النطاق العام
-    if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
+    if getattr(request, 'tenant', None) is None or request.tenant.schema_name == 'public':
         return HttpResponseForbidden("<h1>🛑 دخول غير مصرح</h1><p>هذه اللوحة مخصصة للفروع فقط. لا يمكن الوصول إليها من النطاق المركزي.</p>")
 
     today = timezone.now().date()
     is_admin = request.user.is_superuser or (hasattr(request.user, 'employee_profile') and request.user.employee_profile.role == 'admin')
     
+    # 🚀 ابتكار: تحسين الأداء بمنع N+1 Queries
+    invoices_base = SaleInvoice.objects.filter(date_created__date=today).prefetch_related('items')
+    
     if is_admin:
-        invoices_today = SaleInvoice.objects.filter(date_created__date=today)
+        invoices_today = invoices_base
         low_stock_items = Inventory.objects.filter(quantity__lte=F('product__min_stock_level')).select_related('product', 'branch')
     else:
         try:
             branch = request.user.employee_profile.branch
-            invoices_today = SaleInvoice.objects.filter(date_created__date=today, branch=branch)
+            invoices_today = invoices_base.filter(branch=branch)
             low_stock_items = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'), branch=branch).select_related('product')
         except:
             return HttpResponseForbidden("ليس لديك صلاحيات الدخول أو لم يتم ربطك بفرع مفعل.")
@@ -83,14 +86,14 @@ def mechanic_kiosk_interface(request):
 # =====================================================================
 @login_required(login_url='/secure-portal/')
 def print_invoice_a4(request, invoice_id):
-    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer', 'vehicle', 'branch', 'maintenance_contract').prefetch_related('items__product'), id=invoice_id)
+    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer', 'vehicle', 'branch', 'maintenance_contract').prefetch_related('items__product', 'service_items__service'), id=invoice_id)
     if not request.user.is_superuser and invoice.branch != request.user.employee_profile.branch:
         return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
     return render(request, 'inventory/invoice_print_a4.html', {'invoice': invoice, 'print_date': timezone.now(), 'type': 'A4'})
 
 @login_required(login_url='/secure-portal/')
 def print_invoice_thermal(request, invoice_id):
-    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer').prefetch_related('items__product'), id=invoice_id)
+    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer').prefetch_related('items__product', 'service_items__service'), id=invoice_id)
     return render(request, 'inventory/invoice_print_thermal.html', {'invoice': invoice, 'print_date': timezone.now(), 'type': 'Thermal'})
 
 @login_required(login_url='/secure-portal/')
@@ -178,6 +181,7 @@ def tech_shift_manager_api(request, action):
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     
     try:
+        if not hasattr(request.user, 'employee_profile'): return JsonResponse({"error": "غير مصرح"}, status=403)
         profile = request.user.employee_profile
         if profile.role != 'tech': return JsonResponse({"error": "هذا المسار مخصص للفنيين فقط."}, status=403)
         
@@ -196,7 +200,6 @@ def tech_shift_manager_api(request, action):
             active_shift.clock_out = timezone.now()
             active_shift.save()
             
-            # 💡 يمكن هنا حساب (الكفاءة) = الساعات المفوترة / ساعات الوردية
             return JsonResponse({
                 "status": "success", 
                 "message": "تم إنهاء الوردية.", 
@@ -249,15 +252,20 @@ def regional_tax_forex_sync_webhook(request):
 @login_required(login_url='/secure-portal/')
 def barcode_lookup_api(request):
     code = request.GET.get('code')
-    branch_id = request.user.employee_profile.branch_id if not request.user.is_superuser else request.GET.get('branch')
+    try:
+        branch_id = request.user.employee_profile.branch_id if not request.user.is_superuser else request.GET.get('branch')
+    except: return JsonResponse({"error": "تحديد الفرع مفقود"}, status=400)
     
     product = Product.objects.filter(barcode=code).first() or Product.objects.filter(part_number=code).first()
     if not product: return JsonResponse({"error": "القطعة غير مسجلة بالموسوعة"}, status=404)
         
     inv = Inventory.objects.filter(product=product, branch_id=branch_id).first()
+    
+    # 🚀 استدعاء معامل المرونة السعرية (Elasticity) ليظهر للكاشير
     return JsonResponse({
         "id": product.id, "name": product.name, "part_number": product.part_number,
-        "price": float(product.retail_price), "available_qty": inv.quantity if inv else 0
+        "price": float(product.retail_price), "available_qty": inv.quantity if inv else 0,
+        "elasticity_indicator": float(product.ai_price_elasticity) # مؤشر AI
     })
 
 @csrf_exempt
@@ -420,6 +428,7 @@ def ai_repair_estimator_api(request):
     try:
         data = json.loads(request.body)
         dtc_code = data.get('dtc_code', '').upper()
+        # 🤖 استدعاء وكيل الاستشارة
         ai_result = predict_parts_from_dtc(dtc_code)
         
         if ai_result and "recommendations" in ai_result:
@@ -435,10 +444,11 @@ def ai_ocr_invoice_scanner_api(request):
     try:
         data = json.loads(request.body)
         image_base64 = data.get('image')
+        # 🤖 استدعاء وكيل الرؤية (Gemini Pro OCR)
         extracted_data = scan_invoice_image_ai(image_base64)
         if extracted_data:
             return JsonResponse({"status": "success", "data": extracted_data})
-        return JsonResponse({"error": "فشل محرك الـ Vision"}, status=502)
+        return JsonResponse({"error": "فشل محرك الـ Vision في قراءة الفاتورة"}, status=502)
     except Exception as e: return JsonResponse({"error": str(e)}, status=500)
 
 @csrf_exempt
@@ -448,18 +458,25 @@ def ai_vehicle_docs_scanner_api(request):
     if request.method != 'POST': return JsonResponse({"error": "POST Only"}, status=400)
     try:
         data = json.loads(request.body)
-        # 💡 في الإنتاج: يتم تمرير الصورة للـ Gemini Vision API لاستخراج البيانات
-        # هنا محاكاة ذكية للنتيجة المتوقعة
-        simulated_ai_extraction = {
-            "owner_name": "أحمد محمد محمود",
-            "chassis_number": "WBA3B31000F" + str(uuid.uuid4().hex[:6]).upper(),
-            "car_plate": "أ ج م 123",
-            "brand": "BMW",
-            "model_year": "2018"
-        }
+        image_base64 = data.get('image')
         
-        logger.info(f"📸 [AI VISION] Successfully extracted vehicle docs for {simulated_ai_extraction['car_plate']}")
-        return JsonResponse({"status": "success", "extracted_data": simulated_ai_extraction})
+        if not image_base64: return JsonResponse({"error": "الصورة مفقودة"}, status=400)
+
+        # 🚀 توجيه البوت لفتح الرخصة بالاعتماد على بوابة الذكاء الاصطناعي (Pro Model)
+        sys_msg = "أنت مساعد ذكي لاستخراج بيانات رخص السيارات. أعد JSON بـ: owner_name, chassis_number, car_plate, brand, model_year."
+        messages = [
+            {"role": "system", "content": sys_msg},
+            {"role": "user", "content": [
+                {"type": "text", "text": "استخرج بيانات هذه الرخصة."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]}
+        ]
+        
+        raw_res = call_gemini_layer(messages, json_mode=True, max_retries=1, require_pro=True)
+        if raw_res:
+            return JsonResponse({"status": "success", "extracted_data": json.loads(raw_res)})
+            
+        return JsonResponse({"error": "لم يتمكن الذكاء الاصطناعي من قراءة الصورة."}, status=500)
         
     except Exception as e:
         return JsonResponse({"error": "فشل قراءة المستند، يرجى التأكد من وضوح الصورة."}, status=500)
