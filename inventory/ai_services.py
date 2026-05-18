@@ -275,71 +275,76 @@ def predict_parts_from_dtc(dtc_code):
         {"role": "user", "content": f"DTC: {dtc_clean}"}
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True)
-    if raw_response:
-        try:
-            parsed_data = json.loads(raw_response)
-            cache.set(cache_key, parsed_data, timeout=30 * 24 * 60 * 60)
-            return parsed_data
-        except json.JSONDecodeError as e:
-            logger.error(f"🔴 [DIAGNOSTIC BOT]: JSON Parse Error - {e}")
-    return {"recommendations": []}
+def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=False):
+    """
+    🚀 بوابة الاتصال الذكية والمحصنة للوكلاء (Agents):
+    ✅ تم التحصين الشامل: تطهير الـ API Key من أي سطور مخفية (.strip()) والاعتماد على الـ v1 Stable Endpoint.
+    """
+    if not getattr(settings, 'ENABLE_AI_PREDICTIONS', False) or not getattr(settings, 'AI_VISION_API_KEY', None):
+        logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
+        return None
 
-# =====================================================================
-# 👁️ 2. قناص الفواتير (Vision Procurement Bot)
-# =====================================================================
-def scan_invoice_image_ai(image_base64):
-    system_instruction = (
-        "You are a B2B Procurement AI Agent. Extract invoice data. "
-        "Return strictly JSON: 'vendor_name' (string), 'invoice_total' (float), "
-        "'items' (array: 'part_number' (string), 'name' (Arabic string), 'qty' (int), 'cost' (float))."
-    )
+    # 🏎️ الأسماء القياسية المستقرة الحالية
+    model_name = "gemini-1.5-pro" if require_pro else "gemini-1.5-flash"
     
-    messages = [
-        {"role": "system", "content": system_instruction},
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Extract structured data from this invoice."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-            ]
+    # 🔥 تطهير المفتاح من أي \r أو \n أو مسافات عشوائية من ملف الـ .env لقتل الـ 404
+    clean_key = str(settings.AI_VISION_API_KEY).strip()
+    
+    # 🌐 استخدام الـ Stable Production Endpoint المباشر لعام 2026
+    url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={clean_key}"
+    headers = {"Content-Type": "application/json"}
+
+    gemini_contents = []
+    system_instruction = None
+    
+    for msg in messages:
+        if msg["role"] == "system":
+            system_instruction = {"parts": [{"text": msg["content"]}]}
+        else:
+            parts = []
+            if isinstance(msg["content"], list):
+                for item in msg["content"]:
+                    if item.get("type") == "text":
+                        parts.append({"text": item["text"]})
+                    elif item.get("type") == "image_url":
+                        b64_data = item["image_url"]["url"].split(",")[1]
+                        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_data}})
+            else:
+                parts.append({"text": msg["content"]})
+            
+            gemini_contents.append({"role": "user" if msg["role"] == "user" else "model", "parts": parts})
+
+    payload = {
+        "contents": gemini_contents,
+        "generationConfig": {
+            "temperature": 0.2, 
         }
-    ]
+    }
     
-    raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2, require_pro=True)
-    if raw_response:
-        try: return json.loads(raw_response)
-        except json.JSONDecodeError: pass
-    return {"vendor_name": "مجهول", "invoice_total": 0.0, "items": []}
+    if system_instruction:
+        payload["systemInstruction"] = system_instruction
+        
+    if json_mode:
+        payload["generationConfig"]["responseMimeType"] = "application/json"
 
-# =====================================================================
-# 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance Bot)
-# =====================================================================
-def predict_future_failures(brand, model_name, mileage):
-    cache_key = f"mas_ai_prog_{brand}_{model_name}_{int(mileage/10000)}k"
-    cache = _get_cache()
-    cached_result = cache.get(cache_key)
-    if cached_result: return cached_result
-
-    system_instruction = (
-        "You are a Prognostic AI Agent. Predict top 3 failing parts in the next 10,000 KM. "
-        "Return strictly JSON: 'preventive_maintenance' (array: 'system' (string), 'warning_message' (Arabic string), 'urgency' (High/Medium))."
-    )
-    
-    messages = [
-        {"role": "system", "content": system_instruction},
-        {"role": "user", "content": f"Brand: {brand}, Model: {model_name}, Mileage: {mileage} KM."}
-    ]
-    
-    raw_response = call_gemini_layer(messages, json_mode=True)
-    if raw_response:
+    for attempt in range(max_retries):
         try:
-            parsed_data = json.loads(raw_response)
-            cache.set(cache_key, parsed_data, timeout=7 * 24 * 60 * 60)
-            return parsed_data
-        except: pass
-    return {"preventive_maintenance": []}
-
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                res_data = response.json()
+                return res_data['candidates'][0]['content']['parts'][0]['text']
+            elif response.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                logger.error(f"🔴 [COGNITIVE AGENT ERROR] {response.status_code}: {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"🔴 [COGNITIVE AGENT FATAL]: {e}")
+            return None
+            
+    return None
 # =====================================================================
 # 🎭 4. محلل مخاطر التسرب (CRM Churn Forensics Bot)
 # =====================================================================
