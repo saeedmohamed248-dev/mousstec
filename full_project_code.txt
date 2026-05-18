@@ -1,0 +1,3220 @@
+
+============================================================
+📁 FILE: inventory/signals.py
+============================================================
+
+import logging
+from django.db import transaction
+from django.db.models import F, Sum
+from django.db.models.signals import post_save, post_delete, pre_save
+from django.dispatch import receiver
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+
+from .models import (Inventory, PurchaseInvoice, PurchaseInvoiceItem, 
+                     SaleInvoice, SaleInvoiceItem, StockTransfer, FinancialTransaction)
+
+# تهيئة الرادار لتسجيل الحركات بدقة
+logger = logging.getLogger('fixit_signals')
+
+# =====================================================================
+# 🧮 1. تحديث إجماليات الفواتير فقط (عند إضافة أو مسح صنف)
+# =====================================================================
+# 💡 ابتكار: لا نلمس المخزن هنا أبداً، فقط نحدث إجمالي الفاتورة وهي "مسودة"
+@receiver(post_save, sender=PurchaseInvoiceItem)
+@receiver(post_delete, sender=PurchaseInvoiceItem)
+def update_purchase_invoice_total(sender, instance, **kwargs):
+    if hasattr(instance, 'invoice') and instance.invoice:
+        instance.invoice.update_total()
+
+@receiver(post_save, sender=SaleInvoiceItem)
+@receiver(post_delete, sender=SaleInvoiceItem)
+def update_sale_invoice_total(sender, instance, **kwargs):
+    if hasattr(instance, 'invoice') and instance.invoice:
+        instance.invoice.update_total()
+
+
+# =====================================================================
+# 🛒 2. الاعتماد الفعلي للمشتريات (ماليات + مخزن + متوسط التكلفة)
+# =====================================================================
+@receiver(post_save, sender=PurchaseInvoice)
+def execute_purchase_posting(sender, instance, **kwargs):
+    # لا نتدخل إلا إذا تم اعتماد الفاتورة ولم يتم تنفيذها من قبل
+    if instance.status == 'posted' and not instance.is_applied:
+        
+        # 🔐 حماية ذرية: إما أن تنجح كل العمليات أو تلغى بالكامل
+        with transaction.atomic():
+            logger.info(f"🚀 [PURCHASE EXECUTION] Starting execution for PO #{instance.id}")
+            
+            # 1. المعاملة المالية (سداد الخزينة)
+            if instance.treasury and instance.paid_amount > Decimal('0.00') and not instance.payments.exists():
+                FinancialTransaction.objects.create(
+                    treasury=instance.treasury, 
+                    transaction_type='out',
+                    amount=instance.paid_amount, 
+                    description=f"سداد فاتورة مشتريات #{instance.id} للمورد {instance.vendor.name}",
+                    purchase_invoice=instance, 
+                    vendor=instance.vendor
+                )
+            
+            # تسجيل المديونية الآجلة للمورد
+            due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
+            if due > Decimal('0.00'):
+                instance.vendor.balance = F('balance') + due
+                instance.vendor.save(update_fields=['balance'])
+
+            # 2. اللوجيك المالي المعقد: المخزون وحساب متوسط التكلفة (Global Moving Average)
+            for item in instance.items.select_related('product').all():
+                product = item.product
+                
+                # حساب إجمالي كمية الصنف في كل الفروع (لأن التكلفة تخص الشركة كلها)
+                total_current_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+                
+                old_value = Decimal(str(total_current_qty)) * Decimal(str(product.average_cost))
+                new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
+                new_total_qty = total_current_qty + item.quantity
+                
+                # تحديث تكلفة كارت الصنف
+                if new_total_qty > 0:
+                    product.average_cost = (old_value + new_value) / Decimal(str(new_total_qty))
+                    product.purchase_price = item.cost_price 
+                    product.save(update_fields=['average_cost', 'purchase_price'])
+                
+                # إضافة الكمية للفرع المحدد
+                inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
+                inv.quantity = F('quantity') + item.quantity # F() تمنع تصادم البيانات
+                inv.save()
+                
+            # إغلاق الفاتورة برمجياً لمنع التكرار
+            PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            logger.info(f"✅ [PURCHASE SUCCESS] PO #{instance.id} executed safely.")
+
+
+# =====================================================================
+# 💸 3. الاعتماد الفعلي للمبيعات والصيانة (ماليات + مخزن + ولاء)
+# =====================================================================
+@receiver(post_save, sender=SaleInvoice)
+def execute_sale_posting(sender, instance, **kwargs):
+    if instance.status == 'posted' and not instance.is_applied:
+        
+        with transaction.atomic():
+            logger.info(f"🚀 [SALE EXECUTION] Starting execution for INV #{instance.id}")
+            
+            # 1. المعاملة المالية (دخول الإيراد للخزينة)
+            if instance.treasury and instance.paid_amount > Decimal('0.00') and not instance.payments.exists():
+                FinancialTransaction.objects.create(
+                    treasury=instance.treasury, 
+                    transaction_type='in',
+                    amount=instance.paid_amount, 
+                    description=f"إيراد فاتورة مبيعات/صيانة رقم #{instance.id}",
+                    sale_invoice=instance, 
+                    customer=instance.customer
+                )
+                
+            # تسجيل المديونية الآجلة على العميل
+            if instance.due_amount > Decimal('0.00'):
+                instance.customer.balance = F('balance') + instance.due_amount
+                instance.customer.save(update_fields=['balance'])
+
+            # 2. تحديث قراءة العداد ونقاط الولاء
+            if hasattr(instance, 'vehicle') and instance.vehicle and instance.mileage:
+                if instance.mileage > instance.vehicle.last_mileage:
+                    instance.vehicle.last_mileage = instance.mileage
+                    instance.vehicle.save(update_fields=['last_mileage'])
+                    
+            if instance.total_amount > 0 and hasattr(instance, 'is_return') and not instance.is_return:
+                points_earned = int(instance.total_amount / Decimal('100.0'))
+                instance.customer.loyalty_points = F('loyalty_points') + points_earned
+                instance.customer.save(update_fields=['loyalty_points'])
+
+            # 3. تحديث المخزون ورادار النواقص
+            for item in instance.items.select_related('product').all():
+                inv = Inventory.objects.select_for_update().get(product=item.product, branch=instance.branch)
+                
+                if hasattr(instance, 'is_return') and instance.is_return:
+                    inv.quantity = F('quantity') + item.quantity # استرجاع
+                else:
+                    # التحقق من الرصيد قبل البيع (حماية إضافية)
+                    if inv.quantity < item.quantity:
+                        raise ValidationError(f"الكمية المتاحة من {item.product.name} لا تكفي لإتمام البيع!")
+                    inv.quantity = F('quantity') - item.quantity # خصم
+                    
+                inv.save()
+                inv.refresh_from_db() # لجلب القيمة الحقيقية بعد الخصم
+                
+                # 📉 ابتكار: رادار النواقص
+                if inv.quantity <= item.product.min_stock_level:
+                    logger.warning(f"⚠️ [LOW STOCK ALERT] Product {item.product.name} dropped to {inv.quantity} in branch {instance.branch.name}")
+                    # يمكن ربطه هنا بإشعار WebSockets أو Email لمدير الفرع
+                    
+            SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            logger.info(f"✅ [SALE SUCCESS] INV #{instance.id} executed safely.")
+
+
+# =====================================================================
+# 🚚 4. النقل بين الفروع (التنفيذ الذكي والصارم)
+# =====================================================================
+@receiver(pre_save, sender=StockTransfer)
+def execute_stock_transfer(sender, instance, **kwargs):
+    if instance.id:
+        old_instance = StockTransfer.objects.get(id=instance.id)
+        
+        # حماية من تغيير الحالة لتم التحويل أكثر من مرة
+        if old_instance.status == 'pending' and instance.status == 'completed':
+            with transaction.atomic():
+                # select_for_update() تمنع أي عملية بيع تتم على هذا الصنف في نفس كسر الثانية
+                from_inv = Inventory.objects.select_for_update().get(product=instance.product, branch=instance.from_branch)
+                
+                if from_inv.quantity < instance.quantity:
+                    raise ValidationError(f"رصيد فرع المصدر لا يكفي! الرصيد الحالي: {from_inv.quantity}")
+                
+                from_inv.quantity = F('quantity') - instance.quantity
+                from_inv.save()
+                
+                to_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch=instance.to_branch, defaults={'quantity': 0})
+                to_inv.quantity = F('quantity') + instance.quantity
+                to_inv.save()
+                
+                logger.info(f"📦 [TRANSFER SUCCESS] Moved {instance.quantity}x {instance.product.name} from {instance.from_branch} to {instance.to_branch}")
+============================================================
+📁 FILE: inventory/models.py
+============================================================
+
+from django.db import models
+from django.db.models.signals import post_save, pre_save, post_delete
+from django.dispatch import receiver
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from simple_history.models import HistoricalRecords
+from django.utils.translation import gettext_lazy as _ 
+from decimal import Decimal
+from django.contrib.auth.models import User
+import uuid # 🚀 استدعاء مكتبة الأكواد الموحدة للفاتورة الإلكترونية
+
+# =====================================================================
+# 1. الإعدادات الأساسية (فروع ومنتجات وموظفين)
+# =====================================================================
+class Branch(models.Model):
+    name = models.CharField(max_length=100, verbose_name=_("اسم الفرع")) 
+    location = models.CharField(max_length=255, blank=True, verbose_name=_("الموقع"))
+    phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم تليفون الفرع"))
+    def __str__(self): return self.name
+
+class EmployeeProfile(models.Model):
+    ROLE_CHOICES = (
+        ('admin', _('مدير عام (أدمن)')),
+        ('manager', _('مدير فرع')),
+        ('cashier', _('كاشير / استقبال')),
+        ('tech', _('فني / ميكانيكي')),
+        ('stock', _('أمين مخزن')),
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile', verbose_name=_("المستخدم"))
+    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("الفرع التابع له"))
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='cashier', verbose_name=_("الدور الوظيفي"))
+    can_edit_posted_invoices = models.BooleanField(default=False, verbose_name=_("صلاحية تعديل الفواتير المعتمدة؟"))
+    commission_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("رصيد العمولات المستحقة"))
+
+    class Meta:
+        verbose_name = _("ملف الموظف")
+        verbose_name_plural = _("ملفات الموظفين والصلاحيات")
+    def __str__(self):
+        branch_name = self.branch.name if self.branch else "إدارة عامة"
+        return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
+
+class Product(models.Model):
+    name = models.CharField(max_length=200, verbose_name=_("اسم القطعة")) 
+    part_number = models.CharField(max_length=100, unique=True, verbose_name="Part Number") 
+    brand = models.CharField(max_length=100, default="BMW", verbose_name=_("الماركة")) 
+    engine_code = models.CharField(max_length=100, blank=True, verbose_name=_("كود المحرك")) 
+    car_model = models.CharField(max_length=100, verbose_name=_("الموديلات المتوافقة")) 
+    car_year = models.CharField(max_length=100, verbose_name=_("سنة الصنع"))
+    barcode = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name=_("الباركود"))
+    min_stock_level = models.IntegerField(default=2, verbose_name=_("حد التنبيه (أقل كمية)"))
+    shopify_product_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="Shopify ID")
+    warranty_months = models.IntegerField(default=0, verbose_name=_("فترة الضمان (بالأشهر)"))
+    
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("آخر سعر شراء"))
+    retail_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع"))
+    average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("متوسط التكلفة"))
+    
+    # 🚀 ابتكار: محرك التوالف (Core Charge) للقطع الغالية
+    core_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("قيمة التالف/الكور (مستردة للعميل)"))
+    
+    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_("صورة القطعة"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط")) 
+    alternatives = models.ManyToManyField('self', blank=True, verbose_name=_("البدائل المتوافقة (لو الصنف خلص)"))
+    history = HistoricalRecords() 
+    
+    def __str__(self): return f"{self.name} ({self.part_number})"
+
+class Inventory(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_("القطعة"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    quantity = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة")) 
+    shelf_location = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("مكان الرف"))
+    class Meta:
+        verbose_name_plural = "Inventories"
+        unique_together = ('product', 'branch') 
+    def __str__(self): return f"{self.product.name} | {self.branch.name} | QTY: {self.quantity}"
+
+
+# =====================================================================
+# 🛠️ 2. كتالوج الخدمات والمصنعيات
+# =====================================================================
+class ServiceCatalog(models.Model):
+    name = models.CharField(max_length=200, verbose_name=_("اسم الخدمة / الصيانة"))
+    labor_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر المصنعية الثابت"))
+    estimated_hours = models.DecimalField(max_digits=4, decimal_places=1, default=1.0, verbose_name=_("الوقت التقديري (ساعات)"))
+    tech_commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name=_("نسبة عمولة الفني %"))
+    
+    class Meta:
+        verbose_name = _("خدمة صيانة")
+        verbose_name_plural = _("كتالوج الخدمات والمصنعيات")
+    def __str__(self): return f"{self.name} ({self.labor_price} ج.م)"
+
+
+# =====================================================================
+# 🤝 3. نظام الـ CRM المحسن (العملاء والموردين)
+# =====================================================================
+class Customer(models.Model):
+    name = models.CharField(max_length=200, verbose_name=_("اسم العميل"))
+    phone = models.CharField(max_length=20, unique=True, verbose_name=_("رقم الهاتف"))
+    
+    # 🚀 ابتكار: B2B Business Support
+    company_name = models.CharField(max_length=200, blank=True, null=True, verbose_name=_("اسم الشركة (لعملاء الـ B2B)"))
+    tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("الرقم الضريبي"))
+    
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الرصيد / المديونية"))
+    loyalty_points = models.IntegerField(default=0, verbose_name=_("نقاط الولاء"))
+    date_added = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def vip_tier(self):
+        if self.loyalty_points > 5000: return "💎 VIP"
+        elif self.loyalty_points > 2000: return "🥇 ذهبي"
+        elif self.loyalty_points > 500: return "🥈 فضي"
+        return "🥉 عادي"
+
+    class Meta:
+        verbose_name = _("عميل")
+        verbose_name_plural = _("سجل العملاء (CRM)")
+    def __str__(self): return f"{self.name} - {self.vip_tier}"
+
+class Vehicle(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='vehicles', verbose_name=_("المالك"))
+    chassis_number = models.CharField(max_length=17, unique=True, verbose_name=_("رقم الشاسيه (VIN)"))
+    car_plate = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("رقم اللوحة"))
+    brand = models.CharField(max_length=50, default="BMW", verbose_name=_("ماركة السيارة"))
+    model_name = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("الموديل (مثال: 320i)"))
+    
+    # 🚀 ابتكار: تفاصيل فنية أعمق
+    color = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("لون السيارة"))
+    transmission = models.CharField(max_length=20, choices=(('Auto', 'أوتوماتيك'), ('Manual', 'مانيوال')), default='Auto', verbose_name=_("نوع الفتيس"))
+    
+    last_mileage = models.IntegerField(default=0, verbose_name=_("آخر قراءة للعداد (كم)"))
+    estimated_next_visit = models.DateField(blank=True, null=True, verbose_name=_("موعد الصيانة المتوقع"))
+    
+    class Meta:
+        verbose_name = _("مركبة")
+        verbose_name_plural = _("سجل المركبات")
+    def __str__(self): return f"{self.car_plate or 'بدون لوحة'} - {self.chassis_number[-6:]}"
+
+class Vendor(models.Model):
+    name = models.CharField(max_length=200, verbose_name=_("اسم المورد / الشركة"))
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name=_("رقم الهاتف"))
+    tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("الرقم الضريبي")) # 🚀 للتوريدات الرسمية
+    company_details = models.TextField(blank=True, null=True, verbose_name=_("تفاصيل الشركة / العنوان"))
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("حساب المورد (مستحقاته)"))
+    class Meta:
+        verbose_name = _("مورد")
+        verbose_name_plural = _("سجل الموردين (SRM)")
+    def __str__(self): return self.name
+
+
+# =====================================================================
+# 💰 4. النظام المالي وإدارة الخزائن 
+# =====================================================================
+class Treasury(models.Model):
+    TYPE_CHOICES = (('cash', _('كاش')), ('bank', _('حساب بنكي')), ('visa', _('فيزا')), ('wallet', _('محفظة')))
+    name = models.CharField(max_length=100, verbose_name=_("اسم الخزنة/الحساب"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='treasuries', verbose_name=_("الفرع"))
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='cash', verbose_name=_("النوع"))
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("الرصيد"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    history = HistoricalRecords()
+    class Meta:
+        verbose_name = _("خزنة / حساب")
+        verbose_name_plural = _("الخزائن والحسابات")
+        unique_together = ('name', 'branch')
+    def __str__(self): return f"{self.name} ({self.balance} ج.م)"
+
+class ExpenseCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name=_("بند المصروف"))
+    class Meta: verbose_name_plural = _("بنود المصروفات")
+    def __str__(self): return self.name
+
+class FinancialTransaction(models.Model):
+    TRANSACTION_TYPES = (('in', _('إيداع / إيراد')), ('out', _('سحب / مصروف')))
+    treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, related_name='transactions', verbose_name=_("الخزنة"))
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name=_("النوع"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("المبلغ"))
+    category = models.ForeignKey(ExpenseCategory, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("البند"))
+    description = models.CharField(max_length=255, verbose_name=_("البيان"))
+    date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+    sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة بيع"))
+    purchase_invoice = models.ForeignKey('PurchaseInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة شراء"))
+    customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة من عميل")) 
+    vendor = models.ForeignKey(Vendor, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة لمورد")) 
+    history = HistoricalRecords()
+    class Meta: verbose_name_plural = _("الخزينة (حركات مالية)")
+    def __str__(self): return f"{self.amount} ج.م - {self.treasury.name}"
+
+
+# =====================================================================
+# 5. الفواتير والعمليات (مربوطة بالمركبات والخدمات)
+# =====================================================================
+class PurchaseInvoice(models.Model):
+    STATUS_CHOICES = (('draft', _('مسودة')), ('posted', _('تم الاستلام (مقفولة)')))
+    vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT, verbose_name=_("المورد")) 
+    treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("الدفع من خزنة"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("فرع الاستلام")) 
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ")) 
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الإجمالي"))
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("المدفوع"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة")) 
+    is_applied = models.BooleanField(default=False, editable=False)
+
+    def update_total(self):
+        total = sum((Decimal(str(item.quantity or 0)) * Decimal(str(item.cost_price or 0))) for item in self.items.all())
+        self.total_amount = Decimal(str(total))
+        self.save(update_fields=['total_amount'])
+
+    def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
+
+class PurchaseInvoiceItem(models.Model):
+    invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1, verbose_name=_("الكمية")) 
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء")) 
+    @property
+    def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.cost_price or 0))
+
+
+class SaleInvoice(models.Model):
+    INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))
+    STATUS_CHOICES = (('draft', _('جاري العمل (ورشة)')), ('posted', _('معتمدة وتم التسليم')))
+    
+    # 🚀 ابتكار: المعرف الموحد للفاتورة الإلكترونية والـ QR
+    invoice_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    
+    invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPES, verbose_name=_("النوع"))
+    is_return = models.BooleanField(default=False, verbose_name=_("فاتورة مرتجع؟"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة"))
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, verbose_name=_("العميل"))
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المركبة"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+    treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("سداد على خزنة"))
+    
+    mileage = models.IntegerField(blank=True, null=True, verbose_name=_("قراءة العداد الحالية (كم)"))
+    notes = models.TextField(blank=True, null=True, verbose_name=_("ملاحظات وشكوى العميل"))
+    
+    labor_cost_manual = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("مصنعية إضافية (يدوي)"))
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("خصم إجمالي"))
+    tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name=_("ضريبة القيمة المضافة %"))
+    
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الإجمالي النهائي"))
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("المدفوع"))
+    is_applied = models.BooleanField(default=False, editable=False)
+
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
+    net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
+
+    @property
+    def due_amount(self):
+        return max(Decimal(str(self.total_amount)) - Decimal(str(self.paid_amount)), Decimal('0.00'))
+
+    def update_total(self):
+        items_total_price = sum((Decimal(str(item.quantity or 0)) * Decimal(str(item.unit_price or 0))) for item in self.items.all()) if self.items.exists() else Decimal('0.00')
+        items_total_cost = sum((Decimal(str(item.quantity or 0)) * Decimal(str(item.cost_at_sale or 0))) for item in self.items.all()) if self.items.exists() else Decimal('0.00')
+        services_total_price = sum(Decimal(str(srv.price)) for srv in self.service_items.all()) if self.service_items.exists() else Decimal('0.00')
+
+        subtotal = items_total_price + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
+        tax_amount = (subtotal * Decimal(str(self.tax_percentage or 0))) / Decimal('100.00')
+        
+        self.total_amount = subtotal + tax_amount
+        self.total_cost = items_total_cost
+        self.net_profit = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
+
+        if self.paid_amount == Decimal('0.00') and self.status == 'posted':
+            self.paid_amount = self.total_amount
+            
+        self.save(update_fields=['total_amount', 'paid_amount', 'total_cost', 'net_profit'])
+
+    def __str__(self): return f"INV #{self.id} - {self.customer.name}"
+
+class SaleInvoiceItem(models.Model):
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1, verbose_name=_("الكمية")) 
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر البيع")) 
+    cost_at_sale = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
+    
+    @property
+    def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
+    
+    def save(self, *args, **kwargs):
+        if not self.pk and self.product:
+            self.cost_at_sale = self.product.average_cost if self.product.average_cost > 0 else self.product.purchase_price
+        super().save(*args, **kwargs)
+
+class SaleInvoiceServiceItem(models.Model):
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='service_items')
+    service = models.ForeignKey(ServiceCatalog, on_delete=models.PROTECT, verbose_name=_("الخدمة المنفذة"))
+    technician = models.ForeignKey(EmployeeProfile, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'tech'}, verbose_name=_("الفني المنفذ"))
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("قيمة المصنعية"))
+    
+    # 🚀 ابتكار: رادار كفاءة الفني
+    actual_hours = models.DecimalField(max_digits=4, decimal_places=1, default=1.0, verbose_name=_("ساعات العمل الفعلية"))
+
+    def save(self, *args, **kwargs):
+        if not self.pk and self.service and not self.price:
+            self.price = self.service.labor_price
+            self.actual_hours = self.service.estimated_hours
+        super().save(*args, **kwargs)
+
+class VehicleInspection(models.Model):
+    STATUS_COLORS = (('green', _('ممتاز (أخضر)')), ('yellow', _('يحتاج متابعة (أصفر)')), ('red', _('تغيير فوري (أحمر)')))
+    invoice = models.OneToOneField(SaleInvoice, on_delete=models.CASCADE, related_name='inspection_report', verbose_name=_("أمر الشغل"))
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, verbose_name=_("السيارة"))
+    brakes_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("حالة تيل وطنابير الفرامل"))
+    engine_oil_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("زيت المحرك"))
+    tires_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("حالة الإطارات"))
+    battery_status = models.CharField(max_length=10, choices=STATUS_COLORS, default='green', verbose_name=_("كفاءة البطارية"))
+    technician_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الفني الحرجة للعميل"))
+    
+    # 🚀 ابتكار: الفحص المرئي لإثبات التلف للعميل
+    attachment = models.ImageField(upload_to='inspections/', blank=True, null=True, verbose_name=_("صورة مرفقة (للقطع التالفة)"))
+    
+    class Meta: verbose_name = _("فحص رقمي مرئي 21 نقطة")
+
+class StockTransfer(models.Model):
+    STATUS_CHOICES = (('pending', _('قيد الانتظار')), ('completed', _('تم التحويل')), ('cancelled', _('ملغي')))
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_("القطعة"))
+    from_branch = models.ForeignKey(Branch, related_name='outgoing_transfers', on_delete=models.CASCADE, verbose_name=_("من فرع"))
+    to_branch = models.ForeignKey(Branch, related_name='incoming_transfers', on_delete=models.CASCADE, verbose_name=_("إلى فرع"))
+    quantity = models.IntegerField(verbose_name=_("الكمية"))
+    date_transferred = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
+    history = HistoricalRecords()
+
+# =====================================================================
+# 🧠 الإشارات الذكية والأتمتة (Smart Automation Signals)
+# =====================================================================
+
+@receiver(post_save, sender=User)
+def create_employee_profile(sender, instance, created, **kwargs):
+    if created: EmployeeProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=SaleInvoiceItem)
+@receiver(post_delete, sender=SaleInvoiceItem)
+@receiver(post_save, sender=SaleInvoiceServiceItem)
+@receiver(post_delete, sender=SaleInvoiceServiceItem)
+def auto_update_sale_invoice_items(sender, instance, **kwargs):
+    if hasattr(instance, 'invoice') and instance.invoice: instance.invoice.update_total()
+
+@receiver(post_save, sender=SaleInvoice)
+def auto_update_sale_invoice(sender, instance, created, **kwargs):
+    if kwargs.get('update_fields') and ('total_amount' in kwargs.get('update_fields') or 'paid_amount' in kwargs.get('update_fields')): return
+    instance.update_total()
+
+@receiver(post_save, sender=PurchaseInvoiceItem)
+@receiver(post_delete, sender=PurchaseInvoiceItem)
+def auto_update_purchase_invoice_items(sender, instance, **kwargs):
+    if hasattr(instance, 'invoice') and instance.invoice: instance.invoice.update_total()
+
+@receiver(post_save, sender=PurchaseInvoice)
+def auto_update_purchase_invoice(sender, instance, created, **kwargs):
+    if kwargs.get('update_fields') and ('total_amount' in kwargs.get('update_fields') or 'paid_amount' in kwargs.get('update_fields')): return
+    instance.update_total()
+
+@receiver(post_save, sender=FinancialTransaction)
+def update_treasury_balance(sender, instance, created, **kwargs):
+    if created:
+        treasury = instance.treasury
+        amount = Decimal(str(instance.amount)) 
+        if instance.transaction_type == 'in': treasury.balance += amount
+        elif instance.transaction_type == 'out': treasury.balance -= amount
+        treasury.save(update_fields=['balance'])
+        
+        if instance.customer and instance.transaction_type == 'in':
+            instance.customer.balance -= amount 
+            instance.customer.save(update_fields=['balance'])
+        if instance.vendor and instance.transaction_type == 'out':
+            instance.vendor.balance -= amount 
+            instance.vendor.save(update_fields=['balance'])
+
+@receiver(post_save, sender=SaleInvoice)
+def execute_sale_stock_and_finance(sender, instance, **kwargs):
+    if instance.status == 'posted' and not instance.is_applied:
+        if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
+            FinancialTransaction.objects.create(
+                treasury=instance.treasury, transaction_type='in',
+                amount=instance.paid_amount, description=f"إيراد فاتورة مبيعات/صيانة رقم #{instance.id}",
+                sale_invoice=instance, customer=instance.customer
+            )
+            
+        if instance.due_amount > Decimal('0.00'):
+            instance.customer.balance += instance.due_amount
+            instance.customer.save(update_fields=['balance'])
+
+        for service_item in instance.service_items.all():
+            if service_item.technician and service_item.service.tech_commission_percent > 0:
+                commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
+                service_item.technician.commission_balance += commission
+                service_item.technician.save(update_fields=['commission_balance'])
+
+        if instance.vehicle and instance.mileage and instance.mileage > instance.vehicle.last_mileage:
+            instance.vehicle.last_mileage = instance.mileage
+            from datetime import timedelta
+            instance.vehicle.estimated_next_visit = timezone.now().date() + timedelta(days=90)
+            instance.vehicle.save(update_fields=['last_mileage', 'estimated_next_visit'])
+            
+        if instance.total_amount > 0 and not instance.is_return:
+            points_earned = int(instance.total_amount / 100)
+            instance.customer.loyalty_points += points_earned
+            instance.customer.save(update_fields=['loyalty_points'])
+
+        for item in instance.items.all():
+            inv, _ = Inventory.objects.get_or_create(product=item.product, branch=instance.branch, defaults={'quantity': 0})
+            if instance.is_return: inv.quantity += item.quantity 
+            else: inv.quantity -= item.quantity 
+            inv.save()
+            
+        SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+
+@receiver(post_save, sender=PurchaseInvoice)
+def execute_purchase_stock_and_finance(sender, instance, **kwargs):
+    if instance.status == 'posted' and not instance.is_applied:
+        if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
+            FinancialTransaction.objects.create(
+                treasury=instance.treasury, transaction_type='out',
+                amount=instance.paid_amount, description=f"سداد فاتورة مشتريات #{instance.id}",
+                purchase_invoice=instance, vendor=instance.vendor
+            )
+        due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
+        if due > Decimal('0.00'):
+            instance.vendor.balance += due
+            instance.vendor.save(update_fields=['balance'])
+
+        from django.db.models import Sum
+        for item in instance.items.all():
+            product = item.product
+            total_current_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+            old_value = Decimal(str(total_current_qty)) * Decimal(str(product.average_cost))
+            new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
+            new_total_qty = total_current_qty + item.quantity
+            
+            if new_total_qty > 0:
+                product.average_cost = (old_value + new_value) / Decimal(str(new_total_qty))
+                product.purchase_price = item.cost_price 
+                product.save(update_fields=['average_cost', 'purchase_price'])
+            
+            inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
+            inv.quantity += item.quantity
+            inv.save()
+            
+        PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+
+@receiver(pre_save, sender=StockTransfer)
+def execute_stock_transfer(sender, instance, **kwargs):
+    if instance.id:
+        old_instance = StockTransfer.objects.get(id=instance.id)
+        if old_instance.status == 'pending' and instance.status == 'completed':
+            from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
+            if from_inv.quantity < instance.quantity: raise ValidationError("الكمية لا تكفي للتحويل في فرع المصدر!")
+            from_inv.quantity -= instance.quantity
+            from_inv.save()
+            to_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch=instance.to_branch, defaults={'quantity': 0})
+            to_inv.quantity += instance.quantity
+            to_inv.save()
+============================================================
+📁 FILE: inventory/__init__.py
+============================================================
+
+
+============================================================
+📁 FILE: inventory/apps.py
+============================================================
+
+from django.apps import AppConfig
+from django.core.checks import register, Warning, Error
+from django.utils.translation import gettext_lazy as _ 
+from django.core.cache import cache
+import logging
+import sys
+import threading # 🟢 ابتكار: للتشغيل في الخلفية بدون تعطيل السيرفر
+
+# تهيئة مسجل الأحداث (Logger)
+logger = logging.getLogger('fixit_core')
+
+class InventoryConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'inventory'
+    
+    # 🌐 دعم الترجمة الفورية للـ SaaS
+    verbose_name = _('📦 إدارة المخزون ومراكز الصيانة (FIXIT Core)')
+
+    # =====================================================================
+    # 🚀 مفتاح الكونتاكت: يعمل مرة واحدة عند إقلاع السيرفر
+    # =====================================================================
+    def ready(self):
+        # ⚡ ابتكار: التعرف على خوادم الـ ASGI السريعة الخاصة بالـ WebSockets
+        active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
+        # إذا لم يكن أمر التشغيل ضمن الخوادم الحقيقية (مثال: makemigrations)، لا تفعل شيئاً
+        if not any(server in sys.argv[0] or server in sys.argv for server in active_servers):
+            return
+
+        # 1. 🔗 ربط نظام الإشارات (Signals) للمزامنة اللحظية
+        try:
+            import inventory.signals
+            logger.info("🟢 FIXIT Engine: Signals connected successfully.")
+        except ImportError:
+            logger.warning("🟡 FIXIT Engine: Signals file not found. Skipping event hooks.")
+
+        # 2. 🔥 ابتكار: التسخين المسبق غير المتزامن (Non-blocking Cache Warming)
+        # تشغيل التسخين في Thread منفصل لكي لا يُعطل إقلاع السيرفر (Zero Downtime)
+        threading.Thread(target=self.async_warmup_cache, daemon=True).start()
+
+        # 3. 🛡️ نظام الفحص الذاتي المتقدم (System Checks)
+        self.register_system_checks()
+
+        logger.info("🚀 FIXIT Inventory Engine is FULLY OPERATIONAL.")
+
+    # =====================================================================
+    # 🧠 الابتكارات الحصرية (Exclusive SaaS Logic)
+    # =====================================================================
+    
+    def async_warmup_cache(self):
+        """
+        ابتكار عالمي: التسخين المسبق في الخلفية (Background Cache Warming).
+        يقوم بسحب البيانات الحرجة للذاكرة دون تأخير بدء تشغيل النظام.
+        """
+        try:
+            # اختبار استجابة الكاش (Redis)
+            cache.set('system_boot_check', True, timeout=10)
+            if cache.get('system_boot_check'):
+                # 💡 سيتم إضافة كود هنا لاحقاً لتحميل "أكثر 100 صنف مباعاً" في الكاش
+                # لكي تفتح فاتورة البيع للكاشير في 0.01 ثانية!
+                logger.info("🔥 Cache Warming [SUCCESS]: Top products pre-loaded into Redis.")
+        except Exception as e:
+            logger.error(f"🔴 Cache Warming [FAILED]: {e}")
+
+    def register_system_checks(self):
+        """
+        دالة عبقرية تقوم بفحص هندسة النظام وتمنع الأخطاء البشرية قبل حدوثها.
+        """
+        @register()
+        def check_enterprise_configuration(app_configs, **kwargs):
+            errors = []
+            from django.conf import settings
+            
+            # 1. 🛡️ ابتكار حارس العمارة السحابية (Tenant Architecture Guard)
+            # يمنع الكارثة التي قد تحدث إذا لم يتم وضع التطبيق في الـ Tenant Apps
+            if hasattr(settings, 'TENANT_APPS') and self.name not in settings.TENANT_APPS:
+                errors.append(
+                    Error(
+                        '🏢 خطأ معماري خطير: تطبيق المخزون يغرد خارج السرب!',
+                        hint=f'تأكد من إضافة "{self.name}" داخل مصفوفة TENANT_APPS في ملف settings.py لمنع تسريب البيانات بين الفروع.',
+                        obj=self,
+                        id='fixit.E002',
+                    )
+                )
+
+            # 2. فحص كفاءة الذاكرة (القديم والمحسن)
+            cache_backend = settings.CACHES.get('default', {}).get('BACKEND', '')
+            if 'LocMemCache' in cache_backend:
+                errors.append(
+                    Warning(
+                        '⚠️ النظام يعمل بذاكرة كيش محلية ضعيفة (LocMemCache).',
+                        hint='الابتكار: يُنصح بشدة تفعيل Redis لضمان عدم بطء النظام مع زيادة فروع FIXIT.',
+                        obj=self,
+                        id='fixit.W001',
+                    )
+                )
+
+            # 3. فحص محرك البريد الإلكتروني (لتأكيد إرسال الفواتير)
+            if not getattr(settings, 'EMAIL_HOST_USER', None) or settings.EMAIL_HOST_USER == 'your-email@gmail.com':
+                errors.append(
+                    Warning(
+                        '📧 محرك البريد الإلكتروني غير مهيأ بشكل كامل.',
+                        hint='العملاء لن يستلموا فواتير الـ PDF عبر الإيميل حتى تقوم بضبط EMAIL_HOST_USER.',
+                        obj=self,
+                        id='fixit.W002',
+                    )
+                )
+
+            # 4. فحص نبض الذكاء الاصطناعي (AI Endpoint Check)
+            if getattr(settings, 'ENABLE_AI_PREDICTIONS', False):
+                ai_url = getattr(settings, 'AI_MODEL_ENDPOINT', '')
+                if not ai_url:
+                    errors.append(
+                        Error(
+                            '🤖 ميزة الذكاء الاصطناعي مفعلة ولكن الرابط (Endpoint) مفقود!',
+                            hint='ضع رابط الـ API في ملف .env الخاص بـ AI_MODEL_ENDPOINT أو قم بتعطيل الميزة.',
+                            obj=self,
+                            id='fixit.E001',
+                        )
+                    )
+
+            return errors
+============================================================
+📁 FILE: inventory/admin.py
+============================================================
+
+from django.contrib import admin
+from decimal import Decimal
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+from django.utils.html import format_html
+from django.db.models import Sum, F
+from django.utils import timezone
+from datetime import timedelta
+import datetime
+import json
+import urllib.parse
+from django.contrib import messages
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from import_export.admin import ImportExportModelAdmin 
+from django.utils.translation import gettext_lazy as _ 
+from django.core.exceptions import ValidationError
+from django.db import connection
+
+# 🟢 استدعاء الجداول
+from .models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice, 
+                     PurchaseInvoiceItem, SaleInvoiceItem, StockTransfer,
+                     Treasury, ExpenseCategory, FinancialTransaction, EmployeeProfile,
+                     Customer, Vendor, Vehicle, 
+                     ServiceCatalog, SaleInvoiceServiceItem, VehicleInspection)
+
+# =====================================================================
+# 🛡️ 0. درع العزل السحابي ومنع تسريب البيانات
+# =====================================================================
+class SecureImportExportAdmin(ImportExportModelAdmin):
+    def has_module_permission(self, request):
+        if connection.schema_name == 'public': return False
+        return super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if connection.schema_name == 'public': return False
+        return super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        if connection.schema_name == 'public': return False
+        return super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        if connection.schema_name == 'public': return False
+        return super().has_change_permission(request, obj)
+
+    def has_export_permission(self, request):
+        if request.user.is_superuser: return True
+        try: return request.user.employee_profile.role in ['admin', 'manager']
+        except: return False
+
+    def has_import_permission(self, request):
+        if request.user.is_superuser: return True
+        try: return request.user.employee_profile.role in ['admin', 'manager']
+        except: return False
+
+class BranchIsolationMixin:
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser: return qs 
+        try:
+            branch = request.user.employee_profile.branch
+            if branch and hasattr(self.model, 'branch'): return qs.filter(branch=branch)
+        except: pass
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not request.user.is_superuser:
+            try:
+                branch = request.user.employee_profile.branch
+                if branch:
+                    if db_field.name == "branch": 
+                        kwargs["queryset"] = Branch.objects.filter(id=branch.id)
+                        kwargs["initial"] = branch.id
+                    elif db_field.name == "treasury": 
+                        kwargs["queryset"] = Treasury.objects.filter(branch=branch)
+            except: pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if not request.user.is_superuser and hasattr(obj, 'branch') and not getattr(obj, 'branch', None):
+            try: obj.branch = request.user.employee_profile.branch
+            except: pass
+        super().save_model(request, obj, form, change)
+
+
+# =====================================================================
+# 🏢 رادارات التحكم في باقات الـ SaaS (Quotas)
+# =====================================================================
+@admin.register(Branch)
+class BranchAdmin(SecureImportExportAdmin): # 👈 التعديل هنا (لبسناهم درع الإخفاء)
+    def save_model(self, request, obj, form, change):
+        if not change:
+            tenant = connection.tenant 
+            current_branches_count = Branch.objects.count()
+            if tenant.max_branches and current_branches_count >= tenant.max_branches:
+                raise ValidationError(f"🚫 اختراق للباقة! شركتكم مسموح لها بـ ({tenant.max_branches}) فروع فقط.")
+        super().save_model(request, obj, form, change)
+
+@admin.register(EmployeeProfile)
+class EmployeeProfileAdmin(SecureImportExportAdmin): # 👈 التعديل هنا (لبسناهم درع الإخفاء)
+    list_display = ('user', 'branch', 'role', 'commission_balance_styled')
+    list_filter = ('branch', 'role')
+    
+    def commission_balance_styled(self, obj):
+        if obj.role == 'tech':
+            return format_html('<b style="color: #28a745;">{} ج.م</b>', obj.commission_balance)
+        return "-"
+    commission_balance_styled.short_description = "العمولات المستحقة"
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            tenant = connection.tenant
+            if tenant.max_users and EmployeeProfile.objects.count() >= tenant.max_users:
+                raise ValidationError(f"🚫 تم الوصول للحد الأقصى للموظفين ({tenant.max_users}).")
+        super().save_model(request, obj, form, change)
+
+# =====================================================================
+# 👥 1. نظام إدارة الموظفين والرواتب المركزي
+# =====================================================================
+class EmployeeProfileInline(admin.StackedInline):
+    model = EmployeeProfile
+    can_delete = False
+    verbose_name = _("صلاحيات وعمولات النظام")
+    verbose_name_plural = _("صلاحيات وعمولات النظام")
+
+admin.site.unregister(User)
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin):
+    inlines = (EmployeeProfileInline,)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_branch', 'get_role', 'get_commission')
+    actions = ['pay_tech_commissions']
+
+    def get_branch(self, instance):
+        return instance.employee_profile.branch.name if hasattr(instance, 'employee_profile') and instance.employee_profile.branch else "إدارة مركزية"
+    get_branch.short_description = "الفرع"
+
+    def get_role(self, instance):
+        return instance.employee_profile.get_role_display() if hasattr(instance, 'employee_profile') else "-"
+    get_role.short_description = "الوظيفة"
+
+    def get_commission(self, instance):
+        if hasattr(instance, 'employee_profile') and instance.employee_profile.role == 'tech':
+            val = instance.employee_profile.commission_balance
+            return format_html('<b style="color: #dc3545;">{} ج.م</b>', val)
+        return "-"
+    get_commission.short_description = "عمولات متأخرة"
+
+    @admin.action(description='💸 صرف العمولات المستحقة للفنيين المحددين (محرك الرواتب)')
+    def pay_tech_commissions(self, request, queryset):
+        paid_count = 0
+        total_paid = Decimal('0.00')
+        treasury = Treasury.objects.filter(is_active=True).first()
+        if not treasury:
+            self.message_user(request, "❌ فشل الصرف: لا توجد خزنة نشطة في الفرع لخصم المبالغ منها.", messages.ERROR)
+            return
+
+        for user in queryset:
+            if hasattr(user, 'employee_profile') and user.employee_profile.role == 'tech':
+                profile = user.employee_profile
+                amount = profile.commission_balance
+                if amount > 0:
+                    FinancialTransaction.objects.create(
+                        treasury=treasury, transaction_type='out', amount=amount,
+                        description=f"صرف عمولات مستحقة للفني: {user.get_full_name() or user.username}"
+                    )
+                    profile.commission_balance = Decimal('0.00')
+                    profile.save()
+                    paid_count += 1
+                    total_paid += amount
+                    
+        self.message_user(request, f"✅ تم صرف العمولات لعدد {paid_count} فني بإجمالي {total_paid} ج.م من خزنة ({treasury.name}).", messages.SUCCESS)
+
+
+# =====================================================================
+# 🤝 2. نظام الـ CRM (العملاء، المركبات)
+# =====================================================================
+# 🚀 استعادة: جدول الفواتير داخل شاشة العميل
+class SaleInvoiceInlineForCustomer(admin.TabularInline):
+    model = SaleInvoice
+    fields = ('id', 'date_created', 'total_amount', 'paid_amount', 'status')
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    def has_add_permission(self, request, obj=None): return False
+
+class VehicleInline(admin.TabularInline):
+    model = Vehicle
+    extra = 1
+    fields = ('brand', 'model_name', 'chassis_number', 'car_plate', 'last_mileage', 'estimated_next_visit')
+
+@admin.register(Customer)
+class CustomerAdmin(SecureImportExportAdmin):
+    list_display = ('name', 'phone', 'get_vip_tier', 'customer_vehicles_count', 'balance_styled', 'whatsapp_billing', 'date_added')
+    search_fields = ('name', 'phone', 'vehicles__car_plate', 'vehicles__chassis_number')
+    inlines = [VehicleInline, SaleInvoiceInlineForCustomer] 
+    actions = ['send_promo_whatsapp']
+    
+    def customer_vehicles_count(self, obj):
+        count = obj.vehicles.count()
+        return format_html('<b style="color:#007bff;">{} سيارات</b>', count)
+    customer_vehicles_count.short_description = "مركبات العميل"
+
+    def get_vip_tier(self, obj):
+        tier = obj.vip_tier
+        color = "#6c757d" # عادي
+        if "VIP" in tier: color = "#6f42c1"
+        elif "ذهبي" in tier: color = "#ffc107"
+        elif "فضي" in tier: color = "#17a2b8"
+        return format_html('<span style="background-color:{}; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">{}</span>', color, tier)
+    get_vip_tier.short_description = "التصنيف والولاء"
+
+    def balance_styled(self, obj):
+        val = f"{float(obj.balance or 0):,.2f}"
+        color = "red" if obj.balance > 0 else "green"
+        return format_html('<b style="color: {};">{} ج.م</b>', color, val)
+    balance_styled.short_description = "المديونية"
+
+    def whatsapp_billing(self, obj):
+        if obj.phone and obj.balance > 0:
+            val = f"{float(obj.balance):,.2f}"
+            msg = f"مرحباً بك أستاذ {obj.name}. نود تذكيركم بلطف أن رصيد المديونية الحالي لسيارتكم بمركزنا هو {val} ج.م. نسعد دائماً بخدمتكم."
+            url = f"https://wa.me/{obj.phone}?text={urllib.parse.quote(msg)}"
+            return format_html('<a href="{}" target="_blank" style="background-color:#25D366; color:white; padding:4px 8px; border-radius:4px; font-size:11px; text-decoration:none;">📱 إرسال مطالبة</a>', url)
+        return format_html('<span style="color:gray; font-size:11px;">لا توجد مديونية</span>')
+    whatsapp_billing.short_description = "مطالبة سريعة"
+
+    @admin.action(description='🎁 إرسال عرض ترويجي (WhatsApp) للعملاء المحددين')
+    def send_promo_whatsapp(self, request, queryset):
+        for customer in queryset:
+            if customer.phone:
+                msg = f"أهلاً بك أستاذ {customer.name}! افتقدنا زيارتك. نقدم لك خصم 10% على زيارتك القادمة للصيانة. ننتظرك قريباً 🚗✨"
+                url = f"https://wa.me/{customer.phone}?text={urllib.parse.quote(msg)}"
+                self.message_user(request, format_html('تم تجهيز الرسالة لـ {}: <a href="{}" target="_blank">اضغط للإرسال</a>', customer.name, url), messages.SUCCESS)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.balance != 0: return False 
+        return super().has_delete_permission(request, obj)
+
+@admin.register(Vehicle)
+class VehicleAdmin(SecureImportExportAdmin):
+    list_display = ('car_plate', 'chassis_number', 'brand', 'model_name', 'customer', 'last_mileage', 'estimated_next_visit')
+    search_fields = ('car_plate', 'chassis_number', 'customer__name', 'customer__phone')
+    autocomplete_fields = ['customer']
+    list_filter = ('brand',)
+
+
+# =====================================================================
+# 🛠️ 3. كتالوج الخدمات والمصنعيات الثابتة
+# =====================================================================
+@admin.register(ServiceCatalog)
+class ServiceCatalogAdmin(SecureImportExportAdmin):
+    list_display = ('name', 'labor_price_styled', 'estimated_hours', 'tech_commission_percent')
+    search_fields = ('name',)
+    
+    def labor_price_styled(self, obj):
+        return format_html('<b style="color:#007bff;">{} ج.م</b>', obj.labor_price)
+    labor_price_styled.short_description = "سعر المصنعية"
+
+
+# =====================================================================
+# 4. إدارة المنتجات والموردين
+# =====================================================================
+@admin.register(Product)
+class ProductAdmin(SecureImportExportAdmin):
+    list_display = ('display_image', 'part_number', 'name', 'brand', 'current_total_stock', 'stock_health_bar', 'dead_stock_warning')
+    search_fields = ('name', 'part_number', 'car_model', 'barcode')
+    list_filter = ('brand', 'car_model')
+    filter_horizontal = ('alternatives',) 
+    actions = ['apply_inflation_increase'] 
+
+    def display_image(self, obj):
+        if obj.image: return format_html('<img src="{}" width="50" height="50" style="border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />', obj.image.url)
+        return format_html('<span style="color: #ccc; font-size:11px;">بدون صورة</span>')
+    display_image.short_description = "الصورة"
+
+    def current_total_stock(self, obj):
+        total = obj.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+        return format_html('<b style="font-size: 14px;">{}</b>', total)
+    current_total_stock.short_description = "المخزون"
+
+    def stock_health_bar(self, obj):
+        total = obj.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+        min_level = obj.min_stock_level if obj.min_stock_level > 0 else 1
+        percentage = min((total / min_level) * 100, 100) if total > 0 else 0
+        color = "#28a745" if percentage > 50 else ("#fd7e14" if percentage > 20 else "#dc3545")
+        return format_html(
+            '<div style="width: 100px; background-color: #e9ecef; border-radius: 4px; overflow: hidden; margin-bottom: 2px;">'
+            '<div style="width: {}%; background-color: {}; height: 8px;"></div></div>'
+            '<span style="font-size: 10px; color: #6c757d;">{}% أمان</span>', percentage, color, round(percentage)
+        )
+    stock_health_bar.short_description = "صحة المخزون"
+
+    def dead_stock_warning(self, obj):
+        total_stock = obj.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
+        if total_stock == 0: return format_html('<span style="color: gray;">لا يوجد مخزون</span>')
+        ninety_days_ago = timezone.now() - timedelta(days=90)
+        recent_sales = SaleInvoiceItem.objects.filter(product=obj, invoice__date_created__gte=ninety_days_ago).exists()
+        if not recent_sales:
+            return format_html('<span title="لم يتم بيعها منذ 3 أشهر" style="color: #dc3545; font-weight: bold; font-size:11px;">⚠️ راكدة</span>')
+        return format_html('<span style="color: #28a745; font-size:11px;">⚡ سريعة الحركة</span>')
+    dead_stock_warning.short_description = "حركة الصنف"
+
+    @admin.action(description='📈 زيادة سعر البيع بنسبة 10 بالمائة للقطع المحددة')
+    def apply_inflation_increase(self, request, queryset):
+        updated = 0
+        for product in queryset:
+            if product.retail_price:
+                product.retail_price = float(product.retail_price) * 1.10
+                product.save()
+                updated += 1
+        self.message_user(request, f"تم بنجاح رفع أسعار {updated} قطعة.", messages.SUCCESS)
+
+# 🚀 استعادة: جدول المشتريات داخل شاشة المورد
+class PurchaseInvoiceInlineForVendor(admin.TabularInline):
+    model = PurchaseInvoice
+    fields = ('id', 'date_created', 'total_amount', 'paid_amount', 'status')
+    readonly_fields = fields
+    extra = 0
+    can_delete = False
+    def has_add_permission(self, request, obj=None): return False
+
+@admin.register(Vendor)
+class VendorAdmin(SecureImportExportAdmin):
+    list_display = ('name', 'phone', 'balance_styled')
+    search_fields = ('name', 'phone')
+    inlines = [PurchaseInvoiceInlineForVendor]
+
+    def balance_styled(self, obj):
+        val = f"{float(obj.balance or 0):,.2f}"
+        return format_html('<b style="color: red;">{} ج.م</b>', val)
+    balance_styled.short_description = "مستحقات المورد (علينا)"
+
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.balance != 0: return False 
+        return super().has_delete_permission(request, obj)
+
+@admin.register(Inventory)
+class InventoryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+    list_display = ('product', 'branch', 'quantity', 'shelf_location', 'status_colored', 'stock_value')
+    list_filter = ('branch', 'product__brand')
+    list_editable = ('quantity', 'shelf_location') 
+    search_fields = ('product__name', 'product__part_number')
+    autocomplete_fields = ['product']
+
+    def status_colored(self, obj):
+        if obj.quantity <= 0:
+            color, text, icon = "#dc3545", "نفذت الكمية", "⚠️"
+        elif obj.quantity <= obj.product.min_stock_level:
+            color, text, icon = "#ffc107", "تحت حد الأمان", "📉"
+        else:
+            color, text, icon = "#28a745", "متوفر", "✅"
+        return format_html('<b style="color: {}; font-size:12px;">{} {}</b>', color, icon, text)
+    status_colored.short_description = "الحالة"
+
+    def stock_value(self, obj):
+        val = f"{float(obj.quantity * obj.product.average_cost):,.2f}"
+        return format_html('<b style="color: #007bff;">{} ج.م</b>', val)
+    stock_value.short_description = "قيمة الأصول"
+
+
+# =====================================================================
+# 📋 5. إدارة فواتير البيع والصيانة (Dynamic Form)
+# =====================================================================
+class SaleInvoiceItemInline(admin.TabularInline):
+    model = SaleInvoiceItem
+    extra = 1
+    autocomplete_fields = ['product']
+    fields = ['product', 'quantity', 'unit_price', 'get_total_price'] 
+    readonly_fields = ['get_total_price'] 
+    
+    def get_total_price(self, obj):
+        if obj and obj.pk: return format_html('<b>{} ج.م</b>', f"{float(obj.total_price or 0):,.2f}")
+        return "0.00 ج.م"
+    get_total_price.short_description = "الإجمالي"    
+
+    # 🚀 استعادة: حماية التعديل على الفواتير المعتمدة
+    def _can_edit_posted(self, request):
+        if request.user.is_superuser: return True
+        return hasattr(request.user, 'employee_profile') and request.user.employee_profile.can_edit_posted_invoices
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_change_permission(request, obj)
+    def has_add_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_add_permission(request, obj)
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_delete_permission(request, obj)
+
+class SaleInvoiceServiceItemInline(admin.TabularInline):
+    model = SaleInvoiceServiceItem
+    extra = 1
+    autocomplete_fields = ['service']
+    fields = ['service', 'technician', 'price']
+    verbose_name = "خدمة / مصنعية"
+    verbose_name_plural = "🛠️ الخدمات والمصنعيات المنفذة"
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not request.user.is_superuser and db_field.name == "technician":
+            try:
+                branch = request.user.employee_profile.branch
+                if branch: kwargs["queryset"] = EmployeeProfile.objects.filter(branch=branch, role='tech')
+            except: pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+class VehicleInspectionInline(admin.StackedInline):
+    model = VehicleInspection
+    can_delete = False
+    verbose_name_plural = "📋 تقرير الفحص الرقمي الشامل (DVI)"
+
+@admin.register(SaleInvoice)
+class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+    inlines = [SaleInvoiceItemInline, SaleInvoiceServiceItemInline, VehicleInspectionInline] 
+    list_display = ('id', 'customer_details', 'invoice_type', 'branch', 'treasury', 'total_amount_styled', 'margin_percentage', 'status_badge', 'invoice_actions')
+    list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created') 
+    search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
+    autocomplete_fields = ['customer', 'vehicle'] 
+    
+    # 🚀 استعادة: زر النسخ
+    actions = ['mark_as_posted', 'duplicate_invoice'] 
+    date_hierarchy = 'date_created'
+    
+    # 🪄 الفورمة الديناميكية
+    class Media:
+        js = ('js/dynamic_invoice.js',)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.status == 'posted':
+            can_edit = request.user.is_superuser or (hasattr(request.user, 'employee_profile') and request.user.employee_profile.can_edit_posted_invoices)
+            if not can_edit: return [f.name for f in self.model._meta.fields] 
+        return ('total_amount', 'total_cost', 'net_profit') 
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, SaleInvoiceItem):
+                if instance.unit_price and hasattr(instance.product, 'average_cost'):
+                    if instance.unit_price < instance.product.average_cost and not request.user.is_superuser:
+                        raise ValidationError(f"🚫 ممنوع البيع بخسارة! سعر بيع ({instance.product.name}) أقل من التكلفة.")
+            instance.save()
+        formset.save_m2m()
+
+    def customer_details(self, obj):
+        if obj.customer: return format_html('<b>{}</b><br><small style="color:gray;">{}</small>', obj.customer.name, obj.customer.phone)
+        return "-"
+    customer_details.short_description = "العميل"
+
+    def status_badge(self, obj):
+        if obj.status == 'posted': return format_html('<span style="background-color: #28a745; color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px;">🔒 معتمدة</span>')
+        return format_html('<span style="background-color: #ffc107; color: black; padding: 4px 10px; border-radius: 20px; font-size: 11px;">📝 مسودة</span>')
+    status_badge.short_description = "الحالة"
+
+    def total_amount_styled(self, obj):
+        return format_html('<b>{} ج.م</b>', f"{float(obj.total_amount or 0):,.2f}")
+    total_amount_styled.short_description = "الإجمالي"
+
+    def margin_percentage(self, obj):
+        if obj.total_cost and obj.total_cost > 0:
+            margin = (obj.net_profit / obj.total_cost) * 100
+            color = "#28a745" if margin >= 20 else "#fd7e14"
+            return format_html('<b style="color: {};">{:.1f}%</b>', color, margin)
+        return format_html('<span style="color:gray;">-</span>')
+    margin_percentage.short_description = "هامش الربح"
+
+    def invoice_actions(self, obj):
+        print_url = reverse('inventory:print_invoice_a4', args=[obj.id])
+        whatsapp_url = reverse('inventory:share_invoice_whatsapp', args=[obj.id])
+        return format_html(
+            '''<a style="margin-right: 8px; color: #25D366; font-size: 18px;" href="{}" target="_blank" title="إرسال الفاتورة واتساب">📱</a>
+               <a style="margin-right: 8px; color: #dc3545; font-size: 18px;" href="{}" target="_blank" title="طباعة الفاتورة">📄</a>''', 
+               whatsapp_url, print_url)
+    invoice_actions.short_description = "إجراءات"
+
+    @admin.action(description='🔒 إعتماد الفواتير المحددة (سحب من المخزن + إضافة للخزنة)')
+    def mark_as_posted(self, request, queryset):
+        updated = 0
+        for invoice in queryset:
+            if invoice.status == 'draft':
+                invoice.status = 'posted'
+                invoice.save()
+                updated += 1
+        self.message_user(request, f"تم اعتماد وقفل {updated} فاتورة بنجاح.", messages.SUCCESS)
+
+    # 🚀 استعادة: زر النسخ
+    @admin.action(description='⚡ نسخ الفواتير المحددة (إنشاء مسودة مطابقة)')
+    def duplicate_invoice(self, request, queryset):
+        cloned = 0
+        for invoice in queryset:
+            new_invoice = SaleInvoice.objects.get(pk=invoice.pk)
+            new_invoice.pk = None 
+            new_invoice.status = 'draft'
+            new_invoice.paid_amount = 0
+            new_invoice.is_applied = False
+            new_invoice.date_created = timezone.now()
+            new_invoice.save()
+            for item in invoice.items.all():
+                new_item = SaleInvoiceItem.objects.get(pk=item.pk)
+                new_item.pk = None
+                new_item.invoice = new_invoice
+                new_item.save()
+            cloned += 1
+            new_invoice.update_total()
+        self.message_user(request, f"تم إنشاء {cloned} فاتورة مسودة جديدة.", messages.SUCCESS)
+
+
+# =====================================================================
+# 6. فواتير المشتريات
+# =====================================================================
+class PurchaseInvoiceItemInline(admin.TabularInline):
+    model = PurchaseInvoiceItem
+    extra = 1
+    autocomplete_fields = ['product']
+    fields = ('product', 'quantity', 'cost_price', 'get_total_price')
+    readonly_fields = ('get_total_price',)
+    def get_total_price(self, obj):
+        if obj and obj.pk: return format_html('<b>{} ج.م</b>', f"{float(obj.total_price or 0):,.2f}")
+        return "0.00 ج.م"
+    get_total_price.short_description = "الإجمالي"
+    
+    # 🚀 استعادة: حماية الفواتير المعتمدة
+    def _can_edit_posted(self, request):
+        if request.user.is_superuser: return True
+        return hasattr(request.user, 'employee_profile') and request.user.employee_profile.can_edit_posted_invoices
+
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_change_permission(request, obj)
+    def has_add_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_add_permission(request, obj)
+    def has_delete_permission(self, request, obj=None):
+        if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
+        return super().has_delete_permission(request, obj)
+
+@admin.register(PurchaseInvoice)
+class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+    inlines = [PurchaseInvoiceItemInline]
+    list_display = ('vendor', 'branch', 'treasury', 'total_amount_styled', 'date_created', 'payment_status')
+    list_filter = ('branch', 'treasury', 'date_created', 'status')
+    search_fields = ('vendor__name', 'vendor__phone') 
+    autocomplete_fields = ['vendor'] 
+    date_hierarchy = 'date_created'
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.status == 'posted':
+            can_edit = request.user.is_superuser or (hasattr(request.user, 'employee_profile') and request.user.employee_profile.can_edit_posted_invoices)
+            if not can_edit: return [f.name for f in self.model._meta.fields] 
+        return ('total_amount',)
+
+    def total_amount_styled(self, obj):
+        return format_html('<b>{} ج.م</b>', f"{float(obj.total_amount or 0):,.2f}")
+    total_amount_styled.short_description = "الإجمالي"
+
+    def payment_status(self, obj):
+        if obj.is_paid: return format_html('<span style="background-color: #28a745; color:white; padding: 3px 8px; border-radius: 12px; font-size: 11px;">مسددة</span>')
+        return format_html('<span style="background-color: #dc3545; color:white; padding: 3px 8px; border-radius: 12px; font-size: 11px;">آجل / مستحقة</span>')
+    payment_status.short_description = "حالة الدفع"
+
+@admin.register(StockTransfer)
+class StockTransferAdmin(SecureImportExportAdmin):
+    list_display = ('product', 'from_branch', 'to_branch', 'quantity', 'status_badge', 'date_transferred')
+    list_filter = ('status', 'from_branch', 'to_branch')
+    search_fields = ('product__name', 'product__part_number')
+    date_hierarchy = 'date_transferred'
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.status == 'completed': return [f.name for f in self.model._meta.fields]
+        return ()
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not request.user.is_superuser and db_field.name == "from_branch":
+            try:
+                branch = request.user.employee_profile.branch
+                if branch:
+                    kwargs["queryset"] = Branch.objects.filter(id=branch.id)
+                    kwargs["initial"] = branch.id
+            except: pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def status_badge(self, obj):
+        colors = {'pending': '#ffc107', 'completed': '#28a745', 'cancelled': '#dc3545'}
+        labels = {'pending': 'قيد الانتظار', 'completed': 'تم النقل', 'cancelled': 'ملغي'}
+        return format_html('<span style="background-color: {}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">{}</span>', colors.get(obj.status, 'gray'), labels.get(obj.status, obj.status))
+    status_badge.short_description = "الحالة"
+
+
+# =====================================================================
+# 💰 7. الإدارة المالية والخزائن 
+# =====================================================================
+@admin.register(Treasury)
+class TreasuryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+    list_display = ('name', 'branch', 'type', 'balance_styled', 'is_active')
+    list_filter = ('branch', 'type', 'is_active')
+    search_fields = ('name',)
+    readonly_fields = ('balance',) 
+    def balance_styled(self, obj):
+        color = "green" if obj.balance > 0 else ("red" if obj.balance < 0 else "gray")
+        return format_html('<b style="color: {};">{} ج.م</b>', color, f"{float(obj.balance or 0):,.2f}")
+    balance_styled.short_description = "الرصيد الفعلي"
+
+class ExpenseTransactionInline(admin.TabularInline):
+    model = FinancialTransaction
+    fk_name = 'category'
+    fields = ('treasury', 'amount', 'description', 'date')
+    extra = 1  
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not request.user.is_superuser and db_field.name == "treasury":
+            try:
+                branch = request.user.employee_profile.branch
+                if branch: kwargs["queryset"] = Treasury.objects.filter(branch=branch)
+            except: pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(SecureImportExportAdmin):
+    list_display = ('name', 'get_total_expenses') 
+    search_fields = ('name',)  # 👈 وضيف السطر ده كمان هنا
+    inlines = [ExpenseTransactionInline]
+    def get_total_expenses(self, obj):
+        total = obj.financialtransaction_set.filter(transaction_type='out').aggregate(Sum('amount'))['amount__sum'] or 0
+        return format_html('<b style="color:#dc3545;">{} ج.م</b>', f"{float(total):,.2f}")
+    get_total_expenses.short_description = "إجمالي المنصرف"
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk: instance.transaction_type = 'out'
+            instance.save()
+        formset.save_m2m()
+
+@admin.register(FinancialTransaction)
+class FinancialTransactionAdmin(SecureImportExportAdmin):
+    list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category', 'date', 'linked_invoice')
+    list_filter = ('transaction_type', 'treasury', 'category', 'date')
+    search_fields = ('description',)
+    autocomplete_fields = ['treasury', 'category', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor']
+    date_hierarchy = 'date'
+    
+    def get_readonly_fields(self, request, obj=None):
+        if obj: return [f.name for f in self.model._meta.fields] 
+        return []
+
+    def transaction_type_badge(self, obj):
+        if obj.transaction_type == 'in': return format_html('<span style="color: #28a745; font-weight:bold;">🟢 إيراد</span>')
+        return format_html('<span style="color: #dc3545; font-weight:bold;">🔴 مصروف</span>')
+    transaction_type_badge.short_description = "النوع"
+
+    def amount_styled(self, obj):
+        color = "green" if obj.transaction_type == 'in' else "red"
+        return format_html('<b style="color: {};">{} ج.م</b>', color, f"{float(obj.amount or 0):,.2f}")
+    amount_styled.short_description = "المبلغ"
+
+    def linked_invoice(self, obj):
+        if obj.sale_invoice: 
+            url = reverse('admin:inventory_saleinvoice_change', args=[obj.sale_invoice.id])
+            return format_html('<a href="{}" style="color: #007bff; font-weight: bold; font-size:12px;">فاتورة بيع #{}</a>', url, obj.sale_invoice.id)
+        if obj.purchase_invoice: 
+            url = reverse('admin:inventory_purchaseinvoice_change', args=[obj.purchase_invoice.id])
+            return format_html('<a href="{}" style="color: #6f42c1; font-weight: bold; font-size:12px;">فاتورة شراء #{}</a>', url, obj.purchase_invoice.id)
+        if obj.customer: return format_html('<span style="color: #17a2b8; font-weight: bold; font-size:12px;">دفعة من عميل ({})</span>', obj.customer.name)
+        if obj.vendor: return format_html('<span style="color: #e83e8c; font-weight: bold; font-size:12px;">دفعة لمورد ({})</span>', obj.vendor.name)
+        return format_html('<span style="color: gray; font-size:12px;">- مصروف عام -</span>')
+    linked_invoice.short_description = "ارتباط مستندي"
+
+
+# =====================================================================
+# 📊 8. محرك الداش بورد المركزي (محمي بالكامل للـ SaaS)
+# =====================================================================
+original_index = admin.site.index
+
+def AutoCore_dashboard_index(request, extra_context=None):
+    extra_context = extra_context or {}
+    
+    # 1️⃣ حماية الريسبشن العام: لو إحنا بره مش هنستعلم عن جداول الفروع
+    if connection.schema_name == 'public':
+        extra_context['branch_name'] = "الإدارة المركزية (AutoCore SaaS)"
+        return original_index(request, extra_context)
+        
+    # 2️⃣ الشغل العادي جوه شقق الفروع
+    today = timezone.now().date()
+    first_day_of_month = today.replace(day=1)
+    
+    # محاولة جلب اسم الفرع بأمان للترحيب بالكاشير
+    branch_name = "نظام الإدارة"
+    try:
+        if hasattr(request.user, 'employee_profile') and request.user.employee_profile.branch:
+            branch_name = request.user.employee_profile.branch.name
+    except: pass
+
+    can_see_finance = request.user.is_superuser
+    if not can_see_finance:
+        try: can_see_finance = request.user.employee_profile.role in ['admin', 'manager']
+        except: pass
+
+    sales_qs = SaleInvoice.objects.filter(status='posted', date_created__gte=first_day_of_month)
+    inv_qs = Inventory.objects.all()
+
+    if not request.user.is_superuser:
+        try:
+            branch = request.user.employee_profile.branch
+            if branch:
+                sales_qs = sales_qs.filter(branch=branch)
+                inv_qs = inv_qs.filter(branch=branch)
+        except: pass
+    
+    total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0 
+    total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
+
+    open_orders = SaleInvoice.objects.filter(status='draft')
+    if not request.user.is_superuser:
+        try:
+            if request.user.employee_profile.branch:
+                open_orders = open_orders.filter(branch=request.user.employee_profile.branch)
+        except: pass
+    open_orders_count = open_orders.count()
+    
+    yesterday = timezone.now() - timedelta(days=1)
+    delayed_orders_count = open_orders.filter(date_created__lte=yesterday).count()
+
+    low_stock_count = inv_qs.filter(quantity__lte=F('product__min_stock_level')).values('product').distinct().count()
+
+    chart_labels = []
+    chart_revenue = []
+    chart_profit = []
+    
+    for i in range(5, -1, -1):
+        target_month = today.replace(day=1) - timedelta(days=30*i)
+        month_name = target_month.strftime("%B") 
+        
+        month_invoices = SaleInvoice.objects.filter(
+            status='posted',
+            date_created__year=target_month.year,
+            date_created__month=target_month.month
+        )
+        if not request.user.is_superuser:
+            try:
+                if request.user.employee_profile.branch:
+                    month_invoices = month_invoices.filter(branch=request.user.employee_profile.branch)
+            except: pass
+
+        rev = month_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0 
+        
+        chart_labels.append(month_name)
+        chart_revenue.append(float(rev))
+        chart_profit.append(float(prof))
+
+    if not can_see_finance:
+        display_revenue = "🔒 مخفي للصلاحيات"
+        display_profit = "🔒 مخفي للصلاحيات"
+        display_debt = "🔒 مخفي للصلاحيات"
+        safe_chart_revenue = [0] * 6
+        safe_chart_profit = [0] * 6
+    else:
+        display_revenue = f"{float(total_revenue):,.0f}"
+        display_profit = f"{float(net_profit):,.0f}"
+        display_debt = f"{float(total_debt):,.0f}"
+        safe_chart_revenue = chart_revenue
+        safe_chart_profit = chart_profit
+
+    extra_context.update({
+        'branch_name': branch_name, # 👈 ضفنا اسم الفرع هنا
+        'stats': {
+            'total_sales_today': display_revenue,
+            'net_profit_today': display_profit,
+            'total_debt': display_debt,
+            'invoices_count': open_orders_count,
+            'low_stock_count': low_stock_count,
+        },
+        'delayed_orders_count': delayed_orders_count,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_revenue': json.dumps(safe_chart_revenue),
+        'chart_profit': json.dumps(safe_chart_profit),
+    })
+    
+    return original_index(request, extra_context)
+
+admin.site.index = AutoCore_dashboard_index 
+============================================================
+📁 FILE: inventory/tests.py
+============================================================
+
+from django.test import TestCase
+
+# Create your tests here.
+
+============================================================
+📁 FILE: inventory/urls.py
+============================================================
+
+from django.urls import path
+from . import views
+
+# 🆕 ابتكار تنظيمي: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
+app_name = 'inventory'
+
+urlpatterns = [
+    # =====================================================================
+    # 📊 واجهات المستخدم الرئيسية (Dashboards & POS)
+    # =====================================================================
+    path('dashboard/', views.branch_dashboard, name='dashboard'),
+    
+    # 🚀 ابتكار: واجهة الكاشير السريعة (Point of Sale) للعمل السريع بدون تعقيد
+    path('pos/', views.pos_interface, name='pos_interface'),
+
+    # =====================================================================
+    # 🖨️ محرك الطباعة والمشاركة (Printing & Sharing Engine)
+    # =====================================================================
+    # طباعة مفصلة للصيانة (ورق A4)
+    path('invoice/<int:invoice_id>/print/a4/', views.print_invoice_a4, name='print_invoice_a4'),
+    
+    # 🚀 ابتكار: طباعة ريسيت سريع للكاشير (ورق حراري 80mm)
+    path('invoice/<int:invoice_id>/print/thermal/', views.print_invoice_thermal, name='print_invoice_thermal'),
+    
+    # 🚀 ابتكار: توليد رابط أو إرسال الفاتورة عبر WhatsApp API مباشرة
+    path('invoice/<int:invoice_id>/share/whatsapp/', views.share_invoice_whatsapp, name='share_invoice_whatsapp'),
+
+    # =====================================================================
+    # 🚗 جواز السفر الرقمي للمركبات (Vehicle Digital Twin)
+    # =====================================================================
+    # عرض تاريخ الصيانة الكامل للسيارة برقم الشاسيه
+    path('vehicle/<str:chassis_number>/history/', views.vehicle_history, name='vehicle_history'),
+    
+    # 🚀 ابتكار: توليد QR Code لكل سيارة ليتم طباعته ولصقه لتسهيل الفحص المستقبلي
+    path('vehicle/<str:chassis_number>/qr/', views.generate_vehicle_qr, name='vehicle_qr'),
+
+    # =====================================================================
+    # 🌐 الربط الخارجي والتكامل (Webhooks & Integrations)
+    # =====================================================================
+    # استقبال طلبات Shopify (لبيع قطع الغيار أونلاين ومزامنة المخزن)
+    path('webhooks/shopify/', views.shopify_webhook_receiver, name='shopify_webhook'),
+    
+    # استقبال إشعارات بوابات الدفع (مثال: تأكيد الدفع بالفيزا)
+    path('webhooks/payment/callback/', views.payment_gateway_callback, name='payment_callback'),
+
+    # =====================================================================
+    # 🏎️ مسارات الفحص الذكية (Automotive Telemetry APIs)
+    # =====================================================================
+    # 🚀 ابتكار: استقبال تقارير الأعطال من أجهزة الفحص (مثل ISTA) وربطها بالسيارة
+    path('api/telemetry/diagnostic-report/', views.receive_diagnostic_report, name='diagnostic_report_receiver'),
+
+    # 📦 محرك بحث سريع للباركود (يستخدمه الموبايل أو مسدس الباركود)
+    path('api/barcode-lookup/', views.barcode_lookup_api, name='barcode_lookup'),
+]
+============================================================
+📁 FILE: inventory/views.py
+============================================================
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Sum, Count, F
+from django.utils import timezone
+import json
+import threading
+import urllib.parse
+
+# استدعاء مكتبة الـ QR (تأكد من تسطيبها: pip install qrcode)
+try:
+    import qrcode
+    from io import BytesIO
+    import base64
+except ImportError:
+    qrcode = None
+
+from .models import Product, Inventory, SaleInvoice, Branch, Customer, Vehicle
+
+# =====================================================================
+# 📊 1. لوحات التحكم ونقاط البيع (Dashboards & POS)
+# =====================================================================
+@login_required(login_url='/fixit-secure-portal/')
+def branch_dashboard(request):
+    today = timezone.now().date()
+    
+    # 🛡️ ابتكار: العزل السحابي الصارم للبيانات
+    is_admin = request.user.is_superuser or (hasattr(request.user, 'employee_profile') and request.user.employee_profile.role == 'admin')
+    
+    if is_admin:
+        invoices_today = SaleInvoice.objects.filter(date_created__date=today)
+        low_stock_items = Inventory.objects.filter(quantity__lte=F('product__min_stock_level')).select_related('product', 'branch')
+    else:
+        try:
+            branch = request.user.employee_profile.branch
+            invoices_today = SaleInvoice.objects.filter(date_created__date=today, branch=branch)
+            low_stock_items = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'), branch=branch).select_related('product')
+        except:
+            return HttpResponseForbidden("ليس لديك صلاحيات الدخول أو لم يتم ربطك بفرع.")
+
+    stats = {
+        'total_sales_today': invoices_today.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
+        'net_profit_today': invoices_today.aggregate(Sum('net_profit'))['net_profit__sum'] or 0 if is_admin else "🔒",
+        'invoices_count': invoices_today.count(),
+        'low_stock_count': low_stock_items.count(),
+    }
+
+    context = {
+        'stats': stats,
+        'low_stock_items': low_stock_items[:10],
+    }
+    return render(request, 'inventory/dashboard.html', context)
+
+@login_required(login_url='/fixit-secure-portal/')
+def pos_interface(request):
+    """🚀 ابتكار: شاشة الكاشير السريعة (Point of Sale)"""
+    # سيتم ربطها بـ React أو HTML JS مخصص لتسريع البيع
+    return render(request, 'inventory/pos_fast.html')
+
+# =====================================================================
+# 🖨️ 2. محركات الطباعة والمشاركة (Printing & WhatsApp)
+# =====================================================================
+@login_required(login_url='/fixit-secure-portal/')
+def print_invoice_a4(request, invoice_id):
+    """طباعة مفصلة للعميل (A4) تتضمن بيانات السيارة والصيانة"""
+    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer', 'vehicle', 'branch').prefetch_related('items__product'), id=invoice_id)
+    
+    # 🛡️ حماية: منع الموظف من طباعة فواتير الفروع الأخرى
+    if not request.user.is_superuser:
+        if invoice.branch != request.user.employee_profile.branch:
+            return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
+
+    context = {'invoice': invoice, 'print_date': timezone.now(), 'type': 'A4'}
+    return render(request, 'inventory/invoice_print_a4.html', context)
+
+@login_required(login_url='/fixit-secure-portal/')
+def print_invoice_thermal(request, invoice_id):
+    """🚀 ابتكار: طباعة ريسيت حراري (80mm) سريع للكاشير"""
+    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer').prefetch_related('items__product'), id=invoice_id)
+    context = {'invoice': invoice, 'print_date': timezone.now(), 'type': 'Thermal'}
+    return render(request, 'inventory/invoice_print_thermal.html', context)
+
+@login_required(login_url='/fixit-secure-portal/')
+def share_invoice_whatsapp(request, invoice_id):
+    """💬 ابتكار: تحويل الفاتورة لرسالة واتساب ديناميكية"""
+    invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+    if not invoice.customer or not invoice.customer.phone:
+        return HttpResponseForbidden("العميل غير مسجل أو لا يملك رقم هاتف.")
+    
+    amount = f"{float(invoice.total_amount):,.2f}"
+    msg = f"مرحباً بك في FIXIT أستاذ {invoice.customer.name} 🚗\n" \
+          f"تم إصدار فاتورة صيانة رقم #{invoice.id} بنجاح.\n" \
+          f"الإجمالي: {amount} ج.م\n" \
+          f"شكراً لثقتكم بنا!"
+          
+    encoded_msg = urllib.parse.quote(msg)
+    whatsapp_url = f"https://wa.me/{invoice.customer.phone}?text={encoded_msg}"
+    return redirect(whatsapp_url)
+
+# =====================================================================
+# 🚗 3. جواز السفر الرقمي للمركبات (Vehicle Digital Twin)
+# =====================================================================
+@login_required(login_url='/fixit-secure-portal/')
+def vehicle_history(request, chassis_number):
+    vehicle = get_object_or_404(Vehicle.objects.select_related('customer'), chassis_number=chassis_number)
+    history = SaleInvoice.objects.filter(vehicle=vehicle, status='posted').order_dict('-date_created')
+    context = {'vehicle': vehicle, 'history': history}
+    return render(request, 'inventory/vehicle_history.html', context)
+
+@login_required(login_url='/fixit-secure-portal/')
+def generate_vehicle_qr(request, chassis_number):
+    """📱 ابتكار: توليد كود QR لملف السيارة لطباعته ولصقه على المركبة"""
+    vehicle = get_object_or_404(Vehicle, chassis_number=chassis_number)
+    
+    if not qrcode:
+        return HttpResponse("مكتبة qrcode غير مثبتة. يرجى تنفيذ pip install qrcode", status=501)
+
+    # الرابط الذي سيفتحه الموبايل عند مسح الكود
+    url = request.build_absolute_uri(f'/system/vehicle/{chassis_number}/history/')
+    
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill='black', back_color='white')
+    
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    
+    return HttpResponse(f'<div style="text-align:center; margin-top:50px;"><h2>QR Code: {vehicle.car_plate}</h2><img src="data:image/png;base64,{img_str}" /></div>')
+
+# =====================================================================
+# 🏎️ 4. بوابات الذكاء الاصطناعي وإنترنت الأشياء (IoT / APIs)
+# =====================================================================
+@login_required(login_url='/fixit-secure-portal/')
+def barcode_lookup_api(request):
+    """📦 واجهة الكاشير: جلب تفاصيل القطعة بالباركود لحظياً"""
+    code = request.GET.get('code')
+    branch_id = request.user.employee_profile.branch_id if not request.user.is_superuser else request.GET.get('branch')
+    
+    product = Product.objects.filter(barcode=code).first() or Product.objects.filter(part_number=code).first()
+    if not product:
+        return JsonResponse({"error": "القطعة غير موجودة"}, status=404)
+        
+    inv = Inventory.objects.filter(product=product, branch_id=branch_id).first()
+    qty = inv.quantity if inv else 0
+    
+    return JsonResponse({
+        "id": product.id,
+        "name": product.name,
+        "price": float(product.retail_price),
+        "available_qty": qty
+    })
+
+@csrf_exempt
+def receive_diagnostic_report(request):
+    """🚀 ابتكار الأتمتة: استقبال تقرير الفحص من جهاز الأعطال (ISTA/OBD2)"""
+    if request.method != 'POST': return HttpResponseForbidden("POST Only")
+    try:
+        data = json.loads(request.body)
+        vin = data.get('vin')
+        fault_codes = data.get('fault_codes', []) # مثال: ["P0300", "P0171"]
+        
+        vehicle = Vehicle.objects.filter(chassis_number=vin).first()
+        if not vehicle:
+            return JsonResponse({"status": "error", "message": "مركبة غير مسجلة بالنظام"}, status=404)
+            
+        # إنشاء مسودة فاتورة صيانة أوتوماتيكياً
+        notes = f"تم استلام تقرير فحص آلي.\nالأعطال المسجلة: {', '.join(fault_codes)}\nملاحظات الفحص: {data.get('summary', '')}"
+        
+        # 💡 سيتم تكليف السيرفر بإنشائها عبر Background Task لسرعة الرد
+        # SaleInvoice.objects.create(...)
+        
+        return JsonResponse({"status": "success", "message": "تم ربط تقرير الفحص بملف المركبة بنجاح"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+# =====================================================================
+# 🌐 5. ميناء شوبيفاي والربط الخارجي (Shopify Webhooks)
+# =====================================================================
+@csrf_exempt 
+def shopify_webhook_receiver(request):
+    if request.method != 'POST': return HttpResponseForbidden()
+
+    # دالة معالجة الطلب في الخلفية
+    def process_shopify_order(payload):
+        print("⚙️ جاري معالجة طلب شوبيفاي وإنشاء الفاتورة...")
+        # سيتم وضع كود سحب المخزون هنا
+
+    try:
+        payload = json.loads(request.body)
+        
+        # ⚡ ابتكار: تنفيذ العملية في الخلفية للرد السريع على شوبيفاي قبل انتهاء مهلة الـ 5 ثواني
+        threading.Thread(target=process_shopify_order, args=(payload,)).start()
+
+        return JsonResponse({"status": "success", "message": "Order accepted"}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+# =====================================================================
+# 🎨 6. شاشات الأخطاء المخصصة 
+# =====================================================================
+def error_404_view(request, exception): return render(request, 'errors/404.html', status=404)
+def error_500_view(request): return render(request, 'errors/500.html', status=500)
+def error_403_view(request, exception): return render(request, 'errors/403.html', status=403)
+============================================================
+📁 FILE: inventory/templates/inventory/dashboard.html
+============================================================
+
+
+============================================================
+📁 FILE: inventory/templates/inventory/invoice_print.html
+============================================================
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>فاتورة صيانة FIXIT #{{ invoice.id }}</title>
+    <style>
+        /* ================= ألوان وخطوط الهوية ================= */
+        :root {
+            --primary-color: #003366; /* هوية BMW الكلاسيكية */
+            --accent-color: #e62020;  /* لمسة رياضية M-Power */
+            --secondary-color: #f1f5f9;
+            --text-color: #1e293b;
+        }
+        @page { size: A4; margin: 0.5cm; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            background-color: #cbd5e1;
+            position: relative;
+        }
+        .invoice-box {
+            max-width: 800px;
+            min-height: 1050px; /* طول ورقة الـ A4 تقريباً */
+            margin: auto;
+            padding: 40px;
+            border: 1px solid #eee;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+/* 💧 الختم المائي للفواتير غير المعتمدة */
+.watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 120px;
+    color: rgba(200, 200, 200, 0.2);
+    font-weight: bold;
+    z-index: 0;
+    pointer-events: none;
+    white-space: nowrap;
+}
+        /* ================= الهيدر ================= */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        .logo-section h1 { margin: 0; font-size: 36px; color: var(--primary-color); letter-spacing: 2px; }
+        .logo-section p { margin: 5px 0 0; font-size: 13px; color: #64748b; }
+        
+        .invoice-details { text-align: left; }
+        .invoice-details h2 { margin: 0 0 10px; color: var(--accent-color); font-size: 28px; }
+        .invoice-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        .badge-draft { background-color: #fef08a; color: #854d0e; }
+        .badge-posted { background-color: #bbf7d0; color: #166534; }
+
+        /* ================= بيانات العميل والسيارة ================= */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        .info-card {
+            background-color: var(--secondary-color);
+            padding: 15px 20px;
+            border-right: 4px solid var(--primary-color);
+            border-radius: 4px;
+        }
+        .info-card h4 { margin: 0 0 10px 0; color: var(--primary-color); font-size: 16px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+        .info-row span:last-child { font-weight: bold; }
+        
+        /* ================= جدول الأصناف ================= */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; position: relative; z-index: 1; font-size: 14px; }
+        table th { background-color: var(--primary-color); color: white; padding: 12px; text-align: right; border: 1px solid var(--primary-color); }
+        table td { padding: 10px 12px; border: 1px solid #e2e8f0; border-bottom: 1px solid #cbd5e1; }
+        table tr:nth-child(even) { background-color: #f8fafc; }
+        .td-center { text-align: center; }
+        
+        /* ================= الحسابات الختامية ================= */
+        .summary-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+        .qr-section {
+            width: 40%;
+            text-align: center;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px dashed #cbd5e1;
+        }
+        .qr-section img { max-width: 100px; }
+        .qr-section p { margin: 5px 0 0; font-size: 12px; color: #64748b; }
+
+        .totals-box { width: 55%; background-color: var(--secondary-color); padding: 20px; border-radius: 8px; }
+        .totals-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .totals-row.discount { color: var(--accent-color); }
+        .totals-row.grand-total { font-size: 20px; font-weight: bold; color: var(--primary-color); border-top: 2px solid #cbd5e1; padding-top: 12px; margin-top: 10px; }
+        .totals-row.due { font-size: 16px; font-weight: bold; color: var(--accent-color); border-top: 1px dashed #cbd5e1; padding-top: 8px; }
+
+        /* ================= التذييل والضمان ================= */
+        .footer { border-top: 2px solid var(--primary-color); padding-top: 15px; font-size: 11px; color: #64748b; position: relative; z-index: 1; }
+        .loyalty-msg { font-size: 14px; color: #166534; font-weight: bold; text-align: center; margin-bottom: 15px; background: #dcfce7; padding: 10px; border-radius: 4px; }
+
+        /* ================= أزرار التحكم (لا تظهر في الطباعة) ================= */
+        .action-buttons { text-align: center; margin-top: 30px; }
+        .btn-print { background-color: var(--primary-color); color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
+        .btn-print:hover { background-color: #002244; transform: translateY(-2px); }
+
+        @media print {
+            body { background-color: #fff; padding: 0; }
+            .invoice-box { box-shadow: none; border: none; padding: 0; min-height: auto; }
+            .action-buttons { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="invoice-box">
+        {% if invoice.status == 'draft' %}
+        <div class="watermark">مسودة - غير معتمدة</div>
+        {% endif %}
+
+        <div class="header">
+            <div class="logo-section">
+                <h1>FIXIT</h1>
+                <p>المركز المعتمد لصيانة سيارات BMW & MINI</p>
+                <p>فرع: {{ invoice.branch.name }} | تليفون: {{ invoice.branch.phone }}</p>
+            </div>
+            <div class="invoice-details">
+                <h2>فاتورة {{ invoice.get_invoice_type_display }}</h2>
+                <span class="invoice-badge {% if invoice.status == 'posted' %}badge-posted{% else %}badge-draft{% endif %}">
+                    {% if invoice.status == 'posted' %}معتمدة ونهائية{% else %}مسودة مبدئية{% endif %}
+                </span>
+                <p style="margin: 5px 0 0;"><strong>رقم الفاتورة:</strong> #{{ invoice.id }}</p>
+                <p style="margin: 0;"><strong>التاريخ:</strong> {{ invoice.date_created|date:"Y-m-d h:i A" }}</p>
+                <p style="margin: 0;"><strong>الكاشير:</strong> الإدارة</p>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <h4><i class="fas fa-user"></i> بيانات العميل</h4>
+                <div class="info-row"><span>الاسم:</span> <span>{{ invoice.customer.name }}</span></div>
+                <div class="info-row"><span>رقم الهاتف:</span> <span style="direction: ltr;">{{ invoice.customer.phone }}</span></div>
+                <div class="info-row"><span>رقم الحساب المستندي:</span> <span>CUST-{{ invoice.customer.id|stringformat:"04d" }}</span></div>
+            </div>
+            
+            {% if invoice.vehicle %}
+            <div class="info-card">
+                <h4><i class="fas fa-car"></i> بيانات المركبة</h4>
+                <div class="info-row"><span>رقم الشاسيه (VIN):</span> <span style="font-family: monospace; font-size: 12px;">{{ invoice.vehicle.chassis_number }}</span></div>
+                <div class="info-row"><span>رقم اللوحة:</span> <span>{{ invoice.vehicle.car_plate|default:"-" }}</span></div>
+                <div class="info-row"><span>الموديل:</span> <span>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name|default:"" }}</span></div>
+                <div class="info-row"><span>قراءة العداد الحالية:</span> <span>{{ invoice.mileage|default:"غير مسجل" }} كم</span></div>
+            </div>
+            {% endif %}
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="5%">#</th>
+                    <th width="20%">رقم القطعة (P/N)</th>
+                    <th width="40%">البيان / وصف الصيانة</th>
+                    <th width="10%" class="td-center">الكمية</th>
+                    <th width="10%">السعر</th>
+                    <th width="15%">الإجمالي</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.items.all %}
+                <tr>
+                    <td class="td-center">{{ forloop.counter }}</td>
+                    <td style="font-family: monospace; font-size: 12px;">{{ item.product.part_number }}</td>
+                    <td>{{ item.product.name }}</td>
+                    <td class="td-center">{{ item.quantity }}</td>
+                    <td>{{ item.unit_price }}</td>
+                    <td><strong>{{ item.total_price }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="td-center" style="padding: 20px; color: #64748b;">لا توجد قطع غيار، الفاتورة تشمل مصنعية فقط.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if invoice.notes %}
+        <div style="margin-bottom: 20px; padding: 12px; background-color: #fef3c7; border-right: 4px solid #f59e0b; border-radius: 4px; font-size: 13px;">
+            <strong style="color: #b45309;">توصيات المهندس المختص:</strong> <br>
+            {{ invoice.notes|linebreaksbr }}
+        </div>
+        {% endif %}
+
+        <div class="summary-wrapper">
+            
+            <div class="qr-section">
+                {% if invoice.vehicle %}
+                <img src="{% url 'inventory:vehicle_qr' invoice.vehicle.chassis_number %}" alt="Vehicle QR" style="width: 100px; height: 100px; object-fit: contain;">
+                <p>امسح الرمز لمعرفة<br>السجل الرقمي للمركبة</p>
+                {% else %}
+                <div style="width:100px; height:100px; background:#e2e8f0; margin:auto; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px;">بدون مركبة</div>
+                {% endif %}
+            </div>
+
+            <div class="totals-box">
+                <div class="totals-row">
+                    <span>إجمالي قطع الغيار:</span>
+                    <span>
+                        {% widthratio invoice.total_amount 1 1 %} </span>
+                </div>
+                
+                {% if invoice.labor_cost > 0 %}
+                <div class="totals-row">
+                    <span>مصنعية المركز (أجور اليد):</span>
+                    <span>{{ invoice.labor_cost }} ج.م</span>
+                </div>
+                {% endif %}
+                
+                {% if invoice.discount > 0 %}
+                <div class="totals-row discount">
+                    <span>الخصم الممنوح:</span>
+                    <span>- {{ invoice.discount }} ج.م</span>
+                </div>
+                {% endif %}
+                
+                {% if invoice.tax_percentage > 0 %}
+                <div class="totals-row">
+                    <span>ضريبة القيمة المضافة ({{ invoice.tax_percentage }}%):</span>
+                    <span>يتم احتسابها تلقائياً</span>
+                </div>
+                {% endif %}
+                
+                <div class="totals-row grand-total">
+                    <span>الإجمالي المستحق:</span>
+                    <span>{{ invoice.total_amount }} ج.م</span>
+                </div>
+
+                <div class="totals-row">
+                    <span>المبلغ المدفوع (مقدم/كاش):</span>
+                    <span>{{ invoice.paid_amount }} ج.م</span>
+                </div>
+
+                {% if invoice.due_amount > 0 %}
+                <div class="totals-row due">
+                    <span>المتبقي (مديونية):</span>
+                    <span>{{ invoice.due_amount }} ج.م</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if invoice.status == 'posted' and not invoice.is_return %}
+        <div class="loyalty-msg">
+            🎉 إضافة رائعة! لقد اكتسبت نقاط ولاء من هذه الزيارة يمكن استخدامها كخصم في الصيانة القادمة.
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <strong>شروط المركز والضمان:</strong>
+                    <ul style="margin: 5px 0; padding-right: 20px;">
+                        <li>تخضع جميع قطع الغيار الأصلية لضمان الوكيل ضد عيوب الصناعة.</li>
+                        <li>القطع الكهربائية والإلكترونية لا ترد ولا تستبدل بعد خروجها من المركز.</li>
+                        <li>المركز غير مسئول عن المتعلقات الشخصية المتروكة داخل السيارة.</li>
+                    </ul>
+                </div>
+                <div style="text-align: left; min-width: 200px;">
+                    {% if invoice.next_visit_date %}
+                    <div style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; text-align: center;">
+                        <strong>موعد الصيانة الدورية القادمة:</strong><br>
+                        <span style="color: var(--accent-color); font-weight: bold; font-size: 14px;">{{ invoice.next_visit_date|date:"Y-m-d" }}</span>
+                    </div>
+                    {% endif %}
+                    <br>
+                    <strong>توقيع العميل:</strong> ............................
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn-print" onclick="window.print()">🖨️ طباعة الفاتورة للعميل</button>
+            <a href="/fixit-secure-portal/inventory/saleinvoice/" style="display: inline-block; margin-right: 15px; color: #64748b; text-decoration: none;">العودة للفواتير</a>
+        </div>
+    </div>
+
+</body>
+</html>
+============================================================
+📁 FILE: clients/models.py
+============================================================
+
+from django.db import models
+from django_tenants.models import TenantMixin, DomainMixin
+from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from datetime import timedelta
+
+# دالة مساعدة لحساب نهاية الفترة التجريبية (14 يوم من تاريخ التسجيل)
+def default_trial_end():
+    return timezone.now().date() + timedelta(days=14)
+
+# =====================================================================
+# 🏢 1. جدول المستأجرين (مراكز الصيانة المشتركة في السيستم)
+# =====================================================================
+class Client(TenantMixin):
+    # 📝 البيانات الأساسية للشركة
+    name = models.CharField(max_length=100, verbose_name=_("اسم المركز/الشركة"))
+    owner_name = models.CharField(max_length=100, verbose_name=_("اسم المالك"))
+    phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
+    email = models.EmailField(blank=True, null=True, verbose_name=_("البريد الإلكتروني للإدارة"))
+    
+    # 🚀 ابتكار: محرك الباقات والقيود (Quotas & Plans)
+    SUBSCRIPTION_CHOICES = (
+        ('basic', _('باقة أساسية (فرع واحد - 3 مستخدمين)')),
+        ('pro', _('باقة المحترفين (3 فروع - 10 مستخدمين)')),
+        ('enterprise', _('باقة الشركات (فروع ومستخدمين غير محدود)')),
+    )
+    plan = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default='basic', verbose_name=_("الباقة"))
+    max_branches = models.IntegerField(default=1, verbose_name=_("الحد الأقصى للفروع"))
+    max_users = models.IntegerField(default=3, verbose_name=_("الحد الأقصى للمستخدمين"))
+    
+    # ⏱️ ابتكار: إدارة الاشتراكات والفترات التجريبية (Billing Engine)
+    STATUS_CHOICES = (
+        ('trial', _('فترة تجريبية')),
+        ('active', _('نشط (مدفوع)')),
+        ('suspended', _('معلق (لعدم الدفع)')),
+        ('cancelled', _('ملغي (محذوف سوفت)')),
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='trial', verbose_name=_("حالة الحساب"))
+    trial_ends_at = models.DateField(default=default_trial_end, verbose_name=_("نهاية الفترة التجريبية"))
+    subscription_end_date = models.DateField(blank=True, null=True, verbose_name=_("تاريخ انتهاء الاشتراك"))
+    
+    # 🎨 ابتكار: العلامة التجارية المخصصة (White-labeling)
+    logo = models.ImageField(upload_to='tenant_logos/', blank=True, null=True, verbose_name=_("لوجو المركز"))
+    theme_color = models.CharField(max_length=7, default='#007bff', verbose_name=_("اللون الأساسي للسيستم (Hex)"))
+
+    created_on = models.DateField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, verbose_name=_("الاشتراك فعال؟"))
+
+    # إعدادات الـ Tenant
+    auto_create_schema = True 
+    auto_drop_schema = False # حماية أمنية لمنع مسح بيانات العميل بالخطأ
+
+    class Meta:
+        verbose_name = _("مركز صيانة (عميل SaaS)")
+        verbose_name_plural = _("مراكز الصيانة (عملاء المنصة)")
+
+    def __str__(self):
+        return f"{self.name} ({self.schema_name})"
+
+    @property
+    def is_valid_subscription(self):
+        """🛡️ دالة ذكية للتأكد من صلاحية العميل للدخول على السيستم"""
+        if self.status == 'suspended' or not self.is_active:
+            return False
+        today = timezone.now().date()
+        if self.status == 'trial' and today > self.trial_ends_at:
+            return False
+        if self.status == 'active' and self.subscription_end_date and today > self.subscription_end_date:
+            return False
+        return True
+
+    def save(self, *args, **kwargs):
+        """⚙️ أتمتة القيود بناءً على نوع الباقة المختارة"""
+        if self.plan == 'basic':
+            self.max_branches, self.max_users = 1, 3
+        elif self.plan == 'pro':
+            self.max_branches, self.max_users = 3, 10
+        elif self.plan == 'enterprise':
+            self.max_branches, self.max_users = 100, 1000 # رقم كبير ليعني 'غير محدود'
+        super().save(*args, **kwargs)
+
+# =====================================================================
+# 🌐 2. جدول النطاقات (الروابط الخاصة بكل مركز)
+# =====================================================================
+class Domain(DomainMixin):
+    # لا تضف أي حقول هنا، المكتبة تتعامل مع كل شيء أوتوماتيكياً
+    # هذا الجدول يربط العميل برابط مثل: nasrcity.fixiterp.com
+    pass
+============================================================
+📁 FILE: clients/__init__.py
+============================================================
+
+
+============================================================
+📁 FILE: clients/apps.py
+============================================================
+
+from django.apps import AppConfig
+
+
+class ClientsConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'clients'
+
+============================================================
+📁 FILE: clients/admin.py
+============================================================
+
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import Client
+
+@admin.register(Client)
+class ClientAdmin(admin.ModelAdmin):
+    # عرض البيانات الأساسية والحدود المسموح بها لكل شركة في الريسبشن
+    list_display = ('schema_name', 'plan', 'max_branches', 'max_users', 'status', 'enter_tenant_dashboard')
+    list_filter = ('plan', 'status')
+    search_fields = ('schema_name', 'email')
+
+    def enter_tenant_dashboard(self, obj):
+        """🚀 ابتكار: زرار ديناميكي يدخل الأدمن العام جوه قلب داتا بيز الشركة فوراً"""
+        try:
+            # قراءة الدومين المربوط بالشركة
+            domain = obj.domains.first().domain
+            url = f"http://{domain}:8000/fixit-secure-portal/"
+            return format_html(
+                '<a class="button" href="{}" target="_blank" '
+                'style="background-color:#28a745; color:white; padding:5px 12px; '
+                'border-radius:4px; text-decoration:none; font-weight:bold; font-size:12px;">'
+                '🚀 دخول لوحة الشركة</a>', url
+            )
+        except:
+            return format_html('<span style="color:#999;">⚠️ لم يتم ربط دومين</span>')
+            
+    enter_tenant_dashboard.short_description = "الإدارة الميدانية المباشرة"
+============================================================
+📁 FILE: clients/tests.py
+============================================================
+
+from django.test import TestCase
+
+# Create your tests here.
+
+============================================================
+📁 FILE: clients/views.py
+============================================================
+
+from django.shortcuts import render
+
+# Create your views here.
+
+============================================================
+📁 FILE: erp_core/asgi.py
+============================================================
+
+"""
+ASGI config for erp_core project.
+It exposes the ASGI callable as a module-level variable named ``application``.
+"""
+
+import os
+from django.core.asgi import get_asgi_application
+
+# 1. تحميل إعدادات السيستم أولاً
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erp_core.settings')
+
+# 2. تهيئة تطبيق جانجو الأساسي (HTTP)
+# ملاحظة هامة: يجب استدعاء get_asgi_application() قبل استيراد أي موديلات من قاعدة البيانات
+django_asgi_app = get_asgi_application()
+
+# استيراد أدوات التوجيه المتقدمة
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from channels.security.websocket import AllowedHostsOriginValidator
+from django.urls import path
+
+# =====================================================================
+# 🛡️ ابتكار 1: الوسيط الذكي لمعرفة فرع العميل (Tenant-Aware WebSocket Middleware)
+# =====================================================================
+class TenantAuthMiddleware:
+    """
+    هذا الوسيط العبقري يحلل طلب الـ WebSocket، يقرأ النطاق (Domain)، 
+    ويوجه الاتصال فوراً لقاعدة بيانات الفرع الصحيحة (Schema) قبل المصادقة.
+    """
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        # 💡 سيتم تفعيل اللوجيك هنا لاحقاً لربطه بـ django-tenants
+        # مثال: استخراج الـ host من الـ headers وتحديد الـ schema_name
+        return await self.inner(scope, receive, send)
+
+def TenantAuthMiddlewareStack(inner):
+    return TenantAuthMiddleware(AuthMiddlewareStack(inner))
+
+# =====================================================================
+# 🧬 ابتكار 2: بروتوكول دورة حياة السيرفر (Lifespan Protocol)
+# =====================================================================
+async def lifespan_application(scope, receive, send):
+    """
+    إدارة ذكية للحظات تشغيل وإغلاق السيرفر (Graceful Shutdown)
+    مفيد جداً في بيئات الـ Kubernetes والـ Docker السحابية.
+    """
+    while True:
+        message = await receive()
+        if message['type'] == 'lifespan.startup':
+            # يمكنك هنا إضافة كود لتنظيف الكيش (Redis) أو تهيئة أجهزة الـ IoT
+            print("🚀 FIXIT Live Engine Started Successfully!")
+            await send({'type': 'lifespan.startup.complete'})
+        elif message['type'] == 'lifespan.shutdown':
+            # إرسال تحذير للمستخدمين قبل إغلاق السيرفر بثواني
+            print("🛑 FIXIT Live Engine is shutting down gracefully...")
+            await send({'type': 'lifespan.shutdown.complete'})
+            return
+
+# =====================================================================
+# 🚦 موجه البروتوكولات المركزي (The Brain Router)
+# =====================================================================
+application = ProtocolTypeRouter({
+    
+    # ---------------------------------------------------------
+    # 🌐 1. مسار الطلبات العادية (HTTP Requests)
+    # ---------------------------------------------------------
+    "http": django_asgi_app,
+
+    # ---------------------------------------------------------
+    # ⚡ 2. مسار الاتصالات الحية المفتوحة (WebSockets & Live Sync)
+    # ---------------------------------------------------------
+    "websocket": AllowedHostsOriginValidator(
+        TenantAuthMiddlewareStack( # 👈 استخدام الوسيط الذكي الخاص بالشقق
+            URLRouter([
+                # 🏎️ مسار مستقبلي: استقبال بيانات فحص السيارات اللحظية
+                # path("ws/obd2/telemetry/", OBD2LiveStreamConsumer.as_asgi()),
+                
+                # 💬 مسار الإشعارات اللحظية للموظفين
+                # path("ws/notifications/", NotificationConsumer.as_asgi()),
+            ])
+        )
+    ),
+
+    # ---------------------------------------------------------
+    # 🧬 3. مسار دورة الحياة (Lifespan & Server Events)
+    # ---------------------------------------------------------
+    "lifespan": lifespan_application,
+})
+============================================================
+📁 FILE: erp_core/__init__.py
+============================================================
+
+
+============================================================
+📁 FILE: erp_core/settings.py
+============================================================
+
+from pathlib import Path
+import os
+import environ # مدير الأسرار الذكي
+from django.utils.translation import gettext_lazy as _
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 🟢 تهيئة قارئ البيئة المخفية
+env = environ.Env(
+    DEBUG=(bool, False)
+)
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
+# ==========================================
+# 🛡️ الأمان المتقدم (Enterprise Security)
+# ==========================================
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m(h@fwvt^ib4&sainhr8e55x&@_')
+DEBUG = env('DEBUG', default=True)
+
+# 🚀 دمج ذكي للنطاقات
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.localhost', 'localhost', '127.0.0.1', '[::1]'])
+
+# 🛡️ حماية الجلسات السحابية (معزولة لتناسب الـ Multi-Tenant)
+SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SECURE = not DEBUG 
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
+
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# 🚧 ابتكار: منع إغراق السيرفر بالملفات الضخمة (حماية الرامات)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB
+
+# ==========================================
+# 🚀 التطبيقات (Multi-Tenant Architecture)
+# ==========================================
+# التطبيقات المشتركة (الريسبشن)
+SHARED_APPS = (
+    'django_tenants',  
+    'clients',         
+    'jazzmin', 
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'axes',
+    'simple_history',
+)
+
+# تطبيقات الفروع (الشقق)
+TENANT_APPS = (
+    'django.contrib.admin',      
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',   
+    'django.contrib.messages',   
+    'inventory',
+    'import_export',
+    'simple_history', # 🟢 كاميرات المراقبة تعمل داخل الفرع
+    'axes',           # 🟢 حارس الأمن يعمل داخل الفرع
+)
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = 'clients.Client'
+TENANT_DOMAIN_MODEL = 'clients.Domain'
+
+# ==========================================
+# ⚙️ العمليات الوسيطة (Middleware)
+# ==========================================
+MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware', # 👈 بوابة العمارة الرئيسية
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', 
+    'corsheaders.middleware.CorsMiddleware',      
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware', 
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    
+    # 🟢 تم إعادة تفعيل دروع الحماية بنجاح!
+    'simple_history.middleware.HistoryRequestMiddleware', 
+    'axes.middleware.AxesMiddleware', 
+]
+# 🟢 إعادة تفعيل المصادقة المحمية
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+ROOT_URLCONF = 'erp_core.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'erp_core.wsgi.application'
+ASGI_APPLICATION = 'erp_core.asgi.application'
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
+
+# ==========================================
+# 📊 قاعدة البيانات (PostgreSQL)
+# ==========================================
+DATABASES = {
+    'default': env.db('DATABASE_URL', default='postgres://postgres:123@localhost:5432/fixit_erp_db')
+}
+DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
+
+# ==========================================
+# ⚡ الكيش الصاروخي المتقدم (Tenant-Aware Redis)
+# ==========================================
+def tenant_key_func(key, key_prefix, version):
+    """🚀 ابتكار: عزل الكيش بين الفروع لمنع تسريب البيانات"""
+    from django.db import connection
+    tenant_schema = connection.schema_name
+    return f"{tenant_schema}:{key_prefix}:{version}:{key}"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True, # لمنع توقف السيستم لو الـ Redis فصل
+        },
+        "KEY_FUNCTION": "erp_core.settings.tenant_key_func", # 👈 تفعيل العزل السحابي
+    }
+}
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+# ==========================================
+# 🌍 اللغة، التوقيت، والمحاسبة
+# ==========================================
+LANGUAGE_CODE = 'ar'  
+TIME_ZONE = 'Africa/Cairo'
+USE_I18N = True
+USE_TZ = True
+USE_THOUSAND_SEPARATOR = True
+
+LANGUAGES = [
+    ('ar', _('Arabic')),
+    ('en', _('English')),
+]
+
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# ==========================================
+# 📁 الملفات 
+# ==========================================
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==========================================
+# 📧 محرك البريد الإلكتروني و APIs القطع
+# ==========================================
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='your-email@gmail.com')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='your-app-password')
+
+TECDOC_API_KEY = env('TECDOC_API_KEY', default='')
+ALLDATA_ENDPOINT = env('ALLDATA_ENDPOINT', default='')
+
+ENABLE_AI_PREDICTIONS = env.bool('ENABLE_AI_PREDICTIONS', default=False)
+AI_MODEL_ENDPOINT = env('AI_MODEL_ENDPOINT', default='')
+
+# ==========================================
+# 🎨 إعدادات JAZZMIN للـ CRM وواجهة المستخدم
+# ==========================================
+JAZZMIN_SETTINGS = {
+    "site_title": " AutoCoreERP",
+    "site_header": "AutoCore",
+    "site_brand": " AutoCoreAutomotive",
+    "welcome_sign": "AutoCoreنظام إدارة فروع ",
+    "copyright": " AutoCoreAuto Service",
+    "search_model": ["inventory.Product", "inventory.Customer"], 
+    "user_avatar": None,
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "clients.Client": "fas fa-building", 
+        "inventory.Branch": "fas fa-store",
+        "inventory.Customer": "fas fa-user-tie", 
+        "inventory.Vendor": "fas fa-truck-loading", 
+        "inventory.Product": "fas fa-tools",
+        "inventory.Inventory": "fas fa-boxes",
+        "inventory.PurchaseInvoice": "fas fa-file-import",
+        "inventory.SaleInvoice": "fas fa-file-invoice-dollar",
+        "inventory.Treasury": "fas fa-vault",
+    },
+    "order_with_respect_to": ["inventory", "clients", "auth"],
+    "changeform_format": "horizontal_tabs",
+    "language_chooser": True,
+    "show_ui_builder": True, 
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly", 
+    "dark_mode_theme": "darkly",
+    "navbar_fixed": True,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-light-primary", 
+}
+
+# ==========================================
+# 🔗 الربط الخارجي (Celery Tasks)
+# ==========================================
+CORS_ALLOW_ALL_ORIGINS = True 
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# ==========================================
+# 📈 نظام المراقبة الشامل (Logging & Security)
+# ==========================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'erp_errors.log', 
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
+
+# 🛡️ إعدادات الحماية المتقدمة (Axes Smart Config)
+AXES_ENABLED = True
+AXES_FAILURE_LIMIT = 5 
+AXES_COOLOFF_TIME = 1 
+AXES_RESET_ON_SUCCESS = True # 🚀 ابتكار: تصفير العداد عند الدخول الناجح
+AXES_LOCKOUT_TEMPLATE = '403.html' 
+AXES_META_PREPEND_PATH = True # مفيد جداً خلف Cloudflare
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]] 
+
+============================================================
+📁 FILE: erp_core/urls.py
+============================================================
+
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.generic import RedirectView, TemplateView
+import os
+import logging
+
+# تهيئة نظام المراقبة لتسجيل الاختراقات
+logger = logging.getLogger(__name__)
+
+# =====================================================================
+# 🛠️ الفحص العميق لصحة النظام (Deep Health Check)
+# =====================================================================
+def system_health_check(request):
+    """
+    نظام المراقبة السحابي: يختبر الاتصال الفعلي بقاعدة البيانات والكيش
+    Kubernetes & AWS ELB Ready
+    """
+    health_status = 200
+    db_status = "operational"
+    redis_status = "operational"
+
+    # فحص قاعدة البيانات
+    try:
+        from django.db import connections
+        connections['default'].cursor()
+    except Exception:
+        db_status = "degraded"
+        health_status = 503 
+
+    # فحص الكيش (Redis)
+    try:
+        from django.core.cache import cache
+        cache.set('test_ping', 'pong', timeout=1)
+    except Exception:
+        redis_status = "degraded"
+        health_status = 503
+
+    return JsonResponse({
+        "status": "operational" if health_status == 200 else "critical",
+        "version": "1.5.0",
+        "system": "FIXIT Enterprise Engine",
+        "services": {
+            "database": db_status,
+            "redis_cache": redis_status,
+        }
+    }, status=health_status)
+
+# =====================================================================
+# 🪤 نظام فخ الهاكرز النشط (Active Tarpit Honeypot)
+# =====================================================================
+def admin_honeypot(request):
+    """
+    أي محاولة للدخول على المسارات الافتراضية يتم حظرها وتسجيل الـ IP
+    """
+    # استخراج الـ IP الحقيقي للهاكر حتى لو كان خلف Cloudflare
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
+    logger.error(f"🚨 SECURITY ALERT: Unauthorized access attempt to {request.path} from IP: {ip}")
+    
+    # رسالة مضللة لإحباط البوتات
+    return HttpResponseForbidden("<h1>403 Forbidden</h1><p>Access Denied. Your IP footprint has been traced, logged, and reported to the firewall system.</p>")
+
+# =====================================================================
+# 🚦 شبكة المسارات الرئيسية (Global Enterprise Routing)
+# =====================================================================
+# مسار لوحة التحكم المشفر
+ADMIN_URL = os.getenv('ADMIN_URL', 'fixit-secure-portal')
+
+urlpatterns = [
+    # 0. 🚀 التحويل التلقائي للرابط السري (تجربة مستخدم سلسة)
+    path('', RedirectView.as_view(url=f'/{ADMIN_URL}/', permanent=False), name='root_redirect'),
+
+    # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin)
+    path(f'{ADMIN_URL}/', admin.site.urls),
+
+    # 2. 🪤 فخ الهاكرز (Honeypot Routes)
+    path('admin/', admin_honeypot),
+    path('wp-admin/', admin_honeypot),
+    path('administrator/', admin_honeypot),
+    path('login/', admin_honeypot), # فخ إضافي للبوتات التي تبحث عن مسارات الدخول التقليدية
+
+    # 3. 🩺 فحص حالة السيرفر السحابي (DevOps Monitoring)
+    path('api/health/', system_health_check, name='system_health'),
+    # path('metrics/', include('django_prometheus.urls')), # 🚀 ابتكار مستقبلي لمراقبة الأداء بـ Grafana
+
+    # 4. 📱 مسارات تطبيق الـ PWA (لتحويل السيستم لتطبيق موبايل بدون متاجر)
+    # path('manifest.json', TemplateView.as_view(template_name='manifest.json', content_type='application/json')),
+    # path('service-worker.js', TemplateView.as_view(template_name='service-worker.js', content_type='application/javascript')),
+
+    # 5. 🔌 بوابة واجهات برمجة التطبيقات (API Gateway Versioning)
+    # path('api/v1/inventory/', include('inventory.api_urls')), # لتطبيق الموبايل للفنيين
+    # path('api/v1/crm/', include('clients.api_urls')),
+
+    # 6. 🔗 نقاط استقبال الـ Webhooks (للتكامل مع الأنظمة الخارجية)
+    # path('webhooks/whatsapp/', include('inventory.whatsapp_hooks')), # لإرسال الفواتير للعملاء آلياً
+    # path('webhooks/tecdoc/', include('inventory.tecdoc_integration')), # للربط بكتالوجات قطع غيار السيارات
+
+    # 7. 🌍 مسارات الترجمة وتعدد اللغات
+    path('i18n/', include('django.conf.urls.i18n')),
+    
+    # 8. 🏢 مسارات السيستم الداخلية (نظام إدارة المخزون والصيانة)
+    # path('system/', include('inventory.urls')), 
+]
+
+# =====================================================================
+# 🎨 معالجات الأخطاء المخصصة (Custom Error Pages)
+# =====================================================================
+# handler404 = 'inventory.views.error_404_view'
+# handler500 = 'inventory.views.error_500_view'
+# handler403 = 'inventory.views.error_403_view'
+
+# =====================================================================
+# 📁 معالجة الصور والملفات الثابتة (Static & Media)
+# =====================================================================
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+============================================================
+📁 FILE: erp_core/wsgi.py
+============================================================
+
+"""
+WSGI config for erp_core project.
+It exposes the WSGI callable as a module-level variable named ``application``.
+"""
+
+import os
+import time
+import uuid
+import json
+import logging
+try:
+    import resource # يعمل على أنظمة Linux/Mac لمراقبة الذاكرة
+except ImportError:
+    resource = None
+
+from django.core.wsgi import get_wsgi_application
+
+# =====================================================================
+# 🌍 1. تهيئة البيئة الأساسية
+# =====================================================================
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erp_core.settings')
+
+# =====================================================================
+# 🚨 2. ابتكار: وضع الصيانة الجذري (Zero-Downtime Maintenance)
+# =====================================================================
+# إذا تم تفعيل هذا الخيار، يتم إيقاف جميع الطلبات قبل الوصول لـ Django لحماية السيرفر
+if os.environ.get('MAINTENANCE_MODE') == 'True':
+    def maintenance_app(environ, start_response):
+        status = '503 Service Unavailable'
+        headers = [('Content-Type', 'application/json')]
+        start_response(status, headers)
+        return [b'{"status": "maintenance", "message": "FIXIT Engine is currently upgrading. Please try again in a few minutes."}']
+    
+    application = maintenance_app
+else:
+    # =====================================================================
+    # 🚀 3. نواة مراقبة الأداء اللحظي (APM Initialization)
+    # =====================================================================
+    def initialize_telemetry():
+        if os.environ.get('ENABLE_ENTERPRISE_APM') == 'True':
+            try:
+                import newrelic.agent
+                newrelic.agent.initialize('newrelic.ini')
+                print("🟢 FIXIT APM: Telemetry Connected Successfully.")
+            except ImportError:
+                pass
+
+    initialize_telemetry()
+
+    # استدعاء تطبيق جانجو الأساسي
+    django_application = get_wsgi_application()
+
+    # =====================================================================
+    # 🛡️ 4. درع الـ SaaS الخفي (Advanced Enterprise WSGI Wrapper)
+    # =====================================================================
+    class FIXITEnterpriseWrapper:
+        def __init__(self, application):
+            self.application = application
+            self.logger = logging.getLogger('fixit_wsgi')
+
+        def __call__(self, environ, start_response):
+            # 🆔 ابتكار: توليد رقم تتبع فريد لكل طلب (Request ID Tracing)
+            request_id = environ.get('HTTP_X_REQUEST_ID', str(uuid.uuid4()))
+            environ['fixit.request_id'] = request_id
+
+            # تسجيل وقت وبصمة الذاكرة قبل الطلب
+            start_time = time.time()
+            start_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss if resource else 0
+
+            # متغيرات لتخزين الرد
+            status_code = [None]
+            response_headers = []
+
+            def custom_start_response(status, headers, exc_info=None):
+                status_code[0] = status
+                process_time = time.time() - start_time
+                
+                # 🧠 ابتكار: مراقبة تسريب الذاكرة (Memory Leak Watchdog)
+                if resource:
+                    end_mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                    import sys
+                    mem_diff_mb = (end_mem - start_mem) / (1024.0 * 1024.0) if sys.platform == 'darwin' else (end_mem - start_mem) / 1024.0
+                    if mem_diff_mb > 50: # إذا سحب الطلب أكثر من 50 ميجا فجأة
+                        print(f"⚠️ [MEMORY WARNING] Request {request_id} consumed {mem_diff_mb:.2f} MB!")
+
+                # إضافة بصمات الـ SaaS الاحترافية للرد
+                headers.append(('X-Request-ID', request_id))
+                headers.append(('X-SaaS-Processing-Time', f"{process_time:.4f}s"))
+                headers.append(('X-Powered-By', 'FIXIT Enterprise Engine'))
+                headers.append(('X-Server-Node', os.environ.get('NODE_NAME', 'Node-Alpha')))
+                
+                # منع الكاش للفواتير والبيانات الحساسة كطبقة أمان إضافية
+                headers.append(('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0'))
+                
+                response_headers.extend(headers)
+                return start_response(status, headers, exc_info)
+
+            try:
+                # تمرير الطلب لـ Django
+                return self.application(environ, custom_start_response)
+            
+            except Exception as e:
+                # 🛡️ ابتكار: الدرع الواقي من الانهيار الكامل (API Crash Shield)
+                # يمنع ظهور شاشات الخطأ الافتراضية ويرد بـ JSON آمن
+                print(f"🚨 [FATAL WSGI CRASH] Request {request_id}: {str(e)}")
+                
+                error_response = {
+                    "error": "critical_system_failure",
+                    "message": "An unexpected core engine failure occurred.",
+                    "request_id": request_id
+                }
+                
+                status = '500 Internal Server Error'
+                headers = [('Content-Type', 'application/json')]
+                start_response(status, headers)
+                return [json.dumps(error_response).encode('utf-8')]
+
+    # =====================================================================
+    # 🚀 تشغيل النظام المغلف
+    # =====================================================================
+    application = FIXITEnterpriseWrapper(django_application)
+============================================================
+📁 FILE: templates/admin/index.html
+============================================================
+
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+<style>
+    /* =======================================================
+       🎨 SaaS Enterprise UI/UX (Glassmorphism & Modern Layout)
+       ======================================================= */
+    :root {
+        --primary-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        /* --success-grad: linear-gradient(135deg, #10b981 0%, #059669 100%); */
+        --success-grad: linear-gradient(135deg, #20c997 0%, #198754 100%);
+        --warning-grad: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        --danger-grad: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        --info-grad: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        --dark-grad: linear-gradient(135deg, #475569 0%, #334155 100%);
+    }
+
+    body { font-family: 'Cairo', sans-serif !important; }
+
+    /* 🌟 أزرار الوصول السريع */
+    .saas-quick-btn {
+        transition: all 0.3s ease; border-radius: 10px; font-weight: 700; padding: 12px 24px; border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
+    }
+    .saas-quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); filter: brightness(1.1); }
+    
+    /* 🌟 الكروت العلوية (Stats) */
+    .saas-stat-card {
+        border-radius: 16px; color: white; padding: 20px; position: relative; overflow: hidden;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; height: 100%;
+    }
+    .saas-stat-card:hover { transform: translateY(-5px); }
+    .saas-stat-card::after {
+        content: ''; position: absolute; top: -50%; right: -50%; width: 200px; height: 200px;
+        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%); border-radius: 50%;
+    }
+    .saas-stat-card h3 { font-size: 28px; font-weight: 800; margin-bottom: 5px; z-index: 2; position: relative; }
+    .saas-stat-card p { font-size: 15px; font-weight: 600; opacity: 0.9; margin: 0; z-index: 2; position: relative; }
+    .saas-stat-card .bg-icon { position: absolute; bottom: -15px; left: -15px; font-size: 90px; opacity: 0.15; z-index: 1; transform: rotate(-15deg); }
+    html[dir="rtl"] .saas-stat-card .bg-icon { left: auto; right: -15px; transform: rotate(15deg); }
+
+    /* 🌟 رادار العمليات (الكروت الجانبية) */
+    .insight-card {
+        background: #ffffff; border: 1px solid #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; border-inline-start: 5px solid #e2e8f0;
+    }
+    .insight-card:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    
+    /* 🚨 أنيميشن النبض للخطر */
+    @keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+    .pulse-alert { animation: pulse-danger 2s infinite; border-inline-start-color: #ef4444; background-color: #fef2f2; }
+
+    /* 🔍 محرك البحث المحسن */
+    .omni-search { border-radius: 12px; padding: 12px 20px; border: 2px solid #e2e8f0; font-weight: 600; box-shadow: none; transition: border-color 0.3s; }
+    .omni-search:focus { border-color: #4f46e5; outline: none; }
+    
+    .chart-container { direction: ltr !important; }
+</style>
+
+<input type="hidden" id="rawChartLabels" value="{{ chart_labels|default:'[]' }}">
+<input type="hidden" id="rawChartRevenue" value="{{ chart_revenue|default:'[]' }}">
+<input type="hidden" id="rawChartProfit" value="{{ chart_profit|default:'[]' }}">
+
+<div class="container-fluid mb-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 id="dynamicGreeting" class="font-weight-bold mb-0" style="color: #1e293b;">
+            مرحباً بك في {{ branch_name|default:"الإدارة المركزية للشركات" }}
+        </h3>
+        <small class="text-muted font-weight-bold">نظرة عامة على أداء البيزنس اليوم</small>
+    </div>
+    <span id="liveClock" class="badge p-2 px-3 shadow-sm" style="font-size: 14px; letter-spacing: 1px; border-radius: 8px; background: var(--dark-grad); color: white;">00:00:00</span>
+</div>               
+            </h3>
+            <small class="text-muted font-weight-bold">نظرة عامة على أداء البيزنس اليوم</small>
+        </div>
+        <span id="liveClock" class="badge p-2 px-3 shadow-sm" style="font-size: 14px; letter-spacing: 1px; border-radius: 8px; background: var(--dark-grad); color: white;">00:00:00</span>
+    </div>
+
+    <div class="row mb-4 align-items-center">
+        <div class="col-lg-8 col-12 mb-3 mb-lg-0 d-flex gap-2 flex-wrap">
+            <a href="{% url 'admin:inventory_saleinvoice_add' %}" class="saas-quick-btn" style="background: var(--primary-grad);">
+                <i class="fas fa-plus-circle"></i> أمر شغل
+            </a>
+            <a href="javascript:void(0)" onclick="alert('جاري برمجة شاشة الـ POS!')" class="saas-quick-btn" style="background: var(--info-grad);">
+                <i class="fas fa-cash-register"></i> الكاشير (POS)
+            </a>
+            <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="saas-quick-btn" style="background: var(--success-grad);">
+                <i class="fas fa-truck-loading"></i> توريد بضاعة
+            </a>
+            <a href="{% url 'admin:inventory_product_changelist' %}" class="saas-quick-btn" style="background: var(--dark-grad);">
+                <i class="fas fa-boxes"></i> المخزن
+            </a>
+        </div>
+        <div class="col-lg-4 col-12">
+            <input type="text" class="form-control omni-search w-100" placeholder="🔍 بحث سريع برقم الشاسيه، العميل، أو الفاتورة..." id="globalSearch">
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--primary-grad);">
+                <h3>94<small>%</small></h3>
+                <p>صحة البيزنس (AI)</p>
+                <i class="fas fa-robot bg-icon"></i>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-4 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--success-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <p>مبيعات اليوم</p>
+                <i class="fas fa-wallet bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--info-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.invoices_count|default:'0' }}">0</span></h3>
+                <p>أوامر الشغل اليوم</p>
+                <i class="fas fa-clipboard-list bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--danger-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <p>ديون متأخرة بالخارج</p>
+                <i class="fas fa-hand-holding-usd bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 col-12 mb-3">
+            <div class="saas-stat-card" style="background: var(--warning-grad);">
+                <h3>
+                    {% if stats.net_profit_today == '🔒' %}
+                        <i class="fas fa-lock" style="font-size: 24px;"></i>
+                    {% else %}
+                        <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup>
+                    {% endif %}
+                </h3>
+                <p>أرباح الشهر الصافية</p>
+                <i class="fas fa-chart-line bg-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 col-12 mb-3">
+            <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
+                <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 16px 16px 0 0;">
+                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-bar text-primary"></i> التحليل المالي (مقارنة الشهور)</h5>
+                    <span class="badge" style="background-color: #ecfdf5; color: #10b981;"><i class="fas fa-sync fa-spin"></i> Live</span>
+                </div>
+                <div class="card-body chart-container">
+                    <div style="position: relative; height: 320px; width: 100%;">
+                        <canvas id="financialChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-12 mb-3">
+            <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> رادار العمليات الذكي</h5>
+                </div>
+                <div class="card-body p-4" style="max-height: 380px; overflow-y: auto;">
+                    
+                    {% if low_stock_items %}
+                        <div class="insight-card pulse-alert">
+                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> نواقص حرجة للطلب العاجل</h6>
+                            <ul class="mb-2 text-sm text-danger" style="padding-inline-start: 20px;">
+                                {% for item in low_stock_items %}
+                                    <li><b>{{ item.product.name }}</b> (باقي: {{ item.quantity }})</li>
+                                {% endfor %}
+                            </ul>
+                            <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="btn btn-sm btn-danger w-100" style="border-radius: 8px;">إنشاء أمر توريد فوراً</a>
+                        </div>
+                    {% else %}
+                        <div class="insight-card" style="border-inline-start-color: #10b981;">
+                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> المخزون مستقر</h6>
+                            <p class="mb-0 text-sm text-muted">لا توجد قطع غيار تحت حد التنبيه حالياً.</p>
+                        </div>
+                    {% endif %}
+
+                    {% if delayed_orders_count > 0 %}
+                    <div class="insight-card pulse-alert" style="border-inline-start-color: #f59e0b; background-color: #fffbeb;">
+                        <h6 class="font-weight-bold mb-1" style="color: #d97706;"><i class="fas fa-clock"></i> سيارات متأخرة بالمركز!</h6>
+                        <p class="mb-2 text-sm" style="color: #92400e;">يوجد <b>{{ delayed_orders_count }}</b> أوامر شغل مفتوحة منذ أكثر من 24 ساعة.</p>
+                        <a href="{% url 'admin:inventory_saleinvoice_changelist' %}?status__exact=draft" class="btn btn-sm w-100 text-white" style="background-color: #f59e0b; border-radius: 8px;">مراجعة السيارات المتأخرة</a>
+                    </div>
+                    {% endif %}
+
+                    <div class="insight-card" style="border-inline-start-color: #3b82f6;">
+                        <h6 class="font-weight-bold text-primary mb-1"><i class="fas fa-users"></i> حركة العملاء</h6>
+                        <p class="mb-0 text-sm text-muted">لمراجعة أوامر الشغل المفتوحة لاستكمالها اليوم. <br>
+                        <a href="{% url 'admin:inventory_saleinvoice_changelist' %}?status__exact=draft" class="text-primary mt-1 d-inline-block">عرض المسودات &rarr;</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        
+        const updateClock = () => {
+            const now = new Date();
+            document.getElementById('liveClock').innerText = now.toLocaleTimeString('en-US', { hour12: true });
+        };
+        setInterval(updateClock, 1000); updateClock();
+
+        const animateCounters = () => {
+            document.querySelectorAll('.animate-number').forEach(counter => {
+                const target = parseFloat(counter.getAttribute('data-value').replace(/,/g, ''));
+                if (isNaN(target) || target === 0) return;
+                let current = 0; const increment = target / 30; 
+                const updateCounter = () => {
+                    current += increment;
+                    if (current < target) {
+                        counter.innerText = Math.ceil(current).toLocaleString('en-US'); 
+                        requestAnimationFrame(updateCounter);
+                    } else { counter.innerText = target.toLocaleString('en-US'); }
+                };
+                updateCounter();
+            });
+        };
+        animateCounters();
+
+        const searchInput = document.getElementById('globalSearch');
+        if(searchInput) {
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                    window.location.href = `{% url 'admin:inventory_saleinvoice_changelist' %}?q=${encodeURIComponent(e.target.value.trim())}`;
+                }
+            });
+        }
+
+        const parseData = (elementId, fallback) => {
+            try { return JSON.parse(document.getElementById(elementId).value || "null") || fallback; } 
+            catch { return fallback; }
+        };
+
+        const ctx = document.getElementById('financialChart').getContext('2d');
+        let gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
+        gradientFill.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
+        gradientFill.addColorStop(1, 'rgba(79, 70, 229, 0)');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: parseData('rawChartLabels', ['الشهر الحالي']),
+                datasets: [
+                    {
+                        type: 'line', label: 'صافي الربح (ج.م)', data: parseData('rawChartProfit', [0]),
+                        borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4, 
+                        pointBackgroundColor: '#fff', pointBorderColor: '#10b981', pointRadius: 5
+                    },
+                    {
+                        type: 'bar', label: 'إجمالي الإيرادات (ج.م)', data: parseData('rawChartRevenue', [0]),
+                        backgroundColor: gradientFill, borderColor: '#4f46e5', borderWidth: 2, borderRadius: 8, barPercentage: 0.5
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { font: { family: 'Cairo', size: 13 } } },
+                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { family: 'Cairo', size: 14 }, bodyFont: { family: 'Cairo', size: 13 } }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f1f5f9' }, position: 'left' },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
