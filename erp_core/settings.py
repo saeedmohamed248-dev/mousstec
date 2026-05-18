@@ -21,8 +21,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m(h@fwvt^ib4&sainhr8e55x&@_')
 DEBUG = env('DEBUG', default=True)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['.localhost', 'localhost', '127.0.0.1', '[::1]', '64.226.120.5'])
-
+ALLOWED_HOSTS = ['mousstec.com', '.mousstec.com', '64.226.120.5', '127.0.0.1', 'localhost']
 # 🚀 ابتكار: جدار حماية صارم لمنع هجمات الـ Cross-Site
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
@@ -386,3 +385,4 @@ AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 # ==========================================
 MOUSS_TEC_ESCROW_FEE_PERCENTAGE = env.float('ESCROW_FEE_PERCENTAGE', default=2.5)
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
