@@ -27,8 +27,8 @@ def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=Fals
         logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
         return None
 
-    # 🏎️ الأسماء القياسية المستقرة الحالية لضمان السرعة والدقة
-    model_name = "gemini-1.5-pro" if require_pro else "gemini-1.5-flash"
+    # نماذج Gemini 2.0 المستقرة (2026)
+    model_name = "gemini-2.0-flash" if require_pro else "gemini-2.0-flash-lite"
     
     # 🔥 تطهير المفتاح من أي \r أو \n أو مسافات عشوائية من ملف الـ .env
     clean_key = str(settings.AI_VISION_API_KEY).strip()
