@@ -39,7 +39,8 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                 if instance.schema_name == 'public':
                     domain_name = base_domain
                 else:
-                    domain_name = f"{instance.schema_name}.{base_domain}"
+                    url_safe = instance.schema_name.replace('_', '-')
+                    domain_name = f"{url_safe}.{base_domain}"
                 
                 Domain.objects.create(domain=domain_name, tenant=instance, is_primary=True)
                 logger.info(f"🌐 [ORCHESTRATOR]: Domain '{domain_name}' created for tenant '{instance.name}'")

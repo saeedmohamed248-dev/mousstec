@@ -32,8 +32,8 @@ class TenantSignupForm(forms.Form):
     )
     
     subdomain = forms.CharField(
-        required=False, 
-        widget=forms.HiddenInput(), 
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'mouss-auto', 'dir': 'ltr'}),
         label="رابط النظام"
     )
 

@@ -136,8 +136,8 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     def suspend_clients(self, request, queryset):
         updated = queryset.update(status='suspended', is_active=False)
         self.message_user(request, f"تم إيقاف عدد {updated} شركة وعزل فروعها عن السحابة.", messages.WARNING)
-# بداخل كلاس ClientAdmin في ملف clients/admin.py
-exclude = ('auto_create_schema', 'auto_drop_schema')
+
+    exclude = ('auto_create_schema', 'auto_drop_schema')
 
 # =====================================================================
 # 🛒 3. إدارة السوق المركزي (Global Marketplace - مصفى ومؤمن 🔐)

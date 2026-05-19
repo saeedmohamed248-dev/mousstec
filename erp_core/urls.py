@@ -165,6 +165,10 @@ urlpatterns = [
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
 
+    # 🧩 إدارة الاشتراك وشراء الإضافات (Pro-Rated Addon Engine)
+    path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),
+    path('api/v1/subscription/addon/', client_views.purchase_addon_api, name='api_purchase_addon'),
+
     # 👑 لوحة المشرف الأعلى — إدارة كل الشركات
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
 

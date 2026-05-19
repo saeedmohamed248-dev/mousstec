@@ -54,7 +54,6 @@ def register_new_tenant_saas(request):
             while not success and attempts < 10:
                 try:
                     with transaction.atomic():
-                        # 1. التأسيس السيادي للشركة
                         tenant = Client.objects.create(
                             schema_name=schema_name,
                             name=company_name,
@@ -64,35 +63,37 @@ def register_new_tenant_saas(request):
                             business_type=business_type,
                             is_active=True
                         )
-                        
-                        url_safe_slug = schema_name.replace('_', '-')
-                        from django.conf import settings as _cfg
-                        _base = getattr(_cfg, 'BASE_DOMAIN', 'mousstec.com')
-                        Domain.objects.create(domain=f"{url_safe_slug}.{_base}", tenant=tenant, is_primary=True)
 
-                        # 2. بناء الداتا الداخلية (Smart Context)
                         with schema_context(schema_name):
                             name_parts = data['full_name'].split(' ', 1)
-                            new_admin = User.objects.create_superuser(
+                            admin_user, created = User.objects.get_or_create(
                                 username=data['email'],
-                                email=data['email'],
-                                password=data['password'],
-                                first_name=name_parts[0],
-                                last_name=name_parts[1] if len(name_parts) > 1 else ''
+                                defaults={
+                                    'email': data['email'],
+                                    'first_name': name_parts[0],
+                                    'last_name': name_parts[1] if len(name_parts) > 1 else '',
+                                    'is_staff': True,
+                                    'is_superuser': True,
+                                }
                             )
-                            
+                            admin_user.set_password(data['password'])
+                            if not created:
+                                admin_user.first_name = name_parts[0]
+                                admin_user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+                                admin_user.is_staff = True
+                                admin_user.is_superuser = True
+                            admin_user.save()
+
                             try:
                                 from inventory.models import EmployeeProfile, ProductCategory
-                                EmployeeProfile.objects.get_or_create(user=new_admin, defaults={'role': 'admin', 'can_edit_posted_invoices': True})
-                                
-                                # 🌱 ابتكار: Smart Seeding (تهيئة النظام آلياً بناءً على نشاط العميل)
+                                EmployeeProfile.objects.get_or_create(user=admin_user, defaults={'role': 'admin', 'can_edit_posted_invoices': True})
                                 if business_type in ['service_center', 'both']:
                                     ProductCategory.objects.get_or_create(name='أجور مصنعيات وخدمات', is_service=True)
                                 elif business_type == 'parts_dealer':
                                     ProductCategory.objects.get_or_create(name='قطع غيار ميكانيكا', is_service=False)
                                     ProductCategory.objects.get_or_create(name='زيوت وفلاتر', is_service=False)
                             except ImportError:
-                                pass # التجاوز الآمن لو لم يتم عمل Migrate بعد
+                                pass
                                 
                     success = True
 
@@ -109,7 +110,7 @@ def register_new_tenant_saas(request):
                 url_safe_final = schema_name.replace('_', '-')
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': f"https://{url_safe_final}.{getattr(_cfg, 'BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/",
+                    'target_url': f"https://{url_safe_final}.{os.getenv('BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/",
                     'admin_email': data['email']
                 })
             else:
@@ -402,8 +403,114 @@ def saas_pricing_page(request):
 
     return render(request, 'clients/pricing.html', {
         'tenant': tenant, 'shop': shop_schema,
-        'pricing': {'silver': {'price': 400}, 'gold': {'price': 1200}, 'empire': {'price': 3000}}
+        'pricing': {
+            'silver': {'price': 685, 'users': 1, 'branches': 1, 'treasuries': 1},
+            'gold': {'price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2},
+            'empire': {'price': 3000},
+            'addon_price': 125,
+        }
     })
+
+
+# =====================================================================
+# 🧩 9. محرك شراء الإضافات بالتناسب الزمني (Pro-Rated Addon Engine)
+# =====================================================================
+@login_required(login_url='/secure-portal/')
+def manage_subscription(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant or tenant.schema_name == 'public':
+        return redirect('/')
+
+    addon_labels = {'employee': 'موظف', 'branch': 'فرع', 'treasury': 'خزينة'}
+    result_msg = None
+
+    if request.method == 'POST' and request.user.is_superuser:
+        addon_type = request.POST.get('addon_type')
+        qty = int(request.POST.get('quantity', 1))
+        if addon_type in addon_labels and 1 <= qty <= 10:
+            prorated = tenant.calculate_prorated_addon_cost()
+            total_cost = prorated * qty
+            with transaction.atomic():
+                t = Client.objects.select_for_update().get(pk=tenant.pk)
+                if addon_type == 'employee':
+                    t.extra_users_purchased += qty
+                elif addon_type == 'branch':
+                    t.extra_branches_purchased += qty
+                elif addon_type == 'treasury':
+                    t.extra_treasuries_purchased += qty
+                t.save()
+                EscrowLedger.objects.create(
+                    client=t, transaction_type='fee_deduction', amount=total_cost,
+                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+                )
+            tenant.refresh_from_db()
+            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+
+    prorated_cost = tenant.calculate_prorated_addon_cost()
+    remaining_days = 0
+    if tenant.subscription_end_date:
+        remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
+
+    return render(request, 'clients/manage_subscription.html', {
+        'tenant': tenant,
+        'prorated_cost': prorated_cost,
+        'full_addon_price': float(Client.ADDON_PRICE_PER_MONTH),
+        'remaining_days': remaining_days,
+        'result_msg': result_msg,
+    })
+
+
+@csrf_exempt
+@login_required(login_url='/secure-portal/')
+def purchase_addon_api(request):
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST Only"}, status=400)
+    tenant = getattr(request, 'tenant', None)
+    if not tenant or tenant.schema_name == 'public':
+        return JsonResponse({"error": "متاح للمؤسسات فقط"}, status=403)
+    if not request.user.is_superuser:
+        return JsonResponse({"error": "فقط المدير المسؤول يمكنه شراء الإضافات"}, status=403)
+
+    try:
+        data = json.loads(request.body)
+        addon_type = data.get('addon_type')
+        qty = int(data.get('quantity', 1))
+        addon_labels = {'employee': 'موظف', 'branch': 'فرع', 'treasury': 'خزينة'}
+
+        if addon_type not in addon_labels:
+            return JsonResponse({"error": "نوع الإضافة غير صالح"}, status=400)
+        if qty < 1 or qty > 10:
+            return JsonResponse({"error": "الكمية يجب أن تكون بين 1 و 10"}, status=400)
+
+        prorated = tenant.calculate_prorated_addon_cost()
+        total_cost = prorated * qty
+
+        with transaction.atomic():
+            t = Client.objects.select_for_update().get(pk=tenant.pk)
+            if addon_type == 'employee':
+                t.extra_users_purchased += qty
+            elif addon_type == 'branch':
+                t.extra_branches_purchased += qty
+            elif addon_type == 'treasury':
+                t.extra_treasuries_purchased += qty
+            t.save()
+            EscrowLedger.objects.create(
+                client=t, transaction_type='fee_deduction', amount=total_cost,
+                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+            )
+
+        remaining_days = 0
+        if tenant.subscription_end_date:
+            remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
+
+        return JsonResponse({
+            "status": "success", "addon_type": addon_type, "quantity": qty,
+            "cost_per_unit": float(prorated), "total_cost": float(total_cost),
+            "remaining_days": remaining_days,
+            "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # =====================================================================

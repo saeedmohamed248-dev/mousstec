@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction
-from django.db.models import F, Min
+from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
 
@@ -192,13 +192,13 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
 
             total_qty = Inventory.objects.filter(
                 product=product
-            ).aggregate(s=F('quantity'))['s'] or 0
+            ).aggregate(s=Sum('quantity'))['s'] or 0
 
             # إذا المخزون صفر أو سالب نحذف من السوق بدلاً من المزامنة
             if total_qty <= 0:
                 with schema_context('public'):
                     GlobalB2BMarketplace.objects.filter(
-                        seller_schema=schema_name,
+                        tenant__schema_name=schema_name,
                         part_number=product.part_number,
                         condition=product.condition,
                     ).delete()
@@ -224,15 +224,14 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
 
             with transaction.atomic():
                 listing, created = GlobalB2BMarketplace.objects.update_or_create(
-                    seller_schema=schema_name,
+                    tenant=tenant,
                     part_number=listing_data['part_number'],
                     condition=listing_data['condition'],
                     defaults={
-                        'seller':        tenant,
-                        'name':          listing_data['name'],
-                        'brand':         listing_data['brand'],
-                        'available_qty': listing_data['available_qty'],
-                        'asking_price':  listing_data['asking_price'],
+                        'product_name':   listing_data['name'],
+                        'brand':          listing_data['brand'],
+                        'available_qty':  listing_data['available_qty'],
+                        'wholesale_price': listing_data['asking_price'],
                     }
                 )
 
@@ -276,7 +275,7 @@ def async_remove_b2b_marketplace_product(self, schema_name: str, part_number: st
 
         with schema_context('public'):
             deleted_count, _ = GlobalB2BMarketplace.objects.filter(
-                seller_schema=schema_name,
+                tenant__schema_name=schema_name,
                 part_number=part_number,
                 condition=condition,
             ).delete()
@@ -323,7 +322,7 @@ def process_ai_bidding_award(self, bid_id: int):
         from clients.models import BlindBiddingRequest, BidOffer, Client
 
         with schema_context('public'):
-            bid = BlindBiddingRequest.objects.select_related('requester').get(pk=bid_id)
+            bid = BlindBiddingRequest.objects.select_related('buyer').get(pk=bid_id)
 
             if bid.status not in ('awarding', 'open'):
                 logger.info(f"[AI BIDDING AWARD] Bid #{bid_id} already processed (status={bid.status}).")
@@ -331,7 +330,7 @@ def process_ai_bidding_award(self, bid_id: int):
 
             offers = BidOffer.objects.filter(
                 bidding_request=bid
-            ).select_related('seller').order_by('offered_price')
+            ).select_related('seller').order_by('offer_price')
 
             if not offers.exists():
                 bid.status = 'cancelled'
@@ -343,10 +342,10 @@ def process_ai_bidding_award(self, bid_id: int):
             # Score = 100 - price_rank_score + trust_bonus
             # Lower price = better rank; higher trust = bonus points
             scored_offers = []
-            min_price = float(offers.first().offered_price)
+            min_price = float(offers.first().offer_price)
 
             for offer in offers:
-                price_score  = (float(offer.offered_price) / max(min_price, 1)) * 50
+                price_score  = (float(offer.offer_price) / max(min_price, 1)) * 50
                 trust_score  = getattr(offer.seller, 'ai_trust_score', 50) * 0.5
                 final_score  = trust_score - price_score + 100
                 scored_offers.append((final_score, offer))
@@ -355,10 +354,10 @@ def process_ai_bidding_award(self, bid_id: int):
             winning_score, winning_offer = scored_offers[0]
 
             with transaction.atomic():
-                bid.status         = 'completed'
-                bid.awarded_to     = winning_offer.seller
-                bid.awarded_price  = winning_offer.offered_price
-                bid.save(update_fields=['status', 'awarded_to', 'awarded_price'])
+                bid.status        = 'completed'
+                bid.winner        = winning_offer.seller
+                bid.winning_price = winning_offer.offer_price
+                bid.save(update_fields=['status', 'winner', 'winning_price'])
 
                 # حرِّك Escrow للبائع الفائز
                 bid.trigger_release_to_seller()
@@ -372,7 +371,7 @@ def process_ai_bidding_award(self, bid_id: int):
                         winning_offer.seller.name,
                         getattr(winning_offer.seller, 'phone', ''),
                         'parts_trader',
-                        f"تهانينا! فزت بمزاد #{bid_id} بسعر {winning_offer.offered_price} جنيه.",
+                        f"تهانينا! فزت بمزاد #{bid_id} بسعر {winning_offer.offer_price} جنيه.",
                         '',
                     ],
                 )
@@ -384,7 +383,7 @@ def process_ai_bidding_award(self, bid_id: int):
                 state={
                     'bid_id':        bid_id,
                     'winner_schema': winning_offer.seller.schema_name,
-                    'price':         float(winning_offer.offered_price),
+                    'price':         float(winning_offer.offer_price),
                     'score':         winning_score,
                 }
             )
@@ -395,7 +394,7 @@ def process_ai_bidding_award(self, bid_id: int):
             )
             logger.info(
                 f"⚖️ [AI BIDDING AWARD] Bid #{bid_id} awarded to "
-                f"'{winning_offer.seller.schema_name}' at {winning_offer.offered_price} EGP "
+                f"'{winning_offer.seller.schema_name}' at {winning_offer.offer_price} EGP "
                 f"(AI score: {winning_score:.1f})."
             )
 

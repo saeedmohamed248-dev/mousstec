@@ -48,7 +48,7 @@
                 <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> لنشاطك</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto">
-                جميع الباقات تشمل نظام الورشة الكامل، التقارير الذكية، وسوق B2B المركزي.
+                جميع الباقات تشمل نظام الورشة الكامل، التقارير الذكية، والفواتير. أضف موظفين أو فروع أو خزائن في أي وقت بـ {{ pricing.addon_price }} ج.م/شهر للإضافة.
             </p>
 
             {% if tenant %}
@@ -88,11 +88,11 @@
                 </div>
                 <ul class="space-y-3 mb-8 text-sm">
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فرع واحد + خزينة واحدة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> حتى 3 مستخدمين</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> موظف واحد (المدير)</li>
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فواتير مبيعات ومشتريات</li>
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> إدارة المخزون الأساسية</li>
+                    <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> إضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                     <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">ذكاء اصطناعي</span></li>
                 </ul>
                 <form method="post">
                     {% csrf_token %}
@@ -124,12 +124,12 @@
                     </div>
                 </div>
                 <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> حتى 3 فروع + خزائن متعددة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> حتى 10 مستخدمين</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> فرعين + خزينتين</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> 4 موظفين</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> سوق B2B المركزي كامل</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تشخيص ذكي بالـ AI</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تقارير مالية متقدمة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تذكيرات صيانة تلقائية</li>
+                    <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> إضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                 </ul>
                 <form method="post">
                     {% csrf_token %}
@@ -157,7 +157,7 @@
                 </div>
                 <ul class="space-y-3 mb-8 text-sm">
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> فروع وخزائن غير محدودة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مستخدمون غير محدودون</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> موظفون غير محدودون</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Gold</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مزادات B2B العكسية</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> Escrow مالي متكامل</li>
@@ -175,8 +175,20 @@
             </div>
         </div>
 
+        <!-- Addon Pricing Note -->
+        <div class="max-w-3xl mx-auto mt-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-6 py-5 text-center">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <i class="fas fa-puzzle-piece text-indigo-400 text-lg"></i>
+                <span class="text-indigo-400 font-black text-base">نظام الإضافات المرنة</span>
+            </div>
+            <p class="text-slate-400 text-sm leading-relaxed">
+                أضف موظفين أو فروع أو خزائن إضافية في أي وقت بـ <strong class="text-white">{{ pricing.addon_price }} ج.م/شهر</strong> للإضافة الواحدة.
+                <br>النظام يحسب التكلفة تلقائياً بالتناسب مع الأيام المتبقية من اشتراكك — ادفع فقط على الأيام الفعلية.
+            </p>
+        </div>
+
         <!-- Loyalty Bonus Note -->
-        <div class="max-w-2xl mx-auto mt-10 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
+        <div class="max-w-2xl mx-auto mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
             <i class="fas fa-gift text-emerald-400 ml-2"></i>
             <span class="text-emerald-400 font-bold text-sm">مكافأة الولاء:</span>
             <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 أيام مجانية إضافية تلقائياً!</span>
@@ -185,7 +197,7 @@
     </main>
 
     <footer class="text-center py-8 text-slate-600 text-xs mt-8">
-        © 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
+        &copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
     </footer>
 
 </body>

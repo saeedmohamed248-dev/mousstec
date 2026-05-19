@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الاشتراك والإضافات | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .addon-card { transition: all 0.2s ease; }
+        .addon-card:hover { transform: translateY(-4px); border-color: rgba(139, 92, 246, 0.5); }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+    <header class="container mx-auto px-6 py-6 flex justify-between items-center">
+        <a href="/" class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
+                <i class="fas fa-cubes text-2xl text-white"></i>
+            </div>
+            <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+        </a>
+        <a href="/system/dashboard/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
+            <i class="fas fa-arrow-right"></i> العودة للنظام
+        </a>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 max-w-4xl">
+
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black text-white mb-2">إدارة الاشتراك والإضافات</h1>
+            <p class="text-slate-400">{{ tenant.name }} — باقة {{ tenant.get_plan_display }}</p>
+        </div>
+
+        {% if result_msg %}
+        <div class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-5 py-3 text-center font-bold text-sm mb-8">
+            <i class="fas fa-check-circle ml-2"></i>{{ result_msg }}
+        </div>
+        {% endif %}
+
+        <!-- Current Plan Summary -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 mb-8">
+            <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-chart-pie text-purple-400 ml-2"></i>ملخص الباقة الحالية</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-slate-900/50 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-purple-400">{{ tenant.total_allowed_users }}</div>
+                    <div class="text-slate-400 text-xs mt-1">موظفين</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_users }} أساسي + {{ tenant.extra_users_purchased }} إضافي)</div>
+                </div>
+                <div class="bg-slate-900/50 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-indigo-400">{{ tenant.total_allowed_branches }}</div>
+                    <div class="text-slate-400 text-xs mt-1">فروع</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_branches }} أساسي + {{ tenant.extra_branches_purchased }} إضافي)</div>
+                </div>
+                <div class="bg-slate-900/50 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-emerald-400">{{ tenant.total_allowed_treasuries }}</div>
+                    <div class="text-slate-400 text-xs mt-1">خزائن</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_treasuries }} أساسي + {{ tenant.extra_treasuries_purchased }} إضافي)</div>
+                </div>
+                <div class="bg-slate-900/50 rounded-xl p-4 text-center">
+                    {% if tenant.subscription_end_date %}
+                    <div class="text-2xl font-black {% if remaining_days > 7 %}text-emerald-400{% elif remaining_days > 0 %}text-amber-400{% else %}text-red-400{% endif %}">{{ remaining_days }}</div>
+                    <div class="text-slate-400 text-xs mt-1">يوم متبقي</div>
+                    <div class="text-slate-600 text-xs">ينتهي: {{ tenant.subscription_end_date }}</div>
+                    {% else %}
+                    <div class="text-2xl font-black text-slate-500">--</div>
+                    <div class="text-slate-400 text-xs mt-1">فترة تجريبية</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Pro-rated Cost Info -->
+        <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-8 text-sm">
+            <i class="fas fa-calculator text-indigo-400 ml-2"></i>
+            سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} ج.م/شهر</strong>
+            {% if remaining_days > 0 and remaining_days < 30 %}
+            — التكلفة التناسبية الحالية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} ج.م</strong>
+            {% endif %}
+        </div>
+
+        <!-- Addon Purchase Cards -->
+        <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-cart-plus text-purple-400 ml-2"></i>شراء إضافات</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+
+            <!-- Add Employee -->
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+                {% csrf_token %}
+                <input type="hidden" name="addon_type" value="employee">
+                <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-purple-600/20 rounded-xl mb-3">
+                        <i class="fas fa-user-plus text-purple-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-black text-white">إضافة موظف</h3>
+                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_users }} موظف</p>
+                </div>
+                <div class="flex items-center justify-center gap-3 mb-4">
+                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-plus ml-1"></i> إضافة
+                </button>
+            </form>
+
+            <!-- Add Branch -->
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+                {% csrf_token %}
+                <input type="hidden" name="addon_type" value="branch">
+                <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-indigo-600/20 rounded-xl mb-3">
+                        <i class="fas fa-code-branch text-indigo-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-black text-white">إضافة فرع</h3>
+                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_branches }} فرع</p>
+                </div>
+                <div class="flex items-center justify-center gap-3 mb-4">
+                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 focus:outline-none">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-plus ml-1"></i> إضافة
+                </button>
+            </form>
+
+            <!-- Add Treasury -->
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+                {% csrf_token %}
+                <input type="hidden" name="addon_type" value="treasury">
+                <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-emerald-600/20 rounded-xl mb-3">
+                        <i class="fas fa-vault text-emerald-400 text-xl"></i>
+                    </div>
+                    <h3 class="font-black text-white">إضافة خزينة</h3>
+                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_treasuries }} خزينة</p>
+                </div>
+                <div class="flex items-center justify-center gap-3 mb-4">
+                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-emerald-500 focus:outline-none">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-plus ml-1"></i> إضافة
+                </button>
+            </form>
+
+        </div>
+
+        <!-- Upgrade CTA -->
+        <div class="text-center">
+            <a href="/pricing/?shop={{ tenant.schema_name }}" class="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold text-sm transition">
+                <i class="fas fa-arrow-up"></i> ترقية الباقة أو التجديد
+            </a>
+        </div>
+
+    </main>
+
+    <footer class="text-center py-8 text-slate-600 text-xs mt-8">
+        &copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
+    </footer>
+
+</body>
+</html>

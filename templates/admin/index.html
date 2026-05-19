@@ -424,7 +424,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
 
             try {
-                const res = await fetch(`/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
+                const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
                 const typingEl = document.getElementById(typingId);
                 
@@ -456,7 +456,7 @@
         resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري استدعاء البصمة التشخيصية لـ Gemini...`;
 
         try {
-            const response = await fetch(`/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
+            const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
             if(!response.ok) throw new Error("API Crash");
             const data = await response.json();
             

@@ -21,6 +21,13 @@ def default_trial_end():
 # 🏢 1. جدول المستأجرين (شركات Mouss Tec Ecosystem)
 # =====================================================================
 class Client(TenantMixin):
+    ADDON_PRICE_PER_MONTH = Decimal('125.00')
+    PLAN_BASE_PRICES = {
+        'silver': Decimal('685.00'),
+        'gold': Decimal('1185.00'),
+        'empire': Decimal('3000.00'),
+    }
+
     name = models.CharField(max_length=100, verbose_name=_("اسم المركز/الشركة"))
     owner_name = models.CharField(max_length=100, verbose_name=_("اسم المالك"))
     phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
@@ -64,8 +71,11 @@ class Client(TenantMixin):
     max_repair_cards = models.IntegerField(default=0, help_text="0 تعني غير محدود", verbose_name=_("حد كروت الصيانة الشهري"))
     max_inventory_items = models.IntegerField(default=0, help_text="0 تعني غير محدود", verbose_name=_("حد أصناف المخزن"))
     
+    max_treasuries = models.IntegerField(default=2, verbose_name=_("الخزائن المشمولة بالباقة"))
+
     extra_branches_purchased = models.IntegerField(default=0, verbose_name=_("فروع إضافية مشتراة"))
     extra_users_purchased = models.IntegerField(default=0, verbose_name=_("مستخدمين إضافيين مشتراة"))
+    extra_treasuries_purchased = models.IntegerField(default=0, verbose_name=_("خزائن إضافية مشتراة"))
     
     STATUS_CHOICES = (
         ('trial', _('فترة تجريبية')),
@@ -116,6 +126,21 @@ class Client(TenantMixin):
     def total_allowed_users(self):
         return self.max_users + self.extra_users_purchased
 
+    @property
+    def total_allowed_treasuries(self):
+        return self.max_treasuries + self.extra_treasuries_purchased
+
+    def calculate_prorated_addon_cost(self, addon_monthly_price=None):
+        if addon_monthly_price is None:
+            addon_monthly_price = self.ADDON_PRICE_PER_MONTH
+        if not self.subscription_end_date:
+            return addon_monthly_price
+        today = timezone.now().date()
+        remaining = (self.subscription_end_date - today).days
+        if remaining <= 0:
+            return addon_monthly_price
+        return (addon_monthly_price * Decimal(str(remaining)) / Decimal('30')).quantize(Decimal('0.01'))
+
     def save(self, *args, **kwargs):
         plan_changed = self._state.adding
         if not plan_changed and self.pk:
@@ -125,13 +150,13 @@ class Client(TenantMixin):
 
         if plan_changed:
             if self.plan == 'silver':
-                self.max_branches, self.max_users = 1, 2
+                self.max_branches, self.max_users, self.max_treasuries = 1, 1, 1
                 self.max_repair_cards, self.max_inventory_items = 150, 500
             elif self.plan == 'gold':
-                self.max_branches, self.max_users = 2, 5
+                self.max_branches, self.max_users, self.max_treasuries = 2, 4, 2
                 self.max_repair_cards, self.max_inventory_items = 0, 0
             elif self.plan == 'empire':
-                self.max_branches, self.max_users = 999, 9999
+                self.max_branches, self.max_users, self.max_treasuries = 999, 9999, 999
                 self.max_repair_cards, self.max_inventory_items = 0, 0
 
         super().save(*args, **kwargs)
