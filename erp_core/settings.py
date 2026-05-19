@@ -6,8 +6,10 @@ from datetime import timedelta
 from celery.schedules import crontab 
 
 # 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404 عند الدخول
-LOGIN_REDIRECT_URL = '/system/dashboard/'
+LOGIN_REDIRECT_URL = '/auth/redirect/'
 LOGOUT_REDIRECT_URL = '/'
+ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
+BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'mousstec.com')
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 🟢 تهيئة قارئ البيئة المخفية
@@ -276,41 +278,62 @@ FEATURE_FLAGS = {
 # 🎨 إعدادات JAZZMIN (تخصيص هوية Mouss Tec الفاخرة للوحة التحكم)
 # =====================================================================
 JAZZMIN_SETTINGS = {
-    "site_title": "Mouss Tec Platform",
-    "site_header": "Mouss Tec",
-    "site_brand": "Mouss Tec B2B",
+    "site_title": "Mouss Tec",
+    "site_header": "Mouss Tec منصة",
+    "site_brand": "MOUSS TEC",
     "welcome_sign": "مرحباً بك في منصة Mouss Tec للسيارات",
-    "copyright": "Mouss Tec Ecosystem",
-    "search_model": ["inventory.Product", "clients.Client", "inventory.Customer"], 
+    "copyright": "© 2026 Mouss Tec Ecosystem",
+    "search_model": ["inventory.Product", "clients.Client", "inventory.Customer"],
     "user_avatar": None,
     "show_sidebar": True,
     "navigation_expanded": True,
+    "topmenu_links": [
+        {"name": "الرئيسية", "url": "/", "new_window": False},
+        {"name": "لوحة السوبر أدمن", "url": "/superadmin/", "new_window": False},
+        {"name": "فحص النظام", "url": "/system/health/", "new_window": True},
+    ],
     "icons": {
         "auth": "fas fa-users-cog",
-        "clients.Client": "fas fa-building", 
-        "clients.GlobalB2BMarketplace": "fas fa-globe-africa", 
-        "clients.BlindBiddingRequest": "fas fa-gavel",         
-        "inventory.Branch": "fas fa-store",
-        "inventory.Customer": "fas fa-user-tie", 
-        "inventory.Vendor": "fas fa-truck-loading", 
-        "inventory.Product": "fas fa-tools",
+        "auth.user": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "clients.Client": "fas fa-building",
+        "clients.Domain": "fas fa-globe",
+        "clients.GlobalB2BMarketplace": "fas fa-store",
+        "clients.BlindBiddingRequest": "fas fa-gavel",
+        "clients.BidOffer": "fas fa-tags",
+        "clients.EscrowLedger": "fas fa-vault",
+        "inventory.Branch": "fas fa-code-branch",
+        "inventory.Customer": "fas fa-user-tie",
+        "inventory.Vendor": "fas fa-truck",
+        "inventory.Product": "fas fa-cogs",
+        "inventory.ProductCategory": "fas fa-layer-group",
         "inventory.Inventory": "fas fa-boxes",
         "inventory.PurchaseInvoice": "fas fa-file-import",
         "inventory.SaleInvoice": "fas fa-file-invoice-dollar",
-        "inventory.Treasury": "fas fa-vault",
+        "inventory.Treasury": "fas fa-coins",
+        "inventory.EmployeeProfile": "fas fa-id-badge",
+        "inventory.Vehicle": "fas fa-car",
+        "inventory.MaintenanceContract": "fas fa-file-contract",
     },
     "order_with_respect_to": ["clients", "inventory", "auth"],
     "changeform_format": "horizontal_tabs",
-    "language_chooser": True,
-    "show_ui_builder": True, 
+    "language_chooser": False,
+    "show_ui_builder": False,
+    "related_modal_active": True,
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "flatly", 
-    "dark_mode_theme": "darkly",
+    "theme": "darkly",
+    "dark_mode_theme": None,
     "navbar_fixed": True,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary", 
+    "sidebar": "sidebar-dark-purple",
+    "accent": "accent-purple",
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "body_small_text": False,
+    "brand_colour": "navbar-purple",
+    "actions_sticky_top": True,
 }
 
 # =====================================================================

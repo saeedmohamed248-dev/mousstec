@@ -110,11 +110,21 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 
     def enter_tenant_dashboard(self, obj):
         try:
-            domain = obj.domains.first().domain
-            url = f"http://{domain}/system/dashboard/" if connection.schema_name == 'public' else f"http://{domain}:8000/system/dashboard/"
-            return format_html('<a class="button" href="{}" target="_blank" style="background-color:#28a745; color:white; padding:5px 12px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:12px;">🚀 الإدارة الميدانية</a>', url)
-        except:
-            return format_html('<span style="color:#dc3545; font-weight:bold; font-size:11px;">⚠️ بدون نطاق</span>')
+            from django.conf import settings as _s
+            raw_domain = obj.domains.first().domain
+            # Subdomains must use hyphens — fix any legacy underscore records
+            safe_domain = raw_domain.replace('_', '-')
+            protocol = 'http' if _s.DEBUG else 'https'
+            admin_slug = _s.ADMIN_URL if hasattr(_s, 'ADMIN_URL') else 'secure-portal'
+            url = f"{protocol}://{safe_domain}/{admin_slug}/"
+            return format_html(
+                '<a class="button" href="{}" target="_blank" '
+                'style="background-color:#28a745;color:white;padding:5px 12px;'
+                'border-radius:4px;text-decoration:none;font-weight:bold;font-size:12px;">🚀 الإدارة الميدانية</a>',
+                url
+            )
+        except Exception:
+            return format_html('<span style="color:#dc3545;font-weight:bold;font-size:11px;">⚠️ بدون نطاق</span>')
     enter_tenant_dashboard.short_description = "الدخول السريع"
 
     @admin.action(description='✅ منح علامة التوثيق (العلامة الزرقاء) للتجار المحددين')

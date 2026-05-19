@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Min, Sum, F, Avg, Max
 from django.utils import timezone
@@ -120,9 +120,45 @@ def register_new_tenant_saas(request):
 # =====================================================================
 # 🌍 2. واجهة الإمبراطورية المفتوحة (Public SaaS Landing Page)
 # =====================================================================
+@login_required(login_url='/secure-portal/login/')
+def smart_post_login_redirect(request):
+    """
+    يُوجِّه المستخدم بذكاء بعد تسجيل الدخول:
+    - السوبر أدمن → /superadmin/
+    - مستخدم Tenant → /system/dashboard/
+    - مستخدم على الـ Public Schema بدون صلاحيات → /login/
+    """
+    tenant = getattr(request, 'tenant', None)
+    if request.user.is_superuser:
+        return redirect('/superadmin/')
+    if tenant and tenant.schema_name != 'public':
+        return redirect('/system/dashboard/')
+    return redirect('/login/')
+
+
+def client_login_finder(request):
+    """
+    صفحة 'جد حسابك' — يدخل العميل بريده، النظام يعيد توجيهه للـ Subdomain الصحيح.
+    """
+    error = None
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        if email:
+            tenant = Client.objects.filter(email__iexact=email).exclude(schema_name='public').first()
+            if tenant:
+                domain_obj = tenant.domains.first()
+                if domain_obj:
+                    safe_domain = domain_obj.domain.replace('_', '-')
+                    from django.conf import settings as _s
+                    protocol = 'http' if _s.DEBUG else 'https'
+                    return redirect(f"{protocol}://{safe_domain}/{os.getenv('ADMIN_URL', 'secure-portal')}/login/")
+            error = "لا يوجد حساب مرتبط بهذا البريد الإلكتروني."
+    return render(request, 'clients/login_finder.html', {'error': error})
+
+
 def mousstec_landing_page(request):
     return render(request, 'clients/landing.html', {
-        'total_clients': max(Client.objects.filter(is_active=True).count(), 1), 
+        'total_clients': max(Client.objects.filter(is_active=True).count(), 1),
         'verified_merchants': Client.objects.filter(is_verified_merchant=True).count(),
         'total_parts': GlobalB2BMarketplace.objects.aggregate(Sum('available_qty'))['available_qty__sum'] or 0,
         'successful_bids': BlindBiddingRequest.objects.filter(status='completed').count(),
@@ -321,7 +357,14 @@ def saas_pricing_page(request):
             return redirect(f"{reverse('saas_customer_signup')}?plan={selected_plan}")
 
         # سيناريو 2: عميل موجود يجدد أو يغير الباقة
+        # حماية أمنية: فقط السوبر أدمن أو مستخدم مصادق عليه يمكنه تغيير الاشتراك
         if target_tenant and selected_plan in valid_plans:
+            if not request.user.is_authenticated:
+                messages.error(request, "🔒 يجب تسجيل الدخول أولاً لإدارة الاشتراك.")
+                return redirect(f"{reverse('client_login_finder')}")
+            if not request.user.is_superuser:
+                messages.error(request, "🛑 غير مصرح — فقط السوبر أدمن يمكنه تغيير الاشتراك مباشرة.")
+                return redirect(reverse('saas_pricing') + f'?shop={shop_post}')
             with transaction.atomic():
                 target_tenant.plan, target_tenant.status = selected_plan, 'active'
                 base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
@@ -344,10 +387,8 @@ def saas_pricing_page(request):
 # =====================================================================
 # 👑 Super Admin — لوحة إدارة كل الشركات
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@user_passes_test(lambda u: u.is_active and u.is_superuser, login_url='/secure-portal/login/')
 def super_admin_dashboard(request):
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("<h1>403 — هذه اللوحة للمشرف الأعلى فقط.</h1>")
 
     action = request.POST.get('action')
     tenant_id = request.POST.get('tenant_id')

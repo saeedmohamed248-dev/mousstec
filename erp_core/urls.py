@@ -153,6 +153,12 @@ urlpatterns = [
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),
 
+    # 🔑 صفحة "جد حسابك" — يُعيد توجيه العميل لـ Subdomain الخاص به
+    path('login/', client_views.client_login_finder, name='client_login_finder'),
+
+    # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
+    path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
+
     # 🏢 بوابة الاشتراك والإنشاء الآلي للشركات (Automated SaaS Onboarding)
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),
 

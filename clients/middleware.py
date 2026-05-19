@@ -20,13 +20,19 @@ class TenantQuotaMiddleware(MiddlewareMixin):
     EXEMPT_URLS = [
         re.compile(r'^/static/'),
         re.compile(r'^/media/'),
-        re.compile(r'^/api/auth/'),        # السماح بتسجيل الدخول
-        re.compile(r'^/api/webhooks/'),    # ⚠️ ابتكار: السماح باستقبال إشعارات الدفع حتى لو الحساب مغلق!
-        re.compile(r'^/subscription/'),    # مسار الاشتراكات
-        re.compile(r'^/billing/'),         # مسار الفواتير
-        re.compile(r'^/admin/'),           # لوحة تحكم النظام
-        re.compile(r'^/pricing/'),         # صفحة الباقات المفتوحة
-        re.compile(r'^/system/api/v1/ai/') # استثناء مسار الـ AI لتوفير دعم فني مستمر
+        re.compile(r'^/api/auth/'),
+        re.compile(r'^/api/webhooks/'),
+        re.compile(r'^/subscription/'),
+        re.compile(r'^/billing/'),
+        re.compile(r'^/admin/'),
+        re.compile(r'^/pricing/'),
+        re.compile(r'^/login/'),           # صفحة جد حسابك
+        re.compile(r'^/auth/redirect/'),   # التوجيه الذكي بعد تسجيل الدخول
+        re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
+        re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
+        re.compile(r'^/system/health/'),   # فحص صحة النظام
+        re.compile(r'^/system/api/v1/ai/'),
+        re.compile(r'^/secure-portal/'),   # Django admin login
     ]
 
     # 🚦 سرعات الباقات (طلبات لكل دقيقة)
