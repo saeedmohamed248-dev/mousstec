@@ -59,7 +59,7 @@ urlpatterns = [
     # 🔗 5. واجهات البرمجة الموحدة (Enterprise RESTful API Gateway - v1)
     # =====================================================================
     
-    # 📚 التوثيق الآلي למطورين (مُكيش لتقليل تحميل السيرفر)
+    # 📚 التوثيق الآلي للمطورين (مُكيش لتقليل تحميل السيرفر)
     path('api/v1/docs/', cache_page(60 * 60)(views.api_documentation_view), name='v1_api_docs'),
     path('graphql/', views.graphql_gateway_view, name='graphql_endpoint'),
 
@@ -92,7 +92,7 @@ urlpatterns = [
         path('reports/export/download/<str:task_id>/', views.download_async_report_api, name='v1_download_async_report'),
 
         # =================================================================
-        # 👑 محركات سحابة Mouss Tec السيادية (السوق، المزاد، الذكاء الاصطناعي)
+        # 👑 محركات السوق والمشتريات (B2B & Procurement)
         # =================================================================
         
         # 🛒 بحث حي في السوق المشترك
@@ -107,16 +107,23 @@ urlpatterns = [
         # 🚢 حاسبة تقطيع السيارات الاستيراد وتوزيع التكلفة
         path('scrap/dismantle/<int:job_id>/', views.distribute_scrap_cost_api, name='v1_distribute_scrap_cost'),
         
-        # 🤖 مستشار الذكاء الاصطناعي لتوقع القطع المطلوبة من كود العطل (DTC Prognostics)
+        # =================================================================
+        # 🧠 الطبقة الإدراكية للذكاء الاصطناعي (Cognitive AI Layer & MAS)
+        # =================================================================
+
+        # 🚀 🚀 الأوركسترا المجمعة (Multi-Agent Pipeline) - المسار المركزي الجديد
+        path('ai/orchestrator/', views.unified_ai_agent_orchestrator_api, name='v1_ai_orchestrator'),
+
+        # 🤖 وكيل التشخيص المستقل (DTC Prognostics)
         path('ai/estimate-repair/', views.ai_repair_estimator_api, name='v1_ai_repair_estimator'),
 
-        # 👁️ مستشار الرؤية لقراءة فواتير الموردين (AI OCR Scanner)
+        # 👁️ وكيل الرؤية لفواتير الموردين (AI OCR Scanner)
         path('ai/scan-invoice/', views.ai_ocr_invoice_scanner_api, name='v1_ai_invoice_scanner'),
         
-        # 🪪 ماسح التراخيص والـ VIN (AI Vehicle ID Document)
+        # 🪪 وكيل مسح التراخيص והـ VIN (AI Vehicle ID Document)
         path('ai/scan-vehicle-docs/', views.ai_vehicle_docs_scanner_api, name='v1_ai_vehicle_docs_scanner'),
 
-        # 🚀 ابتكار: وكيل الاستطلاع المبكر لتحليل أسعار المنافسين لايف
+        # 🚀 وكيل الاستطلاع المبكر لتحليل أسعار المنافسين لايف
         path('ai/market-recon/', views.ai_competitor_recon_api, name='v1_ai_competitor_recon'),
 
     ])),
