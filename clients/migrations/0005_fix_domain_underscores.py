@@ -1,18 +1,33 @@
 from django.db import migrations
+from django.conf import settings
 
 
-def fix_domain_underscores(apps, schema_editor):
-    """Replace underscores with hyphens in all tenant domain names.
-    DNS hostnames do not allow underscores — this is a one-time data fix."""
+def fix_domain_records(apps, schema_editor):
+    """Fix two issues in Domain records:
+    1. Replace underscores with hyphens (invalid DNS hostnames)
+    2. Replace localhost domains with the real BASE_DOMAIN for production
+    """
     Domain = apps.get_model('clients', 'Domain')
-    to_fix = Domain.objects.filter(domain__contains='_')
-    for domain_obj in to_fix:
-        fixed = domain_obj.domain.replace('_', '-')
-        Domain.objects.filter(pk=domain_obj.pk).update(domain=fixed)
+    base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+
+    for domain_obj in Domain.objects.all():
+        original = domain_obj.domain
+        fixed = original
+
+        # Fix underscores → hyphens
+        fixed = fixed.replace('_', '-')
+
+        # Fix localhost domains → production domain
+        if '.localhost' in fixed:
+            slug = fixed.split('.localhost')[0]
+            fixed = f"{slug}.{base_domain}"
+
+        if fixed != original:
+            Domain.objects.filter(pk=domain_obj.pk).update(domain=fixed)
 
 
 def reverse_fix(apps, schema_editor):
-    pass  # intentionally irreversible
+    pass
 
 
 class Migration(migrations.Migration):
@@ -22,5 +37,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(fix_domain_underscores, reverse_fix),
+        migrations.RunPython(fix_domain_records, reverse_fix),
     ]

@@ -66,7 +66,9 @@ def register_new_tenant_saas(request):
                         )
                         
                         url_safe_slug = schema_name.replace('_', '-')
-                        Domain.objects.create(domain=f"{url_safe_slug}.mousstec.com", tenant=tenant, is_primary=True)
+                        from django.conf import settings as _cfg
+                        _base = getattr(_cfg, 'BASE_DOMAIN', 'mousstec.com')
+                        Domain.objects.create(domain=f"{url_safe_slug}.{_base}", tenant=tenant, is_primary=True)
 
                         # 2. بناء الداتا الداخلية (Smart Context)
                         with schema_context(schema_name):
@@ -107,7 +109,7 @@ def register_new_tenant_saas(request):
                 url_safe_final = schema_name.replace('_', '-')
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': f"https://{url_safe_final}.mousstec.com/{ADMIN_URL}/",
+                    'target_url': f"https://{url_safe_final}.{getattr(_cfg, 'BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/",
                     'admin_email': data['email']
                 })
             else:
@@ -139,31 +141,49 @@ def smart_post_login_redirect(request):
 def client_login_finder(request):
     """
     صفحة 'جد حسابك' — يدخل العميل بريده، النظام يعيد توجيهه للـ Subdomain الصحيح.
+    يبني الرابط من schema_name + الدومين الحالي بدلاً من الاعتماد على جدول Domain.
     """
     error = None
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
         if email:
             tenant = Client.objects.filter(email__iexact=email).exclude(schema_name='public').first()
+            if not tenant:
+                # بحث موسع: البريد قد يكون للمالك وليس للشركة
+                from django_tenants.utils import get_tenant_model
+                all_tenants = Client.objects.exclude(schema_name='public')
+                for t in all_tenants:
+                    try:
+                        with schema_context(t.schema_name):
+                            if User.objects.filter(email__iexact=email).exists():
+                                tenant = t
+                                break
+                    except Exception:
+                        continue
+
             if tenant:
-                domain_obj = tenant.domains.first()
-                if domain_obj:
-                    safe_domain = domain_obj.domain.replace('_', '-')
-                    from django.conf import settings as _s
-                    protocol = 'http' if _s.DEBUG else 'https'
-                    return redirect(f"{protocol}://{safe_domain}/{os.getenv('ADMIN_URL', 'secure-portal')}/login/")
-            error = "لا يوجد حساب مرتبط بهذا البريد الإلكتروني."
+                safe_slug = tenant.schema_name.replace('_', '-')
+                request_host = request.get_host()
+                # إزالة أي subdomain موجود (مثال: www.mousstec.com → mousstec.com)
+                host_parts = request_host.split('.')
+                if len(host_parts) > 2:
+                    base_host = '.'.join(host_parts[-2:])
+                else:
+                    base_host = request_host
+                protocol = request.scheme
+                admin_slug = ADMIN_URL
+                login_url = f"{protocol}://{safe_slug}.{base_host}/{admin_slug}/login/"
+                return render(request, 'clients/login_finder.html', {
+                    'found_tenant': tenant,
+                    'login_url': login_url,
+                })
+
+            error = "لا يوجد حساب مرتبط بهذا البريد الإلكتروني. تأكد من البريد أو أنشئ حساباً جديداً."
     return render(request, 'clients/login_finder.html', {'error': error})
 
 
 def mousstec_landing_page(request):
-    return render(request, 'clients/landing.html', {
-        'total_clients': max(Client.objects.filter(is_active=True).count(), 1),
-        'verified_merchants': Client.objects.filter(is_verified_merchant=True).count(),
-        'total_parts': GlobalB2BMarketplace.objects.aggregate(Sum('available_qty'))['available_qty__sum'] or 0,
-        'successful_bids': BlindBiddingRequest.objects.filter(status='completed').count(),
-        'system_uptime': "99.99%",
-    })
+    return render(request, 'clients/landing.html')
 
 # =====================================================================
 # 🌐 3. الموزع المركزي للإشعارات الخارجية (FinTech Webhook Multiplexer)
@@ -374,7 +394,9 @@ def saas_pricing_page(request):
                 target_tenant.subscription_end_date = base_date + timedelta(days=30 + bonus_days)
 
                 target_tenant.save()
-                return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}.mousstec.com/{ADMIN_URL}/")
+                from django.conf import settings as _cfg2
+                _bd = getattr(_cfg2, 'BASE_DOMAIN', 'mousstec.com')
+                return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}.{_bd}/{ADMIN_URL}/")
 
         messages.error(request, "🛑 فشل تنفيذ عملية الاشتراك.")
 

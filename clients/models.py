@@ -117,18 +117,23 @@ class Client(TenantMixin):
         return self.max_users + self.extra_users_purchased
 
     def save(self, *args, **kwargs):
-        # تجنب إعادة ضبط الحصص إذا تم تغيير بيانات أخرى (فقط عند إنشاء جديد أو تغيير الباقة صراحة)
-        if self._state.adding or self.tracker.has_changed('plan'):
-            if self.plan == 'silver': 
+        plan_changed = self._state.adding
+        if not plan_changed and self.pk:
+            old_plan = Client.objects.filter(pk=self.pk).values_list('plan', flat=True).first()
+            if old_plan and old_plan != self.plan:
+                plan_changed = True
+
+        if plan_changed:
+            if self.plan == 'silver':
                 self.max_branches, self.max_users = 1, 2
                 self.max_repair_cards, self.max_inventory_items = 150, 500
-            elif self.plan == 'gold': 
+            elif self.plan == 'gold':
                 self.max_branches, self.max_users = 2, 5
-                self.max_repair_cards, self.max_inventory_items = 0, 0 
-            elif self.plan == 'empire': 
-                self.max_branches, self.max_users = 999, 9999 
                 self.max_repair_cards, self.max_inventory_items = 0, 0
-                
+            elif self.plan == 'empire':
+                self.max_branches, self.max_users = 999, 9999
+                self.max_repair_cards, self.max_inventory_items = 0, 0
+
         super().save(*args, **kwargs)
 
 # =====================================================================
