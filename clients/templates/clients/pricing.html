@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>باقات Mouss Tec | اختر خطتك</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .plan-card { transition: all 0.3s ease; }
+        .plan-card:hover { transform: translateY(-8px); }
+        .popular-glow { box-shadow: 0 0 40px rgba(139, 92, 246, 0.35); }
+        .price-badge { animation: pulse-badge 2s infinite; }
+        @keyframes pulse-badge {
+            0%,100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.4); }
+            50%      { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
+        }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+    <!-- Header -->
+    <header class="container mx-auto px-6 py-6 flex justify-between items-center">
+        <a href="/" class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
+                <i class="fas fa-cubes text-2xl text-white"></i>
+            </div>
+            <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+        </a>
+        <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
+            <i class="fas fa-arrow-right"></i> العودة للرئيسية
+        </a>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Title -->
+        <div class="text-center mb-14">
+            <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> أسعار شفافة بدون مفاجآت
+            </span>
+            <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
+                اختر الباقة المناسبة
+                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> لنشاطك</span>
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                جميع الباقات تشمل نظام الورشة الكامل، التقارير الذكية، وسوق B2B المركزي.
+            </p>
+
+            {% if tenant %}
+            <div class="inline-flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold px-5 py-3 rounded-xl mt-6 text-sm">
+                <i class="fas fa-building"></i>
+                تجديد اشتراك: <strong>{{ tenant.name }}</strong>
+                {% if tenant.subscription_end_date %}
+                — ينتهي في: {{ tenant.subscription_end_date }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="max-w-md mx-auto mb-6 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-5 py-3 text-center font-bold text-sm">
+            <i class="fas fa-exclamation-triangle ml-2"></i>{{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Plans Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+
+            <!-- Silver -->
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-700 rounded-2xl mb-4">
+                        <i class="fas fa-store text-slate-300 text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Silver</h2>
+                    <p class="text-slate-400 text-sm">للورش الناشئة</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white">{{ pricing.silver.price }}</span>
+                        <span class="text-slate-400 text-sm mr-1">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فرع واحد + خزينة واحدة</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> حتى 3 مستخدمين</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فواتير مبيعات ومشتريات</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> إدارة المخزون الأساسية</li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
+                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">ذكاء اصطناعي</span></li>
+                </ul>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="silver">
+                    <input type="hidden" name="shop" value="{{ shop }}">
+                    <button type="submit"
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
+                        {% if tenant and tenant.plan == 'silver' %}تجديد Silver{% else %}اختر Silver{% endif %}
+                    </button>
+                </form>
+            </div>
+
+            <!-- Gold (Popular) -->
+            <div class="plan-card popular-glow bg-gradient-to-b from-purple-900/40 to-slate-800/80 border border-purple-500/50 rounded-2xl p-8 backdrop-blur-sm relative">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <span class="price-badge bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
+                        <i class="fas fa-fire ml-1"></i> الأكثر طلباً
+                    </span>
+                </div>
+                <div class="text-center mb-8 mt-2">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-purple-500/30">
+                        <i class="fas fa-crown text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Gold</h2>
+                    <p class="text-purple-300 text-sm">للمحترفين والورش النامية</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white">{{ pricing.gold.price }}</span>
+                        <span class="text-slate-400 text-sm mr-1">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> حتى 3 فروع + خزائن متعددة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> حتى 10 مستخدمين</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> سوق B2B المركزي كامل</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تشخيص ذكي بالـ AI</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تقارير مالية متقدمة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تذكيرات صيانة تلقائية</li>
+                </ul>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="gold">
+                    <input type="hidden" name="shop" value="{{ shop }}">
+                    <button type="submit"
+                        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300">
+                        {% if tenant and tenant.plan == 'gold' %}تجديد Gold{% else %}اختر Gold{% endif %}
+                    </button>
+                </form>
+            </div>
+
+            <!-- Empire -->
+            <div class="plan-card bg-slate-800/60 border border-amber-500/40 rounded-2xl p-8 backdrop-blur-sm">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl mb-4 shadow-lg shadow-amber-500/30">
+                        <i class="fas fa-building-columns text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Empire</h2>
+                    <p class="text-amber-400 text-sm">للشبكات والتجار الكبار</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white">{{ pricing.empire.price }}</span>
+                        <span class="text-slate-400 text-sm mr-1">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> فروع وخزائن غير محدودة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مستخدمون غير محدودون</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Gold</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مزادات B2B العكسية</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> Escrow مالي متكامل</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم أولوية + API مفتوح</li>
+                </ul>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="empire">
+                    <input type="hidden" name="shop" value="{{ shop }}">
+                    <button type="submit"
+                        class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
+                        {% if tenant and tenant.plan == 'empire' %}تجديد Empire{% else %}اختر Empire{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Loyalty Bonus Note -->
+        <div class="max-w-2xl mx-auto mt-10 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
+            <i class="fas fa-gift text-emerald-400 ml-2"></i>
+            <span class="text-emerald-400 font-bold text-sm">مكافأة الولاء:</span>
+            <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 أيام مجانية إضافية تلقائياً!</span>
+        </div>
+
+    </main>
+
+    <footer class="text-center py-8 text-slate-600 text-xs mt-8">
+        © 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
+    </footer>
+
+</body>
+</html>
