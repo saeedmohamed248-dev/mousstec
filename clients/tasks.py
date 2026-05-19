@@ -1,9 +1,12 @@
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import F
+from django.db import transaction
+from django.db.models import F, Min
 from clients.models import Client
 import logging
+
+from erp_core.orchestrator import run_agent_safely, AgentEventBus, AgentHealthMonitor, dlq
 
 # تهيئة رادار المراقبة
 logger = logging.getLogger('mouss_tec_core')
@@ -158,3 +161,253 @@ def update_market_trust_scores():
             logger.error(f"🔴 [AI SHIELD FATAL]: Bulk update crashed - {e}")
             
     return f"AI Trust Orchestrator: Synced {len(updates_to_save)} merchants. Banned {auto_banned_count} fraudsters."
+
+
+# =====================================================================
+# 🌐 4. وكيل مزامنة سوق B2B (B2B Marketplace Sync Task)
+# =====================================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=30, name='clients.tasks.async_sync_b2b_marketplace_product')
+def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
+    """
+    يتلقى الإشارة من وكيل B2B Sync في inventory/signals.py.
+    يُحدِّث أو يُنشئ إدخالاً في GlobalB2BMarketplace بالسوق المركزي العام (public schema).
+
+    السلسلة: تغيير المخزون → B2B Sync Agent (signal) → هذه المهمة → GlobalB2BMarketplace
+    """
+    def _execute():
+        from django_tenants.utils import schema_context
+        from clients.models import GlobalB2BMarketplace, Client
+        from django.apps import apps
+
+        # 1. قراءة بيانات المنتج من سكيما الورشة
+        with schema_context(schema_name):
+            Product   = apps.get_model('inventory', 'Product')
+            Inventory = apps.get_model('inventory', 'Inventory')
+
+            product = Product.objects.filter(pk=product_id).first()
+            if not product:
+                logger.warning(f"[B2B SYNC] Product {product_id} not found in schema '{schema_name}'.")
+                return
+
+            total_qty = Inventory.objects.filter(
+                product=product
+            ).aggregate(s=F('quantity'))['s'] or 0
+
+            # إذا المخزون صفر أو سالب نحذف من السوق بدلاً من المزامنة
+            if total_qty <= 0:
+                with schema_context('public'):
+                    GlobalB2BMarketplace.objects.filter(
+                        seller_schema=schema_name,
+                        part_number=product.part_number,
+                        condition=product.condition,
+                    ).delete()
+                logger.info(f"🛑 [B2B SYNC] Removed zero-stock product P/N {product.part_number} from market.")
+                return
+
+            listing_data = {
+                'seller_schema':  schema_name,
+                'part_number':    product.part_number,
+                'name':           product.name,
+                'brand':          getattr(product, 'brand', ''),
+                'condition':      product.condition,
+                'available_qty':  total_qty,
+                'asking_price':   float(product.sale_price or product.average_cost or 0),
+                'average_cost':   float(product.average_cost or 0),
+            }
+
+        # 2. الكتابة في سكيما السوق المركزي (public)
+        with schema_context('public'):
+            tenant = Client.objects.filter(schema_name=schema_name).first()
+            if not tenant:
+                return
+
+            with transaction.atomic():
+                listing, created = GlobalB2BMarketplace.objects.update_or_create(
+                    seller_schema=schema_name,
+                    part_number=listing_data['part_number'],
+                    condition=listing_data['condition'],
+                    defaults={
+                        'seller':        tenant,
+                        'name':          listing_data['name'],
+                        'brand':         listing_data['brand'],
+                        'available_qty': listing_data['available_qty'],
+                        'asking_price':  listing_data['asking_price'],
+                    }
+                )
+
+        action = "created" if created else "updated"
+        AgentEventBus.set_agent_state(
+            'b2b_marketplace_sync_task', schema=schema_name,
+            state={'last_product_id': product_id, 'action': action}
+        )
+        logger.info(
+            f"🌐 [B2B SYNC TASK] P/N {listing_data['part_number']} "
+            f"{action} in global market. Schema: {schema_name}"
+        )
+
+    try:
+        return run_agent_safely(
+            agent_name='b2b_marketplace_sync_task',
+            func=_execute,
+            payload={'schema': schema_name, 'product_id': product_id},
+            schema=schema_name,
+            failure_threshold=3,
+            reraise=True,
+        )
+    except Exception as exc:
+        logger.warning(f"⚠️ [B2B SYNC TASK] Retrying ({self.request.retries}/3)… {exc}")
+        raise self.retry(exc=exc)
+
+
+# =====================================================================
+# 🗑️ 5. وكيل حذف المنتج من سوق B2B (B2B Marketplace Remove Task)
+# =====================================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=30, name='clients.tasks.async_remove_b2b_marketplace_product')
+def async_remove_b2b_marketplace_product(self, schema_name: str, part_number: str, condition: str):
+    """
+    يُزيل منتجاً من GlobalB2BMarketplace عند حذف سجل المخزون كلياً.
+    يُستدعى من post_delete signal في inventory/signals.py.
+    """
+    def _execute():
+        from django_tenants.utils import schema_context
+        from clients.models import GlobalB2BMarketplace
+
+        with schema_context('public'):
+            deleted_count, _ = GlobalB2BMarketplace.objects.filter(
+                seller_schema=schema_name,
+                part_number=part_number,
+                condition=condition,
+            ).delete()
+
+        AgentEventBus.set_agent_state(
+            'b2b_marketplace_remove_task', schema=schema_name,
+            state={'part_number': part_number, 'deleted': deleted_count}
+        )
+        logger.info(
+            f"🛑 [B2B REMOVE TASK] Removed {deleted_count} listing(s) for "
+            f"P/N '{part_number}' from schema '{schema_name}'."
+        )
+
+    try:
+        return run_agent_safely(
+            agent_name='b2b_marketplace_remove_task',
+            func=_execute,
+            payload={'schema': schema_name, 'part_number': part_number, 'condition': condition},
+            schema=schema_name,
+            failure_threshold=3,
+            reraise=True,
+        )
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+# =====================================================================
+# 🤖 6. وكيل الترسية الذكية للمزادات (AI Bidding Award Agent)
+# =====================================================================
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=60, name='clients.tasks.process_ai_bidding_award')
+def process_ai_bidding_award(self, bid_id: int):
+    """
+    يُشغِّله الـ Ecosystem Watchdog عند انتهاء وقت مزاد مفتوح.
+    يطبق خوارزمية ترسية AI:
+        1. يُرتِّب العروض حسب السعر + درجة الثقة (ai_trust_score)
+        2. يُرسي المزاد على أفضل عرض
+        3. يُحرِّك Escrow ويُرسل إشعارات
+
+    Pipeline: Watchdog → هذه المهمة → trigger_release_to_seller → إشعار B2B
+    """
+    def _execute():
+        from django_tenants.utils import schema_context
+        from clients.models import BlindBiddingRequest, BidOffer, Client
+
+        with schema_context('public'):
+            bid = BlindBiddingRequest.objects.select_related('requester').get(pk=bid_id)
+
+            if bid.status not in ('awarding', 'open'):
+                logger.info(f"[AI BIDDING AWARD] Bid #{bid_id} already processed (status={bid.status}).")
+                return
+
+            offers = BidOffer.objects.filter(
+                bidding_request=bid
+            ).select_related('seller').order_by('offered_price')
+
+            if not offers.exists():
+                bid.status = 'cancelled'
+                bid.save(update_fields=['status'])
+                logger.info(f"[AI BIDDING AWARD] Bid #{bid_id}: no offers → cancelled.")
+                return
+
+            # ── Scoring Algorithm ──────────────────────────────────
+            # Score = 100 - price_rank_score + trust_bonus
+            # Lower price = better rank; higher trust = bonus points
+            scored_offers = []
+            min_price = float(offers.first().offered_price)
+
+            for offer in offers:
+                price_score  = (float(offer.offered_price) / max(min_price, 1)) * 50
+                trust_score  = getattr(offer.seller, 'ai_trust_score', 50) * 0.5
+                final_score  = trust_score - price_score + 100
+                scored_offers.append((final_score, offer))
+
+            scored_offers.sort(key=lambda x: x[0], reverse=True)
+            winning_score, winning_offer = scored_offers[0]
+
+            with transaction.atomic():
+                bid.status         = 'completed'
+                bid.awarded_to     = winning_offer.seller
+                bid.awarded_price  = winning_offer.offered_price
+                bid.save(update_fields=['status', 'awarded_to', 'awarded_price'])
+
+                # حرِّك Escrow للبائع الفائز
+                bid.trigger_release_to_seller()
+
+            # إشعار البائع الفائز (عبر Celery)
+            from celery import current_app
+            try:
+                current_app.send_task(
+                    'clients.tasks.async_welcome_bot_task',
+                    args=[
+                        winning_offer.seller.name,
+                        getattr(winning_offer.seller, 'phone', ''),
+                        'parts_trader',
+                        f"تهانينا! فزت بمزاد #{bid_id} بسعر {winning_offer.offered_price} جنيه.",
+                        '',
+                    ],
+                )
+            except Exception as notif_exc:
+                logger.warning(f"⚠️ [AI BIDDING AWARD] Notification failed: {notif_exc}")
+
+            AgentEventBus.set_agent_state(
+                'ai_bidding_award_agent', schema='public',
+                state={
+                    'bid_id':        bid_id,
+                    'winner_schema': winning_offer.seller.schema_name,
+                    'price':         float(winning_offer.offered_price),
+                    'score':         winning_score,
+                }
+            )
+            AgentEventBus.push_pipeline_event(
+                'bid_awarded',
+                data={'bid_id': bid_id, 'winner': winning_offer.seller.schema_name},
+                schema='public',
+            )
+            logger.info(
+                f"⚖️ [AI BIDDING AWARD] Bid #{bid_id} awarded to "
+                f"'{winning_offer.seller.schema_name}' at {winning_offer.offered_price} EGP "
+                f"(AI score: {winning_score:.1f})."
+            )
+
+    try:
+        return run_agent_safely(
+            agent_name='ai_bidding_award_agent',
+            func=_execute,
+            payload={'bid_id': bid_id},
+            schema='public',
+            failure_threshold=3,
+            reraise=True,
+        )
+    except Exception as exc:
+        logger.error(f"🔴 [AI BIDDING AWARD] Retrying ({self.request.retries}/2)… {exc}")
+        raise self.retry(exc=exc)

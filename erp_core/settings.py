@@ -359,21 +359,52 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 CELERY_TASK_ROUTES = {
-    'clients.tasks.async_welcome_bot_task': {'queue': 'notifications'},
-    'clients.tasks.process_ai_bidding_award': {'queue': 'heavy_ai_tasks'},
-    'clients.tasks.orchestrate_billing_and_suspensions': {'queue': 'urgent_fintech_tasks'},
-    'inventory.tasks.process_ai_vision_*': {'queue': 'heavy_ai_tasks'},
-    'inventory.tasks.process_financial_*': {'queue': 'urgent_fintech_tasks'},
+    # ── Notification queue ───────────────────────────────────────────
+    'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},
+    'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},
+    # ── Heavy AI queue ───────────────────────────────────────────────
+    'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},
+    'inventory.tasks.process_ai_vision_invoice':        {'queue': 'heavy_ai_tasks'},
+    'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
+    # ── Fintech / reconciliation queue ──────────────────────────────
+    'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},
+    'inventory.tasks.process_financial_reconciliation': {'queue': 'urgent_fintech_tasks'},
+    # ── B2B Marketplace queue ────────────────────────────────────────
+    'clients.tasks.async_sync_b2b_marketplace_product': {'queue': 'b2b_sync'},
+    'clients.tasks.async_remove_b2b_marketplace_product':{'queue': 'b2b_sync'},
+    # ── DLQ / maintenance queue ──────────────────────────────────────
+    'inventory.tasks.drain_dlq_and_retry':              {'queue': 'default'},
 }
 
+# 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
+CELERY_QUEUES_LIST = ['default', 'notifications', 'heavy_ai_tasks', 'urgent_fintech_tasks', 'b2b_sync']
+
 CELERY_BEAT_SCHEDULE = {
+    # ── Billing & Subscription ───────────────────────────────────────
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',
-        'schedule': crontab(hour=0, minute=5), 
+        'schedule': crontab(hour=0, minute=5),
     },
+    # ── AI Trust & Fraud ─────────────────────────────────────────────
     'update_ai_trust_scores': {
         'task': 'clients.tasks.update_market_trust_scores',
-        'schedule': crontab(hour=2, minute=0), 
+        'schedule': crontab(hour=2, minute=0),
+    },
+    # ── Proactive Maintenance Reminders ─────────────────────────────
+    'dispatch_maintenance_reminders': {
+        'task': 'inventory.tasks.dispatch_maintenance_reminders',
+        'schedule': crontab(hour=9, minute=0),  # كل يوم 9 صباحاً
+    },
+    # ── Financial Reconciliation (nightly per active tenant) ─────────
+    'financial_reconciliation_nightly': {
+        'task': 'inventory.tasks.process_financial_reconciliation',
+        'schedule': crontab(hour=1, minute=0),
+        'kwargs': {'schema_name': 'public'},  # Beat يُشغِّلها للـ public، الوكيل يتولى الـ tenants
+    },
+    # ── DLQ Retry Worker ─────────────────────────────────────────────
+    'drain_dlq_and_retry': {
+        'task': 'inventory.tasks.drain_dlq_and_retry',
+        'schedule': crontab(minute=0),  # كل ساعة
     },
 }
 

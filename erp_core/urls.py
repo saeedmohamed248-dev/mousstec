@@ -66,15 +66,38 @@ def system_health_check(request):
         redis_status = "critical"
         health_status = 503
 
+    # MAS Agents Health (from Orchestrator)
+    mas_health = {}
+    dlq_size = -1
+    open_circuits = []
+    try:
+        from erp_core.orchestrator import AgentHealthMonitor, AgentRegistry, DeadLetterQueue
+        mas_health   = AgentHealthMonitor.get_summary()
+        dlq_size     = DeadLetterQueue().size()
+        open_circuits = AgentRegistry.list_open_circuits()
+    except Exception:
+        pass
+
+    if mas_health.get('failed', 0) > 0 or open_circuits:
+        health_status = max(health_status, 207)  # Multi-status — some agents degraded
+
     return JsonResponse({
-        "status": "operational" if health_status == 200 else "critical",
-        "version": "4.0.0-Enterprise",
+        "status": "operational" if health_status == 200 else ("degraded" if health_status == 207 else "critical"),
+        "version": "4.1.0-MAS-Enterprise",
         "system": "Mouss Tec Enterprise Engine Core",
-        "metrics": { # بصيغة Metrics لتسهيل التقاطها بأنظمة الـ DevOps
+        "metrics": {
             "db_latency_ms": db_latency,
             "db_status": db_status,
             "redis_status": redis_status,
-            "circuit_breaker": circuit_breaker
+            "circuit_breaker": circuit_breaker,
+        },
+        "mas_agents": {
+            "total":          mas_health.get("total", 0),
+            "alive":          mas_health.get("alive", 0),
+            "failed":         mas_health.get("failed", 0),
+            "unknown":        mas_health.get("unknown", 0),
+            "open_circuits":  open_circuits,
+            "dlq_size":       dlq_size,
         }
     }, status=health_status)
 

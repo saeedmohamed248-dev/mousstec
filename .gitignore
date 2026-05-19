@@ -1,7 +1,18 @@
 venv/
 __pycache__/
 *.pyc
-venv/
-__pycache__/
-*.pyc
 .DS_Store
+
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# Claude Code internal files
+.claude/
+
+# Logs
+*.log
+
+# Media uploads (managed separately on server)
+media/
