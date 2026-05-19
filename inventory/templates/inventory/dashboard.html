@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم | {{ tenant.name|default:"Mouss Tec" }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(139,92,246,0.15); }
+        @keyframes pulse-ring {
+            0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+            50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        }
+        .trial-pulse { animation: pulse-ring 2s infinite; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div class="min-h-screen flex flex-col">
+
+    <!-- ============================================================ -->
+    <!-- NAVBAR -->
+    <!-- ============================================================ -->
+    <nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2 rounded-xl shadow-lg shadow-purple-500/30">
+                    <i class="fas fa-cubes text-white text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-lg font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+                    {% if tenant %}
+                    <p class="text-xs text-slate-500 -mt-1">{{ tenant.name }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                {% if tenant %}
+                <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg
+                    {% if tenant.status == 'trial' %}bg-amber-500/10 text-amber-400 border border-amber-500/30
+                    {% elif tenant.status == 'active' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/30
+                    {% else %}bg-red-500/10 text-red-400 border border-red-500/30{% endif %}">
+                    <span class="w-1.5 h-1.5 rounded-full
+                        {% if tenant.status == 'trial' %}bg-amber-400
+                        {% elif tenant.status == 'active' %}bg-emerald-400 animate-pulse
+                        {% else %}bg-red-400{% endif %}"></span>
+                    {{ tenant.get_status_display }}
+                </span>
+                {% endif %}
+                <a href="/pricing/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700 hover:border-purple-500/40">
+                    <i class="fas fa-tags ml-1"></i>الباقات
+                </a>
+                <a href="/secure-portal/" class="text-xs font-bold text-purple-400 hover:text-white transition px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-600">
+                    <i class="fas fa-cog ml-1"></i>الإعدادات
+                </a>
+                <a href="/secure-portal/logout/" class="text-xs font-bold text-slate-500 hover:text-red-400 transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-6 flex-1 space-y-6">
+
+        <!-- ============================================================ -->
+        <!-- TRIAL COUNTDOWN BANNER -->
+        <!-- ============================================================ -->
+        {% if trial_days_left is not None %}
+        <div class="trial-pulse rounded-2xl border p-5 flex flex-col sm:flex-row items-center justify-between gap-4
+            {% if trial_days_left <= 1 %}bg-red-500/10 border-red-500/40
+            {% elif trial_days_left <= 3 %}bg-amber-500/10 border-amber-500/40
+            {% else %}bg-indigo-500/10 border-indigo-500/30{% endif %}">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black
+                    {% if trial_days_left <= 1 %}bg-red-500/20 text-red-400
+                    {% elif trial_days_left <= 3 %}bg-amber-500/20 text-amber-400
+                    {% else %}bg-indigo-500/20 text-indigo-400{% endif %}">
+                    {{ trial_days_left }}
+                </div>
+                <div>
+                    <p class="font-black text-white text-base">
+                        {% if trial_days_left == 0 %}
+                            ⚠️ انتهت مدتك التجريبية اليوم!
+                        {% elif trial_days_left == 1 %}
+                            ⚠️ باقي يوم واحد فقط على انتهاء التجربة
+                        {% else %}
+                            باقي {{ trial_days_left }} أيام على انتهاء المدة التجريبية
+                        {% endif %}
+                    </p>
+                    <p class="text-sm text-slate-400 mt-0.5">اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء</p>
+                </div>
+            </div>
+            <a href="/pricing/?shop={{ tenant.schema_name }}"
+               class="flex-shrink-0 font-black text-sm px-6 py-3 rounded-xl transition
+                {% if trial_days_left <= 3 %}bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-lg shadow-red-500/20
+                {% else %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20{% endif %}">
+                <i class="fas fa-rocket ml-2"></i>اشترك الآن
+            </a>
+        </div>
+        {% elif sub_days_left is not None and sub_days_left <= 7 %}
+        <div class="rounded-2xl border bg-amber-500/10 border-amber-500/40 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-black">
+                    {{ sub_days_left }}
+                </div>
+                <div>
+                    <p class="font-black text-white text-base">باقي {{ sub_days_left }} أيام على انتهاء اشتراكك</p>
+                    <p class="text-sm text-slate-400 mt-0.5">جدد الآن واحصل على 5 أيام مجانية إضافية</p>
+                </div>
+            </div>
+            <a href="/pricing/?shop={{ tenant.schema_name }}"
+               class="flex-shrink-0 font-black text-sm px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-500/20 transition">
+                <i class="fas fa-sync ml-2"></i>تجديد الاشتراك
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- PLAN INFO BAR -->
+        <!-- ============================================================ -->
+        {% if tenant %}
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center
+                    {% if tenant.plan == 'empire' %}bg-amber-500/20 text-amber-400
+                    {% elif tenant.plan == 'gold' %}bg-purple-500/20 text-purple-400
+                    {% else %}bg-slate-700 text-slate-300{% endif %}">
+                    {% if tenant.plan == 'empire' %}<i class="fas fa-building-columns"></i>
+                    {% elif tenant.plan == 'gold' %}<i class="fas fa-crown"></i>
+                    {% else %}<i class="fas fa-store"></i>{% endif %}
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500 font-bold">باقتك الحالية</p>
+                    <p class="text-white font-black">{{ tenant.get_plan_display }}</p>
+                </div>
+            </div>
+            <div class="flex gap-6 text-center">
+                <div>
+                    <p class="text-xs text-slate-500">الفروع</p>
+                    <p class="text-white font-black text-sm">{{ tenant.total_allowed_branches }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">المستخدمون</p>
+                    <p class="text-white font-black text-sm">{{ tenant.total_allowed_users }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500">تقييم السوق</p>
+                    <p class="text-white font-black text-sm">{{ tenant.market_rating }}⭐</p>
+                </div>
+            </div>
+            <a href="/pricing/?shop={{ tenant.schema_name }}" class="text-xs font-bold text-purple-400 hover:text-purple-300 border border-purple-500/30 px-4 py-2 rounded-xl transition">
+                <i class="fas fa-arrow-up ml-1"></i>ترقية الباقة
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- ============================================================ -->
+        <!-- TODAY'S STATS -->
+        <!-- ============================================================ -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">
+                <i class="fas fa-chart-line text-purple-400"></i> إحصائيات اليوم
+            </h2>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                            <i class="fas fa-cash-register text-sm"></i>
+                        </div>
+                        <span class="text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10">اليوم</span>
+                    </div>
+                    <p class="text-2xl font-black text-white">{{ stats.total_sales_today|floatformat:0 }}</p>
+                    <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المبيعات (ج.م)</p>
+                </div>
+
+                <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
+                            <i class="fas fa-chart-bar text-sm"></i>
+                        </div>
+                        <span class="text-xs text-purple-400 font-bold bg-purple-500/5 px-2 py-0.5 rounded-md border border-purple-500/10">صافي</span>
+                    </div>
+                    <p class="text-2xl font-black text-white">
+                        {% if stats.net_profit_today == "🔒 مخفي" %}
+                        <span class="text-lg">🔒</span>
+                        {% else %}
+                        {{ stats.net_profit_today|floatformat:0 }}
+                        {% endif %}
+                    </p>
+                    <p class="text-xs text-slate-500 font-bold mt-1">صافي الربح (ج.م)</p>
+                </div>
+
+                <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                            <i class="fas fa-file-invoice text-sm"></i>
+                        </div>
+                        <span class="text-xs text-indigo-400 font-bold bg-indigo-500/5 px-2 py-0.5 rounded-md border border-indigo-500/10">فاتورة</span>
+                    </div>
+                    <p class="text-2xl font-black text-white">{{ stats.invoices_count }}</p>
+                    <p class="text-xs text-slate-500 font-bold mt-1">فواتير صادرة اليوم</p>
+                </div>
+
+                <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-xl {% if stats.low_stock_count > 0 %}bg-red-500/10 border-red-500/20 text-red-400{% else %}bg-slate-700 text-slate-400{% endif %} flex items-center justify-center border">
+                            <i class="fas fa-boxes text-sm"></i>
+                        </div>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-md border {% if stats.low_stock_count > 0 %}text-red-400 bg-red-500/5 border-red-500/10{% else %}text-slate-500 bg-slate-800 border-slate-700{% endif %}">مخزون</span>
+                    </div>
+                    <p class="text-2xl font-black {% if stats.low_stock_count > 0 %}text-red-400{% else %}text-white{% endif %}">{{ stats.low_stock_count }}</p>
+                    <p class="text-xs text-slate-500 font-bold mt-1">صنف تحت الحد الأدنى</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- QUICK ACTIONS -->
+        <!-- ============================================================ -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">
+                <i class="fas fa-bolt text-purple-400"></i> الوصول السريع
+            </h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <a href="/system/pos/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl"><i class="fas fa-cash-register"></i></div>
+                    <span class="text-xs font-black text-slate-300">نقطة البيع</span>
+                </a>
+                <a href="/system/mechanic/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl"><i class="fas fa-wrench"></i></div>
+                    <span class="text-xs font-black text-slate-300">كشف الصيانة</span>
+                </a>
+                <a href="/secure-portal/inventory/saleinvoice/add/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl"><i class="fas fa-file-plus"></i></div>
+                    <span class="text-xs font-black text-slate-300">فاتورة جديدة</span>
+                </a>
+                <a href="/secure-portal/inventory/product/add/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-pink-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl"><i class="fas fa-boxes"></i></div>
+                    <span class="text-xs font-black text-slate-300">إضافة صنف</span>
+                </a>
+                <a href="/secure-portal/inventory/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 text-xl"><i class="fas fa-chart-pie"></i></div>
+                    <span class="text-xs font-black text-slate-300">التقارير</span>
+                </a>
+                <a href="/pricing/?shop={{ tenant.schema_name }}" class="card-hover bg-gradient-to-b from-purple-900/40 to-slate-900/60 border border-purple-500/40 hover:border-purple-400/60 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-xl"><i class="fas fa-crown"></i></div>
+                    <span class="text-xs font-black text-purple-300">اشتراكي</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- LOW STOCK ALERT -->
+        <!-- ============================================================ -->
+        {% if low_stock_items %}
+        <div>
+            <h2 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">
+                <i class="fas fa-exclamation-triangle text-red-400"></i> تنبيه: أصناف تحت الحد الأدنى
+            </h2>
+            <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl overflow-hidden">
+                <div class="divide-y divide-slate-800">
+                    {% for item in low_stock_items %}
+                    <div class="flex items-center justify-between px-5 py-3 hover:bg-slate-800/40 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 text-xs"><i class="fas fa-cogs"></i></div>
+                            <div>
+                                <p class="text-sm font-bold text-white">{{ item.product.name }}</p>
+                                <p class="text-xs text-slate-500">{{ item.branch.name }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-black text-red-400">{{ item.quantity }}</p>
+                            <p class="text-xs text-slate-600">الحد: {{ item.product.min_stock_level }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <footer class="text-center py-4 text-slate-700 text-xs border-t border-slate-900">
+        © 2026 Mouss Tec Ecosystem — نظام إدارة الورش السحابي
+    </footer>
+</div>
+
+</body>
+</html>

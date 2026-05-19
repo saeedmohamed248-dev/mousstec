@@ -108,9 +108,23 @@ def branch_dashboard(request):
         'low_stock_count': low_stock.count(),
     }
 
+    # Trial / subscription countdown
+    tenant = getattr(request, 'tenant', None)
+    trial_days_left = None
+    sub_days_left = None
+    if tenant:
+        if tenant.status == 'trial':
+            trial_days_left = max(0, (tenant.trial_ends_at - today).days)
+        elif tenant.status == 'active' and tenant.subscription_end_date:
+            sub_days_left = max(0, (tenant.subscription_end_date - today).days)
+
     return render(request, 'inventory/dashboard.html', {
         'stats': stats,
         'low_stock_items': low_stock[:10],
+        'tenant': tenant,
+        'trial_days_left': trial_days_left,
+        'sub_days_left': sub_days_left,
+        'is_admin': is_admin,
     })
 
 
