@@ -339,3 +339,53 @@ def saas_pricing_page(request):
         'tenant': tenant, 'shop': shop_schema,
         'pricing': {'silver': {'price': 400}, 'gold': {'price': 1200}, 'empire': {'price': 3000}}
     })
+
+
+# =====================================================================
+# 👑 Super Admin — لوحة إدارة كل الشركات
+# =====================================================================
+@login_required(login_url='/secure-portal/')
+def super_admin_dashboard(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("<h1>403 — هذه اللوحة للمشرف الأعلى فقط.</h1>")
+
+    action = request.POST.get('action')
+    tenant_id = request.POST.get('tenant_id')
+
+    if request.method == 'POST' and tenant_id:
+        target = get_object_or_404(Client, id=tenant_id)
+        if action == 'suspend':
+            target.status = 'suspended'
+            target.is_active = False
+            target.save(update_fields=['status', 'is_active'])
+        elif action == 'activate':
+            target.status = 'active'
+            target.is_active = True
+            target.save(update_fields=['status', 'is_active'])
+        elif action == 'flag_fraud':
+            target.is_fraud_flagged = True
+            target.save(update_fields=['is_fraud_flagged'])
+        elif action == 'unflag_fraud':
+            target.is_fraud_flagged = False
+            target.save(update_fields=['is_fraud_flagged'])
+        elif action == 'extend_trial':
+            target.trial_ends_at = target.trial_ends_at + timedelta(days=3)
+            target.save(update_fields=['trial_ends_at'])
+        return redirect('super_admin_dashboard')
+
+    tenants = Client.objects.exclude(schema_name='public').order_by('-created_on')
+    today = timezone.localdate()
+
+    summary = {
+        'total': tenants.count(),
+        'trial': tenants.filter(status='trial').count(),
+        'active': tenants.filter(status='active').count(),
+        'suspended': tenants.filter(status='suspended').count(),
+        'fraud': tenants.filter(is_fraud_flagged=True).count(),
+    }
+
+    return render(request, 'clients/super_admin.html', {
+        'tenants': tenants,
+        'summary': summary,
+        'today': today,
+    })

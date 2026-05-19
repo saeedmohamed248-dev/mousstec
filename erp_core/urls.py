@@ -159,6 +159,9 @@ urlpatterns = [
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
 
+    # 👑 لوحة المشرف الأعلى — إدارة كل الشركات
+    path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
+
     # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin Dashboard)
     path(f'{ADMIN_URL}/', admin.site.urls),
 

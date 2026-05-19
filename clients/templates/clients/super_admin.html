@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+<!-- Navbar -->
+<nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2 rounded-xl">
+                <i class="fas fa-cubes text-white"></i>
+            </div>
+            <span class="font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+            <span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold">SUPER ADMIN</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/secure-portal/" class="text-xs font-bold text-slate-400 hover:text-purple-400 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                <i class="fas fa-lock ml-1"></i>Admin Panel
+            </a>
+            <a href="/" class="text-xs text-slate-500 hover:text-slate-300 transition"><i class="fas fa-home"></i></a>
+        </div>
+    </div>
+</nav>
+
+<main class="container mx-auto px-4 py-8 space-y-6">
+
+    <!-- Title -->
+    <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400 text-2xl border border-amber-500/30">
+            <i class="fas fa-building-columns"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-black text-white">لوحة المشرف الأعلى</h1>
+            <p class="text-slate-400 text-sm">إدارة كل شركات Mouss Tec Ecosystem</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
+            <p class="text-3xl font-black text-white">{{ summary.total }}</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">إجمالي الشركات</p>
+        </div>
+        <div class="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
+            <p class="text-3xl font-black text-indigo-400">{{ summary.trial }}</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">تجريبية</p>
+        </div>
+        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
+            <p class="text-3xl font-black text-emerald-400">{{ summary.active }}</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">نشطة (مدفوعة)</p>
+        </div>
+        <div class="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
+            <p class="text-3xl font-black text-amber-400">{{ summary.suspended }}</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">معلقة</p>
+        </div>
+        <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
+            <p class="text-3xl font-black text-red-400">{{ summary.fraud }}</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">مشتبه بها</p>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="relative">
+        <input type="text" id="search-input" placeholder="ابحث عن شركة بالاسم أو الباقة..."
+            class="w-full bg-slate-900/60 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60 transition">
+        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+    </div>
+
+    <!-- Companies Table -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="companies-table">
+                <thead>
+                    <tr class="border-b border-slate-800 bg-slate-800/40">
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">#</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">الشركة / المركز</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">الباقة</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">الحالة</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">انتهاء التجربة</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">الرصيد</th>
+                        <th class="text-right px-5 py-3 text-xs font-black text-slate-400">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    {% for t in tenants %}
+                    <tr class="hover:bg-slate-800/30 transition company-row" data-name="{{ t.name|lower }} {{ t.schema_name|lower }} {{ t.plan|lower }}">
+                        <td class="px-5 py-4 text-slate-600 text-xs">{{ forloop.counter }}</td>
+                        <td class="px-5 py-4">
+                            <div>
+                                <p class="font-black text-white">{{ t.name }}</p>
+                                <p class="text-xs text-slate-500">{{ t.schema_name }} · {{ t.phone }}</p>
+                            </div>
+                            {% if t.is_fraud_flagged %}
+                            <span class="inline-flex items-center gap-1 text-xs text-red-400 font-bold"><i class="fas fa-shield-virus"></i> مشتبه</span>
+                            {% endif %}
+                            {% if t.is_verified_merchant %}
+                            <span class="inline-flex items-center gap-1 text-xs text-indigo-400 font-bold"><i class="fas fa-check-circle"></i> موثق</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="text-xs font-black px-2.5 py-1 rounded-lg
+                                {% if t.plan == 'empire' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
+                                {% elif t.plan == 'gold' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
+                                {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
+                                {{ t.get_plan_display|truncatechars:12 }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="text-xs font-black px-2.5 py-1 rounded-lg
+                                {% if t.status == 'active' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/20
+                                {% elif t.status == 'trial' %}bg-indigo-500/15 text-indigo-400 border border-indigo-500/20
+                                {% elif t.status == 'suspended' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
+                                {% else %}bg-red-500/15 text-red-400 border border-red-500/20{% endif %}">
+                                {{ t.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-xs text-slate-400">
+                            {% if t.status == 'trial' %}
+                                {% with days_left=t.trial_ends_at|timeuntil %}
+                                <span class="{% if t.trial_ends_at < today %}text-red-400{% endif %}">{{ t.trial_ends_at }}</span>
+                                {% endwith %}
+                            {% elif t.subscription_end_date %}
+                                {{ t.subscription_end_date }}
+                            {% else %}
+                                <span class="text-slate-600">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-4 text-xs">
+                            <span class="text-emerald-400 font-bold">{{ t.wallet_balance|floatformat:0 }} ج</span>
+                        </td>
+                        <td class="px-5 py-4">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                {% if t.status == 'suspended' %}
+                                <form method="post">{% csrf_token %}
+                                    <input type="hidden" name="tenant_id" value="{{ t.id }}">
+                                    <input type="hidden" name="action" value="activate">
+                                    <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/30 transition">
+                                        <i class="fas fa-play ml-1"></i>تفعيل
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="post">{% csrf_token %}
+                                    <input type="hidden" name="tenant_id" value="{{ t.id }}">
+                                    <input type="hidden" name="action" value="suspend">
+                                    <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/30 transition">
+                                        <i class="fas fa-pause ml-1"></i>تعليق
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if t.status == 'trial' %}
+                                <form method="post">{% csrf_token %}
+                                    <input type="hidden" name="tenant_id" value="{{ t.id }}">
+                                    <input type="hidden" name="action" value="extend_trial">
+                                    <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/30 transition">
+                                        <i class="fas fa-plus ml-1"></i>+3 أيام
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if t.is_fraud_flagged %}
+                                <form method="post">{% csrf_token %}
+                                    <input type="hidden" name="tenant_id" value="{{ t.id }}">
+                                    <input type="hidden" name="action" value="unflag_fraud">
+                                    <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition">
+                                        <i class="fas fa-unlock ml-1"></i>رفع الحظر
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="post">{% csrf_token %}
+                                    <input type="hidden" name="tenant_id" value="{{ t.id }}">
+                                    <input type="hidden" name="action" value="flag_fraud">
+                                    <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition"
+                                        onclick="return confirm('هل أنت متأكد من وضع هذه الشركة تحت المراقبة؟')">
+                                        <i class="fas fa-shield-virus ml-1"></i>تعليم احتيال
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                <a href="/pricing/?shop={{ t.schema_name }}" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/30 transition">
+                                    <i class="fas fa-crown ml-1"></i>الباقة
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-12 text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<footer class="text-center py-4 text-slate-700 text-xs mt-4">
+    © 2026 Mouss Tec Ecosystem — Super Admin Control Panel
+</footer>
+
+<script>
+document.getElementById('search-input').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.company-row').forEach(row => {
+        row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+    });
+});
+</script>
+</body>
+</html>
