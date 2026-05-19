@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -310,21 +311,28 @@ def saas_pricing_page(request):
 
     if request.method == 'POST':
         selected_plan = request.POST.get('plan')
-        target_tenant = Client.objects.filter(schema_name=request.POST.get('shop')).first()
-        
-        valid_plans = [c[0] for c in getattr(Client, 'SUBSCRIPTION_CHOICES', [('silver','S'), ('gold','G'), ('empire','E')])]
-        
+        shop_post = request.POST.get('shop', '').strip()
+        target_tenant = Client.objects.filter(schema_name=shop_post).first() if shop_post else None
+
+        valid_plans = [c[0] for c in Client.SUBSCRIPTION_CHOICES]
+
+        # سيناريو 1: زائر جديد (مافيش shop) → يروح لصفحة التسجيل مع الباقة محددة مسبقاً
+        if not target_tenant and selected_plan in valid_plans:
+            return redirect(f"{reverse('saas_customer_signup')}?plan={selected_plan}")
+
+        # سيناريو 2: عميل موجود يجدد أو يغير الباقة
         if target_tenant and selected_plan in valid_plans:
             with transaction.atomic():
                 target_tenant.plan, target_tenant.status = selected_plan, 'active'
                 base_date = max(target_tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
-                
-                # 🚀 ابتكار (Churn Prevention): مكافأة ولاء - إعطاء 5 أيام مجانية إضافية عند التجديد المبكر
+
+                # مكافأة ولاء: 5 أيام مجانية عند التجديد المبكر
                 bonus_days = 5 if (target_tenant.subscription_end_date and target_tenant.subscription_end_date > timezone.localdate()) else 0
                 target_tenant.subscription_end_date = base_date + timedelta(days=30 + bonus_days)
-                
+
                 target_tenant.save()
                 return redirect(f"https://{target_tenant.schema_name.replace('_', '-')}.mousstec.com/{ADMIN_URL}/")
+
         messages.error(request, "🛑 فشل تنفيذ عملية الاشتراك.")
 
     return render(request, 'clients/pricing.html', {
