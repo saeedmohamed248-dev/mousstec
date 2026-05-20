@@ -466,7 +466,7 @@ class ProductAdmin(SecureImportExportAdmin):
         """🚀 ابتكار: تحليل سلة المشتريات لاقتراح أصناف تباع معاً لزيادة المبيعات"""
         self.message_user(request, "تم تمرير الأصناف المحددة لمحرك البيانات الضخمة (Big Data). سيتم تحديث حقل 'المنتجات البديلة/المرتبطة' آلياً بناءً على تاريخ الفواتير.", messages.INFO)
 
-    @admin.action(description='💱 تعديل أسعار الصرف لمواكبة التضخم وحماية رأس المال (+15%)')
+    @admin.action(description='💱 تعديل أسعار الصرف لمواكبة التضخم وحماية رأس المال (+15%%)')
     def apply_forex_adjustment(self, request, queryset):
         updated = 0
         with transaction.atomic():
