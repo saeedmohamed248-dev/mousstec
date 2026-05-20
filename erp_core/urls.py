@@ -17,7 +17,19 @@ from django.http import FileResponse
 
 def _serve_sw(request):
     """Serve Service Worker from root with correct scope and content-type headers."""
-    sw_path = settings.BASE_DIR / 'static' / 'sw.js'
+    import os as _os
+    # Try staticfiles first (production after collectstatic), then source static (dev)
+    sw_candidates = [
+        settings.BASE_DIR / 'staticfiles' / 'sw.js',
+        settings.BASE_DIR / 'static' / 'sw.js',
+    ]
+    sw_path = None
+    for candidate in sw_candidates:
+        if _os.path.isfile(candidate):
+            sw_path = candidate
+            break
+    if not sw_path:
+        return JsonResponse({'error': 'SW not found'}, status=404)
     response = FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
     response['Service-Worker-Allowed'] = '/'
     response['Cache-Control'] = 'no-cache'
@@ -201,23 +213,27 @@ urlpatterns = [
     # SW must be served from root (/) with correct scope header
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
-    path('manifest.json', cache_page(86400)(lambda r: JsonResponse({
+    path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec Workshop ERP',
         'short_name': 'Mouss Tec',
-        'start_url': '/system/dashboard/',
+        'start_url': '/secure-portal/',
+        'scope': '/',
+        'id': '/secure-portal/',
         'display': 'standalone',
         'orientation': 'any',
         'background_color': '#0f172a',
         'theme_color': '#8b5cf6',
         'description': 'Enterprise workshop management system',
-        'categories': ['business', 'productivity'],
+        'lang': 'ar',
+        'dir': 'rtl',
         'icons': [
-            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
-            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'},
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'maskable'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
         ],
-        'screenshots': [],
         'prefer_related_applications': False,
-    })), name='pwa_manifest'),
+    }), name='pwa_manifest'),
     
     # 🚀 ابتكار: استقبال إشعارات بوابات الدفع اللحظية وحقنها في الـ Escrow Ledger أوتوماتيكياً
     path('api/webhooks/fintech/universal/', client_views.universal_webhook_multiplexer, name='fintech_webhook_multiplexer'),
