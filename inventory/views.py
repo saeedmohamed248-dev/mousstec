@@ -133,6 +133,12 @@ def solutions_tour(request):
 
 
 @login_required(login_url='/secure-portal/')
+def b2b_marketplace(request):
+    """واجهة سوق B2B التفاعلية مع بحث حي في السوق المركزي"""
+    return render(request, 'inventory/b2b_marketplace.html')
+
+
+@login_required(login_url='/secure-portal/')
 def pos_interface(request):
     return render(request, 'inventory/pos_fast.html')
 

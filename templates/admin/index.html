@@ -109,11 +109,32 @@
             <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-plus-circle text-emerald-500"></i> أمر شغل وفاتورة صيانة جديدة
             </div>
-            <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:solutions_tour' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات سوق التجار المشترك B2B
-            </div>
             <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'admin:inventory_purchaseinvoice_add' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-truck-loading text-info"></i> توريد بضاعة وإنشاء فاتورة مشتريات
+            </div>
+            <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:b2b_marketplace' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات سوق التجار المشترك B2B
+            </div>
+            <div class="palette-item" data-name="نقطة البيع كاشير باركود pos" data-url="{% url 'inventory:pos_interface' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-cash-register text-indigo-500"></i> نقطة البيع السريعة (POS)
+            </div>
+            <div class="palette-item" data-name="العملاء قائمة عميل customer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/customer/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-users text-blue-500"></i> إدارة العملاء
+            </div>
+            <div class="palette-item" data-name="المنتجات اصناف قطع غيار مخزن product" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/product/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-boxes text-amber-500"></i> إدارة الأصناف والمخزون
+            </div>
+            <div class="palette-item" data-name="الفواتير فاتورة بيع invoice" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/saleinvoice/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-file-invoice text-teal-500"></i> سجل الفواتير
+            </div>
+            <div class="palette-item" data-name="كشك الفنيين ميكانيكي وردية mechanic" data-url="{% url 'inventory:mechanic_kiosk' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-wrench text-orange-500"></i> كشك الفنيين وتسجيل الورديات
+            </div>
+            <div class="palette-item" data-name="الخزينة المالية حسابات treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/treasury/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-vault text-green-500"></i> إدارة الخزائن المالية
+            </div>
+            <div class="palette-item" data-name="الداشبورد لوحة dashboard" data-url="{% url 'inventory:dashboard' %}" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-chart-pie text-cyan-500"></i> لوحة المعلومات الرئيسية
             </div>
             <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
                 <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (AI Copilot)
@@ -179,8 +200,8 @@
                 <i class="fas fa-truck-loading"></i> توريد بضاعة
             </a>
 
-            <a href="{% url 'inventory:solutions_tour' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
-                <i class="fas fa-globe"></i> سوق B2B
+            <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
+                <i class="fas fa-store"></i> سوق B2B
             </a>
         </div>
         <div class="col-lg-4 col-12">
@@ -283,7 +304,7 @@
                     <div class="insight-card" style="border-inline-start-color: #ec4899; background: #fdf2f8;">
                         <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> مزادات B2B حية!</h6>
                         <p class="mb-2 text-sm" style="color: #9d174d;">يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات.</p>
-                        <a href="{% url 'inventory:solutions_tour' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
+                        <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
                     </div>
                     {% endif %}
 
@@ -530,7 +551,7 @@
                 if(transcript.includes('أمر شغل') || transcript.includes('فاتوره جديده') || transcript.includes('صيانة')) {
                     window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}";
                 } else if(transcript.includes('المزاد') || transcript.includes('سوق') || transcript.includes('تسعير')) {
-                    window.location.href = "{% url 'inventory:solutions_tour' %}";
+                    window.location.href = "{% url 'inventory:b2b_marketplace' %}";
                 } else {
                     simulateLiveToast('🎙️ أمر صوتي مسجل', `تم سماع: ${transcript}. جاري معالجة الأمر...`);
                 }

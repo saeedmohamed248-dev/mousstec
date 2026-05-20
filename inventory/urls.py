@@ -14,6 +14,9 @@ urlpatterns = [
     
     # 🔗 مسار الجولة السحابية (مُكيش لمدة 15 دقيقة لتخفيف الضغط - Zero-DB Hit)
     path('solutions-tour/', cache_page(60 * 15)(views.solutions_tour), name='solutions_tour'),
+
+    # 🛒 سوق B2B التفاعلي — بحث حي في السوق المركزي للقطع والمزادات
+    path('b2b-market/', views.b2b_marketplace, name='b2b_marketplace'),
     
     # 🚀 واجهة الكاشير السريعة (Point of Sale - Zero Latency)
     path('pos/', views.pos_interface, name='pos_interface'),
