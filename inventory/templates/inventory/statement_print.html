@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>كشف حساب — {{ entity.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Cairo', 'Segoe UI', sans-serif; background: #fff; color: #1a1a2e; font-size: 12px; direction: rtl; padding: 20px; }
+        .header { text-align: center; border-bottom: 3px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { font-size: 20px; color: #4f46e5; margin-bottom: 5px; }
+        .header .subtitle { color: #6c757d; font-size: 13px; }
+        .info-grid { display: flex; justify-content: space-between; margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px; }
+        .info-block { flex: 1; }
+        .info-block label { font-weight: bold; color: #4f46e5; display: block; font-size: 11px; }
+        .info-block span { font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background: #4f46e5; color: white; padding: 8px 6px; font-size: 11px; text-align: center; }
+        td { padding: 6px; text-align: center; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        .debit { color: #dc3545; font-weight: bold; }
+        .credit { color: #28a745; font-weight: bold; }
+        .totals-row { background: #1a1a2e !important; color: white; font-weight: bold; }
+        .totals-row td { padding: 10px 6px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 2px solid #e2e8f0; color: #6c757d; font-size: 10px; }
+        .balance-box { text-align: center; margin: 20px 0; padding: 15px; border: 2px solid #4f46e5; border-radius: 8px; }
+        .balance-box .amount { font-size: 24px; font-weight: bold; color: #dc3545; }
+        @media print { body { padding: 10px; } .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center; margin-bottom:15px;">
+        <button onclick="window.print()" style="background:#4f46e5; color:white; border:none; padding:10px 30px; border-radius:8px; cursor:pointer; font-size:14px;">
+            طباعة كشف الحساب
+        </button>
+    </div>
+
+    <div class="header">
+        <h1>كشف حساب {% if entity_type == 'customer' %}عميل{% else %}مورد{% endif %}</h1>
+        <div class="subtitle">Mouss Tec Enterprise ERP — Statement of Account</div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-block">
+            <label>{% if entity_type == 'customer' %}اسم العميل{% else %}اسم المورد{% endif %}</label>
+            <span>{{ entity.name }}</span>
+        </div>
+        <div class="info-block">
+            <label>رقم الهاتف</label>
+            <span>{{ entity.phone|default:"-" }}</span>
+        </div>
+        <div class="info-block">
+            <label>الرصيد الحالي</label>
+            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} ج.م</span>
+        </div>
+        <div class="info-block">
+            <label>تاريخ الطباعة</label>
+            <span>{{ print_date|date:"Y-m-d H:i" }}</span>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>التاريخ</th>
+                <th>البيان</th>
+                <th>مدين (مستحق)</th>
+                <th>دائن (مدفوع)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ inv.date_created|date:"Y-m-d" }}</td>
+                <td style="text-align:right;">فاتورة {% if entity_type == 'customer' %}بيع{% else %}شراء{% endif %} #{{ inv.id }}</td>
+                <td class="debit">{{ inv.total_amount|floatformat:2 }}</td>
+                <td class="credit">{{ inv.paid_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5">لا توجد فواتير</td></tr>
+            {% endfor %}
+
+            {% for pay in payments %}
+            <tr>
+                <td>{{ forloop.counter|add:invoices.count }}</td>
+                <td>{{ pay.date|date:"Y-m-d" }}</td>
+                <td style="text-align:right;">{% if entity_type == 'customer' %}سند قبض{% else %}سند صرف{% endif %} #{{ pay.id }}</td>
+                <td>-</td>
+                <td class="credit">{{ pay.amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="balance-box">
+        <div>الرصيد {% if entity_type == 'customer' %}المستحق على العميل{% else %}المستحق للمورد{% endif %}</div>
+        <div class="amount">{{ entity.balance|floatformat:2 }} ج.م</div>
+    </div>
+
+    <div class="footer">
+        <p>تم التوليد آلياً بواسطة Mouss Tec Enterprise ERP &mdash; هذا المستند لأغراض محاسبية فقط.</p>
+    </div>
+</body>
+</html>

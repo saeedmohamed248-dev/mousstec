@@ -683,3 +683,207 @@ def execute_stock_transfer(sender, instance, **kwargs):
             with transaction.atomic():
                 from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
                 Inventory.objects.filter(pk=from_inv.pk).update(quantity=F('quantity') + instance.quantity)
+
+
+# =====================================================================
+# 📋 سجل المراجعة والتدقيق (Audit Trail — Immutable Event Log)
+# =====================================================================
+class AuditLog(models.Model):
+    ACTION_CHOICES = (
+        ('create', _('إنشاء')),
+        ('update', _('تعديل')),
+        ('delete', _('حذف')),
+    )
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم"))
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES, verbose_name=_("نوع العملية"))
+    model_name = models.CharField(max_length=100, db_index=True, verbose_name=_("الجدول"))
+    object_id = models.CharField(max_length=100, verbose_name=_("معرف السجل"))
+    object_repr = models.CharField(max_length=255, blank=True, verbose_name=_("وصف السجل"))
+    changes_json = models.JSONField(default=dict, blank=True, verbose_name=_("التغييرات (قبل/بعد)"))
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name=_("عنوان IP"))
+
+    class Meta:
+        verbose_name = _("سجل مراجعة")
+        verbose_name_plural = _("سجل المراجعة والتدقيق (Audit Trail)")
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['model_name', 'object_id']),
+            models.Index(fields=['-timestamp']),
+        ]
+
+    def __str__(self):
+        return f"[{self.get_action_display()}] {self.model_name} #{self.object_id} — {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+# =====================================================================
+# 📊 دليل الحسابات والقيود المحاسبية (Double-Entry Accounting Ledger)
+# =====================================================================
+class ChartOfAccount(models.Model):
+    ACCOUNT_TYPES = (
+        ('asset', _('أصول (Assets)')),
+        ('liability', _('خصوم (Liabilities)')),
+        ('equity', _('حقوق ملكية (Equity)')),
+        ('revenue', _('إيرادات (Revenue)')),
+        ('expense', _('مصروفات (Expenses)')),
+    )
+    code = models.CharField(max_length=20, unique=True, verbose_name=_("رقم الحساب"))
+    name = models.CharField(max_length=200, verbose_name=_("اسم الحساب"))
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, verbose_name=_("نوع الحساب"))
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='children', verbose_name=_("الحساب الأب"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    description = models.TextField(blank=True, verbose_name=_("وصف"))
+
+    class Meta:
+        verbose_name = _("حساب محاسبي")
+        verbose_name_plural = _("دليل الحسابات (Chart of Accounts)")
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} — {self.name}"
+
+    @property
+    def balance(self):
+        agg = self.entries.aggregate(
+            total_debit=models.Sum('debit'),
+            total_credit=models.Sum('credit')
+        )
+        d = agg['total_debit'] or Decimal('0')
+        c = agg['total_credit'] or Decimal('0')
+        if self.account_type in ('asset', 'expense'):
+            return d - c
+        return c - d
+
+
+class AccountingEntry(models.Model):
+    entry_date = models.DateTimeField(default=timezone.now, db_index=True, verbose_name=_("تاريخ القيد"))
+    reference = models.CharField(max_length=100, db_index=True, verbose_name=_("المرجع"))
+    description = models.CharField(max_length=255, verbose_name=_("البيان"))
+    account = models.ForeignKey(ChartOfAccount, on_delete=models.PROTECT, related_name='entries', verbose_name=_("الحساب"))
+    debit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_("مدين"))
+    credit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_("دائن"))
+    sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='accounting_entries')
+    purchase_invoice = models.ForeignKey('PurchaseInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='accounting_entries')
+    financial_transaction = models.ForeignKey('FinancialTransaction', null=True, blank=True, on_delete=models.SET_NULL, related_name='accounting_entries')
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name = _("قيد محاسبي")
+        verbose_name_plural = _("القيود المحاسبية (Accounting Ledger)")
+        ordering = ['-entry_date']
+        indexes = [
+            models.Index(fields=['reference']),
+            models.Index(fields=['account', '-entry_date']),
+        ]
+
+    def __str__(self):
+        side = f"مدين {self.debit}" if self.debit > 0 else f"دائن {self.credit}"
+        return f"{self.reference} | {self.account.name} | {side}"
+
+
+# =====================================================================
+# 📦 سجل حركات المخزون (Inventory Movement Tracker)
+# =====================================================================
+class InventoryMovement(models.Model):
+    REASON_CHOICES = (
+        ('sale', _('بيع')),
+        ('sale_return', _('مرتجع بيع')),
+        ('purchase', _('شراء')),
+        ('purchase_return', _('مرتجع شراء')),
+        ('transfer_out', _('تحويل صادر')),
+        ('transfer_in', _('تحويل وارد')),
+        ('adjustment', _('تسوية جرد')),
+        ('scrap', _('تقطيع / تالف')),
+        ('manual', _('تعديل يدوي')),
+    )
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='movements', verbose_name=_("المنتج"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, verbose_name=_("السبب"))
+    quantity_change = models.IntegerField(verbose_name=_("التغيير في الكمية"))
+    quantity_before = models.IntegerField(verbose_name=_("الكمية قبل"))
+    quantity_after = models.IntegerField(verbose_name=_("الكمية بعد"))
+    reference_type = models.CharField(max_length=50, blank=True, verbose_name=_("نوع المرجع"))
+    reference_id = models.IntegerField(null=True, blank=True, verbose_name=_("رقم المرجع"))
+    note = models.CharField(max_length=255, blank=True, verbose_name=_("ملاحظة"))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        verbose_name = _("حركة مخزنية")
+        verbose_name_plural = _("سجل حركات المخزون")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['product', '-created_at']),
+            models.Index(fields=['branch', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.product} | {self.get_reason_display()} | {self.quantity_change:+d}"
+
+
+class StockAlert(models.Model):
+    ALERT_TYPES = (
+        ('low_stock', _('مخزون منخفض')),
+        ('out_of_stock', _('نفاد تام')),
+    )
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='stock_alerts', verbose_name=_("المنتج"))
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES, verbose_name=_("نوع التنبيه"))
+    current_quantity = models.IntegerField(verbose_name=_("الكمية الحالية"))
+    min_stock_level = models.IntegerField(verbose_name=_("حد الأمان"))
+    is_resolved = models.BooleanField(default=False, verbose_name=_("تم الحل"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("تنبيه مخزني")
+        verbose_name_plural = _("تنبيهات نقص المخزون")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_alert_type_display()} — {self.product} ({self.branch})"
+
+
+# =====================================================================
+# 📥 نظام الاستيراد الآمن (Safe Import with Preview & Rollback)
+# =====================================================================
+class ImportSession(models.Model):
+    STATUS_CHOICES = (
+        ('pending', _('في الانتظار')),
+        ('validating', _('جاري الفحص')),
+        ('preview', _('جاهز للمراجعة')),
+        ('importing', _('جاري الاستيراد')),
+        ('completed', _('مكتمل')),
+        ('failed', _('فشل')),
+        ('rolled_back', _('تم التراجع')),
+    )
+    ENTITY_CHOICES = (
+        ('customer', _('عملاء')),
+        ('product', _('منتجات')),
+        ('invoice', _('فواتير')),
+        ('vendor', _('موردين')),
+    )
+    session_id = models.UUIDField(default=uuid.uuid4, unique=True)
+    entity_type = models.CharField(max_length=20, choices=ENTITY_CHOICES, verbose_name=_("نوع البيانات"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
+    uploaded_file = models.FileField(upload_to='imports/', verbose_name=_("الملف"))
+    original_filename = models.CharField(max_length=255, verbose_name=_("اسم الملف"))
+    total_rows = models.IntegerField(default=0, verbose_name=_("إجمالي الصفوف"))
+    valid_rows = models.IntegerField(default=0, verbose_name=_("صفوف صالحة"))
+    error_rows = models.IntegerField(default=0, verbose_name=_("صفوف بها أخطاء"))
+    conflict_rows = models.IntegerField(default=0, verbose_name=_("صفوف متعارضة"))
+    validation_report = models.JSONField(default=dict, blank=True, verbose_name=_("تقرير الفحص"))
+    conflict_report = models.JSONField(default=dict, blank=True, verbose_name=_("تقرير التعارضات"))
+    imported_ids = models.JSONField(default=list, blank=True, verbose_name=_("السجلات المستوردة"))
+    backup_snapshot = models.JSONField(default=dict, blank=True, verbose_name=_("نسخة احتياطية"))
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name=_("بواسطة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("جلسة استيراد")
+        verbose_name_plural = _("جلسات الاستيراد الآمن")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Import #{self.session_id.hex[:8]} — {self.get_entity_type_display()} ({self.get_status_display()})"

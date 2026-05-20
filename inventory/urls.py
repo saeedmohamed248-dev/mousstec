@@ -129,5 +129,33 @@ urlpatterns = [
         # 🚀 وكيل الاستطلاع المبكر لتحليل أسعار المنافسين لايف
         path('ai/market-recon/', views.ai_competitor_recon_api, name='v1_ai_competitor_recon'),
 
+        # =================================================================
+        # 📊 التقارير المالية والأرباح والخسائر (P&L & Analytics)
+        # =================================================================
+        path('reports/profit-loss/', views.profit_loss_report_api, name='v1_profit_loss_report'),
+        path('reports/product-profitability/', views.product_profitability_api, name='v1_product_profitability'),
+        path('reports/inventory-movements/', views.inventory_movement_log_api, name='v1_inventory_movements'),
+        path('accounting/ledger/<int:account_id>/', views.account_ledger_api, name='v1_account_ledger'),
+
+        # =================================================================
+        # 📥 الاستيراد الآمن (Safe Import System)
+        # =================================================================
+        path('import/upload/', views.import_upload_api, name='v1_import_upload'),
+        path('import/<uuid:session_id>/preview/', views.import_preview_api, name='v1_import_preview'),
+        path('import/<uuid:session_id>/confirm/', views.import_confirm_api, name='v1_import_confirm'),
+        path('import/<uuid:session_id>/rollback/', views.import_rollback_api, name='v1_import_rollback'),
+
+        # =================================================================
+        # 📄 كشوف الحساب (Statement of Account)
+        # =================================================================
+        path('statement/customer/<int:customer_id>/', views.customer_statement_api, name='v1_customer_statement'),
+        path('statement/vendor/<int:vendor_id>/', views.vendor_statement_api, name='v1_vendor_statement'),
+
     ])),
+
+    # =====================================================================
+    # 🖨️ كشوف الحساب للطباعة (Statement Print Views)
+    # =====================================================================
+    path('statement/customer/<int:customer_id>/print/', views.customer_statement_print, name='customer_statement_print'),
+    path('statement/vendor/<int:vendor_id>/print/', views.vendor_statement_print, name='vendor_statement_print'),
 ]

@@ -39,6 +39,8 @@ from .models import (
     Product, Inventory, SaleInvoice, SaleInvoiceItem, Branch,
     Customer, Vehicle, ScrapDismantlingJob, ScrapDismantlingYield,
     FinancialTransaction, EmployeeShift, MaintenanceContract, Treasury,
+    ChartOfAccount, AccountingEntry, InventoryMovement, StockAlert,
+    ImportSession, AuditLog, PurchaseInvoice, Vendor,
 )
 
 logger = logging.getLogger('mouss_tec_core')
@@ -987,3 +989,648 @@ def ai_competitor_recon_api(request):
 @csrf_exempt
 def universal_webhook_multiplexer(request):
     return _json_response_safe({"status": "success", "channel": "universal_webhook_active"})
+
+
+# =====================================================================
+# 📊 11. تقارير الأرباح والخسائر (Profit & Loss Reports)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+def profit_loss_report_api(request):
+    """
+    تقرير الأرباح والخسائر — يقارن الإيرادات بالمصروفات لفترة محددة.
+    يدعم ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    """
+    if not _require_tenant(request):
+        return _json_response_safe({"error": "tenant required"}, 403)
+
+    from_date = request.GET.get('from', '')
+    to_date = request.GET.get('to', '')
+
+    try:
+        if from_date:
+            from_date = timezone.datetime.strptime(from_date, '%Y-%m-%d').date()
+        else:
+            from_date = timezone.now().date().replace(day=1)
+        if to_date:
+            to_date = timezone.datetime.strptime(to_date, '%Y-%m-%d').date()
+        else:
+            to_date = timezone.now().date()
+    except ValueError:
+        return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
+
+    branch = _get_branch_for_user(request.user)
+
+    # الإيرادات من فواتير البيع المعتمدة
+    sales_qs = SaleInvoice.objects.filter(status='posted', date_created__date__gte=from_date, date_created__date__lte=to_date)
+    purchases_qs = PurchaseInvoice.objects.filter(status='posted', date_created__date__gte=from_date, date_created__date__lte=to_date)
+
+    if branch:
+        sales_qs = sales_qs.filter(branch=branch)
+        purchases_qs = purchases_qs.filter(branch=branch)
+
+    total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0')
+    total_cost = sales_qs.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0')
+    gross_profit = total_revenue - total_cost
+
+    # المصروفات العمومية
+    expenses_qs = FinancialTransaction.objects.filter(
+        transaction_type='out', date__date__gte=from_date, date__date__lte=to_date,
+        sale_invoice__isnull=True, purchase_invoice__isnull=True  # مصروفات تشغيلية فقط
+    )
+    if branch:
+        expenses_qs = expenses_qs.filter(treasury__branch=branch)
+
+    total_expenses = expenses_qs.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+    net_profit = gross_profit - total_expenses
+
+    # التفصيل بحسب فئات المصروفات
+    expense_breakdown = list(
+        expenses_qs.values('category__name')
+        .annotate(total=Sum('amount'))
+        .order_by('-total')
+    )
+
+    # التفصيل بحسب نوع الفاتورة
+    revenue_by_type = list(
+        sales_qs.values('invoice_type')
+        .annotate(total=Sum('total_amount'), profit=Sum('net_profit'))
+        .order_by('-total')
+    )
+
+    return _json_response_safe({
+        "status": "success",
+        "period": {"from": str(from_date), "to": str(to_date)},
+        "summary": {
+            "total_revenue": float(total_revenue),
+            "total_cost_of_goods": float(total_cost),
+            "gross_profit": float(gross_profit),
+            "total_operating_expenses": float(total_expenses),
+            "net_profit": float(net_profit),
+            "profit_margin_percent": round(float(net_profit / total_revenue * 100), 2) if total_revenue > 0 else 0,
+        },
+        "revenue_by_type": [
+            {"type": r['invoice_type'], "revenue": float(r['total']), "profit": float(r['profit'] or 0)}
+            for r in revenue_by_type
+        ],
+        "expense_breakdown": [
+            {"category": e['category__name'] or 'غير مصنف', "total": float(e['total'])}
+            for e in expense_breakdown
+        ],
+        "invoices_count": sales_qs.count(),
+        "purchases_count": purchases_qs.count(),
+    })
+
+
+@login_required(login_url='/secure-portal/')
+def product_profitability_api(request):
+    """أربحية كل منتج — أعلى 20 منتج ربحية"""
+    if not _require_tenant(request):
+        return _json_response_safe({"error": "tenant required"}, 403)
+
+    branch = _get_branch_for_user(request.user)
+    items_qs = SaleInvoiceItem.objects.filter(invoice__status='posted')
+    if branch:
+        items_qs = items_qs.filter(invoice__branch=branch)
+
+    from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+    product_stats = (
+        items_qs.values('product__name', 'product__part_number')
+        .annotate(
+            total_qty=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('unit_price'), output_field=DecimalField()),
+            total_cost=Sum(F('quantity') * F('product__average_cost'), output_field=DecimalField()),
+        )
+        .annotate(
+            profit=F('total_revenue') - F('total_cost'),
+        )
+        .order_by('-profit')[:20]
+    )
+
+    return _json_response_safe({
+        "status": "success",
+        "top_products": [
+            {
+                "name": p['product__name'],
+                "part_number": p['product__part_number'],
+                "qty_sold": p['total_qty'],
+                "revenue": float(p['total_revenue'] or 0),
+                "cost": float(p['total_cost'] or 0),
+                "profit": float(p['profit'] or 0),
+            }
+            for p in product_stats
+        ]
+    })
+
+
+# =====================================================================
+# 📥 12. نظام الاستيراد الآمن (Safe Import System)
+# =====================================================================
+
+@csrf_exempt
+@login_required(login_url='/secure-portal/')
+def import_upload_api(request):
+    """
+    رفع ملف استيراد (CSV/Excel) وإنشاء جلسة استيراد جديدة.
+    يبدأ الفحص والمعاينة تلقائياً.
+    """
+    if request.method != 'POST':
+        return _json_response_safe({"error": "POST Only"}, 400)
+
+    entity_type = request.POST.get('entity_type', '')
+    uploaded_file = request.FILES.get('file')
+
+    if not uploaded_file:
+        return _json_response_safe({"error": "الملف مطلوب"}, 400)
+    if entity_type not in ('customer', 'product', 'invoice', 'vendor'):
+        return _json_response_safe({"error": "نوع البيانات غير مدعوم. الخيارات: customer, product, invoice, vendor"}, 400)
+
+    import tablib
+    try:
+        # قراءة الملف
+        file_content = uploaded_file.read()
+        if uploaded_file.name.endswith('.csv'):
+            dataset = tablib.Dataset().load(file_content.decode('utf-8-sig'), format='csv')
+        elif uploaded_file.name.endswith(('.xlsx', '.xls')):
+            dataset = tablib.Dataset().load(file_content, format='xlsx')
+        else:
+            return _json_response_safe({"error": "صيغة الملف غير مدعومة. استخدم CSV أو Excel."}, 400)
+
+        # إنشاء جلسة الاستيراد
+        session = ImportSession.objects.create(
+            entity_type=entity_type,
+            status='validating',
+            uploaded_file=uploaded_file,
+            original_filename=uploaded_file.name,
+            total_rows=len(dataset),
+            created_by=request.user,
+        )
+
+        # الفحص والتحقق
+        validation_errors = []
+        conflicts = []
+        valid_count = 0
+
+        for i, row in enumerate(dataset.dict, start=1):
+            row_errors = []
+
+            if entity_type == 'product':
+                if not row.get('name') and not row.get('اسم المنتج'):
+                    row_errors.append("اسم المنتج مطلوب")
+                pn = row.get('part_number') or row.get('رقم القطعة', '')
+                if pn and Product.objects.filter(part_number=pn).exists():
+                    conflicts.append({"row": i, "field": "part_number", "value": pn, "reason": "رقم القطعة موجود مسبقاً"})
+
+            elif entity_type == 'customer':
+                if not row.get('name') and not row.get('اسم العميل'):
+                    row_errors.append("اسم العميل مطلوب")
+                phone = row.get('phone') or row.get('الهاتف', '')
+                if phone and Customer.objects.filter(phone=phone).exists():
+                    conflicts.append({"row": i, "field": "phone", "value": phone, "reason": "رقم الهاتف مسجل مسبقاً"})
+
+            elif entity_type == 'vendor':
+                if not row.get('name') and not row.get('اسم المورد'):
+                    row_errors.append("اسم المورد مطلوب")
+
+            if row_errors:
+                validation_errors.append({"row": i, "errors": row_errors})
+            else:
+                valid_count += 1
+
+        session.valid_rows = valid_count
+        session.error_rows = len(validation_errors)
+        session.conflict_rows = len(conflicts)
+        session.validation_report = {"errors": validation_errors}
+        session.conflict_report = {"conflicts": conflicts}
+        session.status = 'preview'
+        session.save()
+
+        return _json_response_safe({
+            "status": "success",
+            "session_id": str(session.session_id),
+            "total_rows": session.total_rows,
+            "valid_rows": valid_count,
+            "error_rows": len(validation_errors),
+            "conflict_rows": len(conflicts),
+            "preview_url": f"/system/api/v1/import/{session.session_id}/preview/",
+            "message": "تم فحص الملف. راجع المعاينة قبل التأكيد."
+        })
+
+    except Exception as e:
+        logger.error(f"[IMPORT UPLOAD] {e}")
+        return _json_response_safe({"error": f"فشل قراءة الملف: {str(e)}"}, 500)
+
+
+@login_required(login_url='/secure-portal/')
+def import_preview_api(request, session_id):
+    """معاينة جلسة الاستيراد — عرض التقارير والتعارضات"""
+    session = get_object_or_404(ImportSession, session_id=session_id, created_by=request.user)
+    return _json_response_safe({
+        "status": "success",
+        "session_id": str(session.session_id),
+        "entity_type": session.entity_type,
+        "current_status": session.status,
+        "total_rows": session.total_rows,
+        "valid_rows": session.valid_rows,
+        "error_rows": session.error_rows,
+        "conflict_rows": session.conflict_rows,
+        "validation_report": session.validation_report,
+        "conflict_report": session.conflict_report,
+    })
+
+
+@csrf_exempt
+@login_required(login_url='/secure-portal/')
+def import_confirm_api(request, session_id):
+    """
+    تأكيد الاستيراد — يبدأ الاستيراد الفعلي بعد المعاينة.
+    يأخذ نسخة احتياطية قبل أي تعديل.
+    """
+    if request.method != 'POST':
+        return _json_response_safe({"error": "POST Only"}, 400)
+
+    session = get_object_or_404(ImportSession, session_id=session_id, created_by=request.user)
+    if session.status != 'preview':
+        return _json_response_safe({"error": f"الجلسة في حالة '{session.get_status_display()}' ولا يمكن التأكيد."}, 400)
+
+    import tablib
+    try:
+        session.status = 'importing'
+        session.save(update_fields=['status'])
+
+        # قراءة الملف مجدداً
+        session.uploaded_file.seek(0)
+        content = session.uploaded_file.read()
+        if session.original_filename.endswith('.csv'):
+            dataset = tablib.Dataset().load(content.decode('utf-8-sig'), format='csv')
+        else:
+            dataset = tablib.Dataset().load(content, format='xlsx')
+
+        imported_ids = []
+        backup_data = []
+
+        with transaction.atomic():
+            for row in dataset.dict:
+                if session.entity_type == 'product':
+                    pn = row.get('part_number') or row.get('رقم القطعة', '')
+                    name = row.get('name') or row.get('اسم المنتج', '')
+                    if not name:
+                        continue
+
+                    # النسخة الاحتياطية للتعارضات
+                    existing = Product.objects.filter(part_number=pn).first() if pn else None
+                    if existing:
+                        backup_data.append({
+                            'model': 'Product', 'pk': existing.pk,
+                            'snapshot': {'name': existing.name, 'part_number': existing.part_number,
+                                         'retail_price': str(existing.retail_price)}
+                        })
+                        # تحديث مع الحفاظ على الأصل (نضيف suffix بالتاريخ)
+                        existing.name = name
+                        if row.get('retail_price') or row.get('سعر البيع'):
+                            existing.retail_price = Decimal(str(row.get('retail_price') or row.get('سعر البيع', '0')))
+                        existing.save()
+                        imported_ids.append(existing.pk)
+                    else:
+                        obj = Product.objects.create(
+                            name=name,
+                            part_number=pn or f"IMP-{uuid.uuid4().hex[:8]}",
+                            retail_price=Decimal(str(row.get('retail_price') or row.get('سعر البيع', '0') or '0')),
+                            purchase_price=Decimal(str(row.get('purchase_price') or row.get('سعر الشراء', '0') or '0')),
+                        )
+                        imported_ids.append(obj.pk)
+
+                elif session.entity_type == 'customer':
+                    name = row.get('name') or row.get('اسم العميل', '')
+                    phone = row.get('phone') or row.get('الهاتف', '')
+                    if not name:
+                        continue
+
+                    existing = Customer.objects.filter(phone=phone).first() if phone else None
+                    if existing:
+                        backup_data.append({
+                            'model': 'Customer', 'pk': existing.pk,
+                            'snapshot': {'name': existing.name, 'phone': existing.phone}
+                        })
+                        existing.name = name
+                        existing.save()
+                        imported_ids.append(existing.pk)
+                    else:
+                        obj = Customer.objects.create(name=name, phone=phone or '')
+                        imported_ids.append(obj.pk)
+
+                elif session.entity_type == 'vendor':
+                    name = row.get('name') or row.get('اسم المورد', '')
+                    if not name:
+                        continue
+                    obj, created = Vendor.objects.get_or_create(
+                        name=name,
+                        defaults={'phone': row.get('phone') or row.get('الهاتف', '')}
+                    )
+                    imported_ids.append(obj.pk)
+
+        session.imported_ids = imported_ids
+        session.backup_snapshot = {"backup": backup_data}
+        session.status = 'completed'
+        session.completed_at = timezone.now()
+        session.save()
+
+        return _json_response_safe({
+            "status": "success",
+            "message": f"تم استيراد {len(imported_ids)} سجل بنجاح.",
+            "imported_count": len(imported_ids),
+            "session_id": str(session.session_id),
+        })
+
+    except Exception as e:
+        session.status = 'failed'
+        session.save(update_fields=['status'])
+        logger.error(f"[IMPORT CONFIRM] {e}")
+        return _json_response_safe({"error": f"فشل الاستيراد: {str(e)}"}, 500)
+
+
+@csrf_exempt
+@login_required(login_url='/secure-portal/')
+def import_rollback_api(request, session_id):
+    """
+    التراجع عن استيراد — يحذف السجلات المُستوردة ويستعيد النسخ الأصلية.
+    """
+    if request.method != 'POST':
+        return _json_response_safe({"error": "POST Only"}, 400)
+
+    session = get_object_or_404(ImportSession, session_id=session_id, created_by=request.user)
+    if session.status != 'completed':
+        return _json_response_safe({"error": "لا يمكن التراجع إلا عن استيراد مكتمل."}, 400)
+
+    try:
+        with transaction.atomic():
+            # استعادة النسخ الاحتياطية
+            backup_data = session.backup_snapshot.get('backup', [])
+            for item in backup_data:
+                model_name = item['model']
+                if model_name == 'Product':
+                    Product.objects.filter(pk=item['pk']).update(**{
+                        k: v for k, v in item['snapshot'].items()
+                        if k in ('name', 'part_number')
+                    })
+                elif model_name == 'Customer':
+                    Customer.objects.filter(pk=item['pk']).update(**{
+                        k: v for k, v in item['snapshot'].items()
+                        if k in ('name', 'phone')
+                    })
+
+            # حذف السجلات الجديدة (التي لم تكن تحديث)
+            backup_pks = {item['pk'] for item in backup_data}
+            new_ids = [pk for pk in session.imported_ids if pk not in backup_pks]
+
+            if session.entity_type == 'product':
+                Product.objects.filter(pk__in=new_ids).delete()
+            elif session.entity_type == 'customer':
+                Customer.objects.filter(pk__in=new_ids).delete()
+            elif session.entity_type == 'vendor':
+                Vendor.objects.filter(pk__in=new_ids).delete()
+
+        session.status = 'rolled_back'
+        session.save(update_fields=['status'])
+
+        return _json_response_safe({
+            "status": "success",
+            "message": f"تم التراجع عن الاستيراد وحذف {len(new_ids)} سجل جديد واستعادة {len(backup_data)} سجل أصلي.",
+        })
+
+    except Exception as e:
+        logger.error(f"[IMPORT ROLLBACK] {e}")
+        return _json_response_safe({"error": f"فشل التراجع: {str(e)}"}, 500)
+
+
+# =====================================================================
+# 📄 13. كشوف الحساب (Statement of Account)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+def customer_statement_api(request, customer_id):
+    """
+    كشف حساب عميل — كل المعاملات المالية مع الرصيد التراكمي.
+    يدعم ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    """
+    if not _require_tenant(request):
+        return _json_response_safe({"error": "tenant required"}, 403)
+
+    customer = get_object_or_404(Customer, pk=customer_id)
+    from_date = request.GET.get('from', '')
+    to_date = request.GET.get('to', '')
+
+    try:
+        from_date = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else None
+        to_date = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else None
+    except ValueError:
+        return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
+
+    # فواتير البيع
+    invoices_qs = SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created')
+    if from_date:
+        invoices_qs = invoices_qs.filter(date_created__date__gte=from_date)
+    if to_date:
+        invoices_qs = invoices_qs.filter(date_created__date__lte=to_date)
+
+    # المدفوعات
+    payments_qs = FinancialTransaction.objects.filter(customer=customer, transaction_type='in').order_by('date')
+    if from_date:
+        payments_qs = payments_qs.filter(date__date__gte=from_date)
+    if to_date:
+        payments_qs = payments_qs.filter(date__date__lte=to_date)
+
+    # بناء كشف الحساب
+    entries = []
+    running_balance = Decimal('0')
+
+    for inv in invoices_qs:
+        running_balance += inv.due_amount
+        entries.append({
+            "date": str(inv.date_created.date()),
+            "type": "invoice",
+            "reference": f"فاتورة #{inv.pk}",
+            "description": f"فاتورة {inv.get_invoice_type_display()}",
+            "debit": float(inv.total_amount),
+            "credit": float(inv.paid_amount),
+            "balance": float(running_balance),
+        })
+
+    for pay in payments_qs:
+        running_balance -= pay.amount
+        entries.append({
+            "date": str(pay.date.date()),
+            "type": "payment",
+            "reference": f"سند قبض #{pay.pk}",
+            "description": pay.description or 'دفعة نقدية',
+            "debit": 0,
+            "credit": float(pay.amount),
+            "balance": float(running_balance),
+        })
+
+    # ترتيب حسب التاريخ
+    entries.sort(key=lambda x: x['date'])
+
+    return _json_response_safe({
+        "status": "success",
+        "customer": {"id": customer.pk, "name": customer.name, "phone": customer.phone, "current_balance": float(customer.balance)},
+        "period": {"from": str(from_date or 'بداية'), "to": str(to_date or 'اليوم')},
+        "entries": entries,
+        "totals": {
+            "total_invoiced": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
+            "total_paid": float(payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0),
+            "outstanding_balance": float(customer.balance),
+        },
+    })
+
+
+@login_required(login_url='/secure-portal/')
+def vendor_statement_api(request, vendor_id):
+    """كشف حساب مورد"""
+    if not _require_tenant(request):
+        return _json_response_safe({"error": "tenant required"}, 403)
+
+    vendor = get_object_or_404(Vendor, pk=vendor_id)
+    from_date = request.GET.get('from', '')
+    to_date = request.GET.get('to', '')
+
+    try:
+        from_date = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else None
+        to_date = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else None
+    except ValueError:
+        return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
+
+    invoices_qs = PurchaseInvoice.objects.filter(vendor=vendor, status='posted').order_by('date_created')
+    if from_date:
+        invoices_qs = invoices_qs.filter(date_created__date__gte=from_date)
+    if to_date:
+        invoices_qs = invoices_qs.filter(date_created__date__lte=to_date)
+
+    payments_qs = FinancialTransaction.objects.filter(vendor=vendor, transaction_type='out').order_by('date')
+    if from_date:
+        payments_qs = payments_qs.filter(date__date__gte=from_date)
+    if to_date:
+        payments_qs = payments_qs.filter(date__date__lte=to_date)
+
+    entries = []
+    running_balance = Decimal('0')
+
+    for inv in invoices_qs:
+        due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
+        running_balance += due
+        entries.append({
+            "date": str(inv.date_created.date()),
+            "type": "invoice",
+            "reference": f"فاتورة شراء #{inv.pk}",
+            "debit": float(inv.total_amount),
+            "credit": float(inv.paid_amount),
+            "balance": float(running_balance),
+        })
+
+    for pay in payments_qs:
+        running_balance -= pay.amount
+        entries.append({
+            "date": str(pay.date.date()),
+            "type": "payment",
+            "reference": f"سند صرف #{pay.pk}",
+            "description": pay.description or 'تسوية مورد',
+            "debit": 0,
+            "credit": float(pay.amount),
+            "balance": float(running_balance),
+        })
+
+    entries.sort(key=lambda x: x['date'])
+
+    return _json_response_safe({
+        "status": "success",
+        "vendor": {"id": vendor.pk, "name": vendor.name, "phone": vendor.phone, "current_balance": float(vendor.balance)},
+        "entries": entries,
+        "totals": {
+            "total_purchases": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
+            "total_paid": float(payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0),
+            "outstanding_balance": float(vendor.balance),
+        },
+    })
+
+
+@login_required(login_url='/secure-portal/')
+def customer_statement_print(request, customer_id):
+    """طباعة كشف حساب العميل"""
+    customer = get_object_or_404(Customer, pk=customer_id)
+    invoices = SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created')
+    payments = FinancialTransaction.objects.filter(customer=customer, transaction_type='in').order_by('date')
+
+    return render(request, 'inventory/statement_print.html', {
+        'entity': customer,
+        'entity_type': 'customer',
+        'invoices': invoices,
+        'payments': payments,
+        'print_date': timezone.now(),
+    })
+
+
+@login_required(login_url='/secure-portal/')
+def vendor_statement_print(request, vendor_id):
+    """طباعة كشف حساب المورد"""
+    vendor = get_object_or_404(Vendor, pk=vendor_id)
+    invoices = PurchaseInvoice.objects.filter(vendor=vendor, status='posted').order_by('date_created')
+    payments = FinancialTransaction.objects.filter(vendor=vendor, transaction_type='out').order_by('date')
+
+    return render(request, 'inventory/statement_print.html', {
+        'entity': vendor,
+        'entity_type': 'vendor',
+        'invoices': invoices,
+        'payments': payments,
+        'print_date': timezone.now(),
+    })
+
+
+# =====================================================================
+# 📊 14. واجهات التحليلات المتقدمة (Analytics APIs)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+def inventory_movement_log_api(request):
+    """سجل حركات المخزون لمنتج محدد — يدعم ?product_id=X"""
+    product_id = request.GET.get('product_id')
+    if not product_id:
+        return _json_response_safe({"error": "product_id مطلوب"}, 400)
+
+    movements = InventoryMovement.objects.filter(product_id=product_id).order_by('-created_at')[:50]
+    return _json_response_safe({
+        "status": "success",
+        "movements": [
+            {
+                "date": str(m.created_at),
+                "reason": m.get_reason_display(),
+                "branch": str(m.branch),
+                "change": m.quantity_change,
+                "before": m.quantity_before,
+                "after": m.quantity_after,
+                "note": m.note,
+            }
+            for m in movements
+        ]
+    })
+
+
+@login_required(login_url='/secure-portal/')
+def account_ledger_api(request, account_id):
+    """دفتر أستاذ حساب محاسبي محدد"""
+    account = get_object_or_404(ChartOfAccount, pk=account_id)
+    entries = AccountingEntry.objects.filter(account=account).order_by('-entry_date')[:100]
+
+    return _json_response_safe({
+        "status": "success",
+        "account": {"code": account.code, "name": account.name, "type": account.account_type, "balance": float(account.balance)},
+        "entries": [
+            {
+                "date": str(e.entry_date),
+                "reference": e.reference,
+                "description": e.description,
+                "debit": float(e.debit),
+                "credit": float(e.credit),
+            }
+            for e in entries
+        ]
+    })

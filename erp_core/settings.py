@@ -122,8 +122,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'simple_history.middleware.HistoryRequestMiddleware', 
+    'simple_history.middleware.HistoryRequestMiddleware',
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
+    'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -314,6 +315,12 @@ JAZZMIN_SETTINGS = {
         "inventory.EmployeeProfile": "fas fa-id-badge",
         "inventory.Vehicle": "fas fa-car",
         "inventory.MaintenanceContract": "fas fa-file-contract",
+        "inventory.AuditLog": "fas fa-clipboard-list",
+        "inventory.ChartOfAccount": "fas fa-sitemap",
+        "inventory.AccountingEntry": "fas fa-book",
+        "inventory.InventoryMovement": "fas fa-exchange-alt",
+        "inventory.StockAlert": "fas fa-exclamation-triangle",
+        "inventory.ImportSession": "fas fa-file-upload",
     },
     "order_with_respect_to": ["clients", "inventory", "auth"],
     "changeform_format": "horizontal_tabs",
