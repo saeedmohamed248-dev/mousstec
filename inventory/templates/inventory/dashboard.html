@@ -294,17 +294,90 @@
     </footer>
 </div>
 
+<!-- PWA Install Banner -->
+<div id="pwa-install-banner" class="fixed bottom-0 inset-x-0 z-50 hidden">
+    <div class="bg-gradient-to-r from-purple-900/95 to-indigo-900/95 backdrop-blur-lg border-t border-purple-500/30 px-4 py-3">
+        <div class="container mx-auto max-w-4xl flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-xl border border-purple-500/30 shrink-0">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-black text-white">ثبّت Mouss Tec على جهازك</p>
+                    <p class="text-xs text-slate-400">اشتغل بدون نت واستلم اشعارات فورية</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="dismissInstall()" class="text-slate-500 hover:text-slate-300 text-xs font-bold px-3 py-2 transition">لاحقاً</button>
+                <button id="pwa-install-btn" onclick="installPWA()" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-purple-500/30">
+                    <i class="fas fa-download ml-1"></i> تثبيت
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Service Worker & Offline Sync Registration
+// =============================================
+// PWA Install Prompt Handler
+// =============================================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show install banner if user hasn't dismissed it recently
+    if (!localStorage.getItem('pwa_install_dismissed')) {
+        document.getElementById('pwa-install-banner').classList.remove('hidden');
+    }
+});
+
+function installPWA() {
+    if (!deferredPrompt) {
+        // Fallback: show manual instructions
+        alert('لتثبيت التطبيق:\n\n' +
+            'Chrome: اضغط على النقاط الثلاث (⋮) في اعلى المتصفح ثم اختر "تثبيت التطبيق"\n\n' +
+            'Safari (iPhone): اضغط على زر المشاركة ثم "اضافة الى الشاشة الرئيسية"');
+        return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((result) => {
+        if (result.outcome === 'accepted') {
+            console.log('PWA installed successfully');
+        }
+        deferredPrompt = null;
+        document.getElementById('pwa-install-banner').classList.add('hidden');
+    });
+}
+
+function dismissInstall() {
+    document.getElementById('pwa-install-banner').classList.add('hidden');
+    // Don't show again for 3 days
+    localStorage.setItem('pwa_install_dismissed', Date.now().toString());
+    setTimeout(() => localStorage.removeItem('pwa_install_dismissed'), 3 * 24 * 60 * 60 * 1000);
+}
+
+// Also show install in already-installed check
+window.addEventListener('appinstalled', () => {
+    document.getElementById('pwa-install-banner').classList.add('hidden');
+    deferredPrompt = null;
+    console.log('Mouss Tec PWA installed!');
+});
+
+// =============================================
+// Service Worker & Offline Sync
+// =============================================
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-        console.log('Mouss Tec SW registered:', reg.scope);
+    navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(reg => {
+        console.log('Mouss Tec SW registered, scope:', reg.scope);
+
+        // Check for updates every 30 minutes
+        setInterval(() => reg.update(), 30 * 60 * 1000);
     }).catch(err => console.warn('SW registration failed:', err));
 
     // Listen for sync messages from SW
     navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data.type === 'SYNC_READY') {
-            // Auto-sync offline data when connection returns
             const offlineQueue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
             if (offlineQueue.length > 0) {
                 fetch('/system/api/v1/inventory/offline-sync/', {

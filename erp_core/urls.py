@@ -12,6 +12,16 @@ import time
 import logging
 
 from clients import views as client_views
+from django.http import FileResponse
+
+
+def _serve_sw(request):
+    """Serve Service Worker from root with correct scope and content-type headers."""
+    sw_path = settings.BASE_DIR / 'static' / 'sw.js'
+    response = FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
+    response['Service-Worker-Allowed'] = '/'
+    response['Cache-Control'] = 'no-cache'
+    return response
 
 # تهيئة نظام المراقبة لتسجيل الاختراقات والأنشطة السيبرانية
 logger = logging.getLogger('mouss_tec_router')
@@ -188,20 +198,25 @@ urlpatterns = [
     path('system/health/', system_health_check, name='system_health'),
 
     # 🌐 Service Worker & PWA (Offline-First)
-    path('sw.js', lambda r: redirect('/static/sw.js'), name='service_worker'),
+    # SW must be served from root (/) with correct scope header
+    path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', cache_page(86400)(lambda r: JsonResponse({
         'name': 'Mouss Tec Workshop ERP',
         'short_name': 'Mouss Tec',
         'start_url': '/system/dashboard/',
         'display': 'standalone',
+        'orientation': 'any',
         'background_color': '#0f172a',
         'theme_color': '#8b5cf6',
         'description': 'Enterprise workshop management system',
+        'categories': ['business', 'productivity'],
         'icons': [
-            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
-            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
-        ]
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'},
+        ],
+        'screenshots': [],
+        'prefer_related_applications': False,
     })), name='pwa_manifest'),
     
     # 🚀 ابتكار: استقبال إشعارات بوابات الدفع اللحظية وحقنها في الـ Escrow Ledger أوتوماتيكياً
