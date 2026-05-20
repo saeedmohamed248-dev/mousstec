@@ -179,6 +179,9 @@ urlpatterns = [
     # 🔑 صفحة "جد حسابك" — يُعيد توجيه العميل لـ Subdomain الخاص به
     path('login/', client_views.client_login_finder, name='client_login_finder'),
 
+    # 🔑 استرجاع كلمة السر والحساب (Password Recovery)
+    path('account/recovery/', client_views.account_recovery, name='account_recovery'),
+
     # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
     path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
 

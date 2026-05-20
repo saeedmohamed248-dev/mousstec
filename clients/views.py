@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Min, Sum, F, Avg, Max
 from django.utils import timezone
-from django.db import transaction, connection
+from django.db import models, transaction, connection
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.cache import cache
@@ -148,10 +148,12 @@ def client_login_finder(request):
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
         if email:
+            # بحث بالإيميل أو رقم الموبايل في Client
             tenant = Client.objects.filter(email__iexact=email).exclude(schema_name='public').first()
             if not tenant:
+                tenant = Client.objects.filter(phone=email).exclude(schema_name='public').first()
+            if not tenant:
                 # بحث موسع: البريد قد يكون للمالك وليس للشركة
-                from django_tenants.utils import get_tenant_model
                 all_tenants = Client.objects.exclude(schema_name='public')
                 for t in all_tenants:
                     try:
@@ -179,12 +181,227 @@ def client_login_finder(request):
                     'login_url': login_url,
                 })
 
-            error = "لا يوجد حساب مرتبط بهذا البريد الإلكتروني. تأكد من البريد أو أنشئ حساباً جديداً."
+            error = "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
     return render(request, 'clients/login_finder.html', {'error': error})
 
 
 def mousstec_landing_page(request):
     return render(request, 'clients/landing.html')
+
+
+# =====================================================================
+# 🔑 2.5. استرجاع كلمة السر / العثور على الحساب (Password Recovery)
+# =====================================================================
+def account_recovery(request):
+    """
+    نظام استرجاع الحساب متعدد الخطوات:
+    الخطوة 1: البحث بالموبايل أو الإيميل → عرض الحساب
+    الخطوة 2: إرسال كود تحقق (OTP) عبر الإيميل
+    الخطوة 3: إعادة تعيين كلمة السر
+    """
+    context = {'step': 'search'}
+
+    if request.method == 'POST':
+        step = request.POST.get('step', 'search')
+
+        # ── الخطوة 1: البحث عن الحساب ──
+        if step == 'search':
+            query = request.POST.get('query', '').strip()
+            if not query:
+                context['error'] = 'أدخل رقم الموبايل أو البريد الإلكتروني'
+                return render(request, 'clients/account_recovery.html', context)
+
+            tenant = None
+            matched_user = None
+
+            # بحث بالموبايل في Client
+            tenant = Client.objects.filter(phone=query).exclude(schema_name='public').first()
+
+            # بحث بالإيميل في Client
+            if not tenant:
+                tenant = Client.objects.filter(email__iexact=query).exclude(schema_name='public').first()
+
+            # بحث موسع داخل الـ tenants
+            if not tenant:
+                all_tenants = Client.objects.exclude(schema_name='public')
+                for t in all_tenants:
+                    try:
+                        with schema_context(t.schema_name):
+                            user = User.objects.filter(
+                                models.Q(email__iexact=query) | models.Q(username=query)
+                            ).first()
+                            if not user:
+                                # بحث بالموبايل في EmployeeProfile
+                                from inventory.models import EmployeeProfile
+                                # ... يمكن إضافة بحث بالموبايل هنا لاحقاً
+                                pass
+                            if user:
+                                tenant = t
+                                matched_user = user
+                                break
+                    except Exception:
+                        continue
+
+            if not tenant:
+                context['error'] = 'لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.'
+                return render(request, 'clients/account_recovery.html', context)
+
+            # إنشاء كود تحقق OTP وحفظه في الكاش
+            otp_code = f"{secrets.randbelow(900000) + 100000}"  # 6 أرقام
+            cache_key = f"recovery_otp_{tenant.schema_name}"
+            cache.set(cache_key, otp_code, timeout=600)  # 10 دقائق
+
+            # إرسال الكود عبر الإيميل (إذا متاح)
+            recovery_email = tenant.email
+            if not recovery_email and matched_user:
+                recovery_email = matched_user.email
+
+            if recovery_email:
+                try:
+                    from django.core.mail import send_mail
+                    send_mail(
+                        subject='كود استرجاع حسابك | Mouss Tec',
+                        message=f'كود التحقق الخاص بك هو: {otp_code}\n\nهذا الكود صالح لمدة 10 دقائق.\n\nMouss Tec Ecosystem',
+                        from_email=None,
+                        recipient_list=[recovery_email],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    logger.warning(f"[RECOVERY] Failed to send OTP email: {e}")
+
+            # إخفاء جزء من الإيميل
+            masked_email = ''
+            if recovery_email:
+                parts = recovery_email.split('@')
+                if len(parts) == 2:
+                    name = parts[0]
+                    masked_name = name[:2] + '***' + (name[-1] if len(name) > 2 else '')
+                    masked_email = f"{masked_name}@{parts[1]}"
+
+            context = {
+                'step': 'verify',
+                'tenant_name': tenant.name,
+                'tenant_schema': tenant.schema_name,
+                'masked_email': masked_email,
+                'otp_hint': otp_code if not recovery_email else '',  # إظهار الكود إذا لم يكن هناك إيميل
+            }
+            return render(request, 'clients/account_recovery.html', context)
+
+        # ── الخطوة 2: التحقق من كود OTP ──
+        elif step == 'verify':
+            schema_name = request.POST.get('tenant_schema', '')
+            otp_input = request.POST.get('otp', '').strip()
+            cache_key = f"recovery_otp_{schema_name}"
+            correct_otp = cache.get(cache_key)
+
+            tenant = Client.objects.filter(schema_name=schema_name).first()
+            if not tenant:
+                context['error'] = 'خطأ في البيانات. حاول مرة أخرى.'
+                return render(request, 'clients/account_recovery.html', context)
+
+            if not correct_otp or otp_input != correct_otp:
+                context = {
+                    'step': 'verify',
+                    'tenant_name': tenant.name,
+                    'tenant_schema': schema_name,
+                    'error': 'كود التحقق خاطئ أو منتهي الصلاحية. حاول مرة أخرى.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
+            # الكود صحيح — انتقل لإعادة تعيين كلمة السر
+            # إنشاء توكن مؤقت
+            reset_token = secrets.token_urlsafe(32)
+            cache.set(f"recovery_reset_{schema_name}", reset_token, timeout=600)
+            cache.delete(cache_key)  # حذف الـ OTP
+
+            # جلب المستخدمين من الـ tenant
+            users_list = []
+            with schema_context(schema_name):
+                for u in User.objects.filter(is_active=True).order_by('-is_superuser', 'username'):
+                    users_list.append({
+                        'id': u.id,
+                        'username': u.username,
+                        'full_name': u.get_full_name() or u.username,
+                        'is_superuser': u.is_superuser,
+                    })
+
+            context = {
+                'step': 'reset',
+                'tenant_name': tenant.name,
+                'tenant_schema': schema_name,
+                'reset_token': reset_token,
+                'users': users_list,
+            }
+            return render(request, 'clients/account_recovery.html', context)
+
+        # ── الخطوة 3: إعادة تعيين كلمة السر ──
+        elif step == 'reset':
+            schema_name = request.POST.get('tenant_schema', '')
+            reset_token = request.POST.get('reset_token', '')
+            user_id = request.POST.get('user_id', '')
+            new_password = request.POST.get('new_password', '')
+            confirm_password = request.POST.get('confirm_password', '')
+
+            # التحقق من التوكن
+            correct_token = cache.get(f"recovery_reset_{schema_name}")
+            if not correct_token or reset_token != correct_token:
+                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                return render(request, 'clients/account_recovery.html', context)
+
+            if not new_password or len(new_password) < 6:
+                tenant = Client.objects.filter(schema_name=schema_name).first()
+                context = {
+                    'step': 'reset',
+                    'tenant_name': tenant.name if tenant else '',
+                    'tenant_schema': schema_name,
+                    'reset_token': reset_token,
+                    'error': 'كلمة السر يجب أن تكون 6 أحرف على الأقل.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
+            if new_password != confirm_password:
+                tenant = Client.objects.filter(schema_name=schema_name).first()
+                context = {
+                    'step': 'reset',
+                    'tenant_name': tenant.name if tenant else '',
+                    'tenant_schema': schema_name,
+                    'reset_token': reset_token,
+                    'error': 'كلمة السر وتأكيدها غير متطابقتين.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
+            try:
+                with schema_context(schema_name):
+                    user = User.objects.get(id=user_id)
+                    user.set_password(new_password)
+                    user.save()
+
+                cache.delete(f"recovery_reset_{schema_name}")
+
+                # بناء رابط تسجيل الدخول
+                tenant = Client.objects.filter(schema_name=schema_name).first()
+                safe_slug = schema_name.replace('_', '-')
+                request_host = request.get_host()
+                host_parts = request_host.split('.')
+                base_host = '.'.join(host_parts[-2:]) if len(host_parts) > 2 else request_host
+                login_url = f"{request.scheme}://{safe_slug}.{base_host}/{ADMIN_URL}/login/"
+
+                context = {
+                    'step': 'success',
+                    'tenant_name': tenant.name if tenant else '',
+                    'login_url': login_url,
+                    'username': user.username,
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
+            except User.DoesNotExist:
+                context['error'] = 'المستخدم غير موجود.'
+            except Exception as e:
+                logger.error(f"[RECOVERY] Password reset failed: {e}")
+                context['error'] = 'حدث خطأ. حاول مرة أخرى.'
+
+    return render(request, 'clients/account_recovery.html', context)
+
 
 # =====================================================================
 # 🌐 3. الموزع المركزي للإشعارات الخارجية (FinTech Webhook Multiplexer)

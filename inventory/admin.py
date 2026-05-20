@@ -119,9 +119,10 @@ class BranchAdmin(SecureImportExportAdmin):
         super().save_model(request, obj, form, change)
 
 @admin.register(EmployeeProfile)
-class EmployeeProfileAdmin(SecureImportExportAdmin): 
+class EmployeeProfileAdmin(SecureImportExportAdmin):
     list_display = ('user', 'branch', 'role', 'commission_balance_styled')
     list_filter = ('branch', 'role')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name')
     
     def commission_balance_styled(self, obj):
         if obj.role == 'tech':
@@ -917,10 +918,10 @@ class ExpenseCategoryAdmin(SecureImportExportAdmin):
 
 @admin.register(FinancialTransaction)
 class FinancialTransactionAdmin(SecureImportExportAdmin):
-    list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category', 'anomaly_flag', 'date', 'linked_invoice')
+    list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category', 'employee_display', 'anomaly_flag', 'date', 'linked_invoice')
     list_filter = ('transaction_type', 'currency', 'treasury', 'category', 'date')
-    search_fields = ('description',)
-    autocomplete_fields = ['treasury', 'category', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor']
+    search_fields = ('description', 'employee__user__first_name', 'employee__user__last_name')
+    autocomplete_fields = ['treasury', 'category', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee']
     date_hierarchy = 'date'
     
     def get_readonly_fields(self, request, obj=None):
@@ -949,15 +950,22 @@ class FinancialTransactionAdmin(SecureImportExportAdmin):
         return format_html('<span style="color:#10b981; font-size:12px;"><i class="fas fa-shield-alt"></i> معتمد آمن</span>')
     anomaly_flag.short_description = "الرادار الأمني"
 
+    def employee_display(self, obj):
+        if obj.employee:
+            return format_html('<span style="color:#6f42c1; font-weight:bold; font-size:12px;"><i class="fas fa-user-tie"></i> {}</span>', obj.employee)
+        return '-'
+    employee_display.short_description = "الموظف"
+
     def linked_invoice(self, obj):
-        if obj.sale_invoice: 
+        if obj.sale_invoice:
             url = reverse('admin:inventory_saleinvoice_change', args=[obj.sale_invoice.id])
             return format_html('<a href="{}" style="color: #007bff; font-weight: bold; font-size:12px;">فاتورة بيع #{}</a>', url, obj.sale_invoice.id)
-        if obj.purchase_invoice: 
+        if obj.purchase_invoice:
             url = reverse('admin:inventory_purchaseinvoice_change', args=[obj.purchase_invoice.id])
             return format_html('<a href="{}" style="color: #6f42c1; font-weight: bold; font-size:12px;">فاتورة شراء #{}</a>', url, obj.purchase_invoice.id)
         if obj.customer: return format_html('<span style="color: #17a2b8; font-weight: bold; font-size:12px;">دفعة حساب عميل ({})</span>', obj.customer.name)
         if obj.vendor: return format_html('<span style="color: #e83e8c; font-weight: bold; font-size:12px;">تصفية حساب مورد ({})</span>', obj.vendor.name)
+        if obj.employee: return format_html('<span style="color: #6f42c1; font-weight: bold; font-size:12px;">راتب/سلفة موظف ({})</span>', obj.employee)
         return format_html('<span style="color: gray; font-size:12px;">- مصروفات عمومية وإدارية -</span>')
     linked_invoice.short_description = "الارتباط المستندي"
 

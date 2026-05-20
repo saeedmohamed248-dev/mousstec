@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استرجاع الحساب | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }</style>
+</head>
+<body class="text-slate-200 min-h-screen flex items-center justify-center px-4">
+
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10"></div>
+
+<div class="w-full max-w-md">
+
+    <!-- Logo -->
+    <div class="text-center mb-8">
+        <a href="/" class="inline-flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-3 rounded-2xl shadow-lg shadow-purple-500/30">
+                <i class="fas fa-cubes text-2xl text-white"></i>
+            </div>
+            <span class="text-3xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+        </a>
+    </div>
+
+    <div class="bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl rounded-2xl p-8 shadow-2xl shadow-indigo-900/20">
+
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm font-bold text-center mb-5">
+            <i class="fas fa-exclamation-triangle ml-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        {% if step == 'search' %}
+        <!-- ===== الخطوة 1: البحث ===== -->
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-4">
+                <i class="fas fa-key"></i>
+            </div>
+            <h1 class="text-xl font-black text-white">استرجاع الحساب</h1>
+            <p class="text-slate-400 text-sm mt-1">أدخل رقم الموبايل أو البريد الإلكتروني المسجل</p>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="step" value="search">
+            <div>
+                <label class="block text-xs font-black text-slate-400 mb-2">رقم الموبايل أو البريد الإلكتروني</label>
+                <input type="text" name="query" required autofocus
+                    placeholder="01xxxxxxxxx أو email@example.com"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/20 transition"
+                    dir="ltr">
+            </div>
+            <button type="submit"
+                class="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300 flex items-center justify-center gap-2">
+                <i class="fas fa-search"></i>
+                ابحث عن حسابي
+            </button>
+        </form>
+
+        {% elif step == 'verify' %}
+        <!-- ===== الخطوة 2: التحقق بالكود ===== -->
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-2xl mb-4">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h1 class="text-xl font-black text-white">تأكيد الهوية</h1>
+            <p class="text-slate-400 text-sm mt-1">حساب: <span class="text-white font-bold">{{ tenant_name }}</span></p>
+        </div>
+
+        {% if masked_email %}
+        <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl px-4 py-3 text-sm text-slate-400 text-center mb-4">
+            <i class="fas fa-envelope text-blue-400 ml-1"></i>
+            تم إرسال كود تحقق مكون من 6 أرقام إلى <span class="text-white font-bold" dir="ltr">{{ masked_email }}</span>
+        </div>
+        {% endif %}
+
+        {% if otp_hint %}
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300 text-center mb-4">
+            <i class="fas fa-info-circle ml-1"></i>
+            لا يوجد بريد إلكتروني مسجل. كود التحقق هو: <span class="text-white font-black text-lg" dir="ltr">{{ otp_hint }}</span>
+            <br><small class="text-amber-400/70">يُنصح بإضافة بريد إلكتروني لحسابك لاحقاً.</small>
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="step" value="verify">
+            <input type="hidden" name="tenant_schema" value="{{ tenant_schema }}">
+            <div>
+                <label class="block text-xs font-black text-slate-400 mb-2">كود التحقق (6 أرقام)</label>
+                <input type="text" name="otp" required autofocus maxlength="6" pattern="[0-9]{6}"
+                    placeholder="000000"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-2xl text-center font-black tracking-[0.5em] placeholder-slate-500 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition"
+                    dir="ltr">
+            </div>
+            <button type="submit"
+                class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition duration-300 flex items-center justify-center gap-2">
+                <i class="fas fa-check-circle"></i>
+                تحقق من الكود
+            </button>
+        </form>
+
+        {% elif step == 'reset' %}
+        <!-- ===== الخطوة 3: إعادة تعيين كلمة السر ===== -->
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-4">
+                <i class="fas fa-lock-open"></i>
+            </div>
+            <h1 class="text-xl font-black text-white">إعادة تعيين كلمة السر</h1>
+            <p class="text-slate-400 text-sm mt-1">حساب: <span class="text-white font-bold">{{ tenant_name }}</span></p>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="step" value="reset">
+            <input type="hidden" name="tenant_schema" value="{{ tenant_schema }}">
+            <input type="hidden" name="reset_token" value="{{ reset_token }}">
+
+            <div>
+                <label class="block text-xs font-black text-slate-400 mb-2">اختر المستخدم</label>
+                <select name="user_id" required
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition">
+                    {% for u in users %}
+                    <option value="{{ u.id }}">
+                        {{ u.full_name }}{% if u.is_superuser %} (مدير عام){% endif %} — @{{ u.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-black text-slate-400 mb-2">كلمة السر الجديدة</label>
+                <input type="password" name="new_password" required minlength="6"
+                    placeholder="6 أحرف على الأقل"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition"
+                    dir="ltr">
+            </div>
+
+            <div>
+                <label class="block text-xs font-black text-slate-400 mb-2">تأكيد كلمة السر</label>
+                <input type="password" name="confirm_password" required minlength="6"
+                    placeholder="أعد كتابة كلمة السر"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition"
+                    dir="ltr">
+            </div>
+
+            <button type="submit"
+                class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition duration-300 flex items-center justify-center gap-2">
+                <i class="fas fa-save"></i>
+                حفظ كلمة السر الجديدة
+            </button>
+        </form>
+
+        {% elif step == 'success' %}
+        <!-- ===== تم بنجاح ===== -->
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-4">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h1 class="text-xl font-black text-white">تم تغيير كلمة السر بنجاح!</h1>
+        </div>
+
+        <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 mb-5 space-y-2">
+            <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-500">الشركة</span>
+                <span class="text-sm font-black text-white">{{ tenant_name }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-xs text-slate-500">اسم المستخدم</span>
+                <span class="text-sm font-bold text-purple-400" dir="ltr">{{ username }}</span>
+            </div>
+        </div>
+
+        <a href="{{ login_url }}"
+           class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition duration-300 flex items-center justify-center gap-2 mb-4">
+            <i class="fas fa-sign-in-alt"></i>
+            الدخول لنظام {{ tenant_name }}
+        </a>
+        {% endif %}
+
+        <!-- رابط العودة -->
+        {% if step != 'success' %}
+        <div class="mt-6 pt-5 border-t border-slate-800 text-center space-y-3">
+            <a href="{% url 'client_login_finder' %}" class="inline-flex items-center gap-2 text-slate-500 hover:text-purple-400 font-bold text-sm transition">
+                <i class="fas fa-arrow-right text-xs"></i>
+                العودة لتسجيل الدخول
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <p class="text-center text-slate-600 text-xs mt-6">
+        &copy; 2026 Mouss Tec Ecosystem
+    </p>
+</div>
+
+</body>
+</html>

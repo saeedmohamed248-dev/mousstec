@@ -264,22 +264,25 @@ class ExpenseCategory(models.Model):
 
 class FinancialTransaction(models.Model):
     TRANSACTION_TYPES = (('in', _('إيداع / إيراد')), ('out', _('سحب / مصروف')))
-    CURRENCY_CHOICES = (('EGP', 'جنية مصري'), ('AED', 'درهم إماراتي'), ('USD', 'دولار أمريكي')) 
+    CURRENCY_CHOICES = (('EGP', 'جنية مصري'), ('AED', 'درهم إماراتي'), ('USD', 'دولار أمريكي'))
 
     treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, related_name='transactions', verbose_name=_("الخزنة"))
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name=_("النوع"))
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='EGP', verbose_name=_("العملة"))
     exchange_rate = models.DecimalField(max_digits=10, decimal_places=4, default=1.0000, verbose_name=_("سعر الصرف وقت العملية"))
     amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("المبلغ (بالعملة المحلية)"))
-    
+
     category = models.ForeignKey(ExpenseCategory, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("البند"))
     description = models.CharField(max_length=255, verbose_name=_("البيان"))
     date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
-    
+
+    # ربط الحركة بموظف (للرواتب والعمولات والسلف)
+    employee = models.ForeignKey(EmployeeProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='financial_transactions', verbose_name=_("الموظف (للرواتب/السلف)"))
+
     sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة بيع"))
     purchase_invoice = models.ForeignKey('PurchaseInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة شراء"))
-    customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة من عميل")) 
-    vendor = models.ForeignKey(Vendor, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة لمورد")) 
+    customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة من عميل"))
+    vendor = models.ForeignKey(Vendor, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة لمورد"))
     history = HistoricalRecords()
     class Meta: verbose_name_plural = _("الخزينة (حركات مالية)")
     def __str__(self): return f"{self.amount} {self.currency} - {self.treasury.name}"
