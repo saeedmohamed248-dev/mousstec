@@ -10,7 +10,7 @@ Queue routing (defined in settings.py):
   default               → everything else
 """
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from celery import shared_task
 from django.db import transaction, connection
@@ -118,7 +118,7 @@ def process_financial_reconciliation(self, schema_name: str, date_str: str = Non
 
         with schema_context(schema_name):
             target_date = (
-                timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+                datetime.strptime(date_str, "%Y-%m-%d").date()
                 if date_str else timezone.now().date()
             )
             discrepancies = []
@@ -127,13 +127,13 @@ def process_financial_reconciliation(self, schema_name: str, date_str: str = Non
                 total_in = FinancialTransaction.objects.filter(
                     treasury=treasury,
                     transaction_type='in',
-                    created_at__date__lte=target_date,
+                    date__date__lte=target_date,
                 ).aggregate(s=Sum('amount'))['s'] or 0
 
                 total_out = FinancialTransaction.objects.filter(
                     treasury=treasury,
                     transaction_type='out',
-                    created_at__date__lte=target_date,
+                    date__date__lte=target_date,
                 ).aggregate(s=Sum('amount'))['s'] or 0
 
                 expected_balance = total_in - total_out
@@ -274,7 +274,7 @@ def sync_elastic_pricing(schema_name: str):
         with schema_context(schema_name):
             products = Product.objects.filter(
                 is_active=True, average_cost__gt=0
-            ).only('id', 'name', 'condition', 'average_cost', 'sale_price')
+            ).only('id', 'name', 'condition', 'average_cost', 'retail_price')
 
             updated = 0
             for product in products:
@@ -286,11 +286,11 @@ def sync_elastic_pricing(schema_name: str):
                     if suggested <= 0:
                         continue
 
-                    current = float(product.sale_price or 0)
+                    current = float(product.retail_price or 0)
                     deviation = abs(suggested - current) / max(current, 1)
 
                     if deviation > 0.05:  # update only if > 5% difference
-                        Product.objects.filter(pk=product.pk).update(sale_price=suggested)
+                        Product.objects.filter(pk=product.pk).update(retail_price=suggested)
                         updated += 1
                 except Exception as item_exc:
                     logger.warning(

@@ -76,7 +76,12 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             'description': "أموال التاجر في النظام وعمولة المنصة المحصلة منه."
         }),
         ('الباقة وقيود السحابة (SaaS Limits)', {
-            'fields': ('plan', 'status', 'trial_ends_at', 'subscription_end_date', 'max_branches', 'max_users')
+            'fields': ('plan', 'status', 'trial_ends_at', 'subscription_end_date', 'max_branches', 'max_users', 'max_treasuries', 'extra_treasuries_purchased')
+        }),
+        ('مؤشرات الذكاء الاصطناعي (AI Trust)', {
+            'fields': ('ai_trust_score',),
+            'classes': ('collapse',),
+            'description': "مؤشر الثقة الديناميكي المحسوب آلياً بواسطة نظام الـ AI."
         }),
         ('التخصيص الفني (White-labeling)', {
             # ✅ تم إزالة الحقل الوهمي auto_create_schema للقضاء على خطأ FieldError نهائياً

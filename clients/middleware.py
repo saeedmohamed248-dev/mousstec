@@ -32,8 +32,17 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
         re.compile(r'^/system/health/'),   # فحص صحة النظام
         re.compile(r'^/system/api/v1/ai/'),
-        re.compile(r'^/secure-portal/'),   # Django admin login
     ]
+
+    @classmethod
+    def _get_exempt_urls(cls):
+        """بناء القائمة الكاملة مع مسار الأدمن الديناميكي"""
+        if not hasattr(cls, '_cached_exempt_urls'):
+            admin_url = getattr(settings, 'ADMIN_URL', 'secure-portal')
+            cls._cached_exempt_urls = cls.EXEMPT_URLS + [
+                re.compile(r'^/' + re.escape(admin_url) + r'/'),
+            ]
+        return cls._cached_exempt_urls
 
     # 🚦 سرعات الباقات (طلبات لكل دقيقة)
     TIER_RATE_LIMITS = {
@@ -110,7 +119,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             
         path = request.path_info
         
-        if any(m.match(path) for m in self.EXEMPT_URLS):
+        if any(m.match(path) for m in self._get_exempt_urls()):
             return None
             
         # جلب حالة العميل من الكاش

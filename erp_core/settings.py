@@ -24,8 +24,6 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-5)f75m-6r+(53$*=fvp7@88m(h@fwvt^ib4&sainhr8e55x&@_')
 DEBUG = env('DEBUG', default=True)
 
-BASE_DOMAIN = env('BASE_DOMAIN', default='mousstec.com')
-
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost']
 
 # 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
