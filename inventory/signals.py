@@ -8,10 +8,11 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 from django.utils import timezone
 from datetime import timedelta
-from celery import current_app 
+from celery import current_app
 
 from .models import (Inventory, PurchaseInvoice, PurchaseInvoiceItem, Vendor,
-                     SaleInvoice, SaleInvoiceItem, StockTransfer, FinancialTransaction)
+                     SaleInvoice, SaleInvoiceItem, StockTransfer, FinancialTransaction, EmployeeProfile)
+from erp_core.orchestrator import AgentHealthMonitor, AgentEventBus, dlq
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -140,6 +141,10 @@ def execute_purchase_posting(sender, instance, **kwargs):
                     logger.error(f"🔴 [ESCROW INTEGRATION CRITICAL ERROR]: {e}")
 
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            AgentHealthMonitor.heartbeat('inbound_orchestrator', schema=connection.schema_name,
+                                         metadata={'last_po_id': instance.pk})
+            AgentEventBus.set_agent_state('inbound_orchestrator', schema=connection.schema_name,
+                                           state={'last_po_id': instance.pk, 'status': 'completed'})
 
 
 # =====================================================================
@@ -242,6 +247,10 @@ def execute_sale_posting(sender, instance, **kwargs):
                         )
                     
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            AgentHealthMonitor.heartbeat('outbound_orchestrator', schema=connection.schema_name,
+                                         metadata={'last_inv_id': instance.pk})
+            AgentEventBus.set_agent_state('outbound_orchestrator', schema=connection.schema_name,
+                                           state={'last_inv_id': instance.pk, 'status': 'completed'})
             logger.info(f"✅ [SALE SUCCESS] INV #{instance.id} executed safely.")
 
 
