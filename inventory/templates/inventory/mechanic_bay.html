@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كشك الفنيين | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }</style>
+</head>
+<body class="text-slate-200 min-h-screen flex flex-col">
+
+    <nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-indigo-600 to-blue-600 p-2 rounded-xl"><i class="fas fa-wrench text-white"></i></div>
+                <span class="text-lg font-black bg-gradient-to-r from-indigo-400 to-blue-400 bg-clip-text text-transparent">كشك الفنيين</span>
+            </div>
+            <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8 flex-1">
+        <div class="max-w-2xl mx-auto space-y-6">
+
+            <!-- Shift Controls -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center">
+                <div class="w-20 h-20 mx-auto rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-3xl mb-4 border border-indigo-500/20">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+                <h2 class="text-xl font-black text-white mb-2">تسجيل الوردية</h2>
+                <p class="text-sm text-slate-500 mb-6">سجّل دخولك لبدء تتبع ساعات العمل والإنتاجية</p>
+                <div class="flex gap-4 justify-center">
+                    <button onclick="shiftAction('clock_in')" class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black px-8 py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
+                        <i class="fas fa-sign-in-alt ml-2"></i>تسجيل دخول
+                    </button>
+                    <button onclick="shiftAction('clock_out')" class="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black px-8 py-3 rounded-xl text-sm transition shadow-lg shadow-red-500/20">
+                        <i class="fas fa-sign-out-alt ml-2"></i>تسجيل خروج
+                    </button>
+                </div>
+                <div id="shift-result" class="mt-4 text-sm"></div>
+            </div>
+
+            <!-- AI Diagnostic -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+                <h3 class="text-sm font-black text-white mb-4 flex items-center gap-2"><i class="fas fa-robot text-purple-400"></i> مساعد التشخيص الذكي</h3>
+                <div class="flex gap-3">
+                    <input type="text" id="dtc-input" placeholder="أدخل كود العطل (مثال: P0300)..."
+                        class="flex-1 bg-slate-800/60 border border-slate-700 focus:border-purple-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+                    <button onclick="diagnose()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-3 rounded-xl text-sm transition"><i class="fas fa-search ml-1"></i>تشخيص</button>
+                </div>
+                <div id="dtc-result" class="mt-4 text-sm"></div>
+            </div>
+
+        </div>
+    </main>
+
+<script>
+function shiftAction(action) {
+    fetch(`/system/api/v1/mechanic/shift/${action}/`, {method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken'),'Content-Type':'application/json'}})
+        .then(r=>r.json()).then(data=>{
+            const el = document.getElementById('shift-result');
+            el.className = 'mt-4 text-sm font-bold ' + (data.error ? 'text-red-400' : 'text-emerald-400');
+            el.textContent = data.message || data.error;
+            if(data.total_hours) el.textContent += ` (${data.total_hours} ساعة)`;
+        }).catch(()=>{ document.getElementById('shift-result').innerHTML='<span class="text-red-400">خطأ في الاتصال</span>'; });
+}
+function diagnose() {
+    const dtc = document.getElementById('dtc-input').value.trim();
+    if(!dtc) return;
+    document.getElementById('dtc-result').innerHTML='<span class="text-slate-500"><i class="fas fa-spinner fa-spin ml-1"></i>جاري التحليل...</span>';
+    fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(dtc)}`)
+        .then(r=>r.json()).then(data=>{
+            document.getElementById('dtc-result').innerHTML = data.recommendations
+                ? `<div class="bg-slate-800/60 rounded-xl p-4 border border-slate-700">${data.recommendations}</div>`
+                : '<span class="text-red-400">لا توجد نتائج</span>';
+        }).catch(()=>{ document.getElementById('dtc-result').innerHTML='<span class="text-red-400">خطأ في الاتصال</span>'; });
+}
+function getCookie(n){let v=document.cookie.match('(^|;)\\s*'+n+'=([^;]*)');return v?decodeURIComponent(v[2]):'';}
+</script>
+</body>
+</html>

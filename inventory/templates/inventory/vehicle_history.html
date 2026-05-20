@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جواز السيارة الرقمي | {{ vehicle.car_plate }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+    <nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-emerald-600 to-teal-600 p-2 rounded-xl"><i class="fas fa-car text-white"></i></div>
+                <span class="text-lg font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">جواز السيارة الرقمي</span>
+            </div>
+            <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Vehicle Card -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-6">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-2xl border border-emerald-500/20">
+                        <i class="fas fa-car-side"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-black text-white">{{ vehicle.brand }} {{ vehicle.model_name|default:"" }}</h2>
+                        <p class="text-sm text-slate-500">{{ vehicle.car_plate|default:"بدون لوحة" }} | VIN: ...{{ vehicle.chassis_number|truncatechars:10 }}</p>
+                        <p class="text-xs text-slate-600 mt-1">المالك: {{ vehicle.customer.name }}</p>
+                    </div>
+                </div>
+                <div class="flex gap-4 text-center">
+                    <div class="bg-slate-800/60 rounded-xl px-4 py-2 border border-slate-700">
+                        <p class="text-xs text-slate-500">العداد</p>
+                        <p class="text-sm font-black text-white">{{ vehicle.last_mileage|default:0 }} كم</p>
+                    </div>
+                    <div class="bg-slate-800/60 rounded-xl px-4 py-2 border border-slate-700">
+                        <p class="text-xs text-slate-500">صحة المركبة</p>
+                        <p class="text-sm font-black {% if vehicle.ai_health_score >= 80 %}text-emerald-400{% elif vehicle.ai_health_score >= 50 %}text-amber-400{% else %}text-red-400{% endif %}">{{ vehicle.ai_health_score }}%</p>
+                    </div>
+                    <a href="/system/vehicle/{{ vehicle.chassis_number }}/qr/" class="bg-slate-800/60 rounded-xl px-4 py-2 border border-slate-700 hover:border-purple-500/40 transition">
+                        <p class="text-xs text-slate-500">QR</p>
+                        <p class="text-sm font-black text-purple-400"><i class="fas fa-qrcode"></i></p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service History -->
+        <h3 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2"><i class="fas fa-history text-purple-400"></i> سجل الصيانة</h3>
+        {% if history %}
+        <div class="space-y-3">
+            {% for inv in history %}
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 hover:border-slate-700 transition">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm
+                            {% if inv.invoice_type == 'maintenance' %}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20
+                            {% else %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% endif %}">
+                            {% if inv.invoice_type == 'maintenance' %}<i class="fas fa-wrench"></i>{% else %}<i class="fas fa-cogs"></i>{% endif %}
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white">فاتورة #{{ inv.id }} — {{ inv.get_invoice_type_display }}</p>
+                            <p class="text-xs text-slate-500">{{ inv.date_created|date:"Y/m/d" }} | {{ inv.branch.name }}</p>
+                        </div>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-sm font-black text-emerald-400">{{ inv.total_amount|floatformat:0 }} ج.م</p>
+                        {% if inv.mileage %}<p class="text-xs text-slate-600">{{ inv.mileage }} كم</p>{% endif %}
+                    </div>
+                </div>
+                {% if inv.notes %}<p class="text-xs text-slate-600 mt-2 border-t border-slate-800 pt-2">{{ inv.notes|truncatewords:20 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-10 text-center">
+            <i class="fas fa-clipboard-list text-4xl text-slate-700 mb-3"></i>
+            <p class="text-slate-600 text-sm">لا يوجد سجل صيانة لهذه المركبة حتى الآن</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <footer class="text-center py-4 text-slate-700 text-xs border-t border-slate-900">&copy; 2026 Mouss Tec Ecosystem</footer>
+</body>
+</html>
