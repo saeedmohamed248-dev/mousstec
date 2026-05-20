@@ -203,6 +203,10 @@
             <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
                 <i class="fas fa-store"></i> سوق B2B
             </a>
+
+            <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
+                <i class="fas fa-rocket"></i> الوصول السريع
+            </a>
         </div>
         <div class="col-lg-4 col-12">
             <div class="omni-search-wrapper" onclick="toggleCommandPalette()">
@@ -655,5 +659,12 @@
             }
         });
     });
+
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('Mouss Tec SW registered:', reg.scope);
+        }).catch(err => console.warn('SW registration failed:', err));
+    }
 </script>
 {% endblock %}

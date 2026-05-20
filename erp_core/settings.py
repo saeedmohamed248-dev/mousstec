@@ -223,7 +223,9 @@ LOCALE_PATHS = [BASE_DIR / 'locale']
 # =====================================================================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' 
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MAX_AGE = 31536000  # Cache static files for 1 year (hashed filenames) 
 
 USE_S3 = env.bool('USE_S3', default=False)
 if USE_S3:

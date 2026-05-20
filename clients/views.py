@@ -404,12 +404,126 @@ def saas_pricing_page(request):
     return render(request, 'clients/pricing.html', {
         'tenant': tenant, 'shop': shop_schema,
         'pricing': {
-            'silver': {'price': 685, 'users': 1, 'branches': 1, 'treasuries': 1},
+            'silver': {'price': 475, 'original_price': 685, 'users': 1, 'branches': 1, 'treasuries': 1, 'limited_offer': True},
             'gold': {'price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2},
             'empire': {'price': 3000},
             'addon_price': 125,
+            'free_trial_days': 3,
+            'vodafone_cash': '01094850763',
         }
     })
+
+
+# =====================================================================
+# 💳 8.5 بوابة الدفع عبر Paymob (Visa / Mastercard)
+# =====================================================================
+@csrf_exempt
+def paymob_checkout(request):
+    """
+    إنشاء طلب دفع عبر Paymob وتوجيه العميل لصفحة الدفع الآمنة.
+    يتطلب تكوين PAYMOB_API_KEY و PAYMOB_INTEGRATION_ID في البيئة.
+    """
+    if request.method != 'POST':
+        return redirect('saas_pricing')
+
+    plan = request.POST.get('plan', '')
+    amount = request.POST.get('amount', '0')
+    shop = request.POST.get('shop', '')
+
+    paymob_api_key = os.getenv('PAYMOB_API_KEY', '')
+    paymob_integration_id = os.getenv('PAYMOB_INTEGRATION_ID', '')
+    paymob_iframe_id = os.getenv('PAYMOB_IFRAME_ID', '')
+
+    if not paymob_api_key:
+        messages.error(request, "بوابة الدفع الإلكتروني قيد التجهيز. يرجى الدفع عبر فودافون كاش حالياً.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+
+    import requests as http_requests
+
+    try:
+        # Step 1: Auth token
+        auth_res = http_requests.post('https://accept.paymob.com/api/auth/tokens', json={
+            'api_key': paymob_api_key
+        }, timeout=15)
+        auth_token = auth_res.json().get('token')
+
+        # Step 2: Create order
+        amount_cents = int(float(amount) * 100)
+        order_res = http_requests.post('https://accept.paymob.com/api/ecommerce/orders', json={
+            'auth_token': auth_token,
+            'delivery_needed': 'false',
+            'amount_cents': amount_cents,
+            'currency': 'EGP',
+            'items': [{'name': f'Mouss Tec {plan} Plan', 'amount_cents': amount_cents, 'quantity': '1'}],
+            'merchant_order_id': f'mousstec_{plan}_{uuid.uuid4().hex[:8]}',
+        }, timeout=15)
+        order_id = order_res.json().get('id')
+
+        # Step 3: Payment key
+        billing = {
+            'first_name': shop or 'Customer', 'last_name': 'MoussTec',
+            'email': 'customer@mousstec.com', 'phone_number': '01000000000',
+            'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
+            'shipping_method': 'NA', 'postal_code': 'NA', 'city': 'Cairo',
+            'country': 'EG', 'state': 'Cairo',
+        }
+        key_res = http_requests.post('https://accept.paymob.com/api/acceptance/payment_keys', json={
+            'auth_token': auth_token,
+            'amount_cents': amount_cents,
+            'expiration': 3600,
+            'order_id': order_id,
+            'billing_data': billing,
+            'currency': 'EGP',
+            'integration_id': int(paymob_integration_id),
+            'lock_order_when_paid': 'true',
+        }, timeout=15)
+        payment_token = key_res.json().get('token')
+
+        # Store plan info in cache for callback
+        cache.set(f'paymob_order_{order_id}', {'plan': plan, 'shop': shop, 'amount': amount}, timeout=7200)
+
+        # Step 4: Redirect to Paymob iframe
+        iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{paymob_iframe_id}?payment_token={payment_token}'
+        return redirect(iframe_url)
+
+    except Exception as e:
+        logger.error(f"Paymob checkout error: {e}")
+        messages.error(request, "حدث خطأ اثناء الاتصال ببوابة الدفع. يرجى المحاولة مرة اخرى او الدفع عبر فودافون كاش.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+
+
+@csrf_exempt
+def paymob_callback(request):
+    """
+    استقبال نتيجة الدفع من Paymob بعد إتمام العملية.
+    """
+    data = request.GET.dict() if request.method == 'GET' else json.loads(request.body) if request.body else {}
+
+    success = data.get('success', 'false')
+    order_id = data.get('order', data.get('obj', {}).get('order', {}).get('id', ''))
+
+    if str(success).lower() == 'true' and order_id:
+        order_info = cache.get(f'paymob_order_{order_id}')
+        if order_info:
+            plan = order_info.get('plan')
+            shop = order_info.get('shop')
+            if shop:
+                try:
+                    with transaction.atomic():
+                        tenant = Client.objects.get(schema_name=shop)
+                        tenant.plan = plan
+                        tenant.status = 'active'
+                        base_date = max(tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
+                        tenant.subscription_end_date = base_date + timedelta(days=30)
+                        tenant.save()
+                        cache.delete(f'paymob_order_{order_id}')
+                        logger.info(f"Paymob payment success: {shop} -> {plan}")
+                except Client.DoesNotExist:
+                    pass
+
+            return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
+
+    return redirect(reverse('saas_pricing') + '?payment=failed')
 
 
 # =====================================================================

@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="/manifest.json">
     <title>لوحة التحكم | {{ tenant.name|default:"Mouss Tec" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -290,5 +294,34 @@
     </footer>
 </div>
 
+<script>
+// Service Worker & Offline Sync Registration
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('Mouss Tec SW registered:', reg.scope);
+    }).catch(err => console.warn('SW registration failed:', err));
+
+    // Listen for sync messages from SW
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'SYNC_READY') {
+            // Auto-sync offline data when connection returns
+            const offlineQueue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
+            if (offlineQueue.length > 0) {
+                fetch('/system/api/v1/inventory/offline-sync/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                    body: JSON.stringify({operations: offlineQueue})
+                }).then(r => r.json()).then(data => {
+                    if (data.status === 'success') {
+                        localStorage.removeItem('mousstec_offline_queue');
+                        console.log('Offline data synced successfully');
+                    }
+                }).catch(() => {});
+            }
+        }
+    });
+}
+function getCookie(n){let v=document.cookie.match('(^|;)\\s*'+n+'=([^;]*)');return v?decodeURIComponent(v[2]):'';}
+</script>
 </body>
 </html>

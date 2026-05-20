@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>باقات Mouss Tec | اختر خطتك</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,6 +18,11 @@
         @keyframes pulse-badge {
             0%,100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.4); }
             50%      { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
+        }
+        .limited-flash { animation: flash-offer 1.5s infinite; }
+        @keyframes flash-offer {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
     </style>
 </head>
@@ -41,14 +48,14 @@
         <!-- Title -->
         <div class="text-center mb-14">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> أسعار شفافة بدون مفاجآت
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> اسعار شفافة بدون مفاجآت
             </span>
             <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
                 اختر الباقة المناسبة
                 <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> لنشاطك</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto">
-                جميع الباقات تشمل نظام الورشة الكامل، التقارير الذكية، والفواتير. أضف موظفين أو فروع أو خزائن في أي وقت بـ {{ pricing.addon_price }} ج.م/شهر للإضافة.
+                جميع الباقات تشمل نظام الورشة الكامل، التقارير الذكية، والفواتير. جرّب مجاناً {{ pricing.free_trial_days }} ايام ثم اختر باقتك.
             </p>
 
             {% if tenant %}
@@ -74,42 +81,63 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
 
             <!-- Silver -->
-            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm">
-                <div class="text-center mb-8">
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm relative">
+                {% if pricing.silver.limited_offer %}
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <span class="limited-flash bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg">
+                        <i class="fas fa-fire ml-1"></i> عرض لفترة محدودة!
+                    </span>
+                </div>
+                {% endif %}
+                <div class="text-center mb-8 {% if pricing.silver.limited_offer %}mt-2{% endif %}">
                     <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-700 rounded-2xl mb-4">
                         <i class="fas fa-store text-slate-300 text-2xl"></i>
                     </div>
                     <h2 class="text-xl font-black text-white mb-1">Silver</h2>
                     <p class="text-slate-400 text-sm">للورش الناشئة</p>
                     <div class="mt-4">
+                        {% if pricing.silver.limited_offer %}
+                        <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.silver.original_price }}</span>
+                        {% endif %}
                         <span class="text-4xl font-black text-white">{{ pricing.silver.price }}</span>
                         <span class="text-slate-400 text-sm mr-1">جنيه / شهر</span>
                     </div>
+                    {% if pricing.silver.limited_offer %}
+                    <p class="text-red-400 text-xs font-bold mt-2"><i class="fas fa-clock ml-1"></i> وفّر {{ pricing.silver.original_price|add:"-475" }} جنيه — العرض ينتهي قريباً</p>
+                    {% endif %}
                 </div>
                 <ul class="space-y-3 mb-8 text-sm">
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فرع واحد + خزينة واحدة</li>
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> موظف واحد (المدير)</li>
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فواتير مبيعات ومشتريات</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> إدارة المخزون الأساسية</li>
-                    <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> إضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> ادارة المخزون الاساسية</li>
+                    <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                     <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
                 </ul>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="plan" value="silver">
-                    <input type="hidden" name="shop" value="{{ shop }}">
-                    <button type="submit"
+                <div class="space-y-2">
+                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price }}', 'Silver')"
                         class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
                         {% if tenant and tenant.plan == 'silver' %}تجديد Silver{% else %}اختر Silver{% endif %}
                     </button>
-                </form>
+                    {% if not tenant %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="plan" value="silver">
+                        <input type="hidden" name="shop" value="{{ shop }}">
+                        <input type="hidden" name="action" value="trial">
+                        <button type="submit" class="w-full bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
 
             <!-- Gold (Popular) -->
             <div class="plan-card popular-glow bg-gradient-to-b from-purple-900/40 to-slate-800/80 border border-purple-500/50 rounded-2xl p-8 backdrop-blur-sm relative">
                 <div class="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span class="price-badge bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
-                        <i class="fas fa-fire ml-1"></i> الأكثر طلباً
+                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
                     </span>
                 </div>
                 <div class="text-center mb-8 mt-2">
@@ -129,17 +157,25 @@
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> سوق B2B المركزي كامل</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تشخيص ذكي بالـ AI</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تقارير مالية متقدمة</li>
-                    <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> إضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
+                    <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                 </ul>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="plan" value="gold">
-                    <input type="hidden" name="shop" value="{{ shop }}">
-                    <button type="submit"
+                <div class="space-y-2">
+                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price }}', 'Gold')"
                         class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300">
                         {% if tenant and tenant.plan == 'gold' %}تجديد Gold{% else %}اختر Gold{% endif %}
                     </button>
-                </form>
+                    {% if not tenant %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="plan" value="gold">
+                        <input type="hidden" name="shop" value="{{ shop }}">
+                        <input type="hidden" name="action" value="trial">
+                        <button type="submit" class="w-full bg-transparent border border-purple-500/40 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
 
             <!-- Empire -->
@@ -161,17 +197,25 @@
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Gold</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مزادات B2B العكسية</li>
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> Escrow مالي متكامل</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم أولوية + API مفتوح</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم اولوية + API مفتوح</li>
                 </ul>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="plan" value="empire">
-                    <input type="hidden" name="shop" value="{{ shop }}">
-                    <button type="submit"
+                <div class="space-y-2">
+                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price }}', 'Empire')"
                         class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
                         {% if tenant and tenant.plan == 'empire' %}تجديد Empire{% else %}اختر Empire{% endif %}
                     </button>
-                </form>
+                    {% if not tenant %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="plan" value="empire">
+                        <input type="hidden" name="shop" value="{{ shop }}">
+                        <input type="hidden" name="action" value="trial">
+                        <button type="submit" class="w-full bg-transparent border border-amber-500/30 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -179,11 +223,11 @@
         <div class="max-w-3xl mx-auto mt-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-6 py-5 text-center">
             <div class="flex items-center justify-center gap-3 mb-3">
                 <i class="fas fa-puzzle-piece text-indigo-400 text-lg"></i>
-                <span class="text-indigo-400 font-black text-base">نظام الإضافات المرنة</span>
+                <span class="text-indigo-400 font-black text-base">نظام الاضافات المرنة</span>
             </div>
             <p class="text-slate-400 text-sm leading-relaxed">
-                أضف موظفين أو فروع أو خزائن إضافية في أي وقت بـ <strong class="text-white">{{ pricing.addon_price }} ج.م/شهر</strong> للإضافة الواحدة.
-                <br>النظام يحسب التكلفة تلقائياً بالتناسب مع الأيام المتبقية من اشتراكك — ادفع فقط على الأيام الفعلية.
+                اضف موظفين او فروع او خزائن اضافية في اي وقت بـ <strong class="text-white">{{ pricing.addon_price }} ج.م/شهر</strong> للاضافة الواحدة.
+                <br>النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع فقط على الايام الفعلية.
             </p>
         </div>
 
@@ -191,14 +235,133 @@
         <div class="max-w-2xl mx-auto mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
             <i class="fas fa-gift text-emerald-400 ml-2"></i>
             <span class="text-emerald-400 font-bold text-sm">مكافأة الولاء:</span>
-            <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 أيام مجانية إضافية تلقائياً!</span>
+            <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!</span>
         </div>
 
     </main>
+
+    <!-- Subscribe / Payment Modal -->
+    <div id="subscribeModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-black text-white"><i class="fas fa-credit-card text-purple-400 ml-2"></i>اشترك الآن — <span id="modalPlanName"></span></h3>
+                <button onclick="closeSubscribeModal()" class="text-slate-500 hover:text-red-400 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+
+            <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-6 text-center">
+                <p class="text-slate-400 text-sm mb-1">المبلغ المطلوب</p>
+                <p class="text-3xl font-black text-white"><span id="modalPrice"></span> <span class="text-lg text-slate-400">ج.م / شهر</span></p>
+            </div>
+
+            <p class="text-sm text-slate-400 mb-4 text-center">اختر طريقة الدفع المناسبة لك:</p>
+
+            <!-- Vodafone Cash -->
+            <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-3">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 text-lg"><i class="fas fa-mobile-alt"></i></div>
+                    <div>
+                        <h4 class="text-sm font-black text-white">فودافون كاش</h4>
+                        <p class="text-xs text-slate-500">حوّل المبلغ وارسل ايصال الدفع</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
+                    <p class="text-xs text-slate-500 mb-1">حوّل على الرقم:</p>
+                    <p class="text-xl font-black text-red-400 tracking-wider" id="vodafoneNumber">{{ pricing.vodafone_cash }}</p>
+                    <button onclick="copyVodafone()" class="mt-2 text-xs text-slate-500 hover:text-red-400 transition"><i class="fas fa-copy ml-1"></i> نسخ الرقم</button>
+                </div>
+                <p class="text-[11px] text-slate-500 text-center">بعد التحويل ارسل صورة الايصال على واتساب نفس الرقم لتفعيل اشتراكك فوراً</p>
+            </div>
+
+            <!-- Visa / Paymob -->
+            <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 mb-3">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-lg"><i class="fas fa-credit-card"></i></div>
+                    <div>
+                        <h4 class="text-sm font-black text-white">بطاقة فيزا / ماستركارد</h4>
+                        <p class="text-xs text-slate-500">دفع فوري آمن عبر Paymob</p>
+                    </div>
+                </div>
+                <button onclick="payWithPaymob()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-500/20">
+                    <i class="fas fa-lock ml-1"></i> ادفع الآن بالفيزا
+                </button>
+                <p class="text-[11px] text-slate-600 text-center mt-2"><i class="fas fa-shield-alt ml-1"></i> مشفّر ومحمي بمعايير PCI DSS عبر Paymob</p>
+            </div>
+
+            <!-- Or use trial -->
+            {% if not tenant %}
+            <div class="text-center mt-4 pt-4 border-t border-slate-800">
+                <p class="text-slate-500 text-xs mb-2">مش متأكد؟</p>
+                <button onclick="closeSubscribeModal(); document.querySelector('[name=action][value=trial]').closest('form').submit();" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
+                    <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام بدون دفع
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
     <footer class="text-center py-8 text-slate-600 text-xs mt-8">
         &copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
     </footer>
 
+<script>
+let selectedPlan = '';
+let selectedPrice = '';
+
+function openSubscribeModal(plan, price, name) {
+    selectedPlan = plan;
+    selectedPrice = price;
+    document.getElementById('modalPlanName').textContent = name;
+    document.getElementById('modalPrice').textContent = price;
+    document.getElementById('subscribeModal').classList.remove('hidden');
+    document.getElementById('subscribeModal').classList.add('flex');
+}
+
+function closeSubscribeModal() {
+    document.getElementById('subscribeModal').classList.add('hidden');
+    document.getElementById('subscribeModal').classList.remove('flex');
+}
+
+function copyVodafone() {
+    const num = document.getElementById('vodafoneNumber').textContent.trim();
+    navigator.clipboard.writeText(num).then(() => {
+        const btn = event.target.closest('button');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check ml-1"></i> تم النسخ!';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-emerald-400'); }, 2000);
+    });
+}
+
+function payWithPaymob() {
+    // Paymob integration - redirect to payment iframe
+    // When Paymob is configured, this will create an order and redirect
+    const shop = '{{ shop|escapejs }}';
+    const returnUrl = window.location.origin + '/pricing/?shop=' + shop + '&payment=success';
+
+    // For now, show instructions to set up Paymob
+    // Once PAYMOB_API_KEY is configured, this will auto-redirect to Paymob checkout
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/payment/paymob/checkout/';
+    form.innerHTML = `
+        <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRF()}">
+        <input type="hidden" name="plan" value="${selectedPlan}">
+        <input type="hidden" name="amount" value="${selectedPrice}">
+        <input type="hidden" name="shop" value="${shop}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function getCSRF() {
+    const c = document.cookie.match('(^|;)\\s*csrftoken=([^;]*)');
+    return c ? decodeURIComponent(c[2]) : '';
+}
+
+// Close modal on outside click
+document.getElementById('subscribeModal').addEventListener('click', function(e) {
+    if (e.target === this) closeSubscribeModal();
+});
+</script>
 </body>
 </html>

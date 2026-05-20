@@ -3,8 +3,9 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 
 import os
 import time
@@ -165,6 +166,10 @@ urlpatterns = [
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
 
+    # 💳 بوابة الدفع عبر Paymob (Visa/Mastercard)
+    path('payment/paymob/checkout/', client_views.paymob_checkout, name='paymob_checkout'),
+    path('payment/paymob/callback/', client_views.paymob_callback, name='paymob_callback'),
+
     # 🧩 إدارة الاشتراك وشراء الإضافات (Pro-Rated Addon Engine)
     path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),
     path('api/v1/subscription/addon/', client_views.purchase_addon_api, name='api_purchase_addon'),
@@ -181,6 +186,23 @@ urlpatterns = [
 
     # 3. 🩺 رادار فحص حالة الخادم وسلامة الاتصال السحابي (Datadog/AWS Ready)
     path('system/health/', system_health_check, name='system_health'),
+
+    # 🌐 Service Worker & PWA (Offline-First)
+    path('sw.js', lambda r: redirect('/static/sw.js'), name='service_worker'),
+    path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
+    path('manifest.json', cache_page(86400)(lambda r: JsonResponse({
+        'name': 'Mouss Tec Workshop ERP',
+        'short_name': 'Mouss Tec',
+        'start_url': '/system/dashboard/',
+        'display': 'standalone',
+        'background_color': '#0f172a',
+        'theme_color': '#8b5cf6',
+        'description': 'Enterprise workshop management system',
+        'icons': [
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+        ]
+    })), name='pwa_manifest'),
     
     # 🚀 ابتكار: استقبال إشعارات بوابات الدفع اللحظية وحقنها في الـ Escrow Ledger أوتوماتيكياً
     path('api/webhooks/fintech/universal/', client_views.universal_webhook_multiplexer, name='fintech_webhook_multiplexer'),

@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="/manifest.json">
     <title>نقطة البيع السريعة | Mouss Tec POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -95,7 +99,26 @@ function renderCart() {
     el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${item.name}</p><p class="text-xs text-slate-500">${item.price} ج.م × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
     document.getElementById('cart-total').textContent = cart.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2) + ' ج.م';
 }
-function submitInvoice() { if (!cart.length) return; alert('سيتم ربط هذا الزر بنظام إنشاء الفواتير الآلي.'); }
+function submitInvoice() {
+    if (!cart.length) return;
+    const payload = {items: cart, total: cart.reduce((s, i) => s + i.price * i.qty, 0)};
+
+    if (!navigator.onLine) {
+        // Save to offline queue
+        const queue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
+        queue.push({type: 'pos_invoice', data: payload, timestamp: new Date().toISOString()});
+        localStorage.setItem('mousstec_offline_queue', JSON.stringify(queue));
+        alert('تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.');
+        cart = []; renderCart();
+        return;
+    }
+    alert('سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.');
+}
+
+// Service Worker & PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
