@@ -26,6 +26,11 @@ DEBUG = env('DEBUG', default=True)
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost']
 
+# 💳 Paymob Payment Gateway
+PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
+PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
+PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
+
 # 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[

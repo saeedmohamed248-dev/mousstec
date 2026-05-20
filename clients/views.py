@@ -9,6 +9,7 @@ from django.db import models, transaction, connection
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.core.cache import cache
+from django.conf import settings
 from django.utils.text import slugify
 from django_tenants.utils import schema_context
 from decimal import Decimal
@@ -237,16 +238,19 @@ def account_recovery(request):
             if not recovery_email and matched_user:
                 recovery_email = matched_user.email
 
-            if recovery_email:
+            # محاولة إرسال الكود بالإيميل (فقط إذا كان SMTP مُعد)
+            email_sent = False
+            if recovery_email and getattr(settings, 'EMAIL_HOST', ''):
                 try:
                     from django.core.mail import send_mail
                     send_mail(
                         subject='كود استرجاع حسابك | Mouss Tec',
-                        message=f'كود التحقق الخاص بك هو: {otp_code}\n\nهذا الكود صالح لمدة 10 دقائق.\n\nMouss Tec Ecosystem',
+                        message=f'كود التحقق الخاص بك هو: {otp_code}\n\nصالح لمدة 10 دقائق.\n\nMouss Tec',
                         from_email=None,
                         recipient_list=[recovery_email],
                         fail_silently=True,
                     )
+                    email_sent = True
                 except Exception as e:
                     logger.warning(f"[RECOVERY] Failed to send OTP email: {e}")
 
@@ -263,8 +267,8 @@ def account_recovery(request):
                 'step': 'verify',
                 'tenant_name': tenant.name,
                 'tenant_schema': tenant.schema_name,
-                'masked_email': masked_email,
-                'otp_hint': otp_code if not recovery_email else '',  # إظهار الكود إذا لم يكن هناك إيميل
+                'masked_email': masked_email if email_sent else '',
+                'otp_hint': otp_code if not email_sent else '',  # إظهار الكود إذا لم يتم إرساله بالإيميل
             }
             return render(request, 'clients/account_recovery.html', context)
 
@@ -628,12 +632,13 @@ def paymob_checkout(request):
     amount = request.POST.get('amount', '0')
     shop = request.POST.get('shop', '')
 
-    paymob_api_key = os.getenv('PAYMOB_API_KEY', '')
-    paymob_integration_id = os.getenv('PAYMOB_INTEGRATION_ID', '')
-    paymob_iframe_id = os.getenv('PAYMOB_IFRAME_ID', '')
+    paymob_api_key = getattr(settings, 'PAYMOB_API_KEY', '') or os.getenv('PAYMOB_API_KEY', '')
+    paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '') or os.getenv('PAYMOB_INTEGRATION_ID', '')
+    paymob_iframe_id = getattr(settings, 'PAYMOB_IFRAME_ID', '') or os.getenv('PAYMOB_IFRAME_ID', '')
 
     if not paymob_api_key:
-        messages.error(request, "بوابة الدفع الإلكتروني قيد التجهيز. يرجى الدفع عبر فودافون كاش حالياً.")
+        logger.error(f"[PAYMOB] API key not configured. Settings: API_KEY={bool(paymob_api_key)}, INT_ID={bool(paymob_integration_id)}, IFRAME={bool(paymob_iframe_id)}")
+        messages.error(request, "بوابة الدفع الإلكتروني غير مُفعّلة. تأكد من إعداد مفاتيح Paymob في ملف .env (PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID). يرجى الدفع عبر فودافون كاش حالياً.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
     import requests as http_requests
