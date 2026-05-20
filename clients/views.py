@@ -153,16 +153,10 @@ def client_login_finder(request):
             if not tenant:
                 tenant = Client.objects.filter(phone=email).exclude(schema_name='public').first()
             if not tenant:
-                # بحث موسع: البريد قد يكون للمالك وليس للشركة
-                all_tenants = Client.objects.exclude(schema_name='public')
-                for t in all_tenants:
-                    try:
-                        with schema_context(t.schema_name):
-                            if User.objects.filter(email__iexact=email).exists():
-                                tenant = t
-                                break
-                    except Exception:
-                        continue
+                # بحث بالاسم أو الـ schema
+                tenant = Client.objects.filter(
+                    models.Q(name__icontains=email) | models.Q(schema_name=email)
+                ).exclude(schema_name='public').first()
 
             if tenant:
                 safe_slug = tenant.schema_name.replace('_', '-')
@@ -221,26 +215,13 @@ def account_recovery(request):
             if not tenant:
                 tenant = Client.objects.filter(email__iexact=query).exclude(schema_name='public').first()
 
-            # بحث موسع داخل الـ tenants
+            # بحث بالـ schema_name (اسم الشركة كرابط)
             if not tenant:
-                all_tenants = Client.objects.exclude(schema_name='public')
-                for t in all_tenants:
-                    try:
-                        with schema_context(t.schema_name):
-                            user = User.objects.filter(
-                                models.Q(email__iexact=query) | models.Q(username=query)
-                            ).first()
-                            if not user:
-                                # بحث بالموبايل في EmployeeProfile
-                                from inventory.models import EmployeeProfile
-                                # ... يمكن إضافة بحث بالموبايل هنا لاحقاً
-                                pass
-                            if user:
-                                tenant = t
-                                matched_user = user
-                                break
-                    except Exception:
-                        continue
+                tenant = Client.objects.filter(schema_name=query).exclude(schema_name='public').first()
+
+            # بحث بالاسم الجزئي
+            if not tenant:
+                tenant = Client.objects.filter(name__icontains=query).exclude(schema_name='public').first()
 
             if not tenant:
                 context['error'] = 'لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.'
