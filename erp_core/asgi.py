@@ -8,11 +8,11 @@ import uuid
 import urllib.parse
 from django.core.asgi import get_asgi_application
 
-# 1. تحميل إعدادات السيستم أولاً (إلزامي قبل أي استدعاء آخر)
+# 1. تحميل إعدادات السيستم أولاً
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erp_core.settings')
 
 # 2. تهيئة تطبيق جانجو الأساسي (HTTP)
-# يجب استدعاء هذا قبل استيراد أي موديلات من قاعدة البيانات أو Channels
+# يجب استدعاء هذا قبل استيراد أي موديلات من قاعدة البيانات
 django_asgi_app = get_asgi_application()
 
 # استيراد أدوات التوجيه المتقدمة وقواعد البيانات
@@ -38,13 +38,13 @@ def get_tenant_from_request(host):
     try:
         clean_host = host.split(':')[0]
         cache_key = f"tenant_domain_{clean_host}"
-        tenant = None
         
-        # 1. البحث في الذاكرة السريعة (Redis/Memcached) بأمان
+        # 1. البحث في الذاكرة السريعة (Redis/Memcached)
         try:
             tenant = cache.get(cache_key)
         except Exception as cache_error:
             logger.warning(f"⚠️ [CACHE MISS] Redis is down or unreachable: {cache_error}")
+            tenant = None
         
         if not tenant:
             # 2. إذا لم يكن في الذاكرة، اضرب الداتا بيز
@@ -64,12 +64,11 @@ def get_tenant_from_request(host):
         return None
 
 # =====================================================================
-# 🛡️ ابتكار 1: الوسيط المدرع (Anti-DDoS, Tenant-Aware & MAS Ready)
+# 🛡️ ابتكار 1: الوسيط المدرع (Anti-DDoS, Tenant-Aware & IoT Ready)
 # =====================================================================
 class TenantAuthMiddleware:
     """
     وسيط يحمي من إغراق الاتصالات، يستخرج النطاقات، ويوجه لـ Schema الصحيحة.
-    يعمل كحارس بوابة لوكلاء الذكاء الاصطناعي (Agents).
     """
     def __init__(self, inner):
         self.inner = inner
@@ -89,18 +88,16 @@ class TenantAuthMiddleware:
         scope['client_ip'] = client_ip
 
         # 🚀 3. جدار الحماية من الإغراق (Anti-DDoS Rate Limiting)
+        # السماح بـ 20 اتصال جديد للآي بي الواحد كل 60 ثانية لحماية الرامات
         rate_limit_key = f"ws_throttle_{client_ip}"
         try:
-            conn_count = cache.get(rate_limit_key)
-            conn_count = int(conn_count) if conn_count is not None else 0  # 🛡️ الحماية من خطأ NoneType
-            
+            conn_count = cache.get(rate_limit_key, 0)
             if conn_count > 20:
                 logger.critical(f"🛑 [DDoS SHIELD] Blocked WebSocket flood from IP: {client_ip}")
-                return None # إسقاط الاتصال الصامت لتوفير الـ CPU
-            
+                return None # إسقاط الاتصال الصامت (Drop Connection) لتوفير الـ CPU
             cache.set(rate_limit_key, conn_count + 1, 60)
         except Exception:
-            pass # تجاهل الـ Throttle إذا كان الـ Cache معطلاً لضمان استمرار العمل (Fault-Tolerance)
+            pass # تجاهل الـ Throttle إذا كان الـ Cache معطلاً
 
         # 4. استخراج الـ Host للأمان
         host_bytes = headers.get(b'host', b'')
@@ -113,6 +110,8 @@ class TenantAuthMiddleware:
         query_string = scope.get('query_string', b'').decode('utf-8')
         query_params = urllib.parse.parse_qs(query_string)
         scope['device_token'] = query_params.get('token', [None])[0]
+        
+        # استخراج البروتوكول الفرعي (Subprotocol) للتفاوض مع الموبايل أو الـ IoT
         scope['subprotocol'] = headers.get(b'sec-websocket-protocol', b'').decode('utf-8')
         
         # 6. جلب الشركة (Tenant) بسرعة الصاروخ
@@ -127,69 +126,49 @@ class TenantAuthMiddleware:
             scope['schema_name'] = 'public'
             logger.warning(f"⚠️ [ASGI] Unknown WS routed to public schema. IP: {client_ip}")
         
-        # 7. تمرير الطلب للطبقة التالية (السماح بالاتصال)
+        # 7. تمرير الطلب للطبقة التالية
         return await self.inner(scope, receive, send)
 
 def TenantAuthMiddlewareStack(inner):
     return TenantAuthMiddleware(AuthMiddlewareStack(inner))
 
 # =====================================================================
-# 🧬 ابتكار 2: بروتوكول دورة حياة السيرفر المحصن (Bulletproof Lifespan)
+# 🧬 ابتكار 2: بروتوكول دورة حياة السيرفر وتطهير الذواكر (Lifespan Drainer)
 # =====================================================================
 async def lifespan_application(scope, receive, send):
     """
-    إدارة إقلاع السيرفر بإحكام شديد. إذا فشل شيء، نبلغ Daphne لتجنب التعليق.
+    إدارة إقلاع السيرفر وتطهير الـ DB Connections لتفادي الـ Memory Leaks.
     """
     from django.db import close_old_connections
     
     while True:
-        try:
-            message = await receive()
-        except Exception:
-            # إذا تم إغلاق القناة بشكل غير متوقع من الخادم
-            return
-
+        message = await receive()
         if message['type'] == 'lifespan.startup':
-            try:
-                print("\n" + "━"*70)
-                print("🚀 MOUSS TEC LIVE ENGINE (ASGI) IS IGNITING...")
-                
-                # تطهير وتنظيف الاتصالات الميتة فور الإقلاع
-                await database_sync_to_async(close_old_connections)()
-                
-                print("📡 WebSockets: Active | 🛡️ Shield: On | 🧠 Cache: Connected")
-                print("━"*70 + "\n")
-                
-                # 🛡️ إبلاغ السيرفر بنجاح الإقلاع
-                await send({'type': 'lifespan.startup.complete'})
-            except Exception as e:
-                logger.critical(f"🛑 [LIFESPAN CRASH] Startup failed: {e}")
-                # 🛡️ إبلاغ السيرفر بالفشل لتجنب الـ Hang/Broken Pipe
-                await send({'type': 'lifespan.startup.failed', 'message': str(e)})
+            print("\n" + "━"*70)
+            print("🚀 MOUSS TEC LIVE ENGINE (ASGI) IS IGNITING...")
+            
+            # تطهير وتنظيف الاتصالات الميتة فور الإقلاع
+            await database_sync_to_async(close_old_connections)()
+            
+            print("📡 WebSockets: Active | 🛡️ Shield: On | 🧠 Cache: Connected")
+            print("━"*70 + "\n")
+            await send({'type': 'lifespan.startup.complete'})
         
         elif message['type'] == 'lifespan.shutdown':
-            try:
-                print("\n🛑 [SHUTDOWN SEQUENCE INITIATED] Mouss Tec Live Engine is shutting down gracefully...")
-                await database_sync_to_async(close_old_connections)()
-                print("✅ All DB connections closed. Live rooms safely disconnected.")
-                await send({'type': 'lifespan.shutdown.complete'})
-            except Exception as e:
-                logger.error(f"⚠️ [LIFESPAN] Shutdown error: {e}")
-                await send({'type': 'lifespan.shutdown.failed', 'message': str(e)})
+            print("\n🛑 [SHUTDOWN SEQUENCE INITIATED] Mouss Tec Live Engine is shutting down gracefully...")
+            await database_sync_to_async(close_old_connections)()
+            print("✅ All DB connections closed. Live rooms safely disconnected.")
+            await send({'type': 'lifespan.shutdown.complete'})
             return
 
 # =====================================================================
-# 🚦 موجه البروتوكولات المركزي (The Mouss Tec Agentic Event Bus)
+# 🚦 موجه البروتوكولات المركزي (The Mouss Tec Brain Router)
 # =====================================================================
+
 from channels.generic.websocket import AsyncWebsocketConsumer
-
 class MockConsumer(AsyncWebsocketConsumer):
-    """مستهلك مؤقت لإبقاء المسارات نشطة حتى يتم ربط البوتات بها"""
-    async def connect(self): 
-        await self.accept()
+    async def connect(self): await self.accept()
 
-# هنا نقوم بدمج الـ HTTP العادي مع الـ WebSockets التي ستكون قنوات اتصال 
-# حية بين البوتات (Agents) في الـ Pipeline لاحقاً.
 application = ProtocolTypeRouter({
     
     "http": django_asgi_app,
@@ -197,7 +176,6 @@ application = ProtocolTypeRouter({
     "websocket": AllowedHostsOriginValidator(
         TenantAuthMiddlewareStack(
             URLRouter([
-                # 🚀 هذه المنافذ ستعمل كناقل أحداث (Event Bus) للمنظومة متعددة الوكلاء
                 path("ws/bidding/live/", MockConsumer.as_asgi()),
                 path("ws/dashboard/sync/", MockConsumer.as_asgi()),
                 path("ws/telemetry/obd2/", MockConsumer.as_asgi()),
