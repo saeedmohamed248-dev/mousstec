@@ -1014,11 +1014,21 @@ SYSTEM_KNOWLEDGE = """
 - استخدم إيموجي باعتدال لتوضيح النقاط
 """
 
-@csrf_exempt
 def ai_assistant_api(request):
     """🤖 API endpoint للمساعد الذكي — يستخدم Claude API"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    # ── Rate limiting بسيط بالـ IP (10 رسائل في الدقيقة) ──
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    rate_key = f'ai_chat_rate:{client_ip}'
+    request_count = cache.get(rate_key, 0)
+    if request_count >= 10:
+        return JsonResponse({
+            'reply': '⚠️ عدد الرسائل كثير. حاول مرة أخرى بعد دقيقة.',
+            'status': 'rate_limited'
+        }, status=429)
+    cache.set(rate_key, request_count + 1, 60)
 
     try:
         data = json.loads(request.body)

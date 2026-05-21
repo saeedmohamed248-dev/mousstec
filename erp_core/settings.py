@@ -22,7 +22,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # 🛡️ الأمان المتقدم وجدران الحماية (Enterprise Security & CORS)
 # =====================================================================
 SECRET_KEY = env('SECRET_KEY')
-DEBUG = env('DEBUG', default=True)
+DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost']
 
