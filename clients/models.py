@@ -60,9 +60,9 @@ class Client(TenantMixin):
 
     # 🚀 محرك الباقات والإضافات الديناميكية (Smart Quotas & Add-ons)
     SUBSCRIPTION_CHOICES = (
-        ('silver', _('باقة سيلفر - للورش الناشئة')),
-        ('gold', _('باقة جولد - للمراكز المتنامية (تجربة افتراضية)')),
-        ('empire', _('الباقة الشاملة - الإمبراطورية')),
+        ('silver', _('باقة الصانع - لورش الصيانة الناشئة')),
+        ('gold', _('باقة المركز - لمراكز الصيانة الاحترافية')),
+        ('empire', _('باقة الشبكة - لتجار القطع والشركات الكبيرة')),
     )
     plan = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default='gold', verbose_name=_("الباقة"))
     

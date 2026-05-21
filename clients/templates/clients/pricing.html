@@ -114,8 +114,8 @@
                     <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-700 rounded-2xl mb-4">
                         <i class="fas fa-store text-slate-300 text-2xl"></i>
                     </div>
-                    <h2 class="text-xl font-black text-white mb-1">Silver</h2>
-                    <p class="text-slate-400 text-sm">للورش الناشئة</p>
+                    <h2 class="text-xl font-black text-white mb-1">الصانع</h2>
+                    <p class="text-slate-400 text-sm">لورش الصيانة الناشئة</p>
                     <div class="mt-4">
                         {% if pricing.silver.limited_offer %}
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.silver.original_price }}</span>
@@ -136,9 +136,9 @@
                     <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price|unlocalize }}', 'Silver')"
+                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price|unlocalize }}', 'الصانع')"
                         class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
-                        {% if tenant and tenant.plan == 'silver' %}تجديد Silver{% else %}اختر Silver{% endif %}
+                        {% if tenant and tenant.plan == 'silver' %}تجديد الصانع{% else %}اختر الصانع{% endif %}
                     </button>
                     {% if not tenant %}
                     <form method="post">
@@ -165,8 +165,8 @@
                     <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-purple-500/30">
                         <i class="fas fa-crown text-white text-2xl"></i>
                     </div>
-                    <h2 class="text-xl font-black text-white mb-1">Gold</h2>
-                    <p class="text-purple-300 text-sm">للمحترفين والورش النامية</p>
+                    <h2 class="text-xl font-black text-white mb-1">المركز</h2>
+                    <p class="text-purple-300 text-sm">لمراكز الصيانة الاحترافية</p>
                     <div class="mt-4">
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.gold.original_price }}</span>
                         <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.gold.price|unlocalize }}">{{ pricing.gold.price }}</span>
@@ -183,9 +183,9 @@
                     <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price|unlocalize }}', 'Gold')"
+                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price|unlocalize }}', 'المركز')"
                         class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300">
-                        {% if tenant and tenant.plan == 'gold' %}تجديد Gold{% else %}اختر Gold{% endif %}
+                        {% if tenant and tenant.plan == 'gold' %}تجديد المركز{% else %}اختر المركز{% endif %}
                     </button>
                     {% if not tenant %}
                     <form method="post">
@@ -207,8 +207,8 @@
                     <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl mb-4 shadow-lg shadow-amber-500/30">
                         <i class="fas fa-building-columns text-white text-2xl"></i>
                     </div>
-                    <h2 class="text-xl font-black text-white mb-1">Empire</h2>
-                    <p class="text-amber-400 text-sm">للشبكات والتجار الكبار</p>
+                    <h2 class="text-xl font-black text-white mb-1">الشبكة</h2>
+                    <p class="text-amber-400 text-sm">لتجار القطع والشركات الكبيرة</p>
                     <div class="mt-4">
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.empire.original_price }}</span>
                         <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.empire.price|unlocalize }}">{{ pricing.empire.price }}</span>
@@ -225,9 +225,9 @@
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم اولوية + API مفتوح</li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price|unlocalize }}', 'Empire')"
+                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price|unlocalize }}', 'الشبكة')"
                         class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
-                        {% if tenant and tenant.plan == 'empire' %}تجديد Empire{% else %}اختر Empire{% endif %}
+                        {% if tenant and tenant.plan == 'empire' %}تجديد الشبكة{% else %}اختر الشبكة{% endif %}
                     </button>
                     {% if not tenant %}
                     <form method="post">
