@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.http import JsonResponse, HttpResponseForbidden
 from django.utils.deprecation import MiddlewareMixin
 from django.core.cache import caches
+from django.contrib import messages as django_messages
 from django.utils import timezone
 from datetime import timedelta
 
@@ -148,12 +149,41 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             # إذا كان في فترة السماح، نسمح بعرض البيانات (GET) ونمنع التعديل (POST/PUT/DELETE)
             if status_data['in_grace_period']:
                 if request.method in ['POST', 'PUT', 'DELETE', 'PATCH']:
-                    return JsonResponse({
-                        "error": "read_only_mode",
-                        "message": "انتهى اشتراكك. النظام حالياً في وضع 'القراءة فقط'. يرجى التجديد لتتمكن من إضافة فواتير أو تعديل البيانات.",
-                        "code": 402
-                    }, status=402)
-                # إذا كان GET، نعبره بسلاسة ولكن مع حقن بيانات التحذير (التي ستظهر شريطاً أحمر في الفرونت إند)
+                    # API calls get JSON error
+                    if request.path.startswith('/api/') or request.path.startswith('/system/api/'):
+                        return JsonResponse({
+                            "error": "read_only_mode",
+                            "message": "انتهى اشتراكك. النظام حالياً في وضع 'القراءة فقط'. يرجى التجديد لتتمكن من إضافة فواتير أو تعديل البيانات.",
+                            "code": 402
+                        }, status=402)
+                    # Admin/browser POST: show friendly message and redirect back
+                    base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+                    protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
+                    pricing_url = f"{protocol}://{base_domain}/pricing/?shop={tenant.schema_name}"
+                    try:
+                        django_messages.error(request,
+                            f'⚠️ انتهى اشتراكك! النظام في وضع "القراءة فقط" — لا يمكنك إضافة أو تعديل البيانات. '
+                            f'<a href="{pricing_url}" style="color:#fff;text-decoration:underline;font-weight:bold;">جدّد الآن</a>',
+                            extra_tags='safe'
+                        )
+                    except Exception:
+                        pass
+                    return redirect(request.META.get('HTTP_REFERER', '/'))
+                # GET requests: inject warning banner via Django messages (once per session)
+                grace_msg_key = f'_grace_warned_{tenant.schema_name}'
+                if not request.session.get(grace_msg_key):
+                    try:
+                        base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+                        protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
+                        pricing_url = f"{protocol}://{base_domain}/pricing/?shop={tenant.schema_name}"
+                        django_messages.warning(request,
+                            f'⚠️ انتهى اشتراكك! أمامك 3 أيام فترة سماح (قراءة فقط). '
+                            f'<a href="{pricing_url}" style="color:#fff;text-decoration:underline;font-weight:bold;">جدّد اشتراكك الآن</a>',
+                            extra_tags='safe'
+                        )
+                        request.session[grace_msg_key] = True
+                    except Exception:
+                        pass
             else:
                 # حظر كامل (Hard Lock) لأن فترة السماح انتهت
                 logger.warning(f"🔒 [QUOTA GUARD] Expired access for Tenant: {tenant.schema_name}.")

@@ -638,6 +638,7 @@ def paymob_checkout(request):
     plan = request.POST.get('plan', '')
     amount = request.POST.get('amount', '0')
     shop = request.POST.get('shop', '')
+    billing_period = request.POST.get('billing_period', 'monthly')
 
     paymob_api_key = getattr(settings, 'PAYMOB_API_KEY', '') or os.getenv('PAYMOB_API_KEY', '')
     paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '') or os.getenv('PAYMOB_INTEGRATION_ID', '')
@@ -690,7 +691,10 @@ def paymob_checkout(request):
         payment_token = key_res.json().get('token')
 
         # Store plan info in cache for callback
-        cache.set(f'paymob_order_{order_id}', {'plan': plan, 'shop': shop, 'amount': amount}, timeout=7200)
+        cache.set(f'paymob_order_{order_id}', {
+            'plan': plan, 'shop': shop, 'amount': amount,
+            'billing_period': billing_period,
+        }, timeout=7200)
 
         # Step 4: Redirect to Paymob iframe
         iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{paymob_iframe_id}?payment_token={payment_token}'
@@ -717,19 +721,28 @@ def paymob_callback(request):
         if order_info:
             plan = order_info.get('plan')
             shop = order_info.get('shop')
+            billing_period = order_info.get('billing_period', 'monthly')
+            # ── خريطة أيام الفترة ──
+            period_days_map = {
+                'monthly': 30, 'quarterly': 90,
+                'semi_annual': 180, 'annual': 365,
+            }
+            days_to_add = period_days_map.get(billing_period, 30)
+
             if shop:
                 try:
                     with transaction.atomic():
-                        tenant = Client.objects.get(schema_name=shop)
+                        tenant = Client.objects.select_for_update().get(schema_name=shop)
                         tenant.plan = plan
                         tenant.status = 'active'
+                        tenant.is_active = True
                         base_date = max(tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
-                        tenant.subscription_end_date = base_date + timedelta(days=30)
-                        tenant.save()
+                        tenant.subscription_end_date = base_date + timedelta(days=days_to_add)
+                        tenant.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
                         cache.delete(f'paymob_order_{order_id}')
-                        logger.info(f"Paymob payment success: {shop} -> {plan}")
+                        logger.info(f"✅ Paymob payment success: {shop} -> {plan} ({billing_period}, +{days_to_add} days)")
                 except Client.DoesNotExist:
-                    pass
+                    logger.error(f"🔴 Paymob callback: tenant {shop} not found")
 
             return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
 
