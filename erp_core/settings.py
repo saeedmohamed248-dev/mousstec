@@ -295,7 +295,6 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": True,
     "topmenu_links": [
         {"name": "الرئيسية", "url": "/", "new_window": False},
-        {"name": "لوحة السوبر أدمن", "url": "/superadmin/", "new_window": False},
         {"name": "فحص النظام", "url": "/system/health/", "new_window": True},
     ],
     "icons": {

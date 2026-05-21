@@ -128,10 +128,16 @@ def smart_post_login_redirect(request):
     - مستخدم على الـ Public Schema بدون صلاحيات → /login/
     """
     tenant = getattr(request, 'tenant', None)
-    if request.user.is_superuser:
+    schema = getattr(connection, 'schema_name', 'public')
+
+    # مالك المنصة (superuser على public) → لوحة السوبر أدمن
+    if request.user.is_superuser and schema == 'public':
         return redirect('/superadmin/')
-    if tenant and tenant.schema_name != 'public':
+
+    # مستخدم tenant (حتى لو superuser داخل الورشة) → الداشبورد
+    if tenant and schema != 'public':
         return redirect('/system/dashboard/')
+
     return redirect('/login/')
 
 
@@ -825,8 +831,19 @@ def purchase_addon_api(request):
 # =====================================================================
 # 👑 Super Admin — لوحة إدارة كل الشركات
 # =====================================================================
-@user_passes_test(lambda u: u.is_active and u.is_superuser, login_url='/secure-portal/login/')
+def _is_platform_owner(user):
+    """التحقق من أن المستخدم هو مالك المنصة فعلياً (superuser على الـ public schema فقط)"""
+    if not user.is_active or not user.is_superuser:
+        return False
+    from django.db import connection as db_conn
+    return getattr(db_conn, 'schema_name', 'public') == 'public'
+
+@user_passes_test(_is_platform_owner, login_url='/secure-portal/login/')
 def super_admin_dashboard(request):
+
+    # 🛡️ حماية مزدوجة: حتى لو عدى الـ decorator، نتأكد إنه على public schema
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('<h1>403 — Access Denied</h1><p>هذه الصفحة مخصصة لمالك المنصة فقط.</p>')
 
     action = request.POST.get('action')
     tenant_id = request.POST.get('tenant_id')
