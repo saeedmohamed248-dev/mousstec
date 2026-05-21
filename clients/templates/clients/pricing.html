@@ -78,17 +78,21 @@
         {% endif %}
 
         <!-- Billing Period Toggle -->
+        <style>
+            .billing-btn { background: rgba(30,41,59,0.6); border-color: rgba(51,65,85,1); color: #94a3b8; }
+            .billing-btn.active { background: rgba(147,51,234,0.2); border-color: rgba(168,85,247,0.5); color: #d8b4fe; }
+        </style>
         <div class="flex justify-center items-center gap-2 mb-10 flex-wrap">
-            <button onclick="setBilling('monthly')" id="btn_monthly" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300 bg-purple-600/20 border-purple-500/50 text-purple-300">
+            <button onclick="setBilling('monthly')" id="btn_monthly" class="billing-btn active px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
                 شهري
             </button>
-            <button onclick="setBilling('quarterly')" id="btn_quarterly" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300 bg-slate-800/60 border-slate-700 text-slate-400 hover:border-purple-500/50">
+            <button onclick="setBilling('quarterly')" id="btn_quarterly" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
                 ربع سنوي <span class="text-emerald-400 text-xs mr-1">وفّر 9%</span>
             </button>
-            <button onclick="setBilling('semi_annual')" id="btn_semi_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300 bg-slate-800/60 border-slate-700 text-slate-400 hover:border-purple-500/50">
+            <button onclick="setBilling('semi_annual')" id="btn_semi_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
                 نصف سنوي <span class="text-emerald-400 text-xs mr-1">وفّر 12.5%</span>
             </button>
-            <button onclick="setBilling('annual')" id="btn_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300 bg-slate-800/60 border-slate-700 text-slate-400 hover:border-purple-500/50">
+            <button onclick="setBilling('annual')" id="btn_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
                 سنوي <span class="text-amber-400 text-xs mr-1">🔥 وفّر 25%</span>
             </button>
         </div>
@@ -338,58 +342,59 @@ const billingConfig = {
 
 function setBilling(period) {
     currentBilling = period;
-    const cfg = billingConfig[period];
+    var cfg = billingConfig[period];
 
     // Update active button style
-    document.querySelectorAll('.billing-btn').forEach(btn => {
-        btn.classList.remove('bg-purple-600/20', 'border-purple-500/50', 'text-purple-300');
-        btn.classList.add('bg-slate-800/60', 'border-slate-700', 'text-slate-400');
+    document.querySelectorAll('.billing-btn').forEach(function(btn) {
+        btn.classList.remove('active');
     });
-    const activeBtn = document.getElementById('btn_' + period);
-    activeBtn.classList.remove('bg-slate-800/60', 'border-slate-700', 'text-slate-400');
-    activeBtn.classList.add('bg-purple-600/20', 'border-purple-500/50', 'text-purple-300');
+    document.getElementById('btn_' + period).classList.add('active');
 
-    // Update prices
-    document.querySelectorAll('.plan-price').forEach(el => {
-        const base = parseInt(el.dataset.base);
-        const discounted = Math.round(base * (1 - cfg.discount / 100));
-        const total = discounted * cfg.months;
-        el.textContent = total;
+    // Update prices on cards
+    document.querySelectorAll('.plan-price').forEach(function(el) {
+        var base = parseInt(el.getAttribute('data-base'));
+        var discounted = Math.round(base * (1 - cfg.discount / 100));
+        var total = discounted * cfg.months;
+        el.textContent = total.toLocaleString('en');
     });
 
-    // Update labels
-    document.querySelectorAll('.billing-label').forEach(el => {
+    // Update period labels
+    document.querySelectorAll('.billing-label').forEach(function(el) {
         el.textContent = cfg.label;
     });
 
-    // Update saving info for gold
-    const goldBase = {{ pricing.gold.price }};
-    const goldDisc = Math.round(goldBase * (1 - cfg.discount / 100));
-    const goldSaving = ({{ pricing.gold.original_price }} - goldBase) + Math.round(goldBase * cfg.discount / 100 * cfg.months);
-    document.querySelector('.gold-saving').textContent = goldSaving;
+    // Update saving amounts
+    var goldBase = 700;
+    var goldOriginal = 1185;
+    var goldSaving = (goldOriginal - goldBase) + Math.round(goldBase * cfg.discount / 100 * cfg.months);
+    var goldEl = document.querySelector('.gold-saving');
+    if (goldEl) goldEl.textContent = goldSaving.toLocaleString('en');
 
-    const empireBase = {{ pricing.empire.price }};
-    const empireSaving = ({{ pricing.empire.original_price }} - empireBase) + Math.round(empireBase * cfg.discount / 100 * cfg.months);
-    document.querySelector('.empire-saving').textContent = empireSaving;
+    var empireBase = 1400;
+    var empireOriginal = 3000;
+    var empireSaving = (empireOriginal - empireBase) + Math.round(empireBase * cfg.discount / 100 * cfg.months);
+    var empireEl = document.querySelector('.empire-saving');
+    if (empireEl) empireEl.textContent = empireSaving.toLocaleString('en');
 }
 
 function openSubscribeModal(plan, basePrice, name) {
     selectedPlan = plan;
-    const cfg = billingConfig[currentBilling];
-    const base = parseInt(basePrice);
-    const discounted = Math.round(base * (1 - cfg.discount / 100));
-    const total = discounted * cfg.months;
+    var cfg = billingConfig[currentBilling];
+    var base = parseInt(basePrice);
+    var discounted = Math.round(base * (1 - cfg.discount / 100));
+    var total = discounted * cfg.months;
     selectedPrice = total;
 
     document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace('جنيه / ', '');
-    document.getElementById('modalPrice').textContent = total;
+    document.getElementById('modalPrice').textContent = total.toLocaleString('en');
     document.getElementById('modalBillingLabel').textContent = cfg.label;
 
+    var discEl = document.getElementById('modalDiscount');
     if (cfg.discount > 0) {
-        document.getElementById('modalDiscount').textContent = 'خصم ' + cfg.discount + '% على الفترة الطويلة';
-        document.getElementById('modalDiscount').classList.remove('hidden');
+        discEl.textContent = 'خصم ' + cfg.discount + '% — وفّرت ' + Math.round(base * cfg.months * cfg.discount / 100).toLocaleString('en') + ' جنيه';
+        discEl.classList.remove('hidden');
     } else {
-        document.getElementById('modalDiscount').classList.add('hidden');
+        discEl.classList.add('hidden');
     }
 
     document.getElementById('subscribeModal').classList.remove('hidden');
@@ -413,22 +418,15 @@ function copyVodafone() {
 }
 
 function payWithPaymob() {
-    // Paymob integration - redirect to payment iframe
-    // When Paymob is configured, this will create an order and redirect
-    const shop = '{{ shop|escapejs }}';
-    const returnUrl = window.location.origin + '/pricing/?shop=' + shop + '&payment=success';
-
-    // For now, show instructions to set up Paymob
-    // Once PAYMOB_API_KEY is configured, this will auto-redirect to Paymob checkout
-    const form = document.createElement('form');
+    var shop = '{{ shop|escapejs }}';
+    var form = document.createElement('form');
     form.method = 'POST';
     form.action = '/payment/paymob/checkout/';
-    form.innerHTML = `
-        <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRF()}">
-        <input type="hidden" name="plan" value="${selectedPlan}">
-        <input type="hidden" name="amount" value="${selectedPrice}">
-        <input type="hidden" name="shop" value="${shop}">
-    `;
+    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCSRF() + '">'
+        + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
+        + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
+        + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
+        + '<input type="hidden" name="shop" value="' + shop + '">';
     document.body.appendChild(form);
     form.submit();
 }
