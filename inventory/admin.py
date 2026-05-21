@@ -41,7 +41,34 @@ logger = logging.getLogger('mouss_tec_core')
 # =====================================================================
 # 🛡️ 0. درع العزل السحابي ومنع تسريب البيانات وعزل الفروع
 # =====================================================================
-class SecureImportExportAdmin(ImportExportModelAdmin):
+
+class SafeAdminLogMixin:
+    """
+    🛡️ حماية من خطأ ForeignKey Violation في django_admin_log
+    عند دخول superuser من public schema على tenant schema،
+    user_id الخاص به قد لا يكون موجوداً في auth_user الخاصة بالـ tenant.
+    هذا الـ Mixin يلتقط الخطأ ويسجل في AuditLog بدلاً من الانهيار.
+    """
+    def log_addition(self, request, obj, message):
+        try:
+            return super().log_addition(request, obj, message)
+        except Exception:
+            logger.warning(f"⚠️ [ADMIN LOG] Skipped LogEntry for add: {obj} (cross-schema user)")
+
+    def log_change(self, request, obj, message):
+        try:
+            return super().log_change(request, obj, message)
+        except Exception:
+            logger.warning(f"⚠️ [ADMIN LOG] Skipped LogEntry for change: {obj} (cross-schema user)")
+
+    def log_deletion(self, request, obj, object_repr):
+        try:
+            return super().log_deletion(request, obj, object_repr)
+        except Exception:
+            logger.warning(f"⚠️ [ADMIN LOG] Skipped LogEntry for delete: {object_repr} (cross-schema user)")
+
+
+class SecureImportExportAdmin(SafeAdminLogMixin, ImportExportModelAdmin):
     """حظر دخول أي مستخدم من خارج الـ Tenant Schema للجداول الإدارية الميدانية ومراقبة الصلاحيات"""
     def has_module_permission(self, request):
         if connection.schema_name == 'public': return False

@@ -225,9 +225,9 @@ urlpatterns = [
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec Workshop ERP',
         'short_name': 'Mouss Tec',
-        'start_url': '/secure-portal/',
+        'start_url': f'/{ADMIN_URL}/',
         'scope': '/',
-        'id': '/secure-portal/',
+        'id': f'/{ADMIN_URL}/',
         'display': 'standalone',
         'orientation': 'any',
         'background_color': '#0f172a',
