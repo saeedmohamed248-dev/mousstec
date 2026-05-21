@@ -645,7 +645,7 @@ def paymob_checkout(request):
 
     if not paymob_api_key:
         logger.error(f"[PAYMOB] API key not configured. Settings: API_KEY={bool(paymob_api_key)}, INT_ID={bool(paymob_integration_id)}, IFRAME={bool(paymob_iframe_id)}")
-        messages.error(request, "بوابة الدفع الإلكتروني غير مُفعّلة. تأكد من إعداد مفاتيح Paymob في ملف .env (PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID). يرجى الدفع عبر فودافون كاش حالياً.")
+        messages.error(request, "الدفع الإلكتروني بالفيزا غير متاح حالياً. يرجى الدفع عبر فودافون كاش أو التواصل مع الدعم الفني.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
     import requests as http_requests
