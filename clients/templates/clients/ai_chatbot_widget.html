@@ -1,0 +1,221 @@
+<!-- 🤖 Mouss Tec AI Assistant Widget -->
+<style>
+#ai-chat-btn {
+    position: fixed; bottom: 24px; left: 24px; z-index: 9999;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white; border: none; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+    transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+}
+#ai-chat-btn:hover { transform: scale(1.1); box-shadow: 0 6px 30px rgba(124, 58, 237, 0.6); }
+#ai-chat-btn .badge {
+    position: absolute; top: -2px; right: -2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #10b981; border: 2px solid #0f172a;
+    animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+#ai-chat-panel {
+    position: fixed; bottom: 96px; left: 24px; z-index: 9998;
+    width: 380px; max-width: calc(100vw - 48px); height: 520px; max-height: calc(100vh - 140px);
+    background: #1e293b; border: 1px solid #334155; border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: none; flex-direction: column; overflow: hidden;
+}
+#ai-chat-panel.open { display: flex; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+#ai-chat-header {
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+}
+#ai-chat-messages {
+    flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    scroll-behavior: smooth;
+}
+#ai-chat-messages::-webkit-scrollbar { width: 4px; }
+#ai-chat-messages::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+.ai-msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6; direction: rtl; }
+.ai-msg.bot { background: #334155; color: #e2e8f0; border-bottom-right-radius: 4px; align-self: flex-end; }
+.ai-msg.user { background: #7c3aed; color: white; border-bottom-left-radius: 4px; align-self: flex-start; }
+.ai-msg.typing { background: #334155; color: #94a3b8; }
+.ai-msg.typing .dots span {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #94a3b8; margin: 0 2px; animation: blink 1.4s infinite both;
+}
+.ai-msg.typing .dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-msg.typing .dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+#ai-chat-input-area {
+    padding: 12px 16px; border-top: 1px solid #334155; display: flex; gap: 8px;
+    flex-shrink: 0; background: #1e293b;
+}
+#ai-chat-input {
+    flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+    padding: 10px 14px; color: #e2e8f0; font-size: 14px; font-family: 'Cairo', sans-serif;
+    outline: none; direction: rtl; resize: none;
+}
+#ai-chat-input:focus { border-color: #7c3aed; }
+#ai-chat-input::placeholder { color: #475569; }
+#ai-chat-send {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    color: white; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s; flex-shrink: 0;
+}
+#ai-chat-send:hover { transform: scale(1.05); }
+#ai-chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Quick questions */
+.ai-quick-btns { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; direction: rtl; }
+.ai-quick-btn {
+    background: #0f172a; border: 1px solid #334155; border-radius: 20px;
+    padding: 6px 12px; font-size: 12px; color: #94a3b8; cursor: pointer;
+    font-family: 'Cairo', sans-serif; transition: all 0.2s; white-space: nowrap;
+}
+.ai-quick-btn:hover { border-color: #7c3aed; color: #c4b5fd; background: rgba(124,58,237,0.1); }
+</style>
+
+<!-- Floating Button -->
+<button id="ai-chat-btn" onclick="toggleAiChat()" aria-label="المساعد الذكي">
+    <i class="fas fa-robot"></i>
+    <div class="badge"></div>
+</button>
+
+<!-- Chat Panel -->
+<div id="ai-chat-panel">
+    <!-- Header -->
+    <div id="ai-chat-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-robot" style="font-size:18px;"></i>
+            </div>
+            <div>
+                <div style="font-weight:900;font-size:14px;color:white;">مساعد Mouss Tec</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.7);">مدعوم بالذكاء الاصطناعي</div>
+            </div>
+        </div>
+        <button onclick="toggleAiChat()" style="background:none;border:none;color:rgba(255,255,255,0.7);cursor:pointer;font-size:18px;padding:4px;">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Messages -->
+    <div id="ai-chat-messages">
+        <div class="ai-msg bot">
+            أهلاً بيك! 👋 أنا مساعد Mouss Tec الذكي.<br>
+            اسألني أي سؤال عن النظام — فواتير، مخزون، محاسبة، أو أي حاجة تانية!
+        </div>
+    </div>
+
+    <!-- Quick Questions -->
+    <div class="ai-quick-btns" id="ai-quick-btns">
+        <button class="ai-quick-btn" onclick="askQuick('إزاي أعمل فاتورة مبيعات؟')">📄 فاتورة مبيعات</button>
+        <button class="ai-quick-btn" onclick="askQuick('إزاي أسجل مصروف؟')">💰 تسجيل مصروف</button>
+        <button class="ai-quick-btn" onclick="askQuick('إزاي أضيف صنف للمخزون؟')">📦 إضافة صنف</button>
+        <button class="ai-quick-btn" onclick="askQuick('إيه الفرق بين الباقات؟')">⭐ مقارنة الباقات</button>
+        <button class="ai-quick-btn" onclick="askQuick('إزاي أعمل كرت صيانة؟')">🔧 كرت صيانة</button>
+    </div>
+
+    <!-- Input -->
+    <div id="ai-chat-input-area">
+        <button id="ai-chat-send" onclick="sendAiMessage()" disabled>
+            <i class="fas fa-paper-plane" style="font-size:14px;"></i>
+        </button>
+        <input type="text" id="ai-chat-input" placeholder="اكتب سؤالك هنا..."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiMessage()}"
+            oninput="document.getElementById('ai-chat-send').disabled=!this.value.trim()">
+    </div>
+</div>
+
+<script>
+let aiChatHistory = [];
+let aiSending = false;
+
+function toggleAiChat() {
+    const panel = document.getElementById('ai-chat-panel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        document.getElementById('ai-chat-input').focus();
+    }
+}
+
+function askQuick(question) {
+    document.getElementById('ai-chat-input').value = question;
+    document.getElementById('ai-chat-send').disabled = false;
+    sendAiMessage();
+    // إخفاء الأسئلة السريعة بعد أول استخدام
+    document.getElementById('ai-quick-btns').style.display = 'none';
+}
+
+function addMessage(text, role) {
+    const container = document.getElementById('ai-chat-messages');
+    const div = document.createElement('div');
+    div.className = 'ai-msg ' + (role === 'user' ? 'user' : 'bot');
+    div.innerHTML = text.replace(/\n/g, '<br>');
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+}
+
+function showTyping() {
+    const container = document.getElementById('ai-chat-messages');
+    const div = document.createElement('div');
+    div.className = 'ai-msg typing';
+    div.id = 'ai-typing';
+    div.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+    const el = document.getElementById('ai-typing');
+    if (el) el.remove();
+}
+
+async function sendAiMessage() {
+    if (aiSending) return;
+    const input = document.getElementById('ai-chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    aiSending = true;
+    input.value = '';
+    document.getElementById('ai-chat-send').disabled = true;
+
+    addMessage(message, 'user');
+    aiChatHistory.push({role: 'user', content: message});
+
+    showTyping();
+
+    try {
+        const resp = await fetch('/api/ai-assistant/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: message,
+                history: aiChatHistory.slice(-10)
+            })
+        });
+        const data = await resp.json();
+        removeTyping();
+
+        const reply = data.reply || data.error || 'حدث خطأ غير متوقع';
+        addMessage(reply, 'assistant');
+        aiChatHistory.push({role: 'assistant', content: reply});
+    } catch (err) {
+        removeTyping();
+        addMessage('⚠️ تعذر الاتصال بالمساعد. تأكد من اتصالك بالإنترنت.', 'assistant');
+    }
+
+    aiSending = false;
+    input.focus();
+}
+</script>

@@ -53,6 +53,9 @@
         </div>
         
         <div class="flex items-center gap-4">
+            <a href="{% url 'features_page' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
+                <i class="fas fa-star"></i> المميزات
+            </a>
             <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
                 <i class="fas fa-tags"></i> الباقات والأسعار
             </a>
@@ -184,6 +187,13 @@
             </div>
 
         </div>
+
+        <!-- زر استكشاف جميع المميزات -->
+        <div class="text-center mt-10">
+            <a href="{% url 'features_page' %}" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/20 text-sm">
+                <i class="fas fa-th-large"></i> استكشف جميع المميزات
+            </a>
+        </div>
     </section>
 
     <div class="fixed bottom-6 right-6 z-50">
@@ -266,5 +276,6 @@
             tickerEl.style.transition = "opacity 0.3s";
         });
     </script>
+{% include 'clients/ai_chatbot_widget.html' %}
 </body>
 </html>

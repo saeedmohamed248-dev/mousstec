@@ -191,6 +191,12 @@ urlpatterns = [
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
 
+    # 📚 صفحة المميزات الكاملة
+    path('features/', client_views.features_page, name='features_page'),
+
+    # 🤖 AI Assistant API endpoint
+    path('api/ai-assistant/', client_views.ai_assistant_api, name='ai_assistant_api'),
+
     # 💳 بوابة الدفع عبر Paymob (Visa/Mastercard)
     path('payment/paymob/checkout/', client_views.paymob_checkout, name='paymob_checkout'),
     path('payment/paymob/callback/', client_views.paymob_callback, name='paymob_callback'),
