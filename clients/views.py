@@ -876,6 +876,34 @@ def super_admin_dashboard(request):
         elif action == 'extend_trial':
             target.trial_ends_at = target.trial_ends_at + timedelta(days=3)
             target.save(update_fields=['trial_ends_at'])
+        elif action == 'activate_subscription':
+            plan = request.POST.get('plan', 'silver')
+            billing_period = request.POST.get('billing_period', 'monthly')
+            # ── خريطة الأسعار والخصومات ──
+            plan_prices = {'silver': 475, 'gold': 700, 'empire': 1400}
+            period_days = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
+            period_discounts = {'monthly': Decimal('0'), 'quarterly': Decimal('0.09'),
+                                'semi_annual': Decimal('0.125'), 'annual': Decimal('0.25')}
+            period_labels = {'monthly': 'شهري', 'quarterly': 'ربع سنوي',
+                             'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
+            months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+
+            base_price = Decimal(str(plan_prices.get(plan, 475)))
+            discount = period_discounts.get(billing_period, Decimal('0'))
+            months = months_map.get(billing_period, 1)
+            total = (base_price * months * (1 - discount)).quantize(Decimal('1'))
+            days = period_days.get(billing_period, 30)
+
+            target.plan = plan
+            target.status = 'active'
+            target.is_active = True
+            target.subscription_end_date = timezone.localdate() + timedelta(days=days)
+            target.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
+
+            messages.success(request,
+                f'✅ تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
+                f'({period_labels.get(billing_period, billing_period)}) — {total} ج.م — '
+                f'ينتهي {target.subscription_end_date}')
         return redirect('super_admin_dashboard')
 
     tenants = Client.objects.exclude(schema_name='public').order_by('-created_on')
@@ -889,8 +917,16 @@ def super_admin_dashboard(request):
         'fraud': tenants.filter(is_fraud_flagged=True).count(),
     }
 
+    # ── بيانات الباقات للمودال ──
+    plan_prices_json = json.dumps({'silver': 475, 'gold': 700, 'empire': 1400})
+    period_discounts_json = json.dumps({'monthly': 0, 'quarterly': 0.09, 'semi_annual': 0.125, 'annual': 0.25})
+    period_months_json = json.dumps({'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12})
+
     return render(request, 'clients/super_admin.html', {
         'tenants': tenants,
         'summary': summary,
         'today': today,
+        'plan_prices_json': plan_prices_json,
+        'period_discounts_json': period_discounts_json,
+        'period_months_json': period_months_json,
     })
