@@ -509,9 +509,6 @@ def submit_bid_offer_api(request):
                     bid.save(update_fields=['status', 'winner', 'winning_price'])
                     offer.is_winner = True
                     offer.save(update_fields=['is_winner'])
-                    buyer_tenant.wallet_balance -= total_req
-                    buyer_tenant.escrow_held += total_req
-                    buyer_tenant.save(update_fields=['wallet_balance', 'escrow_held'])
                     EscrowLedger.objects.create(client=buyer_tenant, bidding_request=bid, transaction_type='hold', amount=total_req, description=f"ضمان مزاد #{bid.id}")
                     return JsonResponse({"status": "auto_awarded", "message": "تم الترسية وحجز الضمان!"})
 
