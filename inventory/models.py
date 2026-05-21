@@ -538,154 +538,21 @@ def execute_scrap_dismantling_yield(sender, instance, **kwargs):
                         purchase_price=yield_item.estimated_cost_allocation 
                     )
 
-@receiver(pre_save, sender=SaleInvoiceItem)
-def handle_core_charge_refund(sender, instance, **kwargs):
-    if instance.pk:
-        try:
-            old_instance = SaleInvoiceItem.objects.get(pk=instance.pk)
-            if not old_instance.is_core_returned and instance.is_core_returned:
-                if instance.core_charge_applied > 0 and instance.invoice.customer:
-                    with transaction.atomic():
-                        total_refund = Decimal(str(instance.quantity)) * instance.core_charge_applied
-                        
-                        # 🚀 إغلاق الثغرة المحاسبية (Race Condition)
-                        Customer.objects.filter(pk=instance.invoice.customer.pk).update(balance=F('balance') - total_refund)
-                        
-                        if instance.invoice.treasury:
-                            FinancialTransaction.objects.create(
-                                treasury=instance.invoice.treasury, transaction_type='out',
-                                amount=total_refund, description=f"استرداد تأمين كور لقطعة {instance.product.name} (INV #{instance.invoice.id})",
-                                customer=instance.invoice.customer
-                            )
-        except SaleInvoiceItem.DoesNotExist: pass
-
-# 🛡️ إشارات تحديث الفواتير
-@receiver(post_save, sender=SaleInvoiceItem)
-@receiver(post_delete, sender=SaleInvoiceItem)
 @receiver(post_save, sender=SaleInvoiceServiceItem)
 @receiver(post_delete, sender=SaleInvoiceServiceItem)
-def auto_update_sale_invoice_items(sender, instance, **kwargs):
-    if hasattr(instance, 'invoice') and instance.invoice: 
-        instance.invoice.update_total()
-
-@receiver(post_save, sender=PurchaseInvoiceItem)
-@receiver(post_delete, sender=PurchaseInvoiceItem)
-def auto_update_purchase_invoice_items(sender, instance, **kwargs):
-    if hasattr(instance, 'invoice') and instance.invoice: 
+def auto_update_sale_service_invoice_total(sender, instance, **kwargs):
+    if hasattr(instance, 'invoice') and instance.invoice:
         instance.invoice.update_total()
 
 @receiver(post_save, sender=FinancialTransaction)
 def update_treasury_balance(sender, instance, created, **kwargs):
-    """🚀 تحديث ذري (Atomic Update) لمنع تدمير حسابات الخزينة والموردين والعملاء"""
     if created:
         with transaction.atomic():
-            amount = Decimal(str(instance.amount)) 
-            
-            if instance.transaction_type == 'in': 
+            amount = Decimal(str(instance.amount))
+            if instance.transaction_type == 'in':
                 Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') + amount)
-            elif instance.transaction_type == 'out': 
+            elif instance.transaction_type == 'out':
                 Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') - amount)
-            
-            if instance.customer and instance.transaction_type == 'in':
-                Customer.objects.filter(pk=instance.customer.pk).update(balance=F('balance') - amount)
-                
-            if instance.vendor and instance.transaction_type == 'out':
-                Vendor.objects.filter(pk=instance.vendor.pk).update(balance=F('balance') - amount)
-
-@receiver(post_save, sender=SaleInvoice)
-def execute_sale_stock_and_finance(sender, instance, **kwargs):
-    if instance.status == 'posted' and not instance.is_applied:
-        with transaction.atomic():
-            if not instance.maintenance_contract:
-                if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
-                    FinancialTransaction.objects.create(
-                        treasury=instance.treasury, transaction_type='in',
-                        amount=instance.paid_amount, description=f"إيراد مبيعات/صيانة INV #{instance.id}",
-                        sale_invoice=instance, customer=instance.customer
-                    )
-                
-                if instance.due_amount > Decimal('0.00'):
-                    Customer.objects.filter(pk=instance.customer.pk).update(balance=F('balance') + instance.due_amount)
-
-            for service_item in instance.service_items.select_related('technician', 'service'):
-                if service_item.technician and service_item.service.tech_commission_percent > 0:
-                    commission = (service_item.price * service_item.service.tech_commission_percent) / Decimal('100.00')
-                    EmployeeProfile.objects.filter(pk=service_item.technician.pk).update(commission_balance=F('commission_balance') + commission)
-
-            if instance.vehicle and instance.mileage and instance.mileage > instance.vehicle.last_mileage:
-                instance.vehicle.last_mileage = instance.mileage
-                instance.vehicle.estimated_next_visit = timezone.now().date() + timedelta(days=120)
-                instance.vehicle.save(update_fields=['last_mileage', 'estimated_next_visit'])
-                
-            if instance.total_amount > 0 and not instance.is_return:
-                points_earned = int(instance.total_amount / 100)
-                Customer.objects.filter(pk=instance.customer.pk).update(loyalty_points=F('loyalty_points') + points_earned)
-
-            # 📦 وكيل المخازن الآمن
-            for item in instance.items.select_related('product'):
-                inv, _ = Inventory.objects.get_or_create(product=item.product, branch=instance.branch, defaults={'quantity': 0})
-                if instance.is_return: 
-                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + item.quantity)
-                else: 
-                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') - item.quantity)
-                
-                item.product.save(update_fields=['ai_price_elasticity']) 
-                
-            SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
-
-@receiver(post_save, sender=PurchaseInvoice)
-def execute_purchase_stock_and_finance(sender, instance, **kwargs):
-    if instance.status == 'posted' and not instance.is_applied:
-        with transaction.atomic():
-            if instance.treasury and instance.paid_amount > 0 and not instance.payments.exists():
-                FinancialTransaction.objects.create(
-                    treasury=instance.treasury, transaction_type='out',
-                    amount=instance.paid_amount, description=f"سداد مشتريات PO #{instance.id}",
-                    purchase_invoice=instance, vendor=instance.vendor
-                )
-            
-            due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
-            if due > Decimal('0.00'):
-                Vendor.objects.filter(pk=instance.vendor.pk).update(balance=F('balance') + due)
-
-            for item in instance.items.select_related('product'):
-                product = item.product
-                
-                inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
-                Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + item.quantity)
-
-                total_current_qty = product.total_inventory_qty
-                old_value = Decimal(str(max(total_current_qty - item.quantity, 0))) * Decimal(str(product.average_cost))
-                new_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
-                
-                if total_current_qty > 0:
-                    Product.objects.filter(pk=product.pk).update(
-                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
-                        purchase_price=item.cost_price
-                    )
-                
-            PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
-
-@receiver(pre_save, sender=StockTransfer)
-def execute_stock_transfer(sender, instance, **kwargs):
-    if instance.id:
-        old_instance = StockTransfer.objects.get(id=instance.id)
-        
-        if old_instance.status == 'pending' and instance.status == 'in_transit':
-            with transaction.atomic():
-                from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
-                if from_inv.quantity < instance.quantity: raise ValidationError("الكمية لا تكفي للتحويل!")
-                Inventory.objects.filter(pk=from_inv.pk).update(quantity=F('quantity') - instance.quantity)
-                
-        elif old_instance.status == 'in_transit' and instance.status == 'completed':
-            with transaction.atomic():
-                to_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch=instance.to_branch, defaults={'quantity': 0})
-                Inventory.objects.filter(pk=to_inv.pk).update(quantity=F('quantity') + instance.quantity)
-                
-        elif old_instance.status == 'in_transit' and instance.status == 'cancelled':
-            with transaction.atomic():
-                from_inv = Inventory.objects.get(product=instance.product, branch=instance.from_branch)
-                Inventory.objects.filter(pk=from_inv.pk).update(quantity=F('quantity') + instance.quantity)
 
 
 # =====================================================================

@@ -86,14 +86,9 @@ def register_new_tenant_saas(request):
                             admin_user.save()
 
                             try:
-                                from inventory.models import EmployeeProfile, ProductCategory
+                                from inventory.models import EmployeeProfile
                                 EmployeeProfile.objects.get_or_create(user=admin_user, defaults={'role': 'admin', 'can_edit_posted_invoices': True})
-                                if business_type in ['service_center', 'both']:
-                                    ProductCategory.objects.get_or_create(name='أجور مصنعيات وخدمات', is_service=True)
-                                elif business_type == 'parts_dealer':
-                                    ProductCategory.objects.get_or_create(name='قطع غيار ميكانيكا', is_service=False)
-                                    ProductCategory.objects.get_or_create(name='زيوت وفلاتر', is_service=False)
-                            except ImportError:
+                            except Exception:
                                 pass
                                 
                     success = True

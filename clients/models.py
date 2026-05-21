@@ -396,8 +396,8 @@ def update_client_balances_on_ledger_entry(sender, instance, created, **kwargs):
                 logger.info(f"💰 [FINTECH ACC]: Deposited {amount} EGP to client ID {client_id}.")
                 
             elif instance.transaction_type == 'hold':
-                # تحقق صارم قبل التجميد
-                if instance.client.wallet_balance < amount:
+                client = Client.objects.select_for_update().get(pk=client_id)
+                if client.wallet_balance < amount:
                     raise ValidationError("❌ الرصيد المتاح لا يكفي لتجميد ثمن المزاد.")
                 Client.objects.filter(pk=client_id).update(
                     wallet_balance=F('wallet_balance') - amount,
@@ -423,7 +423,8 @@ def update_client_balances_on_ledger_entry(sender, instance, created, **kwargs):
                 logger.info(f"🔄 [FINTECH ACC]: Refunded {amount} EGP back to ID {client_id}.")
                 
             elif instance.transaction_type == 'withdrawal':
-                if instance.client.wallet_balance < amount:
+                client = Client.objects.select_for_update().get(pk=client_id)
+                if client.wallet_balance < amount:
                     raise ValidationError("❌ الرصيد المتاح للسحب أقل من المبلغ المطلوب.")
                 Client.objects.filter(pk=client_id).update(wallet_balance=F('wallet_balance') - amount)
                 logger.info(f"📤 [FINTECH ACC]: Withdrawn {amount} EGP for ID {client_id}.")

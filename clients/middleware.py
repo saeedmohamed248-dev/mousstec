@@ -27,6 +27,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/admin/'),
         re.compile(r'^/pricing/'),
         re.compile(r'^/login/'),           # صفحة جد حسابك
+        re.compile(r'^/account/recovery/'), # استرجاع كلمة المرور
         re.compile(r'^/auth/redirect/'),   # التوجيه الذكي بعد تسجيل الدخول
         re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
