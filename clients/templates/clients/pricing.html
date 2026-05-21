@@ -1,3 +1,4 @@
+{% load l10n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -119,7 +120,7 @@
                         {% if pricing.silver.limited_offer %}
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.silver.original_price }}</span>
                         {% endif %}
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.silver.price }}">{{ pricing.silver.price }}</span>
+                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.silver.price|unlocalize }}">{{ pricing.silver.price }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
                     </div>
                     {% if pricing.silver.limited_offer %}
@@ -135,7 +136,7 @@
                     <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price }}', 'Silver')"
+                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price|unlocalize }}', 'Silver')"
                         class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
                         {% if tenant and tenant.plan == 'silver' %}تجديد Silver{% else %}اختر Silver{% endif %}
                     </button>
@@ -168,7 +169,7 @@
                     <p class="text-purple-300 text-sm">للمحترفين والورش النامية</p>
                     <div class="mt-4">
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.gold.original_price }}</span>
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.gold.price }}">{{ pricing.gold.price }}</span>
+                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.gold.price|unlocalize }}">{{ pricing.gold.price }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
                     </div>
                     <p class="text-emerald-400 text-xs font-bold mt-2"><i class="fas fa-tag ml-1"></i> وفّر <span class="gold-saving">485</span> جنيه</p>
@@ -182,7 +183,7 @@
                     <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price }}', 'Gold')"
+                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price|unlocalize }}', 'Gold')"
                         class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300">
                         {% if tenant and tenant.plan == 'gold' %}تجديد Gold{% else %}اختر Gold{% endif %}
                     </button>
@@ -210,7 +211,7 @@
                     <p class="text-amber-400 text-sm">للشبكات والتجار الكبار</p>
                     <div class="mt-4">
                         <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.empire.original_price }}</span>
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.empire.price }}">{{ pricing.empire.price }}</span>
+                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.empire.price|unlocalize }}">{{ pricing.empire.price }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
                     </div>
                     <p class="text-emerald-400 text-xs font-bold mt-2"><i class="fas fa-tag ml-1"></i> وفّر <span class="empire-saving">1600</span> جنيه</p>
@@ -224,7 +225,7 @@
                     <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم اولوية + API مفتوح</li>
                 </ul>
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price }}', 'Empire')"
+                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price|unlocalize }}', 'Empire')"
                         class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
                         {% if tenant and tenant.plan == 'empire' %}تجديد Empire{% else %}اختر Empire{% endif %}
                     </button>
@@ -352,7 +353,7 @@ function setBilling(period) {
 
     // Update prices on cards
     document.querySelectorAll('.plan-price').forEach(function(el) {
-        var base = parseInt(el.getAttribute('data-base'));
+        var base = parseInt(el.getAttribute('data-base').replace(/[,\s]/g, ''));
         var discounted = Math.round(base * (1 - cfg.discount / 100));
         var total = discounted * cfg.months;
         el.textContent = total.toLocaleString('en');
@@ -380,7 +381,7 @@ function setBilling(period) {
 function openSubscribeModal(plan, basePrice, name) {
     selectedPlan = plan;
     var cfg = billingConfig[currentBilling];
-    var base = parseInt(basePrice);
+    var base = parseInt(String(basePrice).replace(/[,\s]/g, ''));
     var discounted = Math.round(base * (1 - cfg.discount / 100));
     var total = discounted * cfg.months;
     selectedPrice = total;
