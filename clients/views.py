@@ -601,15 +601,24 @@ def saas_pricing_page(request):
 
         messages.error(request, "🛑 فشل تنفيذ عملية الاشتراك.")
 
+    # نظام خصومات الفترات الطويلة
+    billing_discounts = {
+        'monthly':      {'label': 'شهري',       'months': 1,  'discount': 0},
+        'quarterly':    {'label': 'ربع سنوي',   'months': 3,  'discount': 9},
+        'semi_annual':  {'label': 'نصف سنوي',   'months': 6,  'discount': 12.5},
+        'annual':       {'label': 'سنوي',       'months': 12, 'discount': 25},
+    }
+
     return render(request, 'clients/pricing.html', {
         'tenant': tenant, 'shop': shop_schema,
         'pricing': {
             'silver': {'price': 475, 'original_price': 685, 'users': 1, 'branches': 1, 'treasuries': 1, 'limited_offer': True},
-            'gold': {'price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2},
-            'empire': {'price': 3000},
+            'gold': {'price': 700, 'original_price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2},
+            'empire': {'price': 1400, 'original_price': 3000},
             'addon_price': 125,
             'free_trial_days': 3,
             'vodafone_cash': '01094850763',
+            'billing_discounts': billing_discounts,
         }
     })
 
