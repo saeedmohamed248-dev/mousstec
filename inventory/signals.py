@@ -54,14 +54,12 @@ def handle_core_charge_return(sender, instance, **kwargs):
                         customer.balance = F('balance') - refund_amount
                         customer.save(update_fields=['balance'])
                         
-                        # 🚀 🚀 تصليح الثغرة: خصم المبلغ المرتجع من الخزنة لضبط الميزانية
                         if instance.invoice.treasury:
-                            treasury = instance.invoice.treasury
-                            
-                            # حظر الإرجاع إذا لم تكن الخزنة بها سيولة نقدية
+                            treasury = Treasury.objects.select_for_update().get(pk=instance.invoice.treasury.pk)
+
                             if treasury.balance < refund_amount:
                                 raise ValidationError(f"❌ خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور.")
-                                
+
                             treasury.balance = F('balance') - refund_amount
                             treasury.save(update_fields=['balance'])
                             

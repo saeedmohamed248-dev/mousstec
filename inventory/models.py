@@ -428,7 +428,7 @@ class SaleInvoiceServiceItem(models.Model):
     end_time = models.DateTimeField(blank=True, null=True, verbose_name=_("نهاية العمل الفعلي"))
 
     def save(self, *args, **kwargs):
-        if not self.pk and self.service and not self.price:
+        if not self.pk and self.service and self.price is None:
             self.price = self.service.labor_price
             self.actual_hours = self.service.estimated_hours
         super().save(*args, **kwargs)
@@ -516,10 +516,20 @@ def sync_b2b_marketplace(sender, instance, **kwargs):
     except Exception as e:
         logger.error(f"🔴 [B2B AGENT ERROR]: Market sync failed for '{instance.part_number}' - {e}")
 
+@receiver(pre_save, sender=ScrapDismantlingJob)
+def _track_scrap_completion_change(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._was_completed = ScrapDismantlingJob.objects.filter(pk=instance.pk).values_list('is_completed', flat=True).first()
+        except Exception:
+            instance._was_completed = None
+    else:
+        instance._was_completed = False
+
 @receiver(post_save, sender=ScrapDismantlingJob)
 def execute_scrap_dismantling_yield(sender, instance, **kwargs):
-    if instance.is_completed and not getattr(instance, '_yield_processed', False):
-        instance._yield_processed = True
+    was_completed = getattr(instance, '_was_completed', None)
+    if instance.is_completed and was_completed is False:
         with transaction.atomic():
             for yield_item in instance.yields.all():
                 product = yield_item.product

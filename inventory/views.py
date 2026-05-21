@@ -452,6 +452,7 @@ def offline_pos_sync_api(request):
 
 
 @csrf_exempt
+@login_required(login_url='/secure-portal/')
 def receive_diagnostic_report(request):
     if request.method != 'POST':
         return HttpResponseForbidden()
@@ -1440,36 +1441,40 @@ def customer_statement_api(request, customer_id):
     if to_date:
         payments_qs = payments_qs.filter(date__date__lte=to_date)
 
-    # بناء كشف الحساب
-    entries = []
-    running_balance = Decimal('0')
-
+    raw_entries = []
     for inv in invoices_qs:
-        running_balance += inv.due_amount
-        entries.append({
+        raw_entries.append({
             "date": str(inv.date_created.date()),
+            "sort_key": inv.date_created,
             "type": "invoice",
             "reference": f"فاتورة #{inv.pk}",
             "description": f"فاتورة {inv.get_invoice_type_display()}",
             "debit": float(inv.total_amount),
             "credit": float(inv.paid_amount),
-            "balance": float(running_balance),
+            "delta": inv.due_amount,
         })
 
     for pay in payments_qs:
-        running_balance -= pay.amount
-        entries.append({
+        raw_entries.append({
             "date": str(pay.date.date()),
+            "sort_key": pay.date,
             "type": "payment",
             "reference": f"سند قبض #{pay.pk}",
             "description": pay.description or 'دفعة نقدية',
             "debit": 0,
             "credit": float(pay.amount),
-            "balance": float(running_balance),
+            "delta": -pay.amount,
         })
 
-    # ترتيب حسب التاريخ
-    entries.sort(key=lambda x: x['date'])
+    raw_entries.sort(key=lambda x: x['sort_key'])
+
+    entries = []
+    running_balance = Decimal('0')
+    for e in raw_entries:
+        running_balance += e.pop('delta')
+        e.pop('sort_key')
+        e['balance'] = float(running_balance)
+        entries.append(e)
 
     return _json_response_safe({
         "status": "success",
@@ -1512,34 +1517,40 @@ def vendor_statement_api(request, vendor_id):
     if to_date:
         payments_qs = payments_qs.filter(date__date__lte=to_date)
 
-    entries = []
-    running_balance = Decimal('0')
-
+    raw_entries = []
     for inv in invoices_qs:
         due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-        running_balance += due
-        entries.append({
+        raw_entries.append({
             "date": str(inv.date_created.date()),
+            "sort_key": inv.date_created,
             "type": "invoice",
             "reference": f"فاتورة شراء #{inv.pk}",
             "debit": float(inv.total_amount),
             "credit": float(inv.paid_amount),
-            "balance": float(running_balance),
+            "delta": due,
         })
 
     for pay in payments_qs:
-        running_balance -= pay.amount
-        entries.append({
+        raw_entries.append({
             "date": str(pay.date.date()),
+            "sort_key": pay.date,
             "type": "payment",
             "reference": f"سند صرف #{pay.pk}",
             "description": pay.description or 'تسوية مورد',
             "debit": 0,
             "credit": float(pay.amount),
-            "balance": float(running_balance),
+            "delta": -pay.amount,
         })
 
-    entries.sort(key=lambda x: x['date'])
+    raw_entries.sort(key=lambda x: x['sort_key'])
+
+    entries = []
+    running_balance = Decimal('0')
+    for e in raw_entries:
+        running_balance += e.pop('delta')
+        e.pop('sort_key')
+        e['balance'] = float(running_balance)
+        entries.append(e)
 
     return _json_response_safe({
         "status": "success",
