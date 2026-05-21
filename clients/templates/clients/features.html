@@ -1,0 +1,514 @@
+{% load l10n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مميزات Mouss Tec | نظام إدارة الورش الذكي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .feature-card { transition: all 0.3s ease; }
+        .feature-card:hover { transform: translateY(-4px); }
+        .section-glow { background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+    <!-- Header -->
+    <header class="container mx-auto px-6 py-6 flex justify-between items-center sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+        <a href="/" class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
+                <i class="fas fa-cubes text-2xl text-white"></i>
+            </div>
+            <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
+        </a>
+        <nav class="flex items-center gap-6">
+            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الرئيسية</a>
+            <a href="/pricing/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الباقات</a>
+            <a href="/features/" class="text-purple-400 font-bold text-sm transition border-b-2 border-purple-400">المميزات</a>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Hero Section -->
+        <div class="text-center mb-16 pt-8">
+            <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> جميع المميزات التي تحتاجها
+            </span>
+            <h1 class="text-5xl lg:text-6xl font-black text-white leading-tight mb-4">
+                نظام إدارة ورش ذكي
+                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> متكامل</span>
+            </h1>
+            <p class="text-slate-400 text-lg max-w-3xl mx-auto mb-8">
+                من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه لتشغيل ورشتك بكفاءة
+            </p>
+            <a href="/pricing/" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/30">
+                <i class="fas fa-check-circle"></i> ابدأ تجربتك المجانية
+            </a>
+        </div>
+
+        <!-- Sections Navigation -->
+        <div class="flex justify-center items-center gap-3 mb-16 flex-wrap">
+            <a href="#invoices" class="px-4 py-2 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25 transition text-sm font-bold">
+                <i class="fas fa-receipt ml-1"></i> الفواتير
+            </a>
+            <a href="#inventory" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
+                <i class="fas fa-boxes ml-1"></i> المخزون
+            </a>
+            <a href="#accounting" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
+                <i class="fas fa-book ml-1"></i> المحاسبة
+            </a>
+            <a href="#reports" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
+                <i class="fas fa-chart-line ml-1"></i> التقارير
+            </a>
+            <a href="#ai" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
+                <i class="fas fa-brain ml-1"></i> الذكاء الاصطناعي
+            </a>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- 📄 الفواتير والمبيعات -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section id="invoices" class="mb-20">
+            <div class="section-glow rounded-3xl p-12 mb-12">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-blue-500/30">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">الفواتير والمبيعات</h2>
+                        <p class="text-slate-400">إنشاء وإدارة فواتير احترافية بسهولة</p>
+                    </div>
+                </div>
+                <p class="text-slate-300 text-lg mb-8 leading-relaxed">
+                    نظام فواتير متطور يدعم المبيعات والمشتريات والمذكرات الدائنة والمدينة مع حسابات ضريبية دقيقة وترقيم آلي منظم.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-file-invoice"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">فواتير ذكية</h3>
+                    <p class="text-slate-400 text-sm">ترقيم تلقائي، توقيع رقمي، وطباعة احترافية</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-calculator"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">حسابات ضريبية دقيقة</h3>
+                    <p class="text-slate-400 text-sm">حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-file-pdf"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تصدير PDF</h3>
+                    <p class="text-slate-400 text-sm">حفظ وطباعة وإرسال الفواتير بصيغة احترافية</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-purple-400 mb-4"><i class="fas fa-undo"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">مذكرات دائنة ومدينة</h3>
+                    <p class="text-slate-400 text-sm">إدارة المردات والتعديلات بسهولة</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-emerald-400 mb-4"><i class="fas fa-user-tie"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">العملاء والموردين</h3>
+                    <p class="text-slate-400 text-sm">إدارة بيانات العملاء والموردين بشكل منظم</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-history"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">سجل كامل</h3>
+                    <p class="text-slate-400 text-sm">تتبع كل عملية بيع مع تاريخ وساعة دقيقة</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- 📦 إدارة المخزون -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section id="inventory" class="mb-20">
+            <div class="section-glow rounded-3xl p-12 mb-12">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-emerald-500/30">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">إدارة المخزون</h2>
+                        <p class="text-slate-400">تتبع قطعك وأصنافك بدقة</p>
+                    </div>
+                </div>
+                <p class="text-slate-300 text-lg mb-8 leading-relaxed">
+                    نظام مخزون متقدم يتابع الرصيد الحالي، يحذرك من الأصناف الناقصة، ويدعم التصنيفات المتعددة والباركود.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-emerald-400 mb-4"><i class="fas fa-barcode"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">دعم الباركود</h3>
+                    <p class="text-slate-400 text-sm">مسح الأصناف بسهولة عند البيع والشراء</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-green-400 mb-4"><i class="fas fa-chart-bar"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تحليل الرصيد</h3>
+                    <p class="text-slate-400 text-sm">معرفة أعلى وأقل الأصناف مبيعاً</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-teal-400 mb-4"><i class="fas fa-triangle-exclamation"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تنبيهات ناقص</h3>
+                    <p class="text-slate-400 text-sm">إخطار تلقائي عند انخفاض الأصناف</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-tag"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تصنيفات متعددة</h3>
+                    <p class="text-slate-400 text-sm">تنظيم الأصناف حسب الفئات والماركات</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-exchange-alt"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تحويل بين الفروع</h3>
+                    <p class="text-slate-400 text-sm">نقل الأصناف بين المستودعات بسهولة</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-clock"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">تاريخ الحركات</h3>
+                    <p class="text-slate-400 text-sm">معرفة من أخذ وأعطى كل صنف</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- 📚 المحاسبة والدفاتر -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section id="accounting" class="mb-20">
+            <div class="section-glow rounded-3xl p-12 mb-12">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-orange-500/30">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">المحاسبة الثنائية</h2>
+                        <p class="text-slate-400">دفاتر احترافية معتمدة</p>
+                    </div>
+                </div>
+                <p class="text-slate-300 text-lg mb-8 leading-relaxed">
+                    نظام محاسبة متقدم يتبع معايير المحاسبة الدولية مع دعم حسابات مقابلة وموازنات شاملة.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-orange-400 mb-4"><i class="fas fa-scale-balanced"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">القيد المزدوج</h3>
+                    <p class="text-slate-400 text-sm">كل عملية بحساب مدين ودائن متوازن</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-red-400 mb-4"><i class="fas fa-database"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">خطة الحسابات</h3>
+                    <p class="text-slate-400 text-sm">قائمة حسابات مخصصة لنشاطك</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-amber-400 mb-4"><i class="fas fa-file-contract"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">القيود اليومية</h3>
+                    <p class="text-slate-400 text-sm">تسجيل كل حركة مالية تفصيلياً</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-sync"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">المقابلات</h3>
+                    <p class="text-slate-400 text-sm">إغلاق الحسابات والتسويات التلقائية</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-lime-400 mb-4"><i class="fas fa-arrow-trend-down"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">الخسائر والأرباح</h3>
+                    <p class="text-slate-400 text-sm">حساب صافي ربحك بدقة شهرية وسنوية</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-green-400 mb-4"><i class="fas fa-landmark"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">الميزانية</h3>
+                    <p class="text-slate-400 text-sm">عرض الأصول والخصوم وحقوق الملك</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- 📊 التقارير والتحليلات -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section id="reports" class="mb-20">
+            <div class="section-glow rounded-3xl p-12 mb-12">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-violet-600 to-purple-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-violet-500/30">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">التقارير الذكية</h2>
+                        <p class="text-slate-400">بيانات وتحليلات فورية</p>
+                    </div>
+                </div>
+                <p class="text-slate-300 text-lg mb-8 leading-relaxed">
+                    نظام تقارير متطور يعطيك رؤية شاملة عن نشاطك مع رسوم بيانية وتصدير سهل.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-violet-400 mb-4"><i class="fas fa-chart-pie"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">المبيعات والإيرادات</h3>
+                    <p class="text-slate-400 text-sm">تحليل مفصل للمبيعات اليومية والشهرية</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-purple-400 mb-4"><i class="fas fa-cash-register"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">الأرباح والخسائر</h3>
+                    <p class="text-slate-400 text-sm">رؤية واضحة لصافي ربحك</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-layer-group"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التقارير المالية</h3>
+                    <p class="text-slate-400 text-sm">ميزانية وحسابات وتحليلات مفصلة</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-users"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">الأداء العاملين</h3>
+                    <p class="text-slate-400 text-sm">معرفة من يبيع الأكثر</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-download"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التصدير</h3>
+                    <p class="text-slate-400 text-sm">حفظ التقارير بصيغ Excel و PDF</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-teal-400 mb-4"><i class="fas fa-calendar"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">فترات زمنية</h3>
+                    <p class="text-slate-400 text-sm">مقارنة يومي وشهري وسنوي</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- 🧠 الذكاء الاصطناعي -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section id="ai" class="mb-20">
+            <div class="section-glow rounded-3xl p-12 mb-12">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-pink-600 to-rose-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-pink-500/30">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">الذكاء الاصطناعي</h2>
+                        <p class="text-slate-400">تشخيص وتوصيات ذكية</p>
+                    </div>
+                </div>
+                <p class="text-slate-300 text-lg mb-8 leading-relaxed">
+                    مساعد ذكي يحلل بياناتك ويعطيك توصيات بناءً على الذكاء الاصطناعي لتحسين أداء ورشتك.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-pink-400 mb-4"><i class="fas fa-sparkles"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">مساعد الأسئلة</h3>
+                    <p class="text-slate-400 text-sm">اسأل الـ AI أي سؤال عن فاتورة أو مصروف</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-rose-400 mb-4"><i class="fas fa-lightbulb"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التوصيات</h3>
+                    <p class="text-slate-400 text-sm">اقتراحات لتحسين المبيعات والأرباح</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-red-400 mb-4"><i class="fas fa-bell"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التحذيرات الذكية</h3>
+                    <p class="text-slate-400 text-sm">التنبيه لأنماط مشبوهة أو عمليات غير معتادة</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-orange-400 mb-4"><i class="fas fa-book"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التعليم والمساعدة</h3>
+                    <p class="text-slate-400 text-sm">تعلم كيفية استخدام الفاتورة والمبيعات</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-magic"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">التنبؤات</h3>
+                    <p class="text-slate-400 text-sm">توقع المبيعات والأصناف الشهيرة</p>
+                </div>
+                <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="text-3xl text-lime-400 mb-4"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2">الأتمتة</h3>
+                    <p class="text-slate-400 text-sm">تشغيل تلقائي للعمليات المتكررة</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- مميزات إضافية -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section class="mb-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">مميزات إضافية</h2>
+                <p class="text-slate-400 text-lg">كل ما تحتاجه لتشغيل ورشتك بسهولة</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-indigo-400 flex-shrink-0"><i class="fas fa-mobile"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">تطبيق موبايل</h3>
+                            <p class="text-slate-400 text-sm">استخدم الباركود والفواتير من أي مكان</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-purple-400 flex-shrink-0"><i class="fas fa-shield-alt"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">أمان عالي</h3>
+                            <p class="text-slate-400 text-sm">تشفير البيانات والنسخ الاحتياطية التلقائية</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-emerald-400 flex-shrink-0"><i class="fas fa-users-cog"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">إدارة الموظفين</h3>
+                            <p class="text-slate-400 text-sm">أدوار وصلاحيات مختلفة لكل موظف</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-cyan-400 flex-shrink-0"><i class="fas fa-headset"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">دعم 24/7</h3>
+                            <p class="text-slate-400 text-sm">فريق دعم متاح لمساعدتك دائماً</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-yellow-400 flex-shrink-0"><i class="fas fa-sync"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">تحديثات مستمرة</h3>
+                            <p class="text-slate-400 text-sm">ميزات جديدة وتحسينات شهرية</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="text-2xl text-orange-400 flex-shrink-0"><i class="fas fa-server"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white mb-2">خوادم موثوقة</h3>
+                            <p class="text-slate-400 text-sm">توفر 99.9% مع سرعة عالية</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- مقارنة الباقات -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section class="mb-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">مقارنة الباقات</h2>
+                <p class="text-slate-400 text-lg">اختر الباقة المناسبة لنشاطك</p>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-700">
+                <table class="w-full text-sm text-slate-300">
+                    <thead>
+                        <tr class="bg-slate-800/60 border-b border-slate-700">
+                            <th class="text-right px-6 py-4 font-bold text-white">المميزة</th>
+                            <th class="text-center px-6 py-4 font-bold text-slate-300">الصانع</th>
+                            <th class="text-center px-6 py-4 font-bold text-purple-400">المركز</th>
+                            <th class="text-center px-6 py-4 font-bold text-amber-400">الشبكة</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">الفواتير والمبيعات</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">إدارة المخزون</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">الحسابات الثنائية</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">التقارير المالية</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">سوق B2B المركزي</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">تشخيص الـ AI</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">عدد الموظفين</td>
+                            <td class="text-center px-6 py-4 text-slate-400">1</td>
+                            <td class="text-center px-6 py-4 text-slate-400">4</td>
+                            <td class="text-center px-6 py-4 text-slate-400">غير محدود</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">عدد الفروع</td>
+                            <td class="text-center px-6 py-4 text-slate-400">1</td>
+                            <td class="text-center px-6 py-4 text-slate-400">2</td>
+                            <td class="text-center px-6 py-4 text-slate-400">غير محدود</td>
+                        </tr>
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="text-right px-6 py-4 text-slate-300">الدعم الأولوي</td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
+                            <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- CTA نهائي -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <section class="section-glow rounded-3xl p-12 text-center mb-0">
+            <h2 class="text-4xl font-black text-white mb-4">جاهز لتجربة Mouss Tec؟</h2>
+            <p class="text-slate-400 text-lg mb-8 max-w-2xl mx-auto">
+                ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تشغل ورشتك بكفاءة
+            </p>
+            <div class="flex items-center justify-center gap-4 flex-wrap">
+                <a href="/pricing/" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/30">
+                    <i class="fas fa-check-circle ml-2"></i> ابدأ مجاناً
+                </a>
+                <a href="/secure-portal/login/" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 rounded-xl transition">
+                    <i class="fas fa-sign-in-alt ml-2"></i> دخول
+                </a>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 text-slate-600 text-xs mt-12 border-t border-slate-800">
+        <p>© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة</p>
+    </footer>
+
+</body>
+</html>
