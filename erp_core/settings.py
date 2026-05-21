@@ -183,8 +183,12 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default='postgres://postgres:123@localhost:5432/erp_db')
 }
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
-DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60) 
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=300)  # 5 دقائق — أمثل لـ 4GB RAM
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+DATABASES['default']['OPTIONS'] = {
+    'connect_timeout': 10,          # timeout لمنع انتظار اتصال ميت
+    'options': '-c statement_timeout=30000',  # 30 ثانية max لأي query
+}
 
 # =====================================================================
 # ⚡ الكيش الصاروخي المزدوج (Two-Tier Caching - Failover Enabled)
@@ -200,7 +204,9 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "IGNORE_EXCEPTIONS": True, # 🚀 ابتكار: التحول التلقائي الآمن للـ Failover عند سقوط Redis
-            "CONNECTION_POOL_KWARGS": {"max_connections": 100, "retry_on_timeout": True}
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50, "retry_on_timeout": True},
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5
         },
         "KEY_FUNCTION": "erp_core.settings.tenant_key_func", 
     },

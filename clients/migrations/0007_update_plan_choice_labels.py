@@ -14,8 +14,8 @@ class Migration(migrations.Migration):
             name='plan',
             field=models.CharField(
                 choices=[
-                    ('silver', django.utils.translation.gettext_lazy('باقة الصانع - لورش الصيانة الناشئة')),
-                    ('gold', django.utils.translation.gettext_lazy('باقة المركز - لمراكز الصيانة الاحترافية')),
+                    ('silver', django.utils.translation.gettext_lazy('باقة الصانع - لمراكز الصيانة وتجار قطع الغيار')),
+                    ('gold', django.utils.translation.gettext_lazy('باقة المركز - لمراكز الصيانة وتجار قطع الغيار الشامل')),
                     ('empire', django.utils.translation.gettext_lazy('باقة الشبكة - لتجار القطع والشركات الكبيرة')),
                 ],
                 default='gold',
