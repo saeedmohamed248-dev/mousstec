@@ -26,7 +26,8 @@ from .models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      ServiceCatalog, SaleInvoiceServiceItem, VehicleInspection,
                      MaintenanceContract,
                      AuditLog, ChartOfAccount, AccountingEntry,
-                     InventoryMovement, StockAlert, ImportSession)
+                     InventoryMovement, StockAlert, ImportSession,
+                     ScrapDismantlingJob, ScrapDismantlingYield)
 
 # استدعاء جداول الإمبراطورية لربط سوق التجار المركزي (B2B)
 try:
@@ -528,6 +529,38 @@ class ProductAdmin(SecureImportExportAdmin):
             self.message_user(request, f"🌐 تم تفعيل العبور السحابي ونشر عدد {published} صنف بنجاح في سوق التجار المركزي (B2B Hub).", messages.SUCCESS)
         else:
             self.message_user(request, "⚠️ تنبيه: الأصناف المحددة كمياتها صفرية بالمخازن، يرجى ملء رصيد المخزن أولاً قبل النشر.", messages.WARNING)
+
+# =====================================================================
+# 🚢 محرك التفكيك والإفراج الجمركي (Scrap Dismantling Engine)
+# =====================================================================
+class ScrapDismantlingYieldInline(admin.TabularInline):
+    model = ScrapDismantlingYield
+    extra = 1
+    autocomplete_fields = ['product']
+    fields = ('product', 'quantity', 'estimated_cost_allocation')
+
+@admin.register(ScrapDismantlingJob)
+class ScrapDismantlingJobAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+    list_display = ('job_ref_short', 'car_model', 'branch', 'total_purchase_cost_styled', 'date_dismantled', 'completion_badge')
+    list_filter = ('is_completed', 'branch', 'date_dismantled')
+    search_fields = ('job_ref', 'car_model', 'chassis_number', 'engine_serial')
+    inlines = [ScrapDismantlingYieldInline]
+    date_hierarchy = 'date_dismantled'
+
+    def job_ref_short(self, obj):
+        return format_html('<span style="font-family:monospace; color:#6c757d;">#{}</span>', str(obj.job_ref)[:8].upper())
+    job_ref_short.short_description = "كود العملية"
+
+    def total_purchase_cost_styled(self, obj):
+        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{float(obj.total_purchase_cost or 0):,.2f}")
+    total_purchase_cost_styled.short_description = "تكلفة الشراء الكلية"
+
+    def completion_badge(self, obj):
+        if obj.is_completed:
+            return format_html('<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">✅ مكتمل ومُخزّن</span>')
+        return format_html('<span style="background:#ffc107; color:#1a1a1a; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">⏳ قيد التفكيك</span>')
+    completion_badge.short_description = "الحالة"
+
 
 class PurchaseInvoiceInlineForVendor(admin.TabularInline):
     model = PurchaseInvoice
