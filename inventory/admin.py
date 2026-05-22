@@ -1027,7 +1027,7 @@ class FinancialTransactionAdmin(SecureImportExportAdmin):
     list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category_display', 'employee_display', 'anomaly_flag', 'date', 'linked_invoice')
     list_filter = ('transaction_type', 'currency', 'treasury', 'category', 'date')
     search_fields = ('description', 'employee__user__first_name', 'employee__user__last_name')
-    autocomplete_fields = ['treasury', 'category', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee']
+    autocomplete_fields = ['treasury', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee']
     date_hierarchy = 'date'
 
     fieldsets = (

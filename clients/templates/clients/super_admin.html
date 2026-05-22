@@ -252,17 +252,17 @@
                 <div class="grid grid-cols-3 gap-2" id="plan-btns">
                     <button type="button" data-plan="silver" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-medal block text-xl mb-1 text-slate-400"></i>
-                        <span class="text-xs font-black block">الصانع</span>
+                        <span class="text-xs font-black block">سيلفر</span>
                         <span class="text-xs text-slate-500">475 ج</span>
                     </button>
                     <button type="button" data-plan="gold" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-gem block text-xl mb-1 text-purple-400"></i>
-                        <span class="text-xs font-black block">المركز</span>
+                        <span class="text-xs font-black block">جولد</span>
                         <span class="text-xs text-slate-500">700 ج</span>
                     </button>
                     <button type="button" data-plan="empire" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-crown block text-xl mb-1 text-amber-400"></i>
-                        <span class="text-xs font-black block">الشبكة</span>
+                        <span class="text-xs font-black block">Empire</span>
                         <span class="text-xs text-slate-500">1400 ج</span>
                     </button>
                 </div>
@@ -331,7 +331,7 @@ document.getElementById('search-input').addEventListener('input', function() {
 const PLAN_PRICES = {{ plan_prices_json|safe }};
 const PERIOD_DISCOUNTS = {{ period_discounts_json|safe }};
 const PERIOD_MONTHS = {{ period_months_json|safe }};
-const PLAN_LABELS = {silver: 'الصانع', gold: 'المركز', empire: 'الشبكة'};
+const PLAN_LABELS = {silver: 'سيلفر', gold: 'جولد', empire: 'Empire'};
 const PERIOD_LABELS = {monthly: 'شهري', quarterly: 'ربع سنوي', semi_annual: 'نصف سنوي', annual: 'سنوي'};
 
 let selectedPlan = 'silver';
