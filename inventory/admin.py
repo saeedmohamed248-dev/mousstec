@@ -1040,6 +1040,30 @@ class FinancialTransactionAdmin(SecureImportExportAdmin):
         }),
     )
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """🔧 إجبار حقل البند على الظهور كقائمة منسدلة واضحة مع البنود المحفوظة"""
+        if db_field.name == 'category':
+            self._ensure_default_categories()
+            kwargs['queryset'] = ExpenseCategory.objects.all().order_by('name')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    @staticmethod
+    def _ensure_default_categories():
+        """إنشاء بنود المصروفات الافتراضية لو مش موجودة"""
+        defaults = [
+            'رواتب وأجور', 'عمولات موظفين', 'سلف موظفين',
+            'إيجار المحل', 'كهرباء ومياه', 'إنترنت واتصالات',
+            'صيانة معدات وأجهزة', 'أدوات ومستلزمات',
+            'وقود ومحروقات', 'نقل وشحن',
+            'ضرائب ورسوم حكومية', 'تأمينات اجتماعية',
+            'دعاية وتسويق', 'ضيافة ونثريات',
+            'مصروفات قانونية ومحاسبية', 'اشتراكات برمجيات',
+            'مصروفات متنوعة',
+        ]
+        if not ExpenseCategory.objects.exists():
+            for name in defaults:
+                ExpenseCategory.objects.get_or_create(name=name)
+
     def get_readonly_fields(self, request, obj=None):
         if obj: return [f.name for f in self.model._meta.fields]
         return []
