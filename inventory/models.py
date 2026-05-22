@@ -324,7 +324,7 @@ class SaleInvoice(models.Model):
     INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))
     STATUS_CHOICES = (
         ('quotation', _('عرض سعر (مسودة)')), 
-        ('in_progress', _('قيد العمل بالورشة')),
+        ('in_progress', _('قيد العمل بالمركز')),
         ('quality_check', _('فحص الجودة (QA)')),
         ('ready', _('جاهز للتسليم')),
         ('posted', _('تم التسليم والاعتماد')),

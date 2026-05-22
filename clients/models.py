@@ -34,7 +34,7 @@ class Client(TenantMixin):
     email = models.EmailField(blank=True, null=True, verbose_name=_("البريد الإلكتروني للإدارة"))
     
     BUSINESS_TYPE_CHOICES = (
-        ('service_center', _('مركز صيانة متكامل (ورشة + قطع غيار)')),
+        ('service_center', _('مركز صيانة متكامل')),
         ('parts_dealer', _('تاجر قطع غيار (مبيعات تجزئة وجملة)')),
         ('scrap_importer', _('مستورد تقطيع وأنصاف (محرك الـ Scrap)')), 
         ('both', _('توكيل شامل (صيانة + تجارة + استيراد)')),

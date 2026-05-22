@@ -280,6 +280,38 @@
         </div>
     </div>
 
+    {% if treasuries_data %}
+    <div class="row mb-4">
+        <div class="col-12 mb-2">
+            <h5 class="font-weight-bold" style="color: #1e293b;">
+                <i class="fas fa-vault text-success"></i> الخزائن والأرصدة المالية
+                <span style="font-size: 14px; color: #64748b; margin-right: 10px;">
+                    إجمالي الرصيد:
+                    <b style="color: {% if stats.total_treasury >= '0' %}#10b981{% else %}#ef4444{% endif %}; font-size: 18px;">
+                        {{ stats.total_treasury }} ج.م
+                    </b>
+                </span>
+            </h5>
+        </div>
+        {% for t in treasuries_data %}
+        <div class="col-lg-3 col-md-4 col-6 mb-3">
+            <div style="background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 2px solid {% if t.is_negative %}#fecaca{% else %}#d1fae5{% endif %}; transition: transform 0.3s; cursor: pointer;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #475569;">{{ t.name }}</span>
+                    <span style="font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; background: {% if t.type == 'كاش' %}#ecfdf5; color: #059669;{% elif t.type == 'حساب بنكي' %}#eff6ff; color: #2563eb;{% elif t.type == 'فيزا' %}#fef3c7; color: #d97706;{% else %}#f3e8ff; color: #7c3aed;{% endif %}">
+                        {% if t.type == 'كاش' %}<i class="fas fa-money-bill-wave"></i>{% elif t.type == 'حساب بنكي' %}<i class="fas fa-university"></i>{% elif t.type == 'فيزا' %}<i class="fas fa-credit-card"></i>{% else %}<i class="fas fa-wallet"></i>{% endif %} {{ t.type }}
+                    </span>
+                </div>
+                <div class="treasury-balance-display" style="font-size: 28px; font-weight: 900; color: {% if t.is_negative %}#ef4444{% else %}#10b981{% endif %}; letter-spacing: -0.5px; line-height: 1.2;" data-value="{{ t.balance }}">
+                    {{ t.balance|floatformat:"2" }}
+                    <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="row">
         <div class="col-lg-8 col-12 mb-3">
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
@@ -612,6 +644,15 @@
             }
         };
         animateCounters();
+
+        // تنسيق أرقام الخزائن بالفاصلة
+        document.querySelectorAll('.treasury-balance-display').forEach(el => {
+            const val = parseFloat(el.dataset.value);
+            if (!isNaN(val)) {
+                const formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                el.innerHTML = formatted + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>';
+            }
+        });
 
         const parseData = (elementId, fallback) => {
             try { return JSON.parse(document.getElementById(elementId).value || "null") || fallback; } 

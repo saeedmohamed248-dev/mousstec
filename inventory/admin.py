@@ -758,7 +758,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
             html += f'<div style="flex:1; height:12px; background:{bg_color}; border-radius:2px; font-size:8px; color:{text_color}; text-align:center; line-height:12px;" title="{labels[i]}">{labels[i][0]}</div>'
         html += '</div>'
         return format_html(html)
-    job_progress_bar.short_description = "مسار المركبة في الورشة"
+    job_progress_bar.short_description = "مسار المركبة في المركز"
 
     def total_amount_styled(self, obj):
         return format_html('<b>{} ج.م</b>', f"{float(obj.total_amount or 0):,.2f}")
@@ -815,7 +815,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
         
     @admin.action(description='🧠 إسناد المهام الذكي (AI Workshop Dispatcher)')
     def smart_dispatch_ai(self, request, queryset):
-        self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالورشة، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
+        self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالمركز، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
 
     @admin.action(description='🧾 الامتثال الضريبي: توليد ختم الفاتورة الإلكترونية B2B/B2C المشفر (QR Code)')
     def generate_e_invoice_qr(self, request, queryset):
@@ -934,15 +934,42 @@ class StockTransferAdmin(SecureImportExportAdmin):
 # =====================================================================
 @admin.register(Treasury)
 class TreasuryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
-    list_display = ('name', 'branch', 'type', 'balance_styled', 'is_active')
+    list_display = ('name', 'branch', 'type_badge', 'balance_styled', 'is_active')
     list_filter = ('branch', 'type', 'is_active')
     search_fields = ('name',)
-    readonly_fields = ('balance',) 
-    
+    readonly_fields = ('balance',)
+
+    def type_badge(self, obj):
+        icons = {'cash': 'fa-money-bill-wave', 'bank': 'fa-university', 'visa': 'fa-credit-card', 'wallet': 'fa-wallet'}
+        colors = {'cash': '#059669', 'bank': '#2563eb', 'visa': '#d97706', 'wallet': '#7c3aed'}
+        return format_html(
+            '<span style="background:{}15; color:{}; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;">'
+            '<i class="fas {}"></i> {}</span>',
+            colors.get(obj.type, '#666'), colors.get(obj.type, '#666'), icons.get(obj.type, 'fa-wallet'), obj.get_type_display()
+        )
+    type_badge.short_description = "النوع"
+
     def balance_styled(self, obj):
-        color = "#28a745" if obj.balance > 0 else ("#dc3545" if obj.balance < 0 else "gray")
-        return format_html('<b style="color: {}; font-size:13px;">{} ج.م</b>', color, f"{float(obj.balance or 0):,.2f}")
-    balance_styled.short_description = "الرصيد الفعلي المتوفر"
+        bal = float(obj.balance or 0)
+        if bal > 0:
+            color = "#059669"
+            bg = "#ecfdf5"
+            border = "#a7f3d0"
+        elif bal < 0:
+            color = "#dc2626"
+            bg = "#fef2f2"
+            border = "#fecaca"
+        else:
+            color = "#64748b"
+            bg = "#f8fafc"
+            border = "#e2e8f0"
+        return format_html(
+            '<div style="background:{}; border:2px solid {}; border-radius:12px; padding:8px 16px; display:inline-block; min-width:160px; text-align:center;">'
+            '<span style="color:{}; font-size:20px; font-weight:900; letter-spacing:-0.5px;">{}</span>'
+            '<span style="color:{}; font-size:12px; font-weight:600; margin-right:4px;"> ج.م</span></div>',
+            bg, border, color, f"{bal:,.2f}", color
+        )
+    balance_styled.short_description = "الرصيد الفعلي"
 
 class ExpenseTransactionInline(admin.TabularInline):
     model = FinancialTransaction
@@ -960,10 +987,18 @@ class ExpenseTransactionInline(admin.TabularInline):
 
 @admin.register(ExpenseCategory)
 class ExpenseCategoryAdmin(SecureImportExportAdmin):
-    list_display = ('name', 'get_total_expenses') 
-    search_fields = ('name',)  
+    list_display = ('name', 'get_month_expenses', 'get_total_expenses')
+    search_fields = ('name',)
     inlines = [ExpenseTransactionInline]
-    
+
+    def get_month_expenses(self, obj):
+        first_day = timezone.now().date().replace(day=1)
+        total = obj.financialtransaction_set.filter(
+            transaction_type='out', date__date__gte=first_day
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        return format_html('<b style="color:#f59e0b;">{} ج.م</b>', f"{float(total):,.2f}")
+    get_month_expenses.short_description = "مصروفات الشهر الحالي"
+
     def get_total_expenses(self, obj):
         total = obj.financialtransaction_set.filter(transaction_type='out').aggregate(Sum('amount'))['amount__sum'] or 0
         return format_html('<b style="color:#dc3545;">{} ج.م</b>', f"{float(total):,.2f}")
@@ -972,21 +1007,48 @@ class ExpenseCategoryAdmin(SecureImportExportAdmin):
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
         for instance in instances:
-            if not instance.pk: instance.transaction_type = 'out'
+            if not instance.pk:
+                instance.transaction_type = 'out'
+                # ربط البند تلقائياً بالفئة الأم
+                if hasattr(form, 'instance') and form.instance.pk:
+                    instance.category = form.instance
             instance.save()
         formset.save_m2m()
 
+    def response_change(self, request, obj):
+        """بعد الحفظ، ارجع لنفس صفحة البند لعرض المصروف الجديد فوراً"""
+        from django.http import HttpResponseRedirect
+        if "_continue" not in request.POST and "_addanother" not in request.POST:
+            return HttpResponseRedirect(request.path)
+        return super().response_change(request, obj)
+
 @admin.register(FinancialTransaction)
 class FinancialTransactionAdmin(SecureImportExportAdmin):
-    list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category', 'employee_display', 'anomaly_flag', 'date', 'linked_invoice')
+    list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category_display', 'employee_display', 'anomaly_flag', 'date', 'linked_invoice')
     list_filter = ('transaction_type', 'currency', 'treasury', 'category', 'date')
     search_fields = ('description', 'employee__user__first_name', 'employee__user__last_name')
     autocomplete_fields = ['treasury', 'category', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee']
     date_hierarchy = 'date'
-    
+
+    fieldsets = (
+        ('بيانات الحركة الأساسية', {
+            'fields': ('treasury', 'transaction_type', 'amount', 'currency', 'category', 'description', 'date'),
+        }),
+        ('ربط بفاتورة أو حساب (اختياري)', {
+            'fields': ('sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee'),
+            'classes': ('collapse',),
+        }),
+    )
+
     def get_readonly_fields(self, request, obj=None):
-        if obj: return [f.name for f in self.model._meta.fields] 
+        if obj: return [f.name for f in self.model._meta.fields]
         return []
+
+    def category_display(self, obj):
+        if obj.category:
+            return format_html('<span style="background:#fef3c7; color:#92400e; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:700;">{}</span>', obj.category.name)
+        return format_html('<span style="color:#94a3b8; font-size:11px;">بدون تصنيف</span>')
+    category_display.short_description = "بند المصروف"
 
     def transaction_type_badge(self, obj):
         if obj.transaction_type == 'in': return format_html('<span style="color: #28a745; font-weight:bold;">🟢 إيداع / إيراد</span>')
@@ -1061,6 +1123,7 @@ def MoussTec_dashboard_index(request, extra_context=None):
 
     sales_qs = SaleInvoice.objects.filter(status='posted', date_created__gte=first_day_of_month)
     inv_qs = Inventory.objects.all()
+    treasury_qs = Treasury.objects.filter(is_active=True)
 
     if not request.user.is_superuser:
         try:
@@ -1068,11 +1131,25 @@ def MoussTec_dashboard_index(request, extra_context=None):
             if branch:
                 sales_qs = sales_qs.filter(branch=branch)
                 inv_qs = inv_qs.filter(branch=branch)
+                treasury_qs = treasury_qs.filter(branch=branch)
         except: pass
-    
+
     total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0 
+    net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
+
+    # رصيد الخزائن الإجمالي والتفصيلي
+    treasuries_data = []
+    total_treasury_balance = Decimal('0')
+    if can_see_finance:
+        for t in treasury_qs:
+            treasuries_data.append({
+                'name': t.name,
+                'type': t.get_type_display(),
+                'balance': float(t.balance),
+                'is_negative': t.balance < 0,
+            })
+            total_treasury_balance += t.balance
 
     open_orders = SaleInvoice.objects.exclude(status='posted')
     if not request.user.is_superuser:
@@ -1134,16 +1211,24 @@ def MoussTec_dashboard_index(request, extra_context=None):
     else: 
         invoices_label = f"{open_orders_count} أوامر شغل مفتوحة"
 
+    if can_see_finance:
+        display_treasury = f"{float(total_treasury_balance):,.0f}"
+    else:
+        display_treasury = "🔒 مخفي"
+        treasuries_data = []
+
     extra_context.update({
-        'branch_name': branch_name, 
+        'branch_name': branch_name,
         'business_type': tenant_business_type,
         'stats': {
             'total_sales_today': display_revenue,
             'net_profit_today': display_profit,
             'total_debt': display_debt,
+            'total_treasury': display_treasury,
             'invoices_count': invoices_label,
             'low_stock_count': low_stock_count,
         },
+        'treasuries_data': treasuries_data,
         'delayed_orders_count': delayed_orders_count,
         'chart_labels': json.dumps(chart_labels),
         'chart_revenue': json.dumps(safe_chart_revenue),

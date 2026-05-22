@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mouss Tec Ecosystem | المنصة المركزية لقطاع السيارات</title>
-    <meta name="description" content="نظام إدارة متكامل لقطاع السيارات: مراكز صيانة، تجارة قطع غيار، استيراد تقطيع، ومزادات B2B ذكية.">
+    <title>Mouss Tec | برنامج حسابات وإدارة أونلاين لمراكز الصيانة وتجار قطع الغيار</title>
+    <meta name="description" content="برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباح من أي مكان.">
     
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -72,19 +72,19 @@
                 <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Network Uptime: {{ system_uptime|default:"99.99%" }}
             </span>
             <h1 class="text-4xl lg:text-6xl font-black text-white leading-tight">
-                النظام البيئي الرقمي <br>
-                <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لإدارة وتجارة السيارات</span>
+                برنامج حسابات أونلاين <br>
+                <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لمراكز الصيانة وتجار القطع</span>
             </h1>
             <p class="text-slate-400 text-base lg:text-lg max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
-                أول منصة SaaS عربية تدمج مراكز الصيانة، تجار الجملة، ومستوردي التقطيع في سوق موحد (Marketplace). مزود بمحرك ترسيّة ذكي لحماية أرباحك وإدارة المزادات.
+                أدِر حسابات مركزك أو محلك من الموبايل أو الكمبيوتر — فواتير بيع وشراء، مخزون قطع غيار، خزينة ومصروفات، حسابات عملاء وموردين، وتقارير أرباحك لحظة بلحظة. كل شي في مكان واحد وبدون تعقيد.
             </p>
             
             <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
                 <a href="{% url 'saas_customer_signup' %}" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300 flex items-center gap-2">
-                    <i class="fas fa-rocket"></i> أسس إمبراطوريتك الآن
+                    <i class="fas fa-rocket"></i> جرّب مجاناً الآن
                 </a>
                 <a href="#features" class="bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 font-bold px-8 py-4 rounded-xl border border-slate-800 transition duration-300 flex items-center gap-2">
-                    استكشاف الآلية <i class="fas fa-arrow-down"></i>
+                    شوف المميزات <i class="fas fa-arrow-down"></i>
                 </a>
             </div>
         </div>
@@ -99,31 +99,31 @@
                 </div>
                 <div class="p-5 space-y-3">
                     <div class="flex items-center gap-3 bg-purple-500/5 border border-purple-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400 flex-shrink-0"><i class="fas fa-tools text-sm"></i></div>
+                        <div class="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400 flex-shrink-0"><i class="fas fa-calculator text-sm"></i></div>
                         <div>
-                            <p class="text-white font-black text-sm">إدارة الورش الكاملة</p>
-                            <p class="text-slate-400 text-xs">فواتير، مخزون، عمال، خزينة — في مكان واحد</p>
+                            <p class="text-white font-black text-sm">حسابات كاملة أونلاين</p>
+                            <p class="text-slate-400 text-xs">فواتير، خزينة، مصروفات، أرباح — من أي مكان</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0"><i class="fas fa-store text-sm"></i></div>
+                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0"><i class="fas fa-boxes text-sm"></i></div>
                         <div>
-                            <p class="text-white font-black text-sm">سوق B2B مركزي + مزادات</p>
-                            <p class="text-slate-400 text-xs">تواصل مع تجار الجملة وموردي القطع مباشرة</p>
+                            <p class="text-white font-black text-sm">مخزون وقطع غيار</p>
+                            <p class="text-slate-400 text-xs">تتبع الأصناف والكميات وتنبيه قبل النفاد</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 bg-pink-500/5 border border-pink-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400 flex-shrink-0"><i class="fas fa-robot text-sm"></i></div>
+                        <div class="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400 flex-shrink-0"><i class="fas fa-users text-sm"></i></div>
                         <div>
-                            <p class="text-white font-black text-sm">ذكاء اصطناعي متكامل</p>
-                            <p class="text-slate-400 text-xs">تشخيص ذكي، تنبؤ بالمخزون، قراءة الفواتير تلقائياً</p>
+                            <p class="text-white font-black text-sm">عملاء وموردين</p>
+                            <p class="text-slate-400 text-xs">كشف حساب لكل عميل ومورد مع المديونيات</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 flex-shrink-0"><i class="fas fa-shield-alt text-sm"></i></div>
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 flex-shrink-0"><i class="fas fa-chart-bar text-sm"></i></div>
                         <div>
-                            <p class="text-white font-black text-sm">Escrow مالي آمن 100%</p>
-                            <p class="text-slate-400 text-xs">حماية المبالغ وتسوية تلقائية بعد تأكيد الاستلام</p>
+                            <p class="text-white font-black text-sm">تقارير وأرباح لحظية</p>
+                            <p class="text-slate-400 text-xs">اعرف صافي ربحك ومصروفاتك في أي وقت</p>
                         </div>
                     </div>
                 </div>
@@ -137,52 +137,52 @@
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl font-bold border border-purple-500/20">
-                        <i class="fas fa-tools"></i>
+                        <i class="fas fa-file-invoice-dollar"></i>
                     </div>
-                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">ورشة متكاملة</span>
+                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">فوترة ذكية</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">إدارة الورشة الكاملة</h3>
-                    <p class="text-slate-400 text-xs font-bold">فواتير · مخزون · موظفون · خزينة · فروع</p>
+                    <h3 class="text-lg font-black text-white mb-1">فواتير بيع وشراء</h3>
+                    <p class="text-slate-400 text-xs font-bold">إصدار فاتورة · طباعة · إرسال واتساب · ضمان</p>
                 </div>
             </div>
 
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl font-bold border border-indigo-500/20">
-                        <i class="fas fa-store"></i>
+                        <i class="fas fa-vault"></i>
                     </div>
-                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">سوق B2B</span>
+                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">خزينة وحسابات</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">سوق جملة مركزي</h3>
-                    <p class="text-slate-400 text-xs font-bold">مزادات عكسية · عروض مغلقة · توصيل موثق</p>
+                    <h3 class="text-lg font-black text-white mb-1">خزينة ومصروفات</h3>
+                    <p class="text-slate-400 text-xs font-bold">رصيد الخزنة · بنود المصروفات · تقرير شهري</p>
                 </div>
             </div>
 
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl font-bold border border-pink-500/20">
-                        <i class="fas fa-robot"></i>
+                        <i class="fas fa-boxes"></i>
                     </div>
-                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">AI ذكاء اصطناعي</span>
+                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">مخزون ذكي</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">مساعد ذكي 24/7</h3>
-                    <p class="text-slate-400 text-xs font-bold">تشخيص · قراءة فواتير · تنبؤ بالمخزون</p>
+                    <h3 class="text-lg font-black text-white mb-1">مخزون وقطع غيار</h3>
+                    <p class="text-slate-400 text-xs font-bold">باركود · جرد · تنبيه نفاد · تحويل بين الفروع</p>
                 </div>
             </div>
 
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
                 <div class="flex justify-between items-start mb-4">
                     <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl font-bold border border-emerald-500/20">
-                        <i class="fas fa-shield-alt"></i>
+                        <i class="fas fa-chart-pie"></i>
                     </div>
-                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">FinTech Escrow</span>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">تقارير لحظية</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">حماية مالية كاملة</h3>
-                    <p class="text-slate-400 text-xs font-bold">محفظة ضمان · تسوية آلية · تقارير لحظية</p>
+                    <h3 class="text-lg font-black text-white mb-1">تقارير وأرباح</h3>
+                    <p class="text-slate-400 text-xs font-bold">أرباح يومية · كشف حساب · تحليل المبيعات</p>
                 </div>
             </div>
 
@@ -259,9 +259,9 @@
 
             // 4. شريط النبض الحي المتغير أسفل الشاشة
             const tickerMsgs = [
-                `نبض السوق: <span class="text-emerald-400">متصل وآمن</span>`,
-                `سوق B2B: <span class="text-indigo-400">مزادات عكسية نشطة الآن</span>`,
-                `المحفظة الذكية: <span class="text-purple-400">تم حجز ضمان لطلب #M-811</span>`
+                `حالة النظام: <span class="text-emerald-400">شغّال ومتصل 24/7</span>`,
+                `أكثر من <span class="text-indigo-400">+50 مركز صيانة</span> يستخدمون النظام`,
+                `حساباتك: <span class="text-purple-400">محمية ومشفرة بالكامل</span>`
             ];
             let tickIdx = 0;
             const tickerEl = document.getElementById('live-ticker');
