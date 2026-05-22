@@ -41,15 +41,20 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     "http://localhost:8000",
     f"https://*.{BASE_DOMAIN}",
-    "http://64.226.120.5"
+    f"http://*.{BASE_DOMAIN}",
+    f"https://{BASE_DOMAIN}",
+    f"http://{BASE_DOMAIN}",
+    "http://64.226.120.5",
+    "https://64.226.120.5",
 ])
 
 # 🛡️ حماية الجلسات السحابية (معزولة وداعمة للـ Multi-Tenant)
 SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل كاملة للموظف)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_SECURE = not DEBUG 
+SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}' if not DEBUG else None 
+SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
+CSRF_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
 SECURE_BROWSER_XSS_FILTER = True
@@ -215,7 +220,7 @@ CACHES = {
         "LOCATION": "mousstec-local-cache",
     }
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"  # fallback للداتابيز لو Redis وقع
 SESSION_CACHE_ALIAS = "default"
 
 # =====================================================================
