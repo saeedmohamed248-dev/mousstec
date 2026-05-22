@@ -41,7 +41,7 @@ class Command(BaseCommand):
         # ─── 1. إصلاح تواريخ التجربة الخاطئة ───
         if fix_dates:
             self.stdout.write(self.style.WARNING('\n🔧 إصلاح تواريخ الفترة التجريبية...'))
-            trial_clients = Client.objects.filter(status='trial')
+            trial_clients = Client.objects.filter(status='trial').exclude(schema_name='public')
             fixed_count = 0
             for client in trial_clients:
                 if client.created_on:
@@ -68,7 +68,7 @@ class Command(BaseCommand):
             status='trial',
             trial_ends_at__lt=today,
             is_active=True
-        )
+        ).exclude(schema_name='public')
         for client in expired_trials:
             days_over = (today - client.trial_ends_at).days
             self.stdout.write(
@@ -93,7 +93,7 @@ class Command(BaseCommand):
             status='active',
             subscription_end_date__lt=grace_cutoff,
             is_active=True
-        )
+        ).exclude(schema_name='public')
         for client in expired_subs:
             days_over = (today - client.subscription_end_date).days
             self.stdout.write(

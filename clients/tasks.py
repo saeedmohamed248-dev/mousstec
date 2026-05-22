@@ -78,11 +78,11 @@ def orchestrate_billing_and_suspensions():
         # ب. مرحلة الإغلاق الناعم (Soft/Hard Suspension) - Bulk Update
         # -------------------------------------------------------------
         # 1. إيقاف الفترات التجريبية المنتهية (التريال ليس له فترة سماح)
-        expired_trials = Client.objects.filter(status='trial', trial_ends_at__lt=today, is_active=True)
+        expired_trials = Client.objects.filter(status='trial', trial_ends_at__lt=today, is_active=True).exclude(schema_name='public')
         trials_suspended = expired_trials.update(status='suspended')
-        
+
         # 2. إيقاف الاشتراكات المدفوعة التي استنفدت فترة السماح (Grace Period Ended)
-        expired_active = Client.objects.filter(status='active', subscription_end_date__lt=grace_period_deadline, is_active=True)
+        expired_active = Client.objects.filter(status='active', subscription_end_date__lt=grace_period_deadline, is_active=True).exclude(schema_name='public')
         active_suspended = expired_active.update(status='suspended')
         
         total_suspended = trials_suspended + active_suspended
