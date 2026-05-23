@@ -2,9 +2,74 @@
 
 from decimal import Decimal
 import django.core.validators
-from django.db import migrations, models
+from django.db import migrations, models, connection
 import django.db.models.deletion
 import django.utils.timezone
+
+
+def safe_rename_indexes(apps, schema_editor):
+    """Rename indexes only if old name still exists (idempotent)."""
+    renames = [
+        ('inventory_ae_ref_idx', 'inventory_a_referen_00b615_idx'),
+        ('inventory_ae_acc_date_idx', 'inventory_a_account_4e8fcb_idx'),
+        ('inventory_a_model_n_idx', 'inventory_a_model_n_740003_idx'),
+        ('inventory_a_timesta_idx', 'inventory_a_timesta_f11ce6_idx'),
+        ('inventory_im_prod_idx', 'inventory_i_product_d7930e_idx'),
+        ('inventory_im_branch_idx', 'inventory_i_branch__305656_idx'),
+    ]
+    with schema_editor.connection.cursor() as cursor:
+        for old_name, new_name in renames:
+            cursor.execute(
+                "SELECT 1 FROM pg_indexes WHERE indexname = %s",
+                [old_name],
+            )
+            if cursor.fetchone():
+                cursor.execute(f'ALTER INDEX "{old_name}" RENAME TO "{new_name}"')
+
+
+def safe_add_column(apps, schema_editor):
+    """Add columns only if they don't already exist (idempotent)."""
+    columns_to_add = [
+        # (table, column, SQL type, default)
+        ('inventory_historicalfinancialtransaction', 'employee_id', 'integer', 'NULL'),
+        ('inventory_historicalproduct', 'ai_price_elasticity', 'numeric(4,2)', '1.0'),
+        ('inventory_historicalproduct', 'chassis_compatibility', 'jsonb', 'NULL'),
+        ('inventory_historicalproduct', 'oem_cross_reference', 'jsonb', 'NULL'),
+        ('inventory_product', 'ai_price_elasticity', 'numeric(4,2)', '1.0'),
+        ('inventory_product', 'chassis_compatibility', 'jsonb', 'NULL'),
+        ('inventory_product', 'oem_cross_reference', 'jsonb', 'NULL'),
+        ('inventory_vehicletelemetrylog', 'requires_immediate_attention', 'boolean', 'false'),
+    ]
+    with schema_editor.connection.cursor() as cursor:
+        for table, column, col_type, default in columns_to_add:
+            cursor.execute(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s",
+                [table, column],
+            )
+            if not cursor.fetchone():
+                default_clause = f"DEFAULT {default}" if default != 'NULL' else ''
+                null_clause = '' if default == 'NULL' else 'NOT NULL'
+                if default == 'NULL':
+                    null_clause = ''
+                cursor.execute(
+                    f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type} {null_clause} {default_clause}'
+                )
+
+
+def safe_add_constraint(apps, schema_editor):
+    """Add CHECK constraint only if it doesn't already exist."""
+    with schema_editor.connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE constraint_name = 'inventory_quantity_non_negative' "
+            "AND table_schema = current_schema()"
+        )
+        if not cursor.fetchone():
+            cursor.execute(
+                'ALTER TABLE "inventory_inventory" ADD CONSTRAINT '
+                '"inventory_quantity_non_negative" CHECK ("quantity" >= 0)'
+            )
 
 
 class Migration(migrations.Migration):
@@ -14,76 +79,95 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameIndex(
-            model_name='accountingentry',
-            new_name='inventory_a_referen_00b615_idx',
-            old_name='inventory_ae_ref_idx',
+        # ── Idempotent DB operations (safe if 0015/0016 already ran) ──
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(safe_rename_indexes, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.RenameIndex(
+                    model_name='accountingentry',
+                    new_name='inventory_a_referen_00b615_idx',
+                    old_name='inventory_ae_ref_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='accountingentry',
+                    new_name='inventory_a_account_4e8fcb_idx',
+                    old_name='inventory_ae_acc_date_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='auditlog',
+                    new_name='inventory_a_model_n_740003_idx',
+                    old_name='inventory_a_model_n_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='auditlog',
+                    new_name='inventory_a_timesta_f11ce6_idx',
+                    old_name='inventory_a_timesta_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='inventorymovement',
+                    new_name='inventory_i_product_d7930e_idx',
+                    old_name='inventory_im_prod_idx',
+                ),
+                migrations.RenameIndex(
+                    model_name='inventorymovement',
+                    new_name='inventory_i_branch__305656_idx',
+                    old_name='inventory_im_branch_idx',
+                ),
+            ],
         ),
-        migrations.RenameIndex(
-            model_name='accountingentry',
-            new_name='inventory_a_account_4e8fcb_idx',
-            old_name='inventory_ae_acc_date_idx',
+
+        # ── Idempotent AddField (safe if columns already exist) ──
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(safe_add_column, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='historicalfinancialtransaction',
+                    name='employee',
+                    field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='inventory.employeeprofile', verbose_name='الموظف (للرواتب/السلف)'),
+                ),
+                migrations.AddField(
+                    model_name='historicalproduct',
+                    name='ai_price_elasticity',
+                    field=models.DecimalField(decimal_places=2, default=1.0, editable=False, max_digits=4),
+                ),
+                migrations.AddField(
+                    model_name='historicalproduct',
+                    name='chassis_compatibility',
+                    field=models.JSONField(blank=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", null=True, verbose_name='توافقية الشاسيه'),
+                ),
+                migrations.AddField(
+                    model_name='historicalproduct',
+                    name='oem_cross_reference',
+                    field=models.JSONField(blank=True, help_text='أرقام الـ OEM البديلة المطابقة', null=True, verbose_name='أكواد الأجزاء البديلة'),
+                ),
+                migrations.AddField(
+                    model_name='product',
+                    name='ai_price_elasticity',
+                    field=models.DecimalField(decimal_places=2, default=1.0, editable=False, max_digits=4),
+                ),
+                migrations.AddField(
+                    model_name='product',
+                    name='chassis_compatibility',
+                    field=models.JSONField(blank=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", null=True, verbose_name='توافقية الشاسيه'),
+                ),
+                migrations.AddField(
+                    model_name='product',
+                    name='oem_cross_reference',
+                    field=models.JSONField(blank=True, help_text='أرقام الـ OEM البديلة المطابقة', null=True, verbose_name='أكواد الأجزاء البديلة'),
+                ),
+                migrations.AddField(
+                    model_name='vehicletelemetrylog',
+                    name='requires_immediate_attention',
+                    field=models.BooleanField(default=False, verbose_name='تحذير: عطل حرج يتطلب تدخلاً فورياً'),
+                ),
+            ],
         ),
-        migrations.RenameIndex(
-            model_name='auditlog',
-            new_name='inventory_a_model_n_740003_idx',
-            old_name='inventory_a_model_n_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='auditlog',
-            new_name='inventory_a_timesta_f11ce6_idx',
-            old_name='inventory_a_timesta_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='inventorymovement',
-            new_name='inventory_i_product_d7930e_idx',
-            old_name='inventory_im_prod_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='inventorymovement',
-            new_name='inventory_i_branch__305656_idx',
-            old_name='inventory_im_branch_idx',
-        ),
-        migrations.AddField(
-            model_name='historicalfinancialtransaction',
-            name='employee',
-            field=models.ForeignKey(blank=True, db_constraint=False, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='inventory.employeeprofile', verbose_name='الموظف (للرواتب/السلف)'),
-        ),
-        migrations.AddField(
-            model_name='historicalproduct',
-            name='ai_price_elasticity',
-            field=models.DecimalField(decimal_places=2, default=1.0, editable=False, max_digits=4),
-        ),
-        migrations.AddField(
-            model_name='historicalproduct',
-            name='chassis_compatibility',
-            field=models.JSONField(blank=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", null=True, verbose_name='توافقية الشاسيه'),
-        ),
-        migrations.AddField(
-            model_name='historicalproduct',
-            name='oem_cross_reference',
-            field=models.JSONField(blank=True, help_text='أرقام الـ OEM البديلة المطابقة', null=True, verbose_name='أكواد الأجزاء البديلة'),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='ai_price_elasticity',
-            field=models.DecimalField(decimal_places=2, default=1.0, editable=False, max_digits=4),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='chassis_compatibility',
-            field=models.JSONField(blank=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", null=True, verbose_name='توافقية الشاسيه'),
-        ),
-        migrations.AddField(
-            model_name='product',
-            name='oem_cross_reference',
-            field=models.JSONField(blank=True, help_text='أرقام الـ OEM البديلة المطابقة', null=True, verbose_name='أكواد الأجزاء البديلة'),
-        ),
-        migrations.AddField(
-            model_name='vehicletelemetrylog',
-            name='requires_immediate_attention',
-            field=models.BooleanField(default=False, verbose_name='تحذير: عطل حرج يتطلب تدخلاً فورياً'),
-        ),
+
+        # ── AlterField for validators (state-only, no DB DDL needed) ──
         migrations.AlterField(
             model_name='auditlog',
             name='timestamp',
@@ -114,8 +198,17 @@ class Migration(migrations.Migration):
             name='unit_price',
             field=models.DecimalField(decimal_places=2, max_digits=10, validators=[django.core.validators.MinValueValidator(Decimal('0.00'), message='السعر لا يمكن أن يكون سالباً')], verbose_name='سعر البيع'),
         ),
-        migrations.AddConstraint(
-            model_name='inventory',
-            constraint=models.CheckConstraint(check=models.Q(('quantity__gte', 0)), name='inventory_quantity_non_negative'),
+
+        # ── Idempotent CheckConstraint ──
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(safe_add_constraint, migrations.RunPython.noop),
+            ],
+            state_operations=[
+                migrations.AddConstraint(
+                    model_name='inventory',
+                    constraint=models.CheckConstraint(check=models.Q(('quantity__gte', 0)), name='inventory_quantity_non_negative'),
+                ),
+            ],
         ),
     ]
