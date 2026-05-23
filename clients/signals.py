@@ -94,15 +94,15 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                             # خامات افتراضية
                             PrintMaterial.objects.get_or_create(
                                 name="ورق A4 (80 جم)",
-                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 180, 'min_stock_level': 5, 'branch': main_branch}
+                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 180, 'min_stock': 5, 'branch': main_branch}
                             )
                             PrintMaterial.objects.get_or_create(
                                 name="ورق A3 (130 جم لامع)",
-                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 450, 'min_stock_level': 3, 'branch': main_branch}
+                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 450, 'min_stock': 3, 'branch': main_branch}
                             )
                             PrintMaterial.objects.get_or_create(
                                 name="حبر أسود (Toner)",
-                                defaults={'category': 'ink', 'unit': 'قطعة', 'quantity': 0, 'cost_per_unit': 350, 'min_stock_level': 2, 'branch': main_branch}
+                                defaults={'category': 'ink', 'unit': 'قطعة', 'quantity': 0, 'cost_per_unit': 350, 'min_stock': 2, 'branch': main_branch}
                             )
                         else:
                             # 🚗 حقن بيانات السيارات (الافتراضي)

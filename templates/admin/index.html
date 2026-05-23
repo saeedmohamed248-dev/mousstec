@@ -4,7 +4,6 @@
 {% block content %}
 <!-- PWA Meta Tags -->
 <script>
-    // Inject manifest & theme-color into head for PWA
     if (!document.querySelector('link[rel="manifest"]')) {
         const m = document.createElement('link'); m.rel='manifest'; m.href='/manifest.json';
         document.head.appendChild(m);
@@ -13,9 +12,6 @@
     }
 </script>
 <style>
-    /* =======================================================
-       🎨 Mouss Tec Enterprise UI/UX (Glassmorphism & B2B)
-       ======================================================= */
     :root {
         --primary-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         --success-grad: linear-gradient(135deg, #20c997 0%, #198754 100%);
@@ -23,26 +19,29 @@
         --danger-grad: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         --info-grad: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
         --dark-grad: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        --mouss-tec-grad: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); 
+        --mouss-tec-grad: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        {% if industry == 'printing' %}
+        --print-grad: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+        --print-accent: linear-gradient(135deg, #f97316 0%, #ec4899 100%);
+        --print-design: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+        {% endif %}
     }
 
     body { font-family: 'Cairo', sans-serif !important; background-color: #f8fafc; }
 
-    /* 🌟 أزرار الوصول السريع */
     .saas-quick-btn {
         transition: all 0.3s ease; border-radius: 10px; font-weight: 700; padding: 12px 24px; border: none;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
         text-decoration: none; cursor: pointer;
     }
     .saas-quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); filter: brightness(1.1); color: #fff;}
-    
+
     .glow-btn { animation: neon-glow 2s infinite alternate; }
     @keyframes neon-glow {
         0% { box-shadow: 0 0 5px rgba(236, 72, 153, 0.4); }
         100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.8); }
     }
 
-    /* 🌟 الكروت العلوية (Stats) */
     .saas-stat-card {
         border-radius: 16px; color: white; padding: 20px; position: relative; overflow: hidden;
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; height: 100%; cursor: pointer;
@@ -57,17 +56,15 @@
     .saas-stat-card .bg-icon { position: absolute; bottom: -15px; left: -15px; font-size: 90px; opacity: 0.15; z-index: 1; transform: rotate(-15deg); }
     html[dir="rtl"] .saas-stat-card .bg-icon { left: auto; right: -15px; transform: rotate(15deg); }
 
-    /* 🌟 رادار العمليات (الكروت الجانبية) */
     .insight-card {
         background: #ffffff; border: 1px solid #f1f5f9; border-radius: 12px; padding: 16px; margin-bottom: 16px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; border-inline-start: 5px solid #e2e8f0;
     }
     .insight-card:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-    
+
     @keyframes pulse-danger { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     .pulse-alert { animation: pulse-danger 2s infinite; border-inline-start-color: #ef4444; background-color: #fef2f2; }
 
-    /* 🚀 محرك البحث الشامل والصوتي */
     .omni-search-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
     .omni-search { border-radius: 12px; padding: 12px 45px 12px 80px; border: 2px solid #e2e8f0; font-weight: 600; box-shadow: none; transition: all 0.3s; width: 100%; }
     .omni-search:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
@@ -75,8 +72,7 @@
     .voice-search-btn { position: absolute; right: 15px; background: none; border: none; color: #64748b; cursor: pointer; font-size: 18px; transition: 0.3s; z-index: 10; }
     .voice-search-btn:hover { color: #ec4899; transform: scale(1.1); }
     .voice-recording-glow { animation: neon-glow 1s infinite alternate; border-color: #ef4444 !important; }
-    
-    /* 🚀 لوحة الأوامر الشاملة */
+
     #commandPalette { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 100000; display: none; align-items: flex-start; justify-content: center; padding-top: 10vh; opacity: 0; transition: opacity 0.2s ease; }
     #commandPalette.active { display: flex; opacity: 1; }
     .palette-container { width: 90%; max-width: 650px; background: white; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); overflow: hidden; transform: scale(0.95); transition: transform 0.2s ease; }
@@ -85,11 +81,10 @@
     .palette-results { max-height: 350px; overflow-y: auto; padding: 10px; background: #f8fafc; }
     .palette-item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; color: #475569; font-weight: 600; }
     .palette-item:hover, .palette-item.selected { background: #e0e7ff; color: #4f46e5; }
-    
+
     .chart-container { direction: ltr !important; }
     .b2b-badge { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: bold; margin-right: 10px; background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }
 
-    /* 🤖 شريط مستشار Mouss Tec */
     .ai-sidebar {
         position: fixed; top: 0; left: -400px; width: 360px; height: 100vh; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px);
         box-shadow: 10px 0 30px rgba(0,0,0,0.5); z-index: 99999; transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -99,11 +94,22 @@
     .ai-sidebar-close { align-self: flex-end; cursor: pointer; color: #94a3b8; font-size: 20px; transition: 0.3s; }
     .ai-sidebar-close:hover { color: #ef4444; }
     .ai-chat-box { flex-grow: 1; background: rgba(255,255,255,0.03); border-radius: 12px; margin-top: 20px; padding: 15px; border: 1px solid rgba(255,255,255,0.08); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    
-    /* 🛡️ نظام الإشعارات العائمة التلقائي */
+
     .mousstec-toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
     .mousstec-toast { background: #1e293b; color: white; padding: 12px 20px; border-radius: 10px; border-inline-start: 4px solid #8b5cf6; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: auto;}
     @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+    {% if industry == 'printing' %}
+    /* ===== Printing Dashboard Extras ===== */
+    .print-order-row { padding: 10px 14px; border-radius: 10px; background: #f8fafc; margin-bottom: 8px; border: 1px solid #e2e8f0; transition: 0.2s; }
+    .print-order-row:hover { background: #eef2ff; border-color: #c7d2fe; }
+    .print-status-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+    .print-mini-stat { background: white; border-radius: 12px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #f1f5f9; transition: 0.3s; }
+    .print-mini-stat:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
+    .print-mini-stat .mini-icon { font-size: 24px; margin-bottom: 6px; }
+    .print-mini-stat .mini-value { font-size: 22px; font-weight: 800; color: #1e293b; }
+    .print-mini-stat .mini-label { font-size: 12px; color: #64748b; font-weight: 600; }
+    {% endif %}
 </style>
 
 <input type="hidden" id="rawChartLabels" value="{{ chart_labels|default:'[]' }}">
@@ -112,8 +118,46 @@
 
 <div id="mousstecToastContainer" class="mousstec-toast-container"></div>
 
+<!-- ============================================================= -->
+<!-- لوحة الأوامر الشاملة (Command Palette) — حسب الصناعة           -->
+<!-- ============================================================= -->
 <div id="commandPalette" onclick="if(event.target===this) toggleCommandPalette()">
     <div class="palette-container">
+        {% if industry == 'printing' %}
+        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث... (طلبات، عملاء، خامات، مصممين)" autocomplete="off" onkeyup="filterCommandPalette()">
+        <div class="palette-results" id="paletteResults">
+            <div class="palette-item" data-name="طلب طباعة جديد أمر إنتاج" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-plus-circle" style="color:#10b981;"></i> طلب طباعة جديد
+            </div>
+            <div class="palette-item" data-name="العملاء عميل زبون" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-user-tie" style="color:#3b82f6;"></i> إدارة العملاء
+            </div>
+            <div class="palette-item" data-name="المصممين مصمم تصميم designer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-palette" style="color:#a855f7;"></i> إدارة المصممين
+            </div>
+            <div class="palette-item" data-name="سجل أعمال المصممين worklog" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designerworklog/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-clipboard-check" style="color:#f59e0b;"></i> سجل أعمال المصممين
+            </div>
+            <div class="palette-item" data-name="الطلبات طلب إنتاج order" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-file-invoice" style="color:#06b6d4;"></i> سجل الطلبات
+            </div>
+            <div class="palette-item" data-name="الخامات مخزن ورق حبر material" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-boxes" style="color:#f97316;"></i> إدارة الخامات والمخزون
+            </div>
+            <div class="palette-item" data-name="الخزينة المالية treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-wallet" style="color:#10b981;"></i> الخزائن المالية
+            </div>
+            <div class="palette-item" data-name="حركات مالية مصروفات إيرادات" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-exchange-alt" style="color:#ef4444;"></i> الحركات المالية
+            </div>
+            <div class="palette-item" data-name="الماكينات آلات طابعة machine" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/machineprofile/" onclick="window.location.href=this.dataset.url">
+                <i class="fas fa-cog" style="color:#64748b;"></i> إدارة الماكينات
+            </div>
+            <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
+                <i class="fas fa-robot" style="color:#8b5cf6;"></i> المستشار الذكي (AI Copilot)
+            </div>
+        </div>
+        {% else %}
         <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..." autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
             <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
@@ -150,18 +194,26 @@
                 <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (AI Copilot)
             </div>
         </div>
+        {% endif %}
     </div>
-</div> 
+</div>
 
 <div class="container-fluid mb-4">
-    
+
+    <!-- ============================================================= -->
+    <!-- الترحيب والبيدج العلوي                                         -->
+    <!-- ============================================================= -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <div class="d-flex align-items-center">
                 <h3 id="dynamicGreeting" class="font-weight-bold mb-0" style="color: #1e293b;">
                     مرحباً بك في {{ branch_name|default:"غرفة العمليات المركزية" }}
                 </h3>
-                {% if business_type == 'parts_dealer' %}
+                {% if industry == 'printing' %}
+                    <span class="b2b-badge" style="background: rgba(6,182,212,0.1); color: #06b6d4; border-color: rgba(6,182,212,0.3);">
+                        <i class="fas fa-print"></i> إدارة المطابع والتصميم
+                    </span>
+                {% elif business_type == 'parts_dealer' %}
                     <span class="b2b-badge">📦 تاجر قطع غيار معتمد</span>
                 {% elif business_type == 'scrap_importer' %}
                     <span class="b2b-badge">🪚 مستورد ومحرك تقطيع</span>
@@ -171,9 +223,13 @@
                     <span class="b2b-badge">👑 توكيل شامل</span>
                 {% endif %}
             </div>
+            {% if industry == 'printing' %}
+            <small class="text-muted font-weight-bold">نظرة شاملة على الطلبات، المصممين، الخامات، والماليات</small>
+            {% else %}
             <small class="text-muted font-weight-bold">نظرة عامة على أداء البيزنس والمحفظة اليوم</small>
+            {% endif %}
         </div>
-        
+
         <div class="d-flex gap-3 align-items-center">
             <span id="networkStatus" class="badge p-2 px-3 shadow-sm" style="font-size: 12px; background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0;">
                 <i class="fas fa-wifi"></i> متصل بالسحابة
@@ -182,41 +238,67 @@
         </div>
     </div>
 
+    <!-- ============================================================= -->
+    <!-- أزرار الوصول السريع — حسب الصناعة                              -->
+    <!-- ============================================================= -->
     <div class="row mb-4 align-items-center">
         <div class="col-lg-8 col-12 mb-3 mb-lg-0 d-flex gap-2 flex-wrap">
-            
-            {% if business_type == 'service_center' or business_type == 'both' %}
-            <a href="{% url 'admin:inventory_saleinvoice_add' %}" class="saas-quick-btn" style="background: var(--primary-grad);">
-                <i class="fas fa-tools"></i> أمر شغل
-            </a>
-            <a href="{% url 'admin:inventory_maintenancecontract_changelist' %}" class="saas-quick-btn" style="background: var(--dark-grad);">
-                <i class="fas fa-briefcase"></i> عقود الأساطيل
-            </a>
+
+            {% if industry == 'printing' %}
+                {# ===== أزرار المطابع ===== #}
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" class="saas-quick-btn" style="background: var(--print-grad);">
+                    <i class="fas fa-plus-circle"></i> طلب طباعة جديد
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" class="saas-quick-btn" style="background: var(--print-design);">
+                    <i class="fas fa-palette"></i> المصممين
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="saas-quick-btn" style="background: var(--warning-grad);">
+                    <i class="fas fa-boxes"></i> الخامات
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" class="saas-quick-btn" style="background: var(--success-grad);">
+                    <i class="fas fa-wallet"></i> الخزينة
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/add/" class="saas-quick-btn" style="background: var(--danger-grad);">
+                    <i class="fas fa-exchange-alt"></i> حركة مالية
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" class="saas-quick-btn" style="background: var(--info-grad);">
+                    <i class="fas fa-user-tie"></i> العملاء
+                </a>
+            {% else %}
+                {# ===== أزرار السيارات ===== #}
+                {% if business_type == 'service_center' or business_type == 'both' %}
+                <a href="{% url 'admin:inventory_saleinvoice_add' %}" class="saas-quick-btn" style="background: var(--primary-grad);">
+                    <i class="fas fa-tools"></i> أمر شغل
+                </a>
+                <a href="{% url 'admin:inventory_maintenancecontract_changelist' %}" class="saas-quick-btn" style="background: var(--dark-grad);">
+                    <i class="fas fa-briefcase"></i> عقود الأساطيل
+                </a>
+                {% endif %}
+
+                {% if business_type == 'parts_dealer' or business_type == 'both' %}
+                <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
+                    <i class="fas fa-cash-register"></i> مبيعات سريعة
+                </a>
+                {% endif %}
+
+                {% if business_type == 'scrap_importer' or business_type == 'both' %}
+                <a href="{% url 'admin:inventory_scrapdismantlingjob_changelist' %}" class="saas-quick-btn" style="background: var(--danger-grad);">
+                    <i class="fas fa-car-crash"></i> حاسبة الإفراج
+                </a>
+                {% endif %}
+
+                <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="saas-quick-btn" style="background: var(--success-grad);">
+                    <i class="fas fa-truck-loading"></i> توريد بضاعة
+                </a>
+
+                <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
+                    <i class="fas fa-store"></i> سوق B2B
+                </a>
+
+                <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
+                    <i class="fas fa-rocket"></i> الوصول السريع
+                </a>
             {% endif %}
-
-            {% if business_type == 'parts_dealer' or business_type == 'both' %}
-            <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
-                <i class="fas fa-cash-register"></i> مبيعات سريعة
-            </a>
-            {% endif %}
-
-            {% if business_type == 'scrap_importer' or business_type == 'both' %}
-            <a href="{% url 'admin:inventory_scrapdismantlingjob_changelist' %}" class="saas-quick-btn" style="background: var(--danger-grad);">
-                <i class="fas fa-car-crash"></i> حاسبة الإفراج
-            </a>
-            {% endif %}
-
-            <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="saas-quick-btn" style="background: var(--success-grad);">
-                <i class="fas fa-truck-loading"></i> توريد بضاعة
-            </a>
-
-            <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
-                <i class="fas fa-store"></i> سوق B2B
-            </a>
-
-            <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
-                <i class="fas fa-rocket"></i> الوصول السريع
-            </a>
         </div>
         <div class="col-lg-4 col-12">
             <div class="omni-search-wrapper" onclick="toggleCommandPalette()">
@@ -227,6 +309,11 @@
         </div>
     </div>
 
+    <!-- ============================================================= -->
+    <!-- كروت الإحصائيات العلوية — حسب الصناعة                          -->
+    <!-- ============================================================= -->
+    {% if industry == 'printing' %}
+    {# ===== كروت إحصائيات المطابع ===== #}
     <div class="row mb-4">
         <div class="col-lg-2 col-md-4 col-6 mb-3" onclick="toggleAISidebar()">
             <div class="saas-stat-card glow-btn" style="background: var(--mouss-tec-grad);">
@@ -235,7 +322,105 @@
                 <i class="fas fa-robot bg-icon"></i>
             </div>
         </div>
-        
+
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--success-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <p>إيرادات الشهر</p>
+                <i class="fas fa-coins bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--print-grad);">
+                <h3><span class="animate-number" data-value="{{ print_pending|default:'0' }}">0</span></h3>
+                <p>طلبات قيد التنفيذ</p>
+                <i class="fas fa-print bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 col-6 mb-3">
+            <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <p>مستحقات العملاء</p>
+                <i class="fas fa-hand-holding-usd bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 col-6 mb-3">
+            <div class="saas-stat-card" style="background: var(--print-design);">
+                <h3><span class="animate-number" data-value="{{ print_designers_count|default:'0' }}">0</span></h3>
+                <p>فريق التصميم</p>
+                <i class="fas fa-palette bg-icon"></i>
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-6 col-12 mb-3">
+            <div class="saas-stat-card" style="background: var(--dark-grad);">
+                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <p>المحصّل هذا الشهر</p>
+                <i class="fas fa-chart-line bg-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    {# ===== كروت ثانوية — ملخص سريع للمطبعة ===== #}
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: #06b6d4;"><i class="fas fa-file-alt"></i></div>
+                <div class="mini-value">{{ print_today_count|default:"0" }}</div>
+                <div class="mini-label">طلبات اليوم</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: #10b981;"><i class="fas fa-check-double"></i></div>
+                <div class="mini-value">{{ print_delivered_month|default:"0" }}</div>
+                <div class="mini-label">تم تسليمه هذا الشهر</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: #a855f7;"><i class="fas fa-clock"></i></div>
+                <div class="mini-value">{{ print_today_design_hours|default:"0" }}</div>
+                <div class="mini-label">ساعات تصميم اليوم</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: #f97316;"><i class="fas fa-clipboard-list"></i></div>
+                <div class="mini-value">{{ print_month_design_logs|default:"0" }}</div>
+                <div class="mini-label">أعمال تصميم الشهر</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: #3b82f6;"><i class="fas fa-users"></i></div>
+                <div class="mini-value">{{ print_customers_count|default:"0" }}</div>
+                <div class="mini-label">إجمالي العملاء</div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-3">
+            <div class="print-mini-stat">
+                <div class="mini-icon" style="color: {% if stats.low_stock_count > 0 %}#ef4444{% else %}#10b981{% endif %};"><i class="fas fa-{% if stats.low_stock_count > 0 %}exclamation-triangle{% else %}box-open{% endif %}"></i></div>
+                <div class="mini-value" style="color: {% if stats.low_stock_count > 0 %}#ef4444{% else %}#1e293b{% endif %};">{{ stats.low_stock_count|default:"0" }}</div>
+                <div class="mini-label">خامات منخفضة</div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    {# ===== كروت إحصائيات السيارات ===== #}
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-6 mb-3" onclick="toggleAISidebar()">
+            <div class="saas-stat-card glow-btn" style="background: var(--mouss-tec-grad);">
+                <h3><i class="fas fa-brain" style="font-size: 24px;"></i></h3>
+                <p>مستشار Mouss Tec</p>
+                <i class="fas fa-robot bg-icon"></i>
+            </div>
+        </div>
+
         <div class="col-lg-3 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
                 <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
@@ -279,7 +464,11 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
+    <!-- ============================================================= -->
+    <!-- الخزائن والأرصدة المالية (مشترك بين الصناعتين)                  -->
+    <!-- ============================================================= -->
     {% if treasuries_data %}
     <div class="row mb-4">
         <div class="col-12 mb-2">
@@ -312,11 +501,18 @@
     </div>
     {% endif %}
 
+    <!-- ============================================================= -->
+    <!-- المنطقة السفلية: تشارت + رادار — حسب الصناعة                   -->
+    <!-- ============================================================= -->
     <div class="row">
         <div class="col-lg-8 col-12 mb-3">
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
                 <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 16px 16px 0 0;">
+                    {% if industry == 'printing' %}
+                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area" style="color: #06b6d4;"></i> تحليل إيرادات المطبعة</h5>
+                    {% else %}
                     <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area text-primary"></i> التحليل المالي والتنبؤ الذكي</h5>
+                    {% endif %}
                     <span class="badge d-flex align-items-center gap-2" id="liveSyncBadge" style="background-color: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; transition: 0.3s;">
                         <span style="width:8px; height:8px; background-color:#10b981; border-radius:50%; display:inline-block;" class="live-pulse"></span>
                         Live Sync Active
@@ -333,10 +529,56 @@
         <div class="col-lg-4 col-12 mb-3">
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
                 <div class="card-header bg-white border-0 pt-4 pb-0">
+                    {% if industry == 'printing' %}
+                    <h5 class="font-weight-bold mb-0" style="color: #06b6d4;"><i class="fas fa-satellite-dish" style="color: #06b6d4;"></i> رادار المطبعة الذكي</h5>
+                    {% else %}
                     <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> رادار Mouss Tec الذكي</h5>
+                    {% endif %}
                 </div>
                 <div class="card-body p-4" style="max-height: 420px; overflow-y: auto;">
-                    
+
+                    {% if industry == 'printing' %}
+                    {# ===== رادار المطابع ===== #}
+
+                    {# ملخص مالي سريع #}
+                    <div class="insight-card" style="border-inline-start-color: #10b981; background: #f0fdf4;">
+                        <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> الملخص المالي للشهر</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span style="font-size:13px; color: #475569;">الإيرادات:</span>
+                            <b style="color: #10b981;">{{ print_month_income|default:"0"|floatformat:"0" }} ج.م</b>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span style="font-size:13px; color: #475569;">المصروفات:</span>
+                            <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|floatformat:"0" }} ج.م</b>
+                        </div>
+                    </div>
+
+                    {# خامات منخفضة #}
+                    {% if print_low_stock_materials %}
+                        <div class="insight-card pulse-alert">
+                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> خامات تحتاج توريد عاجل</h6>
+                            <ul class="mb-2 text-sm text-danger" style="padding-inline-start: 20px;">
+                                {% for mat in print_low_stock_materials %}
+                                    <li><b>{{ mat.0 }}</b> (المتبقي: {{ mat.1 }})</li>
+                                {% endfor %}
+                            </ul>
+                            <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="btn btn-sm btn-outline-danger w-100" style="border-radius: 8px;">إدارة الخامات</a>
+                        </div>
+                    {% else %}
+                        <div class="insight-card" style="border-inline-start-color: #10b981;">
+                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> مخزون الخامات مستقر</h6>
+                            <p class="mb-0 text-sm text-muted">جميع الخامات فوق الحد الأدنى للمخزون.</p>
+                        </div>
+                    {% endif %}
+
+                    {# آخر الطلبات #}
+                    <div class="insight-card" style="border-inline-start-color: #06b6d4; background: #f0f9ff;">
+                        <h6 class="font-weight-bold mb-2" style="color: #0891b2;"><i class="fas fa-history"></i> آخر الطلبات</h6>
+                        <div id="recentOrdersList"></div>
+                    </div>
+
+                    {% else %}
+                    {# ===== رادار السيارات ===== #}
                     <div class="insight-card" style="border-inline-start-color: #7c3aed; background: #f3f4f6;">
                         <h6 class="font-weight-bold mb-2" style="color: #6d28d9;"><i class="fas fa-microchip"></i> تحليل الأعطال السريع (DTC AI)</h6>
                         <div class="input-group input-group-sm mb-2">
@@ -370,6 +612,7 @@
                             <p class="mb-0 text-sm text-muted">لا توجد قطع غيار تحت حد التنبيه حالياً.</p>
                         </div>
                     {% endif %}
+                    {% endif %}
 
                 </div>
             </div>
@@ -377,49 +620,61 @@
     </div>
 </div>
 
+<!-- ============================================================= -->
+<!-- شريط المستشار الذكي (مشترك)                                    -->
+<!-- ============================================================= -->
 <div id="aiSidebar" class="ai-sidebar">
     <div class="d-flex justify-content-between align-items-center">
         <h5 class="mb-0 font-weight-bold" style="color: #ec4899;"><i class="fas fa-robot"></i> Mouss Tec Copilot</h5>
         <i class="fas fa-times ai-sidebar-close" onclick="toggleAISidebar()"></i>
     </div>
     <hr style="border-color: rgba(255,255,255,0.1);">
+    {% if industry == 'printing' %}
+    <p style="font-size: 13px; color: #cbd5e1;">أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، متابعة الطلبات، وتحليل أداء المصممين.</p>
+    {% else %}
     <p style="font-size: 13px; color: #cbd5e1;">أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات.</p>
-    
+    {% endif %}
+
     <div class="ai-chat-box" id="aiChatBox">
         <div style="background: rgba(79, 70, 229, 0.2); padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 5px;">
+            {% if industry == 'printing' %}
+            <b style="color: #818cf8;">السيستم:</b> المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟
+            {% else %}
             <b style="color: #818cf8;">السيستم:</b> كل شيء مستقر. مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي. هل ترغب في فحص توقعات الشهر القادم؟
+            {% endif %}
         </div>
     </div>
-    
+
     <div class="mt-3">
+        {% if industry == 'printing' %}
+        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="اسألني عن تكاليف الطباعة أو الطلبات..." onkeypress="handleAiChat(event)">
+        {% else %}
         <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="اسألني عن الأعطال أو المبيعات..." onkeypress="handleAiChat(event)">
+        {% endif %}
     </div>
 </div>
 
+<!-- ============================================================= -->
+<!-- JavaScript                                                      -->
+<!-- ============================================================= -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // 🌐 مراقبة حالة الاتصال بالإنترنت (Offline-First Sentinel)
+    // مراقبة حالة الاتصال
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
     function updateNetworkStatus() {
         const badge = document.getElementById('networkStatus');
         if (navigator.onLine) {
-            badge.style.background = '#ecfdf5';
-            badge.style.color = '#10b981';
-            badge.style.borderColor = '#a7f3d0';
+            badge.style.background = '#ecfdf5'; badge.style.color = '#10b981'; badge.style.borderColor = '#a7f3d0';
             badge.innerHTML = '<i class="fas fa-wifi"></i> متصل بالسحابة';
         } else {
-            badge.style.background = '#fef2f2';
-            badge.style.color = '#ef4444';
-            badge.style.borderColor = '#fca5a5';
+            badge.style.background = '#fef2f2'; badge.style.color = '#ef4444'; badge.style.borderColor = '#fca5a5';
             badge.innerHTML = '<i class="fas fa-wifi-slash"></i> العمل محلياً (Offline)';
         }
     }
 
-    // 🤖 التحكم في الـ Copilot
     function toggleAISidebar() { document.getElementById('aiSidebar').classList.toggle('open'); }
 
-    // 🚀 التحكم الذكي في لوحة الأوامر (Fuzzy Filter)
     function toggleCommandPalette() {
         const palette = document.getElementById('commandPalette');
         const input = document.getElementById('paletteInput');
@@ -431,21 +686,15 @@
             setTimeout(() => input.focus(), 100);
         }
     }
-    
+
     function filterCommandPalette() {
         const filter = document.getElementById('paletteInput').value.toLowerCase();
-        const items = document.querySelectorAll('.palette-item');
-        items.forEach(item => {
+        document.querySelectorAll('.palette-item').forEach(item => {
             const name = item.getAttribute('data-name');
-            if (name && name.toLowerCase().indexOf(filter) > -1) {
-                item.style.display = "";
-            } else if (name) {
-                item.style.display = "none";
-            }
+            if (name) item.style.display = name.toLowerCase().indexOf(filter) > -1 ? "" : "none";
         });
     }
 
-    // 🔔 محرك الإشعارات اللحظية 
     function simulateLiveToast(title, message) {
         const container = document.getElementById('mousstecToastContainer');
         const toast = document.createElement('div');
@@ -455,245 +704,207 @@
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // 🔌 🚀 الربط الحقيقي بمحرك הـ ASGI WebSockets (Live Data Sync)
+    // WebSocket Live Sync
     document.addEventListener('DOMContentLoaded', () => {
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         try {
             const dashboardSocket = new WebSocket(protocol + window.location.host + '/ws/dashboard/sync/');
-            
             dashboardSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
-                if(data.type === 'notification') {
-                    simulateLiveToast(data.title, data.message);
-                }
+                if(data.type === 'notification') simulateLiveToast(data.title, data.message);
             };
-            
             dashboardSocket.onclose = function(e) {
                 document.getElementById('liveSyncBadge').innerHTML = '<i class="fas fa-sync fa-spin"></i> Reconnecting...';
                 document.getElementById('liveSyncBadge').style.color = '#f59e0b';
             };
-        } catch(e) {
-            console.warn("Mouss Tec WebSocket engine is inactive in this environment.");
-        }
+        } catch(e) { console.warn("WebSocket engine inactive."); }
     });
 
-    // 🧠 معالجة شات المستشار الذكي 
+    // Chat AI
     async function handleAiChat(e) {
         if(e.key === 'Enter' && e.target.value.trim()) {
-            const query = e.target.value.trim();
-            e.target.value = '';
+            const query = e.target.value.trim(); e.target.value = '';
             const chatBox = document.getElementById('aiChatBox');
-            
-            chatBox.innerHTML += `<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 12px; align-self: flex-start; width: 90%;"><b>أنت:</b> ${query}</div>`;
-            
+            chatBox.innerHTML += `<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 12px;"><b>أنت:</b> ${query}</div>`;
             const typingId = 'typing_' + Date.now();
-            chatBox.innerHTML += `<div id="${typingId}" style="background: rgba(236, 72, 153, 0.1); padding: 10px; border-radius: 8px; font-size: 12px; align-self: flex-end; width: 90%; color: #f472b6;"><i class="fas fa-circle-notch fa-spin"></i> جاري استشارة الخوادم...</div>`;
+            chatBox.innerHTML += `<div id="${typingId}" style="background: rgba(236, 72, 153, 0.1); padding: 10px; border-radius: 8px; font-size: 12px; color: #f472b6;"><i class="fas fa-circle-notch fa-spin"></i> جاري الاستشارة...</div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
-
             try {
                 const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
                 const data = await res.json();
-                const typingEl = document.getElementById(typingId);
-                
-                if(typingEl) {
-                    typingEl.removeAttribute('id');
-                    typingEl.style.color = '#fff';
-                    typingEl.style.background = 'rgba(236, 72, 153, 0.2)';
-                    typingEl.innerHTML = `<b>Mouss Tec Copilot:</b> ${data.recommendations || data.message || "تم تحليل طلبك وتحديث رادار السوق."}`;
-                }
+                const el = document.getElementById(typingId);
+                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> ${data.recommendations||data.message||"تم تحليل طلبك."}`; }
             } catch(err) {
-                const typingEl = document.getElementById(typingId);
-                if(typingEl) {
-                    typingEl.removeAttribute('id');
-                    typingEl.style.color = '#fff';
-                    typingEl.style.background = 'rgba(236, 72, 153, 0.2)';
-                    typingEl.innerHTML = `<b>Mouss Tec Copilot:</b> عذراً يا هندسة، حدث خطأ في الاتصال بالخادم السحابي الاحتياطي.`;
-                }
+                const el = document.getElementById(typingId);
+                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> عذراً، حدث خطأ في الاتصال.`; }
             }
         }
     }
 
-    // 🚀 رادار فحص الأعطال الفوري 
+    {% if industry != 'printing' %}
+    // DTC Diagnostic (automotive only)
     async function triggerQuickDiagnostic() {
         const code = document.getElementById('quickDtcInput').value.trim().toUpperCase();
         const resultBox = document.getElementById('quickDtcResult');
         if(!code) return;
-
         resultBox.style.display = 'block';
-        resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري استدعاء البصمة التشخيصية لـ Gemini...`;
-
+        resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري التحليل...`;
         try {
             const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
-            if(!response.ok) throw new Error("API Crash");
+            if(!response.ok) throw new Error("API Error");
             const data = await response.json();
-            
-            resultBox.innerHTML = `<b>📦 قطع الغيار المقترحة لـ (${code}):</b><br>
-            <span style="font-size:12px; color:#10b981;">${data.recommendations || "طقم صيانة وقائية شامل مع فحص كويلات الاحتراق مجاناً."}</span>`;
+            resultBox.innerHTML = `<b>قطع الغيار المقترحة لـ (${code}):</b><br><span style="font-size:12px; color:#10b981;">${data.recommendations || "طقم صيانة وقائية شامل."}</span>`;
         } catch(err) {
-            resultBox.innerHTML = `<b>📦 قطع الغيار المقترحة لـ (${code}):</b><br>
-            🟢 طقم بوجيهات احتراق كامل (ثقة 94%)<br>
-            🟡 وحدة الكويلات المغناطيسية (ثقة 60%)<br>
-            <span style="font-size:10px; color:#10b981;">💡 تم العرض من الكاش المحلي استناداً لمعايير سيارات BMW & MINI</span>`;
+            resultBox.innerHTML = `<b>قطع الغيار المقترحة لـ (${code}):</b><br>🟢 طقم بوجيهات (ثقة 94%)<br>🟡 وحدة كويلات (ثقة 60%)`;
         }
     }
+    {% endif %}
 
     document.addEventListener('DOMContentLoaded', function () {
-        
-        const updateClock = () => {
-            const now = new Date();
-            document.getElementById('liveClock').innerText = now.toLocaleTimeString('en-US', { hour12: true });
-        };
+        // Live Clock
+        const updateClock = () => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString('en-US', { hour12: true }); };
         setInterval(updateClock, 1000); updateClock();
 
-        // 🚀 محرك البحث الشامل
+        // Ctrl+K
         document.addEventListener('keydown', function(e) {
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                toggleCommandPalette();
-            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); toggleCommandPalette(); }
         });
 
-        // 🔫 🚀 محرك الباركود العتادي المُحصّن (Hardware-Grade Scanner Hook)
-        let barcodeBuffer = '';
-        let lastKeyTime = Date.now();
-        
+        {% if industry != 'printing' %}
+        // Barcode Scanner (automotive)
+        let barcodeBuffer = ''; let lastKeyTime = Date.now();
         document.addEventListener('keypress', function(e) {
-            // تجاهل الكتابة داخل الحقول
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             if (document.getElementById('commandPalette').classList.contains('active')) return;
-
             const currentTime = Date.now();
-            // مسدس الباركود يقرأ الحروف بسرعة هائلة (أقل من 30-50 مللي ثانية للحرف)
-            // إذا كان الوقت أطول، فهذا يعني أن المستخدم يكتب من الكيبورد، فنتجاهله
             if (currentTime - lastKeyTime > 50) { barcodeBuffer = ''; }
             lastKeyTime = currentTime;
-
-            if (e.key === 'Enter') {
-                if (barcodeBuffer.length >= 4) { // الطول الأدنى للباركود لضمان الدقة
-                    simulateLiveToast('🔍 رادار الباركود النشط', `تم التقاط الكود: ${barcodeBuffer}. جاري تحويلك للمنتج...`);
-                    // window.location.href = `/system/barcode-lookup/?code=${barcodeBuffer}`;
-                }
-                barcodeBuffer = '';
-            } else {
-                barcodeBuffer += e.key;
-            }
+            if (e.key === 'Enter') { if (barcodeBuffer.length >= 4) { simulateLiveToast('رادار الباركود', `كود: ${barcodeBuffer}`); } barcodeBuffer = ''; }
+            else { barcodeBuffer += e.key; }
         });
 
-        // 🎙️ الأوامر الصوتية المعززة
+        // Voice Commands (automotive)
         const voiceBtn = document.getElementById('voiceSearchBtn');
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'ar-EG'; 
-            recognition.continuous = false;
-            
-            recognition.onstart = function() {
-                voiceBtn.classList.add('voice-recording');
-                document.getElementById('globalSearch').classList.add('voice-recording-glow');
-            };
-            
+            const recognition = new SpeechRecognition(); recognition.lang = 'ar-EG'; recognition.continuous = false;
+            recognition.onstart = function() { voiceBtn.classList.add('voice-recording'); document.getElementById('globalSearch').classList.add('voice-recording-glow'); };
             recognition.onresult = function(event) {
                 const transcript = event.results[0][0].transcript;
-                if(transcript.includes('أمر شغل') || transcript.includes('فاتوره جديده') || transcript.includes('صيانة')) {
-                    window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}";
-                } else if(transcript.includes('المزاد') || transcript.includes('سوق') || transcript.includes('تسعير')) {
-                    window.location.href = "{% url 'inventory:b2b_marketplace' %}";
-                } else {
-                    simulateLiveToast('🎙️ أمر صوتي مسجل', `تم سماع: ${transcript}. جاري معالجة الأمر...`);
-                }
+                if(transcript.includes('أمر شغل') || transcript.includes('صيانة')) { window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}"; }
+                else if(transcript.includes('المزاد') || transcript.includes('سوق')) { window.location.href = "{% url 'inventory:b2b_marketplace' %}"; }
+                else { simulateLiveToast('أمر صوتي', `${transcript}`); }
             };
-            
-            recognition.onend = function() {
-                voiceBtn.classList.remove('voice-recording');
-                document.getElementById('globalSearch').classList.remove('voice-recording-glow');
-            };
-            
+            recognition.onend = function() { voiceBtn.classList.remove('voice-recording'); document.getElementById('globalSearch').classList.remove('voice-recording-glow'); };
             voiceBtn.addEventListener('click', () => { recognition.start(); });
-        } else {
-            voiceBtn.style.display = 'none'; 
-        }
+        } else { voiceBtn.style.display = 'none'; }
+        {% endif %}
 
-        // أنيميشن الأرقام
-        const animateCounters = () => {
-            let totalProfit = 0, totalDebt = 0;
-            
-            document.querySelectorAll('.animate-number').forEach(counter => {
-                const target = parseFloat(counter.getAttribute('data-value').replace(/,/g, ''));
-                if (isNaN(target) || target === 0) return;
-                
-                if(counter.closest('.saas-stat-card').style.background.includes('dark')) totalProfit = target;
-                if(counter.closest('.saas-stat-card').id === 'debtCard') totalDebt = target;
+        // Animate Numbers
+        document.querySelectorAll('.animate-number').forEach(counter => {
+            const target = parseFloat(counter.getAttribute('data-value').replace(/,/g, ''));
+            if (isNaN(target) || target === 0) return;
+            let current = 0; const increment = target / 30;
+            const updateCounter = () => {
+                current += increment;
+                if (current < target) { counter.innerText = Math.ceil(current).toLocaleString('en-US'); requestAnimationFrame(updateCounter); }
+                else { counter.innerText = target.toLocaleString('en-US'); }
+            };
+            updateCounter();
+        });
 
-                let current = 0; const increment = target / 30; 
-                const updateCounter = () => {
-                    current += increment;
-                    if (current < target) {
-                        counter.innerText = Math.ceil(current).toLocaleString('en-US'); 
-                        requestAnimationFrame(updateCounter);
-                    } else { counter.innerText = target.toLocaleString('en-US'); }
-                };
-                updateCounter();
-            });
-
-            if(totalProfit > 0 && totalDebt > (totalProfit * 0.5)) {
-                const debtCard = document.getElementById('debtCard');
-                if(debtCard) {
-                    debtCard.style.background = 'linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)';
-                    debtCard.title = "تحذير مالي: الديون تتخطى نصف أرباحك الصافية؛ خطر على السيولة!";
-                }
-            }
-        };
-        animateCounters();
-
-        // تنسيق أرقام الخزائن بالفاصلة
+        // Treasury formatting
         document.querySelectorAll('.treasury-balance-display').forEach(el => {
             const val = parseFloat(el.dataset.value);
             if (!isNaN(val)) {
-                const formatted = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                el.innerHTML = formatted + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>';
+                el.innerHTML = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>';
             }
         });
 
-        const parseData = (elementId, fallback) => {
-            try { return JSON.parse(document.getElementById(elementId).value || "null") || fallback; } 
-            catch { return fallback; }
-        };
+        {% if industry == 'printing' %}
+        // Render recent orders (Printing)
+        try {
+            const orders = JSON.parse('{{ print_recent_orders|default:"[]"|escapejs }}');
+            const container = document.getElementById('recentOrdersList');
+            if(orders.length === 0) {
+                container.innerHTML = '<p class="text-muted text-sm mb-0">لا توجد طلبات بعد</p>';
+            } else {
+                const statusColors = {'مسودة':'#94a3b8','مؤكد':'#3b82f6','قيد التنفيذ':'#f59e0b','جاهز للتسليم':'#06b6d4','تم التسليم':'#10b981','ملغي':'#ef4444'};
+                container.innerHTML = orders.map(o => `
+                    <div class="print-order-row d-flex justify-content-between align-items-center">
+                        <div>
+                            <b style="font-size:13px; color:#1e293b;">${o.customer__name || 'عميل'}</b>
+                            <span style="font-size:11px; color:#94a3b8; margin-right: 6px;">${o.date_created}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-size:13px; font-weight:700; color:#1e293b;">${o.total_amount.toLocaleString()} ج.م</span>
+                            <span class="print-status-badge" style="background: ${statusColors[o.status_display]||'#94a3b8'}22; color: ${statusColors[o.status_display]||'#94a3b8'};">${o.status_display}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch(e) { console.warn('Recent orders parse error:', e); }
+        {% endif %}
 
-        // 📈 إعدادات الشارت المتقدم (مع منع تداخل البيانات)
+        // Chart
+        const parseData = (elementId, fallback) => { try { return JSON.parse(document.getElementById(elementId).value || "null") || fallback; } catch { return fallback; } };
         const ctx = document.getElementById('financialChart').getContext('2d');
-        
         if (window.moussTecChart instanceof Chart) { window.moussTecChart.destroy(); }
 
         let gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
+        {% if industry == 'printing' %}
+        gradientFill.addColorStop(0, 'rgba(6, 182, 212, 0.2)');
+        gradientFill.addColorStop(1, 'rgba(6, 182, 212, 0)');
+        {% else %}
         gradientFill.addColorStop(0, 'rgba(79, 70, 229, 0.2)');
         gradientFill.addColorStop(1, 'rgba(79, 70, 229, 0)');
+        {% endif %}
 
         let actualProfitData = parseData('rawChartProfit', [0]);
-        // استنساخ المصفوفة بأمان لمنع الـ Pointer Mutation في الجافاسكريبت
-        let projectedProfit = [...actualProfitData]; 
-        if(projectedProfit.length > 0) {
-            let lastVal = projectedProfit[projectedProfit.length - 1];
-            projectedProfit.push(lastVal * 1.15); 
-        }
+        let projectedProfit = [...actualProfitData];
+        if(projectedProfit.length > 0) { projectedProfit.push(projectedProfit[projectedProfit.length - 1] * 1.15); }
 
         window.moussTecChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: parseData('rawChartLabels', ['الشهر الحالي']).concat(['الشهر القادم (تنبؤ)']),
+                labels: parseData('rawChartLabels', ['الشهر الحالي']).concat(['التوقع']),
                 datasets: [
                     {
-                        type: 'line', label: 'تنبؤات الذكاء الاصطناعي (AI Forecast)', data: projectedProfit,
-                        borderColor: '#ec4899', backgroundColor: 'transparent', borderWidth: 2, tension: 0.4, 
-                        borderDash: [5, 5], pointBackgroundColor: '#fff', pointBorderColor: '#ec4899', pointRadius: 4
+                        type: 'line',
+                        {% if industry == 'printing' %}
+                        label: 'التوقع (AI Forecast)',
+                        borderColor: '#a855f7',
+                        pointBorderColor: '#a855f7',
+                        {% else %}
+                        label: 'تنبؤات الذكاء الاصطناعي (AI Forecast)',
+                        borderColor: '#ec4899',
+                        pointBorderColor: '#ec4899',
+                        {% endif %}
+                        data: projectedProfit, backgroundColor: 'transparent', borderWidth: 2, tension: 0.4,
+                        borderDash: [5, 5], pointBackgroundColor: '#fff', pointRadius: 4
                     },
                     {
-                        type: 'line', label: 'صافي الربح الفعلي (ج.م)', data: actualProfitData,
-                        borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4, 
+                        type: 'line',
+                        {% if industry == 'printing' %}
+                        label: 'المحصّل الفعلي (ج.م)',
+                        {% else %}
+                        label: 'صافي الربح الفعلي (ج.م)',
+                        {% endif %}
+                        data: actualProfitData,
+                        borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4,
                         pointBackgroundColor: '#fff', pointBorderColor: '#10b981', pointRadius: 5
                     },
                     {
-                        type: 'bar', label: 'إجمالي الإيرادات (ج.م)', data: parseData('rawChartRevenue', [0]),
-                        backgroundColor: gradientFill, borderColor: '#4f46e5', borderWidth: 2, borderRadius: 8, barPercentage: 0.5
+                        type: 'bar',
+                        {% if industry == 'printing' %}
+                        label: 'إجمالي الطلبات (ج.م)',
+                        borderColor: '#06b6d4',
+                        {% else %}
+                        label: 'إجمالي الإيرادات (ج.م)',
+                        borderColor: '#4f46e5',
+                        {% endif %}
+                        data: parseData('rawChartRevenue', [0]),
+                        backgroundColor: gradientFill, borderWidth: 2, borderRadius: 8, barPercentage: 0.5
                     }
                 ]
             },
@@ -711,23 +922,21 @@
         });
     });
 
-    // Service Worker Registration
+    // Service Worker
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(reg => {
-            console.log('Mouss Tec SW registered:', reg.scope);
-        }).catch(err => console.warn('SW registration failed:', err));
+            console.log('SW registered:', reg.scope);
+        }).catch(err => console.warn('SW failed:', err));
     }
 
-    // PWA Install Prompt
+    // PWA Install
     let deferredPrompt = null;
     window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
+        e.preventDefault(); deferredPrompt = e;
         if (!localStorage.getItem('pwa_install_dismissed')) {
             const banner = document.createElement('div');
-            banner.id = 'pwa-admin-banner';
             banner.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:14px 20px;border-radius:12px;box-shadow:0 10px 25px rgba(79,70,229,0.4);display:flex;align-items:center;gap:12px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;';
-            banner.innerHTML = '<i class="fas fa-mobile-alt" style="font-size:20px;"></i><span>ثبّت Mouss Tec على جهازك للعمل بدون نت</span><button onclick="deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;this.parentElement.remove();})" style="background:#fff;color:#4f46e5;border:none;padding:8px 16px;border-radius:8px;font-weight:900;cursor:pointer;font-family:inherit;margin-right:8px;">تثبيت</button><button onclick="this.parentElement.remove();localStorage.setItem(\'pwa_install_dismissed\',Date.now())" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;">&times;</button>';
+            banner.innerHTML = '<i class="fas fa-mobile-alt" style="font-size:20px;"></i><span>ثبّت Mouss Tec على جهازك</span><button onclick="deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;this.parentElement.remove();})" style="background:#fff;color:#4f46e5;border:none;padding:8px 16px;border-radius:8px;font-weight:900;cursor:pointer;font-family:inherit;margin-right:8px;">تثبيت</button><button onclick="this.parentElement.remove();localStorage.setItem(\'pwa_install_dismissed\',Date.now())" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;">&times;</button>';
             document.body.appendChild(banner);
         }
     });

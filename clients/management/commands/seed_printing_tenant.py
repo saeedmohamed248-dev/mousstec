@@ -55,7 +55,7 @@ class Command(BaseCommand):
                         defaults={
                             'category': cat, 'unit': unit,
                             'quantity': 0, 'cost_per_unit': cost,
-                            'min_stock_level': min_stock, 'branch': branch
+                            'min_stock': min_stock, 'branch': branch
                         }
                     )
                     if created:

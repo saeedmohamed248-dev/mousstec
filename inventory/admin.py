@@ -1124,17 +1124,152 @@ original_index = admin.site.index
 
 def MoussTec_dashboard_index(request, extra_context=None):
     extra_context = extra_context or {}
-    
+
     if connection.schema_name == 'public':
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
         return original_index(request, extra_context)
-        
+
+    # --- تحديد الصناعة ---
+    tenant_industry = getattr(connection.tenant, 'industry', 'automotive')
+    extra_context['industry'] = tenant_industry
+
+    if tenant_industry == 'printing':
+        return _printing_dashboard(request, extra_context)
+    else:
+        return _automotive_dashboard(request, extra_context)
+
+
+def _printing_dashboard(request, extra_context):
+    """داشبورد المطابع والتصميم"""
+    from django.apps import apps
+    PrintOrder = apps.get_model('printing', 'PrintOrder')
+    PrintJob = apps.get_model('printing', 'PrintJob')
+    PrintTreasury = apps.get_model('printing', 'PrintTreasury')
+    PrintTransaction = apps.get_model('printing', 'PrintTransaction')
+    PrintMaterial = apps.get_model('printing', 'PrintMaterial')
+    PrintCustomer = apps.get_model('printing', 'PrintCustomer')
+    DesignerModel = apps.get_model('printing', 'Designer')
+    DesignerWorkLog = apps.get_model('printing', 'DesignerWorkLog')
+
     today = timezone.now().date()
     first_day_of_month = today.replace(day=1)
-    
+
+    extra_context['business_type'] = 'printing'
+    extra_context['branch_name'] = "مركز إدارة المطبعة"
+
+    # --- إحصائيات الطلبات ---
+    month_orders = PrintOrder.objects.filter(date_created__gte=first_day_of_month)
+    total_revenue = month_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_paid = month_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
+    total_debt = float(total_revenue) - float(total_paid)
+
+    today_orders = PrintOrder.objects.filter(date_created__date=today)
+    today_count = today_orders.count()
+    pending_orders = PrintOrder.objects.filter(status__in=['draft', 'confirmed', 'in_progress']).count()
+    delivered_month = month_orders.filter(status='delivered').count()
+
+    # --- المصممين ---
+    designers_count = DesignerModel.objects.count()
+    today_design_hours = DesignerWorkLog.objects.filter(date=today).aggregate(
+        total=Sum('duration_hours'))['total'] or 0
+    month_design_logs = DesignerWorkLog.objects.filter(date__gte=first_day_of_month).count()
+
+    # --- الخزائن ---
+    treasuries_data = []
+    total_treasury_balance = Decimal('0')
+    for t in PrintTreasury.objects.filter(is_active=True):
+        treasuries_data.append({
+            'name': t.name,
+            'type': 'خزينة مطبعة',
+            'balance': float(t.balance),
+            'is_negative': t.balance < 0,
+        })
+        total_treasury_balance += t.balance
+
+    # --- المصروفات والإيرادات الشهرية ---
+    month_income = PrintTransaction.objects.filter(
+        transaction_type='in', date__gte=first_day_of_month
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+    month_expenses = PrintTransaction.objects.filter(
+        transaction_type='out', date__gte=first_day_of_month
+    ).aggregate(Sum('amount'))['amount__sum'] or 0
+
+    # --- خامات منخفضة المخزون ---
+    low_stock_materials = list(
+        PrintMaterial.objects.filter(quantity__lte=F('min_stock')).values_list('name', 'quantity')[:5]
+    )
+
+    # --- تشارت الإيرادات الشهرية ---
+    chart_labels = []
+    chart_revenue = []
+    chart_profit = []
+    for i in range(5, -1, -1):
+        target_month = today.replace(day=1) - timedelta(days=30*i)
+        month_name = target_month.strftime("%B")
+        m_orders = PrintOrder.objects.filter(
+            date_created__year=target_month.year,
+            date_created__month=target_month.month
+        )
+        rev = m_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        paid = m_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
+        chart_labels.append(month_name)
+        chart_revenue.append(float(rev))
+        chart_profit.append(float(paid))
+
+    # --- أحدث الطلبات ---
+    recent_orders = list(
+        PrintOrder.objects.order_by('-date_created')[:5].values(
+            'id', 'customer__name', 'total_amount', 'status', 'date_created'
+        )
+    )
+    for o in recent_orders:
+        o['date_created'] = o['date_created'].strftime('%Y-%m-%d') if o['date_created'] else ''
+        o['total_amount'] = float(o['total_amount'])
+        status_map = {
+            'draft': 'مسودة', 'confirmed': 'مؤكد', 'in_progress': 'قيد التنفيذ',
+            'ready': 'جاهز للتسليم', 'delivered': 'تم التسليم', 'cancelled': 'ملغي'
+        }
+        o['status_display'] = status_map.get(o['status'], o['status'])
+
+    extra_context.update({
+        'stats': {
+            'total_sales_today': f"{float(total_revenue):,.0f}",
+            'net_profit_today': f"{float(total_paid):,.0f}",
+            'total_debt': f"{total_debt:,.0f}",
+            'total_treasury': f"{float(total_treasury_balance):,.0f}",
+            'invoices_count': f"{pending_orders} طلبات قيد التنفيذ",
+            'low_stock_count': len(low_stock_materials),
+        },
+        'treasuries_data': treasuries_data,
+        'delayed_orders_count': 0,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_revenue': json.dumps(chart_revenue),
+        'chart_profit': json.dumps(chart_profit),
+        # بيانات خاصة بالمطابع
+        'print_today_count': today_count,
+        'print_pending': pending_orders,
+        'print_delivered_month': delivered_month,
+        'print_designers_count': designers_count,
+        'print_today_design_hours': float(today_design_hours),
+        'print_month_design_logs': month_design_logs,
+        'print_month_income': float(month_income),
+        'print_month_expenses': float(month_expenses),
+        'print_low_stock_materials': low_stock_materials,
+        'print_recent_orders': json.dumps(recent_orders, ensure_ascii=False),
+        'print_customers_count': PrintCustomer.objects.count(),
+    })
+
+    return original_index(request, extra_context)
+
+
+def _automotive_dashboard(request, extra_context):
+    """داشبورد السيارات (الكود الأصلي)"""
+    today = timezone.now().date()
+    first_day_of_month = today.replace(day=1)
+
     tenant_business_type = getattr(connection.tenant, 'business_type', 'service_center')
-    extra_context['business_type'] = tenant_business_type 
-    
+    extra_context['business_type'] = tenant_business_type
+
     branch_name = "نظام إدارة الميدان"
     try:
         if hasattr(request.user, 'employee_profile') and request.user.employee_profile.branch:
@@ -1183,7 +1318,7 @@ def MoussTec_dashboard_index(request, extra_context=None):
                 open_orders = open_orders.filter(branch=request.user.employee_profile.branch)
         except: pass
     open_orders_count = open_orders.count()
-    
+
     yesterday = timezone.now() - timedelta(days=1)
     delayed_orders_count = open_orders.filter(date_created__lte=yesterday).count()
 
@@ -1192,11 +1327,11 @@ def MoussTec_dashboard_index(request, extra_context=None):
     chart_labels = []
     chart_revenue = []
     chart_profit = []
-    
+
     for i in range(5, -1, -1):
         target_month = today.replace(day=1) - timedelta(days=30*i)
-        month_name = target_month.strftime("%B") 
-        
+        month_name = target_month.strftime("%B")
+
         month_invoices = SaleInvoice.objects.filter(
             status='posted',
             date_created__year=target_month.year,
@@ -1209,8 +1344,8 @@ def MoussTec_dashboard_index(request, extra_context=None):
             except: pass
 
         rev = month_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0 
-        
+        prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
+
         chart_labels.append(month_name)
         chart_revenue.append(float(rev))
         chart_profit.append(float(prof))
@@ -1233,7 +1368,7 @@ def MoussTec_dashboard_index(request, extra_context=None):
     elif tenant_business_type == 'scrap_importer':
         invoices_label = f"{open_orders_count} أنصاف تقطيع"
         display_debt = "حاسبة التقطيع السحابية"
-    else: 
+    else:
         invoices_label = f"{open_orders_count} أوامر شغل مفتوحة"
 
     if can_see_finance:
@@ -1259,7 +1394,7 @@ def MoussTec_dashboard_index(request, extra_context=None):
         'chart_revenue': json.dumps(safe_chart_revenue),
         'chart_profit': json.dumps(safe_chart_profit),
     })
-    
+
     return original_index(request, extra_context)
 
 # 🚀 تم تصحيح الخطأ القاتل الذي كان سيمنع جانجو من التشغيل
