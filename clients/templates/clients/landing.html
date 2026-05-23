@@ -3,47 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mouss Tec | برنامج حسابات وإدارة أونلاين لمراكز الصيانة وتجار قطع الغيار</title>
-    <meta name="description" content="برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباح من أي مكان.">
-    
+    <title>Mouss Tec | برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم</title>
+    <meta name="description" content="برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار والمطابع واستوديوهات التصميم — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباح من أي مكان.">
+
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         html { scroll-behavior: smooth; }
         body { font-family: 'Cairo', sans-serif; background-color: #0f172a; overflow-x: hidden;}
-        
+
         .glow-effect { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); transition: box-shadow 0.3s ease; transform-style: preserve-3d; perspective: 1000px;}
         .glow-effect:hover { box-shadow: 0 0 30px rgba(139, 92, 246, 0.3); }
-        
-        /* 🚀 تأثير النبض الخاص بالمحاكاة */
+
         .live-pulse { animation: pulse-green 2s infinite; }
         @keyframes pulse-green {
             0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
             70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
             100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
         }
-        
-        /* 🤖 مؤشر الكتابة للذكاء الاصطناعي */
-        .typing-cursor::after {
-            content: '|'; animation: blink 1s step-start infinite; color: #ec4899; font-weight: bold;
-        }
-        @keyframes blink { 50% { opacity: 0; } }
 
-        /* Floating Animation */
         .float-anim { animation: float 6s ease-in-out infinite; }
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
             100% { transform: translateY(0px); }
         }
+
+        /* 🏭 كروت اختيار القطاع */
+        .industry-hero-card {
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.4s ease;
+            background: rgba(15,23,42,0.6);
+            backdrop-filter: blur(12px);
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .industry-hero-card::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 80px;
+            filter: blur(50px);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .industry-hero-card:hover::before { opacity: 1; }
+        .industry-hero-card:hover { transform: translateY(-6px); }
+
+        .industry-hero-card.auto-card:hover,
+        .industry-hero-card.auto-card.active {
+            border-color: #3b82f6;
+            box-shadow: 0 12px 40px rgba(59,130,246,0.2);
+        }
+        .industry-hero-card.auto-card::before { background: rgba(59,130,246,0.4); }
+        .industry-hero-card.auto-card:hover::before { opacity: 1; }
+
+        .industry-hero-card.print-card:hover,
+        .industry-hero-card.print-card.active {
+            border-color: #ec4899;
+            box-shadow: 0 12px 40px rgba(236,72,153,0.2);
+        }
+        .industry-hero-card.print-card::before { background: rgba(236,72,153,0.4); }
+        .industry-hero-card.print-card:hover::before { opacity: 1; }
     </style>
 </head>
 <body class="text-slate-200 min-h-screen flex flex-col justify-between relative">
 
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10"></div>
 
+    <!-- ===== Header ===== -->
     <header class="container mx-auto px-6 py-6 flex justify-between items-center z-10">
         <div class="flex items-center gap-3">
             <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
@@ -51,7 +89,7 @@
             </div>
             <span class="text-2xl font-black tracking-wide bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </div>
-        
+
         <div class="flex items-center gap-4">
             <a href="{% url 'features_page' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
                 <i class="fas fa-star"></i> المميزات
@@ -65,73 +103,61 @@
         </div>
     </header>
 
-    <main class="container mx-auto px-6 py-12 flex flex-col lg:flex-row items-center gap-12 my-auto z-10">
-        
-        <div class="lg:w-1/2 text-center lg:text-right space-y-6">
-            <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider">
+    <!-- ===== Hero: اختيار القطاع ===== -->
+    <main class="container mx-auto px-6 py-8 z-10">
+
+        <div class="text-center mb-10">
+            <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-4">
                 <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Network Uptime: {{ system_uptime|default:"99.99%" }}
             </span>
-            <h1 class="text-4xl lg:text-6xl font-black text-white leading-tight">
+            <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
                 برنامج حسابات أونلاين <br>
-                <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لمراكز الصيانة وتجار القطع</span>
+                <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لكل الأنشطة التجارية</span>
             </h1>
-            <p class="text-slate-400 text-base lg:text-lg max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed">
-                أدِر حسابات مركزك أو محلك من الموبايل أو الكمبيوتر — فواتير بيع وشراء، مخزون قطع غيار، خزينة ومصروفات، حسابات عملاء وموردين، وتقارير أرباحك لحظة بلحظة. كل شي في مكان واحد وبدون تعقيد.
+            <p class="text-slate-400 text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
+                أدِر حساباتك من الموبايل أو الكمبيوتر — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباحك لحظة بلحظة. اختار مجالك وابدأ مجاناً.
             </p>
-            
-            <div class="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
-                <a href="{% url 'saas_customer_signup' %}" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300 flex items-center gap-2">
-                    <i class="fas fa-rocket"></i> جرّب مجاناً الآن
-                </a>
-                <a href="#features" class="bg-slate-900/60 hover:bg-slate-800/80 text-slate-300 font-bold px-8 py-4 rounded-xl border border-slate-800 transition duration-300 flex items-center gap-2">
-                    شوف المميزات <i class="fas fa-arrow-down"></i>
-                </a>
-            </div>
         </div>
 
-        <div class="lg:w-1/2 w-full flex justify-center float-anim">
-            <div class="bg-slate-900/80 border border-slate-700/50 backdrop-blur-xl rounded-2xl w-full max-w-md overflow-hidden shadow-2xl shadow-indigo-900/20">
-                <div class="bg-slate-800/80 px-4 py-3 border-b border-slate-700/50 flex items-center gap-2">
-                    <div class="flex gap-1.5">
-                        <div class="w-3 h-3 rounded-full bg-green-500 live-pulse"></div>
-                    </div>
-                    <span class="text-xs font-bold text-slate-400 ms-3"><i class="fas fa-cubes text-purple-400"></i> مميزات النظام المتكامل — متصل 24/7</span>
+        <!-- 🏭 كروت اختيار القطاع -->
+        <div class="flex flex-col md:flex-row gap-6 max-w-4xl mx-auto mb-12">
+
+            <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="industry-hero-card auto-card group">
+                <div class="text-6xl mb-4">🚗</div>
+                <h2 class="text-2xl font-black text-white mb-2">مراكز الصيانة وقطع الغيار</h2>
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed">فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير أرباح</p>
+                <ul class="text-right text-xs text-slate-500 space-y-2 mb-6">
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> فواتير بيع وشراء + طباعة وواتساب</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> مخزون وقطع غيار + باركود</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> كروت صيانة + تتبع المركبات</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> خزينة ومصروفات + تقارير أرباح</li>
+                </ul>
+                <div class="bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold py-3 px-6 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition text-sm">
+                    <i class="fas fa-rocket ml-2"></i> ابدأ مجاناً — 3 أيام تجريبية
                 </div>
-                <div class="p-5 space-y-3">
-                    <div class="flex items-center gap-3 bg-purple-500/5 border border-purple-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-purple-500/15 flex items-center justify-center text-purple-400 flex-shrink-0"><i class="fas fa-calculator text-sm"></i></div>
-                        <div>
-                            <p class="text-white font-black text-sm">حسابات كاملة أونلاين</p>
-                            <p class="text-slate-400 text-xs">فواتير، خزينة، مصروفات، أرباح — من أي مكان</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-indigo-500/15 flex items-center justify-center text-indigo-400 flex-shrink-0"><i class="fas fa-boxes text-sm"></i></div>
-                        <div>
-                            <p class="text-white font-black text-sm">مخزون وقطع غيار</p>
-                            <p class="text-slate-400 text-xs">تتبع الأصناف والكميات وتنبيه قبل النفاد</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 bg-pink-500/5 border border-pink-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-pink-500/15 flex items-center justify-center text-pink-400 flex-shrink-0"><i class="fas fa-users text-sm"></i></div>
-                        <div>
-                            <p class="text-white font-black text-sm">عملاء وموردين</p>
-                            <p class="text-slate-400 text-xs">كشف حساب لكل عميل ومورد مع المديونيات</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3">
-                        <div class="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 flex-shrink-0"><i class="fas fa-chart-bar text-sm"></i></div>
-                        <div>
-                            <p class="text-white font-black text-sm">تقارير وأرباح لحظية</p>
-                            <p class="text-slate-400 text-xs">اعرف صافي ربحك ومصروفاتك في أي وقت</p>
-                        </div>
-                    </div>
+            </a>
+
+            <a href="{% url 'saas_customer_signup' %}?industry=printing" class="industry-hero-card print-card group">
+                <div class="text-6xl mb-4">🎨</div>
+                <h2 class="text-2xl font-black text-white mb-2">المطابع واستوديوهات التصميم</h2>
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed">طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية</p>
+                <ul class="text-right text-xs text-slate-500 space-y-2 mb-6">
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> طلبات طباعة + تسعير تلقائي</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> ماكينات + حساب تكلفة CMYK</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> سجل أعمال المصممين + تقييمات</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> مخزون خامات + خزينة ومصروفات</li>
+                </ul>
+                <div class="bg-pink-500/10 border border-pink-500/20 text-pink-400 font-bold py-3 px-6 rounded-xl group-hover:bg-pink-600 group-hover:text-white transition text-sm">
+                    <i class="fas fa-rocket ml-2"></i> ابدأ مجاناً — 3 أيام تجريبية
                 </div>
-            </div>
+            </a>
+
         </div>
     </main>
 
+    <!-- ===== المميزات المشتركة ===== -->
     <section id="features" class="container mx-auto px-6 py-12 z-10 relative">
+        <h2 class="text-center text-2xl font-black text-white mb-8">مميزات مشتركة في كل القطاعات</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
             <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800/80 backdrop-blur-md glow-effect tilt-card flex flex-col justify-between">
@@ -143,7 +169,7 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-black text-white mb-1">فواتير بيع وشراء</h3>
-                    <p class="text-slate-400 text-xs font-bold">إصدار فاتورة · طباعة · إرسال واتساب · ضمان</p>
+                    <p class="text-slate-400 text-xs font-bold">إصدار فاتورة · طباعة · إرسال واتساب</p>
                 </div>
             </div>
 
@@ -168,7 +194,7 @@
                     <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">مخزون ذكي</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">مخزون وقطع غيار</h3>
+                    <h3 class="text-lg font-black text-white mb-1">إدارة المخزون</h3>
                     <p class="text-slate-400 text-xs font-bold">باركود · جرد · تنبيه نفاد · تحويل بين الفروع</p>
                 </div>
             </div>
@@ -188,7 +214,6 @@
 
         </div>
 
-        <!-- زر استكشاف جميع المميزات -->
         <div class="text-center mt-10">
             <a href="{% url 'features_page' %}" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/20 text-sm">
                 <i class="fas fa-th-large"></i> استكشف جميع المميزات
@@ -196,6 +221,7 @@
         </div>
     </section>
 
+    <!-- Live Ticker -->
     <div class="fixed bottom-6 right-6 z-50">
         <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700 shadow-2xl rounded-full py-2 px-4 flex items-center gap-3 text-xs font-bold text-slate-300">
             <div class="w-2.5 h-2.5 bg-green-500 rounded-full live-pulse"></div>
@@ -211,35 +237,7 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            
-            // 1. محاكاة الـ AI Typing في الـ Hero
-            const texts = [
-                "> تقييم الـ AI: التاجر (الفريد) يوفر القطعة بسعر 1200 ج.م.",
-                "> سرعة التوصيل المتوقعة: 24 ساعة.",
-                "> تم حجز المبلغ بالضمان (Escrow) وترسية المزاد بنجاح 🟢"
-            ];
-            let i = 0, j = 0, currentText = "";
-            const typewriter = document.getElementById("ai-typewriter");
-            
-            function type() {
-                if (i < texts.length) {
-                    currentText = texts[i];
-                    typewriter.innerHTML = `> <span class="text-pink-400">${currentText.substring(0, j + 1)}</span>`;
-                    j++;
-                    if (j === currentText.length) {
-                        i++; j = 0;
-                        setTimeout(type, 2000); // استراحة بين الجمل
-                    } else {
-                        setTimeout(type, 40); // سرعة الكتابة
-                    }
-                } else {
-                    i = 0; // إعادة التدوير
-                    setTimeout(type, 3000);
-                }
-            }
-            setTimeout(type, 1000);
-
-            // 2. تأثير الـ 3D Tilt للكروت (Glassmorphism + Magnetic)
+            // 3D Tilt effect for feature cards
             const cards = document.querySelectorAll('.tilt-card');
             cards.forEach(card => {
                 card.addEventListener('mousemove', e => {
@@ -248,7 +246,7 @@
                     const y = e.clientY - rect.top;
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
-                    const rotateX = ((y - centerY) / centerY) * -10; // درجة الميل
+                    const rotateX = ((y - centerY) / centerY) * -10;
                     const rotateY = ((x - centerX) / centerX) * 10;
                     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
                 });
@@ -257,10 +255,10 @@
                 });
             });
 
-            // 4. شريط النبض الحي المتغير أسفل الشاشة
+            // Live ticker
             const tickerMsgs = [
                 `حالة النظام: <span class="text-emerald-400">شغّال ومتصل 24/7</span>`,
-                `أكثر من <span class="text-indigo-400">+50 مركز صيانة</span> يستخدمون النظام`,
+                `<span class="text-indigo-400">سيارات + طباعة</span> — منصة واحدة لكل الأنشطة`,
                 `حساباتك: <span class="text-purple-400">محمية ومشفرة بالكامل</span>`
             ];
             let tickIdx = 0;
