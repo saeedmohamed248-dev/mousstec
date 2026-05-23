@@ -78,6 +78,22 @@
         {% endfor %}
         {% endif %}
 
+        <!-- Industry Tabs -->
+        <div class="flex justify-center items-center gap-3 mb-8">
+            <button onclick="setIndustryTab('automotive')" id="tab_automotive"
+                class="industry-tab active-tab flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black border transition duration-300 cursor-pointer">
+                <i class="fas fa-car"></i> باقات السيارات والورش
+            </button>
+            <button onclick="setIndustryTab('printing')" id="tab_printing"
+                class="industry-tab flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black border transition duration-300 cursor-pointer">
+                <i class="fas fa-print"></i> باقات المطابع والتصميم
+            </button>
+        </div>
+        <style>
+            .industry-tab { background: rgba(30,41,59,0.6); border-color: rgba(51,65,85,1); color: #94a3b8; }
+            .industry-tab.active-tab { background: rgba(147,51,234,0.15); border-color: rgba(168,85,247,0.5); color: #d8b4fe; box-shadow: 0 0 20px rgba(139,92,246,0.15); }
+        </style>
+
         <!-- Billing Period Toggle -->
         <style>
             .billing-btn { background: rgba(30,41,59,0.6); border-color: rgba(51,65,85,1); color: #94a3b8; }
@@ -94,12 +110,12 @@
                 نصف سنوي <span class="text-emerald-400 text-xs mr-1">وفّر 12.5%</span>
             </button>
             <button onclick="setBilling('annual')" id="btn_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                سنوي <span class="text-amber-400 text-xs mr-1">🔥 وفّر 25%</span>
+                سنوي <span class="text-amber-400 text-xs mr-1">وفّر 25%</span>
             </button>
         </div>
 
-        <!-- Plans Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <!-- ========== Automotive Plans ========== -->
+        <div id="automotive_plans" class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
 
             <!-- Silver -->
             <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm relative">
@@ -244,6 +260,115 @@
             </div>
         </div>
 
+        <!-- ========== Printing Plans ========== -->
+        <div id="printing_plans" class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto" style="display:none;">
+
+            <!-- Print Basic -->
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm relative">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-cyan-700/30 rounded-2xl mb-4">
+                        <i class="fas fa-print text-cyan-300 text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Print Basic</h2>
+                    <p class="text-slate-400 text-sm">للمطابع الصغيرة واستوديوهات التصميم</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white plan-price" data-base="375">375</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> فرع واحد + خزينة واحدة</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> مصمم واحد + ماكينة واحدة</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> طلبات ومهام الطباعة</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> ادارة الخامات والمخزون</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> تقارير التكلفة والربح</li>
+                    <li class="flex items-center gap-3 text-cyan-400"><i class="fas fa-plus-circle text-cyan-400 w-4"></i> اضافة مصمم/ماكينة: {{ pricing.addon_price }} ج.م/شهر</li>
+                </ul>
+                <div class="space-y-2">
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=silver"
+                        class="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
+                        اختر Print Basic
+                    </a>
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=silver"
+                        class="block w-full text-center bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                    </a>
+                </div>
+            </div>
+
+            <!-- Print Pro (Popular) -->
+            <div class="plan-card popular-glow bg-gradient-to-b from-cyan-900/40 to-slate-800/80 border border-cyan-500/50 rounded-2xl p-8 backdrop-blur-sm relative">
+                <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                    <span class="price-badge bg-gradient-to-r from-cyan-600 to-teal-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
+                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
+                    </span>
+                </div>
+                <div class="text-center mb-8 mt-2">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-cyan-600 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-cyan-500/30">
+                        <i class="fas fa-palette text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Print Pro</h2>
+                    <p class="text-cyan-300 text-sm">للمطابع المتوسطة ومكاتب التصميم</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white plan-price" data-base="600">600</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> فرعين + خزينتين</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> 4 مصممين + 3 ماكينات</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> سجل أعمال المصممين + تقييمات</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> حاسبة تكلفة الماكينات (CMYK)</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> تتبع AI/Manual للتصميمات</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> تقارير مالية متقدمة</li>
+                    <li class="flex items-center gap-3 text-cyan-300"><i class="fas fa-plus-circle text-cyan-400 w-4"></i> اضافة مصمم/ماكينة: {{ pricing.addon_price }} ج.م/شهر</li>
+                </ul>
+                <div class="space-y-2">
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=gold"
+                        class="block w-full text-center bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-black py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition duration-300">
+                        اختر Print Pro
+                    </a>
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=gold"
+                        class="block w-full text-center bg-transparent border border-cyan-500/40 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                    </a>
+                </div>
+            </div>
+
+            <!-- Print Enterprise -->
+            <div class="plan-card bg-slate-800/60 border border-amber-500/40 rounded-2xl p-8 backdrop-blur-sm">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl mb-4 shadow-lg shadow-amber-500/30">
+                        <i class="fas fa-industry text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-white mb-1">Print Enterprise</h2>
+                    <p class="text-amber-400 text-sm">للمطابع الكبيرة ومجموعات التصميم</p>
+                    <div class="mt-4">
+                        <span class="text-4xl font-black text-white plan-price" data-base="1200">1,200</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
+                    </div>
+                </div>
+                <ul class="space-y-3 mb-8 text-sm">
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> فروع وخزائن غير محدودة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مصممون وماكينات غير محدودة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Print Pro</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> ادارة عملاء متقدمة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> تقارير ربحية كل ماكينة</li>
+                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم اولوية + API مفتوح</li>
+                </ul>
+                <div class="space-y-2">
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=empire"
+                        class="block w-full text-center bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
+                        اختر Print Enterprise
+                    </a>
+                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=empire"
+                        class="block w-full text-center bg-transparent border border-amber-500/30 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
+                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Addon Pricing Note -->
         <div class="max-w-3xl mx-auto mt-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-6 py-5 text-center">
             <div class="flex items-center justify-center gap-3 mb-3">
@@ -333,6 +458,17 @@
 let selectedPlan = '';
 let selectedPrice = '';
 let currentBilling = 'monthly';
+let currentIndustry = 'automotive';
+
+function setIndustryTab(ind) {
+    currentIndustry = ind;
+    document.querySelectorAll('.industry-tab').forEach(function(t) { t.classList.remove('active-tab'); });
+    document.getElementById('tab_' + ind).classList.add('active-tab');
+    document.getElementById('automotive_plans').style.display = ind === 'automotive' ? '' : 'none';
+    document.getElementById('printing_plans').style.display = ind === 'printing' ? '' : 'none';
+    // Re-apply billing to update prices in newly visible section
+    setBilling(currentBilling);
+}
 
 const billingConfig = {
     monthly:     { months: 1,  discount: 0,    label: 'جنيه / شهر' },

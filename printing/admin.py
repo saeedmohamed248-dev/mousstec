@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
+from django.db import connection
 from .models import (
     PrintBranch, PrintCustomer, MachineProfile, Designer,
     DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial,
@@ -12,18 +13,31 @@ from .models import (
 )
 
 
+class PrintSecureAdmin(admin.ModelAdmin):
+    """حماية: حظر الوصول من الـ public schema لجداول الطباعة"""
+    def has_module_permission(self, request):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_view_permission(request, obj)
+
+
 # =====================================================================
 # 🏢 الفروع والعملاء
 # =====================================================================
 
 @admin.register(PrintBranch)
-class PrintBranchAdmin(admin.ModelAdmin):
+class PrintBranchAdmin(PrintSecureAdmin):
     list_display = ('name', 'phone', 'is_active')
     search_fields = ('name',)
 
 
 @admin.register(PrintCustomer)
-class PrintCustomerAdmin(admin.ModelAdmin):
+class PrintCustomerAdmin(PrintSecureAdmin):
     list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count')
     search_fields = ('name', 'company', 'phone')
     list_filter = ('created_at',)
@@ -39,7 +53,7 @@ class PrintCustomerAdmin(admin.ModelAdmin):
 # =====================================================================
 
 @admin.register(MachineProfile)
-class MachineProfileAdmin(admin.ModelAdmin):
+class MachineProfileAdmin(PrintSecureAdmin):
     list_display = ('name', 'machine_type_badge', 'brand', 'branch', 'hourly_cost_display', 'status_badge')
     list_filter = ('machine_type', 'is_active', 'branch')
     search_fields = ('name', 'brand', 'model_number')
@@ -94,7 +108,7 @@ class DesignerWorkLogInline(admin.TabularInline):
 
 
 @admin.register(Designer)
-class DesignerAdmin(admin.ModelAdmin):
+class DesignerAdmin(PrintSecureAdmin):
     list_display = ('__str__', 'specialization', 'branch', 'month_works', 'month_hours', 'avg_rating', 'is_active')
     list_filter = ('is_active', 'branch')
     inlines = [DesignerWorkLogInline]
@@ -121,7 +135,7 @@ class DesignerAdmin(admin.ModelAdmin):
 
 
 @admin.register(DesignerWorkLog)
-class DesignerWorkLogAdmin(admin.ModelAdmin):
+class DesignerWorkLogAdmin(PrintSecureAdmin):
     list_display = ('designer', 'title', 'execution_badge', 'duration_hours', 'rating_display', 'date')
     list_filter = ('execution_type', 'date', 'designer')
     search_fields = ('title', 'description')
@@ -151,7 +165,7 @@ class PrintJobInline(admin.TabularInline):
 
 
 @admin.register(PrintOrder)
-class PrintOrderAdmin(admin.ModelAdmin):
+class PrintOrderAdmin(PrintSecureAdmin):
     list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'date_created')
     list_filter = ('status', 'branch', 'date_created')
     search_fields = ('order_number', 'customer__name')
@@ -183,7 +197,7 @@ class PrintOrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(PrintJob)
-class PrintJobAdmin(admin.ModelAdmin):
+class PrintJobAdmin(PrintSecureAdmin):
     list_display = ('description', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
     list_filter = ('is_complete', 'machine', 'paper_size')
 
@@ -204,7 +218,7 @@ class PrintJobAdmin(admin.ModelAdmin):
 # =====================================================================
 
 @admin.register(PrintMaterial)
-class PrintMaterialAdmin(admin.ModelAdmin):
+class PrintMaterialAdmin(PrintSecureAdmin):
     list_display = ('name', 'category', 'quantity_display', 'cost_per_unit', 'stock_value_display', 'stock_alert')
     list_filter = ('category', 'branch')
     search_fields = ('name', 'sku')
@@ -235,7 +249,7 @@ class PrintTransactionInline(admin.TabularInline):
 
 
 @admin.register(PrintTreasury)
-class PrintTreasuryAdmin(admin.ModelAdmin):
+class PrintTreasuryAdmin(PrintSecureAdmin):
     list_display = ('name', 'branch', 'balance_display', 'is_active')
     inlines = [PrintTransactionInline]
 
@@ -246,7 +260,7 @@ class PrintTreasuryAdmin(admin.ModelAdmin):
 
 
 @admin.register(PrintTransaction)
-class PrintTransactionAdmin(admin.ModelAdmin):
+class PrintTransactionAdmin(PrintSecureAdmin):
     list_display = ('type_badge', 'amount_display', 'treasury', 'description', 'date')
     list_filter = ('transaction_type', 'treasury', 'date')
 

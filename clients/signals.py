@@ -127,27 +127,27 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
 
         # -------------------------------------------------------------
         # 4. نقل المهمة لبوت الترحيب في الـ Celery Queue (Secure Orchestration)
+        # ⚠️ ملاحظة: حساب الأدمن يُنشأ في الـ View — هنا نرسل رابط الدخول فقط بدون بيانات حساسة
         # -------------------------------------------------------------
         try:
             protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
             port_suffix = ":8000" if getattr(settings, 'DEBUG', False) else ""
             admin_url = getattr(settings, 'ADMIN_URL', 'secure-portal')
-            
-            # 🚀 ابتكار الأمان: توليد رابط سحري آمن للدخول بدلاً من تمرير الباسوورد كنص في السيرفرات
-            # يتم إرسال الباسوورد ضمنياً للتسليم الفوري عبر الواتساب، ولكن يتم تشفير الـ Payload مستقبلاً.
-            full_login_url = f"{protocol}://{domain_name}{port_suffix}/{admin_url}/?activation_token={magic_token}"
+
+            # بناء رابط الدخول المباشر (بدون token — اليوزر يدخل بالإيميل والباسورد اللي اختارهم)
+            full_login_url = f"{protocol}://{domain_name}{port_suffix}/{admin_url}/"
 
             current_app.send_task(
-                'clients.tasks.async_welcome_bot_task', 
+                'clients.tasks.async_welcome_bot_task',
                 args=[
-                    instance.name, 
-                    instance.phone, 
-                    instance.business_type, 
-                    full_login_url, 
-                    admin_username, 
-                    admin_password # ⚠️ ملاحظة أمنية: للتوافق مع البوت الحالي، يتم التمرير. في الـ Prod يفضل إرسال الـ Token فقط
+                    instance.name,
+                    instance.phone,
+                    instance.business_type,
+                    full_login_url,
+                    instance.email,   # الإيميل كـ username للدخول
+                    None              # لا نمرر كلمة المرور — اليوزر يعرفها من صفحة التسجيل
                 ],
-                expires=300 # إنهاء المهمة إذا لم ينفذها البوت خلال 5 دقائق لتجنب التكدس
+                expires=300
             )
             logger.info(f"📨 [ORCHESTRATOR]: Secured task successfully routed to Welcome Bot for {instance.name}")
         except Exception as e:

@@ -6,6 +6,7 @@ from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFoun
 from django.shortcuts import redirect, render
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
+from django.db import connection
 
 import os
 import time
@@ -13,6 +14,28 @@ import logging
 
 from clients import views as client_views
 from django.http import FileResponse
+
+# =====================================================================
+# 🏭 فلترة التطبيقات حسب قطاع المستأجر (Industry-Aware Admin)
+# سيارات → inventory فقط | طباعة → printing فقط
+# =====================================================================
+_original_get_app_list = admin.AdminSite.get_app_list
+
+def _industry_filtered_get_app_list(self, request, app_label=None):
+    app_list = _original_get_app_list(self, request, app_label=app_label)
+    if connection.schema_name == 'public':
+        return app_list
+    tenant = getattr(request, 'tenant', None)
+    if not tenant:
+        return app_list
+    industry = getattr(tenant, 'industry', 'automotive')
+    if industry == 'printing':
+        hidden = {'inventory'}
+    else:
+        hidden = {'printing'}
+    return [app for app in app_list if app.get('app_label') not in hidden]
+
+admin.AdminSite.get_app_list = _industry_filtered_get_app_list
 
 
 def _serve_sw(request):
