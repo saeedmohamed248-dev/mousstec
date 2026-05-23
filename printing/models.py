@@ -10,6 +10,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.core.validators import MinValueValidator
 
 
 # =====================================================================
@@ -239,9 +240,9 @@ class PrintOrder(models.Model):
     date_delivered = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ التسليم الفعلي"))
 
     # مالي
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("الإجمالي"))
-    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("الخصم"))
-    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("المدفوع"))
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الإجمالي"))
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الخصم"))
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("المدفوع"))
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
 
     class Meta:
@@ -360,9 +361,9 @@ class PrintMaterial(models.Model):
     unit = models.CharField(max_length=30, default='قطعة', verbose_name=_("وحدة القياس"), help_text=_("مثال: رول، ورقة، لتر، مل"))
     branch = models.ForeignKey(PrintBranch, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("الفرع"))
 
-    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("الكمية الحالية"))
-    min_stock = models.DecimalField(max_digits=12, decimal_places=2, default=5, verbose_name=_("الحد الأدنى"))
-    cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name=_("تكلفة الوحدة (ج.م)"))
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الكمية الحالية"))
+    min_stock = models.DecimalField(max_digits=12, decimal_places=2, default=5, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الحد الأدنى"))
+    cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("تكلفة الوحدة (ج.م)"))
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -411,7 +412,7 @@ class PrintTransaction(models.Model):
 
     treasury = models.ForeignKey(PrintTreasury, on_delete=models.PROTECT, verbose_name=_("الخزينة"))
     transaction_type = models.CharField(max_length=3, choices=TYPE_CHOICES, verbose_name=_("النوع"))
-    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("المبلغ"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name=_("المبلغ"))
     description = models.CharField(max_length=300, blank=True, verbose_name=_("الوصف"))
     order = models.ForeignKey(PrintOrder, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("الطلب المرتبط"))
     date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))

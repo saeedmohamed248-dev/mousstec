@@ -220,13 +220,18 @@ def execute_sale_posting(sender, instance, **kwargs):
             for product_id in sorted_product_ids:
                 qty_to_deduct = product_qty_map[product_id]
                 product = Product.objects.get(id=product_id)
-                inv = Inventory.objects.select_for_update().get(product_id=product_id, branch=instance.branch)
-                
+
+                # ضمان وجود سجل المخزون (يُنشأ تلقائياً لو لم يكن موجوداً)
+                inv, _ = Inventory.objects.select_for_update().get_or_create(
+                    product_id=product_id, branch=instance.branch,
+                    defaults={'quantity': 0}
+                )
+
                 if hasattr(instance, 'is_return') and instance.is_return:
                     inv.quantity = F('quantity') + qty_to_deduct
                 else:
                     if inv.quantity < qty_to_deduct:
-                        raise ValidationError(f"الكمية المتاحة من {product.name} لا تكفي لإتمام البيع بالورشة!")
+                        raise ValidationError(f"الكمية المتاحة من {product.name} ({inv.quantity}) لا تكفي! المطلوب: {qty_to_deduct}")
                     inv.quantity = F('quantity') - qty_to_deduct 
                     
                 inv.save()

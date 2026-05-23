@@ -3,6 +3,7 @@ from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _ 
 from decimal import Decimal
@@ -117,11 +118,17 @@ class ProductPriceHistory(models.Model):
 class Inventory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_("القطعة"))
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
-    quantity = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة")) 
+    quantity = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
     shelf_location = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("مكان الرف"))
     class Meta:
         verbose_name_plural = "Inventories"
-        unique_together = ('product', 'branch') 
+        unique_together = ('product', 'branch')
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(quantity__gte=0),
+                name='inventory_quantity_non_negative',
+            ),
+        ] 
     def __str__(self): return f"{self.product.name} | {self.branch.name} | QTY: {self.quantity}"
 
 # =====================================================================
@@ -315,8 +322,8 @@ class PurchaseInvoice(models.Model):
 class PurchaseInvoiceItem(models.Model):
     invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.IntegerField(default=1, verbose_name=_("الكمية")) 
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء")) 
+    quantity = models.IntegerField(default=1, verbose_name=_("الكمية"), validators=[MinValueValidator(1, message="الكمية يجب أن تكون 1 على الأقل")])
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء"), validators=[MinValueValidator(Decimal('0.01'), message="سعر الشراء يجب أن يكون أكبر من صفر")]) 
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.cost_price or 0))
 
@@ -395,8 +402,8 @@ class SaleInvoice(models.Model):
 class SaleInvoiceItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.IntegerField(default=1, verbose_name=_("الكمية")) 
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر البيع")) 
+    quantity = models.IntegerField(default=1, verbose_name=_("الكمية"), validators=[MinValueValidator(1, message="الكمية يجب أن تكون 1 على الأقل")])
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر البيع"), validators=[MinValueValidator(Decimal('0.00'), message="السعر لا يمكن أن يكون سالباً")]) 
     cost_at_sale = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
     
     core_charge_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
@@ -406,13 +413,20 @@ class SaleInvoiceItem(models.Model):
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
     
+    def clean(self):
+        super().clean()
+        if self.quantity is not None and self.quantity < 1:
+            raise ValidationError({'quantity': 'الكمية يجب أن تكون 1 على الأقل'})
+        if self.unit_price is not None and self.unit_price < 0:
+            raise ValidationError({'unit_price': 'السعر لا يمكن أن يكون سالباً'})
+
     def save(self, *args, **kwargs):
         if not self.pk and self.product:
             self.cost_at_sale = self.product.average_cost if self.product.average_cost > 0 else self.product.purchase_price
             self.core_charge_applied = self.product.core_charge
             if self.invoice.customer and getattr(self.invoice.customer, 'is_b2b_company', False):
                 self.unit_price = self.product.b2b_wholesale_price if self.product.b2b_wholesale_price > 0 else self.product.retail_price
-                
+
             if self.product.warranty_months > 0:
                 self.warranty_end_date = timezone.now().date() + timedelta(days=30 * self.product.warranty_months)
         super().save(*args, **kwargs)
