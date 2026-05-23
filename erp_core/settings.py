@@ -51,11 +51,13 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
 # 🛡️ حماية الجلسات السحابية (معزولة وداعمة للـ Multi-Tenant)
 SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل كاملة للموظف)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
-# 🔧 ملاحظة: SESSION_COOKIE_DOMAIN يُفعّل فقط في الإنتاج لمشاركة الجلسات بين الـ subdomains
-# CSRF_COOKIE_DOMAIN يبقى None (افتراضي Django) لمنع تضارب الـ tokens بين النطاقات
-if not DEBUG:
+# 🔧 ملاحظة: الكوكيز تكون Secure دائماً في الإنتاج (حتى لو DEBUG=True مؤقتاً)
+# نتحقق من وجود السيرفر عن طريق BASE_DOMAIN بدلاً من DEBUG
+_IS_PRODUCTION = (BASE_DOMAIN != 'localhost' and BASE_DOMAIN != '127.0.0.1')
+SESSION_COOKIE_SECURE = _IS_PRODUCTION
+CSRF_COOKIE_SECURE = _IS_PRODUCTION
+# مشاركة الجلسات بين الـ subdomains في الإنتاج
+if _IS_PRODUCTION:
     SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
@@ -525,7 +527,7 @@ AXES_ENABLED = True
 AXES_FAILURE_LIMIT = 5 
 AXES_COOLOFF_TIME = 1 
 AXES_RESET_ON_SUCCESS = True 
-AXES_LOCKOUT_TEMPLATE = '403.html' 
+AXES_LOCKOUT_TEMPLATE = '403.html'  # الملف موجود في templates/403.html
 AXES_META_PREPEND_PATH = True 
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]] 
 
