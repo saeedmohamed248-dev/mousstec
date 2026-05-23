@@ -15,20 +15,34 @@ class TenantSignupForm(forms.Form):
     # 1. بيانات المؤسسة والنشاط التجاري
     # ==========================================
     company_name = forms.CharField(
-        max_length=100, 
+        max_length=100,
         label="اسم المركز أو الشركة",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'مثال: شركة النور للسيارات'})
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'مثال: شركة النور'})
     )
-    
+
+    industry = forms.ChoiceField(
+        choices=[
+            ('automotive', '🚗 سيارات — صيانة وقطع غيار'),
+            ('printing', '🎨 طباعة وتصميم جرافيك'),
+        ],
+        label="القطاع",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_industry'})
+    )
+
     business_type = forms.ChoiceField(
         choices=[
+            # سيارات
             ('service_center', '🛠️ مركز صيانة متكامل'),
             ('parts_dealer', '📦 تاجر قطع غيار (جملة/تجزئة)'),
             ('scrap_importer', '🪚 مستورد تقطيع وأنصاف'),
             ('both', '👑 توكيل شامل (صيانة وقطع غيار)'),
-        ], 
+            # طباعة
+            ('print_shop', '🖨️ مطبعة (رقمية وأوفست)'),
+            ('design_studio', '🎨 استوديو تصميم جرافيك'),
+            ('print_and_design', '🖨️🎨 مطبعة + تصميم (شامل)'),
+        ],
         label="نوع النشاط",
-        widget=forms.Select(attrs={'class': 'form-control'})
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_business_type'})
     )
     
     subdomain = forms.CharField(

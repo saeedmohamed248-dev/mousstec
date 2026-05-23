@@ -33,11 +33,23 @@ class Client(TenantMixin):
     phone = models.CharField(max_length=20, verbose_name=_("رقم الهاتف"))
     email = models.EmailField(blank=True, null=True, verbose_name=_("البريد الإلكتروني للإدارة"))
     
+    # 🏭 القطاع الصناعي (Industry Vertical) — يحدد أي app يظهر للمستأجر
+    INDUSTRY_CHOICES = (
+        ('automotive', _('🚗 سيارات — صيانة وقطع غيار')),
+        ('printing', _('🎨 طباعة وتصميم جرافيك')),
+    )
+    industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, default='automotive', verbose_name=_("القطاع"))
+
     BUSINESS_TYPE_CHOICES = (
+        # قطاع السيارات
         ('service_center', _('مركز صيانة متكامل')),
         ('parts_dealer', _('تاجر قطع غيار (مبيعات تجزئة وجملة)')),
-        ('scrap_importer', _('مستورد تقطيع وأنصاف (محرك الـ Scrap)')), 
+        ('scrap_importer', _('مستورد تقطيع وأنصاف (محرك الـ Scrap)')),
         ('both', _('توكيل شامل (صيانة + تجارة + استيراد)')),
+        # قطاع الطباعة والتصميم
+        ('print_shop', _('مطبعة (طباعة رقمية وأوفست)')),
+        ('design_studio', _('استوديو تصميم جرافيك')),
+        ('print_and_design', _('مطبعة + تصميم (شامل)')),
     )
     business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES, default='service_center', verbose_name=_("نوع النشاط"))
     

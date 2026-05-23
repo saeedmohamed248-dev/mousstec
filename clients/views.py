@@ -40,6 +40,7 @@ def register_new_tenant_saas(request):
         if form.is_valid():
             data = form.cleaned_data
             company_name = data['company_name']
+            industry = data.get('industry', 'automotive')
             business_type = data.get('business_type', 'service_center')
             
             subdomain_slug = slugify(company_name).replace('-', '_')
@@ -61,6 +62,7 @@ def register_new_tenant_saas(request):
                             owner_name=data.get('full_name', company_name),
                             email=data['email'],
                             phone=data.get('phone', ''),
+                            industry=industry,
                             business_type=business_type,
                             is_active=True
                         )

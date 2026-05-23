@@ -100,16 +100,17 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = (
-    'django.contrib.admin',      
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',   
-    'django.contrib.messages',   
-    'inventory',       # 🏎️ النواة التشغيلية للورش
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'inventory',       # 🏎️ النواة التشغيلية للورش (قطاع السيارات)
+    'printing',        # 🎨 النواة التشغيلية للمطابع (قطاع الطباعة والتصميم)
     'import_export',
-    'rest_framework', 
-    'simple_history', 
-    'axes',           
+    'rest_framework',
+    'simple_history',
+    'axes',
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]

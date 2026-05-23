@@ -168,8 +168,27 @@
         {% endif %}
 
         <div class="row">
-            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> 1. بيانات المؤسسة والفرع</h5>
-            
+            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> 1. اختر مجالك</h5>
+
+            <!-- 🏭 اختيار القطاع -->
+            <div class="col-12 mb-3">
+                <label class="form-label">القطاع</label>
+                <div class="d-flex gap-3" id="industrySelector">
+                    <div class="industry-card active" data-industry="automotive" style="flex:1;cursor:pointer;background:rgba(59,130,246,0.1);border:2px solid #3b82f6;border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
+                        <div style="font-size:36px;margin-bottom:8px;">🚗</div>
+                        <div style="font-weight:900;font-size:15px;color:#fff;">سيارات</div>
+                        <div style="font-size:11px;color:#94a3b8;">صيانة وقطع غيار</div>
+                    </div>
+                    <div class="industry-card" data-industry="printing" style="flex:1;cursor:pointer;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
+                        <div style="font-size:36px;margin-bottom:8px;">🎨</div>
+                        <div style="font-weight:900;font-size:15px;color:#fff;">طباعة وتصميم</div>
+                        <div style="font-size:11px;color:#94a3b8;">مطابع واستوديوهات</div>
+                    </div>
+                </div>
+                {{ form.industry }}
+                {% if form.industry.errors %}<span class="field-error">{{ form.industry.errors.0 }}</span>{% endif %}
+            </div>
+
             <div class="col-md-6 mb-3">
                 <label class="form-label">اسم المركز أو الشركة</label>
                 {{ form.company_name }}
@@ -291,7 +310,52 @@
             });
         }
 
-        // 3. ⚡ زر الإطلاق الذكي المانع للتكرار (Anti-Double-Submit)
+        // 3. 🏭 محرك اختيار القطاع (Industry Selector)
+        const industryCards = document.querySelectorAll('.industry-card');
+        const industrySelect = document.getElementById('id_industry');
+        const businessTypeSelect = document.getElementById('id_business_type');
+
+        // إخفاء select القطاع الأصلي (نستخدم الكروت بدلاً منه)
+        if (industrySelect) industrySelect.style.display = 'none';
+
+        const businessTypesByIndustry = {
+            automotive: ['service_center', 'parts_dealer', 'scrap_importer', 'both'],
+            printing: ['print_shop', 'design_studio', 'print_and_design']
+        };
+
+        function setIndustry(ind) {
+            industryCards.forEach(c => {
+                if (c.dataset.industry === ind) {
+                    c.style.borderColor = ind === 'automotive' ? '#3b82f6' : '#8b5cf6';
+                    c.style.background = ind === 'automotive' ? 'rgba(59,130,246,0.1)' : 'rgba(139,92,246,0.1)';
+                    c.classList.add('active');
+                } else {
+                    c.style.borderColor = 'rgba(255,255,255,0.1)';
+                    c.style.background = 'rgba(255,255,255,0.03)';
+                    c.classList.remove('active');
+                }
+            });
+            if (industrySelect) industrySelect.value = ind;
+            // فلترة أنواع النشاط
+            if (businessTypeSelect) {
+                const allowed = businessTypesByIndustry[ind] || [];
+                Array.from(businessTypeSelect.options).forEach(opt => {
+                    opt.style.display = allowed.includes(opt.value) ? '' : 'none';
+                });
+                // اختر أول نوع متاح
+                const firstAllowed = allowed[0];
+                if (firstAllowed) businessTypeSelect.value = firstAllowed;
+            }
+        }
+
+        industryCards.forEach(card => {
+            card.addEventListener('click', () => setIndustry(card.dataset.industry));
+        });
+
+        // تطبيق الفلترة الأولية
+        setIndustry(industrySelect ? industrySelect.value : 'automotive');
+
+        // 4. ⚡ زر الإطلاق الذكي المانع للتكرار (Anti-Double-Submit)
         const form = document.getElementById('tenantSignupForm');
         const submitBtn = document.getElementById('submitBtn');
 
