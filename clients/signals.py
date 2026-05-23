@@ -77,9 +77,10 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                     with transaction.atomic():
 
                         if industry == 'printing':
-                            # 🎨 حقن بيانات المطابع
+                            # 🎨 حقن بيانات المطابع الشامل
                             PrintBranch = apps.get_model('printing', 'PrintBranch')
                             PrintTreasury = apps.get_model('printing', 'PrintTreasury')
+                            PrintMaterial = apps.get_model('printing', 'PrintMaterial')
 
                             main_branch, _ = PrintBranch.objects.get_or_create(
                                 name="الفرع الرئيسي",
@@ -89,6 +90,19 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                                 name="الخزينة النقدية (الرئيسية)",
                                 branch=main_branch,
                                 defaults={'balance': 0.00, 'is_active': True}
+                            )
+                            # خامات افتراضية
+                            PrintMaterial.objects.get_or_create(
+                                name="ورق A4 (80 جم)",
+                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 180, 'min_stock_level': 5, 'branch': main_branch}
+                            )
+                            PrintMaterial.objects.get_or_create(
+                                name="ورق A3 (130 جم لامع)",
+                                defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 450, 'min_stock_level': 3, 'branch': main_branch}
+                            )
+                            PrintMaterial.objects.get_or_create(
+                                name="حبر أسود (Toner)",
+                                defaults={'category': 'ink', 'unit': 'قطعة', 'quantity': 0, 'cost_per_unit': 350, 'min_stock_level': 2, 'branch': main_branch}
                             )
                         else:
                             # 🚗 حقن بيانات السيارات (الافتراضي)
