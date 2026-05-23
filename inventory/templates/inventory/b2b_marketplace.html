@@ -215,7 +215,7 @@ async function submitBid() {
     try {
         const res = await fetch('/system/api/v1/b2b/bidding/create/', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('mt_csrf')},
             body: JSON.stringify({part_number: part, required_qty: parseInt(qty), target_price: price ? parseFloat(price) : null})
         });
         const data = await res.json();

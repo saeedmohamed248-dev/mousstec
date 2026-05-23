@@ -30,6 +30,30 @@ class PublicSchemaOnlyAdminMixin:
     def has_delete_permission(self, request, obj=None):
         return connection.schema_name == 'public'
 
+
+class AutomotiveOnlyAdminMixin:
+    """
+    🏭 يمنع ظهور نماذج السيارات (B2B/مزادات) في المطابع.
+    تظهر فقط في: public + automotive tenants.
+    """
+    def _is_allowed(self):
+        if connection.schema_name == 'public':
+            return True
+        tenant = getattr(connection, 'tenant', None)
+        industry = getattr(tenant, 'industry', 'automotive') if tenant else 'automotive'
+        return industry != 'printing'
+
+    def has_module_permission(self, request):
+        return self._is_allowed() and super().has_module_permission(request)
+    def has_view_permission(self, request, obj=None):
+        return self._is_allowed() and super().has_view_permission(request, obj)
+    def has_add_permission(self, request):
+        return self._is_allowed() and super().has_add_permission(request)
+    def has_change_permission(self, request, obj=None):
+        return self._is_allowed() and super().has_change_permission(request, obj)
+    def has_delete_permission(self, request, obj=None):
+        return self._is_allowed() and super().has_delete_permission(request, obj)
+
 # =====================================================================
 # 🌐 1. النطاقات وعروض الأسعار (Inlines)
 # =====================================================================
@@ -148,7 +172,7 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 # 🛒 3. إدارة السوق المركزي (Global Marketplace - مصفى ومؤمن 🔐)
 # =====================================================================
 @admin.register(GlobalB2BMarketplace)
-class GlobalB2BMarketplaceAdmin(admin.ModelAdmin):
+class GlobalB2BMarketplaceAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('part_number', 'product_name', 'tenant', 'condition', 'wholesale_price_styled', 'available_qty', 'ai_confidence_score_badge')
     list_filter = ('condition', 'brand', 'tenant')
     search_fields = ('part_number', 'product_name', 'tenant__name')
@@ -173,7 +197,7 @@ class GlobalB2BMarketplaceAdmin(admin.ModelAdmin):
 # ⚖️ 4. غرفة عمليات المزاد العكسي وفض النزاعات (Atomic & Fully Integrated 🔐)
 # =====================================================================
 @admin.register(BlindBiddingRequest)
-class BlindBiddingRequestAdmin(admin.ModelAdmin):
+class BlindBiddingRequestAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
     inlines = [BidOfferInline] 
     list_display = ('request_id_short', 'part_number', 'buyer', 'status_badge', 'auto_award_icon', 'winner', 'winning_price_styled', 'expires_at')
     list_filter = ('status', 'auto_award')

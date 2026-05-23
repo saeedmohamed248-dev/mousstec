@@ -382,7 +382,7 @@ if ('serviceWorker' in navigator) {
             if (offlineQueue.length > 0) {
                 fetch('/system/api/v1/inventory/offline-sync/', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('mt_csrf')},
                     body: JSON.stringify({operations: offlineQueue})
                 }).then(r => r.json()).then(data => {
                     if (data.status === 'success') {

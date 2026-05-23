@@ -58,7 +58,7 @@
 
 <script>
 function shiftAction(action) {
-    fetch(`/system/api/v1/mechanic/shift/${action}/`, {method:'POST', headers:{'X-CSRFToken': getCookie('csrftoken'),'Content-Type':'application/json'}})
+    fetch(`/system/api/v1/mechanic/shift/${action}/`, {method:'POST', headers:{'X-CSRFToken': getCookie('mt_csrf'),'Content-Type':'application/json'}})
         .then(r=>r.json()).then(data=>{
             const el = document.getElementById('shift-result');
             el.className = 'mt-4 text-sm font-bold ' + (data.error ? 'text-red-400' : 'text-emerald-400');

@@ -56,6 +56,8 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 _IS_PRODUCTION = (BASE_DOMAIN != 'localhost' and BASE_DOMAIN != '127.0.0.1')
 SESSION_COOKIE_SECURE = _IS_PRODUCTION
 CSRF_COOKIE_SECURE = _IS_PRODUCTION
+# 🛡️ اسم كوكي CSRF مميز لتجنب تعارض مع كوكيز قديمة بعد تغيير الدومين
+CSRF_COOKIE_NAME = 'mt_csrf'
 # مشاركة الجلسات بين الـ subdomains في الإنتاج
 if _IS_PRODUCTION:
     SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
@@ -135,6 +137,7 @@ MIDDLEWARE = [
     'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'erp_core.middleware.CSRFCookieCleanupMiddleware',  # تنظيف كوكيز CSRF القديمة
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

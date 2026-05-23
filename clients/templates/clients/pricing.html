@@ -569,7 +569,7 @@ function payWithPaymob() {
 }
 
 function getCSRF() {
-    const c = document.cookie.match('(^|;)\\s*csrftoken=([^;]*)');
+    const c = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)');
     return c ? decodeURIComponent(c[2]) : '';
 }
 
