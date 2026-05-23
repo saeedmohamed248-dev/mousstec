@@ -193,6 +193,19 @@ class Customer(models.Model):
     class Meta:
         verbose_name = _("عميل / شركة")
         verbose_name_plural = _("سجل العملاء والشركات (CRM)")
+
+    def save(self, *args, **kwargs):
+        # A5: تطبيع رقم الهاتف لضمان عمل روابط واتساب
+        if self.phone:
+            import re as _re
+            phone = _re.sub(r'[\s\-\(\)]+', '', self.phone)  # إزالة المسافات والأقواس
+            if phone.startswith('00'):
+                phone = '+' + phone[2:]
+            elif phone.startswith('0') and not phone.startswith('+'):
+                phone = '+2' + phone  # مصر افتراضياً
+            self.phone = phone
+        super().save(*args, **kwargs)
+
     def __str__(self): return f"{self.name} - {self.vip_tier}"
 
 class MaintenanceContract(models.Model):

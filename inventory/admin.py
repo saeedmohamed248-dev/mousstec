@@ -643,13 +643,26 @@ class SaleInvoiceItemInline(admin.TabularInline):
     model = SaleInvoiceItem
     extra = 1
     autocomplete_fields = ['product']
-    fields = ['product', 'quantity', 'unit_price', 'get_total_price', 'warranty_tracker'] 
-    readonly_fields = ['get_total_price', 'warranty_tracker'] 
-    
+    fields = ['product', 'quantity', 'unit_price', 'get_total_price', 'available_stock', 'warranty_tracker']
+    readonly_fields = ['get_total_price', 'available_stock', 'warranty_tracker']
+
     def get_total_price(self, obj):
         if obj and obj.pk: return format_html('<b>{} ج.م</b>', f"{float(obj.total_price or 0):,.2f}")
         return "0.00 ج.م"
-    get_total_price.short_description = "الإجمالي"    
+    get_total_price.short_description = "الإجمالي"
+
+    def available_stock(self, obj):
+        if not obj or not obj.pk or not obj.product_id:
+            return "-"
+        branch = obj.invoice.branch if obj.invoice_id else None
+        if branch:
+            inv = Inventory.objects.filter(product=obj.product, branch=branch).first()
+            qty = inv.quantity if inv else 0
+        else:
+            qty = obj.product.total_inventory_qty
+        color = '#28a745' if qty > 0 else '#dc3545'
+        return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, qty)
+    available_stock.short_description = "المتاح بالمخزن"
 
     def warranty_tracker(self, obj):
         if not obj.pk or not obj.warranty_end_date: return "-"

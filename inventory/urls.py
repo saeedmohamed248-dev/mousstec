@@ -148,6 +148,9 @@ urlpatterns = [
         # =================================================================
         # 📄 كشوف الحساب (Statement of Account)
         # =================================================================
+        # 🚗 تصفية المركبات حسب العميل (Vehicle-Customer Filter)
+        path('vehicles/by-customer/<int:customer_id>/', views.vehicles_by_customer_api, name='v1_vehicles_by_customer'),
+
         path('statement/customer/<int:customer_id>/', views.customer_statement_api, name='v1_customer_statement'),
         path('statement/vendor/<int:vendor_id>/', views.vendor_statement_api, name='v1_vendor_statement'),
 

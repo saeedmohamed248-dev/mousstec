@@ -10,7 +10,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 # =====================================================================
@@ -193,8 +193,9 @@ class DesignerWorkLog(models.Model):
     # تقييم العميل عبر واتساب (1-5 نجوم)
     client_rating = models.PositiveSmallIntegerField(
         null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
         verbose_name=_("تقييم العميل (1-5)"),
-        help_text=_("تقييم العميل عبر واتساب أو مباشرة")
+        help_text=_("تقييم العميل عبر واتساب أو مباشرة (1 = ضعيف، 5 = ممتاز)")
     )
     client_feedback = models.TextField(blank=True, verbose_name=_("ملاحظات العميل"))
 
@@ -263,9 +264,23 @@ class PrintOrder(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.order_number:
+            from django.db.models import Max
             today = timezone.now().strftime('%y%m%d')
-            last = PrintOrder.objects.filter(order_number__startswith=f'PO-{today}').count()
-            self.order_number = f'PO-{today}-{last + 1:03d}'
+            prefix = f'PO-{today}-'
+            # B5: استخدام Max بدل count لمنع Race Condition
+            last_order = (
+                PrintOrder.objects
+                .filter(order_number__startswith=prefix)
+                .aggregate(max_num=Max('order_number'))
+            )['max_num']
+            if last_order:
+                try:
+                    last_seq = int(last_order.split('-')[-1])
+                except (ValueError, IndexError):
+                    last_seq = 0
+            else:
+                last_seq = 0
+            self.order_number = f'{prefix}{last_seq + 1:03d}'
         super().save(*args, **kwargs)
 
 
@@ -309,6 +324,10 @@ class PrintJob(models.Model):
     is_complete = models.BooleanField(default=False, verbose_name=_("مكتملة"))
     completed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الإكمال"))
 
+    # 📊 لقطة التكاليف المحفوظة (تُثبَّت عند إكمال المهمة)
+    actual_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False, verbose_name=_("التكلفة الفعلية المحفوظة"))
+    actual_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False, verbose_name=_("صافي الربح المحفوظ"))
+
     class Meta:
         verbose_name = _("مهمة طباعة")
         verbose_name_plural = _("مهام الطباعة")
@@ -318,7 +337,7 @@ class PrintJob(models.Model):
 
     @property
     def calculated_cost(self):
-        """التكلفة الفعلية = تشغيل الماكينة + أحبار"""
+        """التكلفة الفعلية الحية = تشغيل الماكينة + أحبار"""
         if not self.machine:
             return Decimal('0')
         machine_cost = self.machine.hourly_operating_cost * self.actual_time_hours
@@ -330,12 +349,20 @@ class PrintJob(models.Model):
 
     @property
     def profit(self):
-        """الربح = السعر - التكلفة الفعلية"""
+        """الربح الحي = السعر - التكلفة الفعلية"""
         return self.total_price - self.calculated_cost
 
     def save(self, *args, **kwargs):
-        if not self.total_price:
-            self.total_price = self.unit_price * self.quantity * self.copies
+        # B4: دائماً أعد حساب total_price عند وجود unit_price
+        self.total_price = self.unit_price * self.quantity * self.copies
+
+        # B3: ثبّت التكاليف عند إكمال المهمة (snapshot)
+        if self.is_complete:
+            self.actual_cost = self.calculated_cost
+            self.actual_profit = self.total_price - self.actual_cost
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+
         super().save(*args, **kwargs)
 
 

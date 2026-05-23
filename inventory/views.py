@@ -1475,6 +1475,30 @@ def import_rollback_api(request, session_id):
 
 
 # =====================================================================
+# 📄 12.5. تصفية المركبات حسب العميل (Vehicle-Customer Dynamic Filter)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+def vehicles_by_customer_api(request, customer_id):
+    """
+    يرجع قائمة مركبات العميل المحدد لتصفية الـ autocomplete في فاتورة البيع.
+    """
+    if not _require_tenant(request):
+        return JsonResponse({'error': 'tenant required'}, status=403)
+    vehicles = Vehicle.objects.filter(customer_id=customer_id).values(
+        'id', 'chassis_number', 'car_plate', 'brand', 'model_name'
+    )
+    return JsonResponse({
+        'results': [
+            {
+                'id': v['id'],
+                'text': f"{v['car_plate'] or 'بدون لوحة'} - {(v['chassis_number'] or '')[-6:]} ({v['brand']} {v['model_name'] or ''})"
+            }
+            for v in vehicles
+        ]
+    })
+
+
 # 📄 13. كشوف الحساب (Statement of Account)
 # =====================================================================
 

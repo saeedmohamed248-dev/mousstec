@@ -30,7 +30,7 @@
         }
         return cookieValue;
     }
-    const csrftoken = getCookie('csrftoken');
+    const csrftoken = getCookie('mt_csrf') || getCookie('csrftoken');
 
     // =====================================================================
     // 🛡️ 1. درع حماية البيانات المؤقت (Tab-Aware LocalStorage Shield)
@@ -465,7 +465,69 @@
     }
 
     // =====================================================================
-    // 📡 9. المستشعرات والمراقب الذكي (Mutation Observer & Init)
+    // 🚗 9. تصفية المركبات حسب العميل (Vehicle-Customer Dynamic Filter)
+    // =====================================================================
+    function setupVehicleCustomerFilter() {
+        // Django admin autocomplete uses Select2 — listen for customer changes
+        const customerSelect = document.querySelector('#id_customer, select[name="customer"]');
+        if (!customerSelect) return;
+
+        function filterVehicles(customerId) {
+            if (!customerId) return;
+            fetch(`/api/v1/vehicles/by-customer/${customerId}/`, {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                const vehicleSelect = document.querySelector('#id_vehicle, select[name="vehicle"]');
+                if (!vehicleSelect) return;
+
+                // حفظ القيمة الحالية
+                const currentVal = vehicleSelect.value;
+                // مسح الخيارات القديمة (ما عدا الخيار الفارغ)
+                const emptyOption = vehicleSelect.querySelector('option[value=""]');
+                vehicleSelect.innerHTML = '';
+                if (emptyOption) vehicleSelect.appendChild(emptyOption);
+                else {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = '---------';
+                    vehicleSelect.appendChild(opt);
+                }
+
+                // إضافة مركبات العميل
+                (data.results || []).forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.id;
+                    opt.textContent = v.text;
+                    if (String(v.id) === String(currentVal)) opt.selected = true;
+                    vehicleSelect.appendChild(opt);
+                });
+
+                // تحديث Select2 إن كان موجود
+                if (window.django && window.django.jQuery) {
+                    window.django.jQuery(vehicleSelect).trigger('change');
+                }
+            })
+            .catch(err => console.warn('Vehicle filter error:', err));
+        }
+
+        // Listen to native change
+        customerSelect.addEventListener('change', () => filterVehicles(customerSelect.value));
+
+        // Listen to Select2 change (Django autocomplete)
+        if (window.django && window.django.jQuery) {
+            window.django.jQuery(customerSelect).on('select2:select select2:clear change', function() {
+                filterVehicles(this.value);
+            });
+        }
+
+        // تشغيل أولي إذا كان العميل محدد مسبقاً
+        if (customerSelect.value) filterVehicles(customerSelect.value);
+    }
+
+    // =====================================================================
+    // 📡 10. المستشعرات والمراقب الذكي (Mutation Observer & Init)
     // =====================================================================
     const uiObserver = new MutationObserver(function(mutations) {
         uiObserver.disconnect();
@@ -522,6 +584,7 @@
         injectMarketplaceButtons();
         optimizedLiveTotals();
         injectVoiceAssistant();
+        setupVehicleCustomerFilter();
     });
     
 })();
