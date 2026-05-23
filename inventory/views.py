@@ -1229,6 +1229,7 @@ def import_confirm_api(request, session_id):
     """
     تأكيد الاستيراد — يبدأ الاستيراد الفعلي بعد المعاينة.
     يأخذ نسخة احتياطية قبل أي تعديل.
+    🚀 محسّن: يستخدم bulk_create / bulk_update بدلاً من حفظ عنصر تلو الآخر.
     """
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -1238,6 +1239,8 @@ def import_confirm_api(request, session_id):
         return _json_response_safe({"error": f"الجلسة في حالة '{session.get_status_display()}' ولا يمكن التأكيد."}, 400)
 
     import tablib
+    BULK_BATCH_SIZE = 500  # حجم الدفعة لتجنب استنزاف الذاكرة مع الملفات العملاقة
+
     try:
         session.status = 'importing'
         session.save(update_fields=['status'])
@@ -1254,64 +1257,149 @@ def import_confirm_api(request, session_id):
         backup_data = []
 
         with transaction.atomic():
-            for row in dataset.dict:
-                if session.entity_type == 'product':
+            if session.entity_type == 'product':
+                # ── المرحلة 1: تصنيف الصفوف (جديد vs تحديث) بضربة DB واحدة ──
+                rows_parsed = []
+                for row in dataset.dict:
                     pn = row.get('part_number') or row.get('رقم القطعة', '')
                     name = row.get('name') or row.get('اسم المنتج', '')
                     if not name:
                         continue
+                    rows_parsed.append({'pn': pn, 'name': name, 'row': row})
 
-                    # النسخة الاحتياطية للتعارضات
-                    existing = Product.objects.filter(part_number=pn).first() if pn else None
+                # استعلام واحد لجلب كل المنتجات الموجودة بدل N استعلام
+                all_pns = [r['pn'] for r in rows_parsed if r['pn']]
+                existing_map = {}
+                if all_pns:
+                    existing_map = {
+                        p.part_number: p
+                        for p in Product.objects.filter(part_number__in=all_pns)
+                    }
+
+                # ── المرحلة 2: فرز إلى قائمتين (تحديث + إنشاء) ──
+                to_update = []  # منتجات موجودة تحتاج تحديث
+                to_create = []  # منتجات جديدة
+
+                for r in rows_parsed:
+                    existing = existing_map.get(r['pn']) if r['pn'] else None
                     if existing:
+                        # نسخة احتياطية
                         backup_data.append({
                             'model': 'Product', 'pk': existing.pk,
-                            'snapshot': {'name': existing.name, 'part_number': existing.part_number,
-                                         'retail_price': str(existing.retail_price)}
+                            'snapshot': {
+                                'name': existing.name,
+                                'part_number': existing.part_number,
+                                'retail_price': str(existing.retail_price),
+                            }
                         })
-                        # تحديث مع الحفاظ على الأصل (نضيف suffix بالتاريخ)
-                        existing.name = name
-                        if row.get('retail_price') or row.get('سعر البيع'):
-                            existing.retail_price = Decimal(str(row.get('retail_price') or row.get('سعر البيع', '0')))
-                        existing.save()
-                        imported_ids.append(existing.pk)
+                        existing.name = r['name']
+                        if r['row'].get('retail_price') or r['row'].get('سعر البيع'):
+                            existing.retail_price = Decimal(
+                                str(r['row'].get('retail_price') or r['row'].get('سعر البيع', '0'))
+                            )
+                        to_update.append(existing)
                     else:
-                        obj = Product.objects.create(
-                            name=name,
-                            part_number=pn or f"IMP-{uuid.uuid4().hex[:8]}",
-                            retail_price=Decimal(str(row.get('retail_price') or row.get('سعر البيع', '0') or '0')),
-                            purchase_price=Decimal(str(row.get('purchase_price') or row.get('سعر الشراء', '0') or '0')),
-                        )
-                        imported_ids.append(obj.pk)
+                        to_create.append(Product(
+                            name=r['name'],
+                            part_number=r['pn'] or f"IMP-{uuid.uuid4().hex[:8]}",
+                            retail_price=Decimal(str(
+                                r['row'].get('retail_price') or r['row'].get('سعر البيع', '0') or '0'
+                            )),
+                            purchase_price=Decimal(str(
+                                r['row'].get('purchase_price') or r['row'].get('سعر الشراء', '0') or '0'
+                            )),
+                        ))
 
-                elif session.entity_type == 'customer':
+                # ── المرحلة 3: تنفيذ bulk بدفعات ──
+                if to_update:
+                    Product.objects.bulk_update(
+                        to_update, ['name', 'retail_price'], batch_size=BULK_BATCH_SIZE
+                    )
+                    imported_ids.extend([p.pk for p in to_update])
+
+                if to_create:
+                    created_objs = Product.objects.bulk_create(
+                        to_create, batch_size=BULK_BATCH_SIZE
+                    )
+                    imported_ids.extend([p.pk for p in created_objs])
+
+            elif session.entity_type == 'customer':
+                # ── نفس النمط: استعلام واحد + bulk ──
+                rows_parsed = []
+                for row in dataset.dict:
                     name = row.get('name') or row.get('اسم العميل', '')
                     phone = row.get('phone') or row.get('الهاتف', '')
                     if not name:
                         continue
+                    rows_parsed.append({'name': name, 'phone': phone, 'row': row})
 
-                    existing = Customer.objects.filter(phone=phone).first() if phone else None
+                all_phones = [r['phone'] for r in rows_parsed if r['phone']]
+                existing_map = {}
+                if all_phones:
+                    existing_map = {
+                        c.phone: c
+                        for c in Customer.objects.filter(phone__in=all_phones)
+                    }
+
+                to_update = []
+                to_create = []
+
+                for r in rows_parsed:
+                    existing = existing_map.get(r['phone']) if r['phone'] else None
                     if existing:
                         backup_data.append({
                             'model': 'Customer', 'pk': existing.pk,
                             'snapshot': {'name': existing.name, 'phone': existing.phone}
                         })
-                        existing.name = name
-                        existing.save()
-                        imported_ids.append(existing.pk)
+                        existing.name = r['name']
+                        to_update.append(existing)
                     else:
-                        obj = Customer.objects.create(name=name, phone=phone or '')
-                        imported_ids.append(obj.pk)
+                        to_create.append(Customer(name=r['name'], phone=r['phone'] or ''))
 
-                elif session.entity_type == 'vendor':
+                if to_update:
+                    Customer.objects.bulk_update(
+                        to_update, ['name'], batch_size=BULK_BATCH_SIZE
+                    )
+                    imported_ids.extend([c.pk for c in to_update])
+
+                if to_create:
+                    created_objs = Customer.objects.bulk_create(
+                        to_create, batch_size=BULK_BATCH_SIZE
+                    )
+                    imported_ids.extend([c.pk for c in created_objs])
+
+            elif session.entity_type == 'vendor':
+                # ── Vendor: استعلام واحد + bulk_create للجدد ──
+                rows_parsed = []
+                for row in dataset.dict:
                     name = row.get('name') or row.get('اسم المورد', '')
                     if not name:
                         continue
-                    obj, created = Vendor.objects.get_or_create(
-                        name=name,
-                        defaults={'phone': row.get('phone') or row.get('الهاتف', '')}
+                    rows_parsed.append({
+                        'name': name,
+                        'phone': row.get('phone') or row.get('الهاتف', ''),
+                    })
+
+                all_names = [r['name'] for r in rows_parsed]
+                existing_map = {
+                    v.name: v
+                    for v in Vendor.objects.filter(name__in=all_names)
+                }
+
+                to_create = []
+                for r in rows_parsed:
+                    if r['name'] in existing_map:
+                        imported_ids.append(existing_map[r['name']].pk)
+                    else:
+                        to_create.append(Vendor(name=r['name'], phone=r['phone']))
+                        # منع التكرار داخل نفس الملف
+                        existing_map[r['name']] = None
+
+                if to_create:
+                    created_objs = Vendor.objects.bulk_create(
+                        to_create, batch_size=BULK_BATCH_SIZE
                     )
-                    imported_ids.append(obj.pk)
+                    imported_ids.extend([v.pk for v in created_objs])
 
         session.imported_ids = imported_ids
         session.backup_snapshot = {"backup": backup_data}
