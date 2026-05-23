@@ -72,6 +72,24 @@ def _require_tenant(request):
     return True
 
 
+from functools import wraps
+
+def tenant_required(view_func):
+    """
+    🛡️ درع العزل السحابي — ديكوريتور يمنع الوصول من public schema.
+    يُطبّق على كل view يخدم بيانات tenant-specific.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not _require_tenant(request):
+            return HttpResponseForbidden(
+                '{"error": "🛑 هذه الخدمة مخصصة للفروع فقط. الوصول من public schema محظور."}',
+                content_type='application/json'
+            )
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
 # =====================================================================
 # 📊 1. لوحات التحكم ونقطة البيع وكشك الفنيين
 # =====================================================================
@@ -135,17 +153,20 @@ def solutions_tour(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def b2b_marketplace(request):
     """واجهة سوق B2B التفاعلية مع بحث حي في السوق المركزي"""
     return render(request, 'inventory/b2b_marketplace.html')
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def pos_interface(request):
     return render(request, 'inventory/pos_fast.html')
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def mechanic_kiosk_interface(request):
     return render(request, 'inventory/mechanic_bay.html')
 
@@ -155,6 +176,7 @@ def mechanic_kiosk_interface(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def print_invoice_a4(request, invoice_id):
     invoice = get_object_or_404(
         SaleInvoice.objects
@@ -172,6 +194,7 @@ def print_invoice_a4(request, invoice_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def print_invoice_thermal(request, invoice_id):
     invoice = get_object_or_404(
         SaleInvoice.objects
@@ -186,6 +209,7 @@ def print_invoice_thermal(request, invoice_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def share_invoice_whatsapp(request, invoice_id):
     invoice = get_object_or_404(SaleInvoice, id=invoice_id)
     if not invoice.customer or not invoice.customer.phone:
@@ -201,6 +225,7 @@ def share_invoice_whatsapp(request, invoice_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def capture_digital_signature(request, invoice_id):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -220,6 +245,7 @@ def capture_digital_signature(request, invoice_id):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def vehicle_history(request, chassis_number):
     vehicle = get_object_or_404(
         Vehicle.objects.select_related('customer'),
@@ -233,6 +259,7 @@ def vehicle_history(request, chassis_number):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def generate_vehicle_qr(request, chassis_number):
     if not qrcode:
         return HttpResponse("مكتبة qrcode غير مثبتة.", status=501)
@@ -253,6 +280,7 @@ def generate_vehicle_qr(request, chassis_number):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def fleet_contract_balance_api(request, contract_code):
     contract = get_object_or_404(
         MaintenanceContract, contract_code=contract_code, is_active=True
@@ -274,6 +302,7 @@ def fleet_contract_balance_api(request, contract_code):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def tech_shift_manager_api(request, action):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -323,14 +352,38 @@ def graphql_gateway_view(request):
     return _json_response_safe({"data": {"message": "GraphQL Federation Gateway Active."}})
 
 
+def _verify_webhook_hmac(request, secret_setting_name, header_name='HTTP_X_SHOPIFY_HMAC_SHA256'):
+    """
+    🛡️ التحقق من HMAC للـ webhooks الخارجية.
+    يقارن التوقيع المرسل مع التوقيع المحسوب من body + secret.
+    """
+    import hmac as _hmac
+    import hashlib as _hashlib
+    secret = getattr(settings, secret_setting_name, None)
+    if not secret:
+        logger.warning(f"⚠️ [WEBHOOK] {secret_setting_name} not configured — rejecting webhook")
+        return False
+    received_hmac = request.META.get(header_name, '')
+    if not received_hmac:
+        return False
+    computed = _hmac.new(
+        secret.encode('utf-8'),
+        request.body,
+        _hashlib.sha256,
+    ).hexdigest()
+    return _hmac.compare_digest(computed, received_hmac)
+
+
 @csrf_exempt
 def shopify_webhook_receiver(request):
     if request.method != 'POST':
         return HttpResponseForbidden()
-    if 'Shopify' not in request.headers.get('User-Agent', ''):
-        return HttpResponseForbidden("Invalid Source")
+    # 🛡️ HMAC-SHA256 verification بدلاً من User-Agent check
+    if not _verify_webhook_hmac(request, 'SHOPIFY_WEBHOOK_SECRET', 'HTTP_X_SHOPIFY_HMAC_SHA256'):
+        logger.warning("🛑 [SHOPIFY] HMAC verification failed — possible spoofing attempt.")
+        return HttpResponseForbidden("Invalid HMAC signature")
     try:
-        logger.info("⚙️ [SHOPIFY] Sync initiated.")
+        logger.info("⚙️ [SHOPIFY] Sync initiated (HMAC verified).")
         return _json_response_safe({"status": "success", "message": "Order accepted for sync."})
     except Exception as e:
         return _json_response_safe({"status": "error", "message": str(e)}, 500)
@@ -338,16 +391,26 @@ def shopify_webhook_receiver(request):
 
 @csrf_exempt
 def payment_gateway_callback(request):
+    """🛡️ Stub — No logic, safe. When activated must add HMAC verification."""
+    if request.method != 'POST':
+        return HttpResponseForbidden()
+    logger.info("⚙️ [PAYMENT GW] Callback received (stub).")
     return _json_response_safe({"status": "success", "channel": "fintech_sync_active"})
 
 
 @csrf_exempt
 def market_price_sync_webhook(request):
+    """🛡️ Stub — When activated must add HMAC verification."""
+    if request.method != 'POST':
+        return HttpResponseForbidden()
     return _json_response_safe({"status": "acknowledged"})
 
 
 @csrf_exempt
 def regional_tax_forex_sync_webhook(request):
+    """🛡️ Stub — When activated must add HMAC verification."""
+    if request.method != 'POST':
+        return HttpResponseForbidden()
     return _json_response_safe({"status": "success", "message": "أسعار الصرف تم تحديثها."})
 
 
@@ -356,6 +419,7 @@ def regional_tax_forex_sync_webhook(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def barcode_lookup_api(request):
     code = request.GET.get('code', '').strip()
     if not code:
@@ -381,6 +445,7 @@ def barcode_lookup_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def mobile_cycle_count_api(request):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -428,6 +493,7 @@ def mobile_cycle_count_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def offline_pos_sync_api(request):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -447,6 +513,7 @@ def offline_pos_sync_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def receive_diagnostic_report(request):
     if request.method != 'POST':
         return HttpResponseForbidden()
@@ -461,6 +528,7 @@ def receive_diagnostic_report(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def parts_cross_reference_api(request):
     part_number = request.GET.get('part_number', '').strip()
     alts = list(
@@ -476,6 +544,7 @@ def parts_cross_reference_api(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def request_async_report_api(request):
     report_type = request.GET.get('type', 'inventory_valuation')
     task_id = f"task_{uuid.uuid4().hex[:12]}"
@@ -488,6 +557,7 @@ def request_async_report_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def download_async_report_api(request, task_id):
     return _json_response_safe({
         "status": "ready",
@@ -603,6 +673,7 @@ def _agent_vision_license(image_b64: str) -> dict:
 # ------------------------------------------------------------------
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def ai_repair_estimator_api(request):
     """HTTP Adapter لوكيل التشخيص"""
     if request.method == 'GET':
@@ -658,6 +729,7 @@ def ai_repair_estimator_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def ai_ocr_invoice_scanner_api(request):
     """HTTP Adapter لوكيل فواتير الموردين"""
     if request.method != 'POST':
@@ -676,6 +748,7 @@ def ai_ocr_invoice_scanner_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def ai_vehicle_docs_scanner_api(request):
     """HTTP Adapter لوكيل وثائق المركبات"""
     if request.method != 'POST':
@@ -694,6 +767,7 @@ def ai_vehicle_docs_scanner_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def b2b_market_search_api(request):
     """HTTP Adapter لوكيل السوق المركزي"""
     query = request.GET.get('q', request.GET.get('part_number', '')).strip()
@@ -709,6 +783,7 @@ def b2b_market_search_api(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def return_core_charge_api(request, item_id):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -726,6 +801,7 @@ def return_core_charge_api(request, item_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def create_blind_bid_api(request):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -746,6 +822,7 @@ def create_blind_bid_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def distribute_scrap_cost_api(request, job_id):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
@@ -786,6 +863,7 @@ def distribute_scrap_cost_api(request, job_id):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def unified_ai_agent_orchestrator_api(request):
     """
     🚀 سلسلة الوكلاء المتصلة (Agentic Pipeline v2):
@@ -963,17 +1041,22 @@ def unified_ai_agent_orchestrator_api(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def legacy_system_sync_api(request):
     return _json_response_safe({"status": "success", "channel": "decentralized_legacy_sync_active"})
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def ai_competitor_recon_api(request):
     return _json_response_safe({"status": "success", "channel": "market_competitor_recon_active"})
 
 
 @csrf_exempt
 def universal_webhook_multiplexer(request):
+    """🛡️ Stub — When activated must add HMAC verification."""
+    if request.method != 'POST':
+        return HttpResponseForbidden()
     return _json_response_safe({"status": "success", "channel": "universal_webhook_active"})
 
 
@@ -982,13 +1065,12 @@ def universal_webhook_multiplexer(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def profit_loss_report_api(request):
     """
     تقرير الأرباح والخسائر — يقارن الإيرادات بالمصروفات لفترة محددة.
     يدعم ?from=YYYY-MM-DD&to=YYYY-MM-DD
     """
-    if not _require_tenant(request):
-        return _json_response_safe({"error": "tenant required"}, 403)
 
     from_date = request.GET.get('from', '')
     to_date = request.GET.get('to', '')
@@ -1069,10 +1151,9 @@ def profit_loss_report_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def product_profitability_api(request):
     """أربحية كل منتج — أعلى 20 منتج ربحية"""
-    if not _require_tenant(request):
-        return _json_response_safe({"error": "tenant required"}, 403)
 
     branch = _get_branch_for_user(request.user)
     items_qs = SaleInvoiceItem.objects.filter(invoice__status='posted')
@@ -1114,6 +1195,7 @@ def product_profitability_api(request):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def import_upload_api(request):
     """
     رفع ملف استيراد (CSV/Excel) وإنشاء جلسة استيراد جديدة.
@@ -1207,6 +1289,7 @@ def import_upload_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def import_preview_api(request, session_id):
     """معاينة جلسة الاستيراد — عرض التقارير والتعارضات"""
     session = get_object_or_404(ImportSession, session_id=session_id, created_by=request.user)
@@ -1225,6 +1308,7 @@ def import_preview_api(request, session_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def import_confirm_api(request, session_id):
     """
     تأكيد الاستيراد — يبدأ الاستيراد الفعلي بعد المعاينة.
@@ -1422,6 +1506,7 @@ def import_confirm_api(request, session_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def import_rollback_api(request, session_id):
     """
     التراجع عن استيراد — يحذف السجلات المُستوردة ويستعيد النسخ الأصلية.
@@ -1479,12 +1564,11 @@ def import_rollback_api(request, session_id):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def vehicles_by_customer_api(request, customer_id):
     """
     يرجع قائمة مركبات العميل المحدد لتصفية الـ autocomplete في فاتورة البيع.
     """
-    if not _require_tenant(request):
-        return JsonResponse({'error': 'tenant required'}, status=403)
     vehicles = Vehicle.objects.filter(customer_id=customer_id).values(
         'id', 'chassis_number', 'car_plate', 'brand', 'model_name'
     )
@@ -1503,13 +1587,12 @@ def vehicles_by_customer_api(request, customer_id):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def customer_statement_api(request, customer_id):
     """
     كشف حساب عميل — كل المعاملات المالية مع الرصيد التراكمي.
     يدعم ?from=YYYY-MM-DD&to=YYYY-MM-DD
     """
-    if not _require_tenant(request):
-        return _json_response_safe({"error": "tenant required"}, 403)
 
     customer = get_object_or_404(Customer, pk=customer_id)
     from_date = request.GET.get('from', '')
@@ -1584,10 +1667,9 @@ def customer_statement_api(request, customer_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def vendor_statement_api(request, vendor_id):
     """كشف حساب مورد"""
-    if not _require_tenant(request):
-        return _json_response_safe({"error": "tenant required"}, 403)
 
     vendor = get_object_or_404(Vendor, pk=vendor_id)
     from_date = request.GET.get('from', '')
@@ -1659,6 +1741,7 @@ def vendor_statement_api(request, vendor_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
     customer = get_object_or_404(Customer, pk=customer_id)
@@ -1675,6 +1758,7 @@ def customer_statement_print(request, customer_id):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def vendor_statement_print(request, vendor_id):
     """طباعة كشف حساب المورد"""
     vendor = get_object_or_404(Vendor, pk=vendor_id)
@@ -1695,6 +1779,7 @@ def vendor_statement_print(request, vendor_id):
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def inventory_movement_log_api(request):
     """سجل حركات المخزون لمنتج محدد — يدعم ?product_id=X"""
     product_id = request.GET.get('product_id')
@@ -1720,6 +1805,7 @@ def inventory_movement_log_api(request):
 
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def account_ledger_api(request, account_id):
     """دفتر أستاذ حساب محاسبي محدد"""
     account = get_object_or_404(ChartOfAccount, pk=account_id)
