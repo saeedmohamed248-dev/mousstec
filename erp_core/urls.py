@@ -69,12 +69,17 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 def smart_root_router(request):
     """
-    توجيه حركة المرور بذكاء بناءً على النطاق والسياق التشغيلي.
+    توجيه حركة المرور بذكاء بناءً على النطاق والسياق التشغيلي والصناعة.
     """
     if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
         return client_views.mousstec_landing_page(request)
-    
-    # إذا كان الزائر يفتح فرعاً مخصصاً (Tenant Subdomain) يتم توجيهه للـ Dashboard الفخمة
+
+    # المطابع → لوحة الأدمن مباشرة (لا يوجد لها dashboard مستقل)
+    industry = getattr(request.tenant, 'industry', 'automotive')
+    if industry == 'printing':
+        return redirect(f'/{ADMIN_URL}/')
+
+    # السيارات → Dashboard الفرع
     return redirect('/system/dashboard/')
 
 # =====================================================================
@@ -172,11 +177,13 @@ def admin_honeypot(request, exception=None):
 # 🛡️ 4. حراس الأخطاء המخصصة (Custom Branded Error Handlers)
 # =====================================================================
 def custom_404_handler(request, exception=None):
-    """🚀 ابتكار: يمنع تسريبโครงية الروابط (URL Structure Leakage) عند حدوث خطأ"""
+    """يمنع تسريب بنية الروابط عند حدوث خطأ ويوجه حسب الصناعة"""
     if request.path.startswith('/api/'):
         return JsonResponse({"error": "endpoint_not_found", "message": "المسار المطلوب غير متوفر."}, status=404)
-    # إذا كان الزائر داخل نظام ورشة، يتم إرجاعه للوحة التحكم بأمان
     if hasattr(request, 'tenant') and request.tenant.schema_name != 'public':
+        industry = getattr(request.tenant, 'industry', 'automotive')
+        if industry == 'printing':
+            return redirect(f'/{ADMIN_URL}/')
         return redirect('/system/dashboard/')
     return redirect('smart_root')
 

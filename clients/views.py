@@ -150,8 +150,12 @@ def smart_post_login_redirect(request):
     if request.user.is_superuser and schema == 'public':
         return redirect('/superadmin/')
 
-    # مستخدم tenant (حتى لو superuser داخل الورشة) → الداشبورد
+    # مستخدم tenant — التوجيه حسب الصناعة
     if tenant and schema != 'public':
+        industry = getattr(tenant, 'industry', 'automotive')
+        if industry == 'printing':
+            admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+            return redirect(f'/{admin_url}/')
         return redirect('/system/dashboard/')
 
     return redirect('/login/')
