@@ -79,17 +79,23 @@ def register_new_tenant_saas(request):
                                     'is_superuser': True,
                                 }
                             )
+                            # ⚠️ دائماً نعيد كتابة الباسورد بالقيمة اللي اليوزر دخّلها
                             admin_user.set_password(data['password'])
-                            if not created:
-                                admin_user.first_name = name_parts[0]
-                                admin_user.last_name = name_parts[1] if len(name_parts) > 1 else ''
-                                admin_user.is_staff = True
-                                admin_user.is_superuser = True
+                            admin_user.first_name = name_parts[0]
+                            admin_user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+                            admin_user.is_staff = True
+                            admin_user.is_superuser = True
                             admin_user.save()
 
+                            # ربط الـ EmployeeProfile حسب القطاع
                             try:
-                                from inventory.models import EmployeeProfile
-                                EmployeeProfile.objects.get_or_create(user=admin_user, defaults={'role': 'admin', 'can_edit_posted_invoices': True})
+                                if industry == 'automotive':
+                                    from inventory.models import EmployeeProfile, Branch
+                                    branch = Branch.objects.filter(name="الفرع الرئيسي").first()
+                                    EmployeeProfile.objects.get_or_create(
+                                        user=admin_user,
+                                        defaults={'role': 'admin', 'branch': branch, 'can_edit_posted_invoices': True}
+                                    )
                             except Exception:
                                 pass
                                 

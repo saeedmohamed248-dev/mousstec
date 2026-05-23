@@ -64,85 +64,66 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
             logger.error(f"🔴 [ORCHESTRATOR ERROR]: Genesis ledger failed for {instance.name} - {e}")
 
         # -------------------------------------------------------------
-        # 3. محرك الحقن الاستباقي (Data Seeding, Checklists & Security)
+        # 3. محرك الحقن الاستباقي (Data Seeding) — حسب القطاع
+        # ⚠️ ملاحظة: حساب الأدمن يُنشأ في الـ View وليس هنا لتجنب تضارب كلمات المرور
         # -------------------------------------------------------------
-        admin_username = instance.email if instance.email else f"admin_{instance.schema_name}"
-        admin_password = get_random_string(16) # 🔑 تم رفع التعقيد لـ 16 رمزاً للأمان المطلق
-        magic_token = uuid.uuid4().hex # 🛡️ توكن التفعيل السحري الآمن
-
         if instance.schema_name != 'public':
+            industry = getattr(instance, 'industry', 'automotive')
+
             try:
-                # الاستدعاء المتأخر لمنع الـ Circular Imports
                 from django.apps import apps
-                Branch = apps.get_model('inventory', 'Branch')
-                Treasury = apps.get_model('inventory', 'Treasury')
-                ServiceCatalog = apps.get_model('inventory', 'ServiceCatalog')
-                ExpenseCategory = apps.get_model('inventory', 'ExpenseCategory')
-                User = apps.get_model('auth', 'User')
-                EmployeeProfile = apps.get_model('inventory', 'EmployeeProfile')
 
                 with schema_context(instance.schema_name):
                     with transaction.atomic():
-                        
-                        # أ. بناء الهيكل الإداري للفرع
-                        main_branch, _ = Branch.objects.get_or_create(
-                            name="الفرع الرئيسي",
-                            defaults={'location': "المقر الرئيسي للمؤسسة", 'phone': instance.phone}
-                        )
-                        
-                        # ب. تهيئة شجرة الحسابات والخزينة (Odoo-like FinTech Setup)
-                        Treasury.objects.get_or_create(
-                            name="الخزينة النقدية (الرئيسية)",
-                            branch=main_branch,
-                            defaults={'type': 'cash', 'balance': 0.00, 'is_active': True}
-                        )
 
-                        ExpenseCategory.objects.get_or_create(name="مصروفات تشغيلية (إيجار/كهرباء/صيانة)")
-                        ExpenseCategory.objects.get_or_create(name="رواتب، أجور، وعمولات فنيين")
-                        ExpenseCategory.objects.get_or_create(name="مصروفات شحن ولوجستيات (B2B)")
-                        
-                        # ج. الحقن المعرفي والخدمي حسب نوع البيزنس (ShopMonkey-like Checklists)
-                        if instance.business_type in ['service_center', 'both']:
-                            ServiceCatalog.objects.get_or_create(
-                                name="فحص أعطال رقمي شامل بجهاز OBD2 (AI Diagnostic)", 
-                                defaults={'labor_price': 300.00, 'estimated_hours': 1.0, 'tech_commission_percent': 10.00}
+                        if industry == 'printing':
+                            # 🎨 حقن بيانات المطابع
+                            PrintBranch = apps.get_model('printing', 'PrintBranch')
+                            PrintTreasury = apps.get_model('printing', 'PrintTreasury')
+
+                            main_branch, _ = PrintBranch.objects.get_or_create(
+                                name="الفرع الرئيسي",
+                                defaults={'address': "المقر الرئيسي", 'phone': instance.phone}
                             )
-                            # 🚀 ابتكار: زرع قوالب جاهزة ترفع احترافية العميل من أول دخول
-                            ServiceCatalog.objects.get_or_create(
-                                name="فحص 36 نقطة الشامل (Standard 36-Point Vehicle Inspection)", 
-                                defaults={'labor_price': 0.00, 'estimated_hours': 0.5, 'tech_commission_percent': 0.00, 
-                                          'description': "فحص مجاني وقائي لزيادة ولاء العملاء."}
+                            PrintTreasury.objects.get_or_create(
+                                name="الخزينة النقدية (الرئيسية)",
+                                branch=main_branch,
+                                defaults={'balance': 0.00, 'is_active': True}
                             )
+                        else:
+                            # 🚗 حقن بيانات السيارات (الافتراضي)
+                            Branch = apps.get_model('inventory', 'Branch')
+                            Treasury = apps.get_model('inventory', 'Treasury')
+                            ServiceCatalog = apps.get_model('inventory', 'ServiceCatalog')
+                            ExpenseCategory = apps.get_model('inventory', 'ExpenseCategory')
 
-                        # د. زراعة المدير العام وتحصين الصلاحيات (Zero-Trust)
-                        admin_user, u_created = User.objects.get_or_create(
-                            username=admin_username,
-                            defaults={
-                                'email': instance.email or f"{admin_username}@mousstec.com",
-                                'first_name': instance.owner_name or 'مدير',
-                                'last_name': 'العمليات',
-                                'is_staff': True,
-                                'is_superuser': True
-                            }
-                        )
-                        
-                        if u_created:
-                            admin_user.set_password(admin_password)
-                            admin_user.save()
-                        
-                        # 🛡️ الحماية من الـ Race Condition أثناء ربط البروفايل
-                        profile, _ = EmployeeProfile.objects.get_or_create(
-                            user=admin_user,
-                            defaults={'role': 'admin', 'branch': main_branch, 'can_edit_posted_invoices': True}
-                        )
-                        if profile.branch != main_branch or profile.role != 'admin':
-                            profile.branch = main_branch
-                            profile.role = 'admin'
-                            profile.save(update_fields=['branch', 'role'])
+                            main_branch, _ = Branch.objects.get_or_create(
+                                name="الفرع الرئيسي",
+                                defaults={'location': "المقر الرئيسي للمؤسسة", 'phone': instance.phone}
+                            )
+                            Treasury.objects.get_or_create(
+                                name="الخزينة النقدية (الرئيسية)",
+                                branch=main_branch,
+                                defaults={'type': 'cash', 'balance': 0.00, 'is_active': True}
+                            )
+                            ExpenseCategory.objects.get_or_create(name="مصروفات تشغيلية (إيجار/كهرباء/صيانة)")
+                            ExpenseCategory.objects.get_or_create(name="رواتب، أجور، وعمولات فنيين")
+                            ExpenseCategory.objects.get_or_create(name="مصروفات شحن ولوجستيات (B2B)")
 
-                logger.info(f"🏢 [ORCHESTRATOR]: Cognitive Provisioning complete for schema '{instance.schema_name}'")
+                            if instance.business_type in ['service_center', 'both']:
+                                ServiceCatalog.objects.get_or_create(
+                                    name="فحص أعطال رقمي شامل بجهاز OBD2 (AI Diagnostic)",
+                                    defaults={'labor_price': 300.00, 'estimated_hours': 1.0, 'tech_commission_percent': 10.00}
+                                )
+                                ServiceCatalog.objects.get_or_create(
+                                    name="فحص 36 نقطة الشامل (Standard 36-Point Vehicle Inspection)",
+                                    defaults={'labor_price': 0.00, 'estimated_hours': 0.5, 'tech_commission_percent': 0.00,
+                                              'description': "فحص مجاني وقائي لزيادة ولاء العملاء."}
+                                )
+
+                logger.info(f"🏢 [ORCHESTRATOR]: Provisioning complete for schema '{instance.schema_name}' (industry={industry})")
             except Exception as e:
-                logger.error(f"🔴 [ORCHESTRATOR FATAL ERROR]: Provisioning crashed for '{instance.schema_name}' - {e}")
+                logger.error(f"🔴 [ORCHESTRATOR ERROR]: Provisioning failed for '{instance.schema_name}' - {e}")
 
         # -------------------------------------------------------------
         # 4. نقل المهمة لبوت الترحيب في الـ Celery Queue (Secure Orchestration)
