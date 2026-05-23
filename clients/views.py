@@ -19,6 +19,8 @@ import logging
 import uuid
 import os
 import secrets
+import hmac
+import hashlib
 
 # الاستدعاء الصريح والمباشر للاستمارات والموديلات
 from clients.forms import TenantSignupForm
@@ -489,7 +491,6 @@ def active_blind_bids_api(request):
     data = [{"bid_id": b.id, "part_number": b.part_number, "required_qty": b.required_qty, "buyer_name": "مشتري سري" if b.auto_award else b.buyer.name, "urgency": "High" if (b.expires_at - timezone.now()).total_seconds() < 7200 else "Normal"} for b in active_bids]
     return JsonResponse({"status": "success", "bids": data})
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def submit_bid_offer_api(request):
     """
@@ -646,7 +647,6 @@ def saas_pricing_page(request):
 # =====================================================================
 # 💳 8.5 بوابة الدفع عبر Paymob (Visa / Mastercard)
 # =====================================================================
-@csrf_exempt
 def paymob_checkout(request):
     """
     إنشاء طلب دفع عبر Paymob وتوجيه العميل لصفحة الدفع الآمنة.
@@ -730,10 +730,86 @@ def paymob_checkout(request):
 def paymob_callback(request):
     """
     استقبال نتيجة الدفع من Paymob بعد إتمام العملية.
+    🛡️ يتحقق من توقيع HMAC لمنع التلاعب بالطلبات.
     """
     data = request.GET.dict() if request.method == 'GET' else json.loads(request.body) if request.body else {}
 
-    success = data.get('success', 'false')
+    # ── 🛡️ التحقق من توقيع HMAC (يمنع تزوير طلبات الدفع) ──
+    paymob_hmac_secret = os.getenv('PAYMOB_HMAC_SECRET', '')
+    received_hmac = request.GET.get('hmac', '') or data.get('hmac', '')
+
+    if paymob_hmac_secret:
+        # Paymob HMAC concatenation order (alphabetical by key name):
+        # amount_cents, created_at, currency, error_occured, has_parent_transaction,
+        # id, integration_id, is_3d_secure, is_auth, is_capture, is_refunded,
+        # is_standalone_payment, is_voided, order.id, owner, pending,
+        # source_data.pan, source_data.sub_type, source_data.type, success
+        obj = data.get('obj', {})
+        if not obj and request.method == 'GET':
+            # GET callback — obj fields are flat in query params
+            hmac_fields = [
+                str(data.get('amount_cents', '')),
+                str(data.get('created_at', '')),
+                str(data.get('currency', '')),
+                str(data.get('error_occured', '')),
+                str(data.get('has_parent_transaction', '')),
+                str(data.get('id', '')),
+                str(data.get('integration_id', '')),
+                str(data.get('is_3d_secure', '')),
+                str(data.get('is_auth', '')),
+                str(data.get('is_capture', '')),
+                str(data.get('is_refunded', '')),
+                str(data.get('is_standalone_payment', '')),
+                str(data.get('is_voided', '')),
+                str(data.get('order', '')),
+                str(data.get('owner', '')),
+                str(data.get('pending', '')),
+                str(data.get('source_data.pan', data.get('source_data_pan', ''))),
+                str(data.get('source_data.sub_type', data.get('source_data_sub_type', ''))),
+                str(data.get('source_data.type', data.get('source_data_type', ''))),
+                str(data.get('success', '')),
+            ]
+        else:
+            # POST callback — obj is nested JSON
+            source_data = obj.get('source_data', {})
+            order_obj = obj.get('order', {})
+            hmac_fields = [
+                str(obj.get('amount_cents', '')),
+                str(obj.get('created_at', '')),
+                str(obj.get('currency', '')),
+                str(obj.get('error_occured', '')),
+                str(obj.get('has_parent_transaction', '')),
+                str(obj.get('id', '')),
+                str(obj.get('integration_id', '')),
+                str(obj.get('is_3d_secure', '')),
+                str(obj.get('is_auth', '')),
+                str(obj.get('is_capture', '')),
+                str(obj.get('is_refunded', '')),
+                str(obj.get('is_standalone_payment', '')),
+                str(obj.get('is_voided', '')),
+                str(order_obj.get('id', '')),
+                str(obj.get('owner', '')),
+                str(obj.get('pending', '')),
+                str(source_data.get('pan', '')),
+                str(source_data.get('sub_type', '')),
+                str(source_data.get('type', '')),
+                str(obj.get('success', '')),
+            ]
+
+        concatenated = ''.join(hmac_fields)
+        computed_hmac = hmac.new(
+            paymob_hmac_secret.encode('utf-8'),
+            concatenated.encode('utf-8'),
+            hashlib.sha512,
+        ).hexdigest()
+
+        if not hmac.compare_digest(computed_hmac, received_hmac):
+            logger.critical(f"🚨 [PAYMOB HMAC MISMATCH] IP: {request.META.get('REMOTE_ADDR')} — Possible payment forgery attempt!")
+            return redirect(reverse('saas_pricing') + '?payment=failed&reason=signature')
+    else:
+        logger.warning("⚠️ [PAYMOB] PAYMOB_HMAC_SECRET not configured — HMAC verification skipped!")
+
+    success = data.get('success', data.get('obj', {}).get('success', 'false'))
     order_id = data.get('order', data.get('obj', {}).get('order', {}).get('id', ''))
 
     if str(success).lower() == 'true' and order_id:
@@ -817,7 +893,6 @@ def manage_subscription(request):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def purchase_addon_api(request):
     if request.method != 'POST':

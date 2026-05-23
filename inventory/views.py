@@ -200,7 +200,6 @@ def share_invoice_whatsapp(request, invoice_id):
     return redirect(f"https://wa.me/{invoice.customer.phone}?text={urllib.parse.quote(msg)}")
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def capture_digital_signature(request, invoice_id):
     if request.method != 'POST':
@@ -274,7 +273,6 @@ def fleet_contract_balance_api(request, contract_code):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def tech_shift_manager_api(request, action):
     if request.method != 'POST':
@@ -321,7 +319,6 @@ def api_documentation_view(request):
     )
 
 
-@csrf_exempt
 def graphql_gateway_view(request):
     return _json_response_safe({"data": {"message": "GraphQL Federation Gateway Active."}})
 
@@ -383,7 +380,6 @@ def barcode_lookup_api(request):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def mobile_cycle_count_api(request):
     if request.method != 'POST':
@@ -431,7 +427,6 @@ def mobile_cycle_count_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def offline_pos_sync_api(request):
     if request.method != 'POST':
@@ -451,7 +446,6 @@ def offline_pos_sync_api(request):
         return _json_response_safe({"error": "فشل المزامنة"}, 500)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def receive_diagnostic_report(request):
     if request.method != 'POST':
@@ -608,7 +602,6 @@ def _agent_vision_license(image_b64: str) -> dict:
 # HTTP Adapters — الـ Views التي تغلّف الوكلاء
 # ------------------------------------------------------------------
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_repair_estimator_api(request):
     """HTTP Adapter لوكيل التشخيص"""
@@ -664,7 +657,6 @@ def ai_repair_estimator_api(request):
     return _json_response_safe({"error": "Method not allowed"}, 405)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_ocr_invoice_scanner_api(request):
     """HTTP Adapter لوكيل فواتير الموردين"""
@@ -683,7 +675,6 @@ def ai_ocr_invoice_scanner_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_vehicle_docs_scanner_api(request):
     """HTTP Adapter لوكيل وثائق المركبات"""
@@ -717,7 +708,6 @@ def b2b_market_search_api(request):
 # 🏎️ 8. عمليات الأعمال (Business Operations)
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def return_core_charge_api(request, item_id):
     if request.method != 'POST':
@@ -735,7 +725,6 @@ def return_core_charge_api(request, item_id):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def create_blind_bid_api(request):
     if request.method != 'POST':
@@ -756,7 +745,6 @@ def create_blind_bid_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def distribute_scrap_cost_api(request, job_id):
     if request.method != 'POST':
@@ -797,7 +785,6 @@ def distribute_scrap_cost_api(request, job_id):
 # 🧠 9. الأوركسترا المركزية متعدد الوكلاء (MAS Unified Pipeline)
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def unified_ai_agent_orchestrator_api(request):
     """
@@ -975,13 +962,11 @@ def unified_ai_agent_orchestrator_api(request):
 # 🔌 10. مسارات الـ API Gateway الأخرى
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def legacy_system_sync_api(request):
     return _json_response_safe({"status": "success", "channel": "decentralized_legacy_sync_active"})
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def ai_competitor_recon_api(request):
     return _json_response_safe({"status": "success", "channel": "market_competitor_recon_active"})
@@ -1128,7 +1113,6 @@ def product_profitability_api(request):
 # 📥 12. نظام الاستيراد الآمن (Safe Import System)
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def import_upload_api(request):
     """
@@ -1240,7 +1224,6 @@ def import_preview_api(request, session_id):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def import_confirm_api(request, session_id):
     """
@@ -1350,7 +1333,6 @@ def import_confirm_api(request, session_id):
         return _json_response_safe({"error": f"فشل الاستيراد: {str(e)}"}, 500)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 def import_rollback_api(request, session_id):
     """
