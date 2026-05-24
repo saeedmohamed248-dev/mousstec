@@ -27,7 +27,7 @@ _PORTAL_MAP = {
 class IndustryPortalMiddleware:
     """
     يعترض بوابات القطاعات (auto.mousstec.com / print.mousstec.com) قبل django-tenants.
-    هذه ليست مستأجرين حقيقيين — بل بوابات توجيه تعيد التوجيه للتسجيل أو الصفحة الرئيسية.
+    هذه ليست مستأجرين حقيقيين — بل بوابات توجه لصفحات هبوط مخصصة لكل قطاع.
     يجب أن يكون قبل TenantMainMiddleware في MIDDLEWARE.
     """
     def __init__(self, get_response):
@@ -40,15 +40,27 @@ class IndustryPortalMiddleware:
             return self.get_response(request)
 
         path = request.path_info
+
+        # السماح بمرور الملفات الثابتة بدون تدخل
         if path.startswith('/static/') or path.startswith('/media/'):
             return self.get_response(request)
 
         protocol = 'https' if request.is_secure() else 'http'
         base = f'{protocol}://{_BASE_DOMAIN}'
 
+        # الصفحة الرئيسية → صفحة هبوط القطاع المخصصة
         if path == '/' or path == '':
-            return redirect(f'{base}/connect/signup/?industry={industry}')
+            from django.shortcuts import render as _render
+            template = 'clients/auto_landing.html' if industry == 'automotive' else 'clients/print_landing.html'
+            return _render(request, template, {
+                'industry': industry,
+                'base_domain': _BASE_DOMAIN,
+                'signup_url': f'{base}/connect/signup/?industry={industry}',
+                'pricing_url': f'{base}/pricing/',
+                'login_url': f'{base}/login/',
+            })
 
+        # صفحات التسجيل والأسعار → إعادة توجيه للدومين الرئيسي مع حفظ القطاع
         if path.startswith('/connect/signup'):
             qs = request.META.get('QUERY_STRING', '')
             if 'industry=' not in qs:
@@ -56,10 +68,11 @@ class IndustryPortalMiddleware:
                 return redirect(f'{base}{path}?{qs}{sep}industry={industry}')
             return redirect(f'{base}{path}?{qs}')
 
-        if path == '/pricing/' or path == '/features/':
+        if path in ('/pricing/', '/features/', '/login/'):
             return redirect(f'{base}{path}')
 
-        return redirect(f'{base}/connect/signup/?industry={industry}')
+        # أي مسار آخر → صفحة الهبوط
+        return redirect(f'/')
 
 _ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 

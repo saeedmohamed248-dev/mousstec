@@ -390,6 +390,163 @@ class EscrowLedger(models.Model):
 
 
 # =====================================================================
+# 💎 7. باقات الاشتراك الموحدة (Unified Subscription Plans)
+# =====================================================================
+class Plan(models.Model):
+    INDUSTRY_CHOICES = (
+        ('automotive', _('سيارات')),
+        ('printing', _('طباعة وتصميم')),
+    )
+    slug = models.SlugField(max_length=40, unique=True, verbose_name=_("المعرف"))
+    name = models.CharField(max_length=80, verbose_name=_("اسم الباقة"))
+    industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, verbose_name=_("القطاع"))
+
+    monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري (ج.م)"))
+    quarterly_discount = models.IntegerField(default=10, verbose_name=_("خصم ربع سنوي (%)"))
+    semi_annual_discount = models.IntegerField(default=15, verbose_name=_("خصم نصف سنوي (%)"))
+    annual_discount = models.IntegerField(default=20, verbose_name=_("خصم سنوي (%)"))
+
+    max_branches = models.IntegerField(default=1)
+    max_users = models.IntegerField(default=1)
+    max_treasuries = models.IntegerField(default=1)
+
+    features = models.JSONField(default=list, blank=True, verbose_name=_("المميزات"))
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("باقة اشتراك")
+        verbose_name_plural = _("💎 باقات الاشتراك")
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return f"{self.name} — {self.monthly_price} ج.م/شهر"
+
+    def price_for_period(self, months):
+        if months >= 12:
+            discount = self.annual_discount
+        elif months >= 6:
+            discount = self.semi_annual_discount
+        elif months >= 3:
+            discount = self.quarterly_discount
+        else:
+            discount = 0
+        total = self.monthly_price * months
+        return (total * (100 - discount) / 100).quantize(Decimal('0.01'))
+
+
+# =====================================================================
+# 🤖 8. حزم إضافات الذكاء الاصطناعي (AI Studio Add-ons)
+# =====================================================================
+class AIAddonPackage(models.Model):
+    slug = models.SlugField(max_length=40, unique=True)
+    name = models.CharField(max_length=80, verbose_name=_("اسم الحزمة"))
+    monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري (ج.م)"))
+
+    ai_generations_limit = models.IntegerField(default=0, verbose_name=_("حد التوليد بالذكاء الاصطناعي"))
+    whatsapp_messages_limit = models.IntegerField(default=0, verbose_name=_("حد رسائل واتساب"))
+
+    features = models.JSONField(default=list, blank=True, verbose_name=_("مميزات الحزمة"))
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("حزمة AI إضافية")
+        verbose_name_plural = _("🤖 حزم AI Studio")
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return f"{self.name} — {self.monthly_price} ج.م/شهر"
+
+
+# =====================================================================
+# 📋 9. اشتراك المستأجر (Tenant Subscription)
+# =====================================================================
+class TenantSubscription(models.Model):
+    tenant = models.OneToOneField(Client, on_delete=models.CASCADE, related_name='subscription', verbose_name=_("المستأجر"))
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("الباقة"))
+    ai_addon = models.ForeignKey(AIAddonPackage, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("حزمة AI"))
+
+    billing_cycle_months = models.IntegerField(default=1, verbose_name=_("دورة الفوترة (أشهر)"))
+    current_period_start = models.DateField(null=True, blank=True)
+    current_period_end = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("اشتراك مستأجر")
+        verbose_name_plural = _("📋 اشتراكات المستأجرين")
+
+    def __str__(self):
+        plan_name = self.plan.name if self.plan else 'بدون باقة'
+        return f"{self.tenant.name} — {plan_name}"
+
+
+# =====================================================================
+# 📊 10. متتبع حصص الذكاء الاصطناعي (AI Limit Tracker)
+# =====================================================================
+class AILimitTracker(models.Model):
+    ACTION_CHOICES = (
+        ('ai_generation', _('توليد صورة بالذكاء الاصطناعي')),
+        ('whatsapp_send', _('إرسال رسالة واتساب')),
+        ('smart_watermark', _('علامة مائية ذكية')),
+    )
+    tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='ai_usage_log', verbose_name=_("المستأجر"))
+    action_type = models.CharField(max_length=30, choices=ACTION_CHOICES, verbose_name=_("نوع العملية"))
+    used_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict, blank=True, verbose_name=_("بيانات إضافية"))
+
+    class Meta:
+        verbose_name = _("سجل استهلاك AI")
+        verbose_name_plural = _("📊 سجل استهلاك AI Studio")
+        ordering = ['-used_at']
+
+    def __str__(self):
+        return f"{self.tenant.name} — {self.get_action_type_display()} — {self.used_at:%Y-%m-%d %H:%M}"
+
+    @classmethod
+    def get_monthly_usage(cls, tenant, action_type):
+        """إرجاع عدد العمليات المستهلكة في الشهر الحالي"""
+        now = timezone.now()
+        return cls.objects.filter(
+            tenant=tenant,
+            action_type=action_type,
+            used_at__year=now.year,
+            used_at__month=now.month,
+        ).count()
+
+    @classmethod
+    def can_use(cls, tenant, action_type):
+        """التحقق من أن المستأجر لم يتجاوز حدود حزمة AI"""
+        try:
+            sub = tenant.subscription
+        except TenantSubscription.DoesNotExist:
+            return False
+        if not sub.ai_addon:
+            return False
+
+        used = cls.get_monthly_usage(tenant, action_type)
+        if action_type == 'ai_generation':
+            return used < sub.ai_addon.ai_generations_limit
+        elif action_type in ('whatsapp_send', 'smart_watermark'):
+            return used < sub.ai_addon.whatsapp_messages_limit
+        return False
+
+    @classmethod
+    def deduct(cls, tenant, action_type, metadata=None):
+        """خصم رصيد واحد مع تسجيل العملية — يرجع True إذا نجحت"""
+        if not cls.can_use(tenant, action_type):
+            return False
+        cls.objects.create(
+            tenant=tenant,
+            action_type=action_type,
+            metadata=metadata or {},
+        )
+        return True
+
+
+# =====================================================================
 # 🧠 الإشارات المحاسبية المؤتمتة (Bank-Grade FinTech Ledger Signals)
 # =====================================================================
 
