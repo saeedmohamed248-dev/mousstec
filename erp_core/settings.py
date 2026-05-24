@@ -128,6 +128,7 @@ TENANT_DOMAIN_MODEL = 'clients.Domain'
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
 # =====================================================================
 MIDDLEWARE = [
+    'erp_core.middleware.IndustryPortalMiddleware',       # 0. بوابات القطاعات (auto.*/print.*) قبل عزل الـ Schema
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'clients.middleware.TenantQuotaMiddleware',           # 2. حارس الباقات الديناميكي
     'erp_core.middleware.IndustryRoutingMiddleware',      # 3. عزل القطاعات (سيارات ↔ طباعة)
