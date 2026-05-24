@@ -130,7 +130,8 @@ TENANT_DOMAIN_MODEL = 'clients.Domain'
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'clients.middleware.TenantQuotaMiddleware',           # 2. حارس الباقات الديناميكي
-    
+    'erp_core.middleware.IndustryRoutingMiddleware',      # 3. عزل القطاعات (سيارات ↔ طباعة)
+
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'corsheaders.middleware.CorsMiddleware',      
