@@ -4,9 +4,16 @@ from django.contrib import messages
 from django.db import transaction
 from django.db import connection  # مستشعر فحص النطاقات السحابية اللحظي
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 # استدعاء جميع نماذج الإمبراطورية بعد التحديثات الأخيرة
-from .models import Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer, EscrowLedger
+from .models import (
+    Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest,
+    BidOffer, EscrowLedger, Plan, AIAddonPackage,
+    TenantSubscription, AILimitTracker,
+)
 
 import logging
 logger = logging.getLogger('mouss_tec_core')
@@ -73,12 +80,54 @@ class BidOfferInline(admin.TabularInline):
     verbose_name = "عرض سعر مقدم"
     verbose_name_plural = "📥 عروض أسعار التجار السريّة"
 
+class TenantSubscriptionInline(admin.StackedInline):
+    """Inline لعرض اشتراك المستأجر داخل صفحة Client"""
+    model = TenantSubscription
+    extra = 0
+    max_num = 1
+    can_delete = False
+    verbose_name = "اشتراك المستأجر"
+    verbose_name_plural = "📋 اشتراك المستأجر (Subscription)"
+    readonly_fields = ('created_at', 'updated_at', 'subscription_summary')
+    fieldsets = (
+        (None, {
+            'fields': ('plan', 'ai_addon', 'billing_cycle_months', 'current_period_start', 'current_period_end', 'is_active', 'subscription_summary'),
+        }),
+    )
+
+    def subscription_summary(self, obj):
+        if not obj.pk:
+            return "—"
+        plan_name = obj.plan.name if obj.plan else 'بدون باقة'
+        addon_name = obj.ai_addon.name if obj.ai_addon else 'بدون'
+        status_color = '#28a745' if obj.is_active else '#dc3545'
+        status_text = 'فعّال' if obj.is_active else 'غير فعّال'
+
+        days_left = ''
+        if obj.current_period_end:
+            remaining = (obj.current_period_end - timezone.now().date()).days
+            if remaining > 0:
+                days_left = f' | متبقي {remaining} يوم'
+            elif remaining == 0:
+                days_left = ' | ينتهي اليوم!'
+            else:
+                days_left = f' | <span style="color:#dc3545;">منتهي منذ {abs(remaining)} يوم</span>'
+
+        return format_html(
+            '<div style="background:#f8f9fa; padding:10px; border-radius:6px; border-left:4px solid {};">'
+            '<b>الباقة:</b> {} | <b>حزمة AI:</b> {} | '
+            '<b>الحالة:</b> <span style="color:{};">{}</span>{}'
+            '</div>',
+            status_color, plan_name, addon_name, status_color, status_text, days_left
+        )
+    subscription_summary.short_description = "ملخص الاشتراك"
+
 # =====================================================================
 # 🏢 2. لوحة القيادة المركزية لشركات Mouss Tec (محمية بالكامل 🔒)
 # =====================================================================
 @admin.register(Client)
 class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
-    inlines = [DomainInline]
+    inlines = [DomainInline, TenantSubscriptionInline]
     list_display = (
         'name', 'business_type_badge', 'plan_badge', 
         'financial_assets_styled', 'is_verified_icon', 
@@ -113,7 +162,7 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         }),
     )
 
-    actions = ['verify_merchants', 'suspend_clients']
+    actions = ['verify_merchants', 'suspend_clients', 'create_subscriptions_for_selected', 'quick_activate_1_month']
 
     def business_type_badge(self, obj):
         colors = {'service_center': '#17a2b8', 'parts_dealer': '#ffc107', 'scrap_importer': '#dc3545', 'both': '#6f42c1'}
@@ -165,6 +214,61 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     def suspend_clients(self, request, queryset):
         updated = queryset.update(status='suspended', is_active=False)
         self.message_user(request, f"تم إيقاف عدد {updated} شركة وعزل فروعها عن السحابة.", messages.WARNING)
+
+    @admin.action(description='📋 إنشاء سجل اشتراك للشركات المحددة (إذا لم يوجد)')
+    def create_subscriptions_for_selected(self, request, queryset):
+        created = 0
+        skipped = 0
+        for client in queryset:
+            _, was_created = TenantSubscription.objects.get_or_create(
+                tenant=client,
+                defaults={'is_active': False},
+            )
+            if was_created:
+                created += 1
+            else:
+                skipped += 1
+        msg = f"📋 تم إنشاء {created} سجل اشتراك جديد."
+        if skipped:
+            msg += f" ({skipped} شركة لديها اشتراك بالفعل)"
+        self.message_user(request, msg, messages.SUCCESS)
+
+    @admin.action(description='✅ تفعيل اشتراك فوري — شهر واحد (إنشاء + تفعيل)')
+    def quick_activate_1_month(self, request, queryset):
+        today = timezone.now().date()
+        end_date = today + relativedelta(months=1)
+        success = 0
+        for client in queryset:
+            try:
+                with transaction.atomic():
+                    sub, _ = TenantSubscription.objects.get_or_create(
+                        tenant=client,
+                        defaults={'is_active': False},
+                    )
+                    sub.current_period_start = today
+                    sub.current_period_end = end_date
+                    sub.billing_cycle_months = 1
+                    sub.is_active = True
+                    sub.save()
+                    client.status = 'active'
+                    client.subscription_end_date = end_date
+                    client.is_active = True
+                    if sub.plan:
+                        client.max_branches = sub.plan.max_branches
+                        client.max_users = sub.plan.max_users
+                        client.max_treasuries = sub.plan.max_treasuries
+                    client.save(update_fields=[
+                        'status', 'subscription_end_date', 'is_active',
+                        'max_branches', 'max_users', 'max_treasuries',
+                    ])
+                    success += 1
+            except Exception as e:
+                logger.error(f"🔴 [QUICK ACTIVATE ERROR]: {client.name} — {e}")
+        self.message_user(
+            request,
+            f"✅ تم تفعيل {success} اشتراك فوري لمدة شهر (حتى {end_date}).",
+            messages.SUCCESS,
+        )
 
     exclude = ('auto_create_schema', 'auto_drop_schema')
 
@@ -303,3 +407,379 @@ class EscrowLedgerAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             return format_html('<span style="background:#dc3545; color:white; padding:2px 6px; border-radius:4px; font-size:10px;">⚠️ فحص أمني مكثف</span>')
         return format_html('<span style="color:#28a745;"><i class="fas fa-shield-alt"></i> آمن ومطابق</span>')
     fraud_risk_badge.short_description = "الرادار الأمني"
+
+
+# =====================================================================
+# 💎 6. إدارة باقات الاشتراك (Subscription Plans Admin)
+# =====================================================================
+@admin.register(Plan)
+class PlanAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        'name', 'industry_badge', 'monthly_price_styled',
+        'discount_overview', 'limits_overview', 'is_active_icon', 'sort_order',
+    )
+    list_filter = ('industry', 'is_active')
+    search_fields = ('name', 'slug')
+    list_editable = ('sort_order',)
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ('sort_order',)
+
+    fieldsets = (
+        ('البيانات الأساسية', {
+            'fields': ('name', 'slug', 'industry', 'is_active', 'sort_order'),
+        }),
+        ('التسعير والخصومات', {
+            'fields': ('monthly_price', 'quarterly_discount', 'semi_annual_discount', 'annual_discount'),
+            'description': "الأسعار بالجنيه المصري. الخصومات كنسبة مئوية من السعر الشهري."
+        }),
+        ('حدود الاستخدام', {
+            'fields': ('max_branches', 'max_users', 'max_treasuries'),
+        }),
+        ('المميزات (JSON)', {
+            'fields': ('features',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def industry_badge(self, obj):
+        icon = '🚗' if obj.industry == 'automotive' else '🎨'
+        return format_html('{} {}', icon, obj.get_industry_display())
+    industry_badge.short_description = "القطاع"
+
+    def monthly_price_styled(self, obj):
+        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+    monthly_price_styled.short_description = "السعر الشهري"
+
+    def discount_overview(self, obj):
+        return format_html(
+            '<span style="font-size:11px;">ربع: {}% | نصف: {}% | سنوي: {}%</span>',
+            obj.quarterly_discount, obj.semi_annual_discount, obj.annual_discount
+        )
+    discount_overview.short_description = "الخصومات"
+
+    def limits_overview(self, obj):
+        return format_html(
+            '<span style="font-size:11px;">🏢 {} | 👥 {} | 🏦 {}</span>',
+            obj.max_branches, obj.max_users, obj.max_treasuries
+        )
+    limits_overview.short_description = "الحدود"
+
+    def is_active_icon(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
+        return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
+    is_active_icon.short_description = "مفعّلة"
+
+
+# =====================================================================
+# 🤖 7. إدارة حزم الذكاء الاصطناعي (AI Add-on Packages Admin)
+# =====================================================================
+@admin.register(AIAddonPackage)
+class AIAddonPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'monthly_price_styled', 'ai_generations_limit', 'whatsapp_messages_limit', 'is_active_icon')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ('sort_order',)
+
+    def monthly_price_styled(self, obj):
+        return format_html('<b style="color:#6f42c1;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+    monthly_price_styled.short_description = "السعر الشهري"
+
+    def is_active_icon(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
+        return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
+    is_active_icon.short_description = "مفعّلة"
+
+
+# =====================================================================
+# 📋 8. لوحة تحكم الاشتراكات (Tenant Subscription Admin — Super Admin HQ)
+# =====================================================================
+@admin.register(TenantSubscription)
+class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        'tenant_name', 'plan_badge', 'ai_addon_badge', 'billing_cycle_display',
+        'period_display', 'days_remaining', 'is_active_icon',
+    )
+    list_filter = ('is_active', 'plan__industry', 'plan', 'ai_addon', 'billing_cycle_months')
+    search_fields = ('tenant__name', 'tenant__schema_name', 'tenant__email', 'tenant__phone')
+    raw_id_fields = ('tenant',)
+    readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 25
+
+    fieldsets = (
+        ('المستأجر', {
+            'fields': ('tenant',),
+        }),
+        ('الباقة والدورة', {
+            'fields': ('plan', 'ai_addon', 'billing_cycle_months', 'is_active'),
+        }),
+        ('فترة الاشتراك الحالية', {
+            'fields': ('current_period_start', 'current_period_end'),
+            'description': "تواريخ بدء وانتهاء الفترة الحالية. يمكن تعديلها يدوياً لتفعيل أو تمديد الاشتراك."
+        }),
+        ('بيانات النظام', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    actions = [
+        'activate_subscription_1_month',
+        'activate_subscription_3_months',
+        'activate_subscription_6_months',
+        'activate_subscription_12_months',
+        'deactivate_subscriptions',
+        'sync_subscription_to_client',
+    ]
+
+    # ── Display columns ──────────────────────────────────────────
+
+    def tenant_name(self, obj):
+        return format_html('<b>{}</b> <span style="color:#6c757d; font-size:11px;">({})</span>',
+                           obj.tenant.name, obj.tenant.schema_name)
+    tenant_name.short_description = "المستأجر"
+    tenant_name.admin_order_field = 'tenant__name'
+
+    def plan_badge(self, obj):
+        if not obj.plan:
+            return format_html('<span style="color:#dc3545;">بدون باقة</span>')
+        colors = {'automotive': '#17a2b8', 'printing': '#6f42c1'}
+        bg = colors.get(obj.plan.industry, '#6c757d')
+        return format_html(
+            '<span style="background:{}; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">{}</span>',
+            bg, obj.plan.name
+        )
+    plan_badge.short_description = "الباقة"
+    plan_badge.admin_order_field = 'plan__name'
+
+    def ai_addon_badge(self, obj):
+        if not obj.ai_addon:
+            return "—"
+        return format_html('<span style="color:#6f42c1; font-weight:bold;">🤖 {}</span>', obj.ai_addon.name)
+    ai_addon_badge.short_description = "حزمة AI"
+
+    def billing_cycle_display(self, obj):
+        labels = {1: 'شهري', 3: 'ربع سنوي', 6: 'نصف سنوي', 12: 'سنوي'}
+        return labels.get(obj.billing_cycle_months, f'{obj.billing_cycle_months} شهور')
+    billing_cycle_display.short_description = "دورة الفوترة"
+
+    def period_display(self, obj):
+        if not obj.current_period_start or not obj.current_period_end:
+            return format_html('<span style="color:#dc3545;">غير محدد</span>')
+        return format_html(
+            '<span style="font-size:11px;">{} → {}</span>',
+            obj.current_period_start.strftime('%Y-%m-%d'),
+            obj.current_period_end.strftime('%Y-%m-%d'),
+        )
+    period_display.short_description = "فترة الاشتراك"
+
+    def days_remaining(self, obj):
+        if not obj.current_period_end:
+            return "—"
+        remaining = (obj.current_period_end - timezone.now().date()).days
+        if remaining > 30:
+            color = '#28a745'
+        elif remaining > 7:
+            color = '#ffc107'
+        elif remaining > 0:
+            color = '#fd7e14'
+        else:
+            color = '#dc3545'
+        text = f'{remaining} يوم' if remaining > 0 else ('ينتهي اليوم' if remaining == 0 else f'منتهي منذ {abs(remaining)} يوم')
+        return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, text)
+    days_remaining.short_description = "المتبقي"
+
+    def is_active_icon(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
+        return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
+    is_active_icon.short_description = "فعّال"
+
+    # ── Activation actions ────────────────────────────────────────
+
+    def _activate_subscriptions(self, request, queryset, months):
+        """Helper: activate selected subscriptions for N months from today."""
+        today = timezone.now().date()
+        success = 0
+        errors = 0
+
+        for sub in queryset:
+            try:
+                with transaction.atomic():
+                    # Set subscription dates
+                    sub.current_period_start = today
+                    sub.current_period_end = today + relativedelta(months=months)
+                    sub.billing_cycle_months = months
+                    sub.is_active = True
+                    sub.save()
+
+                    # Sync to Client model
+                    client = sub.tenant
+                    client.status = 'active'
+                    client.subscription_end_date = sub.current_period_end
+                    client.is_active = True
+
+                    # Sync plan limits if subscription has a Plan linked
+                    if sub.plan:
+                        client.max_branches = sub.plan.max_branches
+                        client.max_users = sub.plan.max_users
+                        client.max_treasuries = sub.plan.max_treasuries
+
+                    client.save(update_fields=[
+                        'status', 'subscription_end_date', 'is_active',
+                        'max_branches', 'max_users', 'max_treasuries',
+                    ])
+
+                    success += 1
+                    logger.info(
+                        f"✅ [SUBSCRIPTION ACTIVATED]: {client.name} — "
+                        f"Plan: {sub.plan}, Period: {months}m, "
+                        f"End: {sub.current_period_end}"
+                    )
+            except Exception as e:
+                errors += 1
+                logger.error(f"🔴 [SUBSCRIPTION ACTIVATION ERROR]: {sub.tenant.name} — {e}")
+
+        if success:
+            self.message_user(
+                request,
+                f"✅ تم تفعيل {success} اشتراك لمدة {months} شهر بنجاح. "
+                f"تاريخ الانتهاء: {today + relativedelta(months=months)}",
+                messages.SUCCESS,
+            )
+        if errors:
+            self.message_user(
+                request,
+                f"⚠️ فشل تفعيل {errors} اشتراك. راجع سجل الأخطاء.",
+                messages.ERROR,
+            )
+
+    @admin.action(description='✅ تفعيل اشتراك — شهر واحد (1 month)')
+    def activate_subscription_1_month(self, request, queryset):
+        self._activate_subscriptions(request, queryset, 1)
+
+    @admin.action(description='✅ تفعيل اشتراك — ربع سنوي (3 months)')
+    def activate_subscription_3_months(self, request, queryset):
+        self._activate_subscriptions(request, queryset, 3)
+
+    @admin.action(description='✅ تفعيل اشتراك — نصف سنوي (6 months)')
+    def activate_subscription_6_months(self, request, queryset):
+        self._activate_subscriptions(request, queryset, 6)
+
+    @admin.action(description='✅ تفعيل اشتراك — سنوي (12 months)')
+    def activate_subscription_12_months(self, request, queryset):
+        self._activate_subscriptions(request, queryset, 12)
+
+    @admin.action(description='🛑 إيقاف الاشتراكات المحددة')
+    def deactivate_subscriptions(self, request, queryset):
+        count = 0
+        for sub in queryset:
+            with transaction.atomic():
+                sub.is_active = False
+                sub.save(update_fields=['is_active'])
+                client = sub.tenant
+                client.status = 'suspended'
+                client.is_active = False
+                client.save(update_fields=['status', 'is_active'])
+                count += 1
+        self.message_user(
+            request,
+            f"🛑 تم إيقاف {count} اشتراك وتعليق حسابات الشركات المرتبطة.",
+            messages.WARNING,
+        )
+
+    @admin.action(description='🔄 مزامنة بيانات الاشتراك → جدول العملاء (Client sync)')
+    def sync_subscription_to_client(self, request, queryset):
+        """Sync TenantSubscription data back to Client model fields."""
+        count = 0
+        for sub in queryset:
+            try:
+                client = sub.tenant
+                if sub.plan:
+                    client.max_branches = sub.plan.max_branches
+                    client.max_users = sub.plan.max_users
+                    client.max_treasuries = sub.plan.max_treasuries
+                client.subscription_end_date = sub.current_period_end
+                client.status = 'active' if sub.is_active else 'suspended'
+                client.is_active = sub.is_active
+                client.save(update_fields=[
+                    'max_branches', 'max_users', 'max_treasuries',
+                    'subscription_end_date', 'status', 'is_active',
+                ])
+                count += 1
+            except Exception as e:
+                logger.error(f"🔴 [SYNC ERROR]: {sub.tenant.name} — {e}")
+        self.message_user(
+            request,
+            f"🔄 تمت مزامنة {count} اشتراك مع جدول العملاء بنجاح.",
+            messages.SUCCESS,
+        )
+
+    def save_model(self, request, obj, form, change):
+        """Auto-sync Client model when saving subscription from admin."""
+        super().save_model(request, obj, form, change)
+        try:
+            client = obj.tenant
+            if obj.plan:
+                client.max_branches = obj.plan.max_branches
+                client.max_users = obj.plan.max_users
+                client.max_treasuries = obj.plan.max_treasuries
+            client.subscription_end_date = obj.current_period_end
+            if obj.is_active and obj.current_period_end and obj.current_period_end >= timezone.now().date():
+                client.status = 'active'
+                client.is_active = True
+            client.save(update_fields=[
+                'max_branches', 'max_users', 'max_treasuries',
+                'subscription_end_date', 'status', 'is_active',
+            ])
+            logger.info(f"✅ [SUBSCRIPTION SAVE SYNC]: {client.name} synced from admin save.")
+        except Exception as e:
+            logger.error(f"🔴 [SUBSCRIPTION SAVE SYNC ERROR]: {e}")
+
+
+# =====================================================================
+# 📊 9. سجل استهلاك الذكاء الاصطناعي (AI Usage Tracker Admin)
+# =====================================================================
+@admin.register(AILimitTracker)
+class AILimitTrackerAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('tenant_name', 'action_type_badge', 'used_at', 'metadata_preview')
+    list_filter = ('action_type', 'used_at', 'tenant')
+    search_fields = ('tenant__name', 'tenant__schema_name')
+    readonly_fields = [f.name for f in AILimitTracker._meta.fields]
+    date_hierarchy = 'used_at'
+    list_per_page = 50
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def tenant_name(self, obj):
+        return obj.tenant.name
+    tenant_name.short_description = "المستأجر"
+    tenant_name.admin_order_field = 'tenant__name'
+
+    def action_type_badge(self, obj):
+        colors = {
+            'ai_generation': '#6f42c1',
+            'whatsapp_send': '#25d366',
+            'smart_watermark': '#17a2b8',
+        }
+        color = colors.get(obj.action_type, '#6c757d')
+        return format_html(
+            '<span style="background:{}; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">{}</span>',
+            color, obj.get_action_type_display()
+        )
+    action_type_badge.short_description = "نوع العملية"
+
+    def metadata_preview(self, obj):
+        if not obj.metadata:
+            return "—"
+        text = str(obj.metadata)
+        if len(text) > 80:
+            text = text[:80] + '…'
+        return format_html('<span style="font-size:11px; color:#6c757d;" title="{}">{}</span>', str(obj.metadata), text)
+    metadata_preview.short_description = "بيانات إضافية"
