@@ -24,14 +24,23 @@ logger = logging.getLogger('mouss_tec_core')
 @receiver(post_save, sender=PurchaseInvoiceItem)
 @receiver(post_delete, sender=PurchaseInvoiceItem)
 def update_purchase_invoice_total(sender, instance, **kwargs):
+    """
+    🚀 [FIX BY QA]: إضافة درع (_skip_update_total) لمنع استنزاف موارد السيرفر
+    أثناء عمليات الإدخال المجمع. يتم حساب الإجمالي كاستعلام واحد سريع بفضل تعديلات الـ Models.
+    """
     if hasattr(instance, 'invoice') and instance.invoice:
-        instance.invoice.update_total()
+        if not getattr(instance.invoice, '_skip_update_total', False):
+            instance.invoice.update_total()
 
 @receiver(post_save, sender=SaleInvoiceItem)
 @receiver(post_delete, sender=SaleInvoiceItem)
 def update_sale_invoice_total(sender, instance, **kwargs):
+    """
+    🚀 [FIX BY QA]: استخدام نفس درع الحماية لمنع الـ N+1 Queries أثناء حفظ الفاتورة.
+    """
     if hasattr(instance, 'invoice') and instance.invoice:
-        instance.invoice.update_total()
+        if not getattr(instance.invoice, '_skip_update_total', False):
+            instance.invoice.update_total()
 
 
 # =====================================================================
@@ -231,7 +240,10 @@ def execute_sale_posting(sender, instance, **kwargs):
                     inv.quantity = F('quantity') + qty_to_deduct
                 else:
                     if inv.quantity < qty_to_deduct:
-                        raise ValidationError(f"الكمية المتاحة من {product.name} ({inv.quantity}) لا تكفي! المطلوب: {qty_to_deduct}")
+                        # 🛡️ [FIX BY QA]: هذا هو خط الدفاع الأخير لحماية الـ DB Data Integrity. 
+                        # المستخدم لن يرى شاشة 500 لأننا أضفنا فحص الاستباقي في Model clean().
+                        # في حال الوصول هنا برمجياً يتم تفعيل الـ Atomic Rollback بسلام.
+                        raise ValidationError(f"⚠️ أمان النظام: الكمية المتاحة من {product.name} ({inv.quantity}) لا تكفي. الإجراء مرفوض لحماية المخزون.")
                     inv.quantity = F('quantity') - qty_to_deduct 
                     
                 inv.save()
@@ -293,16 +305,26 @@ def execute_stock_transfer(sender, instance, **kwargs):
         # 🚀 ابتكار: "الجرد العكسي" الذكي عند الإلغاء
         elif old_instance.status == 'in_transit' and instance.status == 'cancelled':
             with transaction.atomic():
-                from_inv, _ = Inventory.objects.get_or_create(product=instance.product, branch_id=instance.from_branch_id, defaults={'quantity': 0})
+                # 🚀 [FIX BY QA]: استخدام select_for_update مع ترتيب الفروع لمنع Deadlock
+                branch_ids = sorted([instance.from_branch_id, instance.to_branch_id])
+
+                Inventory.objects.get_or_create(product=instance.product, branch_id=instance.from_branch_id, defaults={'quantity': 0})
+                Inventory.objects.get_or_create(product=instance.product, branch_id=instance.to_branch_id, defaults={'quantity': 0})
+
+                locked_invs = list(Inventory.objects.select_for_update().filter(
+                    product=instance.product,
+                    branch_id__in=branch_ids
+                ).order_by('branch_id'))
+
+                from_inv = next(i for i in locked_invs if i.branch_id == instance.from_branch_id)
+                to_inv = next(i for i in locked_invs if i.branch_id == instance.to_branch_id)
+
                 from_inv.quantity = F('quantity') + instance.quantity
                 from_inv.save()
-                
-                # خصمها من الفرع الوهمي للوجهة
-                to_inv = Inventory.objects.filter(product=instance.product, branch_id=instance.to_branch_id).first()
-                if to_inv:
-                    to_inv.quantity = F('quantity') - instance.quantity
-                    to_inv.save()
-                
+
+                to_inv.quantity = F('quantity') - instance.quantity
+                to_inv.save()
+
                 logger.info(f"📦 [TRANSFER CANCELLED] Safely reverted {instance.quantity}x {instance.product.name} to {instance.from_branch}")
 
 

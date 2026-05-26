@@ -115,8 +115,10 @@ class TenantSignupForm(forms.Form):
     def clean_password(self):
         """درع حماية أولي لكلمة المرور"""
         password = self.cleaned_data.get('password')
-        if password and password.isdigit() and len(password) < 8:
-            raise ValidationError("🚫 كلمة المرور ضعيفة جداً. يرجى دمج حروف وأرقام.")
+        # 🚀 [FIX BY QA]: رفض كلمات المرور الرقمية فقط بغض النظر عن الطول
+        # الشرط القديم (isdigit() and len < 8) كان ميتاً لأن min_length=8 يمنعها أصلاً
+        if password and password.isdigit():
+            raise ValidationError("🚫 كلمة المرور ضعيفة جداً. يرجى دمج حروف وأرقام ورموز.")
         return password
 
     def clean_subdomain(self):

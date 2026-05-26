@@ -9,7 +9,8 @@ from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 from datetime import timedelta
 from django.contrib.auth.models import User
-from django.db.models import F # 🚀 الدرع المحاسبي الذري
+from django.db.models import F, Sum, Q, ExpressionWrapper, DecimalField # 🚀 تم إضافة أدوات الحساب الذرية
+
 import uuid 
 import logging
 
@@ -72,7 +73,6 @@ class Product(models.Model):
     car_year = models.CharField(max_length=100, verbose_name=_("سنة الصنع"))
     barcode = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name=_("الباركود"))
     
-    # 🚀 ابتكار: التوافق الدقيق لمنع أخطاء الصرف في الموديلات المعقدة
     chassis_compatibility = models.JSONField(blank=True, null=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", verbose_name=_("توافقية الشاسيه"))
     oem_cross_reference = models.JSONField(blank=True, null=True, help_text="أرقام الـ OEM البديلة المطابقة", verbose_name=_("أكواد الأجزاء البديلة"))
 
@@ -101,7 +101,6 @@ class Product(models.Model):
     
     @property
     def total_inventory_qty(self):
-        from django.db.models import Sum
         return self.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
         
     def __str__(self): return f"{self.name} ({self.part_number})"
@@ -195,14 +194,13 @@ class Customer(models.Model):
         verbose_name_plural = _("سجل العملاء والشركات (CRM)")
 
     def save(self, *args, **kwargs):
-        # A5: تطبيع رقم الهاتف لضمان عمل روابط واتساب
         if self.phone:
             import re as _re
-            phone = _re.sub(r'[\s\-\(\)]+', '', self.phone)  # إزالة المسافات والأقواس
+            phone = _re.sub(r'[\s\-\(\)]+', '', self.phone)
             if phone.startswith('00'):
                 phone = '+' + phone[2:]
             elif phone.startswith('0') and not phone.startswith('+'):
-                phone = '+2' + phone  # مصر افتراضياً
+                phone = '+2' + phone 
             self.phone = phone
         super().save(*args, **kwargs)
 
@@ -242,10 +240,7 @@ class VehicleTelemetryLog(models.Model):
     dtc_codes_found = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("أكواد الأعطال المرصودة"))
     battery_voltage = models.DecimalField(max_digits=4, decimal_places=2, blank=True, null=True, verbose_name=_("فولتية البطارية"))
     raw_json_data = models.JSONField(blank=True, null=True, verbose_name=_("البيانات الخام من جهاز الفحص"))
-    
-    # 🚀 ابتكار: רادار التدخل السريع للحفاظ على سلامة العميل
     requires_immediate_attention = models.BooleanField(default=False, verbose_name=_("تحذير: عطل حرج يتطلب تدخلاً فورياً"))
-    
     timestamp = models.DateTimeField(auto_now_add=True)
     class Meta: verbose_name_plural = _("سجل الفحوصات الرقمية الحية (IoT)")
 
@@ -296,7 +291,6 @@ class FinancialTransaction(models.Model):
     description = models.CharField(max_length=255, verbose_name=_("البيان"))
     date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
 
-    # ربط الحركة بموظف (للرواتب والعمولات والسلف)
     employee = models.ForeignKey(EmployeeProfile, null=True, blank=True, on_delete=models.SET_NULL, related_name='financial_transactions', verbose_name=_("الموظف (للرواتب/السلف)"))
 
     sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة بيع"))
@@ -326,8 +320,11 @@ class PurchaseInvoice(models.Model):
     is_applied = models.BooleanField(default=False, editable=False)
 
     def update_total(self):
-        total = sum((Decimal(str(item.quantity or 0)) * Decimal(str(item.cost_price or 0))) for item in self.items.all())
-        self.total_amount = Decimal(str(total))
+        # 🚀 [FIX BY QA]: التحديث لمعالجة O(1) Aggregate بدلاً من الـ Loops المرهقة للسيرفر
+        agg = self.items.aggregate(
+            total=Sum(ExpressionWrapper(F('quantity') * F('cost_price'), output_field=DecimalField()))
+        )
+        self.total_amount = agg['total'] or Decimal('0.00')
         self.save(update_fields=['total_amount'])
 
     def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
@@ -384,18 +381,20 @@ class SaleInvoice(models.Model):
         return max(Decimal(str(self.total_amount)) - Decimal(str(self.paid_amount)), Decimal('0.00'))
 
     def update_total(self):
-        items_total_price = Decimal('0.00')
-        items_total_cost = Decimal('0.00')
-        calculated_core_charge = Decimal('0.00')
+        # 🚀 [FIX BY QA]: نقل حساب إجمالي الفاتورة إلى الـ DB Engine مباشرة (O(1)) بدلاً من لوب بايثون 
+        # هذا ينهي تماماً أزمة استنزاف المعالج للعمليات الضخمة ويُسرع الحفظ
+        items_agg = self.items.aggregate(
+            t_price=Sum(ExpressionWrapper(F('quantity') * F('unit_price'), output_field=DecimalField())),
+            t_cost=Sum(ExpressionWrapper(F('quantity') * F('cost_at_sale'), output_field=DecimalField())),
+            t_core=Sum(ExpressionWrapper(F('quantity') * F('core_charge_applied'), output_field=DecimalField()), filter=Q(is_core_returned=False))
+        )
         
-        if self.items.exists():
-            for item in self.items.all():
-                items_total_price += (Decimal(str(item.quantity or 0)) * Decimal(str(item.unit_price or 0)))
-                items_total_cost += (Decimal(str(item.quantity or 0)) * Decimal(str(item.cost_at_sale or 0)))
-                if not item.is_core_returned:
-                    calculated_core_charge += (Decimal(str(item.quantity or 0)) * Decimal(str(item.core_charge_applied or 0)))
+        items_total_price = items_agg['t_price'] or Decimal('0.00')
+        items_total_cost = items_agg['t_cost'] or Decimal('0.00')
+        calculated_core_charge = items_agg['t_core'] or Decimal('0.00')
 
-        services_total_price = sum(Decimal(str(srv.price)) for srv in self.service_items.all()) if self.service_items.exists() else Decimal('0.00')
+        services_agg = self.service_items.aggregate(t_srv=Sum('price'))
+        services_total_price = services_agg['t_srv'] or Decimal('0.00')
 
         subtotal = items_total_price + services_total_price + calculated_core_charge + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
         tax_amount = (subtotal * Decimal(str(self.tax_percentage or 0))) / Decimal('100.00')
@@ -432,6 +431,28 @@ class SaleInvoiceItem(models.Model):
             raise ValidationError({'quantity': 'الكمية يجب أن تكون 1 على الأقل'})
         if self.unit_price is not None and self.unit_price < 0:
             raise ValidationError({'unit_price': 'السعر لا يمكن أن يكون سالباً'})
+
+        # 🛡️ [FIX BY QA]: فحص توفر المخزون الحي قبل الحفظ لتلافي الـ 500 Error من قاعدة البيانات
+        # هذا يعرض رسالة مفهومة للكاشير إذا نفد الرصيد قبل غيره
+        if hasattr(self, 'product') and self.product and self.quantity:
+            branch = None
+            try:
+                if hasattr(self, 'invoice') and self.invoice:
+                    branch = self.invoice.branch
+            except Exception: pass
+            
+            if branch:
+                inv = Inventory.objects.filter(product=self.product, branch=branch).first()
+                available_qty = inv.quantity if inv else 0
+                
+                if self.pk:
+                    old_qty = SaleInvoiceItem.objects.filter(pk=self.pk).values_list('quantity', flat=True).first() or 0
+                    available_qty += old_qty
+                    
+                if self.quantity > available_qty:
+                    raise ValidationError({
+                        'quantity': f'المخزون بفرع ({branch.name}) غير كافٍ لإتمام الصرف. المتاح حالياً هو: {available_qty} وحدة فقط.'
+                    })
 
     def save(self, *args, **kwargs):
         if not self.pk and self.product:
@@ -509,15 +530,19 @@ def track_product_price_changes(sender, instance, **kwargs):
 # 🚀 وكيل مزامنة سوق B2B (Mouss Tec Central Marketplace Agent)
 @receiver(post_save, sender=Product)
 def sync_b2b_marketplace(sender, instance, **kwargs):
-    if connection.schema_name == 'public': return 
+    if connection.schema_name == 'public': return
+
+    # 🚀 [FIX BY QA]: حفظ اسم الـ schema قبل الدخول في schema_context('public')
+    # لأن connection.schema_name يتغير داخل context manager ويُرجع 'public'
+    current_tenant_schema = connection.schema_name
 
     try:
         from django.apps import apps
         with schema_context('public'):
             GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
             Client = apps.get_model('clients', 'Client')
-            
-            tenant = Client.objects.filter(schema_name=connection.schema_name).first()
+
+            tenant = Client.objects.filter(schema_name=current_tenant_schema).first()
             if not tenant: return
 
             total_qty = instance.total_inventory_qty

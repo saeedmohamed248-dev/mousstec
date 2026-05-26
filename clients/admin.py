@@ -258,8 +258,9 @@ class BlindBiddingRequestAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
         for bid in disputed_bids:
             try:
                 with transaction.atomic():
-                    bid.status = 'shipped' 
-                    bid.trigger_release_to_seller() 
+                    bid.status = 'shipped'
+                    bid.save(update_fields=['status'])  # 🚀 [FIX BY QA]: حفظ الحالة قبل تحرير الأموال
+                    bid.trigger_release_to_seller()
                     success_count += 1
             except ValidationError as ve:
                 error_count += 1

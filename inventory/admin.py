@@ -167,7 +167,7 @@ class EmployeeProfileAdmin(SecureImportExportAdmin):
 
 
 # =====================================================================
-# 🤝 2. نظام الـ CRM وعقود الصيانة وأساطيل الـ Fleet (B2Fleets SLAs)
+# 🔗 2. نظام الـ CRM وعقود الصيانة وأساطيل الـ Fleet (B2Fleets SLAs)
 # =====================================================================
 @admin.register(MaintenanceContract)
 class MaintenanceContractAdmin(BranchIsolationMixin, SecureImportExportAdmin):
@@ -251,7 +251,7 @@ class CustomUserAdmin(BaseUserAdmin):
                         profile.save(update_fields=['commission_balance'])
                         paid_count += 1
                         total_paid += amount
-                    
+                        
         if paid_count > 0:
             self.message_user(request, f"✅ تم تصفير وصرف عمولات لعدد {paid_count} فني ميكانيكي بإجمالي {total_paid:,.2f} ج.م بنجاح من خزنة ({treasury.name}).", messages.SUCCESS)
         else:
@@ -289,6 +289,14 @@ class CustomerAdmin(SecureImportExportAdmin):
             lifetime_value=Sum('saleinvoice__total_amount')
         )
 
+    def _normalize_phone(self, phone):
+        """تطهير وتطبيع أرقام الهواتف وإضافة كود الدولة تلقائياً لمنع انكسار الروابط"""
+        if not phone: return ""
+        clean_phone = "".join(filter(str.isdigit, str(phone)))
+        if clean_phone.startswith('01') and len(clean_phone) == 11:
+            return f"2{clean_phone}"
+        return clean_phone
+
     def ai_churn_risk(self, obj):
         last_visit = getattr(obj, 'last_visit_date', None)
         if not last_visit: return format_html('<span style="color:gray;">عميل جديد محتمل</span>')
@@ -302,7 +310,7 @@ class CustomerAdmin(SecureImportExportAdmin):
     ai_churn_risk.short_description = "مؤشر الولاء (AI)"
 
     def ltv_styled(self, obj):
-        """🚀 ابتكار: حساب حجم العميل (Whale vs Regular) بناءً على إجمالي مسحوباته التاريخية"""
+        """🚀 حساب حجم العميل (Whale vs Regular) بناءً على إجمالي مسحوباته التاريخية"""
         ltv = float(getattr(obj, 'lifetime_value', 0) or 0)
         if ltv > 50000:
             return format_html('<b style="color: #6f42c1;" title="عميل استراتيجي - Whale">🌟 {} ج.م</b>', f"{ltv:,.0f}")
@@ -331,7 +339,8 @@ class CustomerAdmin(SecureImportExportAdmin):
         if obj.phone and obj.balance > 0:
             val = f"{float(obj.balance):,.2f}"
             msg = f"مرحباً بك أستاذ {obj.name}. نود تذكيركم بلطف أن رصيد المديونية المتبقي لسيارتكم بمركزنا هو {val} ج.م. نسعد دائماً بخدمتكم وتواجدكم معنا."
-            url = f"https://wa.me/{obj.phone}?text={urllib.parse.quote(msg)}"
+            target_phone = self._normalize_phone(obj.phone)
+            url = f"https://wa.me/{target_phone}?text={urllib.parse.quote(msg)}"
             return format_html('<a href="{}" target="_blank" style="background-color:#25D366; color:white; padding:4px 8px; border-radius:4px; font-size:11px; text-decoration:none; font-weight:700;"><i class="fab fa-whatsapp"></i> مطالبة</a>', url)
         return format_html('<span style="color:gray; font-size:11px;">لا توجد مديونية</span>')
     whatsapp_billing.short_description = "مطالبة سريعة"
@@ -348,7 +357,8 @@ class CustomerAdmin(SecureImportExportAdmin):
                 else:
                     msg = f"أهلاً بك أستاذ {customer.name}! حافظ على أداء سيارتك بأفضل حال دائماً. نقدم لك فحص سوائل وتكييف مجاني شامل عند زيارتك لفرعنا هذا الأسبوع 🛠️"
                 
-                url = f"https://wa.me/{customer.phone}?text={urllib.parse.quote(msg)}"
+                target_phone = self._normalize_phone(customer.phone)
+                url = f"https://wa.me/{target_phone}?text={urllib.parse.quote(msg)}"
                 self.message_user(request, format_html('تم تجهيز الريكويست الترويجي لـ {}: <a href="{}" target="_blank" style="font-weight:bold;color:#4f46e5;">اضغط هنا للإرسال الفوري</a>', customer.name, url), messages.SUCCESS)
 
     @admin.action(description='💸 تسوية ذكية: إعدام المديونيات الصفرية والكسور البسيطة للعملاء المحددين')
@@ -357,7 +367,7 @@ class CustomerAdmin(SecureImportExportAdmin):
         reconciled = 0
         with transaction.atomic():
             for customer in queryset:
-                if 0 < customer.balance <= 20: # الحد الأقصى للكسور
+                if 0 < customer.balance <= 20: 
                     customer.balance = 0
                     customer.save(update_fields=['balance'])
                     reconciled += 1
@@ -406,7 +416,10 @@ class VehicleAdmin(SecureImportExportAdmin):
         for vehicle in queryset:
             if vehicle.customer and vehicle.customer.phone and vehicle.estimated_next_visit:
                 msg = f"مرحباً أستاذ {vehicle.customer.name}،\nنود تذكيركم باقتراب موعد الصيانة الوقائية المتوقعة لسيارتكم ({vehicle.car_plate}) بتاريخ {vehicle.estimated_next_visit.strftime('%Y-%m-%d')} لتفادي أي أعطال مفاجئة. لحجز موعد ومستندات الفحص يرجى التواصل معنا مباشرة 🛠️"
-                url = f"https://wa.me/{vehicle.customer.phone}?text={urllib.parse.quote(msg)}"
+                clean_phone = "".join(filter(str.isdigit, str(vehicle.customer.phone)))
+                if clean_phone.startswith('01') and len(clean_phone) == 11:
+                    clean_phone = f"2{clean_phone}"
+                url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
                 sent_count += 1
         self.message_user(request, f"تم إطلاق وتوجيه {sent_count} رسالة تذكير صيانة عبر خلايا شبكة الواتساب بنجاح.", messages.SUCCESS)
 
@@ -487,14 +500,13 @@ class ProductAdmin(SecureImportExportAdmin):
         with transaction.atomic():
             for p in queryset:
                 if p.average_cost and p.average_cost > 0:
-                    p.retail_price = float(p.average_cost) * 1.35 # ربحية مستهدفة 35%
+                    p.retail_price = float(p.average_cost) * 1.35 
                     p.save(update_fields=['retail_price'])
                     updated += 1
         self.message_user(request, f"تمت تسوية وتحديث الأسعار بالذكاء الاصطناعي لعدد {updated} صنف بنجاح.", messages.SUCCESS)
 
     @admin.action(description='🔄 تحليل الارتباط السلعي والبيع المتقاطع (AI Cross-Sell Radar)')
     def suggest_cross_sell_ai(self, request, queryset):
-        """🚀 ابتكار: تحليل سلة المشتريات لاقتراح أصناف تباع معاً لزيادة المبيعات"""
         self.message_user(request, "تم تمرير الأصناف المحددة لمحرك البيانات الضخمة (Big Data). سيتم تحديث حقل 'المنتجات البديلة/المرتبطة' آلياً بناءً على تاريخ الفواتير.", messages.INFO)
 
     @admin.action(description='💱 تعديل أسعار الصرف لمواكبة التضخم وحماية رأس المال (+15%%)')
@@ -532,7 +544,6 @@ class ProductAdmin(SecureImportExportAdmin):
             
         published = 0
         tenant_id = connection.tenant.id
-        schema_name = connection.schema_name
         
         for product in queryset:
             total_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
@@ -631,7 +642,9 @@ class InventoryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     status_colored.short_description = "الحالة"
 
     def stock_value(self, obj):
-        val = f"{float(obj.quantity * obj.product.average_cost):,.2f}"
+        # 🚀 [FIX BY QA]: حماية من average_cost=None لمنع انهيار الصفحة
+        cost = obj.product.average_cost or Decimal('0.00')
+        val = f"{float(obj.quantity * cost):,.2f}"
         return format_html('<b style="color: #007bff;">{} ج.م</b>', val)
     stock_value.short_description = "قيمة الأصول الرأسمالية"
 
@@ -652,16 +665,18 @@ class SaleInvoiceItemInline(admin.TabularInline):
     get_total_price.short_description = "الإجمالي"
 
     def available_stock(self, obj):
-        if not obj or not obj.pk or not obj.product_id:
+        """[FIXED UX]: جلب ديناميكي لحظي للكمية المتاحة لفرع الفاتورة الحالي لمنع الحفظ الأعمى أصناف الفاتورة"""
+        product_obj = getattr(obj, 'product', None)
+        if not product_obj:
             return "-"
-        branch = obj.invoice.branch if obj.invoice_id else None
+        branch = obj.invoice.branch if (obj and obj.invoice_id) else None
         if branch:
-            inv = Inventory.objects.filter(product=obj.product, branch=branch).first()
+            inv = Inventory.objects.filter(product=product_obj, branch=branch).first()
             qty = inv.quantity if inv else 0
         else:
-            qty = obj.product.total_inventory_qty
+            qty = product_obj.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
         color = '#28a745' if qty > 0 else '#dc3545'
-        return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, qty)
+        return format_html('<span style="color:{}; font-weight:bold;">{} وحدة</span>', color, qty)
     available_stock.short_description = "المتاح بالمخزن"
 
     def warranty_tracker(self, obj):
@@ -709,7 +724,7 @@ class VehicleInspectionInline(admin.StackedInline):
     
     def image_preview(self, obj):
         if obj and obj.attachment:
-            return format_html('<img src="{}" style="max-width:200px; border-radius:8px; border:2px solid #28a745;"/>', obj.attachment.url)
+            return format_html('<img src="{}" style="max-width:200px; border-radius:8px; border:2px solid #28a745"/>', obj.attachment.url)
         return format_html('<span style="color:#dc3545;font-weight:700;">لا يوجد توثيق مرئي معتمد!</span>')
     image_preview.short_description = "معاينة التوثيق المرئي"
 
@@ -724,7 +739,45 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     date_hierarchy = 'date_created'
     
     class Media:
-       js = ('dynamic_invoice.js',)
+        js = ('dynamic_invoice.js',)
+
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        """[FIXED UX]: حقن كود جافاسكريبت فوري وديناميكي لمنع ظهور سيارات الغرباء وفلترة المركبات حسب العميل المختار فقط"""
+        response = super().render_change_form(request, context, add, change, form_url, obj)
+        filter_js = mark_safe("""
+        <script type="text/javascript">
+            document.addEventListener("DOMContentLoaded", function() {
+                var customerSelect = document.querySelector("#id_customer");
+                var vehicleSelect = document.querySelector("#id_vehicle");
+                if (customerSelect && vehicleSelect) {
+                    customerSelect.addEventListener("change", function() {
+                        var customerId = this.value;
+                        if(!customerId) return;
+                        // تفريغ الفيلد لإجبار المستخدم على اختيار سيارة تابعة للعميل الجديد فقط
+                        jQuery(vehicleSelect).val(null).trigger('change');
+                        // قفل وضبط ملقم التوجيه المدمج في الأوتوكومبليت لـ Django Select2
+                        jQuery(vehicleSelect).select2({
+                            ajax: {
+                                url: window.location.origin + '/admin/autocomplete/',
+                                data: function (params) {
+                                    return {
+                                        term: params.term,
+                                        page: params.page,
+                                        app_label: 'inventory',
+                                        model_name: 'vehicle',
+                                        field_name: 'customer',
+                                        forward: JSON.stringify({"customer": customerId})
+                                    };
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+        </script>
+        """)
+        response.content = response.content.replace(b"</body>", filter_js.encode('utf-8') + b"</body>")
+        return response
 
     def get_readonly_fields(self, request, obj=None):
         if obj and obj.status == 'posted':
@@ -734,6 +787,9 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
+        # 🚀 [FIX BY QA]: معالجة العناصر المحذوفة أولاً لتحديث الإجماليات بشكل صحيح
+        for obj in formset.deleted_objects:
+            obj.delete()
         for instance in instances:
             if isinstance(instance, SaleInvoiceItem):
                 if instance.unit_price and hasattr(instance.product, 'average_cost'):
@@ -805,6 +861,13 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
                     updated += 1
         self.message_user(request, f"تم بنجاح ترحيل واعتماد وقفل عدد {updated} وثيقة مالية بنظام الأمان والمخازن.", messages.SUCCESS)
 
+    def _normalize_phone(self, phone):
+        if not phone: return ""
+        clean_phone = "".join(filter(str.isdigit, str(phone)))
+        if clean_phone.startswith('01') and len(clean_phone) == 11:
+            return f"2{clean_phone}"
+        return clean_phone
+
     @admin.action(description='⚡ استنساخ الفواتير (إنشاء مسودة عروض أسعار مطابقة لعميل Fleet)')
     def duplicate_invoice(self, request, queryset):
         cloned = 0
@@ -829,6 +892,10 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     @admin.action(description='🧠 إسناد المهام الذكي (AI Workshop Dispatcher)')
     def smart_dispatch_ai(self, request, queryset):
         self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالمركز، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
+
+    @admin.action(description='🧠 إضافة كود إجراء سريع لفتح أمر شغل فوري في لوحة الـ Quick Actions')
+    def quick_add_job_card(self, request, queryset):
+        pass
 
     @admin.action(description='🧾 الامتثال الضريبي: توليد ختم الفاتورة الإلكترونية B2B/B2C المشفر (QR Code)')
     def generate_e_invoice_qr(self, request, queryset):
@@ -926,7 +993,7 @@ class StockTransferAdmin(SecureImportExportAdmin):
 
     def status_badge(self, obj):
         colors = {'pending': '#ffc107', 'in_transit': '#007bff', 'completed': '#28a745', 'cancelled': '#dc3545'}
-        labels = {'pending': 'قيد الانتظار', 'in_transit': 'في الطريق اللوجستي', 'completed': 'تم الاستلام والاستنزاف', 'cancelled': 'تم الإلغاء وحفظ الرصيد'}
+        labels = {'pending': 'قيد الانتظار', 'in_transit': 'في الطريق اللوجستي', 'completed': 'تم الاستلاف والاستنزاف', 'cancelled': 'تم الإلغاء وحفظ الرصيد'}
         return format_html('<span style="background-color: {}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight:bold;">{}</span>', colors.get(obj.status, 'gray'), labels.get(obj.status, obj.status))
     status_badge.short_description = "الحالة"
     
@@ -1005,14 +1072,14 @@ class ExpenseCategoryAdmin(SecureImportExportAdmin):
     inlines = [ExpenseTransactionInline]
 
     _DEFAULT_CATEGORIES = [
-        'رواتب وأجور', 'عمولات موظفين', 'سلف موظفين',
-        'إيجار المحل', 'كهرباء ومياه', 'إنترنت واتصالات',
-        'صيانة معدات وأجهزة', 'أدوات ومستلزمات',
-        'وقود ومحروقات', 'نقل وشحن',
-        'ضرائب ورسوم حكومية', 'تأمينات اجتماعية',
-        'دعاية وتسويق', 'ضيافة ونثريات',
-        'مصروفات قانونية ومحاسبية', 'اشتراكات برمجيات',
-        'مصروفات متنوعة',
+        _('رواتب وأجور'), _('عمولات موظفين'), _('سلف موظفين'),
+        _('إيجار المحل'), _('كهرباء ومياه'), _('إنترنت واتصالات'),
+        _('صيانة معدات وأجهزة'), _('أدوات ومستلزمات'),
+        _('وقود ومحروقات'), _('نقل وشحن'),
+        _('ضرائب ورسوم حكومية'), _('تأمينات اجتماعية'),
+        _('دعاية وتسويق'), _('ضيافة ونثريات'),
+        _('مصروفات قانونية ومحاسبية'), _('اشتراكات برمجيات'),
+        _('مصروفات متنوعة'),
     ]
 
     def changelist_view(self, request, extra_context=None):
@@ -1039,14 +1106,12 @@ class ExpenseCategoryAdmin(SecureImportExportAdmin):
         for instance in instances:
             if not instance.pk:
                 instance.transaction_type = 'out'
-                # ربط البند تلقائياً بالفئة الأم
                 if hasattr(form, 'instance') and form.instance.pk:
                     instance.category = form.instance
             instance.save()
         formset.save_m2m()
 
     def response_change(self, request, obj):
-        """بعد الحفظ، ارجع لنفس صفحة البند لعرض المصروف الجديد فوراً"""
         from django.http import HttpResponseRedirect
         if "_continue" not in request.POST and "_addanother" not in request.POST:
             return HttpResponseRedirect(request.path)
@@ -1142,7 +1207,6 @@ def MoussTec_dashboard_index(request, extra_context=None):
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
         return original_index(request, extra_context)
 
-    # --- تحديد الصناعة ---
     tenant_industry = getattr(connection.tenant, 'industry', 'automotive')
     extra_context['industry'] = tenant_industry
 
@@ -1170,7 +1234,6 @@ def _printing_dashboard(request, extra_context):
     extra_context['business_type'] = 'printing'
     extra_context['branch_name'] = "مركز إدارة المطبعة"
 
-    # --- إحصائيات الطلبات ---
     month_orders = PrintOrder.objects.filter(date_created__gte=first_day_of_month)
     total_revenue = month_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     total_paid = month_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
@@ -1181,13 +1244,11 @@ def _printing_dashboard(request, extra_context):
     pending_orders = PrintOrder.objects.filter(status__in=['draft', 'confirmed', 'in_progress']).count()
     delivered_month = month_orders.filter(status='delivered').count()
 
-    # --- المصممين ---
     designers_count = DesignerModel.objects.count()
     today_design_hours = DesignerWorkLog.objects.filter(date=today).aggregate(
         total=Sum('duration_hours'))['total'] or 0
     month_design_logs = DesignerWorkLog.objects.filter(date__gte=first_day_of_month).count()
 
-    # --- الخزائن ---
     treasuries_data = []
     total_treasury_balance = Decimal('0')
     for t in PrintTreasury.objects.filter(is_active=True):
@@ -1199,7 +1260,6 @@ def _printing_dashboard(request, extra_context):
         })
         total_treasury_balance += t.balance
 
-    # --- المصروفات والإيرادات الشهرية ---
     month_income = PrintTransaction.objects.filter(
         transaction_type='in', date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
@@ -1207,12 +1267,10 @@ def _printing_dashboard(request, extra_context):
         transaction_type='out', date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
 
-    # --- خامات منخفضة المخزون ---
     low_stock_materials = list(
         PrintMaterial.objects.filter(quantity__lte=F('min_stock')).values_list('name', 'quantity')[:5]
     )
 
-    # --- تشارت الإيرادات الشهرية ---
     chart_labels = []
     chart_revenue = []
     chart_profit = []
@@ -1229,7 +1287,6 @@ def _printing_dashboard(request, extra_context):
         chart_revenue.append(float(rev))
         chart_profit.append(float(paid))
 
-    # --- أحدث الطلبات ---
     recent_orders = list(
         PrintOrder.objects.order_by('-date_created')[:5].values(
             'id', 'customer__name', 'total_amount', 'status', 'date_created'
@@ -1258,7 +1315,6 @@ def _printing_dashboard(request, extra_context):
         'chart_labels': json.dumps(chart_labels),
         'chart_revenue': json.dumps(chart_revenue),
         'chart_profit': json.dumps(chart_profit),
-        # بيانات خاصة بالمطابع
         'print_today_count': today_count,
         'print_pending': pending_orders,
         'print_delivered_month': delivered_month,
@@ -1311,7 +1367,6 @@ def _automotive_dashboard(request, extra_context):
     net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
     total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
 
-    # رصيد الخزائن الإجمالي والتفصيلي
     treasuries_data = []
     total_treasury_balance = Decimal('0')
     if can_see_finance:
@@ -1410,7 +1465,6 @@ def _automotive_dashboard(request, extra_context):
 
     return original_index(request, extra_context)
 
-# 🚀 تم تصحيح الخطأ القاتل الذي كان سيمنع جانجو من التشغيل
 admin.site.index = MoussTec_dashboard_index
 
 
@@ -1615,7 +1669,7 @@ class StockAlertAdmin(admin.ModelAdmin):
 
 
 # =====================================================================
-# 📥 16. جلسات الاستيراد الآمن (Import Sessions)
+# 🔑 16. جلسات الاستيراد الآمن (Import Sessions)
 # =====================================================================
 @admin.register(ImportSession)
 class ImportSessionAdmin(admin.ModelAdmin):

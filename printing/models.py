@@ -356,12 +356,12 @@ class PrintJob(models.Model):
         # B4: دائماً أعد حساب total_price عند وجود unit_price
         self.total_price = self.unit_price * self.quantity * self.copies
 
-        # B3: ثبّت التكاليف عند إكمال المهمة (snapshot)
-        if self.is_complete:
+        # B3: ثبّت التكاليف عند إكمال المهمة (snapshot) — مرة واحدة فقط
+        # 🚀 [FIX BY QA]: اللقطة تُحفظ فقط عند أول إكمال، لا تُعاد كتابتها لاحقاً
+        if self.is_complete and not self.completed_at:
             self.actual_cost = self.calculated_cost
             self.actual_profit = self.total_price - self.actual_cost
-            if not self.completed_at:
-                self.completed_at = timezone.now()
+            self.completed_at = timezone.now()
 
         super().save(*args, **kwargs)
 
@@ -458,8 +458,13 @@ class PrintTransaction(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
         if is_new:
-            if self.transaction_type == 'in':
-                self.treasury.balance += self.amount
-            else:
-                self.treasury.balance -= self.amount
-            self.treasury.save(update_fields=['balance'])
+            # 🚀 [FIX BY QA]: استخدام F() و select_for_update() لمنع Race Condition
+            from django.db.models import F as _F
+            from django.db import transaction as _txn
+            with _txn.atomic():
+                treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
+                if self.transaction_type == 'in':
+                    treasury.balance = _F('balance') + self.amount
+                else:
+                    treasury.balance = _F('balance') - self.amount
+                treasury.save(update_fields=['balance'])
