@@ -25,7 +25,7 @@
 
     <!-- Header -->
     <header class="container mx-auto px-6 py-5 flex justify-between items-center">
-        <div class="flex items-center gap-3">
+        <a href="/" class="flex items-center gap-3">
             <div class="bg-gradient-to-tr from-blue-600 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/30">
                 <i class="fas fa-car-side text-2xl text-white"></i>
             </div>
@@ -33,15 +33,15 @@
                 <span class="text-xl font-black tracking-wide text-white">MOUSSTEC</span>
                 <span class="text-blue-400 font-bold text-sm mr-1">AUTO</span>
             </div>
-        </div>
+        </a>
         <div class="flex items-center gap-3">
-            <a href="{{ pricing_url }}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
+            <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
                 <i class="fas fa-tags"></i> الباقات
             </a>
-            <a href="{{ login_url }}" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-xl text-sm transition">
+            <a href="{% url 'client_login_finder' %}" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-xl text-sm transition">
                 <i class="fas fa-lock"></i> دخول
             </a>
-            <a href="{{ signup_url }}" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
+            <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
                 <i class="fas fa-rocket"></i> ابدأ مجانا
             </a>
         </div>
@@ -62,7 +62,7 @@
                 فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجانا لمدة 3 أيام.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="{{ signup_url }}" class="btn-blue text-white font-bold px-8 py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
+                <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-8 py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
                     <i class="fas fa-bolt"></i> سجّل مجانا — 3 أيام تجريبية
                 </a>
             </div>
@@ -156,7 +156,7 @@
         <div class="bg-gradient-to-br from-blue-600/20 to-cyan-600/10 border border-blue-500/20 rounded-3xl p-10 md:p-16 text-center max-w-3xl mx-auto">
             <h2 class="text-3xl font-black text-white mb-4">جاهز تبدأ؟</h2>
             <p class="text-slate-400 mb-8">سجّل الآن واستخدم النظام مجانا لمدة 3 أيام — بدون بيانات دفع.</p>
-            <a href="{{ signup_url }}" class="btn-blue text-white font-bold px-10 py-4 rounded-2xl text-lg inline-flex items-center gap-3">
+            <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-10 py-4 rounded-2xl text-lg inline-flex items-center gap-3">
                 <i class="fas fa-rocket"></i> ابدأ الآن مجانا
             </a>
         </div>
@@ -168,11 +168,13 @@
     <div class="container mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div class="text-slate-600 text-sm">&copy; 2026 Mousstec. جميع الحقوق محفوظة.</div>
         <div class="flex gap-6 text-slate-600 text-sm">
-            <a href="{{ pricing_url }}" class="hover:text-blue-400 transition">الباقات</a>
-            <a href="{{ login_url }}" class="hover:text-blue-400 transition">تسجيل الدخول</a>
+            <a href="/" class="hover:text-blue-400 transition">الرئيسية</a>
+            <a href="{% url 'saas_pricing' %}" class="hover:text-blue-400 transition">الباقات</a>
+            <a href="{% url 'client_login_finder' %}" class="hover:text-blue-400 transition">تسجيل الدخول</a>
         </div>
     </div>
 </footer>
 
+{% include 'clients/ai_chatbot_widget.html' %}
 </body>
 </html>

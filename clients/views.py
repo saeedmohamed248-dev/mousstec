@@ -207,6 +207,16 @@ def mousstec_landing_page(request):
     return render(request, 'clients/landing.html')
 
 
+def automotive_landing_page(request):
+    """صفحة تعريفية كاملة بقطاع السيارات — مميزات، أسعار، وطريقة التسجيل"""
+    return render(request, 'clients/auto_landing.html')
+
+
+def printing_landing_page(request):
+    """صفحة تعريفية كاملة بقطاع المطابع والتصميم — مميزات، أسعار، وطريقة التسجيل"""
+    return render(request, 'clients/print_landing.html')
+
+
 # =====================================================================
 # 🔑 2.5. استرجاع كلمة السر / العثور على الحساب (Password Recovery)
 # =====================================================================

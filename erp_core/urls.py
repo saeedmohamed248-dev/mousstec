@@ -215,6 +215,12 @@ urlpatterns = [
     # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
     path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
 
+    # 🚗 صفحة قطاع السيارات التعريفية (Automotive Landing Page)
+    path('automotive/', client_views.automotive_landing_page, name='automotive_landing'),
+
+    # 🎨 صفحة قطاع المطابع التعريفية (Printing Landing Page)
+    path('printing/', client_views.printing_landing_page, name='printing_landing'),
+
     # 🏢 بوابة الاشتراك والإنشاء الآلي للشركات (Automated SaaS Onboarding)
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),
 
