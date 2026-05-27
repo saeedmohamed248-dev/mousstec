@@ -13,6 +13,9 @@ urlpatterns = [
     # 🧠 Smart Business Copilot
     path('copilot/chat/', views.copilot_chat, name='copilot_chat'),
 
+    # 🎨 AI Prompt Engineer Agent
+    path('ai/prompt-engineer/', views.ai_prompt_engineer, name='ai_prompt_engineer'),
+
     # 🏷️ Product Type Autocomplete & Report
     path('api/product-types/', views.product_type_autocomplete, name='product_type_autocomplete'),
     path('api/product-types/report/', views.product_type_report, name='product_type_report'),

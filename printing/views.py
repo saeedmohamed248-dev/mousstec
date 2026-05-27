@@ -730,3 +730,173 @@ def product_type_report(request):
         for pt in types
     ]
     return JsonResponse({'results': data})
+
+
+# =====================================================================
+# 🎨 AI Prompt Engineer Agent — FLUX/SDXL Pipeline
+# =====================================================================
+# SECTOR: Printing & Media ONLY (Persona B)
+# ISOLATION: Completely decoupled from Copilot (Consultant) and Automotive
+# PURPOSE: Pure Function — transforms casual Arabic/English design
+#          descriptions into cinematic, commercial-grade image prompts
+# =====================================================================
+
+_PROMPT_ENGINEER_SYSTEM = """You are an elite Prompt Engineering Agent for a professional printing and media design studio.
+
+## YOUR SOLE PURPOSE:
+Transform raw, casual user descriptions (often in Arabic) into highly detailed, cinematic, commercial-quality English prompts optimized for advanced text-to-image models (FLUX.1, SDXL).
+
+## STRICT SECTOR BOUNDARY:
+You operate EXCLUSIVELY in the printing, graphic design, and media business sector.
+You have ZERO relation to automotive, vehicles, garages, or any other sector.
+If a request is outside your domain, return status "rejected".
+
+## ENRICHMENT PIPELINE:
+When transforming the user's raw intent, you MUST inject these expert parameters:
+
+### 1. COMPOSITION & STYLE:
+- Layout structure (minimalist, editorial, Swiss grid, asymmetric balance)
+- Visual hierarchy (primary focal point, supporting elements)
+- Style direction (photorealistic, flat design, 3D render, isometric, watercolor, retro)
+
+### 2. LIGHTING & ATMOSPHERE:
+- Lighting type (volumetric, studio softbox, golden hour, neon rim light, dramatic chiaroscuro)
+- Mood/atmosphere (premium, corporate, playful, luxurious, bold)
+- Color grading (cinematic teal-orange, monochromatic, vibrant CMYK, pastel)
+
+### 3. TYPOGRAPHY (FLUX handles text rendering):
+- Specify exact text placement, font style cues (bold sans-serif, elegant serif, modern geometric)
+- Ensure text is clean, crisp, and print-ready
+
+### 4. TECHNICAL QUALITY:
+- Resolution cues: 8K, ultra-HD, sharp focus, hyper-detailed
+- Print standards: pristine borders, bleed-safe, CMYK-optimized colors
+- Material cues: glossy finish, matte texture, embossed, foil stamp effect
+
+### 5. DESIGN CATEGORIES YOU EXCEL AT:
+- Business cards, letterheads, brand identity systems
+- Posters, banners, roll-ups, billboards
+- Social media posts, stories, covers
+- Packaging, labels, product mockups
+- Flyers, brochures, catalogs, menus
+- T-shirt prints, mug designs, merchandise
+- Wedding invitations, event cards
+- Stickers, vinyl wraps, vehicle wraps (for branding, NOT automotive service)
+
+## OUTPUT FORMAT:
+You MUST respond with ONLY valid JSON. No prose, no markdown, no explanation.
+{
+  "status": "success",
+  "original_intent": "<the raw user request mapped here>",
+  "design_category": "<detected category: business_card|poster|social_media|packaging|flyer|banner|tshirt|invitation|sticker|brand_identity|menu|mockup|other>",
+  "engineered_prompt": "<the final enriched, hyper-detailed English prompt ready for FLUX/SDXL>",
+  "negative_prompt": "<elements to avoid: blurry, low quality, distorted text, artifacts, etc.>",
+  "recommended_size": "<optimal image dimensions: 1024x1024|1024x1792|1792x1024>",
+  "recommended_quality": "<standard|hd>"
+}
+
+If the request is outside your printing/design domain:
+{
+  "status": "rejected",
+  "reason": "This request is outside the printing and design domain."
+}
+"""
+
+
+@require_POST
+def ai_prompt_engineer(request):
+    """
+    🎨 AI Prompt Engineer Agent — Pure Function
+    Takes casual Arabic/English design description → returns cinematic FLUX/SDXL prompt.
+    Completely isolated from Copilot and Automotive sector.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'error': 'يجب تسجيل الدخول أولاً.'}, status=401)
+
+    tenant = _get_tenant()
+    allowed, error = _check_ai_access(tenant, 'ai_generation')
+    if not allowed:
+        return JsonResponse({'status': 'error', 'error': error}, status=403)
+
+    raw_input = request.POST.get('prompt', '').strip()
+    if not raw_input:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'يرجى كتابة وصف التصميم المطلوب.'
+        }, status=400)
+
+    # Use Gemini as the prompt engineering backbone
+    try:
+        from inventory.ai_services import call_gemini_layer
+
+        api_key = getattr(settings, 'AI_VISION_API_KEY', None)
+        ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
+
+        if not ai_enabled or not api_key:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'محرك الذكاء الاصطناعي غير مفعّل. تواصل مع مسؤول المنصة.'
+            }, status=500)
+
+        messages = [
+            {"role": "system", "content": _PROMPT_ENGINEER_SYSTEM},
+            {"role": "user", "content": raw_input},
+        ]
+
+        raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2)
+
+        if not raw_response:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'فشل محرك هندسة البرومبت. حاول مرة أخرى.'
+            }, status=502)
+
+        # Parse and validate the JSON response
+        try:
+            result = json.loads(raw_response)
+        except json.JSONDecodeError:
+            # Try to extract JSON from markdown-wrapped response
+            clean = re.sub(r'^```(?:json)?\s*', '', raw_response.strip())
+            clean = re.sub(r'\s*```$', '', clean)
+            try:
+                result = json.loads(clean)
+            except json.JSONDecodeError:
+                logger.error(f"[PROMPT ENGINEER] Invalid JSON from Gemini: {raw_response[:200]}")
+                return JsonResponse({
+                    'status': 'error',
+                    'error': 'خطأ في تحليل رد المحرك. حاول صياغة الوصف بشكل مختلف.'
+                }, status=500)
+
+        # Validate required fields
+        if result.get('status') == 'rejected':
+            return JsonResponse(result, status=400)
+
+        if 'engineered_prompt' not in result:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'
+            }, status=500)
+
+        # Ensure all fields exist with defaults
+        result.setdefault('status', 'success')
+        result.setdefault('original_intent', raw_input)
+        result.setdefault('design_category', 'other')
+        result.setdefault('negative_prompt', 'blurry, low quality, distorted text, artifacts, watermark, cropped, jpeg artifacts, low resolution, pixelated')
+        result.setdefault('recommended_size', '1024x1024')
+        result.setdefault('recommended_quality', 'hd')
+
+        logger.info(f"🎨 [PROMPT ENGINEER]: {tenant.name} — Category: {result['design_category']} by {request.user.username}")
+
+        return JsonResponse(result)
+
+    except ImportError:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'مكتبة AI Services غير متاحة.'
+        }, status=500)
+    except Exception as e:
+        logger.error(f"🔴 [PROMPT ENGINEER ERROR]: {tenant.name if tenant else 'N/A'} — {e}")
+        return JsonResponse({
+            'status': 'error',
+            'error': 'حدث خطأ غير متوقع. حاول مرة أخرى.'
+        }, status=500)

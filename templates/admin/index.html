@@ -974,12 +974,81 @@
 
     function closeAIStudioModal() {
         document.getElementById('aiStudioModal').style.display = 'none';
+        resetAIStudio();
     }
 
     var _lastGeneratedUrl = '';
+    var _enrichedPromptData = null;
+
+    function resetAIStudio() {
+        document.getElementById('aiStep1').style.display = 'block';
+        document.getElementById('aiStep2').style.display = 'none';
+        document.getElementById('aiResult').innerHTML = '';
+        _enrichedPromptData = null;
+    }
+
+    function enrichPrompt() {
+        const rawInput = document.getElementById('aiPrompt').value.trim();
+        const btn = document.getElementById('aiEnrichBtn');
+        const result = document.getElementById('aiResult');
+
+        if (!rawInput) { alert('اكتب وصف التصميم المطلوب'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري هندسة البرومبت...';
+        result.innerHTML = '<p style="text-align:center;color:#a855f7;font-size:12px;"><i class="fas fa-microchip"></i> محرك الذكاء الاصطناعي يحلل وصفك ويبني برومبت احترافي...</p>';
+
+        const fd = new FormData();
+        fd.append('prompt', rawInput);
+        fd.append('csrfmiddlewaretoken', getCSRFToken());
+
+        fetch('/printing/ai/prompt-engineer/', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
+            result.innerHTML = '';
+
+            if (data.status === 'success' && data.engineered_prompt) {
+                _enrichedPromptData = data;
+                // Show Step 2
+                document.getElementById('aiStep1').style.display = 'none';
+                document.getElementById('aiStep2').style.display = 'block';
+                document.getElementById('aiEnrichedPrompt').textContent = data.engineered_prompt;
+                document.getElementById('aiNegativePrompt').textContent = data.negative_prompt || '';
+                document.getElementById('aiCategory').textContent = (data.design_category || 'other').replace(/_/g, ' ');
+                // Auto-set recommended size & quality
+                if (data.recommended_size) {
+                    var sizeSelect = document.getElementById('aiSize');
+                    for (var i = 0; i < sizeSelect.options.length; i++) {
+                        if (sizeSelect.options[i].value === data.recommended_size) {
+                            sizeSelect.selectedIndex = i; break;
+                        }
+                    }
+                }
+                if (data.recommended_quality) {
+                    var qSelect = document.getElementById('aiQuality');
+                    for (var i = 0; i < qSelect.options.length; i++) {
+                        if (qSelect.options[i].value === data.recommended_quality) {
+                            qSelect.selectedIndex = i; break;
+                        }
+                    }
+                }
+            } else if (data.status === 'rejected') {
+                result.innerHTML = '<p style="color:#f59e0b;font-size:13px;"><i class="fas fa-exclamation-triangle"></i> ' + (data.reason || 'هذا الطلب خارج نطاق التصميم والطباعة.') + '</p>';
+            } else {
+                result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (data.error || 'حدث خطأ. حاول مرة أخرى.') + '</p>';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
+            result.innerHTML = '<p style="color:#ef4444;font-size:13px;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
+        });
+    }
 
     function generateAIDesign() {
-        const prompt = document.getElementById('aiPrompt').value.trim();
+        const prompt = _enrichedPromptData ? _enrichedPromptData.engineered_prompt : document.getElementById('aiPrompt').value.trim();
         const size = document.getElementById('aiSize').value;
         const quality = document.getElementById('aiQuality').value;
         const btn = document.getElementById('aiGenerateBtn');
@@ -994,8 +1063,8 @@
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
-        result.innerHTML = '<p style="text-align:center;color:#94a3b8;">جاري توليد التصميم بالذكاء الاصطناعي... قد يستغرق 15-30 ثانية</p>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد بـ DALL-E...';
+        result.innerHTML = '<p style="text-align:center;color:#10b981;">جاري توليد التصميم... قد يستغرق 15-30 ثانية</p>';
 
         const fd = new FormData();
         fd.append('prompt', prompt);
@@ -1007,7 +1076,7 @@
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
+            btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
             if (data.success) {
                 _lastGeneratedUrl = data.image_url;
                 result.innerHTML = '<img src="' + data.image_url + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
@@ -1035,7 +1104,7 @@
         })
         .catch(() => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
+            btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
             result.innerHTML = '<p style="color:#ef4444;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
         });
     }
@@ -1138,30 +1207,59 @@
             <button onclick="closeAIStudioModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <p id="aiQuotaInfo" style="font-size:12px;color:#a855f7;margin-bottom:12px;"></p>
-        <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب</label>
-            <textarea id="aiPrompt" rows="3" placeholder="مثال: لوجو مطبعة حديثة بألوان أزرق وبرتقالي مع أيقونة طابعة" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
-        </div>
-        <div style="display:flex;gap:12px;margin-bottom:16px;">
-            <div style="flex:1;">
-                <label style="font-size:12px;font-weight:700;">المقاس</label>
-                <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                    <option value="1024x1024">مربع (1024x1024)</option>
-                    <option value="1024x1792">عمودي (1024x1792)</option>
-                    <option value="1792x1024">أفقي (1792x1024)</option>
-                </select>
+        <!-- Step 1: User Input -->
+        <div id="aiStep1">
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب <span style="font-size:11px;color:#94a3b8;font-weight:400;">(اكتب بالعربي أو الإنجليزي)</span></label>
+                <textarea id="aiPrompt" rows="3" placeholder="مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
             </div>
-            <div style="flex:1;">
-                <label style="font-size:12px;font-weight:700;">الجودة</label>
-                <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                    <option value="standard">عادية</option>
-                    <option value="hd">عالية (HD)</option>
-                </select>
-            </div>
+            <button id="aiEnrichBtn" onclick="enrichPrompt()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
+                <i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي
+            </button>
+            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)</p>
         </div>
-        <button id="aiGenerateBtn" onclick="generateAIDesign()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-            <i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم
-        </button>
+
+        <!-- Step 2: Enriched Prompt Review -->
+        <div id="aiStep2" style="display:none;">
+            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:12px;font-weight:700;color:#a855f7;"><i class="fas fa-microchip"></i> البرومبت المُحسَّن</span>
+                    <span id="aiCategory" style="font-size:11px;background:#7c3aed;color:#fff;padding:2px 8px;border-radius:20px;"></span>
+                </div>
+                <p id="aiEnrichedPrompt" style="font-size:12px;color:#cbd5e1;line-height:1.8;margin:0;max-height:120px;overflow-y:auto;"></p>
+            </div>
+            <div id="aiNegativeBox" style="background:#1a0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:10px;margin-bottom:12px;">
+                <span style="font-size:11px;font-weight:700;color:#f87171;"><i class="fas fa-ban"></i> عناصر مستبعدة</span>
+                <p id="aiNegativePrompt" style="font-size:11px;color:#fca5a5;margin:4px 0 0;"></p>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:16px;">
+                <div style="flex:1;">
+                    <label style="font-size:12px;font-weight:700;">المقاس</label>
+                    <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                        <option value="1024x1024">مربع (1024x1024)</option>
+                        <option value="1024x1792">عمودي (1024x1792)</option>
+                        <option value="1792x1024">أفقي (1792x1024)</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px;font-weight:700;">الجودة</label>
+                    <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                        <option value="standard">عادية</option>
+                        <option value="hd">عالية (HD)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button onclick="resetAIStudio()" style="flex:0.4;padding:12px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer;">
+                    <i class="fas fa-arrow-right"></i> رجوع
+                </button>
+                <button id="aiGenerateBtn" onclick="generateAIDesign()" style="flex:1;padding:12px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
+                    <i class="fas fa-bolt"></i> اعتمد وولّد التصميم
+                </button>
+            </div>
+            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">الخطوة 2: توليد التصميم بـ DALL-E (يخصم من حصتك)</p>
+        </div>
+
         <div id="aiResult" style="margin-top:16px;"></div>
     </div>
 </div>
