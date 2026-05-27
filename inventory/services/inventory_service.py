@@ -237,6 +237,90 @@ class InventoryService:
             logger.error("[STOCK ALERT] Failed for %s: %s", inventory_instance, e)
 
     # ------------------------------------------------------------------
+    # Cycle Count — mobile inventory adjustment with loss recording
+    # ------------------------------------------------------------------
+    @staticmethod
+    def execute_cycle_count(product, branch, actual_qty):
+        """
+        Adjust inventory to match a physical count.
+        If shortage detected, record financial loss in branch treasury.
+        Returns (variance, new_qty).
+        """
+        from inventory.models import Inventory, Treasury, FinancialTransaction
+        from decimal import Decimal
+
+        with transaction.atomic():
+            inv, _ = Inventory.objects.select_for_update().get_or_create(
+                product=product, branch=branch, defaults={'quantity': 0}
+            )
+            diff = actual_qty - inv.quantity
+            inv.quantity = actual_qty
+            inv.save()
+
+            # Record shortage loss in treasury
+            if diff < 0:
+                treasury = Treasury.objects.filter(branch=branch, is_active=True).first()
+                if treasury:
+                    loss_value = Decimal(str(abs(diff))) * Decimal(str(product.average_cost))
+                    FinancialTransaction.objects.create(
+                        treasury=treasury,
+                        transaction_type='out',
+                        amount=loss_value,
+                        description=f"تسوية عجز جرد — {product.name} ({abs(diff)} وحدة)",
+                    )
+
+            logger.info(
+                "[CYCLE COUNT] %s adjusted to %s (variance=%s) @ branch#%s",
+                product.part_number, actual_qty, diff, branch.pk,
+            )
+        return diff, actual_qty
+
+    # ------------------------------------------------------------------
+    # Scrap Cost Distribution — allocate purchase cost to yield items
+    # ------------------------------------------------------------------
+    @staticmethod
+    def distribute_scrap_cost(job):
+        """
+        Distribute total purchase cost of a scrap dismantling job
+        across yield items proportionally by market value.
+        Marks job as completed (triggering signal for inventory addition).
+        Returns number of items processed.
+        Raises ValidationError if no yields or zero market value.
+        """
+        from inventory.models import ScrapDismantlingJob
+        from decimal import Decimal
+
+        if job.is_completed:
+            raise ValidationError("العملية مغلقة مسبقاً.")
+
+        with transaction.atomic():
+            yields = list(job.yields.select_related('product').all())
+            if not yields:
+                raise ValidationError("لا توجد مكونات مسجلة.")
+
+            total_market_value = sum(
+                Decimal(str(y.product.retail_price)) * y.quantity for y in yields
+            )
+            if total_market_value == 0:
+                raise ValidationError("أسعار السوق للمكونات صفرية.")
+
+            total_cost = Decimal(str(job.total_purchase_cost))
+            for y in yields:
+                item_value = Decimal(str(y.product.retail_price)) * y.quantity
+                coefficient = item_value / total_market_value
+                y.estimated_cost_allocation = total_cost * coefficient
+                y.save()
+
+            job.is_completed = True
+            job.save()  # Signal execute_scrap_dismantling_yield adds to inventory
+
+        logger.info(
+            "[SCRAP] Distributed cost %s EGP across %s items for job#%s",
+            total_cost, len(yields), job.pk,
+        )
+        return len(yields)
+
+    # ------------------------------------------------------------------
     # B2B Marketplace Sync (Celery dispatch)
     # ------------------------------------------------------------------
     @staticmethod

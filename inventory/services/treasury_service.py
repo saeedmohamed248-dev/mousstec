@@ -199,6 +199,76 @@ class TreasuryService:
             logger.error("[ACCOUNTING] Failed to generate entries for FT #%s: %s", instance.pk, e)
 
     # ------------------------------------------------------------------
+    # Technician Commission Payout — batch pay with atomic guard
+    # ------------------------------------------------------------------
+    @staticmethod
+    def pay_commissions(queryset):
+        """
+        Pay outstanding commissions for a queryset of User objects.
+        Returns (paid_count, total_paid, treasury_name) or raises if no active treasury.
+        Called from admin action: pay_tech_commissions.
+        """
+        from inventory.models import Treasury, FinancialTransaction
+
+        treasury = Treasury.objects.filter(is_active=True).first()
+        if not treasury:
+            raise ValidationError("لم يتم العثور على خزنة نشطة بالفرع لسحب المبالغ النقدية منها.")
+
+        paid_count = 0
+        total_paid = Decimal('0.00')
+
+        with transaction.atomic():
+            for user in queryset:
+                if hasattr(user, 'employee_profile') and user.employee_profile.role == 'tech':
+                    profile = user.employee_profile
+                    amount = profile.commission_balance
+                    if amount > 0:
+                        FinancialTransaction.objects.create(
+                            treasury=treasury,
+                            transaction_type='out',
+                            amount=amount,
+                            description=(
+                                f"صرف عمولات إنتاجية مستحقة للفني المعتمد: "
+                                f"{user.get_full_name() or user.username}"
+                            ),
+                        )
+                        profile.commission_balance = Decimal('0.00')
+                        profile.save(update_fields=['commission_balance'])
+                        paid_count += 1
+                        total_paid += amount
+
+        logger.info(
+            "[COMMISSIONS] Paid %s technicians, total %s EGP from treasury '%s'",
+            paid_count, total_paid, treasury.name,
+        )
+        return paid_count, total_paid, treasury.name
+
+    # ------------------------------------------------------------------
+    # Small Debt Reconciliation — write off micro-balances
+    # ------------------------------------------------------------------
+    @staticmethod
+    def reconcile_small_debts(queryset, threshold=Decimal('20.00')):
+        """
+        Write off customer balances below threshold as allowed discount.
+        Returns count of reconciled customers.
+        Called from admin action: auto_reconcile_small_debts.
+        """
+        reconciled = 0
+        with transaction.atomic():
+            for customer in queryset:
+                if Decimal('0') < customer.balance <= threshold:
+                    customer.balance = Decimal('0')
+                    customer.save(update_fields=['balance'])
+                    reconciled += 1
+
+        if reconciled:
+            logger.info(
+                "[RECONCILE] Wrote off small debts for %s customers (threshold=%s)",
+                reconciled, threshold,
+            )
+        return reconciled
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
     @staticmethod

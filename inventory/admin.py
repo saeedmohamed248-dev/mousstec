@@ -228,34 +228,24 @@ class CustomUserAdmin(BaseUserAdmin):
 
     @admin.action(description='💸 صرف العمولات المستحقة للفنيين المحددين ذرياً (محرك الرواتب المحمي)')
     def pay_tech_commissions(self, request, queryset):
-        treasury = Treasury.objects.filter(is_active=True).first()
-        if not treasury:
-            self.message_user(request, "❌ فشل الصرف الكلي: لم يتم العثور على خزنة نشطة بالفرع لسحب المبالغ النقدية منها.", messages.ERROR)
-            return
-
-        paid_count = 0
-        total_paid = Decimal('0.00')
-
-        # 🚀 تفعيل الحماية الذرية لمنع الـ Race Conditions وتضارب الحسابات النقدي
-        with transaction.atomic():
-            for user in queryset:
-                if hasattr(user, 'employee_profile') and user.employee_profile.role == 'tech':
-                    profile = user.employee_profile
-                    amount = profile.commission_balance
-                    if amount > 0:
-                        FinancialTransaction.objects.create(
-                            treasury=treasury, transaction_type='out', amount=amount,
-                            description=f"صرف عمولات إنتاجية مستحقة للفني المعتمد: {user.get_full_name() or user.username}"
-                        )
-                        profile.commission_balance = Decimal('0.00')
-                        profile.save(update_fields=['commission_balance'])
-                        paid_count += 1
-                        total_paid += amount
-                        
-        if paid_count > 0:
-            self.message_user(request, f"✅ تم تصفير وصرف عمولات لعدد {paid_count} فني ميكانيكي بإجمالي {total_paid:,.2f} ج.م بنجاح من خزنة ({treasury.name}).", messages.SUCCESS)
-        else:
-            self.message_user(request, "⚠️ تنبيه: الفنيين المحددين ليس لديهم أي أرصدة عمولات معلقة للصرف.", messages.WARNING)
+        from inventory.services.treasury_service import TreasuryService
+        try:
+            paid_count, total_paid, treasury_name = TreasuryService.pay_commissions(queryset)
+            if paid_count > 0:
+                self.message_user(
+                    request,
+                    f"✅ تم تصفير وصرف عمولات لعدد {paid_count} فني ميكانيكي "
+                    f"بإجمالي {total_paid:,.2f} ج.م بنجاح من خزنة ({treasury_name}).",
+                    messages.SUCCESS,
+                )
+            else:
+                self.message_user(
+                    request,
+                    "⚠️ تنبيه: الفنيين المحددين ليس لديهم أي أرصدة عمولات معلقة للصرف.",
+                    messages.WARNING,
+                )
+        except ValidationError as e:
+            self.message_user(request, f"❌ فشل الصرف: {e.message}", messages.ERROR)
 
 
 # =====================================================================
@@ -363,18 +353,21 @@ class CustomerAdmin(SecureImportExportAdmin):
 
     @admin.action(description='💸 تسوية ذكية: إعدام المديونيات الصفرية والكسور البسيطة للعملاء المحددين')
     def auto_reconcile_small_debts(self, request, queryset):
-        """🚀 ابتكار محاسبي: تنظيف الدفاتر من الكسور المتبقية (أقل من 20 جنيه) كخصم مسموح به"""
-        reconciled = 0
-        with transaction.atomic():
-            for customer in queryset:
-                if 0 < customer.balance <= 20: 
-                    customer.balance = 0
-                    customer.save(update_fields=['balance'])
-                    reconciled += 1
+        """Delegate to TreasuryService for small debt reconciliation."""
+        from inventory.services.treasury_service import TreasuryService
+        reconciled = TreasuryService.reconcile_small_debts(queryset)
         if reconciled > 0:
-            self.message_user(request, f"تمت التسوية بنجاح: تم إعدام المديونيات البسيطة وتصفير حساب {reconciled} عميل.", messages.SUCCESS)
+            self.message_user(
+                request,
+                f"تمت التسوية بنجاح: تم إعدام المديونيات البسيطة وتصفير حساب {reconciled} عميل.",
+                messages.SUCCESS,
+            )
         else:
-            self.message_user(request, "لم يتم العثور على كسور بسيطة قابلة للتسوية في العملاء المحددين.", messages.WARNING)
+            self.message_user(
+                request,
+                "لم يتم العثور على كسور بسيطة قابلة للتسوية في العملاء المحددين.",
+                messages.WARNING,
+            )
 
     def has_delete_permission(self, request, obj=None):
         if obj and obj.balance != 0: return False 

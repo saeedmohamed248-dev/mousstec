@@ -447,9 +447,7 @@ def barcode_lookup_api(request):
 @login_required(login_url='/secure-portal/')
 @tenant_required
 def mobile_cycle_count_api(request):
-    """
-    [FIXED BY QA]: معالجة الـ Race Conditions باستخدام قفل select_for_update() وحماية الخزينة
-    """
+    """HTTP adapter for mobile inventory cycle count — delegates to InventoryService."""
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
     try:
@@ -465,33 +463,16 @@ def mobile_cycle_count_api(request):
         if not product:
             return _json_response_safe({"error": "المنتج غير مسجل"}, 404)
 
-        with transaction.atomic():
-            inv, _ = Inventory.objects.select_for_update().get_or_create(
-                product=product, branch=branch, defaults={'quantity': 0}
-            )
-            diff = actual_qty - inv.quantity
-            inv.quantity = actual_qty
-            inv.save()
-
-            # تسجيل خسارة العجز في الخزينة
-            if diff < 0:
-                treasury = Treasury.objects.filter(branch=branch, is_active=True).first()
-                if treasury:
-                    loss_value = Decimal(str(abs(diff))) * Decimal(str(product.average_cost))
-                    FinancialTransaction.objects.create(
-                        treasury=treasury,
-                        transaction_type='out',
-                        amount=loss_value,
-                        description=f"تسوية عجز جرد — {product.name} ({abs(diff)} وحدة)",
-                    )
+        from inventory.services.inventory_service import InventoryService
+        diff, new_qty = InventoryService.execute_cycle_count(product, branch, actual_qty)
 
         return _json_response_safe({
             "status": "success",
-            "message": f"تم جرد {product.name}. الرصيد: {actual_qty}",
+            "message": f"تم جرد {product.name}. الرصيد: {new_qty}",
             "variance": diff,
         })
     except Exception as e:
-        logger.error(f"[CYCLE COUNT] {e}")
+        logger.error("[CYCLE COUNT] %s", e)
         return _json_response_safe({"error": str(e)}, 500)
 
 
@@ -722,153 +703,15 @@ def _agent_vision_license(image_b64: str) -> dict:
 # ------------------------------------------------------------------
 
 def _get_auto_live_context():
-    """جلب بيانات حية من داتابيز مركز الصيانة/قطع الغيار"""
-    try:
-        from .models import SaleInvoice, Customer, Treasury, FinancialTransaction, Product, Inventory
-        now = timezone.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-        # مبيعات
-        sales_today = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
-        sales_month = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
-        revenue_today = sales_today.aggregate(t=Sum('total_amount'))['t'] or 0
-        revenue_month = sales_month.aggregate(t=Sum('total_amount'))['t'] or 0
-        profit_month = sales_month.aggregate(t=Sum('net_profit'))['t'] or 0
-
-        # خزينة
-        treasuries = Treasury.objects.filter(is_active=True)
-        treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
-        total_balance = sum(t.balance for t in treasuries)
-
-        # مصاريف
-        expenses_month = FinancialTransaction.objects.filter(
-            transaction_type='expense', date__gte=month_start
-        ).aggregate(t=Sum('amount'))['t'] or 0
-
-        # عملاء
-        total_customers = Customer.objects.count()
-        recent = Customer.objects.order_by('-date_added')[:5]
-        customers_list = ", ".join(f"{c.name}" for c in recent)
-
-        # مخزون
-        low_stock = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'))[:5]
-        low_items = ", ".join(f"{i.product.name} ({i.quantity})" for i in low_stock)
-
-        # طلبات مفتوحة
-        open_invoices = SaleInvoice.objects.filter(status__in=['quotation', 'in_progress', 'quality_check', 'ready']).count()
-
-        return (
-            f"## البيانات الحية:\n"
-            f"📅 {now.strftime('%Y-%m-%d %H:%M')}\n"
-            f"💰 إيرادات اليوم: {revenue_today:,.2f} ج.م | الشهر: {revenue_month:,.2f} ج.م\n"
-            f"📊 صافي ربح الشهر: {profit_month:,.2f} ج.م\n"
-            f"💸 مصروفات الشهر: {expenses_month:,.2f} ج.م\n"
-            f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} ج.م\n"
-            f"📋 فواتير مفتوحة: {open_invoices}\n"
-            f"👥 إجمالي العملاء: {total_customers} | آخرهم: {customers_list}\n"
-            f"📦 تنبيهات مخزون: {low_items or 'لا يوجد نقص ✅'}\n"
-        )
-    except Exception as e:
-        logger.warning(f"[AUTO COPILOT] Live context error: {e}")
-        return ""
+    """Delegate to ReportingService for live business data snapshot."""
+    from inventory.services.reporting_service import ReportingService
+    return ReportingService.get_live_context()
 
 
 def _query_auto_business_data(query):
-    """تحليل سؤال المستخدم وجلب بيانات من الداتابيز — سيارات"""
-    try:
-        from .models import SaleInvoice, Customer, Treasury, FinancialTransaction, Product, Inventory, Vehicle
-        now = timezone.now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        q = query.lower()
-
-        # بحث عن عميل بالاسم
-        customer_match = re.search(r'(?:عميل|زبون|client)\s+(.+)', q)
-        if not customer_match:
-            # Try just a name after common keywords
-            for kw in ['بيانات', 'معلومات', 'ملف']:
-                if kw in q:
-                    rest = q.split(kw)[-1].strip()
-                    if rest:
-                        customer_match = type('M', (), {'group': lambda self, n: rest})()
-                        break
-
-        if customer_match:
-            name = customer_match.group(1).strip()
-            customers = Customer.objects.filter(Q(name__icontains=name) | Q(phone__icontains=name))[:5]
-            if customers:
-                details = []
-                for c in customers:
-                    vehicles = Vehicle.objects.filter(customer=c)
-                    cars = ", ".join(f"{v.make} {v.model}" for v in vehicles[:3]) or "لا توجد"
-                    invoices_count = SaleInvoice.objects.filter(customer=c).count()
-                    details.append(
-                        f"• {c.name} | {c.phone} | رصيد: {c.balance:,.2f} | نقاط: {c.loyalty_points} | "
-                        f"{c.vip_tier} | فواتير: {invoices_count} | سيارات: {cars}"
-                    )
-                return "نتائج البحث:\n" + "\n".join(details)
-
-        # فاتورة محددة
-        inv_match = re.search(r'(?:فاتور[ةه]|inv|invoice)\s*(?:رقم|#|no)?\s*#?(\d+)', q, re.IGNORECASE)
-        if not inv_match:
-            inv_match = re.search(r'(?:رقم|#)\s*(\d+)', q)
-        if inv_match:
-            inv_id = int(inv_match.group(1))
-            try:
-                inv = SaleInvoice.objects.get(pk=inv_id)
-                profit_status = "ربح ✅" if inv.net_profit > 0 else ("خسارة ❌" if inv.net_profit < 0 else "تعادل")
-                return (
-                    f"فاتورة #{inv.id} — {inv.customer.name}\n"
-                    f"النوع: {inv.get_invoice_type_display()} | الحالة: {inv.get_status_display()}\n"
-                    f"الإجمالي: {inv.total_amount:,.2f} ج.م | المدفوع: {inv.paid_amount:,.2f} | المتبقي: {inv.due_amount:,.2f}\n"
-                    f"التكلفة: {inv.total_cost:,.2f} ج.م | الربح: {inv.net_profit:,.2f} ج.م ({profit_status})"
-                )
-            except SaleInvoice.DoesNotExist:
-                return f"لم أجد فاتورة برقم {inv_id}"
-
-        # مبيعات
-        if any(k in q for k in ['بيع', 'مبيعات', 'ايراد', 'إيراد', 'بعنا', 'بيعنا', 'revenue', 'sales']):
-            if any(k in q for k in ['الشهر', 'شهر']):
-                sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
-            else:
-                sales = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
-            total = sales.aggregate(t=Sum('total_amount'))['t'] or 0
-            profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
-            return f"المبيعات: {total:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
-
-        # مصاريف
-        if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
-            expenses = FinancialTransaction.objects.filter(transaction_type='expense', date__gte=month_start)
-            total = expenses.aggregate(t=Sum('amount'))['t'] or 0
-            return f"إجمالي المصروفات هذا الشهر: {total:,.2f} ج.م"
-
-        # خزينة
-        if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'فلوس']):
-            treasuries = Treasury.objects.filter(is_active=True)
-            total = sum(t.balance for t in treasuries)
-            details = "\n".join(f"  • {t.name}: {t.balance:,.2f} ج.م" for t in treasuries)
-            return f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} ج.م"
-
-        # أرباح
-        if any(k in q for k in ['ربح', 'أرباح', 'ارباح', 'كسب', 'profit']):
-            sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
-            profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
-            revenue = sales.aggregate(t=Sum('total_amount'))['t'] or 0
-            return f"إيرادات الشهر: {revenue:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
-
-        # مخزون
-        if any(k in q for k in ['مخزون', 'stock', 'قطعة', 'قطع']):
-            total_products = Product.objects.count()
-            low_stock = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'))[:10]
-            alerts = "\n".join(f"  ⚠️ {i.product.name}: {i.quantity} (الحد: {i.product.min_stock_level})" for i in low_stock)
-            stock_status = "تنبيهات نقص:\n" + alerts if alerts else "لا يوجد نقص ✅"
-            return f"إجمالي القطع: {total_products}\n{stock_status}"
-
-        return None
-    except Exception as e:
-        logger.warning(f"[AUTO COPILOT] Query error: {e}")
-        return None
+    """Delegate to ReportingService for business data queries."""
+    from inventory.services.reporting_service import ReportingService
+    return ReportingService.query_business_data(query)
 
 
 @login_required(login_url='/secure-portal/')
@@ -1057,38 +900,22 @@ def create_blind_bid_api(request):
 @login_required(login_url='/secure-portal/')
 @tenant_required
 def distribute_scrap_cost_api(request, job_id):
+    """HTTP adapter for scrap cost distribution — delegates to InventoryService."""
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
+
     job = get_object_or_404(ScrapDismantlingJob, id=job_id)
-    if job.is_completed:
-        return _json_response_safe({"error": "العملية مغلقة مسبقاً."}, 400)
 
-    with transaction.atomic():
-        yields = list(job.yields.select_related('product').all())
-        if not yields:
-            return _json_response_safe({"error": "لا توجد مكونات مسجلة."}, 400)
-
-        total_market_value = sum(
-            Decimal(str(y.product.retail_price)) * y.quantity for y in yields
-        )
-        if total_market_value == 0:
-            return _json_response_safe({"error": "أسعار السوق للمكونات صفرية."}, 400)
-
-        total_cost = Decimal(str(job.total_purchase_cost))
-        for y in yields:
-            item_value = Decimal(str(y.product.retail_price)) * y.quantity
-            coefficient = item_value / total_market_value
-            y.estimated_cost_allocation = total_cost * coefficient
-            y.save()
-
-        job.is_completed = True
-        job.save()  # Signal execute_scrap_dismantling_yield سيضيف للمخزن
-
-    return _json_response_safe({
-        "status": "success",
-        "message": "تم توزيع التكلفة بالوزن النسبي وإضافة المكونات للمخزن.",
-        "items_processed": len(yields),
-    })
+    try:
+        from inventory.services.inventory_service import InventoryService
+        items_count = InventoryService.distribute_scrap_cost(job)
+        return _json_response_safe({
+            "status": "success",
+            "message": "تم توزيع التكلفة بالوزن النسبي وإضافة المكونات للمخزن.",
+            "items_processed": items_count,
+        })
+    except Exception as e:
+        return _json_response_safe({"error": str(e)}, 400)
 
 
 # =====================================================================

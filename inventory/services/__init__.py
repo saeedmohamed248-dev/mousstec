@@ -8,10 +8,12 @@ from .invoice_service import InvoiceService
 from .inventory_service import InventoryService
 from .treasury_service import TreasuryService
 from .audit_service import AuditService
+from .reporting_service import ReportingService
 
 __all__ = [
     'InvoiceService',
     'InventoryService',
     'TreasuryService',
     'AuditService',
+    'ReportingService',
 ]
