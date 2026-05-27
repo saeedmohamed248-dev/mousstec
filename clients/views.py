@@ -1124,6 +1124,7 @@ LANDING_BOT_KNOWLEDGE = """أنت "مساعد Mouss Tec الذكي" — مساع
 """
 
 
+@csrf_exempt
 def ai_assistant_api(request):
     """🤖 API endpoint للمساعد الذكي — يعمل بـ Gemini (مجاني)"""
     if request.method != 'POST':
@@ -1152,49 +1153,38 @@ def ai_assistant_api(request):
             return JsonResponse({'error': 'الرسالة طويلة جداً'}, status=400)
 
         # ── Gemini API call (مجاني) ──
-        from inventory.ai_services import call_gemini_layer
+        gemini_reply = None
+        try:
+            from inventory.ai_services import call_gemini_layer
 
-        ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
-        api_key = getattr(settings, 'AI_VISION_API_KEY', None)
+            ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
+            api_key = getattr(settings, 'AI_VISION_API_KEY', None)
 
-        if not ai_enabled or not api_key:
-            return JsonResponse({
-                'reply': '⚠️ المساعد الذكي غير مُفعّل حالياً. تواصل مع فريق الدعم للمساعدة.',
-                'status': 'no_api_key'
-            })
+            if ai_enabled and api_key:
+                # بناء سجل المحادثة (آخر 6 رسائل فقط)
+                messages = [
+                    {"role": "system", "content": LANDING_BOT_KNOWLEDGE},
+                ]
+                for msg in conversation_history[-6:]:
+                    role = msg.get('role', 'user')
+                    content = msg.get('content', '')
+                    if role == 'user' and content:
+                        messages.append({"role": "user", "content": content})
+                    elif role == 'assistant' and content:
+                        messages.append({"role": "assistant", "content": content})
 
-        # بناء سجل المحادثة (آخر 6 رسائل فقط)
-        messages = [
-            {"role": "system", "content": LANDING_BOT_KNOWLEDGE},
-        ]
-        for msg in conversation_history[-6:]:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
-            if role == 'user' and content:
-                messages.append({"role": "user", "content": content})
-            elif role == 'assistant' and content:
-                messages.append({"role": "assistant", "content": content})
+                messages.append({"role": "user", "content": user_message})
+                gemini_reply = call_gemini_layer(messages, json_mode=False, max_retries=1)
+        except Exception as e:
+            logger.warning(f'AI Assistant Gemini fallback: {e}')
 
-        messages.append({"role": "user", "content": user_message})
+        if gemini_reply:
+            return JsonResponse({'reply': gemini_reply, 'status': 'ok'})
 
-        reply = call_gemini_layer(messages, json_mode=False, max_retries=1)
+        # ── Fallback ذكي بدون Gemini ──
+        reply = _landing_bot_local_reply(user_message)
+        return JsonResponse({'reply': reply, 'status': 'ok'})
 
-        if not reply:
-            return JsonResponse({
-                'reply': '⚠️ حدث خطأ مؤقت في المحرك. حاول مرة أخرى بعد قليل.',
-                'status': 'error'
-            })
-
-        return JsonResponse({
-            'reply': reply,
-            'status': 'ok'
-        })
-
-    except ImportError:
-        return JsonResponse({
-            'reply': '⚠️ محرك الذكاء الاصطناعي غير متاح حالياً.',
-            'status': 'no_library'
-        })
     except json.JSONDecodeError:
         return JsonResponse({'error': 'بيانات غير صالحة'}, status=400)
     except Exception as e:
@@ -1203,3 +1193,109 @@ def ai_assistant_api(request):
             'reply': '⚠️ حدث خطأ مؤقت. حاول مرة أخرى بعد قليل.',
             'status': 'error'
         })
+
+
+def _landing_bot_local_reply(msg):
+    """ردود محلية ذكية للبوت لما Gemini مش متاح"""
+    q = msg.lower()
+
+    # تحيات
+    if any(k in q for k in ['hi', 'hello', 'اهلا', 'أهلا', 'مرحبا', 'سلام', 'ازيك', 'إزيك', 'صباح', 'مساء']):
+        return (
+            'أهلاً بيك! 👋 أنا مساعد Mouss Tec.\n'
+            'أقدر أساعدك تعرف كل حاجة عن النظام:\n'
+            '🔧 نظام ورش السيارات وقطع الغيار\n'
+            '🎨 نظام المطابع وشركات التصميم\n'
+            '💰 الباقات والأسعار\n'
+            '🚀 التجربة المجانية 3 أيام\n\n'
+            'اسألني عن أي حاجة!'
+        )
+
+    # أسعار / باقات
+    if any(k in q for k in ['سعر', 'أسعار', 'اسعار', 'باقة', 'باقات', 'كام', 'تكلفة', 'price', 'plan', 'فرق']):
+        return (
+            '💰 باقاتنا مرنة وتناسب كل الأحجام:\n\n'
+            '🔧 باقات السيارات:\n'
+            '• سيلفر: 475 ج/شهر (فرع + موظف)\n'
+            '• جولد: 1,250 ج/شهر (فرعين + 4 موظفين + B2B) ⭐\n'
+            '• Empire: 1,800 ج/شهر (غير محدود)\n\n'
+            '🎨 باقات الطباعة:\n'
+            '• Print Basic: 550 ج/شهر\n'
+            '• Print Pro: 880 ج/شهر ⭐\n'
+            '• Print Enterprise: 2,000 ج/شهر\n\n'
+            '🎁 خصم 9% ربع سنوي | 12.5% نصف سنوي | 25% سنوي\n'
+            '🆓 جرّب مجاناً 3 أيام بدون دفع!'
+        )
+
+    # سيارات
+    if any(k in q for k in ['سيار', 'ورش', 'صيان', 'قطع غيار', 'ميكانيك', 'كرت', 'garage', 'auto', 'car']):
+        return (
+            '🔧 نظام Mouss Tec للسيارات يشمل:\n\n'
+            '• فواتير مبيعات ومشتريات ومرتجعات\n'
+            '• مخزون ذكي مع باركود وتنبيه نقص\n'
+            '• كروت صيانة: افتح كرت → أضف خدمات وقطع غيار → أغلقه = فاتورة تلقائية\n'
+            '• سجل مركبات العملاء وتاريخ الصيانة\n'
+            '• سوق B2B: اطلب قطع غيار من تجار تانيين\n'
+            '• خزائن ومحاسبة كاملة\n'
+            '• تقارير أرباح وخسائر\n\n'
+            '🆓 جرّب النظام مجاناً 3 أيام من صفحة الأسعار!'
+        )
+
+    # طباعة / تصميم
+    if any(k in q for k in ['طباع', 'مطبع', 'تصميم', 'مصمم', 'print', 'design', 'بوستر', 'كارت', 'تيشرت']):
+        return (
+            '🎨 نظام Mouss Tec للمطابع يشمل:\n\n'
+            '• طلبات طباعة مع مهام مخصصة (تيشرت، كروت، بوسترات...)\n'
+            '• إدارة المصممين + سجل أعمال + تقييمات\n'
+            '• حاسبة تكلفة CMYK لكل ماكينة\n'
+            '• مخزون خامات (ورق، حبر) مع تنبيه نقص\n'
+            '• رفع ملفات المشاريع وحفظها\n'
+            '• صلاحيات موظفين دقيقة\n'
+            '• AI Studio: توليد تصاميم بالذكاء الاصطناعي (إضافة اختيارية)\n\n'
+            '🆓 جرّب مجاناً 3 أيام!'
+        )
+
+    # تجربة مجانية
+    if any(k in q for k in ['مجان', 'تجرب', 'trial', 'free', 'جرب', 'ابدأ', 'اشتراك', 'سجل']):
+        return (
+            '🚀 التجربة المجانية سهلة جداً:\n\n'
+            '1. اذهب لصفحة الأسعار\n'
+            '2. اختر الباقة المناسبة (سيارات أو طباعة)\n'
+            '3. اضغط "جرّب مجاناً 3 أيام"\n'
+            '4. سجّل بياناتك وابدأ فوراً!\n\n'
+            '✅ بدون بطاقة ائتمان\n'
+            '✅ كل المميزات متاحة\n'
+            '✅ لو عجبك، اشترك من داخل النظام'
+        )
+
+    # دفع
+    if any(k in q for k in ['دفع', 'فيزا', 'فودافون', 'كاش', 'payment', 'pay', 'تحويل']):
+        return (
+            '💳 طرق الدفع المتاحة:\n\n'
+            '1. فودافون كاش: حوّل المبلغ وابعت الإيصال على واتساب\n'
+            '2. فيزا/ماستركارد: دفع فوري آمن عبر Paymob\n\n'
+            'اختر الباقة من صفحة الأسعار وهتلاقي كل التفاصيل!'
+        )
+
+    # فاتورة / مخزون / محاسبة
+    if any(k in q for k in ['فاتور', 'مبيعات', 'مشتريات', 'مخزون', 'محاسب', 'خزين', 'تقرير']):
+        return (
+            '📊 النظام يشمل كل ما تحتاجه:\n\n'
+            '• فواتير مبيعات ومشتريات ومرتجعات\n'
+            '• مخزون مع باركود وجرد وتحويل بين فروع\n'
+            '• محاسبة كاملة: قيد مزدوج + أرباح وخسائر\n'
+            '• خزائن ومدفوعات مع تحصيل وصرف\n'
+            '• تقارير شاملة لكل شيء\n\n'
+            'عاوز تعرف تفاصيل أكتر عن حاجة معينة؟'
+        )
+
+    # Fallback
+    return (
+        'أقدر أساعدك تعرف أكتر عن:\n\n'
+        '🔧 نظام السيارات والورش\n'
+        '🎨 نظام المطابع والتصميم\n'
+        '💰 الباقات والأسعار\n'
+        '🚀 التجربة المجانية\n'
+        '💳 طرق الدفع\n\n'
+        'اسألني عن أي حاجة من دول! 😊'
+    )
