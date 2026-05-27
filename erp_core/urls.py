@@ -312,7 +312,10 @@ urlpatterns = [
     path('i18n/', include('django.conf.urls.i18n')),
     
     # 🚀 النواة التشغيلية للورش (الكاشير، الفحص الذكي، الفواتير، وعقود الأساطيل)
-    path('system/', include('inventory.urls')), 
+    path('system/', include('inventory.urls')),
+
+    # 🎨 نظام الطباعة (AI Studio + Copilot + API)
+    path('printing/', include('printing.urls')),
 ]
 
 # =====================================================================
