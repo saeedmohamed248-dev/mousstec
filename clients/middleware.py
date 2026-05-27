@@ -34,6 +34,8 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
         re.compile(r'^/system/health/'),   # فحص صحة النظام
         re.compile(r'^/system/api/v1/ai/'),
+        re.compile(r'^/printing/copilot/'),   # Smart Business Copilot
+        re.compile(r'^/printing/ai/'),        # AI Studio API
     ]
 
     @classmethod
