@@ -214,6 +214,29 @@ class DesignerWorkLog(models.Model):
 
 
 # =====================================================================
+# 🏷️ 3.5. أنواع البنود (Product Types) — للتقارير والـ Autocomplete
+# =====================================================================
+
+class ProductType(models.Model):
+    """
+    نوع البند (تيشرت، كارت بزنس، بنر، ماج، فلاير، إلخ).
+    المستخدم يكتب اسم البند وبيتحفظ — ويظهر autocomplete بعد كده.
+    يُستخدم في تقارير آخر السنة لمعرفة أكتر بند شغال.
+    """
+    name = models.CharField(max_length=150, unique=True, verbose_name=_("اسم البند"))
+    usage_count = models.PositiveIntegerField(default=0, editable=False, verbose_name=_("عدد مرات الاستخدام"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("نوع بند")
+        verbose_name_plural = _("أنواع البنود")
+        ordering = ['-usage_count', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+# =====================================================================
 # 📋 4. أوامر الطباعة (Print Orders & Jobs)
 # =====================================================================
 
@@ -244,6 +267,22 @@ class PrintOrder(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الإجمالي"))
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الخصم"))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("المدفوع"))
+
+    # 📁 ملفات المشروع
+    project_file = models.FileField(
+        upload_to='print_projects/%Y/%m/', blank=True,
+        verbose_name=_("ملف المشروع"),
+        help_text=_("ملف التصميم الأصلي (PSD, AI, PDF, إلخ)")
+    )
+    project_file_2 = models.FileField(
+        upload_to='print_projects/%Y/%m/', blank=True,
+        verbose_name=_("ملف إضافي 1")
+    )
+    project_file_3 = models.FileField(
+        upload_to='print_projects/%Y/%m/', blank=True,
+        verbose_name=_("ملف إضافي 2")
+    )
+
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
 
     class Meta:
@@ -300,8 +339,19 @@ class PrintJob(models.Model):
     machine = models.ForeignKey(MachineProfile, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("الماكينة"))
     designer = models.ForeignKey(Designer, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المصمم"))
 
+    # 🏷️ نوع البند — بدل مقاس الورق بس (تيشرت، كارت، بنر، إلخ)
+    product_type = models.ForeignKey(
+        ProductType, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name=_("نوع البند"),
+        help_text=_("مثال: تيشرت، كارت بزنس، بنر، ماج، فلاير")
+    )
+    product_type_text = models.CharField(
+        max_length=150, blank=True, verbose_name=_("نوع البند (نص حر)"),
+        help_text=_("اكتب نوع البند — لو موجود قبل كده هيظهرلك autocomplete")
+    )
+
     description = models.CharField(max_length=300, verbose_name=_("وصف المهمة"), help_text=_("مثال: طباعة 500 كارت بزنس، سوفت تاتش"))
-    paper_size = models.CharField(max_length=10, choices=PAPER_SIZE_CHOICES, default='a4', verbose_name=_("مقاس الورق"))
+    paper_size = models.CharField(max_length=10, choices=PAPER_SIZE_CHOICES, default='a4', blank=True, verbose_name=_("مقاس الورق"))
     custom_width_cm = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name=_("العرض (سم)"))
     custom_height_cm = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name=_("الارتفاع (سم)"))
     quantity = models.PositiveIntegerField(default=1, verbose_name=_("الكمية"))
@@ -355,6 +405,19 @@ class PrintJob(models.Model):
     def save(self, *args, **kwargs):
         # B4: دائماً أعد حساب total_price عند وجود unit_price
         self.total_price = self.unit_price * self.quantity * self.copies
+
+        # 🏷️ Auto-create/link ProductType من النص الحر
+        if self.product_type_text and not self.product_type:
+            pt, created = ProductType.objects.get_or_create(
+                name__iexact=self.product_type_text.strip(),
+                defaults={'name': self.product_type_text.strip()}
+            )
+            self.product_type = pt
+        # تحديث عداد الاستخدام
+        if self.product_type and self.pk is None:
+            ProductType.objects.filter(pk=self.product_type.pk).update(
+                usage_count=models.F('usage_count') + 1
+            )
 
         # B3: ثبّت التكاليف عند إكمال المهمة (snapshot) — مرة واحدة فقط
         # 🚀 [FIX BY QA]: اللقطة تُحفظ فقط عند أول إكمال، لا تُعاد كتابتها لاحقاً
@@ -468,3 +531,55 @@ class PrintTransaction(models.Model):
                 else:
                     treasury.balance = _F('balance') - self.amount
                 treasury.save(update_fields=['balance'])
+
+
+# =====================================================================
+# 🔐 7. صلاحيات الموظفين (Staff Permissions)
+# =====================================================================
+
+class StaffPermission(models.Model):
+    """
+    صلاحيات مخصصة لكل موظف — الأدمن يتحكم مين يشوف إيه.
+    بدل ما نعتمد على Django Groups/Permissions المعقدة.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='print_permissions', verbose_name=_("الموظف")
+    )
+
+    # 📊 مالي
+    can_view_treasury = models.BooleanField(default=False, verbose_name=_("مشاهدة الخزينة"))
+    can_manage_treasury = models.BooleanField(default=False, verbose_name=_("إدارة الخزينة (إيداع/سحب)"))
+    can_view_profits = models.BooleanField(default=False, verbose_name=_("مشاهدة الأرباح والتكاليف"))
+
+    # 📋 الطلبات
+    can_create_orders = models.BooleanField(default=True, verbose_name=_("إنشاء طلبات"))
+    can_edit_orders = models.BooleanField(default=True, verbose_name=_("تعديل طلبات"))
+    can_delete_orders = models.BooleanField(default=False, verbose_name=_("حذف طلبات"))
+    can_view_all_orders = models.BooleanField(default=True, verbose_name=_("مشاهدة كل الطلبات"))
+
+    # 👥 العملاء
+    can_manage_customers = models.BooleanField(default=True, verbose_name=_("إدارة العملاء"))
+
+    # 📁 ملفات المشاريع
+    can_view_project_files = models.BooleanField(default=False, verbose_name=_("مشاهدة ملفات المشاريع"))
+    can_upload_project_files = models.BooleanField(default=True, verbose_name=_("رفع ملفات المشاريع"))
+
+    # 📦 المخزون
+    can_manage_stock = models.BooleanField(default=False, verbose_name=_("إدارة المخزون"))
+
+    # 🎨 المصممين
+    can_view_designers = models.BooleanField(default=False, verbose_name=_("مشاهدة أداء المصممين"))
+
+    # 🤖 AI Studio
+    can_use_ai_studio = models.BooleanField(default=False, verbose_name=_("استخدام AI Studio"))
+
+    # 📊 التقارير
+    can_view_reports = models.BooleanField(default=False, verbose_name=_("مشاهدة التقارير"))
+
+    class Meta:
+        verbose_name = _("صلاحية موظف")
+        verbose_name_plural = _("صلاحيات الموظفين")
+
+    def __str__(self):
+        return f"صلاحيات: {self.user.get_full_name() or self.user.username}"

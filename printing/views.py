@@ -621,3 +621,43 @@ def copilot_chat(request):
         'status': 'success',
         'recommendations': 'أهلاً! أقدر أساعدك في:<br>• بيعنا كام النهاردة/الشهر؟<br>• مصاريفنا كام؟<br>• فاتورة رقم 5 كسبنا فيها ولا خسرنا؟<br>• رصيد الخزينة كام؟<br>• أداء المصممين<br>• الطلبات المفتوحة<br>• حالة المخزون',
     })
+
+
+# =====================================================================
+# 🏷️ Product Type Autocomplete API
+# =====================================================================
+
+@login_required
+def product_type_autocomplete(request):
+    """
+    Autocomplete API لأنواع البنود.
+    GET /printing/api/product-types/?q=تيش → [{"id": 1, "name": "تيشرت", "count": 45}]
+    """
+    q = request.GET.get('q', '').strip()
+    from printing.models import ProductType
+    qs = ProductType.objects.all()
+    if q:
+        qs = qs.filter(name__icontains=q)
+    results = [
+        {'id': pt.id, 'name': pt.name, 'count': pt.usage_count}
+        for pt in qs[:15]
+    ]
+    return JsonResponse({'results': results})
+
+
+# =====================================================================
+# 📊 تقرير أكتر البنود شغالة
+# =====================================================================
+
+@login_required
+def product_type_report(request):
+    """
+    تقرير أنواع البنود — أكتر بند شغال وعدد مرات الاستخدام.
+    """
+    from printing.models import ProductType
+    types = ProductType.objects.filter(usage_count__gt=0).order_by('-usage_count')[:20]
+    data = [
+        {'name': pt.name, 'count': pt.usage_count}
+        for pt in types
+    ]
+    return JsonResponse({'results': data})

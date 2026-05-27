@@ -361,6 +361,8 @@ JAZZMIN_SETTINGS = {
         "printing.PrintMaterial": "fas fa-boxes",
         "printing.PrintTreasury": "fas fa-wallet",
         "printing.PrintTransaction": "fas fa-exchange-alt",
+        "printing.ProductType": "fas fa-tags",
+        "printing.StaffPermission": "fas fa-user-shield",
     },
     "hide_apps": ["token_blacklist", "django_celery_beat", "socialaccount", "axes"],
     "hide_models": ["auth.Group"],

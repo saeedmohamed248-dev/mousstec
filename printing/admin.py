@@ -9,7 +9,7 @@ from django.db import connection
 from .models import (
     PrintBranch, PrintCustomer, MachineProfile, Designer,
     DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial,
-    PrintTreasury, PrintTransaction,
+    PrintTreasury, PrintTransaction, ProductType, StaffPermission,
 )
 
 
@@ -161,16 +161,40 @@ class DesignerWorkLogAdmin(PrintSecureAdmin):
 class PrintJobInline(admin.TabularInline):
     model = PrintJob
     extra = 1
-    fields = ('description', 'machine', 'paper_size', 'quantity', 'copies', 'unit_price', 'total_price', 'is_complete')
+    fields = ('product_type_text', 'description', 'machine', 'paper_size', 'quantity', 'copies', 'unit_price', 'total_price', 'design_file', 'is_complete')
+    autocomplete_fields = ['product_type']
 
 
 @admin.register(PrintOrder)
 class PrintOrderAdmin(PrintSecureAdmin):
-    list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'date_created')
+    list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'has_files_badge', 'date_created')
     list_filter = ('status', 'branch', 'date_created')
     search_fields = ('order_number', 'customer__name')
     date_hierarchy = 'date_created'
     inlines = [PrintJobInline]
+    fieldsets = (
+        ('📋 بيانات الطلب', {
+            'fields': ('order_number', 'customer', 'branch', 'status', 'date_due'),
+        }),
+        ('💰 المالي', {
+            'fields': ('total_amount', 'discount', 'paid_amount'),
+        }),
+        ('📁 ملفات المشروع', {
+            'fields': ('project_file', 'project_file_2', 'project_file_3'),
+            'description': 'ارفع ملفات المشروع الأصلية (PSD, AI, PDF, إلخ) — يتم حفظها بأمان على السيرفر',
+        }),
+        ('📝 ملاحظات', {
+            'fields': ('notes',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_files_badge(self, obj):
+        count = sum(1 for f in [obj.project_file, obj.project_file_2, obj.project_file_3] if f)
+        if count:
+            return format_html('<span style="background:#8b5cf6;color:white;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:bold;">📁 {}</span>', count)
+        return '-'
+    has_files_badge.short_description = "ملفات"
 
     def status_badge(self, obj):
         colors = {
@@ -198,8 +222,17 @@ class PrintOrderAdmin(PrintSecureAdmin):
 
 @admin.register(PrintJob)
 class PrintJobAdmin(PrintSecureAdmin):
-    list_display = ('description', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
-    list_filter = ('is_complete', 'machine', 'paper_size')
+    list_display = ('description', 'product_type_badge', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
+    list_filter = ('is_complete', 'machine', 'product_type', 'paper_size')
+    search_fields = ('description', 'product_type_text')
+    autocomplete_fields = ['product_type']
+
+    def product_type_badge(self, obj):
+        name = obj.product_type_text or (obj.product_type.name if obj.product_type else '-')
+        if name == '-':
+            return '-'
+        return format_html('<span style="background:#6366f1;color:white;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:bold;">{}</span>', name)
+    product_type_badge.short_description = "نوع البند"
 
     def cost_display(self, obj):
         cost = obj.calculated_cost
@@ -274,3 +307,59 @@ class PrintTransactionAdmin(PrintSecureAdmin):
         color = '#10b981' if obj.transaction_type == 'in' else '#ef4444'
         return format_html('<b style="color:{};">{} ج.م</b>', color, f"{float(obj.amount):,.2f}")
     amount_display.short_description = "المبلغ"
+
+
+# =====================================================================
+# 🏷️ أنواع البنود
+# =====================================================================
+
+@admin.register(ProductType)
+class ProductTypeAdmin(PrintSecureAdmin):
+    list_display = ('name', 'usage_count_display', 'created_at')
+    search_fields = ('name',)
+    ordering = ('-usage_count',)
+
+    def usage_count_display(self, obj):
+        return format_html('<b style="color:#6366f1;">{}</b> مرة', obj.usage_count)
+    usage_count_display.short_description = "عدد الاستخدام"
+
+
+# =====================================================================
+# 🔐 صلاحيات الموظفين
+# =====================================================================
+
+@admin.register(StaffPermission)
+class StaffPermissionAdmin(PrintSecureAdmin):
+    list_display = (
+        'user', 'can_view_treasury', 'can_view_profits',
+        'can_view_project_files', 'can_use_ai_studio',
+        'can_manage_stock', 'can_view_reports',
+    )
+    list_filter = (
+        'can_view_treasury', 'can_view_profits',
+        'can_use_ai_studio', 'can_view_reports',
+    )
+    list_editable = (
+        'can_view_treasury', 'can_view_profits',
+        'can_view_project_files', 'can_use_ai_studio',
+        'can_manage_stock', 'can_view_reports',
+    )
+    fieldsets = (
+        ('👤 الموظف', {'fields': ('user',)}),
+        ('💰 الصلاحيات المالية', {
+            'fields': ('can_view_treasury', 'can_manage_treasury', 'can_view_profits'),
+            'description': '⚠️ صلاحيات حساسة — فقط للمديرين والمحاسبين',
+        }),
+        ('📋 الطلبات', {
+            'fields': ('can_create_orders', 'can_edit_orders', 'can_delete_orders', 'can_view_all_orders'),
+        }),
+        ('📁 الملفات والعملاء', {
+            'fields': ('can_view_project_files', 'can_upload_project_files', 'can_manage_customers'),
+        }),
+        ('📦 المخزون والمصممين', {
+            'fields': ('can_manage_stock', 'can_view_designers'),
+        }),
+        ('🤖 AI وتقارير', {
+            'fields': ('can_use_ai_studio', 'can_view_reports'),
+        }),
+    )
