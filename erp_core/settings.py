@@ -294,6 +294,9 @@ ENABLE_AI_PREDICTIONS = env.bool('ENABLE_AI_PREDICTIONS', default=True)
 AI_MODEL_ENDPOINT = env.str('AI_MODEL_ENDPOINT', 'https://generativelanguage.googleapis.com/')
 AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 
+# 🤖 OpenAI API — AI Studio (Image Generation via DALL-E)
+OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
+
 # =====================================================================
 # 🎛️ مفاتيح التحكم الديناميكية (SaaS Feature Flags Engine)
 # =====================================================================

@@ -264,6 +264,12 @@
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" class="saas-quick-btn" style="background: var(--info-grad);">
                     <i class="fas fa-user-tie"></i> العملاء
                 </a>
+                <a href="#" onclick="openAIStudioModal(); return false;" class="saas-quick-btn ai-studio-btn" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">
+                    <i class="fas fa-wand-magic-sparkles"></i> AI Studio
+                </a>
+                <a href="#" onclick="openWatermarkModal(); return false;" class="saas-quick-btn ai-studio-btn" style="background: linear-gradient(135deg, #06b6d4, #0284c7);">
+                    <i class="fas fa-stamp"></i> علامة مائية
+                </a>
             {% else %}
                 {# ===== أزرار السيارات ===== #}
                 {% if business_type == 'service_center' or business_type == 'both' %}
@@ -940,5 +946,193 @@
             document.body.appendChild(banner);
         }
     });
+
+    // ===== AI Studio Functions =====
+    function getCSRFToken() {
+        const c = document.cookie.match('(^|;)\\s*csrftoken=([^;]*)');
+        return c ? decodeURIComponent(c[2]) : '';
+    }
+
+    function openAIStudioModal() {
+        // Check AI status first
+        fetch('/printing/ai/status/').then(r => r.json()).then(data => {
+            if (!data.active) {
+                alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
+                return;
+            }
+            document.getElementById('aiStudioModal').style.display = 'flex';
+            document.getElementById('aiQuotaInfo').textContent = 'متبقي ' + data.ai_remaining + ' تصميم من ' + data.ai_limit;
+        }).catch(() => {
+            alert('تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت.');
+        });
+    }
+
+    function closeAIStudioModal() {
+        document.getElementById('aiStudioModal').style.display = 'none';
+    }
+
+    function generateAIDesign() {
+        const prompt = document.getElementById('aiPrompt').value.trim();
+        const size = document.getElementById('aiSize').value;
+        const quality = document.getElementById('aiQuality').value;
+        const btn = document.getElementById('aiGenerateBtn');
+        const result = document.getElementById('aiResult');
+
+        if (!prompt) { alert('اكتب وصف التصميم المطلوب'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
+        result.innerHTML = '<p style="text-align:center;color:#94a3b8;">جاري توليد التصميم بالذكاء الاصطناعي... قد يستغرق 15-30 ثانية</p>';
+
+        const fd = new FormData();
+        fd.append('prompt', prompt);
+        fd.append('size', size);
+        fd.append('quality', quality);
+        fd.append('csrfmiddlewaretoken', getCSRFToken());
+
+        fetch('/printing/ai/generate/', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
+            if (data.success) {
+                result.innerHTML = '<img src="' + data.image_url + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
+                    + '<p style="font-size:12px;color:#94a3b8;">' + (data.revised_prompt || '') + '</p>'
+                    + '<a href="' + data.image_url + '" download="ai-design.png" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download"></i> تحميل</a>';
+            } else {
+                result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
+            result.innerHTML = '<p style="color:#ef4444;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
+        });
+    }
+
+    function openWatermarkModal() {
+        fetch('/printing/ai/status/').then(r => r.json()).then(data => {
+            if (!data.active) {
+                alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
+                return;
+            }
+            document.getElementById('watermarkModal').style.display = 'flex';
+            document.getElementById('wmQuotaInfo').textContent = 'متبقي ' + data.wm_remaining + ' علامة';
+        }).catch(() => {
+            alert('تعذر التحقق من حالة الاشتراك.');
+        });
+    }
+
+    function closeWatermarkModal() {
+        document.getElementById('watermarkModal').style.display = 'none';
+    }
+
+    function applyWatermark() {
+        const fileInput = document.getElementById('wmImage');
+        const text = document.getElementById('wmText').value.trim();
+        const opacity = document.getElementById('wmOpacity').value;
+        const btn = document.getElementById('wmApplyBtn');
+        const result = document.getElementById('wmResult');
+
+        if (!fileInput.files.length) { alert('ارفع صورة أولاً'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المعالجة...';
+
+        const fd = new FormData();
+        fd.append('image', fileInput.files[0]);
+        fd.append('watermark_text', text);
+        fd.append('opacity', opacity);
+        fd.append('csrfmiddlewaretoken', getCSRFToken());
+
+        fetch('/printing/ai/watermark/', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
+            if (data.success) {
+                result.innerHTML = '<img src="' + data.image_base64 + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
+                    + '<a href="' + data.image_base64 + '" download="watermarked.jpg" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download"></i> تحميل</a>';
+            } else {
+                result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
+            result.innerHTML = '<p style="color:#ef4444;">حدث خطأ. حاول مرة أخرى.</p>';
+        });
+    }
 </script>
+
+{% if industry == 'printing' %}
+<!-- AI Studio Modal -->
+<div id="aiStudioModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-left:8px;"></i>AI Studio — توليد تصميم</h3>
+            <button onclick="closeAIStudioModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
+        </div>
+        <p id="aiQuotaInfo" style="font-size:12px;color:#a855f7;margin-bottom:12px;"></p>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب</label>
+            <textarea id="aiPrompt" rows="3" placeholder="مثال: لوجو مطبعة حديثة بألوان أزرق وبرتقالي مع أيقونة طابعة" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:16px;">
+            <div style="flex:1;">
+                <label style="font-size:12px;font-weight:700;">المقاس</label>
+                <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                    <option value="1024x1024">مربع (1024x1024)</option>
+                    <option value="1024x1792">عمودي (1024x1792)</option>
+                    <option value="1792x1024">أفقي (1792x1024)</option>
+                </select>
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;font-weight:700;">الجودة</label>
+                <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                    <option value="standard">عادية</option>
+                    <option value="hd">عالية (HD)</option>
+                </select>
+            </div>
+        </div>
+        <button id="aiGenerateBtn" onclick="generateAIDesign()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
+            <i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم
+        </button>
+        <div id="aiResult" style="margin-top:16px;"></div>
+    </div>
+</div>
+
+<!-- Watermark Modal -->
+<div id="watermarkModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-stamp" style="color:#06b6d4;margin-left:8px;"></i>علامة مائية ذكية</h3>
+            <button onclick="closeWatermarkModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
+        </div>
+        <p id="wmQuotaInfo" style="font-size:12px;color:#06b6d4;margin-bottom:12px;"></p>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">ارفع الصورة</label>
+            <input type="file" id="wmImage" accept="image/*" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">نص العلامة المائية</label>
+            <input type="text" id="wmText" placeholder="اسم الشركة أو الاستوديو" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;">
+        </div>
+        <div style="margin-bottom:16px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">شفافية العلامة: <span id="opacityVal">40</span>%</label>
+            <input type="range" id="wmOpacity" min="10" max="100" value="40" oninput="document.getElementById('opacityVal').textContent=this.value" style="width:100%;">
+        </div>
+        <button id="wmApplyBtn" onclick="applyWatermark()" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0284c7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
+            <i class="fas fa-stamp"></i> تطبيق العلامة
+        </button>
+        <div id="wmResult" style="margin-top:16px;"></div>
+    </div>
+</div>
+
+<script>
+// Close modals on backdrop click
+document.getElementById('aiStudioModal').addEventListener('click', function(e) { if (e.target === this) closeAIStudioModal(); });
+document.getElementById('watermarkModal').addEventListener('click', function(e) { if (e.target === this) closeWatermarkModal(); });
+</script>
+{% endif %}
 {% endblock %}

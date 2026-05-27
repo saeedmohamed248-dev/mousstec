@@ -233,6 +233,9 @@ urlpatterns = [
     # 🤖 AI Assistant API endpoint
     path('api/ai-assistant/', client_views.ai_assistant_api, name='ai_assistant_api'),
 
+    # 🎨 Printing AI Studio endpoints
+    path('printing/', include('printing.urls')),
+
     # 💳 بوابة الدفع عبر Paymob (Visa/Mastercard)
     path('payment/paymob/checkout/', client_views.paymob_checkout, name='paymob_checkout'),
     path('payment/paymob/callback/', client_views.paymob_callback, name='paymob_callback'),
