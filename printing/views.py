@@ -7,13 +7,18 @@ Gated by TenantSubscription + AILimitTracker.
 import logging
 import base64
 import json
+import re
 from io import BytesIO
+from decimal import Decimal
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db import connection
+from django.db.models import Sum, Count, Avg, Q, F
+from django.utils import timezone
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -285,4 +290,334 @@ def ai_studio_status(request):
         'wm_limit': sub.ai_addon.whatsapp_messages_limit,
         'wm_used': wm_used,
         'wm_remaining': max(0, sub.ai_addon.whatsapp_messages_limit - wm_used),
+    })
+
+
+# =====================================================================
+# 🧠 Smart Business Copilot — متوصل بالداتابيز الفعلية
+# =====================================================================
+
+def _query_business_data(query):
+    """
+    يحلل سؤال المستخدم ويجيب من الداتابيز الفعلية.
+    يرجع dict فيه: context (البيانات), intent (نوع السؤال)
+    """
+    from printing.models import (
+        PrintOrder, PrintJob, PrintTransaction, PrintTreasury,
+        PrintCustomer, PrintMaterial, Designer, DesignerWorkLog,
+        MachineProfile, PrintBranch,
+    )
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    q = query.lower()
+
+    # ============ 1. مبيعات اليوم ============
+    if any(k in q for k in ['بيع', 'مبيعات', 'ايراد', 'إيراد', 'دخل', 'بعنا', 'بيعنا', 'revenue', 'sales']):
+        period = 'اليوم'
+        date_filter = {'date__gte': today_start}
+        if any(k in q for k in ['الشهر', 'شهر', 'شهري']):
+            period = 'الشهر'
+            date_filter = {'date__gte': month_start}
+        elif any(k in q for k in ['امبارح', 'أمس', 'البارحه']):
+            period = 'أمس'
+            yesterday_start = today_start - timedelta(days=1)
+            date_filter = {'date__gte': yesterday_start, 'date__lt': today_start}
+        elif any(k in q for k in ['اسبوع', 'أسبوع', 'الاسبوع']):
+            period = 'الأسبوع'
+            date_filter = {'date__gte': today_start - timedelta(days=7)}
+
+        income = PrintTransaction.objects.filter(
+            transaction_type='in', **date_filter
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        order_count = PrintOrder.objects.filter(
+            date_created__gte=date_filter.get('date__gte', today_start),
+        ).count()
+
+        return {
+            'intent': 'sales',
+            'context': f"إجمالي المبيعات/الإيرادات {period}: {income:,.2f} ج.م\nعدد الطلبات {period}: {order_count} طلب",
+        }
+
+    # ============ 2. مصاريف ============
+    if any(k in q for k in ['مصاريف', 'مصروف', 'صرف', 'خرج', 'expense', 'مصروفات']):
+        period = 'اليوم'
+        date_filter = {'date__gte': today_start}
+        if any(k in q for k in ['الشهر', 'شهر', 'شهري']):
+            period = 'الشهر'
+            date_filter = {'date__gte': month_start}
+        elif any(k in q for k in ['اسبوع', 'أسبوع', 'الاسبوع']):
+            period = 'الأسبوع'
+            date_filter = {'date__gte': today_start - timedelta(days=7)}
+
+        expenses = PrintTransaction.objects.filter(
+            transaction_type='out', **date_filter
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # تفاصيل أكبر 5 مصاريف
+        top_expenses = PrintTransaction.objects.filter(
+            transaction_type='out', **date_filter
+        ).order_by('-amount')[:5]
+        details = "\n".join(
+            f"  • {tx.description or 'بدون وصف'}: {tx.amount:,.2f} ج.م"
+            for tx in top_expenses
+        )
+
+        return {
+            'intent': 'expenses',
+            'context': f"إجمالي المصروفات {period}: {expenses:,.2f} ج.م\nأكبر المصروفات:\n{details}" if details else f"إجمالي المصروفات {period}: {expenses:,.2f} ج.م",
+        }
+
+    # ============ 3. فاتورة / طلب محدد ============
+    order_match = re.search(r'(?:طلب|فاتور[ةه]|order|اوردر|أوردر)\s*(?:رقم|#|no)?\s*[#]?(\d+|PO-[\d-]+)', q, re.IGNORECASE)
+    if not order_match:
+        # Try standalone number with context
+        order_match = re.search(r'(?:رقم|#)\s*(\d+)', q)
+    if order_match:
+        order_ref = order_match.group(1)
+        # Try by number suffix or full order_number
+        orders = PrintOrder.objects.filter(
+            Q(order_number__icontains=order_ref) | Q(pk=int(order_ref) if order_ref.isdigit() else 0)
+        )[:1]
+        if orders:
+            order = orders[0]
+            jobs = order.jobs.all()
+            total_cost = sum(j.actual_cost or j.calculated_cost for j in jobs)
+            total_revenue = order.net_total
+            profit = total_revenue - total_cost
+            profit_status = "ربح ✅" if profit > 0 else ("خسارة ❌" if profit < 0 else "تعادل")
+
+            jobs_detail = "\n".join(
+                f"  • {j.description[:60]}: سعر {j.total_price:,.2f} — تكلفة {j.actual_cost or j.calculated_cost:,.2f}"
+                for j in jobs
+            )
+            return {
+                'intent': 'order_detail',
+                'context': (
+                    f"طلب #{order.order_number} — العميل: {order.customer.name}\n"
+                    f"الحالة: {order.get_status_display()}\n"
+                    f"الإجمالي: {order.total_amount:,.2f} ج.م | خصم: {order.discount:,.2f} | صافي: {total_revenue:,.2f}\n"
+                    f"المدفوع: {order.paid_amount:,.2f} | المتبقي: {order.remaining:,.2f}\n"
+                    f"التكلفة الفعلية: {total_cost:,.2f} ج.م\n"
+                    f"الربح: {profit:,.2f} ج.م ({profit_status})\n"
+                    f"المهام:\n{jobs_detail}" if jobs_detail else ""
+                ),
+            }
+        return {'intent': 'order_not_found', 'context': f"لم أجد طلب برقم {order_ref}"}
+
+    # ============ 4. أرباح ============
+    if any(k in q for k in ['ربح', 'أرباح', 'ارباح', 'كسب', 'كسبنا', 'profit', 'صافي']):
+        period = 'الشهر'
+        date_filter = {'date_created__gte': month_start}
+        if any(k in q for k in ['يوم', 'النهاردة', 'اليوم', 'today']):
+            period = 'اليوم'
+            date_filter = {'date_created__gte': today_start}
+
+        income = PrintTransaction.objects.filter(
+            transaction_type='in', date__gte=date_filter['date_created__gte']
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        expenses = PrintTransaction.objects.filter(
+            transaction_type='out', date__gte=date_filter['date_created__gte']
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        profit = income - expenses
+
+        # Also calculate from completed jobs
+        completed_jobs = PrintJob.objects.filter(
+            is_complete=True,
+            completed_at__gte=date_filter['date_created__gte'],
+        )
+        job_profit = completed_jobs.aggregate(total=Sum('actual_profit'))['total'] or Decimal('0')
+
+        return {
+            'intent': 'profit',
+            'context': (
+                f"التقرير المالي — {period}:\n"
+                f"  إجمالي الإيرادات: {income:,.2f} ج.م\n"
+                f"  إجمالي المصروفات: {expenses:,.2f} ج.م\n"
+                f"  صافي الربح (خزينة): {profit:,.2f} ج.م\n"
+                f"  صافي ربح المهام المكتملة: {job_profit:,.2f} ج.م"
+            ),
+        }
+
+    # ============ 5. خزينة / رصيد ============
+    if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'treasury', 'فلوس']):
+        treasuries = PrintTreasury.objects.filter(is_active=True)
+        total = sum(t.balance for t in treasuries)
+        details = "\n".join(f"  • {t.name}: {t.balance:,.2f} ج.م" for t in treasuries)
+        return {
+            'intent': 'treasury',
+            'context': f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} ج.م",
+        }
+
+    # ============ 6. عملاء ============
+    if any(k in q for k in ['عميل', 'عملاء', 'customer', 'زبون', 'زباين']):
+        # Search for specific customer
+        name_match = re.search(r'(?:عميل|زبون)\s+(.+)', q)
+        if name_match:
+            name = name_match.group(1).strip()
+            customers = PrintCustomer.objects.filter(name__icontains=name)[:5]
+            if customers:
+                details = "\n".join(
+                    f"  • {c.name} | {c.phone or 'بدون رقم'} | {c.company or ''}"
+                    for c in customers
+                )
+                return {'intent': 'customer_search', 'context': f"نتائج البحث:\n{details}"}
+            return {'intent': 'customer_not_found', 'context': f"لم أجد عميل باسم '{name}'"}
+
+        total_customers = PrintCustomer.objects.count()
+        new_this_month = PrintCustomer.objects.filter(created_at__gte=month_start).count()
+        return {
+            'intent': 'customers',
+            'context': f"إجمالي العملاء: {total_customers}\nعملاء جدد هذا الشهر: {new_this_month}",
+        }
+
+    # ============ 7. طلبات مفتوحة ============
+    if any(k in q for k in ['طلب', 'طلبات', 'اوردر', 'order', 'شغل', 'مفتوح']):
+        open_orders = PrintOrder.objects.filter(
+            status__in=['draft', 'confirmed', 'in_progress']
+        ).order_by('-date_created')[:10]
+        if open_orders:
+            details = "\n".join(
+                f"  • #{o.order_number} — {o.customer.name} | {o.get_status_display()} | {o.net_total:,.2f} ج.م"
+                for o in open_orders
+            )
+            return {
+                'intent': 'open_orders',
+                'context': f"الطلبات المفتوحة ({open_orders.count()}):\n{details}",
+            }
+        return {'intent': 'open_orders', 'context': "لا توجد طلبات مفتوحة حالياً 🎉"}
+
+    # ============ 8. مخزون / خامات ============
+    if any(k in q for k in ['مخزون', 'خامات', 'ورق', 'حبر', 'stock', 'inventory', 'خامه', 'material']):
+        low_stock = PrintMaterial.objects.filter(quantity__lte=F('min_stock'))
+        total_materials = PrintMaterial.objects.count()
+        stock_value = PrintMaterial.objects.aggregate(
+            val=Sum(F('quantity') * F('cost_per_unit'))
+        )['val'] or 0
+
+        if low_stock.exists():
+            alerts = "\n".join(
+                f"  ⚠️ {m.name}: {m.quantity} {m.unit} (الحد الأدنى: {m.min_stock})"
+                for m in low_stock[:10]
+            )
+            return {
+                'intent': 'stock',
+                'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} ج.م\n\nتنبيهات نقص:\n{alerts}",
+            }
+        return {
+            'intent': 'stock',
+            'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} ج.م\nلا توجد تنبيهات نقص ✅",
+        }
+
+    # ============ 9. مصممين / أداء ============
+    if any(k in q for k in ['مصمم', 'مصممين', 'designer', 'أداء', 'اداء', 'performance']):
+        designers = Designer.objects.filter(is_active=True)
+        results = []
+        for d in designers:
+            stats = d.get_month_stats()
+            results.append(
+                f"  • {d.user.get_full_name() or d.user.username}: "
+                f"{stats['total_works'] or 0} عمل | "
+                f"{stats['total_hours'] or 0} ساعة | "
+                f"تقييم: {stats['avg_rating'] or '-'}/5"
+            )
+        if results:
+            return {'intent': 'designers', 'context': f"أداء المصممين هذا الشهر:\n" + "\n".join(results)}
+        return {'intent': 'designers', 'context': "لا يوجد مصممين مسجلين بعد."}
+
+    # ============ 10. ماكينات ============
+    if any(k in q for k in ['ماكينة', 'ماكينات', 'طابعة', 'machine', 'printer']):
+        machines = MachineProfile.objects.filter(is_active=True)
+        if machines:
+            details = "\n".join(
+                f"  • {m.name} ({m.get_machine_type_display()}) — تكلفة/ساعة: {m.hourly_operating_cost:,.2f} ج.م"
+                for m in machines
+            )
+            return {'intent': 'machines', 'context': f"الماكينات النشطة ({machines.count()}):\n{details}"}
+        return {'intent': 'machines', 'context': "لا توجد ماكينات مسجلة بعد."}
+
+    # ============ لم يتطابق — ارجع None ============
+    return None
+
+
+@login_required
+def copilot_chat(request):
+    """
+    🧠 Smart Business Copilot — يرد على أسئلة من الداتابيز الفعلية.
+    مجاني — لا يستهلك حصة AI ولا API خارجي (إلا لتنسيق الرد).
+    """
+    query = request.GET.get('query', '').strip()
+    if not query:
+        return JsonResponse({
+            'status': 'success',
+            'recommendations': 'أهلاً! اسألني عن المبيعات، المصاريف، الأرباح، الطلبات، أو أي شيء يخص شغلك.'
+        })
+
+    # الخطوة 1: استعلم من الداتابيز
+    db_result = _query_business_data(query)
+
+    if db_result:
+        context = db_result['context']
+
+        # الخطوة 2: لو Gemini متاح، خليه ينسق الرد بشكل لطيف
+        try:
+            from inventory.ai_services import call_gemini_layer
+            if getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and getattr(settings, 'AI_VISION_API_KEY', None):
+                sys_msg = (
+                    "أنت Mouss Tec Copilot — مساعد ذكي لمطبعة. "
+                    "المستخدم سألك سؤال وأنا جبتلك البيانات الفعلية من النظام. "
+                    "نسّق الرد بشكل مختصر ومهني بالعربي المصري. "
+                    "لا تخترع أرقام — استخدم البيانات الفعلية فقط. "
+                    "لو في ملاحظة مهمة أو نصيحة بناءً على الأرقام، اذكرها. "
+                    "الرد يكون قصير ومفيد."
+                )
+                messages = [
+                    {"role": "system", "content": sys_msg},
+                    {"role": "user", "content": f"سؤال المستخدم: {query}\n\nالبيانات الفعلية:\n{context}"},
+                ]
+                ai_response = call_gemini_layer(messages, json_mode=False, max_retries=1)
+                if ai_response:
+                    return JsonResponse({
+                        'status': 'success',
+                        'recommendations': ai_response.replace('\n', '<br>'),
+                    })
+        except Exception as e:
+            logger.warning(f"[COPILOT] Gemini formatting failed, returning raw: {e}")
+
+        # Fallback: رجّع البيانات بدون تنسيق AI
+        return JsonResponse({
+            'status': 'success',
+            'recommendations': context.replace('\n', '<br>'),
+        })
+
+    # لو مش مفهوم — حاول Gemini مباشرة
+    try:
+        from inventory.ai_services import call_gemini_layer
+        if getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and getattr(settings, 'AI_VISION_API_KEY', None):
+            sys_msg = (
+                "أنت Mouss Tec Copilot — مساعد ذكي لمطبعة / استوديو تصميم. "
+                "أجب بالعربي المصري، مختصر ومهني. "
+                "لو السؤال عن بيانات محددة (أرقام مبيعات أو فواتير)، "
+                "قول للمستخدم يسأل بشكل أوضح (مثلاً: بيعنا كام النهاردة؟ / فاتورة رقم 5 / مصاريف الشهر)."
+            )
+            messages = [
+                {"role": "system", "content": sys_msg},
+                {"role": "user", "content": query},
+            ]
+            raw = call_gemini_layer(messages, json_mode=False, max_retries=1)
+            if raw:
+                return JsonResponse({
+                    'status': 'success',
+                    'recommendations': raw.replace('\n', '<br>'),
+                })
+    except Exception as e:
+        logger.warning(f"[COPILOT] Gemini fallback failed: {e}")
+
+    return JsonResponse({
+        'status': 'success',
+        'recommendations': 'أهلاً! أقدر أساعدك في:<br>• بيعنا كام النهاردة/الشهر؟<br>• مصاريفنا كام؟<br>• فاتورة رقم 5 كسبنا فيها ولا خسرنا؟<br>• رصيد الخزينة كام؟<br>• أداء المصممين<br>• الطلبات المفتوحة<br>• حالة المخزون',
     })

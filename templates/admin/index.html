@@ -736,7 +736,12 @@
             chatBox.innerHTML += `<div id="${typingId}" style="background: rgba(236, 72, 153, 0.1); padding: 10px; border-radius: 8px; font-size: 12px; color: #f472b6;"><i class="fas fa-circle-notch fa-spin"></i> جاري الاستشارة...</div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
             try {
-                const res = await fetch(`/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`);
+                {% if industry == 'printing' %}
+                const apiUrl = `/printing/copilot/chat/?query=${encodeURIComponent(query)}`;
+                {% else %}
+                const apiUrl = `/system/api/v1/ai/estimate-repair/?query=${encodeURIComponent(query)}`;
+                {% endif %}
+                const res = await fetch(apiUrl);
                 const data = await res.json();
                 const el = document.getElementById(typingId);
                 if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> ${data.recommendations||data.message||"تم تحليل طلبك."}`; }
