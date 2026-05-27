@@ -204,6 +204,59 @@ def ai_smart_watermark(request):
 
 
 @login_required
+@require_POST
+def ai_send_whatsapp(request):
+    """
+    Generate a WhatsApp send link for a design image.
+    Uses wa.me deep link (no API needed). Deducts from whatsapp quota.
+    """
+    tenant = _get_tenant()
+    allowed, error = _check_ai_access(tenant, 'whatsapp_send')
+    if not allowed:
+        return JsonResponse({'success': False, 'error': error}, status=403)
+
+    phone = request.POST.get('phone', '').strip()
+    image_url = request.POST.get('image_url', '').strip()
+    message = request.POST.get('message', '').strip()
+
+    if not phone:
+        return JsonResponse({'success': False, 'error': 'يرجى إدخال رقم واتساب العميل.'}, status=400)
+
+    # Normalize phone number
+    import re
+    phone_clean = re.sub(r'[^\d+]', '', phone)
+    if phone_clean.startswith('0'):
+        phone_clean = '2' + phone_clean  # Egypt country code
+    if not phone_clean.startswith('+'):
+        phone_clean = '+' + phone_clean
+
+    # Build WhatsApp message
+    if not message:
+        company_name = tenant.name if tenant else 'الاستوديو'
+        message = f'مرحباً، تصميمك جاهز من {company_name}!'
+    if image_url:
+        message += f'\n\nالتصميم: {image_url}'
+
+    # URL encode
+    from urllib.parse import quote
+    wa_url = f'https://wa.me/{phone_clean.lstrip("+")}?text={quote(message)}'
+
+    # Deduct quota
+    from clients.models import AILimitTracker
+    AILimitTracker.deduct(tenant, 'whatsapp_send', metadata={
+        'phone': phone_clean,
+        'user': request.user.username,
+    })
+
+    logger.info(f"📱 [WHATSAPP]: {tenant.name} — Sent by {request.user.username} to {phone_clean}")
+
+    return JsonResponse({
+        'success': True,
+        'whatsapp_url': wa_url,
+    })
+
+
+@login_required
 def ai_studio_status(request):
     """Return AI Studio subscription status and remaining quota for current tenant."""
     tenant = _get_tenant()

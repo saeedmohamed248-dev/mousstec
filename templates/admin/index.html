@@ -971,6 +971,8 @@
         document.getElementById('aiStudioModal').style.display = 'none';
     }
 
+    var _lastGeneratedUrl = '';
+
     function generateAIDesign() {
         const prompt = document.getElementById('aiPrompt').value.trim();
         const size = document.getElementById('aiSize').value;
@@ -979,6 +981,12 @@
         const result = document.getElementById('aiResult');
 
         if (!prompt) { alert('اكتب وصف التصميم المطلوب'); return; }
+
+        // Confirmation step to prevent accidental API calls
+        const remaining = document.getElementById('aiQuotaInfo').textContent;
+        if (!confirm('هل أنت متأكد من توليد التصميم؟\n\n' + remaining + '\n\nكل توليد يخصم من حصتك الشهرية.')) {
+            return;
+        }
 
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
@@ -996,9 +1004,26 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
             if (data.success) {
+                _lastGeneratedUrl = data.image_url;
                 result.innerHTML = '<img src="' + data.image_url + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
                     + '<p style="font-size:12px;color:#94a3b8;">' + (data.revised_prompt || '') + '</p>'
-                    + '<a href="' + data.image_url + '" download="ai-design.png" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download"></i> تحميل</a>';
+                    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
+                    + '<a href="' + data.image_url + '" download="ai-design.png" style="flex:1;text-align:center;padding:10px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
+                    + '<button onclick="showWhatsAppSend()" style="flex:1;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fab fa-whatsapp"></i> إرسال للعميل</button>'
+                    + '</div>';
+                // Update quota counter
+                fetch('/printing/ai/status/').then(r=>r.json()).then(s=>{
+                    if(s.active) document.getElementById('aiQuotaInfo').textContent = 'متبقي ' + s.ai_remaining + ' تصميم من ' + s.ai_limit;
+                    if(s.ai_remaining <= 5 && s.ai_remaining > 0) {
+                        document.getElementById('aiQuotaInfo').style.color = '#f59e0b';
+                        document.getElementById('aiQuotaInfo').textContent += ' — تحذير: حصتك على وشك النفاد!';
+                    }
+                    if(s.ai_remaining <= 0) {
+                        document.getElementById('aiQuotaInfo').style.color = '#ef4444';
+                        document.getElementById('aiQuotaInfo').textContent = 'تم استنفاد حصتك الشهرية. يتم التجديد تلقائياً بداية الشهر القادم.';
+                        btn.disabled = true;
+                    }
+                });
             } else {
                 result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
             }
@@ -1008,6 +1033,40 @@
             btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ولّد التصميم';
             result.innerHTML = '<p style="color:#ef4444;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
         });
+    }
+
+    function showWhatsAppSend() {
+        const result = document.getElementById('aiResult');
+        result.innerHTML += '<div id="waForm" style="margin-top:12px;padding:12px;background:#0f172a;border-radius:10px;border:1px solid #334155;">'
+            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">رقم واتساب العميل</label>'
+            + '<input type="text" id="waPhone" placeholder="01012345678" dir="ltr" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-size:13px;margin-bottom:8px;">'
+            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">رسالة (اختياري)</label>'
+            + '<input type="text" id="waMsg" placeholder="مرحباً، تصميمك جاهز!" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:8px;">'
+            + '<button onclick="sendViaWhatsApp()" style="width:100%;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-family:Cairo;font-weight:900;font-size:13px;cursor:pointer;"><i class="fab fa-whatsapp"></i> إرسال عبر واتساب</button>'
+            + '</div>';
+    }
+
+    function sendViaWhatsApp() {
+        const phone = document.getElementById('waPhone').value.trim();
+        const msg = document.getElementById('waMsg').value.trim();
+        if (!phone) { alert('أدخل رقم واتساب العميل'); return; }
+
+        const fd = new FormData();
+        fd.append('phone', phone);
+        fd.append('image_url', _lastGeneratedUrl);
+        fd.append('message', msg);
+        fd.append('csrfmiddlewaretoken', getCSRFToken());
+
+        fetch('/printing/ai/whatsapp/', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.open(data.whatsapp_url, '_blank');
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(() => alert('حدث خطأ. حاول مرة أخرى.'));
     }
 
     function openWatermarkModal() {
