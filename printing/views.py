@@ -544,6 +544,91 @@ def _query_business_data(query):
     return None
 
 
+def _get_system_knowledge_printing():
+    """بناء قاعدة معرفية شاملة عن سيستم المطبعة لـ Gemini"""
+    return (
+        "أنت Mouss Tec Copilot — المساعد الذكي الرسمي لنظام Mouss Tec لإدارة المطابع واستوديوهات التصميم.\n"
+        "أنت عارف كل حاجة عن السيستم وبتساعد المستخدمين يفهموه ويستخدموه صح.\n\n"
+        "## معرفتك بالسيستم:\n"
+        "1. **طلبات الطباعة (PrintOrder)**: العميل بيعمل طلب → بيتضاف مهام طباعة (PrintJob) → كل مهمة ليها نوع بند (تيشرت/كارت/بنر/إلخ) وماكينة ومصمم وسعر وتكلفة\n"
+        "2. **نوع البند (ProductType)**: أي حاجة المطبعة بتطبعها — تيشرت، كارت بزنس، بنر، ماج، فلاير، ستيكر. بيتسجل أوتوماتيك ويعمل autocomplete\n"
+        "3. **الماكينات (MachineProfile)**: كل ماكينة ليها تكلفة تشغيل بالساعة (كهرباء + عمالة + أحبار CMYK). السيستم بيحسب التكلفة الفعلية لكل مهمة أوتوماتيك\n"
+        "4. **المصممين (Designer)**: كل مصمم ليه ملف — بتتبع عدد أعماله الشهرية، ساعات العمل، تقييم العملاء (1-5 نجوم)، ونوع التنفيذ (يدوي/AI/AI+تعديل)\n"
+        "5. **الخزينة (PrintTreasury)**: إيداع وسحب مع تتبع الرصيد. كل حركة مرتبطة بالطلب اللي اتعملت عليه\n"
+        "6. **المخزون (PrintMaterial)**: خامات الطباعة (ورق/حبر/فينيل/بنر/لامينيشن). فيه تنبيه أوتوماتيك لما الكمية تقل عن الحد الأدنى\n"
+        "7. **العملاء (PrintCustomer)**: اسم + تليفون + واتساب + شركة. بتقدر تبحث عن أي عميل بالاسم\n"
+        "8. **ملفات المشاريع**: كل طلب يقدر يتضاف عليه 3 ملفات مشروع (PSD, AI, PDF)\n"
+        "9. **AI Studio**: توليد تصاميم بالذكاء الاصطناعي (DALL-E) + علامة مائية ذكية + إرسال واتساب — محمي بنظام حصص شهرية\n"
+        "10. **صلاحيات الموظفين (StaffPermission)**: الأدمن بيتحكم مين يشوف الخزينة/الأرباح/الملفات/AI Studio/المخزون/التقارير\n\n"
+        "## طريقة حساب الربح:\n"
+        "ربح المهمة = سعر البيع (unit_price × quantity × copies) - تكلفة التشغيل (ساعات الماكينة + أحبار)\n"
+        "ربح الطلب = مجموع أرباح المهام\n"
+        "الربح الشهري = إجمالي الإيرادات (إيداعات الخزينة) - إجمالي المصروفات (سحوبات الخزينة)\n\n"
+        "## إزاي تعلّم المستخدم:\n"
+        "- لو سأل سؤال مش واضح، اقترح عليه أسئلة محددة يقدر يسألها\n"
+        "- لو سأل عن ميزة مش عارفها، اشرحله إزاي يوصلها في السيستم\n"
+        "- لو سأل عن تقرير، اشرحله الأرقام ومعناها ونصيحتك\n"
+        "- أجب بالعربي المصري، مختصر ومهني\n"
+        "- لا تخترع أرقام — استخدم البيانات الفعلية فقط\n"
+    )
+
+
+def _get_live_context_printing():
+    """جلب سياق حي شامل من داتابيز المطبعة"""
+    from printing.models import (
+        PrintOrder, PrintJob, PrintTransaction, PrintTreasury,
+        PrintCustomer, PrintMaterial, Designer, MachineProfile,
+    )
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # مبيعات ومصاريف
+    income_today = PrintTransaction.objects.filter(transaction_type='in', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    income_month = PrintTransaction.objects.filter(transaction_type='in', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_today = PrintTransaction.objects.filter(transaction_type='out', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_month = PrintTransaction.objects.filter(transaction_type='out', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+
+    # خزينة
+    treasuries = PrintTreasury.objects.filter(is_active=True)
+    treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
+    total_balance = sum(t.balance for t in treasuries)
+
+    # طلبات
+    open_orders = PrintOrder.objects.filter(status__in=['draft', 'confirmed', 'in_progress']).count()
+    today_orders = PrintOrder.objects.filter(date_created__gte=today_start).count()
+
+    # عملاء
+    total_customers = PrintCustomer.objects.count()
+    recent_customers = PrintCustomer.objects.order_by('-created_at')[:5]
+    customers_list = ", ".join(f"{c.name}" for c in recent_customers)
+
+    # مخزون
+    low_stock = PrintMaterial.objects.filter(quantity__lte=F('min_stock'))
+    low_stock_items = ", ".join(f"{m.name} ({m.quantity} {m.unit})" for m in low_stock[:5])
+
+    # مصممين
+    designers = Designer.objects.filter(is_active=True)
+    designers_info = []
+    for d in designers:
+        stats = d.get_month_stats()
+        designers_info.append(f"{d.user.get_full_name() or d.user.username}: {stats['total_works'] or 0} عمل")
+
+    return (
+        f"## البيانات الحية الآن:\n"
+        f"📅 التاريخ: {now.strftime('%Y-%m-%d %H:%M')}\n"
+        f"💰 إيرادات اليوم: {income_today:,.2f} ج.م | إيرادات الشهر: {income_month:,.2f} ج.م\n"
+        f"💸 مصروفات اليوم: {expenses_today:,.2f} ج.م | مصروفات الشهر: {expenses_month:,.2f} ج.م\n"
+        f"📊 صافي ربح الشهر: {float(income_month) - float(expenses_month):,.2f} ج.م\n"
+        f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} ج.م\n"
+        f"📋 طلبات مفتوحة: {open_orders} | طلبات اليوم: {today_orders}\n"
+        f"👥 إجمالي العملاء: {total_customers} | آخر العملاء: {customers_list}\n"
+        f"📦 تنبيهات مخزون: {low_stock_items or 'لا يوجد نقص ✅'}\n"
+        f"🎨 المصممين: {', '.join(designers_info) or 'لا يوجد مصممين مسجلين'}\n"
+    )
+
+
 def copilot_chat(request):
     """
     🧠 Smart Business Copilot — يرد على أسئلة من الداتابيز الفعلية.
@@ -551,76 +636,59 @@ def copilot_chat(request):
     """
     if not request.user.is_authenticated:
         return JsonResponse({'status': 'error', 'recommendations': 'يرجى تسجيل الدخول أولاً.'}, status=401)
+
     query = request.GET.get('query', '').strip()
     if not query:
         return JsonResponse({
             'status': 'success',
-            'recommendations': 'أهلاً! اسألني عن المبيعات، المصاريف، الأرباح، الطلبات، أو أي شيء يخص شغلك.'
+            'recommendations': 'أهلاً! اسألني عن أي حاجة — المبيعات، المصاريف، الأرباح، الطلبات، العملاء، المخزون، أو حتى إزاي تستخدم السيستم.'
         })
 
-    # الخطوة 1: استعلم من الداتابيز
+    # الخطوة 1: استعلم من الداتابيز للبيانات المحددة
     db_result = _query_business_data(query)
+    db_context = db_result['context'] if db_result else ""
 
-    if db_result:
-        context = db_result['context']
+    # الخطوة 2: جلب سياق حي شامل + معرفة السيستم
+    try:
+        live_context = _get_live_context_printing()
+    except Exception as e:
+        logger.warning(f"[COPILOT] Live context failed: {e}")
+        live_context = ""
 
-        # الخطوة 2: لو Gemini متاح، خليه ينسق الرد بشكل لطيف
-        try:
-            from inventory.ai_services import call_gemini_layer
-            if getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and getattr(settings, 'AI_VISION_API_KEY', None):
-                sys_msg = (
-                    "أنت Mouss Tec Copilot — مساعد ذكي لمطبعة. "
-                    "المستخدم سألك سؤال وأنا جبتلك البيانات الفعلية من النظام. "
-                    "نسّق الرد بشكل مختصر ومهني بالعربي المصري. "
-                    "لا تخترع أرقام — استخدم البيانات الفعلية فقط. "
-                    "لو في ملاحظة مهمة أو نصيحة بناءً على الأرقام، اذكرها. "
-                    "الرد يكون قصير ومفيد."
-                )
-                messages = [
-                    {"role": "system", "content": sys_msg},
-                    {"role": "user", "content": f"سؤال المستخدم: {query}\n\nالبيانات الفعلية:\n{context}"},
-                ]
-                ai_response = call_gemini_layer(messages, json_mode=False, max_retries=1)
-                if ai_response:
-                    return JsonResponse({
-                        'status': 'success',
-                        'recommendations': ai_response.replace('\n', '<br>'),
-                    })
-        except Exception as e:
-            logger.warning(f"[COPILOT] Gemini formatting failed, returning raw: {e}")
+    system_knowledge = _get_system_knowledge_printing()
 
-        # Fallback: رجّع البيانات بدون تنسيق AI
-        return JsonResponse({
-            'status': 'success',
-            'recommendations': context.replace('\n', '<br>'),
-        })
-
-    # لو مش مفهوم — حاول Gemini مباشرة
+    # الخطوة 3: Gemini للرد الذكي
     try:
         from inventory.ai_services import call_gemini_layer
         if getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and getattr(settings, 'AI_VISION_API_KEY', None):
-            sys_msg = (
-                "أنت Mouss Tec Copilot — مساعد ذكي لمطبعة / استوديو تصميم. "
-                "أجب بالعربي المصري، مختصر ومهني. "
-                "لو السؤال عن بيانات محددة (أرقام مبيعات أو فواتير)، "
-                "قول للمستخدم يسأل بشكل أوضح (مثلاً: بيعنا كام النهاردة؟ / فاتورة رقم 5 / مصاريف الشهر)."
-            )
+            user_content = f"سؤال المستخدم: {query}"
+            if db_context:
+                user_content += f"\n\nنتيجة البحث في الداتابيز:\n{db_context}"
+            user_content += f"\n\n{live_context}"
+
             messages = [
-                {"role": "system", "content": sys_msg},
-                {"role": "user", "content": query},
+                {"role": "system", "content": system_knowledge},
+                {"role": "user", "content": user_content},
             ]
-            raw = call_gemini_layer(messages, json_mode=False, max_retries=1)
-            if raw:
+            ai_response = call_gemini_layer(messages, json_mode=False, max_retries=1)
+            if ai_response:
                 return JsonResponse({
                     'status': 'success',
-                    'recommendations': raw.replace('\n', '<br>'),
+                    'recommendations': ai_response.replace('\n', '<br>'),
                 })
     except Exception as e:
-        logger.warning(f"[COPILOT] Gemini fallback failed: {e}")
+        logger.warning(f"[COPILOT] Gemini failed: {e}")
+
+    # Fallback: رجّع البيانات الخام
+    if db_context:
+        return JsonResponse({
+            'status': 'success',
+            'recommendations': db_context.replace('\n', '<br>'),
+        })
 
     return JsonResponse({
         'status': 'success',
-        'recommendations': 'أهلاً! أقدر أساعدك في:<br>• بيعنا كام النهاردة/الشهر؟<br>• مصاريفنا كام؟<br>• فاتورة رقم 5 كسبنا فيها ولا خسرنا؟<br>• رصيد الخزينة كام؟<br>• أداء المصممين<br>• الطلبات المفتوحة<br>• حالة المخزون',
+        'recommendations': 'أهلاً! أقدر أساعدك في:<br>• بيعنا كام النهاردة/الشهر؟<br>• مصاريفنا كام؟<br>• فاتورة رقم 5 كسبنا فيها ولا خسرنا؟<br>• رصيد الخزينة كام؟<br>• عميل أحمد — بياناته إيه؟<br>• أداء المصممين<br>• إزاي أعمل طلب طباعة جديد؟<br>• حالة المخزون',
     })
 
 

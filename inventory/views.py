@@ -721,6 +721,156 @@ def _agent_vision_license(image_b64: str) -> dict:
 # HTTP Adapters — الـ Views التي تغلّف الوكلاء
 # ------------------------------------------------------------------
 
+def _get_auto_live_context():
+    """جلب بيانات حية من داتابيز مركز الصيانة/قطع الغيار"""
+    try:
+        from .models import SaleInvoice, Customer, Treasury, FinancialTransaction, Product, Inventory
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # مبيعات
+        sales_today = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
+        sales_month = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
+        revenue_today = sales_today.aggregate(t=Sum('total_amount'))['t'] or 0
+        revenue_month = sales_month.aggregate(t=Sum('total_amount'))['t'] or 0
+        profit_month = sales_month.aggregate(t=Sum('net_profit'))['t'] or 0
+
+        # خزينة
+        treasuries = Treasury.objects.filter(is_active=True)
+        treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
+        total_balance = sum(t.balance for t in treasuries)
+
+        # مصاريف
+        expenses_month = FinancialTransaction.objects.filter(
+            transaction_type='expense', date__gte=month_start
+        ).aggregate(t=Sum('amount'))['t'] or 0
+
+        # عملاء
+        total_customers = Customer.objects.count()
+        recent = Customer.objects.order_by('-date_added')[:5]
+        customers_list = ", ".join(f"{c.name}" for c in recent)
+
+        # مخزون
+        low_stock = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'))[:5]
+        low_items = ", ".join(f"{i.product.name} ({i.quantity})" for i in low_stock)
+
+        # طلبات مفتوحة
+        open_invoices = SaleInvoice.objects.filter(status__in=['quotation', 'in_progress', 'quality_check', 'ready']).count()
+
+        return (
+            f"## البيانات الحية:\n"
+            f"📅 {now.strftime('%Y-%m-%d %H:%M')}\n"
+            f"💰 إيرادات اليوم: {revenue_today:,.2f} ج.م | الشهر: {revenue_month:,.2f} ج.م\n"
+            f"📊 صافي ربح الشهر: {profit_month:,.2f} ج.م\n"
+            f"💸 مصروفات الشهر: {expenses_month:,.2f} ج.م\n"
+            f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} ج.م\n"
+            f"📋 فواتير مفتوحة: {open_invoices}\n"
+            f"👥 إجمالي العملاء: {total_customers} | آخرهم: {customers_list}\n"
+            f"📦 تنبيهات مخزون: {low_items or 'لا يوجد نقص ✅'}\n"
+        )
+    except Exception as e:
+        logger.warning(f"[AUTO COPILOT] Live context error: {e}")
+        return ""
+
+
+def _query_auto_business_data(query):
+    """تحليل سؤال المستخدم وجلب بيانات من الداتابيز — سيارات"""
+    try:
+        from .models import SaleInvoice, Customer, Treasury, FinancialTransaction, Product, Inventory, Vehicle
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        q = query.lower()
+
+        # بحث عن عميل بالاسم
+        customer_match = re.search(r'(?:عميل|زبون|client)\s+(.+)', q)
+        if not customer_match:
+            # Try just a name after common keywords
+            for kw in ['بيانات', 'معلومات', 'ملف']:
+                if kw in q:
+                    rest = q.split(kw)[-1].strip()
+                    if rest:
+                        customer_match = type('M', (), {'group': lambda self, n: rest})()
+                        break
+
+        if customer_match:
+            name = customer_match.group(1).strip()
+            customers = Customer.objects.filter(Q(name__icontains=name) | Q(phone__icontains=name))[:5]
+            if customers:
+                details = []
+                for c in customers:
+                    vehicles = Vehicle.objects.filter(customer=c)
+                    cars = ", ".join(f"{v.make} {v.model}" for v in vehicles[:3]) or "لا توجد"
+                    invoices_count = SaleInvoice.objects.filter(customer=c).count()
+                    details.append(
+                        f"• {c.name} | {c.phone} | رصيد: {c.balance:,.2f} | نقاط: {c.loyalty_points} | "
+                        f"{c.vip_tier} | فواتير: {invoices_count} | سيارات: {cars}"
+                    )
+                return "نتائج البحث:\n" + "\n".join(details)
+
+        # فاتورة محددة
+        inv_match = re.search(r'(?:فاتور[ةه]|inv|invoice)\s*(?:رقم|#|no)?\s*#?(\d+)', q, re.IGNORECASE)
+        if not inv_match:
+            inv_match = re.search(r'(?:رقم|#)\s*(\d+)', q)
+        if inv_match:
+            inv_id = int(inv_match.group(1))
+            try:
+                inv = SaleInvoice.objects.get(pk=inv_id)
+                profit_status = "ربح ✅" if inv.net_profit > 0 else ("خسارة ❌" if inv.net_profit < 0 else "تعادل")
+                return (
+                    f"فاتورة #{inv.id} — {inv.customer.name}\n"
+                    f"النوع: {inv.get_invoice_type_display()} | الحالة: {inv.get_status_display()}\n"
+                    f"الإجمالي: {inv.total_amount:,.2f} ج.م | المدفوع: {inv.paid_amount:,.2f} | المتبقي: {inv.due_amount:,.2f}\n"
+                    f"التكلفة: {inv.total_cost:,.2f} ج.م | الربح: {inv.net_profit:,.2f} ج.م ({profit_status})"
+                )
+            except SaleInvoice.DoesNotExist:
+                return f"لم أجد فاتورة برقم {inv_id}"
+
+        # مبيعات
+        if any(k in q for k in ['بيع', 'مبيعات', 'ايراد', 'إيراد', 'بعنا', 'بيعنا', 'revenue', 'sales']):
+            if any(k in q for k in ['الشهر', 'شهر']):
+                sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
+            else:
+                sales = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
+            total = sales.aggregate(t=Sum('total_amount'))['t'] or 0
+            profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
+            return f"المبيعات: {total:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
+
+        # مصاريف
+        if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
+            expenses = FinancialTransaction.objects.filter(transaction_type='expense', date__gte=month_start)
+            total = expenses.aggregate(t=Sum('amount'))['t'] or 0
+            return f"إجمالي المصروفات هذا الشهر: {total:,.2f} ج.م"
+
+        # خزينة
+        if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'فلوس']):
+            treasuries = Treasury.objects.filter(is_active=True)
+            total = sum(t.balance for t in treasuries)
+            details = "\n".join(f"  • {t.name}: {t.balance:,.2f} ج.م" for t in treasuries)
+            return f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} ج.م"
+
+        # أرباح
+        if any(k in q for k in ['ربح', 'أرباح', 'ارباح', 'كسب', 'profit']):
+            sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
+            profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
+            revenue = sales.aggregate(t=Sum('total_amount'))['t'] or 0
+            return f"إيرادات الشهر: {revenue:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
+
+        # مخزون
+        if any(k in q for k in ['مخزون', 'stock', 'قطعة', 'قطع']):
+            total_products = Product.objects.count()
+            low_stock = Inventory.objects.filter(quantity__lte=F('product__min_stock_level'))[:10]
+            alerts = "\n".join(f"  ⚠️ {i.product.name}: {i.quantity} (الحد: {i.product.min_stock_level})" for i in low_stock)
+            stock_status = "تنبيهات نقص:\n" + alerts if alerts else "لا يوجد نقص ✅"
+            return f"إجمالي القطع: {total_products}\n{stock_status}"
+
+        return None
+    except Exception as e:
+        logger.warning(f"[AUTO COPILOT] Query error: {e}")
+        return None
+
+
 @login_required(login_url='/secure-portal/')
 @tenant_required
 def ai_repair_estimator_api(request):
@@ -740,13 +890,41 @@ def ai_repair_estimator_api(request):
 
         if free_query:
             try:
+                # جلب بيانات حية من الداتابيز
+                live_ctx = _get_auto_live_context()
+                db_ctx = _query_auto_business_data(free_query)
+
                 sys_msg = (
-                    "أنت Mouss Tec Copilot، مساعد ذكي لمراكز صيانة السيارات. "
-                    "أجب بلهجة مصرية مهنية ومختصرة."
+                    "أنت Mouss Tec Copilot — المساعد الذكي الرسمي لنظام Mouss Tec لإدارة مراكز صيانة السيارات وبيع قطع الغيار.\n"
+                    "أنت عارف كل حاجة عن السيستم وبتساعد المستخدمين يفهموه ويستخدموه.\n\n"
+                    "## معرفتك بالسيستم:\n"
+                    "1. **فواتير البيع (SaleInvoice)**: بيع قطع غيار أو صيانة شاملة. ليها حالات: عرض سعر → قيد العمل → فحص جودة → جاهز → تم التسليم\n"
+                    "2. **قطع الغيار (Product)**: كل قطعة ليها part number، سعر شراء وبيع، مخزون، باركود، ضمان\n"
+                    "3. **العملاء (Customer)**: اسم + تليفون + رصيد/مديونية + نقاط ولاء + تصنيف VIP\n"
+                    "4. **المركبات (Vehicle)**: كل عربية مرتبطة بعميل — ماركة، موديل، شاسيه\n"
+                    "5. **الخزينة (Treasury)**: إيداع وسحب مع رصيد لحظي\n"
+                    "6. **فواتير الشراء (PurchaseInvoice)**: مشتريات من الموردين\n"
+                    "7. **الموظفين (EmployeeProfile)**: فنيين وكاشير مع تتبع الحضور والعمولات\n"
+                    "8. **المخزون (Inventory)**: تتبع الكميات مع تنبيهات نقص ذكية\n"
+                    "9. **عقود الصيانة (MaintenanceContract)**: عقود B2B للشركات\n"
+                    "10. **تقارير الأرباح**: كل فاتورة فيها صافي ربح = سعر بيع - تكلفة شراء\n\n"
+                    "## إزاي تساعد المستخدم:\n"
+                    "- لو سأل عن مبيعات/مصاريف/أرباح → اديله الأرقام الحقيقية\n"
+                    "- لو سأل عن عميل بالاسم → ابحث في البيانات الحية\n"
+                    "- لو سأل عن فاتورة → اديله التفاصيل (ربح/خسارة)\n"
+                    "- لو مش عارف يستخدم ميزة → علّمه خطوة بخطوة\n"
+                    "- أجب بالعربي المصري، مختصر ومهني\n"
+                    "- لا تخترع أرقام — استخدم البيانات الفعلية فقط\n"
                 )
+
+                user_content = f"سؤال المستخدم: {free_query}"
+                if db_ctx:
+                    user_content += f"\n\nنتيجة البحث في الداتابيز:\n{db_ctx}"
+                user_content += f"\n\n{live_ctx}"
+
                 messages = [
                     {"role": "system", "content": sys_msg},
-                    {"role": "user", "content": free_query},
+                    {"role": "user", "content": user_content},
                 ]
                 raw = call_gemini_layer(messages, json_mode=False, max_retries=1)
                 if raw:
@@ -754,11 +932,17 @@ def ai_repair_estimator_api(request):
                         "status": "success",
                         "recommendations": raw.replace('\n', '<br>'),
                     })
+                # Fallback: رجّع البيانات الخام
+                if db_ctx:
+                    return _json_response_safe({
+                        "status": "success",
+                        "recommendations": db_ctx.replace('\n', '<br>'),
+                    })
             except Exception as e:
                 logger.warning(f"[COPILOT] {e}")
             return _json_response_safe({
                 "status": "success",
-                "recommendations": "أهلاً! أدخل كود عطل أو استفسارك وسأساعدك.",
+                "recommendations": "أهلاً! اسألني عن المبيعات، المصاريف، الأرباح، العملاء، المخزون، أو أي حاجة في السيستم.",
             })
 
         return _json_response_safe({"error": "dtc أو query مطلوب"}, 400)
