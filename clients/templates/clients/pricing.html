@@ -140,7 +140,7 @@
                         <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
                     </div>
                     {% if pricing.silver.limited_offer %}
-                    <p class="text-red-400 text-xs font-bold mt-2"><i class="fas fa-clock ml-1"></i> وفّر {{ pricing.silver.original_price|add:"-475" }} جنيه — العرض ينتهي قريباً</p>
+                    <p class="text-red-400 text-xs font-bold mt-2"><i class="fas fa-clock ml-1"></i> وفّر {{ pricing.silver.original_price|add:"-780" }} جنيه — العرض ينتهي قريباً</p>
                     {% endif %}
                 </div>
                 <ul class="space-y-3 mb-8 text-sm">
@@ -501,13 +501,13 @@ function setBilling(period) {
     });
 
     // Update saving amounts
-    var goldBase = 700;
-    var goldOriginal = 1185;
+    var goldBase = 1250;
+    var goldOriginal = 2000;
     var goldSaving = (goldOriginal - goldBase) + Math.round(goldBase * cfg.discount / 100 * cfg.months);
     var goldEl = document.querySelector('.gold-saving');
     if (goldEl) goldEl.textContent = goldSaving.toLocaleString('en');
 
-    var empireBase = 1400;
+    var empireBase = 1800;
     var empireOriginal = 3000;
     var empireSaving = (empireOriginal - empireBase) + Math.round(empireBase * cfg.discount / 100 * cfg.months);
     var empireEl = document.querySelector('.empire-saving');

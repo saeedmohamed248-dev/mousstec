@@ -643,9 +643,9 @@ def saas_pricing_page(request):
     return render(request, 'clients/pricing.html', {
         'tenant': tenant, 'shop': shop_schema,
         'pricing': {
-            'silver': {'price': 475, 'original_price': 685, 'users': 1, 'branches': 1, 'treasuries': 1, 'limited_offer': True},
-            'gold': {'price': 700, 'original_price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2},
-            'empire': {'price': 1400, 'original_price': 3000},
+            'silver': {'price': 780, 'original_price': 1000, 'users': 1, 'branches': 1, 'treasuries': 1, 'limited_offer': True},
+            'gold': {'price': 1250, 'original_price': 2000, 'users': 4, 'branches': 2, 'treasuries': 2},
+            'empire': {'price': 1800, 'original_price': 3000},
             'addon_price': 125,
             'free_trial_days': 3,
             'vodafone_cash': '01094850763',
