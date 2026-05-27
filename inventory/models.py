@@ -1,20 +1,16 @@
 from django.db import models, transaction, connection
-from django.db.models.signals import post_save, pre_save, post_delete
-from django.dispatch import receiver
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from simple_history.models import HistoricalRecords
-from django.utils.translation import gettext_lazy as _ 
+from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 from datetime import timedelta
 from django.contrib.auth.models import User
-from django.db.models import F, Sum, Q, ExpressionWrapper, DecimalField # 🚀 تم إضافة أدوات الحساب الذرية
+from django.db.models import F, Sum, Q, ExpressionWrapper, DecimalField
 
-import uuid 
+import uuid
 import logging
-
-from django_tenants.utils import schema_context 
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -505,116 +501,12 @@ class StockTransfer(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
     history = HistoricalRecords()
 
+
 # =====================================================================
-# 🧠 الإشارات الذكية والأتمتة (Atomic Smart Automation Signals)
+# NOTE: All signal handlers have been moved to inventory/signals.py
+# which delegates to inventory/services/ (Service Layer pattern).
+# Do NOT add @receiver handlers here — they belong in signals.py.
 # =====================================================================
-
-@receiver(post_save, sender=User)
-def create_employee_profile(sender, instance, created, **kwargs):
-    if created and connection.schema_name != 'public':
-        EmployeeProfile.objects.get_or_create(user=instance)
-
-@receiver(pre_save, sender=Product)
-def track_product_price_changes(sender, instance, **kwargs):
-    if instance.pk:
-        try:
-            old = Product.objects.get(pk=instance.pk)
-            if old.retail_price != instance.retail_price or old.average_cost != instance.average_cost:
-                ProductPriceHistory.objects.create(
-                    product=instance,
-                    old_retail=old.retail_price, new_retail=instance.retail_price,
-                    old_cost=old.average_cost, new_cost=instance.average_cost
-                )
-        except Product.DoesNotExist: pass
-
-# 🚀 وكيل مزامنة سوق B2B (Mouss Tec Central Marketplace Agent)
-@receiver(post_save, sender=Product)
-def sync_b2b_marketplace(sender, instance, **kwargs):
-    if connection.schema_name == 'public': return
-
-    # 🚀 [FIX BY QA]: حفظ اسم الـ schema قبل الدخول في schema_context('public')
-    # لأن connection.schema_name يتغير داخل context manager ويُرجع 'public'
-    current_tenant_schema = connection.schema_name
-
-    try:
-        from django.apps import apps
-        with schema_context('public'):
-            GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
-            Client = apps.get_model('clients', 'Client')
-
-            tenant = Client.objects.filter(schema_name=current_tenant_schema).first()
-            if not tenant: return
-
-            total_qty = instance.total_inventory_qty
-            
-            if instance.is_b2b_published and instance.is_active and total_qty > 0:
-                GlobalB2BMarketplace.objects.update_or_create(
-                    tenant=tenant,
-                    part_number=instance.part_number,
-                    condition=instance.condition,
-                    defaults={
-                        'product_name': instance.name,
-                        'brand': instance.brand,
-                        'wholesale_price': instance.b2b_wholesale_price if instance.b2b_wholesale_price > 0 else instance.retail_price,
-                        'available_qty': total_qty,
-                    }
-                )
-                logger.info(f"🌐 [B2B AGENT]: Synced '{instance.part_number}' to central market. Qty: {total_qty}")
-            else:
-                deleted, _ = GlobalB2BMarketplace.objects.filter(
-                    tenant=tenant, part_number=instance.part_number, condition=instance.condition
-                ).delete()
-                if deleted: logger.info(f"🛑 [B2B AGENT]: Removed '{instance.part_number}' from central market.")
-    except Exception as e:
-        logger.error(f"🔴 [B2B AGENT ERROR]: Market sync failed for '{instance.part_number}' - {e}")
-
-@receiver(pre_save, sender=ScrapDismantlingJob)
-def _track_scrap_completion_change(sender, instance, **kwargs):
-    if instance.pk:
-        try:
-            instance._was_completed = ScrapDismantlingJob.objects.filter(pk=instance.pk).values_list('is_completed', flat=True).first()
-        except Exception:
-            instance._was_completed = None
-    else:
-        instance._was_completed = False
-
-@receiver(post_save, sender=ScrapDismantlingJob)
-def execute_scrap_dismantling_yield(sender, instance, **kwargs):
-    was_completed = getattr(instance, '_was_completed', None)
-    if instance.is_completed and was_completed is False:
-        with transaction.atomic():
-            for yield_item in instance.yields.all():
-                product = yield_item.product
-                
-                if instance.branch:
-                    inv, _ = Inventory.objects.get_or_create(product=product, branch=instance.branch, defaults={'quantity': 0})
-                    Inventory.objects.filter(pk=inv.pk).update(quantity=F('quantity') + yield_item.quantity) # 🚀 تحديث آمن
-
-                total_current_qty = product.total_inventory_qty
-                old_value = Decimal(str(max(total_current_qty - yield_item.quantity, 0))) * Decimal(str(product.average_cost))
-                new_value = Decimal(str(yield_item.quantity)) * Decimal(str(yield_item.estimated_cost_allocation))
-                
-                if total_current_qty > 0:
-                    Product.objects.filter(pk=product.pk).update(
-                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
-                        purchase_price=yield_item.estimated_cost_allocation 
-                    )
-
-@receiver(post_save, sender=SaleInvoiceServiceItem)
-@receiver(post_delete, sender=SaleInvoiceServiceItem)
-def auto_update_sale_service_invoice_total(sender, instance, **kwargs):
-    if hasattr(instance, 'invoice') and instance.invoice:
-        instance.invoice.update_total()
-
-@receiver(post_save, sender=FinancialTransaction)
-def update_treasury_balance(sender, instance, created, **kwargs):
-    if created:
-        with transaction.atomic():
-            amount = Decimal(str(instance.amount))
-            if instance.transaction_type == 'in':
-                Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') + amount)
-            elif instance.transaction_type == 'out':
-                Treasury.objects.filter(pk=instance.treasury.pk).update(balance=F('balance') - amount)
 
 
 # =====================================================================
