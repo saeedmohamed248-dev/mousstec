@@ -50,7 +50,10 @@ class ReportingService:
             total_balance = sum(t.balance for t in treasuries)
 
             expenses_month = FinancialTransaction.objects.filter(
-                transaction_type='expense', date__gte=month_start
+                transaction_type='out',
+                date__gte=month_start,
+                sale_invoice__isnull=True,
+                purchase_invoice__isnull=True,
             ).aggregate(t=Sum('amount'))['t'] or 0
 
             total_customers = Customer.objects.count()
@@ -120,7 +123,12 @@ class ReportingService:
 
             # --- Expenses ---
             if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
-                expenses = FinancialTransaction.objects.filter(transaction_type='expense', date__gte=month_start)
+                expenses = FinancialTransaction.objects.filter(
+                    transaction_type='out',
+                    date__gte=month_start,
+                    sale_invoice__isnull=True,
+                    purchase_invoice__isnull=True,
+                )
                 total = expenses.aggregate(t=Sum('amount'))['t'] or 0
                 return f"إجمالي المصروفات هذا الشهر: {total:,.2f} ج.م"
 

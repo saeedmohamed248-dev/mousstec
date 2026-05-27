@@ -245,7 +245,7 @@ class CustomUserAdmin(BaseUserAdmin):
                     messages.WARNING,
                 )
         except ValidationError as e:
-            self.message_user(request, f"❌ فشل الصرف: {e.message}", messages.ERROR)
+            self.message_user(request, f"❌ فشل الصرف: {e.messages[0]}", messages.ERROR)
 
 
 # =====================================================================

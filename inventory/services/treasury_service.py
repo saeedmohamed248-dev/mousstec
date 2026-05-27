@@ -81,9 +81,10 @@ class TreasuryService:
                         f"خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور."
                     )
 
-                treasury.balance = F('balance') - refund_amount
-                treasury.save(update_fields=['balance'])
-
+                # NOTE: Do NOT manually deduct treasury.balance here.
+                # Creating the FinancialTransaction triggers the
+                # update_treasury_balance signal which atomically
+                # deducts balance via TreasuryService.update_balance().
                 FinancialTransaction.objects.create(
                     treasury=treasury,
                     transaction_type='out',
