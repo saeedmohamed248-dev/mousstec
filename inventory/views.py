@@ -456,6 +456,16 @@ def mobile_cycle_count_api(request):
         actual_qty = int(data.get('actual_qty', 0))
         branch = _get_branch_for_user(request.user)
 
+        # المشرف العام (superuser) يجب أن يُحدد الفرع صراحةً
+        if branch is None:
+            branch_id = data.get('branch_id')
+            if branch_id:
+                branch = Branch.objects.filter(pk=branch_id).first()
+            if branch is None:
+                branch = Branch.objects.first()
+            if branch is None:
+                return _json_response_safe({"error": "لا يوجد فرع مسجل بالنظام."}, 400)
+
         product = (
             Product.objects.filter(barcode=code).first()
             or Product.objects.filter(part_number=code).first()
@@ -488,43 +498,69 @@ def offline_pos_sync_api(request):
     try:
         data = json.loads(request.body)
         invoices_data = data.get('invoices', [])
-        
+
         if not invoices_data:
             return _json_response_safe({"status": "success", "message": "لا توجد فواتير للمزامنة."})
-            
+
         branch = _get_branch_for_user(request.user)
+
+        # المشرف العام: fallback لأول فرع
+        if branch is None:
+            branch = Branch.objects.first()
+        if branch is None:
+            return _json_response_safe({"error": "لا يوجد فرع مسجل بالنظام."}, 400)
+
         synced_count = 0
-        
+        skipped_count = 0
+
         with transaction.atomic():
             for inv_data in invoices_data:
-                # التحقق من أن الفاتورة لم تتم مزامنتها مسبقاً بناءً على معرف فريد إن وجد
-                local_id = inv_data.get('local_id') 
-                
+                # فحص التكرار بناءً على local_id (idempotency)
+                local_id = inv_data.get('local_id')
+                if local_id:
+                    already_synced = SaleInvoice.objects.filter(
+                        notes__contains=f"[OFFLINE:{local_id}]"
+                    ).exists()
+                    if already_synced:
+                        skipped_count += 1
+                        continue
+
                 customer_id = inv_data.get('customer_id')
                 customer = Customer.objects.filter(id=customer_id).first() if customer_id else None
-                
+
+                # العميل إلزامي في SaleInvoice — إنشاء عميل "زائر" إذا لم يُحدد
+                if customer is None:
+                    customer, _ = Customer.objects.get_or_create(
+                        phone='+20000000000',
+                        defaults={'name': 'عميل زائر (POS)'},
+                    )
+
+                offline_tag = f"[OFFLINE:{local_id}]" if local_id else "[OFFLINE]"
+
                 new_invoice = SaleInvoice.objects.create(
                     customer=customer,
                     branch=branch,
-                    invoice_type='cash',
+                    invoice_type='sale',  # FIX: كان 'cash' وهو غير صالح
                     status='posted',
                     total_amount=Decimal(str(inv_data.get('total_amount', 0))),
-                    paid_amount=Decimal(str(inv_data.get('total_amount', 0))), # نفترض السداد الفوري
+                    paid_amount=Decimal(str(inv_data.get('total_amount', 0))),
+                    notes=f"مزامنة أوفلاين {offline_tag}",
                     date_created=timezone.now()
                 )
-                
+
                 items = inv_data.get('items', [])
                 for item in items:
                     product = Product.objects.filter(id=item.get('product_id')).first()
                     if product:
                         qty = int(item.get('quantity', 1))
                         # خصم المخزون
-                        if branch:
-                            inv_record = Inventory.objects.select_for_update().filter(product=product, branch=branch).first()
-                            if inv_record and inv_record.quantity >= qty:
-                                inv_record.quantity -= qty
-                                inv_record.save()
-                                
+                        inv_record = Inventory.objects.select_for_update().filter(
+                            product=product, branch=branch
+                        ).first()
+                        if inv_record and inv_record.quantity >= qty:
+                            inv_record.quantity -= qty
+                            inv_record.save()
+
                         SaleInvoiceItem.objects.create(
                             invoice=new_invoice,
                             product=product,
@@ -533,9 +569,13 @@ def offline_pos_sync_api(request):
                         )
                 synced_count += 1
 
+        msg = f"تمت مزامنة {synced_count} فاتورة بنجاح وتحديث أرصدة المخازن."
+        if skipped_count:
+            msg += f" (تم تخطي {skipped_count} فاتورة مكررة)"
+
         return _json_response_safe({
             "status": "success",
-            "message": f"تمت مزامنة {synced_count} فاتورة بنجاح وتحديث أرصدة المخازن.",
+            "message": msg,
         })
     except Exception as e:
         logger.error(f"[OFFLINE SYNC] {e}")
@@ -1671,8 +1711,11 @@ def customer_statement_api(request, customer_id):
     if to_date:
         invoices_qs = invoices_qs.filter(date_created__date__lte=to_date)
 
-    # المدفوعات
-    payments_qs = FinancialTransaction.objects.filter(customer=customer, transaction_type='in').order_by('date')
+    # المدفوعات — استبعاد المدفوعات المرتبطة بفواتير (لأنها محسوبة في سطر الفاتورة)
+    payments_qs = FinancialTransaction.objects.filter(
+        customer=customer, transaction_type='in',
+        sale_invoice__isnull=True,  # دفعات مستقلة فقط (ليست جزء من فاتورة)
+    ).order_by('date')
     if from_date:
         payments_qs = payments_qs.filter(date__date__gte=from_date)
     if to_date:
@@ -1747,7 +1790,11 @@ def vendor_statement_api(request, vendor_id):
     if to_date:
         invoices_qs = invoices_qs.filter(date_created__date__lte=to_date)
 
-    payments_qs = FinancialTransaction.objects.filter(vendor=vendor, transaction_type='out').order_by('date')
+    # استبعاد المدفوعات المرتبطة بفواتير شراء (لأنها محسوبة في سطر الفاتورة)
+    payments_qs = FinancialTransaction.objects.filter(
+        vendor=vendor, transaction_type='out',
+        purchase_invoice__isnull=True,  # دفعات مستقلة فقط
+    ).order_by('date')
     if from_date:
         payments_qs = payments_qs.filter(date__date__gte=from_date)
     if to_date:
@@ -1761,6 +1808,7 @@ def vendor_statement_api(request, vendor_id):
             "sort_key": inv.date_created,
             "type": "invoice",
             "reference": f"فاتورة شراء #{inv.pk}",
+            "description": f"فاتورة شراء من {vendor.name}",
             "debit": float(inv.total_amount),
             "credit": float(inv.paid_amount),
             "delta": due,
