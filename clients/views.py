@@ -1069,6 +1069,43 @@ def super_admin_dashboard(request):
             )
             messages.success(request, f'تم تجديد اشتراك «{target.name}» حتى {target.subscription_end_date}')
 
+        elif action == 'activate_ai_addon':
+            # تفعيل حزمة AI Studio للشركة
+            from clients.models import TenantSubscription, AIAddonPackage
+            addon_slug = request.POST.get('ai_addon_slug', 'ai-basic')
+            addon = AIAddonPackage.objects.filter(slug=addon_slug, is_active=True).first()
+            if not addon:
+                messages.error(request, 'حزمة AI غير موجودة.')
+            else:
+                sub, _ = TenantSubscription.objects.get_or_create(tenant=target)
+                sub.ai_addon = addon
+                sub.is_active = True
+                sub.save(update_fields=['ai_addon', 'is_active', 'updated_at'])
+                PlatformEvent.objects.create(
+                    event_type='subscription', tenant_schema=target.schema_name,
+                    tenant_name=target.name, user_name=request.user.username,
+                    description=f"تفعيل حزمة AI «{addon.name}» لشركة «{target.name}»",
+                    metadata={'ai_addon': addon_slug},
+                )
+                messages.success(request, f'تم تفعيل حزمة AI «{addon.name}» لشركة «{target.name}»')
+
+        elif action == 'deactivate_ai_addon':
+            # إلغاء حزمة AI Studio
+            from clients.models import TenantSubscription
+            try:
+                sub = TenantSubscription.objects.get(tenant=target)
+                old_addon = sub.ai_addon.name if sub.ai_addon else ''
+                sub.ai_addon = None
+                sub.save(update_fields=['ai_addon', 'updated_at'])
+                PlatformEvent.objects.create(
+                    event_type='subscription', tenant_schema=target.schema_name,
+                    tenant_name=target.name, user_name=request.user.username,
+                    description=f"إلغاء حزمة AI «{old_addon}» من شركة «{target.name}»",
+                )
+                messages.success(request, f'تم إلغاء حزمة AI من «{target.name}»')
+            except TenantSubscription.DoesNotExist:
+                messages.error(request, 'لا يوجد اشتراك لهذه الشركة.')
+
         elif action == 'delete_tenant':
             # ⚠️ حذف نهائي للشركة — يحذف الـ schema بالكامل
             confirm_name = request.POST.get('confirm_name', '').strip()
@@ -1212,6 +1249,7 @@ def super_admin_dashboard(request):
         pass
 
     # --- Tenant Deep Details (per tenant) ---
+    from clients.models import TenantSubscription, AIAddonPackage
     tenants_enriched = []
     for t in tenants:
         users_count = 0
@@ -1221,13 +1259,26 @@ def super_admin_dashboard(request):
         except Exception:
             pass
 
+        # جلب حالة AI addon
+        ai_addon_name = ''
+        try:
+            sub = TenantSubscription.objects.get(tenant=t)
+            if sub.ai_addon:
+                ai_addon_name = sub.ai_addon.name
+        except TenantSubscription.DoesNotExist:
+            pass
+
         tenants_enriched.append({
             'obj': t,
             'users_count': users_count,
+            'ai_addon_name': ai_addon_name,
             'days_left': (t.subscription_end_date - today).days if t.subscription_end_date and t.subscription_end_date >= today else (
                 (t.trial_ends_at - today).days if t.status == 'trial' and t.trial_ends_at else 0
             ),
         })
+
+    # --- حزم AI المتاحة ---
+    ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
     # --- الباقات للمودال ---
     plan_prices_json = json.dumps({'silver': 475, 'gold': 700, 'empire': 1400})
@@ -1247,6 +1298,7 @@ def super_admin_dashboard(request):
         'plan_prices_json': plan_prices_json,
         'period_discounts_json': period_discounts_json,
         'period_months_json': period_months_json,
+        'ai_addons': ai_addons,
     })
 
 

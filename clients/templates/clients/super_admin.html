@@ -347,6 +347,7 @@
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الحالة</th>
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">المستخدمون</th>
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">المتبقي</th>
+                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">AI Studio</th>
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الرصيد</th>
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">التسجيل</th>
                             <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الإجراءات</th>
@@ -406,6 +407,28 @@
                                 <span class="text-xs font-bold text-red-400">ينتهي اليوم!</span>
                                 {% else %}
                                 <span class="text-xs font-bold text-red-500">منتهي</span>
+                                {% endif %}
+                            </td>
+                            <!-- AI Studio Cell -->
+                            <td class="px-4 py-3">
+                                {% if t.ai_addon_name %}
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-black px-2 py-0.5 rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                                        <i class="fas fa-wand-magic-sparkles ml-1"></i>{{ t.ai_addon_name }}
+                                    </span>
+                                    <form method="post" class="inline">{% csrf_token %}
+                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                                        <input type="hidden" name="action" value="deactivate_ai_addon">
+                                        <button type="submit" title="إلغاء AI" class="text-[10px] text-red-400 hover:text-red-300 transition" onclick="return confirm('إلغاء تفعيل AI Studio لهذه الشركة؟')">
+                                            <i class="fas fa-times-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <button type="button" onclick="openAiModal('{{ t.obj.id }}', '{{ t.obj.name }}')"
+                                    class="text-xs font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 hover:border-violet-500/40 hover:text-violet-400 transition">
+                                    <i class="fas fa-plus ml-1"></i>تفعيل
+                                </button>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
@@ -501,7 +524,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="10" class="text-center py-12 text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</td>
+                            <td colspan="11" class="text-center py-12 text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -783,6 +806,61 @@
     </div>
 </div>
 
+<!-- ══════════════ مودال تفعيل AI Studio ══════════════ -->
+<div id="ai-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-violet-800/50 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+            <h3 class="font-black text-white text-lg"><i class="fas fa-wand-magic-sparkles ml-2 text-violet-400"></i>تفعيل AI Studio</h3>
+            <button onclick="closeAiModal()" class="text-slate-500 hover:text-white transition text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="post" class="p-6 space-y-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="activate_ai_addon">
+            <input type="hidden" name="tenant_id" id="ai-tenant-id">
+            <input type="hidden" name="ai_addon_slug" id="ai-addon-slug" value="">
+
+            <div class="bg-slate-800/60 rounded-xl px-4 py-3 border border-slate-700">
+                <p class="text-xs text-slate-500 mb-1">الشركة</p>
+                <p class="font-black text-white" id="ai-tenant-name">—</p>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-slate-400 block mb-3">اختر حزمة AI</label>
+                <div class="space-y-2" id="ai-addon-list">
+                    {% for addon in ai_addons %}
+                    <button type="button" data-slug="{{ addon.slug }}"
+                        class="ai-pkg-btn w-full text-right rounded-xl px-4 py-3 border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-violet-500/40 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg
+                                {% if 'pro' in addon.slug %}bg-violet-500/15 text-violet-400
+                                {% else %}bg-indigo-500/15 text-indigo-400{% endif %}">
+                                {% if 'pro' in addon.slug %}<i class="fas fa-rocket"></i>
+                                {% else %}<i class="fas fa-sparkles"></i>{% endif %}
+                            </div>
+                            <div>
+                                <p class="text-sm font-black text-white">{{ addon.name }}</p>
+                                <p class="text-[10px] text-slate-500">{{ addon.slug }}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm font-black text-violet-400">{{ addon.monthly_price }} ج/شهر</span>
+                    </button>
+                    {% empty %}
+                    <div class="text-center text-slate-600 text-xs py-4">
+                        <i class="fas fa-box-open text-2xl mb-2 block text-slate-700"></i>
+                        لا توجد حزم AI متاحة. أضف حزم من لوحة الإدارة أولاً.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" id="ai-submit-btn" disabled
+                class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-700 to-purple-600 text-white font-black text-sm hover:from-violet-600 hover:to-purple-500 transition shadow-lg shadow-violet-600/20 disabled:opacity-40 disabled:cursor-not-allowed">
+                <i class="fas fa-bolt ml-2"></i>تفعيل الحزمة
+            </button>
+        </form>
+    </div>
+</div>
+
 <footer class="text-center py-4 text-slate-700 text-xs mt-4">
     © 2026 Mouss Tec Ecosystem — Super Admin Control Panel
 </footer>
@@ -913,6 +991,44 @@ function closeDeleteModal() {
 
 document.getElementById('delete-modal').addEventListener('click', function(e) {
     if (e.target === this) closeDeleteModal();
+});
+
+// ═══════════════════ AI Studio Modal ═══════════════════
+function openAiModal(tenantId, tenantName) {
+    document.getElementById('ai-tenant-id').value = tenantId;
+    document.getElementById('ai-tenant-name').textContent = tenantName;
+    document.getElementById('ai-addon-slug').value = '';
+    document.getElementById('ai-submit-btn').disabled = true;
+    document.querySelectorAll('.ai-pkg-btn').forEach(b => {
+        b.classList.remove('border-violet-500', 'bg-violet-500/10');
+        b.classList.add('border-slate-700', 'bg-slate-800');
+    });
+    const modal = document.getElementById('ai-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeAiModal() {
+    const modal = document.getElementById('ai-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+document.getElementById('ai-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAiModal();
+});
+
+document.querySelectorAll('.ai-pkg-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.ai-pkg-btn').forEach(b => {
+            b.classList.remove('border-violet-500', 'bg-violet-500/10');
+            b.classList.add('border-slate-700', 'bg-slate-800');
+        });
+        this.classList.remove('border-slate-700', 'bg-slate-800');
+        this.classList.add('border-violet-500', 'bg-violet-500/10');
+        document.getElementById('ai-addon-slug').value = this.dataset.slug;
+        document.getElementById('ai-submit-btn').disabled = false;
+    });
 });
 </script>
 </body>

@@ -418,48 +418,8 @@ class DesignSubmissionAdmin(admin.ModelAdmin):
 # 9. AI Design Subscriptions
 # =====================================================================
 
-@admin.register(AIDesignSubscription)
-class AIDesignSubscriptionAdmin(admin.ModelAdmin):
-    list_display = (
-        'designer', 'plan', 'status', 'start_date', 'end_date',
-        'ai_generations_used', 'ai_generations_limit',
-        'payment_method', 'price_paid', 'auto_renew',
-    )
-    list_filter = ('status', 'plan', 'payment_method', 'auto_renew')
-    search_fields = ('designer__user__first_name', 'designer__user__last_name', 'designer__employee_id')
-    readonly_fields = ('created_at', 'updated_at')
-    raw_id_fields = ('designer', 'activated_by', 'cancelled_by')
-    list_editable = ('status', 'auto_renew')
-    actions = ['activate_subscriptions', 'cancel_subscriptions']
-
-    @admin.action(description=_("تفعيل الاشتراكات المحددة"))
-    def activate_subscriptions(self, request, queryset):
-        from hr.services.ai_subscription_service import AISubscriptionService
-        count = 0
-        for sub in queryset.exclude(status='active'):
-            try:
-                AISubscriptionService.admin_activate(
-                    designer=sub.designer,
-                    plan=sub.plan,
-                    admin_user=request.user,
-                    duration_days=30,
-                    notes='تفعيل جماعي من الأدمن',
-                )
-                count += 1
-            except Exception as e:
-                self.message_user(request, f"خطأ في اشتراك #{sub.pk}: {e}", messages.ERROR)
-        if count:
-            self.message_user(request, f"تم تفعيل {count} اشتراك AI.", messages.SUCCESS)
-
-    @admin.action(description=_("إلغاء الاشتراكات المحددة"))
-    def cancel_subscriptions(self, request, queryset):
-        from hr.services.ai_subscription_service import AISubscriptionService
-        count = 0
-        for sub in queryset.filter(status='active'):
-            try:
-                AISubscriptionService.admin_cancel(sub.pk, request.user, 'إلغاء جماعي من الأدمن')
-                count += 1
-            except Exception:
-                pass
-        if count:
-            self.message_user(request, f"تم إلغاء {count} اشتراك AI.", messages.WARNING)
+# ─── AIDesignSubscription مخفي من لوحة التحكم ───
+# تفعيل/إلغاء AI يتم من صفحة Super Admin عبر نظام AIAddonPackage + TenantSubscription
+# الموديل موجود في قاعدة البيانات لكن لا حاجة لإدارته من لوحة tenant admin
+# @admin.register(AIDesignSubscription)
+# class AIDesignSubscriptionAdmin(admin.ModelAdmin): ...
