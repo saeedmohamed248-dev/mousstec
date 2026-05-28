@@ -19,6 +19,8 @@
         .event-icon { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .company-row:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+        .company-row { transition: all .25s ease; }
     </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -314,10 +316,10 @@
     <!-- ═══════════════════════════════════════════════════ -->
     <div id="tab-tenants" class="tab-content space-y-4 hidden">
 
-        <!-- Search & Filter -->
-        <div class="flex gap-3 flex-wrap">
+        <!-- Search & Filter Bar -->
+        <div class="flex gap-3 flex-wrap items-center">
             <div class="relative flex-1 min-w-[200px]">
-                <input type="text" id="search-input" placeholder="ابحث عن شركة بالاسم أو الباقة أو الحالة..."
+                <input type="text" id="search-input" placeholder="ابحث بالاسم أو الباقة أو الحالة..."
                     class="w-full bg-slate-900/60 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60 transition">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
             </div>
@@ -329,207 +331,222 @@
             </select>
             <select id="filter-industry" class="bg-slate-900/60 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/60">
                 <option value="">كل القطاعات</option>
-                <option value="automotive">🚗 سيارات</option>
-                <option value="printing">🎨 طباعة</option>
+                <option value="automotive">سيارات</option>
+                <option value="printing">طباعة</option>
             </select>
+            <span class="text-xs text-slate-600 font-bold">{{ summary.total }} شركة</span>
         </div>
 
-        <!-- Companies Table -->
-        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm" id="companies-table">
-                    <thead>
-                        <tr class="border-b border-slate-800 bg-slate-800/40">
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">#</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الشركة / المركز</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">القطاع</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الباقة</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الحالة</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">المستخدمون</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">المتبقي</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">AI Studio</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الرصيد</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">التسجيل</th>
-                            <th class="text-right px-4 py-3 text-xs font-black text-slate-400">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800/60">
-                        {% for t in tenants %}
-                        <tr class="hover:bg-slate-800/30 transition company-row"
-                            data-name="{{ t.obj.name|lower }} {{ t.obj.schema_name|lower }} {{ t.obj.plan|lower }}"
-                            data-status="{{ t.obj.status }}"
-                            data-industry="{{ t.obj.industry }}">
-                            <td class="px-4 py-3 text-slate-600 text-xs">{{ forloop.counter }}</td>
-                            <td class="px-4 py-3">
-                                <div>
-                                    <p class="font-black text-white text-sm">{{ t.obj.name }}</p>
-                                    <p class="text-[10px] text-slate-500">{{ t.obj.schema_name }} · {{ t.obj.phone }}</p>
-                                </div>
-                                {% if t.obj.is_fraud_flagged %}
-                                <span class="inline-flex items-center gap-1 text-[10px] text-red-400 font-bold mt-1"><i class="fas fa-shield-virus"></i>مشتبه</span>
-                                {% endif %}
-                                {% if t.obj.is_verified_merchant %}
-                                <span class="inline-flex items-center gap-1 text-[10px] text-indigo-400 font-bold mt-1"><i class="fas fa-check-circle"></i>موثق</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs font-bold
-                                    {% if t.obj.industry == 'automotive' %}text-cyan-400{% else %}text-pink-400{% endif %}">
-                                    {% if t.obj.industry == 'automotive' %}🚗{% else %}🎨{% endif %} {{ t.obj.get_industry_display|truncatechars:10 }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs font-black px-2 py-0.5 rounded-lg
-                                    {% if t.obj.plan == 'empire' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
-                                    {% elif t.obj.plan == 'gold' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
-                                    {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
-                                    {{ t.obj.get_plan_display|truncatechars:12 }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs font-black px-2 py-0.5 rounded-lg
+        <!-- ═══ Company Cards ═══ -->
+        <div class="space-y-4" id="companies-list">
+            {% for t in tenants %}
+            <div class="company-row bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all duration-300"
+                data-name="{{ t.obj.name|lower }} {{ t.obj.schema_name|lower }} {{ t.obj.plan|lower }}"
+                data-status="{{ t.obj.status }}"
+                data-industry="{{ t.obj.industry }}">
+
+                <!-- ── Card Header: Company Identity + Enter Button ── -->
+                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800/60">
+                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                        <!-- Company Avatar -->
+                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0
+                            {% if t.obj.industry == 'automotive' %}bg-cyan-500/10 text-cyan-400 border border-cyan-500/20
+                            {% else %}bg-pink-500/10 text-pink-400 border border-pink-500/20{% endif %}">
+                            {% if t.obj.industry == 'automotive' %}<i class="fas fa-car-side"></i>{% else %}<i class="fas fa-palette"></i>{% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 class="font-black text-white text-base truncate">{{ t.obj.name }}</h3>
+                                <!-- Status Badge -->
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded-full
                                     {% if t.obj.status == 'active' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/20
                                     {% elif t.obj.status == 'trial' %}bg-indigo-500/15 text-indigo-400 border border-indigo-500/20
                                     {% elif t.obj.status == 'suspended' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
                                     {% else %}bg-red-500/15 text-red-400 border border-red-500/20{% endif %}">
                                     {{ t.obj.get_status_display }}
                                 </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="text-xs font-black text-blue-400">{{ t.users_count }}</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                {% if t.days_left > 7 %}
-                                <span class="text-xs font-bold text-emerald-400">{{ t.days_left }} يوم</span>
-                                {% elif t.days_left > 0 %}
-                                <span class="text-xs font-bold text-amber-400">{{ t.days_left }} يوم ⚠️</span>
-                                {% elif t.days_left == 0 %}
-                                <span class="text-xs font-bold text-red-400">ينتهي اليوم!</span>
-                                {% else %}
-                                <span class="text-xs font-bold text-red-500">منتهي</span>
+                                {% if t.obj.is_fraud_flagged %}
+                                <span class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20"><i class="fas fa-shield-virus ml-1"></i>مشتبه</span>
                                 {% endif %}
-                            </td>
-                            <!-- AI Studio Cell -->
-                            <td class="px-4 py-3">
-                                {% if t.ai_addon_name %}
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-xs font-black px-2 py-0.5 rounded-lg bg-violet-500/15 text-violet-400 border border-violet-500/20">
-                                        <i class="fas fa-wand-magic-sparkles ml-1"></i>{{ t.ai_addon_name }}
-                                    </span>
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="deactivate_ai_addon">
-                                        <button type="submit" title="إلغاء AI" class="text-[10px] text-red-400 hover:text-red-300 transition" onclick="return confirm('إلغاء تفعيل AI Studio لهذه الشركة؟')">
-                                            <i class="fas fa-times-circle"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                                {% else %}
-                                <button type="button" onclick="openAiModal('{{ t.obj.id }}', '{{ t.obj.name }}')"
-                                    class="text-xs font-bold px-2 py-0.5 rounded-lg bg-slate-800 text-slate-500 border border-slate-700 hover:border-violet-500/40 hover:text-violet-400 transition">
-                                    <i class="fas fa-plus ml-1"></i>تفعيل
-                                </button>
+                                {% if t.obj.is_verified_merchant %}
+                                <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><i class="fas fa-badge-check ml-1"></i>موثق</span>
                                 {% endif %}
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs text-emerald-400 font-bold">{{ t.obj.wallet_balance|floatformat:0 }} ج</span>
-                            </td>
-                            <td class="px-4 py-3 text-xs text-slate-500">{{ t.obj.created_on }}</td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    {% if t.obj.status == 'suspended' %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="activate">
-                                        <button type="submit" title="تفعيل" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/30 transition">
-                                            <i class="fas fa-play"></i>
-                                        </button>
-                                    </form>
-                                    {% else %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="suspend">
-                                        <button type="submit" title="تعليق" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/30 transition">
-                                            <i class="fas fa-pause"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5">
+                                <span class="font-mono">{{ t.obj.schema_name }}</span> · {{ t.obj.phone|default:"—" }} · تسجيل {{ t.obj.created_on }}
+                            </p>
+                        </div>
+                    </div>
+                    <!-- 🚀 BIG ENTER BUTTON -->
+                    <a href="/superadmin/enter/{{ t.obj.schema_name }}/" target="_blank"
+                        class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs hover:from-blue-500 hover:to-indigo-500 transition shadow-lg shadow-blue-600/20 flex-shrink-0 mr-3">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>دخول النظام</span>
+                    </a>
+                </div>
 
-                                    {% if t.obj.status == 'trial' %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="extend_trial">
-                                        <button type="submit" title="تمديد 3 أيام" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/30 transition">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                <!-- ── Card Body: Metrics Row ── -->
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-px bg-slate-800/30">
+                    <!-- الباقة -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">الباقة</p>
+                        <span class="text-xs font-black px-2.5 py-1 rounded-lg inline-block
+                            {% if t.obj.plan == 'empire' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
+                            {% elif t.obj.plan == 'gold' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
+                            {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
+                            {{ t.obj.get_plan_display }}
+                        </span>
+                    </div>
+                    <!-- المستخدمون -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">المستخدمون</p>
+                        <p class="text-lg font-black text-blue-400">{{ t.users_count }}</p>
+                    </div>
+                    <!-- المتبقي -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">المتبقي</p>
+                        {% if t.days_left > 7 %}
+                        <p class="text-lg font-black text-emerald-400">{{ t.days_left }}<span class="text-xs text-emerald-400/60"> يوم</span></p>
+                        {% elif t.days_left > 0 %}
+                        <p class="text-lg font-black text-amber-400">{{ t.days_left }}<span class="text-xs text-amber-400/60"> يوم</span></p>
+                        {% elif t.days_left == 0 %}
+                        <p class="text-sm font-black text-red-400">ينتهي اليوم!</p>
+                        {% else %}
+                        <p class="text-sm font-black text-red-500">منتهي</p>
+                        {% endif %}
+                    </div>
+                    <!-- الرصيد -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">الرصيد</p>
+                        <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|floatformat:0 }}<span class="text-xs text-emerald-400/60"> ج</span></p>
+                    </div>
+                    <!-- AI Studio -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">AI Studio</p>
+                        {% if t.ai_addon_name %}
+                        <span class="text-xs font-black text-violet-400"><i class="fas fa-wand-magic-sparkles ml-1"></i>{{ t.ai_addon_name }}</span>
+                        {% else %}
+                        <span class="text-xs text-slate-600">غير مفعّل</span>
+                        {% endif %}
+                    </div>
+                    <!-- القطاع -->
+                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                        <p class="text-[10px] text-slate-500 mb-1">القطاع</p>
+                        <span class="text-xs font-bold {% if t.obj.industry == 'automotive' %}text-cyan-400{% else %}text-pink-400{% endif %}">
+                            {% if t.obj.industry == 'automotive' %}🚗 سيارات{% else %}🎨 طباعة{% endif %}
+                        </span>
+                    </div>
+                </div>
 
-                                    {% if t.obj.is_fraud_flagged %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="unflag_fraud">
-                                        <button type="submit" title="رفع الحظر" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition">
-                                            <i class="fas fa-unlock"></i>
-                                        </button>
-                                    </form>
-                                    {% else %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="flag_fraud">
-                                        <button type="submit" title="تعليم احتيال" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/20 hover:bg-red-500/30 transition"
-                                            onclick="return confirm('هل أنت متأكد من وضع هذه الشركة تحت المراقبة؟')">
-                                            <i class="fas fa-shield-virus"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                <!-- ── Card Footer: Action Buttons ── -->
+                <div class="px-5 py-3 flex items-center gap-2 flex-wrap bg-slate-950/30">
 
-                                    <button type="button" onclick="openSubModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.plan }}')"
-                                        title="تفعيل اشتراك"
-                                        class="text-xs font-bold px-2.5 py-1 rounded-lg bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/30 transition">
-                                        <i class="fas fa-credit-card"></i>
-                                    </button>
+                    <!-- تفعيل / تعليق -->
+                    {% if t.obj.status == 'suspended' %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="activate">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+                            <i class="fas fa-play ml-1"></i>تفعيل
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="suspend">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition">
+                            <i class="fas fa-pause ml-1"></i>تعليق
+                        </button>
+                    </form>
+                    {% endif %}
 
-                                    <!-- تجديد الاشتراك -->
-                                    {% if t.obj.status == 'active' or t.obj.subscription_end_date %}
-                                    <form method="post" class="inline">{% csrf_token %}
-                                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
-                                        <input type="hidden" name="action" value="renew_subscription">
-                                        <button type="submit" title="تجديد +30 يوم" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-500/15 text-teal-400 border border-teal-500/20 hover:bg-teal-500/30 transition">
-                                            <i class="fas fa-redo"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                    <!-- تمديد تجربة -->
+                    {% if t.obj.status == 'trial' %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="extend_trial">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition">
+                            <i class="fas fa-clock-rotate-left ml-1"></i>تمديد +3 أيام
+                        </button>
+                    </form>
+                    {% endif %}
 
-                                    <!-- الدخول على الشركة -->
-                                    <a href="/superadmin/enter/{{ t.obj.schema_name }}/" target="_blank"
-                                        title="الدخول على لوحة تحكم الشركة"
-                                        class="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/20 hover:bg-blue-500/30 transition">
-                                        <i class="fas fa-sign-in-alt"></i>
-                                    </a>
+                    <!-- تفعيل اشتراك -->
+                    <button type="button" onclick="openSubModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.plan }}')"
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
+                        <i class="fas fa-credit-card ml-1"></i>اشتراك
+                    </button>
 
-                                    <a href="/pricing/?shop={{ t.obj.schema_name }}" title="إدارة الباقة"
-                                        class="text-xs font-bold px-2.5 py-1 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/20 hover:bg-purple-500/30 transition">
-                                        <i class="fas fa-crown"></i>
-                                    </a>
+                    <!-- تجديد -->
+                    {% if t.obj.status == 'active' or t.obj.subscription_end_date %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="renew_subscription">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition">
+                            <i class="fas fa-redo ml-1"></i>تجديد +30 يوم
+                        </button>
+                    </form>
+                    {% endif %}
 
-                                    <!-- حذف نهائي -->
-                                    <button type="button" onclick="openDeleteModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.schema_name }}')"
-                                        title="حذف نهائي"
-                                        class="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-900/30 text-red-500 border border-red-800/30 hover:bg-red-900/50 transition">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="11" class="text-center py-12 text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    <!-- AI Studio -->
+                    {% if t.ai_addon_name %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="deactivate_ai_addon">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition"
+                            onclick="return confirm('إلغاء تفعيل AI Studio لهذه الشركة؟')">
+                            <i class="fas fa-wand-magic-sparkles ml-1"></i>إلغاء AI
+                        </button>
+                    </form>
+                    {% else %}
+                    <button type="button" onclick="openAiModal('{{ t.obj.id }}', '{{ t.obj.name }}')"
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition">
+                        <i class="fas fa-wand-magic-sparkles ml-1"></i>تفعيل AI
+                    </button>
+                    {% endif %}
+
+                    <!-- إدارة الباقة -->
+                    <a href="/pricing/?shop={{ t.obj.schema_name }}"
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition">
+                        <i class="fas fa-crown ml-1"></i>الباقات
+                    </a>
+
+                    <!-- احتيال -->
+                    {% if t.obj.is_fraud_flagged %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="unflag_fraud">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition">
+                            <i class="fas fa-unlock ml-1"></i>رفع الحظر
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" class="inline">{% csrf_token %}
+                        <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
+                        <input type="hidden" name="action" value="flag_fraud">
+                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition"
+                            onclick="return confirm('وضع هذه الشركة تحت المراقبة؟')">
+                            <i class="fas fa-shield-virus ml-1"></i>مراقبة
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <!-- فاصل مرن يدفع الحذف لليسار -->
+                    <div class="flex-1"></div>
+
+                    <!-- حذف نهائي -->
+                    <button type="button" onclick="openDeleteModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.schema_name }}')"
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-900/20 text-red-500/70 border border-red-900/30 hover:bg-red-900/40 hover:text-red-400 transition">
+                        <i class="fas fa-trash-alt ml-1"></i>حذف
+                    </button>
+                </div>
             </div>
+            {% empty %}
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl py-16 text-center">
+                <i class="fas fa-building text-4xl text-slate-700 mb-3 block"></i>
+                <p class="text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</p>
+            </div>
+            {% endfor %}
         </div>
     </div><!-- /tab-tenants -->
 
