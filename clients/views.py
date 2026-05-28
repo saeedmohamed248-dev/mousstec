@@ -1078,7 +1078,7 @@ def super_admin_dashboard(request):
                 tenant_name = target.name
                 schema = target.schema_name
                 try:
-                    # حذف كل السجلات المرتبطة بـ PROTECT FK قبل حذف الـ Tenant
+                    # حذف السجلات المرتبطة بـ PROTECT FK قبل حذف الـ Tenant
                     EscrowLedger.objects.filter(client=target).delete()
                     GlobalB2BMarketplace.objects.filter(tenant=target).delete()
                     BidOffer.objects.filter(seller=target).delete()
