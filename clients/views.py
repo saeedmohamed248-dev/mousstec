@@ -1311,7 +1311,8 @@ def super_admin_dashboard(request):
 def enter_tenant(request, schema_name):
     """
     Super Admin → يدخل على أي شركة مباشرة.
-    يفتح لوحة تحكم الشركة في نافذة جديدة عبر subdomain.
+    يولّد توكن دخول مؤقت (صالح 60 ثانية) ويحول للـ subdomain.
+    الـ impersonation view على الـ tenant يتحقق من التوكن ويعمل login تلقائي.
     """
     if getattr(connection, 'schema_name', 'public') != 'public':
         return HttpResponseForbidden('Access Denied')
@@ -1322,11 +1323,82 @@ def enter_tenant(request, schema_name):
         messages.error(request, f'لا يوجد نطاق مسجل لشركة «{tenant.name}».')
         return redirect('super_admin_dashboard')
 
+    # --- إنشاء توكن دخول مؤقت ---
+    import time
+    token_data = f"{schema_name}:{request.user.id}:{int(time.time())}"
+    secret = settings.SECRET_KEY[:32]
+    token = hmac.new(secret.encode(), token_data.encode(), hashlib.sha256).hexdigest()[:40]
+
+    # تخزين التوكن في الكاش (صالح 60 ثانية)
+    cache_key = f"impersonate_token:{token}"
+    cache.set(cache_key, {
+        'schema_name': schema_name,
+        'superuser_id': request.user.id,
+        'superuser_name': request.user.username,
+        'created': int(time.time()),
+    }, timeout=60)
+
+    # --- Log the impersonation ---
+    PlatformEvent.objects.create(
+        event_type='login',
+        tenant_schema=schema_name,
+        tenant_name=tenant.name,
+        user_name=request.user.username,
+        description=f"دخول Super Admin «{request.user.username}» على شركة «{tenant.name}»",
+    )
+
     protocol = 'https' if request.is_secure() else 'http'
-    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
-    target_url = f'{protocol}://{domain.domain}/{admin_url}/'
+    target_url = f'{protocol}://{domain.domain}/impersonate-login/?token={token}'
 
     return redirect(target_url)
+
+
+@csrf_exempt
+def impersonate_login(request):
+    """
+    GET /impersonate-login/?token=xxx
+    يُستدعى من الـ tenant subdomain — يتحقق من التوكن ويعمل login تلقائي كأدمن.
+    """
+    token = request.GET.get('token', '').strip()
+    if not token:
+        return HttpResponseForbidden('Invalid token.')
+
+    cache_key = f"impersonate_token:{token}"
+    token_data = cache.get(cache_key)
+
+    if not token_data:
+        return HttpResponseForbidden('Token expired or invalid.')
+
+    # حذف التوكن فوراً (صالح لمرة واحدة فقط)
+    cache.delete(cache_key)
+
+    schema_name = token_data.get('schema_name', '')
+    current_schema = getattr(connection, 'schema_name', 'public')
+
+    if current_schema == 'public' or current_schema != schema_name:
+        return HttpResponseForbidden('Schema mismatch.')
+
+    # --- إيجاد أو إنشاء admin user على هذا الـ tenant ---
+    from django.contrib.auth import login as auth_login
+
+    # ابحث عن أول superuser/staff على الـ tenant
+    admin_user = User.objects.filter(is_staff=True, is_active=True).order_by('-is_superuser', '-date_joined').first()
+
+    if not admin_user:
+        # أنشئ superuser مؤقت إذا مفيش
+        admin_user = User.objects.create_superuser(
+            username=f"mousstec_admin",
+            email="admin@mousstec.com",
+            password=secrets.token_urlsafe(20),
+            first_name="Mouss Tec",
+            last_name="Platform Admin",
+        )
+
+    # Login
+    auth_login(request, admin_user, backend='django.contrib.auth.backends.ModelBackend')
+
+    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+    return redirect(f'/{admin_url}/')
 
 
 # =====================================================================

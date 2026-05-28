@@ -249,6 +249,9 @@ urlpatterns = [
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
 
+    # 🔐 Impersonation login (tenant-side, receives token from super admin)
+    path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),
+
     # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin Dashboard)
     path(f'{ADMIN_URL}/', admin.site.urls),
 
