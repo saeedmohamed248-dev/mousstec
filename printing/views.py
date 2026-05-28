@@ -15,6 +15,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
@@ -58,6 +59,7 @@ def _check_ai_access(tenant, action_type='ai_generation'):
     return True, None
 
 
+@csrf_exempt
 @login_required
 @require_POST
 def ai_generate_design(request):
@@ -133,6 +135,7 @@ def ai_generate_design(request):
         return JsonResponse({'success': False, 'error': 'حدث خطأ غير متوقع. حاول مرة أخرى.'}, status=500)
 
 
+@csrf_exempt
 @login_required
 @require_POST
 def ai_smart_watermark(request):
@@ -208,6 +211,7 @@ def ai_smart_watermark(request):
         return JsonResponse({'success': False, 'error': 'حدث خطأ أثناء معالجة الصورة.'}, status=500)
 
 
+@csrf_exempt
 @login_required
 @require_POST
 def ai_send_whatsapp(request):
@@ -936,6 +940,7 @@ If the request is outside your printing/design domain:
 """
 
 
+@csrf_exempt
 @require_POST
 def ai_prompt_engineer(request):
     """
