@@ -24,7 +24,7 @@ import hashlib
 
 # الاستدعاء الصريح والمباشر للاستمارات والموديلات
 from clients.forms import TenantSignupForm
-from clients.models import Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer, EscrowLedger
+from clients.models import Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer, EscrowLedger, PlatformEvent, VisitorLog
 
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
@@ -981,7 +981,7 @@ def _is_platform_owner(user):
 @user_passes_test(_is_platform_owner, login_url='/secure-portal/login/')
 def super_admin_dashboard(request):
 
-    # 🛡️ حماية مزدوجة: حتى لو عدى الـ decorator، نتأكد إنه على public schema
+    # حماية مزدوجة: حتى لو عدى الـ decorator، نتأكد إنه على public schema
     if getattr(connection, 'schema_name', 'public') != 'public':
         return HttpResponseForbidden('<h1>403 — Access Denied</h1><p>هذه الصفحة مخصصة لمالك المنصة فقط.</p>')
 
@@ -994,6 +994,11 @@ def super_admin_dashboard(request):
             target.status = 'suspended'
             target.is_active = False
             target.save(update_fields=['status', 'is_active'])
+            PlatformEvent.objects.create(
+                event_type='suspension', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"تعليق حساب «{target.name}» بواسطة {request.user.username}",
+            )
         elif action == 'activate':
             target.status = 'active'
             target.is_active = True
@@ -1001,6 +1006,11 @@ def super_admin_dashboard(request):
         elif action == 'flag_fraud':
             target.is_fraud_flagged = True
             target.save(update_fields=['is_fraud_flagged'])
+            PlatformEvent.objects.create(
+                event_type='fraud_flag', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"تعليم احتيال على «{target.name}»",
+            )
         elif action == 'unflag_fraud':
             target.is_fraud_flagged = False
             target.save(update_fields=['is_fraud_flagged'])
@@ -1010,7 +1020,6 @@ def super_admin_dashboard(request):
         elif action == 'activate_subscription':
             plan = request.POST.get('plan', 'silver')
             billing_period = request.POST.get('billing_period', 'monthly')
-            # ── خريطة الأسعار والخصومات ──
             plan_prices = {'silver': 475, 'gold': 700, 'empire': 1400}
             period_days = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
             period_discounts = {'monthly': Decimal('0'), 'quarterly': Decimal('0.09'),
@@ -1031,32 +1040,166 @@ def super_admin_dashboard(request):
             target.subscription_end_date = timezone.localdate() + timedelta(days=days)
             target.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
 
+            PlatformEvent.objects.create(
+                event_type='subscription', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"تفعيل اشتراك «{target.name}» — {plan} {period_labels.get(billing_period)} — {total} ج.م",
+                metadata={'plan': plan, 'period': billing_period, 'total': str(total)},
+            )
+
             messages.success(request,
-                f'✅ تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
+                f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
                 f'({period_labels.get(billing_period, billing_period)}) — {total} ج.م — '
                 f'ينتهي {target.subscription_end_date}')
         return redirect('super_admin_dashboard')
 
+    # ══════════════════════════════════════════════════════════════
+    # DATA AGGREGATION — الداتا الضخمة للوحة التحكم
+    # ══════════════════════════════════════════════════════════════
     tenants = Client.objects.exclude(schema_name='public').order_by('-created_on')
     today = timezone.localdate()
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
 
+    # --- Tenant Summary ---
     summary = {
         'total': tenants.count(),
         'trial': tenants.filter(status='trial').count(),
         'active': tenants.filter(status='active').count(),
         'suspended': tenants.filter(status='suspended').count(),
         'fraud': tenants.filter(is_fraud_flagged=True).count(),
+        'automotive': tenants.filter(industry='automotive').count(),
+        'printing': tenants.filter(industry='printing').count(),
     }
 
-    # ── بيانات الباقات للمودال ──
+    # --- New signups this month ---
+    new_this_month = tenants.filter(created_on__gte=today.replace(day=1)).count()
+    new_this_week = tenants.filter(created_on__gte=(today - timedelta(days=7))).count()
+
+    # --- Expiring soon (next 7 days) ---
+    expiring_soon = tenants.filter(
+        status='active',
+        subscription_end_date__isnull=False,
+        subscription_end_date__lte=today + timedelta(days=7),
+        subscription_end_date__gte=today,
+    ).count()
+
+    # --- Trial expired but still in trial status ---
+    trial_expired = tenants.filter(status='trial', trial_ends_at__lt=today).count()
+
+    # --- Visitor Analytics ---
+    visitor_stats = {}
+    try:
+        visitors_today = VisitorLog.objects.filter(timestamp__gte=today_start).count()
+        unique_ips_today = VisitorLog.objects.filter(
+            timestamp__gte=today_start
+        ).values('ip_address').distinct().count()
+        visitors_week = VisitorLog.objects.filter(timestamp__gte=week_ago).count()
+        unique_ips_week = VisitorLog.objects.filter(
+            timestamp__gte=week_ago
+        ).values('ip_address').distinct().count()
+
+        # أكثر الصفحات زيارة
+        top_pages = list(
+            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            .values('path')
+            .annotate(hits=Count('id'))
+            .order_by('-hits')[:10]
+        )
+
+        # أكثر الشركات نشاطاً
+        top_tenants = list(
+            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            .exclude(tenant_schema='public')
+            .exclude(tenant_schema='')
+            .values('tenant_schema')
+            .annotate(hits=Count('id'))
+            .order_by('-hits')[:10]
+        )
+
+        # Device breakdown
+        device_breakdown = list(
+            VisitorLog.objects.filter(timestamp__gte=week_ago)
+            .values('device_type')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        # Average response time
+        avg_response = VisitorLog.objects.filter(
+            timestamp__gte=today_start, response_time_ms__isnull=False,
+        ).aggregate(avg=Avg('response_time_ms'))['avg'] or 0
+
+        # آخر 50 زائر (Live Feed)
+        recent_visitors = list(
+            VisitorLog.objects.filter(timestamp__gte=today_start)
+            .order_by('-timestamp')[:50]
+            .values(
+                'timestamp', 'ip_address', 'path', 'method',
+                'status_code', 'tenant_schema', 'device_type',
+                'response_time_ms', 'user__username',
+            )
+        )
+
+        visitor_stats = {
+            'today': visitors_today,
+            'unique_today': unique_ips_today,
+            'week': visitors_week,
+            'unique_week': unique_ips_week,
+            'top_pages': top_pages,
+            'top_tenants': top_tenants,
+            'device_breakdown': device_breakdown,
+            'avg_response_ms': round(avg_response),
+            'recent': recent_visitors,
+        }
+    except Exception:
+        pass
+
+    # --- Platform Events (Activity Feed) ---
+    recent_events = []
+    try:
+        recent_events = list(
+            PlatformEvent.objects.order_by('-timestamp')[:30]
+            .values('timestamp', 'event_type', 'tenant_name', 'user_name', 'description')
+        )
+    except Exception:
+        pass
+
+    # --- Tenant Deep Details (per tenant) ---
+    tenants_enriched = []
+    for t in tenants:
+        users_count = 0
+        try:
+            with schema_context(t.schema_name):
+                users_count = User.objects.count()
+        except Exception:
+            pass
+
+        tenants_enriched.append({
+            'obj': t,
+            'users_count': users_count,
+            'days_left': (t.subscription_end_date - today).days if t.subscription_end_date and t.subscription_end_date >= today else (
+                (t.trial_ends_at - today).days if t.status == 'trial' and t.trial_ends_at else 0
+            ),
+        })
+
+    # --- الباقات للمودال ---
     plan_prices_json = json.dumps({'silver': 475, 'gold': 700, 'empire': 1400})
     period_discounts_json = json.dumps({'monthly': 0, 'quarterly': 0.09, 'semi_annual': 0.125, 'annual': 0.25})
     period_months_json = json.dumps({'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12})
 
     return render(request, 'clients/super_admin.html', {
-        'tenants': tenants,
+        'tenants': tenants_enriched,
         'summary': summary,
         'today': today,
+        'new_this_month': new_this_month,
+        'new_this_week': new_this_week,
+        'expiring_soon': expiring_soon,
+        'trial_expired': trial_expired,
+        'visitor_stats': visitor_stats,
+        'recent_events': recent_events,
         'plan_prices_json': plan_prices_json,
         'period_discounts_json': period_discounts_json,
         'period_months_json': period_months_json,

@@ -173,3 +173,68 @@ class AuditIPMiddleware:
         _audit_thread_local.user = None
 
         return response
+
+
+class VisitorTrackingMiddleware:
+    """
+    تسجيل كل طلب HTTP في VisitorLog — يُستخدم في لوحة السوبر أدمن.
+    يتجاهل: الأصول الثابتة، الـ healthcheck، وطلبات البوتات.
+    يعمل بشكل غير مُعطِّل (non-blocking) عبر try/except.
+    """
+
+    IGNORE_PREFIXES = (
+        '/static/', '/media/', '/favicon.', '/sw.js',
+        '/system/health/', '/__debug__/', '/jsi18n/',
+    )
+    IGNORE_EXTENSIONS = ('.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.map')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        import time
+        start = time.time()
+
+        response = self.get_response(request)
+
+        # --- تتبع الزائر (non-blocking) ---
+        try:
+            path = request.path
+            # تجاهل الأصول الثابتة
+            if any(path.startswith(p) for p in self.IGNORE_PREFIXES):
+                return response
+            if any(path.endswith(ext) for ext in self.IGNORE_EXTENSIONS):
+                return response
+
+            elapsed_ms = int((time.time() - start) * 1000)
+
+            # استخراج IP
+            xff = request.META.get('HTTP_X_FORWARDED_FOR')
+            ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+
+            # استخراج نوع الجهاز من User-Agent
+            ua = request.META.get('HTTP_USER_AGENT', '')
+            device = 'mobile' if any(k in ua.lower() for k in ['mobile', 'android', 'iphone']) else 'desktop'
+            if 'bot' in ua.lower() or 'spider' in ua.lower() or 'crawler' in ua.lower():
+                return response  # تجاهل البوتات
+
+            schema = getattr(connection, 'schema_name', 'public')
+            user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+
+            from clients.models import VisitorLog
+            VisitorLog.objects.using('default').create(
+                ip_address=ip,
+                path=path[:500],
+                method=request.method,
+                status_code=response.status_code,
+                user=user,
+                tenant_schema=schema,
+                user_agent=ua[:1000],
+                referer=(request.META.get('HTTP_REFERER', '') or '')[:1000],
+                device_type=device,
+                response_time_ms=elapsed_ms,
+            )
+        except Exception:
+            pass  # Non-blocking — لا نسمح لخطأ التتبع بتعطيل الطلب
+
+        return response
