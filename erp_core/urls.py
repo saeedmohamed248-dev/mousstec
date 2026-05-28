@@ -318,6 +318,9 @@ urlpatterns = [
 
     # 🎨 نظام الطباعة (AI Studio + Copilot + API)
     path('printing/', include('printing.urls')),
+
+    # 👥 الموارد البشرية (حضور/رواتب/سلف/تصميم)
+    path('hr/', include('hr.urls')),
 ]
 
 # =====================================================================

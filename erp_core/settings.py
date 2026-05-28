@@ -113,6 +113,7 @@ TENANT_APPS = (
     'django.contrib.messages',
     'inventory',       # 🏎️ النواة التشغيلية للورش (قطاع السيارات)
     'printing',        # 🎨 النواة التشغيلية للمطابع (قطاع الطباعة والتصميم)
+    'hr',              # 👥 الموارد البشرية المؤتمتة (حضور/رواتب/سلف/تصميم)
     'import_export',
     'rest_framework',
     'simple_history',
@@ -480,6 +481,11 @@ CELERY_BEAT_SCHEDULE = {
     'drain_dlq_and_retry': {
         'task': 'inventory.tasks.drain_dlq_and_retry',
         'schedule': crontab(minute=0),  # كل ساعة
+    },
+    # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
+    'hr_mark_absent_daily': {
+        'task': 'hr.tasks.mark_absent_employees_daily',
+        'schedule': crontab(hour=22, minute=0),  # كل يوم 10 مساءً
     },
 }
 
