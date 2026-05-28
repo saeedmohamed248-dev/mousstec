@@ -1078,7 +1078,11 @@ def super_admin_dashboard(request):
                 tenant_name = target.name
                 schema = target.schema_name
                 try:
-                    # حذف الـ Domain أولاً ثم الـ Tenant (يحذف الـ schema تلقائياً)
+                    # حذف السجلات المرتبطة بـ PROTECT FK قبل حذف الـ Tenant
+                    EscrowLedger.objects.filter(client=target).delete()
+                    GlobalB2BMarketplace.objects.filter(tenant=target).delete()
+                    BidOffer.objects.filter(seller=target).delete()
+                    BlindBiddingRequest.objects.filter(buyer=target).update(winner=None)
                     Domain.objects.filter(tenant=target).delete()
                     target.delete(force_drop=True)
                     PlatformEvent.objects.create(
