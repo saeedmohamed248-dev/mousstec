@@ -81,6 +81,14 @@ class AttendanceService:
         if existing and existing.clock_in:
             raise ValidationError("تم تسجيل حضورك اليوم بالفعل.")
 
+        # --- Enforce face verification if required ---
+        if hr_settings.require_face_verification and not face_verified:
+            raise ValidationError("بصمة الوجه مطلوبة لتسجيل الحضور. يرجى تفعيل الكاميرا والمحاولة مرة أخرى.")
+
+        # --- Enforce location if required ---
+        if hr_settings.require_location and (latitude is None or longitude is None):
+            raise ValidationError("تحديد الموقع الجغرافي مطلوب لتسجيل الحضور. يرجى تفعيل GPS والمحاولة مرة أخرى.")
+
         # --- Geolocation validation ---
         location_verified = False
         if latitude is not None and longitude is not None:

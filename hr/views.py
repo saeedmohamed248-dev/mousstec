@@ -157,6 +157,140 @@ def api_my_attendance(request):
 
 
 # =====================================================================
+# 1b. Attendance Page (PWA) + Face Registration
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+def attendance_page(request):
+    """
+    GET /hr/attendance/
+    صفحة الحضور والانصراف — PWA-ready.
+    تعمل مع بصمة الوجه + GPS + بصمة الإصبع (WebAuthn).
+    """
+    from hr.models import Employee, AttendanceRecord, HRSettings
+
+    try:
+        employee = Employee.objects.get(user=request.user, is_active=True)
+    except Employee.DoesNotExist:
+        django_messages.error(request, "ليس لديك ملف موظف مفعّل.")
+        return redirect('/')
+
+    hr_settings = HRSettings.get_settings()
+    today = timezone.now().date()
+
+    today_record = AttendanceRecord.objects.filter(
+        employee=employee, date=today,
+    ).first()
+
+    # آخر 7 أيام
+    from datetime import timedelta
+    week_ago = today - timedelta(days=7)
+    recent_records = AttendanceRecord.objects.filter(
+        employee=employee, date__gte=week_ago,
+    ).order_by('-date')
+
+    # هل الوجه مسجّل؟
+    has_face = bool(employee.face_encoding)
+
+    return render(request, 'hr/attendance.html', {
+        'employee': employee,
+        'hr_settings': hr_settings,
+        'today_record': today_record,
+        'recent_records': recent_records,
+        'has_face': has_face,
+        'require_face': hr_settings.require_face_verification,
+        'require_location': hr_settings.require_location,
+        'face_threshold': float(hr_settings.face_match_threshold),
+        'geofence_lat': float(hr_settings.geofence_latitude),
+        'geofence_lng': float(hr_settings.geofence_longitude),
+        'geofence_radius': hr_settings.geofence_radius_meters,
+    })
+
+
+@csrf_exempt
+@login_required(login_url='/secure-portal/')
+@require_POST
+def api_register_face(request):
+    """
+    POST /hr/api/face/register/
+    Body: { "face_encoding": [...128 floats...] }
+    يسجّل بصمة وجه الموظف (face descriptor من face-api.js).
+    """
+    from hr.models import Employee
+
+    try:
+        employee = Employee.objects.get(user=request.user, is_active=True)
+    except Employee.DoesNotExist:
+        return _json_response({"error": "ليس لديك ملف موظف مفعّل."}, 403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return _json_response({"error": "بيانات غير صالحة."}, 400)
+
+    face_encoding = data.get('face_encoding')
+    if not face_encoding or not isinstance(face_encoding, list) or len(face_encoding) < 64:
+        return _json_response({"error": "بيانات بصمة الوجه غير صالحة."}, 400)
+
+    employee.face_encoding = face_encoding
+    employee.save(update_fields=['face_encoding', 'updated_at'])
+
+    logger.info("[FACE] Registered face encoding for %s (%d dims)", employee, len(face_encoding))
+
+    return _json_response({
+        "success": True,
+        "message": "تم تسجيل بصمة الوجه بنجاح! يمكنك الآن استخدامها للحضور.",
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@require_GET
+def api_get_face_descriptor(request):
+    """
+    GET /hr/api/face/descriptor/
+    يرجع الـ face_encoding المسجل للموظف الحالي (للمطابقة في المتصفح).
+    """
+    from hr.models import Employee
+
+    try:
+        employee = Employee.objects.get(user=request.user, is_active=True)
+    except Employee.DoesNotExist:
+        return _json_response({"error": "ليس لديك ملف موظف مفعّل."}, 403)
+
+    if not employee.face_encoding:
+        return _json_response({"error": "لم يتم تسجيل بصمة الوجه بعد.", "registered": False}, 404)
+
+    return _json_response({
+        "registered": True,
+        "face_encoding": employee.face_encoding,
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@require_GET
+def api_attendance_settings(request):
+    """
+    GET /hr/api/attendance/settings/
+    يرجع إعدادات الحضور — يستخدمها الـ frontend.
+    """
+    from hr.models import HRSettings
+
+    hr_settings = HRSettings.get_settings()
+
+    return _json_response({
+        "require_face": hr_settings.require_face_verification,
+        "require_location": hr_settings.require_location,
+        "face_threshold": float(hr_settings.face_match_threshold),
+        "geofence": {
+            "latitude": float(hr_settings.geofence_latitude),
+            "longitude": float(hr_settings.geofence_longitude),
+            "radius_meters": hr_settings.geofence_radius_meters,
+        },
+        "grace_minutes": hr_settings.grace_minutes,
+    })
+
+
+# =====================================================================
 # 2. Advance Self-Service APIs
 # =====================================================================
 

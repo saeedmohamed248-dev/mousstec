@@ -30,6 +30,10 @@ class HRSettingsAdmin(admin.ModelAdmin):
         (_('النطاق الجغرافي (Geofencing)'), {
             'fields': ('geofence_latitude', 'geofence_longitude', 'geofence_radius_meters'),
         }),
+        (_('متطلبات التحقق عند البصمة'), {
+            'fields': ('require_face_verification', 'require_location', 'face_match_threshold'),
+            'description': 'تحكم في إلزام الموظف ببصمة الوجه و/أو الموقع الجغرافي عند تسجيل الحضور.',
+        }),
         (_('سياسات الحضور والخصم'), {
             'fields': (
                 'grace_minutes', 'late_deduction_per_minute',

@@ -8,10 +8,16 @@ from hr import views
 app_name = 'hr'
 
 urlpatterns = [
-    # --- Attendance ---
+    # --- Attendance Page + APIs ---
+    path('attendance/', views.attendance_page, name='attendance_page'),
     path('api/clock-in/', views.api_clock_in, name='api_clock_in'),
     path('api/clock-out/', views.api_clock_out, name='api_clock_out'),
     path('api/my-attendance/', views.api_my_attendance, name='api_my_attendance'),
+    path('api/attendance/settings/', views.api_attendance_settings, name='api_attendance_settings'),
+
+    # --- Face Registration ---
+    path('api/face/register/', views.api_register_face, name='api_register_face'),
+    path('api/face/descriptor/', views.api_get_face_descriptor, name='api_get_face_descriptor'),
 
     # --- Advances ---
     path('api/advance/request/', views.api_request_advance, name='api_request_advance'),

@@ -83,6 +83,23 @@ class HRSettings(models.Model):
         help_text=_("عدد أيام العمل في الشهر — يُستخدم لحساب أجر اليوم"),
     )
 
+    # --- متطلبات التحقق عند البصمة ---
+    require_face_verification = models.BooleanField(
+        default=False,
+        verbose_name=_("إلزام بصمة الوجه"),
+        help_text=_("إذا مُفعّل: لن يتمكن الموظف من تسجيل الحضور بدون التحقق من وجهه بالكاميرا"),
+    )
+    require_location = models.BooleanField(
+        default=False,
+        verbose_name=_("إلزام تحديد الموقع (GPS)"),
+        help_text=_("إذا مُفعّل: لن يتمكن الموظف من تسجيل الحضور بدون تفعيل الموقع الجغرافي"),
+    )
+    face_match_threshold = models.DecimalField(
+        max_digits=4, decimal_places=2, default=Decimal('0.45'),
+        verbose_name=_("حد مطابقة الوجه"),
+        help_text=_("المسافة الأقصى للمطابقة (أقل = أدق). الافتراضي 0.45 — قيم بين 0.3 و 0.6"),
+    )
+
     # --- سياسات السلف ---
     max_advance_percentage = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('50.00'),
