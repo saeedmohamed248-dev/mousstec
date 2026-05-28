@@ -1,5 +1,5 @@
 """
-URLs: HR Module — API routes for mobile/PWA and admin actions.
+URLs: HR Module — API routes for mobile/PWA, admin actions, and designer dashboard.
 """
 
 from django.urls import path
@@ -28,4 +28,11 @@ urlpatterns = [
 
     # --- Payslip ---
     path('api/payslip/', views.api_my_payslip, name='api_my_payslip'),
+
+    # --- Designer Dashboard (HTML) ---
+    path('designer/', views.designer_dashboard, name='designer_dashboard'),
+
+    # --- AI Subscription Admin APIs ---
+    path('api/ai-sub/admin-activate/', views.api_admin_ai_activate, name='api_admin_ai_activate'),
+    path('api/ai-sub/admin-cancel/', views.api_admin_ai_cancel, name='api_admin_ai_cancel'),
 ]

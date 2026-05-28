@@ -1051,6 +1051,46 @@ def super_admin_dashboard(request):
                 f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
                 f'({period_labels.get(billing_period, billing_period)}) — {total} ج.م — '
                 f'ينتهي {target.subscription_end_date}')
+
+        elif action == 'renew_subscription':
+            # تجديد الاشتراك الحالي بنفس الباقة لمدة 30 يوم إضافية
+            if target.subscription_end_date:
+                base_date = max(target.subscription_end_date, timezone.localdate())
+            else:
+                base_date = timezone.localdate()
+            target.subscription_end_date = base_date + timedelta(days=30)
+            target.status = 'active'
+            target.is_active = True
+            target.save(update_fields=['subscription_end_date', 'status', 'is_active'])
+            PlatformEvent.objects.create(
+                event_type='subscription', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"تجديد اشتراك «{target.name}» — {target.get_plan_display()} — حتى {target.subscription_end_date}",
+            )
+            messages.success(request, f'تم تجديد اشتراك «{target.name}» حتى {target.subscription_end_date}')
+
+        elif action == 'delete_tenant':
+            # ⚠️ حذف نهائي للشركة — يحذف الـ schema بالكامل
+            confirm_name = request.POST.get('confirm_name', '').strip()
+            if confirm_name != target.schema_name:
+                messages.error(request, 'فشل الحذف: اسم التأكيد لا يتطابق مع اسم الـ Schema.')
+            else:
+                tenant_name = target.name
+                schema = target.schema_name
+                try:
+                    # حذف الـ Domain أولاً ثم الـ Tenant (يحذف الـ schema تلقائياً)
+                    Domain.objects.filter(tenant=target).delete()
+                    target.delete(force_drop=True)
+                    PlatformEvent.objects.create(
+                        event_type='other', tenant_schema=schema,
+                        tenant_name=tenant_name, user_name=request.user.username,
+                        description=f"🗑️ حذف نهائي لشركة «{tenant_name}» (schema: {schema})",
+                    )
+                    messages.success(request, f'تم حذف شركة «{tenant_name}» نهائياً.')
+                except Exception as e:
+                    logger.error("[SUPER ADMIN] Failed to delete tenant %s: %s", schema, e)
+                    messages.error(request, f'فشل حذف الشركة: {e}')
+
         return redirect('super_admin_dashboard')
 
     # ══════════════════════════════════════════════════════════════
@@ -1204,6 +1244,33 @@ def super_admin_dashboard(request):
         'period_discounts_json': period_discounts_json,
         'period_months_json': period_months_json,
     })
+
+
+# =====================================================================
+# 🚪 الدخول كمالك المنصة على أي شركة (Tenant Impersonation)
+# =====================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def enter_tenant(request, schema_name):
+    """
+    Super Admin → يدخل على أي شركة مباشرة.
+    يفتح لوحة تحكم الشركة في نافذة جديدة عبر subdomain.
+    """
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('Access Denied')
+
+    tenant = get_object_or_404(Client, schema_name=schema_name)
+    domain = Domain.objects.filter(tenant=tenant).first()
+    if not domain:
+        messages.error(request, f'لا يوجد نطاق مسجل لشركة «{tenant.name}».')
+        return redirect('super_admin_dashboard')
+
+    protocol = 'https' if request.is_secure() else 'http'
+    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+    target_url = f'{protocol}://{domain.domain}/{admin_url}/'
+
+    return redirect(target_url)
 
 
 # =====================================================================

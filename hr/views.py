@@ -1,6 +1,6 @@
 """
 Views: HR Module — API endpoints for mobile/PWA attendance and self-service.
-All views are JSON-based and protected by @login_required.
+JSON APIs + Designer Dashboard (HTML).
 """
 
 import json
@@ -10,6 +10,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages as django_messages
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
@@ -510,3 +512,219 @@ def api_my_payslip(request):
         "net_salary": str(entry.net_salary),
         "status": entry.payroll_run.get_status_display(),
     })
+
+
+# =====================================================================
+# 6. Designer Dashboard — لوحة تحكم المصمم (HTML)
+# =====================================================================
+
+@login_required
+def designer_dashboard(request):
+    """
+    لوحة تحكم المصمم — تعرض:
+    - اشتراك AI الحالي (حالة، أيام متبقية، استهلاك)
+    - تجديد/تفعيل اشتراك AI
+    - آخر التصاميم المرفوعة
+    - إحصائيات الأداء
+    """
+    from hr.models import Employee, DesignSubmission, AIDesignSubscription
+    from hr.services.ai_subscription_service import AISubscriptionService
+
+    try:
+        employee = Employee.objects.get(user=request.user, is_active=True)
+    except Employee.DoesNotExist:
+        django_messages.error(request, "ليس لديك ملف موظف مفعّل.")
+        return redirect('/')
+
+    # ── معالجة POST: تجديد/تفعيل اشتراك AI ──
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'activate_ai':
+            plan = request.POST.get('plan', 'basic')
+            payment_method = request.POST.get('payment_method', 'visa')
+            card_last_four = request.POST.get('card_last_four', '')
+
+            try:
+                if payment_method == 'visa':
+                    card_token = request.POST.get('card_token', 'simulated')
+                    sub = AISubscriptionService.process_visa_payment(
+                        designer=employee,
+                        plan=plan,
+                        card_token=card_token,
+                        card_last_four=card_last_four,
+                    )
+                    plan_label = sub.get_plan_display()
+                    django_messages.success(
+                        request,
+                        f"تم تفعيل اشتراك AI «{plan_label}» بنجاح عبر الفيزا! "
+                        f"ينتهي في {sub.end_date}."
+                    )
+                else:
+                    # wallet أو أي طريقة أخرى
+                    sub = AISubscriptionService.activate_subscription(
+                        designer=employee,
+                        plan=plan,
+                        payment_method=payment_method,
+                        duration_days=30,
+                    )
+                    django_messages.success(request, f"تم تفعيل اشتراك AI بنجاح! ينتهي في {sub.end_date}.")
+            except Exception as e:
+                django_messages.error(request, f"فشل التفعيل: {e}")
+
+            return redirect('hr:designer_dashboard')
+
+        elif action == 'cancel_ai':
+            sub_id = request.POST.get('subscription_id')
+            if sub_id:
+                try:
+                    AISubscriptionService.cancel_subscription(
+                        subscription_id=int(sub_id),
+                        cancelled_by_user=request.user,
+                        reason="إلغاء ذاتي من المصمم",
+                    )
+                    django_messages.success(request, "تم إلغاء اشتراك AI.")
+                except Exception as e:
+                    django_messages.error(request, f"فشل الإلغاء: {e}")
+            return redirect('hr:designer_dashboard')
+
+    # ── جمع البيانات ──
+    ai_sub = AISubscriptionService.get_designer_subscription(employee)
+
+    recent_designs = DesignSubmission.objects.filter(
+        designer=employee,
+    ).order_by('-created_at')[:10]
+
+    # إحصائيات
+    all_designs = DesignSubmission.objects.filter(designer=employee)
+    stats = {
+        'total': all_designs.count(),
+        'approved': all_designs.filter(status='approved').count(),
+        'pending': all_designs.filter(status='pending').count(),
+        'rejected': all_designs.filter(status='rejected').count(),
+        'ai_generated': all_designs.filter(execution_type__in=['ai_generated', 'ai_assisted']).count(),
+    }
+
+    # أسعار الباقات للعرض
+    plan_prices = AIDesignSubscription.PLAN_PRICES
+    plan_limits = AIDesignSubscription.PLAN_LIMITS
+
+    return render(request, 'hr/designer_dashboard.html', {
+        'employee': employee,
+        'ai_sub': ai_sub,
+        'recent_designs': recent_designs,
+        'stats': stats,
+        'plan_prices': plan_prices,
+        'plan_limits': plan_limits,
+    })
+
+
+# =====================================================================
+# 7. Admin AI Subscription Management APIs
+# =====================================================================
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_admin_ai_activate(request):
+    """
+    POST /hr/api/ai-sub/admin-activate/
+    Body: { "employee_id": 5, "plan": "pro", "duration_days": 30, "notes": "..." }
+    Admin/HR Manager only.
+    """
+    from hr.models import Employee
+    from hr.services.ai_subscription_service import AISubscriptionService
+
+    # فحص الصلاحية: أدمن أو HR Manager
+    if not request.user.is_staff:
+        try:
+            requester = Employee.objects.get(user=request.user, is_active=True)
+            if not requester.is_hr_manager:
+                return _json_response({"error": "ليس لديك صلاحية."}, 403)
+        except Employee.DoesNotExist:
+            return _json_response({"error": "ليس لديك صلاحية."}, 403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return _json_response({"error": "بيانات غير صالحة."}, 400)
+
+    employee_id = data.get('employee_id')
+    plan = data.get('plan', 'basic')
+    duration_days = int(data.get('duration_days', 30))
+    notes = data.get('notes', '')
+
+    if not employee_id:
+        return _json_response({"error": "employee_id مطلوب."}, 400)
+
+    try:
+        designer = Employee.objects.get(pk=employee_id, is_active=True)
+    except Employee.DoesNotExist:
+        return _json_response({"error": "الموظف غير موجود."}, 404)
+
+    try:
+        sub = AISubscriptionService.admin_activate(
+            designer=designer,
+            plan=plan,
+            admin_user=request.user,
+            duration_days=duration_days,
+            notes=notes,
+        )
+        return _json_response({
+            "success": True,
+            "message": f"تم تفعيل اشتراك AI لـ {designer} — {sub.get_plan_display()}",
+            "data": {
+                "subscription_id": sub.pk,
+                "plan": sub.plan,
+                "start_date": str(sub.start_date),
+                "end_date": str(sub.end_date),
+                "status": sub.get_status_display(),
+            },
+        })
+    except Exception as e:
+        return _json_response({"error": str(e)}, 400)
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def api_admin_ai_cancel(request):
+    """
+    POST /hr/api/ai-sub/admin-cancel/
+    Body: { "subscription_id": 12, "reason": "..." }
+    Admin/HR Manager only.
+    """
+    from hr.models import Employee
+    from hr.services.ai_subscription_service import AISubscriptionService
+
+    if not request.user.is_staff:
+        try:
+            requester = Employee.objects.get(user=request.user, is_active=True)
+            if not requester.is_hr_manager:
+                return _json_response({"error": "ليس لديك صلاحية."}, 403)
+        except Employee.DoesNotExist:
+            return _json_response({"error": "ليس لديك صلاحية."}, 403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return _json_response({"error": "بيانات غير صالحة."}, 400)
+
+    sub_id = data.get('subscription_id')
+    reason = data.get('reason', '')
+
+    if not sub_id:
+        return _json_response({"error": "subscription_id مطلوب."}, 400)
+
+    try:
+        sub = AISubscriptionService.admin_cancel(
+            subscription_id=int(sub_id),
+            admin_user=request.user,
+            reason=reason,
+        )
+        return _json_response({
+            "success": True,
+            "message": f"تم إلغاء اشتراك AI لـ {sub.designer}",
+        })
+    except Exception as e:
+        return _json_response({"error": str(e)}, 400)

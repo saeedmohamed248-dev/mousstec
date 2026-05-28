@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة المصمم | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .plan-card { transition: all .2s; }
+        .plan-card.selected { border-color: rgba(99,102,241,.6); background: rgba(99,102,241,.08); }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .live-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+        .progress-fill { transition: width .6s ease; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+<!-- Navbar -->
+<nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-pink-600 to-indigo-600 p-2 rounded-xl">
+                <i class="fas fa-palette text-white"></i>
+            </div>
+            <span class="font-black bg-gradient-to-r from-pink-400 to-indigo-400 bg-clip-text text-transparent text-lg">MOUSS TEC</span>
+            <span class="text-xs bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded-md font-bold">DESIGNER</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-400"><i class="fas fa-user-circle ml-1"></i>{{ employee.user.get_full_name|default:employee.user.username }}</span>
+            <a href="/secure-portal/" class="text-xs font-bold text-slate-400 hover:text-indigo-400 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                <i class="fas fa-lock ml-1"></i>لوحة التحكم
+            </a>
+        </div>
+    </div>
+</nav>
+
+<main class="container mx-auto px-4 py-6 space-y-6 max-w-6xl">
+
+    <!-- ✅ رسائل النجاح/الخطأ -->
+    {% if messages %}
+    <div class="space-y-2">
+        {% for msg in messages %}
+        <div class="rounded-2xl px-5 py-3 text-sm font-bold border
+            {% if msg.tags == 'success' %}bg-emerald-500/10 border-emerald-500/20 text-emerald-400
+            {% elif msg.tags == 'error' %}bg-red-500/10 border-red-500/20 text-red-400
+            {% else %}bg-indigo-500/10 border-indigo-500/20 text-indigo-400{% endif %}">
+            {{ msg }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-indigo-500/20 flex items-center justify-center text-2xl border border-pink-500/30">
+            🎨
+        </div>
+        <div>
+            <h1 class="text-2xl font-black text-white">لوحة المصمم</h1>
+            <p class="text-slate-400 text-sm">{{ employee.get_department_display }} · {{ employee.job_title|default:"مصمم" }}</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ AI Subscription Status ═══════════════════ -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-robot text-indigo-400 text-lg"></i>
+                <span class="font-black text-white text-lg">اشتراك الذكاء الاصطناعي</span>
+            </div>
+            {% if ai_sub and ai_sub.status == 'active' %}
+            <span class="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>نشط
+            </span>
+            {% elif ai_sub and ai_sub.status == 'expired' %}
+            <span class="text-xs text-red-400 font-bold bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg">
+                <i class="fas fa-clock ml-1"></i>منتهي
+            </span>
+            {% else %}
+            <span class="text-xs text-slate-500 font-bold bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg">
+                غير مفعّل
+            </span>
+            {% endif %}
+        </div>
+
+        {% if ai_sub and ai_sub.status == 'active' %}
+        <!-- Active Subscription Details -->
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
+                    <p class="text-xl font-black text-indigo-400">{{ ai_sub.get_plan_display|truncatechars:15 }}</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1">الباقة</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
+                    <p class="text-xl font-black {% if ai_sub.days_remaining <= 5 %}text-red-400{% else %}text-emerald-400{% endif %}">{{ ai_sub.days_remaining }}</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1">يوم متبقي</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
+                    <p class="text-xl font-black text-cyan-400">{{ ai_sub.ai_generations_used }}</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1">تصميم AI مستخدم</p>
+                </div>
+                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
+                    <p class="text-xl font-black text-amber-400">{% if ai_sub.ai_generations_limit == 0 %}∞{% else %}{{ ai_sub.ai_generations_limit }}{% endif %}</p>
+                    <p class="text-[10px] text-slate-500 font-bold mt-1">الحد الأقصى</p>
+                </div>
+            </div>
+
+            {% if ai_sub.ai_generations_limit > 0 %}
+            <!-- Usage Progress Bar -->
+            <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="text-slate-400">الاستخدام</span>
+                    <span class="font-bold {% if ai_sub.usage_percentage >= 80 %}text-red-400{% else %}text-indigo-400{% endif %}">{{ ai_sub.usage_percentage }}%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2.5">
+                    <div class="h-2.5 rounded-full progress-fill
+                        {% if ai_sub.usage_percentage >= 80 %}bg-gradient-to-r from-red-500 to-orange-500
+                        {% elif ai_sub.usage_percentage >= 50 %}bg-gradient-to-r from-amber-500 to-yellow-500
+                        {% else %}bg-gradient-to-r from-indigo-500 to-purple-500{% endif %}"
+                        style="width: {{ ai_sub.usage_percentage }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="flex items-center justify-between text-xs text-slate-500">
+                <span>ينتهي في: <strong class="text-slate-300">{{ ai_sub.end_date }}</strong></span>
+                <span>طريقة الدفع: <strong class="text-slate-300">{{ ai_sub.get_payment_method_display }}</strong>
+                    {% if ai_sub.card_last_four %} (****{{ ai_sub.card_last_four }}){% endif %}
+                </span>
+            </div>
+
+            <!-- Cancel Button -->
+            <div class="flex gap-2">
+                <button type="button" onclick="document.getElementById('renew-section').classList.toggle('hidden')"
+                    class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm hover:from-indigo-500 hover:to-purple-500 transition">
+                    <i class="fas fa-sync-alt ml-1"></i>تجديد / ترقية
+                </button>
+                <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel_ai">
+                    <input type="hidden" name="subscription_id" value="{{ ai_sub.pk }}">
+                    <button type="submit" onclick="return confirm('هل أنت متأكد من إلغاء اشتراك AI؟')"
+                        class="py-2.5 px-4 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-sm hover:bg-red-500/20 transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <!-- No active subscription -->
+        <div class="p-6 text-center">
+            <div class="text-5xl mb-4">🤖</div>
+            <h3 class="text-lg font-black text-white mb-2">فعّل اشتراك AI وابدأ التصميم بالذكاء الاصطناعي!</h3>
+            <p class="text-sm text-slate-400 mb-4">اختر باقتك وادفع بالفيزا — يتم التفعيل فوراً وتلقائياً.</p>
+        </div>
+        {% endif %}
+
+        <!-- Subscription Activation / Renewal Form -->
+        <div id="renew-section" class="{% if ai_sub and ai_sub.status == 'active' %}hidden{% endif %} border-t border-slate-800 p-6 space-y-5">
+            <h3 class="font-black text-white"><i class="fas fa-bolt text-amber-400 ml-2"></i>اختر باقة AI</h3>
+
+            <form method="post" id="ai-sub-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="activate_ai">
+                <input type="hidden" name="plan" id="ai-plan-input" value="basic">
+                <input type="hidden" name="payment_method" id="ai-payment-input" value="visa">
+                <input type="hidden" name="card_token" value="simulated">
+
+                <!-- Plan Selection -->
+                <div class="grid sm:grid-cols-3 gap-3 mb-5">
+                    <div class="plan-card selected cursor-pointer bg-slate-800/60 border-2 border-indigo-500/40 rounded-2xl p-4 text-center" data-plan="basic" data-price="99">
+                        <div class="text-3xl mb-2">⚡</div>
+                        <h4 class="font-black text-white">أساسي</h4>
+                        <p class="text-2xl font-black text-indigo-400 mt-1">99 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
+                        <p class="text-xs text-slate-500 mt-2">50 تصميم AI شهرياً</p>
+                    </div>
+                    <div class="plan-card cursor-pointer bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-4 text-center" data-plan="pro" data-price="249">
+                        <div class="text-3xl mb-2">🚀</div>
+                        <h4 class="font-black text-white">احترافي</h4>
+                        <p class="text-2xl font-black text-purple-400 mt-1">249 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
+                        <p class="text-xs text-slate-500 mt-2">200 تصميم AI شهرياً</p>
+                        <span class="inline-block mt-2 text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-lg">الأكثر شيوعاً</span>
+                    </div>
+                    <div class="plan-card cursor-pointer bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-4 text-center" data-plan="unlimited" data-price="499">
+                        <div class="text-3xl mb-2">♾️</div>
+                        <h4 class="font-black text-white">غير محدود</h4>
+                        <p class="text-2xl font-black text-amber-400 mt-1">499 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
+                        <p class="text-xs text-slate-500 mt-2">تصاميم لا نهائية</p>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="mb-5">
+                    <label class="text-xs font-bold text-slate-400 block mb-2">طريقة الدفع</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payment_radio" value="visa" checked class="hidden peer">
+                            <div class="peer-checked:border-indigo-500/60 peer-checked:bg-indigo-500/10 bg-slate-800/60 border-2 border-slate-700 rounded-xl p-3 text-center transition">
+                                <i class="fab fa-cc-visa text-2xl text-blue-400 mb-1"></i>
+                                <p class="text-xs font-bold text-white">فيزا / ماستركارد</p>
+                                <p class="text-[10px] text-slate-500">تفعيل فوري تلقائي</p>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payment_radio" value="wallet" class="hidden peer">
+                            <div class="peer-checked:border-indigo-500/60 peer-checked:bg-indigo-500/10 bg-slate-800/60 border-2 border-slate-700 rounded-xl p-3 text-center transition">
+                                <i class="fas fa-wallet text-2xl text-emerald-400 mb-1"></i>
+                                <p class="text-xs font-bold text-white">رصيد الشركة</p>
+                                <p class="text-[10px] text-slate-500">خصم من المحفظة</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Card Details (Visa only) -->
+                <div id="card-details-section" class="mb-5 bg-slate-800/40 rounded-xl p-4 border border-slate-700 space-y-3">
+                    <p class="text-xs font-bold text-slate-400"><i class="fas fa-lock ml-1 text-emerald-400"></i>بيانات البطاقة (مؤمنة بتشفير SSL)</p>
+                    <input type="text" name="card_last_four" placeholder="آخر 4 أرقام من البطاقة" maxlength="4"
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+                    <p class="text-[10px] text-slate-600">⚠️ في بيئة الإنتاج: يتم ربط بوابة دفع Paymob/Stripe لمعالجة البطاقة بأمان.</p>
+                </div>
+
+                <!-- Summary -->
+                <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-500/20 rounded-xl px-5 py-3 mb-5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-slate-400">الإجمالي</span>
+                        <span class="text-2xl font-black text-indigo-400" id="ai-total-price">99 ج.م</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1" id="ai-plan-detail">باقة أساسي × شهر واحد</p>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm hover:from-indigo-500 hover:to-purple-500 transition shadow-lg shadow-indigo-600/20">
+                    <i class="fas fa-rocket ml-2"></i>فعّل اشتراك AI الآن
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ Design Stats ═══════════════════ -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
+            <p class="text-2xl font-black text-white">{{ stats.total }}</p>
+            <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي التصاميم</p>
+        </div>
+        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
+            <p class="text-2xl font-black text-emerald-400">{{ stats.approved }}</p>
+            <p class="text-[10px] text-slate-500 font-bold mt-1">معتمد</p>
+        </div>
+        <div class="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
+            <p class="text-2xl font-black text-amber-400">{{ stats.pending }}</p>
+            <p class="text-[10px] text-slate-500 font-bold mt-1">قيد المراجعة</p>
+        </div>
+        <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
+            <p class="text-2xl font-black text-red-400">{{ stats.rejected }}</p>
+            <p class="text-[10px] text-slate-500 font-bold mt-1">مرفوض</p>
+        </div>
+        <div class="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
+            <p class="text-2xl font-black text-indigo-400">{{ stats.ai_generated }}</p>
+            <p class="text-[10px] text-slate-500 font-bold mt-1">🤖 AI</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ Recent Designs ═══════════════════ -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+            <i class="fas fa-images text-pink-400"></i>
+            <span class="font-bold text-sm text-white">آخر التصاميم</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-800 bg-slate-800/30">
+                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">#</th>
+                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">العنوان</th>
+                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">النوع</th>
+                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">الحالة</th>
+                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    {% for d in recent_designs %}
+                    <tr class="hover:bg-slate-800/20 transition">
+                        <td class="px-4 py-3 text-xs text-slate-600">{{ forloop.counter }}</td>
+                        <td class="px-4 py-3 font-bold text-white">{{ d.title|truncatechars:40 }}</td>
+                        <td class="px-4 py-3">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-lg
+                                {% if d.execution_type == 'ai_generated' %}bg-indigo-500/15 text-indigo-400 border border-indigo-500/20
+                                {% elif d.execution_type == 'ai_assisted' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
+                                {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
+                                {{ d.get_execution_type_display|truncatechars:20 }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-lg
+                                {% if d.status == 'approved' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/20
+                                {% elif d.status == 'pending' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
+                                {% elif d.status == 'rejected' %}bg-red-500/15 text-red-400 border border-red-500/20
+                                {% else %}bg-blue-500/15 text-blue-400 border border-blue-500/20{% endif %}">
+                                {{ d.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-500">{{ d.created_at|timesince }} مضت</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-10 text-slate-600 font-bold">
+                            <i class="fas fa-palette text-2xl block mb-2 text-slate-700"></i>
+                            لم ترفع أي تصاميم بعد. ابدأ من واجهة رفع التصاميم!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<footer class="text-center py-4 text-slate-700 text-xs mt-4">
+    © 2026 Mouss Tec — Designer Studio
+</footer>
+
+<script>
+// ── Plan Selection ──
+const PLAN_LABELS = {basic: 'أساسي', pro: 'احترافي', unlimited: 'غير محدود'};
+document.querySelectorAll('.plan-card').forEach(card => {
+    card.addEventListener('click', function() {
+        document.querySelectorAll('.plan-card').forEach(c => {
+            c.classList.remove('selected');
+            c.style.borderColor = '';
+        });
+        this.classList.add('selected');
+        const plan = this.dataset.plan;
+        const price = this.dataset.price;
+        document.getElementById('ai-plan-input').value = plan;
+        document.getElementById('ai-total-price').textContent = price + ' ج.م';
+        document.getElementById('ai-plan-detail').textContent = 'باقة ' + PLAN_LABELS[plan] + ' × شهر واحد';
+    });
+});
+
+// ── Payment Method Toggle ──
+document.querySelectorAll('input[name="payment_radio"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.getElementById('ai-payment-input').value = this.value;
+        const cardSection = document.getElementById('card-details-section');
+        cardSection.style.display = this.value === 'visa' ? 'block' : 'none';
+    });
+});
+</script>
+</body>
+</html>

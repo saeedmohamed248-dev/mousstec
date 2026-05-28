@@ -852,3 +852,149 @@ class DesignSubmission(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.designer} ({self.get_status_display()})"
+
+
+# =====================================================================
+# 9. اشتراكات الذكاء الاصطناعي للمصممين (AI Design Subscriptions)
+# =====================================================================
+
+class AIDesignSubscription(models.Model):
+    """
+    اشتراك مصمم في خدمة الذكاء الاصطناعي للتصميم.
+    - يتحكم في إمكانية استخدام AI في إنشاء/تعديل التصاميم
+    - يمكن تفعيله بالدفع الإلكتروني (فيزا) أو يدوياً من الأدمن
+    - عند انتهاء الاشتراك يتوقف AI تلقائياً
+    """
+    PLAN_CHOICES = (
+        ('basic', _('أساسي — 50 تصميم AI شهرياً')),
+        ('pro', _('احترافي — 200 تصميم AI شهرياً')),
+        ('unlimited', _('غير محدود — تصاميم لا نهائية')),
+    )
+    STATUS_CHOICES = (
+        ('active', _('نشط')),
+        ('expired', _('منتهي')),
+        ('cancelled', _('ملغي')),
+        ('pending_payment', _('في انتظار الدفع')),
+    )
+    PAYMENT_METHOD_CHOICES = (
+        ('visa', _('فيزا / بطاقة ائتمان')),
+        ('admin_manual', _('تفعيل يدوي من الأدمن')),
+        ('wallet', _('خصم من رصيد الشركة')),
+    )
+
+    # --- المصمم ---
+    designer = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name='ai_subscriptions',
+        verbose_name=_("المصمم"),
+    )
+
+    # --- تفاصيل الاشتراك ---
+    plan = models.CharField(
+        max_length=15, choices=PLAN_CHOICES, default='basic',
+        verbose_name=_("الباقة"),
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='pending_payment',
+        verbose_name=_("الحالة"),
+    )
+    start_date = models.DateField(
+        null=True, blank=True, verbose_name=_("تاريخ البدء"),
+    )
+    end_date = models.DateField(
+        null=True, blank=True, verbose_name=_("تاريخ الانتهاء"),
+    )
+    auto_renew = models.BooleanField(
+        default=False, verbose_name=_("تجديد تلقائي"),
+        help_text=_("عند التفعيل: يتجدد الاشتراك تلقائياً عند انتهائه (يتطلب بطاقة محفوظة)"),
+    )
+
+    # --- الدفع ---
+    payment_method = models.CharField(
+        max_length=15, choices=PAYMENT_METHOD_CHOICES, default='visa',
+        verbose_name=_("طريقة الدفع"),
+    )
+    price_paid = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name=_("المبلغ المدفوع"),
+    )
+    payment_reference = models.CharField(
+        max_length=200, blank=True,
+        verbose_name=_("مرجع الدفع"),
+        help_text=_("رقم العملية من بوابة الدفع أو ملاحظة التفعيل اليدوي"),
+    )
+    card_last_four = models.CharField(
+        max_length=4, blank=True,
+        verbose_name=_("آخر 4 أرقام من البطاقة"),
+    )
+
+    # --- الاستخدام ---
+    ai_generations_used = models.PositiveIntegerField(
+        default=0, verbose_name=_("عدد التصاميم المُنشأة بالـ AI"),
+    )
+    ai_generations_limit = models.PositiveIntegerField(
+        default=50, verbose_name=_("الحد الأقصى للتصاميم"),
+        help_text=_("0 يعني غير محدود"),
+    )
+
+    # --- الأدمن ---
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ai_subs_activated', verbose_name=_("فعّله"),
+    )
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ai_subs_cancelled', verbose_name=_("ألغاه"),
+    )
+    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الأدمن"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("اشتراك AI تصميم")
+        verbose_name_plural = _("اشتراكات AI التصميم")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.designer} — {self.get_plan_display()} ({self.get_status_display()})"
+
+    @property
+    def is_active_and_valid(self):
+        """هل الاشتراك نشط ولم ينتهِ؟"""
+        if self.status != 'active':
+            return False
+        today = timezone.now().date()
+        if self.end_date and today > self.end_date:
+            return False
+        # فحص حد الاستخدام
+        if self.ai_generations_limit > 0 and self.ai_generations_used >= self.ai_generations_limit:
+            return False
+        return True
+
+    @property
+    def days_remaining(self):
+        """الأيام المتبقية."""
+        if not self.end_date:
+            return 0
+        remaining = (self.end_date - timezone.now().date()).days
+        return max(0, remaining)
+
+    @property
+    def usage_percentage(self):
+        """نسبة الاستخدام."""
+        if self.ai_generations_limit == 0:
+            return 0  # unlimited
+        if self.ai_generations_limit > 0:
+            return min(100, int(self.ai_generations_used / self.ai_generations_limit * 100))
+        return 0
+
+    PLAN_PRICES = {
+        'basic': Decimal('99.00'),
+        'pro': Decimal('249.00'),
+        'unlimited': Decimal('499.00'),
+    }
+    PLAN_LIMITS = {
+        'basic': 50,
+        'pro': 200,
+        'unlimited': 0,  # 0 = unlimited
+    }

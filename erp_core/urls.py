@@ -247,6 +247,7 @@ urlpatterns = [
 
     # 👑 لوحة المشرف الأعلى — إدارة كل الشركات
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
+    path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
 
     # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin Dashboard)
     path(f'{ADMIN_URL}/', admin.site.urls),
