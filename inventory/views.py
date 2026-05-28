@@ -51,6 +51,10 @@ logger = logging.getLogger('mouss_tec_core')
 
 def _json_response_safe(data, status=200):
     """مُغلّف آمن يمنع تسريب stack traces في الـ Production"""
+    # 🛡️ في بيئة الإنتاج: إخفاء تفاصيل الأخطاء الداخلية لمنع Information Disclosure
+    if status >= 500 and not settings.DEBUG:
+        if 'error' in data:
+            data = {"error": "حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني."}
     return JsonResponse(data, status=status, json_dumps_params={"ensure_ascii": False})
 
 

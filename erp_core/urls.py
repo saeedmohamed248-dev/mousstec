@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
@@ -255,7 +256,8 @@ urlpatterns = [
     re_path(r'^(wp-admin|wp-login\.php|administrator|phpmyadmin|\.env|\.git|laravel|swagger-ui)/?$', admin_honeypot),
 
     # 3. 🩺 رادار فحص حالة الخادم وسلامة الاتصال السحابي (Datadog/AWS Ready)
-    path('system/health/', system_health_check, name='system_health'),
+    # 🛡️ محمي بـ staff_member_required — منع كشف معلومات البنية التحتية للعامة
+    path('system/health/', staff_member_required(system_health_check), name='system_health'),
 
     # 🌐 Service Worker & PWA (Offline-First)
     # SW must be served from root (/) with correct scope header

@@ -301,7 +301,8 @@ def account_recovery(request):
                 'tenant_name': tenant.name,
                 'tenant_schema': tenant.schema_name,
                 'masked_email': masked_email if email_sent else '',
-                'otp_hint': otp_code if not email_sent else '',  # إظهار الكود إذا لم يتم إرساله بالإيميل
+                # 🛡️ إظهار الكود فقط في بيئة التطوير عند عدم وجود SMTP — ممنوع في الإنتاج
+                'otp_hint': otp_code if (not email_sent and settings.DEBUG) else '',
             }
             return render(request, 'clients/account_recovery.html', context)
 
@@ -366,14 +367,26 @@ def account_recovery(request):
                 context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
                 return render(request, 'clients/account_recovery.html', context)
 
-            if not new_password or len(new_password) < 6:
+            if not new_password or len(new_password) < 8:
                 tenant = Client.objects.filter(schema_name=schema_name).first()
                 context = {
                     'step': 'reset',
                     'tenant_name': tenant.name if tenant else '',
                     'tenant_schema': schema_name,
                     'reset_token': reset_token,
-                    'error': 'كلمة السر يجب أن تكون 6 أحرف على الأقل.',
+                    'error': 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
+            # 🛡️ رفض كلمات السر الرقمية فقط (مطابقة لسياسة التسجيل في forms.py)
+            if new_password.isdigit():
+                tenant = Client.objects.filter(schema_name=schema_name).first()
+                context = {
+                    'step': 'reset',
+                    'tenant_name': tenant.name if tenant else '',
+                    'tenant_schema': schema_name,
+                    'reset_token': reset_token,
+                    'error': 'كلمة المرور ضعيفة جداً. يرجى دمج حروف وأرقام.',
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
