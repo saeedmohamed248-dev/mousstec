@@ -150,16 +150,49 @@ def ai_generate_design(request):
         image_url = getattr(first, 'url', None)
         revised_prompt = getattr(first, 'revised_prompt', prompt)
 
-        # gpt-image-1 returns b64_json — convert to data URL for inline display
+        # gpt-image-1 returns b64_json — save to disk and return a normal URL
+        # This avoids HTTP 413 (Payload Too Large) when the frontend re-posts
+        # the data URL to other endpoints (WhatsApp share, etc.)
         if not image_url:
             b64 = getattr(first, 'b64_json', None)
             if b64:
-                image_url = f"data:image/png;base64,{b64}"
+                import base64, uuid as _uuid, os as _os
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+
+                img_bytes = base64.b64decode(b64)
+                filename = f"ai_studio/{tenant.schema_name}/{_uuid.uuid4().hex}.png"
+                saved_path = default_storage.save(filename, ContentFile(img_bytes))
+                image_url = default_storage.url(saved_path)
+
+                # Make absolute URL so wa.me link is shareable
+                if image_url and image_url.startswith('/'):
+                    image_url = request.build_absolute_uri(image_url)
             else:
                 return JsonResponse({
                     'success': False,
                     'error': 'الموديل ولّد الصورة لكن بدون URL. حاول مرة أخرى.'
                 }, status=502)
+        else:
+            # dall-e returned a URL — also save it locally so we don't lose it
+            # when OpenAI's signed URL expires (1 hour TTL)
+            try:
+                import requests as _req
+                import uuid as _uuid
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+
+                img_resp = _req.get(image_url, timeout=30)
+                if img_resp.status_code == 200:
+                    filename = f"ai_studio/{tenant.schema_name}/{_uuid.uuid4().hex}.png"
+                    saved_path = default_storage.save(filename, ContentFile(img_resp.content))
+                    local_url = default_storage.url(saved_path)
+                    if local_url and local_url.startswith('/'):
+                        local_url = request.build_absolute_uri(local_url)
+                    image_url = local_url
+            except Exception as e:
+                logger.warning(f"[AI STUDIO] Failed to persist DALL-E image locally: {e}")
+                # Keep the OpenAI URL — at least it works for the next hour
 
         # Deduct quota
         from clients.models import AILimitTracker

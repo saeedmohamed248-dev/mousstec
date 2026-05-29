@@ -75,7 +75,10 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB الحد الأقصى للمرفقات ورخص السيارات
+# 25 MB — يدعم صور AI Studio الكبيرة من gpt-image-1 (base64 ~10-15 MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400   # 25 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400   # 25 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000     # AI Studio forms have many fields
 
 # =====================================================================
 # 🚀 محرك التطبيقات المعزول (Multi-Tenant Architecture)
