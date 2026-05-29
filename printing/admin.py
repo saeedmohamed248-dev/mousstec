@@ -25,6 +25,22 @@ class PrintSecureAdmin(admin.ModelAdmin):
             return False
         return super().has_view_permission(request, obj)
 
+    # 🛡️ [FIX]: Block add/change/delete from public schema too
+    def has_add_permission(self, request):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 # =====================================================================
 # 🏢 الفروع والعملاء

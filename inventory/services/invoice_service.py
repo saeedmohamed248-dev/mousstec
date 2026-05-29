@@ -97,18 +97,20 @@ class InvoiceService:
                 inv.quantity = F('quantity') + added_qty
                 inv.save()
 
-                # Weighted average cost recalculation
-                total_current_qty = product.total_inventory_qty
+                # 🛡️ [FIX C3]: Weighted avg cost — lock product row to prevent race condition
+                from inventory.models import Product as _Prod
+                locked_product = _Prod.objects.select_for_update().get(pk=product.pk)
+                total_current_qty = locked_product.total_inventory_qty
                 old_value = (
                     Decimal(str(max(total_current_qty - added_qty, 0)))
-                    * Decimal(str(product.average_cost))
+                    * Decimal(str(locked_product.average_cost))
                 )
                 new_value = Decimal(str(added_qty)) * Decimal(str(cost_price))
 
                 if total_current_qty > 0:
-                    product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
-                    product.purchase_price = cost_price
-                    product.save(update_fields=['average_cost', 'purchase_price'])
+                    locked_product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
+                    locked_product.purchase_price = cost_price
+                    locked_product.save(update_fields=['average_cost', 'purchase_price'])
 
             # --- 5. B2B Escrow release ---
             if instance.is_b2b_secured and instance.bidding_ref:

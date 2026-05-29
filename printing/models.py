@@ -304,22 +304,30 @@ class PrintOrder(models.Model):
     def save(self, *args, **kwargs):
         if not self.order_number:
             from django.db.models import Max
+            from django.db import IntegrityError as _IE
             today = timezone.now().strftime('%y%m%d')
             prefix = f'PO-{today}-'
-            # B5: استخدام Max بدل count لمنع Race Condition
-            last_order = (
-                PrintOrder.objects
-                .filter(order_number__startswith=prefix)
-                .aggregate(max_num=Max('order_number'))
-            )['max_num']
-            if last_order:
-                try:
-                    last_seq = int(last_order.split('-')[-1])
-                except (ValueError, IndexError):
+            for _attempt in range(5):
+                last_order = (
+                    PrintOrder.objects
+                    .filter(order_number__startswith=prefix)
+                    .aggregate(max_num=Max('order_number'))
+                )['max_num']
+                if last_order:
+                    try:
+                        last_seq = int(last_order.split('-')[-1])
+                    except (ValueError, IndexError):
+                        last_seq = 0
+                else:
                     last_seq = 0
-            else:
-                last_seq = 0
-            self.order_number = f'{prefix}{last_seq + 1:03d}'
+                self.order_number = f'{prefix}{last_seq + 1:03d}'
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except _IE:
+                    self.order_number = ''
+                    continue
+            # Exhausted retries
         super().save(*args, **kwargs)
 
 
@@ -519,18 +527,23 @@ class PrintTransaction(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
-        super().save(*args, **kwargs)
+        from django.db.models import F as _F
+        from django.db import transaction as _txn
         if is_new:
-            # 🚀 [FIX BY QA]: استخدام F() و select_for_update() لمنع Race Condition
-            from django.db.models import F as _F
-            from django.db import transaction as _txn
+            # 🛡️ [FIX]: super().save() + balance update in SINGLE atomic block
             with _txn.atomic():
+                super().save(*args, **kwargs)
                 treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
                 if self.transaction_type == 'in':
                     treasury.balance = _F('balance') + self.amount
                 else:
+                    # 🛡️ Negative balance check
+                    if treasury.balance < self.amount:
+                        raise ValueError("رصيد الخزنة لا يكفي لإتمام العملية.")
                     treasury.balance = _F('balance') - self.amount
                 treasury.save(update_fields=['balance'])
+        else:
+            super().save(*args, **kwargs)
 
 
 # =====================================================================

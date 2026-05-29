@@ -53,11 +53,13 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
         # -------------------------------------------------------------
         try:
             with transaction.atomic():
+                from decimal import Decimal as _D
                 EscrowLedger.objects.get_or_create(
                     client=instance,
                     transaction_type='deposit',
-                    amount=0.00,
-                    defaults={'description': "التأسيس الآلي: فتح محفظة Mouss Tec للضمان المالي (Genesis Block)"}
+                    amount=_D('0.00'),
+                    description="التأسيس الآلي: فتح محفظة Mouss Tec للضمان المالي (Genesis Block)",
+                    defaults={}
                 )
                 logger.info(f"💳 [ORCHESTRATOR]: Genesis Escrow Ledger initialized for '{instance.name}'")
         except Exception as e:

@@ -140,18 +140,22 @@ class TenantSignupForm(forms.Form):
         if '--' in subdomain:
             raise ValidationError("🚫 لا يمكن أن يحتوي الرابط على شرطتين متتاليتين.")
         
-        # حماية كلمات النظام السيادية
+        # حماية كلمات النظام السيادية + PostgreSQL reserved schemas
         protected_terms = [
-            'public', 'admin', 'www', 'api', 'secure', 'system', 'localhost', 
-            'mousstec', 'support', 'billing', 'mail', 'ftp', 'test', 'demo', 'fixit'
+            'public', 'admin', 'www', 'api', 'secure', 'system', 'localhost',
+            'mousstec', 'support', 'billing', 'mail', 'ftp', 'test', 'demo', 'fixit',
         ]
-        if subdomain in protected_terms:
-            raise ValidationError("🚫 هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر.")
-            
+        # 🛡️ [FIX]: Also check PostgreSQL reserved schema names after hyphen→underscore conversion
+        pg_reserved_schemas = [
+            'pg_catalog', 'pg_toast', 'pg_temp', 'information_schema',
+        ]
+        safe_schema_name = subdomain.replace('-', '_')
+        if subdomain in protected_terms or safe_schema_name in pg_reserved_schemas:
+            raise ValidationError("هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر.")
+
         # فحص قاعدة البيانات لمنع التكرار (Zero-Collision)
         from clients.models import Client
-        safe_schema_name = subdomain.replace('-', '_')
         if Client.objects.filter(schema_name=safe_schema_name).exists():
-            raise ValidationError("🚫 هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد.")
+            raise ValidationError("هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد.")
             
         return subdomain

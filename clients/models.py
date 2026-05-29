@@ -4,7 +4,7 @@ from django_tenants.models import TenantMixin, DomainMixin
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.db.models import F
 from datetime import timedelta
@@ -644,23 +644,26 @@ class AILimitTracker(models.Model):
         """
         خصم رصيد — يخصم من الهدية أولاً، ثم من الباقة المدفوعة.
         🛡️ يستخدم select_for_update + transaction.atomic لمنع race conditions.
+        🛡️ [FIX]: أزلنا can_use() المنفصل وعملنا الفحص والخصم في atomic block واحد.
+        🛡️ [FIX]: أزلنا skip_locked وأصلحنا grant_id indentation.
         """
-        if not cls.can_use(tenant, action_type):
-            return False
+        if metadata is None:
+            metadata = {}
 
-        # Try to consume from a bonus grant first (FIFO — oldest first)
         field_map = {
             'ai_generation': ('granted_designs', 'consumed_designs'),
             'whatsapp_send': ('granted_whatsapp', 'consumed_whatsapp'),
             'smart_watermark': ('granted_watermarks', 'consumed_watermarks'),
         }
         consumed_from_bonus = False
-        if action_type in field_map:
-            granted_f, consumed_f = field_map[action_type]
-            with transaction.atomic():
-                # 🔒 Lock the grants for THIS tenant to prevent concurrent deductions
+
+        with transaction.atomic():
+            # Check-and-deduct atomically (no separate can_use)
+            if action_type in field_map:
+                granted_f, consumed_f = field_map[action_type]
+                # 🔒 Lock grants WITHOUT skip_locked to prevent TOCTOU
                 grants = (tenant.ai_bonus_grants
-                          .select_for_update(skip_locked=True)
+                          .select_for_update()
                           .filter(is_active=True)
                           .order_by('granted_at'))
                 for grant in grants:
@@ -668,19 +671,24 @@ class AILimitTracker(models.Model):
                         continue
                     remaining = getattr(grant, granted_f) - getattr(grant, consumed_f)
                     if remaining > 0:
-                        # 🛡️ Use F() expression for atomic increment
                         from django.db.models import F as _F
                         type(grant).objects.filter(pk=grant.pk).update(**{consumed_f: _F(consumed_f) + 1})
-                        (metadata or {}).setdefault('source', 'bonus_grant')
-                    (metadata or {}).setdefault('grant_id', grant.pk)
-                    consumed_from_bonus = True
-                    break
+                        metadata['source'] = 'bonus_grant'
+                        metadata['grant_id'] = grant.pk
+                        consumed_from_bonus = True
+                        break
 
-        cls.objects.create(
-            tenant=tenant,
-            action_type=action_type,
-            metadata={**(metadata or {}), 'source': 'bonus' if consumed_from_bonus else 'subscription'},
-        )
+            # If not consumed from bonus, verify subscription limit
+            if not consumed_from_bonus:
+                if not cls.can_use(tenant, action_type):
+                    return False
+                metadata['source'] = 'subscription'
+
+            cls.objects.create(
+                tenant=tenant,
+                action_type=action_type,
+                metadata=metadata,
+            )
         return True
 
 
@@ -688,53 +696,65 @@ class AILimitTracker(models.Model):
 # 🧠 الإشارات المحاسبية المؤتمتة (Bank-Grade FinTech Ledger Signals)
 # =====================================================================
 
+@receiver(pre_save, sender=EscrowLedger)
+def validate_escrow_balance_before_save(sender, instance, **kwargs):
+    """
+    🛡️ فحص الرصيد قبل الحفظ — يمنع إنشاء سجل ledger بدون رصيد كافٍ.
+    """
+    if instance.pk:
+        return  # Only validate new entries
+    with transaction.atomic():
+        if instance.transaction_type == 'hold':
+            client = Client.objects.select_for_update().get(pk=instance.client_id)
+            if client.wallet_balance < instance.amount:
+                raise ValidationError("الرصيد المتاح لا يكفي لتجميد ثمن المزاد.")
+        elif instance.transaction_type == 'withdrawal':
+            client = Client.objects.select_for_update().get(pk=instance.client_id)
+            if client.wallet_balance < instance.amount:
+                raise ValidationError("الرصيد المتاح للسحب أقل من المبلغ المطلوب.")
+
+
 @receiver(post_save, sender=EscrowLedger)
 def update_client_balances_on_ledger_entry(sender, instance, created, **kwargs):
     """
-    🚀 ابتكار أمني: استخدام تعبيرات F() الذرية لمنع الـ Race Conditions وتدمير الأرصدة.
+    🚀 تحديث الأرصدة بعد حفظ سجل الـ Ledger — باستخدام F() الذرية.
+    الفحص على الرصيد يتم في pre_save لمنع حفظ سجلات بدون رصيد.
     """
     if created:
         with transaction.atomic():
             client_id = instance.client_id
             amount = instance.amount
-            
+
             if instance.transaction_type == 'deposit':
                 Client.objects.filter(pk=client_id).update(wallet_balance=F('wallet_balance') + amount)
-                logger.info(f"💰 [FINTECH ACC]: Deposited {amount} EGP to client ID {client_id}.")
-                
+                logger.info(f"[FINTECH ACC]: Deposited {amount} EGP to client ID {client_id}.")
+
             elif instance.transaction_type == 'hold':
-                client = Client.objects.select_for_update().get(pk=client_id)
-                if client.wallet_balance < amount:
-                    raise ValidationError("❌ الرصيد المتاح لا يكفي لتجميد ثمن المزاد.")
                 Client.objects.filter(pk=client_id).update(
                     wallet_balance=F('wallet_balance') - amount,
                     escrow_held=F('escrow_held') + amount
                 )
-                logger.info(f"🔒 [FINTECH ACC]: Frozen {amount} EGP into escrow from ID {client_id}.")
-                
+                logger.info(f"[FINTECH ACC]: Frozen {amount} EGP into escrow from ID {client_id}.")
+
             elif instance.transaction_type == 'release':
                 Client.objects.filter(pk=client_id).update(escrow_held=F('escrow_held') - amount)
-                
-                # تحويل الأرباح بشكل ذري 100% للتاجر الفائز
+
                 if instance.bidding_request and instance.bidding_request.winner_id:
                     seller_id = instance.bidding_request.winner_id
                     fee = instance.bidding_request.platform_fee_collected
                     Client.objects.filter(pk=seller_id).update(wallet_balance=F('wallet_balance') + (amount - fee))
-                    logger.info(f"💸 [FINTECH ACC]: Released {amount - fee} EGP to seller ID {seller_id}.")
-                    
+                    logger.info(f"[FINTECH ACC]: Released {amount - fee} EGP to seller ID {seller_id}.")
+
             elif instance.transaction_type == 'refund':
                 Client.objects.filter(pk=client_id).update(
                     escrow_held=F('escrow_held') - amount,
                     wallet_balance=F('wallet_balance') + amount
                 )
-                logger.info(f"🔄 [FINTECH ACC]: Refunded {amount} EGP back to ID {client_id}.")
-                
+                logger.info(f"[FINTECH ACC]: Refunded {amount} EGP back to ID {client_id}.")
+
             elif instance.transaction_type == 'withdrawal':
-                client = Client.objects.select_for_update().get(pk=client_id)
-                if client.wallet_balance < amount:
-                    raise ValidationError("❌ الرصيد المتاح للسحب أقل من المبلغ المطلوب.")
                 Client.objects.filter(pk=client_id).update(wallet_balance=F('wallet_balance') - amount)
-                logger.info(f"📤 [FINTECH ACC]: Withdrawn {amount} EGP for ID {client_id}.")
+                logger.info(f"[FINTECH ACC]: Withdrawn {amount} EGP for ID {client_id}.")
 
 
 # =====================================================================
@@ -864,14 +884,15 @@ class MarketplaceCustomer(models.Model):
         return f"{label} ({self.get_sector_display()})"
 
     def generate_otp(self):
-        import random
-        self.otp_code = str(random.randint(100000, 999999))
+        import secrets
+        self.otp_code = str(secrets.randbelow(900000) + 100000)
         self.otp_expires_at = timezone.now() + timedelta(minutes=10)
         self.save(update_fields=['otp_code', 'otp_expires_at'])
         return self.otp_code
 
     def verify_otp(self, code):
-        if self.otp_code == code and self.otp_expires_at and timezone.now() < self.otp_expires_at:
+        import hmac
+        if self.otp_code and hmac.compare_digest(self.otp_code, str(code)) and self.otp_expires_at and timezone.now() < self.otp_expires_at:
             self.is_verified = True
             self.otp_code = ''
             self.session_token = uuid.uuid4()

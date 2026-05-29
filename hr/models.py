@@ -248,17 +248,35 @@ class Employee(models.Model):
         return f"{self.employee_id} — {name} ({self.get_department_display()})"
 
     def save(self, *args, **kwargs):
-        # Auto-generate employee_id
+        # Auto-generate employee_id with IntegrityError retry (race-condition safe)
         if not self.employee_id:
+            from django.db import IntegrityError as _IE
             prefix = self.department[:3].upper() if self.department else 'EMP'
-            last = Employee.objects.filter(
-                employee_id__startswith=prefix
-            ).order_by('-employee_id').first()
-            if last and last.employee_id[len(prefix):].isdigit():
-                num = int(last.employee_id[len(prefix):]) + 1
-            else:
-                num = 1
-            self.employee_id = f"{prefix}{num:04d}"
+            for _attempt in range(5):
+                last = Employee.objects.filter(
+                    employee_id__startswith=prefix
+                ).order_by('-employee_id').first()
+                if last and last.employee_id[len(prefix):].isdigit():
+                    num = int(last.employee_id[len(prefix):]) + 1
+                else:
+                    num = 1
+                self.employee_id = f"{prefix}{num:04d}"
+                try:
+                    # Auto-calculate daily_rate if not manually set
+                    if self.base_salary > 0 and self.daily_rate == 0:
+                        hr_settings = HRSettings.get_settings()
+                        if hr_settings.working_days_per_month > 0:
+                            self.daily_rate = (
+                                self.base_salary / Decimal(str(hr_settings.working_days_per_month))
+                            ).quantize(Decimal('0.01'))
+                    super().save(*args, **kwargs)
+                    return  # Success — exit
+                except _IE:
+                    self.employee_id = ''  # Reset and retry
+                    continue
+            # Exhausted retries — let it raise
+            super().save(*args, **kwargs)
+            return
 
         # Auto-calculate daily_rate if not manually set
         if self.base_salary > 0 and self.daily_rate == 0:

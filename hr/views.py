@@ -13,7 +13,6 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages as django_messages
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
 
 logger = logging.getLogger('mouss_tec_core')
@@ -31,7 +30,6 @@ def _json_response(data, status=200):
 # 1. Attendance APIs (Mobile / PWA)
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_clock_in(request):
@@ -78,7 +76,6 @@ def api_clock_in(request):
         return _json_response({"error": str(e)}, 400)
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_clock_out(request):
@@ -137,8 +134,13 @@ def api_my_attendance(request):
         return _json_response({"error": "ليس لديك ملف موظف مفعّل."}, 403)
 
     now = timezone.now()
-    month = int(request.GET.get('month', now.month))
-    year = int(request.GET.get('year', now.year))
+    try:
+        month = int(request.GET.get('month', now.month))
+        year = int(request.GET.get('year', now.year))
+        if not (1 <= month <= 12) or not (2000 <= year <= 2100):
+            raise ValueError
+    except (ValueError, TypeError):
+        return _json_response({"error": "شهر أو سنة غير صالحة."}, 400)
 
     summary = AttendanceService.get_monthly_summary(employee, month, year)
 
@@ -207,7 +209,6 @@ def attendance_page(request):
     })
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_register_face(request):
@@ -231,6 +232,12 @@ def api_register_face(request):
     face_encoding = data.get('face_encoding')
     if not face_encoding or not isinstance(face_encoding, list) or len(face_encoding) < 64:
         return _json_response({"error": "بيانات بصمة الوجه غير صالحة."}, 400)
+
+    # 🛡️ [SECURITY FIX]: Require password re-entry when OVERWRITING existing face encoding
+    if employee.face_encoding:
+        password = data.get('password', '')
+        if not password or not request.user.check_password(password):
+            return _json_response({"error": "يجب إدخال كلمة المرور لتحديث بصمة الوجه."}, 403)
 
     employee.face_encoding = face_encoding
     employee.save(update_fields=['face_encoding', 'updated_at'])
@@ -294,7 +301,6 @@ def api_attendance_settings(request):
 # 2. Advance Self-Service APIs
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_request_advance(request):
@@ -382,7 +388,6 @@ def api_my_advances(request):
 # 3. Design Workflow APIs
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_submit_design(request):
@@ -484,7 +489,6 @@ def api_pending_reviews(request):
     return _json_response({"pending_reviews": list(pending)})
 
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_review_design(request, submission_id):
@@ -534,7 +538,6 @@ def api_review_design(request, submission_id):
 # 4. Leave Request Self-Service API
 # =====================================================================
 
-@csrf_exempt
 @login_required(login_url='/secure-portal/')
 @require_POST
 def api_request_leave(request):
@@ -615,8 +618,13 @@ def api_my_payslip(request):
         return _json_response({"error": "ليس لديك ملف موظف مفعّل."}, 403)
 
     now = timezone.now()
-    month = int(request.GET.get('month', now.month))
-    year = int(request.GET.get('year', now.year))
+    try:
+        month = int(request.GET.get('month', now.month))
+        year = int(request.GET.get('year', now.year))
+        if not (1 <= month <= 12) or not (2000 <= year <= 2100):
+            raise ValueError
+    except (ValueError, TypeError):
+        return _json_response({"error": "شهر أو سنة غير صالحة."}, 400)
 
     entry = PayrollEntry.objects.filter(
         employee=employee,
@@ -712,12 +720,17 @@ def designer_dashboard(request):
             sub_id = request.POST.get('subscription_id')
             if sub_id:
                 try:
+                    from hr.models import AIDesignSubscription
+                    # 🛡️ Verify subscription belongs to THIS employee
+                    sub_obj = AIDesignSubscription.objects.get(pk=int(sub_id), designer=employee)
                     AISubscriptionService.cancel_subscription(
-                        subscription_id=int(sub_id),
+                        subscription_id=sub_obj.pk,
                         cancelled_by_user=request.user,
                         reason="إلغاء ذاتي من المصمم",
                     )
                     django_messages.success(request, "تم إلغاء اشتراك AI.")
+                except AIDesignSubscription.DoesNotExist:
+                    django_messages.error(request, "لا يمكنك إلغاء اشتراك لا يخصك.")
                 except Exception as e:
                     django_messages.error(request, f"فشل الإلغاء: {e}")
             return redirect('hr:designer_dashboard')
@@ -757,7 +770,6 @@ def designer_dashboard(request):
 # 7. Admin AI Subscription Management APIs
 # =====================================================================
 
-@csrf_exempt
 @login_required
 @require_POST
 def api_admin_ai_activate(request):
@@ -792,7 +804,12 @@ def api_admin_ai_activate(request):
         return _json_response({"error": "employee_id مطلوب."}, 400)
 
     try:
+        # 🛡️ Tenant isolation: only fetch employees in the CURRENT tenant schema
+        from django.db import connection
         designer = Employee.objects.get(pk=employee_id, is_active=True)
+        # Double-check we're in the same schema (multi-tenant safety)
+        if connection.schema_name == 'public' and not request.user.is_superuser:
+            return _json_response({"error": "ليس لديك صلاحية."}, 403)
     except Employee.DoesNotExist:
         return _json_response({"error": "الموظف غير موجود."}, 404)
 
@@ -819,7 +836,6 @@ def api_admin_ai_activate(request):
         return _json_response({"error": str(e)}, 400)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def api_admin_ai_cancel(request):

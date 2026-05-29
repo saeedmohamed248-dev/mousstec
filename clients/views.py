@@ -1038,7 +1038,8 @@ def super_admin_dashboard(request):
             target.is_fraud_flagged = False
             target.save(update_fields=['is_fraud_flagged'])
         elif action == 'extend_trial':
-            target.trial_ends_at = target.trial_ends_at + timedelta(days=3)
+            base_date = target.trial_ends_at or timezone.localdate()
+            target.trial_ends_at = base_date + timedelta(days=3)
             target.save(update_fields=['trial_ends_at'])
         elif action == 'activate_subscription':
             plan = request.POST.get('plan', 'silver')

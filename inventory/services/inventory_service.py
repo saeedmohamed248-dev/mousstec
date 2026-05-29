@@ -99,6 +99,13 @@ class InventoryService:
             from_inv = next(i for i in locked_invs if i.branch_id == instance.from_branch_id)
             to_inv = next(i for i in locked_invs if i.branch_id == instance.to_branch_id)
 
+            # 🛡️ [FIX H13]: Prevent negative inventory on cancel
+            to_inv.refresh_from_db()
+            if to_inv.quantity < instance.quantity:
+                raise ValueError(
+                    f"لا يمكن إلغاء التحويل — الكمية المتاحة في الفرع المستقبل ({to_inv.quantity}) "
+                    f"أقل من الكمية المُحوَّلة ({instance.quantity})."
+                )
             from_inv.quantity = F('quantity') + instance.quantity
             from_inv.save()
             to_inv.quantity = F('quantity') - instance.quantity
