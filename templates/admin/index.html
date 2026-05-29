@@ -960,15 +960,21 @@
 
     function openAIStudioModal() {
         // Check AI status first
-        fetch('/printing/ai/status/').then(r => r.json()).then(data => {
+        fetch('/printing/ai/status/').then(r => {
+            if (r.redirected || !r.ok) {
+                throw new Error('HTTP ' + r.status);
+            }
+            return r.json();
+        }).then(data => {
             if (!data.active) {
                 alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
                 return;
             }
             document.getElementById('aiStudioModal').style.display = 'flex';
             document.getElementById('aiQuotaInfo').textContent = 'متبقي ' + data.ai_remaining + ' تصميم من ' + data.ai_limit;
-        }).catch(() => {
-            alert('تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت.');
+        }).catch((err) => {
+            console.error('AI Status error:', err);
+            alert('تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت. (' + err.message + ')');
         });
     }
 
@@ -1003,7 +1009,12 @@
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/prompt-engineer/', { method: 'POST', body: fd })
-        .then(r => r.json())
+        .then(r => {
+            if (r.redirected || r.status === 302) {
+                throw new Error('جلسة منتهية — سجل دخول مرة أخرى');
+            }
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — رد غير متوقع من السيرفر'); });
+        })
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
@@ -1040,10 +1051,11 @@
                 result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (data.error || 'حدث خطأ. حاول مرة أخرى.') + '</p>';
             }
         })
-        .catch(() => {
+        .catch((err) => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
-            result.innerHTML = '<p style="color:#ef4444;font-size:13px;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
+            console.error('Prompt engineer error:', err);
+            result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.') + '</p>';
         });
     }
 
@@ -1073,7 +1085,12 @@
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/generate/', { method: 'POST', body: fd })
-        .then(r => r.json())
+        .then(r => {
+            if (r.redirected || r.status === 302) {
+                throw new Error('جلسة منتهية — سجل دخول مرة أخرى');
+            }
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — رد غير متوقع من السيرفر'); });
+        })
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
@@ -1102,10 +1119,11 @@
                 result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
             }
         })
-        .catch(() => {
+        .catch((err) => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
-            result.innerHTML = '<p style="color:#ef4444;">حدث خطأ في الاتصال. حاول مرة أخرى.</p>';
+            console.error('Generate design error:', err);
+            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.') + '</p>';
         });
     }
 
@@ -1132,7 +1150,10 @@
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/whatsapp/', { method: 'POST', body: fd })
-        .then(r => r.json())
+        .then(r => {
+            if (r.redirected || r.status === 302) throw new Error('جلسة منتهية');
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status); });
+        })
         .then(data => {
             if (data.success) {
                 window.open(data.whatsapp_url, '_blank');
@@ -1140,19 +1161,23 @@
                 alert(data.error);
             }
         })
-        .catch(() => alert('حدث خطأ. حاول مرة أخرى.'));
+        .catch((err) => { console.error('WhatsApp error:', err); alert(err.message || 'حدث خطأ. حاول مرة أخرى.'); });
     }
 
     function openWatermarkModal() {
-        fetch('/printing/ai/status/').then(r => r.json()).then(data => {
+        fetch('/printing/ai/status/').then(r => {
+            if (r.redirected || !r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(data => {
             if (!data.active) {
                 alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
                 return;
             }
             document.getElementById('watermarkModal').style.display = 'flex';
             document.getElementById('wmQuotaInfo').textContent = 'متبقي ' + data.wm_remaining + ' علامة';
-        }).catch(() => {
-            alert('تعذر التحقق من حالة الاشتراك.');
+        }).catch((err) => {
+            console.error('Watermark status error:', err);
+            alert('تعذر التحقق من حالة الاشتراك. (' + err.message + ')');
         });
     }
 
@@ -1179,7 +1204,10 @@
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/watermark/', { method: 'POST', body: fd })
-        .then(r => r.json())
+        .then(r => {
+            if (r.redirected || r.status === 302) throw new Error('جلسة منتهية');
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status); });
+        })
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
@@ -1190,10 +1218,11 @@
                 result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
             }
         })
-        .catch(() => {
+        .catch((err) => {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
-            result.innerHTML = '<p style="color:#ef4444;">حدث خطأ. حاول مرة أخرى.</p>';
+            console.error('Watermark error:', err);
+            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || 'حدث خطأ. حاول مرة أخرى.') + '</p>';
         });
     }
 </script>
