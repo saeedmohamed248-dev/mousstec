@@ -939,6 +939,104 @@ If the request is outside your printing/design domain:
 """
 
 
+@login_required
+def ai_diagnostic_check(request):
+    """
+    🔬 Diagnostic endpoint — Tests Gemini API key directly with raw HTTP call.
+    Returns full error details so we can debug the actual failure.
+    Only admins can access this.
+    """
+    if not request.user.is_superuser:
+        try:
+            if request.user.employee_profile.role != 'admin':
+                return JsonResponse({'error': 'Admin only'}, status=403)
+        except Exception:
+            return JsonResponse({'error': 'Admin only'}, status=403)
+
+    import requests as _req
+
+    api_key = getattr(settings, 'AI_VISION_API_KEY', None)
+    ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
+
+    diagnostics = {
+        'ai_enabled': ai_enabled,
+        'key_set': bool(api_key),
+        'key_length': len(api_key) if api_key else 0,
+        'key_prefix': api_key[:10] + '...' if api_key and len(api_key) > 10 else None,
+        'tests': [],
+    }
+
+    if not api_key:
+        diagnostics['verdict'] = 'API key is empty in settings — check .env file'
+        return JsonResponse(diagnostics)
+
+    clean_key = str(api_key).strip()
+
+    # Test 1: List available models (cheapest call)
+    try:
+        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={clean_key}"
+        r = _req.get(list_url, timeout=10)
+        test1 = {
+            'test': 'list_models',
+            'status_code': r.status_code,
+            'success': r.status_code == 200,
+        }
+        if r.status_code == 200:
+            data = r.json()
+            test1['models_found'] = len(data.get('models', []))
+            test1['sample_models'] = [m['name'] for m in data.get('models', [])[:5]]
+        else:
+            test1['error'] = r.text[:500]
+        diagnostics['tests'].append(test1)
+    except Exception as e:
+        diagnostics['tests'].append({'test': 'list_models', 'error': str(e)})
+
+    # Test 2: Try a minimal generation request
+    for model in ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-pro']:
+        try:
+            gen_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
+            r = _req.post(
+                gen_url,
+                json={"contents": [{"role": "user", "parts": [{"text": "Say hello"}]}]},
+                timeout=15,
+            )
+            test = {
+                'test': f'generate_{model}',
+                'status_code': r.status_code,
+                'success': r.status_code == 200,
+            }
+            if r.status_code == 200:
+                try:
+                    out = r.json()['candidates'][0]['content']['parts'][0]['text']
+                    test['response_snippet'] = out[:100]
+                except Exception:
+                    test['warning'] = 'Got 200 but could not parse response'
+            else:
+                test['error'] = r.text[:500]
+            diagnostics['tests'].append(test)
+            if r.status_code == 200:
+                break  # success — no need to test more models
+        except Exception as e:
+            diagnostics['tests'].append({'test': f'generate_{model}', 'error': str(e)})
+
+    # Verdict
+    any_success = any(t.get('success') for t in diagnostics['tests'])
+    if any_success:
+        diagnostics['verdict'] = '✅ Gemini API is reachable. Check the application logs for the actual failure.'
+    else:
+        first_err = next((t.get('error', '') for t in diagnostics['tests'] if t.get('error')), '')
+        if 'API_KEY_INVALID' in first_err or 'invalid' in first_err.lower():
+            diagnostics['verdict'] = '❌ API key is INVALID. Get a new key from https://aistudio.google.com/apikey'
+        elif 'PERMISSION_DENIED' in first_err or '403' in str(first_err):
+            diagnostics['verdict'] = '❌ API key is restricted. Check key restrictions in Google Cloud Console.'
+        elif 'QUOTA_EXCEEDED' in first_err or 'quota' in first_err.lower():
+            diagnostics['verdict'] = '❌ API quota exceeded. Wait or upgrade your Gemini plan.'
+        else:
+            diagnostics['verdict'] = f'❌ Unknown error. First error: {first_err[:200]}'
+
+    return JsonResponse(diagnostics, json_dumps_params={'indent': 2, 'ensure_ascii': False})
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -961,60 +1059,60 @@ def ai_prompt_engineer(request):
             'error': 'يرجى كتابة وصف التصميم المطلوب.'
         }, status=400)
 
-    # Use Gemini as the prompt engineering backbone
+    # 🚀 Use OpenAI GPT-4o-mini for prompt engineering — same provider as DALL-E
+    # Cheaper, faster, and more reliable than juggling two API providers.
+    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+    if not openai_key:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'مفتاح OpenAI API غير مُعد. تواصل مع مسؤول المنصة.'
+        }, status=500)
+
     try:
-        from inventory.ai_services import call_gemini_layer
+        import openai
+    except ImportError:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'مكتبة openai غير مثبتة على السيرفر.'
+        }, status=500)
 
-        api_key = getattr(settings, 'AI_VISION_API_KEY', None)
-        ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
+    try:
+        client = openai.OpenAI(api_key=openai_key)
 
-        if not ai_enabled or not api_key:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # cheap + smart for prompt engineering
+            messages=[
+                {"role": "system", "content": _PROMPT_ENGINEER_SYSTEM},
+                {"role": "user", "content": raw_input},
+            ],
+            response_format={"type": "json_object"},  # guaranteed JSON output
+            temperature=0.4,
+            max_tokens=1200,
+        )
+
+        raw_response = response.choices[0].message.content
+        if not raw_response:
             return JsonResponse({
                 'status': 'error',
-                'error': 'محرك الذكاء الاصطناعي غير مفعّل. تواصل مع مسؤول المنصة.'
+                'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'
             }, status=500)
 
-        messages = [
-            {"role": "system", "content": _PROMPT_ENGINEER_SYSTEM},
-            {"role": "user", "content": raw_input},
-        ]
-
-        raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2)
-
-        if not raw_response:
-            # Fallback: try without JSON mode (some models reject it)
-            logger.warning(f"[PROMPT ENGINEER] JSON mode failed, retrying without JSON mode for: {raw_input[:80]}")
-            raw_response = call_gemini_layer(messages, json_mode=False, max_retries=2)
-
-        if not raw_response:
-            # Final fallback: try Gemini Pro
-            logger.warning(f"[PROMPT ENGINEER] Flash-lite failed, escalating to Pro model for: {raw_input[:80]}")
-            raw_response = call_gemini_layer(messages, json_mode=False, max_retries=1, require_pro=True)
-
-        if not raw_response:
-            logger.error(f"[PROMPT ENGINEER] All AI calls failed. ENABLE_AI={getattr(settings, 'ENABLE_AI_PREDICTIONS', False)}, KEY_SET={bool(getattr(settings, 'AI_VISION_API_KEY', None))}")
-            return JsonResponse({
-                'status': 'error',
-                'error': 'فشل الاتصال بمحرك Gemini. تحقق من المفتاح أو راجع السجلات.'
-            }, status=502)
-
-        # Parse and validate the JSON response
+        # Parse JSON (response_format guarantees it, but handle edge cases)
         try:
             result = json.loads(raw_response)
         except json.JSONDecodeError:
-            # Try to extract JSON from markdown-wrapped response
             clean = re.sub(r'^```(?:json)?\s*', '', raw_response.strip())
             clean = re.sub(r'\s*```$', '', clean)
             try:
                 result = json.loads(clean)
             except json.JSONDecodeError:
-                logger.error(f"[PROMPT ENGINEER] Invalid JSON from Gemini: {raw_response[:200]}")
+                logger.error(f"[PROMPT ENGINEER] Invalid JSON from OpenAI: {raw_response[:200]}")
                 return JsonResponse({
                     'status': 'error',
                     'error': 'خطأ في تحليل رد المحرك. حاول صياغة الوصف بشكل مختلف.'
                 }, status=500)
 
-        # Validate required fields
+        # Validate
         if result.get('status') == 'rejected':
             return JsonResponse(result, status=400)
 
@@ -1024,7 +1122,7 @@ def ai_prompt_engineer(request):
                 'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'
             }, status=500)
 
-        # Ensure all fields exist with defaults
+        # Defaults
         result.setdefault('status', 'success')
         result.setdefault('original_intent', raw_input)
         result.setdefault('design_category', 'other')
@@ -1032,15 +1130,25 @@ def ai_prompt_engineer(request):
         result.setdefault('recommended_size', '1024x1024')
         result.setdefault('recommended_quality', 'hd')
 
-        logger.info(f"🎨 [PROMPT ENGINEER]: {tenant.name} — Category: {result['design_category']} by {request.user.username}")
-
+        logger.info(f"🎨 [PROMPT ENGINEER OpenAI]: {tenant.name} — Category: {result['design_category']} by {request.user.username}")
         return JsonResponse(result)
 
-    except ImportError:
+    except openai.AuthenticationError:
         return JsonResponse({
             'status': 'error',
-            'error': 'مكتبة AI Services غير متاحة.'
+            'error': 'مفتاح OpenAI غير صالح. تواصل مع مسؤول المنصة.'
         }, status=500)
+    except openai.RateLimitError:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'تم تجاوز حدود OpenAI. حاول بعد دقيقة.'
+        }, status=429)
+    except openai.APIError as e:
+        logger.error(f"🔴 [PROMPT ENGINEER OpenAI ERROR]: {tenant.name} — {e}")
+        return JsonResponse({
+            'status': 'error',
+            'error': f'خطأ في OpenAI: {str(e)[:200]}'
+        }, status=502)
     except Exception as e:
         logger.error(f"🔴 [PROMPT ENGINEER ERROR]: {tenant.name if tenant else 'N/A'} — {e}")
         return JsonResponse({
