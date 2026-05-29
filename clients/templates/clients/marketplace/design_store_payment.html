@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💳 إتمام الدفع | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1e38 100%);
+            color: #f8fafc; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .payment-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px; padding: 40px 32px;
+            max-width: 520px; width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .payment-card h1 {
+            font-size: 1.6rem; margin-bottom: 8px; text-align: center;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .order-summary {
+            background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px; padding: 20px; margin: 20px 0;
+        }
+        .order-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .order-row:last-child { border-bottom: none; }
+        .order-row .label { color: #94a3b8; font-size: 0.9rem; }
+        .order-row .value { font-weight: 700; color: #f8fafc; font-size: 1rem; }
+        .order-row .value.price {
+            color: #10b981; font-size: 1.3rem;
+        }
+
+        .payment-method-box {
+            background: rgba(139,92,246,0.08); border: 2px solid rgba(139,92,246,0.3);
+            border-radius: 16px; padding: 24px; margin: 24px 0; text-align: center;
+        }
+        .payment-method-box .icon {
+            font-size: 2.5rem; margin-bottom: 10px;
+        }
+        .payment-method-box h3 { color: #c084fc; margin-bottom: 8px; }
+
+        .vodafone-number {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white; font-size: 1.6rem; font-weight: 900;
+            padding: 14px 28px; border-radius: 14px;
+            display: inline-block; margin: 12px 0;
+            letter-spacing: 2px; direction: ltr;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .vodafone-number:hover { transform: scale(1.03); }
+        .vodafone-number:active { transform: scale(0.97); }
+
+        .instapay-info {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white; font-size: 1.1rem; font-weight: 700;
+            padding: 14px 28px; border-radius: 14px;
+            display: inline-block; margin: 12px 0;
+            direction: ltr;
+        }
+
+        .steps {
+            margin: 20px 0; text-align: right;
+        }
+        .step {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 8px 0; color: #cbd5e1; font-size: 0.9rem;
+        }
+        .step-num {
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            color: white; min-width: 28px; height: 28px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.8rem;
+        }
+
+        .form-group { margin: 16px 0; }
+        .form-group label {
+            display: block; color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(15,23,42,0.6); color: #f8fafc;
+            font-family: 'Cairo', sans-serif; font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none; border-color: #8b5cf6;
+        }
+
+        .btn-submit {
+            width: 100%; padding: 16px; border: none; border-radius: 14px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white; font-family: 'Cairo', sans-serif;
+            font-size: 1.1rem; font-weight: 700; cursor: pointer;
+            transition: all 0.3s; margin-top: 16px;
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(16,185,129,0.3); }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-back {
+            display: block; text-align: center; margin-top: 16px;
+            color: #94a3b8; text-decoration: none; font-size: 0.9rem;
+        }
+        .btn-back:hover { color: #ec4899; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700;
+        }
+        .status-pending { background: rgba(234,179,8,0.15); color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
+        .status-awaiting { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+        .status-paid { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .status-rejected { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        .success-box {
+            text-align: center; padding: 30px;
+        }
+        .success-box i { font-size: 3rem; color: #10b981; margin-bottom: 16px; }
+        .success-box h2 { color: #34d399; margin-bottom: 10px; }
+        .success-box p { color: #94a3b8; line-height: 1.7; }
+
+        .copy-toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: white; padding: 10px 24px;
+            border-radius: 12px; font-weight: 700; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none; z-index: 999;
+        }
+        .copy-toast.show { opacity: 1; }
+
+        @media (max-width: 600px) {
+            .payment-card { padding: 24px 18px; }
+            .vodafone-number { font-size: 1.3rem; padding: 12px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="payment-card">
+    {% if purchase.status == 'paid' %}
+    <!-- Already paid -->
+    <div class="success-box">
+        <i class="fas fa-check-circle"></i>
+        <h2>تم الدفع بنجاح!</h2>
+        <p>الباقة مفعلة — يمكنك البدء في توليد التصاميم الآن</p>
+        <a href="/marketplace/design-store/my-designs/" class="btn-submit" style="display:inline-block;margin-top:20px;text-decoration:none;text-align:center">
+            <i class="fas fa-paint-brush"></i> ابدأ التصميم
+        </a>
+    </div>
+
+    {% elif purchase.status == 'awaiting_confirm' %}
+    <!-- Awaiting admin confirmation -->
+    <div class="success-box">
+        <i class="fas fa-clock" style="color:#3b82f6"></i>
+        <h2 style="color:#60a5fa">تم استلام بيانات الدفع</h2>
+        <p>
+            جاري التأكيد من فريقنا — هيتم تفعيل الباقة خلال دقائق<br>
+            <strong>رقم العملية:</strong> {{ purchase.payment_reference }}<br>
+            <small>هنبعتلك إشعار أول ما يتأكد الدفع</small>
+        </p>
+        <span class="status-badge status-awaiting" style="margin-top:16px">
+            <i class="fas fa-hourglass-half"></i> في انتظار التأكيد
+        </span>
+        <a href="/marketplace/design-store/" class="btn-back" style="margin-top:20px">
+            <i class="fas fa-arrow-right"></i> رجوع للمتجر
+        </a>
+    </div>
+
+    {% elif purchase.status == 'rejected' %}
+    <div class="success-box">
+        <i class="fas fa-times-circle" style="color:#ef4444"></i>
+        <h2 style="color:#f87171">تم رفض الطلب</h2>
+        <p>لم يتم التأكد من عملية الدفع. تواصل معنا لو في مشكلة.</p>
+        <a href="/marketplace/design-store/" class="btn-submit" style="display:inline-block;margin-top:20px;text-decoration:none;text-align:center;background:linear-gradient(135deg,#8b5cf6,#ec4899)">
+            <i class="fas fa-redo"></i> حاول تاني
+        </a>
+    </div>
+
+    {% else %}
+    <!-- Pending — show payment instructions -->
+    <h1>💳 إتمام الدفع</h1>
+    <p style="text-align:center;color:#94a3b8;font-size:0.9rem;margin-bottom:16px">أكمل الدفع علشان نفعّلك الباقة</p>
+
+    <div class="order-summary">
+        <div class="order-row">
+            <span class="label">الباقة</span>
+            <span class="value">{{ purchase.package.name_ar }}</span>
+        </div>
+        <div class="order-row">
+            <span class="label">عدد التصاميم</span>
+            <span class="value">{{ purchase.designs_total }} تصميم</span>
+        </div>
+        <div class="order-row">
+            <span class="label">المبلغ المطلوب</span>
+            <span class="value price">{{ purchase.price_paid }} ج.م</span>
+        </div>
+        <div class="order-row">
+            <span class="label">رقم الطلب</span>
+            <span class="value" style="font-size:0.8rem;direction:ltr;color:#8b5cf6">{{ purchase.purchase_code|truncatechars:13 }}</span>
+        </div>
+    </div>
+
+    {% if purchase.payment_method == 'vodafone_cash' %}
+    <div class="payment-method-box">
+        <div class="icon"><i class="fas fa-mobile-alt" style="color:#ef4444"></i></div>
+        <h3>فودافون كاش</h3>
+        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">حوّل المبلغ على الرقم ده:</p>
+        <div class="vodafone-number" onclick="copyNumber('01094850763')" title="اضغط للنسخ">
+            01094850763
+        </div>
+        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> اضغط على الرقم للنسخ</p>
+    </div>
+
+    <div class="steps">
+        <div class="step"><span class="step-num">1</span> <span>افتح تطبيق فودافون كاش أو اطلب <strong>*9*</strong></span></div>
+        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> على الرقم <strong style="direction:ltr">01094850763</strong></span></div>
+        <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم العملية</strong> اللي جالك في الرسالة هنا تحت</span></div>
+        <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة في دقائق ✨</span></div>
+    </div>
+
+    {% elif purchase.payment_method == 'instapay' %}
+    <div class="payment-method-box">
+        <div class="icon"><i class="fas fa-university" style="color:#3b82f6"></i></div>
+        <h3>InstaPay</h3>
+        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">حوّل المبلغ عن طريق InstaPay لـ:</p>
+        <div class="instapay-info" onclick="copyNumber('01094850763@instapay')" title="اضغط للنسخ">
+            01094850763@instapay
+        </div>
+        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> اضغط للنسخ</p>
+    </div>
+
+    <div class="steps">
+        <div class="step"><span class="step-num">1</span> <span>افتح تطبيق البنك بتاعك</span></div>
+        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> عبر InstaPay</span></div>
+        <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم المرجع</strong> أو <strong>Transaction ID</strong> هنا تحت</span></div>
+        <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة ✨</span></div>
+    </div>
+
+    {% else %}
+    <div class="payment-method-box">
+        <div class="icon"><i class="far fa-credit-card" style="color:#a855f7"></i></div>
+        <h3>بطاقة ائتمان / Visa / Mastercard</h3>
+        <p style="color:#cbd5e1;font-size:0.9rem">
+            الدفع بالبطاقة هيكون متاح قريباً.<br>
+            في الوقت الحالي، اختار فودافون كاش أو InstaPay.
+        </p>
+        <a href="/marketplace/design-store/" class="btn-submit" style="display:inline-block;margin-top:16px;text-decoration:none;text-align:center;background:linear-gradient(135deg,#8b5cf6,#ec4899)">
+            <i class="fas fa-arrow-right"></i> رجوع واختيار طريقة تانية
+        </a>
+    </div>
+    {% endif %}
+
+    {% if purchase.payment_method in 'vodafone_cash,instapay' %}
+    <form onsubmit="submitPayment(event)">
+        <div class="form-group">
+            <label><i class="fas fa-hashtag"></i> رقم العملية / Transaction Reference</label>
+            <input type="text" id="txnRef" placeholder="مثال: 123456789" required>
+        </div>
+        <div class="form-group">
+            <label><i class="fas fa-phone"></i> رقم الموبايل اللي حوّلت منه</label>
+            <input type="tel" id="senderPhone" placeholder="مثال: 01012345678" dir="ltr">
+        </div>
+        <button type="submit" class="btn-submit" id="submitBtn">
+            <i class="fas fa-paper-plane"></i> تأكيد الدفع
+        </button>
+    </form>
+    {% endif %}
+
+    <a href="/marketplace/design-store/" class="btn-back">
+        <i class="fas fa-arrow-right"></i> رجوع للمتجر
+    </a>
+    {% endif %}
+</div>
+
+<div class="copy-toast" id="copyToast">تم النسخ ✅</div>
+
+<script>
+function copyNumber(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const t = document.getElementById('copyToast');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    });
+}
+
+async function submitPayment(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const txnRef = document.getElementById('txnRef').value.trim();
+    const senderPhone = document.getElementById('senderPhone').value.trim();
+
+    if (!txnRef) { alert('لازم تكتب رقم العملية'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+
+    try {
+        const fd = new FormData();
+        fd.append('txn_ref', txnRef);
+        fd.append('sender_phone', senderPhone);
+        const r = await fetch(window.location.href, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'خطأ');
+        // Reload to show "awaiting confirmation" state
+        window.location.reload();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الدفع';
+    }
+}
+</script>
+
+</body>
+</html>

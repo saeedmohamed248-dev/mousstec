@@ -367,7 +367,7 @@ async function confirmBuy() {
         const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'خطأ');
-        alert(d.message);
+        // Redirect to payment page (no auto-paid anymore)
         window.location.href = d.redirect;
     } catch (e) {
         alert(e.message);

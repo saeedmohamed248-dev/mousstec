@@ -1094,7 +1094,9 @@ class DesignPurchase(models.Model):
     """
     STATUS_CHOICES = (
         ('pending', _('في انتظار الدفع')),
+        ('awaiting_confirm', _('في انتظار تأكيد الدفع')),
         ('paid', _('مدفوعة — جاهزة للاستخدام')),
+        ('rejected', _('مرفوضة')),
         ('exhausted', _('تم استهلاكها بالكامل')),
         ('refunded', _('مردودة')),
         ('expired', _('منتهية الصلاحية')),
@@ -1116,6 +1118,7 @@ class DesignPurchase(models.Model):
     price_paid = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='paymob')
     payment_reference = models.CharField(max_length=200, blank=True)
+    sender_phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم المرسل"))
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
     expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_("ينتهي في"))

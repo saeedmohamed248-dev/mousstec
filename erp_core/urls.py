@@ -340,6 +340,8 @@ urlpatterns = [
     # 🎨 AI Designs Store (instant generation marketplace)
     path('marketplace/design-store/', client_views.design_store_home, name='design_store_home'),
     path('marketplace/design-store/buy/<slug:package_slug>/', client_views.design_store_buy, name='design_store_buy'),
+    path('marketplace/design-store/payment/<uuid:purchase_code>/', client_views.design_store_payment, name='design_store_payment'),
+    path('marketplace/design-store/confirm-payment/<int:purchase_id>/', client_views.design_store_confirm_payment, name='design_store_confirm_payment'),
     path('marketplace/design-store/my-designs/', client_views.design_store_my_designs, name='design_store_my_designs'),
     path('marketplace/design-store/generate/', client_views.design_store_generate, name='design_store_generate'),
     path('marketplace/design-store/<uuid:design_code>/whatsapp/', client_views.design_store_send_whatsapp, name='design_store_whatsapp'),

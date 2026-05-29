@@ -1362,6 +1362,11 @@ def super_admin_dashboard(request):
             ),
         })
 
+    # --- طلبات شراء التصاميم المعلّقة ---
+    pending_design_purchases = DesignPurchase.objects.filter(
+        status__in=['pending', 'awaiting_confirm']
+    ).select_related('customer', 'package').order_by('-created_at')[:20]
+
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
@@ -1384,6 +1389,7 @@ def super_admin_dashboard(request):
         'period_discounts_json': period_discounts_json,
         'period_months_json': period_months_json,
         'ai_addons': ai_addons,
+        'pending_design_purchases': pending_design_purchases,
     })
 
 
@@ -2613,7 +2619,7 @@ def design_store_buy(request, package_slug):
     package = get_object_or_404(DesignPackage, slug=package_slug, is_active=True)
     payment_method = request.POST.get('payment_method', 'paymob')
 
-    # Create the purchase as PENDING — will be marked paid by payment webhook
+    # Create the purchase as PENDING — will be marked paid after payment confirmation
     purchase = DesignPurchase.objects.create(
         customer=customer, package=package,
         designs_total=package.designs_count,
@@ -2621,23 +2627,90 @@ def design_store_buy(request, package_slug):
         payment_method=payment_method,
         status='pending',
     )
+    logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} created — PENDING payment ({payment_method})")
 
-    # 🚧 MVP: auto-mark paid if cash_collect or admin grants
-    # In production: integrate Paymob webhook to mark paid
-    if payment_method in ('cash_collect', 'admin_grant') or getattr(settings, 'DESIGN_STORE_AUTO_PAID', True):
-        purchase.status = 'paid'
-        purchase.paid_at = timezone.now()
-        purchase.save(update_fields=['status', 'paid_at'])
-        logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} auto-marked PAID (MVP mode)")
+    # Build response based on payment method
+    if payment_method == 'vodafone_cash':
+        return JsonResponse({
+            "status": "pending_payment",
+            "purchase_id": purchase.pk,
+            "purchase_code": str(purchase.purchase_code),
+            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
+            "message": "جاري توجيهك لصفحة الدفع...",
+        })
+    elif payment_method == 'instapay':
+        return JsonResponse({
+            "status": "pending_payment",
+            "purchase_id": purchase.pk,
+            "purchase_code": str(purchase.purchase_code),
+            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
+            "message": "جاري توجيهك لصفحة الدفع...",
+        })
+    else:
+        # paymob / card — future integration
+        return JsonResponse({
+            "status": "pending_payment",
+            "purchase_id": purchase.pk,
+            "purchase_code": str(purchase.purchase_code),
+            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
+            "message": "جاري توجيهك لصفحة الدفع...",
+        })
 
-    return JsonResponse({
-        "status": "success",
-        "purchase_id": purchase.pk,
-        "purchase_code": str(purchase.purchase_code),
-        "designs_total": purchase.designs_total,
-        "redirect": "/marketplace/design-store/my-designs/",
-        "message": f"تم شراء باقة {package.name_ar} — معاك {purchase.designs_total} تصميم!",
+
+@csrf_exempt
+def design_store_payment(request, purchase_code):
+    """💳 صفحة الدفع — تعليمات التحويل + رفع إيصال."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/')
+
+    purchase = get_object_or_404(DesignPurchase, purchase_code=purchase_code, customer=customer)
+
+    if request.method == 'POST':
+        # Customer submitting payment proof
+        txn_ref = request.POST.get('txn_ref', '').strip()
+        sender_phone = request.POST.get('sender_phone', '').strip()
+        if not txn_ref:
+            return JsonResponse({"error": "لازم تكتب رقم العملية"}, status=400)
+        purchase.payment_reference = txn_ref
+        purchase.sender_phone = sender_phone
+        purchase.status = 'awaiting_confirm'
+        purchase.save(update_fields=['payment_reference', 'sender_phone', 'status'])
+        logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} payment proof submitted: ref={txn_ref}")
+        return JsonResponse({
+            "status": "success",
+            "message": "تم استلام بيانات الدفع — هيتم التفعيل خلال دقائق بعد التأكيد ✅",
+        })
+
+    return render(request, 'clients/marketplace/design_store_payment.html', {
+        'customer': customer,
+        'purchase': purchase,
     })
+
+
+def design_store_confirm_payment(request, purchase_id):
+    """✅ تأكيد الدفع بواسطة الأدمن."""
+    # Only super admin (public schema superuser) can confirm
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return JsonResponse({"error": "غير مصرح"}, status=403)
+
+    purchase = get_object_or_404(DesignPurchase, pk=purchase_id)
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'confirm')
+        if action == 'confirm':
+            purchase.status = 'paid'
+            purchase.paid_at = timezone.now()
+            purchase.save(update_fields=['status', 'paid_at'])
+            logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} CONFIRMED by admin {request.user}")
+            return JsonResponse({"status": "success", "message": f"تم تأكيد الدفع — الباقة مفعلة للعميل"})
+        elif action == 'reject':
+            purchase.status = 'rejected'
+            purchase.save(update_fields=['status'])
+            logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} REJECTED by admin {request.user}")
+            return JsonResponse({"status": "success", "message": "تم رفض الطلب"})
+
+    return JsonResponse({"error": "POST only"}, status=405)
 
 
 def design_store_my_designs(request):

@@ -81,6 +81,9 @@
         <button data-tab="activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
             <i class="fas fa-stream ml-1"></i>سجل الأحداث
         </button>
+        <button data-tab="design-purchases" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_design_purchases %}border-amber-500/40 text-amber-400{% endif %}">
+            <i class="fas fa-paint-brush ml-1"></i>طلبات شراء التصاميم{% if pending_design_purchases %} ({{ pending_design_purchases|length }}){% endif %}
+        </button>
     </div>
 
     <!-- ✅ رسائل النجاح/الخطأ -->
@@ -706,6 +709,70 @@
 
     </div><!-- /tab-activity -->
 
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--   TAB 5: DESIGN PURCHASES (طلبات شراء التصاميم)    -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div id="tab-design-purchases" class="tab-content space-y-4 hidden">
+
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+                <i class="fas fa-paint-brush text-pink-400"></i>
+                <span class="font-bold text-sm text-white">طلبات شراء باقات التصاميم — في انتظار التأكيد</span>
+            </div>
+            <div class="divide-y divide-slate-800/60">
+                {% for dp in pending_design_purchases %}
+                <div class="flex items-center gap-4 px-5 py-4 hover:bg-slate-800/30 transition" id="dp-row-{{ dp.pk }}">
+                    <div class="event-icon bg-amber-500/15 text-amber-400">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm text-white font-bold">
+                            {{ dp.customer.full_name }}
+                            <span class="text-slate-500 font-normal">—</span>
+                            <span class="text-pink-400">{{ dp.package.name_ar }}</span>
+                        </p>
+                        <div class="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
+                            <span><i class="fas fa-money-bill ml-1"></i>{{ dp.price_paid }} ج.م</span>
+                            <span><i class="fas fa-palette ml-1"></i>{{ dp.designs_total }} تصميم</span>
+                            <span><i class="fas fa-wallet ml-1"></i>{{ dp.get_payment_method_display }}</span>
+                            <span><i class="fas fa-clock ml-1"></i>{{ dp.created_at|timesince }} مضت</span>
+                            {% if dp.payment_reference %}
+                            <span class="text-blue-400"><i class="fas fa-hashtag ml-1"></i>رقم العملية: {{ dp.payment_reference }}</span>
+                            {% endif %}
+                            {% if dp.sender_phone %}
+                            <span class="text-green-400"><i class="fas fa-phone ml-1"></i>{{ dp.sender_phone }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold px-2 py-1 rounded-lg
+                            {% if dp.status == 'awaiting_confirm' %}bg-blue-500/10 text-blue-400 border border-blue-500/20
+                            {% else %}bg-amber-500/10 text-amber-400 border border-amber-500/20{% endif %}">
+                            {{ dp.get_status_display }}
+                        </span>
+                        {% if dp.status == 'awaiting_confirm' %}
+                        <button onclick="confirmDesignPurchase({{ dp.pk }}, 'confirm')"
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                            <i class="fas fa-check ml-1"></i>تأكيد
+                        </button>
+                        <button onclick="confirmDesignPurchase({{ dp.pk }}, 'reject')"
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
+                            <i class="fas fa-times ml-1"></i>رفض
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="px-5 py-12 text-center text-slate-600 font-bold">
+                    <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
+                    لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div><!-- /tab-design-purchases -->
+
 </main>
 
 <!-- ══════════════ مودال تفعيل الاشتراك ══════════════ -->
@@ -1186,5 +1253,43 @@ function setGiftPreset(designs, wa, wm) {
         </form>
     </div>
 </div>
+
+<script>
+async function confirmDesignPurchase(purchaseId, action) {
+    const label = action === 'confirm' ? 'تأكيد الدفع وتفعيل الباقة' : 'رفض الطلب';
+    if (!confirm(`هل أنت متأكد من ${label}؟`)) return;
+
+    try {
+        const fd = new FormData();
+        fd.append('action', action);
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        fd.append('csrfmiddlewaretoken', csrfToken);
+
+        const r = await fetch(`/marketplace/design-store/confirm-payment/${purchaseId}/`, {
+            method: 'POST',
+            body: fd,
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'خطأ');
+
+        // Update the row visually
+        const row = document.getElementById(`dp-row-${purchaseId}`);
+        if (row) {
+            if (action === 'confirm') {
+                row.innerHTML = `
+                    <div class="event-icon bg-emerald-500/15 text-emerald-400"><i class="fas fa-check-circle"></i></div>
+                    <div class="flex-1 text-sm text-emerald-400 font-bold">تم تأكيد الدفع وتفعيل الباقة ✅</div>`;
+            } else {
+                row.innerHTML = `
+                    <div class="event-icon bg-red-500/15 text-red-400"><i class="fas fa-times-circle"></i></div>
+                    <div class="flex-1 text-sm text-red-400 font-bold">تم رفض الطلب ❌</div>`;
+            }
+        }
+    } catch (e) {
+        alert('خطأ: ' + e.message);
+    }
+}
+</script>
 </body>
 </html>
