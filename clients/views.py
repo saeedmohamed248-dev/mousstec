@@ -2763,16 +2763,24 @@ def design_store_generate(request):
     if not description or len(description) < 10:
         return JsonResponse({"error": "وصف التصميم قصير جداً (10 أحرف على الأقل)"}, status=400)
 
-    # Resolve actual DALL-E size from preset
+    # Resolve actual image size from preset
+    # Map user presets → canonical size
     size_map = {
-        '1024x1024': '1024x1024', '1024x1792': '1024x1792', '1792x1024': '1792x1024',
-        '2048x2048': '1024x1024',  # we upscale to 2048 later if quality_level='ultra'
-        'a4': '1024x1792', 'a3': '1024x1792',
-        'business_card': '1792x1024',
-        'tshirt_chest': '1024x1792', 'mug': '1792x1024',
-        'custom': '1024x1024',
+        '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
+        '1024x1792': '1024x1792', '1792x1024': '1792x1024',
+        '2048x2048': '1024x1024',
+        'a4': '1024x1536', 'a3': '1024x1536',
+        'business_card': '1536x1024',
+        'tshirt_chest': '1024x1536', 'mug': '1536x1024',
+        'custom': '1024x1024', 'auto': 'auto',
     }
-    dalle_size = size_map.get(size_preset, '1024x1024')
+    canonical_size = size_map.get(size_preset, '1024x1024')
+
+    # gpt-image-1 only supports: 1024x1024, 1024x1536, 1536x1024, auto
+    GPT_IMAGE_SIZE_MAP = {
+        '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
+        '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
+    }
 
     # Augment prompt with category + specs
     enhanced_desc = description
@@ -2802,18 +2810,27 @@ def design_store_generate(request):
         used_model = None
         for m in models_chain:
             try:
-                kwargs = {'model': m, 'prompt': enhanced_desc[:2000], 'size': dalle_size, 'n': 1}
+                # Map size per model
+                if m == 'gpt-image-1':
+                    model_size = GPT_IMAGE_SIZE_MAP.get(canonical_size, '1024x1024')
+                elif m == 'dall-e-2':
+                    model_size = '1024x1024'
+                else:
+                    model_size = canonical_size  # dall-e-3 supports 1024x1792
+                kwargs = {'model': m, 'prompt': enhanced_desc[:2000], 'size': model_size, 'n': 1}
                 if m == 'dall-e-3':
                     kwargs['quality'] = 'hd' if purchase.package.quality_level in ('hd', 'ultra') else 'standard'
                 elif m == 'gpt-image-1':
                     kwargs['quality'] = 'high' if purchase.package.quality_level in ('hd', 'ultra') else 'medium'
-                elif m == 'dall-e-2':
-                    kwargs['size'] = '1024x1024'  # dall-e-2 limits
                 response = client.images.generate(**kwargs)
                 used_model = m
                 break
             except openai.BadRequestError as e:
-                if 'does not exist' in str(e) or 'model_not_found' in str(e):
+                err_str = str(e)
+                recoverable = ('does not exist', 'model_not_found', 'invalid_value',
+                               'Invalid size', 'invalid_size', 'not supported')
+                if any(k in err_str for k in recoverable):
+                    logger.warning(f"[DESIGN STORE] Model {m} failed: {err_str[:120]}, trying next...")
                     continue
                 raise
 
@@ -2955,8 +2972,11 @@ def design_store_regenerate(request, design_code):
     try:
         import openai
         client = openai.OpenAI(api_key=openai_key)
-        size_map = {'1024x1024': '1024x1024', '1024x1792': '1024x1792', '1792x1024': '1792x1024'}
-        sz = size_map.get(design.size_preset, '1024x1024')
+        gpt_size_map = {
+            '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
+            '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
+        }
+        sz = gpt_size_map.get(design.size_preset, '1024x1024')
         resp = client.images.generate(
             model='gpt-image-1', prompt=design.engineered_prompt[:2000] or design.description,
             size=sz, n=1, quality='high',

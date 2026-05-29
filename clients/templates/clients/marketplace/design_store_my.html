@@ -190,16 +190,24 @@
                 <div class="form-group">
                     <label>📐 المقاس</label>
                     <select name="size_preset" id="sizeSel" onchange="toggleCustomSize()">
-                        <option value="1024x1024">🟦 مربع 1024×1024 (سوشيال)</option>
-                        <option value="1024x1792">📱 Story 1024×1792</option>
-                        <option value="1792x1024">🖥️ أفقي 1792×1024</option>
-                        <option value="2048x2048">⚡ مربع HD 2048×2048</option>
-                        <option value="a4">📄 A4 طباعة</option>
-                        <option value="a3">📑 A3 طباعة كبير</option>
-                        <option value="business_card">💳 كارت بزنس</option>
-                        <option value="tshirt_chest">👕 طبعة تيشرت</option>
-                        <option value="mug">☕ ماج</option>
-                        <option value="custom">⚙️ مقاس مخصص</option>
+                        <optgroup label="📱 سوشيال ميديا">
+                            <option value="1024x1024">🟦 مربع 1024×1024 (بوست)</option>
+                            <option value="1024x1536">📱 Story / Reels (1024×1536)</option>
+                            <option value="1536x1024">🖥️ أفقي / Cover (1536×1024)</option>
+                        </optgroup>
+                        <optgroup label="🖨️ طباعة">
+                            <option value="a4">📄 A4 طباعة</option>
+                            <option value="a3">📑 A3 طباعة كبير</option>
+                            <option value="business_card">💳 كارت بزنس</option>
+                        </optgroup>
+                        <optgroup label="👕 منتجات">
+                            <option value="tshirt_chest">👕 طبعة تيشرت</option>
+                            <option value="mug">☕ ماج</option>
+                        </optgroup>
+                        <optgroup label="🔧 متقدم">
+                            <option value="auto">🤖 تلقائي (AI يختار الأنسب)</option>
+                            <option value="custom">⚙️ مقاس مخصص</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group">

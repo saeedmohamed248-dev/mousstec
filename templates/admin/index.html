@@ -1042,6 +1042,15 @@
                 document.getElementById('aiEnrichedPrompt').value = data.engineered_prompt;
                 document.getElementById('aiNegativePrompt').value = data.negative_prompt || '';
                 document.getElementById('aiCategory').textContent = (data.design_category || 'other').replace(/_/g, ' ');
+                // Auto-set category dropdown
+                if (data.design_category) {
+                    var catSelect = document.getElementById('aiDesignCategory');
+                    for (var i = 0; i < catSelect.options.length; i++) {
+                        if (catSelect.options[i].value === data.design_category) {
+                            catSelect.selectedIndex = i; break;
+                        }
+                    }
+                }
                 // Auto-set recommended size & quality
                 if (data.recommended_size) {
                     var sizeSelect = document.getElementById('aiSize');
@@ -1093,9 +1102,11 @@
         const prompt = _enrichedPromptData ? _enrichedPromptData.engineered_prompt : document.getElementById('aiPrompt').value.trim();
         const rawInput = document.getElementById('aiPrompt').value.trim();
         const negativePrompt = _enrichedPromptData ? (_enrichedPromptData.negative_prompt || '') : '';
-        const designCategory = _enrichedPromptData ? (_enrichedPromptData.design_category || 'other') : 'other';
+        const designCategorySel = document.getElementById('aiDesignCategory').value;
+        const designCategory = _enrichedPromptData ? (_enrichedPromptData.design_category || designCategorySel) : designCategorySel;
         const size = document.getElementById('aiSize').value;
         const quality = document.getElementById('aiQuality').value;
+        const outputFormat = document.getElementById('aiOutputFormat').value;
         const addWatermark = document.getElementById('aiAddWatermark').checked;
         const logoFile = document.getElementById('aiLogo').files[0];
         const btn = document.getElementById('aiGenerateBtn');
@@ -1123,6 +1134,7 @@
         fd.append('size', size);
         fd.append('quality', quality);
         fd.append('add_watermark', addWatermark ? 'true' : 'false');
+        fd.append('output_format', outputFormat);
         if (logoFile) fd.append('logo', logoFile);
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
@@ -1424,9 +1436,18 @@
                 <div style="flex:1;">
                     <label style="font-size:12px;font-weight:700;">المقاس</label>
                     <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="1024x1024">مربع (1024x1024)</option>
-                        <option value="1024x1792">عمودي (1024x1792)</option>
-                        <option value="1792x1024">أفقي (1792x1024)</option>
+                        <optgroup label="سوشيال ميديا">
+                            <option value="1024x1024">مربع - بوست (1024×1024)</option>
+                            <option value="1024x1536">Story / Reels (1024×1536)</option>
+                            <option value="1536x1024">أفقي / Cover (1536×1024)</option>
+                        </optgroup>
+                        <optgroup label="طباعة">
+                            <option value="1024x1792">A4 عمودي طباعة (1024×1792)</option>
+                            <option value="1792x1024">A4 أفقي طباعة (1792×1024)</option>
+                        </optgroup>
+                        <optgroup label="متقدم">
+                            <option value="auto">تلقائي (AI يختار)</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div style="flex:1;">
@@ -1434,6 +1455,33 @@
                     <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
                         <option value="standard">عادية</option>
                         <option value="hd">عالية (HD)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Output Format & Category -->
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
+                <div style="flex:1;">
+                    <label style="font-size:12px;font-weight:700;">📁 صيغة الملف</label>
+                    <select id="aiOutputFormat" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                        <option value="png">PNG (شفافية)</option>
+                        <option value="jpg">JPEG</option>
+                        <option value="webp">WebP (أصغر حجم)</option>
+                        <option value="pdf">PDF (طباعة)</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px;font-weight:700;">🏷️ نوع التصميم</label>
+                    <select id="aiDesignCategory" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
+                        <option value="other">عام</option>
+                        <option value="logo">لوجو / Brand</option>
+                        <option value="business_card">كارت بزنس</option>
+                        <option value="flyer">فلاير / منشور</option>
+                        <option value="invoice">فاتورة / إيصال</option>
+                        <option value="tshirt">طباعة تيشرت</option>
+                        <option value="packaging">تغليف منتج</option>
+                        <option value="social_media">بوست سوشيال</option>
+                        <option value="banner">بانر / لافتة</option>
                     </select>
                 </div>
             </div>

@@ -148,10 +148,20 @@ def ai_generate_design(request):
     if not prompt:
         return JsonResponse({'success': False, 'error': 'يرجى كتابة وصف التصميم المطلوب.'}, status=400)
 
-    # Validate size
-    valid_sizes = ['1024x1024', '1024x1792', '1792x1024']
+    # Validate size — map to valid values per model
+    valid_sizes = ['1024x1024', '1024x1536', '1536x1024', '1024x1792', '1792x1024', 'auto']
     if size not in valid_sizes:
         size = '1024x1024'
+
+    # gpt-image-1 size mapping (doesn't support 1024x1792/1792x1024)
+    GPT_IMAGE_SIZE_MAP = {
+        '1024x1024': '1024x1024',
+        '1024x1536': '1024x1536',
+        '1536x1024': '1536x1024',
+        '1024x1792': '1024x1536',  # closest supported portrait
+        '1792x1024': '1536x1024',  # closest supported landscape
+        'auto': 'auto',
+    }
 
     try:
         import openai
@@ -177,11 +187,15 @@ def ai_generate_design(request):
 
         for model in image_models:
             try:
-                # dall-e-2 only supports 256/512/1024 squares
-                model_size = size
+                # Map size per model
+                if model == 'gpt-image-1':
+                    model_size = GPT_IMAGE_SIZE_MAP.get(size, '1024x1024')
+                elif model == 'dall-e-2':
+                    model_size = '1024x1024'
+                else:
+                    model_size = size  # dall-e-3 supports 1024x1792/1792x1024
                 model_quality = quality
                 if model == 'dall-e-2':
-                    model_size = '1024x1024'
                     model_quality = 'standard'
 
                 # 🆕 Use the edit endpoint if we have a logo and the model supports it
@@ -220,9 +234,11 @@ def ai_generate_design(request):
                 break
             except openai.BadRequestError as e:
                 err_str = str(e)
-                # Model not available — try next
-                if 'does not exist' in err_str or 'model_not_found' in err_str or 'invalid_value' in err_str:
-                    logger.warning(f"⚠️ [AI STUDIO]: Model {model} unavailable, trying next...")
+                # Model not available or size/param issue — try next model
+                recoverable = ('does not exist', 'model_not_found', 'invalid_value',
+                               'Invalid size', 'invalid_size', 'not supported')
+                if any(k in err_str for k in recoverable):
+                    logger.warning(f"⚠️ [AI STUDIO]: Model {model} failed ({err_str[:120]}), trying next...")
                     last_error = err_str
                     continue
                 # Other 400 errors (bad prompt etc.) — fail fast
