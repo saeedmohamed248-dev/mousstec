@@ -1035,7 +1035,7 @@ def super_admin_dashboard(request):
         elif action == 'activate_subscription':
             plan = request.POST.get('plan', 'silver')
             billing_period = request.POST.get('billing_period', 'monthly')
-            plan_prices = {'silver': 475, 'gold': 700, 'empire': 1400}
+            plan_prices = {'silver': 780, 'gold': 1250, 'empire': 1800}
             period_days = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
             period_discounts = {'monthly': Decimal('0'), 'quarterly': Decimal('0.09'),
                                 'semi_annual': Decimal('0.125'), 'annual': Decimal('0.25')}
@@ -1043,7 +1043,7 @@ def super_admin_dashboard(request):
                              'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
             months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
 
-            base_price = Decimal(str(plan_prices.get(plan, 475)))
+            base_price = Decimal(str(plan_prices.get(plan, 780)))
             discount = period_discounts.get(billing_period, Decimal('0'))
             months = months_map.get(billing_period, 1)
             total = (base_price * months * (1 - discount)).quantize(Decimal('1'))
@@ -1371,7 +1371,7 @@ def super_admin_dashboard(request):
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
     # --- الباقات للمودال ---
-    plan_prices_json = json.dumps({'silver': 475, 'gold': 700, 'empire': 1400})
+    plan_prices_json = json.dumps({'silver': 780, 'gold': 1250, 'empire': 1800})
     period_discounts_json = json.dumps({'monthly': 0, 'quarterly': 0.09, 'semi_annual': 0.125, 'annual': 0.25})
     period_months_json = json.dumps({'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12})
 
@@ -1538,7 +1538,7 @@ LANDING_BOT_KNOWLEDGE = """أنت "مساعد Mouss Tec الذكي" — مساع
 💰 الباقات والأسعار:
 
 📌 باقات السيارات:
-- سيلفر (475 ج/شهر): فرع واحد + موظف واحد + خزينة واحدة — مناسب للورش الصغيرة
+- سيلفر (780 ج/شهر — بدل 1,000): فرع واحد + موظف واحد + خزينة واحدة — مناسب للورش الصغيرة
 - جولد (1,250 ج/شهر — بدل 2,000): فرعين + 4 موظفين + خزينتين + سوق B2B + تقارير متقدمة — الأكثر طلباً
 - Empire (1,800 ج/شهر — بدل 3,000): غير محدود + مزادات B2B + Escrow مالي + دعم أولوية — للشركات الكبيرة
 
@@ -1658,7 +1658,7 @@ def _landing_bot_local_reply(msg):
         return (
             '💰 باقاتنا مرنة وتناسب كل الأحجام:\n\n'
             '🔧 باقات السيارات:\n'
-            '• سيلفر: 475 ج/شهر (فرع + موظف)\n'
+            '• سيلفر: 780 ج/شهر (فرع + موظف)\n'
             '• جولد: 1,250 ج/شهر (فرعين + 4 موظفين + B2B) ⭐\n'
             '• Empire: 1,800 ج/شهر (غير محدود)\n\n'
             '🎨 باقات الطباعة:\n'

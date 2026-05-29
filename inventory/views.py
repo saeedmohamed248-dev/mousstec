@@ -1639,54 +1639,55 @@ def import_upload_api(request):
         else:
             return _json_response_safe({"error": "صيغة الملف غير مدعومة. استخدم CSV أو Excel."}, 400)
 
-        # إنشاء جلسة الاستيراد
-        session = ImportSession.objects.create(
-            entity_type=entity_type,
-            status='validating',
-            uploaded_file=uploaded_file,
-            original_filename=uploaded_file.name,
-            total_rows=len(dataset),
-            created_by=request.user,
-        )
+        # إنشاء جلسة الاستيراد + التحقق — atomic لضمان عدم وجود session يتيمة
+        with transaction.atomic():
+            session = ImportSession.objects.create(
+                entity_type=entity_type,
+                status='validating',
+                uploaded_file=uploaded_file,
+                original_filename=uploaded_file.name,
+                total_rows=len(dataset),
+                created_by=request.user,
+            )
 
-        # الفحص والتحقق
-        validation_errors = []
-        conflicts = []
-        valid_count = 0
+            # الفحص والتحقق
+            validation_errors = []
+            conflicts = []
+            valid_count = 0
 
-        for i, row in enumerate(dataset.dict, start=1):
-            row_errors = []
+            for i, row in enumerate(dataset.dict, start=1):
+                row_errors = []
 
-            if entity_type == 'product':
-                if not row.get('name') and not row.get('اسم المنتج'):
-                    row_errors.append("اسم المنتج مطلوب")
-                pn = row.get('part_number') or row.get('رقم القطعة', '')
-                if pn and Product.objects.filter(part_number=pn).exists():
-                    conflicts.append({"row": i, "field": "part_number", "value": pn, "reason": "رقم القطعة موجود مسبقاً"})
+                if entity_type == 'product':
+                    if not row.get('name') and not row.get('اسم المنتج'):
+                        row_errors.append("اسم المنتج مطلوب")
+                    pn = row.get('part_number') or row.get('رقم القطعة', '')
+                    if pn and Product.objects.filter(part_number=pn).exists():
+                        conflicts.append({"row": i, "field": "part_number", "value": pn, "reason": "رقم القطعة موجود مسبقاً"})
 
-            elif entity_type == 'customer':
-                if not row.get('name') and not row.get('اسم العميل'):
-                    row_errors.append("اسم العميل مطلوب")
-                phone = row.get('phone') or row.get('الهاتف', '')
-                if phone and Customer.objects.filter(phone=phone).exists():
-                    conflicts.append({"row": i, "field": "phone", "value": phone, "reason": "رقم الهاتف مسجل مسبقاً"})
+                elif entity_type == 'customer':
+                    if not row.get('name') and not row.get('اسم العميل'):
+                        row_errors.append("اسم العميل مطلوب")
+                    phone = row.get('phone') or row.get('الهاتف', '')
+                    if phone and Customer.objects.filter(phone=phone).exists():
+                        conflicts.append({"row": i, "field": "phone", "value": phone, "reason": "رقم الهاتف مسجل مسبقاً"})
 
-            elif entity_type == 'vendor':
-                if not row.get('name') and not row.get('اسم المورد'):
-                    row_errors.append("اسم المورد مطلوب")
+                elif entity_type == 'vendor':
+                    if not row.get('name') and not row.get('اسم المورد'):
+                        row_errors.append("اسم المورد مطلوب")
 
-            if row_errors:
-                validation_errors.append({"row": i, "errors": row_errors})
-            else:
-                valid_count += 1
+                if row_errors:
+                    validation_errors.append({"row": i, "errors": row_errors})
+                else:
+                    valid_count += 1
 
-        session.valid_rows = valid_count
-        session.error_rows = len(validation_errors)
-        session.conflict_rows = len(conflicts)
-        session.validation_report = {"errors": validation_errors}
-        session.conflict_report = {"conflicts": conflicts}
-        session.status = 'preview'
-        session.save()
+            session.valid_rows = valid_count
+            session.error_rows = len(validation_errors)
+            session.conflict_rows = len(conflicts)
+            session.validation_report = {"errors": validation_errors}
+            session.conflict_report = {"conflicts": conflicts}
+            session.status = 'preview'
+            session.save()
 
         return _json_response_safe({
             "status": "success",
@@ -2370,40 +2371,47 @@ def bank_statement_upload(request):
     if not csv_file:
         return _json_response_safe({"error": "يجب رفع ملف CSV"}, 400)
 
-    try:
-        statement = BankStatement.objects.create(
-            treasury=treasury,
-            statement_date=timezone.now().date(),
-            period_start=period_start,
-            period_end=period_end,
-            opening_balance=opening_balance,
-            closing_balance=closing_balance,
-            uploaded_file=csv_file,
-        )
-    except Exception as e:
-        return _json_response_safe({"error": f"فشل إنشاء الكشف: {e}"}, 500)
-
-    # Parse CSV
+    # Parse CSV first before creating anything
     import csv, io
     csv_file.seek(0)
-    decoded = csv_file.read().decode('utf-8-sig')
-    reader = csv.DictReader(io.StringIO(decoded))
-    line_count = 0
-    for row in reader:
-        try:
-            amount = Decimal(str(row.get('amount', '0')).replace(',', ''))
-            direction = 'credit' if amount > 0 else 'debit'
-            BankStatementLine.objects.create(
-                statement=statement,
-                transaction_date=row.get('date', timezone.now().date()),
-                description=row.get('description', '')[:300],
-                reference=row.get('reference', '')[:100],
-                amount=abs(amount),
-                direction=direction,
+    try:
+        decoded = csv_file.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(decoded))
+        parsed_rows = list(reader)
+    except Exception as e:
+        return _json_response_safe({"error": f"فشل قراءة ملف CSV: {e}"}, 400)
+
+    # Atomic: create statement + all lines together
+    try:
+        with transaction.atomic():
+            statement = BankStatement.objects.create(
+                treasury=treasury,
+                statement_date=timezone.now().date(),
+                period_start=period_start,
+                period_end=period_end,
+                opening_balance=opening_balance,
+                closing_balance=closing_balance,
+                uploaded_file=csv_file,
             )
-            line_count += 1
-        except Exception as e:
-            logger.warning(f"[BANK CSV] Skipped row: {e}")
+
+            line_count = 0
+            for row in parsed_rows:
+                try:
+                    amount = Decimal(str(row.get('amount', '0')).replace(',', ''))
+                    direction = 'credit' if amount > 0 else 'debit'
+                    BankStatementLine.objects.create(
+                        statement=statement,
+                        transaction_date=row.get('date', timezone.now().date()),
+                        description=row.get('description', '')[:300],
+                        reference=row.get('reference', '')[:100],
+                        amount=abs(amount),
+                        direction=direction,
+                    )
+                    line_count += 1
+                except Exception as e:
+                    logger.warning(f"[BANK CSV] Skipped row: {e}")
+    except Exception as e:
+        return _json_response_safe({"error": f"فشل إنشاء الكشف: {e}"}, 500)
 
     return _json_response_safe({
         "status": "success",
