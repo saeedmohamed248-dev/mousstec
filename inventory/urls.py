@@ -11,6 +11,10 @@ urlpatterns = [
     # 📊 1. واجهات المستخدم الرئيسية للفرع (Dashboards & Experiences)
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
+
+    # 🏦 Bank Reconciliation UI
+    path('bank-reconciliation/', views.bank_reconciliation_dashboard, name='bank_reconciliation'),
+    path('bank-reconciliation/<int:statement_id>/', views.bank_reconciliation_detail, name='bank_reconciliation_detail'),
     
     # 🔗 مسار الجولة السحابية (مُكيش لمدة 15 دقيقة لتخفيف الضغط - Zero-DB Hit)
     path('solutions-tour/', cache_page(60 * 15)(views.solutions_tour), name='solutions_tour'),
@@ -29,6 +33,7 @@ urlpatterns = [
     # =====================================================================
     path('invoice/<int:invoice_id>/print/a4/', views.print_invoice_a4, name='print_invoice_a4'),
     path('invoice/<int:invoice_id>/print/thermal/', views.print_invoice_thermal, name='print_invoice_thermal'),
+    path('invoice/<int:invoice_id>/export/pdf/', views.export_invoice_pdf, name='export_invoice_pdf'),
     
     # 🚀 مشاركة الفاتورة عبر WhatsApp API 
     path('invoice/<int:invoice_id>/share/whatsapp/', views.share_invoice_whatsapp, name='share_invoice_whatsapp'),
@@ -133,11 +138,16 @@ urlpatterns = [
         # 📊 التقارير المالية والأرباح والخسائر (P&L & Analytics)
         # =================================================================
         path('reports/profit-loss/', views.profit_loss_report_api, name='v1_profit_loss_report'),
+        path('reports/inventory-forecast/', views.inventory_forecast_api, name='v1_inventory_forecast'),
         path('reports/product-profitability/', views.product_profitability_api, name='v1_product_profitability'),
         path('reports/inventory-movements/', views.inventory_movement_log_api, name='v1_inventory_movements'),
         path('reports/trial-balance/', views.trial_balance_api, name='v1_trial_balance'),
         path('reports/balance-sheet/', views.balance_sheet_api, name='v1_balance_sheet'),
         path('accounting/ledger/<int:account_id>/', views.account_ledger_api, name='v1_account_ledger'),
+
+        # 🏦 Bank Reconciliation
+        path('bank/upload/', views.bank_statement_upload, name='v1_bank_upload'),
+        path('bank/<int:statement_id>/auto-match/', views.bank_reconciliation_auto_match, name='v1_bank_auto_match'),
 
         # =================================================================
         # 📥 الاستيراد الآمن (Safe Import System)

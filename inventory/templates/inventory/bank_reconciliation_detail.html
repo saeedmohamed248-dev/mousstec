@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تفاصيل المطابقة | {{ statement.treasury.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#f8fafc; min-height:100vh; padding:20px; }
+        .topbar { background:rgba(30,41,59,0.7); border-radius:14px; padding:16px 24px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; }
+        .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+        .summary-card { background:rgba(30,41,59,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:16px; text-align:center; }
+        .summary-card .n { font-size:1.6rem; font-weight:900; }
+        .summary-card .l { color:#94a3b8; font-size:0.8rem; }
+        table { width:100%; background:rgba(30,41,59,0.7); border-radius:14px; overflow:hidden; }
+        th { background:rgba(15,23,42,0.7); padding:12px; text-align:right; font-size:0.85rem; color:#94a3b8; border-bottom:1px solid rgba(255,255,255,0.08); }
+        td { padding:14px 12px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.9rem; }
+        tr:last-child td { border-bottom:none; }
+        .badge-matched { background:rgba(16,185,129,0.15); color:#6ee7b7; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; }
+        .badge-unmatched { background:rgba(239,68,68,0.15); color:#fca5a5; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; }
+        .badge-confidence { background:rgba(59,130,246,0.15); color:#93c5fd; padding:2px 8px; border-radius:10px; font-size:0.7rem; }
+        .amount-credit { color:#6ee7b7; font-weight:700; }
+        .amount-debit { color:#fca5a5; font-weight:700; }
+        .btn-primary { background:linear-gradient(135deg,#06b6d4,#3b82f6); border:none; padding:10px 22px; border-radius:10px; font-weight:700; color:#fff; }
+        .btn-outline { background:transparent; border:1px solid rgba(255,255,255,0.2); color:#cbd5e1; padding:8px 16px; border-radius:8px; text-decoration:none; font-size:0.85rem; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1 style="font-size:1.4rem; font-weight:900; margin:0;">
+        <i class="fas fa-university" style="color:#06b6d4"></i>
+        كشف {{ statement.treasury.name }}
+    </h1>
+    <div>
+        <button class="btn-primary" onclick="autoMatchAll()" id="autoMatchBtn">
+            <i class="fas fa-magic"></i> مطابقة تلقائية للكل
+        </button>
+        <a href="/system/bank-reconciliation/" class="btn-outline mr-2"><i class="fas fa-arrow-right"></i> رجوع</a>
+    </div>
+</div>
+
+<div class="summary">
+    <div class="summary-card">
+        <div class="n" style="color:#06b6d4">{{ statement.opening_balance }}</div>
+        <div class="l">الرصيد الافتتاحي</div>
+    </div>
+    <div class="summary-card">
+        <div class="n" style="color:#10b981">{{ statement.closing_balance }}</div>
+        <div class="l">الرصيد الختامي</div>
+    </div>
+    <div class="summary-card">
+        <div class="n" style="color:#6ee7b7">{{ matched_count }}</div>
+        <div class="l">سطور مطابقة</div>
+    </div>
+    <div class="summary-card">
+        <div class="n" style="color:#fca5a5">{{ unmatched_count }}</div>
+        <div class="l">غير مطابقة</div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>التاريخ</th>
+            <th>الوصف</th>
+            <th>المبلغ</th>
+            <th>المرجع</th>
+            <th>الحالة</th>
+            <th>الحركة المطابقة</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for line in lines %}
+        <tr>
+            <td>{{ line.transaction_date|date:"d/m/Y" }}</td>
+            <td>{{ line.description|truncatechars:60 }}</td>
+            <td class="{% if line.direction == 'credit' %}amount-credit{% else %}amount-debit{% endif %}">
+                {% if line.direction == 'credit' %}+{% else %}-{% endif %}{{ line.amount }}
+            </td>
+            <td style="color:#64748b; font-size:0.8rem;">{{ line.reference|default:"—" }}</td>
+            <td>
+                {% if line.is_matched %}
+                <span class="badge-matched">✓ مطابق</span>
+                <span class="badge-confidence">{{ line.match_confidence }}%</span>
+                {% else %}
+                <span class="badge-unmatched">✗ غير مطابق</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if line.matched_transaction %}
+                FT-{{ line.matched_transaction.pk }}
+                {% else %}
+                <span style="color:#64748b">—</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">لا توجد سطور</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+async function autoMatchAll() {
+    const btn = document.getElementById('autoMatchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المطابقة...';
+    try {
+        const r = await fetch('/system/api/v1/bank/{{ statement.pk }}/auto-match/', { method: 'POST' });
+        const data = await r.json();
+        alert(data.message);
+        location.reload();
+    } catch (e) {
+        alert('فشل: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic"></i> مطابقة تلقائية للكل';
+    }
+}
+</script>
+</body>
+</html>

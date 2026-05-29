@@ -219,6 +219,66 @@ def print_invoice_a4(request, invoice_id):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+def export_invoice_pdf(request, invoice_id):
+    """
+    📄 تصدير الفاتورة كـ PDF — يستخدم WeasyPrint مع دعم RTL و خط Cairo.
+    Fallback: لو WeasyPrint مش مثبت، يرجع HTML للطباعة بـ Ctrl+P.
+    """
+    invoice = get_object_or_404(
+        SaleInvoice.objects
+            .select_related('customer', 'vehicle', 'branch', 'maintenance_contract')
+            .prefetch_related('items__product', 'service_items__service'),
+        id=invoice_id,
+    )
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لتصدير فواتير من فروع أخرى.")
+
+    from django.template.loader import render_to_string
+    html_string = render_to_string('inventory/invoice_print_a4.html', {
+        'invoice': invoice,
+        'print_date': timezone.now(),
+        'pdf_mode': True,
+    })
+
+    try:
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+
+        font_config = FontConfiguration()
+        pdf_css = CSS(string='''
+            @page { size: A4; margin: 1.5cm; }
+            @font-face {
+                font-family: 'Cairo';
+                src: url('https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hOA-W1Y.ttf') format('truetype');
+            }
+            body { font-family: 'Cairo', sans-serif; direction: rtl; }
+        ''', font_config=font_config)
+
+        pdf_bytes = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf(
+            stylesheets=[pdf_css], font_config=font_config,
+        )
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        filename = f'invoice-{invoice.id}-{timezone.now():%Y%m%d}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    except ImportError:
+        logger.warning("[PDF EXPORT] WeasyPrint not installed — falling back to HTML")
+        return HttpResponse(
+            html_string + '<script>window.print();</script>',
+            content_type='text/html; charset=utf-8',
+        )
+    except Exception as e:
+        logger.error(f"[PDF EXPORT] Failed for invoice #{invoice_id}: {e}")
+        return _json_response_safe({
+            "error": f"فشل توليد PDF: {str(e)[:200]}. تأكد من تثبيت WeasyPrint."
+        }, status=500)
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
 def print_invoice_thermal(request, invoice_id):
     invoice = get_object_or_404(
         SaleInvoice.objects
@@ -2206,4 +2266,244 @@ def account_ledger_api(request, account_id):
             }
             for e in entries
         ]
+    })
+
+# =====================================================================
+# 🏦 Bank Reconciliation Views
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
+def bank_reconciliation_dashboard(request):
+    """لوحة المطابقة البنكية — قائمة الكشوف وحالتها."""
+    from inventory.models import BankStatement
+    statements = BankStatement.objects.select_related('treasury').order_by('-statement_date')[:50]
+    stats = {
+        'total': BankStatement.objects.count(),
+        'reconciled': BankStatement.objects.filter(is_reconciled=True).count(),
+        'pending': BankStatement.objects.filter(is_reconciled=False).count(),
+    }
+    return render(request, 'inventory/bank_reconciliation.html', {
+        'statements': statements,
+        'stats': stats,
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
+def bank_reconciliation_detail(request, statement_id):
+    """تفاصيل كشف بنكي + سطوره + المطابقة."""
+    from inventory.models import BankStatement
+    statement = get_object_or_404(BankStatement.objects.select_related('treasury'), pk=statement_id)
+    lines = statement.lines.select_related('matched_transaction').order_by('transaction_date')
+
+    return render(request, 'inventory/bank_reconciliation_detail.html', {
+        'statement': statement,
+        'lines': lines,
+        'matched_count': lines.filter(is_matched=True).count(),
+        'unmatched_count': lines.filter(is_matched=False).count(),
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
+@csrf_exempt
+def bank_reconciliation_auto_match(request, statement_id):
+    """🤖 محاولة مطابقة كل السطور تلقائياً."""
+    if request.method != 'POST':
+        return _json_response_safe({"error": "POST only"}, 405)
+
+    from inventory.models import BankStatement
+    statement = get_object_or_404(BankStatement, pk=statement_id)
+
+    matched = 0
+    total_lines = 0
+    for line in statement.lines.filter(is_matched=False):
+        total_lines += 1
+        if line.auto_match() > 0:
+            matched += 1
+
+    # If all lines matched, mark statement as reconciled
+    if statement.lines.filter(is_matched=False).count() == 0:
+        statement.is_reconciled = True
+        statement.reconciled_at = timezone.now()
+        statement.reconciled_by = request.user
+        statement.save(update_fields=['is_reconciled', 'reconciled_at', 'reconciled_by'])
+
+    return _json_response_safe({
+        "status": "success",
+        "matched": matched,
+        "total": total_lines,
+        "fully_reconciled": statement.is_reconciled,
+        "message": f"تمت مطابقة {matched} من {total_lines} سطر",
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
+@csrf_exempt
+def bank_statement_upload(request):
+    """رفع كشف بنكي (CSV) — يستخرج الأسطر تلقائياً."""
+    from inventory.models import BankStatement, BankStatementLine, Treasury
+    if request.method != 'POST':
+        return _json_response_safe({"error": "POST only"}, 405)
+
+    try:
+        treasury_id = int(request.POST.get('treasury_id', 0))
+        period_start = request.POST.get('period_start', '')
+        period_end = request.POST.get('period_end', '')
+        opening_balance = Decimal(request.POST.get('opening_balance', '0'))
+        closing_balance = Decimal(request.POST.get('closing_balance', '0'))
+    except (ValueError, Exception) as e:
+        return _json_response_safe({"error": f"بيانات غير صالحة: {e}"}, 400)
+
+    try:
+        treasury = Treasury.objects.get(pk=treasury_id)
+    except Treasury.DoesNotExist:
+        return _json_response_safe({"error": "الخزينة غير موجودة"}, 404)
+
+    csv_file = request.FILES.get('csv_file')
+    if not csv_file:
+        return _json_response_safe({"error": "يجب رفع ملف CSV"}, 400)
+
+    try:
+        statement = BankStatement.objects.create(
+            treasury=treasury,
+            statement_date=timezone.now().date(),
+            period_start=period_start,
+            period_end=period_end,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            uploaded_file=csv_file,
+        )
+    except Exception as e:
+        return _json_response_safe({"error": f"فشل إنشاء الكشف: {e}"}, 500)
+
+    # Parse CSV
+    import csv, io
+    csv_file.seek(0)
+    decoded = csv_file.read().decode('utf-8-sig')
+    reader = csv.DictReader(io.StringIO(decoded))
+    line_count = 0
+    for row in reader:
+        try:
+            amount = Decimal(str(row.get('amount', '0')).replace(',', ''))
+            direction = 'credit' if amount > 0 else 'debit'
+            BankStatementLine.objects.create(
+                statement=statement,
+                transaction_date=row.get('date', timezone.now().date()),
+                description=row.get('description', '')[:300],
+                reference=row.get('reference', '')[:100],
+                amount=abs(amount),
+                direction=direction,
+            )
+            line_count += 1
+        except Exception as e:
+            logger.warning(f"[BANK CSV] Skipped row: {e}")
+
+    return _json_response_safe({
+        "status": "success",
+        "statement_id": statement.pk,
+        "lines_imported": line_count,
+        "redirect": f"/system/bank-reconciliation/{statement.pk}/",
+    })
+
+
+# =====================================================================
+# 📈 Inventory Forecasting (AI-driven demand prediction)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager', 'stock')
+def inventory_forecast_api(request):
+    """
+    📊 توقع الطلب على المنتجات بناءً على بيانات البيع التاريخية.
+
+    خوارزمية:
+    - يحسب متوسط البيع اليومي خلال آخر 90 يوم
+    - يحدد المنتجات تحت الـ reorder point
+    - يقترح كمية إعادة الطلب لتغطية 30 يوم
+    """
+    from datetime import timedelta as _td
+    from django.db.models import Sum as _Sum
+    from inventory.models import Product as _Product, SaleInvoiceItem as _SII, Inventory as _Inv
+
+    days_history = int(request.GET.get('days', 90))
+    target_coverage_days = int(request.GET.get('coverage', 30))
+    branch = _get_branch_for_user(request.user)
+
+    cutoff = timezone.now() - _td(days=days_history)
+
+    # Total qty sold per product
+    sales_qs = _SII.objects.filter(invoice__status='posted', invoice__date_created__gte=cutoff)
+    if branch:
+        sales_qs = sales_qs.filter(invoice__branch=branch)
+
+    sales_by_product = sales_qs.values('product_id').annotate(total_sold=_Sum('quantity'))
+
+    forecasts = []
+    for entry in sales_by_product:
+        product_id = entry['product_id']
+        total_sold = entry['total_sold'] or 0
+        avg_daily = total_sold / days_history if days_history > 0 else 0
+
+        try:
+            product = _Product.objects.get(pk=product_id)
+        except _Product.DoesNotExist:
+            continue
+
+        # Current stock across all branches (or specific branch)
+        inv_qs = _Inv.objects.filter(product=product)
+        if branch:
+            inv_qs = inv_qs.filter(branch=branch)
+        current_stock = inv_qs.aggregate(total=_Sum('quantity'))['total'] or 0
+
+        # Days until stockout at current consumption rate
+        days_remaining = (current_stock / avg_daily) if avg_daily > 0 else 9999
+
+        # Suggested reorder quantity to cover target_coverage_days
+        target_stock = avg_daily * target_coverage_days
+        reorder_qty = max(0, int(target_stock - current_stock))
+
+        # Urgency score (lower days_remaining = more urgent)
+        if days_remaining < 7:
+            urgency = 'critical'
+        elif days_remaining < 14:
+            urgency = 'high'
+        elif days_remaining < 30:
+            urgency = 'medium'
+        else:
+            urgency = 'low'
+
+        forecasts.append({
+            'product_id': product_id,
+            'product_name': product.name,
+            'part_number': product.part_number,
+            'current_stock': current_stock,
+            'avg_daily_sales': round(avg_daily, 2),
+            'days_until_stockout': round(days_remaining, 1) if days_remaining < 9999 else None,
+            'suggested_reorder_qty': reorder_qty,
+            'urgency': urgency,
+        })
+
+    # Sort by urgency: critical → high → medium → low
+    urgency_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+    forecasts.sort(key=lambda f: (urgency_order[f['urgency']], -f['avg_daily_sales']))
+
+    return _json_response_safe({
+        'status': 'success',
+        'period_days': days_history,
+        'target_coverage_days': target_coverage_days,
+        'forecast_count': len(forecasts),
+        'forecasts': forecasts[:50],  # Top 50 most urgent
+        'summary': {
+            'critical': sum(1 for f in forecasts if f['urgency'] == 'critical'),
+            'high': sum(1 for f in forecasts if f['urgency'] == 'high'),
+            'medium': sum(1 for f in forecasts if f['urgency'] == 'medium'),
+        },
     })

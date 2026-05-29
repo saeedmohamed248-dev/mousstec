@@ -636,6 +636,117 @@ class AccountingEntry(models.Model):
 
 
 # =====================================================================
+# 🏦 المطابقة البنكية (Bank Reconciliation)
+# =====================================================================
+class BankStatement(models.Model):
+    """كشف بنكي مستورد من البنك — لمطابقته مع حركات الخزينة."""
+    treasury = models.ForeignKey(
+        'Treasury', on_delete=models.CASCADE, related_name='bank_statements',
+        verbose_name=_("الخزينة / الحساب البنكي")
+    )
+    statement_date = models.DateField(verbose_name=_("تاريخ الكشف"))
+    period_start = models.DateField(verbose_name=_("بداية الفترة"))
+    period_end = models.DateField(verbose_name=_("نهاية الفترة"))
+    opening_balance = models.DecimalField(max_digits=15, decimal_places=2, verbose_name=_("الرصيد الافتتاحي"))
+    closing_balance = models.DecimalField(max_digits=15, decimal_places=2, verbose_name=_("الرصيد الختامي"))
+    uploaded_file = models.FileField(upload_to='bank_statements/%Y/%m/', blank=True, null=True)
+    is_reconciled = models.BooleanField(default=False, verbose_name=_("تمت المطابقة"))
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    reconciled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("كشف بنكي")
+        verbose_name_plural = _("🏦 كشوف البنوك")
+        ordering = ['-statement_date']
+
+    def __str__(self):
+        return f"كشف {self.treasury.name} — {self.statement_date}"
+
+
+class BankStatementLine(models.Model):
+    """سطر واحد من الكشف البنكي."""
+    DIRECTION_CHOICES = (
+        ('debit', _('سحب (مدين)')),
+        ('credit', _('إيداع (دائن)')),
+    )
+    statement = models.ForeignKey(BankStatement, on_delete=models.CASCADE, related_name='lines')
+    transaction_date = models.DateField()
+    description = models.CharField(max_length=300)
+    reference = models.CharField(max_length=100, blank=True, db_index=True, verbose_name=_("مرجع البنك"))
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
+
+    # Reconciliation linkage
+    matched_transaction = models.ForeignKey(
+        'FinancialTransaction', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='bank_lines', verbose_name=_("الحركة المالية المطابقة"),
+    )
+    match_confidence = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('0.00'),
+        help_text=_("0-100 — ثقة المطابقة التلقائية")
+    )
+    is_matched = models.BooleanField(default=False, db_index=True)
+    matched_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _("سطر كشف بنكي")
+        verbose_name_plural = _("سطور كشوف البنوك")
+        ordering = ['transaction_date', 'pk']
+        indexes = [
+            models.Index(fields=['statement', 'is_matched']),
+            models.Index(fields=['transaction_date', 'amount']),
+        ]
+
+    def __str__(self):
+        sign = '+' if self.direction == 'credit' else '-'
+        return f"{self.transaction_date} | {sign}{self.amount} | {self.description[:50]}"
+
+    def auto_match(self):
+        """
+        🤖 محاولة مطابقة تلقائية مع حركة في FinancialTransaction.
+        يبحث بنفس التاريخ ±3 أيام ونفس المبلغ.
+        يرجع الـ confidence score (0-100).
+        """
+        from datetime import timedelta as _td
+        if self.is_matched:
+            return 100
+
+        target_type = 'in' if self.direction == 'credit' else 'out'
+        candidates = FinancialTransaction.objects.filter(
+            treasury=self.statement.treasury,
+            transaction_type=target_type,
+            amount=self.amount,
+            date__date__gte=self.transaction_date - _td(days=3),
+            date__date__lte=self.transaction_date + _td(days=3),
+        ).exclude(bank_lines__is_matched=True)
+
+        # Best match: same date + amount = 100% confidence
+        exact = candidates.filter(date__date=self.transaction_date).first()
+        if exact:
+            self.matched_transaction = exact
+            self.match_confidence = Decimal('100.00')
+            self.is_matched = True
+            self.matched_at = timezone.now()
+            self.save(update_fields=['matched_transaction', 'match_confidence', 'is_matched', 'matched_at'])
+            return 100
+
+        # Near match: same amount within ±3 days = 80%
+        near = candidates.first()
+        if near:
+            self.matched_transaction = near
+            self.match_confidence = Decimal('80.00')
+            self.is_matched = True
+            self.matched_at = timezone.now()
+            self.save(update_fields=['matched_transaction', 'match_confidence', 'is_matched', 'matched_at'])
+            return 80
+
+        return 0
+
+
+# =====================================================================
 # 📦 سجل حركات المخزون (Inventory Movement Tracker)
 # =====================================================================
 class InventoryMovement(models.Model):

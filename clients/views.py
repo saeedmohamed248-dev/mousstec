@@ -1867,13 +1867,88 @@ def marketplace_register(request):
 
 def _send_otp_via_channel(phone, otp):
     """
-    إرسال OTP عبر القناة المتاحة.
-    حالياً: WhatsApp wa.me link كـ fallback، SMS gateway TODO.
+    إرسال OTP عبر Twilio SMS، Vonage، أو WhatsApp.
+    يتم اختيار البوابة بناءً على settings.OTP_DELIVERY_PROVIDER.
+    Provider options: 'twilio', 'vonage', 'whatsapp_meta', 'console' (default).
     """
-    # TODO: integrate Twilio/Vonage SMS or WhatsApp Business API
+    provider = getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console')
+    message = f"كود التحقق Mouss Tec: {otp}\nصالح لمدة 10 دقائق."
+
+    if provider == 'twilio':
+        try:
+            from twilio.rest import Client as TwilioClient
+            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+            from_number = getattr(settings, 'TWILIO_FROM_NUMBER', '')
+            if not all([account_sid, auth_token, from_number]):
+                logger.error("[OTP/Twilio] Missing credentials in settings")
+                return False
+            client = TwilioClient(account_sid, auth_token)
+            client.messages.create(body=message, from_=from_number, to=phone)
+            logger.info(f"[OTP/Twilio] SMS sent to {phone}")
+            return True
+        except ImportError:
+            logger.error("[OTP/Twilio] twilio package not installed: pip install twilio")
+            return False
+        except Exception as e:
+            logger.error(f"[OTP/Twilio] Failed: {e}")
+            return False
+
+    elif provider == 'vonage':
+        try:
+            import vonage
+            api_key = getattr(settings, 'VONAGE_API_KEY', '')
+            api_secret = getattr(settings, 'VONAGE_API_SECRET', '')
+            sender = getattr(settings, 'VONAGE_SENDER', 'MoussTec')
+            if not all([api_key, api_secret]):
+                logger.error("[OTP/Vonage] Missing credentials")
+                return False
+            client = vonage.Client(key=api_key, secret=api_secret)
+            sms = vonage.Sms(client)
+            sms.send_message({'from': sender, 'to': phone.lstrip('+'), 'text': message})
+            logger.info(f"[OTP/Vonage] SMS sent to {phone}")
+            return True
+        except ImportError:
+            logger.error("[OTP/Vonage] vonage package not installed: pip install vonage")
+            return False
+        except Exception as e:
+            logger.error(f"[OTP/Vonage] Failed: {e}")
+            return False
+
+    elif provider == 'whatsapp_meta':
+        try:
+            import requests as _req
+            access_token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '')
+            phone_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '')
+            template_name = getattr(settings, 'WHATSAPP_OTP_TEMPLATE', 'otp_verification')
+            if not all([access_token, phone_id]):
+                logger.error("[OTP/WhatsApp] Missing credentials")
+                return False
+            url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": phone.lstrip('+'),
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": "ar"},
+                    "components": [{"type": "body", "parameters": [{"type": "text", "text": otp}]}],
+                },
+            }
+            r = _req.post(url, json=payload, headers={"Authorization": f"Bearer {access_token}"}, timeout=15)
+            if r.status_code == 200:
+                logger.info(f"[OTP/WhatsApp] sent to {phone}")
+                return True
+            logger.error(f"[OTP/WhatsApp] HTTP {r.status_code}: {r.text[:200]}")
+            return False
+        except Exception as e:
+            logger.error(f"[OTP/WhatsApp] Failed: {e}")
+            return False
+
+    # Default: console mode
     logger.warning(
-        f"[OTP-DELIVERY-PENDING] phone={phone} otp={otp} — "
-        f"لم يتم ربط بوابة SMS بعد. اضبط MARKETPLACE_DEBUG_OTP=False في الإنتاج."
+        f"[OTP-CONSOLE] phone={phone} otp={otp} — "
+        f"اضبط OTP_DELIVERY_PROVIDER في settings (twilio/vonage/whatsapp_meta)"
     )
     return False
 

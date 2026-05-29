@@ -305,6 +305,26 @@ OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 
+# 📱 OTP Delivery Configuration
+# Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'console' (logs only)
+OTP_DELIVERY_PROVIDER = env.str('OTP_DELIVERY_PROVIDER', 'console')
+MARKETPLACE_DEBUG_OTP = env.bool('MARKETPLACE_DEBUG_OTP', default=True)  # Set False in production
+
+# Twilio
+TWILIO_ACCOUNT_SID = env.str('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = env.str('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_NUMBER = env.str('TWILIO_FROM_NUMBER', '')
+
+# Vonage (Nexmo)
+VONAGE_API_KEY = env.str('VONAGE_API_KEY', '')
+VONAGE_API_SECRET = env.str('VONAGE_API_SECRET', '')
+VONAGE_SENDER = env.str('VONAGE_SENDER', 'MoussTec')
+
+# WhatsApp Business (Meta Cloud API)
+WHATSAPP_ACCESS_TOKEN = env.str('WHATSAPP_ACCESS_TOKEN', '')
+WHATSAPP_PHONE_NUMBER_ID = env.str('WHATSAPP_PHONE_NUMBER_ID', '')
+WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
+
 # =====================================================================
 # 🎛️ مفاتيح التحكم الديناميكية (SaaS Feature Flags Engine)
 # =====================================================================
