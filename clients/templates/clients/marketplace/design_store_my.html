@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 تصاميمي | AI Designs Store</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#f8fafc; min-height:100vh; }
+        .topbar { background:rgba(15,23,42,0.85); backdrop-filter:blur(12px); padding:14px 24px;
+                  display:flex; justify-content:space-between; align-items:center;
+                  border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }
+        .brand { font-weight:900; background:linear-gradient(135deg,#ec4899,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .topbar a { color:#94a3b8; text-decoration:none; padding:6px 14px; border-radius:8px; font-size:0.9rem; }
+        .topbar a:hover { color:#ec4899; }
+
+        .container-x { max-width:1200px; margin:30px auto; padding:0 20px; }
+
+        .balance-card {
+            background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(236,72,153,0.1));
+            border:1px solid rgba(139,92,246,0.3); border-radius:20px; padding:24px;
+            margin-bottom:30px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+        }
+        .balance-info h2 { font-weight:900; margin-bottom:6px; font-size:1.5rem; }
+        .balance-info p { color:#cbd5e1; font-size:0.9rem; }
+        .balance-info strong { color:#ec4899; font-size:2.5rem; font-weight:900; }
+        .btn-buy {
+            background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; border:none;
+            padding:14px 28px; border-radius:14px; font-weight:900; cursor:pointer;
+            font-family:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+        }
+
+        .generator-card {
+            background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.06);
+            border-radius:20px; padding:28px; margin-bottom:30px;
+        }
+        .gen-title { font-weight:900; font-size:1.4rem; margin-bottom:18px; }
+        .gen-title i { color:#ec4899; }
+
+        .form-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:14px; }
+        .form-group { display:flex; flex-direction:column; }
+        label { font-size:0.85rem; font-weight:700; color:#cbd5e1; margin-bottom:6px; }
+        input, select, textarea {
+            background:#0f172a; border:1px solid rgba(255,255,255,0.1); color:#f8fafc;
+            padding:11px 14px; border-radius:10px; font-family:inherit; font-size:0.9rem;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline:none; border-color:#ec4899; box-shadow:0 0 0 3px rgba(236,72,153,0.15);
+        }
+        textarea { resize:vertical; min-height:80px; }
+        .checkbox-row { display:flex; align-items:center; gap:8px; margin-top:8px; }
+
+        .logo-upload {
+            border:1.5px dashed rgba(245,158,11,0.4); border-radius:12px;
+            padding:12px; margin-bottom:14px; background:rgba(245,158,11,0.05);
+        }
+        .logo-upload label { color:#fcd34d; }
+        .logo-preview { margin-top:8px; text-align:center; }
+        .logo-preview img { max-height:60px; border-radius:8px; }
+
+        .btn-generate {
+            width:100%; padding:16px; background:linear-gradient(135deg,#ec4899,#8b5cf6);
+            color:#fff; border:none; border-radius:14px; font-weight:900; font-size:1.05rem;
+            cursor:pointer; font-family:inherit; transition:all 0.3s;
+        }
+        .btn-generate:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(236,72,153,0.3); }
+        .btn-generate:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+
+        .designs-grid {
+            display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
+            gap:18px; margin-top:30px;
+        }
+        .design-card {
+            background:rgba(30,41,59,0.6); border:1px solid rgba(255,255,255,0.06);
+            border-radius:16px; overflow:hidden; transition:all 0.3s;
+        }
+        .design-card:hover { border-color:#ec4899; transform:translateY(-3px); }
+        .design-card img { width:100%; aspect-ratio:1; object-fit:cover; background:#1e293b; }
+        .design-card-body { padding:14px; }
+        .design-title { font-size:0.95rem; font-weight:700; margin-bottom:6px; }
+        .design-meta { color:#94a3b8; font-size:0.75rem; margin-bottom:10px; }
+        .design-actions { display:flex; gap:6px; }
+        .btn-small {
+            flex:1; padding:8px; border-radius:8px; font-size:0.8rem; font-weight:700;
+            text-decoration:none; text-align:center; cursor:pointer; border:none;
+            font-family:inherit;
+        }
+        .btn-wa { background:#25d366; color:#fff; }
+        .btn-dl { background:#3b82f6; color:#fff; }
+        .btn-regen { background:rgba(139,92,246,0.2); color:#c4b5fd; border:1px solid rgba(139,92,246,0.3); }
+
+        .result-preview {
+            margin-top:20px; padding:20px; background:rgba(15,23,42,0.5);
+            border:1px solid rgba(16,185,129,0.3); border-radius:14px; display:none;
+        }
+        .result-preview.show { display:block; }
+        .result-preview img { max-width:100%; border-radius:12px; margin-bottom:12px; }
+
+        .empty {
+            text-align:center; padding:60px; color:#94a3b8;
+            background:rgba(30,41,59,0.4); border-radius:16px;
+        }
+        .empty i { font-size:3rem; color:#475569; margin-bottom:14px; }
+
+        .toast {
+            position:fixed; top:20px; left:50%; transform:translateX(-50%);
+            padding:14px 24px; border-radius:14px; font-weight:700; z-index:2000;
+            display:none; box-shadow:0 8px 25px rgba(0,0,0,0.3);
+        }
+        .toast.success { background:#10b981; color:#fff; }
+        .toast.error { background:#ef4444; color:#fff; }
+        .toast.show { display:block; }
+
+        .specs-note {
+            background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.2);
+            border-radius:10px; padding:10px; font-size:0.8rem; color:#67e8f9; margin:14px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">🎨 تصاميمي</div>
+    <div>
+        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> المتجر</a>
+        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="container-x">
+
+    <!-- Balance -->
+    <div class="balance-card">
+        <div class="balance-info">
+            <h2><strong>{{ total_remaining }}</strong> تصميم</h2>
+            <p>رصيدك المتاح للتوليد</p>
+        </div>
+        {% if total_remaining == 0 %}
+        <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> اشتري باقة جديدة</a>
+        {% else %}
+        <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> باقة إضافية</a>
+        {% endif %}
+    </div>
+
+    {% if total_remaining > 0 %}
+    <!-- Generator -->
+    <div class="generator-card">
+        <h3 class="gen-title"><i class="fas fa-wand-magic-sparkles"></i> ولّد تصميم جديد</h3>
+
+        <form id="genForm" enctype="multipart/form-data">
+
+            <!-- Category -->
+            <div class="form-group">
+                <label>نوع التصميم</label>
+                <select name="category" id="categorySel">
+                    <option value="logo">🔖 لوجو / Brand Mark</option>
+                    <option value="business_card">💳 كارت بزنس</option>
+                    <option value="social_post">📱 بوست سوشيال ميديا</option>
+                    <option value="flyer">📄 فلاير</option>
+                    <option value="poster">🖼️ بوستر / إعلان</option>
+                    <option value="banner">🪧 بنر / Roll-up</option>
+                    <option value="packaging">📦 تغليف منتج</option>
+                    <option value="tshirt">👕 تيشرت</option>
+                    <option value="menu">📋 منيو</option>
+                    <option value="invitation">💌 دعوة</option>
+                    <option value="sticker">🏷️ ستيكر</option>
+                    <option value="mockup">🎁 Mockup منتج</option>
+                    <option value="other">✨ أخرى</option>
+                </select>
+            </div>
+
+            <!-- Title -->
+            <div class="form-group" style="margin-top:14px;">
+                <label>عنوان مختصر (اختياري)</label>
+                <input type="text" name="title" placeholder="مثال: لوجو شركة فيكسيت">
+            </div>
+
+            <!-- Description -->
+            <div class="form-group" style="margin-top:14px;">
+                <label>وصف التصميم بالتفصيل *</label>
+                <textarea name="description" placeholder="اكتب اللي تتخيله — الألوان، الأسلوب، اسم البراند، أي تفاصيل مهمة..." required></textarea>
+            </div>
+
+            <!-- Size & Format -->
+            <div class="form-row" style="margin-top:14px;">
+                <div class="form-group">
+                    <label>📐 المقاس</label>
+                    <select name="size_preset" id="sizeSel" onchange="toggleCustomSize()">
+                        <option value="1024x1024">🟦 مربع 1024×1024 (سوشيال)</option>
+                        <option value="1024x1792">📱 Story 1024×1792</option>
+                        <option value="1792x1024">🖥️ أفقي 1792×1024</option>
+                        <option value="2048x2048">⚡ مربع HD 2048×2048</option>
+                        <option value="a4">📄 A4 طباعة</option>
+                        <option value="a3">📑 A3 طباعة كبير</option>
+                        <option value="business_card">💳 كارت بزنس</option>
+                        <option value="tshirt_chest">👕 طبعة تيشرت</option>
+                        <option value="mug">☕ ماج</option>
+                        <option value="custom">⚙️ مقاس مخصص</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>📁 الصيغة</label>
+                    <select name="output_format">
+                        <option value="png">PNG (شفافية)</option>
+                        <option value="jpg">JPEG</option>
+                        <option value="webp">WebP</option>
+                        <option value="pdf">PDF (للطباعة)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom dimensions -->
+            <div class="form-row" id="customSizeBox" style="display:none;">
+                <div class="form-group">
+                    <label>العرض (px)</label>
+                    <input type="number" name="custom_width_px" min="256" max="4096" placeholder="1024">
+                </div>
+                <div class="form-group">
+                    <label>الارتفاع (px)</label>
+                    <input type="number" name="custom_height_px" min="256" max="4096" placeholder="1024">
+                </div>
+            </div>
+
+            <!-- Weight (for packaging) -->
+            <div class="form-group" id="weightBox" style="display:none; margin-top:14px;">
+                <label>⚖️ وزن المنتج (كجم) — اختياري لتصاميم التغليف</label>
+                <input type="number" name="weight_kg" step="0.01" min="0" placeholder="مثال: 0.5">
+            </div>
+
+            <!-- Logo upload -->
+            <div class="logo-upload">
+                <label><i class="fas fa-image"></i> ارفع لوجو شركتك (اختياري — يدمج تلقائياً)</label>
+                <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" onchange="previewLogo(event)" style="margin-top:6px;">
+                <div class="logo-preview" id="logoPreview"></div>
+            </div>
+
+            <div class="specs-note">
+                💡 الأماكن الفارغة بتتولد تلقائياً بالأنسب للتصميم. كل توليد بيخصم 1 من رصيدك.
+                إعادة التوليد <strong>مجاني 3 مرات</strong> لكل تصميم.
+            </div>
+
+            <button type="submit" class="btn-generate" id="genBtn">
+                <i class="fas fa-bolt"></i> ولّد التصميم (1 من رصيدك)
+            </button>
+        </form>
+
+        <div class="result-preview" id="resultBox">
+            <img id="resultImg" src="">
+            <div style="display:flex;gap:8px;">
+                <button class="btn-small btn-dl" onclick="downloadResult()"><i class="fas fa-download"></i> تحميل</button>
+                <button class="btn-small btn-wa" onclick="sendWA()"><i class="fab fa-whatsapp"></i> إرسال واتساب</button>
+                <button class="btn-small btn-regen" onclick="regenLast()"><i class="fas fa-rotate-right"></i> إعادة (<span id="regenLeft">3</span> متبقي)</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Designs Library -->
+    <h3 style="font-weight:900;margin-bottom:16px;"><i class="fas fa-images" style="color:#ec4899"></i> تصاميمي السابقة ({{ designs|length }})</h3>
+
+    {% if designs %}
+    <div class="designs-grid">
+        {% for d in designs %}
+        <div class="design-card">
+            <img src="{{ d.image_url }}" alt="{{ d.title }}" loading="lazy">
+            <div class="design-card-body">
+                <div class="design-title">{{ d.title|truncatechars:50 }}</div>
+                <div class="design-meta">
+                    {{ d.get_category_display }} · {{ d.actual_size_label }}<br>
+                    <small>{{ d.created_at|date:"d/m/Y H:i" }}</small>
+                </div>
+                <div class="design-actions">
+                    <a class="btn-small btn-dl" href="{{ d.image_url }}" download>
+                        <i class="fas fa-download"></i>
+                    </a>
+                    <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code }}')">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    {% if d.regenerations_used < d.regenerations_allowed %}
+                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد">
+                        <i class="fas fa-rotate-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        <i class="fas fa-paint-brush"></i>
+        <h3>ابدأ تصميم أول حاجة!</h3>
+        <p>اكتب وصف اللي تتخيله فوق وهيتولد فوراً</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+let lastDesignCode = null;
+let lastImageUrl = null;
+
+function toggleCustomSize() {
+    const sel = document.getElementById('sizeSel').value;
+    document.getElementById('customSizeBox').style.display = sel === 'custom' ? 'grid' : 'none';
+}
+document.getElementById('categorySel').addEventListener('change', e => {
+    document.getElementById('weightBox').style.display = e.target.value === 'packaging' ? 'flex' : 'none';
+});
+
+function previewLogo(e) {
+    const f = e.target.files[0];
+    if (!f) { document.getElementById('logoPreview').innerHTML = ''; return; }
+    const reader = new FileReader();
+    reader.onload = ev => { document.getElementById('logoPreview').innerHTML = `<img src="${ev.target.result}">`; };
+    reader.readAsDataURL(f);
+}
+
+function toast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+document.getElementById('genForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('genBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد... (15-30 ثانية)';
+    document.getElementById('resultBox').classList.remove('show');
+
+    try {
+        const fd = new FormData(e.target);
+        const r = await fetch('/marketplace/design-store/generate/', {method:'POST', body:fd});
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'فشل التوليد');
+
+        lastDesignCode = d.design_code;
+        lastImageUrl = d.image_url;
+        document.getElementById('resultImg').src = d.image_url;
+        document.getElementById('regenLeft').textContent = d.regenerations_left;
+        document.getElementById('resultBox').classList.add('show');
+        toast(`✅ تم التوليد! متبقي ${d.remaining_in_package} تصميم`, 'success');
+        setTimeout(() => location.reload(), 3000);
+    } catch (err) {
+        toast(err.message, 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = orig;
+    }
+});
+
+function downloadResult() { if (lastImageUrl) window.open(lastImageUrl, '_blank'); }
+
+async function sendWA(code = lastDesignCode) {
+    if (!code) return;
+    const phone = prompt('رقم واتساب العميل (يبدأ بـ 01...):');
+    if (!phone) return;
+    const fd = new FormData(); fd.append('phone', phone);
+    const r = await fetch(`/marketplace/design-store/${code}/whatsapp/`, {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.whatsapp_url) window.open(d.whatsapp_url, '_blank');
+    else toast(d.error || 'فشل', 'error');
+}
+function sendWAFor(code) { sendWA(code); }
+
+async function regenDesign(code) {
+    if (!confirm('إعادة التوليد ستستخدم محاولة من الـ 3 المسموحة. متابعة؟')) return;
+    toast('جاري إعادة التوليد...', 'success');
+    const r = await fetch(`/marketplace/design-store/${code}/regenerate/`, {method:'POST'});
+    const d = await r.json();
+    if (d.image_url) { toast('✅ تم!', 'success'); setTimeout(() => location.reload(), 1500); }
+    else toast(d.error || 'فشل', 'error');
+}
+function regenLast() { if (lastDesignCode) regenDesign(lastDesignCode); }
+</script>
+
+</body>
+</html>

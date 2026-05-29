@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 متجر التصاميم الذكية | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1e38 100%);
+            color: #f8fafc; min-height: 100vh;
+        }
+        .topbar {
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .brand { font-weight: 900; font-size: 1.1rem;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 6px 14px; border-radius: 8px; }
+        .topbar a:hover { color: #ec4899; background: rgba(236,72,153,0.1); }
+        .topbar .balance-chip {
+            display:inline-flex; align-items:center; gap:6px;
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(34,197,94,0.1));
+            border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;
+            padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
+        }
+
+        .hero {
+            text-align: center; padding: 50px 20px 30px; position: relative;
+        }
+        .hero h1 {
+            font-size: 2.4rem; font-weight: 900; margin-bottom: 12px;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero p { color: #94a3b8; font-size: 1.05rem; max-width: 650px; margin: 0 auto; line-height: 1.7; }
+
+        .features-strip {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            max-width: 1100px; margin: 30px auto; padding: 0 20px; gap: 14px;
+        }
+        .feature {
+            background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 16px; text-align: center;
+        }
+        .feature i { font-size: 1.8rem; margin-bottom: 8px; }
+        .feature h4 { font-size: 0.95rem; font-weight: 900; margin-bottom: 4px; }
+        .feature p { font-size: 0.8rem; color: #94a3b8; }
+
+        .packages-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px; max-width: 1200px; margin: 40px auto;
+            padding: 0 20px;
+        }
+        .pkg {
+            background: rgba(30,41,59,0.65); backdrop-filter: blur(12px);
+            border: 2px solid rgba(255,255,255,0.08); border-radius: 24px;
+            padding: 32px 24px; position: relative; overflow: hidden;
+            transition: all 0.4s;
+        }
+        .pkg:hover { transform: translateY(-8px); }
+        .pkg.featured {
+            border-color: var(--accent-color);
+            box-shadow: 0 20px 50px -10px var(--shadow-color);
+        }
+        .pkg.featured::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at top, var(--shadow-color), transparent 50%);
+            opacity: 0.6; z-index: 0;
+        }
+        .pkg > * { position: relative; z-index: 1; }
+
+        .pkg-badge {
+            position: absolute; top: 18px; right: 18px;
+            background: var(--accent-color); color: #0f172a;
+            padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 0.7rem;
+        }
+        .pkg-icon { font-size: 3.5rem; margin-bottom: 12px; text-align: center; }
+        .pkg-name { font-size: 1.5rem; font-weight: 900; text-align: center; margin-bottom: 8px; }
+        .pkg-tagline { color: #94a3b8; font-size: 0.9rem; text-align: center; margin-bottom: 20px; min-height: 40px; }
+
+        .pkg-price-row {
+            text-align: center; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;
+        }
+        .pkg-price { font-size: 3rem; font-weight: 900; color: var(--accent-color); display: inline-block; }
+        .pkg-price-cur { font-size: 1.2rem; color: #94a3b8; }
+        .pkg-per-design { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+        .pkg-per-design strong { color: var(--accent-color); }
+
+        .pkg-features { list-style: none; margin-bottom: 24px; }
+        .pkg-features li {
+            padding: 6px 0; color: #cbd5e1; font-size: 0.85rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .pkg-features li i { color: var(--accent-color); font-size: 0.85rem; }
+        .pkg-features li.off { color: #475569; }
+        .pkg-features li.off i { color: #475569; }
+
+        .pkg-buy-btn {
+            width: 100%; padding: 14px 24px; border-radius: 14px;
+            background: var(--accent-color); color: #0f172a;
+            font-weight: 900; font-size: 1rem; border: none; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .pkg-buy-btn:hover { transform: scale(1.02); box-shadow: 0 8px 25px var(--shadow-color); }
+        .pkg-buy-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .savings-tag {
+            display: inline-block; background: rgba(16,185,129,0.15);
+            color: #6ee7b7; padding: 3px 10px; border-radius: 12px;
+            font-size: 0.7rem; font-weight: 700; margin-top: 4px;
+        }
+
+        /* Comparison strip */
+        .compare-section {
+            max-width: 1100px; margin: 60px auto 40px; padding: 30px;
+            background: rgba(30,41,59,0.4); border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .compare-section h3 { font-weight: 900; margin-bottom: 16px; text-align: center; }
+        .compare-section p { color: #94a3b8; text-align: center; line-height: 1.7; }
+
+        /* Modal */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px); display: none;
+            align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+        }
+        .modal.show { display: flex; }
+        .modal-box {
+            background: #1e293b; border-radius: 20px; padding: 32px;
+            max-width: 480px; width: 100%; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-box h3 { font-weight: 900; margin-bottom: 8px; }
+        .modal-box p { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+        .payment-options { display: grid; gap: 10px; margin-bottom: 20px; }
+        .payment-opt {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px; border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 12px; cursor: pointer; transition: all 0.2s;
+            background: rgba(15,23,42,0.5);
+        }
+        .payment-opt:hover { border-color: #8b5cf6; }
+        .payment-opt input[type="radio"] { accent-color: #8b5cf6; }
+        .payment-opt i { font-size: 1.3rem; color: #c4b5fd; }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-cancel {
+            flex: 1; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            background: transparent; color: #cbd5e1; cursor: pointer; font-family: inherit;
+            font-weight: 700;
+        }
+        .btn-confirm {
+            flex: 2; padding: 12px; border-radius: 12px; border: none;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff; cursor: pointer;
+            font-family: inherit; font-weight: 900;
+        }
+
+        .login-banner {
+            background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+            color: #fcd34d; padding: 14px 20px; border-radius: 12px;
+            max-width: 600px; margin: 20px auto; text-align: center; font-size: 0.9rem;
+        }
+        .login-banner a { color: #fbbf24; font-weight: 900; text-decoration: underline; }
+
+        @media (max-width: 576px) {
+            .hero h1 { font-size: 1.8rem; }
+            .pkg { padding: 24px 18px; }
+            .pkg-price { font-size: 2.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">🎨 AI Designs Store</div>
+    <div style="display:flex;gap:12px;align-items:center;">
+        {% if customer %}
+            <span class="balance-chip"><i class="fas fa-wallet"></i> رصيدك: <strong>{{ user_balance }}</strong> تصميم</span>
+            <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
+            <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+        {% else %}
+            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> دخول</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+    <h1>صمم اللي تتخيله — في ثواني</h1>
+    <p>متجر التصاميم الذكية الأول: ادفع مرة واحدة، استخدم رصيدك في توليد <strong>لوجوهات، كروت، فلايرات، تيشرتات، وأي تصميم</strong> تتخيله بالذكاء الاصطناعي.</p>
+</section>
+
+{% if not customer %}
+<div class="login-banner">
+    <i class="fas fa-info-circle"></i> سجل دخول علشان تشتري وتصمم — <a href="/marketplace/">دخول/تسجيل سريع</a>
+</div>
+{% endif %}
+
+<!-- Features strip -->
+<div class="features-strip">
+    <div class="feature">
+        <i class="fas fa-bolt" style="color:#fbbf24"></i>
+        <h4>توليد فوري</h4>
+        <p>التصميم جاهز في ثواني</p>
+    </div>
+    <div class="feature">
+        <i class="fas fa-ruler-combined" style="color:#06b6d4"></i>
+        <h4>مقاسات دقيقة</h4>
+        <p>اختار المقاس والوزن</p>
+    </div>
+    <div class="feature">
+        <i class="fas fa-rotate-right" style="color:#10b981"></i>
+        <h4>إعادة توليد مجاني</h4>
+        <p>3 مرات لكل تصميم</p>
+    </div>
+    <div class="feature">
+        <i class="fab fa-whatsapp" style="color:#22c55e"></i>
+        <h4>توصيل واتساب</h4>
+        <p>التصميم يوصل للعميل فوراً</p>
+    </div>
+    <div class="feature">
+        <i class="fas fa-copyright" style="color:#ec4899"></i>
+        <h4>حقوق ملكية</h4>
+        <p>استخدم تجاري بدون قيود</p>
+    </div>
+</div>
+
+<!-- Packages Grid -->
+<div class="packages-grid">
+    {% for pkg in packages %}
+    <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
+         style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
+        {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
+
+        <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
+        <div class="pkg-name">{{ pkg.name_ar }}</div>
+        <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
+
+        <div class="pkg-price-row">
+            <div>
+                <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
+                <span class="pkg-price-cur">ج.م</span>
+            </div>
+            <div class="pkg-per-design">
+                <strong>{{ pkg.designs_count }}</strong> تصميم
+                · {{ pkg.price_per_design }} ج.م/تصميم
+            </div>
+            {% if pkg.savings_vs_starter > 0 %}
+            <span class="savings-tag">💰 وفر {{ pkg.savings_vs_starter }}%</span>
+            {% endif %}
+        </div>
+
+        <ul class="pkg-features">
+            <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }} ({{ pkg.resolution_max }})</li>
+            <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
+                <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                دمج لوجو الشركة
+            </li>
+            <li class="{% if not pkg.allows_watermark %}off{% endif %}">
+                <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                علامة مائية مخصصة
+            </li>
+            <li class="{% if not pkg.allows_source_files %}off{% endif %}">
+                <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                ملفات مصدر (PSD/SVG)
+            </li>
+            <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
+                <i class="fab {% if pkg.allows_whatsapp_delivery %}fa-whatsapp{% else %}fa-whatsapp{% endif %}"></i>
+                توصيل واتساب
+            </li>
+            <li>
+                <i class="fas fa-rotate-right"></i>
+                {{ pkg.free_regenerations_per_design }} إعادات مجانية/تصميم
+            </li>
+            <li>
+                <i class="fas fa-copyright"></i>
+                {% if pkg.allows_commercial_use %}استخدام تجاري كامل{% else %}شخصي فقط{% endif %}
+            </li>
+        </ul>
+
+        <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
+            {% if customer %}
+                اشتري {{ pkg.designs_count }} تصميم
+            {% else %}
+                <i class="fas fa-lock"></i> سجل دخول للشراء
+            {% endif %}
+        </button>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="compare-section">
+    <h3>🤔 ليه نشتري باقة من Mouss Tec بدل ما نوظف مصمم؟</h3>
+    <p>
+        تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong>. وقت التسليم: <strong>2-7 أيام</strong>.<br><br>
+        مع باقة Business بـ <strong>100 جنيه</strong> هتاخد <strong>100 تصميم</strong> = <strong>1 جنيه فقط لكل تصميم</strong>.<br>
+        <strong style="color:#ec4899">وفر 99%</strong> وخد تصاميمك في <strong>ثواني</strong> بدل أسابيع.
+    </p>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal" id="buyModal">
+    <div class="modal-box">
+        <h3>تأكيد الشراء</h3>
+        <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> ج.م — <span id="modalPkgCount"></span> تصميم</p>
+
+        <div class="payment-options">
+            <label class="payment-opt">
+                <input type="radio" name="pm" value="vodafone_cash" checked>
+                <i class="fas fa-mobile-alt"></i>
+                <div><strong>فودافون كاش</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل المبلغ وسجل رقم العملية</small></div>
+            </label>
+            <label class="payment-opt">
+                <input type="radio" name="pm" value="instapay">
+                <i class="fas fa-credit-card"></i>
+                <div><strong>InstaPay</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل من بنك لبنك مجاناً</small></div>
+            </label>
+            <label class="payment-opt">
+                <input type="radio" name="pm" value="paymob">
+                <i class="far fa-credit-card"></i>
+                <div><strong>بطاقة ائتمان</strong><br><small style="color:#94a3b8;font-size:0.75rem">Visa / Mastercard</small></div>
+            </label>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeBuy()">إلغاء</button>
+            <button class="btn-confirm" onclick="confirmBuy()" id="confirmBtn">تأكيد الدفع</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let _currentSlug = null;
+const isLoggedIn = {% if customer %}true{% else %}false{% endif %};
+
+function openBuy(slug, name, price, count) {
+    if (!isLoggedIn) {
+        window.location.href = '/marketplace/?next=/marketplace/design-store/';
+        return;
+    }
+    _currentSlug = slug;
+    document.getElementById('modalPkgName').textContent = name;
+    document.getElementById('modalPkgPrice').textContent = price;
+    document.getElementById('modalPkgCount').textContent = count;
+    document.getElementById('buyModal').classList.add('show');
+}
+function closeBuy() { document.getElementById('buyModal').classList.remove('show'); }
+document.getElementById('buyModal').addEventListener('click', e => {
+    if (e.target.id === 'buyModal') closeBuy();
+});
+
+async function confirmBuy() {
+    const btn = document.getElementById('confirmBtn');
+    btn.disabled = true; btn.textContent = 'جاري المعالجة...';
+    const pm = document.querySelector('input[name="pm"]:checked').value;
+    try {
+        const fd = new FormData();
+        fd.append('payment_method', pm);
+        const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'خطأ');
+        alert(d.message);
+        window.location.href = d.redirect;
+    } catch (e) {
+        alert(e.message);
+        btn.disabled = false; btn.textContent = 'تأكيد الدفع';
+    }
+}
+</script>
+
+</body>
+</html>

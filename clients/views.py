@@ -28,6 +28,7 @@ from clients.models import (
     Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer,
     EscrowLedger, PlatformEvent, VisitorLog,
     MarketplaceCustomer, ServiceRequest, TenderOffer,
+    DesignPackage, DesignPurchase, CustomerDesign,
 )
 
 logger = logging.getLogger('mouss_tec_core')
@@ -2549,3 +2550,336 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
         logger.info(f"[MARKETPLACE NOTIFY] Notified {count} merchants of request {svc_request.request_code}")
     except Exception as e:
         logger.error(f"[MARKETPLACE NOTIFY] Failed: {e}")
+
+# =====================================================================
+# 🎨 AI Designs Store — متجر التصاميم الفورية
+# =====================================================================
+
+def design_store_home(request):
+    """🛍️ صفحة المتجر — يعرض الباقات."""
+    packages = DesignPackage.objects.filter(is_active=True).order_by('sort_order', 'designs_count')
+
+    customer = _marketplace_auth(request)
+    user_balance = 0
+    if customer:
+        user_balance = sum(p.designs_remaining for p in
+                          customer.design_purchases.filter(status='paid')
+                          if p.is_usable)
+
+    return render(request, 'clients/marketplace/design_store.html', {
+        'packages': packages,
+        'customer': customer,
+        'user_balance': user_balance,
+    })
+
+
+@csrf_exempt
+def design_store_buy(request, package_slug):
+    """شراء باقة."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول أولاً", "redirect": "/marketplace/"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    package = get_object_or_404(DesignPackage, slug=package_slug, is_active=True)
+    payment_method = request.POST.get('payment_method', 'paymob')
+
+    # Create the purchase as PENDING — will be marked paid by payment webhook
+    purchase = DesignPurchase.objects.create(
+        customer=customer, package=package,
+        designs_total=package.designs_count,
+        price_paid=package.price_egp,
+        payment_method=payment_method,
+        status='pending',
+    )
+
+    # 🚧 MVP: auto-mark paid if cash_collect or admin grants
+    # In production: integrate Paymob webhook to mark paid
+    if payment_method in ('cash_collect', 'admin_grant') or getattr(settings, 'DESIGN_STORE_AUTO_PAID', True):
+        purchase.status = 'paid'
+        purchase.paid_at = timezone.now()
+        purchase.save(update_fields=['status', 'paid_at'])
+        logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} auto-marked PAID (MVP mode)")
+
+    return JsonResponse({
+        "status": "success",
+        "purchase_id": purchase.pk,
+        "purchase_code": str(purchase.purchase_code),
+        "designs_total": purchase.designs_total,
+        "redirect": "/marketplace/design-store/my-designs/",
+        "message": f"تم شراء باقة {package.name_ar} — معاك {purchase.designs_total} تصميم!",
+    })
+
+
+def design_store_my_designs(request):
+    """📚 صفحة تصاميمي + الرصيد المتبقي."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/')
+
+    purchases = customer.design_purchases.filter(status='paid').select_related('package').order_by('-created_at')
+    designs = customer.designs.order_by('-created_at')[:50]
+    active_purchase = next((p for p in purchases if p.is_usable), None)
+
+    return render(request, 'clients/marketplace/design_store_my.html', {
+        'customer': customer,
+        'purchases': purchases,
+        'designs': designs,
+        'active_purchase': active_purchase,
+        'total_remaining': sum(p.designs_remaining for p in purchases if p.is_usable),
+    })
+
+
+@csrf_exempt
+def design_store_generate(request):
+    """🎨 توليد تصميم من الباقة."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    # Find an active purchase with remaining designs
+    purchase = next((p for p in customer.design_purchases.filter(status='paid').order_by('created_at')
+                    if p.is_usable), None)
+    if not purchase:
+        return JsonResponse({
+            "error": "لا يوجد رصيد متاح. اشتري باقة جديدة لتبدأ.",
+            "redirect": "/marketplace/design-store/",
+        }, status=403)
+
+    title = request.POST.get('title', '').strip()
+    description = request.POST.get('description', '').strip()
+    category = request.POST.get('category', 'other')
+    size_preset = request.POST.get('size_preset', '1024x1024')
+    custom_w = request.POST.get('custom_width_px', '').strip()
+    custom_h = request.POST.get('custom_height_px', '').strip()
+    weight = request.POST.get('weight_kg', '').strip()
+    output_format = request.POST.get('output_format', 'png')
+
+    if not description or len(description) < 10:
+        return JsonResponse({"error": "وصف التصميم قصير جداً (10 أحرف على الأقل)"}, status=400)
+
+    # Resolve actual DALL-E size from preset
+    size_map = {
+        '1024x1024': '1024x1024', '1024x1792': '1024x1792', '1792x1024': '1792x1024',
+        '2048x2048': '1024x1024',  # we upscale to 2048 later if quality_level='ultra'
+        'a4': '1024x1792', 'a3': '1024x1792',
+        'business_card': '1792x1024',
+        'tshirt_chest': '1024x1792', 'mug': '1792x1024',
+        'custom': '1024x1024',
+    }
+    dalle_size = size_map.get(size_preset, '1024x1024')
+
+    # Augment prompt with category + specs
+    enhanced_desc = description
+    if category == 'logo':
+        enhanced_desc = f"Professional logo design: {description}. Clean, modern, scalable, vector-style, minimal."
+    elif category == 'business_card':
+        enhanced_desc = f"Premium business card design: {description}. Clean typography, professional layout, print-ready."
+    elif category == 'flyer':
+        enhanced_desc = f"Eye-catching flyer design: {description}. Bold typography, vibrant colors, print-ready CMYK."
+    elif category == 'tshirt':
+        enhanced_desc = f"T-shirt graphic design: {description}. High contrast, isolated on transparent background, scalable."
+    elif category == 'packaging' and weight:
+        enhanced_desc = f"Product packaging design: {description}. Realistic mockup, weight: {weight}kg, professional product photography."
+
+    # Generate via OpenAI
+    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+    if not openai_key:
+        return JsonResponse({"error": "محرك التوليد غير متاح حالياً"}, status=503)
+
+    try:
+        import openai
+        client = openai.OpenAI(api_key=openai_key)
+
+        # Try gpt-image-1 → dall-e-3 → dall-e-2
+        models_chain = ['gpt-image-1', 'dall-e-3', 'dall-e-2']
+        response = None
+        used_model = None
+        for m in models_chain:
+            try:
+                kwargs = {'model': m, 'prompt': enhanced_desc[:2000], 'size': dalle_size, 'n': 1}
+                if m == 'dall-e-3':
+                    kwargs['quality'] = 'hd' if purchase.package.quality_level in ('hd', 'ultra') else 'standard'
+                elif m == 'gpt-image-1':
+                    kwargs['quality'] = 'high' if purchase.package.quality_level in ('hd', 'ultra') else 'medium'
+                elif m == 'dall-e-2':
+                    kwargs['size'] = '1024x1024'  # dall-e-2 limits
+                response = client.images.generate(**kwargs)
+                used_model = m
+                break
+            except openai.BadRequestError as e:
+                if 'does not exist' in str(e) or 'model_not_found' in str(e):
+                    continue
+                raise
+
+        if not response:
+            return JsonResponse({"error": "فشل التوليد. حاول لاحقاً."}, status=502)
+
+        # Save image to disk
+        first = response.data[0]
+        image_url = getattr(first, 'url', None)
+        if not image_url:
+            b64 = getattr(first, 'b64_json', None)
+            if b64:
+                import base64 as _b64, uuid as _uuid
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                img_bytes = _b64.b64decode(b64)
+                filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
+                saved_path = default_storage.save(filename, ContentFile(img_bytes))
+                image_url = default_storage.url(saved_path)
+                if image_url.startswith('/'):
+                    image_url = request.build_absolute_uri(image_url)
+        else:
+            # Download and persist DALL-E URLs (they expire)
+            try:
+                import requests as _req, uuid as _uuid
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                r = _req.get(image_url, timeout=30)
+                if r.status_code == 200:
+                    filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
+                    saved_path = default_storage.save(filename, ContentFile(r.content))
+                    local = default_storage.url(saved_path)
+                    if local.startswith('/'):
+                        local = request.build_absolute_uri(local)
+                    image_url = local
+            except Exception as e:
+                logger.warning(f"[DESIGN STORE] Failed to persist: {e}")
+
+        # Create design record
+        design = CustomerDesign.objects.create(
+            customer=customer, purchase=purchase,
+            title=title or description[:60], description=description,
+            category=category, size_preset=size_preset,
+            custom_width_px=int(custom_w) if custom_w.isdigit() else None,
+            custom_height_px=int(custom_h) if custom_h.isdigit() else None,
+            weight_kg=Decimal(weight) if weight else None,
+            output_format=output_format,
+            raw_input=description, engineered_prompt=enhanced_desc[:2000],
+            image_url=image_url, model_used=used_model or 'unknown',
+            regenerations_allowed=purchase.package.free_regenerations_per_design,
+        )
+
+        # Handle logo upload if package allows it
+        if purchase.package.allows_logo_upload and request.FILES.get('logo'):
+            design.logo_image = request.FILES['logo']
+            design.save(update_fields=['logo_image'])
+
+        # Consume 1 design from the purchase
+        purchase.consume_design()
+        purchase.refresh_from_db()
+
+        return JsonResponse({
+            "status": "success",
+            "design_id": design.pk,
+            "design_code": str(design.design_code),
+            "image_url": image_url,
+            "model_used": used_model,
+            "size": design.actual_size_label,
+            "remaining_in_package": purchase.designs_remaining,
+            "regenerations_left": design.regenerations_allowed,
+        })
+
+    except Exception as e:
+        logger.error(f"[DESIGN STORE] Generate failed: {e}")
+        return JsonResponse({"error": f"حدث خطأ: {str(e)[:200]}"}, status=500)
+
+
+@csrf_exempt
+def design_store_send_whatsapp(request, design_code):
+    """📱 إرسال التصميم للعميل على واتساب."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "غير مصرح"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+    target_phone = request.POST.get('phone', customer.phone).strip()
+    custom_message = request.POST.get('message', '').strip()
+
+    if not target_phone:
+        return JsonResponse({"error": "رقم الواتساب مطلوب"}, status=400)
+
+    # Build wa.me deep link
+    from urllib.parse import quote
+    msg = custom_message or f"تصميمك من Mouss Tec AI Store جاهز!\n\nالعنوان: {design.title}\nالمقاس: {design.actual_size_label}\n\n{design.image_url}"
+    phone_clean = target_phone.lstrip('+').lstrip('0')
+    if not phone_clean.startswith('20'):
+        phone_clean = '20' + phone_clean
+    wa_url = f"https://wa.me/{phone_clean}?text={quote(msg)}"
+
+    # Mark as sent
+    design.sent_to_whatsapp = target_phone
+    design.sent_at = timezone.now()
+    design.save(update_fields=['sent_to_whatsapp', 'sent_at'])
+
+    return JsonResponse({"status": "success", "whatsapp_url": wa_url})
+
+
+@csrf_exempt
+def design_store_regenerate(request, design_code):
+    """🔄 إعادة توليد تصميم — مجاناً ضمن الحد المسموح."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "غير مصرح"}, status=401)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+    if not design.can_regenerate:
+        return JsonResponse({
+            "error": f"استنفدت إعادة التوليد المسموحة ({design.regenerations_allowed} مرات)",
+        }, status=403)
+
+    # Re-generate with same specs by calling generate endpoint internally
+    request.POST = request.POST.copy()
+    request.POST['title'] = design.title
+    request.POST['description'] = design.description
+    request.POST['category'] = design.category
+    request.POST['size_preset'] = design.size_preset
+    request.POST['output_format'] = design.output_format
+
+    # Don't consume from package — increment regen counter instead
+    design.regenerations_used += 1
+    design.save(update_fields=['regenerations_used'])
+
+    # Inline regenerate without consuming purchase quota
+    # (simplified — reuse same OpenAI call)
+    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+    try:
+        import openai
+        client = openai.OpenAI(api_key=openai_key)
+        size_map = {'1024x1024': '1024x1024', '1024x1792': '1024x1792', '1792x1024': '1792x1024'}
+        sz = size_map.get(design.size_preset, '1024x1024')
+        resp = client.images.generate(
+            model='gpt-image-1', prompt=design.engineered_prompt[:2000] or design.description,
+            size=sz, n=1, quality='high',
+        )
+        first = resp.data[0]
+        new_url = getattr(first, 'url', None)
+        if not new_url and hasattr(first, 'b64_json'):
+            import base64 as _b64, uuid as _uuid
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+            img_bytes = _b64.b64decode(first.b64_json)
+            filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
+            saved = default_storage.save(filename, ContentFile(img_bytes))
+            new_url = request.build_absolute_uri(default_storage.url(saved))
+
+        design.image_url = new_url
+        design.save(update_fields=['image_url'])
+
+        return JsonResponse({
+            "status": "success",
+            "image_url": new_url,
+            "regenerations_left": design.regenerations_allowed - design.regenerations_used,
+        })
+    except Exception as e:
+        logger.error(f"[REGEN] Failed: {e}")
+        return JsonResponse({"error": "فشل إعادة التوليد"}, status=500)

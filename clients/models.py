@@ -1019,3 +1019,274 @@ class TenderOffer(models.Model):
     @property
     def is_images_required(self):
         return self.service_request.wants_images
+
+# =====================================================================
+# 🎨 AI Designs Store — مكتبة التصاميم الفورية للعملاء النهائيين
+# =====================================================================
+
+class DesignPackage(models.Model):
+    """
+    📦 باقة شراء تصاميم — العميل يدفع مرة واحدة ويستهلك التصاميم تدريجياً.
+    """
+    PACKAGE_TIERS = (
+        ('starter', _('🥉 Starter — 25 تصميم')),
+        ('pro', _('🥈 Pro — 50 تصميم')),
+        ('business', _('🥇 Business — 100 تصميم')),
+        ('studio', _('💎 Studio — 250 تصميم')),
+    )
+    slug = models.CharField(max_length=20, choices=PACKAGE_TIERS, unique=True)
+    name_ar = models.CharField(max_length=100, verbose_name=_("الاسم بالعربي"))
+    designs_count = models.IntegerField(verbose_name=_("عدد التصاميم"))
+    price_egp = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر بالجنيه"))
+    price_per_design = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+
+    # Feature flags
+    allows_logo_upload = models.BooleanField(default=True)
+    allows_watermark = models.BooleanField(default=False)
+    allows_source_files = models.BooleanField(default=False, verbose_name=_("ملفات مصدر (PSD/SVG)"))
+    allows_commercial_use = models.BooleanField(default=True, verbose_name=_("استخدام تجاري"))
+    allows_whatsapp_delivery = models.BooleanField(default=True)
+    free_regenerations_per_design = models.IntegerField(default=3, verbose_name=_("إعادة توليد مجاني"))
+
+    # Quality
+    resolution_max = models.CharField(max_length=20, default='2048x2048', verbose_name=_("أعلى دقة"))
+    quality_level = models.CharField(max_length=20, default='hd',
+        choices=[('standard', 'عادية'), ('hd', 'عالية'), ('ultra', 'فائقة')])
+
+    # Display
+    icon_emoji = models.CharField(max_length=10, default='🎨')
+    accent_color = models.CharField(max_length=7, default='#8b5cf6')
+    is_featured = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    description_html = models.TextField(blank=True, verbose_name=_("الوصف"))
+    badge_text = models.CharField(max_length=50, blank=True, verbose_name=_("شارة (مثل: الأكثر مبيعاً)"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("باقة تصاميم")
+        verbose_name_plural = _("🎨 باقات تصاميم AI")
+        ordering = ['sort_order', 'designs_count']
+
+    def __str__(self):
+        return f"{self.icon_emoji} {self.name_ar} — {self.price_egp} ج.م"
+
+    def save(self, *args, **kwargs):
+        if self.designs_count > 0:
+            self.price_per_design = (self.price_egp / Decimal(str(self.designs_count))).quantize(Decimal('0.01'))
+        super().save(*args, **kwargs)
+
+    @property
+    def savings_vs_starter(self):
+        """نسبة التوفير مقارنة بالـ Starter"""
+        starter = DesignPackage.objects.filter(slug='starter').first()
+        if not starter or starter.pk == self.pk:
+            return 0
+        diff = starter.price_per_design - self.price_per_design
+        return int((diff / starter.price_per_design) * 100) if starter.price_per_design > 0 else 0
+
+
+class DesignPurchase(models.Model):
+    """
+    🛒 عملية شراء باقة من عميل.
+    """
+    STATUS_CHOICES = (
+        ('pending', _('في انتظار الدفع')),
+        ('paid', _('مدفوعة — جاهزة للاستخدام')),
+        ('exhausted', _('تم استهلاكها بالكامل')),
+        ('refunded', _('مردودة')),
+        ('expired', _('منتهية الصلاحية')),
+    )
+    PAYMENT_METHODS = (
+        ('paymob', _('بطاقة ائتمان (Paymob)')),
+        ('vodafone_cash', _('فودافون كاش')),
+        ('instapay', _('إنستاباي')),
+        ('cash_collect', _('دفع عند الاستلام')),
+        ('admin_grant', _('منحة من الإدارة')),
+    )
+
+    purchase_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    customer = models.ForeignKey(MarketplaceCustomer, on_delete=models.CASCADE, related_name='design_purchases')
+    package = models.ForeignKey(DesignPackage, on_delete=models.PROTECT, related_name='purchases')
+
+    designs_total = models.IntegerField()  # snapshot of package.designs_count at purchase time
+    designs_used = models.IntegerField(default=0)
+    price_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='paymob')
+    payment_reference = models.CharField(max_length=200, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_("ينتهي في"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("شراء باقة تصاميم")
+        verbose_name_plural = _("🛒 مشتريات باقات التصاميم")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"#{self.id} | {self.customer.full_name} | {self.package.name_ar}"
+
+    @property
+    def designs_remaining(self):
+        return max(self.designs_total - self.designs_used, 0)
+
+    @property
+    def is_usable(self):
+        if self.status != 'paid':
+            return False
+        if self.designs_remaining <= 0:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        return True
+
+    def consume_design(self):
+        """خصم تصميم من الباقة (atomic)"""
+        from django.db import transaction as _tx
+        with _tx.atomic():
+            type(self).objects.filter(pk=self.pk).update(designs_used=F('designs_used') + 1)
+            self.refresh_from_db()
+            if self.designs_used >= self.designs_total:
+                self.status = 'exhausted'
+                self.save(update_fields=['status'])
+
+
+class CustomerDesign(models.Model):
+    """
+    🖼️ تصميم تم توليده للعميل — مع كل المواصفات والـ specs.
+    """
+    DESIGN_CATEGORIES = (
+        ('logo', _('لوجو / Brand Mark')),
+        ('business_card', _('كارت بزنس')),
+        ('social_post', _('بوست سوشيال ميديا')),
+        ('flyer', _('فلاير')),
+        ('poster', _('بوستر / إعلان')),
+        ('banner', _('بنر / Roll-up')),
+        ('packaging', _('تغليف / منتج')),
+        ('tshirt', _('تيشرت / Merch')),
+        ('menu', _('منيو')),
+        ('invitation', _('دعوة / كارت')),
+        ('sticker', _('ستيكر')),
+        ('mockup', _('Mockup منتج')),
+        ('other', _('أخرى')),
+    )
+    OUTPUT_FORMATS = (
+        ('png', 'PNG'),
+        ('jpg', 'JPEG'),
+        ('webp', 'WebP'),
+        ('pdf', 'PDF Print-Ready'),
+    )
+    SIZE_PRESETS = (
+        ('1024x1024', '🟦 مربع — 1024×1024 (سوشيال ميديا)'),
+        ('1024x1792', '📱 قصة — 1024×1792 (Story / Reel)'),
+        ('1792x1024', '🖥️ أفقي — 1792×1024 (بنر / غلاف)'),
+        ('2048x2048', '⚡ مربع HD — 2048×2048 (طباعة)'),
+        ('a4', '📄 A4 — 2480×3508 (فلاير / بوستر)'),
+        ('a3', '📑 A3 — 3508×4960 (بوستر كبير)'),
+        ('business_card', '💳 كارت بزنس — 1050×600 (3.5×2 بوصة)'),
+        ('tshirt_chest', '👕 تيشرت صدر — 3600×4500'),
+        ('mug', '☕ ماج — 2700×1080'),
+        ('custom', '⚙️ مقاس مخصص'),
+    )
+
+    design_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    customer = models.ForeignKey(MarketplaceCustomer, on_delete=models.CASCADE, related_name='designs')
+    purchase = models.ForeignKey(DesignPurchase, on_delete=models.PROTECT, related_name='designs')
+
+    # User input
+    title = models.CharField(max_length=200, verbose_name=_("عنوان التصميم"))
+    description = models.TextField(verbose_name=_("الوصف"))
+    category = models.CharField(max_length=20, choices=DESIGN_CATEGORIES, default='other')
+
+    # 🆕 User-controllable specs (مهم جداً للعميل)
+    size_preset = models.CharField(max_length=30, choices=SIZE_PRESETS, default='1024x1024',
+                                   verbose_name=_("المقاس"))
+    custom_width_px = models.IntegerField(null=True, blank=True, verbose_name=_("العرض (px)"))
+    custom_height_px = models.IntegerField(null=True, blank=True, verbose_name=_("الارتفاع (px)"))
+    weight_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True,
+                                    verbose_name=_("وزن المنتج (اختياري — للـ packaging)"))
+    output_format = models.CharField(max_length=10, choices=OUTPUT_FORMATS, default='png')
+
+    # Optional logo input
+    logo_image = models.ImageField(upload_to='ai_store/logos/', blank=True, null=True)
+
+    # AI engineering
+    raw_input = models.TextField(blank=True)
+    engineered_prompt = models.TextField(blank=True)
+    negative_prompt = models.TextField(blank=True)
+
+    # Result
+    image_url = models.URLField(max_length=600, blank=True)
+    model_used = models.CharField(max_length=50, blank=True)
+
+    # Regenerations
+    regenerations_used = models.IntegerField(default=0)
+    regenerations_allowed = models.IntegerField(default=3)
+
+    # Delivery
+    sent_to_whatsapp = models.CharField(max_length=30, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    download_count = models.IntegerField(default=0)
+
+    # Customer rating
+    customer_rating = models.IntegerField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("تصميم للعميل")
+        verbose_name_plural = _("🖼️ تصاميم العملاء (AI Store)")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"DESIGN-{str(self.design_code)[:8]} | {self.title[:40]}"
+
+    @property
+    def can_regenerate(self):
+        return self.regenerations_used < self.regenerations_allowed
+
+    @property
+    def actual_size_label(self):
+        """عرض المقاس بشكل جميل للعميل"""
+        if self.size_preset == 'custom' and self.custom_width_px and self.custom_height_px:
+            return f"{self.custom_width_px}×{self.custom_height_px} px"
+        size_map = {
+            '1024x1024': '1024×1024 px',
+            '1024x1792': '1024×1792 px',
+            '1792x1024': '1792×1024 px',
+            '2048x2048': '2048×2048 px (HD)',
+            'a4': '210×297 mm (A4)',
+            'a3': '297×420 mm (A3)',
+            'business_card': '85×55 mm',
+            'tshirt_chest': '30×38 cm',
+            'mug': '23×9 cm',
+        }
+        return size_map.get(self.size_preset, self.size_preset)
+
+
+def seed_default_design_packages():
+    """يستدعى من management command أو migration لتأسيس الباقات."""
+    defaults = [
+        {'slug': 'starter', 'name_ar': 'Starter', 'designs_count': 25, 'price_egp': Decimal('32.00'),
+         'icon_emoji': '🥉', 'accent_color': '#fbbf24', 'sort_order': 1,
+         'description_html': 'مثالية للتجربة. تصاميم HD مع حق استخدام تجاري.'},
+        {'slug': 'pro', 'name_ar': 'Pro', 'designs_count': 50, 'price_egp': Decimal('55.00'),
+         'icon_emoji': '🥈', 'accent_color': '#a3a3a3', 'sort_order': 2,
+         'allows_whatsapp_delivery': True, 'is_featured': True, 'badge_text': 'الأكثر طلباً',
+         'description_html': 'أفضل قيمة للأفراد ورواد الأعمال. توصيل واتساب مباشر.'},
+        {'slug': 'business', 'name_ar': 'Business', 'designs_count': 100, 'price_egp': Decimal('100.00'),
+         'icon_emoji': '🥇', 'accent_color': '#facc15', 'sort_order': 3,
+         'allows_watermark': True, 'allows_logo_upload': True, 'badge_text': 'الأوفر',
+         'description_html': 'للشركات والمحلات. لوجو + علامة مائية + جودة فائقة.'},
+        {'slug': 'studio', 'name_ar': 'Studio', 'designs_count': 250, 'price_egp': Decimal('220.00'),
+         'icon_emoji': '💎', 'accent_color': '#8b5cf6', 'sort_order': 4,
+         'allows_source_files': True, 'quality_level': 'ultra', 'resolution_max': '4096x4096',
+         'description_html': 'للوكالات والمصممين. ملفات مصدر + أعلى دقة.'},
+    ]
+    for d in defaults:
+        DesignPackage.objects.update_or_create(slug=d['slug'], defaults=d)

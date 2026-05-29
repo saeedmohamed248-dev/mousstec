@@ -337,6 +337,14 @@ urlpatterns = [
     path('marketplace/offer/<uuid:offer_code>/accept/', client_views.marketplace_accept_offer, name='marketplace_accept_offer'),
     path('marketplace/offer/<uuid:offer_code>/rate/', client_views.marketplace_rate_offer, name='marketplace_rate_offer'),
 
+    # 🎨 AI Designs Store (instant generation marketplace)
+    path('marketplace/design-store/', client_views.design_store_home, name='design_store_home'),
+    path('marketplace/design-store/buy/<slug:package_slug>/', client_views.design_store_buy, name='design_store_buy'),
+    path('marketplace/design-store/my-designs/', client_views.design_store_my_designs, name='design_store_my_designs'),
+    path('marketplace/design-store/generate/', client_views.design_store_generate, name='design_store_generate'),
+    path('marketplace/design-store/<uuid:design_code>/whatsapp/', client_views.design_store_send_whatsapp, name='design_store_whatsapp'),
+    path('marketplace/design-store/<uuid:design_code>/regenerate/', client_views.design_store_regenerate, name='design_store_regenerate'),
+
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),
     path('marketplace/merchant/feed/count/', client_views.marketplace_merchant_feed_count, name='marketplace_merchant_feed_count'),
