@@ -2047,6 +2047,9 @@ def marketplace_create_request(request):
         logger.error(f"[MARKETPLACE] Failed to create request for {customer.phone}: {e}")
         return JsonResponse({"error": f"فشل إنشاء الطلب: {str(e)[:200]}"}, status=500)
 
+    # 🔔 إشعار كل التجار المؤهلين
+    _notify_merchants_of_new_request(svc_request)
+
     # Handle attachments
     if request.FILES.get('attachment_1'):
         svc_request.attachment_1 = request.FILES['attachment_1']
@@ -2301,3 +2304,153 @@ def marketplace_logout(request):
     response = redirect('/marketplace/')
     response.delete_cookie('mp_session')
     return response
+
+
+# ------------------------------------------------------------------
+# 🔔 Notification endpoints for merchant dashboard
+# ------------------------------------------------------------------
+
+def marketplace_merchant_feed_count(request):
+    """
+    عداد الطلبات المفتوحة في قطاع التاجر التي لم يقدم عرض عليها بعد.
+    يستخدم في الـ polling badge على dashboard الشركة.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"new_count": 0, "authenticated": False})
+
+    try:
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+    except Client.DoesNotExist:
+        return JsonResponse({"new_count": 0})
+
+    industry = tenant.industry
+    open_requests = ServiceRequest.objects.filter(
+        sector=industry,
+        status='open',
+        expires_at__gt=timezone.now(),
+    )
+    already_offered = TenderOffer.objects.filter(merchant=tenant).values_list('service_request_id', flat=True)
+    new_count = open_requests.exclude(id__in=already_offered).count()
+
+    return JsonResponse({
+        "new_count": new_count,
+        "industry": industry,
+        "authenticated": True,
+    })
+
+
+@csrf_exempt
+def marketplace_merchant_create_request(request):
+    """
+    🆕 السماح للتجار بإنشاء طلبات B2B (مثلاً: مطبعة تطلب 10 آلاف تيشرت من مصنع).
+    التاجر يبقى مجهول للتجار التانية، زي ما العميل النهائي مجهول.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+    except Client.DoesNotExist:
+        return JsonResponse({"error": "مستأجر غير صالح"}, status=400)
+
+    title = request.POST.get('title', '').strip()
+    description = request.POST.get('description', '').strip()
+    urgency = request.POST.get('urgency', 'normal')
+    target_sector = request.POST.get('target_sector', tenant.industry)
+    max_budget = request.POST.get('max_budget', '').strip()
+    wants_images = request.POST.get('wants_images') == 'true'
+
+    if not title or len(title) < 5:
+        return JsonResponse({"error": "العنوان قصير جداً"}, status=400)
+    if not description or len(description) < 10:
+        return JsonResponse({"error": "التفاصيل قصيرة جداً"}, status=400)
+    if target_sector not in ('automotive', 'printing'):
+        return JsonResponse({"error": "قطاع غير صالح"}, status=400)
+    if urgency not in ('normal', 'soon', 'urgent'):
+        urgency = 'normal'
+
+    budget_value = None
+    if max_budget:
+        try:
+            budget_value = Decimal(max_budget)
+        except Exception:
+            return JsonResponse({"error": "الميزانية رقم غير صالح"}, status=400)
+
+    # 🔗 ربط الطلب بـ MarketplaceCustomer التابع للشركة (يُنشأ تلقائياً لو ما اتعملش قبل كده)
+    # الفكرة: التاجر يحجز نفسه كـ "buyer" في النظام علشان يقدم طلبات
+    merchant_buyer, _ = MarketplaceCustomer.objects.get_or_create(
+        phone=f'+B2B{tenant.id}',  # phone صناعي للتمييز
+        defaults={
+            'customer_type': 'company',
+            'full_name': tenant.owner_name or tenant.name,
+            'company_name': tenant.name,
+            'sector': target_sector,
+            'city': '',
+            'is_verified': True,
+            'job_title': 'B2B Buyer',
+        },
+    )
+
+    expiry_map = {'urgent': 1, 'soon': 3, 'normal': 7}
+    days = expiry_map.get(urgency, 7)
+
+    try:
+        svc_request = ServiceRequest.objects.create(
+            customer=merchant_buyer,
+            sector=target_sector,
+            title=f"[B2B] {title}",
+            description=description,
+            urgency=urgency,
+            wants_images=wants_images,
+            customer_city='',
+            max_budget=budget_value,
+            expires_at=timezone.now() + timedelta(days=days),
+        )
+    except Exception as e:
+        logger.error(f"[B2B REQUEST] Failed for {tenant.name}: {e}")
+        return JsonResponse({"error": "فشل إنشاء الطلب"}, status=500)
+
+    # 🔔 Send notifications to all eligible merchants in the sector
+    _notify_merchants_of_new_request(svc_request, exclude_tenant=tenant)
+
+    return JsonResponse({
+        "status": "success",
+        "message": "تم نشر طلبك! سيشاهده كل التجار المؤهلين.",
+        "request_code": str(svc_request.request_code),
+    })
+
+
+def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
+    """
+    🔔 إشعار كل التجار في نفس قطاع الطلب.
+    حالياً يسجل PlatformEvent (يظهر في activity feed).
+    TODO: WebSocket/Push notifications للـ real-time.
+    """
+    try:
+        eligible_merchants = Client.objects.filter(
+            industry=svc_request.sector,
+            is_active=True,
+            status__in=('active', 'trial'),
+        ).exclude(schema_name='public')
+        if exclude_tenant:
+            eligible_merchants = eligible_merchants.exclude(pk=exclude_tenant.pk)
+
+        count = eligible_merchants.count()
+        PlatformEvent.objects.create(
+            event_type='other',
+            tenant_schema='public',
+            tenant_name='Marketplace',
+            description=f"🛒 طلب جديد: {svc_request.title[:80]} — تم إشعار {count} تاجر",
+            metadata={
+                'request_code': str(svc_request.request_code),
+                'sector': svc_request.sector,
+                'urgency': svc_request.urgency,
+                'merchants_notified': count,
+            },
+        )
+        logger.info(f"[MARKETPLACE NOTIFY] Notified {count} merchants of request {svc_request.request_code}")
+    except Exception as e:
+        logger.error(f"[MARKETPLACE NOTIFY] Failed: {e}")

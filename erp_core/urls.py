@@ -330,7 +330,9 @@ urlpatterns = [
 
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),
+    path('marketplace/merchant/feed/count/', client_views.marketplace_merchant_feed_count, name='marketplace_merchant_feed_count'),
     path('marketplace/merchant/offer/<uuid:request_code>/', client_views.marketplace_submit_offer, name='marketplace_submit_offer'),
+    path('marketplace/merchant/request/create/', client_views.marketplace_merchant_create_request, name='marketplace_merchant_create_request'),
 
     # ==============================================================
     # 5. 🌍 مسارات الترجمة العالمية، والسيستم الداخلي للورش والفروع
