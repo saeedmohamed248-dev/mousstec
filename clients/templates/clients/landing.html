@@ -90,15 +90,21 @@
             <span class="text-2xl font-black tracking-wide bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </div>
 
-        <div class="flex items-center gap-4">
-            <a href="{% url 'features_page' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+            <a href="#marketplace-public" class="hidden md:inline-flex text-amber-300 hover:text-amber-200 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5 bg-amber-500/10 border border-amber-500/20">
+                <i class="fas fa-store"></i> السوق
+            </a>
+            <a href="#ai-studio-section" class="hidden md:inline-flex text-purple-300 hover:text-purple-200 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5 bg-purple-500/10 border border-purple-500/20">
+                <i class="fas fa-wand-magic-sparkles"></i> AI Studio
+            </a>
+            <a href="{% url 'features_page' %}" class="hidden lg:inline-flex text-slate-400 hover:text-purple-400 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5">
                 <i class="fas fa-star"></i> المميزات
             </a>
-            <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-purple-400 font-bold px-4 py-2.5 rounded-xl transition duration-300 text-sm items-center gap-2">
-                <i class="fas fa-tags"></i> الباقات والأسعار
+            <a href="{% url 'saas_pricing' %}" class="hidden lg:inline-flex text-slate-400 hover:text-purple-400 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5">
+                <i class="fas fa-tags"></i> الباقات
             </a>
-            <a href="{% url 'client_login_finder' %}" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-5 py-2.5 rounded-xl border border-slate-700 transition duration-300 text-sm flex items-center gap-2 backdrop-blur-sm">
-                <i class="fas fa-lock text-purple-400"></i> تسجيل الدخول
+            <a href="{% url 'client_login_finder' %}" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-4 py-2 rounded-lg border border-slate-700 transition text-xs flex items-center gap-1.5 backdrop-blur-sm">
+                <i class="fas fa-lock text-purple-400"></i> دخول
             </a>
         </div>
     </header>
@@ -111,15 +117,50 @@
                 <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Network Uptime: {{ system_uptime|default:"99.99%" }}
             </span>
             <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
-                برنامج حسابات أونلاين <br>
-                <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">لكل الأنشطة التجارية</span>
+                منصة <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">Mouss Tec</span><br>
+                <span class="text-2xl lg:text-3xl text-slate-300">شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد</span>
             </h1>
-            <p class="text-slate-400 text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
-                أدِر حساباتك من الموبايل أو الكمبيوتر — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباحك لحظة بلحظة. اختار مجالك وابدأ مجاناً.
+            <p class="text-slate-400 text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed mb-6">
+                إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio للتصاميم — كله من نظام واحد.
             </p>
+
+            <!-- ⚡ Quick Action Bar — "أنت مين؟" -->
+            <div class="max-w-3xl mx-auto bg-slate-900/70 border border-slate-700 rounded-2xl p-5 backdrop-blur-md">
+                <p class="text-slate-300 font-bold mb-4 text-sm"><i class="fas fa-circle-question text-amber-400"></i> أنت مين؟ اختار اللي يناسبك:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <a href="#marketplace-public" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-400 rounded-xl p-4 transition text-right group">
+                        <div class="flex items-center gap-3 mb-1">
+                            <i class="fas fa-user text-amber-400 text-xl"></i>
+                            <span class="text-white font-black text-sm">عميل عاوز يطلب</span>
+                        </div>
+                        <p class="text-amber-200/60 text-xs">قطعة، صيانة، تصميم، أو طباعة</p>
+                    </a>
+                    <a href="#industry-cards" class="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-400 rounded-xl p-4 transition text-right group">
+                        <div class="flex items-center gap-3 mb-1">
+                            <i class="fas fa-building text-purple-400 text-xl"></i>
+                            <span class="text-white font-black text-sm">صاحب شركة أو مركز</span>
+                        </div>
+                        <p class="text-purple-200/60 text-xs">سجّل شركتك واستخدم النظام كامل</p>
+                    </a>
+                    <a href="{% url 'client_login_finder' %}" class="bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600 hover:border-slate-500 rounded-xl p-4 transition text-right group">
+                        <div class="flex items-center gap-3 mb-1">
+                            <i class="fas fa-key text-slate-300 text-xl"></i>
+                            <span class="text-white font-black text-sm">عندي حساب</span>
+                        </div>
+                        <p class="text-slate-400 text-xs">ادخل على حسابك مباشرة</p>
+                    </a>
+                </div>
+            </div>
         </div>
 
+        <!-- ID anchor for "industry cards" -->
+        <div id="industry-cards"></div>
+
         <!-- 🏭 كروت اختيار القطاع -->
+        <div class="text-center mb-6 mt-8">
+            <h2 class="text-2xl lg:text-3xl font-black text-white mb-2">للشركات والمراكز: <span class="bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent">سجّل واستخدم نظام Mouss Tec</span></h2>
+            <p class="text-slate-400 text-sm">إدارة كاملة لشركتك — اختار قطاعك:</p>
+        </div>
         <div class="flex flex-col md:flex-row gap-6 max-w-4xl mx-auto mb-12">
 
             <a href="{% url 'automotive_landing' %}" class="industry-hero-card auto-card group">
@@ -154,6 +195,205 @@
 
         </div>
     </main>
+
+    <!-- ===== 🛍️ السوق المفتوح (للعملاء النهائيين) ===== -->
+    <section id="marketplace-public" class="container mx-auto px-6 py-12 z-10 relative">
+        <div class="text-center mb-10">
+            <span class="inline-flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-3">
+                <i class="fas fa-bolt"></i> جديد — مجاني للعملاء
+            </span>
+            <h2 class="text-3xl lg:text-4xl font-black text-white mb-3">
+                🛍️ السوق المفتوح
+                <span class="bg-gradient-to-r from-amber-400 to-pink-400 bg-clip-text text-transparent">— اطلب واستلم عروض</span>
+            </h2>
+            <p class="text-slate-400 text-base max-w-2xl mx-auto leading-relaxed">
+                محتاج صيانة لعربيتك أو تصميم لشركتك؟ <strong class="text-white">اكتب طلبك بكلمتين</strong>،
+                وأفضل التجار والمطابع المسجلين في Mouss Tec هيتنافسوا يقدموا لك عروض —
+                <strong class="text-amber-400">أنت تختار الأرخص والأقرب والأفضل</strong>.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+
+            <!-- سوق السيارات -->
+            <a href="/marketplace/automotive/" class="group block bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-red-900/20 border border-amber-500/30 rounded-3xl p-7 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-5xl">🚗</div>
+                    <span class="bg-amber-500/20 text-amber-300 text-xs font-black px-3 py-1 rounded-full border border-amber-500/30">سيارات</span>
+                </div>
+                <h3 class="text-xl font-black text-white mb-2">محتاج قطعة أو صيانة لعربيتك؟</h3>
+                <p class="text-amber-200/70 text-sm mb-4 leading-relaxed">
+                    اطلب قطعة غيار، فحص شامل، صيانة دورية، أو تشخيص أعطال — وكل مراكز الصيانة المعتمدة هتقدمك عروض في دقائق.
+                </p>
+                <ul class="text-right text-xs text-slate-400 space-y-1.5 mb-5">
+                    <li class="flex items-center gap-2"><i class="fas fa-shield-halved text-amber-400"></i> هويتك مخفية — مفيش مكالمات إزعاج</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-percent text-amber-400"></i> توفير حتى <strong class="text-amber-300">35%</strong> على متوسط السوق</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-star text-amber-400"></i> تقييمات حقيقية + ضمان على كل عرض</li>
+                </ul>
+                <div class="bg-amber-500 group-hover:bg-amber-400 text-slate-900 font-black py-3 px-6 rounded-xl text-center text-sm transition">
+                    اطلب الآن مجاناً <i class="fas fa-arrow-left mr-2"></i>
+                </div>
+            </a>
+
+            <!-- سوق الطباعة والتصميم -->
+            <a href="/marketplace/printing/" class="group block bg-gradient-to-br from-pink-900/40 via-fuchsia-900/30 to-purple-900/20 border border-pink-500/30 rounded-3xl p-7 hover:border-pink-400 hover:shadow-2xl hover:shadow-pink-500/20 transition-all">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-5xl">🎨</div>
+                    <span class="bg-pink-500/20 text-pink-300 text-xs font-black px-3 py-1 rounded-full border border-pink-500/30">طباعة وتصميم</span>
+                </div>
+                <h3 class="text-xl font-black text-white mb-2">محتاج لوجو أو طباعة لبراندك؟</h3>
+                <p class="text-pink-200/70 text-sm mb-4 leading-relaxed">
+                    لوجو، كروت بزنس، فلاير، بوستر، تيشرتات، ماجات — اطلب اللي تتخيله، شوف عينات قبل الاختيار، واطبع باللي يناسبك.
+                </p>
+                <ul class="text-right text-xs text-slate-400 space-y-1.5 mb-5">
+                    <li class="flex items-center gap-2"><i class="fas fa-eye text-pink-400"></i> شوف عينات تصميم قبل الموافقة</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-clock text-pink-400"></i> تسليم <strong class="text-pink-300">خلال 48 ساعة</strong></li>
+                    <li class="flex items-center gap-2"><i class="fas fa-wand-magic-sparkles text-pink-400"></i> 420+ مطبعة ومصمم معتمد</li>
+                </ul>
+                <div class="bg-pink-500 group-hover:bg-pink-400 text-white font-black py-3 px-6 rounded-xl text-center text-sm transition">
+                    صمم وأطبع الآن <i class="fas fa-arrow-left mr-2"></i>
+                </div>
+            </a>
+
+        </div>
+
+        <!-- شريط شرح بسيط -->
+        <div class="max-w-4xl mx-auto mt-10 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+            <h4 class="text-white font-black text-center mb-5 text-lg"><i class="fas fa-circle-info text-amber-400"></i> إزاي يشتغل؟</h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                <div>
+                    <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">1</div>
+                    <p class="text-xs text-slate-400 font-bold">سجّل برقم موبايلك<br><span class="text-slate-500 font-normal">30 ثانية فقط</span></p>
+                </div>
+                <div>
+                    <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">2</div>
+                    <p class="text-xs text-slate-400 font-bold">اكتب اللي محتاجه<br><span class="text-slate-500 font-normal">بتفاصيلك أنت</span></p>
+                </div>
+                <div>
+                    <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">3</div>
+                    <p class="text-xs text-slate-400 font-bold">استلم عروض من التجار<br><span class="text-slate-500 font-normal">في خلال دقائق</span></p>
+                </div>
+                <div>
+                    <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xl mb-2">✓</div>
+                    <p class="text-xs text-slate-400 font-bold">اختار الأفضل وادفع<br><span class="text-slate-500 font-normal">بأمان كامل</span></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 🤖 AI Studio (للمطابع المشتركة) ===== -->
+    <section id="ai-studio-section" class="container mx-auto px-6 py-12 z-10 relative">
+        <div class="max-w-5xl mx-auto bg-gradient-to-br from-violet-900/50 via-purple-900/40 to-fuchsia-900/30 border border-purple-500/30 rounded-3xl p-8 lg:p-12 backdrop-blur-md overflow-hidden relative">
+            <!-- Glow background -->
+            <div class="absolute -top-20 -right-20 w-72 h-72 bg-purple-500/30 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-20 -left-20 w-72 h-72 bg-pink-500/20 rounded-full blur-3xl"></div>
+
+            <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                    <span class="inline-flex items-center gap-2 bg-purple-500/20 text-purple-300 border border-purple-500/40 font-black px-4 py-1.5 rounded-full text-xs tracking-wider mb-4">
+                        <i class="fas fa-wand-magic-sparkles"></i> AI STUDIO — للمطابع المشتركة
+                    </span>
+                    <h2 class="text-3xl lg:text-4xl font-black text-white mb-4 leading-tight">
+                        صمم احترافياً بـ
+                        <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">الذكاء الاصطناعي</span>
+                    </h2>
+                    <p class="text-slate-300 text-sm lg:text-base mb-6 leading-relaxed">
+                        اكتب اللي عاوزه بالعربي — <em class="text-purple-300">"كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم"</em> —
+                        والـ AI يولّد التصميم بجودة DALL-E 3 و GPT-Image في دقائق. ارفع لوجو الشركة وهيدمجه تلقائياً.
+                    </p>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">دمج لوجو الشركة في التصميم</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">علامة مائية تلقائية لحماية تصميمك</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">سجل كل التصاميم — ترجعله أي وقت</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">ربط مباشر بفواتير العملاء</span></div>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{% url 'printing_landing' %}" class="bg-purple-500 hover:bg-purple-400 text-white font-black px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-purple-500/30">
+                            <i class="fas fa-rocket"></i> ابدأ تجربتك مع AI Studio
+                        </a>
+                        <a href="{% url 'saas_pricing' %}" class="bg-slate-800/80 hover:bg-slate-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition border border-slate-700">
+                            <i class="fas fa-tag"></i> الباقات والأسعار
+                        </a>
+                    </div>
+                </div>
+
+                <!-- البطاقة الجانبية: مميزات إضافية -->
+                <div class="space-y-3">
+                    <div class="bg-slate-900/60 border border-purple-500/20 rounded-2xl p-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-pink-500/15 flex items-center justify-center text-pink-400 text-xl flex-shrink-0">
+                                <i class="fas fa-images"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-black mb-1 text-sm">سجل التصاميم</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">كل تصميم بيتحفظ بالـ prompt والـ category — ترجع لأي تصميم وتحمّله أو تعدّله</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/60 border border-purple-500/20 rounded-2xl p-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 text-xl flex-shrink-0">
+                                <i class="fas fa-gift"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-black mb-1 text-sm">🎁 10 تصاميم هدية</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">كل شركة جديدة تتسجل تاخد 10 تصاميم + 5 رسائل واتساب + 5 علامات مائية مجاناً</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/60 border border-purple-500/20 rounded-2xl p-5">
+                        <div class="flex items-start gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-400 text-xl flex-shrink-0">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-black mb-1 text-sm">إرسال مباشر للعميل</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">بعد ما تخلص التصميم، اضغط زرار "إرسال للعميل" وهيوصله على واتساب فوراً</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 🏪 السوق B2B بين الشركات ===== -->
+    <section id="b2b-section" class="container mx-auto px-6 py-12 z-10 relative">
+        <div class="text-center mb-8">
+            <span class="inline-flex items-center gap-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-3">
+                <i class="fas fa-handshake"></i> للشركات والتجار
+            </span>
+            <h2 class="text-2xl lg:text-3xl font-black text-white mb-3">
+                🤝 سوق B2B بين الشركات
+            </h2>
+            <p class="text-slate-400 text-sm max-w-2xl mx-auto leading-relaxed">
+                مطبعة محتاجة 10,000 تيشرت من مصنع؟ ورشة محتاجة شحنة قطع غيار؟
+                <strong class="text-emerald-400">اطلب من تجار تانيين</strong> داخل المنصة بنفس نظام المناقصات المجهولة.
+            </p>
+        </div>
+
+        <div class="max-w-3xl mx-auto bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-6 backdrop-blur-md">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                    <i class="fas fa-shield-halved text-3xl text-emerald-400 mb-2"></i>
+                    <h4 class="text-white font-black text-sm mb-1">صفقات آمنة</h4>
+                    <p class="text-slate-400 text-xs">ضمان Escrow حتى التسليم</p>
+                </div>
+                <div>
+                    <i class="fas fa-bell text-3xl text-emerald-400 mb-2"></i>
+                    <h4 class="text-white font-black text-sm mb-1">إشعارات فورية</h4>
+                    <p class="text-slate-400 text-xs">كل طلب جديد يوصلك في ثوان</p>
+                </div>
+                <div>
+                    <i class="fas fa-chart-line text-3xl text-emerald-400 mb-2"></i>
+                    <h4 class="text-white font-black text-sm mb-1">نمو حقيقي</h4>
+                    <p class="text-slate-400 text-xs">اوصل لعملاء جدد بدون تسويق</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- ===== المميزات المشتركة ===== -->
     <section id="features" class="container mx-auto px-6 py-12 z-10 relative">
@@ -236,6 +476,15 @@
     </footer>
 
     <script>
+        // Smooth scroll for in-page anchors
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                const id = a.getAttribute('href').slice(1);
+                const target = document.getElementById(id);
+                if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            });
+        });
+
         document.addEventListener("DOMContentLoaded", () => {
             // 3D Tilt effect for feature cards
             const cards = document.querySelectorAll('.tilt-card');
