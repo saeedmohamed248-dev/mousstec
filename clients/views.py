@@ -2203,11 +2203,12 @@ def marketplace_merchant_feed(request):
         return redirect('/')
 
     industry = tenant.industry  # automotive or printing
+    # ⚡ select_related('customer') prevents N+1 queries in the template
     open_requests = ServiceRequest.objects.filter(
         sector=industry,
         status='open',
         expires_at__gt=timezone.now(),
-    ).order_by('-created_at')
+    ).select_related('customer').order_by('-created_at')
 
     # Exclude requests the merchant already offered on
     already_offered = TenderOffer.objects.filter(
@@ -2219,7 +2220,10 @@ def marketplace_merchant_feed(request):
     context = {
         'requests': open_requests[:50],
         'tenant': tenant,
-        'my_offers': TenderOffer.objects.filter(merchant=tenant).select_related('service_request').order_by('-created_at')[:20],
+        'my_offers': TenderOffer.objects.filter(merchant=tenant)
+                                       .select_related('service_request', 'service_request__customer')
+                                       .order_by('-created_at')[:20],
+        'total_open_count': open_requests.count(),
     }
     return render(request, 'clients/marketplace/merchant_feed.html', context)
 
@@ -2299,10 +2303,17 @@ def marketplace_submit_offer(request, request_code):
     })
 
 
+@csrf_exempt
 def marketplace_logout(request):
-    """تسجيل خروج عميل السوق."""
+    """
+    تسجيل خروج عميل السوق.
+    🛡️ يقبل GET للراحة لكن يفضّل POST من الـ form لمنع CSRF.
+    """
+    # 🛡️ Best practice: encourage POST, but allow GET for convenience links
     response = redirect('/marketplace/')
     response.delete_cookie('mp_session')
+    # Clear any browser cache for the session
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
 

@@ -641,7 +641,10 @@ class AILimitTracker(models.Model):
 
     @classmethod
     def deduct(cls, tenant, action_type, metadata=None):
-        """خصم رصيد — يخصم من الهدية أولاً، ثم من الباقة المدفوعة"""
+        """
+        خصم رصيد — يخصم من الهدية أولاً، ثم من الباقة المدفوعة.
+        🛡️ يستخدم select_for_update + transaction.atomic لمنع race conditions.
+        """
         if not cls.can_use(tenant, action_type):
             return False
 
@@ -654,14 +657,21 @@ class AILimitTracker(models.Model):
         consumed_from_bonus = False
         if action_type in field_map:
             granted_f, consumed_f = field_map[action_type]
-            for grant in tenant.ai_bonus_grants.filter(is_active=True).order_by('granted_at'):
-                if not grant.is_valid:
-                    continue
-                remaining = getattr(grant, granted_f) - getattr(grant, consumed_f)
-                if remaining > 0:
-                    setattr(grant, consumed_f, getattr(grant, consumed_f) + 1)
-                    grant.save(update_fields=[consumed_f])
-                    (metadata or {}).setdefault('source', 'bonus_grant')
+            with transaction.atomic():
+                # 🔒 Lock the grants for THIS tenant to prevent concurrent deductions
+                grants = (tenant.ai_bonus_grants
+                          .select_for_update(skip_locked=True)
+                          .filter(is_active=True)
+                          .order_by('granted_at'))
+                for grant in grants:
+                    if not grant.is_valid:
+                        continue
+                    remaining = getattr(grant, granted_f) - getattr(grant, consumed_f)
+                    if remaining > 0:
+                        # 🛡️ Use F() expression for atomic increment
+                        from django.db.models import F as _F
+                        type(grant).objects.filter(pk=grant.pk).update(**{consumed_f: _F(consumed_f) + 1})
+                        (metadata or {}).setdefault('source', 'bonus_grant')
                     (metadata or {}).setdefault('grant_id', grant.pk)
                     consumed_from_bonus = True
                     break

@@ -216,7 +216,7 @@ def predict_future_failures(brand, model_name, mileage):
             parsed_data = json.loads(raw_response)
             cache.set(cache_key, parsed_data, timeout=7 * 24 * 60 * 60)
             return parsed_data
-        except: pass
+        except Exception: pass
     return {"preventive_maintenance": []}
 
 # =====================================================================
@@ -238,7 +238,7 @@ def analyze_customer_sentiment(customer_notes_or_complaints):
     raw_response = call_gemini_layer(messages, json_mode=True)
     if raw_response:
         try: return json.loads(raw_response)
-        except: pass
+        except Exception: pass
     return {"sentiment": "غير محدد", "churn_risk_percentage": 50, "recommended_action": "مراجعة يدوية"}
 
 # =====================================================================
@@ -271,5 +271,5 @@ def predict_market_price_elasticity(part_name, condition, average_cost):
             parsed = json.loads(raw_response)
             cache.set(cache_key, parsed, timeout=2 * 24 * 60 * 60)
             return parsed
-        except: pass
+        except Exception: pass
     return {"elasticity_index": 1.0, "suggested_retail": average_cost * 1.25, "market_status": "طبيعي"}
