@@ -16,6 +16,12 @@ urlpatterns = [
     # 🎨 AI Prompt Engineer Agent
     path('ai/prompt-engineer/', views.ai_prompt_engineer, name='ai_prompt_engineer'),
 
+    # 💾 AI Studio History
+    path('ai/history/', views.ai_studio_history, name='ai_history'),
+    path('ai/history/api/', views.ai_studio_history_api, name='ai_history_api'),
+    path('ai/session/<int:session_id>/favorite/', views.ai_session_toggle_favorite, name='ai_session_favorite'),
+    path('ai/session/<int:session_id>/delete/', views.ai_session_delete, name='ai_session_delete'),
+
     # 🏷️ Product Type Autocomplete & Report
     path('api/product-types/', views.product_type_autocomplete, name='product_type_autocomplete'),
     path('api/product-types/report/', views.product_type_report, name='product_type_report'),

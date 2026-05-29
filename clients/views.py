@@ -1120,6 +1120,59 @@ def super_admin_dashboard(request):
             except TenantSubscription.DoesNotExist:
                 messages.error(request, 'لا يوجد اشتراك لهذه الشركة.')
 
+        elif action == 'grant_ai_bonus':
+            # 🎁 هدية رصيد AI Studio من السوبر أدمن
+            from clients.models import AIBonusGrant
+            try:
+                designs = int(request.POST.get('grant_designs', 0) or 0)
+                whatsapp_n = int(request.POST.get('grant_whatsapp', 0) or 0)
+                watermarks_n = int(request.POST.get('grant_watermarks', 0) or 0)
+            except ValueError:
+                designs = whatsapp_n = watermarks_n = 0
+
+            reason = request.POST.get('grant_reason', '').strip()
+            expires_days = request.POST.get('grant_expires_days', '').strip()
+            expires_at = None
+            if expires_days:
+                try:
+                    expires_at = timezone.now() + timedelta(days=int(expires_days))
+                except ValueError:
+                    pass
+
+            if designs + whatsapp_n + watermarks_n <= 0:
+                messages.error(request, '❌ يجب تحديد رصيد واحد على الأقل (تصاميم / واتساب / علامات مائية).')
+            else:
+                grant = AIBonusGrant.objects.create(
+                    tenant=target,
+                    granted_designs=designs,
+                    granted_whatsapp=whatsapp_n,
+                    granted_watermarks=watermarks_n,
+                    reason=reason or 'هدية من إدارة المنصة',
+                    granted_by=request.user,
+                    expires_at=expires_at,
+                )
+                PlatformEvent.objects.create(
+                    event_type='other', tenant_schema=target.schema_name,
+                    tenant_name=target.name, user_name=request.user.username,
+                    description=f"🎁 منح هدية لشركة «{target.name}» — {designs} تصميم، {whatsapp_n} واتساب، {watermarks_n} علامة مائية",
+                )
+                messages.success(
+                    request,
+                    f'🎁 تم منح «{target.name}» هدية: {designs} تصميم + {whatsapp_n} واتساب + {watermarks_n} علامة مائية' +
+                    (f' (تنتهي خلال {expires_days} يوم)' if expires_at else '')
+                )
+
+        elif action == 'revoke_bonus':
+            from clients.models import AIBonusGrant
+            grant_id = request.POST.get('grant_id')
+            try:
+                grant = AIBonusGrant.objects.get(pk=grant_id, tenant=target)
+                grant.is_active = False
+                grant.save(update_fields=['is_active'])
+                messages.success(request, f'تم إلغاء الهدية #{grant.pk} من «{target.name}»')
+            except AIBonusGrant.DoesNotExist:
+                messages.error(request, 'الهدية غير موجودة.')
+
         elif action == 'delete_tenant':
             # ⚠️ حذف نهائي للشركة — يحذف الـ schema بالكامل
             confirm_name = request.POST.get('confirm_name', '').strip()
@@ -1282,10 +1335,27 @@ def super_admin_dashboard(request):
         except TenantSubscription.DoesNotExist:
             pass
 
+        # 🎁 جلب رصيد الهدايا النشطة
+        from clients.models import AIBonusGrant
+        active_grants = AIBonusGrant.objects.filter(tenant=t, is_active=True)
+        bonus_designs_remaining = 0
+        bonus_whatsapp_remaining = 0
+        bonus_watermarks_remaining = 0
+        for g in active_grants:
+            if not g.is_valid:
+                continue
+            bonus_designs_remaining += g.remaining_designs
+            bonus_whatsapp_remaining += g.remaining_whatsapp
+            bonus_watermarks_remaining += g.remaining_watermarks
+
         tenants_enriched.append({
             'obj': t,
             'users_count': users_count,
             'ai_addon_name': ai_addon_name,
+            'bonus_designs': bonus_designs_remaining,
+            'bonus_whatsapp': bonus_whatsapp_remaining,
+            'bonus_watermarks': bonus_watermarks_remaining,
+            'active_grants': active_grants,
             'days_left': (t.subscription_end_date - today).days if t.subscription_end_date and t.subscription_end_date >= today else (
                 (t.trial_ends_at - today).days if t.status == 'trial' and t.trial_ends_at else 0
             ),

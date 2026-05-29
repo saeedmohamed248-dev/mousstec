@@ -487,6 +487,87 @@ class TenantSubscription(models.Model):
 # =====================================================================
 # 📊 10. متتبع حصص الذكاء الاصطناعي (AI Limit Tracker)
 # =====================================================================
+class AIBonusGrant(models.Model):
+    """🎁 هدايا التصاميم من السوبر أدمن للشركات (Free design credits)."""
+    tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='ai_bonus_grants', verbose_name=_("المستأجر"))
+    granted_designs = models.IntegerField(default=0, verbose_name=_("تصاميم مهداه"))
+    granted_whatsapp = models.IntegerField(default=0, verbose_name=_("رسائل واتساب مهداه"))
+    granted_watermarks = models.IntegerField(default=0, verbose_name=_("علامات مائية مهداه"))
+    consumed_designs = models.IntegerField(default=0)
+    consumed_whatsapp = models.IntegerField(default=0)
+    consumed_watermarks = models.IntegerField(default=0)
+    reason = models.CharField(max_length=250, blank=True, verbose_name=_("سبب الهدية"))
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    granted_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الانتهاء (اختياري)"))
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("هدية رصيد AI")
+        verbose_name_plural = _("🎁 هدايا رصيد AI Studio")
+        ordering = ['-granted_at']
+
+    def __str__(self):
+        return f"🎁 {self.tenant.name} — {self.granted_designs} تصميم ({self.granted_at:%Y-%m-%d})"
+
+    @property
+    def remaining_designs(self):
+        return max(self.granted_designs - self.consumed_designs, 0)
+
+    @property
+    def remaining_whatsapp(self):
+        return max(self.granted_whatsapp - self.consumed_whatsapp, 0)
+
+    @property
+    def remaining_watermarks(self):
+        return max(self.granted_watermarks - self.consumed_watermarks, 0)
+
+    @property
+    def is_valid(self):
+        if not self.is_active:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        return True
+
+
+class AIStudioSession(models.Model):
+    """💾 سجل جلسات AI Studio — كل تصميم بيتسجل علشان العميل يرجعله بعدين."""
+    tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='ai_sessions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    raw_input = models.TextField(verbose_name=_("النص الأصلي"))
+    engineered_prompt = models.TextField(blank=True, verbose_name=_("البرومبت المحسّن"))
+    negative_prompt = models.TextField(blank=True)
+    design_category = models.CharField(max_length=50, blank=True)
+
+    logo_used = models.BooleanField(default=False, verbose_name=_("استُخدم لوجو؟"))
+    logo_image = models.ImageField(upload_to='ai_studio/logos/', blank=True, null=True)
+
+    image_url = models.URLField(max_length=600, blank=True, verbose_name=_("رابط التصميم"))
+    image_size = models.CharField(max_length=20, default='1024x1024')
+    image_quality = models.CharField(max_length=20, default='hd')
+    model_used = models.CharField(max_length=50, blank=True)
+
+    watermarked = models.BooleanField(default=False, verbose_name=_("بعلامة مائية"))
+    watermarked_image_url = models.URLField(max_length=600, blank=True)
+
+    sent_to_phone = models.CharField(max_length=30, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    is_favorite = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("جلسة AI Studio")
+        verbose_name_plural = _("💾 سجل جلسات AI Studio")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['tenant', '-created_at'])]
+
+    def __str__(self):
+        return f"AI-{self.pk} | {self.raw_input[:50]}"
+
+
 class AILimitTracker(models.Model):
     ACTION_CHOICES = (
         ('ai_generation', _('توليد صورة بالذكاء الاصطناعي')),
@@ -518,8 +599,32 @@ class AILimitTracker(models.Model):
         ).count()
 
     @classmethod
+    def _get_bonus_remaining(cls, tenant, action_type):
+        """جمع الرصيد المتبقي من كل هدايا السوبر أدمن"""
+        field_map = {
+            'ai_generation': ('granted_designs', 'consumed_designs'),
+            'whatsapp_send': ('granted_whatsapp', 'consumed_whatsapp'),
+            'smart_watermark': ('granted_watermarks', 'consumed_watermarks'),
+        }
+        if action_type not in field_map:
+            return 0
+        granted_f, consumed_f = field_map[action_type]
+        total = 0
+        for grant in tenant.ai_bonus_grants.filter(is_active=True):
+            if not grant.is_valid:
+                continue
+            total += max(getattr(grant, granted_f) - getattr(grant, consumed_f), 0)
+        return total
+
+    @classmethod
     def can_use(cls, tenant, action_type):
-        """التحقق من أن المستأجر لم يتجاوز حدود حزمة AI"""
+        """التحقق من أن المستأجر عنده رصيد (إما من الباقة أو من هدية السوبر أدمن)"""
+        # First: check bonus quota
+        bonus_remaining = cls._get_bonus_remaining(tenant, action_type)
+        if bonus_remaining > 0:
+            return True
+
+        # Otherwise: check paid subscription
         try:
             sub = tenant.subscription
         except TenantSubscription.DoesNotExist:
@@ -536,13 +641,35 @@ class AILimitTracker(models.Model):
 
     @classmethod
     def deduct(cls, tenant, action_type, metadata=None):
-        """خصم رصيد واحد مع تسجيل العملية — يرجع True إذا نجحت"""
+        """خصم رصيد — يخصم من الهدية أولاً، ثم من الباقة المدفوعة"""
         if not cls.can_use(tenant, action_type):
             return False
+
+        # Try to consume from a bonus grant first (FIFO — oldest first)
+        field_map = {
+            'ai_generation': ('granted_designs', 'consumed_designs'),
+            'whatsapp_send': ('granted_whatsapp', 'consumed_whatsapp'),
+            'smart_watermark': ('granted_watermarks', 'consumed_watermarks'),
+        }
+        consumed_from_bonus = False
+        if action_type in field_map:
+            granted_f, consumed_f = field_map[action_type]
+            for grant in tenant.ai_bonus_grants.filter(is_active=True).order_by('granted_at'):
+                if not grant.is_valid:
+                    continue
+                remaining = getattr(grant, granted_f) - getattr(grant, consumed_f)
+                if remaining > 0:
+                    setattr(grant, consumed_f, getattr(grant, consumed_f) + 1)
+                    grant.save(update_fields=[consumed_f])
+                    (metadata or {}).setdefault('source', 'bonus_grant')
+                    (metadata or {}).setdefault('grant_id', grant.pk)
+                    consumed_from_bonus = True
+                    break
+
         cls.objects.create(
             tenant=tenant,
             action_type=action_type,
-            metadata=metadata or {},
+            metadata={**(metadata or {}), 'source': 'bonus' if consumed_from_bonus else 'subscription'},
         )
         return True
 

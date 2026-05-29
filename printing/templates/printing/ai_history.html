@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل تصاميم AI Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1a0a2e);
+            color: #f8fafc; min-height: 100vh; padding: 20px;
+        }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px); border-radius: 16px; margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .topbar h1 {
+            font-size: 1.4rem; font-weight: 900;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar a { color: #94a3b8; text-decoration: none; font-weight: 700; padding: 8px 16px; border-radius: 8px; background: rgba(255,255,255,0.05); }
+        .topbar a:hover { color: #ec4899; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 30px; }
+        .stat-card {
+            background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 18px; text-align: center;
+        }
+        .stat-card .n { font-size: 1.8rem; font-weight: 900; color: #8b5cf6; }
+        .stat-card .l { color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px; overflow: hidden; transition: all 0.3s;
+            display: flex; flex-direction: column;
+        }
+        .card:hover { transform: translateY(-4px); border-color: #ec4899; box-shadow: 0 12px 30px rgba(236, 72, 153, 0.2); }
+        .card-img {
+            width: 100%; aspect-ratio: 1; object-fit: cover;
+            background: #1e293b;
+        }
+        .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .card-prompt { font-size: 0.85rem; color: #cbd5e1; line-height: 1.5; flex: 1; }
+        .card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+        .badge {
+            font-size: 0.7rem; padding: 3px 8px; border-radius: 10px;
+            background: rgba(139, 92, 246, 0.2); color: #c4b5fd; font-weight: 700;
+        }
+        .badge.logo { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+        .badge.watermark { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+        .badge.model { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+        .card-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .btn-action {
+            flex: 1; padding: 8px; border-radius: 8px; border: none;
+            background: rgba(255,255,255,0.05); color: #cbd5e1;
+            cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+            text-decoration: none; text-align: center;
+        }
+        .btn-action:hover { background: rgba(139, 92, 246, 0.2); color: #fff; }
+        .btn-action.fav { color: #fbbf24; }
+        .btn-action.fav.active { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .btn-action.delete:hover { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+        .empty {
+            text-align: center; padding: 80px 20px; color: #94a3b8;
+        }
+        .empty i { font-size: 4rem; color: #475569; margin-bottom: 16px; }
+
+        .date-tag {
+            font-size: 0.75rem; color: #64748b; margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1><i class="fas fa-history"></i> سجل تصاميم AI Studio</h1>
+    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+</div>
+
+<div class="stats">
+    <div class="stat-card">
+        <div class="n">{{ total }}</div>
+        <div class="l">إجمالي التصاميم</div>
+    </div>
+    <div class="stat-card">
+        <div class="n">{{ sessions|length }}</div>
+        <div class="l">معروض حالياً</div>
+    </div>
+    <div class="stat-card">
+        <div class="n">{{ tenant.name|default:"-" }}</div>
+        <div class="l">الشركة</div>
+    </div>
+</div>
+
+{% if sessions %}
+<div class="grid">
+    {% for s in sessions %}
+    <div class="card" id="card-{{ s.pk }}">
+        <img class="card-img" src="{{ s.watermarked_image_url|default:s.image_url }}" alt="design" loading="lazy">
+        <div class="card-body">
+            <div class="card-prompt">{{ s.raw_input|truncatechars:140 }}</div>
+            <div class="card-meta">
+                {% if s.design_category %}<span class="badge">{{ s.design_category }}</span>{% endif %}
+                {% if s.logo_used %}<span class="badge logo"><i class="fas fa-image"></i> بلوجو</span>{% endif %}
+                {% if s.watermarked %}<span class="badge watermark"><i class="fas fa-droplet"></i> علامة مائية</span>{% endif %}
+                {% if s.model_used %}<span class="badge model">{{ s.model_used }}</span>{% endif %}
+            </div>
+            <div class="date-tag"><i class="far fa-clock"></i> {{ s.created_at|date:"Y-m-d H:i" }}</div>
+            <div class="card-actions">
+                <a class="btn-action" href="{{ s.image_url }}" target="_blank" title="فتح بالحجم الكامل">
+                    <i class="fas fa-expand"></i>
+                </a>
+                <a class="btn-action" href="{{ s.image_url }}" download title="تحميل">
+                    <i class="fas fa-download"></i>
+                </a>
+                <button class="btn-action fav {% if s.is_favorite %}active{% endif %}" onclick="toggleFav({{ s.pk }})" title="مفضّل">
+                    <i class="fas fa-star"></i>
+                </button>
+                <button class="btn-action delete" onclick="deleteSession({{ s.pk }})" title="حذف">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+    <i class="fas fa-images"></i>
+    <h2>لا يوجد تصاميم بعد</h2>
+    <p>ابدأ بإنشاء تصميمك الأول من AI Studio</p>
+</div>
+{% endif %}
+
+<script>
+async function toggleFav(id) {
+    const r = await fetch(`/printing/ai/session/${id}/favorite/`, {method: 'POST'});
+    const d = await r.json();
+    if (d.success) {
+        const btn = document.querySelector(`#card-${id} .btn-action.fav`);
+        btn.classList.toggle('active', d.is_favorite);
+    }
+}
+
+async function deleteSession(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا التصميم؟')) return;
+    const r = await fetch(`/printing/ai/session/${id}/delete/`, {method: 'POST'});
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById(`card-${id}`).remove();
+    }
+}
+</script>
+</body>
+</html>

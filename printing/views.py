@@ -15,6 +15,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import connection
@@ -59,6 +60,60 @@ def _check_ai_access(tenant, action_type='ai_generation'):
     return True, None
 
 
+def _apply_watermark_to_url(image_url, watermark_text, tenant, request):
+    """
+    Download image from URL, apply diagonal text watermark, save back to storage.
+    Returns the absolute URL of the watermarked image.
+    """
+    import requests as _req
+    import io as _io
+    import uuid as _uuid
+    from PIL import Image, ImageDraw, ImageFont
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    # Fetch the original image
+    if image_url.startswith('http'):
+        r = _req.get(image_url, timeout=30)
+        img_bytes = r.content
+    else:
+        # Relative URL → resolve via storage
+        rel_path = image_url.lstrip('/').replace('media/', '', 1)
+        with default_storage.open(rel_path, 'rb') as f:
+            img_bytes = f.read()
+
+    img = Image.open(_io.BytesIO(img_bytes)).convert('RGBA')
+    txt_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(txt_layer)
+
+    font_size = max(int(img.width / 15), 28)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+    except (IOError, OSError):
+        font = ImageFont.load_default()
+
+    bbox = draw.textbbox((0, 0), watermark_text, font=font)
+    text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    opacity = 55
+
+    for y in range(0, img.height, text_h * 4):
+        for x in range(-img.width, img.width * 2, text_w + 100):
+            draw.text((x, y), watermark_text, font=font, fill=(255, 255, 255, opacity))
+
+    watermarked = Image.alpha_composite(img, txt_layer).convert('RGB')
+    buf = _io.BytesIO()
+    watermarked.save(buf, format='JPEG', quality=90)
+    buf.seek(0)
+
+    schema = getattr(tenant, 'schema_name', 'public') if tenant else 'public'
+    filename = f"ai_studio/{schema}/wm_{_uuid.uuid4().hex}.jpg"
+    saved_path = default_storage.save(filename, ContentFile(buf.getvalue()))
+    url = default_storage.url(saved_path)
+    if url.startswith('/'):
+        url = request.build_absolute_uri(url)
+    return url
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -82,6 +137,13 @@ def ai_generate_design(request):
     prompt = request.POST.get('prompt', '').strip()
     size = request.POST.get('size', '1024x1024')
     quality = request.POST.get('quality', 'standard')
+    raw_input_text = request.POST.get('raw_input', prompt[:300])
+    negative_prompt = request.POST.get('negative_prompt', '')
+    design_category = request.POST.get('design_category', 'other')
+    add_watermark = request.POST.get('add_watermark') == 'true'
+
+    # 🆕 Logo support — user can upload their brand logo
+    logo_file = request.FILES.get('logo')
 
     if not prompt:
         return JsonResponse({'success': False, 'error': 'يرجى كتابة وصف التصميم المطلوب.'}, status=400)
@@ -102,6 +164,17 @@ def ai_generate_design(request):
         used_model = None
         last_error = None
 
+        # If logo provided, prepare it for image-to-image (gpt-image-1 edit endpoint)
+        logo_bytes = None
+        if logo_file:
+            logo_bytes = logo_file.read()
+            # Augment the prompt to mention the logo
+            prompt = (
+                f"{prompt}\n\n"
+                f"IMPORTANT: Incorporate the provided company logo prominently and tastefully into the design. "
+                f"Keep the logo's original colors, shape, and proportions intact. Place it as the primary brand mark."
+            )
+
         for model in image_models:
             try:
                 # dall-e-2 only supports 256/512/1024 squares
@@ -111,20 +184,36 @@ def ai_generate_design(request):
                     model_size = '1024x1024'
                     model_quality = 'standard'
 
-                # gpt-image-1 uses different quality values
-                kwargs = {
-                    'model': model,
-                    'prompt': prompt,
-                    'size': model_size,
-                    'n': 1,
-                }
-                if model == 'dall-e-3':
-                    kwargs['quality'] = model_quality  # 'standard' | 'hd'
-                elif model == 'gpt-image-1':
-                    # gpt-image-1 quality: 'low' | 'medium' | 'high' | 'auto'
-                    kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
+                # 🆕 Use the edit endpoint if we have a logo and the model supports it
+                # gpt-image-1 + dall-e-2 support edits; dall-e-3 does NOT
+                if logo_bytes and model in ('gpt-image-1', 'dall-e-2'):
+                    import io as _io
+                    logo_io = _io.BytesIO(logo_bytes)
+                    logo_io.name = 'logo.png'  # OpenAI SDK needs a name attr
+                    kwargs = {
+                        'model': model,
+                        'image': logo_io,
+                        'prompt': prompt,
+                        'size': model_size,
+                        'n': 1,
+                    }
+                    if model == 'gpt-image-1':
+                        kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
+                    response = client.images.edit(**kwargs)
+                else:
+                    # Plain text-to-image
+                    kwargs = {
+                        'model': model,
+                        'prompt': prompt,
+                        'size': model_size,
+                        'n': 1,
+                    }
+                    if model == 'dall-e-3':
+                        kwargs['quality'] = model_quality
+                    elif model == 'gpt-image-1':
+                        kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
+                    response = client.images.generate(**kwargs)
 
-                response = client.images.generate(**kwargs)
                 used_model = model
                 if model != image_models[0]:
                     logger.info(f"🎨 [AI STUDIO]: Succeeded using fallback model {model}")
@@ -194,23 +283,59 @@ def ai_generate_design(request):
                 logger.warning(f"[AI STUDIO] Failed to persist DALL-E image locally: {e}")
                 # Keep the OpenAI URL — at least it works for the next hour
 
+        # 🆕 Apply watermark inline if requested
+        watermarked_url = ''
+        if add_watermark:
+            try:
+                watermarked_url = _apply_watermark_to_url(
+                    image_url, tenant.name if tenant else 'Mousstec', tenant, request,
+                )
+            except Exception as e:
+                logger.warning(f"[AI STUDIO] Watermark failed: {e}")
+
         # Deduct quota
-        from clients.models import AILimitTracker
+        from clients.models import AILimitTracker, AIStudioSession
         AILimitTracker.deduct(tenant, 'ai_generation', metadata={
             'prompt': prompt[:200],
             'size': size,
             'quality': quality,
             'model': used_model,
+            'logo_used': bool(logo_bytes),
+            'watermarked': add_watermark,
             'user': request.user.username,
         })
 
-        logger.info(f"🤖 [AI STUDIO]: {tenant.name} — Generated design via {used_model} by {request.user.username}")
+        # 💾 Save full session for history
+        session = AIStudioSession.objects.create(
+            tenant=tenant,
+            user=request.user,
+            raw_input=raw_input_text[:2000],
+            engineered_prompt=prompt[:5000],
+            negative_prompt=negative_prompt[:1000],
+            design_category=design_category[:50],
+            logo_used=bool(logo_bytes),
+            image_url=image_url,
+            image_size=size,
+            image_quality=quality,
+            model_used=used_model or '',
+            watermarked=bool(watermarked_url),
+            watermarked_image_url=watermarked_url,
+        )
+        if logo_file:
+            logo_file.seek(0)
+            session.logo_image = logo_file
+            session.save(update_fields=['logo_image'])
+
+        logger.info(f"🤖 [AI STUDIO]: {tenant.name} — Generated design via {used_model} by {request.user.username} (session #{session.pk})")
 
         return JsonResponse({
             'success': True,
-            'image_url': image_url,
+            'image_url': watermarked_url or image_url,
+            'original_url': image_url,
+            'watermarked_url': watermarked_url,
             'revised_prompt': revised_prompt,
             'model_used': used_model,
+            'session_id': session.pk,
         })
 
     except openai.RateLimitError:
@@ -1266,3 +1391,75 @@ def ai_prompt_engineer(request):
             'status': 'error',
             'error': 'حدث خطأ غير متوقع. حاول مرة أخرى.'
         }, status=500)
+
+
+# =====================================================================
+# 💾 AI Studio History & Sessions
+# =====================================================================
+
+@login_required
+def ai_studio_history(request):
+    """عرض كل التصاميم اللي العميل عملها قبل كده."""
+    from clients.models import AIStudioSession
+
+    tenant = _get_tenant()
+    if not tenant:
+        return render(request, 'printing/ai_history.html', {'sessions': [], 'tenant': None})
+
+    sessions = AIStudioSession.objects.filter(tenant=tenant).order_by('-created_at')[:100]
+
+    return render(request, 'printing/ai_history.html', {
+        'sessions': sessions,
+        'tenant': tenant,
+        'total': sessions.count(),
+    })
+
+
+@login_required
+def ai_studio_history_api(request):
+    """JSON list of past sessions for the AI Studio modal."""
+    from clients.models import AIStudioSession
+
+    tenant = _get_tenant()
+    if not tenant:
+        return JsonResponse({'sessions': []})
+
+    qs = AIStudioSession.objects.filter(tenant=tenant).order_by('-created_at')[:50]
+    sessions = [{
+        'id': s.pk,
+        'raw_input': s.raw_input[:120],
+        'design_category': s.design_category,
+        'image_url': s.watermarked_image_url or s.image_url,
+        'logo_used': s.logo_used,
+        'watermarked': s.watermarked,
+        'is_favorite': s.is_favorite,
+        'created_at': s.created_at.strftime('%Y-%m-%d %H:%M'),
+        'model_used': s.model_used,
+    } for s in qs]
+
+    return JsonResponse({'sessions': sessions, 'count': len(sessions)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def ai_session_toggle_favorite(request, session_id):
+    """مفضّل / إلغاء مفضّل لجلسة."""
+    from clients.models import AIStudioSession
+    tenant = _get_tenant()
+    session = get_object_or_404(AIStudioSession, pk=session_id, tenant=tenant)
+    session.is_favorite = not session.is_favorite
+    session.save(update_fields=['is_favorite'])
+    return JsonResponse({'success': True, 'is_favorite': session.is_favorite})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def ai_session_delete(request, session_id):
+    """حذف جلسة من السجل."""
+    from clients.models import AIStudioSession
+    tenant = _get_tenant()
+    session = get_object_or_404(AIStudioSession, pk=session_id, tenant=tenant)
+    session.delete()
+    return JsonResponse({'success': True})
