@@ -75,22 +75,24 @@ class ClientsConfig(AppConfig):
     # 🚀 مفتاح الكونتاكت: إقلاع السيرفر واشتعال المحرك
     # =====================================================================
     def ready(self):
-        # التأكد من عدم تشغيل الـ Watchdog أثناء عمليات الميجريشن أو الجرد اليدوي
+        # 🔗 ربط الإشارات (Signals) — يجب أن يتم في كل سياق:
+        # runserver, gunicorn, daphne, celery, management commands, tests.
+        # signal `auto_setup_new_tenant` يولّد domain + chart of accounts + welcome gift
+        # عند إنشاء tenant جديد — لو ما اتسجلتش، الـ tenants الجدد هيكونوا ناقصين.
+        try:
+            import clients.signals  # noqa: F401
+            logger.info("🟢 Mouss Tec Core: Tenant Provisioning Signals connected successfully.")
+        except ImportError as e:
+            logger.error(f"🔴 Mouss Tec Core: Signals file failed to load - {e}")
+
+        # 🚀 Watchdog — فقط في سيرفرات HTTP طويلة العمر
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
-        if not any(server in sys.argv[0] or server in sys.argv for server in active_servers):
+        is_long_running = any(server in sys.argv[0] or server in sys.argv for server in active_servers)
+        if not is_long_running:
             return
 
-        # 1. 🔗 ربط الإشارات (Signals) لتفعيل أتمتة الـ Onboarding الفورية
-        try:
-            import clients.signals
-            logger.info("🟢 Mouss Tec Core: Tenant Provisioning Signals connected successfully.")
-        except ImportError:
-            logger.warning("⚠️ Mouss Tec Core: Signals file not found or failed to load.")
-
-        # 2. 🚀 نبض النظام: تشغيل رادار مراقبة السوق والمزادات المجمّدة في Thread معزول
         watchdog_thread = threading.Thread(target=self.ecosystem_watchdog, daemon=True)
         watchdog_thread.start()
-
         logger.info("🚀 Mouss Tec Central Command & Multi-Agent Matrix is FULLY OPERATIONAL.")
 
     # =====================================================================

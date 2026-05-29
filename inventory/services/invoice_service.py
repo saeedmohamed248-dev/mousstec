@@ -46,6 +46,12 @@ class InvoiceService:
 
         instance = purchase_invoice
         with transaction.atomic():
+            # 🛡️ Idempotency guard — prevents double-execution under concurrency
+            fresh = PurchaseInvoice.objects.select_for_update().filter(pk=instance.pk).first()
+            if not fresh or fresh.is_applied:
+                logger.info("[PURCHASE] PO #%s already applied or missing — skipping", instance.id)
+                return
+
             logger.info("[PURCHASE] Starting execution for PO #%s", instance.id)
 
             # --- 1. Treasury payment ---
@@ -153,6 +159,13 @@ class InvoiceService:
 
         instance = sale_invoice
         with transaction.atomic():
+            # 🛡️ Idempotency guard — re-read with lock + bail if already applied
+            # Prevents double-execution from concurrent signals / manual calls
+            fresh = SaleInvoice.objects.select_for_update().filter(pk=instance.pk).first()
+            if not fresh or fresh.is_applied:
+                logger.info("[SALE] INV #%s already applied or missing — skipping", instance.id)
+                return
+
             logger.info("[SALE] Starting execution for INV #%s", instance.id)
 
             # --- 1. Treasury income ---

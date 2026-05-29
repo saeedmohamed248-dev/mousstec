@@ -36,12 +36,21 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/system/api/v1/ai/'),
         re.compile(r'^/printing/copilot/'),   # Smart Business Copilot
         re.compile(r'^/printing/ai/'),        # AI Studio API
+        re.compile(r'^/marketplace/'),        # 🛍️ Public Customer Marketplace (sector pages, registration, dashboard)
+        re.compile(r'^/features/'),           # صفحة المميزات العامة
+        re.compile(r'^/automotive/'),         # صفحة هبوط السيارات
+        re.compile(r'^/printing/$'),          # صفحة هبوط الطباعة (root only)
+        re.compile(r'^/sw\.js$'),             # PWA service worker
+        re.compile(r'^/manifest\.json$'),     # PWA manifest
+        re.compile(r'^/offline/'),            # PWA offline page
     ]
+
+    _cached_exempt_urls = None
 
     @classmethod
     def _get_exempt_urls(cls):
         """بناء القائمة الكاملة مع مسار الأدمن الديناميكي"""
-        if not hasattr(cls, '_cached_exempt_urls'):
+        if cls._cached_exempt_urls is None:
             admin_url = getattr(settings, 'ADMIN_URL', 'secure-portal')
             cls._cached_exempt_urls = cls.EXEMPT_URLS + [
                 re.compile(r'^/' + re.escape(admin_url) + r'/'),

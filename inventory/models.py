@@ -180,9 +180,20 @@ class Customer(models.Model):
     @property
     def vip_tier(self):
         if self.is_b2b_company: return "🏢 حساب شركة"
-        if self.loyalty_points > 5000: return "💎 VIP"
-        elif self.loyalty_points > 2000: return "🥇 ذهبي"
-        elif self.loyalty_points > 500: return "🥈 فضي"
+        # Defensive: loyalty_points may be a CombinedExpression (F()) right after
+        # save() with F() updates — refresh from DB if so to get the real int.
+        pts = self.loyalty_points
+        try:
+            pts = int(pts)
+        except (TypeError, ValueError):
+            try:
+                self.refresh_from_db(fields=['loyalty_points'])
+                pts = int(self.loyalty_points)
+            except Exception:
+                return "🥉 عادي"
+        if pts > 5000: return "💎 VIP"
+        elif pts > 2000: return "🥇 ذهبي"
+        elif pts > 500: return "🥈 فضي"
         return "🥉 عادي"
 
     class Meta:

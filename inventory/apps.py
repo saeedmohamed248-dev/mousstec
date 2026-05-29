@@ -119,19 +119,25 @@ class InventoryConfig(AppConfig):
         self._stop_event = threading.Event()
 
     def ready(self):
+        # 🔗 ربط نظام الإشارات (Signals) — يجب أن يتم في كل سياق:
+        # runserver, gunicorn, daphne, celery, management commands, tests, shell.
+        # بدونها، لن تتولد القيود المحاسبية أو تتبع المخزون أو تنبيهات الستوك تلقائياً
+        # عند إنشاء فاتورة من Celery task أو management command.
+        try:
+            import inventory.signals  # noqa: F401
+            logger.info("🟢 Mouss Tec Engine: Inventory Framework Signals connected successfully.")
+        except ImportError as e:
+            logger.error(f"🔴 Mouss Tec Engine: Failed to import signals - {e}")
+
+        # محرك التسخين (Warmup) — يعمل فقط في سيرفرات HTTP طويلة العمر
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
-        if not any(server in sys.argv[0] or server in sys.argv for server in active_servers):
+        is_long_running_server = any(
+            server in sys.argv[0] or server in sys.argv for server in active_servers
+        )
+        if not is_long_running_server:
             return
 
-        # 1. 🔗 ربط نظام الإشارات (Signals) 
-        try:
-            import inventory.signals
-            logger.info("🟢 Mouss Tec Engine: Inventory Framework Signals connected successfully.")
-        except ImportError:
-            logger.warning("⚠️ Mouss Tec Engine: Signals bridge failed to initialize automatically.")
-
         from django.conf import settings
-        # 🚀 ابتكار: تشغيل الـ Warmup في الـ Production فقط لتوفير موارد المطور المحلي
         if not settings.DEBUG:
             warmup_thread = threading.Thread(target=self.smart_inventory_engine, daemon=True)
             warmup_thread.start()

@@ -880,13 +880,15 @@ class MarketplaceCustomer(models.Model):
         return False
 
     def save(self, *args, **kwargs):
-        # Normalize Egyptian phone numbers
+        # Normalize Egyptian phone numbers — consistent +20 prefix
         if self.phone and not self.phone.startswith('+'):
-            cleaned = self.phone.lstrip('0')
-            if len(cleaned) == 10 and cleaned.startswith('1'):
-                self.phone = f'+2{cleaned}'
-            elif len(cleaned) == 11 and cleaned.startswith('01'):
-                self.phone = f'+2{cleaned}'
+            digits = self.phone.lstrip('0')
+            if len(digits) == 10 and digits.startswith('1'):
+                self.phone = f'+20{digits}'          # bare mobile (1xxxxxxxxx)
+            elif len(digits) == 11 and digits.startswith('01'):
+                self.phone = f'+2{digits}'           # with leading 0 (01xxxxxxxxx)
+            elif len(digits) == 12 and digits.startswith('201'):
+                self.phone = f'+{digits}'            # already has country code
         super().save(*args, **kwargs)
 
 

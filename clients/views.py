@@ -1807,14 +1807,18 @@ def marketplace_register(request):
     if sector not in ('automotive', 'printing'):
         return JsonResponse({"error": "قطاع غير صالح"}, status=400)
 
-    # Normalize phone
-    cleaned_phone = phone.lstrip('0')
-    if len(cleaned_phone) == 10 and cleaned_phone.startswith('1'):
-        cleaned_phone = f'+2{cleaned_phone}'
-    elif len(cleaned_phone) == 11 and cleaned_phone.startswith('01'):
-        cleaned_phone = f'+2{cleaned_phone}'
-    elif not phone.startswith('+'):
-        cleaned_phone = phone
+    # Normalize phone — Egyptian format: +20 + 10-digit mobile (starts with 1)
+    cleaned_phone = phone
+    if not phone.startswith('+'):
+        digits = phone.lstrip('0')
+        if len(digits) == 10 and digits.startswith('1'):
+            cleaned_phone = f'+20{digits}'  # 10-digit mobile → +20 prefix
+        elif len(digits) == 11 and digits.startswith('01'):
+            cleaned_phone = f'+2{digits}'   # 11-digit (with leading 0) → +2 prefix
+        elif len(digits) == 12 and digits.startswith('201'):
+            cleaned_phone = f'+{digits}'    # already has country code
+        else:
+            cleaned_phone = phone           # keep as-is, validation will catch bad ones
 
     # Check existing
     existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
@@ -2002,13 +2006,18 @@ def marketplace_login(request):
         return JsonResponse({"error": "رقم الموبايل مطلوب"}, status=400)
 
     # Normalize
-    cleaned = phone.lstrip('0')
-    if len(cleaned) == 10 and cleaned.startswith('1'):
-        cleaned = f'+2{cleaned}'
-    elif len(cleaned) == 11 and cleaned.startswith('01'):
-        cleaned = f'+2{cleaned}'
-    else:
-        cleaned = phone
+    # Egyptian phone normalization (consistent with marketplace_register)
+    cleaned = phone
+    if not phone.startswith('+'):
+        digits = phone.lstrip('0')
+        if len(digits) == 10 and digits.startswith('1'):
+            cleaned = f'+20{digits}'
+        elif len(digits) == 11 and digits.startswith('01'):
+            cleaned = f'+2{digits}'
+        elif len(digits) == 12 and digits.startswith('201'):
+            cleaned = f'+{digits}'
+        else:
+            cleaned = phone
 
     customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
     if not customer:
