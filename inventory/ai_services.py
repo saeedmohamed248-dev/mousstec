@@ -27,14 +27,19 @@ def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=Fals
         logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
         return None
 
-    # نماذج Gemini 2.0 المستقرة (2026)
-    model_name = "gemini-2.0-flash" if require_pro else "gemini-2.0-flash-lite"
-    
+    # نماذج Gemini المستقرة — fallback chain
+    # gemini-2.5-flash للجودة العالية، gemini-2.0-flash للسرعة، gemini-1.5-flash كـ fallback
+    primary_model = "gemini-2.5-flash" if require_pro else "gemini-2.0-flash"
+    fallback_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"]
+
     # 🔥 تطهير المفتاح من أي \r أو \n أو مسافات عشوائية من ملف الـ .env
     clean_key = str(settings.AI_VISION_API_KEY).strip()
-    
-    # 🌐 استخدام الـ Stable Production Endpoint المباشر لعام 2026
-    url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={clean_key}"
+
+    # 🌐 استخدام الـ v1beta endpoint اللي بيدعم أحدث الموديلات
+    def _build_url(model):
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
+
+    url = _build_url(primary_model)
     headers = {"Content-Type": "application/json"}
 
     gemini_contents = []
@@ -70,38 +75,59 @@ def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=Fals
     if json_mode:
         payload["generationConfig"]["responseMimeType"] = "application/json"
 
-    for attempt in range(max_retries):
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            
-            if response.status_code == 200:
-                res_data = response.json()
-                raw_content = res_data['candidates'][0]['content']['parts'][0]['text']
-                
-                # 🪓 مقصلة تنظيف الهلوسة (تجريد رد جوجل من علامات الماركداون إذا طلبنا JSON)
-                if json_mode:
-                    raw_content = re.sub(r'^```json\s*', '', raw_content)
-                    raw_content = re.sub(r'^```\s*', '', raw_content)
-                    raw_content = re.sub(r'\s*```$', '', raw_content)
-                    
-                return raw_content
-                
-            elif response.status_code == 429:
-                logger.warning(f"⏳ [COGNITIVE AGENT]: Rate Limit Hit. Attempt {attempt + 1}/{max_retries}...")
+    # قائمة الموديلات اللي نجربها بالترتيب
+    models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
+    last_error = None
+
+    for model in models_to_try:
+        current_url = _build_url(model)
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(current_url, headers=headers, json=payload, timeout=30)
+
+                if response.status_code == 200:
+                    res_data = response.json()
+                    try:
+                        raw_content = res_data['candidates'][0]['content']['parts'][0]['text']
+                    except (KeyError, IndexError) as e:
+                        logger.error(f"🔴 [COGNITIVE AGENT]: Malformed response from {model}: {res_data} — {e}")
+                        last_error = f"malformed response from {model}"
+                        break  # try next model
+
+                    # 🪓 مقصلة تنظيف الهلوسة (تجريد رد جوجل من علامات الماركداون إذا طلبنا JSON)
+                    if json_mode:
+                        raw_content = re.sub(r'^```json\s*', '', raw_content)
+                        raw_content = re.sub(r'^```\s*', '', raw_content)
+                        raw_content = re.sub(r'\s*```$', '', raw_content)
+
+                    if model != primary_model:
+                        logger.info(f"✅ [COGNITIVE AGENT]: Succeeded using fallback model {model}")
+                    return raw_content
+
+                elif response.status_code == 429:
+                    logger.warning(f"⏳ [COGNITIVE AGENT]: Rate Limit on {model}. Attempt {attempt + 1}/{max_retries}...")
+                    time.sleep(2 ** attempt)
+                    continue
+                elif response.status_code in (400, 404):
+                    # Model not available — try next model immediately
+                    logger.warning(f"⚠️ [COGNITIVE AGENT]: Model {model} unavailable ({response.status_code}): {response.text[:200]}")
+                    last_error = f"{model} returned {response.status_code}"
+                    break  # break inner retry loop, move to next model
+                else:
+                    logger.error(f"🔴 [COGNITIVE AGENT ERROR] {model} {response.status_code}: {response.text[:300]}")
+                    last_error = f"{model} returned {response.status_code}"
+                    break
+
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logger.warning(f"⏳ [COGNITIVE AGENT]: Connection lost. Attempt {attempt + 1}/{max_retries}... ({e})")
                 time.sleep(2 ** attempt)
-                continue
-            else:
-                logger.error(f"🔴 [COGNITIVE AGENT ERROR] {response.status_code}: {response.text}")
-                return None
-                
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            logger.warning(f"⏳ [COGNITIVE AGENT]: Connection lost. Attempt {attempt + 1}/{max_retries}... ({e})")
-            time.sleep(2 ** attempt)
-        except Exception as e:
-            logger.error(f"🔴 [COGNITIVE AGENT FATAL]: {e}")
-            return None
-            
-    logger.error("🛑 [COGNITIVE AGENT]: All retries exhausted.")
+                last_error = str(e)
+            except Exception as e:
+                logger.error(f"🔴 [COGNITIVE AGENT FATAL] {model}: {e}")
+                last_error = str(e)
+                break
+
+    logger.error(f"🛑 [COGNITIVE AGENT]: All models exhausted. Last error: {last_error}")
     return None
 
 # =====================================================================

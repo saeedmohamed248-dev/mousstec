@@ -982,9 +982,20 @@ def ai_prompt_engineer(request):
         raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2)
 
         if not raw_response:
+            # Fallback: try without JSON mode (some models reject it)
+            logger.warning(f"[PROMPT ENGINEER] JSON mode failed, retrying without JSON mode for: {raw_input[:80]}")
+            raw_response = call_gemini_layer(messages, json_mode=False, max_retries=2)
+
+        if not raw_response:
+            # Final fallback: try Gemini Pro
+            logger.warning(f"[PROMPT ENGINEER] Flash-lite failed, escalating to Pro model for: {raw_input[:80]}")
+            raw_response = call_gemini_layer(messages, json_mode=False, max_retries=1, require_pro=True)
+
+        if not raw_response:
+            logger.error(f"[PROMPT ENGINEER] All AI calls failed. ENABLE_AI={getattr(settings, 'ENABLE_AI_PREDICTIONS', False)}, KEY_SET={bool(getattr(settings, 'AI_VISION_API_KEY', None))}")
             return JsonResponse({
                 'status': 'error',
-                'error': 'فشل محرك هندسة البرومبت. حاول مرة أخرى.'
+                'error': 'فشل الاتصال بمحرك Gemini. تحقق من المفتاح أو راجع السجلات.'
             }, status=502)
 
         # Parse and validate the JSON response
