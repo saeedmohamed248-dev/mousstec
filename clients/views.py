@@ -2276,8 +2276,11 @@ def marketplace_rate_offer(request, offer_code):
 
 def marketplace_merchant_feed(request):
     """
-    عرض الطلبات المفتوحة للتجار — كل تاجر يرى طلبات قطاعه فقط.
-    يجب أن يكون مسجل دخول كموظف في مستأجر (tenant).
+    عرض الطلبات المفتوحة للتجار — يدعم filtering مرن + diagnostics.
+    Query params:
+      ?show=all       → اعرض كل القطاعات (مش بس قطاعك)
+      ?include_expired=1 → اعرض الطلبات المنتهية
+      ?include_offered=1 → اعرض الطلبات اللي قدمت فيها عروض
     """
     if not request.user.is_authenticated:
         return redirect('/secure-portal/')
@@ -2288,27 +2291,51 @@ def marketplace_merchant_feed(request):
         return redirect('/')
 
     industry = tenant.industry  # automotive or printing
-    # ⚡ select_related('customer') prevents N+1 queries in the template
-    open_requests = ServiceRequest.objects.filter(
-        sector=industry,
-        status='open',
-        expires_at__gt=timezone.now(),
-    ).select_related('customer').order_by('-created_at')
+    show_all_sectors = request.GET.get('show') == 'all'
+    include_expired = request.GET.get('include_expired') == '1'
+    include_offered = request.GET.get('include_offered') == '1'
 
-    # Exclude requests the merchant already offered on
-    already_offered = TenderOffer.objects.filter(
-        merchant=tenant
-    ).values_list('service_request_id', flat=True)
+    # 🔍 Auto-expire any requests past their expiry date (lazy cleanup)
+    ServiceRequest.objects.filter(
+        status='open', expires_at__lte=timezone.now()
+    ).update(status='expired')
 
-    open_requests = open_requests.exclude(id__in=already_offered)
+    # Base query — all open requests
+    qs = ServiceRequest.objects.select_related('customer').order_by('-created_at')
+
+    if not include_expired:
+        qs = qs.filter(status='open', expires_at__gt=timezone.now())
+
+    if not show_all_sectors:
+        qs = qs.filter(sector=industry)
+
+    # Exclude requests the merchant already offered on (unless explicitly asked)
+    already_offered_ids = list(TenderOffer.objects.filter(merchant=tenant)
+                               .values_list('service_request_id', flat=True))
+    if not include_offered:
+        qs = qs.exclude(id__in=already_offered_ids)
+
+    # Diagnostic counters — show why the feed may look empty
+    diagnostics = {
+        'total_in_db': ServiceRequest.objects.count(),
+        'open_in_db': ServiceRequest.objects.filter(status='open').count(),
+        'open_in_my_sector': ServiceRequest.objects.filter(sector=industry, status='open').count(),
+        'expired_in_my_sector': ServiceRequest.objects.filter(sector=industry, status='expired').count(),
+        'i_already_offered_count': len(already_offered_ids),
+        'my_industry': industry,
+        'show_all_sectors': show_all_sectors,
+        'include_expired': include_expired,
+        'include_offered': include_offered,
+    }
 
     context = {
-        'requests': open_requests[:50],
+        'requests': qs[:50],
         'tenant': tenant,
         'my_offers': TenderOffer.objects.filter(merchant=tenant)
                                        .select_related('service_request', 'service_request__customer')
                                        .order_by('-created_at')[:20],
-        'total_open_count': open_requests.count(),
+        'total_open_count': qs.count(),
+        'diagnostics': diagnostics,
     }
     return render(request, 'clients/marketplace/merchant_feed.html', context)
 
