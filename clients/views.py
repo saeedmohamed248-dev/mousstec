@@ -24,7 +24,11 @@ import hashlib
 
 # الاستدعاء الصريح والمباشر للاستمارات والموديلات
 from clients.forms import TenantSignupForm
-from clients.models import Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer, EscrowLedger, PlatformEvent, VisitorLog
+from clients.models import (
+    Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest, BidOffer,
+    EscrowLedger, PlatformEvent, VisitorLog,
+    MarketplaceCustomer, ServiceRequest, TenderOffer,
+)
 
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
@@ -1660,3 +1664,484 @@ def _landing_bot_local_reply(msg):
         '💳 طرق الدفع\n\n'
         'اسألني عن أي حاجة من دول! 😊'
     )
+
+
+# =====================================================================
+# 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace)
+# =====================================================================
+
+def _marketplace_auth(request):
+    """Verify marketplace customer session token from cookie."""
+    token = request.COOKIES.get('mp_session')
+    if not token:
+        return None
+    try:
+        return MarketplaceCustomer.objects.get(session_token=token, is_verified=True, is_blocked=False)
+    except MarketplaceCustomer.DoesNotExist:
+        return None
+
+
+def marketplace_home(request):
+    """الصفحة الرئيسية لسوق العملاء — تسجيل أو دخول."""
+    customer = _marketplace_auth(request)
+    if customer:
+        return redirect('/marketplace/dashboard/')
+    return render(request, 'clients/marketplace/home.html')
+
+
+@csrf_exempt
+def marketplace_register(request):
+    """تسجيل عميل جديد في السوق — خطوة 1."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+
+    customer_type = data.get('customer_type', 'individual')
+    full_name = data.get('full_name', '').strip()
+    company_name = data.get('company_name', '').strip()
+    phone = data.get('phone', '').strip()
+    job_title = data.get('job_title', '').strip()
+    sector = data.get('sector', 'automotive')
+    city = data.get('city', '').strip()
+    email = data.get('email', '').strip()
+
+    if not full_name or not phone:
+        return JsonResponse({"error": "الاسم ورقم الموبايل مطلوبان"}, status=400)
+
+    if customer_type == 'company' and not company_name:
+        return JsonResponse({"error": "اسم الشركة مطلوب"}, status=400)
+
+    if sector not in ('automotive', 'printing'):
+        return JsonResponse({"error": "قطاع غير صالح"}, status=400)
+
+    # Normalize phone
+    cleaned_phone = phone.lstrip('0')
+    if len(cleaned_phone) == 10 and cleaned_phone.startswith('1'):
+        cleaned_phone = f'+2{cleaned_phone}'
+    elif len(cleaned_phone) == 11 and cleaned_phone.startswith('01'):
+        cleaned_phone = f'+2{cleaned_phone}'
+    elif not phone.startswith('+'):
+        cleaned_phone = phone
+
+    # Check existing
+    existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
+    if existing:
+        # Re-send OTP for login
+        otp = existing.generate_otp()
+        logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone}: {otp}")
+        return JsonResponse({
+            "status": "otp_sent",
+            "message": "تم إرسال كود التحقق لرقم موبايلك",
+            "phone": cleaned_phone,
+            "is_existing": True,
+        })
+
+    customer = MarketplaceCustomer.objects.create(
+        customer_type=customer_type,
+        full_name=full_name,
+        company_name=company_name,
+        phone=cleaned_phone,
+        email=email or None,
+        job_title=job_title,
+        sector=sector,
+        city=city,
+    )
+    otp = customer.generate_otp()
+    logger.info(f"[MARKETPLACE] New customer {cleaned_phone} registered, OTP: {otp}")
+
+    return JsonResponse({
+        "status": "otp_sent",
+        "message": "تم تسجيلك بنجاح. كود التحقق تم إرساله لموبايلك.",
+        "phone": cleaned_phone,
+        "is_existing": False,
+    })
+
+
+@csrf_exempt
+def marketplace_verify_otp(request):
+    """التحقق من كود OTP — خطوة 2."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+
+    phone = data.get('phone', '')
+    code = data.get('otp', '')
+
+    customer = MarketplaceCustomer.objects.filter(phone=phone).first()
+    if not customer:
+        return JsonResponse({"error": "رقم غير مسجل"}, status=404)
+
+    if customer.verify_otp(code):
+        response = JsonResponse({
+            "status": "verified",
+            "message": "تم التحقق بنجاح!",
+            "redirect": "/marketplace/dashboard/",
+        })
+        response.set_cookie(
+            'mp_session', str(customer.session_token),
+            max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+        )
+        return response
+    else:
+        return JsonResponse({"error": "كود التحقق غير صحيح أو منتهي"}, status=400)
+
+
+@csrf_exempt
+def marketplace_login(request):
+    """دخول عميل حالي — إرسال OTP فقط."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+
+    phone = data.get('phone', '').strip()
+    if not phone:
+        return JsonResponse({"error": "رقم الموبايل مطلوب"}, status=400)
+
+    # Normalize
+    cleaned = phone.lstrip('0')
+    if len(cleaned) == 10 and cleaned.startswith('1'):
+        cleaned = f'+2{cleaned}'
+    elif len(cleaned) == 11 and cleaned.startswith('01'):
+        cleaned = f'+2{cleaned}'
+    else:
+        cleaned = phone
+
+    customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
+    if not customer:
+        return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
+
+    otp = customer.generate_otp()
+    logger.info(f"[MARKETPLACE] Login OTP for {cleaned}: {otp}")
+    return JsonResponse({
+        "status": "otp_sent",
+        "message": "تم إرسال كود التحقق",
+        "phone": cleaned,
+    })
+
+
+def marketplace_dashboard(request):
+    """لوحة العميل — طلباته وعروضه."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/')
+
+    requests_qs = customer.requests.all().order_by('-created_at')
+
+    # Auto-expire old requests
+    for req in requests_qs.filter(status='open'):
+        req.auto_expire()
+
+    context = {
+        'customer': customer,
+        'requests': requests_qs[:20],
+        'stats': {
+            'total': requests_qs.count(),
+            'open': requests_qs.filter(status='open').count(),
+            'accepted': requests_qs.filter(status='accepted').count(),
+            'completed': requests_qs.filter(status='completed').count(),
+        },
+    }
+    return render(request, 'clients/marketplace/dashboard.html', context)
+
+
+@csrf_exempt
+def marketplace_create_request(request):
+    """إنشاء طلب خدمة / مناقصة جديدة."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول أولاً"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    title = request.POST.get('title', '').strip()
+    description = request.POST.get('description', '').strip()
+    urgency = request.POST.get('urgency', 'normal')
+    wants_images = request.POST.get('wants_images') == 'true'
+    max_budget = request.POST.get('max_budget', '').strip()
+
+    if not title or not description:
+        return JsonResponse({"error": "العنوان والتفاصيل مطلوبان"}, status=400)
+
+    # Expiry based on urgency
+    expiry_map = {'urgent': 1, 'soon': 3, 'normal': 7}
+    days = expiry_map.get(urgency, 7)
+
+    svc_request = ServiceRequest.objects.create(
+        customer=customer,
+        sector=customer.sector,
+        title=title,
+        description=description,
+        urgency=urgency,
+        wants_images=wants_images,
+        customer_city=customer.city,
+        max_budget=Decimal(max_budget) if max_budget else None,
+        expires_at=timezone.now() + timedelta(days=days),
+    )
+
+    # Handle attachments
+    if request.FILES.get('attachment_1'):
+        svc_request.attachment_1 = request.FILES['attachment_1']
+    if request.FILES.get('attachment_2'):
+        svc_request.attachment_2 = request.FILES['attachment_2']
+    if request.FILES.get('attachment_1') or request.FILES.get('attachment_2'):
+        svc_request.save()
+
+    # Update stats
+    MarketplaceCustomer.objects.filter(pk=customer.pk).update(total_requests=F('total_requests') + 1)
+
+    return JsonResponse({
+        "status": "success",
+        "message": "تم نشر طلبك بنجاح! سيبدأ التجار في تقديم عروضهم.",
+        "request_code": str(svc_request.request_code),
+    })
+
+
+def marketplace_request_detail(request, request_code):
+    """تفاصيل طلب + العروض المقدمة (للعميل)."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/')
+
+    svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
+    offers = svc_request.offers.all().order_by('price')
+
+    context = {
+        'customer': customer,
+        'svc_request': svc_request,
+        'offers': offers,
+    }
+    return render(request, 'clients/marketplace/request_detail.html', context)
+
+
+@csrf_exempt
+def marketplace_accept_offer(request, offer_code):
+    """قبول عرض من تاجر."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    offer = get_object_or_404(TenderOffer, offer_code=offer_code)
+
+    if offer.service_request.customer != customer:
+        return JsonResponse({"error": "غير مصرح"}, status=403)
+
+    if offer.service_request.status != 'open' and offer.service_request.status != 'reviewing':
+        return JsonResponse({"error": "هذا الطلب لم يعد مفتوحاً"}, status=400)
+
+    with transaction.atomic():
+        # Accept this offer
+        offer.status = 'accepted'
+        offer.save(update_fields=['status'])
+
+        # Reject all other offers
+        offer.service_request.offers.exclude(pk=offer.pk).update(status='rejected')
+
+        # Update request
+        offer.service_request.status = 'accepted'
+        offer.service_request.accepted_offer = offer
+        offer.service_request.save(update_fields=['status', 'accepted_offer'])
+
+        # Calculate commission
+        commission = (offer.price * offer.service_request.platform_commission_rate) / Decimal('100')
+        ServiceRequest.objects.filter(pk=offer.service_request.pk).update(
+            platform_commission_earned=commission
+        )
+
+        # Update customer stats
+        MarketplaceCustomer.objects.filter(pk=customer.pk).update(
+            total_accepted_offers=F('total_accepted_offers') + 1
+        )
+
+        # Bump merchant deal count
+        Client.objects.filter(pk=offer.merchant.pk).update(
+            successful_deals=F('successful_deals') + 1
+        )
+
+    return JsonResponse({
+        "status": "success",
+        "message": "تم قبول العرض بنجاح! سيتم التواصل معك من التاجر.",
+        "merchant_name": offer.merchant.name,
+        "merchant_phone": offer.merchant.phone,
+        "merchant_address": offer.merchant_address,
+    })
+
+
+@csrf_exempt
+def marketplace_rate_offer(request, offer_code):
+    """تقييم العرض بعد الانتهاء."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+
+    offer = get_object_or_404(TenderOffer, offer_code=offer_code, status='accepted')
+    if offer.service_request.customer != customer:
+        return JsonResponse({"error": "غير مصرح"}, status=403)
+
+    rating = int(data.get('rating', 0))
+    review = data.get('review', '').strip()
+
+    if rating < 1 or rating > 5:
+        return JsonResponse({"error": "التقييم يجب أن يكون من 1 إلى 5"}, status=400)
+
+    offer.customer_rating = rating
+    offer.customer_review = review
+    offer.save(update_fields=['customer_rating', 'customer_review'])
+
+    # Mark request completed
+    offer.service_request.status = 'completed'
+    offer.service_request.completed_at = timezone.now()
+    offer.service_request.save(update_fields=['status', 'completed_at'])
+
+    # Update merchant rating
+    merchant = offer.merchant
+    avg = TenderOffer.objects.filter(
+        merchant=merchant, customer_rating__isnull=False
+    ).aggregate(avg=Avg('customer_rating'))['avg'] or Decimal('5.00')
+    Client.objects.filter(pk=merchant.pk).update(market_rating=avg)
+
+    return JsonResponse({"status": "success", "message": "شكراً لتقييمك!"})
+
+
+# ------------------------------------------------------------------
+# 🏪 Merchant-facing views (for tenants/merchants to see requests and submit offers)
+# ------------------------------------------------------------------
+
+def marketplace_merchant_feed(request):
+    """
+    عرض الطلبات المفتوحة للتجار — كل تاجر يرى طلبات قطاعه فقط.
+    يجب أن يكون مسجل دخول كموظف في مستأجر (tenant).
+    """
+    if not request.user.is_authenticated:
+        return redirect('/secure-portal/')
+
+    try:
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+    except Client.DoesNotExist:
+        return redirect('/')
+
+    industry = tenant.industry  # automotive or printing
+    open_requests = ServiceRequest.objects.filter(
+        sector=industry,
+        status='open',
+        expires_at__gt=timezone.now(),
+    ).order_by('-created_at')
+
+    # Exclude requests the merchant already offered on
+    already_offered = TenderOffer.objects.filter(
+        merchant=tenant
+    ).values_list('service_request_id', flat=True)
+
+    open_requests = open_requests.exclude(id__in=already_offered)
+
+    context = {
+        'requests': open_requests[:50],
+        'tenant': tenant,
+        'my_offers': TenderOffer.objects.filter(merchant=tenant).select_related('service_request').order_by('-created_at')[:20],
+    }
+    return render(request, 'clients/marketplace/merchant_feed.html', context)
+
+
+@csrf_exempt
+def marketplace_submit_offer(request, request_code):
+    """تقديم عرض سعر من تاجر على طلب عميل."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+    except Client.DoesNotExist:
+        return JsonResponse({"error": "مستأجر غير صالح"}, status=400)
+
+    svc_request = get_object_or_404(ServiceRequest, request_code=request_code, status='open')
+
+    if svc_request.sector != tenant.industry:
+        return JsonResponse({"error": "هذا الطلب ليس في قطاعك"}, status=403)
+
+    if TenderOffer.objects.filter(service_request=svc_request, merchant=tenant).exists():
+        return JsonResponse({"error": "لقد قدمت عرضاً بالفعل على هذا الطلب"}, status=400)
+
+    price = request.POST.get('price', '').strip()
+    description = request.POST.get('description', '').strip()
+    estimated_days = request.POST.get('estimated_days', '1').strip()
+    warranty_days = request.POST.get('warranty_days', '0').strip()
+    merchant_city = request.POST.get('merchant_city', '').strip()
+    merchant_address = request.POST.get('merchant_address', '').strip()
+
+    if not price or not description or not merchant_city:
+        return JsonResponse({"error": "السعر والتفاصيل والمدينة مطلوبين"}, status=400)
+
+    try:
+        price_val = Decimal(price)
+        if price_val <= 0:
+            raise ValueError
+    except (ValueError, Exception):
+        return JsonResponse({"error": "سعر غير صالح"}, status=400)
+
+    # Check if images are required
+    if svc_request.wants_images and not request.FILES.get('image_1'):
+        return JsonResponse({"error": "العميل يطلب صور مع العرض. يرجى إرفاق صورة واحدة على الأقل."}, status=400)
+
+    offer = TenderOffer.objects.create(
+        service_request=svc_request,
+        merchant=tenant,
+        price=price_val,
+        description=description,
+        estimated_days=int(estimated_days),
+        warranty_days=int(warranty_days),
+        merchant_city=merchant_city,
+        merchant_address=merchant_address,
+    )
+
+    # Handle images
+    if request.FILES.get('image_1'):
+        offer.image_1 = request.FILES['image_1']
+    if request.FILES.get('image_2'):
+        offer.image_2 = request.FILES['image_2']
+    if request.FILES.get('image_3'):
+        offer.image_3 = request.FILES['image_3']
+    if request.FILES.get('file_attachment'):
+        offer.file_attachment = request.FILES['file_attachment']
+    if any(request.FILES.get(k) for k in ('image_1', 'image_2', 'image_3', 'file_attachment')):
+        offer.save()
+
+    # Update offers count
+    ServiceRequest.objects.filter(pk=svc_request.pk).update(offers_count=F('offers_count') + 1)
+
+    return JsonResponse({
+        "status": "success",
+        "message": "تم تقديم عرضك بنجاح! ستتلقى إشعار عند قبول العميل.",
+    })
+
+
+def marketplace_logout(request):
+    """تسجيل خروج عميل السوق."""
+    response = redirect('/marketplace/')
+    response.delete_cookie('mp_session')
+    return response

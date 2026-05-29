@@ -313,6 +313,24 @@ urlpatterns = [
     ])),
 
     # ==============================================================
+    # 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace)
+    # ==============================================================
+    path('marketplace/', client_views.marketplace_home, name='marketplace_home'),
+    path('marketplace/register/', client_views.marketplace_register, name='marketplace_register'),
+    path('marketplace/verify-otp/', client_views.marketplace_verify_otp, name='marketplace_verify_otp'),
+    path('marketplace/login/', client_views.marketplace_login, name='marketplace_login_api'),
+    path('marketplace/logout/', client_views.marketplace_logout, name='marketplace_logout'),
+    path('marketplace/dashboard/', client_views.marketplace_dashboard, name='marketplace_dashboard'),
+    path('marketplace/request/create/', client_views.marketplace_create_request, name='marketplace_create_request'),
+    path('marketplace/request/<uuid:request_code>/', client_views.marketplace_request_detail, name='marketplace_request_detail'),
+    path('marketplace/offer/<uuid:offer_code>/accept/', client_views.marketplace_accept_offer, name='marketplace_accept_offer'),
+    path('marketplace/offer/<uuid:offer_code>/rate/', client_views.marketplace_rate_offer, name='marketplace_rate_offer'),
+
+    # Merchant-side marketplace
+    path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),
+    path('marketplace/merchant/offer/<uuid:request_code>/', client_views.marketplace_submit_offer, name='marketplace_submit_offer'),
+
+    # ==============================================================
     # 5. 🌍 مسارات الترجمة العالمية، والسيستم الداخلي للورش والفروع
     # ==============================================================
     path('i18n/', include('django.conf.urls.i18n')),

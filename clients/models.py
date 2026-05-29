@@ -672,3 +672,211 @@ class PlatformEvent(models.Model):
 
     def __str__(self):
         return f"[{self.event_type}] {self.description[:80]}"
+
+
+# =====================================================================
+# 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace & Blind Tenders)
+# =====================================================================
+
+class MarketplaceCustomer(models.Model):
+    """
+    عميل نهائي في سوق المناقصات — فرد أو شركة يبحث عن خدمات/منتجات.
+    مستقل تماماً عن نظام المستأجرين (Tenants).
+    """
+    CUSTOMER_TYPE_CHOICES = (
+        ('individual', _('فرد')),
+        ('company', _('شركة / مؤسسة')),
+    )
+    SECTOR_CHOICES = (
+        ('automotive', _('🚗 سيارات — صيانة وقطع غيار')),
+        ('printing', _('🎨 طباعة وتصميم')),
+    )
+
+    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    customer_type = models.CharField(max_length=20, choices=CUSTOMER_TYPE_CHOICES, verbose_name=_("نوع العميل"))
+    full_name = models.CharField(max_length=150, verbose_name=_("الاسم الكامل"))
+    company_name = models.CharField(max_length=200, blank=True, verbose_name=_("اسم الشركة"))
+    phone = models.CharField(max_length=20, unique=True, db_index=True, verbose_name=_("رقم الموبايل"))
+    email = models.EmailField(blank=True, null=True, verbose_name=_("البريد الإلكتروني"))
+    job_title = models.CharField(max_length=100, blank=True, verbose_name=_("الوظيفة / المسمى"))
+    sector = models.CharField(max_length=20, choices=SECTOR_CHOICES, verbose_name=_("القطاع"))
+    city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة / المحافظة"))
+
+    # Auth — OTP-based, no password
+    otp_code = models.CharField(max_length=6, blank=True)
+    otp_expires_at = models.DateTimeField(null=True, blank=True)
+    is_verified = models.BooleanField(default=False, verbose_name=_("تم التحقق من الموبايل"))
+    session_token = models.UUIDField(default=uuid.uuid4, unique=True)
+
+    # Trust & Stats
+    total_requests = models.IntegerField(default=0)
+    total_accepted_offers = models.IntegerField(default=0)
+    avg_rating_given = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal('0.00'))
+    is_blocked = models.BooleanField(default=False, verbose_name=_("محظور"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_active = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("عميل السوق")
+        verbose_name_plural = _("🛍️ عملاء سوق المناقصات")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        label = self.company_name or self.full_name
+        return f"{label} ({self.get_sector_display()})"
+
+    def generate_otp(self):
+        import random
+        self.otp_code = str(random.randint(100000, 999999))
+        self.otp_expires_at = timezone.now() + timedelta(minutes=10)
+        self.save(update_fields=['otp_code', 'otp_expires_at'])
+        return self.otp_code
+
+    def verify_otp(self, code):
+        if self.otp_code == code and self.otp_expires_at and timezone.now() < self.otp_expires_at:
+            self.is_verified = True
+            self.otp_code = ''
+            self.session_token = uuid.uuid4()
+            self.save(update_fields=['is_verified', 'otp_code', 'session_token'])
+            return True
+        return False
+
+    def save(self, *args, **kwargs):
+        # Normalize Egyptian phone numbers
+        if self.phone and not self.phone.startswith('+'):
+            cleaned = self.phone.lstrip('0')
+            if len(cleaned) == 10 and cleaned.startswith('1'):
+                self.phone = f'+2{cleaned}'
+            elif len(cleaned) == 11 and cleaned.startswith('01'):
+                self.phone = f'+2{cleaned}'
+        super().save(*args, **kwargs)
+
+
+class ServiceRequest(models.Model):
+    """
+    طلب خدمة / منتج من عميل — المناقصة الأساسية.
+    يظهر لكل التجار المنتمين لنفس القطاع بشكل مجهول.
+    """
+    STATUS_CHOICES = (
+        ('open', _('مفتوح — في انتظار العروض')),
+        ('reviewing', _('جاري مراجعة العروض')),
+        ('accepted', _('تم قبول عرض')),
+        ('completed', _('مكتمل — تم التقييم')),
+        ('expired', _('منتهي الصلاحية')),
+        ('cancelled', _('ملغي بواسطة العميل')),
+    )
+    URGENCY_CHOICES = (
+        ('normal', _('عادي — خلال أسبوع')),
+        ('soon', _('قريب — خلال 3 أيام')),
+        ('urgent', _('عاجل — خلال 24 ساعة')),
+    )
+
+    request_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    customer = models.ForeignKey(MarketplaceCustomer, on_delete=models.CASCADE, related_name='requests', verbose_name=_("العميل"))
+    sector = models.CharField(max_length=20, choices=MarketplaceCustomer.SECTOR_CHOICES, verbose_name=_("القطاع"))
+
+    title = models.CharField(max_length=300, verbose_name=_("عنوان الطلب"))
+    description = models.TextField(verbose_name=_("تفاصيل الطلب"))
+    urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES, default='normal', verbose_name=_("درجة الاستعجال"))
+
+    # Customer preferences
+    wants_images = models.BooleanField(default=False, verbose_name=_("يريد صور مع العروض"))
+    customer_city = models.CharField(max_length=100, blank=True, verbose_name=_("مدينة العميل"))
+    max_budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                                     verbose_name=_("الميزانية القصوى (اختياري — مخفي عن التجار)"))
+
+    # Attachments (customer can upload reference images)
+    attachment_1 = models.ImageField(upload_to='marketplace/requests/', blank=True, null=True, verbose_name=_("صورة مرجعية 1"))
+    attachment_2 = models.ImageField(upload_to='marketplace/requests/', blank=True, null=True, verbose_name=_("صورة مرجعية 2"))
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', db_index=True)
+    offers_count = models.IntegerField(default=0)
+    accepted_offer = models.ForeignKey('TenderOffer', on_delete=models.SET_NULL, null=True, blank=True, related_name='accepted_for')
+
+    # Platform economics
+    platform_commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('5.00'),
+                                                    verbose_name=_("عمولة المنصة (%)"))
+    platform_commission_earned = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(verbose_name=_("ينتهي الطلب في"))
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("طلب خدمة / مناقصة")
+        verbose_name_plural = _("🛍️ طلبات سوق العملاء")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['sector', 'status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"REQ-{str(self.request_code)[:8]} | {self.title[:50]}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at and self.status == 'open'
+
+    def auto_expire(self):
+        if self.is_expired:
+            self.status = 'expired'
+            self.save(update_fields=['status'])
+
+
+class TenderOffer(models.Model):
+    """
+    عرض سعر من تاجر على طلب عميل.
+    التاجر والعميل مجهولان لبعضهما حتى يتم القبول.
+    """
+    STATUS_CHOICES = (
+        ('pending', _('في انتظار مراجعة العميل')),
+        ('accepted', _('مقبول')),
+        ('rejected', _('مرفوض')),
+        ('withdrawn', _('تم سحبه من التاجر')),
+    )
+
+    offer_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='offers', verbose_name=_("طلب الخدمة"))
+    merchant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='tender_offers', verbose_name=_("التاجر"))
+
+    price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("السعر المقترح"))
+    description = models.TextField(verbose_name=_("تفاصيل العرض"))
+    estimated_days = models.IntegerField(default=1, verbose_name=_("أيام التنفيذ المتوقعة"))
+    warranty_days = models.IntegerField(default=0, verbose_name=_("مدة الضمان (أيام)"))
+
+    # Merchant location (visible to customer for proximity)
+    merchant_city = models.CharField(max_length=100, verbose_name=_("مدينة التاجر"))
+    merchant_address = models.CharField(max_length=300, blank=True, verbose_name=_("عنوان التاجر التفصيلي"))
+
+    # Attachments
+    image_1 = models.ImageField(upload_to='marketplace/offers/', blank=True, null=True, verbose_name=_("صورة 1"))
+    image_2 = models.ImageField(upload_to='marketplace/offers/', blank=True, null=True, verbose_name=_("صورة 2"))
+    image_3 = models.ImageField(upload_to='marketplace/offers/', blank=True, null=True, verbose_name=_("صورة 3"))
+    file_attachment = models.FileField(upload_to='marketplace/offers/files/', blank=True, null=True, verbose_name=_("ملف مرفق (PDF/Word)"))
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+
+    # Rating (after completion)
+    customer_rating = models.IntegerField(null=True, blank=True, verbose_name=_("تقييم العميل (1-5)"))
+    customer_review = models.TextField(blank=True, verbose_name=_("تعليق العميل"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("عرض سعر تاجر")
+        verbose_name_plural = _("عروض أسعار التجار")
+        unique_together = ('service_request', 'merchant')
+        ordering = ['price']
+
+    def __str__(self):
+        return f"OFFER-{str(self.offer_code)[:8]} | {self.price} EGP"
+
+    @property
+    def merchant_display_name(self):
+        """اسم مستعار للتاجر — مجهول حتى القبول"""
+        return f"تاجر #{self.pk}"
+
+    @property
+    def is_images_required(self):
+        return self.service_request.wants_images

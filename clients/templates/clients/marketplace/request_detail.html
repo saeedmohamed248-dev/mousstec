@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>العروض على طلبي | سوق Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <style>
+        :root { --bg:#0f172a; --card:rgba(30,41,59,0.7); --accent:#8b5cf6; --accent2:#ec4899; --success:#10b981; --warn:#f59e0b; --danger:#ef4444; --text:#f8fafc; --muted:#94a3b8; }
+        body { font-family:'Cairo',sans-serif; background:linear-gradient(135deg,var(--bg),#1e1e38); color:var(--text); min-height:100vh; margin:0; }
+        .topbar { background:var(--card); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; }
+        .topbar h2 { font-size:1.1rem; font-weight:900; margin:0; }
+        .topbar a { color:var(--accent); text-decoration:none; font-weight:700; }
+        .container-main { max-width:900px; margin:0 auto; padding:24px; }
+
+        .request-header { background:var(--card); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:24px; margin-bottom:24px; }
+        .request-header h3 { font-weight:900; margin-bottom:8px; }
+        .request-meta { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:0.9rem; margin-top:8px; }
+        .request-meta span { display:flex; align-items:center; gap:4px; }
+
+        .offer-card { background:var(--card); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:24px; margin-bottom:16px; transition:all 0.3s; position:relative; overflow:hidden; }
+        .offer-card:hover { border-color:var(--accent); }
+        .offer-card.winner { border-color:var(--success); background:rgba(16,185,129,0.05); }
+        .offer-card.winner::before { content:'العرض المقبول'; position:absolute; top:12px; left:12px; background:var(--success); color:#fff; padding:2px 12px; border-radius:8px; font-size:0.8rem; font-weight:700; }
+
+        .offer-price { font-size:2rem; font-weight:900; color:var(--accent); }
+        .offer-price small { font-size:0.9rem; color:var(--muted); font-weight:400; }
+
+        .offer-details { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin:16px 0; }
+        .offer-detail { background:rgba(255,255,255,0.03); border-radius:10px; padding:12px; text-align:center; }
+        .offer-detail .val { font-weight:900; font-size:1.1rem; }
+        .offer-detail .lbl { color:var(--muted); font-size:0.8rem; }
+
+        .offer-images { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+        .offer-images img { width:120px; height:90px; object-fit:cover; border-radius:10px; border:1px solid rgba(255,255,255,0.1); cursor:pointer; transition:transform 0.3s; }
+        .offer-images img:hover { transform:scale(1.05); }
+
+        .btn-accept { background:linear-gradient(135deg,var(--success),#059669); border:none; color:#fff; font-weight:700; padding:12px 28px; border-radius:12px; cursor:pointer; transition:all 0.3s; }
+        .btn-accept:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(16,185,129,0.4); }
+        .btn-rate { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff; font-weight:700; padding:10px 24px; border-radius:12px; cursor:pointer; }
+
+        .rating-stars { display:flex; gap:6px; direction:ltr; margin:12px 0; }
+        .rating-stars i { font-size:1.8rem; color:rgba(255,255,255,0.15); cursor:pointer; transition:color 0.2s; }
+        .rating-stars i.active { color:var(--warn); }
+
+        .merchant-reveal { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:16px; margin-top:12px; }
+        .merchant-reveal h5 { color:var(--success); font-weight:700; margin-bottom:8px; }
+
+        .back-link { display:inline-flex; align-items:center; gap:6px; color:var(--accent); text-decoration:none; font-weight:700; margin-bottom:16px; }
+
+        .empty-offers { text-align:center; padding:60px; color:var(--muted); }
+        .empty-offers i { font-size:3rem; color:rgba(139,92,246,0.3); }
+
+        .alert-toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:14px 24px; border-radius:14px; font-weight:700; display:none; }
+        .alert-toast.success { background:rgba(16,185,129,0.9); color:#fff; }
+        .alert-toast.error { background:rgba(239,68,68,0.9); color:#fff; }
+        .alert-toast.show { display:block; }
+        .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h2><i class="fas fa-store" style="color:var(--accent)"></i> سوق Mouss Tec</h2>
+    <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> العودة للوحتي</a>
+</div>
+
+<div id="toast" class="alert-toast"></div>
+
+<div class="container-main">
+
+    <a href="/marketplace/dashboard/" class="back-link"><i class="fas fa-chevron-right"></i> العودة</a>
+
+    <!-- Request Header -->
+    <div class="request-header">
+        <h3>{{ svc_request.title }}</h3>
+        <p style="color:var(--muted); margin-bottom:8px;">{{ svc_request.description }}</p>
+        <div class="request-meta">
+            <span><i class="fas fa-calendar"></i> {{ svc_request.created_at|date:"d/m/Y" }}</span>
+            <span><i class="fas fa-clock"></i> ينتهي {{ svc_request.expires_at|date:"d/m/Y" }}</span>
+            <span><i class="fas fa-gavel"></i> {{ svc_request.offers_count }} عرض</span>
+            <span>
+                {% if svc_request.urgency == 'urgent' %}<i class="fas fa-bolt" style="color:var(--danger)"></i> عاجل
+                {% elif svc_request.urgency == 'soon' %}<i class="fas fa-clock" style="color:var(--warn)"></i> قريب
+                {% else %}<i class="fas fa-calendar-check" style="color:var(--success)"></i> عادي{% endif %}
+            </span>
+            {% if svc_request.wants_images %}
+            <span style="color:var(--accent)"><i class="fas fa-camera"></i> مطلوب صور</span>
+            {% endif %}
+        </div>
+        {% if svc_request.attachment_1 %}
+        <div class="offer-images mt-3">
+            <img src="{{ svc_request.attachment_1.url }}" alt="مرفق 1" onclick="window.open(this.src)">
+            {% if svc_request.attachment_2 %}
+            <img src="{{ svc_request.attachment_2.url }}" alt="مرفق 2" onclick="window.open(this.src)">
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Offers -->
+    <h4 style="font-weight:900; margin-bottom:16px;"><i class="fas fa-gavel" style="color:var(--accent)"></i> العروض المقدمة</h4>
+
+    {% if offers %}
+    {% for offer in offers %}
+    <div class="offer-card {% if offer.status == 'accepted' %}winner{% endif %}">
+        <div class="d-flex justify-content-between align-items-start flex-wrap">
+            <div>
+                <div class="offer-price">{{ offer.price }} <small>ج.م</small></div>
+                <p style="color:var(--muted); font-size:0.9rem; margin:8px 0;">{{ offer.description|truncatechars:200 }}</p>
+            </div>
+            {% if svc_request.status == 'open' or svc_request.status == 'reviewing' %}
+            <button class="btn-accept" onclick="acceptOffer('{{ offer.offer_code }}', this)">
+                <i class="fas fa-check"></i> قبول العرض
+            </button>
+            {% endif %}
+        </div>
+
+        <div class="offer-details">
+            <div class="offer-detail">
+                <div class="val"><i class="fas fa-map-marker-alt" style="color:var(--accent)"></i> {{ offer.merchant_city }}</div>
+                <div class="lbl">موقع التاجر</div>
+            </div>
+            <div class="offer-detail">
+                <div class="val">{{ offer.estimated_days }} يوم</div>
+                <div class="lbl">مدة التنفيذ</div>
+            </div>
+            <div class="offer-detail">
+                <div class="val">{{ offer.warranty_days }} يوم</div>
+                <div class="lbl">الضمان</div>
+            </div>
+        </div>
+
+        {% if offer.image_1 %}
+        <div class="offer-images">
+            <img src="{{ offer.image_1.url }}" alt="صورة 1" onclick="window.open(this.src)">
+            {% if offer.image_2 %}<img src="{{ offer.image_2.url }}" alt="صورة 2" onclick="window.open(this.src)">{% endif %}
+            {% if offer.image_3 %}<img src="{{ offer.image_3.url }}" alt="صورة 3" onclick="window.open(this.src)">{% endif %}
+        </div>
+        {% endif %}
+
+        {% if offer.file_attachment %}
+        <a href="{{ offer.file_attachment.url }}" target="_blank" style="color:var(--accent); font-weight:700; font-size:0.9rem;">
+            <i class="fas fa-file-pdf"></i> ملف مرفق
+        </a>
+        {% endif %}
+
+        <!-- Merchant reveal after acceptance -->
+        {% if offer.status == 'accepted' %}
+        <div class="merchant-reveal">
+            <h5><i class="fas fa-handshake"></i> بيانات التاجر</h5>
+            <p><i class="fas fa-store"></i> <strong>{{ offer.merchant.name }}</strong></p>
+            <p><i class="fas fa-phone"></i> {{ offer.merchant.phone }}</p>
+            {% if offer.merchant_address %}
+            <p><i class="fas fa-map-marker-alt"></i> {{ offer.merchant_address }}</p>
+            {% endif %}
+
+            {% if svc_request.status == 'accepted' and not offer.customer_rating %}
+            <!-- Rating section -->
+            <hr style="border-color:rgba(255,255,255,0.1)">
+            <h5><i class="fas fa-star" style="color:var(--warn)"></i> قيّم التاجر</h5>
+            <div class="rating-stars" id="ratingStars">
+                <i class="fas fa-star" data-val="1" onclick="setRating(1)"></i>
+                <i class="fas fa-star" data-val="2" onclick="setRating(2)"></i>
+                <i class="fas fa-star" data-val="3" onclick="setRating(3)"></i>
+                <i class="fas fa-star" data-val="4" onclick="setRating(4)"></i>
+                <i class="fas fa-star" data-val="5" onclick="setRating(5)"></i>
+            </div>
+            <textarea class="form-control mb-3" id="reviewText" rows="2" placeholder="اكتب تعليقك (اختياري)..."></textarea>
+            <button class="btn-rate" onclick="submitRating('{{ offer.offer_code }}')">
+                <i class="fas fa-paper-plane"></i> إرسال التقييم
+            </button>
+            {% elif offer.customer_rating %}
+            <hr style="border-color:rgba(255,255,255,0.1)">
+            <div style="color:var(--warn)">
+                {% for i in "12345" %}
+                <i class="fas fa-star{% if forloop.counter > offer.customer_rating %}-empty{% endif %}" style="font-size:1.2rem;"></i>
+                {% endfor %}
+            </div>
+            {% if offer.customer_review %}<p style="color:var(--muted); margin-top:6px;">{{ offer.customer_review }}</p>{% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-offers">
+        <i class="fas fa-hourglass-half"></i>
+        <h4>لا يوجد عروض بعد</h4>
+        <p>التجار لسه بيراجعوا طلبك. هيبدأوا يقدموا عروضهم قريب!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let selectedRating = 0;
+
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `alert-toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function setRating(val) {
+    selectedRating = val;
+    document.querySelectorAll('#ratingStars i').forEach(s => {
+        s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+    });
+}
+
+async function acceptOffer(code, btn) {
+    if (!confirm('هل أنت متأكد من قبول هذا العرض؟ سيتم رفض باقي العروض.')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+
+    try {
+        const res = await fetch(`/marketplace/offer/${code}/accept/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 1200);
+    } catch (e) {
+        toast(e.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> قبول العرض';
+    }
+}
+
+async function submitRating(code) {
+    if (selectedRating < 1) { toast('اختار تقييم من 1 لـ 5', 'error'); return; }
+    try {
+        const res = await fetch(`/marketplace/offer/${code}/rate/`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ rating: selectedRating, review: document.getElementById('reviewText').value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) { toast(e.message, 'error'); }
+}
+</script>
+</body>
+</html>
