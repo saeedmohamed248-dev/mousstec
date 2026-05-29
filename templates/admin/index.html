@@ -954,7 +954,9 @@
 
     // ===== AI Studio Functions =====
     function getCSRFToken() {
-        const c = document.cookie.match('(^|;)\\s*csrftoken=([^;]*)');
+        // Try mt_csrf first (Django CSRF_COOKIE_NAME), then csrftoken as fallback
+        const c = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)')
+                || document.cookie.match('(^|;)\\s*csrftoken=([^;]*)');
         return c ? decodeURIComponent(c[2]) : '';
     }
 

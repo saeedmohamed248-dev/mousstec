@@ -184,7 +184,7 @@ class InvoiceService:
                     days_to_add = 90
                     if instance.invoice_type == 'maintenance':
                         services_text = " ".join(
-                            [s.service.name.lower() for s in instance.service_items.all()]
+                            [s.service.name.lower() for s in instance.service_items.select_related('service').all()]
                         )
                         if any(kw in services_text for kw in ('سير', 'كاتينة', 'محرك')):
                             days_to_add = 365

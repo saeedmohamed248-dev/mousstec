@@ -633,13 +633,12 @@ def _get_live_context_printing():
     )
 
 
+@login_required
 def copilot_chat(request):
     """
     🧠 Smart Business Copilot — يرد على أسئلة من الداتابيز الفعلية.
     مجاني — لا يستهلك حصة AI ولا API خارجي (إلا لتنسيق الرد).
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'recommendations': 'يرجى تسجيل الدخول أولاً.'}, status=401)
 
     query = request.GET.get('query', '').strip()
     if not query:
