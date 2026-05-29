@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سوق Mouss Tec | اختر القطاع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1e38 100%);
+            color: #f8fafc; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 40px 20px;
+        }
+        .container { max-width: 1100px; width: 100%; text-align: center; }
+        h1 {
+            font-size: 3rem; font-weight: 900; margin-bottom: 12px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .sub { color: #94a3b8; font-size: 1.2rem; margin-bottom: 50px; max-width: 700px; margin-left: auto; margin-right: auto; }
+
+        .sectors-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 28px; max-width: 900px; margin: 0 auto;
+        }
+
+        .sector-card {
+            background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(16px);
+            border: 2px solid rgba(255,255,255,0.06); border-radius: 24px;
+            padding: 48px 32px; cursor: pointer; transition: all 0.4s;
+            position: relative; overflow: hidden; text-decoration: none; color: inherit;
+        }
+        .sector-card::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--glow); opacity: 0; transition: opacity 0.4s;
+            z-index: 0;
+        }
+        .sector-card:hover { transform: translateY(-8px); border-color: var(--accent); }
+        .sector-card:hover::before { opacity: 0.08; }
+        .sector-card > * { position: relative; z-index: 1; }
+
+        .sector-card.auto { --accent: #f59e0b; --glow: radial-gradient(circle at top, #f59e0b, transparent); }
+        .sector-card.print { --accent: #ec4899; --glow: radial-gradient(circle at top, #ec4899, transparent); }
+
+        .sector-icon {
+            font-size: 4.5rem; margin-bottom: 20px; color: var(--accent);
+            display: inline-block; padding: 24px; border-radius: 50%;
+            background: rgba(255,255,255,0.03);
+        }
+        .sector-card h2 { font-size: 1.8rem; font-weight: 900; margin-bottom: 12px; }
+        .sector-card p { color: #94a3b8; font-size: 1rem; margin-bottom: 20px; }
+
+        .features-list { list-style: none; text-align: right; margin-bottom: 28px; }
+        .features-list li { padding: 6px 0; color: #cbd5e1; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .features-list li i { color: var(--accent); font-size: 0.9rem; }
+
+        .enter-btn {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 14px 32px; border-radius: 14px; font-weight: 700;
+            background: var(--accent); color: #fff; text-decoration: none;
+            transition: all 0.3s; font-size: 1.05rem;
+        }
+        .sector-card:hover .enter-btn { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+
+        .brand-top {
+            position: fixed; top: 20px; right: 30px; font-weight: 900; font-size: 1.1rem;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        @media (max-width: 576px) {
+            h1 { font-size: 2rem; }
+            .sub { font-size: 1rem; }
+            .sector-card { padding: 32px 20px; }
+            .sector-icon { font-size: 3.5rem; padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="brand-top"><i class="fas fa-store"></i> Mouss Tec</div>
+
+<div class="container">
+    <h1>أهلاً بك في سوق Mouss Tec</h1>
+    <p class="sub">السوق المفتوح بين العملاء والتجار — اختر القطاع المناسب لطلبك وابدأ تستلم عروض من أفضل التجار في غضون دقائق</p>
+
+    <div class="sectors-grid">
+        <!-- Automotive -->
+        <a href="/marketplace/automotive/" class="sector-card auto">
+            <div class="sector-icon"><i class="fas fa-car"></i></div>
+            <h2>سوق السيارات</h2>
+            <p>صيانة، قطع غيار، تشخيص، فحص</p>
+            <ul class="features-list">
+                <li><i class="fas fa-check-circle"></i> قطع غيار أصلي وبديل</li>
+                <li><i class="fas fa-check-circle"></i> صيانة دورية ومتخصصة</li>
+                <li><i class="fas fa-check-circle"></i> فحص شامل بالكمبيوتر</li>
+                <li><i class="fas fa-check-circle"></i> تشخيص الأعطال OBD2</li>
+                <li><i class="fas fa-check-circle"></i> مقارنة أسعار من أفضل المراكز</li>
+            </ul>
+            <span class="enter-btn">
+                ادخل سوق السيارات <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+
+        <!-- Printing -->
+        <a href="/marketplace/printing/" class="sector-card print">
+            <div class="sector-icon"><i class="fas fa-palette"></i></div>
+            <h2>سوق الطباعة والتصميم</h2>
+            <p>تصميم جرافيك، طباعة، هوية بصرية</p>
+            <ul class="features-list">
+                <li><i class="fas fa-check-circle"></i> تصميم لوجو وهوية بصرية</li>
+                <li><i class="fas fa-check-circle"></i> طباعة فلاير، بوستر، كروت</li>
+                <li><i class="fas fa-check-circle"></i> تصميم سوشيال ميديا</li>
+                <li><i class="fas fa-check-circle"></i> طباعة T-Shirt و Mug</li>
+                <li><i class="fas fa-check-circle"></i> عينات تصميم قبل الاختيار</li>
+            </ul>
+            <span class="enter-btn">
+                ادخل سوق الطباعة <i class="fas fa-arrow-left"></i>
+            </span>
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

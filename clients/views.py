@@ -1682,11 +1682,30 @@ def _marketplace_auth(request):
 
 
 def marketplace_home(request):
-    """الصفحة الرئيسية لسوق العملاء — تسجيل أو دخول."""
+    """
+    الصفحة الرئيسية المحايدة — تخيير المستخدم بين القطاعين.
+    لو مسجل، يروح للوحة مباشرة.
+    """
     customer = _marketplace_auth(request)
     if customer:
         return redirect('/marketplace/dashboard/')
-    return render(request, 'clients/marketplace/home.html')
+    return render(request, 'clients/marketplace/choose_sector.html')
+
+
+def marketplace_automotive(request):
+    """صفحة دخول/تسجيل سوق السيارات."""
+    customer = _marketplace_auth(request)
+    if customer:
+        return redirect('/marketplace/dashboard/')
+    return render(request, 'clients/marketplace/automotive.html', {'sector': 'automotive'})
+
+
+def marketplace_printing(request):
+    """صفحة دخول/تسجيل سوق الطباعة والتصميم."""
+    customer = _marketplace_auth(request)
+    if customer:
+        return redirect('/marketplace/dashboard/')
+    return render(request, 'clients/marketplace/printing.html', {'sector': 'printing'})
 
 
 @csrf_exempt

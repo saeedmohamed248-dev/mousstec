@@ -316,6 +316,8 @@ urlpatterns = [
     # 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace)
     # ==============================================================
     path('marketplace/', client_views.marketplace_home, name='marketplace_home'),
+    path('marketplace/automotive/', client_views.marketplace_automotive, name='marketplace_automotive'),
+    path('marketplace/printing/', client_views.marketplace_printing, name='marketplace_printing'),
     path('marketplace/register/', client_views.marketplace_register, name='marketplace_register'),
     path('marketplace/verify-otp/', client_views.marketplace_verify_otp, name='marketplace_verify_otp'),
     path('marketplace/login/', client_views.marketplace_login, name='marketplace_login_api'),
