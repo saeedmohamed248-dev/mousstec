@@ -398,7 +398,9 @@ class SaleInvoice(models.Model):
         self.total_amount = subtotal + tax_amount
         self.total_cost = items_total_cost
         self.total_core_charge = calculated_core_charge
-        self.net_profit = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
+        # Net profit: revenue minus cost, minus tax (tax is paid to government, not profit)
+        gross_margin = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
+        self.net_profit = gross_margin - tax_amount
 
         if self.paid_amount == Decimal('0.00') and self.status == 'posted' and not self.maintenance_contract:
             self.paid_amount = self.total_amount
@@ -465,16 +467,21 @@ class SaleInvoiceServiceItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='service_items')
     service = models.ForeignKey(ServiceCatalog, on_delete=models.PROTECT, verbose_name=_("الخدمة المنفذة"))
     technician = models.ForeignKey(EmployeeProfile, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'tech'}, verbose_name=_("الفني المنفذ"))
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("قيمة المصنعية"))
-    
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name=_("قيمة المصنعية"),
+                                help_text=_("اتركه فارغاً ليتم ملؤه تلقائياً من كتالوج الخدمات"))
+
     actual_hours = models.DecimalField(max_digits=4, decimal_places=1, default=1.0, verbose_name=_("ساعات العمل المُباعة"))
     start_time = models.DateTimeField(blank=True, null=True, verbose_name=_("بداية العمل الفعلي"))
     end_time = models.DateTimeField(blank=True, null=True, verbose_name=_("نهاية العمل الفعلي"))
 
     def save(self, *args, **kwargs):
-        if not self.pk and self.service and self.price is None:
+        # Auto-fill price from service catalog if not provided
+        if self.service and (self.price is None or self.price == Decimal('0.00')):
             self.price = self.service.labor_price
             self.actual_hours = self.service.estimated_hours
+        # Safety: ensure price is never None at DB level
+        if self.price is None:
+            self.price = Decimal('0.00')
         super().save(*args, **kwargs)
 
 class VehicleInspection(models.Model):
@@ -599,6 +606,29 @@ class AccountingEntry(models.Model):
             models.Index(fields=['reference']),
             models.Index(fields=['account', '-entry_date']),
         ]
+
+    def clean(self):
+        """Validate that either debit or credit is set, not both."""
+        if self.debit > 0 and self.credit > 0:
+            raise ValidationError(_("القيد لا يمكن أن يكون مدين ودائن في نفس الوقت."))
+        if self.debit == 0 and self.credit == 0:
+            raise ValidationError(_("القيد يجب أن يحتوي على قيمة مدينة أو دائنة."))
+
+    @classmethod
+    def validate_balanced(cls, reference):
+        """Verify all entries for a given reference are balanced (total debit == total credit)."""
+        agg = cls.objects.filter(reference=reference).aggregate(
+            total_debit=models.Sum('debit'),
+            total_credit=models.Sum('credit')
+        )
+        total_debit = agg['total_debit'] or Decimal('0')
+        total_credit = agg['total_credit'] or Decimal('0')
+        if total_debit != total_credit:
+            raise ValidationError(
+                _(f"القيود غير متوازنة للمرجع {reference}: "
+                  f"مدين={total_debit}, دائن={total_credit}")
+            )
+        return True
 
     def __str__(self):
         side = f"مدين {self.debit}" if self.debit > 0 else f"دائن {self.credit}"

@@ -443,10 +443,20 @@ def universal_webhook_multiplexer(request):
     بوابة FinTech محصنة: تمنع التكرار (Idempotency) وتطبق سياسات مكافحة غسيل الأموال (AML).
     """
     if request.method != 'POST': return HttpResponseForbidden("POST Only")
-    
-    # 🛡️ الحماية السيبرانية: توثيق مصدر الـ Webhook (يجب تفعيله في الـ Production)
-    # expected_sig = request.headers.get('STRIPE_SIGNATURE', '')
-    # if not verify_stripe_signature(request.body, expected_sig): return HttpResponseForbidden()
+
+    # 🛡️ HMAC signature verification for webhook security
+    import hmac as _hmac
+    import hashlib as _hashlib
+    secret = getattr(settings, 'WEBHOOK_HMAC_SECRET', None)
+    if secret:
+        received_sig = request.META.get('HTTP_X_WEBHOOK_SIGNATURE', '')
+        if not received_sig:
+            logger.warning("[WEBHOOK] Missing signature header — rejected.")
+            return HttpResponseForbidden("Missing signature")
+        computed = _hmac.new(secret.encode('utf-8'), request.body, _hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(computed, received_sig):
+            logger.warning("[WEBHOOK] HMAC verification failed — rejected.")
+            return HttpResponseForbidden("Invalid signature")
     
     try:
         payload = json.loads(request.body)
@@ -661,7 +671,7 @@ def saas_pricing_page(request):
             'empire': {'price': 1800, 'original_price': 3000},
             'addon_price': 125,
             'free_trial_days': 3,
-            'vodafone_cash': '01094850763',
+            'vodafone_cash': '',
             'billing_discounts': billing_discounts,
         }
     })

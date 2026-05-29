@@ -135,6 +135,37 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                                               'description': "فحص مجاني وقائي لزيادة ولاء العملاء."}
                                 )
 
+                        # 📊 Seed default Chart of Accounts (shared by all industries)
+                        ChartOfAccount = apps.get_model('inventory', 'ChartOfAccount')
+                        default_accounts = [
+                            ('1000', 'الأصول المتداولة', 'asset'),
+                            ('1001', 'النقدية والخزائن', 'asset'),
+                            ('1002', 'البنك', 'asset'),
+                            ('1100', 'المدينون (ذمم العملاء)', 'asset'),
+                            ('1200', 'المخزون', 'asset'),
+                            ('1300', 'أصول ثابتة', 'asset'),
+                            ('2000', 'الخصوم المتداولة', 'liability'),
+                            ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+                            ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
+                            ('2300', 'مصروفات مستحقة', 'liability'),
+                            ('3000', 'رأس المال', 'equity'),
+                            ('3100', 'الأرباح المحتجزة', 'equity'),
+                            ('4001', 'إيرادات المبيعات', 'revenue'),
+                            ('4002', 'إيرادات الخدمات', 'revenue'),
+                            ('4099', 'إيرادات أخرى', 'revenue'),
+                            ('5001', 'تكلفة البضاعة المباعة', 'expense'),
+                            ('5002', 'تكلفة قطع الغيار', 'expense'),
+                            ('5099', 'مصروفات عمومية', 'expense'),
+                            ('5100', 'رواتب وأجور', 'expense'),
+                            ('5200', 'إيجار ومرافق', 'expense'),
+                            ('5300', 'مصروفات شحن', 'expense'),
+                        ]
+                        for code, name, acc_type in default_accounts:
+                            ChartOfAccount.objects.get_or_create(
+                                code=code,
+                                defaults={'name': name, 'account_type': acc_type}
+                            )
+
                 logger.info(f"🏢 [ORCHESTRATOR]: Provisioning complete for schema '{instance.schema_name}' (industry={industry})")
             except Exception as e:
                 logger.error(f"🔴 [ORCHESTRATOR ERROR]: Provisioning failed for '{instance.schema_name}' - {e}")

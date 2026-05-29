@@ -94,18 +94,38 @@ def tenant_required(view_func):
     return _wrapped
 
 
+def role_required(*allowed_roles):
+    """
+    🛡️ RBAC Decorator — يمنع الوصول لغير الأدوار المسموح لها.
+    Usage: @role_required('admin', 'manager')
+    Superusers always pass.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            try:
+                role = request.user.employee_profile.role
+            except Exception:
+                role = None
+            if role not in allowed_roles:
+                return _json_response_safe(
+                    {"error": "🔒 ليس لديك صلاحية للوصول لهذه الخدمة. تواصل مع المدير."},
+                    status=403,
+                )
+            return view_func(request, *args, **kwargs)
+        return _wrapped
+    return decorator
+
+
 # =====================================================================
 # 📊 1. لوحات التحكم ونقطة البيع وكشك الفنيين
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')
+@tenant_required
 def branch_dashboard(request):
-    if not _require_tenant(request):
-        return HttpResponseForbidden(
-            "<h1>🛑 دخول غير مصرح</h1>"
-            "<p>هذه اللوحة مخصصة للفروع فقط.</p>"
-        )
-
     today = timezone.now().date()
     is_admin = request.user.is_superuser or (
         hasattr(request.user, 'employee_profile')
@@ -126,7 +146,7 @@ def branch_dashboard(request):
         'total_sales_today': invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
         'net_profit_today': (
             invoices_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
-            if is_admin else "🔒 مخفي"
+            if is_admin else "🔒 صلاحية المدير فقط"
         ),
         'invoices_count': invoices_qs.count(),
         'low_stock_count': low_stock.count(),
@@ -137,9 +157,9 @@ def branch_dashboard(request):
     trial_days_left = None
     sub_days_left = None
     if tenant:
-        if tenant.status == 'trial':
+        if tenant.status == 'trial' and getattr(tenant, 'trial_ends_at', None):
             trial_days_left = max(0, (tenant.trial_ends_at - today).days)
-        elif tenant.status == 'active' and tenant.subscription_end_date:
+        elif tenant.status == 'active' and getattr(tenant, 'subscription_end_date', None):
             sub_days_left = max(0, (tenant.subscription_end_date - today).days)
 
     return render(request, 'inventory/dashboard.html', {
@@ -345,6 +365,8 @@ def tech_shift_manager_api(request, action):
 # 🌐 4. Webhooks الخارجية والمزامنة الإقليمية
 # =====================================================================
 
+@login_required(login_url='/secure-portal/')
+@tenant_required
 def api_documentation_view(request):
     return HttpResponse(
         "<h1>Mouss Tec B2B API Gateway v1.0</h1>"
@@ -352,6 +374,8 @@ def api_documentation_view(request):
     )
 
 
+@login_required(login_url='/secure-portal/')
+@tenant_required
 def graphql_gateway_view(request):
     return _json_response_safe({"data": {"message": "GraphQL Federation Gateway Active."}})
 
@@ -450,6 +474,7 @@ def barcode_lookup_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager', 'stock')
 def mobile_cycle_count_api(request):
     """HTTP adapter for mobile inventory cycle count — delegates to InventoryService."""
     if request.method != 'POST':
@@ -553,24 +578,44 @@ def offline_pos_sync_api(request):
                 )
 
                 items = inv_data.get('items', [])
+                total_cost = Decimal('0.00')
                 for item in items:
                     product = Product.objects.filter(id=item.get('product_id')).first()
                     if product:
                         qty = int(item.get('quantity', 1))
-                        # خصم المخزون
+                        unit_price = Decimal(str(item.get('unit_price', 0)))
+                        cost_at_sale = product.average_cost or product.purchase_price or Decimal('0.00')
+
+                        # Validate stock availability
                         inv_record = Inventory.objects.select_for_update().filter(
                             product=product, branch=branch
                         ).first()
                         if inv_record and inv_record.quantity >= qty:
-                            inv_record.quantity -= qty
+                            inv_record.quantity = F('quantity') - qty
                             inv_record.save()
+                        elif inv_record:
+                            logger.warning(
+                                "[OFFLINE SYNC] Insufficient stock for %s: have %s, need %s",
+                                product.part_number, inv_record.quantity, qty
+                            )
+                            continue  # Skip item if no stock
 
-                        SaleInvoiceItem.objects.create(
+                        sale_item = SaleInvoiceItem(
                             invoice=new_invoice,
                             product=product,
                             quantity=qty,
-                            unit_price=Decimal(str(item.get('unit_price', 0)))
+                            unit_price=unit_price,
+                            cost_at_sale=cost_at_sale,
                         )
+                        sale_item.full_clean()  # Run model validation
+                        sale_item.save()
+                        total_cost += cost_at_sale * qty
+
+                # Update invoice totals
+                new_invoice.total_cost = total_cost
+                new_invoice.net_profit = new_invoice.total_amount - total_cost
+                new_invoice.save(update_fields=['total_cost', 'net_profit'])
+
                 synced_count += 1
 
         msg = f"تمت مزامنة {synced_count} فاتورة بنجاح وتحديث أرصدة المخازن."
@@ -619,25 +664,88 @@ def parts_cross_reference_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def request_async_report_api(request):
+    """
+    طلب تقرير غير متزامن — حالياً يدعم التوليد المباشر للتقارير الصغيرة.
+    الأنواع المدعومة: inventory_valuation, sales_summary, purchase_summary
+    """
     report_type = request.GET.get('type', 'inventory_valuation')
-    task_id = f"task_{uuid.uuid4().hex[:12]}"
-    logger.info(f"[ASYNC REPORT] Queued task {task_id} type={report_type}")
-    return _json_response_safe({
-        "status": "processing",
-        "task_id": task_id,
-        "message": "التقرير قيد المعالجة.",
-    })
+    branch = _get_branch_for_user(request.user)
+
+    try:
+        if report_type == 'inventory_valuation':
+            from inventory.models import Inventory as InventoryModel
+            inv_qs = InventoryModel.objects.select_related('product', 'branch').all()
+            if branch:
+                inv_qs = inv_qs.filter(branch=branch)
+            items = []
+            total_value = Decimal('0')
+            for inv in inv_qs:
+                value = inv.quantity * (inv.product.average_cost or Decimal('0'))
+                items.append({
+                    "product": inv.product.name,
+                    "part_number": inv.product.part_number,
+                    "branch": inv.branch.name,
+                    "quantity": inv.quantity,
+                    "avg_cost": float(inv.product.average_cost or 0),
+                    "value": float(value),
+                })
+                total_value += value
+            return _json_response_safe({
+                "status": "ready",
+                "report_type": report_type,
+                "data": items,
+                "total_value": float(total_value),
+            })
+
+        elif report_type == 'sales_summary':
+            from_date = request.GET.get('from', '')
+            to_date = request.GET.get('to', '')
+            try:
+                from_d = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else timezone.now().date().replace(day=1)
+                to_d = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else timezone.now().date()
+            except ValueError:
+                return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
+
+            qs = SaleInvoice.objects.filter(status='posted', date_created__date__gte=from_d, date_created__date__lte=to_d)
+            if branch:
+                qs = qs.filter(branch=branch)
+            agg = qs.aggregate(
+                total_revenue=Sum('total_amount'),
+                total_cost=Sum('total_cost'),
+                total_profit=Sum('net_profit'),
+            )
+            return _json_response_safe({
+                "status": "ready",
+                "report_type": report_type,
+                "period": {"from": str(from_d), "to": str(to_d)},
+                "data": {
+                    "invoice_count": qs.count(),
+                    "total_revenue": float(agg['total_revenue'] or 0),
+                    "total_cost": float(agg['total_cost'] or 0),
+                    "total_profit": float(agg['total_profit'] or 0),
+                },
+            })
+
+        else:
+            return _json_response_safe({
+                "error": f"نوع التقرير '{report_type}' غير مدعوم. الأنواع المتاحة: inventory_valuation, sales_summary"
+            }, 400)
+
+    except Exception as e:
+        logger.error(f"[REPORT] Error generating {report_type}: {e}")
+        return _json_response_safe({"error": "حدث خطأ أثناء توليد التقرير"}, 500)
 
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def download_async_report_api(request, task_id):
     return _json_response_safe({
-        "status": "ready",
-        "task_id": task_id,
-        "download_url": f"https://mousstec.s3.amazonaws.com/reports/{task_id}_export.xlsx",
-    })
+        "status": "not_implemented",
+        "message": "تحميل التقارير غير المتزامنة سيتم تفعيله قريباً. استخدم التقارير المباشرة حالياً.",
+    }, 501)
 
 
 # =====================================================================
@@ -943,6 +1051,7 @@ def create_blind_bid_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def distribute_scrap_cost_api(request, job_id):
     """HTTP adapter for scrap cost distribution — delegates to InventoryService."""
     if request.method != 'POST':
@@ -1158,9 +1267,12 @@ def ai_competitor_recon_api(request):
 
 @csrf_exempt
 def universal_webhook_multiplexer(request):
-    """🛡️ Stub — When activated must add HMAC verification."""
+    """🛡️ Webhook multiplexer with HMAC verification."""
     if request.method != 'POST':
         return HttpResponseForbidden()
+    if not _verify_webhook_hmac(request, 'WEBHOOK_HMAC_SECRET', 'HTTP_X_WEBHOOK_SIGNATURE'):
+        logger.warning("[WEBHOOK] HMAC verification failed — rejected.")
+        return HttpResponseForbidden("Invalid signature")
     return _json_response_safe({"status": "success", "channel": "universal_webhook_active"})
 
 
@@ -1170,10 +1282,12 @@ def universal_webhook_multiplexer(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def profit_loss_report_api(request):
     """
     تقرير الأرباح والخسائر — يقارن الإيرادات بالمصروفات لفترة محددة.
     يدعم ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    🔒 محصور: admin + manager فقط
     """
 
     from_date = request.GET.get('from', '')
@@ -1256,8 +1370,145 @@ def profit_loss_report_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
+def trial_balance_api(request):
+    """
+    ميزان المراجعة — يعرض أرصدة جميع الحسابات (مدين/دائن).
+    🔒 محصور: admin + manager فقط
+    """
+    from inventory.models import ChartOfAccount, AccountingEntry
+
+    as_of = request.GET.get('as_of', '')
+    try:
+        if as_of:
+            as_of_date = timezone.datetime.strptime(as_of, '%Y-%m-%d').date()
+        else:
+            as_of_date = timezone.now().date()
+    except ValueError:
+        return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
+
+    accounts = ChartOfAccount.objects.filter(is_active=True).order_by('code')
+    rows = []
+    total_debit = Decimal('0')
+    total_credit = Decimal('0')
+
+    for account in accounts:
+        entries_qs = AccountingEntry.objects.filter(
+            account=account, entry_date__date__lte=as_of_date
+        )
+        agg = entries_qs.aggregate(
+            sum_debit=Sum('debit'),
+            sum_credit=Sum('credit')
+        )
+        d = agg['sum_debit'] or Decimal('0')
+        c = agg['sum_credit'] or Decimal('0')
+
+        # Normal balance: assets/expenses are debit-normal, liabilities/equity/revenue are credit-normal
+        if account.account_type in ('asset', 'expense'):
+            balance = d - c
+            row_debit = balance if balance > 0 else Decimal('0')
+            row_credit = abs(balance) if balance < 0 else Decimal('0')
+        else:
+            balance = c - d
+            row_credit = balance if balance > 0 else Decimal('0')
+            row_debit = abs(balance) if balance < 0 else Decimal('0')
+
+        if row_debit > 0 or row_credit > 0:
+            rows.append({
+                "code": account.code,
+                "name": account.name,
+                "type": account.account_type,
+                "debit": float(row_debit),
+                "credit": float(row_credit),
+            })
+            total_debit += row_debit
+            total_credit += row_credit
+
+    return _json_response_safe({
+        "status": "success",
+        "as_of": str(as_of_date),
+        "accounts": rows,
+        "totals": {
+            "total_debit": float(total_debit),
+            "total_credit": float(total_credit),
+            "is_balanced": abs(total_debit - total_credit) < Decimal('0.01'),
+        },
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
+def balance_sheet_api(request):
+    """
+    الميزانية العمومية — أصول = خصوم + حقوق ملكية.
+    🔒 محصور: admin + manager فقط
+    """
+    from inventory.models import ChartOfAccount, AccountingEntry
+
+    as_of = request.GET.get('as_of', '')
+    try:
+        if as_of:
+            as_of_date = timezone.datetime.strptime(as_of, '%Y-%m-%d').date()
+        else:
+            as_of_date = timezone.now().date()
+    except ValueError:
+        return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
+
+    def _section_data(account_type):
+        accounts = ChartOfAccount.objects.filter(
+            account_type=account_type, is_active=True
+        ).order_by('code')
+        items = []
+        section_total = Decimal('0')
+        for account in accounts:
+            agg = AccountingEntry.objects.filter(
+                account=account, entry_date__date__lte=as_of_date
+            ).aggregate(sum_debit=Sum('debit'), sum_credit=Sum('credit'))
+            d = agg['sum_debit'] or Decimal('0')
+            c = agg['sum_credit'] or Decimal('0')
+            if account_type in ('asset', 'expense'):
+                balance = d - c
+            else:
+                balance = c - d
+            if balance != 0:
+                items.append({"code": account.code, "name": account.name, "balance": float(balance)})
+                section_total += balance
+        return items, section_total
+
+    assets, total_assets = _section_data('asset')
+    liabilities, total_liabilities = _section_data('liability')
+    equity_items, total_equity = _section_data('equity')
+
+    # Add net income (revenue - expenses) to equity as retained earnings
+    revenue_items, total_revenue = _section_data('revenue')
+    expense_items, total_expenses = _section_data('expense')
+    net_income = total_revenue - total_expenses
+    total_equity_with_income = total_equity + net_income
+
+    return _json_response_safe({
+        "status": "success",
+        "as_of": str(as_of_date),
+        "assets": {"items": assets, "total": float(total_assets)},
+        "liabilities": {"items": liabilities, "total": float(total_liabilities)},
+        "equity": {
+            "items": equity_items,
+            "retained_earnings": float(net_income),
+            "total": float(total_equity_with_income),
+        },
+        "balance_check": {
+            "total_assets": float(total_assets),
+            "total_liabilities_equity": float(total_liabilities + total_equity_with_income),
+            "is_balanced": abs(total_assets - (total_liabilities + total_equity_with_income)) < Decimal('0.01'),
+        },
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@role_required('admin', 'manager')
 def product_profitability_api(request):
-    """أربحية كل منتج — أعلى 20 منتج ربحية"""
+    """أربحية كل منتج — أعلى 20 منتج ربحية 🔒 admin + manager"""
 
     branch = _get_branch_for_user(request.user)
     items_qs = SaleInvoiceItem.objects.filter(invoice__status='posted')
@@ -1300,6 +1551,7 @@ def product_profitability_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def import_upload_api(request):
     """
     رفع ملف استيراد (CSV/Excel) وإنشاء جلسة استيراد جديدة.
@@ -1413,6 +1665,7 @@ def import_preview_api(request, session_id):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def import_confirm_api(request, session_id):
     """
     تأكيد الاستيراد — يبدأ الاستيراد الفعلي بعد المعاينة.
@@ -1514,11 +1767,24 @@ def import_confirm_api(request, session_id):
             elif session.entity_type == 'customer':
                 # ── نفس النمط: استعلام واحد + bulk ──
                 rows_parsed = []
+                seen_phones = set()
                 for row in dataset.dict:
                     name = row.get('name') or row.get('اسم العميل', '')
                     phone = row.get('phone') or row.get('الهاتف', '')
                     if not name:
                         continue
+                    # Normalize phone like Customer.save() does
+                    if phone:
+                        phone = re.sub(r'[\s\-\(\)]+', '', phone)
+                        if phone.startswith('00'):
+                            phone = '+' + phone[2:]
+                        elif phone.startswith('0') and not phone.startswith('+'):
+                            phone = '+2' + phone
+                    # Skip duplicate phones within same file
+                    if phone and phone in seen_phones:
+                        continue
+                    if phone:
+                        seen_phones.add(phone)
                     rows_parsed.append({'name': name, 'phone': phone, 'row': row})
 
                 all_phones = [r['phone'] for r in rows_parsed if r['phone']]
@@ -1542,7 +1808,9 @@ def import_confirm_api(request, session_id):
                         existing.name = r['name']
                         to_update.append(existing)
                     else:
-                        to_create.append(Customer(name=r['name'], phone=r['phone'] or ''))
+                        # Assign unique phone if empty to avoid unique constraint violation
+                        cust_phone = r['phone'] or f'+20000{uuid.uuid4().hex[:6]}'
+                        to_create.append(Customer(name=r['name'], phone=cust_phone))
 
                 if to_update:
                     Customer.objects.bulk_update(
@@ -1611,6 +1879,7 @@ def import_confirm_api(request, session_id):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def import_rollback_api(request, session_id):
     """
     التراجع عن استيراد — يحذف السجلات المُستوردة ويستعيد النسخ الأصلية.
@@ -1918,6 +2187,7 @@ def inventory_movement_log_api(request):
 
 @login_required(login_url='/secure-portal/')
 @tenant_required
+@role_required('admin', 'manager')
 def account_ledger_api(request, account_id):
     """دفتر أستاذ حساب محاسبي محدد"""
     account = get_object_or_404(ChartOfAccount, pk=account_id)

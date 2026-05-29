@@ -10,11 +10,27 @@ Responsibilities:
 
 import logging
 from decimal import Decimal
+from django.conf import settings as django_settings
 from django.db import transaction
 from django.db.models import F
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger('mouss_tec_core')
+
+# Configurable account codes — override in settings.py via ACCOUNTING_CODES dict
+_DEFAULT_CODES = {
+    'cash': '1001',
+    'sales_revenue': '4001',
+    'other_revenue': '4099',
+    'purchase_cost': '5001',
+    'general_expense': '5099',
+}
+
+
+def _get_account_code(key):
+    """Return the account code for a logical key, allowing settings override."""
+    overrides = getattr(django_settings, 'ACCOUNTING_CODES', {})
+    return overrides.get(key, _DEFAULT_CODES.get(key, key))
 
 
 class TreasuryService:
@@ -122,7 +138,7 @@ class TreasuryService:
             if instance.transaction_type == 'in':
                 # Debit: Cash (asset)
                 cash_account = TreasuryService._get_or_create_account(
-                    '1001', 'الخزينة النقدية', 'asset'
+                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
                 )
                 AccountingEntry.objects.create(
                     reference=ref,
@@ -137,11 +153,11 @@ class TreasuryService:
                 # Credit: Revenue
                 if instance.sale_invoice:
                     revenue_account = TreasuryService._get_or_create_account(
-                        '4001', 'إيرادات المبيعات', 'revenue'
+                        _get_account_code('sales_revenue'), 'إيرادات المبيعات', 'revenue'
                     )
                 else:
                     revenue_account = TreasuryService._get_or_create_account(
-                        '4099', 'إيرادات أخرى', 'revenue'
+                        _get_account_code('other_revenue'), 'إيرادات أخرى', 'revenue'
                     )
                 AccountingEntry.objects.create(
                     reference=ref,
@@ -157,7 +173,7 @@ class TreasuryService:
                 # Debit: Expense
                 if instance.purchase_invoice:
                     expense_account = TreasuryService._get_or_create_account(
-                        '5001', 'تكلفة المشتريات', 'expense'
+                        _get_account_code('purchase_cost'), 'تكلفة المشتريات', 'expense'
                     )
                 elif instance.category:
                     expense_account = TreasuryService._get_or_create_account(
@@ -167,7 +183,7 @@ class TreasuryService:
                     )
                 else:
                     expense_account = TreasuryService._get_or_create_account(
-                        '5099', 'مصروفات عمومية', 'expense'
+                        _get_account_code('general_expense'), 'مصروفات عمومية', 'expense'
                     )
                 AccountingEntry.objects.create(
                     reference=ref,
@@ -181,7 +197,7 @@ class TreasuryService:
                 )
                 # Credit: Cash
                 cash_account = TreasuryService._get_or_create_account(
-                    '1001', 'الخزينة النقدية', 'asset'
+                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
                 )
                 AccountingEntry.objects.create(
                     reference=ref,

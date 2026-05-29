@@ -299,6 +299,9 @@ AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 # 🤖 OpenAI API — AI Studio (Image Generation via DALL-E)
 OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 
+# 🛡️ HMAC secret for webhook signature verification
+WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
+
 # =====================================================================
 # 🎛️ مفاتيح التحكم الديناميكية (SaaS Feature Flags Engine)
 # =====================================================================

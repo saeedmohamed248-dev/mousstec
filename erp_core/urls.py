@@ -320,9 +320,6 @@ urlpatterns = [
     # 🚀 النواة التشغيلية للورش (الكاشير، الفحص الذكي، الفواتير، وعقود الأساطيل)
     path('system/', include('inventory.urls')),
 
-    # 🎨 نظام الطباعة (AI Studio + Copilot + API)
-    path('printing/', include('printing.urls')),
-
     # 👥 الموارد البشرية (حضور/رواتب/سلف/تصميم)
     path('hr/', include('hr.urls')),
 ]

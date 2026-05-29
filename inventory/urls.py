@@ -135,6 +135,8 @@ urlpatterns = [
         path('reports/profit-loss/', views.profit_loss_report_api, name='v1_profit_loss_report'),
         path('reports/product-profitability/', views.product_profitability_api, name='v1_product_profitability'),
         path('reports/inventory-movements/', views.inventory_movement_log_api, name='v1_inventory_movements'),
+        path('reports/trial-balance/', views.trial_balance_api, name='v1_trial_balance'),
+        path('reports/balance-sheet/', views.balance_sheet_api, name='v1_balance_sheet'),
         path('accounting/ledger/<int:account_id>/', views.account_ledger_api, name='v1_account_ledger'),
 
         # =================================================================

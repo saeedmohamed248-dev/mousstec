@@ -940,6 +940,7 @@ If the request is outside your printing/design domain:
 
 
 @csrf_exempt
+@login_required
 @require_POST
 def ai_prompt_engineer(request):
     """
@@ -947,8 +948,6 @@ def ai_prompt_engineer(request):
     Takes casual Arabic/English design description → returns cinematic FLUX/SDXL prompt.
     Completely isolated from Copilot and Automotive sector.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'error': 'يجب تسجيل الدخول أولاً.'}, status=401)
 
     tenant = _get_tenant()
     allowed, error = _check_ai_access(tenant, 'ai_generation')

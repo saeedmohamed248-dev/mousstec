@@ -89,12 +89,12 @@ class SecureImportExportAdmin(SafeAdminLogMixin, ImportExportModelAdmin):
     def has_export_permission(self, request):
         if request.user.is_superuser: return True
         try: return request.user.employee_profile.role in ['admin', 'manager']
-        except: return False
+        except Exception: return False
 
     def has_import_permission(self, request):
         if request.user.is_superuser: return True
         try: return request.user.employee_profile.role in ['admin', 'manager']
-        except: return False
+        except Exception: return False
 
 class BranchIsolationMixin:
     """تصفية تلقائية للبيانات والمدخلات والعمليات حسب فرع الموظف الحالي لضمان الأمن المعلوماتي للورش"""
@@ -104,7 +104,7 @@ class BranchIsolationMixin:
         try:
             branch = request.user.employee_profile.branch
             if branch and hasattr(self.model, 'branch'): return qs.filter(branch=branch)
-        except: pass
+        except Exception: pass
         return qs
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -115,15 +115,15 @@ class BranchIsolationMixin:
                     if db_field.name == "branch": 
                         kwargs["queryset"] = Branch.objects.filter(id=branch.id)
                         kwargs["initial"] = branch.id
-                    elif db_field.name == "treasury": 
+                    elif db_field.name == "treasury":
                         kwargs["queryset"] = Treasury.objects.filter(branch=branch)
-            except: pass
+            except Exception: pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
         if not request.user.is_superuser and hasattr(obj, 'branch') and not getattr(obj, 'branch', None):
             try: obj.branch = request.user.employee_profile.branch
-            except: pass
+            except Exception: pass
         super().save_model(request, obj, form, change)
 
 
@@ -706,7 +706,7 @@ class SaleInvoiceServiceItemInline(admin.TabularInline):
             try:
                 branch = request.user.employee_profile.branch
                 if branch: kwargs["queryset"] = EmployeeProfile.objects.filter(branch=branch, role='tech')
-            except: pass
+            except Exception: pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 class VehicleInspectionInline(admin.StackedInline):
@@ -981,7 +981,7 @@ class StockTransferAdmin(SecureImportExportAdmin):
                 if branch:
                     kwargs["queryset"] = Branch.objects.filter(id=branch.id)
                     kwargs["initial"] = branch.id
-            except: pass
+            except Exception: pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def status_badge(self, obj):
@@ -1055,7 +1055,7 @@ class ExpenseTransactionInline(admin.TabularInline):
             try:
                 branch = request.user.employee_profile.branch
                 if branch: kwargs["queryset"] = Treasury.objects.filter(branch=branch)
-            except: pass
+            except Exception: pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(ExpenseCategory)
@@ -1336,12 +1336,12 @@ def _automotive_dashboard(request, extra_context):
     try:
         if hasattr(request.user, 'employee_profile') and request.user.employee_profile.branch:
             branch_name = request.user.employee_profile.branch.name
-    except: pass
+    except Exception: pass
 
     can_see_finance = request.user.is_superuser
     if not can_see_finance:
         try: can_see_finance = request.user.employee_profile.role in ['admin', 'manager']
-        except: pass
+        except Exception: pass
 
     sales_qs = SaleInvoice.objects.filter(status='posted', date_created__gte=first_day_of_month)
     inv_qs = Inventory.objects.all()
@@ -1354,7 +1354,7 @@ def _automotive_dashboard(request, extra_context):
                 sales_qs = sales_qs.filter(branch=branch)
                 inv_qs = inv_qs.filter(branch=branch)
                 treasury_qs = treasury_qs.filter(branch=branch)
-        except: pass
+        except Exception: pass
 
     total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
@@ -1377,7 +1377,7 @@ def _automotive_dashboard(request, extra_context):
         try:
             if request.user.employee_profile.branch:
                 open_orders = open_orders.filter(branch=request.user.employee_profile.branch)
-        except: pass
+        except Exception: pass
     open_orders_count = open_orders.count()
 
     yesterday = timezone.now() - timedelta(days=1)
@@ -1402,7 +1402,7 @@ def _automotive_dashboard(request, extra_context):
             try:
                 if request.user.employee_profile.branch:
                     month_invoices = month_invoices.filter(branch=request.user.employee_profile.branch)
-            except: pass
+            except Exception: pass
 
         rev = month_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
