@@ -95,16 +95,71 @@ def ai_generate_design(request):
         import openai
         client = openai.OpenAI(api_key=api_key)
 
-        response = client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=1,
-        )
+        # 🎨 Model fallback chain — OpenAI image models (2026)
+        # gpt-image-1 is the new flagship, dall-e-3 the previous flagship, dall-e-2 the legacy
+        image_models = ['gpt-image-1', 'dall-e-3', 'dall-e-2']
+        response = None
+        used_model = None
+        last_error = None
 
-        image_url = response.data[0].url
-        revised_prompt = response.data[0].revised_prompt
+        for model in image_models:
+            try:
+                # dall-e-2 only supports 256/512/1024 squares
+                model_size = size
+                model_quality = quality
+                if model == 'dall-e-2':
+                    model_size = '1024x1024'
+                    model_quality = 'standard'
+
+                # gpt-image-1 uses different quality values
+                kwargs = {
+                    'model': model,
+                    'prompt': prompt,
+                    'size': model_size,
+                    'n': 1,
+                }
+                if model == 'dall-e-3':
+                    kwargs['quality'] = model_quality  # 'standard' | 'hd'
+                elif model == 'gpt-image-1':
+                    # gpt-image-1 quality: 'low' | 'medium' | 'high' | 'auto'
+                    kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
+
+                response = client.images.generate(**kwargs)
+                used_model = model
+                if model != image_models[0]:
+                    logger.info(f"🎨 [AI STUDIO]: Succeeded using fallback model {model}")
+                break
+            except openai.BadRequestError as e:
+                err_str = str(e)
+                # Model not available — try next
+                if 'does not exist' in err_str or 'model_not_found' in err_str or 'invalid_value' in err_str:
+                    logger.warning(f"⚠️ [AI STUDIO]: Model {model} unavailable, trying next...")
+                    last_error = err_str
+                    continue
+                # Other 400 errors (bad prompt etc.) — fail fast
+                raise
+
+        if response is None:
+            return JsonResponse({
+                'success': False,
+                'error': f'لا يوجد موديل توليد صور متاح في حسابك. اطلب تفعيل DALL-E أو GPT-Image في حساب OpenAI. (آخر خطأ: {last_error[:200] if last_error else "unknown"})'
+            }, status=502)
+
+        # Parse response — gpt-image-1 returns base64, dall-e returns URL
+        first = response.data[0]
+        image_url = getattr(first, 'url', None)
+        revised_prompt = getattr(first, 'revised_prompt', prompt)
+
+        # gpt-image-1 returns b64_json — convert to data URL for inline display
+        if not image_url:
+            b64 = getattr(first, 'b64_json', None)
+            if b64:
+                image_url = f"data:image/png;base64,{b64}"
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'الموديل ولّد الصورة لكن بدون URL. حاول مرة أخرى.'
+                }, status=502)
 
         # Deduct quota
         from clients.models import AILimitTracker
@@ -112,15 +167,17 @@ def ai_generate_design(request):
             'prompt': prompt[:200],
             'size': size,
             'quality': quality,
+            'model': used_model,
             'user': request.user.username,
         })
 
-        logger.info(f"🤖 [AI STUDIO]: {tenant.name} — Generated design by {request.user.username}")
+        logger.info(f"🤖 [AI STUDIO]: {tenant.name} — Generated design via {used_model} by {request.user.username}")
 
         return JsonResponse({
             'success': True,
             'image_url': image_url,
             'revised_prompt': revised_prompt,
+            'model_used': used_model,
         })
 
     except openai.RateLimitError:
