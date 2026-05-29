@@ -1463,3 +1463,86 @@ def ai_session_delete(request, session_id):
     session = get_object_or_404(AIStudioSession, pk=session_id, tenant=tenant)
     session.delete()
     return JsonResponse({'success': True})
+
+
+@login_required
+def ai_attach_search(request):
+    """🔍 بحث عن فاتورة طباعة لربطها بتصميم AI Studio."""
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'invoices': []})
+
+    try:
+        from printing.models import PrintJob
+    except ImportError:
+        return JsonResponse({'invoices': [], 'error': 'PrintJob model not found'})
+
+    qs = PrintJob.objects.filter(
+        Q(customer_name__icontains=query) |
+        Q(customer_phone__icontains=query) |
+        Q(job_code__icontains=query)
+    ).order_by('-created_at')[:15]
+
+    invoices = []
+    for inv in qs:
+        invoices.append({
+            'id': inv.pk,
+            'code': getattr(inv, 'job_code', f'PJ-{inv.pk}'),
+            'customer': getattr(inv, 'customer_name', '—') or '—',
+            'date': inv.created_at.strftime('%Y-%m-%d') if hasattr(inv, 'created_at') else '',
+            'total': str(getattr(inv, 'total_price', 0) or 0),
+            'status': getattr(inv, 'get_status_display', lambda: '')(),
+        })
+    return JsonResponse({'invoices': invoices})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def ai_session_attach(request, session_id):
+    """🔗 ربط جلسة AI Studio بفاتورة طباعة."""
+    from clients.models import AIStudioSession
+    tenant = _get_tenant()
+    session = get_object_or_404(AIStudioSession, pk=session_id, tenant=tenant)
+
+    invoice_id = request.POST.get('invoice_id')
+    if not invoice_id:
+        return JsonResponse({'success': False, 'error': 'invoice_id required'}, status=400)
+
+    try:
+        from printing.models import PrintJob
+        invoice = PrintJob.objects.get(pk=invoice_id)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'فاتورة غير موجودة: {e}'}, status=404)
+
+    # Attach the design image to the invoice
+    # PrintJob may have a design_image_url or similar field — try common names
+    attached = False
+    for field_name in ('design_image_url', 'design_url', 'final_design_url', 'attachment_url'):
+        if hasattr(invoice, field_name):
+            setattr(invoice, field_name, session.image_url)
+            invoice.save(update_fields=[field_name])
+            attached = True
+            break
+
+    # Store the session reference in metadata if model has metadata field
+    if not attached and hasattr(invoice, 'metadata'):
+        md = invoice.metadata or {}
+        md['ai_design_url'] = session.image_url
+        md['ai_session_id'] = session.pk
+        invoice.metadata = md
+        invoice.save(update_fields=['metadata'])
+        attached = True
+
+    # Append to notes as last resort
+    if not attached and hasattr(invoice, 'notes'):
+        invoice.notes = (invoice.notes or '') + f"\n\n🎨 تصميم AI Studio: {session.image_url}"
+        invoice.save(update_fields=['notes'])
+        attached = True
+
+    logger.info(f"🔗 [AI ATTACH]: Session #{session.pk} attached to PrintJob #{invoice.pk} by {request.user.username}")
+    return JsonResponse({
+        'success': True,
+        'message': 'تم ربط التصميم بالفاتورة بنجاح',
+        'invoice_id': invoice.pk,
+    })

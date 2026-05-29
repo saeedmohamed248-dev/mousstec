@@ -171,6 +171,25 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                 logger.error(f"🔴 [ORCHESTRATOR ERROR]: Provisioning failed for '{instance.schema_name}' - {e}")
 
         # -------------------------------------------------------------
+        # 🎁 3.5 هدية الترحيب: 10 تصاميم AI + 5 رسائل واتساب + 5 علامات مائية
+        # -------------------------------------------------------------
+        if instance.schema_name != 'public':
+            try:
+                from clients.models import AIBonusGrant
+                AIBonusGrant.objects.create(
+                    tenant=instance,
+                    granted_designs=10,
+                    granted_whatsapp=5,
+                    granted_watermarks=5,
+                    reason='🎁 هدية الترحيب الذهبية من Mouss Tec — جرّب AI Studio بدون تكلفة!',
+                    granted_by=None,
+                    expires_at=None,  # مدى مفتوح
+                )
+                logger.info(f"🎁 [WELCOME GIFT]: Granted 10 designs + 5 whatsapp + 5 watermarks to {instance.name}")
+            except Exception as e:
+                logger.error(f"🔴 [WELCOME GIFT ERROR]: Failed for {instance.name} - {e}")
+
+        # -------------------------------------------------------------
         # 4. نقل المهمة لبوت الترحيب في الـ Celery Queue (Secure Orchestration)
         # ⚠️ ملاحظة: حساب الأدمن يُنشأ في الـ View — هنا نرسل رابط الدخول فقط بدون بيانات حساسة
         # -------------------------------------------------------------

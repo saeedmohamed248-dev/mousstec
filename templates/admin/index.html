@@ -1061,10 +1061,31 @@
         });
     }
 
+    function previewLogo() {
+        const file = document.getElementById('aiLogo').files[0];
+        if (!file) { clearLogo(); return; }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('aiLogoImg').src = e.target.result;
+            document.getElementById('aiLogoPreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+    function clearLogo() {
+        document.getElementById('aiLogo').value = '';
+        document.getElementById('aiLogoPreview').style.display = 'none';
+        document.getElementById('aiLogoImg').src = '';
+    }
+
     function generateAIDesign() {
         const prompt = _enrichedPromptData ? _enrichedPromptData.engineered_prompt : document.getElementById('aiPrompt').value.trim();
+        const rawInput = document.getElementById('aiPrompt').value.trim();
+        const negativePrompt = _enrichedPromptData ? (_enrichedPromptData.negative_prompt || '') : '';
+        const designCategory = _enrichedPromptData ? (_enrichedPromptData.design_category || 'other') : 'other';
         const size = document.getElementById('aiSize').value;
         const quality = document.getElementById('aiQuality').value;
+        const addWatermark = document.getElementById('aiAddWatermark').checked;
+        const logoFile = document.getElementById('aiLogo').files[0];
         const btn = document.getElementById('aiGenerateBtn');
         const result = document.getElementById('aiResult');
 
@@ -1072,18 +1093,25 @@
 
         // Confirmation step to prevent accidental API calls
         const remaining = document.getElementById('aiQuotaInfo').textContent;
-        if (!confirm('هل أنت متأكد من توليد التصميم؟\n\n' + remaining + '\n\nكل توليد يخصم من حصتك الشهرية.')) {
-            return;
-        }
+        let confirmMsg = 'هل أنت متأكد من توليد التصميم؟\n\n' + remaining;
+        if (logoFile) confirmMsg += '\n\n🖼️ سيتم دمج لوجو الشركة في التصميم';
+        if (addWatermark) confirmMsg += '\n💧 سيتم إضافة علامة مائية';
+        confirmMsg += '\n\nكل توليد يخصم من حصتك الشهرية.';
+        if (!confirm(confirmMsg)) return;
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد بـ DALL-E...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
         result.innerHTML = '<p style="text-align:center;color:#10b981;">جاري توليد التصميم... قد يستغرق 15-30 ثانية</p>';
 
         const fd = new FormData();
         fd.append('prompt', prompt);
+        fd.append('raw_input', rawInput);
+        fd.append('negative_prompt', negativePrompt);
+        fd.append('design_category', designCategory);
         fd.append('size', size);
         fd.append('quality', quality);
+        fd.append('add_watermark', addWatermark ? 'true' : 'false');
+        if (logoFile) fd.append('logo', logoFile);
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/generate/', { method: 'POST', body: fd })
@@ -1098,11 +1126,28 @@
             btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
             if (data.success) {
                 _lastGeneratedUrl = data.image_url;
+                _lastSessionId = data.session_id || null;
+                let badges = '';
+                if (data.model_used) badges += '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">' + data.model_used + '</span>';
+                if (data.watermarked_url) badges += '<span style="font-size:10px;background:#06b6d4;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">💧 بعلامة مائية</span>';
+                if (logoFile) badges += '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">🖼️ بلوجو</span>';
+
                 result.innerHTML = '<img src="' + data.image_url + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
-                    + '<p style="font-size:12px;color:#94a3b8;">' + (data.revised_prompt || '') + '</p>'
+                    + '<div style="margin-bottom:8px;">' + badges + '</div>'
+                    + '<p style="font-size:12px;color:#94a3b8;">' + (data.revised_prompt || '').substring(0, 200) + '</p>'
+
+                    // 🆕 Invoice prompt — ask user if they want to attach to an invoice
+                    + '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(5,150,105,0.05));border:1px solid #10b981;border-radius:12px;padding:14px;margin-top:14px;">'
+                    + '<p style="font-size:13px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-file-invoice-dollar"></i> هل تريد ربط هذا التصميم بفاتورة عميل؟</p>'
+                    + '<div style="display:flex;gap:8px;">'
+                    + '<button onclick="attachToInvoice(' + (data.session_id || 'null') + ')" style="flex:1;padding:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;"><i class="fas fa-link"></i> نعم، اربطه بفاتورة</button>'
+                    + '<button onclick="dismissInvoicePrompt()" style="flex:1;padding:10px;background:#475569;color:#cbd5e1;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;">لا، حفظ فقط</button>'
+                    + '</div></div>'
+
                     + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
                     + '<a href="' + data.image_url + '" download="ai-design.png" style="flex:1;text-align:center;padding:10px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
                     + '<button onclick="showWhatsAppSend()" style="flex:1;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fab fa-whatsapp"></i> إرسال للعميل</button>'
+                    + '<a href="/printing/ai/history/" style="flex:1;text-align:center;padding:10px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-history"></i> سجل التصاميم</a>'
                     + '</div>';
                 // Update quota counter
                 fetch('/printing/ai/status/').then(r=>r.json()).then(s=>{
@@ -1126,6 +1171,82 @@
             btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
             console.error('Generate design error:', err);
             result.innerHTML = '<p style="color:#ef4444;">' + (err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.') + '</p>';
+        });
+    }
+
+    function dismissInvoicePrompt() {
+        const promptBox = document.querySelector('[onclick^="attachToInvoice"]');
+        if (promptBox) {
+            promptBox.closest('div[style*="linear-gradient"]').style.display = 'none';
+        }
+    }
+
+    function attachToInvoice(sessionId) {
+        if (!sessionId) { alert('لم يتم حفظ التصميم'); return; }
+        // Show invoice selector
+        const result = document.getElementById('aiResult');
+        const existing = document.getElementById('invoiceSelector');
+        if (existing) { existing.scrollIntoView({behavior: 'smooth'}); return; }
+
+        result.insertAdjacentHTML('beforeend',
+            '<div id="invoiceSelector" style="margin-top:14px;padding:14px;background:#0f172a;border:1px solid #10b981;border-radius:12px;">'
+            + '<p style="font-size:12px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-search"></i> اختر العميل والفاتورة:</p>'
+            + '<input type="text" id="invCustomerSearch" placeholder="اكتب اسم العميل أو رقم الموبايل..." oninput="searchInvoices(this.value, ' + sessionId + ')" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:10px;">'
+            + '<div id="invSearchResults" style="max-height:240px;overflow-y:auto;"></div>'
+            + '<div style="margin-top:10px;text-align:center;">'
+            + '<a href="/printing/?session=' + sessionId + '" style="display:inline-block;padding:8px 16px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none;font-family:Cairo;">'
+            + '<i class="fas fa-plus-circle"></i> أو أنشئ فاتورة جديدة بهذا التصميم'
+            + '</a></div></div>'
+        );
+        document.getElementById('invoiceSelector').scrollIntoView({behavior: 'smooth'});
+    }
+
+    let _invSearchTimer = null;
+    function searchInvoices(query, sessionId) {
+        clearTimeout(_invSearchTimer);
+        const box = document.getElementById('invSearchResults');
+        if (!query || query.length < 2) { box.innerHTML = ''; return; }
+
+        _invSearchTimer = setTimeout(() => {
+            box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</p>';
+            fetch('/printing/ai/attach-search/?q=' + encodeURIComponent(query))
+            .then(r => r.json())
+            .then(data => {
+                if (!data.invoices || data.invoices.length === 0) {
+                    box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;">لا توجد فواتير مطابقة</p>';
+                    return;
+                }
+                let html = '';
+                data.invoices.forEach(inv => {
+                    html += '<div onclick="confirmAttachInvoice(' + sessionId + ',' + inv.id + ',\'' + inv.code + '\')" style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'#10b981\'" onmouseout="this.style.borderColor=\'#334155\'">'
+                        + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+                        + '<div><div style="font-weight:700;font-size:13px;color:#e2e8f0;">' + inv.code + '</div>'
+                        + '<div style="font-size:11px;color:#94a3b8;">' + inv.customer + ' — ' + inv.date + '</div></div>'
+                        + '<div style="text-align:left;"><div style="font-weight:700;color:#10b981;">' + inv.total + ' ج.م</div>'
+                        + '<div style="font-size:10px;color:#94a3b8;">' + inv.status + '</div></div>'
+                        + '</div></div>';
+                });
+                box.innerHTML = html;
+            })
+            .catch(() => { box.innerHTML = '<p style="color:#ef4444;font-size:12px;text-align:center;">فشل البحث</p>'; });
+        }, 300);
+    }
+
+    function confirmAttachInvoice(sessionId, invoiceId, invoiceCode) {
+        if (!confirm('ربط التصميم بالفاتورة ' + invoiceCode + '؟')) return;
+        const fd = new FormData();
+        fd.append('invoice_id', invoiceId);
+        fd.append('csrfmiddlewaretoken', getCSRFToken());
+
+        fetch('/printing/ai/session/' + sessionId + '/attach/', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const sel = document.getElementById('invoiceSelector');
+                if (sel) sel.innerHTML = '<p style="text-align:center;color:#10b981;font-weight:700;padding:14px;"><i class="fas fa-check-circle"></i> تم ربط التصميم بالفاتورة ' + invoiceCode + ' بنجاح</p>';
+            } else {
+                alert(data.error || 'فشل الربط');
+            }
         });
     }
 
@@ -1244,6 +1365,22 @@
                 <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب <span style="font-size:11px;color:#94a3b8;font-weight:400;">(اكتب بالعربي أو الإنجليزي)</span></label>
                 <textarea id="aiPrompt" rows="3" placeholder="مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
             </div>
+
+            <!-- 🆕 Logo Upload -->
+            <div style="margin-bottom:12px;background:rgba(245,158,11,0.07);border:1px dashed #f59e0b;border-radius:10px;padding:12px;">
+                <label style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#fcd34d;">
+                    <i class="fas fa-image"></i> لوجو الشركة (اختياري)
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">— يدمج اللوجو في التصميم تلقائياً</span>
+                </label>
+                <input type="file" id="aiLogo" accept="image/png,image/jpeg,image/webp" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;" onchange="previewLogo()">
+                <div id="aiLogoPreview" style="display:none;margin-top:8px;text-align:center;">
+                    <img id="aiLogoImg" style="max-height:80px;max-width:140px;border-radius:8px;border:1px solid #475569;" />
+                    <button type="button" onclick="clearLogo()" style="display:block;margin:6px auto 0;background:none;border:none;color:#f87171;font-size:11px;cursor:pointer;font-family:Cairo;">
+                        <i class="fas fa-times-circle"></i> إزالة اللوجو
+                    </button>
+                </div>
+            </div>
+
             <button id="aiEnrichBtn" onclick="enrichPrompt()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
                 <i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي
             </button>
@@ -1263,7 +1400,7 @@
                 <span style="font-size:11px;font-weight:700;color:#f87171;"><i class="fas fa-ban"></i> عناصر مستبعدة</span>
                 <p id="aiNegativePrompt" style="font-size:11px;color:#fca5a5;margin:4px 0 0;"></p>
             </div>
-            <div style="display:flex;gap:12px;margin-bottom:16px;">
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
                     <label style="font-size:12px;font-weight:700;">المقاس</label>
                     <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
@@ -1280,6 +1417,17 @@
                     </select>
                 </div>
             </div>
+
+            <!-- 🆕 Watermark Toggle -->
+            <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.25);border-radius:10px;padding:12px;margin-bottom:16px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;color:#67e8f9;">
+                    <input type="checkbox" id="aiAddWatermark" style="width:18px;height:18px;cursor:pointer;accent-color:#06b6d4;">
+                    <i class="fas fa-droplet"></i>
+                    <span>أضف علامة مائية بإسم الشركة على التصميم</span>
+                </label>
+                <p style="font-size:10px;color:#64748b;margin:4px 0 0 32px;">💡 يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع</p>
+            </div>
+
             <div style="display:flex;gap:10px;">
                 <button onclick="resetAIStudio()" style="flex:0.4;padding:12px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer;">
                     <i class="fas fa-arrow-right"></i> رجوع

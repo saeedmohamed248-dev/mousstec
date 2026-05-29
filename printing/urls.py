@@ -22,6 +22,10 @@ urlpatterns = [
     path('ai/session/<int:session_id>/favorite/', views.ai_session_toggle_favorite, name='ai_session_favorite'),
     path('ai/session/<int:session_id>/delete/', views.ai_session_delete, name='ai_session_delete'),
 
+    # 🔗 Attach AI design to invoice
+    path('ai/attach-search/', views.ai_attach_search, name='ai_attach_search'),
+    path('ai/session/<int:session_id>/attach/', views.ai_session_attach, name='ai_session_attach'),
+
     # 🏷️ Product Type Autocomplete & Report
     path('api/product-types/', views.product_type_autocomplete, name='product_type_autocomplete'),
     path('api/product-types/report/', views.product_type_report, name='product_type_report'),
