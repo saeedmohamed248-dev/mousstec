@@ -105,7 +105,15 @@ def register_new_tenant_saas(request):
                                     )
                             except Exception:
                                 pass
-                                
+
+                        # ── إنشاء سجل الدومين حتى يعرف TenantMainMiddleware يوجه الـ subdomain ──
+                        base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
+                        url_safe_slug = schema_name.replace('_', '-')
+                        Domain.objects.get_or_create(
+                            domain=f"{url_safe_slug}.{base_domain}",
+                            defaults={'tenant': tenant, 'is_primary': True}
+                        )
+
                     success = True
 
                 except Exception as e:

@@ -2188,7 +2188,10 @@ def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
     customer = get_object_or_404(Customer, pk=customer_id)
     invoices = SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created')
-    payments = FinancialTransaction.objects.filter(customer=customer, transaction_type='in').order_by('date')
+    payments = FinancialTransaction.objects.filter(
+        customer=customer, transaction_type='in',
+        sale_invoice__isnull=True,  # دفعات مستقلة فقط (ليست جزء من فاتورة)
+    ).order_by('date')
 
     return render(request, 'inventory/statement_print.html', {
         'entity': customer,
@@ -2205,7 +2208,10 @@ def vendor_statement_print(request, vendor_id):
     """طباعة كشف حساب المورد"""
     vendor = get_object_or_404(Vendor, pk=vendor_id)
     invoices = PurchaseInvoice.objects.filter(vendor=vendor, status='posted').order_by('date_created')
-    payments = FinancialTransaction.objects.filter(vendor=vendor, transaction_type='out').order_by('date')
+    payments = FinancialTransaction.objects.filter(
+        vendor=vendor, transaction_type='out',
+        purchase_invoice__isnull=True,  # دفعات مستقلة فقط
+    ).order_by('date')
 
     return render(request, 'inventory/statement_print.html', {
         'entity': vendor,
@@ -2380,6 +2386,9 @@ def bank_statement_upload(request):
         parsed_rows = list(reader)
     except Exception as e:
         return _json_response_safe({"error": f"فشل قراءة ملف CSV: {e}"}, 400)
+
+    # Reset file pointer so Django can save the full file
+    csv_file.seek(0)
 
     # Atomic: create statement + all lines together
     try:
