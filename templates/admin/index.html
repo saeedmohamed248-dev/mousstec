@@ -1027,8 +1027,8 @@
                 // Show Step 2
                 document.getElementById('aiStep1').style.display = 'none';
                 document.getElementById('aiStep2').style.display = 'block';
-                document.getElementById('aiEnrichedPrompt').textContent = data.engineered_prompt;
-                document.getElementById('aiNegativePrompt').textContent = data.negative_prompt || '';
+                document.getElementById('aiEnrichedPrompt').value = data.engineered_prompt;
+                document.getElementById('aiNegativePrompt').value = data.negative_prompt || '';
                 document.getElementById('aiCategory').textContent = (data.design_category || 'other').replace(/_/g, ' ');
                 // Auto-set recommended size & quality
                 if (data.recommended_size) {
@@ -1387,19 +1387,27 @@
             <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)</p>
         </div>
 
-        <!-- Step 2: Enriched Prompt Review -->
+        <!-- Step 2: Enriched Prompt Confirmation (prompt content hidden — IP protection) -->
         <div id="aiStep2" style="display:none;">
-            <div style="background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span style="font-size:12px;font-weight:700;color:#a855f7;"><i class="fas fa-microchip"></i> البرومبت المُحسَّن</span>
-                    <span id="aiCategory" style="font-size:11px;background:#7c3aed;color:#fff;padding:2px 8px;border-radius:20px;"></span>
+            <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.08));border:1px solid #7c3aed;border-radius:12px;padding:18px;margin-bottom:12px;text-align:center;">
+                <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:10px;">
+                    <i class="fas fa-shield-halved" style="color:#a855f7;font-size:1.4rem;"></i>
+                    <span style="font-size:14px;font-weight:900;color:#e9d5ff;">البرومبت جاهز للتوليد</span>
                 </div>
-                <p id="aiEnrichedPrompt" style="font-size:12px;color:#cbd5e1;line-height:1.8;margin:0;max-height:120px;overflow-y:auto;"></p>
+                <div style="margin-bottom:8px;">
+                    <span id="aiCategory" style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:20px;font-weight:700;"></span>
+                </div>
+                <p style="font-size:12px;color:#c4b5fd;margin:4px 0;line-height:1.6;">
+                    <i class="fas fa-microchip"></i>
+                    تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن.
+                </p>
+                <p style="font-size:11px;color:#94a3b8;margin:6px 0 0;">
+                    🔒 محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية
+                </p>
             </div>
-            <div id="aiNegativeBox" style="background:#1a0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:10px;margin-bottom:12px;">
-                <span style="font-size:11px;font-weight:700;color:#f87171;"><i class="fas fa-ban"></i> عناصر مستبعدة</span>
-                <p id="aiNegativePrompt" style="font-size:11px;color:#fca5a5;margin:4px 0 0;"></p>
-            </div>
+            <!-- Hidden inputs to carry the engineered prompt without exposing it visually -->
+            <input type="hidden" id="aiEnrichedPrompt" value="">
+            <input type="hidden" id="aiNegativePrompt" value="">
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
                     <label style="font-size:12px;font-weight:700;">المقاس</label>

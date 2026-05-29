@@ -340,6 +340,9 @@ async function register() {
         otpPhone = data.phone;
         showOTP();
         showAlert(data.message, 'success');
+        if (data.dev_otp) {
+            document.getElementById('otpCode').value = data.dev_otp;
+        }
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {
@@ -363,6 +366,9 @@ async function loginSend() {
         otpPhone = data.phone;
         showOTP();
         showAlert(data.message, 'success');
+        if (data.dev_otp) {
+            document.getElementById('otpCode').value = data.dev_otp;
+        }
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {

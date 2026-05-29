@@ -1819,35 +1819,63 @@ def marketplace_register(request):
     # Check existing
     existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
     if existing:
-        # Re-send OTP for login
         otp = existing.generate_otp()
         logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone}: {otp}")
-        return JsonResponse({
+        _send_otp_via_channel(cleaned_phone, otp)
+        resp = {
             "status": "otp_sent",
             "message": "تم إرسال كود التحقق لرقم موبايلك",
             "phone": cleaned_phone,
             "is_existing": True,
-        })
+        }
+        # 🚧 MVP MODE: حتى يتم ربط بوابة SMS، نُظهر الكود في الرد
+        if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+            resp["dev_otp"] = otp
+            resp["message"] += f" (كود التطوير: {otp})"
+        return JsonResponse(resp)
 
-    customer = MarketplaceCustomer.objects.create(
-        customer_type=customer_type,
-        full_name=full_name,
-        company_name=company_name,
-        phone=cleaned_phone,
-        email=email or None,
-        job_title=job_title,
-        sector=sector,
-        city=city,
-    )
+    try:
+        customer = MarketplaceCustomer.objects.create(
+            customer_type=customer_type,
+            full_name=full_name,
+            company_name=company_name,
+            phone=cleaned_phone,
+            email=email or None,
+            job_title=job_title,
+            sector=sector,
+            city=city,
+        )
+    except Exception as e:
+        logger.error(f"[MARKETPLACE] Failed to create customer: {e}")
+        return JsonResponse({"error": f"فشل التسجيل: {str(e)[:200]}"}, status=500)
+
     otp = customer.generate_otp()
     logger.info(f"[MARKETPLACE] New customer {cleaned_phone} registered, OTP: {otp}")
+    _send_otp_via_channel(cleaned_phone, otp)
 
-    return JsonResponse({
+    resp = {
         "status": "otp_sent",
         "message": "تم تسجيلك بنجاح. كود التحقق تم إرساله لموبايلك.",
         "phone": cleaned_phone,
         "is_existing": False,
-    })
+    }
+    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+        resp["dev_otp"] = otp
+        resp["message"] += f" (كود التطوير: {otp})"
+    return JsonResponse(resp)
+
+
+def _send_otp_via_channel(phone, otp):
+    """
+    إرسال OTP عبر القناة المتاحة.
+    حالياً: WhatsApp wa.me link كـ fallback، SMS gateway TODO.
+    """
+    # TODO: integrate Twilio/Vonage SMS or WhatsApp Business API
+    logger.warning(
+        f"[OTP-DELIVERY-PENDING] phone={phone} otp={otp} — "
+        f"لم يتم ربط بوابة SMS بعد. اضبط MARKETPLACE_DEBUG_OTP=False في الإنتاج."
+    )
+    return False
 
 
 @csrf_exempt
@@ -1913,11 +1941,16 @@ def marketplace_login(request):
 
     otp = customer.generate_otp()
     logger.info(f"[MARKETPLACE] Login OTP for {cleaned}: {otp}")
-    return JsonResponse({
+    _send_otp_via_channel(cleaned, otp)
+    resp = {
         "status": "otp_sent",
         "message": "تم إرسال كود التحقق",
         "phone": cleaned,
-    })
+    }
+    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+        resp["dev_otp"] = otp
+        resp["message"] += f" (كود التطوير: {otp})"
+    return JsonResponse(resp)
 
 
 def marketplace_dashboard(request):
@@ -1961,24 +1994,58 @@ def marketplace_create_request(request):
     wants_images = request.POST.get('wants_images') == 'true'
     max_budget = request.POST.get('max_budget', '').strip()
 
-    if not title or not description:
-        return JsonResponse({"error": "العنوان والتفاصيل مطلوبان"}, status=400)
+    # Validation
+    if not title or len(title) < 5:
+        return JsonResponse({"error": "العنوان يجب أن يكون 5 أحرف على الأقل"}, status=400)
+    if len(title) > 300:
+        return JsonResponse({"error": "العنوان طويل جداً (300 حرف كحد أقصى)"}, status=400)
+    if not description or len(description) < 10:
+        return JsonResponse({"error": "التفاصيل يجب أن تكون 10 أحرف على الأقل"}, status=400)
+    if len(description) > 5000:
+        return JsonResponse({"error": "التفاصيل طويلة جداً (5000 حرف كحد أقصى)"}, status=400)
+    if urgency not in ('normal', 'soon', 'urgent'):
+        urgency = 'normal'
+
+    # Parse budget safely
+    budget_value = None
+    if max_budget:
+        try:
+            budget_value = Decimal(max_budget)
+            if budget_value < 0:
+                return JsonResponse({"error": "الميزانية لا يمكن أن تكون سالبة"}, status=400)
+        except (ValueError, Exception):
+            return JsonResponse({"error": "الميزانية يجب أن تكون رقم صحيح"}, status=400)
+
+    # Validate file sizes (max 5 MB each)
+    for fkey in ('attachment_1', 'attachment_2'):
+        f = request.FILES.get(fkey)
+        if f and f.size > 5 * 1024 * 1024:
+            return JsonResponse({"error": f"حجم الصورة {fkey} أكبر من 5 ميجابايت"}, status=400)
+
+    # Rate limit: max 10 open requests per customer at a time
+    open_count = customer.requests.filter(status__in=('open', 'reviewing')).count()
+    if open_count >= 10:
+        return JsonResponse({"error": "وصلت للحد الأقصى من الطلبات المفتوحة (10). أغلق طلبات أولاً."}, status=429)
 
     # Expiry based on urgency
     expiry_map = {'urgent': 1, 'soon': 3, 'normal': 7}
     days = expiry_map.get(urgency, 7)
 
-    svc_request = ServiceRequest.objects.create(
-        customer=customer,
-        sector=customer.sector,
-        title=title,
-        description=description,
-        urgency=urgency,
-        wants_images=wants_images,
-        customer_city=customer.city,
-        max_budget=Decimal(max_budget) if max_budget else None,
-        expires_at=timezone.now() + timedelta(days=days),
-    )
+    try:
+        svc_request = ServiceRequest.objects.create(
+            customer=customer,
+            sector=customer.sector,
+            title=title,
+            description=description,
+            urgency=urgency,
+            wants_images=wants_images,
+            customer_city=customer.city or '',
+            max_budget=budget_value,
+            expires_at=timezone.now() + timedelta(days=days),
+        )
+    except Exception as e:
+        logger.error(f"[MARKETPLACE] Failed to create request for {customer.phone}: {e}")
+        return JsonResponse({"error": f"فشل إنشاء الطلب: {str(e)[:200]}"}, status=500)
 
     # Handle attachments
     if request.FILES.get('attachment_1'):
