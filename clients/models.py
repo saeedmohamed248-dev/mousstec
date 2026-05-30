@@ -1082,8 +1082,24 @@ class DesignPackage(models.Model):
         ('pro', _('🥈 Pro — 50 تصميم')),
         ('business', _('🥇 Business — 100 تصميم')),
         ('studio', _('💎 Studio — 250 تصميم')),
+        # Customer packages
+        ('single', _('🎯 تصميم واحد')),
+        ('cust_2', _('👤 باقة 2 تصميم')),
+        ('cust_4', _('👤 باقة 4 تصاميم')),
+        ('cust_8', _('👤 باقة 8 تصاميم')),
+        # Designer packages
+        ('des_15', _('🎨 باقة 15 تصميم')),
+        ('des_25', _('🎨 باقة 25 تصميم')),
+        ('des_50', _('🎨 باقة 50 تصميم')),
+        ('des_100', _('🎨 باقة 100 تصميم')),
+    )
+    AUDIENCE_CHOICES = (
+        ('customer', _('عملاء أفراد')),
+        ('designer', _('مصممين / شركات')),
     )
     slug = models.CharField(max_length=20, choices=PACKAGE_TIERS, unique=True)
+    target_audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default='customer',
+        verbose_name=_("الفئة المستهدفة"))
     name_ar = models.CharField(max_length=100, verbose_name=_("الاسم بالعربي"))
     designs_count = models.IntegerField(verbose_name=_("عدد التصاميم (عميل)"))
     designer_designs_count = models.IntegerField(default=0, verbose_name=_("عدد التصاميم (مصمم)"),
@@ -1325,36 +1341,151 @@ class CustomerDesign(models.Model):
         return size_map.get(self.size_preset, self.size_preset)
 
 
+class DesignPrintRequest(models.Model):
+    """
+    🖨️ طلب طباعة تصميم — العميل عجبه التصميم وعاوز يطبعه.
+    يظهر في Super Admin للمراجعة: إما نرد بسعر أو ننزله في الماركت بليس.
+    """
+    STATUS_CHOICES = (
+        ('pending', _('في انتظار المراجعة')),
+        ('quoted', _('تم إرسال عرض سعر')),
+        ('marketplace', _('تم نشره في السوق')),
+        ('accepted', _('العميل قبل العرض')),
+        ('in_production', _('قيد الطباعة')),
+        ('shipped', _('تم الشحن')),
+        ('delivered', _('تم التسليم')),
+        ('cancelled', _('ملغي')),
+    )
+    PRODUCT_TYPE_CHOICES = (
+        ('tshirt', _('تيشرت')),
+        ('business_card', _('كارت بزنس')),
+        ('flyer', _('فلاير')),
+        ('poster', _('بوستر')),
+        ('banner', _('بنر / ستاند')),
+        ('mug', _('ماج')),
+        ('sticker', _('ستيكر')),
+        ('packaging', _('تغليف / علبة')),
+        ('pen', _('قلم / هدايا')),
+        ('notebook', _('نوت بوك / أجندة')),
+        ('menu', _('منيو')),
+        ('invitation', _('كارت دعوة')),
+        ('other', _('أخرى')),
+    )
+
+    request_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    design = models.ForeignKey(CustomerDesign, on_delete=models.CASCADE, related_name='print_requests')
+    customer = models.ForeignKey(MarketplaceCustomer, on_delete=models.CASCADE, related_name='print_requests')
+
+    # تفاصيل الطباعة
+    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES, verbose_name=_("نوع المنتج"))
+    quantity = models.PositiveIntegerField(default=1, verbose_name=_("الكمية"))
+    width_cm = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name=_("العرض (سم)"))
+    height_cm = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, verbose_name=_("الطول (سم)"))
+    paper_type = models.CharField(max_length=100, blank=True, verbose_name=_("نوع الورق / الخامة"))
+    color_mode = models.CharField(max_length=20, default='full_color', choices=(
+        ('full_color', _('ألوان كاملة')),
+        ('bw', _('أبيض وأسود')),
+        ('spot', _('ألوان محددة')),
+    ), verbose_name=_("الألوان"))
+    finishing = models.CharField(max_length=100, blank=True, verbose_name=_("التشطيب"),
+        help_text=_("سوفت تاتش، لامع، مطفي، UV، إلخ"))
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات إضافية"))
+
+    # العنوان والتوصيل
+    delivery_address = models.TextField(blank=True, verbose_name=_("عنوان التوصيل"))
+    delivery_phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم التواصل"))
+
+    # الحالة والسعر
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    quoted_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+        verbose_name=_("السعر المقترح من المنصة"))
+    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الإدارة"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("طلب طباعة تصميم")
+        verbose_name_plural = _("🖨️ طلبات طباعة تصاميم")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"PRINT-{str(self.request_code)[:8]} | {self.customer.full_name} | {self.get_product_type_display()}"
+
+
 def seed_default_design_packages():
     """يستدعى من management command أو migration لتأسيس الباقات.
 
-    السعر واحد للمصمم والعميل — لكن المصمم يحصل على عدد تصاميم أكبر.
+    باقات منفصلة للعملاء الأفراد والمصممين/الشركات.
     كل تصميم له محاولتين إعادة توليد مجانية.
     """
-    defaults = [
-        {'slug': 'starter', 'name_ar': 'Starter', 'designs_count': 25,
-         'designer_designs_count': 40, 'price_egp': Decimal('32.00'),
+    # إلغاء تفعيل الباقات القديمة
+    DesignPackage.objects.filter(slug__in=['starter', 'pro', 'business', 'studio']).update(is_active=False)
+
+    # === باقات العملاء الأفراد ===
+    customer_packages = [
+        {'slug': 'single', 'name_ar': 'تصميم واحد', 'designs_count': 1,
+         'designer_designs_count': 0, 'price_egp': Decimal('10.00'),
+         'target_audience': 'customer',
          'free_regenerations_per_design': 2,
-         'icon_emoji': '🥉', 'accent_color': '#fbbf24', 'sort_order': 1,
-         'description_html': 'مثالية للتجربة. تصاميم HD مع حق استخدام تجاري.'},
-        {'slug': 'pro', 'name_ar': 'Pro', 'designs_count': 50,
-         'designer_designs_count': 80, 'price_egp': Decimal('55.00'),
+         'icon_emoji': '🎯', 'accent_color': '#06b6d4', 'sort_order': 1,
+         'description_html': 'جرّب أول تصميم ذكي. جودة عالية مع إعادة توليد مجانية.'},
+        {'slug': 'cust_2', 'name_ar': 'باقة 2 تصميم', 'designs_count': 2,
+         'designer_designs_count': 0, 'price_egp': Decimal('60.00'),
+         'target_audience': 'customer',
          'free_regenerations_per_design': 2,
-         'icon_emoji': '🥈', 'accent_color': '#a3a3a3', 'sort_order': 2,
-         'allows_whatsapp_delivery': True, 'is_featured': True, 'badge_text': 'الأكثر طلباً',
-         'description_html': 'أفضل قيمة للأفراد ورواد الأعمال. توصيل واتساب مباشر.'},
-        {'slug': 'business', 'name_ar': 'Business', 'designs_count': 100,
-         'designer_designs_count': 160, 'price_egp': Decimal('100.00'),
-         'free_regenerations_per_design': 2,
-         'icon_emoji': '🥇', 'accent_color': '#facc15', 'sort_order': 3,
-         'allows_watermark': True, 'allows_logo_upload': True, 'badge_text': 'الأوفر',
-         'description_html': 'للشركات والمحلات. لوجو + علامة مائية + جودة فائقة.'},
-        {'slug': 'studio', 'name_ar': 'Studio', 'designs_count': 250,
-         'designer_designs_count': 400, 'price_egp': Decimal('220.00'),
+         'icon_emoji': '✨', 'accent_color': '#fbbf24', 'sort_order': 2,
+         'description_html': 'مثالية للبدء. تصميمين بجودة HD وتوصيل واتساب.'},
+        {'slug': 'cust_4', 'name_ar': 'باقة 4 تصاميم', 'designs_count': 4,
+         'designer_designs_count': 0, 'price_egp': Decimal('110.00'),
+         'target_audience': 'customer',
+         'free_regenerations_per_design': 2, 'is_featured': True,
+         'badge_text': 'الأوفر',
+         'icon_emoji': '🔥', 'accent_color': '#ec4899', 'sort_order': 3,
+         'allows_whatsapp_delivery': True,
+         'description_html': 'أفضل قيمة! كارت + لوجو + سوشيال ميديا + فلاير.'},
+        {'slug': 'cust_8', 'name_ar': 'باقة 8 تصاميم', 'designs_count': 8,
+         'designer_designs_count': 0, 'price_egp': Decimal('200.00'),
+         'target_audience': 'customer',
          'free_regenerations_per_design': 2,
          'icon_emoji': '💎', 'accent_color': '#8b5cf6', 'sort_order': 4,
-         'allows_source_files': True, 'quality_level': 'ultra', 'resolution_max': '4096x4096',
-         'description_html': 'للوكالات والمصممين. ملفات مصدر + أعلى دقة.'},
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'description_html': 'هوية بصرية كاملة لمشروعك. لوجو + كروت + سوشيال.'},
     ]
-    for d in defaults:
+    # === باقات المصممين والشركات ===
+    designer_packages = [
+        {'slug': 'des_15', 'name_ar': 'باقة 15 تصميم', 'designs_count': 15,
+         'designer_designs_count': 0, 'price_egp': Decimal('185.00'),
+         'target_audience': 'designer',
+         'free_regenerations_per_design': 2,
+         'icon_emoji': '🎨', 'accent_color': '#06b6d4', 'sort_order': 10,
+         'description_html': 'للمصمم المبتدئ. 15 تصميم بجودة احترافية.'},
+        {'slug': 'des_25', 'name_ar': 'باقة 25 تصميم', 'designs_count': 25,
+         'designer_designs_count': 0, 'price_egp': Decimal('285.00'),
+         'target_audience': 'designer',
+         'free_regenerations_per_design': 2, 'is_featured': True,
+         'badge_text': 'الأكثر طلباً',
+         'icon_emoji': '🚀', 'accent_color': '#ec4899', 'sort_order': 11,
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'description_html': 'الأنسب للمصمم المحترف. جودة فائقة + توصيل واتساب.'},
+        {'slug': 'des_50', 'name_ar': 'باقة 50 تصميم', 'designs_count': 50,
+         'designer_designs_count': 0, 'price_egp': Decimal('500.00'),
+         'target_audience': 'designer',
+         'free_regenerations_per_design': 2,
+         'icon_emoji': '⚡', 'accent_color': '#facc15', 'sort_order': 12,
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'allows_watermark': True,
+         'description_html': 'للاستوديوهات. علامة مائية + لوجو + جودة فائقة.'},
+        {'slug': 'des_100', 'name_ar': 'باقة 100 تصميم', 'designs_count': 100,
+         'designer_designs_count': 0, 'price_egp': Decimal('900.00'),
+         'target_audience': 'designer',
+         'free_regenerations_per_design': 2,
+         'icon_emoji': '👑', 'accent_color': '#8b5cf6', 'sort_order': 13,
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'allows_watermark': True, 'allows_source_files': True,
+         'quality_level': 'ultra', 'resolution_max': '4096x4096',
+         'badge_text': 'أقوى باقة',
+         'description_html': 'للوكالات الكبرى. كل المزايا + ملفات مصدر + أعلى دقة.'},
+    ]
+    for d in customer_packages + designer_packages:
         DesignPackage.objects.update_or_create(slug=d['slug'], defaults=d)

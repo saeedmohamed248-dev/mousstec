@@ -1380,6 +1380,12 @@ def super_admin_dashboard(request):
         status__in=['pending', 'awaiting_confirm']
     ).select_related('customer', 'package').order_by('-created_at')[:20]
 
+    # --- طلبات طباعة التصاميم ---
+    from clients.models import DesignPrintRequest
+    pending_print_requests = DesignPrintRequest.objects.filter(
+        status__in=['pending', 'quoted']
+    ).select_related('customer', 'design').order_by('-created_at')[:30]
+
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
@@ -1403,6 +1409,7 @@ def super_admin_dashboard(request):
         'period_months_json': period_months_json,
         'ai_addons': ai_addons,
         'pending_design_purchases': pending_design_purchases,
+        'pending_print_requests': pending_print_requests,
     })
 
 
@@ -2602,8 +2609,17 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
 # =====================================================================
 
 def design_store_home(request):
-    """🛍️ صفحة المتجر — يعرض الباقات."""
-    packages = DesignPackage.objects.filter(is_active=True).order_by('sort_order', 'designs_count')
+    """🛍️ صفحة المتجر — يعرض الباقات (عملاء + مصممين)."""
+    customer_packages = DesignPackage.objects.filter(
+        is_active=True, target_audience='customer',
+    ).order_by('sort_order', 'designs_count')
+    designer_packages = DesignPackage.objects.filter(
+        is_active=True, target_audience='designer',
+    ).order_by('sort_order', 'designs_count')
+
+    # Fallback: if no new packages yet, show all active
+    if not customer_packages.exists() and not designer_packages.exists():
+        customer_packages = DesignPackage.objects.filter(is_active=True).order_by('sort_order')
 
     customer = _marketplace_auth(request)
     user_balance = 0
@@ -2615,7 +2631,9 @@ def design_store_home(request):
         free_remaining = customer.free_designs_remaining
 
     return render(request, 'clients/marketplace/design_store.html', {
-        'packages': packages,
+        'packages': customer_packages,  # backwards compat
+        'customer_packages': customer_packages,
+        'designer_packages': designer_packages,
         'customer': customer,
         'user_balance': user_balance,
         'free_remaining': free_remaining,
@@ -2791,11 +2809,32 @@ def design_store_generate(request):
     custom_h = request.POST.get('custom_height_px', '').strip()
     weight = request.POST.get('weight_kg', '').strip()
     output_format = request.POST.get('output_format', 'png')
+    # Print dimensions from the user (for accurate design)
+    print_width_cm = request.POST.get('print_width_cm', '').strip()
+    print_height_cm = request.POST.get('print_height_cm', '').strip()
+    use_standard_size = request.POST.get('use_standard_size', '')
 
     if not description or len(description) < 10:
         return JsonResponse({"error": "وصف التصميم قصير جداً (10 أحرف على الأقل)"}, status=400)
 
-    # Resolve actual image size from preset
+    # Smart size selection based on category + user dimensions
+    # Category → best default AI size mapping
+    CATEGORY_SIZE_MAP = {
+        'logo': '1024x1024',
+        'business_card': '1536x1024',
+        'social_post': '1024x1024',
+        'flyer': '1024x1536',
+        'poster': '1024x1536',
+        'banner': '1536x1024',
+        'tshirt': '1024x1536',
+        'mug': '1536x1024',
+        'sticker': '1024x1024',
+        'packaging': '1024x1024',
+        'menu': '1024x1536',
+        'invitation': '1024x1536',
+        'mockup': '1024x1024',
+    }
+
     # Map user presets → canonical size
     size_map = {
         '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
@@ -2806,7 +2845,24 @@ def design_store_generate(request):
         'tshirt_chest': '1024x1536', 'mug': '1536x1024',
         'custom': '1024x1024', 'auto': 'auto',
     }
-    canonical_size = size_map.get(size_preset, '1024x1024')
+    # If user chose 'auto' or no size, pick best size by category
+    if size_preset in ('auto', '') or size_preset not in size_map:
+        canonical_size = CATEGORY_SIZE_MAP.get(category, '1024x1024')
+    else:
+        canonical_size = size_map.get(size_preset, '1024x1024')
+
+    # If user specified custom print dimensions, determine orientation
+    if print_width_cm and print_height_cm:
+        try:
+            pw, ph = float(print_width_cm), float(print_height_cm)
+            if pw > ph:
+                canonical_size = '1536x1024'  # landscape
+            elif ph > pw:
+                canonical_size = '1024x1536'  # portrait
+            else:
+                canonical_size = '1024x1024'  # square
+        except (ValueError, TypeError):
+            pass
 
     # gpt-image-1 only supports: 1024x1024, 1024x1536, 1536x1024, auto
     GPT_IMAGE_SIZE_MAP = {
@@ -2814,18 +2870,50 @@ def design_store_generate(request):
         '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
     }
 
-    # Augment prompt with category + specs
+    # Build dimension info string for the prompt
+    dim_info = ''
+    if print_width_cm and print_height_cm:
+        dim_info = f" Actual print size: {print_width_cm}cm x {print_height_cm}cm."
+    elif use_standard_size:
+        std_sizes = {
+            'tshirt_s': '28x38cm', 'tshirt_m': '30x40cm', 'tshirt_l': '32x42cm',
+            'business_card': '9x5.5cm', 'a4': '21x29.7cm', 'a3': '29.7x42cm',
+            'a5': '14.8x21cm', 'mug_standard': '23x9cm', 'banner_60': '60x160cm',
+            'banner_80': '80x180cm', 'instagram_post': '1080x1080px',
+            'instagram_story': '1080x1920px', 'facebook_cover': '820x312px',
+        }
+        if use_standard_size in std_sizes:
+            dim_info = f" Standard size: {std_sizes[use_standard_size]}."
+
+    # Augment prompt with category + specs + dimensions
     enhanced_desc = description
     if category == 'logo':
-        enhanced_desc = f"Professional logo design: {description}. Clean, modern, scalable, vector-style, minimal."
+        enhanced_desc = f"Professional logo design: {description}. Clean, modern, scalable, vector-style, minimal.{dim_info}"
     elif category == 'business_card':
-        enhanced_desc = f"Premium business card design: {description}. Clean typography, professional layout, print-ready."
+        enhanced_desc = f"Premium business card design: {description}. Clean typography, professional layout, print-ready CMYK.{dim_info or ' Standard size: 9x5.5cm.'}"
     elif category == 'flyer':
-        enhanced_desc = f"Eye-catching flyer design: {description}. Bold typography, vibrant colors, print-ready CMYK."
+        enhanced_desc = f"Eye-catching flyer design: {description}. Bold typography, vibrant colors, print-ready CMYK.{dim_info or ' Standard A4 size.'}"
+    elif category == 'poster':
+        enhanced_desc = f"Professional poster design: {description}. High impact, print-ready CMYK.{dim_info}"
     elif category == 'tshirt':
-        enhanced_desc = f"T-shirt graphic design: {description}. High contrast, isolated on transparent background, scalable."
-    elif category == 'packaging' and weight:
-        enhanced_desc = f"Product packaging design: {description}. Realistic mockup, weight: {weight}kg, professional product photography."
+        enhanced_desc = f"T-shirt graphic design: {description}. High contrast, isolated on transparent background, suitable for DTF/DTG printing.{dim_info or ' Standard chest print 30x40cm.'}"
+    elif category == 'mug':
+        enhanced_desc = f"Mug wrap-around design: {description}. Seamless wrap design for standard 11oz mug.{dim_info or ' Wrap area: 23x9cm.'}"
+    elif category == 'banner':
+        enhanced_desc = f"Roll-up banner design: {description}. Vertical layout, bold branding, readable from distance.{dim_info}"
+    elif category == 'sticker':
+        enhanced_desc = f"Sticker/label design: {description}. Clean edges, vibrant colors, die-cut ready.{dim_info}"
+    elif category == 'packaging':
+        weight_info = f" Product weight: {weight}kg." if weight else ''
+        enhanced_desc = f"Product packaging design: {description}. Professional, realistic mockup.{dim_info}{weight_info}"
+    elif category == 'social_post':
+        enhanced_desc = f"Social media post design: {description}. Eye-catching, modern, optimized for engagement.{dim_info or ' Square 1080x1080px.'}"
+    elif category == 'menu':
+        enhanced_desc = f"Restaurant/cafe menu design: {description}. Elegant layout, easy to read, print-ready.{dim_info or ' A4 size.'}"
+    elif category == 'invitation':
+        enhanced_desc = f"Invitation card design: {description}. Elegant, celebratory, print-ready.{dim_info}"
+    else:
+        enhanced_desc = f"Professional design: {description}.{dim_info}"
 
     # Generate via OpenAI
     openai_key = getattr(settings, 'OPENAI_API_KEY', None)
@@ -3048,3 +3136,61 @@ def design_store_regenerate(request, design_code):
     except Exception as e:
         logger.error(f"[REGEN] Failed: {e}")
         return JsonResponse({"error": "فشل إعادة التوليد"}, status=500)
+
+
+@csrf_exempt
+def design_store_print_request(request, design_code):
+    """🖨️ طلب طباعة تصميم — العميل عجبه التصميم وعاوز يطبعه."""
+    from clients.models import DesignPrintRequest
+
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    product_type = request.POST.get('product_type', 'other')
+    quantity = request.POST.get('quantity', '1')
+    width_cm = request.POST.get('width_cm', '').strip()
+    height_cm = request.POST.get('height_cm', '').strip()
+    paper_type = request.POST.get('paper_type', '').strip()
+    color_mode = request.POST.get('color_mode', 'full_color')
+    finishing = request.POST.get('finishing', '').strip()
+    notes = request.POST.get('notes', '').strip()
+    delivery_address = request.POST.get('delivery_address', '').strip()
+    delivery_phone = request.POST.get('delivery_phone', '').strip()
+
+    try:
+        qty = int(quantity)
+        if qty < 1:
+            qty = 1
+    except (ValueError, TypeError):
+        qty = 1
+
+    print_req = DesignPrintRequest.objects.create(
+        design=design,
+        customer=customer,
+        product_type=product_type,
+        quantity=qty,
+        width_cm=Decimal(width_cm) if width_cm else None,
+        height_cm=Decimal(height_cm) if height_cm else None,
+        paper_type=paper_type,
+        color_mode=color_mode,
+        finishing=finishing,
+        notes=notes,
+        delivery_address=delivery_address,
+        delivery_phone=delivery_phone or customer.phone,
+        status='pending',
+    )
+
+    logger.info(f"[PRINT REQUEST] #{print_req.pk} — {customer.full_name} wants to print design {design.design_code}")
+
+    return JsonResponse({
+        "status": "success",
+        "request_id": print_req.pk,
+        "request_code": str(print_req.request_code),
+        "message": "تم إرسال طلب الطباعة بنجاح! سنتواصل معك قريباً بعرض السعر.",
+    })

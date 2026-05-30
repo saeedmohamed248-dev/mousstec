@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎨 متجر التصاميم الذكية | Mouss Tec</title>
+    <title>متجر التصاميم الذكية | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -31,10 +31,7 @@
             border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;
             padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
         }
-
-        .hero {
-            text-align: center; padding: 50px 20px 30px; position: relative;
-        }
+        .hero { text-align: center; padding: 50px 20px 20px; }
         .hero h1 {
             font-size: 2.4rem; font-weight: 900; margin-bottom: 12px;
             background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
@@ -42,21 +39,34 @@
         }
         .hero p { color: #94a3b8; font-size: 1.05rem; max-width: 650px; margin: 0 auto; line-height: 1.7; }
 
-        .features-strip {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            max-width: 1100px; margin: 30px auto; padding: 0 20px; gap: 14px;
+        .section-title {
+            text-align: center; padding: 40px 20px 20px;
         }
-        .feature {
-            background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 14px; padding: 16px; text-align: center;
+        .section-title h2 {
+            font-size: 1.8rem; font-weight: 900; margin-bottom: 8px;
         }
-        .feature i { font-size: 1.8rem; margin-bottom: 8px; }
-        .feature h4 { font-size: 0.95rem; font-weight: 900; margin-bottom: 4px; }
-        .feature p { font-size: 0.8rem; color: #94a3b8; }
+        .section-title p { color: #94a3b8; font-size: 0.95rem; }
+
+        .tab-switcher {
+            display: flex; justify-content: center; gap: 8px; margin: 20px auto; padding: 0 20px;
+        }
+        .tab-btn {
+            padding: 12px 28px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(30,41,59,0.5); color: #94a3b8; font-family: inherit;
+            font-weight: 900; font-size: 1rem; cursor: pointer; transition: all 0.3s;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-color: #ec4899; color: #fff;
+        }
+        .tab-btn:hover:not(.active) { border-color: #8b5cf6; color: #c4b5fd; }
+
+        .packages-section { display: none; }
+        .packages-section.active { display: block; }
 
         .packages-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px; max-width: 1200px; margin: 40px auto;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px; max-width: 1200px; margin: 20px auto 40px;
             padding: 0 20px;
         }
         .pkg {
@@ -76,42 +86,37 @@
             opacity: 0.6; z-index: 0;
         }
         .pkg > * { position: relative; z-index: 1; }
-
         .pkg-badge {
             position: absolute; top: 18px; right: 18px;
             background: var(--accent-color); color: #0f172a;
             padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 0.7rem;
         }
-        .pkg-icon { font-size: 3.5rem; margin-bottom: 12px; text-align: center; }
-        .pkg-name { font-size: 1.5rem; font-weight: 900; text-align: center; margin-bottom: 8px; }
-        .pkg-tagline { color: #94a3b8; font-size: 0.9rem; text-align: center; margin-bottom: 20px; min-height: 40px; }
-
+        .pkg-icon { font-size: 3rem; margin-bottom: 12px; text-align: center; }
+        .pkg-name { font-size: 1.4rem; font-weight: 900; text-align: center; margin-bottom: 8px; }
+        .pkg-tagline { color: #94a3b8; font-size: 0.85rem; text-align: center; margin-bottom: 16px; min-height: 36px; }
         .pkg-price-row {
-            text-align: center; padding: 20px 0; border-top: 1px solid rgba(255,255,255,0.06);
-            border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;
+            text-align: center; padding: 18px 0; border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 18px;
         }
-        .pkg-price { font-size: 3rem; font-weight: 900; color: var(--accent-color); display: inline-block; }
-        .pkg-price-cur { font-size: 1.2rem; color: #94a3b8; }
+        .pkg-price { font-size: 2.8rem; font-weight: 900; color: var(--accent-color); display: inline-block; }
+        .pkg-price-cur { font-size: 1.1rem; color: #94a3b8; }
         .pkg-per-design { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
         .pkg-per-design strong { color: var(--accent-color); }
-
-        .pkg-features { list-style: none; margin-bottom: 24px; }
+        .pkg-features { list-style: none; margin-bottom: 20px; }
         .pkg-features li {
-            padding: 6px 0; color: #cbd5e1; font-size: 0.85rem;
+            padding: 5px 0; color: #cbd5e1; font-size: 0.82rem;
             display: flex; align-items: center; gap: 8px;
         }
         .pkg-features li i { color: var(--accent-color); font-size: 0.85rem; }
         .pkg-features li.off { color: #475569; }
         .pkg-features li.off i { color: #475569; }
-
         .pkg-buy-btn {
             width: 100%; padding: 14px 24px; border-radius: 14px;
             background: var(--accent-color); color: #0f172a;
             font-weight: 900; font-size: 1rem; border: none; cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s; font-family: inherit;
         }
         .pkg-buy-btn:hover { transform: scale(1.02); box-shadow: 0 8px 25px var(--shadow-color); }
-        .pkg-buy-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .savings-tag {
             display: inline-block; background: rgba(16,185,129,0.15);
@@ -119,16 +124,45 @@
             font-size: 0.7rem; font-weight: 700; margin-top: 4px;
         }
 
-        /* Comparison strip */
+        .erp-banner {
+            max-width: 800px; margin: 20px auto 50px; padding: 30px;
+            background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(236,72,153,0.08));
+            border: 1px solid rgba(139,92,246,0.3); border-radius: 20px; text-align: center;
+        }
+        .erp-banner h3 { font-weight: 900; font-size: 1.2rem; margin-bottom: 10px;
+            background: linear-gradient(135deg, #c4b5fd, #f9a8d4);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .erp-banner p { color: #94a3b8; font-size: 0.9rem; line-height: 1.7; margin-bottom: 16px; }
+        .erp-banner .erp-link {
+            display: inline-block; padding: 12px 28px; border-radius: 14px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff;
+            text-decoration: none; font-weight: 900; font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+        .erp-banner .erp-link:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(139,92,246,0.3); }
+
         .compare-section {
-            max-width: 1100px; margin: 60px auto 40px; padding: 30px;
+            max-width: 1100px; margin: 40px auto; padding: 30px;
             background: rgba(30,41,59,0.4); border-radius: 20px;
             border: 1px solid rgba(255,255,255,0.05);
         }
         .compare-section h3 { font-weight: 900; margin-bottom: 16px; text-align: center; }
         .compare-section p { color: #94a3b8; text-align: center; line-height: 1.7; }
 
-        /* Modal */
+        .features-strip {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            max-width: 1100px; margin: 30px auto; padding: 0 20px; gap: 14px;
+        }
+        .feature {
+            background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 14px; text-align: center;
+        }
+        .feature i { font-size: 1.6rem; margin-bottom: 6px; }
+        .feature h4 { font-size: 0.9rem; font-weight: 900; margin-bottom: 3px; }
+        .feature p { font-size: 0.78rem; color: #94a3b8; }
+
+        /* Modals */
         .modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7);
             backdrop-filter: blur(8px); display: none;
@@ -138,9 +172,10 @@
         .modal-box {
             background: #1e293b; border-radius: 20px; padding: 32px;
             max-width: 480px; width: 100%; border: 1px solid rgba(255,255,255,0.1);
+            max-height: 90vh; overflow-y: auto;
         }
         .modal-box h3 { font-weight: 900; margin-bottom: 8px; }
-        .modal-box p { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+        .modal-box p { color: #94a3b8; margin-bottom: 16px; font-size: 0.9rem; }
         .payment-options { display: grid; gap: 10px; margin-bottom: 20px; }
         .payment-opt {
             display: flex; align-items: center; gap: 12px;
@@ -154,8 +189,7 @@
         .modal-actions { display: flex; gap: 10px; }
         .btn-cancel {
             flex: 1; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
-            background: transparent; color: #cbd5e1; cursor: pointer; font-family: inherit;
-            font-weight: 700;
+            background: transparent; color: #cbd5e1; cursor: pointer; font-family: inherit; font-weight: 700;
         }
         .btn-confirm {
             flex: 2; padding: 12px; border-radius: 12px; border: none;
@@ -170,20 +204,29 @@
         }
         .login-banner a { color: #fbbf24; font-weight: 900; text-decoration: underline; }
 
+        .free-trial-badge {
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(34,197,94,0.1));
+            border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;
+            padding: 14px 24px; border-radius: 14px;
+            max-width: 600px; margin: 20px auto; text-align: center;
+            font-weight: 700; font-size: 0.95rem;
+        }
+
         @media (max-width: 576px) {
             .hero h1 { font-size: 1.8rem; }
             .pkg { padding: 24px 18px; }
-            .pkg-price { font-size: 2.4rem; }
+            .pkg-price { font-size: 2.2rem; }
+            .tab-btn { padding: 10px 18px; font-size: 0.85rem; }
         }
     </style>
 </head>
 <body>
 
 <div class="topbar">
-    <div class="brand">🎨 AI Designs Store</div>
-    <div style="display:flex;gap:12px;align-items:center;">
+    <div class="brand">AI Designs Store</div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         {% if customer %}
-            <span class="balance-chip"><i class="fas fa-wallet"></i> رصيدك: <strong>{{ user_balance }}</strong> تصميم</span>
+            <span class="balance-chip"><i class="fas fa-wallet"></i> رصيدك: <strong>{{ total_balance }}</strong> تصميم</span>
             <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
             <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
         {% else %}
@@ -194,115 +237,172 @@
 
 <!-- Hero -->
 <section class="hero">
-    <h1>صمم اللي تتخيله — في ثواني</h1>
-    <p>متجر التصاميم الذكية الأول: ادفع مرة واحدة، استخدم رصيدك في توليد <strong>لوجوهات، كروت، فلايرات، تيشرتات، وأي تصميم</strong> تتخيله بالذكاء الاصطناعي.</p>
+    <h1>صمم اللي تتخيله في ثواني</h1>
+    <p>متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي: <strong>لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا</strong> وأي تصميم تتخيله.</p>
 </section>
 
 {% if not customer %}
 <div class="login-banner">
-    <i class="fas fa-info-circle"></i> سجل دخول علشان تشتري وتصمم — <a href="/marketplace/">دخول/تسجيل سريع</a>
+    <i class="fas fa-info-circle"></i> سجل دخول علشان تشتري وتصمم <a href="/marketplace/?next=/marketplace/design-store/">دخول / تسجيل سريع</a>
+</div>
+{% elif free_remaining > 0 %}
+<div class="free-trial-badge">
+    <i class="fas fa-gift"></i> عندك <strong>{{ free_remaining }}</strong> تصميم مجاني! جرّب دلوقتي من <a href="/marketplace/design-store/my-designs/" style="color:#6ee7b7;">صفحة التصاميم</a>
 </div>
 {% endif %}
 
-<!-- Features strip -->
+<!-- Features -->
 <div class="features-strip">
     <div class="feature">
         <i class="fas fa-bolt" style="color:#fbbf24"></i>
         <h4>توليد فوري</h4>
-        <p>التصميم جاهز في ثواني</p>
+        <p>تصميمك جاهز في ثواني</p>
     </div>
     <div class="feature">
         <i class="fas fa-ruler-combined" style="color:#06b6d4"></i>
-        <h4>مقاسات دقيقة</h4>
-        <p>اختار المقاس والوزن</p>
+        <h4>مقاسات جاهزة</h4>
+        <p>تيشرت، كارت، A4، وأكتر</p>
     </div>
     <div class="feature">
         <i class="fas fa-rotate-right" style="color:#10b981"></i>
-        <h4>إعادة توليد مجاني</h4>
-        <p>3 مرات لكل تصميم</p>
+        <h4>2 إعادة مجانية</h4>
+        <p>مش عاجبك؟ جرّب تاني</p>
     </div>
     <div class="feature">
-        <i class="fab fa-whatsapp" style="color:#22c55e"></i>
-        <h4>توصيل واتساب</h4>
-        <p>التصميم يوصل للعميل فوراً</p>
+        <i class="fas fa-print" style="color:#f97316"></i>
+        <h4>اطبع تصميمك</h4>
+        <p>اطلب طباعته مباشرة</p>
     </div>
     <div class="feature">
         <i class="fas fa-copyright" style="color:#ec4899"></i>
         <h4>حقوق ملكية</h4>
-        <p>استخدم تجاري بدون قيود</p>
+        <p>استخدام تجاري كامل</p>
     </div>
 </div>
 
-<!-- Packages Grid -->
-<div class="packages-grid">
-    {% for pkg in packages %}
-    <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
-         style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
-        {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
+<!-- Tab Switcher -->
+<div class="tab-switcher">
+    <button class="tab-btn active" onclick="switchTab('customer')"><i class="fas fa-user"></i> باقات الأفراد</button>
+    <button class="tab-btn" onclick="switchTab('designer')"><i class="fas fa-palette"></i> باقات المصممين</button>
+</div>
 
-        <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
-        <div class="pkg-name">{{ pkg.name_ar }}</div>
-        <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
-
-        <div class="pkg-price-row">
-            <div>
-                <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
-                <span class="pkg-price-cur">ج.م</span>
+<!-- ═══════ Customer Packages ═══════ -->
+<div class="packages-section active" id="section-customer">
+    <div class="section-title">
+        <h2 style="color:#ec4899;">باقات العملاء الأفراد</h2>
+        <p>ابدأ بتصميم واحد بـ 10 جنيه فقط، أو وفّر أكتر مع الباقات</p>
+    </div>
+    <div class="packages-grid">
+        {% for pkg in customer_packages %}
+        <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
+             style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
+            {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
+            <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
+            <div class="pkg-name">{{ pkg.name_ar }}</div>
+            <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
+            <div class="pkg-price-row">
+                <div>
+                    <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
+                    <span class="pkg-price-cur">ج.م</span>
+                </div>
+                <div class="pkg-per-design">
+                    <strong>{{ pkg.designs_count }}</strong> تصميم
+                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                </div>
+                {% if pkg.savings_vs_starter > 0 %}
+                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
+                {% endif %}
             </div>
-            <div class="pkg-per-design">
-                <strong>{{ pkg.designs_count }}</strong> تصميم
-                · {{ pkg.price_per_design }} ج.م/تصميم
-            </div>
-            {% if pkg.savings_vs_starter > 0 %}
-            <span class="savings-tag">💰 وفر {{ pkg.savings_vs_starter }}%</span>
-            {% endif %}
+            <ul class="pkg-features">
+                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
+                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
+                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
+                <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
+                    <i class="fab fa-whatsapp"></i> توصيل واتساب
+                </li>
+                <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
+                    <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                    دمج لوجو الشركة
+                </li>
+            </ul>
+            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
+                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
+            </button>
         </div>
-
-        <ul class="pkg-features">
-            <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }} ({{ pkg.resolution_max }})</li>
-            <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
-                <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                دمج لوجو الشركة
-            </li>
-            <li class="{% if not pkg.allows_watermark %}off{% endif %}">
-                <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                علامة مائية مخصصة
-            </li>
-            <li class="{% if not pkg.allows_source_files %}off{% endif %}">
-                <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                ملفات مصدر (PSD/SVG)
-            </li>
-            <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
-                <i class="fab {% if pkg.allows_whatsapp_delivery %}fa-whatsapp{% else %}fa-whatsapp{% endif %}"></i>
-                توصيل واتساب
-            </li>
-            <li>
-                <i class="fas fa-rotate-right"></i>
-                {{ pkg.free_regenerations_per_design }} إعادات مجانية/تصميم
-            </li>
-            <li>
-                <i class="fas fa-copyright"></i>
-                {% if pkg.allows_commercial_use %}استخدام تجاري كامل{% else %}شخصي فقط{% endif %}
-            </li>
-        </ul>
-
-        <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
-            {% if customer %}
-                اشتري {{ pkg.designs_count }} تصميم
-            {% else %}
-                <i class="fas fa-lock"></i> سجل دخول للشراء
-            {% endif %}
-        </button>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
+<!-- ═══════ Designer Packages ═══════ -->
+<div class="packages-section" id="section-designer">
+    <div class="section-title">
+        <h2 style="color:#8b5cf6;">باقات المصممين والشركات</h2>
+        <p>باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات</p>
+    </div>
+    <div class="packages-grid">
+        {% for pkg in designer_packages %}
+        <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
+             style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
+            {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
+            <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
+            <div class="pkg-name">{{ pkg.name_ar }}</div>
+            <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
+            <div class="pkg-price-row">
+                <div>
+                    <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
+                    <span class="pkg-price-cur">ج.م</span>
+                </div>
+                <div class="pkg-per-design">
+                    <strong>{{ pkg.designs_count }}</strong> تصميم
+                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                </div>
+                {% if pkg.savings_vs_starter > 0 %}
+                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
+                {% endif %}
+            </div>
+            <ul class="pkg-features">
+                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
+                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
+                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
+                <li><i class="fab fa-whatsapp"></i> توصيل واتساب</li>
+                <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
+                    <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                    دمج لوجو الشركة
+                </li>
+                <li class="{% if not pkg.allows_watermark %}off{% endif %}">
+                    <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                    علامة مائية مخصصة
+                </li>
+                <li class="{% if not pkg.allows_source_files %}off{% endif %}">
+                    <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                    ملفات مصدر (PSD/SVG)
+                </li>
+            </ul>
+            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
+                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ERP Banner -->
+    <div class="erp-banner">
+        <h3><i class="fas fa-building"></i> عندك شركة أو مطبعة؟</h3>
+        <p>
+            سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل،
+            تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد.
+        </p>
+        <a href="/" class="erp-link"><i class="fas fa-rocket"></i> سجّل شركتك الآن مجاناً</a>
+    </div>
+</div>
+
+<!-- Compare Section -->
 <div class="compare-section">
-    <h3>🤔 ليه نشتري باقة من Mouss Tec بدل ما نوظف مصمم؟</h3>
+    <h3>ليه تختار Mouss Tec AI Designs؟</h3>
     <p>
-        تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong>. وقت التسليم: <strong>2-7 أيام</strong>.<br><br>
-        مع باقة Business بـ <strong>100 جنيه</strong> هتاخد <strong>100 تصميم</strong> = <strong>1 جنيه فقط لكل تصميم</strong>.<br>
-        <strong style="color:#ec4899">وفر 99%</strong> وخد تصاميمك في <strong>ثواني</strong> بدل أسابيع.
+        تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong> وبيستغرق <strong>2-7 أيام</strong>.<br><br>
+        مع باقاتنا، التصميم الواحد يبدأ من <strong>9 جنيه فقط</strong> وجاهز في <strong>ثواني</strong>!<br>
+        وكمان تقدر <strong style="color:#f97316">تطبعه مباشرة</strong> من عندنا.
     </p>
 </div>
 
@@ -311,7 +411,6 @@
     <div class="modal-box">
         <h3>تأكيد الشراء</h3>
         <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> ج.م — <span id="modalPkgCount"></span> تصميم</p>
-
         <div class="payment-options">
             <label class="payment-opt">
                 <input type="radio" name="pm" value="vodafone_cash" checked>
@@ -329,7 +428,6 @@
                 <div><strong>بطاقة ائتمان</strong><br><small style="color:#94a3b8;font-size:0.75rem">Visa / Mastercard</small></div>
             </label>
         </div>
-
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closeBuy()">إلغاء</button>
             <button class="btn-confirm" onclick="confirmBuy()" id="confirmBtn">تأكيد الدفع</button>
@@ -337,9 +435,20 @@
     </div>
 </div>
 
+<div style="text-align:center;padding:30px 20px;color:#475569;font-size:0.8rem;">
+    Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية
+</div>
+
 <script>
 let _currentSlug = null;
 const isLoggedIn = {% if customer %}true{% else %}false{% endif %};
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.packages-section').forEach(s => s.classList.remove('active'));
+    event.target.closest('.tab-btn').classList.add('active');
+    document.getElementById('section-' + tab).classList.add('active');
+}
 
 function openBuy(slug, name, price, count) {
     if (!isLoggedIn) {
@@ -367,7 +476,6 @@ async function confirmBuy() {
         const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'خطأ');
-        // Redirect to payment page (no auto-paid anymore)
         window.location.href = d.redirect;
     } catch (e) {
         alert(e.message);
@@ -375,6 +483,5 @@ async function confirmBuy() {
     }
 }
 </script>
-
 </body>
 </html>
