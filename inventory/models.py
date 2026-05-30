@@ -446,8 +446,14 @@ class SaleInvoiceItem(models.Model):
             raise ValidationError({'unit_price': 'السعر لا يمكن أن يكون سالباً'})
 
         # 🛡️ [FIX BY QA]: فحص توفر المخزون الحي قبل الحفظ لتلافي الـ 500 Error من قاعدة البيانات
-        # هذا يعرض رسالة مفهومة للكاشير إذا نفد الرصيد قبل غيره
-        if hasattr(self, 'product') and self.product and self.quantity:
+        # المرتجع يضيف مخزون فلا يحتاج لفحص التوفر
+        is_return = False
+        try:
+            if hasattr(self, 'invoice') and self.invoice:
+                is_return = getattr(self.invoice, 'is_return', False)
+        except Exception:
+            pass
+        if hasattr(self, 'product') and self.product and self.quantity and not is_return:
             branch = None
             try:
                 if hasattr(self, 'invoice') and self.invoice:

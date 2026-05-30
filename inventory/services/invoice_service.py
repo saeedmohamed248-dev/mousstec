@@ -210,8 +210,8 @@ class InvoiceService:
                 instance.customer.balance = F('balance') + instance.due_amount
                 instance.customer.save(update_fields=['balance'])
 
-            # --- 3. Vehicle telemetry ---
-            if hasattr(instance, 'vehicle') and instance.vehicle:
+            # --- 3. Vehicle telemetry (skip for returns) ---
+            if not is_return and hasattr(instance, 'vehicle') and instance.vehicle:
                 vehicle_updates = {}
                 if instance.mileage and instance.mileage > instance.vehicle.last_mileage:
                     vehicle_updates['last_mileage'] = instance.mileage
@@ -248,8 +248,12 @@ class InvoiceService:
                 instance.customer.loyalty_points = F('loyalty_points') + points_earned
                 instance.customer.save(update_fields=['loyalty_points'])
 
-            # --- 5. Technician commissions ---
-            for service_item in instance.service_items.select_related('technician', 'service').all():
+            # --- 5. Technician commissions (skip for returns) ---
+            if is_return:
+                pass  # Returns do not award commissions
+            else:
+                pass  # Fall through to commission logic below
+            for service_item in (instance.service_items.select_related('technician', 'service').all() if not is_return else []):
                 if service_item.technician and service_item.service.tech_commission_percent > 0:
                     base_commission = (
                         service_item.price * service_item.service.tech_commission_percent
