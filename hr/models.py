@@ -901,8 +901,8 @@ class AIDesignSubscription(models.Model):
     - عند انتهاء الاشتراك يتوقف AI تلقائياً
     """
     PLAN_CHOICES = (
-        ('basic', _('أساسي — 50 تصميم AI شهرياً')),
-        ('pro', _('احترافي — 200 تصميم AI شهرياً')),
+        ('basic', _('أساسي — 100 تصميم AI شهرياً')),
+        ('pro', _('احترافي — 300 تصميم AI شهرياً')),
         ('unlimited', _('غير محدود — تصاميم لا نهائية')),
     )
     STATUS_CHOICES = (
@@ -1024,12 +1024,12 @@ class AIDesignSubscription(models.Model):
         return 0
 
     PLAN_PRICES = {
-        'basic': Decimal('99.00'),
-        'pro': Decimal('249.00'),
+        'basic': Decimal('350.00'),
+        'pro': Decimal('350.00'),
         'unlimited': Decimal('499.00'),
     }
     PLAN_LIMITS = {
-        'basic': 50,
-        'pro': 200,
+        'basic': 100,
+        'pro': 300,
         'unlimited': 0,  # 0 = unlimited
     }

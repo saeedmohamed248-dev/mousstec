@@ -532,7 +532,7 @@ def ai_studio_status(request):
 # 🧠 Smart Business Copilot — متوصل بالداتابيز الفعلية
 # =====================================================================
 
-def _query_business_data(query):
+def _query_business_data(query, request=None):
     """
     يحلل سؤال المستخدم ويجيب من الداتابيز الفعلية.
     يرجع dict فيه: context (البيانات), intent (نوع السؤال)
@@ -775,6 +775,47 @@ def _query_business_data(query):
             return {'intent': 'machines', 'context': f"الماكينات النشطة ({machines.count()}):\n{details}"}
         return {'intent': 'machines', 'context': "لا توجد ماكينات مسجلة بعد."}
 
+    # ============ 11. تصاميم / رصيد تصاميم AI ============
+    if any(k in q for k in ['تصميم', 'تصاميم', 'design', 'باقي', 'رصيدي', 'كريدت']):
+        try:
+            from hr.models import AIDesignSubscription
+            from printing.models import Designer
+            # Check if user is a designer (request may be None)
+            current_user = getattr(request, 'user', None) if request else None
+            designer = Designer.objects.filter(user=current_user, is_active=True).first() if current_user else None
+            if designer:
+                # Get AI subscription
+                sub = AIDesignSubscription.objects.filter(
+                    designer__user=current_user, status='active'
+                ).first()
+                if sub:
+                    remaining = (sub.ai_generations_limit - sub.ai_generations_used) if sub.ai_generations_limit > 0 else '∞'
+                    return {
+                        'intent': 'designs_balance',
+                        'context': (
+                            f"🎨 رصيد تصاميمك AI:\n"
+                            f"  الباقة: {sub.get_plan_display()}\n"
+                            f"  التصاميم المستخدمة: {sub.ai_generations_used}\n"
+                            f"  المتبقي: {remaining}\n"
+                            f"  الحالة: {sub.get_status_display()}\n"
+                            f"  تنتهي: {sub.end_date or 'غير محدد'}"
+                        ),
+                    }
+                return {
+                    'intent': 'designs_balance',
+                    'context': "ليس لديك اشتراك AI نشط حالياً. تواصل مع الإدارة لتفعيل باقة تصاميم AI.",
+                }
+            # Not a designer — show general design stats
+            total_designs = DesignerWorkLog.objects.filter(
+                date__gte=month_start
+            ).count() if 'DesignerWorkLog' in dir() else 0
+            return {
+                'intent': 'designs_stats',
+                'context': f"إجمالي أعمال التصميم هذا الشهر: {total_designs} عمل",
+            }
+        except Exception:
+            return {'intent': 'designs_balance', 'context': "لم أتمكن من جلب بيانات التصاميم."}
+
     # ============ لم يتطابق — ارجع None ============
     return None
 
@@ -879,7 +920,7 @@ def copilot_chat(request):
         })
 
     # الخطوة 1: استعلم من الداتابيز للبيانات المحددة
-    db_result = _query_business_data(query)
+    db_result = _query_business_data(query, request=request)
     db_context = db_result['context'] if db_result else ""
 
     # الخطوة 2: جلب سياق حي شامل + معرفة السيستم
