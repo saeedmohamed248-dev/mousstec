@@ -149,6 +149,7 @@ class BranchAdmin(SecureImportExportAdmin):
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(SecureImportExportAdmin):
     list_display = ('user', 'branch', 'role', 'commission_balance_styled')
+    list_select_related = ('user', 'branch')
     list_filter = ('branch', 'role')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
     
@@ -379,6 +380,7 @@ class VehicleAdmin(SecureImportExportAdmin):
     list_display = ('car_plate', 'chassis_number', 'brand', 'model_name', 'customer', 'last_mileage', 'estimated_next_visit', 'health_score_badge')
     search_fields = ('car_plate', 'chassis_number', 'customer__name', 'customer__phone')
     autocomplete_fields = ['customer']
+    list_select_related = ('customer',)
     list_filter = ('brand',)
     actions = ['decode_vin_ai', 'send_bulk_maintenance_reminder']
 
@@ -619,8 +621,9 @@ class VendorAdmin(SecureImportExportAdmin):
 @admin.register(Inventory)
 class InventoryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     list_display = ('product', 'branch', 'quantity', 'shelf_location', 'status_colored', 'stock_value')
+    list_select_related = ('product', 'branch')
     list_filter = ('branch', 'product__brand')
-    list_editable = ('quantity', 'shelf_location') 
+    list_editable = ('quantity', 'shelf_location')
     search_fields = ('product__name', 'product__part_number')
     autocomplete_fields = ['product']
 
@@ -723,12 +726,13 @@ class VehicleInspectionInline(admin.StackedInline):
 
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
-    inlines = [SaleInvoiceItemInline, SaleInvoiceServiceItemInline, VehicleInspectionInline] 
+    inlines = [SaleInvoiceItemInline, SaleInvoiceServiceItemInline, VehicleInspectionInline]
     list_display = ('id', 'customer_details', 'invoice_type', 'job_progress_bar', 'total_amount_styled', 'margin_percentage', 'fraud_alert', 'invoice_actions')
-    list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created') 
+    list_select_related = ('customer', 'vehicle', 'branch', 'treasury')
+    list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created')
     search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
-    autocomplete_fields = ['customer', 'vehicle'] 
-    actions = ['mark_as_posted', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr'] 
+    autocomplete_fields = ['customer', 'vehicle']
+    actions = ['mark_as_posted', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
     date_hierarchy = 'date_created'
     
     class Media:
@@ -930,8 +934,9 @@ class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     inlines = [PurchaseInvoiceItemInline]
     list_display = ('vendor', 'branch', 'treasury', 'b2b_secured_badge', 'total_amount_styled', 'date_created', 'payment_status')
     list_filter = ('branch', 'treasury', 'date_created', 'status')
-    search_fields = ('vendor__name', 'vendor__phone') 
-    autocomplete_fields = ['vendor'] 
+    search_fields = ('vendor__name', 'vendor__phone')
+    autocomplete_fields = ['vendor']
+    list_select_related = ('vendor', 'branch', 'treasury')
     date_hierarchy = 'date_created'
     actions = ['scan_invoice_ai']
     
@@ -967,6 +972,7 @@ class StockTransferAdmin(SecureImportExportAdmin):
     list_display = ('product', 'from_branch', 'to_branch', 'quantity', 'status_badge', 'date_transferred')
     list_filter = ('status', 'from_branch', 'to_branch')
     search_fields = ('product__name', 'product__part_number')
+    list_select_related = ('product', 'from_branch', 'to_branch')
     date_hierarchy = 'date_transferred'
     actions = ['approve_transfers_bulk']
     
@@ -1116,6 +1122,7 @@ class FinancialTransactionAdmin(SecureImportExportAdmin):
     list_filter = ('transaction_type', 'currency', 'treasury', 'category', 'date')
     search_fields = ('description', 'employee__user__first_name', 'employee__user__last_name')
     autocomplete_fields = ['treasury', 'sale_invoice', 'purchase_invoice', 'customer', 'vendor', 'employee']
+    list_select_related = ('treasury', 'category', 'employee', 'sale_invoice', 'purchase_invoice')
     date_hierarchy = 'date'
 
     fieldsets = (

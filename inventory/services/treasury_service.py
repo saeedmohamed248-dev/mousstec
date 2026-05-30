@@ -286,6 +286,38 @@ class TreasuryService:
         return reconciled
 
     # ------------------------------------------------------------------
+    # Reverse Balance on Delete — undo treasury effect of deleted transaction
+    # ------------------------------------------------------------------
+    @staticmethod
+    def reverse_balance_on_delete(financial_transaction):
+        """
+        Reverse the treasury balance effect when a FinancialTransaction is deleted.
+        Deposit deleted → debit treasury | Expense deleted → credit treasury.
+        Called from signal: post_delete(FinancialTransaction).
+        """
+        from inventory.models import Treasury
+
+        amount = Decimal(str(financial_transaction.amount))
+        try:
+            with transaction.atomic():
+                if financial_transaction.transaction_type == 'in':
+                    Treasury.objects.filter(
+                        pk=financial_transaction.treasury_id
+                    ).update(balance=F('balance') - amount)
+                elif financial_transaction.transaction_type == 'out':
+                    Treasury.objects.filter(
+                        pk=financial_transaction.treasury_id
+                    ).update(balance=F('balance') + amount)
+
+            logger.info(
+                "[TREASURY] Reversed %s %s EGP on treasury #%s (deleted)",
+                "debit" if financial_transaction.transaction_type == 'in' else "credit",
+                amount, financial_transaction.treasury_id,
+            )
+        except Exception as e:
+            logger.error("[TREASURY] Failed to reverse balance on delete: %s", e)
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
     @staticmethod

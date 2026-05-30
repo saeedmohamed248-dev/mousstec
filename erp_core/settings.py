@@ -236,6 +236,7 @@ CACHES = {
     "local_tier": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "mousstec-local-cache",
+        "KEY_FUNCTION": "erp_core.settings.tenant_key_func",
     }
 }
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"  # fallback للداتابيز لو Redis وقع
@@ -280,6 +281,7 @@ if USE_S3:
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+    DEFAULT_FILE_STORAGE = 'erp_core.storage_backends.TenantFileSystemStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -523,9 +525,18 @@ CELERY_BEAT_SCHEDULE = {
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'tenant_context': {
+            '()': 'erp_core.logging_filters.TenantContextFilter',
+        },
+    },
     'formatters': {
         'audit_format': {
             'format': '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] - %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'structured': {
+            'format': '[%(asctime)s] %(levelname)s [%(tenant)s] [%(name)s:%(lineno)s] %(message)s',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
     },
@@ -533,20 +544,24 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'erp_errors.log', 
+            'filename': BASE_DIR / 'erp_errors.log',
+            'filters': ['tenant_context'],
+            'formatter': 'structured',
         },
-        'audit_file': { 
+        'audit_file': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'mouss_tec_audit.log',
-            'maxBytes': 1024 * 1024 * 15, 
+            'maxBytes': 1024 * 1024 * 15,
             'backupCount': 10,
-            'formatter': 'audit_format',
+            'filters': ['tenant_context'],
+            'formatter': 'structured',
         },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'audit_format',
+            'filters': ['tenant_context'],
+            'formatter': 'structured',
         }
     },
     'loggers': {

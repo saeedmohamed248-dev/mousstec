@@ -183,29 +183,7 @@ def update_treasury_balance(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=FinancialTransaction)
 def reverse_treasury_balance_on_delete(sender, instance, **kwargs):
-    """
-    عند حذف حركة مالية — عكس التأثير على الخزنة.
-    إيداع محذوف → خصم من الرصيد | مصروف محذوف → إضافة للرصيد.
-    """
-    from inventory.models import Treasury
-    amount = Decimal(str(instance.amount))
-    try:
-        with transaction.atomic():
-            if instance.transaction_type == 'in':
-                Treasury.objects.filter(pk=instance.treasury_id).update(
-                    balance=F('balance') - amount
-                )
-            elif instance.transaction_type == 'out':
-                Treasury.objects.filter(pk=instance.treasury_id).update(
-                    balance=F('balance') + amount
-                )
-        logger.info(
-            "[TREASURY] Reversed %s %s EGP on treasury #%s (deleted)",
-            "debit" if instance.transaction_type == 'in' else "credit",
-            amount, instance.treasury_id,
-        )
-    except Exception as e:
-        logger.error("[TREASURY] Failed to reverse balance on delete: %s", e)
+    TreasuryService.reverse_balance_on_delete(instance)
 
 
 # =====================================================================
@@ -241,62 +219,16 @@ def track_product_price_changes(sender, instance, **kwargs):
 
 
 # =====================================================================
-# 🌐 14. B2B Product Sync (on Product save, stays in signals — cross-schema)
+# 🌐 14. B2B Product Sync → InventoryService
 # =====================================================================
-from django_tenants.utils import schema_context
-
 @receiver(post_save, sender=Product)
 def sync_b2b_marketplace(sender, instance, **kwargs):
-    if connection.schema_name == 'public':
-        return
-
-    current_tenant_schema = connection.schema_name
-
-    try:
-        from django.apps import apps
-        with schema_context('public'):
-            GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
-            Client = apps.get_model('clients', 'Client')
-
-            tenant = Client.objects.filter(schema_name=current_tenant_schema).first()
-            if not tenant:
-                return
-
-            total_qty = instance.total_inventory_qty
-
-            if instance.is_b2b_published and instance.is_active and total_qty > 0:
-                GlobalB2BMarketplace.objects.update_or_create(
-                    tenant=tenant,
-                    part_number=instance.part_number,
-                    condition=instance.condition,
-                    defaults={
-                        'product_name': instance.name,
-                        'brand': instance.brand,
-                        'wholesale_price': (
-                            instance.b2b_wholesale_price
-                            if instance.b2b_wholesale_price > 0
-                            else instance.retail_price
-                        ),
-                        'available_qty': total_qty,
-                    },
-                )
-            else:
-                GlobalB2BMarketplace.objects.filter(
-                    tenant=tenant,
-                    part_number=instance.part_number,
-                    condition=instance.condition,
-                ).delete()
-    except Exception as e:
-        logger.error("[B2B AGENT] Market sync failed for '%s': %s", instance.part_number, e)
+    InventoryService.sync_product_to_b2b(instance)
 
 
 # =====================================================================
-# 🏎️ 15. Scrap Dismantling Yield (stays in signals — specialized flow)
+# 🏎️ 15. Scrap Dismantling Yield → InventoryService
 # =====================================================================
-from django.db import transaction
-from django.db.models import F
-from decimal import Decimal
-
 @receiver(pre_save, sender=ScrapDismantlingJob)
 def _track_scrap_completion_change(sender, instance, **kwargs):
     if instance.pk:
@@ -317,32 +249,4 @@ def _track_scrap_completion_change(sender, instance, **kwargs):
 def execute_scrap_dismantling_yield(sender, instance, **kwargs):
     was_completed = getattr(instance, '_was_completed', None)
     if instance.is_completed and was_completed is False:
-        with transaction.atomic():
-            for yield_item in instance.yields.all():
-                product = yield_item.product
-
-                if instance.branch:
-                    inv, _ = Inventory.objects.get_or_create(
-                        product=product,
-                        branch=instance.branch,
-                        defaults={'quantity': 0},
-                    )
-                    Inventory.objects.filter(pk=inv.pk).update(
-                        quantity=F('quantity') + yield_item.quantity
-                    )
-
-                total_current_qty = product.total_inventory_qty
-                old_value = (
-                    Decimal(str(max(total_current_qty - yield_item.quantity, 0)))
-                    * Decimal(str(product.average_cost))
-                )
-                new_value = (
-                    Decimal(str(yield_item.quantity))
-                    * Decimal(str(yield_item.estimated_cost_allocation))
-                )
-
-                if total_current_qty > 0:
-                    Product.objects.filter(pk=product.pk).update(
-                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
-                        purchase_price=yield_item.estimated_cost_allocation,
-                    )
+        InventoryService.execute_scrap_yield(instance)

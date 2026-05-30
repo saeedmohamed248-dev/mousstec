@@ -126,6 +126,7 @@ class InvoiceService:
 
             # --- 6. Finalize ---
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            instance.is_applied = True  # Sync in-memory to prevent re-execution on re-save
             AgentHealthMonitor.heartbeat(
                 'inbound_orchestrator',
                 schema=connection.schema_name,
@@ -302,6 +303,7 @@ class InvoiceService:
 
             # --- 8. Finalize ---
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
+            instance.is_applied = True  # Sync in-memory to prevent re-execution on re-save
             AgentHealthMonitor.heartbeat(
                 'outbound_orchestrator',
                 schema=connection.schema_name,

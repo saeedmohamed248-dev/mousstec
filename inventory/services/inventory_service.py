@@ -328,6 +328,116 @@ class InventoryService:
         return len(yields)
 
     # ------------------------------------------------------------------
+    # Scrap Dismantling Yield — add yielded parts to inventory
+    # ------------------------------------------------------------------
+    @staticmethod
+    def execute_scrap_yield(job):
+        """
+        When a ScrapDismantlingJob transitions to completed,
+        add yield items to branch inventory and recalculate weighted average cost.
+        Called from signal: post_save(ScrapDismantlingJob).
+        """
+        from inventory.models import Inventory, Product
+        from decimal import Decimal
+
+        with transaction.atomic():
+            for yield_item in job.yields.all():
+                product = yield_item.product
+
+                if job.branch:
+                    inv, _ = Inventory.objects.get_or_create(
+                        product=product,
+                        branch=job.branch,
+                        defaults={'quantity': 0},
+                    )
+                    Inventory.objects.filter(pk=inv.pk).update(
+                        quantity=F('quantity') + yield_item.quantity
+                    )
+
+                total_current_qty = product.total_inventory_qty
+                old_value = (
+                    Decimal(str(max(total_current_qty - yield_item.quantity, 0)))
+                    * Decimal(str(product.average_cost))
+                )
+                new_value = (
+                    Decimal(str(yield_item.quantity))
+                    * Decimal(str(yield_item.estimated_cost_allocation))
+                )
+
+                if total_current_qty > 0:
+                    Product.objects.filter(pk=product.pk).update(
+                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
+                        purchase_price=yield_item.estimated_cost_allocation,
+                    )
+
+        logger.info(
+            "[SCRAP YIELD] Executed yield for job#%s (%s items)",
+            job.pk, job.yields.count(),
+        )
+
+    # ------------------------------------------------------------------
+    # B2B Product Sync — cross-schema marketplace update on Product save
+    # ------------------------------------------------------------------
+    @staticmethod
+    def sync_product_to_b2b(product_instance):
+        """
+        Sync product data to GlobalB2BMarketplace in public schema.
+        Publishes if product is active, b2b-published, and has stock.
+        Removes listing otherwise.
+        Called from signal: post_save(Product).
+        """
+        if connection.schema_name == 'public':
+            return
+
+        current_tenant_schema = connection.schema_name
+
+        # Read tenant-schema data BEFORE switching to public schema
+        total_qty = product_instance.total_inventory_qty
+        is_published = product_instance.is_b2b_published
+        is_active = product_instance.is_active
+
+        try:
+            from django.apps import apps
+            from django_tenants.utils import schema_context
+
+            with schema_context('public'):
+                GlobalB2BMarketplace = apps.get_model('clients', 'GlobalB2BMarketplace')
+                Client = apps.get_model('clients', 'Client')
+
+                tenant = Client.objects.filter(schema_name=current_tenant_schema).first()
+                if not tenant:
+                    return
+
+                if is_published and is_active and total_qty > 0:
+                    from decimal import Decimal as D
+                    GlobalB2BMarketplace.objects.update_or_create(
+                        tenant=tenant,
+                        part_number=product_instance.part_number,
+                        condition=product_instance.condition,
+                        defaults={
+                            'product_name': product_instance.name,
+                            'brand': product_instance.brand,
+                            'wholesale_price': (
+                                product_instance.b2b_wholesale_price
+                                if product_instance.b2b_wholesale_price > 0
+                                else product_instance.retail_price
+                            ),
+                            'available_qty': total_qty,
+                        },
+                    )
+                else:
+                    GlobalB2BMarketplace.objects.filter(
+                        tenant=tenant,
+                        part_number=product_instance.part_number,
+                        condition=product_instance.condition,
+                    ).delete()
+        except Exception as e:
+            logger.error(
+                "[B2B AGENT] Market sync failed for '%s': %s",
+                product_instance.part_number, e,
+            )
+
+    # ------------------------------------------------------------------
     # B2B Marketplace Sync (Celery dispatch)
     # ------------------------------------------------------------------
     @staticmethod

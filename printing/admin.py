@@ -73,6 +73,7 @@ class MachineProfileAdmin(PrintSecureAdmin):
     list_display = ('name', 'machine_type_badge', 'brand', 'branch', 'hourly_cost_display', 'status_badge')
     list_filter = ('machine_type', 'is_active', 'branch')
     search_fields = ('name', 'brand', 'model_number')
+    list_select_related = ('branch',)
     fieldsets = (
         ('📋 بيانات الماكينة', {
             'fields': ('name', 'machine_type', 'brand', 'model_number', 'branch', 'is_active')
@@ -155,6 +156,7 @@ class DesignerWorkLogAdmin(PrintSecureAdmin):
     list_display = ('designer', 'title', 'execution_badge', 'duration_hours', 'rating_display', 'date')
     list_filter = ('execution_type', 'date', 'designer')
     search_fields = ('title', 'description')
+    list_select_related = ('designer',)
     date_hierarchy = 'date'
 
     def execution_badge(self, obj):
@@ -186,6 +188,7 @@ class PrintOrderAdmin(PrintSecureAdmin):
     list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'has_files_badge', 'date_created')
     list_filter = ('status', 'branch', 'date_created')
     search_fields = ('order_number', 'customer__name')
+    list_select_related = ('customer', 'branch')
     date_hierarchy = 'date_created'
     inlines = [PrintJobInline]
     fieldsets = (
@@ -241,6 +244,7 @@ class PrintJobAdmin(PrintSecureAdmin):
     list_display = ('description', 'product_type_badge', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
     list_filter = ('is_complete', 'machine', 'product_type', 'paper_size')
     search_fields = ('description', 'product_type_text')
+    list_select_related = ('order', 'machine', 'product_type')
     autocomplete_fields = ['product_type']
 
     def product_type_badge(self, obj):
@@ -271,6 +275,7 @@ class PrintMaterialAdmin(PrintSecureAdmin):
     list_display = ('name', 'category', 'quantity_display', 'cost_per_unit', 'stock_value_display', 'stock_alert')
     list_filter = ('category', 'branch')
     search_fields = ('name', 'sku')
+    list_select_related = ('branch',)
 
     def quantity_display(self, obj):
         return format_html('<b>{}</b> {}', f"{float(obj.quantity):,.1f}", obj.unit)
