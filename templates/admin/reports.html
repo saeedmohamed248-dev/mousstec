@@ -118,7 +118,7 @@
         <p id="yearProfit">ربح: 0</p>
         <span class="icon">🏆</span>
     </div>
-    <div class="rpt-card" style="background: {{ net_pl|floatformat:0 >= 0|yesno:'var(--success-grad),var(--danger-grad)' }}; background: {% if net_pl >= 0 %}var(--success-grad){% else %}var(--danger-grad){% endif %};">
+    <div class="rpt-card" style="background: {% if net_pl >= 0 %}var(--success-grad){% else %}var(--danger-grad){% endif %};">
         <p>صافي الربح/الخسارة (الفترة)</p>
         <h3 id="netPL">0</h3>
         <p>بعد خصم المصروفات</p>
