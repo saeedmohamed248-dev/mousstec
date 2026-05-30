@@ -347,6 +347,9 @@ urlpatterns = [
     path('marketplace/design-store/<uuid:design_code>/whatsapp/', client_views.design_store_send_whatsapp, name='design_store_whatsapp'),
     path('marketplace/design-store/<uuid:design_code>/regenerate/', client_views.design_store_regenerate, name='design_store_regenerate'),
     path('marketplace/design-store/<uuid:design_code>/print-request/', client_views.design_store_print_request, name='design_store_print_request'),
+    path('marketplace/design-store/<uuid:design_code>/download/<str:fmt>/', client_views.design_store_download, name='design_store_download'),
+    path('marketplace/design-store/<uuid:design_code>/send-to-marketplace/', client_views.design_store_send_to_marketplace, name='design_store_send_to_marketplace'),
+    path('marketplace/design-store/<uuid:design_code>/watermark/', client_views.design_store_watermark, name='design_store_watermark'),
 
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),

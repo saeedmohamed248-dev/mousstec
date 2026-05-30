@@ -239,6 +239,14 @@
                 <input type="number" name="weight_kg" step="0.01" min="0" placeholder="مثال: 0.5">
             </div>
 
+            <!-- Multi-angle mockup (for tshirt, mug, packaging) -->
+            <div id="multiAngleBox" style="display:none; margin-top:14px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);padding:10px 14px;border-radius:12px;">
+                    <input type="checkbox" name="multi_angle" value="1" style="width:18px;height:18px;">
+                    <span style="color:#10b981;font-weight:700;"><i class="fas fa-cube"></i> عرض من جميع الاتجاهات (أمام + خلف + جانب)</span>
+                </label>
+            </div>
+
             <!-- Logo upload -->
             <div class="logo-upload">
                 <label><i class="fas fa-image"></i> ارفع لوجو شركتك (اختياري — يدمج تلقائياً)</label>
@@ -248,7 +256,7 @@
 
             <div class="specs-note">
                 💡 الأماكن الفارغة بتتولد تلقائياً بالأنسب للتصميم. كل توليد بيخصم 1 من رصيدك.
-                إعادة التوليد <strong>مجاني 3 مرات</strong> لكل تصميم.
+                إعادة التوليد <strong>مجاني حسب باقتك</strong> (1-2 مرة لكل تصميم).
             </div>
 
             <button type="submit" class="btn-generate" id="genBtn">
@@ -258,10 +266,16 @@
 
         <div class="result-preview" id="resultBox">
             <img id="resultImg" src="">
-            <div style="display:flex;gap:8px;">
-                <button class="btn-small btn-dl" onclick="downloadResult()"><i class="fas fa-download"></i> تحميل</button>
-                <button class="btn-small btn-wa" onclick="sendWA()"><i class="fab fa-whatsapp"></i> إرسال واتساب</button>
-                <button class="btn-small btn-regen" onclick="regenLast()"><i class="fas fa-rotate-right"></i> إعادة (<span id="regenLeft">3</span> متبقي)</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+                <button class="btn-small btn-dl" onclick="downloadAs('png')" title="PNG"><i class="fas fa-image"></i> PNG</button>
+                <button class="btn-small btn-dl" onclick="downloadAs('jpg')" title="JPG"><i class="fas fa-image"></i> JPG</button>
+                <button class="btn-small btn-dl" onclick="downloadAs('pdf')" title="PDF"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn-small btn-wa" onclick="sendWA()"><i class="fab fa-whatsapp"></i> واتساب</button>
+                <button class="btn-small btn-regen" onclick="regenLast()"><i class="fas fa-rotate-right"></i> إعادة (<span id="regenLeft">0</span>)</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+                <button class="btn-small" style="background:#f97316;color:#fff;" onclick="addWatermark()" title="علامة مائية"><i class="fas fa-droplet"></i> علامة مائية</button>
+                <button class="btn-small" style="background:#10b981;color:#fff;" onclick="sendToMarketplace()" title="أرسل لسوق الطباعة"><i class="fas fa-store"></i> أرسل لسوق الطباعة</button>
             </div>
         </div>
     </div>
@@ -281,13 +295,27 @@
                     {{ d.get_category_display }} · {{ d.actual_size_label }}<br>
                     <small>{{ d.created_at|date:"d/m/Y H:i" }}</small>
                 </div>
-                <div class="design-actions">
-                    <a class="btn-small btn-dl" href="{{ d.image_url }}" download>
-                        <i class="fas fa-download"></i>
+                <div class="design-actions" style="flex-wrap:wrap;gap:4px;">
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/png/" title="PNG">
+                        <i class="fas fa-image"></i>
+                    </a>
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/jpg/" title="JPG">
+                        JPG
+                    </a>
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/pdf/" title="PDF">
+                        <i class="fas fa-file-pdf"></i>
                     </a>
                     <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code }}')">
                         <i class="fab fa-whatsapp"></i>
                     </button>
+                    {% if not d.is_free_trial %}
+                    <button class="btn-small" style="background:#f97316;color:#fff;font-size:10px;" onclick="addWatermarkFor('{{ d.design_code }}')" title="علامة مائية">
+                        <i class="fas fa-droplet"></i>
+                    </button>
+                    <button class="btn-small" style="background:#10b981;color:#fff;font-size:10px;" onclick="sendToMarketplaceFor('{{ d.design_code }}')" title="أرسل لسوق الطباعة">
+                        <i class="fas fa-store"></i>
+                    </button>
+                    {% endif %}
                     {% if d.regenerations_used < d.regenerations_allowed %}
                     <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد">
                         <i class="fas fa-rotate-right"></i>
@@ -317,7 +345,11 @@ function toggleCustomSize() {
     document.getElementById('customSizeBox').style.display = sel === 'custom' ? 'grid' : 'none';
 }
 document.getElementById('categorySel').addEventListener('change', e => {
-    document.getElementById('weightBox').style.display = e.target.value === 'packaging' ? 'flex' : 'none';
+    const v = e.target.value;
+    document.getElementById('weightBox').style.display = v === 'packaging' ? 'flex' : 'none';
+    // Show multi-angle option for mockup-able categories
+    const mockupCats = ['tshirt', 'mug', 'packaging', 'mockup'];
+    document.getElementById('multiAngleBox').style.display = mockupCats.includes(v) ? 'block' : 'none';
 });
 
 function previewLogo(e) {
@@ -361,7 +393,10 @@ document.getElementById('genForm')?.addEventListener('submit', async e => {
     }
 });
 
-function downloadResult() { if (lastImageUrl) window.open(lastImageUrl, '_blank'); }
+function downloadAs(fmt) {
+    if (!lastDesignCode) return;
+    window.open(`/marketplace/design-store/${lastDesignCode}/download/${fmt}/`, '_blank');
+}
 
 async function sendWA(code = lastDesignCode) {
     if (!code) return;
@@ -376,7 +411,7 @@ async function sendWA(code = lastDesignCode) {
 function sendWAFor(code) { sendWA(code); }
 
 async function regenDesign(code) {
-    if (!confirm('إعادة التوليد ستستخدم محاولة من الـ 3 المسموحة. متابعة؟')) return;
+    if (!confirm('إعادة التوليد ستستخدم محاولة من المتاح في باقتك. متابعة؟')) return;
     toast('جاري إعادة التوليد...', 'success');
     const r = await fetch(`/marketplace/design-store/${code}/regenerate/`, {method:'POST'});
     const d = await r.json();
@@ -384,6 +419,48 @@ async function regenDesign(code) {
     else toast(d.error || 'فشل', 'error');
 }
 function regenLast() { if (lastDesignCode) regenDesign(lastDesignCode); }
+
+// ====== Watermark ======
+async function addWatermarkFor(code) {
+    const text = prompt('نص العلامة المائية (اسم شركتك مثلاً):');
+    if (text === null) return;
+    toast('جاري إضافة العلامة المائية...', 'success');
+    const fd = new FormData();
+    if (text) fd.append('text', text);
+    try {
+        const r = await fetch(`/marketplace/design-store/${code}/watermark/`, {method:'POST', body:fd});
+        const d = await r.json();
+        if (d.watermarked_url) {
+            toast('✅ تم إضافة العلامة المائية', 'success');
+            // Open watermarked image in new tab
+            window.open(d.watermarked_url, '_blank');
+        } else {
+            toast(d.error || 'فشل', 'error');
+        }
+    } catch(e) { toast('حدث خطأ', 'error'); }
+}
+function addWatermark() { if (lastDesignCode) addWatermarkFor(lastDesignCode); }
+
+// ====== Send to B2B Marketplace ======
+async function sendToMarketplaceFor(code) {
+    const qty = prompt('كمية الطباعة المطلوبة:');
+    if (!qty) return;
+    const notes = prompt('ملاحظات إضافية (اختياري):') || '';
+    toast('جاري إرسال التصميم لسوق الطباعة...', 'success');
+    const fd = new FormData();
+    fd.append('quantity', qty);
+    fd.append('notes', notes);
+    try {
+        const r = await fetch(`/marketplace/design-store/${code}/send-to-marketplace/`, {method:'POST', body:fd});
+        const d = await r.json();
+        if (d.status === 'success' || d.status === 'already_exists') {
+            toast(d.message, 'success');
+        } else {
+            toast(d.error || 'فشل', 'error');
+        }
+    } catch(e) { toast('حدث خطأ', 'error'); }
+}
+function sendToMarketplace() { if (lastDesignCode) sendToMarketplaceFor(lastDesignCode); }
 </script>
 
 </body>
