@@ -64,9 +64,12 @@ if _IS_PRODUCTION:
     SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
     CSRF_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# 🛡️ السماح بالـ iframes من نفس الدومين فقط (مطلوب لنوافذ "إضافة جديد" في الأدمن)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) في بيئة الإنتاج
 if not DEBUG:
