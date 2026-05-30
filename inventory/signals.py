@@ -223,7 +223,28 @@ def track_product_price_changes(sender, instance, **kwargs):
 # =====================================================================
 @receiver(post_save, sender=Product)
 def sync_b2b_marketplace(sender, instance, **kwargs):
-    InventoryService.sync_product_to_b2b(instance)
+    if connection.schema_name == 'public':
+        return
+    if instance.is_b2b_published and instance.is_active:
+        # إنشاء طلب نشر بدلاً من النشر المباشر — يحتاج موافقة الإدارة
+        from inventory.models import B2BListingRequest
+        from inventory.services.audit_service import AuditService
+        existing_pending = B2BListingRequest.objects.filter(
+            product=instance, status='pending',
+        ).exists()
+        if not existing_pending:
+            B2BListingRequest.objects.create(
+                product=instance,
+                requested_price=(
+                    instance.b2b_wholesale_price
+                    if instance.b2b_wholesale_price > 0
+                    else instance.retail_price
+                ),
+                requested_by=AuditService.get_request_user(),
+            )
+    elif not instance.is_b2b_published:
+        # إلغاء النشر — يُزال فوراً بدون موافقة
+        InventoryService.sync_product_to_b2b(instance)
 
 
 # =====================================================================

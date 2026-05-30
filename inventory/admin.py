@@ -27,7 +27,8 @@ from .models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      MaintenanceContract,
                      AuditLog, ChartOfAccount, AccountingEntry,
                      InventoryMovement, StockAlert, ImportSession,
-                     ScrapDismantlingJob, ScrapDismantlingYield)
+                     ScrapDismantlingJob, ScrapDismantlingYield,
+                     B2BListingRequest)
 
 # استدعاء جداول الإمبراطورية لربط سوق التجار المركزي (B2B)
 try:
@@ -727,12 +728,12 @@ class VehicleInspectionInline(admin.StackedInline):
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     inlines = [SaleInvoiceItemInline, SaleInvoiceServiceItemInline, VehicleInspectionInline]
-    list_display = ('id', 'customer_details', 'invoice_type', 'job_progress_bar', 'total_amount_styled', 'margin_percentage', 'fraud_alert', 'invoice_actions')
+    list_display = ('id', 'customer_details', 'invoice_type', 'is_return_badge', 'job_progress_bar', 'total_amount_styled', 'margin_percentage', 'fraud_alert', 'invoice_actions')
     list_select_related = ('customer', 'vehicle', 'branch', 'treasury')
     list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created')
     search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
     autocomplete_fields = ['customer', 'vehicle']
-    actions = ['mark_as_posted', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
+    actions = ['mark_as_posted', 'create_return', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
     date_hierarchy = 'date_created'
     
     class Media:
@@ -847,6 +848,40 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
                <a style="margin-right: 8px; color: #4f46e5; font-size: 18px; text-decoration:none;" href="{}" target="_blank" title="طباعة مستند الفاتورة الرسمي A4">📄</a>''', 
                whatsapp_url, print_url)
     invoice_actions.short_description = "إجراءات"
+
+    def is_return_badge(self, obj):
+        if obj.is_return and obj.original_invoice_id:
+            url = reverse('admin:inventory_saleinvoice_change', args=[obj.original_invoice_id])
+            return format_html(
+                '<a href="{}" style="color:#ef4444; font-weight:700;">↩ مرتجع #{}</a>',
+                url, obj.original_invoice_id,
+            )
+        elif obj.is_return:
+            return format_html('<span style="color:#ef4444; font-weight:700;">↩ مرتجع</span>')
+        return ''
+    is_return_badge.short_description = "مرتجع"
+
+    @admin.action(description='↩️ إنشاء فاتورة مرتجع للفواتير المحددة')
+    def create_return(self, request, queryset):
+        from inventory.services.invoice_service import InvoiceService
+        created = 0
+        errors = []
+        for invoice in queryset:
+            try:
+                InvoiceService.create_return_invoice(invoice)
+                created += 1
+            except ValidationError as e:
+                errors.append(f"#{invoice.id}: {e.message}")
+            except Exception as e:
+                errors.append(f"#{invoice.id}: {str(e)}")
+        if created:
+            self.message_user(
+                request,
+                f"تم إنشاء {created} فاتورة مرتجع كمسودة. يرجى مراجعتها واعتمادها.",
+                messages.SUCCESS,
+            )
+        if errors:
+            self.message_user(request, " | ".join(errors), messages.ERROR)
 
     @admin.action(description='🔒 إعتماد وقفل الفواتير المحددة (صرف المخزن الفعلي + ضخ الخزائن آلياً)')
     def mark_as_posted(self, request, queryset):
@@ -1470,6 +1505,182 @@ admin.site.index = MoussTec_dashboard_index
 
 
 # =====================================================================
+# 📊 التقارير والتحليلات (Admin Reports Dashboard)
+# =====================================================================
+from django.template.response import TemplateResponse
+from django.http import HttpResponseForbidden
+from django.db.models import Count, DecimalField, ExpressionWrapper
+
+def admin_reports_view(request):
+    """Custom admin reports page with comprehensive sales analytics."""
+    if connection.schema_name == 'public':
+        from django.shortcuts import redirect
+        return redirect('/secure-portal/')
+
+    # Permission check
+    if not request.user.is_superuser:
+        try:
+            if request.user.employee_profile.role not in ('admin', 'manager'):
+                return HttpResponseForbidden("غير مصرح")
+        except Exception:
+            return HttpResponseForbidden("غير مصرح")
+
+    from_date_str = request.GET.get('from', '')
+    to_date_str = request.GET.get('to', '')
+    customer_id = request.GET.get('customer', '')
+
+    today = timezone.now().date()
+    first_of_month = today.replace(day=1)
+    first_of_year = today.replace(month=1, day=1)
+
+    try:
+        from_date = timezone.datetime.strptime(from_date_str, '%Y-%m-%d').date() if from_date_str else first_of_month
+        to_date = timezone.datetime.strptime(to_date_str, '%Y-%m-%d').date() if to_date_str else today
+    except ValueError:
+        from_date, to_date = first_of_month, today
+
+    # Base queryset with branch isolation
+    sales_base = SaleInvoice.objects.filter(status='posted', is_return=False)
+    branch = None
+    if not request.user.is_superuser:
+        try:
+            branch = request.user.employee_profile.branch
+            if branch:
+                sales_base = sales_base.filter(branch=branch)
+        except Exception:
+            pass
+
+    # Period filter
+    period_sales = sales_base.filter(
+        date_created__date__gte=from_date, date_created__date__lte=to_date,
+    )
+    if customer_id:
+        try:
+            period_sales = period_sales.filter(customer_id=int(customer_id))
+        except (ValueError, TypeError):
+            pass
+
+    def summarize(qs):
+        agg = qs.aggregate(
+            revenue=Sum('total_amount'),
+            cost=Sum('total_cost'),
+            profit=Sum('net_profit'),
+            count=Count('id'),
+        )
+        return {k: float(v or 0) for k, v in agg.items()}
+
+    today_summary = summarize(sales_base.filter(date_created__date=today))
+    month_summary = summarize(sales_base.filter(date_created__date__gte=first_of_month))
+    year_summary = summarize(sales_base.filter(date_created__date__gte=first_of_year))
+    period_summary = summarize(period_sales)
+
+    # Top 10 products by revenue
+    top_products = list(
+        SaleInvoiceItem.objects.filter(invoice__in=period_sales)
+        .values('product__name', 'product__part_number')
+        .annotate(
+            total_revenue=Sum(
+                ExpressionWrapper(F('quantity') * F('unit_price'), output_field=DecimalField())
+            ),
+            total_qty=Sum('quantity'),
+            total_profit=Sum(
+                ExpressionWrapper(
+                    F('quantity') * (F('unit_price') - F('cost_at_sale')),
+                    output_field=DecimalField(),
+                )
+            ),
+        )
+        .order_by('-total_revenue')[:10]
+    )
+    for p in top_products:
+        p['total_revenue'] = float(p['total_revenue'] or 0)
+        p['total_profit'] = float(p['total_profit'] or 0)
+
+    # Top 10 customers by spend
+    top_customers = list(
+        period_sales.values('customer__name', 'customer__phone')
+        .annotate(total_spent=Sum('total_amount'), invoice_count=Count('id'))
+        .order_by('-total_spent')[:10]
+    )
+    for c in top_customers:
+        c['total_spent'] = float(c['total_spent'] or 0)
+
+    # Monthly trend (6 months)
+    chart_labels, chart_revenue, chart_profit, chart_count = [], [], [], []
+    for i in range(5, -1, -1):
+        target = today.replace(day=1) - timedelta(days=30 * i)
+        month_qs = sales_base.filter(
+            date_created__year=target.year, date_created__month=target.month,
+        )
+        agg = month_qs.aggregate(r=Sum('total_amount'), p=Sum('net_profit'), c=Count('id'))
+        chart_labels.append(target.strftime('%B %Y'))
+        chart_revenue.append(float(agg['r'] or 0))
+        chart_profit.append(float(agg['p'] or 0))
+        chart_count.append(agg['c'] or 0)
+
+    # Operating expenses (not linked to invoices)
+    expenses_qs = FinancialTransaction.objects.filter(
+        transaction_type='out',
+        date__date__gte=from_date, date__date__lte=to_date,
+        sale_invoice__isnull=True, purchase_invoice__isnull=True,
+    )
+    if branch:
+        expenses_qs = expenses_qs.filter(treasury__branch=branch)
+    total_expenses = float(expenses_qs.aggregate(t=Sum('amount'))['t'] or 0)
+
+    # Debt aging
+    from inventory.services.reporting_service import ReportingService
+    debt_aging = ReportingService.customer_debt_aging(branch=branch)
+
+    # Slow-moving inventory
+    slow_moving = ReportingService.slow_moving_inventory(days_threshold=60, branch=branch)
+
+    # Pending B2B listings count
+    pending_b2b = B2BListingRequest.objects.filter(status='pending').count()
+
+    context = {
+        **admin.site.each_context(request),
+        'title': 'التقارير والتحليلات',
+        'today_summary': today_summary,
+        'month_summary': month_summary,
+        'year_summary': year_summary,
+        'period_summary': period_summary,
+        'top_products': json.dumps(top_products, ensure_ascii=False),
+        'top_customers': json.dumps(top_customers, ensure_ascii=False),
+        'chart_labels': json.dumps(chart_labels),
+        'chart_revenue': json.dumps(chart_revenue),
+        'chart_profit': json.dumps(chart_profit),
+        'chart_count': json.dumps(chart_count),
+        'total_expenses': total_expenses,
+        'net_pl': period_summary['profit'] - total_expenses,
+        'from_date': from_date.isoformat(),
+        'to_date': to_date.isoformat(),
+        'selected_customer': customer_id,
+        'customers_list': json.dumps(
+            list(Customer.objects.values('id', 'name').order_by('name')[:200]),
+            ensure_ascii=False,
+        ),
+        'debt_aging': json.dumps(debt_aging, ensure_ascii=False),
+        'slow_moving': json.dumps(slow_moving[:20], ensure_ascii=False),
+        'pending_b2b': pending_b2b,
+    }
+    return TemplateResponse(request, 'admin/reports.html', context)
+
+
+# Inject reports URL into admin
+from django.urls import path as _admin_path
+_original_get_urls = admin.AdminSite.get_urls
+
+def _custom_get_urls(self):
+    custom = [
+        _admin_path('reports/', self.admin_view(admin_reports_view), name='admin_reports'),
+    ]
+    return custom + _original_get_urls(self)
+
+admin.AdminSite.get_urls = _custom_get_urls
+
+
+# =====================================================================
 # 📋 11. سجل المراجعة والتدقيق (Audit Trail — Read-Only)
 # =====================================================================
 @admin.register(AuditLog)
@@ -1704,3 +1915,58 @@ class ImportSessionAdmin(admin.ModelAdmin):
             colors.get(obj.status, 'gray'), obj.get_status_display()
         )
     status_badge.short_description = "الحالة"
+
+
+# =====================================================================
+# 🛒 17. طلبات النشر في السوق المركزي (B2B Listing Approval)
+# =====================================================================
+@admin.register(B2BListingRequest)
+class B2BListingRequestAdmin(SecureImportExportAdmin):
+    list_display = (
+        'product', 'status_badge', 'requested_price', 'approved_price',
+        'requested_by', 'reviewed_by', 'created_at',
+    )
+    list_filter = ('status', 'created_at')
+    search_fields = ('product__name', 'product__part_number')
+    readonly_fields = (
+        'product', 'requested_price', 'requested_by',
+        'created_at', 'reviewed_at', 'is_synced',
+    )
+    actions = ['approve_listings', 'reject_listings']
+
+    def has_module_permission(self, request):
+        if connection.schema_name == 'public':
+            return False
+        return super().has_module_permission(request)
+
+    def status_badge(self, obj):
+        colors = {'pending': '#f59e0b', 'approved': '#10b981', 'rejected': '#ef4444'}
+        return format_html(
+            '<span style="background:{}; color:white; padding:3px 10px; '
+            'border-radius:4px; font-size:11px; font-weight:bold;">{}</span>',
+            colors.get(obj.status, '#6b7280'), obj.get_status_display(),
+        )
+    status_badge.short_description = "حالة الطلب"
+
+    @admin.action(description='تمت الموافقة — نشر في السوق المركزي')
+    def approve_listings(self, request, queryset):
+        from inventory.services.inventory_service import InventoryService
+        approved = 0
+        for listing in queryset.filter(status='pending'):
+            price = listing.approved_price or listing.requested_price
+            InventoryService.approve_b2b_listing(listing, price, request.user)
+            approved += 1
+        self.message_user(
+            request,
+            f"تمت الموافقة على {approved} طلب ونشرها في السوق المركزي بنجاح.",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description='رفض الطلبات المحددة')
+    def reject_listings(self, request, queryset):
+        updated = queryset.filter(status='pending').update(
+            status='rejected',
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+        )
+        self.message_user(request, f"تم رفض {updated} طلب.", messages.WARNING)

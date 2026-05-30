@@ -356,6 +356,10 @@ class SaleInvoice(models.Model):
     
     invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPES, verbose_name=_("النوع"))
     is_return = models.BooleanField(default=False, verbose_name=_("فاتورة مرتجع؟"))
+    original_invoice = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='return_invoices', verbose_name=_("الفاتورة الأصلية (للمرتجع)"),
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='quotation', verbose_name=_("الحالة التشغيلية"))
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, verbose_name=_("العميل"))
     vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المركبة"))
@@ -863,3 +867,49 @@ class ImportSession(models.Model):
 
     def __str__(self):
         return f"Import #{self.session_id.hex[:8]} — {self.get_entity_type_display()} ({self.get_status_display()})"
+
+
+# =====================================================================
+# 🛒 طلبات النشر في السوق المركزي (B2B Listing Approval)
+# =====================================================================
+class B2BListingRequest(models.Model):
+    STATUS_CHOICES = (
+        ('pending', _('قيد المراجعة')),
+        ('approved', _('تمت الموافقة')),
+        ('rejected', _('مرفوض')),
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE,
+        related_name='b2b_listing_requests', verbose_name=_("المنتج"),
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='pending',
+        verbose_name=_("حالة الطلب"), db_index=True,
+    )
+    requested_price = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("السعر المطلوب"),
+    )
+    approved_price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name=_("السعر المعتمد"),
+    )
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='b2b_requests_created', verbose_name=_("طالب النشر"),
+    )
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='b2b_requests_reviewed', verbose_name=_("المراجع"),
+    )
+    review_notes = models.TextField(blank=True, verbose_name=_("ملاحظات المراجعة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    is_synced = models.BooleanField(default=False, editable=False)
+
+    class Meta:
+        verbose_name = _("طلب نشر في السوق")
+        verbose_name_plural = _("طلبات النشر في السوق المركزي (B2B)")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.product.name} — {self.get_status_display()}"

@@ -193,6 +193,115 @@ class ReportingService:
                 return "نتائج البحث:\n" + "\n".join(details)
         return None
 
+    # ------------------------------------------------------------------
+    # Customer Debt Aging Report (تقادم ديون العملاء)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def customer_debt_aging(branch=None):
+        """
+        Calculate customer debt aging in 0-30, 31-60, 61-90, 90+ day buckets.
+        Based on unpaid invoices (posted, not returns).
+        """
+        from inventory.models import SaleInvoice, Customer
+
+        now = timezone.now()
+        customers = Customer.objects.filter(balance__gt=0).order_by('-balance')
+
+        result = []
+        for customer in customers:
+            buckets = {
+                '0_30': Decimal('0'), '31_60': Decimal('0'),
+                '61_90': Decimal('0'), '90_plus': Decimal('0'),
+            }
+
+            unpaid_invoices = SaleInvoice.objects.filter(
+                customer=customer, status='posted', is_return=False,
+            ).exclude(paid_amount__gte=F('total_amount'))
+
+            if branch:
+                unpaid_invoices = unpaid_invoices.filter(branch=branch)
+
+            for inv in unpaid_invoices:
+                days_old = (now.date() - inv.date_created.date()).days
+                due = inv.due_amount
+                if days_old <= 30:
+                    buckets['0_30'] += due
+                elif days_old <= 60:
+                    buckets['31_60'] += due
+                elif days_old <= 90:
+                    buckets['61_90'] += due
+                else:
+                    buckets['90_plus'] += due
+
+            result.append({
+                'customer_id': customer.id,
+                'customer_name': customer.name,
+                'phone': customer.phone,
+                'total_balance': float(customer.balance),
+                '0_30': float(buckets['0_30']),
+                '31_60': float(buckets['31_60']),
+                '61_90': float(buckets['61_90']),
+                '90_plus': float(buckets['90_plus']),
+            })
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Slow-Moving Inventory (المخزون الراكد)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def slow_moving_inventory(days_threshold=60, branch=None):
+        """
+        Find products with stock > 0 that haven't been sold
+        in the last `days_threshold` days.
+        """
+        from inventory.models import Product, Inventory, SaleInvoiceItem
+
+        cutoff_date = timezone.now() - timedelta(days=days_threshold)
+
+        # Products sold recently — use subquery for memory efficiency
+        recently_sold_ids = set(
+            SaleInvoiceItem.objects.filter(
+                invoice__status='posted',
+                invoice__date_created__gte=cutoff_date,
+            ).values_list('product_id', flat=True).distinct()
+        )
+
+        inv_qs = Inventory.objects.filter(
+            quantity__gt=0,
+        ).select_related('product', 'branch')
+        if branch:
+            inv_qs = inv_qs.filter(branch=branch)
+
+        slow_items = []
+        for inv in inv_qs.exclude(product_id__in=recently_sold_ids):
+            last_sale = (
+                SaleInvoiceItem.objects.filter(
+                    product=inv.product, invoice__status='posted',
+                ).order_by('-invoice__date_created')
+                .values_list('invoice__date_created', flat=True)
+                .first()
+            )
+
+            days_since = (timezone.now() - last_sale).days if last_sale else None
+            stock_value = float(inv.quantity * inv.product.average_cost)
+
+            slow_items.append({
+                'product_name': inv.product.name,
+                'part_number': inv.product.part_number,
+                'branch': inv.branch.name,
+                'quantity': inv.quantity,
+                'average_cost': float(inv.product.average_cost),
+                'stock_value': stock_value,
+                'last_sale_date': (
+                    last_sale.strftime('%Y-%m-%d') if last_sale else 'لم يُباع أبداً'
+                ),
+                'days_since_sale': days_since,
+            })
+
+        slow_items.sort(key=lambda x: x['stock_value'], reverse=True)
+        return slow_items
+
     @staticmethod
     def _search_invoice(q, SaleInvoice):
         """Search for a specific invoice by ID."""

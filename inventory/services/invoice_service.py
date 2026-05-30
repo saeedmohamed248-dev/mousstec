@@ -171,23 +171,42 @@ class InvoiceService:
 
             logger.info("[SALE] Starting execution for INV #%s", instance.id)
 
-            # --- 1. Treasury income ---
+            # --- 1. Treasury ---
+            is_return = getattr(instance, 'is_return', False)
             if (instance.treasury
                     and instance.paid_amount > Decimal('0.00')
                     and not instance.payments.exists()):
-                FinancialTransaction.objects.create(
-                    treasury=instance.treasury,
-                    transaction_type='in',
-                    amount=instance.paid_amount,
-                    description=(
-                        f"إيراد فاتورة {instance.get_invoice_type_display()} رقم #{instance.id}"
-                    ),
-                    sale_invoice=instance,
-                    customer=instance.customer,
-                )
+                if is_return:
+                    # مرتجع: سحب المبلغ من الخزينة (رد للعميل)
+                    FinancialTransaction.objects.create(
+                        treasury=instance.treasury,
+                        transaction_type='out',
+                        amount=instance.paid_amount,
+                        description=(
+                            f"مرتجع فاتورة #{getattr(instance, 'original_invoice_id', '') or ''} — رد مبلغ #{instance.id}"
+                        ),
+                        sale_invoice=instance,
+                        customer=instance.customer,
+                    )
+                else:
+                    FinancialTransaction.objects.create(
+                        treasury=instance.treasury,
+                        transaction_type='in',
+                        amount=instance.paid_amount,
+                        description=(
+                            f"إيراد فاتورة {instance.get_invoice_type_display()} رقم #{instance.id}"
+                        ),
+                        sale_invoice=instance,
+                        customer=instance.customer,
+                    )
 
-            # --- 2. Customer due balance ---
-            if instance.due_amount > Decimal('0.00'):
+            # --- 2. Customer balance ---
+            if is_return:
+                # مرتجع: تخفيض رصيد العميل (تقليل الدين)
+                if instance.total_amount > Decimal('0.00'):
+                    instance.customer.balance = F('balance') - instance.total_amount
+                    instance.customer.save(update_fields=['balance'])
+            elif instance.due_amount > Decimal('0.00'):
                 instance.customer.balance = F('balance') + instance.due_amount
                 instance.customer.save(update_fields=['balance'])
 
@@ -315,3 +334,75 @@ class InvoiceService:
                 state={'last_inv_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[SALE] INV #%s executed successfully.", instance.id)
+
+    # ==================================================================
+    # SALE RETURN
+    # ==================================================================
+    @staticmethod
+    def create_return_invoice(original_invoice, return_items=None):
+        """
+        Create a return (مرتجع) invoice linked to the original.
+
+        Args:
+            original_invoice: The posted SaleInvoice to return.
+            return_items: Optional list of dicts [{'item_id': int, 'quantity': int}].
+                          If None, returns all items at full quantity.
+        Returns:
+            The new SaleInvoice (as draft/quotation) with is_return=True.
+        Raises:
+            ValidationError on invalid input.
+        """
+        from inventory.models import SaleInvoice, SaleInvoiceItem
+
+        if original_invoice.is_return:
+            raise ValidationError("لا يمكن عمل مرتجع لفاتورة مرتجع.")
+        if original_invoice.status != 'posted':
+            raise ValidationError("لا يمكن عمل مرتجع لفاتورة غير معتمدة.")
+
+        with transaction.atomic():
+            return_inv = SaleInvoice.objects.create(
+                invoice_type=original_invoice.invoice_type,
+                is_return=True,
+                original_invoice=original_invoice,
+                status='quotation',
+                customer=original_invoice.customer,
+                vehicle=original_invoice.vehicle,
+                branch=original_invoice.branch,
+                treasury=original_invoice.treasury,
+                notes=f"مرتجع فاتورة #{original_invoice.id}",
+            )
+
+            if return_items:
+                item_map = {r['item_id']: r['quantity'] for r in return_items}
+            else:
+                item_map = None
+
+            for orig_item in original_invoice.items.select_related('product').all():
+                qty = item_map.get(orig_item.pk, orig_item.quantity) if item_map else orig_item.quantity
+                if qty <= 0:
+                    continue
+                if qty > orig_item.quantity:
+                    raise ValidationError(
+                        f"كمية المرتجع ({qty}) أكبر من الكمية الأصلية "
+                        f"({orig_item.quantity}) للقطعة {orig_item.product.name}"
+                    )
+                SaleInvoiceItem.objects.create(
+                    invoice=return_inv,
+                    product=orig_item.product,
+                    quantity=qty,
+                    unit_price=orig_item.unit_price,
+                    cost_at_sale=orig_item.cost_at_sale,
+                )
+
+            return_inv.update_total()
+            # Set paid_amount = total so treasury refund triggers on posting
+            SaleInvoice.objects.filter(pk=return_inv.pk).update(
+                paid_amount=return_inv.total_amount,
+            )
+            return_inv.refresh_from_db()
+
+            logger.info(
+                "[RETURN] Created return INV #%s for original INV #%s",
+                return_inv.id, original_invoice.id,
+            )
+            return return_inv

@@ -288,6 +288,10 @@
                 </a>
                 {% endif %}
 
+                <a href="{% url 'admin:admin_reports' %}" class="saas-quick-btn" style="background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);">
+                    <i class="fas fa-chart-bar"></i> التقارير والتحليلات
+                </a>
+
                 {% if business_type == 'parts_dealer' or business_type == 'both' %}
                 <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
                     <i class="fas fa-cash-register"></i> مبيعات سريعة

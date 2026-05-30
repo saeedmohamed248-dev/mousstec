@@ -379,12 +379,12 @@ class InventoryService:
     # B2B Product Sync — cross-schema marketplace update on Product save
     # ------------------------------------------------------------------
     @staticmethod
-    def sync_product_to_b2b(product_instance):
+    def sync_product_to_b2b(product_instance, override_price=None):
         """
         Sync product data to GlobalB2BMarketplace in public schema.
         Publishes if product is active, b2b-published, and has stock.
         Removes listing otherwise.
-        Called from signal: post_save(Product).
+        override_price: If provided, use this instead of product's own price.
         """
         if connection.schema_name == 'public':
             return
@@ -409,7 +409,13 @@ class InventoryService:
                     return
 
                 if is_published and is_active and total_qty > 0:
-                    from decimal import Decimal as D
+                    if override_price:
+                        wholesale = override_price
+                    elif product_instance.b2b_wholesale_price > 0:
+                        wholesale = product_instance.b2b_wholesale_price
+                    else:
+                        wholesale = product_instance.retail_price
+
                     GlobalB2BMarketplace.objects.update_or_create(
                         tenant=tenant,
                         part_number=product_instance.part_number,
@@ -417,11 +423,7 @@ class InventoryService:
                         defaults={
                             'product_name': product_instance.name,
                             'brand': product_instance.brand,
-                            'wholesale_price': (
-                                product_instance.b2b_wholesale_price
-                                if product_instance.b2b_wholesale_price > 0
-                                else product_instance.retail_price
-                            ),
+                            'wholesale_price': wholesale,
                             'available_qty': total_qty,
                         },
                     )
@@ -436,6 +438,34 @@ class InventoryService:
                 "[B2B AGENT] Market sync failed for '%s': %s",
                 product_instance.part_number, e,
             )
+
+    # ------------------------------------------------------------------
+    # B2B Listing Approval
+    # ------------------------------------------------------------------
+    @staticmethod
+    def approve_b2b_listing(listing_request, approved_price, reviewer):
+        """
+        Approve a B2BListingRequest and sync to the public marketplace.
+        """
+        listing_request.status = 'approved'
+        listing_request.approved_price = approved_price
+        listing_request.reviewed_by = reviewer
+        listing_request.reviewed_at = timezone.now()
+        listing_request.save(update_fields=[
+            'status', 'approved_price', 'reviewed_by', 'reviewed_at',
+        ])
+
+        InventoryService.sync_product_to_b2b(
+            listing_request.product, override_price=approved_price,
+        )
+
+        listing_request.is_synced = True
+        listing_request.save(update_fields=['is_synced'])
+
+        logger.info(
+            "[B2B APPROVAL] Listing #%s approved at %s EGP by %s",
+            listing_request.pk, approved_price, reviewer,
+        )
 
     # ------------------------------------------------------------------
     # B2B Marketplace Sync (Celery dispatch)

@@ -1,0 +1,333 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-grad: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        --success-grad: linear-gradient(135deg, #20c997 0%, #198754 100%);
+        --warning-grad: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        --danger-grad: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        --info-grad: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    }
+    body { font-family: 'Cairo', sans-serif !important; background: #f8fafc; }
+    .rpt-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .rpt-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
+    .rpt-title { font-size: 26px; font-weight: 800; color: #1e293b; }
+    .rpt-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .rpt-filter input, .rpt-filter select {
+        padding: 8px 14px; border: 2px solid #e2e8f0; border-radius: 10px;
+        font-family: 'Cairo'; font-weight: 600; font-size: 13px; background: #fff;
+    }
+    .rpt-filter input:focus, .rpt-filter select:focus { border-color: #4f46e5; outline: none; }
+    .rpt-filter button {
+        padding: 8px 20px; background: var(--primary-grad); color: #fff; border: none;
+        border-radius: 10px; font-weight: 700; cursor: pointer; font-family: 'Cairo';
+    }
+    .rpt-filter button:hover { filter: brightness(1.1); }
+
+    .rpt-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 25px; }
+    .rpt-card {
+        border-radius: 16px; color: white; padding: 20px; position: relative; overflow: hidden;
+        box-shadow: 0 8px 15px -3px rgba(0,0,0,0.1); transition: transform 0.3s;
+    }
+    .rpt-card:hover { transform: translateY(-4px); }
+    .rpt-card h3 { font-size: 26px; font-weight: 800; margin: 0 0 4px; }
+    .rpt-card p { font-size: 13px; font-weight: 600; opacity: 0.9; margin: 0; }
+    .rpt-card .icon { position: absolute; bottom: -10px; left: -10px; font-size: 70px; opacity: 0.15; }
+    html[dir="rtl"] .rpt-card .icon { left: auto; right: -10px; }
+
+    .rpt-section { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06); }
+    .rpt-section h2 { font-size: 18px; font-weight: 800; color: #1e293b; margin: 0 0 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+
+    .rpt-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+    .rpt-tab {
+        padding: 10px 24px; cursor: pointer; font-weight: 700; color: #64748b; border-bottom: 3px solid transparent;
+        transition: 0.2s; font-size: 14px;
+    }
+    .rpt-tab:hover { color: #4f46e5; }
+    .rpt-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+    .rpt-tab-content { display: none; }
+    .rpt-tab-content.active { display: block; }
+
+    .rpt-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .rpt-table th {
+        background: #f8fafc; padding: 10px 14px; text-align: right; font-weight: 700;
+        color: #475569; font-size: 12px; border-bottom: 2px solid #e2e8f0;
+    }
+    .rpt-table td {
+        padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600;
+    }
+    .rpt-table tr:hover td { background: #f8fafc; }
+
+    .aging-0-30 { color: #10b981; }
+    .aging-31-60 { color: #f59e0b; }
+    .aging-61-90 { color: #f97316; }
+    .aging-90-plus { color: #ef4444; font-weight: 800; }
+
+    .badge-pending { background: #f59e0b; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+
+    .chart-box { direction: ltr !important; max-height: 350px; }
+
+    .rpt-back { color: #64748b; text-decoration: none; font-weight: 700; font-size: 14px; }
+    .rpt-back:hover { color: #4f46e5; }
+
+    @media (max-width: 768px) {
+        .rpt-cards { grid-template-columns: 1fr 1fr; }
+        .rpt-header { flex-direction: column; align-items: stretch; }
+    }
+</style>
+
+<div class="rpt-container">
+
+<!-- Header -->
+<div class="rpt-header">
+    <div>
+        <a href="/{{ ADMIN_URL|default:'secure-portal' }}/" class="rpt-back">← العودة للوحة التحكم</a>
+        <div class="rpt-title">📊 التقارير والتحليلات</div>
+    </div>
+    <form method="get" class="rpt-filter">
+        <label>من:</label>
+        <input type="date" name="from" value="{{ from_date }}">
+        <label>إلى:</label>
+        <input type="date" name="to" value="{{ to_date }}">
+        <select name="customer" id="rptCustomerFilter">
+            <option value="">كل العملاء</option>
+        </select>
+        <button type="submit">🔍 عرض</button>
+    </form>
+</div>
+
+<!-- Summary Cards -->
+<div class="rpt-cards">
+    <div class="rpt-card" style="background: var(--info-grad);">
+        <p>مبيعات اليوم</p>
+        <h3 id="todayRevenue">0</h3>
+        <p id="todayCount">0 فاتورة</p>
+        <span class="icon">📅</span>
+    </div>
+    <div class="rpt-card" style="background: var(--primary-grad);">
+        <p>مبيعات الشهر</p>
+        <h3 id="monthRevenue">0</h3>
+        <p id="monthProfit">ربح: 0</p>
+        <span class="icon">📈</span>
+    </div>
+    <div class="rpt-card" style="background: var(--success-grad);">
+        <p>مبيعات السنة</p>
+        <h3 id="yearRevenue">0</h3>
+        <p id="yearProfit">ربح: 0</p>
+        <span class="icon">🏆</span>
+    </div>
+    <div class="rpt-card" style="background: {{ net_pl|floatformat:0 >= 0|yesno:'var(--success-grad),var(--danger-grad)' }}; background: {% if net_pl >= 0 %}var(--success-grad){% else %}var(--danger-grad){% endif %};">
+        <p>صافي الربح/الخسارة (الفترة)</p>
+        <h3 id="netPL">0</h3>
+        <p>بعد خصم المصروفات</p>
+        <span class="icon">💰</span>
+    </div>
+    {% if pending_b2b > 0 %}
+    <div class="rpt-card" style="background: var(--warning-grad);">
+        <p>طلبات B2B معلقة</p>
+        <h3>{{ pending_b2b }}</h3>
+        <p><a href="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/b2blistingrequest/?status__exact=pending" style="color:#fff; text-decoration:underline;">مراجعة الآن</a></p>
+        <span class="icon">🛒</span>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tabs -->
+<div class="rpt-tabs">
+    <div class="rpt-tab active" data-tab="overview">📊 الملخص</div>
+    <div class="rpt-tab" data-tab="products">🏷️ أعلى المنتجات</div>
+    <div class="rpt-tab" data-tab="customers">👥 أعلى العملاء</div>
+    <div class="rpt-tab" data-tab="aging">⏰ تقادم الديون</div>
+    <div class="rpt-tab" data-tab="slow">📦 المخزون الراكد</div>
+</div>
+
+<!-- Tab: Overview -->
+<div class="rpt-tab-content active" id="tab-overview">
+    <div class="rpt-section">
+        <h2>📈 اتجاه المبيعات والأرباح (6 أشهر)</h2>
+        <div class="chart-box">
+            <canvas id="trendChart" height="300"></canvas>
+        </div>
+    </div>
+    <div class="rpt-section">
+        <h2>💼 ملخص الفترة المحددة</h2>
+        <table class="rpt-table">
+            <tr><th>البند</th><th>القيمة</th></tr>
+            <tr><td>إجمالي الإيرادات</td><td id="pRevenue" style="font-weight:800;"></td></tr>
+            <tr><td>تكلفة البضاعة المباعة</td><td id="pCost"></td></tr>
+            <tr><td>إجمالي الربح</td><td id="pGross" style="color:#10b981;"></td></tr>
+            <tr><td>المصروفات التشغيلية</td><td id="pExpenses" style="color:#ef4444;"></td></tr>
+            <tr><td style="font-weight:800;">صافي الربح/الخسارة</td><td id="pNet" style="font-weight:800; font-size:16px;"></td></tr>
+            <tr><td>عدد الفواتير</td><td id="pCount"></td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- Tab: Products -->
+<div class="rpt-tab-content" id="tab-products">
+    <div class="rpt-section">
+        <h2>🏷️ أعلى 10 منتجات مبيعاً</h2>
+        <table class="rpt-table">
+            <thead>
+                <tr><th>#</th><th>المنتج</th><th>رقم القطعة</th><th>الكمية</th><th>الإيراد</th><th>الربح</th></tr>
+            </thead>
+            <tbody id="topProductsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab: Customers -->
+<div class="rpt-tab-content" id="tab-customers">
+    <div class="rpt-section">
+        <h2>👥 أعلى 10 عملاء إنفاقاً</h2>
+        <table class="rpt-table">
+            <thead>
+                <tr><th>#</th><th>العميل</th><th>الهاتف</th><th>إجمالي الإنفاق</th><th>عدد الفواتير</th></tr>
+            </thead>
+            <tbody id="topCustomersBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab: Aging -->
+<div class="rpt-tab-content" id="tab-aging">
+    <div class="rpt-section">
+        <h2>⏰ تقادم ديون العملاء</h2>
+        <table class="rpt-table">
+            <thead>
+                <tr><th>العميل</th><th>الهاتف</th><th>الإجمالي</th><th class="aging-0-30">0-30 يوم</th><th class="aging-31-60">31-60</th><th class="aging-61-90">61-90</th><th class="aging-90-plus">+90</th></tr>
+            </thead>
+            <tbody id="agingBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab: Slow Moving -->
+<div class="rpt-tab-content" id="tab-slow">
+    <div class="rpt-section">
+        <h2>📦 المخزون الراكد (لم يُباع منذ 60 يوم)</h2>
+        <table class="rpt-table">
+            <thead>
+                <tr><th>المنتج</th><th>رقم القطعة</th><th>الفرع</th><th>الكمية</th><th>قيمة المخزون</th><th>آخر بيع</th></tr>
+            </thead>
+            <tbody id="slowBody"></tbody>
+        </table>
+    </div>
+</div>
+
+</div><!-- .rpt-container -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    // Data from Django
+    var todaySummary = {{ today_summary|safe }};
+    var monthSummary = {{ month_summary|safe }};
+    var yearSummary = {{ year_summary|safe }};
+    var periodSummary = {{ period_summary|safe }};
+    var totalExpenses = {{ total_expenses }};
+    var netPL = {{ net_pl }};
+    var chartLabels = {{ chart_labels|safe }};
+    var chartRevenue = {{ chart_revenue|safe }};
+    var chartProfit = {{ chart_profit|safe }};
+    var topProducts = {{ top_products|safe }};
+    var topCustomers = {{ top_customers|safe }};
+    var debtAging = {{ debt_aging|safe }};
+    var slowMoving = {{ slow_moving|safe }};
+    var customersList = {{ customers_list|safe }};
+    var selectedCustomer = "{{ selected_customer }}";
+
+    function fmt(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+    function fmtD(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+
+    // Cards
+    document.getElementById('todayRevenue').textContent = fmt(todaySummary.revenue) + ' ج.م';
+    document.getElementById('todayCount').textContent = todaySummary.count + ' فاتورة';
+    document.getElementById('monthRevenue').textContent = fmt(monthSummary.revenue) + ' ج.م';
+    document.getElementById('monthProfit').textContent = 'ربح: ' + fmt(monthSummary.profit) + ' ج.م';
+    document.getElementById('yearRevenue').textContent = fmt(yearSummary.revenue) + ' ج.م';
+    document.getElementById('yearProfit').textContent = 'ربح: ' + fmt(yearSummary.profit) + ' ج.م';
+    document.getElementById('netPL').textContent = fmt(netPL) + ' ج.م';
+
+    // Period summary
+    document.getElementById('pRevenue').textContent = fmtD(periodSummary.revenue) + ' ج.م';
+    document.getElementById('pCost').textContent = fmtD(periodSummary.cost) + ' ج.م';
+    document.getElementById('pGross').textContent = fmtD(periodSummary.profit) + ' ج.م';
+    document.getElementById('pExpenses').textContent = fmtD(totalExpenses) + ' ج.م';
+    var netEl = document.getElementById('pNet');
+    netEl.textContent = fmtD(netPL) + ' ج.م';
+    netEl.style.color = netPL >= 0 ? '#10b981' : '#ef4444';
+    document.getElementById('pCount').textContent = periodSummary.count;
+
+    // Chart
+    var ctx = document.getElementById('trendChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                { label: 'الإيرادات', data: chartRevenue, backgroundColor: 'rgba(79,70,229,0.7)', borderRadius: 6 },
+                { label: 'صافي الربح', data: chartProfit, backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 6 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { font: { family: 'Cairo', weight: 'bold' }}}},
+            scales: { y: { beginAtZero: true, ticks: { callback: function(v){return fmt(v);}}}}
+        }
+    });
+
+    // Top Products
+    var pb = document.getElementById('topProductsBody');
+    topProducts.forEach(function(p, i) {
+        pb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+p.product__name+'</td><td>'+p.product__part_number+'</td><td>'+p.total_qty+'</td><td>'+fmtD(p.total_revenue)+' ج.م</td><td style="color:'+(p.total_profit>=0?'#10b981':'#ef4444')+';">'+fmtD(p.total_profit)+' ج.م</td></tr>';
+    });
+    if (!topProducts.length) pb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
+
+    // Top Customers
+    var cb = document.getElementById('topCustomersBody');
+    topCustomers.forEach(function(c, i) {
+        cb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+c.customer__name+'</td><td>'+(c.customer__phone||'-')+'</td><td>'+fmtD(c.total_spent)+' ج.م</td><td>'+c.invoice_count+'</td></tr>';
+    });
+    if (!topCustomers.length) cb.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
+
+    // Debt Aging
+    var ab = document.getElementById('agingBody');
+    debtAging.forEach(function(d) {
+        ab.innerHTML += '<tr><td>'+d.customer_name+'</td><td>'+(d.phone||'-')+'</td><td style="font-weight:800;">'+fmtD(d.total_balance)+' ج.م</td>'
+            +'<td class="aging-0-30">'+fmtD(d['0_30'])+'</td><td class="aging-31-60">'+fmtD(d['31_60'])+'</td>'
+            +'<td class="aging-61-90">'+fmtD(d['61_90'])+'</td><td class="aging-90-plus">'+fmtD(d['90_plus'])+'</td></tr>';
+    });
+    if (!debtAging.length) ab.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">لا يوجد عملاء مدينون</td></tr>';
+
+    // Slow Moving
+    var sb = document.getElementById('slowBody');
+    slowMoving.forEach(function(s) {
+        sb.innerHTML += '<tr><td>'+s.product_name+'</td><td>'+s.part_number+'</td><td>'+s.branch+'</td><td>'+s.quantity+'</td><td>'+fmtD(s.stock_value)+' ج.م</td><td>'+(s.last_sale_date)+'</td></tr>';
+    });
+    if (!slowMoving.length) sb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#10b981;">كل المخزون متحرك — ممتاز!</td></tr>';
+
+    // Customer filter dropdown
+    var sel = document.getElementById('rptCustomerFilter');
+    customersList.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (String(c.id) === selectedCustomer) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    // Tabs
+    document.querySelectorAll('.rpt-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.rpt-tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.rpt-tab-content').forEach(function(c) { c.classList.remove('active'); });
+            tab.classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        });
+    });
+})();
+</script>
+{% endblock %}
