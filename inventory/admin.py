@@ -1521,6 +1521,26 @@ def admin_reports_view(request):
         except Exception:
             return HttpResponseForbidden("غير مصرح")
 
+    try:
+        return _build_reports_response(request)
+    except Exception:
+        logger.error(
+            "Reports view crash [schema=%s user=%s]: %s",
+            connection.schema_name, request.user,
+            __import__('traceback').format_exc(),
+        )
+        from django.http import HttpResponse
+        return HttpResponse(
+            '<h2 style="font-family:Cairo,sans-serif;text-align:center;margin-top:60px;">'
+            '⚠️ حدث خطأ أثناء تحميل التقارير.<br>'
+            'تم تسجيل الخطأ وسيتم إصلاحه قريباً.<br><br>'
+            '<a href="/secure-portal/">← العودة للوحة التحكم</a></h2>',
+            status=500,
+        )
+
+
+def _build_reports_response(request):
+    """Internal: builds the reports TemplateResponse (may raise)."""
     from_date_str = request.GET.get('from', '')
     to_date_str = request.GET.get('to', '')
     customer_id = request.GET.get('customer', '')
@@ -1615,14 +1635,17 @@ def admin_reports_view(request):
         chart_count.append(agg['c'] or 0)
 
     # Operating expenses (not linked to invoices)
-    expenses_qs = FinancialTransaction.objects.filter(
-        transaction_type='out',
-        date__date__gte=from_date, date__date__lte=to_date,
-        sale_invoice__isnull=True, purchase_invoice__isnull=True,
-    )
-    if branch:
-        expenses_qs = expenses_qs.filter(treasury__branch=branch)
-    total_expenses = float(expenses_qs.aggregate(t=Sum('amount'))['t'] or 0)
+    try:
+        expenses_qs = FinancialTransaction.objects.filter(
+            transaction_type='out',
+            date__date__gte=from_date, date__date__lte=to_date,
+            sale_invoice__isnull=True, purchase_invoice__isnull=True,
+        )
+        if branch:
+            expenses_qs = expenses_qs.filter(treasury__branch=branch)
+        total_expenses = float(expenses_qs.aggregate(t=Sum('amount'))['t'] or 0)
+    except Exception:
+        total_expenses = 0.0
 
     # Debt aging
     from inventory.services.reporting_service import ReportingService
@@ -1669,7 +1692,11 @@ def admin_reports_view(request):
         'slow_moving': json.dumps(slow_moving[:20], ensure_ascii=False),
         'pending_b2b': pending_b2b,
     }
-    return TemplateResponse(request, 'admin/reports.html', context)
+
+    # Force-render to catch template errors inside try/except
+    response = TemplateResponse(request, 'admin/reports.html', context)
+    response.render()
+    return response
 
 
 # Inject reports URL into admin
