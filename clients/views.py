@@ -1572,6 +1572,11 @@ LANDING_BOT_KNOWLEDGE = """أنت "مساعد Mouss Tec الذكي" — مساع
 📌 تجربة مجانية: 3 أيام بدون دفع لكل الباقات
 📌 مكافأة ولاء: التجديد قبل انتهاء الاشتراك = 5 أيام مجانية إضافية
 
+📌 باقات متجر التصميم بالذكاء الاصطناعي (AI Design Store — دفعة واحدة):
+👤 للعملاء: 2 تصميم = 99 ج.م | 4 تصاميم = 189 ج.م ⭐ | 8 تصاميم = 369 ج.م
+🎨 للمصممين: 15 تصميم = 599 ج.م | 25 تصميم = 949 ج.م ⭐ | 50 تصميم = 1,849 ج.م | 100 تصميم = 3,249 ج.م
+🎁 تصميم واحد مجاني للتجربة بدون دفع
+
 🔒 طرق الدفع:
 - فودافون كاش: حوّل المبلغ وابعت الإيصال على واتساب
 - فيزا/ماستركارد: دفع فوري آمن عبر Paymob
@@ -1713,8 +1718,9 @@ def _landing_bot_local_reply(msg):
             '• مخزون خامات (ورق، حبر) مع تنبيه نقص\n'
             '• رفع ملفات المشاريع وحفظها\n'
             '• صلاحيات موظفين دقيقة\n'
-            '• AI Studio: توليد تصاميم بالذكاء الاصطناعي (إضافة اختيارية)\n\n'
-            '🆓 جرّب مجاناً 3 أيام!'
+            '• AI Studio: توليد تصاميم بالذكاء الاصطناعي (إضافة اختيارية)\n'
+            '• متجر التصميم AI: باقات تصميم للعملاء (99-369 ج.م) والمصممين (599-3,249 ج.م)\n\n'
+            '🆓 جرّب مجاناً 3 أيام + تصميم AI مجاني!'
         )
 
     # تجربة مجانية
@@ -2895,37 +2901,302 @@ def design_store_generate(request):
     except Exception:
         pass
 
-    # Augment prompt with category + specs + dimensions
-    enhanced_desc = description
-    if category == 'logo':
-        enhanced_desc = f"Professional logo design: {description}. Clean, modern, scalable, vector-style, minimal.{dim_info}"
-    elif category == 'business_card':
-        enhanced_desc = f"Premium business card design: {description}. Clean typography, professional layout, print-ready CMYK.{dim_info or ' Standard size: 9x5.5cm.'}"
-    elif category == 'flyer':
-        enhanced_desc = f"Eye-catching flyer design: {description}. Bold typography, vibrant colors, print-ready CMYK.{dim_info or ' Standard A4 size.'}"
-    elif category == 'poster':
-        enhanced_desc = f"Professional poster design: {description}. High impact, print-ready CMYK.{dim_info}"
-    elif category == 'tshirt':
-        enhanced_desc = f"T-shirt graphic design: {description}. High contrast, isolated on transparent background, suitable for DTF/DTG printing.{dim_info or ' Standard chest print 30x40cm.'}"
-    elif category == 'mug':
-        enhanced_desc = f"Mug wrap-around design: {description}. Seamless wrap design for standard 11oz mug.{dim_info or ' Wrap area: 23x9cm.'}"
-    elif category == 'banner':
-        enhanced_desc = f"Roll-up banner design: {description}. Vertical layout, bold branding, readable from distance.{dim_info}"
-    elif category == 'sticker':
-        enhanced_desc = f"Sticker/label design: {description}. Clean edges, vibrant colors, die-cut ready.{dim_info}"
-    elif category == 'packaging':
-        weight_info = f" Product weight: {weight}kg." if weight else ''
-        enhanced_desc = f"Product packaging design: {description}. Professional, realistic mockup.{dim_info}{weight_info}"
-    elif category == 'social_post':
-        enhanced_desc = f"Social media post design: {description}. Eye-catching, modern, optimized for engagement.{dim_info or ' Square 1080x1080px.'}"
-    elif category == 'menu':
-        enhanced_desc = f"Restaurant/cafe menu design: {description}. Elegant layout, easy to read, print-ready.{dim_info or ' A4 size.'}"
-    elif category == 'invitation':
-        enhanced_desc = f"Invitation card design: {description}. Elegant, celebratory, print-ready.{dim_info}"
-    else:
-        enhanced_desc = f"Professional design: {description}.{dim_info}"
+    # ═══════════════════════════════════════════════════════════════════
+    # 🎨 MASTER PROMPT ENGINE v3 — Production-grade AI Design Prompts
+    # ─────────────────────────────────────────────────────────────────
+    # Architecture:
+    #   1. QUALITY_FOUNDATION — universal quality/anti-artifact layer
+    #   2. CATEGORY_PROMPT    — category-specific master prompt
+    #   3. MULTI_ANGLE        — optional multi-view mockup modifier
+    #   4. ARABIC_AWARENESS   — RTL text rendering instructions
+    #   5. LEARNED_INSIGHTS   — few-shot learning from best past prompts
+    # ═══════════════════════════════════════════════════════════════════
 
-    # Append learned insights
+    multi_angle = request.POST.get('multi_angle', '') == '1'
+
+    # ── Layer 1: Quality Foundation ──────────────────────────────────
+    QUALITY_FOUNDATION = (
+        "You are a world-class graphic designer with 20 years of experience in branding, "
+        "print design, and visual communication. You create designs that win international "
+        "awards. Every design you produce is: (1) perfectly composed with golden-ratio "
+        "proportions and visual balance, (2) uses professional typography with proper "
+        "kerning, leading, and hierarchy, (3) has a cohesive, intentional color palette "
+        "limited to 3-5 harmonious colors, (4) is print-ready at 300 DPI quality with "
+        "CMYK-safe colors, (5) has clean edges, no artifacts, no blurriness, no distortion. "
+        "CRITICAL RULES: Never produce amateur-looking designs. Never use more than 2 font "
+        "families. Never create cluttered layouts — use generous whitespace. Never distort "
+        "text or make it unreadable. All text must be crisp and perfectly aligned. "
+    )
+
+    # ── Layer 4: Arabic Awareness ────────────────────────────────────
+    # Detect if user description contains Arabic
+    import re
+    has_arabic = bool(re.search(r'[؀-ۿݐ-ݿࢠ-ࣿ]', description))
+    ARABIC_LAYER = ''
+    if has_arabic:
+        ARABIC_LAYER = (
+            "ARABIC TEXT RULES: This design contains Arabic text. Arabic reads RIGHT-TO-LEFT. "
+            "Use elegant Arabic typography (Naskh or modern Kufi style). Ensure Arabic letters "
+            "are properly connected and shaped. Place Arabic text aligned to the RIGHT side. "
+            "Use professional Arabic fonts — no broken or disconnected letters. "
+        )
+
+    # ── Layer 2: Category-Specific Master Prompts ────────────────────
+    enhanced_desc = description
+    weight_info = f" Product weight: {weight}kg." if weight else ''
+
+    CATEGORY_PROMPTS = {
+        'logo': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Create a world-class LOGO DESIGN. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Design a timeless, iconic logo that communicates the brand's essence "
+            f"at a glance. Create a unique symbol/icon paired with custom lettering. The logo "
+            f"must be: scalable (works at 16px favicon AND billboard size), memorable (recognizable "
+            f"in 2 seconds), versatile (works on white, dark, and colored backgrounds). "
+            f"COMPOSITION: Center the logo on a pure white background. Use negative space cleverly. "
+            f"Maximum 2-3 brand colors. The icon and text should be perfectly balanced. "
+            f"STYLE: Modern, clean, vector-style flat design. No photographic elements, no complex "
+            f"gradients, no drop shadows, no 3D effects unless specifically requested. Think Apple, "
+            f"Nike, Airbnb level quality. "
+            f"OUTPUT: Render the final logo large and centered with ample padding around it.{dim_info}"
+        ),
+
+        'business_card': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PREMIUM BUSINESS CARD — render as a flat, top-down photograph of the "
+            f"printed card lying on a dark marble or wooden surface. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create an elegant, minimal business card with perfect typography. "
+            f"LAYOUT: Include these fields in clear visual hierarchy: Company name/logo (top), "
+            f"Person name (prominent), Job title, Phone number, Email, Address (smaller). "
+            f"TYPOGRAPHY: Use maximum 2 fonts — one bold display font for the name, one clean "
+            f"sans-serif for details. Letter-spacing: slightly expanded for elegance. "
+            f"DESIGN: Use one accent color against white/cream card stock. Add a subtle design "
+            f"element (thin line, geometric pattern, or embossed texture). Consider a colored edge "
+            f"or a minimal pattern on the back. "
+            f"QUALITY: The card should look like a $500 Moo.com premium design — thick paper stock "
+            f"feel, possibly with foil stamping or letterpress texture.{dim_info or ' Size: 85x55mm (standard).'}"
+        ),
+
+        'flyer': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a HIGH-IMPACT FLYER — flat print layout, ready for professional printing. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a flyer that grabs attention in under 1 second. "
+            f"LAYOUT STRUCTURE (top to bottom): "
+            f"(1) HERO ZONE (top 40%): Dominant visual element + bold headline in large, impactful font. "
+            f"(2) BODY ZONE (middle 35%): Key information in organized blocks with icons or bullet points. "
+            f"Use subheadings to break content. Keep body text readable (14pt+ equivalent). "
+            f"(3) ACTION ZONE (bottom 25%): Strong call-to-action button/banner, contact details "
+            f"(phone, address, social media), and company logo. "
+            f"COLOR: Use a bold primary color for headlines and CTA, with a complementary secondary color. "
+            f"Background should be clean (white or very light tint). "
+            f"TYPOGRAPHY: Bold sans-serif for headlines (Impact, Montserrat style), clean body font. "
+            f"VISUAL HIERARCHY: Someone should understand the message from 3 feet away just by reading "
+            f"the headline and seeing the main visual.{dim_info or ' A4 (210x297mm).'}"
+        ),
+
+        'poster': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a DRAMATIC, ATTENTION-GRABBING POSTER — flat print layout. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a poster that commands attention on a wall from across the room. "
+            f"COMPOSITION: Use the rule of thirds. Create one dominant focal point that takes up "
+            f"at least 50% of the poster. Use dramatic contrast (light vs dark, big vs small). "
+            f"TYPOGRAPHY: The headline should be MASSIVE — readable from 10+ feet away. Use extreme "
+            f"font weight (ultra-bold/black). Limit to 5-7 words maximum for headline. "
+            f"Supporting text should be much smaller, creating dramatic size contrast. "
+            f"COLOR: Use high-contrast color scheme — dark background with bright accent, or vice versa. "
+            f"IMAGERY: If the content requires imagery, use a single powerful, high-quality visual — "
+            f"not multiple small images. "
+            f"OVERALL: Think movie poster or museum exhibition quality — bold, artistic, unforgettable.{dim_info}"
+        ),
+
+        'social_post': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a VIRAL-WORTHY SOCIAL MEDIA POST that stops the scroll. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a post optimized for maximum engagement and shares. "
+            f"COMPOSITION: Bold, simple, high-contrast. The message should be understood in under "
+            f"2 seconds of viewing. Use the full frame — no wasted space. "
+            f"TYPOGRAPHY: Large, bold text that is readable on a phone screen. Maximum 2 lines of "
+            f"text for headline. Use modern trendy fonts (geometric sans-serif). "
+            f"COLOR: Vibrant, saturated colors that pop on mobile screens. Use color blocking, "
+            f"gradients, or duotone effects for modern appeal. "
+            f"STYLE: Follow 2024-2026 design trends — glassmorphism, bold gradients, "
+            f"oversized typography, minimalist compositions, neon accents. "
+            f"BRANDING: Include a subtle brand logo/watermark in one corner (small, not distracting).{dim_info or ' Square 1080x1080px.'}"
+        ),
+
+        'menu': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design an ELEGANT RESTAURANT/CAFE MENU — flat print layout. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a menu that elevates the dining experience. "
+            f"LAYOUT: Organized by food categories with clear section headers (appetizers, mains, "
+            f"desserts, drinks). Each item has: name (bold), description (italic/light), price (right-aligned). "
+            f"Use thin divider lines or subtle spacing between sections. "
+            f"TYPOGRAPHY: Pair an elegant serif font (for headers/restaurant name) with a clean "
+            f"sans-serif (for items/prices). Ensure prices are perfectly aligned in a right column. "
+            f"DESIGN: Add subtle decorative elements — thin borders, small culinary icons, "
+            f"ornamental dividers. The background should be cream/off-white or rich dark (leather feel). "
+            f"QUALITY: Should look like it belongs in a Michelin-starred restaurant — refined, "
+            f"luxurious, but easy to read.{dim_info or ' A4 (210x297mm).'}"
+        ),
+
+        'invitation': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a STUNNING INVITATION CARD — flat print layout. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create an invitation that makes recipients excited to attend. "
+            f"LAYOUT: Center the event name prominently. Below it: date, time, venue, dress code, "
+            f"RSVP details — in clear, elegant hierarchy. "
+            f"DESIGN: Use luxurious elements — gold/silver foil effects, embossed textures, "
+            f"decorative frames or borders, floral or geometric ornaments. "
+            f"TYPOGRAPHY: Elegant script font for event name, clean serif or sans-serif for details. "
+            f"Perfect letter spacing and line height. "
+            f"COLOR PALETTE: Rich, celebratory colors — deep navy + gold, burgundy + cream, "
+            f"blush pink + rose gold — depending on the event type. "
+            f"PAPER: Simulate premium card stock — thick, textured, high-end stationery feel.{dim_info}"
+        ),
+
+        'banner': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL ROLL-UP BANNER — flat, vertical print layout. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a banner optimized for standing display at events/stores. "
+            f"LAYOUT (vertical flow, top to bottom): "
+            f"(1) TOP: Company logo + brand colors header bar. "
+            f"(2) HERO: Main message in VERY LARGE bold text (readable from 3+ meters). "
+            f"(3) MIDDLE: 3-4 key features/benefits with icons, clean grid layout. "
+            f"(4) BOTTOM: Contact info strip — phone, email, website, QR code area. "
+            f"TYPOGRAPHY: Extremely bold headlines (ultra-thick weight). Body text must be "
+            f"minimum 24pt equivalent for readability at distance. "
+            f"COLOR: Strong brand colors with high contrast. Full-bleed background color.{dim_info}"
+        ),
+
+        'sticker': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL STICKER/LABEL — die-cut ready. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a sticker that looks amazing at small size (3-10cm). "
+            f"DESIGN: Bold, simple shapes with thick outlines. Maximum 3 colors. No fine "
+            f"details that disappear when printed small. Vector-style flat illustration. "
+            f"SHAPE: Design with a clear die-cut boundary — circle, rounded rectangle, or custom "
+            f"contour shape. Show the sticker on white background with a subtle cut-line. "
+            f"QUALITY: Should look like a premium vinyl sticker — vibrant, weatherproof, professional.{dim_info}"
+        ),
+    }
+
+    # ── T-shirt (with multi-angle support) ───────────────────────────
+    if category == 'tshirt':
+        base_tshirt = (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"CLIENT BRIEF: {description}. "
+        )
+        if multi_angle:
+            enhanced_desc = (
+                f"{base_tshirt}"
+                f"TASK: Create a PROFESSIONAL T-SHIRT PRODUCT PHOTOGRAPHY showing the shirt from "
+                f"THREE ANGLES arranged side by side in ONE image: (1) FRONT VIEW — full front of shirt, "
+                f"(2) BACK VIEW — full back of shirt, (3) 3/4 ANGLE VIEW — perspective view showing depth. "
+                f"EXECUTION: Photo-realistic product mockup of a premium cotton t-shirt. The graphic design "
+                f"should be professionally printed on the shirt (DTG/screen-print quality). "
+                f"Show realistic fabric texture, natural folds and wrinkles, proper perspective distortion "
+                f"of the artwork following the shirt's contours. "
+                f"BACKGROUND: Clean, consistent studio background (light gray gradient). "
+                f"LIGHTING: Professional studio lighting — soft key light, fill light, subtle rim light. "
+                f"All three views should have identical lighting for consistency. "
+                f"QUALITY: E-commerce product photography level — Shopify/Amazon listing quality.{dim_info or ' 30x40cm chest print.'}"
+            )
+        else:
+            enhanced_desc = (
+                f"{base_tshirt}"
+                f"TASK: Create a STUNNING T-SHIRT PRODUCT MOCKUP — a single, hero product shot. "
+                f"EXECUTION: Photo-realistic mockup showing the t-shirt worn by an invisible mannequin "
+                f"(ghost mannequin style) or laid flat on a clean surface. The graphic artwork should be "
+                f"screen-printed/DTG quality — vibrant, sharp, following the fabric contours naturally. "
+                f"Show realistic cotton fabric texture, natural shadow beneath, studio lighting. "
+                f"BACKGROUND: Clean studio white or light gray. "
+                f"QUALITY: Premium e-commerce product photography — Shopify hero image quality.{dim_info or ' 30x40cm chest print.'}"
+            )
+
+    # ── Mug (with multi-angle support) ───────────────────────────────
+    elif category == 'mug':
+        base_mug = (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"CLIENT BRIEF: {description}. "
+        )
+        if multi_angle:
+            enhanced_desc = (
+                f"{base_mug}"
+                f"TASK: Create a PHOTO-REALISTIC MUG MOCKUP showing THREE ANGLES in ONE image: "
+                f"(1) FRONT — design facing camera, (2) BACK — opposite side, (3) HANDLE SIDE — 3/4 angle. "
+                f"EXECUTION: Premium white ceramic 11oz coffee mug. The artwork wraps naturally around the "
+                f"curved surface with proper perspective distortion. Show realistic ceramic texture, "
+                f"glossy reflections, and a subtle shadow beneath each mug. "
+                f"BACKGROUND: Clean white studio background, consistent lighting across all three views.{dim_info or ' Wrap area: 23x9cm.'}"
+            )
+        else:
+            enhanced_desc = (
+                f"{base_mug}"
+                f"TASK: Create a PREMIUM MUG PRODUCT MOCKUP — single hero shot from a 3/4 angle. "
+                f"EXECUTION: Photo-realistic white ceramic 11oz mug with the design wrapped around it. "
+                f"Show the handle, realistic ceramic gloss, subtle reflections, and a soft shadow. "
+                f"The artwork conforms to the mug's curvature naturally. "
+                f"BACKGROUND: Lifestyle setting (wooden desk, coffee beans) OR clean studio white. "
+                f"QUALITY: Premium product photography — Amazon/Etsy listing quality.{dim_info or ' Wrap area: 23x9cm.'}"
+            )
+
+    # ── Packaging (with multi-angle support) ─────────────────────────
+    elif category == 'packaging':
+        base_pkg = (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"CLIENT BRIEF: {description}. "
+        )
+        if multi_angle:
+            enhanced_desc = (
+                f"{base_pkg}"
+                f"TASK: Create a PRODUCT PACKAGING MOCKUP showing THREE ANGLES in ONE image: "
+                f"(1) FRONT — main branding panel, (2) BACK — info panel with ingredients/details, "
+                f"(3) SIDE — secondary branding. Arrange side by side on a clean white background. "
+                f"EXECUTION: Realistic 3D box/bag/bottle mockup with professional label design. "
+                f"Include typography, barcode area, brand elements. Studio product photography quality.{dim_info}{weight_info}"
+            )
+        else:
+            enhanced_desc = (
+                f"{base_pkg}"
+                f"TASK: Design PREMIUM PRODUCT PACKAGING — 3D realistic mockup from an attractive angle. "
+                f"EXECUTION: Create packaging that has shelf-appeal — a customer would pick this product "
+                f"over competitors. Design a complete package with: front branding panel (logo, product name, "
+                f"key visual), info panel (ingredients/specs area), barcode area, regulatory symbols. "
+                f"STYLE: Modern, clean packaging with professional typography and intentional color use. "
+                f"RENDERING: Photo-realistic 3D mockup with studio lighting, subtle reflections, "
+                f"and realistic material textures (matte, glossy, kraft paper, etc.).{dim_info}{weight_info}"
+            )
+
+    # ── All other categories from lookup ─────────────────────────────
+    elif category in CATEGORY_PROMPTS:
+        enhanced_desc = CATEGORY_PROMPTS[category]
+
+    # ── Fallback for unknown categories ──────────────────────────────
+    else:
+        enhanced_desc = (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Create a PROFESSIONAL, PRINT-READY GRAPHIC DESIGN. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Analyze the client's request and determine the best design approach. "
+            f"If this is a DOCUMENT/FORM design: create a clean, organized layout with proper fields, "
+            f"lines, boxes, and professional typography. Use a structured grid layout with clear "
+            f"sections, labels, and input areas. The form should look corporate and official. "
+            f"If this is an ARTISTIC design: create visually stunning artwork with professional "
+            f"composition, color theory, and visual hierarchy. "
+            f"QUALITY: The output should look like it was produced by a top design agency — "
+            f"polished, pixel-perfect, ready for professional printing or digital use.{dim_info}"
+        )
+
+    # ── Layer 5: Append learned insights ─────────────────────────────
     if learned_suffix:
         enhanced_desc += learned_suffix
 
@@ -2933,6 +3204,17 @@ def design_store_generate(request):
     openai_key = getattr(settings, 'OPENAI_API_KEY', None)
     if not openai_key:
         return JsonResponse({"error": "محرك التوليد غير متاح حالياً"}, status=503)
+
+    # Handle logo file — read into memory before API calls
+    logo_file = request.FILES.get('logo') if (
+        not using_free_trial and purchase and purchase.package.allows_logo_upload
+    ) else None
+    logo_bytes = None
+    if logo_file:
+        logo_bytes = logo_file.read()
+        logo_file.seek(0)  # Reset for later save
+        # Enhance prompt to instruct AI to integrate the logo
+        enhanced_desc += " IMPORTANT: Integrate the provided company logo naturally into the design. The logo should be clearly visible and well-placed within the composition."
 
     try:
         import openai
@@ -2951,19 +3233,40 @@ def design_store_generate(request):
                     model_size = '1024x1024'
                 else:
                     model_size = canonical_size  # dall-e-3 supports 1024x1792
-                kwargs = {'model': m, 'prompt': enhanced_desc[:2000], 'size': model_size, 'n': 1}
+
                 quality_level = purchase.package.quality_level if purchase else 'standard'
-                if m == 'dall-e-3':
-                    kwargs['quality'] = 'hd' if quality_level in ('hd', 'ultra') else 'standard'
-                elif m == 'gpt-image-1':
-                    kwargs['quality'] = 'high' if quality_level in ('hd', 'ultra') else 'medium'
-                response = client.images.generate(**kwargs)
-                used_model = m
-                break
+
+                # If logo uploaded and model supports image editing → use edit API
+                if logo_bytes and m == 'gpt-image-1':
+                    import io
+                    logo_io = io.BytesIO(logo_bytes)
+                    logo_io.name = 'logo.png'
+                    edit_kwargs = {
+                        'model': m,
+                        'image': [logo_io],
+                        'prompt': enhanced_desc[:4000],
+                        'size': model_size,
+                        'n': 1,
+                        'quality': 'high' if quality_level in ('hd', 'ultra') else 'medium',
+                    }
+                    response = client.images.edit(**edit_kwargs)
+                    used_model = m
+                    break
+                else:
+                    # Standard generation (no logo or non-gpt-image model)
+                    kwargs = {'model': m, 'prompt': enhanced_desc[:4000], 'size': model_size, 'n': 1}
+                    if m == 'dall-e-3':
+                        kwargs['quality'] = 'hd' if quality_level in ('hd', 'ultra') else 'standard'
+                    elif m == 'gpt-image-1':
+                        kwargs['quality'] = 'high' if quality_level in ('hd', 'ultra') else 'medium'
+                    response = client.images.generate(**kwargs)
+                    used_model = m
+                    break
             except openai.BadRequestError as e:
                 err_str = str(e)
                 recoverable = ('does not exist', 'model_not_found', 'invalid_value',
-                               'Invalid size', 'invalid_size', 'not supported')
+                               'Invalid size', 'invalid_size', 'not supported',
+                               'Could not process', 'invalid_image')
                 if any(k in err_str for k in recoverable):
                     logger.warning(f"[DESIGN STORE] Model {m} failed: {err_str[:120]}, trying next...")
                     continue
@@ -3023,15 +3326,31 @@ def design_store_generate(request):
             custom_height_px=int(custom_h) if custom_h.isdigit() else None,
             weight_kg=Decimal(weight) if weight else None,
             output_format=output_format,
-            raw_input=description, engineered_prompt=enhanced_desc[:2000],
+            raw_input=description, engineered_prompt=enhanced_desc[:4000],
             image_url=image_url, model_used=used_model or 'unknown',
             regenerations_allowed=regen_limit,
         )
 
-        # Handle logo upload — blocked for free trial users
-        if not using_free_trial and purchase and purchase.package.allows_logo_upload and request.FILES.get('logo'):
-            design.logo_image = request.FILES['logo']
+        # Save logo to design record
+        if logo_file:
+            logo_file.seek(0)
+            design.logo_image = logo_file
             design.save(update_fields=['logo_image'])
+
+        # Log prompt for AI learning
+        try:
+            from clients.models import DesignPromptLog
+            DesignPromptLog.objects.create(
+                category=category,
+                user_prompt=description[:500],
+                engineered_prompt=enhanced_desc[:4000],
+                model_used=used_model or '',
+                size_used=canonical_size,
+                customer_rating=None,
+                design=design,
+            )
+        except Exception:
+            pass  # Non-critical
 
         # Consume 1 design from the right source
         if using_free_trial:
@@ -3041,6 +3360,13 @@ def design_store_generate(request):
             purchase.consume_design()
             purchase.refresh_from_db()
             remaining = purchase.designs_remaining
+
+        # Build download URLs for different formats
+        download_urls = {
+            'png': image_url,
+            'pdf': f"/marketplace/design-store/{design.design_code}/download/pdf/",
+            'jpg': f"/marketplace/design-store/{design.design_code}/download/jpg/",
+        }
 
         return JsonResponse({
             "status": "success",
@@ -3054,22 +3380,8 @@ def design_store_generate(request):
             "is_free_trial": using_free_trial,
             "can_download": not using_free_trial,
             "can_send_whatsapp": not using_free_trial,
+            "download_urls": download_urls if not using_free_trial else {},
         })
-
-        # Log prompt for AI learning — store successful prompts to improve future generations
-        try:
-            from clients.models import DesignPromptLog
-            DesignPromptLog.objects.create(
-                category=category,
-                user_prompt=description[:500],
-                engineered_prompt=enhanced_desc[:2000],
-                model_used=used_model or '',
-                size_used=canonical_size,
-                customer_rating=None,
-                design=design,
-            )
-        except Exception:
-            pass  # Non-critical
 
     except Exception as e:
         logger.error(f"[DESIGN STORE] Generate failed: {e}")
@@ -3107,6 +3419,90 @@ def design_store_send_whatsapp(request, design_code):
     design.save(update_fields=['sent_to_whatsapp', 'sent_at'])
 
     return JsonResponse({"status": "success", "whatsapp_url": wa_url})
+
+
+def design_store_download(request, design_code, fmt):
+    """📥 تحميل التصميم بصيغ مختلفة (png, jpg, pdf)."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "غير مصرح"}, status=401)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    if design.is_free_trial:
+        return JsonResponse({"error": "التحميل غير متاح في التجربة المجانية"}, status=403)
+
+    fmt = fmt.lower()
+    if fmt not in ('png', 'jpg', 'jpeg', 'pdf'):
+        return JsonResponse({"error": "صيغة غير مدعومة. الصيغ المتاحة: png, jpg, pdf"}, status=400)
+
+    # Get the image file
+    from django.core.files.storage import default_storage
+    import io
+
+    # Find the saved image path from the URL
+    image_path = None
+    if design.image_url:
+        # Extract relative path from URL
+        url = design.image_url
+        for prefix in ['/media/', 'media/']:
+            if prefix in url:
+                image_path = url.split(prefix, 1)[-1]
+                break
+
+    if not image_path or not default_storage.exists(image_path):
+        # Try downloading from the URL directly
+        try:
+            import requests as _req
+            r = _req.get(design.image_url, timeout=30)
+            if r.status_code == 200:
+                img_data = r.content
+            else:
+                return JsonResponse({"error": "تعذر تحميل الصورة"}, status=404)
+        except Exception:
+            return JsonResponse({"error": "تعذر تحميل الصورة"}, status=404)
+    else:
+        with default_storage.open(image_path, 'rb') as f:
+            img_data = f.read()
+
+    from PIL import Image as PILImage
+
+    if fmt == 'png':
+        response = HttpResponse(img_data, content_type='image/png')
+        response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.png"'
+        return response
+
+    img = PILImage.open(io.BytesIO(img_data))
+
+    if fmt in ('jpg', 'jpeg'):
+        # Convert to RGB (remove alpha) and save as JPEG
+        if img.mode in ('RGBA', 'P', 'LA'):
+            bg = PILImage.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=95)
+        response = HttpResponse(buf.getvalue(), content_type='image/jpeg')
+        response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.jpg"'
+        return response
+
+    if fmt == 'pdf':
+        # Convert image to PDF
+        if img.mode == 'RGBA':
+            bg = PILImage.new('RGB', img.size, (255, 255, 255))
+            bg.paste(img, mask=img.split()[-1])
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        buf = io.BytesIO()
+        img.save(buf, format='PDF', resolution=300)
+        response = HttpResponse(buf.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.pdf"'
+        return response
 
 
 @csrf_exempt
@@ -3228,4 +3624,200 @@ def design_store_print_request(request, design_code):
         "request_id": print_req.pk,
         "request_code": str(print_req.request_code),
         "message": "تم إرسال طلب الطباعة بنجاح! سنتواصل معك قريباً بعرض السعر.",
+    })
+
+
+@csrf_exempt
+def design_store_send_to_marketplace(request, design_code):
+    """🛒 إرسال التصميم لسوق B2B — ينشئ ServiceRequest للتجار (المطابع) يقدموا عروض."""
+    from clients.models import ServiceRequest
+
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    if design.is_free_trial:
+        return JsonResponse({"error": "هذه الميزة غير متاحة في التجربة المجانية"}, status=403)
+
+    # Check if already sent to marketplace
+    existing = ServiceRequest.objects.filter(
+        customer=customer,
+        title__contains=str(design.design_code)[:8],
+        status='open',
+    ).first()
+    if existing:
+        return JsonResponse({
+            "status": "already_exists",
+            "request_code": str(existing.request_code),
+            "message": "التصميم موجود بالفعل في السوق وبيستقبل عروض.",
+        })
+
+    notes = request.POST.get('notes', '').strip()
+    quantity = request.POST.get('quantity', '1').strip()
+    urgency = request.POST.get('urgency', 'normal')
+
+    try:
+        qty = int(quantity)
+        if qty < 1:
+            qty = 1
+    except (ValueError, TypeError):
+        qty = 1
+
+    # Build description for merchants
+    desc = (
+        f"طلب طباعة تصميم AI — {design.get_category_display()}\n"
+        f"المقاس: {design.actual_size_label}\n"
+        f"الكمية: {qty}\n"
+    )
+    if notes:
+        desc += f"ملاحظات العميل: {notes}\n"
+    desc += f"\nرابط التصميم: {design.image_url}"
+
+    # Create ServiceRequest in B2B marketplace
+    from datetime import timedelta
+    sr = ServiceRequest.objects.create(
+        customer=customer,
+        sector='printing',
+        title=f"طباعة {design.get_category_display()} — {design.title[:60]} [{str(design.design_code)[:8]}]",
+        description=desc,
+        urgency=urgency if urgency in ('normal', 'soon', 'urgent') else 'normal',
+        customer_city=customer.city or '',
+        expires_at=timezone.now() + timedelta(days=7),
+    )
+
+    # Attach design image as reference
+    if design.image_url:
+        try:
+            import requests as _req
+            from django.core.files.base import ContentFile
+            r = _req.get(design.image_url, timeout=15)
+            if r.status_code == 200:
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                import io
+                sr.attachment_1.save(
+                    f"design_{design.design_code}.png",
+                    ContentFile(r.content),
+                    save=True,
+                )
+        except Exception as e:
+            logger.warning(f"[MARKETPLACE] Failed to attach design image: {e}")
+
+    logger.info(f"[MARKETPLACE] Design {design.design_code} sent to B2B by {customer.full_name}")
+
+    return JsonResponse({
+        "status": "success",
+        "request_code": str(sr.request_code),
+        "message": f"تم نشر تصميمك في سوق الطباعة. المطابع هتبدأ تبعتلك عروض أسعار قريباً.",
+    })
+
+
+@csrf_exempt
+def design_store_watermark(request, design_code):
+    """💧 إضافة / إزالة علامة مائية على التصميم."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    if design.is_free_trial:
+        return JsonResponse({"error": "العلامة المائية غير متاحة في التجربة المجانية"}, status=403)
+
+    watermark_text = request.POST.get('text', customer.company_name or customer.full_name).strip()
+    if not watermark_text:
+        watermark_text = 'Mouss Tec AI Design'
+
+    # Get the original image
+    from django.core.files.storage import default_storage
+    import io
+    from PIL import Image as PILImage, ImageDraw, ImageFont
+
+    img_data = None
+    # Try local storage first
+    if design.image_url:
+        url = design.image_url
+        for prefix in ['/media/', 'media/']:
+            if prefix in url:
+                rel_path = url.split(prefix, 1)[-1]
+                if default_storage.exists(rel_path):
+                    with default_storage.open(rel_path, 'rb') as f:
+                        img_data = f.read()
+                break
+
+    if not img_data:
+        try:
+            import requests as _req
+            r = _req.get(design.image_url, timeout=30)
+            if r.status_code == 200:
+                img_data = r.content
+        except Exception:
+            pass
+
+    if not img_data:
+        return JsonResponse({"error": "تعذر تحميل الصورة"}, status=404)
+
+    # Apply watermark
+    img = PILImage.open(io.BytesIO(img_data)).convert('RGBA')
+    w, h = img.size
+
+    # Create transparent overlay
+    overlay = PILImage.new('RGBA', (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    # Use a large font size relative to image
+    font_size = max(w, h) // 15
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+    except (OSError, IOError):
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
+        except (OSError, IOError):
+            font = ImageFont.load_default()
+
+    # Draw diagonal watermark text multiple times across image
+    import math
+    diagonal = int(math.sqrt(w**2 + h**2))
+    step_y = font_size * 3
+
+    for y_offset in range(-diagonal, diagonal, step_y):
+        for x_offset in range(-w, w * 2, len(watermark_text) * font_size):
+            draw.text(
+                (x_offset, y_offset),
+                watermark_text,
+                font=font,
+                fill=(255, 255, 255, 45),  # Semi-transparent white
+            )
+
+    # Rotate overlay
+    overlay = overlay.rotate(30, expand=False, center=(w // 2, h // 2))
+
+    # Composite
+    watermarked = PILImage.alpha_composite(img, overlay)
+    watermarked_rgb = watermarked.convert('RGB')
+
+    # Save watermarked version
+    import uuid as _uuid
+    from django.core.files.base import ContentFile
+    buf = io.BytesIO()
+    watermarked_rgb.save(buf, format='PNG', quality=95)
+    buf.seek(0)
+
+    filename = f"ai_store/{customer.uid}/wm_{_uuid.uuid4().hex}.png"
+    saved_path = default_storage.save(filename, ContentFile(buf.getvalue()))
+    wm_url = default_storage.url(saved_path)
+    if wm_url.startswith('/'):
+        wm_url = request.build_absolute_uri(wm_url)
+
+    return JsonResponse({
+        "status": "success",
+        "watermarked_url": wm_url,
+        "message": "تم إضافة العلامة المائية بنجاح",
     })
