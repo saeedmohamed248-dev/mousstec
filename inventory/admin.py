@@ -1666,13 +1666,206 @@ def _build_reports_response(request):
     except Exception:
         pending_b2b = 0
 
+    # ── Customer Detail Report (when a customer is selected) ──
+    customer_detail = None
+    if customer_id:
+        try:
+            cust = Customer.objects.get(id=int(customer_id))
+            cust_invoices = list(
+                SaleInvoice.objects.filter(customer=cust, status='posted')
+                .order_by('-date_created')[:50]
+                .values('id', 'date_created', 'total_amount', 'paid_amount',
+                        'is_return', 'invoice_type')
+            )
+            for inv in cust_invoices:
+                inv['total_amount'] = float(inv['total_amount'] or 0)
+                inv['paid_amount'] = float(inv['paid_amount'] or 0)
+                inv['due'] = inv['total_amount'] - inv['paid_amount']
+                inv['date_created'] = inv['date_created'].strftime('%Y-%m-%d') if inv['date_created'] else ''
+            cust_payments = list(
+                FinancialTransaction.objects.filter(
+                    customer=cust, transaction_type='in',
+                ).order_by('-date')[:30]
+                .values('date', 'amount', 'description', 'treasury__name')
+            )
+            for pay in cust_payments:
+                pay['amount'] = float(pay['amount'] or 0)
+                pay['date'] = pay['date'].strftime('%Y-%m-%d') if pay['date'] else ''
+            customer_detail = {
+                'name': cust.name,
+                'phone': cust.phone or '',
+                'balance': float(cust.balance),
+                'invoices': cust_invoices,
+                'payments': cust_payments,
+                'total_purchases': float(
+                    SaleInvoice.objects.filter(customer=cust, status='posted', is_return=False)
+                    .aggregate(t=Sum('total_amount'))['t'] or 0
+                ),
+                'total_returns': float(
+                    SaleInvoice.objects.filter(customer=cust, status='posted', is_return=True)
+                    .aggregate(t=Sum('total_amount'))['t'] or 0
+                ),
+                'invoice_count': SaleInvoice.objects.filter(customer=cust, status='posted').count(),
+            }
+        except (Customer.DoesNotExist, ValueError, TypeError):
+            customer_detail = None
+
+    # ── Expense Breakdown by Category ──
+    try:
+        expense_breakdown = list(
+            FinancialTransaction.objects.filter(
+                transaction_type='out',
+                date__date__gte=from_date, date__date__lte=to_date,
+                sale_invoice__isnull=True, purchase_invoice__isnull=True,
+            ).values('category__name')
+            .annotate(total=Sum('amount'), count=Count('id'))
+            .order_by('-total')
+        )
+        for e in expense_breakdown:
+            e['total'] = float(e['total'] or 0)
+            e['category__name'] = e['category__name'] or 'بدون تصنيف'
+    except Exception:
+        expense_breakdown = []
+
+    # ── Payroll Reports ──
+    try:
+        from hr.models import PayrollRun, PayrollEntry, Employee
+        payroll_runs = list(
+            PayrollRun.objects.order_by('-period_year', '-period_month')[:12]
+            .values('id', 'period_month', 'period_year', 'status',
+                    'total_gross', 'total_deductions', 'total_net', 'total_employees')
+        )
+        for pr in payroll_runs:
+            pr['total_gross'] = float(pr['total_gross'] or 0)
+            pr['total_deductions'] = float(pr['total_deductions'] or 0)
+            pr['total_net'] = float(pr['total_net'] or 0)
+            pr['status_display'] = dict(PayrollRun.STATUS_CHOICES).get(pr['status'], pr['status'])
+            pr['period_label'] = f"{pr['period_month']}/{pr['period_year']}"
+
+        # Latest payroll detail
+        latest_payroll_entries = []
+        if payroll_runs:
+            latest_payroll_entries = list(
+                PayrollEntry.objects.filter(payroll_run_id=payroll_runs[0]['id'])
+                .select_related('employee__user')
+                .values(
+                    'employee__user__first_name', 'employee__user__last_name',
+                    'employee__department', 'base_salary',
+                    'late_deduction', 'absence_deduction', 'advance_deduction',
+                    'other_deductions', 'bonuses', 'overtime_pay',
+                    'total_deductions', 'total_additions', 'net_salary',
+                    'days_present', 'days_absent', 'days_late',
+                )
+            )
+            dept_display = dict(Employee.DEPARTMENT_CHOICES)
+            for entry in latest_payroll_entries:
+                for k in ('base_salary', 'late_deduction', 'absence_deduction',
+                           'advance_deduction', 'other_deductions', 'bonuses',
+                           'overtime_pay', 'total_deductions', 'total_additions', 'net_salary'):
+                    entry[k] = float(entry[k] or 0)
+                entry['employee_name'] = f"{entry['employee__user__first_name'] or ''} {entry['employee__user__last_name'] or ''}".strip() or 'موظف'
+                entry['dept'] = dept_display.get(entry['employee__department'], entry['employee__department'] or '-')
+
+        # Payroll cost trend (6 months)
+        payroll_trend_labels, payroll_trend_data = [], []
+        for i in range(5, -1, -1):
+            target = today.replace(day=1) - timedelta(days=30 * i)
+            pr_agg = PayrollRun.objects.filter(
+                period_year=target.year, period_month=target.month,
+            ).aggregate(net=Sum('total_net'))
+            payroll_trend_labels.append(f"{target.month}/{target.year}")
+            payroll_trend_data.append(float(pr_agg['net'] or 0))
+    except Exception:
+        payroll_runs = []
+        latest_payroll_entries = []
+        payroll_trend_labels = []
+        payroll_trend_data = []
+
+    # ── Employee Reports ──
+    try:
+        from hr.models import AttendanceRecord, LeaveRequest, Advance
+        # Employee attendance summary for current month
+        employees_summary = []
+        all_employees = Employee.objects.filter(
+            user__is_active=True,
+        ).select_related('user').order_by('department', 'user__first_name')
+
+        for emp in all_employees:
+            att = AttendanceRecord.objects.filter(
+                employee=emp, date__gte=first_of_month, date__lte=today,
+            )
+            att_agg = att.aggregate(
+                present=Count('id', filter=models.Q(status__in=('present', 'late'))),
+                absent=Count('id', filter=models.Q(status='absent')),
+                late=Count('id', filter=models.Q(status='late')),
+                late_mins=Sum('late_minutes'),
+                hours=Sum('worked_hours'),
+            )
+            dept_display = dict(Employee.DEPARTMENT_CHOICES)
+            employees_summary.append({
+                'name': f"{emp.user.first_name or ''} {emp.user.last_name or ''}".strip() or emp.user.username,
+                'department': dept_display.get(emp.department, emp.department or '-'),
+                'job_title': emp.job_title or '-',
+                'present': att_agg['present'] or 0,
+                'absent': att_agg['absent'] or 0,
+                'late': att_agg['late'] or 0,
+                'late_mins': att_agg['late_mins'] or 0,
+                'hours': float(att_agg['hours'] or 0),
+                'salary': float(emp.base_salary),
+            })
+
+        # Leave requests for the period
+        leave_requests = list(
+            LeaveRequest.objects.filter(
+                from_date__lte=to_date, to_date__gte=from_date,
+            ).select_related('employee__user')
+            .order_by('-created_at')[:50]
+            .values(
+                'employee__user__first_name', 'employee__user__last_name',
+                'leave_type', 'from_date', 'to_date', 'status',
+            )
+        )
+        leave_type_display = dict(LeaveRequest.TYPE_CHOICES)
+        leave_status_display = dict(LeaveRequest.STATUS_CHOICES)
+        for lr in leave_requests:
+            lr['employee_name'] = f"{lr['employee__user__first_name'] or ''} {lr['employee__user__last_name'] or ''}".strip()
+            lr['leave_type_display'] = leave_type_display.get(lr['leave_type'], lr['leave_type'])
+            lr['status_display'] = leave_status_display.get(lr['status'], lr['status'])
+            lr['from_date'] = lr['from_date'].isoformat() if lr['from_date'] else ''
+            lr['to_date'] = lr['to_date'].isoformat() if lr['to_date'] else ''
+            lr['days'] = (
+                (datetime.datetime.strptime(lr['to_date'], '%Y-%m-%d').date() -
+                 datetime.datetime.strptime(lr['from_date'], '%Y-%m-%d').date()).days + 1
+            ) if lr['from_date'] and lr['to_date'] else 0
+
+        # Active advances
+        active_advances = list(
+            Advance.objects.filter(status__in=('approved', 'active'))
+            .select_related('employee__user')
+            .values(
+                'employee__user__first_name', 'employee__user__last_name',
+                'amount', 'remaining_amount', 'installments_count', 'status',
+            )
+        )
+        adv_status_display = dict(Advance.STATUS_CHOICES)
+        for adv in active_advances:
+            adv['employee_name'] = f"{adv['employee__user__first_name'] or ''} {adv['employee__user__last_name'] or ''}".strip()
+            adv['amount'] = float(adv['amount'] or 0)
+            adv['remaining_amount'] = float(adv['remaining_amount'] or 0)
+            adv['paid'] = adv['amount'] - adv['remaining_amount']
+            adv['status_display'] = adv_status_display.get(adv['status'], adv['status'])
+    except Exception:
+        employees_summary = []
+        leave_requests = []
+        active_advances = []
+
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والتحليلات',
-        'today_summary': today_summary,
-        'month_summary': month_summary,
-        'year_summary': year_summary,
-        'period_summary': period_summary,
+        'today_summary': json.dumps(today_summary),
+        'month_summary': json.dumps(month_summary),
+        'year_summary': json.dumps(year_summary),
+        'period_summary': json.dumps(period_summary),
         'top_products': json.dumps(top_products, ensure_ascii=False),
         'top_customers': json.dumps(top_customers, ensure_ascii=False),
         'chart_labels': json.dumps(chart_labels),
@@ -1691,6 +1884,16 @@ def _build_reports_response(request):
         'debt_aging': json.dumps(debt_aging, ensure_ascii=False),
         'slow_moving': json.dumps(slow_moving[:20], ensure_ascii=False),
         'pending_b2b': pending_b2b,
+        # New report data
+        'customer_detail': json.dumps(customer_detail, ensure_ascii=False) if customer_detail else 'null',
+        'expense_breakdown': json.dumps(expense_breakdown, ensure_ascii=False),
+        'payroll_runs': json.dumps(payroll_runs, ensure_ascii=False),
+        'latest_payroll_entries': json.dumps(latest_payroll_entries, ensure_ascii=False),
+        'payroll_trend_labels': json.dumps(payroll_trend_labels),
+        'payroll_trend_data': json.dumps(payroll_trend_data),
+        'employees_summary': json.dumps(employees_summary, ensure_ascii=False),
+        'leave_requests': json.dumps(leave_requests, ensure_ascii=False),
+        'active_advances': json.dumps(active_advances, ensure_ascii=False),
     }
 
     # Force-render to catch template errors inside try/except

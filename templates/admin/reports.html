@@ -40,10 +40,10 @@
     .rpt-section { background: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06); }
     .rpt-section h2 { font-size: 18px; font-weight: 800; color: #1e293b; margin: 0 0 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
 
-    .rpt-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+    .rpt-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; flex-wrap: wrap; }
     .rpt-tab {
-        padding: 10px 24px; cursor: pointer; font-weight: 700; color: #64748b; border-bottom: 3px solid transparent;
-        transition: 0.2s; font-size: 14px;
+        padding: 10px 20px; cursor: pointer; font-weight: 700; color: #64748b; border-bottom: 3px solid transparent;
+        transition: 0.2s; font-size: 13px; white-space: nowrap;
     }
     .rpt-tab:hover { color: #4f46e5; }
     .rpt-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
@@ -66,15 +66,35 @@
     .aging-90-plus { color: #ef4444; font-weight: 800; }
 
     .badge-pending { background: #f59e0b; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-approved { background: #10b981; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-paid { background: #4f46e5; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-rejected { background: #ef4444; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
 
     .chart-box { direction: ltr !important; max-height: 350px; }
 
     .rpt-back { color: #64748b; text-decoration: none; font-weight: 700; font-size: 14px; }
     .rpt-back:hover { color: #4f46e5; }
 
+    .cust-detail-header { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+    .cust-detail-header .cust-info { flex: 1; min-width: 250px; }
+    .cust-detail-header .cust-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+    .cust-stat-box { background: #f8fafc; border-radius: 12px; padding: 16px; text-align: center; min-width: 140px; }
+    .cust-stat-box h4 { margin: 0; font-size: 22px; font-weight: 800; color: #1e293b; }
+    .cust-stat-box p { margin: 4px 0 0; font-size: 12px; color: #64748b; font-weight: 600; }
+
+    .sub-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .sub-tab {
+        padding: 6px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12px;
+        background: #f1f5f9; color: #475569; transition: 0.2s;
+    }
+    .sub-tab.active { background: #4f46e5; color: #fff; }
+    .sub-tab-content { display: none; }
+    .sub-tab-content.active { display: block; }
+
     @media (max-width: 768px) {
         .rpt-cards { grid-template-columns: 1fr 1fr; }
         .rpt-header { flex-direction: column; align-items: stretch; }
+        .rpt-tab { padding: 8px 12px; font-size: 12px; }
     }
 </style>
 
@@ -83,8 +103,8 @@
 <!-- Header -->
 <div class="rpt-header">
     <div>
-        <a href="/{{ ADMIN_URL|default:'secure-portal' }}/" class="rpt-back">← العودة للوحة التحكم</a>
-        <div class="rpt-title">📊 التقارير والتحليلات</div>
+        <a href="/{{ ADMIN_URL|default:'secure-portal' }}/" class="rpt-back">&larr; العودة للوحة التحكم</a>
+        <div class="rpt-title">&#x1F4CA; التقارير والتحليلات</div>
     </div>
     <form method="get" class="rpt-filter">
         <label>من:</label>
@@ -94,7 +114,7 @@
         <select name="customer" id="rptCustomerFilter">
             <option value="">كل العملاء</option>
         </select>
-        <button type="submit">🔍 عرض</button>
+        <button type="submit">&#x1F50D; عرض</button>
     </form>
 </div>
 
@@ -104,55 +124,59 @@
         <p>مبيعات اليوم</p>
         <h3 id="todayRevenue">0</h3>
         <p id="todayCount">0 فاتورة</p>
-        <span class="icon">📅</span>
+        <span class="icon">&#x1F4C5;</span>
     </div>
     <div class="rpt-card" style="background: var(--primary-grad);">
         <p>مبيعات الشهر</p>
         <h3 id="monthRevenue">0</h3>
         <p id="monthProfit">ربح: 0</p>
-        <span class="icon">📈</span>
+        <span class="icon">&#x1F4C8;</span>
     </div>
     <div class="rpt-card" style="background: var(--success-grad);">
         <p>مبيعات السنة</p>
         <h3 id="yearRevenue">0</h3>
         <p id="yearProfit">ربح: 0</p>
-        <span class="icon">🏆</span>
+        <span class="icon">&#x1F3C6;</span>
     </div>
     <div class="rpt-card" style="background: {% if net_pl >= 0 %}var(--success-grad){% else %}var(--danger-grad){% endif %};">
         <p>صافي الربح/الخسارة (الفترة)</p>
         <h3 id="netPL">0</h3>
         <p>بعد خصم المصروفات</p>
-        <span class="icon">💰</span>
+        <span class="icon">&#x1F4B0;</span>
     </div>
     {% if pending_b2b > 0 %}
     <div class="rpt-card" style="background: var(--warning-grad);">
         <p>طلبات B2B معلقة</p>
         <h3>{{ pending_b2b }}</h3>
         <p><a href="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/b2blistingrequest/?status__exact=pending" style="color:#fff; text-decoration:underline;">مراجعة الآن</a></p>
-        <span class="icon">🛒</span>
+        <span class="icon">&#x1F6D2;</span>
     </div>
     {% endif %}
 </div>
 
 <!-- Tabs -->
 <div class="rpt-tabs">
-    <div class="rpt-tab active" data-tab="overview">📊 الملخص</div>
-    <div class="rpt-tab" data-tab="products">🏷️ أعلى المنتجات</div>
-    <div class="rpt-tab" data-tab="customers">👥 أعلى العملاء</div>
-    <div class="rpt-tab" data-tab="aging">⏰ تقادم الديون</div>
-    <div class="rpt-tab" data-tab="slow">📦 المخزون الراكد</div>
+    <div class="rpt-tab active" data-tab="overview">&#x1F4CA; الملخص</div>
+    <div class="rpt-tab" data-tab="customer-detail">&#x1F464; تقرير عميل</div>
+    <div class="rpt-tab" data-tab="products">&#x1F3F7;&#xFE0F; أعلى المنتجات</div>
+    <div class="rpt-tab" data-tab="customers">&#x1F465; أعلى العملاء</div>
+    <div class="rpt-tab" data-tab="expenses">&#x1F4B8; المصروفات</div>
+    <div class="rpt-tab" data-tab="payroll">&#x1F4B5; المرتبات</div>
+    <div class="rpt-tab" data-tab="employees">&#x1F468;&#x200D;&#x1F4BC; الموظفين</div>
+    <div class="rpt-tab" data-tab="aging">&#x23F0; تقادم الديون</div>
+    <div class="rpt-tab" data-tab="slow">&#x1F4E6; المخزون الراكد</div>
 </div>
 
 <!-- Tab: Overview -->
 <div class="rpt-tab-content active" id="tab-overview">
     <div class="rpt-section">
-        <h2>📈 اتجاه المبيعات والأرباح (6 أشهر)</h2>
+        <h2>&#x1F4C8; اتجاه المبيعات والأرباح (6 أشهر)</h2>
         <div class="chart-box">
             <canvas id="trendChart" height="300"></canvas>
         </div>
     </div>
     <div class="rpt-section">
-        <h2>💼 ملخص الفترة المحددة</h2>
+        <h2>&#x1F4BC; ملخص الفترة المحددة</h2>
         <table class="rpt-table">
             <tr><th>البند</th><th>القيمة</th></tr>
             <tr><td>إجمالي الإيرادات</td><td id="pRevenue" style="font-weight:800;"></td></tr>
@@ -165,10 +189,22 @@
     </div>
 </div>
 
+<!-- Tab: Customer Detail -->
+<div class="rpt-tab-content" id="tab-customer-detail">
+    <div class="rpt-section" id="custDetailSection">
+        <h2>&#x1F464; تقرير عميل محدد</h2>
+        <div id="custDetailContent">
+            <p style="text-align:center; color:#94a3b8; font-weight:600; padding:40px;">
+                اختر عميل من القائمة أعلاه ثم اضغط "عرض" لعرض تقريره التفصيلي
+            </p>
+        </div>
+    </div>
+</div>
+
 <!-- Tab: Products -->
 <div class="rpt-tab-content" id="tab-products">
     <div class="rpt-section">
-        <h2>🏷️ أعلى 10 منتجات مبيعاً</h2>
+        <h2>&#x1F3F7;&#xFE0F; أعلى 10 منتجات مبيعاً</h2>
         <table class="rpt-table">
             <thead>
                 <tr><th>#</th><th>المنتج</th><th>رقم القطعة</th><th>الكمية</th><th>الإيراد</th><th>الربح</th></tr>
@@ -181,7 +217,7 @@
 <!-- Tab: Customers -->
 <div class="rpt-tab-content" id="tab-customers">
     <div class="rpt-section">
-        <h2>👥 أعلى 10 عملاء إنفاقاً</h2>
+        <h2>&#x1F465; أعلى 10 عملاء إنفاقاً</h2>
         <table class="rpt-table">
             <thead>
                 <tr><th>#</th><th>العميل</th><th>الهاتف</th><th>إجمالي الإنفاق</th><th>عدد الفواتير</th></tr>
@@ -191,10 +227,104 @@
     </div>
 </div>
 
+<!-- Tab: Expenses -->
+<div class="rpt-tab-content" id="tab-expenses">
+    <div class="rpt-section">
+        <h2>&#x1F4B8; تفصيل المصروفات حسب البند</h2>
+        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:300px;">
+                <table class="rpt-table">
+                    <thead>
+                        <tr><th>البند</th><th>المبلغ</th><th>العدد</th><th>النسبة</th></tr>
+                    </thead>
+                    <tbody id="expenseBreakdownBody"></tbody>
+                    <tfoot>
+                        <tr style="font-weight:800; background:#f8fafc;">
+                            <td>الإجمالي</td><td id="expenseTotal"></td><td id="expenseTotalCount"></td><td>100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div style="flex:1; min-width:300px; max-height:350px;">
+                <canvas id="expenseChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Payroll -->
+<div class="rpt-tab-content" id="tab-payroll">
+    <div class="rpt-section">
+        <h2>&#x1F4B5; تقرير المرتبات</h2>
+        <div class="sub-tabs">
+            <div class="sub-tab active" data-subtab="payroll-runs">دورات الرواتب</div>
+            <div class="sub-tab" data-subtab="payroll-detail">تفصيل آخر دورة</div>
+            <div class="sub-tab" data-subtab="payroll-trend">اتجاه تكلفة المرتبات</div>
+        </div>
+        <div class="sub-tab-content active" id="subtab-payroll-runs">
+            <table class="rpt-table">
+                <thead>
+                    <tr><th>الشهر</th><th>الحالة</th><th>عدد الموظفين</th><th>إجمالي قبل الخصم</th><th>الخصومات</th><th>صافي المرتبات</th></tr>
+                </thead>
+                <tbody id="payrollRunsBody"></tbody>
+            </table>
+        </div>
+        <div class="sub-tab-content" id="subtab-payroll-detail">
+            <table class="rpt-table">
+                <thead>
+                    <tr><th>الموظف</th><th>القسم</th><th>الأساسي</th><th>خصم تأخير</th><th>خصم غياب</th><th>خصم سلف</th><th>مكافآت</th><th>صافي</th></tr>
+                </thead>
+                <tbody id="payrollDetailBody"></tbody>
+            </table>
+        </div>
+        <div class="sub-tab-content" id="subtab-payroll-trend">
+            <div class="chart-box">
+                <canvas id="payrollTrendChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Employees -->
+<div class="rpt-tab-content" id="tab-employees">
+    <div class="rpt-section">
+        <h2>&#x1F468;&#x200D;&#x1F4BC; تقارير الموظفين</h2>
+        <div class="sub-tabs">
+            <div class="sub-tab active" data-subtab="emp-attendance">الحضور (الشهر الحالي)</div>
+            <div class="sub-tab" data-subtab="emp-leaves">الإجازات</div>
+            <div class="sub-tab" data-subtab="emp-advances">السلف النشطة</div>
+        </div>
+        <div class="sub-tab-content active" id="subtab-emp-attendance">
+            <table class="rpt-table">
+                <thead>
+                    <tr><th>الموظف</th><th>القسم</th><th>المسمى</th><th>أيام حضور</th><th>غياب</th><th>تأخير</th><th>دقائق تأخير</th><th>ساعات عمل</th><th>الراتب</th></tr>
+                </thead>
+                <tbody id="empAttendanceBody"></tbody>
+            </table>
+        </div>
+        <div class="sub-tab-content" id="subtab-emp-leaves">
+            <table class="rpt-table">
+                <thead>
+                    <tr><th>الموظف</th><th>نوع الإجازة</th><th>من</th><th>إلى</th><th>المدة</th><th>الحالة</th></tr>
+                </thead>
+                <tbody id="empLeavesBody"></tbody>
+            </table>
+        </div>
+        <div class="sub-tab-content" id="subtab-emp-advances">
+            <table class="rpt-table">
+                <thead>
+                    <tr><th>الموظف</th><th>مبلغ السلفة</th><th>المسدد</th><th>المتبقي</th><th>عدد الأقساط</th><th>الحالة</th></tr>
+                </thead>
+                <tbody id="empAdvancesBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- Tab: Aging -->
 <div class="rpt-tab-content" id="tab-aging">
     <div class="rpt-section">
-        <h2>⏰ تقادم ديون العملاء</h2>
+        <h2>&#x23F0; تقادم ديون العملاء</h2>
         <table class="rpt-table">
             <thead>
                 <tr><th>العميل</th><th>الهاتف</th><th>الإجمالي</th><th class="aging-0-30">0-30 يوم</th><th class="aging-31-60">31-60</th><th class="aging-61-90">61-90</th><th class="aging-90-plus">+90</th></tr>
@@ -207,7 +337,7 @@
 <!-- Tab: Slow Moving -->
 <div class="rpt-tab-content" id="tab-slow">
     <div class="rpt-section">
-        <h2>📦 المخزون الراكد (لم يُباع منذ 60 يوم)</h2>
+        <h2>&#x1F4E6; المخزون الراكد (لم يُباع منذ 60 يوم)</h2>
         <table class="rpt-table">
             <thead>
                 <tr><th>المنتج</th><th>رقم القطعة</th><th>الفرع</th><th>الكمية</th><th>قيمة المخزون</th><th>آخر بيع</th></tr>
@@ -222,7 +352,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-    // Data from Django
+    // ── Data from Django ──
     var todaySummary = {{ today_summary|safe }};
     var monthSummary = {{ month_summary|safe }};
     var yearSummary = {{ year_summary|safe }};
@@ -239,10 +369,21 @@
     var customersList = {{ customers_list|safe }};
     var selectedCustomer = "{{ selected_customer }}";
 
+    // New data
+    var customerDetail = {{ customer_detail|safe }};
+    var expenseBreakdown = {{ expense_breakdown|safe }};
+    var payrollRuns = {{ payroll_runs|safe }};
+    var latestPayrollEntries = {{ latest_payroll_entries|safe }};
+    var payrollTrendLabels = {{ payroll_trend_labels|safe }};
+    var payrollTrendData = {{ payroll_trend_data|safe }};
+    var employeesSummary = {{ employees_summary|safe }};
+    var leaveRequests = {{ leave_requests|safe }};
+    var activeAdvances = {{ active_advances|safe }};
+
     function fmt(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
     function fmtD(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
 
-    // Cards
+    // ── Cards ──
     document.getElementById('todayRevenue').textContent = fmt(todaySummary.revenue) + ' ج.م';
     document.getElementById('todayCount').textContent = todaySummary.count + ' فاتورة';
     document.getElementById('monthRevenue').textContent = fmt(monthSummary.revenue) + ' ج.م';
@@ -251,7 +392,7 @@
     document.getElementById('yearProfit').textContent = 'ربح: ' + fmt(yearSummary.profit) + ' ج.م';
     document.getElementById('netPL').textContent = fmt(netPL) + ' ج.م';
 
-    // Period summary
+    // ── Period summary ──
     document.getElementById('pRevenue').textContent = fmtD(periodSummary.revenue) + ' ج.م';
     document.getElementById('pCost').textContent = fmtD(periodSummary.cost) + ' ج.م';
     document.getElementById('pGross').textContent = fmtD(periodSummary.profit) + ' ج.م';
@@ -261,7 +402,7 @@
     netEl.style.color = netPL >= 0 ? '#10b981' : '#ef4444';
     document.getElementById('pCount').textContent = periodSummary.count;
 
-    // Chart
+    // ── Sales Trend Chart ──
     var ctx = document.getElementById('trendChart').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
@@ -279,21 +420,153 @@
         }
     });
 
-    // Top Products
+    // ── Top Products ──
     var pb = document.getElementById('topProductsBody');
     topProducts.forEach(function(p, i) {
         pb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+p.product__name+'</td><td>'+p.product__part_number+'</td><td>'+p.total_qty+'</td><td>'+fmtD(p.total_revenue)+' ج.م</td><td style="color:'+(p.total_profit>=0?'#10b981':'#ef4444')+';">'+fmtD(p.total_profit)+' ج.م</td></tr>';
     });
     if (!topProducts.length) pb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
 
-    // Top Customers
+    // ── Top Customers ──
     var cb = document.getElementById('topCustomersBody');
     topCustomers.forEach(function(c, i) {
         cb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+c.customer__name+'</td><td>'+(c.customer__phone||'-')+'</td><td>'+fmtD(c.total_spent)+' ج.م</td><td>'+c.invoice_count+'</td></tr>';
     });
     if (!topCustomers.length) cb.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
 
-    // Debt Aging
+    // ── Customer Detail ──
+    if (customerDetail) {
+        var html = '<div class="cust-detail-header">'
+            + '<div class="cust-info"><h3 style="margin:0 0 6px; font-size:22px; color:#1e293b;">' + customerDetail.name + '</h3>'
+            + '<p style="margin:0; color:#64748b; font-weight:600;">' + (customerDetail.phone || 'بدون رقم') + '</p></div>'
+            + '<div class="cust-stats">'
+            + '<div class="cust-stat-box"><h4 style="color:#4f46e5;">' + fmtD(customerDetail.total_purchases) + '</h4><p>إجمالي المشتريات</p></div>'
+            + '<div class="cust-stat-box"><h4 style="color:#f59e0b;">' + fmtD(customerDetail.total_returns) + '</h4><p>المرتجعات</p></div>'
+            + '<div class="cust-stat-box"><h4 style="color:' + (customerDetail.balance > 0 ? '#ef4444' : '#10b981') + ';">' + fmtD(customerDetail.balance) + '</h4><p>الرصيد المستحق</p></div>'
+            + '<div class="cust-stat-box"><h4>' + customerDetail.invoice_count + '</h4><p>عدد الفواتير</p></div>'
+            + '</div></div>';
+
+        // Invoices table
+        html += '<h3 style="font-size:16px; font-weight:800; margin:16px 0 10px; color:#1e293b;">الفواتير</h3>';
+        html += '<table class="rpt-table"><thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>';
+        customerDetail.invoices.forEach(function(inv) {
+            var typeLabel = inv.is_return ? '<span style="color:#ef4444;">مرتجع</span>' : 'بيع';
+            html += '<tr><td>' + inv.id + '</td><td>' + inv.date_created + '</td><td>' + typeLabel + '</td><td>' + fmtD(inv.total_amount) + '</td><td>' + fmtD(inv.paid_amount) + '</td><td style="color:' + (inv.due > 0 ? '#ef4444' : '#10b981') + '; font-weight:800;">' + fmtD(inv.due) + '</td></tr>';
+        });
+        if (!customerDetail.invoices.length) html += '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد فواتير</td></tr>';
+        html += '</tbody></table>';
+
+        // Payments table
+        html += '<h3 style="font-size:16px; font-weight:800; margin:20px 0 10px; color:#1e293b;">المدفوعات</h3>';
+        html += '<table class="rpt-table"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الخزنة</th><th>البيان</th></tr></thead><tbody>';
+        customerDetail.payments.forEach(function(pay) {
+            html += '<tr><td>' + pay.date + '</td><td style="color:#10b981; font-weight:800;">' + fmtD(pay.amount) + ' ج.م</td><td>' + (pay['treasury__name']||'-') + '</td><td>' + (pay.description||'-') + '</td></tr>';
+        });
+        if (!customerDetail.payments.length) html += '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">لا توجد مدفوعات</td></tr>';
+        html += '</tbody></table>';
+
+        document.getElementById('custDetailContent').innerHTML = html;
+
+        // Auto-switch to customer detail tab
+        document.querySelectorAll('.rpt-tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.rpt-tab-content').forEach(function(c) { c.classList.remove('active'); });
+        document.querySelector('[data-tab="customer-detail"]').classList.add('active');
+        document.getElementById('tab-customer-detail').classList.add('active');
+    }
+
+    // ── Expense Breakdown ──
+    var eb = document.getElementById('expenseBreakdownBody');
+    var expTotal = 0, expTotalCount = 0;
+    expenseBreakdown.forEach(function(e) { expTotal += e.total; expTotalCount += e.count; });
+    expenseBreakdown.forEach(function(e) {
+        var pct = expTotal > 0 ? ((e.total / expTotal) * 100).toFixed(1) : '0';
+        eb.innerHTML += '<tr><td>' + e['category__name'] + '</td><td>' + fmtD(e.total) + ' ج.م</td><td>' + e.count + '</td><td>' + pct + '%</td></tr>';
+    });
+    if (!expenseBreakdown.length) eb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">لا توجد مصروفات للفترة المحددة</td></tr>';
+    document.getElementById('expenseTotal').textContent = fmtD(expTotal) + ' ج.م';
+    document.getElementById('expenseTotalCount').textContent = expTotalCount;
+
+    // Expense pie chart
+    if (expenseBreakdown.length) {
+        var expColors = ['#4f46e5','#10b981','#f59e0b','#ef4444','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1'];
+        new Chart(document.getElementById('expenseChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: expenseBreakdown.map(function(e){return e['category__name'];}),
+                datasets: [{
+                    data: expenseBreakdown.map(function(e){return e.total;}),
+                    backgroundColor: expColors.slice(0, expenseBreakdown.length),
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo', weight: 'bold', size: 11 }}}}
+            }
+        });
+    }
+
+    // ── Payroll Runs ──
+    var prb = document.getElementById('payrollRunsBody');
+    payrollRuns.forEach(function(pr) {
+        var badgeClass = pr.status === 'paid' ? 'badge-paid' : pr.status === 'approved' ? 'badge-approved' : 'badge-pending';
+        prb.innerHTML += '<tr><td style="font-weight:800;">' + pr.period_label + '</td><td><span class="' + badgeClass + '">' + pr.status_display + '</span></td><td>' + pr.total_employees + '</td><td>' + fmtD(pr.total_gross) + ' ج.م</td><td style="color:#ef4444;">' + fmtD(pr.total_deductions) + ' ج.م</td><td style="color:#10b981; font-weight:800;">' + fmtD(pr.total_net) + ' ج.م</td></tr>';
+    });
+    if (!payrollRuns.length) prb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد دورات رواتب</td></tr>';
+
+    // Payroll Detail
+    var pdb = document.getElementById('payrollDetailBody');
+    latestPayrollEntries.forEach(function(e) {
+        pdb.innerHTML += '<tr><td>' + e.employee_name + '</td><td>' + e.dept + '</td><td>' + fmtD(e.base_salary) + '</td><td style="color:#f59e0b;">' + fmtD(e.late_deduction) + '</td><td style="color:#ef4444;">' + fmtD(e.absence_deduction) + '</td><td style="color:#f97316;">' + fmtD(e.advance_deduction) + '</td><td style="color:#10b981;">' + fmtD(e.bonuses) + '</td><td style="font-weight:800;">' + fmtD(e.net_salary) + ' ج.م</td></tr>';
+    });
+    if (!latestPayrollEntries.length) pdb.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">لا توجد بيانات</td></tr>';
+
+    // Payroll Trend Chart
+    if (payrollTrendLabels.length) {
+        new Chart(document.getElementById('payrollTrendChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: payrollTrendLabels,
+                datasets: [{
+                    label: 'صافي المرتبات الشهرية',
+                    data: payrollTrendData,
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79,70,229,0.1)',
+                    fill: true, tension: 0.3, borderWidth: 3,
+                    pointBackgroundColor: '#4f46e5', pointRadius: 5,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { font: { family: 'Cairo', weight: 'bold' }}}},
+                scales: { y: { beginAtZero: true, ticks: { callback: function(v){return fmt(v) + ' ج.م';}}}}
+            }
+        });
+    }
+
+    // ── Employee Attendance ──
+    var eab = document.getElementById('empAttendanceBody');
+    employeesSummary.forEach(function(e) {
+        eab.innerHTML += '<tr><td>' + e.name + '</td><td>' + e.department + '</td><td>' + e.job_title + '</td><td style="color:#10b981;">' + e.present + '</td><td style="color:#ef4444;">' + e.absent + '</td><td style="color:#f59e0b;">' + e.late + '</td><td>' + e.late_mins + ' د</td><td>' + fmtD(e.hours) + ' س</td><td>' + fmtD(e.salary) + '</td></tr>';
+    });
+    if (!employeesSummary.length) eab.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#94a3b8;">لا يوجد موظفين</td></tr>';
+
+    // Leave Requests
+    var elb = document.getElementById('empLeavesBody');
+    leaveRequests.forEach(function(lr) {
+        var badgeClass = lr.status === 'approved' ? 'badge-approved' : lr.status === 'rejected' ? 'badge-rejected' : 'badge-pending';
+        elb.innerHTML += '<tr><td>' + lr.employee_name + '</td><td>' + lr.leave_type_display + '</td><td>' + lr.from_date + '</td><td>' + lr.to_date + '</td><td>' + lr.days + ' يوم</td><td><span class="' + badgeClass + '">' + lr.status_display + '</span></td></tr>';
+    });
+    if (!leaveRequests.length) elb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد إجازات للفترة</td></tr>';
+
+    // Active Advances
+    var aab = document.getElementById('empAdvancesBody');
+    activeAdvances.forEach(function(a) {
+        var pct = a.amount > 0 ? ((a.paid / a.amount) * 100).toFixed(0) : 0;
+        aab.innerHTML += '<tr><td>' + a.employee_name + '</td><td>' + fmtD(a.amount) + ' ج.م</td><td style="color:#10b981;">' + fmtD(a.paid) + ' ج.م (' + pct + '%)</td><td style="color:#ef4444; font-weight:800;">' + fmtD(a.remaining_amount) + ' ج.م</td><td>' + a.installments_count + '</td><td><span class="badge-approved">' + a.status_display + '</span></td></tr>';
+    });
+    if (!activeAdvances.length) aab.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#10b981;">لا توجد سلف نشطة</td></tr>';
+
+    // ── Debt Aging ──
     var ab = document.getElementById('agingBody');
     debtAging.forEach(function(d) {
         ab.innerHTML += '<tr><td>'+d.customer_name+'</td><td>'+(d.phone||'-')+'</td><td style="font-weight:800;">'+fmtD(d.total_balance)+' ج.م</td>'
@@ -302,14 +575,14 @@
     });
     if (!debtAging.length) ab.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8;">لا يوجد عملاء مدينون</td></tr>';
 
-    // Slow Moving
+    // ── Slow Moving ──
     var sb = document.getElementById('slowBody');
     slowMoving.forEach(function(s) {
         sb.innerHTML += '<tr><td>'+s.product_name+'</td><td>'+s.part_number+'</td><td>'+s.branch+'</td><td>'+s.quantity+'</td><td>'+fmtD(s.stock_value)+' ج.م</td><td>'+(s.last_sale_date)+'</td></tr>';
     });
     if (!slowMoving.length) sb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#10b981;">كل المخزون متحرك — ممتاز!</td></tr>';
 
-    // Customer filter dropdown
+    // ── Customer filter dropdown ──
     var sel = document.getElementById('rptCustomerFilter');
     customersList.forEach(function(c) {
         var opt = document.createElement('option');
@@ -319,13 +592,24 @@
         sel.appendChild(opt);
     });
 
-    // Tabs
+    // ── Main Tabs ──
     document.querySelectorAll('.rpt-tab').forEach(function(tab) {
         tab.addEventListener('click', function() {
             document.querySelectorAll('.rpt-tab').forEach(function(t) { t.classList.remove('active'); });
             document.querySelectorAll('.rpt-tab-content').forEach(function(c) { c.classList.remove('active'); });
             tab.classList.add('active');
             document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // ── Sub Tabs ──
+    document.querySelectorAll('.sub-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var parent = tab.closest('.rpt-section');
+            parent.querySelectorAll('.sub-tab').forEach(function(t) { t.classList.remove('active'); });
+            parent.querySelectorAll('.sub-tab-content').forEach(function(c) { c.classList.remove('active'); });
+            tab.classList.add('active');
+            document.getElementById('subtab-' + tab.dataset.subtab).classList.add('active');
         });
     });
 })();
