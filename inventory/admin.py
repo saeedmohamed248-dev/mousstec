@@ -773,6 +773,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
             });
         </script>
         """)
+        response.render()  # TemplateResponse is lazy — must render before accessing .content
         response.content = response.content.replace(b"</body>", filter_js.encode('utf-8') + b"</body>")
         return response
 
