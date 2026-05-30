@@ -305,20 +305,23 @@
         productSelects.forEach(select => {
             select.addEventListener('change', () => runAICrossSellRadar(select));
 
-            if (!select.nextElementSibling || !select.nextElementSibling.classList.contains('mouss-tec-btn')) {
-                const searchBtn = document.createElement('a');
-                searchBtn.href = "javascript:void(0)";
-                searchBtn.className = "mouss-tec-btn";
-                searchBtn.innerHTML = '<i class="fas fa-search"></i> سوق B2B';
-                searchBtn.style.cssText = "display:inline-block; margin-right:10px; font-size:11px; background:#4f46e5; color:white; padding:4px 8px; border-radius:4px; text-decoration:none; transition:0.3s; font-family:Cairo;";
-                
-                searchBtn.onclick = function(e) {
-                    e.preventDefault();
-                    const pName = select.options[select.selectedIndex]?.text || 'قطعة غير محددة';
-                    openB2BMarketModal(pName);
-                };
-                select.parentNode.insertBefore(searchBtn, select.nextSibling);
-            }
+            // 🛡️ تجنب التكرار: فحص الحاوية الأب بالكامل (وليس فقط الأخ المباشر)
+            // لأن Select2 يُدخل عناصره بين الـ select والـ button
+            const parentContainer = select.closest('td') || select.parentNode;
+            if (parentContainer.querySelector('.mouss-tec-btn')) return;
+
+            const searchBtn = document.createElement('a');
+            searchBtn.href = "javascript:void(0)";
+            searchBtn.className = "mouss-tec-btn";
+            searchBtn.innerHTML = '<i class="fas fa-search"></i> سوق B2B';
+            searchBtn.style.cssText = "display:inline-block; margin-right:10px; font-size:11px; background:#4f46e5; color:white; padding:4px 8px; border-radius:4px; text-decoration:none; transition:0.3s; font-family:Cairo;";
+
+            searchBtn.onclick = function(e) {
+                e.preventDefault();
+                const pName = select.options[select.selectedIndex]?.text || 'قطعة غير محددة';
+                openB2BMarketModal(pName);
+            };
+            parentContainer.appendChild(searchBtn);
         });
     }
 
