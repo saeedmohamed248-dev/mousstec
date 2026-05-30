@@ -281,7 +281,9 @@ if USE_S3:
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
-    DEFAULT_FILE_STORAGE = 'erp_core.storage_backends.TenantFileSystemStorage'
+    # TenantFileSystemStorage available at erp_core.storage_backends
+    # but not activated by default to avoid breaking existing file paths.
+    # Enable per-model via: image = ImageField(storage=TenantFileSystemStorage())
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
