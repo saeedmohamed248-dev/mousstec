@@ -532,37 +532,33 @@ class ProductAdmin(SecureImportExportAdmin):
         url = reverse('admin:inventory_purchaseinvoice_change', args=[po.id])
         self.message_user(request, format_html('تم صياغة طلب شراء نواقص آلي بنجاح: <a href="{}" style="font-weight:bold;color:#4f46e5;">عرض الفاتورة المسودة #{}</a>', url, po.id), messages.SUCCESS)
 
-    @admin.action(description='🌐 طرح وإدراج القطع المحددة لايف في سوق Mouss Tec المركزي العالمي (B2B المشترك)')
+    @admin.action(description='🌐 تقديم طلب نشر القطع المحددة في سوق Mouss Tec المركزي (B2B) — يحتاج موافقة الإدارة')
     def publish_to_b2b_market(self, request, queryset):
-        if not GlobalB2BMarketplace:
-            self.message_user(request, "درع الاتصال: سوق B2B غير مفعّل حالياً ضمن تهيئة النظام الخاص بكم.", messages.WARNING)
-            return
-            
-        published = 0
-        tenant_id = connection.tenant.id
-        
+        """النشر يمر عبر نظام الموافقة (B2BListingRequest) — لا يُنشر مباشرة"""
+        created = 0
+        skipped = 0
         for product in queryset:
-            total_qty = product.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
-            if total_qty > 0:
-                with schema_context('public'):
-                    tenant_obj = Client.objects.get(id=tenant_id)
-                    GlobalB2BMarketplace.objects.update_or_create(
-                        tenant=tenant_obj,
-                        part_number=product.part_number,
-                        condition=getattr(product, 'condition', 'new'),
-                        defaults={
-                            'product_name': product.name,
-                            'brand': product.brand,
-                            'wholesale_price': float(product.retail_price) * 0.85, 
-                            'available_qty': total_qty
-                        }
-                    )
-                published += 1
-                
-        if published > 0:
-            self.message_user(request, f"🌐 تم تفعيل العبور السحابي ونشر عدد {published} صنف بنجاح في سوق التجار المركزي (B2B Hub).", messages.SUCCESS)
+            # تجاوز المنتجات التي لها طلب معلق بالفعل
+            if B2BListingRequest.objects.filter(product=product, status='pending').exists():
+                skipped += 1
+                continue
+            price = product.b2b_wholesale_price if product.b2b_wholesale_price > 0 else product.retail_price
+            B2BListingRequest.objects.create(
+                product=product,
+                requested_price=price,
+                requested_by=request.user,
+            )
+            created += 1
+
+        msg_parts = []
+        if created:
+            msg_parts.append(f"تم تقديم {created} طلب نشر. ينتظر موافقة الإدارة في «طلبات النشر في السوق».")
+        if skipped:
+            msg_parts.append(f"تم تجاوز {skipped} صنف (طلب معلق بالفعل).")
+        if msg_parts:
+            self.message_user(request, " | ".join(msg_parts), messages.SUCCESS if created else messages.WARNING)
         else:
-            self.message_user(request, "⚠️ تنبيه: الأصناف المحددة كمياتها صفرية بالمخازن، يرجى ملء رصيد المخزن أولاً قبل النشر.", messages.WARNING)
+            self.message_user(request, "لم يتم تقديم أي طلبات.", messages.WARNING)
 
 # =====================================================================
 # 🚢 محرك التفكيك والإفراج الجمركي (Scrap Dismantling Engine)

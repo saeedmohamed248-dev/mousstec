@@ -316,7 +316,7 @@ WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 # 📱 OTP Delivery Configuration
 # Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'console' (logs only)
 OTP_DELIVERY_PROVIDER = env.str('OTP_DELIVERY_PROVIDER', 'console')
-MARKETPLACE_DEBUG_OTP = env.bool('MARKETPLACE_DEBUG_OTP', default=True)  # Set False in production
+MARKETPLACE_DEBUG_OTP = env.bool('MARKETPLACE_DEBUG_OTP', default=DEBUG)  # Only show OTP in dev mode
 
 # Twilio
 TWILIO_ACCOUNT_SID = env.str('TWILIO_ACCOUNT_SID', '')

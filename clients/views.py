@@ -314,8 +314,8 @@ def account_recovery(request):
                 'tenant_name': tenant.name,
                 'tenant_schema': tenant.schema_name,
                 'masked_email': masked_email if email_sent else '',
-                # 🛡️ [FIX]: إظهار الكود عند عدم إرسال الإيميل — بدون ده المستخدم مش هيقدر يسترجع حسابه
-                'otp_hint': otp_code if not email_sent else '',
+                # 🛡️ إظهار الكود فقط في وضع التطوير — في الإنتاج يجب إعداد SMTP
+                'otp_hint': otp_code if (not email_sent and settings.DEBUG) else '',
                 'email_sent': email_sent,
             }
             return render(request, 'clients/account_recovery.html', context)
@@ -535,7 +535,7 @@ def b2b_market_search_api(request):
 @login_required(login_url='/secure-portal/')
 def active_blind_bids_api(request):
     active_bids = BlindBiddingRequest.objects.filter(status='open', expires_at__gt=timezone.now()).select_related('buyer').order_by('-created_at')
-    data = [{"bid_id": b.id, "part_number": b.part_number, "required_qty": b.required_qty, "buyer_name": "مشتري سري" if b.auto_award else b.buyer.name, "urgency": "High" if (b.expires_at - timezone.now()).total_seconds() < 7200 else "Normal"} for b in active_bids]
+    data = [{"bid_id": b.id, "part_number": b.part_number, "required_qty": b.required_qty, "buyer_name": "مشتري سري", "urgency": "High" if (b.expires_at - timezone.now()).total_seconds() < 7200 else "Normal"} for b in active_bids]
     return JsonResponse({"status": "success", "bids": data})
 
 @login_required(login_url='/secure-portal/')
@@ -587,7 +587,9 @@ def submit_bid_offer_api(request):
                     return JsonResponse({"status": "auto_awarded", "message": "تم الترسية وحجز الضمان!"})
 
         return JsonResponse({"status": "success", "message": "تم تقديم عرضك بنجاح.", "ai_score": float(final_match_score)})
-    except Exception as e: return JsonResponse({"error": str(e)}, status=500)
+    except Exception as e:
+        logger.error("[BID] submit_bid_offer_api error: %s", e)
+        return JsonResponse({"error": "حدث خطأ أثناء تقديم العرض. حاول مرة أخرى."}, status=500)
 
 # =====================================================================
 # 🛡️ 6. محفظة الضامن المالي (Escrow Ledger)
@@ -989,7 +991,8 @@ def purchase_addon_api(request):
             "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
         })
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        logger.error("[ADDON] purchase_addon_api error: %s", e)
+        return JsonResponse({"error": "حدث خطأ أثناء شراء الإضافة. حاول مرة أخرى."}, status=500)
 
 
 # =====================================================================
@@ -1868,7 +1871,7 @@ def marketplace_register(request):
         )
     except Exception as e:
         logger.error(f"[MARKETPLACE] Failed to create customer: {e}")
-        return JsonResponse({"error": f"فشل التسجيل: {str(e)[:200]}"}, status=500)
+        return JsonResponse({"error": "فشل التسجيل. حاول مرة أخرى."}, status=500)
 
     otp = customer.generate_otp()
     logger.info(f"[MARKETPLACE] New customer {cleaned_phone} registered, OTP: {otp}")
@@ -2146,7 +2149,7 @@ def marketplace_create_request(request):
         )
     except Exception as e:
         logger.error(f"[MARKETPLACE] Failed to create request for {customer.phone}: {e}")
-        return JsonResponse({"error": f"فشل إنشاء الطلب: {str(e)[:200]}"}, status=500)
+        return JsonResponse({"error": "فشل إنشاء الطلب. حاول مرة أخرى."}, status=500)
 
     # 🔔 إشعار كل التجار المؤهلين
     _notify_merchants_of_new_request(svc_request)
@@ -2915,7 +2918,7 @@ def design_store_generate(request):
 
     except Exception as e:
         logger.error(f"[DESIGN STORE] Generate failed: {e}")
-        return JsonResponse({"error": f"حدث خطأ: {str(e)[:200]}"}, status=500)
+        return JsonResponse({"error": "حدث خطأ أثناء إنشاء التصميم. حاول مرة أخرى."}, status=500)
 
 
 @csrf_exempt
