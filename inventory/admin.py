@@ -1626,13 +1626,22 @@ def admin_reports_view(request):
 
     # Debt aging
     from inventory.services.reporting_service import ReportingService
-    debt_aging = ReportingService.customer_debt_aging(branch=branch)
+    try:
+        debt_aging = ReportingService.customer_debt_aging(branch=branch)
+    except Exception:
+        debt_aging = []
 
     # Slow-moving inventory
-    slow_moving = ReportingService.slow_moving_inventory(days_threshold=60, branch=branch)
+    try:
+        slow_moving = ReportingService.slow_moving_inventory(days_threshold=60, branch=branch)
+    except Exception:
+        slow_moving = []
 
     # Pending B2B listings count
-    pending_b2b = B2BListingRequest.objects.filter(status='pending').count()
+    try:
+        pending_b2b = B2BListingRequest.objects.filter(status='pending').count()
+    except Exception:
+        pending_b2b = 0
 
     context = {
         **admin.site.each_context(request),
