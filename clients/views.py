@@ -2607,15 +2607,19 @@ def design_store_home(request):
 
     customer = _marketplace_auth(request)
     user_balance = 0
+    free_remaining = 0
     if customer:
         user_balance = sum(p.designs_remaining for p in
                           customer.design_purchases.filter(status='paid')
                           if p.is_usable)
+        free_remaining = customer.free_designs_remaining
 
     return render(request, 'clients/marketplace/design_store.html', {
         'packages': packages,
         'customer': customer,
         'user_balance': user_balance,
+        'free_remaining': free_remaining,
+        'total_balance': user_balance + free_remaining,
     })
 
 
@@ -2632,10 +2636,16 @@ def design_store_buy(request, package_slug):
     package = get_object_or_404(DesignPackage, slug=package_slug, is_active=True)
     payment_method = request.POST.get('payment_method', 'paymob')
 
+    # Determine designs count — designers (sector=printing with job_title containing design keywords) get more
+    is_designer = (customer.sector == 'printing' and
+                   any(kw in (customer.job_title or '').lower()
+                       for kw in ('مصمم', 'design', 'جرافيك', 'graphic', 'فنان')))
+    designs_count = (package.designer_designs_count or package.designs_count) if is_designer else package.designs_count
+
     # Create the purchase as PENDING — will be marked paid after payment confirmation
     purchase = DesignPurchase.objects.create(
         customer=customer, package=package,
-        designs_total=package.designs_count,
+        designs_total=designs_count,
         price_paid=package.price_egp,
         payment_method=payment_method,
         status='pending',
@@ -2755,14 +2765,23 @@ def design_store_generate(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    # Find an active purchase with remaining designs
-    purchase = next((p for p in customer.design_purchases.filter(status='paid').order_by('created_at')
-                    if p.is_usable), None)
-    if not purchase:
-        return JsonResponse({
-            "error": "لا يوجد رصيد متاح. اشتري باقة جديدة لتبدأ.",
-            "redirect": "/marketplace/design-store/",
-        }, status=403)
+    # Check free trial designs first, then paid packages
+    using_free_trial = False
+    purchase = None
+
+    if customer.has_free_designs:
+        using_free_trial = True
+    else:
+        # Find an active purchase with remaining designs
+        purchase = next((p for p in customer.design_purchases.filter(status='paid').order_by('created_at')
+                        if p.is_usable), None)
+        if not purchase:
+            return JsonResponse({
+                "error": "لا يوجد رصيد متاح. اشتري باقة جديدة لتبدأ.",
+                "redirect": "/marketplace/design-store/",
+                "free_used": customer.free_designs_used,
+                "free_total": customer.free_designs_total,
+            }, status=403)
 
     title = request.POST.get('title', '').strip()
     description = request.POST.get('description', '').strip()
@@ -2831,10 +2850,11 @@ def design_store_generate(request):
                 else:
                     model_size = canonical_size  # dall-e-3 supports 1024x1792
                 kwargs = {'model': m, 'prompt': enhanced_desc[:2000], 'size': model_size, 'n': 1}
+                quality_level = purchase.package.quality_level if purchase else 'standard'
                 if m == 'dall-e-3':
-                    kwargs['quality'] = 'hd' if purchase.package.quality_level in ('hd', 'ultra') else 'standard'
+                    kwargs['quality'] = 'hd' if quality_level in ('hd', 'ultra') else 'standard'
                 elif m == 'gpt-image-1':
-                    kwargs['quality'] = 'high' if purchase.package.quality_level in ('hd', 'ultra') else 'medium'
+                    kwargs['quality'] = 'high' if quality_level in ('hd', 'ultra') else 'medium'
                 response = client.images.generate(**kwargs)
                 used_model = m
                 break
@@ -2883,8 +2903,14 @@ def design_store_generate(request):
                 logger.warning(f"[DESIGN STORE] Failed to persist: {e}")
 
         # Create design record
+        regen_limit = 2  # 2 محاولة إعادة توليد لكل تصميم
+        if purchase:
+            regen_limit = purchase.package.free_regenerations_per_design
+
         design = CustomerDesign.objects.create(
-            customer=customer, purchase=purchase,
+            customer=customer,
+            purchase=purchase,
+            is_free_trial=using_free_trial,
             title=title or description[:60], description=description,
             category=category, size_preset=size_preset,
             custom_width_px=int(custom_w) if custom_w.isdigit() else None,
@@ -2893,17 +2919,22 @@ def design_store_generate(request):
             output_format=output_format,
             raw_input=description, engineered_prompt=enhanced_desc[:2000],
             image_url=image_url, model_used=used_model or 'unknown',
-            regenerations_allowed=purchase.package.free_regenerations_per_design,
+            regenerations_allowed=regen_limit,
         )
 
         # Handle logo upload if package allows it
-        if purchase.package.allows_logo_upload and request.FILES.get('logo'):
+        if purchase and purchase.package.allows_logo_upload and request.FILES.get('logo'):
             design.logo_image = request.FILES['logo']
             design.save(update_fields=['logo_image'])
 
-        # Consume 1 design from the purchase
-        purchase.consume_design()
-        purchase.refresh_from_db()
+        # Consume 1 design from the right source
+        if using_free_trial:
+            customer.consume_free_design()
+            remaining = customer.free_designs_remaining
+        else:
+            purchase.consume_design()
+            purchase.refresh_from_db()
+            remaining = purchase.designs_remaining
 
         return JsonResponse({
             "status": "success",
@@ -2912,8 +2943,9 @@ def design_store_generate(request):
             "image_url": image_url,
             "model_used": used_model,
             "size": design.actual_size_label,
-            "remaining_in_package": purchase.designs_remaining,
+            "remaining_in_package": remaining,
             "regenerations_left": design.regenerations_allowed,
+            "is_free_trial": using_free_trial,
         })
 
     except Exception as e:

@@ -865,6 +865,11 @@ class MarketplaceCustomer(models.Model):
     is_verified = models.BooleanField(default=False, verbose_name=_("تم التحقق من الموبايل"))
     session_token = models.UUIDField(default=uuid.uuid4, unique=True)
 
+    # Free trial designs — 2 for individual, 4 for company
+    free_designs_total = models.IntegerField(default=0, verbose_name=_("تصاميم مجانية (إجمالي)"),
+        help_text=_("فرد = 2 مجاني، شركة = 4 مجاني. يتم تعيينها تلقائياً عند التسجيل"))
+    free_designs_used = models.IntegerField(default=0, verbose_name=_("تصاميم مجانية مستخدمة"))
+
     # Trust & Stats
     total_requests = models.IntegerField(default=0)
     total_accepted_offers = models.IntegerField(default=0)
@@ -900,7 +905,30 @@ class MarketplaceCustomer(models.Model):
             return True
         return False
 
+    @property
+    def free_designs_remaining(self):
+        return max(self.free_designs_total - self.free_designs_used, 0)
+
+    @property
+    def has_free_designs(self):
+        return self.free_designs_remaining > 0
+
+    def consume_free_design(self):
+        """خصم تصميم مجاني (atomic)"""
+        from django.db import transaction as _tx
+        with _tx.atomic():
+            type(self).objects.filter(pk=self.pk).update(
+                free_designs_used=F('free_designs_used') + 1)
+            self.refresh_from_db()
+
     def save(self, *args, **kwargs):
+        # Auto-assign free trial on first save (new registration)
+        if not self.pk and self.free_designs_total == 0:
+            if self.customer_type == 'company':
+                self.free_designs_total = 4
+            else:
+                self.free_designs_total = 2
+
         # Normalize Egyptian phone numbers — consistent +20 prefix
         if self.phone and not self.phone.startswith('+'):
             digits = self.phone.lstrip('0')
@@ -1057,7 +1085,9 @@ class DesignPackage(models.Model):
     )
     slug = models.CharField(max_length=20, choices=PACKAGE_TIERS, unique=True)
     name_ar = models.CharField(max_length=100, verbose_name=_("الاسم بالعربي"))
-    designs_count = models.IntegerField(verbose_name=_("عدد التصاميم"))
+    designs_count = models.IntegerField(verbose_name=_("عدد التصاميم (عميل)"))
+    designer_designs_count = models.IntegerField(default=0, verbose_name=_("عدد التصاميم (مصمم)"),
+        help_text=_("نفس السعر لكن عدد أكبر للمصممين. 0 = نفس عدد العملاء"))
     price_egp = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر بالجنيه"))
     price_per_design = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
 
@@ -1067,7 +1097,7 @@ class DesignPackage(models.Model):
     allows_source_files = models.BooleanField(default=False, verbose_name=_("ملفات مصدر (PSD/SVG)"))
     allows_commercial_use = models.BooleanField(default=True, verbose_name=_("استخدام تجاري"))
     allows_whatsapp_delivery = models.BooleanField(default=True)
-    free_regenerations_per_design = models.IntegerField(default=3, verbose_name=_("إعادة توليد مجاني"))
+    free_regenerations_per_design = models.IntegerField(default=2, verbose_name=_("إعادة توليد مجاني (2 محاولة)"))
 
     # Quality
     resolution_max = models.CharField(max_length=20, default='2048x2048', verbose_name=_("أعلى دقة"))
@@ -1220,7 +1250,9 @@ class CustomerDesign(models.Model):
 
     design_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     customer = models.ForeignKey(MarketplaceCustomer, on_delete=models.CASCADE, related_name='designs')
-    purchase = models.ForeignKey(DesignPurchase, on_delete=models.PROTECT, related_name='designs')
+    purchase = models.ForeignKey(DesignPurchase, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='designs', verbose_name=_("الباقة (فارغ = تصميم مجاني)"))
+    is_free_trial = models.BooleanField(default=False, verbose_name=_("تصميم مجاني (تجربة)"))
 
     # User input
     title = models.CharField(max_length=200, verbose_name=_("عنوان التصميم"))
@@ -1294,20 +1326,32 @@ class CustomerDesign(models.Model):
 
 
 def seed_default_design_packages():
-    """يستدعى من management command أو migration لتأسيس الباقات."""
+    """يستدعى من management command أو migration لتأسيس الباقات.
+
+    السعر واحد للمصمم والعميل — لكن المصمم يحصل على عدد تصاميم أكبر.
+    كل تصميم له محاولتين إعادة توليد مجانية.
+    """
     defaults = [
-        {'slug': 'starter', 'name_ar': 'Starter', 'designs_count': 25, 'price_egp': Decimal('32.00'),
+        {'slug': 'starter', 'name_ar': 'Starter', 'designs_count': 25,
+         'designer_designs_count': 40, 'price_egp': Decimal('32.00'),
+         'free_regenerations_per_design': 2,
          'icon_emoji': '🥉', 'accent_color': '#fbbf24', 'sort_order': 1,
          'description_html': 'مثالية للتجربة. تصاميم HD مع حق استخدام تجاري.'},
-        {'slug': 'pro', 'name_ar': 'Pro', 'designs_count': 50, 'price_egp': Decimal('55.00'),
+        {'slug': 'pro', 'name_ar': 'Pro', 'designs_count': 50,
+         'designer_designs_count': 80, 'price_egp': Decimal('55.00'),
+         'free_regenerations_per_design': 2,
          'icon_emoji': '🥈', 'accent_color': '#a3a3a3', 'sort_order': 2,
          'allows_whatsapp_delivery': True, 'is_featured': True, 'badge_text': 'الأكثر طلباً',
          'description_html': 'أفضل قيمة للأفراد ورواد الأعمال. توصيل واتساب مباشر.'},
-        {'slug': 'business', 'name_ar': 'Business', 'designs_count': 100, 'price_egp': Decimal('100.00'),
+        {'slug': 'business', 'name_ar': 'Business', 'designs_count': 100,
+         'designer_designs_count': 160, 'price_egp': Decimal('100.00'),
+         'free_regenerations_per_design': 2,
          'icon_emoji': '🥇', 'accent_color': '#facc15', 'sort_order': 3,
          'allows_watermark': True, 'allows_logo_upload': True, 'badge_text': 'الأوفر',
          'description_html': 'للشركات والمحلات. لوجو + علامة مائية + جودة فائقة.'},
-        {'slug': 'studio', 'name_ar': 'Studio', 'designs_count': 250, 'price_egp': Decimal('220.00'),
+        {'slug': 'studio', 'name_ar': 'Studio', 'designs_count': 250,
+         'designer_designs_count': 400, 'price_egp': Decimal('220.00'),
+         'free_regenerations_per_design': 2,
          'icon_emoji': '💎', 'accent_color': '#8b5cf6', 'sort_order': 4,
          'allows_source_files': True, 'quality_level': 'ultra', 'resolution_max': '4096x4096',
          'description_html': 'للوكالات والمصممين. ملفات مصدر + أعلى دقة.'},
