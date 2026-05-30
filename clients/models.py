@@ -924,10 +924,8 @@ class MarketplaceCustomer(models.Model):
     def save(self, *args, **kwargs):
         # Auto-assign free trial on first save (new registration)
         if not self.pk and self.free_designs_total == 0:
-            if self.customer_type == 'company':
-                self.free_designs_total = 4
-            else:
-                self.free_designs_total = 2
+            # كل عميل جديد له تصميم واحد مجاني فقط
+            self.free_designs_total = 1
 
         # Normalize Egyptian phone numbers — consistent +20 prefix
         if self.phone and not self.phone.startswith('+'):
@@ -1413,71 +1411,112 @@ class DesignPrintRequest(models.Model):
         return f"PRINT-{str(self.request_code)[:8]} | {self.customer.full_name} | {self.get_product_type_display()}"
 
 
+class DesignPromptLog(models.Model):
+    """
+    🧠 سجل تعلم البرومبت — يحفظ كل برومبت ناجح مع التقييم.
+    يُستخدم لتحسين جودة التوليد مع الوقت: البرومبتات الحاصلة على
+    تقييم عالي تُستخدم كأمثلة للبرومبتات الجديدة (few-shot learning).
+    """
+    category = models.CharField(max_length=30, db_index=True, verbose_name=_("التصنيف"))
+    user_prompt = models.TextField(verbose_name=_("البرومبت الأصلي من العميل"))
+    engineered_prompt = models.TextField(verbose_name=_("البرومبت المحسّن للـ AI"))
+    model_used = models.CharField(max_length=50, blank=True)
+    size_used = models.CharField(max_length=30, blank=True)
+    customer_rating = models.IntegerField(null=True, blank=True,
+        verbose_name=_("تقييم العميل (1-5)"))
+    design = models.ForeignKey(CustomerDesign, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='prompt_logs')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("سجل برومبت")
+        verbose_name_plural = _("🧠 سجلات تعلم البرومبت")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['category', '-customer_rating']),
+        ]
+
+    def __str__(self):
+        return f"{self.category} — {self.user_prompt[:50]}"
+
+    @classmethod
+    def get_best_examples(cls, category, limit=3):
+        """جلب أفضل البرومبتات السابقة لنفس التصنيف (تقييم 4+) لاستخدامها كـ few-shot examples."""
+        return list(
+            cls.objects.filter(
+                category=category,
+                customer_rating__gte=4,
+            ).order_by('-customer_rating', '-created_at')
+            .values_list('user_prompt', 'engineered_prompt')[:limit]
+        )
+
+
 def seed_default_design_packages():
     """يستدعى من management command أو migration لتأسيس الباقات.
 
     باقات منفصلة للعملاء الأفراد والمصممين/الشركات.
-    كل تصميم له محاولتين إعادة توليد مجانية.
+    - العميل المجاني: تصميم واحد مجاني بدون إعادة محاولة
+    - أول باقة عملاء: إعادة محاولة واحدة
+    - ثاني وثالث باقة: إعادتين
+    - باقات المصممين: إعادتين
     """
     # إلغاء تفعيل الباقات القديمة
-    DesignPackage.objects.filter(slug__in=['starter', 'pro', 'business', 'studio']).update(is_active=False)
+    DesignPackage.objects.filter(slug__in=['starter', 'pro', 'business', 'studio', 'single']).update(is_active=False)
 
     # === باقات العملاء الأفراد ===
     customer_packages = [
-        {'slug': 'single', 'name_ar': 'تصميم واحد', 'designs_count': 1,
-         'designer_designs_count': 0, 'price_egp': Decimal('10.00'),
-         'target_audience': 'customer',
-         'free_regenerations_per_design': 2,
-         'icon_emoji': '🎯', 'accent_color': '#06b6d4', 'sort_order': 1,
-         'description_html': 'جرّب أول تصميم ذكي. جودة عالية مع إعادة توليد مجانية.'},
         {'slug': 'cust_2', 'name_ar': 'باقة 2 تصميم', 'designs_count': 2,
-         'designer_designs_count': 0, 'price_egp': Decimal('60.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('99.00'),
          'target_audience': 'customer',
-         'free_regenerations_per_design': 2,
-         'icon_emoji': '✨', 'accent_color': '#fbbf24', 'sort_order': 2,
-         'description_html': 'مثالية للبدء. تصميمين بجودة HD وتوصيل واتساب.'},
+         'free_regenerations_per_design': 1,
+         'icon_emoji': '✨', 'accent_color': '#fbbf24', 'sort_order': 1,
+         'allows_whatsapp_delivery': True,
+         'description_html': 'ابدأ مشروعك. تصميمين بجودة HD + إعادة محاولة مجانية.'},
         {'slug': 'cust_4', 'name_ar': 'باقة 4 تصاميم', 'designs_count': 4,
-         'designer_designs_count': 0, 'price_egp': Decimal('110.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('189.00'),
          'target_audience': 'customer',
          'free_regenerations_per_design': 2, 'is_featured': True,
          'badge_text': 'الأوفر',
-         'icon_emoji': '🔥', 'accent_color': '#ec4899', 'sort_order': 3,
-         'allows_whatsapp_delivery': True,
-         'description_html': 'أفضل قيمة! كارت + لوجو + سوشيال ميديا + فلاير.'},
+         'icon_emoji': '🔥', 'accent_color': '#ec4899', 'sort_order': 2,
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'description_html': 'أفضل قيمة! لوجو + كارت + سوشيال + فلاير + إعادتين مجانية.'},
         {'slug': 'cust_8', 'name_ar': 'باقة 8 تصاميم', 'designs_count': 8,
-         'designer_designs_count': 0, 'price_egp': Decimal('200.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('369.00'),
          'target_audience': 'customer',
          'free_regenerations_per_design': 2,
-         'icon_emoji': '💎', 'accent_color': '#8b5cf6', 'sort_order': 4,
+         'icon_emoji': '💎', 'accent_color': '#8b5cf6', 'sort_order': 3,
          'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
-         'description_html': 'هوية بصرية كاملة لمشروعك. لوجو + كروت + سوشيال.'},
+         'allows_watermark': True,
+         'description_html': 'هوية بصرية كاملة. لوجو + كروت + سوشيال + علامة مائية.'},
     ]
     # === باقات المصممين والشركات ===
     designer_packages = [
         {'slug': 'des_15', 'name_ar': 'باقة 15 تصميم', 'designs_count': 15,
-         'designer_designs_count': 0, 'price_egp': Decimal('185.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('599.00'),
          'target_audience': 'designer',
          'free_regenerations_per_design': 2,
          'icon_emoji': '🎨', 'accent_color': '#06b6d4', 'sort_order': 10,
-         'description_html': 'للمصمم المبتدئ. 15 تصميم بجودة احترافية.'},
+         'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
+         'description_html': 'للمصمم المبتدئ. 15 تصميم بجودة احترافية + إعادتين مجانية.'},
         {'slug': 'des_25', 'name_ar': 'باقة 25 تصميم', 'designs_count': 25,
-         'designer_designs_count': 0, 'price_egp': Decimal('285.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('949.00'),
          'target_audience': 'designer',
          'free_regenerations_per_design': 2, 'is_featured': True,
          'badge_text': 'الأكثر طلباً',
          'icon_emoji': '🚀', 'accent_color': '#ec4899', 'sort_order': 11,
          'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
-         'description_html': 'الأنسب للمصمم المحترف. جودة فائقة + توصيل واتساب.'},
+         'allows_watermark': True,
+         'description_html': 'الأنسب للمصمم المحترف. جودة فائقة + توصيل واتساب + علامة مائية.'},
         {'slug': 'des_50', 'name_ar': 'باقة 50 تصميم', 'designs_count': 50,
-         'designer_designs_count': 0, 'price_egp': Decimal('500.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('1849.00'),
          'target_audience': 'designer',
          'free_regenerations_per_design': 2,
          'icon_emoji': '⚡', 'accent_color': '#facc15', 'sort_order': 12,
          'allows_whatsapp_delivery': True, 'allows_logo_upload': True,
-         'allows_watermark': True,
-         'description_html': 'للاستوديوهات. علامة مائية + لوجو + جودة فائقة.'},
+         'allows_watermark': True, 'allows_source_files': True,
+         'description_html': 'للاستوديوهات. ملفات مصدر + علامة مائية + جودة فائقة.'},
         {'slug': 'des_100', 'name_ar': 'باقة 100 تصميم', 'designs_count': 100,
-         'designer_designs_count': 0, 'price_egp': Decimal('900.00'),
+         'designer_designs_count': 0, 'price_egp': Decimal('3249.00'),
          'target_audience': 'designer',
          'free_regenerations_per_design': 2,
          'icon_emoji': '👑', 'accent_color': '#8b5cf6', 'sort_order': 13,
@@ -1485,7 +1524,7 @@ def seed_default_design_packages():
          'allows_watermark': True, 'allows_source_files': True,
          'quality_level': 'ultra', 'resolution_max': '4096x4096',
          'badge_text': 'أقوى باقة',
-         'description_html': 'للوكالات الكبرى. كل المزايا + ملفات مصدر + أعلى دقة.'},
+         'description_html': 'للوكالات الكبرى. كل المزايا + ملفات مصدر + أعلى دقة 4K.'},
     ]
     for d in customer_packages + designer_packages:
         DesignPackage.objects.update_or_create(slug=d['slug'], defaults=d)

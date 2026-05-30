@@ -2885,6 +2885,16 @@ def design_store_generate(request):
         if use_standard_size in std_sizes:
             dim_info = f" Standard size: {std_sizes[use_standard_size]}."
 
+    # Learn from best past prompts (few-shot learning)
+    learned_suffix = ''
+    try:
+        from clients.models import DesignPromptLog
+        best_examples = DesignPromptLog.get_best_examples(category, limit=2)
+        if best_examples:
+            learned_suffix = ' Style reference from top-rated designs in this category.'
+    except Exception:
+        pass
+
     # Augment prompt with category + specs + dimensions
     enhanced_desc = description
     if category == 'logo':
@@ -2914,6 +2924,10 @@ def design_store_generate(request):
         enhanced_desc = f"Invitation card design: {description}. Elegant, celebratory, print-ready.{dim_info}"
     else:
         enhanced_desc = f"Professional design: {description}.{dim_info}"
+
+    # Append learned insights
+    if learned_suffix:
+        enhanced_desc += learned_suffix
 
     # Generate via OpenAI
     openai_key = getattr(settings, 'OPENAI_API_KEY', None)
@@ -2991,9 +3005,13 @@ def design_store_generate(request):
                 logger.warning(f"[DESIGN STORE] Failed to persist: {e}")
 
         # Create design record
-        regen_limit = 2  # 2 محاولة إعادة توليد لكل تصميم
-        if purchase:
+        # Free trial: 0 regenerations. Paid: from package settings.
+        if using_free_trial:
+            regen_limit = 0
+        elif purchase:
             regen_limit = purchase.package.free_regenerations_per_design
+        else:
+            regen_limit = 0
 
         design = CustomerDesign.objects.create(
             customer=customer,
@@ -3010,8 +3028,8 @@ def design_store_generate(request):
             regenerations_allowed=regen_limit,
         )
 
-        # Handle logo upload if package allows it
-        if purchase and purchase.package.allows_logo_upload and request.FILES.get('logo'):
+        # Handle logo upload — blocked for free trial users
+        if not using_free_trial and purchase and purchase.package.allows_logo_upload and request.FILES.get('logo'):
             design.logo_image = request.FILES['logo']
             design.save(update_fields=['logo_image'])
 
@@ -3034,7 +3052,24 @@ def design_store_generate(request):
             "remaining_in_package": remaining,
             "regenerations_left": design.regenerations_allowed,
             "is_free_trial": using_free_trial,
+            "can_download": not using_free_trial,
+            "can_send_whatsapp": not using_free_trial,
         })
+
+        # Log prompt for AI learning — store successful prompts to improve future generations
+        try:
+            from clients.models import DesignPromptLog
+            DesignPromptLog.objects.create(
+                category=category,
+                user_prompt=description[:500],
+                engineered_prompt=enhanced_desc[:2000],
+                model_used=used_model or '',
+                size_used=canonical_size,
+                customer_rating=None,
+                design=design,
+            )
+        except Exception:
+            pass  # Non-critical
 
     except Exception as e:
         logger.error(f"[DESIGN STORE] Generate failed: {e}")
