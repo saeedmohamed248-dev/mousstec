@@ -114,7 +114,7 @@ class Client(TenantMixin):
         verbose_name_plural = _("شركات Mouss Tec Ecosystem")
 
     def __str__(self):
-        return f"{self.name} ({self.get_plan_display()})"
+        return self.name
 
     @property
     def is_valid_subscription(self):
@@ -199,7 +199,7 @@ class GlobalB2BMarketplace(models.Model):
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الجملة للمراكز"))
     available_qty = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
     
-    ai_quality_confidence = models.IntegerField(default=95, help_text="مؤشر ذكاء اصطناعي لجودة هذا الصنف من هذا التاجر")
+    ai_quality_confidence = models.IntegerField(default=95, verbose_name=_("مؤشر جودة AI"), help_text="مؤشر ذكاء اصطناعي لجودة هذا الصنف من هذا التاجر")
     
     # 🚀 ابتكار تسعيري: تتبع الطلب لتغذية مستشار الـ AI
     demand_hits = models.IntegerField(default=0, help_text="عدد مرات البحث/الطلب على هذه القطعة")

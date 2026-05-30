@@ -277,9 +277,9 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 # =====================================================================
 @admin.register(GlobalB2BMarketplace)
 class GlobalB2BMarketplaceAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ('part_number', 'product_name', 'tenant', 'condition', 'wholesale_price_styled', 'available_qty', 'ai_confidence_score_badge')
-    list_filter = ('condition', 'brand', 'tenant')
-    search_fields = ('part_number', 'product_name', 'tenant__name')
+    list_display = ('part_number', 'product_name', 'tenant_name_safe', 'condition', 'wholesale_price_styled', 'available_qty', 'ai_confidence_score_badge')
+    list_filter = ('condition', 'brand')
+    search_fields = ('part_number', 'product_name')
     readonly_fields = ('updated_at',)
 
     def get_queryset(self, request):
@@ -287,6 +287,28 @@ class GlobalB2BMarketplaceAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
         if connection.schema_name != 'public':
             return qs.filter(tenant__schema_name=connection.schema_name)
         return qs
+
+    def has_add_permission(self, request):
+        # 🛡️ التاجر لا يضيف يدوياً — النشر فقط عبر نظام الموافقة (B2BListingRequest)
+        # السوبر أدمن فقط يقدر يضيف مباشرة للصيانة
+        if connection.schema_name == 'public' and request.user.is_superuser:
+            return True
+        return False
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'tenant':
+            # 🛡️ إخفاء tenant المنصة المركزية + عدم كشف تفاصيل الباقات
+            kwargs['queryset'] = Client.objects.exclude(
+                schema_name='public',
+            ).exclude(
+                schema_name__in=['mousstec', 'mouss_tec'],
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def tenant_name_safe(self, obj):
+        """عرض اسم التاجر بدون كشف نوع الباقة"""
+        return obj.tenant.name if obj.tenant else '-'
+    tenant_name_safe.short_description = "التاجر"
 
     def wholesale_price_styled(self, obj): return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{obj.wholesale_price:,.2f}")
     wholesale_price_styled.short_description = "سعر الجملة"
