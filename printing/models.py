@@ -545,6 +545,20 @@ class PrintTransaction(models.Model):
         else:
             super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        """عند حذف حركة مالية — عكس التأثير على رصيد الخزنة."""
+        from django.db.models import F as _F
+        from django.db import transaction as _txn
+        treasury_id = self.treasury_id
+        amount = self.amount
+        txn_type = self.transaction_type
+        with _txn.atomic():
+            super().delete(*args, **kwargs)
+            if txn_type == 'in':
+                PrintTreasury.objects.filter(pk=treasury_id).update(balance=_F('balance') - amount)
+            else:
+                PrintTreasury.objects.filter(pk=treasury_id).update(balance=_F('balance') + amount)
+
 
 # =====================================================================
 # 🔐 7. صلاحيات الموظفين (Staff Permissions)

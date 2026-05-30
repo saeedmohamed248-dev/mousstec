@@ -156,7 +156,7 @@ MIDDLEWARE = [
 
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    'clients.backends.CaseInsensitiveEmailBackend',
 ]
 ROOT_URLCONF = 'erp_core.urls'
 PUBLIC_SCHEMA_URLCONF = 'erp_core.urls'
@@ -172,6 +172,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'erp_core.context_processors.tenant_context',
             ],
         },
     },

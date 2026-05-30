@@ -181,6 +181,33 @@ def update_treasury_balance(sender, instance, created, **kwargs):
         TreasuryService.update_balance(instance)
 
 
+@receiver(post_delete, sender=FinancialTransaction)
+def reverse_treasury_balance_on_delete(sender, instance, **kwargs):
+    """
+    عند حذف حركة مالية — عكس التأثير على الخزنة.
+    إيداع محذوف → خصم من الرصيد | مصروف محذوف → إضافة للرصيد.
+    """
+    from inventory.models import Treasury
+    amount = Decimal(str(instance.amount))
+    try:
+        with transaction.atomic():
+            if instance.transaction_type == 'in':
+                Treasury.objects.filter(pk=instance.treasury_id).update(
+                    balance=F('balance') - amount
+                )
+            elif instance.transaction_type == 'out':
+                Treasury.objects.filter(pk=instance.treasury_id).update(
+                    balance=F('balance') + amount
+                )
+        logger.info(
+            "[TREASURY] Reversed %s %s EGP on treasury #%s (deleted)",
+            "debit" if instance.transaction_type == 'in' else "credit",
+            amount, instance.treasury_id,
+        )
+    except Exception as e:
+        logger.error("[TREASURY] Failed to reverse balance on delete: %s", e)
+
+
 # =====================================================================
 # 🏢 12. Employee Profile Auto-Creation (lightweight, stays in signals)
 # =====================================================================

@@ -6,6 +6,14 @@
 
 {% block content %}
     <p class="login-box-msg">{{ jazzmin_settings.welcome_sign }}</p>
+
+    {# If on public schema, warn user they need to go to their tenant subdomain #}
+    {% if is_public_schema %}
+    <div class="callout callout-warning">
+        <p>أنت على الصفحة الرئيسية. يرجى <a href="/login/" style="font-weight:bold;">البحث عن حسابك أولاً</a> للوصول لرابط الدخول الخاص بمؤسستك.</p>
+    </div>
+    {% endif %}
+
     <form action="{{ app_path }}" method="post">
         {% csrf_token %}
         {% if user.is_authenticated %}
@@ -60,6 +68,11 @@
                 <button type="submit" class="btn {{ jazzmin_ui.button_classes.primary }} btn-block">
                     تسجيل الدخول
                 </button>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-12 text-center">
+                <a href="/account/recovery/" style="color:#999;">نسيت كلمة المرور؟</a>
             </div>
         </div>
     </form>
