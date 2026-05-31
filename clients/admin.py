@@ -315,7 +315,7 @@ class GlobalB2BMarketplaceAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
 
     def ai_confidence_score_badge(self, obj):
         color = "#28a745" if obj.ai_quality_confidence >= 80 else "#ffc107" if obj.ai_quality_confidence >= 50 else "#dc3545"
-        return format_html('<div style="width: 100px; background-color: #e9ecef; border-radius: 4px; overflow: hidden;"><div style="width: {}%; background-color: {}; height: 8px;"></div></div> <span style="font-size:10px; color:{};">{}%</span>', obj.ai_quality_confidence, color, color, color, obj.ai_quality_confidence)
+        return format_html('<div style="width: 100px; background-color: #e9ecef; border-radius: 4px; overflow: hidden;"><div style="width: {}%; background-color: {}; height: 8px;"></div></div> <span style="font-size:10px; color:{};">{}%</span>', obj.ai_quality_confidence, color, color, obj.ai_quality_confidence)
     ai_confidence_score_badge.short_description = "مؤشر جودة AI"
 
 

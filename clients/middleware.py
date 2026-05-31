@@ -181,8 +181,9 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                         pass
                     return redirect(request.META.get('HTTP_REFERER', '/'))
                 # GET requests: inject warning banner via Django messages (once per session)
+                # ⚠️ هذا الـ middleware يعمل قبل SessionMiddleware؛ نتحقق من وجود الجلسة
                 grace_msg_key = f'_grace_warned_{tenant.schema_name}'
-                if not request.session.get(grace_msg_key):
+                if not hasattr(request, 'session') or not request.session.get(grace_msg_key):
                     try:
                         base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
                         protocol = "http" if getattr(settings, 'DEBUG', False) else "https"

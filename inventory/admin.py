@@ -832,7 +832,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
         if obj.total_cost and obj.total_cost > 0:
             margin = (obj.net_profit / obj.total_cost) * 100
             color = "#28a745" if margin >= 20 else "#fd7e14"
-            return format_html('<b style="color: {};">{:.1f}%</b>', color, margin)
+            return format_html('<b style="color: {};">{}%</b>', color, f"{margin:.1f}")
         return format_html('<span style="color:gray;">-</span>')
     margin_percentage.short_description = "هامش الربح"
 
@@ -2523,7 +2523,7 @@ class InventoryMovementAdmin(admin.ModelAdmin):
 
     def qty_change_display(self, obj):
         color = "#28a745" if obj.quantity_change > 0 else "#dc3545"
-        return format_html('<b style="color:{}; font-size:13px;">{:+d}</b>', color, obj.quantity_change)
+        return format_html('<b style="color:{}; font-size:13px;">{}</b>', color, f"{obj.quantity_change:+d}")
     qty_change_display.short_description = "التغيير"
 
 

@@ -47,8 +47,16 @@ class HRSettingsAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        # Singleton — only one record
-        if HRSettings.objects.exists():
+        # Singleton — only one record.
+        # 🛡️ HR is a tenant-only app; on the public schema the table doesn't exist.
+        # The admin sidebar evaluates this even when we hide HR from public — keep it safe.
+        from django.db import connection as _conn
+        if _conn.schema_name == 'public':
+            return False
+        try:
+            if HRSettings.objects.exists():
+                return False
+        except Exception:
             return False
         return super().has_add_permission(request)
 

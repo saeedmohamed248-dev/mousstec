@@ -54,7 +54,8 @@ class EmployeeShift(models.Model):
     def save(self, *args, **kwargs):
         if self.clock_out and self.clock_in:
             duration = self.clock_out - self.clock_in
-            self.total_hours = Decimal(str(max(duration.total_seconds() / 3600.0, 0)))
+            seconds = max(duration.total_seconds(), 0)
+            self.total_hours = (Decimal(str(seconds)) / Decimal('3600')).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
 
 class Product(models.Model):

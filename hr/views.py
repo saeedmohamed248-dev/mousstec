@@ -735,6 +735,10 @@ def designer_dashboard(request):
                     django_messages.error(request, f"فشل الإلغاء: {e}")
             return redirect('hr:designer_dashboard')
 
+        else:
+            django_messages.error(request, "إجراء غير معروف.")
+            return redirect('hr:designer_dashboard')
+
     # ── جمع البيانات ──
     ai_sub = AISubscriptionService.get_designer_subscription(employee)
 

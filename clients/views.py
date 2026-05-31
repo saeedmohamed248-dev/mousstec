@@ -1549,13 +1549,19 @@ def impersonate_login(request):
     admin_user = User.objects.filter(is_staff=True, is_active=True).order_by('-is_superuser', '-date_joined').first()
 
     if not admin_user:
-        # أنشئ superuser مؤقت إذا مفيش
+        # ⚠️ Tenant ليس له أدمن حقيقي — ننشئ بمعرّف مميز عشوائي (مش اسم ثابت قابل للتخمين)
+        # ونسجّل الحدث للمراقبة الأمنية.
+        from django.db import connection as _conn
         admin_user = User.objects.create_superuser(
-            username=f"mousstec_admin",
-            email="admin@mousstec.com",
-            password=secrets.token_urlsafe(20),
+            username=f"mousstec_admin_{secrets.token_hex(4)}",
+            email=f"admin+{_conn.schema_name}@mousstec.com",
+            password=secrets.token_urlsafe(32),
             first_name="Mouss Tec",
             last_name="Platform Admin",
+        )
+        logger.warning(
+            f"🔐 [IMPERSONATE]: Auto-created tenant admin '{admin_user.username}' "
+            f"on schema '{_conn.schema_name}' (tenant had no staff)"
         )
 
     # Login
@@ -2091,33 +2097,6 @@ def _send_otp_via_channel(phone, otp, **kwargs):
 def marketplace_verify_otp(request):
     """التحقق من كود OTP — معطل (تم إلغاء OTP)."""
     return JsonResponse({"error": "OTP verification is disabled. Use direct login."}, status=410)
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
-
-    phone = data.get('phone', '')
-    code = data.get('otp', '')
-
-    customer = MarketplaceCustomer.objects.filter(phone=phone).first()
-    if not customer:
-        return JsonResponse({"error": "رقم غير مسجل"}, status=404)
-
-    if customer.verify_otp(code):
-        response = JsonResponse({
-            "status": "verified",
-            "message": "تم التحقق بنجاح!",
-            "redirect": "/marketplace/dashboard/",
-        })
-        response.set_cookie(
-            'mp_session', str(customer.session_token),
-            max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
-            secure=not settings.DEBUG,
-        )
-        return response
-    else:
-        return JsonResponse({"error": "كود التحقق غير صحيح أو منتهي"}, status=400)
 
 
 @csrf_exempt

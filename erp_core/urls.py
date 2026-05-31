@@ -22,10 +22,16 @@ from django.http import FileResponse
 # =====================================================================
 _original_get_app_list = admin.AdminSite.get_app_list
 
+# Apps that live ONLY in TENANT_APPS — their tables don't exist in the public schema.
+# Hide them from the admin sidebar when the request is served from public.
+_TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export'}
+
 def _industry_filtered_get_app_list(self, request, app_label=None):
     app_list = _original_get_app_list(self, request, app_label=app_label)
     if connection.schema_name == 'public':
-        return app_list
+        # 🛡️ Hide tenant-only apps from the public-schema admin (their tables are
+        # not present in public and any model query would raise ProgrammingError).
+        return [app for app in app_list if app.get('app_label') not in _TENANT_ONLY_APPS]
     tenant = getattr(request, 'tenant', None)
     if not tenant:
         return app_list

@@ -147,7 +147,7 @@ class DesignerAdmin(PrintSecureAdmin):
         if not r:
             return '-'
         stars = '⭐' * int(round(r))
-        return format_html('<span title="{:.1f}">{}</span>', r, stars)
+        return format_html('<span title="{}">{}</span>', f"{r:.1f}", stars)
     avg_rating.short_description = "التقييم"
 
 

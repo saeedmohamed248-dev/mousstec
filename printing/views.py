@@ -1539,7 +1539,7 @@ def ai_attach_search(request):
         Q(customer__name__icontains=query) |
         Q(customer__phone__icontains=query) |
         Q(order_number__icontains=query)
-    ).order_by('-created_at')[:15]
+    ).order_by('-date_created')[:15]
 
     invoices = []
     for order in qs:
@@ -1547,9 +1547,9 @@ def ai_attach_search(request):
             'id': order.pk,
             'code': order.order_number or f'PO-{order.pk}',
             'customer': (order.customer.name if order.customer else '—'),
-            'date': order.created_at.strftime('%Y-%m-%d') if hasattr(order, 'created_at') and order.created_at else '',
-            'total': str(getattr(order, 'total_price', 0) or 0),
-            'status': order.get_status_display() if hasattr(order, 'get_status_display') else '',
+            'date': order.date_created.strftime('%Y-%m-%d') if order.date_created else '',
+            'total': str(order.total_amount or 0),
+            'status': order.get_status_display(),
         })
     return JsonResponse({'invoices': invoices})
 
