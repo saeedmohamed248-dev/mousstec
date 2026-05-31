@@ -1438,20 +1438,19 @@ def enter_tenant(request, schema_name):
         messages.error(request, f'لا يوجد نطاق مسجل لشركة «{tenant.name}».')
         return redirect('super_admin_dashboard')
 
-    # --- إنشاء توكن دخول مؤقت ---
+    # --- إنشاء توكن دخول مؤقت (self-contained signed token) ---
+    # ⚠️ لا نستخدم cache لأن الـ cache key function تضيف schema_name
+    # فالتوكن المحفوظ على public لا يُقرأ من tenant schema.
+    # بدلاً من ذلك: Django Signing — التوكن يحتوي على البيانات مشفرة.
+    from django.core import signing
     import time
-    token_data = f"{schema_name}:{request.user.id}:{int(time.time())}"
-    secret = settings.SECRET_KEY[:32]
-    token = hmac.new(secret.encode(), token_data.encode(), hashlib.sha256).hexdigest()[:40]
 
-    # تخزين التوكن في الكاش (صالح 120 ثانية)
-    cache_key = f"impersonate_token:{token}"
-    cache.set(cache_key, {
+    token = signing.dumps({
         'schema_name': schema_name,
         'superuser_id': request.user.id,
         'superuser_name': request.user.username,
         'created': int(time.time()),
-    }, timeout=120)
+    }, salt='impersonate-login-token')
 
     # --- Log the impersonation ---
     PlatformEvent.objects.create(
@@ -1480,15 +1479,11 @@ def impersonate_login(request):
         # No token — redirect to login page instead of blank forbidden
         return redirect(f'/{admin_url}/login/')
 
-    cache_key = f"impersonate_token:{token}"
-    token_data = cache.get(cache_key)
-
-    if not token_data:
-        # Token expired — redirect to login with message
+    from django.core import signing
+    try:
+        token_data = signing.loads(token, salt='impersonate-login-token', max_age=120)
+    except (signing.BadSignature, signing.SignatureExpired):
         return redirect(f'/{admin_url}/login/?msg=token_expired')
-
-    # حذف التوكن فوراً (صالح لمرة واحدة فقط)
-    cache.delete(cache_key)
 
     schema_name = token_data.get('schema_name', '')
     current_schema = getattr(connection, 'schema_name', 'public')
