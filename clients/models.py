@@ -24,9 +24,14 @@ def default_trial_end():
 class Client(TenantMixin):
     ADDON_PRICE_PER_MONTH = Decimal('125.00')
     PLAN_BASE_PRICES = {
+        # سيارات
         'silver': Decimal('685.00'),
         'gold': Decimal('1185.00'),
         'empire': Decimal('3000.00'),
+        # طباعة
+        'print_basic': Decimal('550.00'),
+        'print_pro': Decimal('880.00'),
+        'print_enterprise': Decimal('2000.00'),
     }
 
     name = models.CharField(max_length=100, verbose_name=_("اسم المركز/الشركة"))
@@ -73,9 +78,14 @@ class Client(TenantMixin):
 
     # 🚀 محرك الباقات والإضافات الديناميكية (Smart Quotas & Add-ons)
     SUBSCRIPTION_CHOICES = (
+        # باقات السيارات
         ('silver', _('باقة سيلفر — لمراكز الصيانة وتجار قطع الغيار')),
         ('gold', _('باقة جولد — لمراكز الصيانة وتجار قطع الغيار الشامل')),
         ('empire', _('باقة Empire — لتجار القطع والشركات الكبيرة')),
+        # باقات الطباعة والتصميم
+        ('print_basic', _('Print Basic — للمطابع الصغيرة واستوديوهات التصميم')),
+        ('print_pro', _('Print Pro — للمطابع المتوسطة ومكاتب التصميم')),
+        ('print_enterprise', _('Print Enterprise — للمطابع الكبيرة ومجموعات التصميم')),
     )
     plan = models.CharField(max_length=20, choices=SUBSCRIPTION_CHOICES, default='gold', verbose_name=_("الباقة"))
     

@@ -397,8 +397,9 @@
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">الباقة</p>
                         <span class="text-xs font-black px-2.5 py-1 rounded-lg inline-block
-                            {% if t.obj.plan == 'empire' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
-                            {% elif t.obj.plan == 'gold' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
+                            {% if t.obj.plan == 'empire' or t.obj.plan == 'print_enterprise' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
+                            {% elif t.obj.plan == 'gold' or t.obj.plan == 'print_pro' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
+                            {% elif t.obj.plan == 'print_basic' %}bg-pink-500/15 text-pink-400 border border-pink-500/20
                             {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
                             {{ t.obj.get_plan_display }}
                         </span>

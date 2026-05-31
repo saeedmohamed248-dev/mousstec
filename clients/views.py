@@ -63,6 +63,9 @@ def register_new_tenant_saas(request):
             while not success and attempts < 10:
                 try:
                     with transaction.atomic():
+                        # Auto-assign default plan based on industry
+                        default_plan = 'print_pro' if industry == 'printing' else 'gold'
+
                         tenant = Client.objects.create(
                             schema_name=schema_name,
                             name=company_name,
@@ -71,6 +74,7 @@ def register_new_tenant_saas(request):
                             phone=data.get('phone', ''),
                             industry=industry,
                             business_type=business_type,
+                            plan=default_plan,
                             is_active=True
                         )
 
@@ -1370,8 +1374,8 @@ def super_admin_dashboard(request):
             'bonus_whatsapp': bonus_whatsapp_remaining,
             'bonus_watermarks': bonus_watermarks_remaining,
             'active_grants': active_grants,
-            'days_left': (t.subscription_end_date - today).days if t.subscription_end_date and t.subscription_end_date >= today else (
-                (t.trial_ends_at - today).days if t.status == 'trial' and t.trial_ends_at else 0
+            'days_left': (t.subscription_end_date - today).days + 1 if t.subscription_end_date and t.subscription_end_date >= today else (
+                (t.trial_ends_at - today).days + 1 if t.status == 'trial' and t.trial_ends_at and t.trial_ends_at >= today else 0
             ),
         })
 
@@ -1440,14 +1444,14 @@ def enter_tenant(request, schema_name):
     secret = settings.SECRET_KEY[:32]
     token = hmac.new(secret.encode(), token_data.encode(), hashlib.sha256).hexdigest()[:40]
 
-    # تخزين التوكن في الكاش (صالح 60 ثانية)
+    # تخزين التوكن في الكاش (صالح 120 ثانية)
     cache_key = f"impersonate_token:{token}"
     cache.set(cache_key, {
         'schema_name': schema_name,
         'superuser_id': request.user.id,
         'superuser_name': request.user.username,
         'created': int(time.time()),
-    }, timeout=60)
+    }, timeout=120)
 
     # --- Log the impersonation ---
     PlatformEvent.objects.create(
@@ -1471,14 +1475,17 @@ def impersonate_login(request):
     يُستدعى من الـ tenant subdomain — يتحقق من التوكن ويعمل login تلقائي كأدمن.
     """
     token = request.GET.get('token', '').strip()
+    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
     if not token:
-        return HttpResponseForbidden('Invalid token.')
+        # No token — redirect to login page instead of blank forbidden
+        return redirect(f'/{admin_url}/login/')
 
     cache_key = f"impersonate_token:{token}"
     token_data = cache.get(cache_key)
 
     if not token_data:
-        return HttpResponseForbidden('Token expired or invalid.')
+        # Token expired — redirect to login with message
+        return redirect(f'/{admin_url}/login/?msg=token_expired')
 
     # حذف التوكن فوراً (صالح لمرة واحدة فقط)
     cache.delete(cache_key)
@@ -1487,7 +1494,7 @@ def impersonate_login(request):
     current_schema = getattr(connection, 'schema_name', 'public')
 
     if current_schema == 'public' or current_schema != schema_name:
-        return HttpResponseForbidden('Schema mismatch.')
+        return redirect(f'/{admin_url}/login/')
 
     # --- إيجاد أو إنشاء admin user على هذا الـ tenant ---
     from django.contrib.auth import login as auth_login
