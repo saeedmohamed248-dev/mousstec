@@ -138,6 +138,9 @@
         <div class="balance-info">
             <h2><strong>{{ total_remaining }}</strong> تصميم</h2>
             <p>رصيدك المتاح للتوليد</p>
+            {% if free_remaining > 0 %}
+            <p style="color:#34d399;font-size:0.8rem;margin-top:4px;">🎁 {{ free_remaining }} تصميم مجاني</p>
+            {% endif %}
         </div>
         {% if total_remaining == 0 %}
         <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> اشتري باقة جديدة</a>

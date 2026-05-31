@@ -2867,13 +2867,17 @@ def design_store_my_designs(request):
     purchases = customer.design_purchases.filter(status='paid').select_related('package').order_by('-created_at')
     designs = customer.designs.order_by('-created_at')[:50]
     active_purchase = next((p for p in purchases if p.is_usable), None)
+    paid_remaining = sum(p.designs_remaining for p in purchases if p.is_usable)
+    free_remaining = customer.free_designs_remaining
 
     return render(request, 'clients/marketplace/design_store_my.html', {
         'customer': customer,
         'purchases': purchases,
         'designs': designs,
         'active_purchase': active_purchase,
-        'total_remaining': sum(p.designs_remaining for p in purchases if p.is_usable),
+        'total_remaining': paid_remaining + free_remaining,
+        'free_remaining': free_remaining,
+        'paid_remaining': paid_remaining,
     })
 
 
@@ -3287,19 +3291,43 @@ def design_store_generate(request):
 
     # ── Fallback for unknown categories ──────────────────────────────
     else:
-        enhanced_desc = (
-            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
-            f"TASK: Create a PROFESSIONAL, PRINT-READY GRAPHIC DESIGN. "
-            f"CLIENT BRIEF: {description}. "
-            f"EXECUTION: Analyze the client's request and determine the best design approach. "
-            f"If this is a DOCUMENT/FORM design: create a clean, organized layout with proper fields, "
-            f"lines, boxes, and professional typography. Use a structured grid layout with clear "
-            f"sections, labels, and input areas. The form should look corporate and official. "
-            f"If this is an ARTISTIC design: create visually stunning artwork with professional "
-            f"composition, color theory, and visual hierarchy. "
-            f"QUALITY: The output should look like it was produced by a top design agency — "
-            f"polished, pixel-perfect, ready for professional printing or digital use.{dim_info}"
-        )
+        # Detect if this is a form/document request
+        form_keywords = ('استقبال', 'فورم', 'نموذج', 'form', 'استمارة', 'ورقة', 'receipt',
+                         'فاتورة', 'invoice', 'كشف', 'تقرير', 'سجل', 'بيان', 'شيت',
+                         'checklist', 'صيانة', 'maintenance', 'inspection', 'فحص')
+        is_form_request = any(kw in description.lower() for kw in form_keywords)
+
+        if is_form_request:
+            enhanced_desc = (
+                f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+                f"TASK: Create a PROFESSIONAL BUSINESS FORM / DOCUMENT designed for PRINTING at a real business. "
+                f"CLIENT BRIEF: {description}. "
+                f"CRITICAL DESIGN RULES FOR THIS FORM: "
+                f"1. This is a PRINTABLE PAPER FORM — it must look like a real form used in professional businesses. "
+                f"2. Use a CLEAN WHITE BACKGROUND with a professional header area at the top for company logo and name. "
+                f"3. Create CLEARLY LABELED FIELDS with horizontal lines for handwriting (like ________). "
+                f"4. Use proper GRID LAYOUT with organized sections, each with a clear title/header. "
+                f"5. All Arabic text must be RIGHT-ALIGNED, perfectly readable, with proper connected Arabic letters. "
+                f"6. Use professional CORPORATE COLORS — navy blue (#1e3a5f) for headers, black for labels, "
+                f"light gray (#f5f5f5) for alternating row backgrounds. "
+                f"7. Include a footer area with date, signature line, and company info. "
+                f"8. The form should look like it was designed by a professional print house — NOT a generic template. "
+                f"9. If a logo is provided, place it prominently in the top-right corner (for RTL layout). "
+                f"10. Use thin borders and lines, NOT thick boxes. Keep it elegant and clean. "
+                f"STYLE REFERENCE: Think of premium auto dealership or professional service center paperwork — "
+                f"clean, organized, branded, and easy to fill out by hand.{dim_info}"
+            )
+        else:
+            enhanced_desc = (
+                f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+                f"TASK: Create a PROFESSIONAL, PRINT-READY GRAPHIC DESIGN. "
+                f"CLIENT BRIEF: {description}. "
+                f"EXECUTION: Analyze the client's request and determine the best design approach. "
+                f"Create visually stunning artwork with professional composition, color theory, "
+                f"and visual hierarchy. Use a cohesive color palette, clean typography, and balanced layout. "
+                f"QUALITY: The output should look like it was produced by a top design agency — "
+                f"polished, pixel-perfect, ready for professional printing or digital use.{dim_info}"
+            )
 
     # ── Layer 5: Append learned insights ─────────────────────────────
     if learned_suffix:

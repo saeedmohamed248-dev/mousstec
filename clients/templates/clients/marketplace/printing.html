@@ -376,12 +376,14 @@ async function register() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (data.status === 'verified' && data.redirect) {
+            showAlert(data.message, 'success');
+            setTimeout(() => window.location.href = data.redirect, 800);
+            return;
+        }
         otpPhone = data.phone;
         showOTP();
         showAlert(data.message, 'success');
-        if (data.dev_otp) {
-            document.getElementById('otpCode').value = data.dev_otp;
-        }
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {
@@ -402,12 +404,14 @@ async function loginSend() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (data.status === 'verified' && data.redirect) {
+            showAlert(data.message, 'success');
+            setTimeout(() => window.location.href = data.redirect, 800);
+            return;
+        }
         otpPhone = data.phone;
         showOTP();
         showAlert(data.message, 'success');
-        if (data.dev_otp) {
-            document.getElementById('otpCode').value = data.dev_otp;
-        }
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {
