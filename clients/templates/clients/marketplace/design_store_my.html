@@ -299,6 +299,7 @@
                     <small>{{ d.created_at|date:"d/m/Y H:i" }}</small>
                 </div>
                 <div class="design-actions" style="flex-wrap:wrap;gap:4px;">
+                    {% if not d.is_free_trial %}
                     <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/png/" title="PNG">
                         <i class="fas fa-image"></i>
                     </a>
@@ -308,6 +309,7 @@
                     <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/pdf/" title="PDF">
                         <i class="fas fa-file-pdf"></i>
                     </a>
+                    {% endif %}
                     <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code }}')">
                         <i class="fab fa-whatsapp"></i>
                     </button>

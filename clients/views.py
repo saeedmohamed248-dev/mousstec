@@ -3110,6 +3110,9 @@ def design_store_generate(request):
         "CRITICAL RULES: Never produce amateur-looking designs. Never use more than 2 font "
         "families. Never create cluttered layouts — use generous whitespace. Never distort "
         "text or make it unreadable. All text must be crisp and perfectly aligned. "
+        "ULTRA-IMPORTANT: The design must look like a premium product from a top-tier design "
+        "agency — NOT like a template or clip-art. Use professional lighting, shadows, and depth. "
+        "Every element must have purpose and visual weight. "
     )
 
     # ── Layer 4: Arabic Awareness ────────────────────────────────────
@@ -3455,7 +3458,7 @@ def design_store_generate(request):
                         'prompt': enhanced_desc[:4000],
                         'size': model_size,
                         'n': 1,
-                        'quality': 'high' if quality_level in ('hd', 'ultra') else 'medium',
+                        'quality': 'high',  # Always high for best results
                     }
                     response = client.images.edit(**edit_kwargs)
                     used_model = m
@@ -3466,7 +3469,7 @@ def design_store_generate(request):
                     if m == 'dall-e-3':
                         kwargs['quality'] = 'hd' if quality_level in ('hd', 'ultra') else 'standard'
                     elif m == 'gpt-image-1':
-                        kwargs['quality'] = 'high' if quality_level in ('hd', 'ultra') else 'medium'
+                        kwargs['quality'] = 'high'  # Always high quality for best results
                     response = client.images.generate(**kwargs)
                     used_model = m
                     break
@@ -3644,73 +3647,91 @@ def design_store_download(request, design_code, fmt):
     if fmt not in ('png', 'jpg', 'jpeg', 'pdf'):
         return JsonResponse({"error": "صيغة غير مدعومة. الصيغ المتاحة: png, jpg, pdf"}, status=400)
 
-    # Get the image file
-    from django.core.files.storage import default_storage
     import io
+    from django.core.files.storage import default_storage
 
-    # Find the saved image path from the URL
-    image_path = None
+    # ── Step 1: Load image bytes ──────────────────────────────────
+    img_data = None
     if design.image_url:
-        # Extract relative path from URL
         url = design.image_url
+
+        # Try local file first (extract path from URL)
         for prefix in ['/media/', 'media/']:
             if prefix in url:
-                image_path = url.split(prefix, 1)[-1]
-                break
+                rel_path = url.split(prefix, 1)[-1]
+                try:
+                    if default_storage.exists(rel_path):
+                        with default_storage.open(rel_path, 'rb') as f:
+                            img_data = f.read()
+                        break
+                except Exception:
+                    pass
 
-    if not image_path or not default_storage.exists(image_path):
-        # Try downloading from the URL directly
-        try:
-            import requests as _req
-            r = _req.get(design.image_url, timeout=30)
-            if r.status_code == 200:
-                img_data = r.content
-            else:
-                return JsonResponse({"error": "تعذر تحميل الصورة"}, status=404)
-        except Exception:
-            return JsonResponse({"error": "تعذر تحميل الصورة"}, status=404)
-    else:
-        with default_storage.open(image_path, 'rb') as f:
-            img_data = f.read()
+        # Fallback: download from URL
+        if not img_data:
+            try:
+                import requests as _req
+                r = _req.get(url, timeout=30)
+                if r.status_code == 200:
+                    img_data = r.content
+            except Exception as e:
+                logger.error(f"[DOWNLOAD] Failed to fetch image: {e}")
 
-    from PIL import Image as PILImage
+    if not img_data:
+        return JsonResponse({"error": "تعذر تحميل الصورة — الملف غير موجود"}, status=404)
 
+    # ── Step 2: For PNG, serve raw (no conversion needed) ─────────
     if fmt == 'png':
+        # Even if source is WebP, convert to actual PNG
+        try:
+            from PIL import Image as PILImage
+            img = PILImage.open(io.BytesIO(img_data))
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            img_data = buf.getvalue()
+        except Exception:
+            pass  # Serve raw bytes if PIL fails
         response = HttpResponse(img_data, content_type='image/png')
         response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.png"'
+        design.download_count += 1
+        design.save(update_fields=['download_count'])
         return response
 
-    img = PILImage.open(io.BytesIO(img_data))
+    # ── Step 3: Convert to JPG or PDF ────────────────────────────
+    try:
+        from PIL import Image as PILImage
+        img = PILImage.open(io.BytesIO(img_data))
+    except Exception as e:
+        logger.error(f"[DOWNLOAD] PIL cannot open image: {e}")
+        return JsonResponse({"error": "تعذر فتح الصورة للتحويل"}, status=500)
+
+    # Convert to RGB for JPG/PDF (remove alpha channel)
+    if img.mode in ('RGBA', 'P', 'LA', 'PA'):
+        bg = PILImage.new('RGB', img.size, (255, 255, 255))
+        if img.mode == 'P':
+            img = img.convert('RGBA')
+        try:
+            bg.paste(img, mask=img.split()[-1] if 'A' in img.mode else None)
+        except Exception:
+            bg.paste(img)
+        img = bg
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    buf = io.BytesIO()
 
     if fmt in ('jpg', 'jpeg'):
-        # Convert to RGB (remove alpha) and save as JPEG
-        if img.mode in ('RGBA', 'P', 'LA'):
-            bg = PILImage.new('RGB', img.size, (255, 255, 255))
-            if img.mode == 'P':
-                img = img.convert('RGBA')
-            bg.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
-            img = bg
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')
-        buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=95)
         response = HttpResponse(buf.getvalue(), content_type='image/jpeg')
         response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.jpg"'
-        return response
-
-    if fmt == 'pdf':
-        # Convert image to PDF
-        if img.mode == 'RGBA':
-            bg = PILImage.new('RGB', img.size, (255, 255, 255))
-            bg.paste(img, mask=img.split()[-1])
-            img = bg
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')
-        buf = io.BytesIO()
+    elif fmt == 'pdf':
         img.save(buf, format='PDF', resolution=300)
         response = HttpResponse(buf.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.pdf"'
-        return response
+
+    design.download_count += 1
+    design.save(update_fields=['download_count'])
+    return response
 
 
 @csrf_exempt
