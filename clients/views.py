@@ -3886,6 +3886,20 @@ def design_store_generate(request):
         except Exception:
             pass  # Non-critical
 
+        # Save chat history — initial generation
+        try:
+            from clients.models import DesignChatMessage
+            DesignChatMessage.objects.create(
+                design=design, role='user', content=description, image_url=''
+            )
+            DesignChatMessage.objects.create(
+                design=design, role='assistant',
+                content=f"تم توليد تصميم: {title or description[:60]}",
+                image_url=image_url or ''
+            )
+        except Exception:
+            pass
+
         # Consume 1 design from the right source
         if using_free_trial:
             customer.consume_free_design()
@@ -4173,6 +4187,21 @@ def design_store_regenerate(request, design_code):
         design.image_url = new_url
         design.save(update_fields=['image_url'])
 
+        # Save chat history for regeneration
+        try:
+            from clients.models import DesignChatMessage
+            DesignChatMessage.objects.create(
+                design=design, role='user',
+                content='إعادة توليد التصميم بنفس المواصفات'
+            )
+            DesignChatMessage.objects.create(
+                design=design, role='assistant',
+                content='تم إعادة توليد التصميم',
+                image_url=new_url
+            )
+        except Exception:
+            pass
+
         return JsonResponse({
             "status": "success",
             "image_url": new_url,
@@ -4435,3 +4464,199 @@ def design_store_watermark(request, design_code):
         "watermarked_url": wm_url,
         "message": "تم إضافة العلامة المائية بنجاح",
     })
+
+
+@csrf_exempt
+def design_store_chat_history(request, design_code):
+    """💬 جلب تاريخ المحادثة لتصميم معين."""
+    from clients.models import DesignChatMessage
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "غير مصرح"}, status=401)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+    messages = design.chat_messages.order_by('created_at').values(
+        'role', 'content', 'image_url', 'is_refinement', 'created_at'
+    )
+    return JsonResponse({
+        "status": "success",
+        "design_code": str(design.design_code),
+        "title": design.title,
+        "messages": [
+            {
+                "role": m['role'],
+                "content": m['content'],
+                "image_url": m['image_url'],
+                "is_refinement": m['is_refinement'],
+                "time": m['created_at'].strftime("%d/%m %H:%M"),
+            }
+            for m in messages
+        ],
+    })
+
+
+@csrf_exempt
+def design_store_refine(request, design_code):
+    """✏️ تعديل تحسيني — العميل يكتب تعليمات إضافية بدون إعادة توليد كامل."""
+    from clients.models import DesignChatMessage
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "غير مصرح"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    if not design.can_regenerate:
+        return JsonResponse({
+            "error": f"استنفدت محاولات التعديل ({design.regenerations_allowed} مرات)",
+        }, status=403)
+
+    # Rate limiting
+    gen_rate_key = f'design_gen_rate:{customer.pk}'
+    gen_count = cache.get(gen_rate_key, 0)
+    if gen_count >= 5:
+        return JsonResponse({"error": "انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(gen_rate_key, gen_count + 1, 60)
+
+    refinement_text = request.POST.get('refinement', '').strip()
+    if not refinement_text or len(refinement_text) < 3:
+        return JsonResponse({"error": "اكتب التعديل المطلوب (3 أحرف على الأقل)"}, status=400)
+
+    # Save user refinement message
+    DesignChatMessage.objects.create(
+        design=design, role='user', content=refinement_text, is_refinement=True
+    )
+
+    # Build refinement prompt
+    base_prompt = design.engineered_prompt or design.description
+    refinement_prompt = (
+        f"{base_prompt[:2500]} "
+        f"REFINEMENT INSTRUCTION: The client wants to modify the existing design. "
+        f"Keep everything from the original design but apply these changes: {refinement_text}. "
+        f"Maintain the same style, color palette, and composition. "
+        f"Only change what the client specifically asked for."
+    )
+
+    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+    if not openai_key:
+        return JsonResponse({"error": "محرك التوليد غير متاح"}, status=503)
+
+    try:
+        import openai
+        client_ai = openai.OpenAI(api_key=openai_key)
+        gpt_size_map = {
+            '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
+            '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
+        }
+        sz = gpt_size_map.get(design.size_preset, '1024x1024')
+
+        # Try using image edit API (gpt-image-1) with the existing image for true refinement
+        resp = None
+        used_edit = False
+
+        # Attempt edit with existing image (best refinement quality)
+        if design.image_url:
+            try:
+                import requests as _req, io
+                img_resp = _req.get(design.image_url, timeout=15)
+                if img_resp.status_code == 200:
+                    img_io = io.BytesIO(img_resp.content)
+                    img_io.name = 'current.png'
+                    resp = client_ai.images.edit(
+                        model='gpt-image-1',
+                        image=[img_io],
+                        prompt=refinement_prompt[:4000],
+                        size=sz,
+                        n=1,
+                        quality='high',
+                    )
+                    used_edit = True
+            except Exception as edit_err:
+                logger.warning(f"[REFINE] Edit API failed, falling back to generate: {edit_err}")
+
+        # Fallback: regenerate with refinement prompt
+        if not resp:
+            models_to_try = ['gpt-image-1', 'dall-e-3']
+            for m in models_to_try:
+                try:
+                    kwargs = {
+                        'model': m,
+                        'prompt': refinement_prompt[:4000],
+                        'size': sz if m == 'gpt-image-1' else design.size_preset or '1024x1024',
+                        'n': 1,
+                    }
+                    if m == 'gpt-image-1':
+                        kwargs['quality'] = 'high'
+                    elif m == 'dall-e-3':
+                        kwargs['quality'] = 'hd'
+                    resp = client_ai.images.generate(**kwargs)
+                    break
+                except Exception as model_err:
+                    logger.warning(f"[REFINE] Model {m} failed: {model_err}")
+                    continue
+
+        if not resp:
+            return JsonResponse({"error": "فشل التعديل مع كل المحركات"}, status=502)
+
+        first = resp.data[0]
+        new_url = getattr(first, 'url', None)
+
+        # Handle b64_json response
+        if not new_url:
+            b64 = getattr(first, 'b64_json', None)
+            if b64:
+                import base64 as _b64
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                img_bytes = _b64.b64decode(b64)
+                filename = f"ai_store/{customer.uid}/refine_{uuid.uuid4().hex}.png"
+                saved = default_storage.save(filename, ContentFile(img_bytes))
+                local_url = default_storage.url(saved)
+                if local_url.startswith('/'):
+                    local_url = request.build_absolute_uri(local_url)
+                new_url = local_url
+
+        # Persist DALL-E URLs
+        if new_url and 'oaidalleapiprodscus' in new_url:
+            try:
+                import requests as _req
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                r = _req.get(new_url, timeout=30)
+                if r.status_code == 200:
+                    filename = f"ai_store/{customer.uid}/refine_{uuid.uuid4().hex}.png"
+                    saved = default_storage.save(filename, ContentFile(r.content))
+                    local_url = default_storage.url(saved)
+                    if local_url.startswith('/'):
+                        local_url = request.build_absolute_uri(local_url)
+                    new_url = local_url
+            except Exception:
+                pass
+
+        if not new_url:
+            return JsonResponse({"error": "لم يتم استلام صورة"}, status=502)
+
+        # Update design
+        design.image_url = new_url
+        design.regenerations_used += 1
+        design.engineered_prompt = refinement_prompt[:4000]
+        design.save(update_fields=['image_url', 'regenerations_used', 'engineered_prompt'])
+
+        # Save AI response message
+        DesignChatMessage.objects.create(
+            design=design, role='assistant',
+            content=f"تم تعديل التصميم: {refinement_text[:100]}",
+            image_url=new_url, is_refinement=True
+        )
+
+        return JsonResponse({
+            "status": "success",
+            "image_url": new_url,
+            "regenerations_left": design.regenerations_allowed - design.regenerations_used,
+            "used_edit_api": used_edit,
+        })
+    except Exception as e:
+        logger.error(f"[REFINE] Failed: {e}")
+        return JsonResponse({"error": f"فشل التعديل: {str(e)[:100]}"}, status=500)

@@ -355,6 +355,8 @@ urlpatterns = [
     path('marketplace/design-store/<uuid:design_code>/download/<str:fmt>/', client_views.design_store_download, name='design_store_download'),
     path('marketplace/design-store/<uuid:design_code>/send-to-marketplace/', client_views.design_store_send_to_marketplace, name='design_store_send_to_marketplace'),
     path('marketplace/design-store/<uuid:design_code>/watermark/', client_views.design_store_watermark, name='design_store_watermark'),
+    path('marketplace/design-store/<uuid:design_code>/chat/', client_views.design_store_chat_history, name='design_store_chat'),
+    path('marketplace/design-store/<uuid:design_code>/refine/', client_views.design_store_refine, name='design_store_refine'),
 
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),

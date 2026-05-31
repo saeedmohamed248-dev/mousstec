@@ -1401,6 +1401,31 @@ class CustomerDesign(models.Model):
         return size_map.get(self.size_preset, self.size_preset)
 
 
+class DesignChatMessage(models.Model):
+    """
+    💬 رسالة في محادثة التصميم — يحفظ كل التفاعل بين العميل و AI.
+    """
+    ROLE_CHOICES = (
+        ('user', 'العميل'),
+        ('assistant', 'المصمم AI'),
+        ('system', 'النظام'),
+    )
+    design = models.ForeignKey(CustomerDesign, on_delete=models.CASCADE, related_name='chat_messages')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    content = models.TextField(verbose_name=_('محتوى الرسالة'))
+    image_url = models.URLField(max_length=600, blank=True, verbose_name=_('صورة مرفقة'))
+    is_refinement = models.BooleanField(default=False, verbose_name=_('تعديل تحسيني'))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('رسالة تصميم')
+        verbose_name_plural = _('💬 رسائل التصاميم (Chat)')
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.get_role_display()}: {self.content[:50]}'
+
+
 class DesignPrintRequest(models.Model):
     """
     🖨️ طلب طباعة تصميم — العميل عجبه التصميم وعاوز يطبعه.
