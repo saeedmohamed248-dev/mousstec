@@ -3767,8 +3767,15 @@ def design_store_regenerate(request, design_code):
     design.save(update_fields=['regenerations_used'])
 
     # Inline regenerate without consuming purchase quota
-    # (simplified — reuse same OpenAI call)
     openai_key = getattr(settings, 'OPENAI_API_KEY', None)
+    if not openai_key:
+        return JsonResponse({"error": "محرك التوليد غير متاح"}, status=503)
+
+    # Use the engineered prompt (best quality) or fall back to description
+    regen_prompt = design.engineered_prompt or design.description
+    if not regen_prompt or len(regen_prompt) < 10:
+        regen_prompt = f"Create a professional design: {design.title}. {design.description}"
+
     try:
         import openai
         client = openai.OpenAI(api_key=openai_key)
@@ -3777,20 +3784,68 @@ def design_store_regenerate(request, design_code):
             '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
         }
         sz = gpt_size_map.get(design.size_preset, '1024x1024')
-        resp = client.images.generate(
-            model='gpt-image-1', prompt=design.engineered_prompt[:2000] or design.description,
-            size=sz, n=1, quality='high',
-        )
+
+        # Try gpt-image-1 → dall-e-3 fallback
+        models_to_try = ['gpt-image-1', 'dall-e-3']
+        resp = None
+        for m in models_to_try:
+            try:
+                kwargs = {
+                    'model': m,
+                    'prompt': regen_prompt[:4000],
+                    'size': sz if m == 'gpt-image-1' else design.size_preset or '1024x1024',
+                    'n': 1,
+                }
+                if m == 'gpt-image-1':
+                    kwargs['quality'] = 'high'
+                elif m == 'dall-e-3':
+                    kwargs['quality'] = 'hd'
+                resp = client.images.generate(**kwargs)
+                break
+            except Exception as model_err:
+                logger.warning(f"[REGEN] Model {m} failed: {model_err}")
+                continue
+
+        if not resp:
+            return JsonResponse({"error": "فشل إعادة التوليد مع كل المحركات"}, status=502)
+
         first = resp.data[0]
         new_url = getattr(first, 'url', None)
-        if not new_url and hasattr(first, 'b64_json'):
-            import base64 as _b64, uuid as _uuid
-            from django.core.files.base import ContentFile
-            from django.core.files.storage import default_storage
-            img_bytes = _b64.b64decode(first.b64_json)
-            filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
-            saved = default_storage.save(filename, ContentFile(img_bytes))
-            new_url = request.build_absolute_uri(default_storage.url(saved))
+
+        # gpt-image-1 returns b64_json, not url
+        if not new_url:
+            b64 = getattr(first, 'b64_json', None)
+            if b64:
+                import base64 as _b64
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                img_bytes = _b64.b64decode(b64)
+                filename = f"ai_store/{customer.uid}/regen_{uuid.uuid4().hex}.png"
+                saved = default_storage.save(filename, ContentFile(img_bytes))
+                local_url = default_storage.url(saved)
+                if local_url.startswith('/'):
+                    local_url = request.build_absolute_uri(local_url)
+                new_url = local_url
+
+        if not new_url:
+            return JsonResponse({"error": "لم يتم استلام صورة من المحرك"}, status=502)
+
+        # Persist DALL-E URLs (they expire after ~1 hour)
+        if 'oaidalleapiprodscus' in (new_url or ''):
+            try:
+                import requests as _req
+                from django.core.files.base import ContentFile
+                from django.core.files.storage import default_storage
+                r = _req.get(new_url, timeout=30)
+                if r.status_code == 200:
+                    filename = f"ai_store/{customer.uid}/regen_{uuid.uuid4().hex}.png"
+                    saved = default_storage.save(filename, ContentFile(r.content))
+                    local_url = default_storage.url(saved)
+                    if local_url.startswith('/'):
+                        local_url = request.build_absolute_uri(local_url)
+                    new_url = local_url
+            except Exception:
+                pass
 
         design.image_url = new_url
         design.save(update_fields=['image_url'])
@@ -3802,7 +3857,7 @@ def design_store_regenerate(request, design_code):
         })
     except Exception as e:
         logger.error(f"[REGEN] Failed: {e}")
-        return JsonResponse({"error": "فشل إعادة التوليد"}, status=500)
+        return JsonResponse({"error": f"فشل إعادة التوليد: {str(e)[:100]}"}, status=500)
 
 
 @csrf_exempt
