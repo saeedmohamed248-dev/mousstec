@@ -866,6 +866,21 @@ def paymob_callback(request):
     order_id = data.get('order', data.get('obj', {}).get('order', {}).get('id', ''))
 
     if str(success).lower() == 'true' and order_id:
+        # Check if this is a design store purchase
+        design_info = cache.get(f'paymob_design_{order_id}')
+        if design_info:
+            try:
+                purchase = DesignPurchase.objects.get(pk=design_info['purchase_id'])
+                if purchase.status != 'paid':
+                    purchase.status = 'paid'
+                    purchase.payment_reference = str(order_id)
+                    purchase.save(update_fields=['status', 'payment_reference'])
+                    logger.info(f"[PAYMOB/DESIGN] Purchase #{purchase.pk} paid via card")
+                cache.delete(f'paymob_design_{order_id}')
+                return redirect(f'/marketplace/design-store/my-designs/?payment=success')
+            except DesignPurchase.DoesNotExist:
+                logger.error(f"[PAYMOB/DESIGN] Purchase {design_info['purchase_id']} not found")
+
         order_info = cache.get(f'paymob_order_{order_id}')
         if order_info:
             plan = order_info.get('plan')
@@ -2792,14 +2807,72 @@ def design_store_buy(request, package_slug):
             "message": "جاري توجيهك لصفحة الدفع...",
         })
     else:
-        # paymob / card — future integration
-        return JsonResponse({
-            "status": "pending_payment",
-            "purchase_id": purchase.pk,
-            "purchase_code": str(purchase.purchase_code),
-            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
-            "message": "جاري توجيهك لصفحة الدفع...",
-        })
+        # paymob / card — redirect to Paymob iframe
+        paymob_api_key = getattr(settings, 'PAYMOB_API_KEY', '')
+        paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '')
+        paymob_iframe_id = getattr(settings, 'PAYMOB_IFRAME_ID', '')
+
+        if not paymob_api_key:
+            logger.error("[PAYMOB/DESIGN] API key not configured")
+            return JsonResponse({"error": "الدفع بالبطاقة غير متاح حالياً"}, status=503)
+
+        try:
+            import requests as http_requests
+            # Step 1: Auth
+            auth_res = http_requests.post('https://accept.paymob.com/api/auth/tokens',
+                json={'api_key': paymob_api_key}, timeout=15)
+            auth_token = auth_res.json().get('token')
+
+            # Step 2: Order
+            amount_cents = int(float(package.price_egp) * 100)
+            merchant_order_id = f'design_{purchase.pk}_{uuid.uuid4().hex[:8]}'
+            order_res = http_requests.post('https://accept.paymob.com/api/ecommerce/orders', json={
+                'auth_token': auth_token,
+                'delivery_needed': 'false',
+                'amount_cents': amount_cents,
+                'currency': 'EGP',
+                'items': [{'name': f'باقة {package.name}', 'amount_cents': amount_cents, 'quantity': '1'}],
+                'merchant_order_id': merchant_order_id,
+            }, timeout=15)
+            order_id = order_res.json().get('id')
+
+            # Step 3: Payment key
+            billing = {
+                'first_name': customer.full_name or 'Customer',
+                'last_name': 'Design Store',
+                'email': customer.email or 'customer@mousstec.com',
+                'phone_number': customer.phone.lstrip('+') if customer.phone else '01000000000',
+                'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
+                'shipping_method': 'NA', 'postal_code': 'NA', 'city': 'Cairo',
+                'country': 'EG', 'state': 'Cairo',
+            }
+            key_res = http_requests.post('https://accept.paymob.com/api/acceptance/payment_keys', json={
+                'auth_token': auth_token,
+                'amount_cents': amount_cents,
+                'expiration': 3600,
+                'order_id': order_id,
+                'billing_data': billing,
+                'currency': 'EGP',
+                'integration_id': int(paymob_integration_id),
+                'lock_order_when_paid': 'true',
+            }, timeout=15)
+            payment_token = key_res.json().get('token')
+
+            # Store purchase info in cache for callback
+            cache.set(f'paymob_design_{order_id}', {
+                'purchase_id': purchase.pk,
+                'customer_id': customer.pk,
+            }, timeout=7200)
+
+            iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{paymob_iframe_id}?payment_token={payment_token}'
+            return JsonResponse({
+                "status": "redirect_paymob",
+                "redirect": iframe_url,
+                "message": "جاري توجيهك لبوابة الدفع...",
+            })
+        except Exception as e:
+            logger.error(f"[PAYMOB/DESIGN] Checkout error: {e}")
+            return JsonResponse({"error": "حدث خطأ في الاتصال ببوابة الدفع. حاول مرة أخرى."}, status=500)
 
 
 @csrf_exempt

@@ -252,12 +252,12 @@
         <div class="icon"><i class="far fa-credit-card" style="color:#a855f7"></i></div>
         <h3>بطاقة ائتمان / Visa / Mastercard</h3>
         <p style="color:#cbd5e1;font-size:0.9rem">
-            الدفع بالبطاقة هيكون متاح قريباً.<br>
-            في الوقت الحالي، اختار فودافون كاش أو InstaPay.
+            تم إنشاء طلبك. اضغط الزرار لإتمام الدفع ببطاقتك.
         </p>
-        <a href="/marketplace/design-store/" class="btn-submit" style="display:inline-block;margin-top:16px;text-decoration:none;text-align:center;background:linear-gradient(135deg,#8b5cf6,#ec4899)">
-            <i class="fas fa-arrow-right"></i> رجوع واختيار طريقة تانية
+        <a href="/paymob/checkout/?purchase_id={{ purchase.pk }}" class="btn-submit" style="display:inline-block;margin-top:16px;text-decoration:none;text-align:center;background:linear-gradient(135deg,#8b5cf6,#ec4899)">
+            <i class="fas fa-credit-card"></i> ادفع الآن بالبطاقة
         </a>
+        <p style="color:#64748b;font-size:0.75rem;margin-top:10px;">سيتم توجيهك لبوابة Paymob الآمنة لإدخال بيانات البطاقة</p>
     </div>
     {% endif %}
 
