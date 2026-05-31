@@ -1996,34 +1996,49 @@ def _send_otp_via_channel(phone, otp):
             import requests as _req
             access_token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '')
             phone_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '')
-            template_name = getattr(settings, 'WHATSAPP_OTP_TEMPLATE', 'otp_verification')
             if not all([access_token, phone_id]):
-                logger.error("[OTP/WhatsApp] Missing credentials")
+                logger.error("[OTP/WhatsApp] Missing WHATSAPP_ACCESS_TOKEN or WHATSAPP_PHONE_NUMBER_ID")
                 return False
-            url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": phone.lstrip('+'),
-                "type": "template",
-                "template": {
-                    "name": template_name,
-                    "language": {"code": "ar"},
-                    "components": [{"type": "body", "parameters": [{"type": "text", "text": otp}]}],
-                },
+            url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
+            # Try text message first (works if user messaged you first within 24h)
+            # Falls back to template if configured
+            template_name = getattr(settings, 'WHATSAPP_OTP_TEMPLATE', '')
+            if template_name:
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": phone.lstrip('+'),
+                    "type": "template",
+                    "template": {
+                        "name": template_name,
+                        "language": {"code": "ar"},
+                        "components": [{"type": "body", "parameters": [{"type": "text", "text": str(otp)}]}],
+                    },
+                }
+            else:
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": phone.lstrip('+'),
+                    "type": "text",
+                    "text": {"body": message},
+                }
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
             }
-            r = _req.post(url, json=payload, headers={"Authorization": f"Bearer {access_token}"}, timeout=15)
-            if r.status_code == 200:
-                logger.info(f"[OTP/WhatsApp] sent to {phone}")
+            r = _req.post(url, json=payload, headers=headers, timeout=15)
+            if r.status_code in (200, 201):
+                logger.info(f"[OTP/WhatsApp] sent to {phone[:6]}***")
                 return True
-            logger.error(f"[OTP/WhatsApp] HTTP {r.status_code}: {r.text[:200]}")
+            logger.error(f"[OTP/WhatsApp] HTTP {r.status_code}: {r.text[:300]}")
             return False
         except Exception as e:
             logger.error(f"[OTP/WhatsApp] Failed: {e}")
             return False
 
-    # Default: console mode
+    # Default: console mode (no real delivery)
     logger.warning(
-        f"[OTP-CONSOLE] phone={phone} otp={otp} — "
+        f"[OTP-CONSOLE] phone={phone[:6]}*** — "
         f"اضبط OTP_DELIVERY_PROVIDER في settings (twilio/vonage/whatsapp_meta)"
     )
     return False
