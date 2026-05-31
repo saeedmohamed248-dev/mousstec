@@ -952,13 +952,14 @@ def manage_subscription(request):
             {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 3000, 'users': 15, 'branches': 5, 'treasuries': 5, 'icon': 'fa-gem', 'color': 'purple'},
         ]
 
-    # ── AI Design subscription info ──
-    from hr.models import AIDesignSubscription
-    ai_plans = [
-        {'key': 'basic', 'name': 'أساسي', 'designs': 100, 'price': 350, 'icon': 'fa-wand-magic-sparkles', 'color': 'blue'},
-        {'key': 'pro', 'name': 'احترافي', 'designs': 300, 'price': 350, 'icon': 'fa-rocket', 'color': 'indigo'},
-        {'key': 'unlimited', 'name': 'غير محدود', 'designs': 0, 'price': 499, 'icon': 'fa-infinity', 'color': 'purple'},
-    ]
+    # ── AI Design packages (one-time purchase from DesignPackage model) ──
+    from clients.models import DesignPackage
+    customer_ai_pkgs = list(DesignPackage.objects.filter(
+        is_active=True, target_audience='customer'
+    ).order_by('sort_order'))
+    designer_ai_pkgs = list(DesignPackage.objects.filter(
+        is_active=True, target_audience='designer'
+    ).order_by('sort_order'))
 
     return render(request, 'clients/manage_subscription.html', {
         'tenant': tenant,
@@ -967,7 +968,8 @@ def manage_subscription(request):
         'remaining_days': remaining_days,
         'result_msg': result_msg,
         'available_plans': available_plans,
-        'ai_plans': ai_plans,
+        'customer_ai_pkgs': customer_ai_pkgs,
+        'designer_ai_pkgs': designer_ai_pkgs,
         'current_plan': tenant.plan,
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
     })

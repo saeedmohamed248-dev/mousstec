@@ -120,43 +120,72 @@
         </div>
 
         <!-- ═══════════════════════════════════════════════════ -->
-        <!-- 3. باقات الذكاء الاصطناعي (AI Design)               -->
+        <!-- 3. باقات الذكاء الاصطناعي (Design Store — دفعة واحدة) -->
         <!-- ═══════════════════════════════════════════════════ -->
-        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-wand-magic-sparkles text-indigo-400 ml-2"></i>باقات الذكاء الاصطناعي للتصميم</h2>
-        <p class="text-slate-500 text-sm mb-5">أضف قدرات الـ AI لمصمميك — تصاميم احترافية بالذكاء الاصطناعي داخل النظام مباشرة</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            {% for ai in ai_plans %}
-            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 hover:border-{{ ai.color }}-500/50">
-                <div class="text-center mb-4">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-{{ ai.color }}-600/20 rounded-2xl mb-3">
-                        <i class="fas {{ ai.icon }} text-{{ ai.color }}-400 text-2xl"></i>
-                    </div>
-                    <h3 class="text-lg font-black text-white">{{ ai.name }}</h3>
-                    <p class="text-slate-500 text-xs mt-1">
-                        {% if ai.designs == 0 %}
-                        تصاميم غير محدودة شهرياً
-                        {% else %}
-                        {{ ai.designs }} تصميم AI شهرياً
-                        {% endif %}
-                    </p>
+
+        <!-- 3a. باقات العملاء -->
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-wand-magic-sparkles text-pink-400 ml-2"></i>باقات تصاميم الذكاء الاصطناعي — للعملاء</h2>
+        <p class="text-slate-500 text-sm mb-5">تصاميم احترافية بالذكاء الاصطناعي — دفعة واحدة بدون اشتراك شهري</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {% for pkg in customer_ai_pkgs %}
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 relative hover:border-pink-500/50">
+                {% if pkg.is_featured %}
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span class="bg-pink-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:"الأكثر طلباً" }}</span>
                 </div>
-                <div class="text-center mb-5">
-                    <span class="text-3xl font-black text-white">{{ ai.price }}</span>
-                    <span class="text-slate-400 text-sm"> ج.م/شهر</span>
+                {% endif %}
+                <div class="text-center mb-4">
+                    <div class="text-3xl mb-2">{{ pkg.icon_emoji }}</div>
+                    <h3 class="text-lg font-black text-white">{{ pkg.designs_count }} تصاميم</h3>
+                </div>
+                <div class="text-center mb-4">
+                    <span class="text-3xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
+                    <span class="text-slate-400 text-sm"> ج.م</span>
+                    <div class="text-slate-500 text-xs">دفعة واحدة</div>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5">
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> توليد تصاميم بالذكاء الاصطناعي</li>
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> دمج اللوجو تلقائياً</li>
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> تحميل PNG / JPG / PDF</li>
-                    {% if ai.key == 'pro' or ai.key == 'unlimited' %}
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> عرض متعدد الزوايا (تيشرت/مج)</li>
-                    {% endif %}
-                    {% if ai.key == 'unlimited' %}
-                    <li><i class="fas fa-star text-amber-400 ml-1"></i> أولوية في التوليد</li>
-                    {% endif %}
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} تصاميم بالذكاء الاصطناعي</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {% if pkg.free_regenerations_per_design > 1 %}إعادتين توليد{% else %}إعادة توليد واحدة{% endif %} لكل تصميم</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> تحميل بجودة عالية</li>
+                    {% if pkg.allows_whatsapp_delivery %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> إرسال واتساب</li>{% endif %}
+                    {% if pkg.allows_logo_upload %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> دمج اللوجو</li>{% endif %}
+                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> علامة مائية</li>{% endif %}
                 </ul>
-                <a href="/{{ ADMIN_URL }}/hr/aidesignsubscription/add/" class="block w-full text-center bg-{{ ai.color }}-600 hover:opacity-90 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-bolt ml-1"></i> اشترك الآن
+                <a href="/marketplace/design-store/" class="block w-full text-center {% if pkg.is_featured %}bg-pink-600 hover:bg-pink-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-shopping-cart ml-1"></i> اشترِ الآن
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- 3b. باقات المصممين -->
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-palette text-purple-400 ml-2"></i>باقات المصممين والاستوديوهات</h2>
+        <p class="text-slate-500 text-sm mb-5">للمصممين المحترفين والاستوديوهات — عدد أكبر وسعر أقل للتصميم</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mb-10">
+            {% for pkg in designer_ai_pkgs %}
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 relative hover:border-purple-500/50">
+                {% if pkg.is_featured %}
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span class="bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:"الأكثر طلباً" }}</span>
+                </div>
+                {% endif %}
+                <div class="text-center mb-3">
+                    <div class="text-2xl mb-1">{{ pkg.icon_emoji }}</div>
+                    <h3 class="font-black text-white">{{ pkg.designs_count }} تصميم</h3>
+                </div>
+                <div class="text-center mb-3">
+                    <span class="text-2xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
+                    <span class="text-slate-400 text-xs"> ج.م</span>
+                    <div class="text-slate-500 text-xs">دفعة واحدة</div>
+                </div>
+                <ul class="text-slate-400 text-xs space-y-1.5 mb-4">
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} تصميم AI</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> إعادتين توليد</li>
+                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> علامة مائية</li>{% endif %}
+                    {% if pkg.allows_source_files %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> ملفات مصدر</li>{% endif %}
+                </ul>
+                <a href="/marketplace/design-store/" class="block w-full text-center {% if pkg.is_featured %}bg-pink-600 hover:bg-pink-500{% else %}bg-purple-700 hover:bg-purple-600{% endif %} text-white font-bold py-2 rounded-xl transition text-xs">
+                    <i class="fas fa-shopping-cart ml-1"></i> اشترِ الآن
                 </a>
             </div>
             {% endfor %}
