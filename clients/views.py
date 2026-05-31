@@ -1897,7 +1897,7 @@ def marketplace_register(request):
     if existing:
         otp = existing.generate_otp()
         logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone[:6]}***")
-        _send_otp_via_channel(cleaned_phone, otp)
+        _send_otp_via_channel(cleaned_phone, otp, email=existing.email or '')
         resp = {
             "status": "otp_sent",
             "message": "تم إرسال كود التحقق لرقم موبايلك",
@@ -1927,7 +1927,7 @@ def marketplace_register(request):
 
     otp = customer.generate_otp()
     logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered, OTP sent")
-    _send_otp_via_channel(cleaned_phone, otp)
+    _send_otp_via_channel(cleaned_phone, otp, email=customer.email or '')
 
     resp = {
         "status": "otp_sent",
@@ -1941,11 +1941,11 @@ def marketplace_register(request):
     return JsonResponse(resp)
 
 
-def _send_otp_via_channel(phone, otp):
+def _send_otp_via_channel(phone, otp, **kwargs):
     """
-    إرسال OTP عبر Twilio SMS، Vonage، أو WhatsApp.
+    إرسال OTP عبر Twilio SMS، Vonage، WhatsApp، أو Email.
     يتم اختيار البوابة بناءً على settings.OTP_DELIVERY_PROVIDER.
-    Provider options: 'twilio', 'vonage', 'whatsapp_meta', 'console' (default).
+    Provider options: 'twilio', 'vonage', 'whatsapp_meta', 'email', 'console' (default).
     """
     provider = getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console')
     message = f"كود التحقق Mouss Tec: {otp}\nصالح لمدة 10 دقائق."
@@ -2036,10 +2036,40 @@ def _send_otp_via_channel(phone, otp):
             logger.error(f"[OTP/WhatsApp] Failed: {e}")
             return False
 
+    elif provider == 'email':
+        try:
+            from django.core.mail import send_mail
+            email_addr = kwargs.get('email', '')
+            if not email_addr:
+                logger.error("[OTP/Email] No email address provided")
+                return False
+            send_mail(
+                subject='Mouss Tec — كود التحقق',
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email_addr],
+                html_message=f'''
+                <div dir="rtl" style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:20px;">
+                    <h2 style="color:#2563eb;">Mouss Tec</h2>
+                    <p>كود التحقق الخاص بك:</p>
+                    <div style="background:#f1f5f9;padding:15px;border-radius:8px;text-align:center;margin:15px 0;">
+                        <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1e293b;">{otp}</span>
+                    </div>
+                    <p style="color:#64748b;font-size:13px;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
+                </div>
+                ''',
+                fail_silently=False,
+            )
+            logger.info(f"[OTP/Email] sent to {email_addr[:4]}***")
+            return True
+        except Exception as e:
+            logger.error(f"[OTP/Email] Failed: {e}")
+            return False
+
     # Default: console mode (no real delivery)
     logger.warning(
         f"[OTP-CONSOLE] phone={phone[:6]}*** — "
-        f"اضبط OTP_DELIVERY_PROVIDER في settings (twilio/vonage/whatsapp_meta)"
+        f"اضبط OTP_DELIVERY_PROVIDER في settings (twilio/vonage/whatsapp_meta/email)"
     )
     return False
 
@@ -2121,7 +2151,7 @@ def marketplace_login(request):
 
     otp = customer.generate_otp()
     logger.info(f"[MARKETPLACE] Login OTP sent to {cleaned[:6]}***")
-    _send_otp_via_channel(cleaned, otp)
+    _send_otp_via_channel(cleaned, otp, email=customer.email or '')
     resp = {
         "status": "otp_sent",
         "message": "تم إرسال كود التحقق",

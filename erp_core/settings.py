@@ -299,6 +299,7 @@ EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
 
 TECDOC_API_KEY = env('TECDOC_API_KEY', default='')
 ALLDATA_ENDPOINT = env('ALLDATA_ENDPOINT', default='')
@@ -314,7 +315,7 @@ OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 
 # 📱 OTP Delivery Configuration
-# Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'console' (logs only)
+# Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'email' | 'console' (logs only)
 OTP_DELIVERY_PROVIDER = env.str('OTP_DELIVERY_PROVIDER', 'console')
 MARKETPLACE_DEBUG_OTP = env.bool('MARKETPLACE_DEBUG_OTP', default=DEBUG)  # Only show OTP in dev mode
 
