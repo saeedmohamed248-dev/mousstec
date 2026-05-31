@@ -1508,7 +1508,7 @@ def impersonate_login(request):
         )
 
     # Login
-    auth_login(request, admin_user, backend='django.contrib.auth.backends.ModelBackend')
+    auth_login(request, admin_user, backend='clients.backends.CaseInsensitiveEmailBackend')
 
     admin_url = os.getenv('ADMIN_URL', 'secure-portal')
     return redirect(f'/{admin_url}/')
