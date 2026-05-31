@@ -955,12 +955,14 @@ class ServiceRequest(models.Model):
     يظهر لكل التجار المنتمين لنفس القطاع بشكل مجهول.
     """
     STATUS_CHOICES = (
+        ('pending_approval', _('في انتظار موافقة الإدارة')),
         ('open', _('مفتوح — في انتظار العروض')),
         ('reviewing', _('جاري مراجعة العروض')),
         ('accepted', _('تم قبول عرض')),
         ('completed', _('مكتمل — تم التقييم')),
         ('expired', _('منتهي الصلاحية')),
         ('cancelled', _('ملغي بواسطة العميل')),
+        ('rejected_by_admin', _('مرفوض من الإدارة')),
     )
     URGENCY_CHOICES = (
         ('normal', _('عادي — خلال أسبوع')),
@@ -986,7 +988,9 @@ class ServiceRequest(models.Model):
     attachment_1 = models.ImageField(upload_to='marketplace/requests/', blank=True, null=True, verbose_name=_("صورة مرجعية 1"))
     attachment_2 = models.ImageField(upload_to='marketplace/requests/', blank=True, null=True, verbose_name=_("صورة مرجعية 2"))
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_approval', db_index=True)
+    is_approved = models.BooleanField(default=False, verbose_name=_("موافقة الإدارة"))
+    admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الإدارة"))
     offers_count = models.IntegerField(default=0)
     accepted_offer = models.ForeignKey('TenderOffer', on_delete=models.SET_NULL, null=True, blank=True, related_name='accepted_for')
 

@@ -336,6 +336,11 @@ urlpatterns = [
     path('marketplace/request/<uuid:request_code>/', client_views.marketplace_request_detail, name='marketplace_request_detail'),
     path('marketplace/offer/<uuid:offer_code>/accept/', client_views.marketplace_accept_offer, name='marketplace_accept_offer'),
     path('marketplace/offer/<uuid:offer_code>/rate/', client_views.marketplace_rate_offer, name='marketplace_rate_offer'),
+    path('marketplace/request/<uuid:request_code>/edit/', client_views.marketplace_edit_request, name='marketplace_edit_request'),
+
+    # ✅ Super Admin: approve/reject marketplace requests
+    path('marketplace/admin/approve/<int:request_id>/', client_views.marketplace_admin_approve, name='marketplace_admin_approve'),
+    path('marketplace/admin/reject/<int:request_id>/', client_views.marketplace_admin_reject, name='marketplace_admin_reject'),
 
     # 🎨 AI Designs Store (instant generation marketplace)
     path('marketplace/design-store/', client_views.design_store_home, name='design_store_home'),

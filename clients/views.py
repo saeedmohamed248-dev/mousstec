@@ -1423,6 +1423,11 @@ def super_admin_dashboard(request):
             ),
         })
 
+    # --- طلبات سوق في انتظار الموافقة ---
+    pending_marketplace_requests = ServiceRequest.objects.filter(
+        status='pending_approval'
+    ).select_related('customer').order_by('-created_at')[:30]
+
     # --- طلبات شراء التصاميم المعلّقة ---
     pending_design_purchases = DesignPurchase.objects.filter(
         status__in=['pending', 'awaiting_confirm']
@@ -1458,6 +1463,7 @@ def super_admin_dashboard(request):
         'ai_addons': ai_addons,
         'pending_design_purchases': pending_design_purchases,
         'pending_print_requests': pending_print_requests,
+        'pending_marketplace_requests': pending_marketplace_requests,
     })
 
 
@@ -2199,6 +2205,7 @@ def marketplace_dashboard(request):
         'stats': {
             'total': requests_qs.count(),
             'open': requests_qs.filter(status='open').count(),
+            'pending_approval': requests_qs.filter(status='pending_approval').count(),
             'accepted': requests_qs.filter(status='accepted').count(),
             'completed': requests_qs.filter(status='completed').count(),
         },
@@ -2269,14 +2276,13 @@ def marketplace_create_request(request):
             wants_images=wants_images,
             customer_city=customer.city or '',
             max_budget=budget_value,
+            status='pending_approval',  # ينتظر موافقة الإدارة أولاً
+            is_approved=False,
             expires_at=timezone.now() + timedelta(days=days),
         )
     except Exception as e:
         logger.error(f"[MARKETPLACE] Failed to create request for {customer.phone}: {e}")
         return JsonResponse({"error": "فشل إنشاء الطلب. حاول مرة أخرى."}, status=500)
-
-    # 🔔 إشعار كل التجار المؤهلين
-    _notify_merchants_of_new_request(svc_request)
 
     # Handle attachments
     if request.FILES.get('attachment_1'):
@@ -2289,9 +2295,11 @@ def marketplace_create_request(request):
     # Update stats
     MarketplaceCustomer.objects.filter(pk=customer.pk).update(total_requests=F('total_requests') + 1)
 
+    # 🔔 لا نرسل إشعارات للتجار — الطلب ينتظر موافقة الإدارة أولاً
+
     return JsonResponse({
         "status": "success",
-        "message": "تم نشر طلبك بنجاح! سيبدأ التجار في تقديم عروضهم.",
+        "message": "تم إرسال طلبك بنجاح! سيتم مراجعته من الإدارة قبل عرضه للتجار.",
         "request_code": str(svc_request.request_code),
     })
 
@@ -2447,7 +2455,7 @@ def marketplace_merchant_feed(request):
     qs = ServiceRequest.objects.select_related('customer').order_by('-created_at')
 
     if not include_expired:
-        qs = qs.filter(status='open', expires_at__gt=timezone.now())
+        qs = qs.filter(status='open', is_approved=True, expires_at__gt=timezone.now())
 
     if not show_all_sectors:
         qs = qs.filter(sector=industry)
@@ -2497,7 +2505,7 @@ def marketplace_submit_offer(request, request_code):
     except Client.DoesNotExist:
         return JsonResponse({"error": "مستأجر غير صالح"}, status=400)
 
-    svc_request = get_object_or_404(ServiceRequest, request_code=request_code, status='open')
+    svc_request = get_object_or_404(ServiceRequest, request_code=request_code, status='open', is_approved=True)
 
     if svc_request.sector != tenant.industry:
         return JsonResponse({"error": "هذا الطلب ليس في قطاعك"}, status=403)
@@ -2677,20 +2685,126 @@ def marketplace_merchant_create_request(request):
             wants_images=wants_images,
             customer_city='',
             max_budget=budget_value,
+            status='pending_approval',
+            is_approved=False,
             expires_at=timezone.now() + timedelta(days=days),
         )
     except Exception as e:
         logger.error(f"[B2B REQUEST] Failed for {tenant.name}: {e}")
         return JsonResponse({"error": "فشل إنشاء الطلب"}, status=500)
 
-    # 🔔 Send notifications to all eligible merchants in the sector
-    _notify_merchants_of_new_request(svc_request, exclude_tenant=tenant)
+    # 🔔 لا نرسل إشعارات — ينتظر موافقة الإدارة أولاً
 
     return JsonResponse({
         "status": "success",
-        "message": "تم نشر طلبك! سيشاهده كل التجار المؤهلين.",
+        "message": "تم إرسال طلبك! سيتم مراجعته من الإدارة قبل عرضه للتجار.",
         "request_code": str(svc_request.request_code),
     })
+
+
+# ------------------------------------------------------------------
+# ✅ Super Admin: Approve / Reject marketplace requests
+# ------------------------------------------------------------------
+
+@csrf_exempt
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def marketplace_admin_approve(request, request_id):
+    """موافقة سوبر أدمن على طلب سوق."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    svc_request = get_object_or_404(ServiceRequest, pk=request_id)
+    if svc_request.status != 'pending_approval':
+        return JsonResponse({"error": "الطلب ليس في انتظار الموافقة"}, status=400)
+
+    # Approve and make it live
+    svc_request.status = 'open'
+    svc_request.is_approved = True
+    # Reset expiry from now (since it was waiting for approval)
+    expiry_map = {'urgent': 1, 'soon': 3, 'normal': 7}
+    days = expiry_map.get(svc_request.urgency, 7)
+    svc_request.expires_at = timezone.now() + timedelta(days=days)
+    svc_request.save(update_fields=['status', 'is_approved', 'expires_at'])
+
+    # 🔔 Now notify merchants
+    _notify_merchants_of_new_request(svc_request)
+
+    return JsonResponse({"status": "success", "message": "تم الموافقة على الطلب ونشره للتجار."})
+
+
+@csrf_exempt
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def marketplace_admin_reject(request, request_id):
+    """رفض سوبر أدمن لطلب سوق."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    svc_request = get_object_or_404(ServiceRequest, pk=request_id)
+    if svc_request.status != 'pending_approval':
+        return JsonResponse({"error": "الطلب ليس في انتظار الموافقة"}, status=400)
+
+    data = json.loads(request.body) if request.body else {}
+    svc_request.status = 'rejected_by_admin'
+    svc_request.admin_notes = data.get('reason', '')
+    svc_request.save(update_fields=['status', 'admin_notes'])
+
+    return JsonResponse({"status": "success", "message": "تم رفض الطلب."})
+
+
+# ------------------------------------------------------------------
+# ✏️ Customer: Edit their own request (only if still pending or open)
+# ------------------------------------------------------------------
+
+@csrf_exempt
+def marketplace_edit_request(request, request_code):
+    """تعديل طلب من صاحبه (فقط لو لسه pending_approval أو open)."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
+
+    if svc_request.status not in ('pending_approval', 'open'):
+        return JsonResponse({"error": "لا يمكن تعديل الطلب بعد قبول عرض أو انتهاء الطلب"}, status=400)
+
+    title = request.POST.get('title', '').strip()
+    description = request.POST.get('description', '').strip()
+    urgency = request.POST.get('urgency', '').strip()
+
+    if title:
+        if len(title) < 5:
+            return JsonResponse({"error": "العنوان قصير جداً"}, status=400)
+        svc_request.title = title[:300]
+    if description:
+        if len(description) < 10:
+            return JsonResponse({"error": "التفاصيل قصيرة جداً"}, status=400)
+        svc_request.description = description[:5000]
+    if urgency and urgency in ('normal', 'soon', 'urgent'):
+        svc_request.urgency = urgency
+
+    # Handle attachment updates
+    if request.FILES.get('attachment_1'):
+        svc_request.attachment_1 = request.FILES['attachment_1']
+    if request.FILES.get('attachment_2'):
+        svc_request.attachment_2 = request.FILES['attachment_2']
+
+    # If it was already open (approved), editing sends it back for re-approval
+    if svc_request.status == 'open':
+        svc_request.status = 'pending_approval'
+        svc_request.is_approved = False
+
+    svc_request.save()
+
+    msg = "تم تعديل الطلب بنجاح."
+    if svc_request.status == 'pending_approval':
+        msg += " سيتم مراجعته مرة أخرى من الإدارة."
+
+    return JsonResponse({"status": "success", "message": msg})
 
 
 def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):

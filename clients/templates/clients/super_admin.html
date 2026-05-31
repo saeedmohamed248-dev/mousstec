@@ -87,6 +87,9 @@
         <button data-tab="print-requests" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_print_requests %}border-orange-500/40 text-orange-400{% endif %}">
             <i class="fas fa-print ml-1"></i>طلبات طباعة{% if pending_print_requests %} ({{ pending_print_requests|length }}){% endif %}
         </button>
+        <button data-tab="marketplace-approval" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_marketplace_requests %}border-green-500/40 text-green-400{% endif %}">
+            <i class="fas fa-store ml-1"></i>موافقات السوق{% if pending_marketplace_requests %} ({{ pending_marketplace_requests|length }}){% endif %}
+        </button>
     </div>
 
     <!-- ✅ رسائل النجاح/الخطأ -->
@@ -847,6 +850,66 @@
         </div>
     </div><!-- /tab-print-requests -->
 
+    <!-- ═══════ TAB: موافقات طلبات السوق ═══════ -->
+    <div class="tab-content hidden" data-tab-content="marketplace-approval">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+                <i class="fas fa-store text-green-400"></i>
+                <span class="font-bold text-sm text-white">طلبات السوق في انتظار الموافقة — راجع وقرر</span>
+            </div>
+            <div class="divide-y divide-slate-800/60">
+                {% for mr in pending_marketplace_requests %}
+                <div class="px-5 py-4 hover:bg-slate-800/30 transition" id="mreq-{{ mr.pk }}">
+                    <div class="flex items-start gap-4">
+                        <div class="event-icon bg-green-500/15 text-green-400">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-white font-bold">
+                                {{ mr.title }}
+                            </p>
+                            <p class="text-xs text-slate-400 mt-1">{{ mr.description|truncatechars:200 }}</p>
+                            <div class="flex flex-wrap items-center gap-3 mt-2 text-[10px] text-slate-500">
+                                <span><i class="fas fa-user ml-1"></i>{{ mr.customer.full_name }}</span>
+                                <span><i class="fas fa-phone ml-1"></i>{{ mr.customer.phone }}</span>
+                                <span><i class="fas fa-industry ml-1"></i>{{ mr.get_sector_display }}</span>
+                                <span><i class="fas fa-bolt ml-1"></i>{{ mr.get_urgency_display }}</span>
+                                <span><i class="fas fa-clock ml-1"></i>{{ mr.created_at|timesince }} مضت</span>
+                                {% if mr.max_budget %}
+                                <span class="text-amber-400"><i class="fas fa-coins ml-1"></i>ميزانية: {{ mr.max_budget }} ج</span>
+                                {% endif %}
+                            </div>
+                            {% if mr.attachment_1 %}
+                            <div class="flex gap-2 mt-2">
+                                <a href="{{ mr.attachment_1.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>مرفق 1</a>
+                                {% if mr.attachment_2 %}
+                                <a href="{{ mr.attachment_2.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>مرفق 2</a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <button onclick="approveMarketplaceReq({{ mr.pk }}, this)"
+                                    class="text-[10px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer">
+                                <i class="fas fa-check ml-1"></i>موافقة
+                            </button>
+                            <button onclick="rejectMarketplaceReq({{ mr.pk }}, this)"
+                                    class="text-[10px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer">
+                                <i class="fas fa-times ml-1"></i>رفض
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="px-5 py-12 text-center text-slate-600 font-bold">
+                    <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
+                    لا توجد طلبات في انتظار الموافقة حالياً.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div><!-- /tab-marketplace-approval -->
+
 </main>
 
 <!-- ══════════════ مودال تفعيل الاشتراك ══════════════ -->
@@ -1362,6 +1425,50 @@ async function confirmDesignPurchase(purchaseId, action) {
         }
     } catch (e) {
         alert('خطأ: ' + e.message);
+    }
+}
+
+async function approveMarketplaceReq(id, btn) {
+    if (!confirm('هل تريد الموافقة على هذا الطلب ونشره للتجار؟')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full"></span>';
+    try {
+        const res = await fetch(`/marketplace/admin/approve/${id}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        const row = document.getElementById('mreq-' + id);
+        if (row) row.style.display = 'none';
+        alert(data.message);
+    } catch (e) {
+        alert('خطأ: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check ml-1"></i>موافقة';
+    }
+}
+
+async function rejectMarketplaceReq(id, btn) {
+    const reason = prompt('سبب الرفض (اختياري):');
+    if (reason === null) return; // cancelled
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full"></span>';
+    try {
+        const res = await fetch(`/marketplace/admin/reject/${id}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
+            body: JSON.stringify({reason: reason}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        const row = document.getElementById('mreq-' + id);
+        if (row) row.style.display = 'none';
+        alert(data.message);
+    } catch (e) {
+        alert('خطأ: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-times ml-1"></i>رفض';
     }
 }
 </script>

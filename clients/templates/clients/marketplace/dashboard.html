@@ -96,6 +96,12 @@
             <div class="num">{{ stats.total }}</div>
             <div class="label">إجمالي الطلبات</div>
         </div>
+        {% if stats.pending_approval > 0 %}
+        <div class="stat-card">
+            <div class="num" style="color:#f59e0b">{{ stats.pending_approval }}</div>
+            <div class="label">⏳ في انتظار الموافقة</div>
+        </div>
+        {% endif %}
         <div class="stat-card">
             <div class="num" style="color:var(--success)">{{ stats.open }}</div>
             <div class="label">مفتوحة</div>
@@ -117,7 +123,7 @@
                 <span style="font-size:2.5rem;">🎨</span>
                 <div>
                     <div style="font-weight:900; color:#fff;">متجر تصاميم AI الفوري</div>
-                    <div style="font-size:0.85rem; color:#cbd5e1; margin-top:4px;">25 تصميم بـ 32 ج · 100 تصميم بـ 100 ج — لوجو، فلاير، تيشرت في ثواني</div>
+                    <div style="font-size:0.85rem; color:#cbd5e1; margin-top:4px;">تصميمات AI احترافية — لوجو، فلاير، تيشرت في ثواني بجودة عالية</div>
                 </div>
             </div>
             <span style="background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem;">دخول المتجر <i class="fas fa-arrow-left"></i></span>
@@ -142,7 +148,7 @@
                 <p style="color:var(--muted); font-size:0.9rem; margin-bottom:8px;">{{ req.description|truncatechars:120 }}</p>
                 <div class="d-flex gap-2 align-items-center flex-wrap">
                     <span class="badge-status badge-{{ req.status }}">
-                        {% if req.status == 'open' %}مفتوح{% elif req.status == 'reviewing' %}قيد المراجعة{% elif req.status == 'accepted' %}تم القبول{% elif req.status == 'completed' %}مكتمل{% elif req.status == 'expired' %}منتهي{% else %}ملغي{% endif %}
+                        {% if req.status == 'pending_approval' %}⏳ في انتظار الموافقة{% elif req.status == 'open' %}مفتوح{% elif req.status == 'reviewing' %}قيد المراجعة{% elif req.status == 'accepted' %}تم القبول{% elif req.status == 'completed' %}مكتمل{% elif req.status == 'expired' %}منتهي{% elif req.status == 'rejected_by_admin' %}❌ مرفوض{% else %}ملغي{% endif %}
                     </span>
                     <span class="urgency-{{ req.urgency }}">
                         {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> عاجل{% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> قريب{% else %}<i class="fas fa-calendar"></i> عادي{% endif %}
@@ -153,6 +159,11 @@
             <div class="text-end">
                 <small style="color:var(--muted);">{{ req.created_at|date:"d/m/Y" }}</small>
                 <br>
+                {% if req.status == 'pending_approval' or req.status == 'open' %}
+                <button class="btn-outline mt-2 d-inline-block" style="font-size:0.85rem; padding:8px 16px; cursor:pointer;" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')">
+                    <i class="fas fa-edit"></i> تعديل
+                </button>
+                {% endif %}
                 {% if req.offers_count > 0 %}
                 <a href="/marketplace/request/{{ req.request_code }}/" class="btn-outline mt-2 d-inline-block" style="font-size:0.85rem; padding:8px 16px;">
                     <i class="fas fa-eye"></i> عرض العروض
@@ -228,6 +239,42 @@
     </div>
 </div>
 
+<!-- Edit Request Modal -->
+<div class="modal-overlay" id="editRequestModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-edit" style="color:var(--accent)"></i> تعديل الطلب</h3>
+        <form id="editForm" enctype="multipart/form-data">
+            <input type="hidden" id="editRequestCode" name="request_code">
+            <div class="mb-3">
+                <label class="form-label">عنوان الطلب *</label>
+                <input type="text" class="form-control" name="title" id="editTitle" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">التفاصيل *</label>
+                <textarea class="form-control" name="description" id="editDescription" rows="4" required></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">مستوى الاستعجال</label>
+                <select class="form-select" name="urgency" id="editUrgency">
+                    <option value="normal">عادي — خلال أسبوع</option>
+                    <option value="soon">قريب — خلال 3 أيام</option>
+                    <option value="urgent">عاجل — خلال 24 ساعة</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">تحديث صور مرجعية (اختياري)</label>
+                <input type="file" class="form-control" name="attachment_1" accept="image/*">
+                <input type="file" class="form-control mt-2" name="attachment_2" accept="image/*">
+            </div>
+            <p style="color:var(--warn); font-size:0.85rem;"><i class="fas fa-info-circle"></i> لو الطلب كان مفتوح سابقاً، التعديل هيعيده للمراجعة من الإدارة.</p>
+            <button type="submit" class="btn-glow w-100" id="editReqBtn">
+                <i class="fas fa-save"></i> حفظ التعديلات
+            </button>
+        </form>
+    </div>
+</div>
+
 <script>
 function openNewRequest() { document.getElementById('newRequestModal').classList.add('show'); }
 function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
@@ -260,6 +307,38 @@ document.getElementById('requestForm').addEventListener('submit', async function
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> انشر الطلب';
+    }
+});
+
+function openEditModal(code, title, desc, urgency) {
+    document.getElementById('editRequestCode').value = code;
+    document.getElementById('editTitle').value = title;
+    document.getElementById('editDescription').value = desc;
+    document.getElementById('editUrgency').value = urgency;
+    document.getElementById('editRequestModal').classList.add('show');
+}
+
+document.getElementById('editForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('editReqBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+
+    const code = document.getElementById('editRequestCode').value;
+    const fd = new FormData(this);
+
+    try {
+        const res = await fetch(`/marketplace/request/${code}/edit/`, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        closeModal();
+        setTimeout(() => location.reload(), 1200);
+    } catch (err) {
+        toast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
     }
 });
 </script>
