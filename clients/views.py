@@ -1892,23 +1892,25 @@ def marketplace_register(request):
         else:
             cleaned_phone = phone           # keep as-is, validation will catch bad ones
 
-    # Check existing
+    # Check existing — auto-login
     existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
     if existing:
-        otp = existing.generate_otp()
-        logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone[:6]}***")
-        _send_otp_via_channel(cleaned_phone, otp, email=existing.email or '')
-        resp = {
-            "status": "otp_sent",
-            "message": "تم إرسال كود التحقق لرقم موبايلك",
-            "phone": cleaned_phone,
+        existing.is_verified = True
+        existing.session_token = uuid.uuid4()
+        existing.save(update_fields=['is_verified', 'session_token'])
+        logger.info(f"[MARKETPLACE] Existing customer logged in: {cleaned_phone[:6]}***")
+        response = JsonResponse({
+            "status": "verified",
+            "message": "تم الدخول بنجاح!",
+            "redirect": "/marketplace/dashboard/",
             "is_existing": True,
-        }
-        # 🚧 MVP MODE: حتى يتم ربط بوابة SMS، نُظهر الكود في الرد
-        if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
-            resp["dev_otp"] = otp
-            resp["message"] += f" (كود التطوير: {otp})"
-        return JsonResponse(resp)
+        })
+        response.set_cookie(
+            'mp_session', str(existing.session_token),
+            max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+            secure=not settings.DEBUG,
+        )
+        return response
 
     try:
         customer = MarketplaceCustomer.objects.create(
@@ -1920,25 +1922,25 @@ def marketplace_register(request):
             job_title=job_title,
             sector=sector,
             city=city,
+            is_verified=True,
         )
     except Exception as e:
         logger.error(f"[MARKETPLACE] Failed to create customer: {e}")
         return JsonResponse({"error": "فشل التسجيل. حاول مرة أخرى."}, status=500)
 
-    otp = customer.generate_otp()
-    logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered, OTP sent")
-    _send_otp_via_channel(cleaned_phone, otp, email=customer.email or '')
-
-    resp = {
-        "status": "otp_sent",
-        "message": "تم تسجيلك بنجاح. كود التحقق تم إرساله لموبايلك.",
-        "phone": cleaned_phone,
+    logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered")
+    response = JsonResponse({
+        "status": "verified",
+        "message": "تم تسجيلك بنجاح!",
+        "redirect": "/marketplace/dashboard/",
         "is_existing": False,
-    }
-    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
-        resp["dev_otp"] = otp
-        resp["message"] += f" (كود التطوير: {otp})"
-    return JsonResponse(resp)
+    })
+    response.set_cookie(
+        'mp_session', str(customer.session_token),
+        max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+        secure=not settings.DEBUG,
+    )
+    return response
 
 
 def _send_otp_via_channel(phone, otp, **kwargs):
@@ -2149,18 +2151,21 @@ def marketplace_login(request):
     if not customer:
         return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
 
-    otp = customer.generate_otp()
-    logger.info(f"[MARKETPLACE] Login OTP sent to {cleaned[:6]}***")
-    _send_otp_via_channel(cleaned, otp, email=customer.email or '')
-    resp = {
-        "status": "otp_sent",
-        "message": "تم إرسال كود التحقق",
-        "phone": cleaned,
-    }
-    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
-        resp["dev_otp"] = otp
-        resp["message"] += f" (كود التطوير: {otp})"
-    return JsonResponse(resp)
+    customer.is_verified = True
+    customer.session_token = uuid.uuid4()
+    customer.save(update_fields=['is_verified', 'session_token'])
+    logger.info(f"[MARKETPLACE] Login: {cleaned[:6]}***")
+    response = JsonResponse({
+        "status": "verified",
+        "message": "تم الدخول بنجاح!",
+        "redirect": "/marketplace/dashboard/",
+    })
+    response.set_cookie(
+        'mp_session', str(customer.session_token),
+        max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+        secure=not settings.DEBUG,
+    )
+    return response
 
 
 def marketplace_dashboard(request):
