@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة الاشتراك والإضافات | Mouss Tec</title>
+    <title>إدارة الاشتراك والباقات | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
-        .addon-card { transition: all 0.2s ease; }
-        .addon-card:hover { transform: translateY(-4px); border-color: rgba(139, 92, 246, 0.5); }
+        .plan-card, .addon-card { transition: all 0.2s ease; }
+        .plan-card:hover, .addon-card:hover { transform: translateY(-4px); }
+        .plan-card.current { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
     </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -24,15 +25,15 @@
             </div>
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
-        <a href="/system/dashboard/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
+        <a href="/{{ ADMIN_URL }}/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
             <i class="fas fa-arrow-right"></i> العودة للنظام
         </a>
     </header>
 
-    <main class="container mx-auto px-6 py-8 max-w-4xl">
+    <main class="container mx-auto px-6 py-8 max-w-5xl">
 
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-black text-white mb-2">إدارة الاشتراك والإضافات</h1>
+            <h1 class="text-3xl font-black text-white mb-2">إدارة الاشتراك والباقات</h1>
             <p class="text-slate-400">{{ tenant.name }} — باقة {{ tenant.get_plan_display }}</p>
         </div>
 
@@ -42,7 +43,9 @@
         </div>
         {% endif %}
 
-        <!-- Current Plan Summary -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- 1. ملخص الباقة الحالية                              -->
+        <!-- ═══════════════════════════════════════════════════ -->
         <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 mb-8">
             <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-chart-pie text-purple-400 ml-2"></i>ملخص الباقة الحالية</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -67,28 +70,112 @@
                     <div class="text-slate-400 text-xs mt-1">يوم متبقي</div>
                     <div class="text-slate-600 text-xs">ينتهي: {{ tenant.subscription_end_date }}</div>
                     {% else %}
-                    <div class="text-2xl font-black text-slate-500">--</div>
+                    <div class="text-2xl font-black text-amber-400"><i class="fas fa-hourglass-half text-lg"></i></div>
                     <div class="text-slate-400 text-xs mt-1">فترة تجريبية</div>
+                    <div class="text-slate-600 text-xs">تنتهي: {{ tenant.trial_ends_at }}</div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Pro-rated Cost Info -->
-        <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-8 text-sm">
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- 2. باقات النظام (ترقية / تجديد)                     -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <h2 class="text-xl font-black text-white mb-5"><i class="fas fa-rocket text-purple-400 ml-2"></i>باقات النظام — ترقية أو تجديد</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            {% for plan in available_plans %}
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col {% if current_plan == plan.key %}current{% endif %}">
+                {% if current_plan == plan.key %}
+                <div class="text-center mb-3">
+                    <span class="inline-block bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle ml-1"></i>باقتك الحالية</span>
+                </div>
+                {% endif %}
+                <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-{{ plan.color }}-600/20 rounded-2xl mb-3">
+                        <i class="fas {{ plan.icon }} text-{{ plan.color }}-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-white">{{ plan.name }}</h3>
+                    <p class="text-slate-500 text-xs mt-1">{{ plan.desc }}</p>
+                </div>
+                <div class="text-center mb-4">
+                    <span class="text-3xl font-black text-white">{{ plan.price }}</span>
+                    <span class="text-slate-400 text-sm"> ج.م/شهر</span>
+                </div>
+                <ul class="text-slate-400 text-xs space-y-2 mb-5 flex-1">
+                    <li><i class="fas fa-users text-purple-400 ml-1 w-4"></i> {{ plan.users }} موظف</li>
+                    <li><i class="fas fa-code-branch text-indigo-400 ml-1 w-4"></i> {{ plan.branches }} فرع</li>
+                    <li><i class="fas fa-vault text-emerald-400 ml-1 w-4"></i> {{ plan.treasuries }} خزينة</li>
+                </ul>
+                {% if current_plan == plan.key %}
+                <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-emerald-600/30 text-emerald-400 font-bold py-2.5 rounded-xl text-sm border border-emerald-500/30">
+                    <i class="fas fa-sync-alt ml-1"></i> تجديد الباقة
+                </a>
+                {% else %}
+                <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-arrow-up ml-1"></i> ترقية لهذه الباقة
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- 3. باقات الذكاء الاصطناعي (AI Design)               -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-wand-magic-sparkles text-indigo-400 ml-2"></i>باقات الذكاء الاصطناعي للتصميم</h2>
+        <p class="text-slate-500 text-sm mb-5">أضف قدرات الـ AI لمصمميك — تصاميم احترافية بالذكاء الاصطناعي داخل النظام مباشرة</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            {% for ai in ai_plans %}
+            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 hover:border-{{ ai.color }}-500/50">
+                <div class="text-center mb-4">
+                    <div class="inline-flex items-center justify-center w-14 h-14 bg-{{ ai.color }}-600/20 rounded-2xl mb-3">
+                        <i class="fas {{ ai.icon }} text-{{ ai.color }}-400 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-white">{{ ai.name }}</h3>
+                    <p class="text-slate-500 text-xs mt-1">
+                        {% if ai.designs == 0 %}
+                        تصاميم غير محدودة شهرياً
+                        {% else %}
+                        {{ ai.designs }} تصميم AI شهرياً
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-center mb-5">
+                    <span class="text-3xl font-black text-white">{{ ai.price }}</span>
+                    <span class="text-slate-400 text-sm"> ج.م/شهر</span>
+                </div>
+                <ul class="text-slate-400 text-xs space-y-2 mb-5">
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> توليد تصاميم بالذكاء الاصطناعي</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> دمج اللوجو تلقائياً</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> تحميل PNG / JPG / PDF</li>
+                    {% if ai.key == 'pro' or ai.key == 'unlimited' %}
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> عرض متعدد الزوايا (تيشرت/مج)</li>
+                    {% endif %}
+                    {% if ai.key == 'unlimited' %}
+                    <li><i class="fas fa-star text-amber-400 ml-1"></i> أولوية في التوليد</li>
+                    {% endif %}
+                </ul>
+                <a href="/{{ ADMIN_URL }}/hr/aidesignsubscription/add/" class="block w-full text-center bg-{{ ai.color }}-600 hover:opacity-90 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                    <i class="fas fa-bolt ml-1"></i> اشترك الآن
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- 4. إضافات (موظفين / فروع / خزائن)                  -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-cart-plus text-emerald-400 ml-2"></i>شراء إضافات</h2>
+        <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-5 text-sm">
             <i class="fas fa-calculator text-indigo-400 ml-2"></i>
             سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} ج.م/شهر</strong>
             {% if remaining_days > 0 and remaining_days < 30 %}
-            — التكلفة التناسبية الحالية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} ج.م</strong>
+            — التكلفة التناسبية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} ج.م</strong>
             {% endif %}
         </div>
-
-        <!-- Addon Purchase Cards -->
-        <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-cart-plus text-purple-400 ml-2"></i>شراء إضافات</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 
-            <!-- Add Employee -->
-            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 hover:border-purple-500/50">
                 {% csrf_token %}
                 <input type="hidden" name="addon_type" value="employee">
                 <div class="text-center mb-4">
@@ -112,8 +199,7 @@
                 </button>
             </form>
 
-            <!-- Add Branch -->
-            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 hover:border-indigo-500/50">
                 {% csrf_token %}
                 <input type="hidden" name="addon_type" value="branch">
                 <div class="text-center mb-4">
@@ -136,8 +222,7 @@
                 </button>
             </form>
 
-            <!-- Add Treasury -->
-            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+            <form method="post" class="addon-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 hover:border-emerald-500/50">
                 {% csrf_token %}
                 <input type="hidden" name="addon_type" value="treasury">
                 <div class="text-center mb-4">
@@ -162,11 +247,17 @@
 
         </div>
 
-        <!-- Upgrade CTA -->
-        <div class="text-center">
-            <a href="/pricing/?shop={{ tenant.schema_name }}" class="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold text-sm transition">
-                <i class="fas fa-arrow-up"></i> ترقية الباقة أو التجديد
-            </a>
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- 5. طرق الدفع                                        -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <div class="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-6 text-center">
+            <h3 class="font-bold text-white mb-3"><i class="fas fa-credit-card text-purple-400 ml-2"></i>طرق الدفع المتاحة</h3>
+            <div class="flex flex-wrap justify-center gap-6 text-slate-400 text-sm">
+                <span><i class="fas fa-mobile-screen text-emerald-400 ml-1"></i> فودافون كاش</span>
+                <span><i class="fas fa-money-bill-transfer text-blue-400 ml-1"></i> إنستاباي</span>
+                <span><i class="fab fa-cc-visa text-indigo-400 ml-1"></i> فيزا / ماستركارد</span>
+            </div>
+            <p class="text-slate-600 text-xs mt-3">تواصل معنا على واتساب للاشتراك أو التجديد — سيتم تفعيلك فوراً</p>
         </div>
 
     </main>

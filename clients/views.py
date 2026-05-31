@@ -937,12 +937,39 @@ def manage_subscription(request):
     if tenant.subscription_end_date:
         remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
 
+    # ── Build available plans for this industry ──
+    industry = getattr(tenant, 'industry', 'automotive')
+    if industry == 'printing':
+        available_plans = [
+            {'key': 'print_basic', 'name': 'Print Basic', 'desc': 'للمطابع الصغيرة واستوديوهات التصميم', 'price': 550, 'users': 2, 'branches': 1, 'treasuries': 1, 'icon': 'fa-print', 'color': 'pink'},
+            {'key': 'print_pro', 'name': 'Print Pro', 'desc': 'للمطابع المتوسطة ومكاتب التصميم', 'price': 880, 'users': 5, 'branches': 2, 'treasuries': 2, 'icon': 'fa-palette', 'color': 'purple'},
+            {'key': 'print_enterprise', 'name': 'Print Enterprise', 'desc': 'للمطابع الكبيرة ومجموعات التصميم', 'price': 2000, 'users': 15, 'branches': 5, 'treasuries': 5, 'icon': 'fa-building', 'color': 'amber'},
+        ]
+    else:
+        available_plans = [
+            {'key': 'silver', 'name': 'سيلفر', 'desc': 'لمراكز الصيانة وتجار قطع الغيار', 'price': 685, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-car', 'color': 'slate'},
+            {'key': 'gold', 'name': 'جولد', 'desc': 'لمراكز الصيانة وتجار قطع الغيار الشامل', 'price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-crown', 'color': 'yellow'},
+            {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 3000, 'users': 15, 'branches': 5, 'treasuries': 5, 'icon': 'fa-gem', 'color': 'purple'},
+        ]
+
+    # ── AI Design subscription info ──
+    from hr.models import AIDesignSubscription
+    ai_plans = [
+        {'key': 'basic', 'name': 'أساسي', 'designs': 100, 'price': 350, 'icon': 'fa-wand-magic-sparkles', 'color': 'blue'},
+        {'key': 'pro', 'name': 'احترافي', 'designs': 300, 'price': 350, 'icon': 'fa-rocket', 'color': 'indigo'},
+        {'key': 'unlimited', 'name': 'غير محدود', 'designs': 0, 'price': 499, 'icon': 'fa-infinity', 'color': 'purple'},
+    ]
+
     return render(request, 'clients/manage_subscription.html', {
         'tenant': tenant,
         'prorated_cost': prorated_cost,
         'full_addon_price': float(Client.ADDON_PRICE_PER_MONTH),
         'remaining_days': remaining_days,
         'result_msg': result_msg,
+        'available_plans': available_plans,
+        'ai_plans': ai_plans,
+        'current_plan': tenant.plan,
+        'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
     })
 
 
