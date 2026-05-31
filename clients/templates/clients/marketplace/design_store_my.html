@@ -138,9 +138,6 @@
         <div class="balance-info">
             <h2><strong>{{ total_remaining }}</strong> تصميم</h2>
             <p>رصيدك المتاح للتوليد</p>
-            {% if free_remaining > 0 %}
-            <p style="color:#34d399;font-size:0.8rem;margin-top:4px;">🎁 {{ free_remaining }} تصميم مجاني</p>
-            {% endif %}
         </div>
         {% if total_remaining == 0 %}
         <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> اشتري باقة جديدة</a>
@@ -160,19 +157,57 @@
             <div class="form-group">
                 <label>نوع التصميم</label>
                 <select name="category" id="categorySel">
-                    <option value="logo">🔖 لوجو / Brand Mark</option>
-                    <option value="business_card">💳 كارت بزنس</option>
-                    <option value="social_post">📱 بوست سوشيال ميديا</option>
-                    <option value="flyer">📄 فلاير</option>
-                    <option value="poster">🖼️ بوستر / إعلان</option>
-                    <option value="banner">🪧 بنر / Roll-up</option>
-                    <option value="packaging">📦 تغليف منتج</option>
-                    <option value="tshirt">👕 تيشرت</option>
-                    <option value="menu">📋 منيو</option>
-                    <option value="invitation">💌 دعوة</option>
-                    <option value="sticker">🏷️ ستيكر</option>
-                    <option value="mockup">🎁 Mockup منتج</option>
-                    <option value="other">✨ أخرى</option>
+                    <optgroup label="🏢 هوية تجارية">
+                        <option value="logo">🔖 لوجو / Brand Mark</option>
+                        <option value="business_card">💳 كارت بزنس</option>
+                        <option value="letterhead">📃 ورق رسمي / Letterhead</option>
+                        <option value="stamp">🔏 ختم / Stamp</option>
+                    </optgroup>
+                    <optgroup label="📱 سوشيال ميديا">
+                        <option value="social_post">📱 بوست سوشيال ميديا</option>
+                        <option value="story">📲 ستوري / Reels</option>
+                        <option value="cover">🖼️ غلاف فيسبوك / يوتيوب</option>
+                    </optgroup>
+                    <optgroup label="🖨️ مطبوعات">
+                        <option value="flyer">📄 فلاير</option>
+                        <option value="poster">🖼️ بوستر / إعلان</option>
+                        <option value="banner">🪧 بنر / Roll-up</option>
+                        <option value="sign">🏗️ يافطة / كلادينج / لافتة</option>
+                        <option value="menu">📋 منيو</option>
+                        <option value="invitation">💌 دعوة / كارت مناسبة</option>
+                        <option value="certificate">📜 شهادة / Certificate</option>
+                        <option value="brochure">📰 بروشور</option>
+                        <option value="receipt_form">🧾 فاتورة / إيصال / نموذج</option>
+                    </optgroup>
+                    <optgroup label="👕 ملابس ومنتجات">
+                        <option value="tshirt">👕 تيشرت</option>
+                        <option value="pants">👖 بنطلون / تصميم ملابس</option>
+                        <option value="abaya">🧕 عباية / جلابية</option>
+                        <option value="uniform">🥋 يونيفورم / زي موحد</option>
+                        <option value="cap">🧢 كاب / طاقية</option>
+                        <option value="bag">👜 شنطة / حقيبة</option>
+                        <option value="shoe">👟 حذاء / جزمة</option>
+                    </optgroup>
+                    <optgroup label="📦 تغليف ومنتجات">
+                        <option value="packaging">📦 تغليف منتج / علبة</option>
+                        <option value="label">🏷️ ليبل / ملصق منتج</option>
+                        <option value="sticker">🏷️ ستيكر</option>
+                        <option value="mug_design">☕ تصميم ماج</option>
+                        <option value="mockup">🎁 Mockup منتج</option>
+                    </optgroup>
+                    <optgroup label="🎬 وسائط متعددة">
+                        <option value="film_poster">🎬 بوستر فيلم / مسلسل</option>
+                        <option value="book_cover">📚 غلاف كتاب</option>
+                        <option value="album_cover">💿 غلاف ألبوم</option>
+                        <option value="thumbnail">🖱️ Thumbnail يوتيوب</option>
+                    </optgroup>
+                    <optgroup label="🔧 أخرى">
+                        <option value="pattern">🔲 باترن / نقشة متكررة</option>
+                        <option value="illustration">🎨 رسم توضيحي</option>
+                        <option value="infographic">📊 إنفوجرافيك</option>
+                        <option value="car_wrap">🚗 رسم سيارة / Wrap</option>
+                        <option value="other">✨ أخرى — اكتب في الوصف</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -193,23 +228,42 @@
                 <div class="form-group">
                     <label>📐 المقاس</label>
                     <select name="size_preset" id="sizeSel" onchange="toggleCustomSize()">
+                        <optgroup label="🤖 ذكي">
+                            <option value="auto" selected>🤖 تلقائي (AI يختار الأنسب)</option>
+                        </optgroup>
                         <optgroup label="📱 سوشيال ميديا">
-                            <option value="1024x1024">🟦 مربع 1024×1024 (بوست)</option>
-                            <option value="1024x1536">📱 Story / Reels (1024×1536)</option>
-                            <option value="1536x1024">🖥️ أفقي / Cover (1536×1024)</option>
+                            <option value="1024x1024">🟦 مربع 1:1 (بوست إنستا/فيسبوك)</option>
+                            <option value="1024x1536">📱 طولي 2:3 (Story / Reels)</option>
+                            <option value="1536x1024">🖥️ أفقي 3:2 (Cover / Thumbnail)</option>
                         </optgroup>
-                        <optgroup label="🖨️ طباعة">
-                            <option value="a4">📄 A4 طباعة</option>
-                            <option value="a3">📑 A3 طباعة كبير</option>
-                            <option value="business_card">💳 كارت بزنس</option>
+                        <optgroup label="🖨️ مطبوعات ورقية">
+                            <option value="a4">📄 A4 (فلاير / ورق رسمي)</option>
+                            <option value="a3">📑 A3 (بوستر / بروشور)</option>
+                            <option value="a5">📃 A5 (دعوة / كارت)</option>
+                            <option value="business_card">💳 كارت بزنس (9×5 سم)</option>
                         </optgroup>
-                        <optgroup label="👕 منتجات">
-                            <option value="tshirt_chest">👕 طبعة تيشرت</option>
+                        <optgroup label="🪧 يافطات ولافتات">
+                            <option value="banner_wide">🪧 بنر عريض (3:1)</option>
+                            <option value="rollup">📐 Roll-up (طولي 2:5)</option>
+                            <option value="sign_square">🏗️ يافطة مربعة (1:1)</option>
+                            <option value="sign_landscape">🏗️ يافطة أفقية (2:1)</option>
+                        </optgroup>
+                        <optgroup label="👕 ملابس ومنتجات">
+                            <option value="tshirt_chest">👕 طبعة تيشرت (صدر)</option>
+                            <option value="tshirt_full">👕 تيشرت كامل (أمام)</option>
+                            <option value="pants_pattern">👖 تصميم بنطلون</option>
+                            <option value="abaya_pattern">🧕 تصميم عباية / جلابية</option>
+                            <option value="full_body">🧍 ملابس Full Body</option>
                             <option value="mug">☕ ماج</option>
+                            <option value="bag">👜 شنطة / حقيبة</option>
                         </optgroup>
-                        <optgroup label="🔧 متقدم">
-                            <option value="auto">🤖 تلقائي (AI يختار الأنسب)</option>
-                            <option value="custom">⚙️ مقاس مخصص</option>
+                        <optgroup label="🎬 أغلفة ووسائط">
+                            <option value="book_cover">📚 غلاف كتاب (طولي)</option>
+                            <option value="youtube_thumb">🖱️ Thumbnail يوتيوب (16:9)</option>
+                            <option value="film_poster">🎬 بوستر فيلم (طولي)</option>
+                        </optgroup>
+                        <optgroup label="⚙️ مخصص">
+                            <option value="custom">⚙️ مقاس مخصص (بالبيكسل)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -322,11 +376,16 @@
                     </button>
                     {% endif %}
                     {% if d.regenerations_used < d.regenerations_allowed %}
-                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد">
-                        <i class="fas fa-rotate-right"></i>
+                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد ({{ d.regen_left }} متبقي)">
+                        <i class="fas fa-rotate-right"></i> {{ d.regen_left }}
                     </button>
                     {% endif %}
                 </div>
+                {% if d.regenerations_allowed > 0 %}
+                <div style="font-size:0.65rem;color:#94a3b8;margin-top:4px;">
+                    🔄 إعادة توليد: {{ d.regen_left }}/{{ d.regenerations_allowed }} متبقي
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -353,7 +412,7 @@ document.getElementById('categorySel').addEventListener('change', e => {
     const v = e.target.value;
     document.getElementById('weightBox').style.display = v === 'packaging' ? 'flex' : 'none';
     // Show multi-angle option for mockup-able categories
-    const mockupCats = ['tshirt', 'mug', 'packaging', 'mockup'];
+    const mockupCats = ['tshirt', 'pants', 'abaya', 'uniform', 'cap', 'bag', 'shoe', 'mug_design', 'mug', 'packaging', 'mockup'];
     document.getElementById('multiAngleBox').style.display = mockupCats.includes(v) ? 'block' : 'none';
 });
 

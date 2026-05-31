@@ -3053,11 +3053,17 @@ def design_store_my_designs(request):
     if not customer:
         return redirect('/marketplace/')
 
-    purchases = customer.design_purchases.filter(status='paid').select_related('package').order_by('-created_at')
-    designs = customer.designs.order_by('-created_at')[:50]
+    purchases = customer.design_purchases.filter(
+        status__in=['paid', 'exhausted']
+    ).select_related('package').order_by('-created_at')
+    designs = list(customer.designs.order_by('-created_at')[:50])
     active_purchase = next((p for p in purchases if p.is_usable), None)
     paid_remaining = sum(p.designs_remaining for p in purchases if p.is_usable)
     free_remaining = customer.free_designs_remaining
+
+    # إضافة معلومات إعادة التوليد لكل تصميم
+    for d in designs:
+        d.regen_left = max(d.regenerations_allowed - d.regenerations_used, 0)
 
     return render(request, 'clients/marketplace/design_store_my.html', {
         'customer': customer,
@@ -3099,7 +3105,7 @@ def design_store_generate(request):
                         if p.is_usable), None)
         if not purchase:
             return JsonResponse({
-                "error": "لا يوجد رصيد متاح. اشتري باقة جديدة لتبدأ.",
+                "error": "رصيدك خلص! اشتري باقة جديدة علشان تكمل تصميمات.",
                 "redirect": "/marketplace/design-store/",
                 "free_used": customer.free_designs_used,
                 "free_total": customer.free_designs_total,
@@ -3124,19 +3130,23 @@ def design_store_generate(request):
     # Smart size selection based on category + user dimensions
     # Category → best default AI size mapping
     CATEGORY_SIZE_MAP = {
-        'logo': '1024x1024',
-        'business_card': '1536x1024',
-        'social_post': '1024x1024',
-        'flyer': '1024x1536',
-        'poster': '1024x1536',
-        'banner': '1536x1024',
-        'tshirt': '1024x1536',
-        'mug': '1536x1024',
-        'sticker': '1024x1024',
-        'packaging': '1024x1024',
-        'menu': '1024x1536',
-        'invitation': '1024x1536',
-        'mockup': '1024x1024',
+        'logo': '1024x1024', 'stamp': '1024x1024',
+        'business_card': '1536x1024', 'letterhead': '1024x1536',
+        'social_post': '1024x1024', 'story': '1024x1536', 'cover': '1536x1024',
+        'flyer': '1024x1536', 'poster': '1024x1536', 'brochure': '1024x1536',
+        'banner': '1536x1024', 'sign': '1536x1024',
+        'certificate': '1536x1024', 'receipt_form': '1024x1536',
+        'tshirt': '1024x1536', 'pants': '1024x1536', 'abaya': '1024x1536',
+        'uniform': '1024x1536', 'cap': '1024x1024', 'bag': '1024x1024',
+        'shoe': '1024x1024', 'full_body': '1024x1536',
+        'mug': '1536x1024', 'mug_design': '1536x1024',
+        'sticker': '1024x1024', 'label': '1024x1024',
+        'packaging': '1024x1024', 'mockup': '1024x1024',
+        'film_poster': '1024x1536', 'book_cover': '1024x1536',
+        'album_cover': '1024x1024', 'thumbnail': '1536x1024',
+        'pattern': '1024x1024', 'illustration': '1024x1024',
+        'infographic': '1024x1536', 'car_wrap': '1536x1024',
+        'menu': '1024x1536', 'invitation': '1024x1536',
     }
 
     # Map user presets → canonical size
@@ -3144,9 +3154,20 @@ def design_store_generate(request):
         '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
         '1024x1792': '1024x1792', '1792x1024': '1792x1024',
         '2048x2048': '1024x1024',
-        'a4': '1024x1536', 'a3': '1024x1536',
+        # مطبوعات
+        'a4': '1024x1536', 'a3': '1024x1536', 'a5': '1024x1536',
         'business_card': '1536x1024',
-        'tshirt_chest': '1024x1536', 'mug': '1536x1024',
+        # يافطات
+        'banner_wide': '1536x1024', 'rollup': '1024x1536',
+        'sign_square': '1024x1024', 'sign_landscape': '1536x1024',
+        # ملابس
+        'tshirt_chest': '1024x1536', 'tshirt_full': '1024x1536',
+        'pants_pattern': '1024x1536', 'abaya_pattern': '1024x1536',
+        'full_body': '1024x1536',
+        'mug': '1536x1024', 'bag': '1024x1024',
+        # أغلفة
+        'book_cover': '1024x1536', 'youtube_thumb': '1536x1024',
+        'film_poster': '1024x1536',
         'custom': '1024x1024', 'auto': 'auto',
     }
     # If user chose 'auto' or no size, pick best size by category
@@ -3387,6 +3408,194 @@ def design_store_generate(request):
             f"SHAPE: Design with a clear die-cut boundary — circle, rounded rectangle, or custom "
             f"contour shape. Show the sticker on white background with a subtle cut-line. "
             f"QUALITY: Should look like a premium vinyl sticker — vibrant, weatherproof, professional.{dim_info}"
+        ),
+
+        # ── هوية تجارية ──
+        'letterhead': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL LETTERHEAD / corporate stationery. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Clean, corporate letterhead with header, footer, and side accents. "
+            f"Include space for company logo, address, phone, email. Professional typography. "
+            f"STYLE: Modern, minimal, print-ready A4.{dim_info}"
+        ),
+        'stamp': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a CORPORATE RUBBER STAMP. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a professional stamp design — circular or rectangular. "
+            f"Include company name, registration number space, and decorative border. "
+            f"STYLE: Traditional stamp aesthetic with clean text, monochrome.{dim_info}"
+        ),
+        'story': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a vertical SOCIAL MEDIA STORY (9:16 ratio). "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Full-screen mobile-first design. Bold visuals, engaging typography, "
+            f"swipe-up ready. Vibrant colors, modern layout.{dim_info}"
+        ),
+        'cover': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a SOCIAL MEDIA COVER / banner image. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Wide-format cover for Facebook/YouTube/LinkedIn. Professional, branded, "
+            f"with clear visual hierarchy. Hero image with text overlay.{dim_info}"
+        ),
+        'sign': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL SIGNAGE / cladding / outdoor sign. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Large-format sign design readable from distance. Bold brand colors, "
+            f"clear company name, high contrast. Include mock lighting effects. "
+            f"STYLE: Modern storefront/building signage — LED backlit or cladding finish.{dim_info}"
+        ),
+        'certificate': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a FORMAL CERTIFICATE / award document. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Elegant certificate with decorative borders, gold/silver accents, "
+            f"formal typography. Include fields for name, date, signature line. "
+            f"STYLE: Premium, official, printable.{dim_info}"
+        ),
+        'brochure': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL BROCHURE panel. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Informative layout with sections, images, and call-to-action. "
+            f"STYLE: Corporate, clean, print-ready with bleed marks.{dim_info}"
+        ),
+        'receipt_form': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL BUSINESS FORM / receipt / invoice template. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Clean form with organized fields, lines for handwriting, "
+            f"company header, numbered rows, total section. Print-ready. "
+            f"STYLE: Professional document design with clear hierarchy.{dim_info}"
+        ),
+
+        # ── ملابس ──
+        'pants': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design FASHION PANTS / trousers. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a detailed fashion illustration showing pants design from front and back. "
+            f"Show fabric pattern, stitching details, pockets, waistband. "
+            f"STYLE: Professional fashion sketch / product mockup. Photorealistic rendering.{dim_info}"
+        ),
+        'abaya': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design an ELEGANT ABAYA / JALABIYA / modest fashion garment. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a beautiful modest fashion design showing the full garment. "
+            f"Include embroidery patterns, fabric draping, sleeve details. "
+            f"STYLE: High-end fashion illustration. Show flowing fabric, intricate detailing.{dim_info}"
+        ),
+        'uniform': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL UNIFORM / workwear. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Corporate uniform mockup with branding, name tags, "
+            f"functional pockets. Show front view. "
+            f"STYLE: Clean product mockup, realistic fabric rendering.{dim_info}"
+        ),
+        'cap': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a BRANDED CAP / HAT. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Cap product mockup with embroidered/printed logo. "
+            f"Show front and side angle. Professional product photography style.{dim_info}"
+        ),
+        'bag': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a BRANDED BAG / TOTE. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Product mockup of a branded bag with print/embroidery. "
+            f"Professional product photography, studio lighting.{dim_info}"
+        ),
+        'shoe': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design BRANDED FOOTWEAR / SHOES. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Detailed shoe/sneaker design mockup. Show branding, "
+            f"materials, sole design. Professional product rendering.{dim_info}"
+        ),
+
+        # ── تغليف ──
+        'label': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PRODUCT LABEL / sticker label. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Print-ready product label with brand, ingredients area, "
+            f"barcode space. Professional typography and layout.{dim_info}"
+        ),
+        'mug_design': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a MUG print — wraparound graphic. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Create a mug mockup with the design wrapped around it. "
+            f"Vibrant colors, high contrast, photorealistic ceramic rendering.{dim_info}"
+        ),
+
+        # ── وسائط ──
+        'film_poster': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a CINEMATIC MOVIE/SERIES POSTER. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Dramatic composition with key characters/imagery. "
+            f"Professional typography, cinematic lighting and color grading. "
+            f"STYLE: Hollywood-quality movie poster. Dramatic, compelling.{dim_info}"
+        ),
+        'book_cover': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL BOOK COVER. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Genre-appropriate cover with compelling imagery and typography. "
+            f"STYLE: Bestseller-quality cover design. Clear title placement.{dim_info}"
+        ),
+        'album_cover': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design an ALBUM COVER art. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Creative, artistic album artwork. Square format. "
+            f"STYLE: Visually striking, musical, genre-appropriate.{dim_info}"
+        ),
+        'thumbnail': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a YOUTUBE THUMBNAIL (16:9). "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Ultra bold text, expressive face/image, high contrast colors. "
+            f"Designed to stand out in a feed. Click-worthy, attention-grabbing.{dim_info}"
+        ),
+
+        # ── أخرى ──
+        'pattern': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Create a SEAMLESS REPEATING PATTERN. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Tileable pattern for fabric/textile/wallpaper. "
+            f"Ensure edges match perfectly for seamless tiling.{dim_info}"
+        ),
+        'illustration': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Create a PROFESSIONAL ILLUSTRATION. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Clean lines, vivid colors, detailed artwork. "
+            f"STYLE: Modern digital illustration, professional quality.{dim_info}"
+        ),
+        'infographic': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a PROFESSIONAL INFOGRAPHIC. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Data visualization with charts, icons, clean layout. "
+            f"STYLE: Modern, informative, visually organized.{dim_info}"
+        ),
+        'car_wrap': (
+            f"{QUALITY_FOUNDATION}{ARABIC_LAYER}"
+            f"TASK: Design a VEHICLE WRAP / fleet graphics. "
+            f"CLIENT BRIEF: {description}. "
+            f"EXECUTION: Full vehicle body wrap design with brand identity. "
+            f"Show the design on a realistic car/van/truck mockup. "
+            f"STYLE: Professional fleet branding, eye-catching on the road.{dim_info}"
         ),
     }
 
