@@ -1907,25 +1907,14 @@ def marketplace_register(request):
         else:
             cleaned_phone = phone           # keep as-is, validation will catch bad ones
 
-    # Check existing — auto-login
+    # Check existing — redirect to login
     existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
     if existing:
-        existing.is_verified = True
-        existing.session_token = uuid.uuid4()
-        existing.save(update_fields=['is_verified', 'session_token'])
-        logger.info(f"[MARKETPLACE] Existing customer logged in: {cleaned_phone[:6]}***")
-        response = JsonResponse({
-            "status": "verified",
-            "message": "تم الدخول بنجاح!",
-            "redirect": "/marketplace/dashboard/",
+        return JsonResponse({
+            "status": "existing",
+            "message": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
             "is_existing": True,
-        })
-        response.set_cookie(
-            'mp_session', str(existing.session_token),
-            max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
-            secure=not settings.DEBUG,
-        )
-        return response
+        }, status=409)
 
     try:
         customer = MarketplaceCustomer.objects.create(
@@ -2093,9 +2082,8 @@ def _send_otp_via_channel(phone, otp, **kwargs):
 
 @csrf_exempt
 def marketplace_verify_otp(request):
-    """التحقق من كود OTP — خطوة 2."""
-    if request.method != 'POST':
-        return JsonResponse({"error": "POST only"}, status=405)
+    """التحقق من كود OTP — معطل (تم إلغاء OTP)."""
+    return JsonResponse({"error": "OTP verification is disabled. Use direct login."}, status=410)
 
     try:
         data = json.loads(request.body)
@@ -2145,11 +2133,13 @@ def marketplace_login(request):
         return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
 
     phone = data.get('phone', '').strip()
+    name = data.get('name', '').strip()
     if not phone:
         return JsonResponse({"error": "رقم الموبايل مطلوب"}, status=400)
+    if not name:
+        return JsonResponse({"error": "الاسم مطلوب للتحقق"}, status=400)
 
-    # Normalize
-    # Egyptian phone normalization (consistent with marketplace_register)
+    # Normalize — Egyptian phone normalization (consistent with marketplace_register)
     cleaned = phone
     if not phone.startswith('+'):
         digits = phone.lstrip('0')
@@ -2165,6 +2155,14 @@ def marketplace_login(request):
     customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
     if not customer:
         return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
+
+    # 🛡️ Verify identity — name must match (case-insensitive, partial match OK)
+    stored_name = (customer.full_name or '').strip().lower()
+    input_name = name.strip().lower()
+    if not stored_name or input_name not in stored_name:
+        # Log failed attempt
+        logger.warning(f"[MARKETPLACE] Login failed — name mismatch for {cleaned[:6]}***")
+        return JsonResponse({"error": "الاسم غير مطابق للحساب المسجل"}, status=403)
 
     customer.is_verified = True
     customer.session_token = uuid.uuid4()
@@ -2564,12 +2562,16 @@ def marketplace_submit_offer(request, request_code):
 def marketplace_logout(request):
     """
     تسجيل خروج عميل السوق.
-    🛡️ يقبل GET للراحة لكن يفضّل POST من الـ form لمنع CSRF.
+    🛡️ يبطل الـ session token في الداتابيز + يحذف الكوكي.
     """
-    # 🛡️ Best practice: encourage POST, but allow GET for convenience links
+    # Invalidate session token in database (prevents reuse of stolen cookies)
+    customer = _marketplace_auth(request)
+    if customer:
+        customer.session_token = uuid.uuid4()  # Rotate token so old one is invalid
+        customer.save(update_fields=['session_token'])
+
     response = redirect('/marketplace/')
     response.delete_cookie('mp_session')
-    # Clear any browser cache for the session
     response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 

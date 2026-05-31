@@ -263,8 +263,12 @@
                 <label class="form-label">رقم الموبايل</label>
                 <input type="tel" class="form-control" id="loginPhone" placeholder="01012345678" dir="ltr">
             </div>
+            <div class="mb-3">
+                <label class="form-label">الاسم (للتحقق)</label>
+                <input type="text" class="form-control" id="loginName" placeholder="الاسم اللي سجلت بيه">
+            </div>
             <button class="btn-primary-glow" id="loginBtn" onclick="loginSend()">
-                <i class="fas fa-paper-plane"></i> إرسال كود الدخول
+                <i class="fas fa-sign-in-alt"></i> دخول
             </button>
         </div>
 
@@ -361,7 +365,7 @@ async function loginSend() {
     try {
         const res = await fetch('/marketplace/login/', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ phone: document.getElementById('loginPhone').value.trim() }),
+            body: JSON.stringify({ phone: document.getElementById('loginPhone').value.trim(), name: document.getElementById('loginName').value.trim() }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');
