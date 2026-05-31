@@ -1819,6 +1819,14 @@ def marketplace_register(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
+    # 🛡️ Rate limiting — 3 registrations per minute per IP (prevent spam)
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    reg_rate_key = f'otp_reg_rate:{client_ip}'
+    reg_count = cache.get(reg_rate_key, 0)
+    if reg_count >= 3:
+        return JsonResponse({"error": "طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(reg_rate_key, reg_count + 1, 60)
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -1859,7 +1867,7 @@ def marketplace_register(request):
     existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
     if existing:
         otp = existing.generate_otp()
-        logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone}: {otp}")
+        logger.info(f"[MARKETPLACE] OTP resent to {cleaned_phone[:6]}***")
         _send_otp_via_channel(cleaned_phone, otp)
         resp = {
             "status": "otp_sent",
@@ -1868,7 +1876,7 @@ def marketplace_register(request):
             "is_existing": True,
         }
         # 🚧 MVP MODE: حتى يتم ربط بوابة SMS، نُظهر الكود في الرد
-        if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+        if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
             resp["dev_otp"] = otp
             resp["message"] += f" (كود التطوير: {otp})"
         return JsonResponse(resp)
@@ -1889,7 +1897,7 @@ def marketplace_register(request):
         return JsonResponse({"error": "فشل التسجيل. حاول مرة أخرى."}, status=500)
 
     otp = customer.generate_otp()
-    logger.info(f"[MARKETPLACE] New customer {cleaned_phone} registered, OTP: {otp}")
+    logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered, OTP sent")
     _send_otp_via_channel(cleaned_phone, otp)
 
     resp = {
@@ -1898,7 +1906,7 @@ def marketplace_register(request):
         "phone": cleaned_phone,
         "is_existing": False,
     }
-    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
         resp["dev_otp"] = otp
         resp["message"] += f" (كود التطوير: {otp})"
     return JsonResponse(resp)
@@ -2019,6 +2027,7 @@ def marketplace_verify_otp(request):
         response.set_cookie(
             'mp_session', str(customer.session_token),
             max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+            secure=not settings.DEBUG,
         )
         return response
     else:
@@ -2030,6 +2039,14 @@ def marketplace_login(request):
     """دخول عميل حالي — إرسال OTP فقط."""
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
+
+    # 🛡️ Rate limiting — 5 OTP requests per minute per IP (prevent OTP flood)
+    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    otp_rate_key = f'otp_login_rate:{client_ip}'
+    otp_count = cache.get(otp_rate_key, 0)
+    if otp_count >= 5:
+        return JsonResponse({"error": "طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(otp_rate_key, otp_count + 1, 60)
 
     try:
         data = json.loads(request.body)
@@ -2059,14 +2076,14 @@ def marketplace_login(request):
         return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
 
     otp = customer.generate_otp()
-    logger.info(f"[MARKETPLACE] Login OTP for {cleaned}: {otp}")
+    logger.info(f"[MARKETPLACE] Login OTP sent to {cleaned[:6]}***")
     _send_otp_via_channel(cleaned, otp)
     resp = {
         "status": "otp_sent",
         "message": "تم إرسال كود التحقق",
         "phone": cleaned,
     }
-    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', True):
+    if getattr(settings, 'MARKETPLACE_DEBUG_OTP', False):
         resp["dev_otp"] = otp
         resp["message"] += f" (كود التطوير: {otp})"
     return JsonResponse(resp)
@@ -2790,6 +2807,13 @@ def design_store_generate(request):
 
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
+
+    # 🛡️ Rate limiting — 5 generations per minute per customer (protects OpenAI API costs)
+    gen_rate_key = f'design_gen_rate:{customer.pk}'
+    gen_count = cache.get(gen_rate_key, 0)
+    if gen_count >= 5:
+        return JsonResponse({"error": "أنت ترسل طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(gen_rate_key, gen_count + 1, 60)
 
     # Check free trial designs first, then paid packages
     using_free_trial = False
@@ -3519,6 +3543,13 @@ def design_store_regenerate(request, design_code):
         return JsonResponse({
             "error": f"استنفدت إعادة التوليد المسموحة ({design.regenerations_allowed} مرات)",
         }, status=403)
+
+    # 🛡️ Rate limiting — shared with generate (5/min per customer)
+    gen_rate_key = f'design_gen_rate:{customer.pk}'
+    gen_count = cache.get(gen_rate_key, 0)
+    if gen_count >= 5:
+        return JsonResponse({"error": "أنت ترسل طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(gen_rate_key, gen_count + 1, 60)
 
     # Re-generate with same specs by calling generate endpoint internally
     request.POST = request.POST.copy()
