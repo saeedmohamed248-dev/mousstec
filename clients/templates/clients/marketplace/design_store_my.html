@@ -185,7 +185,9 @@
 
 <div class="topbar">
     <div class="brand">🎨 تصاميمي</div>
-    <div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <a href="#generator" style="background:rgba(236,72,153,0.15);color:#ec4899;font-weight:700;"><i class="fas fa-wand-magic-sparkles"></i> توليد جديد</a>
+        <a href="#library"><i class="fas fa-images"></i> تصاميمي ({{ designs|length }})</a>
         <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> المتجر</a>
         <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
     </div>
@@ -195,22 +197,53 @@
 
 <div class="container-x">
 
-    <!-- Balance -->
+    <!-- ▣ Balance card — تنظيم محسّن: قسمين بصرياً + كروت معلومات -->
     <div class="balance-card">
-        <div class="balance-info">
-            <h2><strong>{{ total_remaining }}</strong> تصميم</h2>
-            <p>رصيدك المتاح للتوليد</p>
+        <div class="balance-info" style="flex:1;min-width:220px;">
+            <h2 style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+                <strong>{{ total_remaining }}</strong>
+                <span style="font-size:1rem;font-weight:700;color:#cbd5e1;">تصميم متاح</span>
+            </h2>
+            <p style="margin-top:6px;">
+                {% if free_remaining %}
+                <span style="background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;margin-left:6px;">🎁 مجاني: {{ free_remaining }}</span>
+                {% endif %}
+                {% if paid_remaining %}
+                <span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;">💎 مدفوع: {{ paid_remaining }}</span>
+                {% endif %}
+                {% if active_purchase %}
+                <span style="display:block;margin-top:8px;color:#94a3b8;font-size:0.8rem;">📦 الباقة النشطة: <strong style="color:#ec4899;">{{ active_purchase.package.name_ar }}</strong> ({{ active_purchase.designs_used }}/{{ active_purchase.designs_total }})</span>
+                {% endif %}
+            </p>
         </div>
-        {% if total_remaining == 0 %}
-        <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> اشتري باقة جديدة</a>
-        {% else %}
-        <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> باقة إضافية</a>
-        {% endif %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            {% if total_remaining == 0 %}
+            <a href="/marketplace/design-store/" class="btn-buy" style="background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-cart-plus"></i> اشتري باقة جديدة</a>
+            {% else %}
+            <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> باقة إضافية</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ▣ Quick stats row -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px;">
+        <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.6rem;font-weight:900;color:#ec4899;">{{ designs|length }}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">إجمالي تصاميمي</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.6rem;font-weight:900;color:#10b981;">{{ purchases|length }}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">باقاتي السابقة</div>
+        </div>
+        <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
+            <div style="font-size:1.6rem;font-weight:900;color:#f59e0b;">{{ total_remaining }}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">رصيد متبقي</div>
+        </div>
     </div>
 
     {% if total_remaining > 0 %}
     <!-- Generator -->
-    <div class="generator-card">
+    <div class="generator-card" id="generator">
         <h3 class="gen-title"><i class="fas fa-wand-magic-sparkles"></i> ولّد تصميم جديد</h3>
 
         <form id="genForm" enctype="multipart/form-data">
@@ -406,7 +439,7 @@
     {% endif %}
 
     <!-- Designs Library -->
-    <h3 style="font-weight:900;margin-bottom:16px;"><i class="fas fa-images" style="color:#ec4899"></i> تصاميمي السابقة ({{ designs|length }})</h3>
+    <h3 id="library" style="font-weight:900;margin-bottom:16px;scroll-margin-top:80px;"><i class="fas fa-images" style="color:#ec4899"></i> تصاميمي السابقة ({{ designs|length }})</h3>
 
     {% if designs %}
     <div class="designs-grid">

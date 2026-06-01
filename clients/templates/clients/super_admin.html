@@ -1107,7 +1107,7 @@
                                 <p class="text-[10px] text-slate-500 font-bold mb-1">آخر أحداث:</p>
                                 {% for ev in a.last_events %}
                                 <div class="text-[11px] text-slate-300 py-0.5 border-b border-slate-800/40 last:border-0">
-                                    <span class="text-slate-500">{{ ev.created_at|date:"Y-m-d H:i" }}</span>
+                                    <span class="text-slate-500">{{ ev.timestamp|date:"Y-m-d H:i" }}</span>
                                     — {{ ev.description|truncatechars:120 }}
                                 </div>
                                 {% endfor %}

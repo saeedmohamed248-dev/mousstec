@@ -1533,7 +1533,7 @@ def super_admin_dashboard(request):
         ).count()
         last_events = list(
             PlatformEvent.objects.filter(tenant_schema=t.schema_name)
-            .order_by('-created_at')[:5]
+            .order_by('-timestamp')[:5]
         )
         tenant_activity.append({
             'tenant': t,
