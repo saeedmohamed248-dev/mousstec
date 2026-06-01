@@ -498,33 +498,58 @@ def ai_send_whatsapp(request):
 
 @login_required
 def ai_studio_status(request):
-    """Return AI Studio subscription status and remaining quota for current tenant."""
+    """Return AI Studio subscription status and remaining quota for current tenant.
+
+    🎁 يجمع رصيد الباقة المدفوعة + رصيد الهدايا من السوبر أدمن.
+    """
     tenant = _get_tenant()
     if not tenant:
         return JsonResponse({'active': False, 'reason': 'no_tenant'})
 
     from clients.models import TenantSubscription, AILimitTracker
 
+    # 🎁 احسب الرصيد المهدى من السوبر أدمن (مستقل عن الباقة)
+    bonus_designs = AILimitTracker._get_bonus_remaining(tenant, 'ai_generation')
+    bonus_whatsapp = AILimitTracker._get_bonus_remaining(tenant, 'whatsapp_send')
+    bonus_watermarks = AILimitTracker._get_bonus_remaining(tenant, 'smart_watermark')
+
     try:
         sub = tenant.subscription
+        has_paid_addon = bool(sub.is_active and sub.ai_addon)
     except TenantSubscription.DoesNotExist:
-        return JsonResponse({'active': False, 'reason': 'no_subscription'})
+        sub = None
+        has_paid_addon = False
 
-    if not sub.is_active or not sub.ai_addon:
+    # لو مفيش باقة ولا هدية → نقول للعميل
+    if not has_paid_addon and bonus_designs == 0 and bonus_whatsapp == 0 and bonus_watermarks == 0:
         return JsonResponse({'active': False, 'reason': 'no_ai_addon'})
 
+    # ✅ في رصيد (إما باقة أو هدية أو الاتنين)
     ai_used = AILimitTracker.get_monthly_usage(tenant, 'ai_generation')
     wm_used = AILimitTracker.get_monthly_usage(tenant, 'smart_watermark')
 
+    paid_ai_limit = sub.ai_addon.ai_generations_limit if has_paid_addon else 0
+    paid_wm_limit = sub.ai_addon.whatsapp_messages_limit if has_paid_addon else 0
+    paid_ai_remaining = max(0, paid_ai_limit - ai_used)
+    paid_wm_remaining = max(0, paid_wm_limit - wm_used)
+
     return JsonResponse({
         'active': True,
-        'addon_name': sub.ai_addon.name,
-        'ai_limit': sub.ai_addon.ai_generations_limit,
+        'addon_name': sub.ai_addon.name if has_paid_addon else '🎁 هدية الإدارة',
+        # الإجمالي = باقة + هدية
+        'ai_limit': paid_ai_limit + bonus_designs,
         'ai_used': ai_used,
-        'ai_remaining': max(0, sub.ai_addon.ai_generations_limit - ai_used),
-        'wm_limit': sub.ai_addon.whatsapp_messages_limit,
+        'ai_remaining': paid_ai_remaining + bonus_designs,
+        'wm_limit': paid_wm_limit + bonus_watermarks,
         'wm_used': wm_used,
-        'wm_remaining': max(0, sub.ai_addon.whatsapp_messages_limit - wm_used),
+        'wm_remaining': paid_wm_remaining + bonus_watermarks,
+        # تفاصيل الهدية للعرض في الواجهة
+        'bonus': {
+            'designs': bonus_designs,
+            'whatsapp': bonus_whatsapp,
+            'watermarks': bonus_watermarks,
+            'has_gift': (bonus_designs + bonus_whatsapp + bonus_watermarks) > 0,
+        },
     })
 
 

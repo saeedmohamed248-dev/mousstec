@@ -725,15 +725,44 @@ def paymob_checkout(request):
 
     import requests as http_requests
 
+    # 🛡️ تحقق من قيم الإعدادات
+    try:
+        integration_id_int = int(paymob_integration_id)
+    except (TypeError, ValueError):
+        logger.error(f"[PAYMOB] PAYMOB_INTEGRATION_ID غير رقمي: {paymob_integration_id!r}")
+        messages.error(request, "إعدادات بوابة الدفع غير صحيحة. الدفع بالفيزا متعطل مؤقتاً.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    if not paymob_iframe_id:
+        logger.error("[PAYMOB] PAYMOB_IFRAME_ID غير مضبوط")
+        messages.error(request, "إعدادات بوابة الدفع غير مكتملة. الدفع بالفيزا متعطل مؤقتاً.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+
+    # تحقق من المبلغ
+    try:
+        amount_value = float(amount)
+        if amount_value <= 0:
+            raise ValueError("non-positive")
+        amount_cents = int(amount_value * 100)
+    except (TypeError, ValueError):
+        messages.error(request, "المبلغ غير صحيح.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+
     try:
         # Step 1: Auth token
         auth_res = http_requests.post('https://accept.paymob.com/api/auth/tokens', json={
             'api_key': paymob_api_key
         }, timeout=15)
+        if auth_res.status_code not in (200, 201):
+            logger.error(f"[PAYMOB] Auth failed: HTTP {auth_res.status_code} — {auth_res.text[:300]}")
+            messages.error(request, "فشل المصادقة مع بوابة الدفع. حاول لاحقاً.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
         auth_token = auth_res.json().get('token')
+        if not auth_token:
+            logger.error(f"[PAYMOB] Auth returned no token: {auth_res.text[:300]}")
+            messages.error(request, "بوابة الدفع لم ترسل رمز المصادقة.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
         # Step 2: Create order
-        amount_cents = int(float(amount) * 100)
         order_res = http_requests.post('https://accept.paymob.com/api/ecommerce/orders', json={
             'auth_token': auth_token,
             'delivery_needed': 'false',
@@ -742,7 +771,15 @@ def paymob_checkout(request):
             'items': [{'name': f'Mouss Tec {plan} Plan', 'amount_cents': amount_cents, 'quantity': '1'}],
             'merchant_order_id': f'mousstec_{plan}_{uuid.uuid4().hex[:8]}',
         }, timeout=15)
+        if order_res.status_code not in (200, 201):
+            logger.error(f"[PAYMOB] Order failed: HTTP {order_res.status_code} — {order_res.text[:300]}")
+            messages.error(request, "فشل إنشاء طلب الدفع. حاول لاحقاً.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
         order_id = order_res.json().get('id')
+        if not order_id:
+            logger.error(f"[PAYMOB] Order returned no id: {order_res.text[:300]}")
+            messages.error(request, "بوابة الدفع لم ترسل رقم الطلب.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
         # Step 3: Payment key
         billing = {
@@ -759,10 +796,18 @@ def paymob_checkout(request):
             'order_id': order_id,
             'billing_data': billing,
             'currency': 'EGP',
-            'integration_id': int(paymob_integration_id),
+            'integration_id': integration_id_int,
             'lock_order_when_paid': 'true',
         }, timeout=15)
+        if key_res.status_code not in (200, 201):
+            logger.error(f"[PAYMOB] Payment key failed: HTTP {key_res.status_code} — {key_res.text[:300]}")
+            messages.error(request, "فشل إصدار رمز الدفع. حاول لاحقاً.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
         payment_token = key_res.json().get('token')
+        if not payment_token:
+            logger.error(f"[PAYMOB] Payment key returned no token: {key_res.text[:300]}")
+            messages.error(request, "بوابة الدفع لم ترسل رمز الدفع.")
+            return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
         # Store plan info in cache for callback
         cache.set(f'paymob_order_{order_id}', {
@@ -774,9 +819,17 @@ def paymob_checkout(request):
         iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{paymob_iframe_id}?payment_token={payment_token}'
         return redirect(iframe_url)
 
+    except http_requests.Timeout:
+        logger.error("[PAYMOB] Paymob timeout")
+        messages.error(request, "بوابة الدفع لا تستجيب. حاول لاحقاً أو ادفع عبر فودافون كاش.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    except http_requests.RequestException as e:
+        logger.error(f"[PAYMOB] Network error: {e}")
+        messages.error(request, "خطأ في الاتصال ببوابة الدفع. حاول لاحقاً.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
     except Exception as e:
-        logger.error(f"Paymob checkout error: {e}")
-        messages.error(request, "حدث خطأ اثناء الاتصال ببوابة الدفع. يرجى المحاولة مرة اخرى او الدفع عبر فودافون كاش.")
+        logger.exception(f"Paymob checkout unexpected error: {e}")
+        messages.error(request, "حدث خطأ غير متوقع. حاول لاحقاً أو تواصل مع الدعم.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
 
@@ -2914,10 +2967,27 @@ def design_store_buy(request, package_slug):
 
         try:
             import requests as http_requests
+
+            # 🛡️ تحقق من قيم الإعدادات (أرقام صحيحة)
+            try:
+                integration_id_int = int(paymob_integration_id)
+            except (TypeError, ValueError):
+                logger.error(f"[PAYMOB/DESIGN] PAYMOB_INTEGRATION_ID غير رقمي: {paymob_integration_id!r}")
+                return JsonResponse({"error": "إعدادات بوابة الدفع غير صحيحة. تواصل مع الدعم."}, status=503)
+            if not paymob_iframe_id:
+                logger.error("[PAYMOB/DESIGN] PAYMOB_IFRAME_ID غير مضبوط")
+                return JsonResponse({"error": "إعدادات بوابة الدفع غير مكتملة. تواصل مع الدعم."}, status=503)
+
             # Step 1: Auth
             auth_res = http_requests.post('https://accept.paymob.com/api/auth/tokens',
                 json={'api_key': paymob_api_key}, timeout=15)
+            if auth_res.status_code != 201 and auth_res.status_code != 200:
+                logger.error(f"[PAYMOB/DESIGN] Auth failed: HTTP {auth_res.status_code} — {auth_res.text[:300]}")
+                return JsonResponse({"error": "فشل المصادقة مع بوابة الدفع. حاول لاحقاً."}, status=502)
             auth_token = auth_res.json().get('token')
+            if not auth_token:
+                logger.error(f"[PAYMOB/DESIGN] Auth returned no token: {auth_res.text[:300]}")
+                return JsonResponse({"error": "بوابة الدفع لم ترسل رمز المصادقة. حاول لاحقاً."}, status=502)
 
             # Step 2: Order
             amount_cents = int(float(package.price_egp) * 100)
@@ -2927,15 +2997,23 @@ def design_store_buy(request, package_slug):
                 'delivery_needed': 'false',
                 'amount_cents': amount_cents,
                 'currency': 'EGP',
-                'items': [{'name': f'باقة {package.name}', 'amount_cents': amount_cents, 'quantity': '1'}],
+                'items': [{'name': f'باقة {package.name_ar}', 'amount_cents': amount_cents, 'quantity': '1'}],
                 'merchant_order_id': merchant_order_id,
             }, timeout=15)
+            if order_res.status_code not in (200, 201):
+                logger.error(f"[PAYMOB/DESIGN] Order failed: HTTP {order_res.status_code} — {order_res.text[:300]}")
+                return JsonResponse({"error": "فشل إنشاء طلب الدفع. حاول لاحقاً."}, status=502)
             order_id = order_res.json().get('id')
+            if not order_id:
+                logger.error(f"[PAYMOB/DESIGN] Order returned no id: {order_res.text[:300]}")
+                return JsonResponse({"error": "بوابة الدفع لم ترسل رقم الطلب. حاول لاحقاً."}, status=502)
 
             # Step 3: Payment key
+            # 🌐 callback مرتبط بدومين الموقع (يفضل التحكم منا بدل dashboard Paymob)
+            base_url = f"{'https' if request.is_secure() else 'http'}://{request.get_host()}"
             billing = {
-                'first_name': customer.full_name or 'Customer',
-                'last_name': 'Design Store',
+                'first_name': (customer.full_name or 'Customer').split()[0][:50] or 'Customer',
+                'last_name': 'Design',
                 'email': customer.email or 'customer@mousstec.com',
                 'phone_number': customer.phone.lstrip('+') if customer.phone else '01000000000',
                 'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
@@ -2949,10 +3027,16 @@ def design_store_buy(request, package_slug):
                 'order_id': order_id,
                 'billing_data': billing,
                 'currency': 'EGP',
-                'integration_id': int(paymob_integration_id),
+                'integration_id': integration_id_int,
                 'lock_order_when_paid': 'true',
             }, timeout=15)
+            if key_res.status_code not in (200, 201):
+                logger.error(f"[PAYMOB/DESIGN] Payment key failed: HTTP {key_res.status_code} — {key_res.text[:300]}")
+                return JsonResponse({"error": "فشل إصدار رمز الدفع. حاول لاحقاً."}, status=502)
             payment_token = key_res.json().get('token')
+            if not payment_token:
+                logger.error(f"[PAYMOB/DESIGN] Payment key returned no token: {key_res.text[:300]}")
+                return JsonResponse({"error": "بوابة الدفع لم ترسل رمز الدفع. حاول لاحقاً."}, status=502)
 
             # Store purchase info in cache for callback
             cache.set(f'paymob_design_{order_id}', {
@@ -2966,9 +3050,15 @@ def design_store_buy(request, package_slug):
                 "redirect": iframe_url,
                 "message": "جاري توجيهك لبوابة الدفع...",
             })
+        except http_requests.Timeout:
+            logger.error("[PAYMOB/DESIGN] Paymob timeout")
+            return JsonResponse({"error": "بوابة الدفع لا تستجيب. حاول لاحقاً."}, status=504)
+        except http_requests.RequestException as e:
+            logger.error(f"[PAYMOB/DESIGN] Network error: {e}")
+            return JsonResponse({"error": "خطأ في الاتصال ببوابة الدفع. تحقق من الإنترنت."}, status=502)
         except Exception as e:
-            logger.error(f"[PAYMOB/DESIGN] Checkout error: {e}")
-            return JsonResponse({"error": "حدث خطأ في الاتصال ببوابة الدفع. حاول مرة أخرى."}, status=500)
+            logger.exception(f"[PAYMOB/DESIGN] Unexpected error: {e}")
+            return JsonResponse({"error": f"خطأ غير متوقع: {type(e).__name__}. تواصل مع الدعم."}, status=500)
 
 
 @csrf_exempt

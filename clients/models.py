@@ -869,11 +869,13 @@ class MarketplaceCustomer(models.Model):
     sector = models.CharField(max_length=20, choices=SECTOR_CHOICES, verbose_name=_("القطاع"))
     city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة / المحافظة"))
 
-    # Auth — OTP-based, no password
+    # Auth — phone + password (مع OTP اختياري للتحقق)
+    password_hash = models.CharField(max_length=128, blank=True, verbose_name=_("كلمة المرور (مُشفّرة)"))
     otp_code = models.CharField(max_length=6, blank=True)
     otp_expires_at = models.DateTimeField(null=True, blank=True)
     is_verified = models.BooleanField(default=False, verbose_name=_("تم التحقق من الموبايل"))
     session_token = models.UUIDField(default=uuid.uuid4, unique=True)
+    last_login_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر تسجيل دخول"))
 
     # Free trial designs — 2 for individual, 4 for company
     free_designs_total = models.IntegerField(default=0, verbose_name=_("تصاميم مجانية (إجمالي)"),
@@ -904,6 +906,22 @@ class MarketplaceCustomer(models.Model):
         self.otp_expires_at = timezone.now() + timedelta(minutes=10)
         self.save(update_fields=['otp_code', 'otp_expires_at'])
         return self.otp_code
+
+    # ── Password authentication ──
+    def set_password(self, raw_password):
+        """تعيين كلمة المرور مع التشفير الآمن (PBKDF2)."""
+        from django.contrib.auth.hashers import make_password
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        """التحقق من كلمة المرور."""
+        from django.contrib.auth.hashers import check_password
+        if not self.password_hash or not raw_password:
+            return False
+        return check_password(raw_password, self.password_hash)
+
+    def has_usable_password(self):
+        return bool(self.password_hash)
 
     def verify_otp(self, code):
         import hmac
