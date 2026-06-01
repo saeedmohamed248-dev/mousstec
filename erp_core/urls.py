@@ -187,9 +187,35 @@ def admin_honeypot(request, exception=None):
 # 🛡️ 4. حراس الأخطاء המخصصة (Custom Branded Error Handlers)
 # =====================================================================
 def custom_404_handler(request, exception=None):
-    """يمنع تسريب بنية الروابط عند حدوث خطأ ويوجه حسب الصناعة"""
+    """يمنع تسريب بنية الروابط عند حدوث خطأ ويوجه حسب الصناعة.
+
+    ⚠️ مهم: قبل ما نـ redirect للـ landing، نشوف الـ request ده AJAX/Fragment ولا لأ.
+    لو AJAX (مثلاً جوه modal بيـ fetch) — نرجع 404 صريح بفراجمنت HTML بسيط،
+    عشان مايحطش الـ landing page HTML داخل الـ modal.
+    """
+    # 1. API JSON endpoints
     if request.path.startswith('/api/'):
         return JsonResponse({"error": "endpoint_not_found", "message": "المسار المطلوب غير متوفر."}, status=404)
+
+    # 2. AJAX / Fragment endpoints — يرجع 404 status حقيقي مع HTML قصير
+    #    عشان الـ JS بتاع الـ modals يقدر يميز الخطأ ويعرض رسالة مفهومة.
+    is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    is_fetch_partial = (
+        request.path.startswith('/superadmin/')
+        or '/api/' in request.path
+        or '/detail/' in request.path
+        or 'application/json' in request.headers.get('Accept', '')
+    )
+    if is_xhr or is_fetch_partial:
+        from django.http import HttpResponseNotFound
+        return HttpResponseNotFound(
+            '<div class="text-center text-red-400 py-8" style="font-family:Cairo,sans-serif;">'
+            '<i class="fas fa-exclamation-triangle ml-2"></i> '
+            'العنصر المطلوب غير موجود أو تم حذفه.'
+            '</div>'
+        )
+
+    # 3. Full-page 404 — توجيه حسب tenant/landing
     if hasattr(request, 'tenant') and request.tenant.schema_name != 'public':
         industry = getattr(request.tenant, 'industry', 'automotive')
         if industry == 'printing':

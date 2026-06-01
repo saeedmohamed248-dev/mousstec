@@ -1595,15 +1595,38 @@ async function revokeGrant(grantId, tenantId, label) {
 async function showCustomerDetail(customerId) {
     const modal = document.getElementById('customerDetailModal');
     const body = document.getElementById('customerDetailBody');
+
+    // Guard ضد الـ undefined/null/0 IDs
+    if (!customerId || customerId === 'undefined') {
+        body.innerHTML = '<div class="text-center text-red-400 py-8">⚠️ معرف العميل غير صالح.</div>';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        return;
+    }
+
     body.innerHTML = '<div class="text-center text-slate-500 py-8"><i class="fas fa-spinner fa-spin ml-2"></i> جاري التحميل...</div>';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
     try {
-        const r = await fetch(`/superadmin/customer/${customerId}/detail/`);
-        if (!r.ok) throw new Error('فشل تحميل البيانات');
-        body.innerHTML = await r.text();
+        const r = await fetch(`/superadmin/customer/${customerId}/detail/`, {
+            // headers بتميز الطلب كـ AJAX عشان الـ 404 handler يرجع fragment بدل redirect
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html, application/json' },
+            credentials: 'same-origin',
+        });
+        const text = await r.text();
+
+        if (!r.ok) {
+            // 404/403/500 — نعرض الـ body اللي راجع من السيرفر (لو fragment) أو رسالة عامة
+            body.innerHTML = text && text.length < 2000
+                ? text
+                : `<div class="text-center text-red-400 py-8">⚠️ تعذر تحميل بيانات العميل (${r.status}).</div>`;
+            return;
+        }
+
+        body.innerHTML = text;
     } catch (e) {
-        body.innerHTML = `<div class="text-center text-red-400 py-8">⚠️ ${e.message}</div>`;
+        body.innerHTML = `<div class="text-center text-red-400 py-8">⚠️ ${e.message || 'خطأ في الاتصال'}</div>`;
     }
 }
 function closeCustomerDetail() {
