@@ -40,6 +40,7 @@ from ._shared import (
     _landing_bot_local_reply,
     _build_customer_topup_cards,
 )
+from .webhook_views import universal_webhook_multiplexer
 
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
@@ -461,63 +462,6 @@ def account_recovery(request):
 
     return render(request, 'clients/account_recovery.html', context)
 
-
-# =====================================================================
-# 🌐 3. الموزع المركزي للإشعارات الخارجية (FinTech Webhook Multiplexer)
-# =====================================================================
-@csrf_exempt
-def universal_webhook_multiplexer(request):
-    """
-    بوابة FinTech محصنة: تمنع التكرار (Idempotency) وتطبق سياسات مكافحة غسيل الأموال (AML).
-    """
-    if request.method != 'POST': return HttpResponseForbidden("POST Only")
-
-    # 🛡️ HMAC signature verification for webhook security
-    import hmac as _hmac
-    import hashlib as _hashlib
-    secret = getattr(settings, 'WEBHOOK_HMAC_SECRET', None)
-    if secret:
-        received_sig = request.META.get('HTTP_X_WEBHOOK_SIGNATURE', '')
-        if not received_sig:
-            logger.warning("[WEBHOOK] Missing signature header — rejected.")
-            return HttpResponseForbidden("Missing signature")
-        computed = _hmac.new(secret.encode('utf-8'), request.body, _hashlib.sha256).hexdigest()
-        if not _hmac.compare_digest(computed, received_sig):
-            logger.warning("[WEBHOOK] HMAC verification failed — rejected.")
-            return HttpResponseForbidden("Invalid signature")
-    
-    try:
-        payload = json.loads(request.body)
-        event_id = payload.get('id', f'evt_{uuid.uuid4().hex[:12]}')
-        
-        if cache.get(f"webhook_processed_{event_id}"):
-            return JsonResponse({"status": "duplicate"})
-        
-        if payload.get('type') == 'payment_intent.succeeded':
-            client_id = payload['data']['metadata']['client_id']
-            amount = Decimal(str(payload['data']['amount_received'])) / 100
-            
-            with transaction.atomic():
-                tenant = Client.objects.select_for_update().get(id=client_id)
-                
-                # 🚀 ابتكار AML (مكافحة الاحتيال): إذا كان المبلغ ضخماً جداً، يتم تعليقه لحين المراجعة اليدوية
-                if amount > Decimal('100000'):
-                    logger.warning(f"🚨 [AML ALERT]: Large suspicious deposit of {amount} for {tenant.schema_name}.")
-                    EscrowLedger.objects.create(client=tenant, transaction_type='hold', amount=amount, description=f"إيداع معلق للمراجعة الأمنية ({event_id})")
-                    tenant.is_fraud_flagged = True
-                    tenant.save(update_fields=['is_fraud_flagged'])
-                else:
-                    tenant.wallet_balance = F('wallet_balance') + amount
-                    tenant.save(update_fields=['wallet_balance'])
-                    EscrowLedger.objects.create(client=tenant, transaction_type='deposit', amount=amount, description=f"إيداع سحابي ({event_id})")
-            
-            cache.set(f"webhook_processed_{event_id}", "processed", timeout=86400)
-            return JsonResponse({"status": "success"})
-
-        return JsonResponse({"status": "ignored"})
-    except Exception as e:
-        logger.error(f"🚨 Webhook Failure: {e}")
-        return JsonResponse({"error": "Internal Error"}, status=500)
 
 # =====================================================================
 # 🛒 4. محرك بحث سوق التجار (B2B Global Search API)
