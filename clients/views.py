@@ -3038,18 +3038,60 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
 # 🎨 AI Designs Store — متجر التصاميم الفورية
 # =====================================================================
 
+def _build_customer_topup_cards():
+    """🆕 يبني كروت باقات العملاء من الـ catalog (50/100/500) مع كل الحقول
+    اللي الـ template محتاجها — بدون لمس DB الباقات القديمة.
+    """
+    from types import SimpleNamespace
+    from erp_core.ai.credit_packages import CUSTOMER_TOPUPS
+
+    # Accent colors ثابتة عشان كل باقة شكلها متناسق
+    accents = ['#10b981', '#ec4899', '#f59e0b']  # green / pink / amber
+    icons = ['🥉', '🥈', '🥇']
+    cards = []
+
+    # نحسب أرخص سعر للتصميم عشان نظهر التوفير على الباقات الأكبر
+    cheapest_per_design = min(
+        (float(p['price']) / p['designs'] for p in CUSTOMER_TOPUPS), default=1.0,
+    )
+    base_per_design = float(CUSTOMER_TOPUPS[0]['price']) / CUSTOMER_TOPUPS[0]['designs']
+
+    for idx, pkg in enumerate(CUSTOMER_TOPUPS):
+        per_design = float(pkg['price']) / pkg['designs']
+        savings = int((base_per_design - per_design) / base_per_design * 100) if base_per_design > 0 else 0
+        cards.append(SimpleNamespace(
+            slug=pkg['slug'],
+            name_ar=pkg['name'],
+            designs_count=pkg['designs'],
+            price_egp=pkg['price'],
+            price_per_design=round(per_design, 2),
+            is_featured=(idx == 1),  # الـ 100 تصميم highlighted
+            accent_color=accents[idx % len(accents)],
+            icon_emoji=icons[idx % len(icons)],
+            badge_text=pkg.get('badge', ''),
+            description_html='',
+            free_regenerations_per_design=2,
+            allows_whatsapp_delivery=True,
+            allows_logo_upload=True,
+            allows_watermark=(idx >= 1),
+            allows_source_files=(idx == 2),
+            get_quality_level_display=lambda i=idx: ['عالية', 'فائقة', 'فائقة Plus'][i] if i < 3 else 'عالية',
+            savings_vs_starter=max(savings, 0),
+        ))
+    return cards
+
+
 def design_store_home(request):
-    """🛍️ صفحة المتجر — يعرض الباقات (عملاء + مصممين)."""
-    customer_packages = DesignPackage.objects.filter(
-        is_active=True, target_audience='customer',
-    ).order_by('sort_order', 'designs_count')
+    """🛍️ صفحة المتجر — يعرض الباقات (عملاء + مصممين).
+
+    🆕 باقات العملاء الآن مصدرها CUSTOMER_TOPUPS catalog مباشرةً (50/100/500)،
+    مش الـ DB القديمة (cust_2/4/8 العتيقة). الفلسفة:
+    الـ catalog هو single source of truth، والـ DB بتسجّل المشتريات فقط.
+    """
+    customer_packages = _build_customer_topup_cards()
     designer_packages = DesignPackage.objects.filter(
         is_active=True, target_audience='designer',
     ).order_by('sort_order', 'designs_count')
-
-    # Fallback: if no new packages yet, show all active
-    if not customer_packages.exists() and not designer_packages.exists():
-        customer_packages = DesignPackage.objects.filter(is_active=True).order_by('sort_order')
 
     customer = _marketplace_auth(request)
     user_balance = 0

@@ -326,7 +326,7 @@
                     دمج لوجو الشركة
                 </li>
             </ul>
-            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
+            <button class="pkg-buy-btn" onclick="buyCustomerTopup('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
                 {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
             </button>
         </div>
@@ -452,27 +452,81 @@ function switchTab(tab) {
     document.getElementById('section-' + tab).classList.add('active');
 }
 
-function openBuy(slug, name, price, count) {
+// ── 🆕 شراء باقات العملاء عبر الـ endpoint الجديد ──
+// POST /printing-copilot/api/topup/purchase/ → بيرجع checkout_url لـ Paymob
+let _currentTopupSlug = null;
+
+function buyCustomerTopup(slug, name, price, count) {
     if (!isLoggedIn) {
         window.location.href = '/marketplace/?next=/marketplace/design-store/';
         return;
     }
-    _currentSlug = slug;
+    // الـ designer packages لسه بتستخدم الـ flow القديم
+    if (slug.startsWith('des_') || slug === 'starter' || slug === 'pro' || slug === 'business' || slug === 'studio') {
+        return openLegacyBuy(slug, name, price, count);
+    }
+    _currentTopupSlug = slug;
     document.getElementById('modalPkgName').textContent = name;
     document.getElementById('modalPkgPrice').textContent = price;
     document.getElementById('modalPkgCount').textContent = count;
     document.getElementById('buyModal').classList.add('show');
 }
+
+// Backwards-compat alias (لو فيه أزرار قديمة لسه بتنادي openBuy)
+function openBuy(slug, name, price, count) {
+    return buyCustomerTopup(slug, name, price, count);
+}
+
+// 🏛️ الـ flow القديم — لباقات الـ designer فقط (لسه DB-backed)
+function openLegacyBuy(slug, name, price, count) {
+    _currentSlug = slug;
+    _currentTopupSlug = null;  // نميّز إنه legacy
+    document.getElementById('modalPkgName').textContent = name;
+    document.getElementById('modalPkgPrice').textContent = price;
+    document.getElementById('modalPkgCount').textContent = count;
+    document.getElementById('buyModal').classList.add('show');
+}
+
 function closeBuy() { document.getElementById('buyModal').classList.remove('show'); }
 document.getElementById('buyModal').addEventListener('click', e => {
     if (e.target.id === 'buyModal') closeBuy();
 });
 
+// CSRF helper
+function _getCookieCsrf() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
 async function confirmBuy() {
     const btn = document.getElementById('confirmBtn');
     btn.disabled = true; btn.textContent = 'جاري المعالجة...';
     const pm = document.querySelector('input[name="pm"]:checked').value;
+
     try {
+        // 🆕 الباقات الجديدة → الـ endpoint الإمبراطوري
+        if (_currentTopupSlug) {
+            const r = await fetch('/printing-copilot/api/topup/purchase/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _getCookieCsrf() },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    package_slug: _currentTopupSlug,
+                    audience: 'customer',
+                    payment_method: pm,
+                }),
+            });
+            const d = await r.json();
+            if (!d.success) throw new Error(d.message || d.error || 'تعذر بدء الشراء');
+            if (d.checkout_url) {
+                window.location.href = d.checkout_url;
+            } else {
+                throw new Error('رابط الدفع غير متاح');
+            }
+            return;
+        }
+
+        // 🏛️ Designer packages — flow قديم
         const fd = new FormData();
         fd.append('payment_method', pm);
         const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
