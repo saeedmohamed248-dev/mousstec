@@ -3,8 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#7c3aed">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mouss Tec">
     <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <script src="/static/js/pwa-init.js" defer></script>
     <title>لوحة التحكم | {{ tenant.name|default:"Mouss Tec" }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -365,17 +371,9 @@ window.addEventListener('appinstalled', () => {
 });
 
 // =============================================
-// Service Worker & Offline Sync
+// Offline Sync — SW registration handled by /static/js/pwa-init.js
 // =============================================
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(reg => {
-        console.log('Mouss Tec SW registered, scope:', reg.scope);
-
-        // Check for updates every 30 minutes
-        setInterval(() => reg.update(), 30 * 60 * 1000);
-    }).catch(err => console.warn('SW registration failed:', err));
-
-    // Listen for sync messages from SW
     navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data.type === 'SYNC_READY') {
             const offlineQueue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');

@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div style="max-width:780px;margin:24px auto;background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:24px;">
+  <h1 style="margin-top:0;color:#7c3aed;">🎁 منح باقة هدية</h1>
+  <p style="color:#475569;">سيتم منح الباقة المختارة كـ <strong>هدية مجانية</strong> (payment_method=admin_grant) للعملاء التاليين:</p>
+
+  <ul style="background:#f1f5f9;border-radius:8px;padding:14px 28px;">
+    {% for c in customers %}
+      <li style="margin-bottom:4px;"><strong>{{ c.full_name }}</strong> — {{ c.phone }} <span style="color:#64748b;">({{ c.get_sector_display }})</span></li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" style="margin-top:24px;">
+    {% csrf_token %}
+
+    <label style="display:block;font-weight:700;margin-bottom:8px;">اختر الباقة:</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+      {% for p in packages %}
+      <label style="border:2px solid #cbd5e1;border-radius:10px;padding:14px;cursor:pointer;background:#fff;display:block;">
+        <input type="radio" name="package_slug" value="{{ p.slug }}" required style="margin-left:6px;">
+        <strong style="color:#0f172a;">{{ p.name }}</strong><br>
+        <span style="color:#7c3aed;font-weight:800;">{{ p.designs }} تصميم</span><br>
+        <span style="color:#64748b;font-size:11px;">(قيمة فعلية: {{ p.price }} ج.م)</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div style="margin-top:18px;">
+      <label style="display:block;font-weight:700;margin-bottom:6px;">سبب المنحة (اختياري):</label>
+      <input type="text" name="reason" placeholder="مثال: تعويض عن عطل في 2026-06-01" maxlength="200"
+             style="width:100%;padding:10px;border-radius:6px;border:1px solid #cbd5e1;">
+    </div>
+
+    <div style="margin-top:24px;display:flex;gap:10px;">
+      <button type="submit" style="background:#10b981;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:800;cursor:pointer;">
+        ✅ تأكيد المنحة
+      </button>
+      <a href="{% url 'admin:clients_marketplacecustomer_changelist' %}"
+         style="background:#94a3b8;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:700;">
+        إلغاء
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -17,6 +17,8 @@ from clients import views as client_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
+from erp_core.ai import design_views as design_views
+from clients import admin_god_mode as _god
 from erp_core.ai import diagnostic_views as diagnostic_views
 
 # =====================================================================
@@ -291,6 +293,22 @@ urlpatterns = [
     path('printing-copilot/api/topup/catalog/', copilot_views.copilot_topup_catalog, name='copilot_topup_catalog'),
     path('printing-copilot/api/topup/purchase/', copilot_views.copilot_topup_purchase, name='copilot_topup_purchase'),
 
+    # 🧠 Universal AI Design Engine (Data Flywheel) — unified for Customers & Tenants
+    # Stage 1: analyze raw idea → dynamic JSON schema (any design domain).
+    # Stage 2: idea + selections → mega prompt → FLUX image + flywheel log.
+    # Stage 3: user feedback (is_successful) to build proprietary fine-tune dataset.
+    path('ai/design/analyze/', design_views.design_analyze, name='design_analyze'),
+    path('ai/design/generate/', design_views.design_generate, name='design_generate'),
+    path('ai/design/feedback/', design_views.design_feedback, name='design_feedback'),
+
+    # 🛡️ God Mode — Super admin tools (impersonation + system health radar)
+    path('admin-tools/impersonate/<int:customer_id>/',
+         _god.admin_impersonate_customer, name='admin_impersonate_customer'),
+    path('admin-tools/impersonate/exit/',
+         _god.admin_impersonate_exit, name='admin_impersonate_exit'),
+    path('admin-tools/system-health/',
+         _god.admin_system_health, name='admin_system_health'),
+
     # 🚗 Auto Diagnostic Expert (BMW/MINI N13/N20/N52/N54...)
     # Phase 3: Two-stage refiner → BMW expert with torque specs & spatial accuracy.
     path('diagnostic/shop/', diagnostic_views.diagnostic_page_shop, name='diagnostic_shop'),
@@ -334,9 +352,9 @@ urlpatterns = [
         'name': 'Mouss Tec ERP',
         'short_name': 'Mouss Tec',
         'description': 'نظام إدارة الورش ومراكز الصيانة والمطابع المتكامل بالذكاء الاصطناعي',
-        'start_url': f'/{ADMIN_URL}/',
+        'start_url': '/',
         'scope': '/',
-        'id': f'/{ADMIN_URL}/',
+        'id': '/',
         'display': 'standalone',
         'orientation': 'any',
         'background_color': '#0f172a',
@@ -345,8 +363,10 @@ urlpatterns = [
         'dir': 'rtl',
         'categories': ['business', 'productivity', 'finance'],
         'icons': [
-            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
-            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'},
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'maskable'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
         ],
         'shortcuts': [
             {'name': 'نقطة البيع', 'short_name': 'POS', 'url': '/system/pos/',

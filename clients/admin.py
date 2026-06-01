@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from .models import (
     Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest,
     BidOffer, EscrowLedger, Plan, AIAddonPackage,
-    TenantSubscription, AILimitTracker,
+    TenantSubscription, AILimitTracker, AIPromptLearningLog,
 )
 
 import logging
@@ -805,3 +805,103 @@ class AILimitTrackerAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             text = text[:80] + '…'
         return format_html('<span style="font-size:11px; color:#6c757d;" title="{}">{}</span>', str(obj.metadata), text)
     metadata_preview.short_description = "بيانات إضافية"
+
+
+# =====================================================================
+# 🌀 Data Flywheel — AI Prompt Learning Logs
+# =====================================================================
+@admin.register(AIPromptLearningLog)
+class AIPromptLearningLogAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    """🌀 لوحة مراقبة سجلات تعلم الذكاء الاصطناعي — لبناء fine-tuning dataset."""
+
+    list_display = (
+        'id', 'user_raw_input', 'detected_domain', 'audience',
+        'success_badge', 'image_preview', 'llm_model', 'image_model', 'created_at',
+    )
+    list_filter = (
+        'detected_domain', 'is_successful', 'audience', 'llm_model', 'image_model',
+    )
+    search_fields = (
+        'raw_input', 'mega_prompt', 'detected_domain',
+        'customer__full_name', 'tenant__schema_name',
+    )
+    readonly_fields = (
+        'created_at', 'feedback_at', 'image_preview_large',
+        'dynamic_schema', 'selections', 'mega_prompt', 'negative_prompt',
+        'raw_input', 'detected_domain', 'llm_model', 'image_model', 'image_size',
+        'image_url', 'audience', 'user', 'tenant', 'customer',
+    )
+    list_per_page = 50
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at',)
+
+    fieldsets = (
+        ('🎯 المدخلات الخام', {
+            'fields': ('raw_input', 'detected_domain', 'audience'),
+        }),
+        ('🧠 خرج الذكاء الاصطناعي', {
+            'fields': ('dynamic_schema', 'selections', 'mega_prompt', 'negative_prompt'),
+        }),
+        ('🖼️ الصورة الناتجة', {
+            'fields': ('image_url', 'image_preview_large', 'image_size'),
+        }),
+        ('⚙️ النماذج المستخدمة', {
+            'fields': ('llm_model', 'image_model'),
+        }),
+        ('👤 صاحب الطلب', {
+            'fields': ('user', 'tenant', 'customer'),
+        }),
+        ('📊 التقييم والتاريخ', {
+            'fields': ('is_successful', 'feedback_at', 'created_at'),
+        }),
+    )
+
+    def user_raw_input(self, obj):
+        """عرض الـ raw input بشكل مختصر في الـ list view (60 char)."""
+        text = (obj.raw_input or '')[:60]
+        if len(obj.raw_input or '') > 60:
+            text += '…'
+        return text
+    user_raw_input.short_description = "فكرة المستخدم"
+    user_raw_input.admin_order_field = 'raw_input'
+
+    def success_badge(self, obj):
+        if obj.is_successful is True:
+            return format_html(
+                '<span style="background:#10b981;color:white;padding:3px 9px;border-radius:6px;font-weight:700;font-size:11px;">✅ ناجح</span>'
+            )
+        if obj.is_successful is False:
+            return format_html(
+                '<span style="background:#ef4444;color:white;padding:3px 9px;border-radius:6px;font-weight:700;font-size:11px;">❌ فاشل</span>'
+            )
+        return format_html(
+            '<span style="background:#94a3b8;color:white;padding:3px 9px;border-radius:6px;font-size:11px;">— بدون تقييم</span>'
+        )
+    success_badge.short_description = "النجاح"
+    success_badge.admin_order_field = 'is_successful'
+
+    def image_preview(self, obj):
+        if not obj.image_url:
+            return "—"
+        return format_html(
+            '<a href="{0}" target="_blank"><img src="{0}" style="height:48px;border-radius:4px;border:1px solid #cbd5e1;" /></a>',
+            obj.image_url,
+        )
+    image_preview.short_description = "صورة"
+
+    def image_preview_large(self, obj):
+        if not obj.image_url:
+            return "—"
+        return format_html(
+            '<a href="{0}" target="_blank"><img src="{0}" style="max-width:400px;border-radius:8px;border:2px solid #7c3aed;" /></a>',
+            obj.image_url,
+        )
+    image_preview_large.short_description = "معاينة الصورة"
+
+    def has_add_permission(self, request):
+        # السجلات تتولد آلياً من توليد الذكاء — مفيش manual add
+        return False
+
+
+# 🛡️ God Mode — يسجّل MarketplaceCustomer admin مع الـ actions + impersonation
+from . import admin_god_mode  # noqa: F401, E402

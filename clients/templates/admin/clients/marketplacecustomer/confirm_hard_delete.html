@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div style="max-width:880px;margin:24px auto;background:#fff;border:2px solid #ef4444;border-radius:12px;padding:24px;">
+  <h1 style="margin-top:0;color:#dc2626;">💣 الحذف العميق (Deep Clean)</h1>
+
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-bottom:18px;">
+    <strong style="color:#991b1b;">⚠️ تحذير:</strong>
+    العملية ده <strong>لا يمكن التراجع عنها</strong>. هتمسح كل بيانات العملاء التالية + ملفاتهم من التخزين + سجلات تعلّم الـ AI الخاصة بيهم.
+    كله ملفوف بـ transaction.atomic() — لو فشلت أي خطوة، الـ DB يرجع بالكامل.
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <thead>
+      <tr style="background:#f1f5f9;">
+        <th style="padding:9px;text-align:right;border:1px solid #cbd5e1;">العميل</th>
+        <th style="padding:9px;text-align:center;border:1px solid #cbd5e1;">تصاميم</th>
+        <th style="padding:9px;text-align:center;border:1px solid #cbd5e1;">باقات</th>
+        <th style="padding:9px;text-align:center;border:1px solid #cbd5e1;">طلبات طباعة</th>
+        <th style="padding:9px;text-align:center;border:1px solid #cbd5e1;">سجلات تعلم</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in impact %}
+      <tr>
+        <td style="padding:9px;border:1px solid #e2e8f0;"><strong>{{ row.customer.full_name }}</strong><br><small>{{ row.customer.phone }}</small></td>
+        <td style="padding:9px;text-align:center;border:1px solid #e2e8f0;">{{ row.designs }}</td>
+        <td style="padding:9px;text-align:center;border:1px solid #e2e8f0;">{{ row.purchases }}</td>
+        <td style="padding:9px;text-align:center;border:1px solid #e2e8f0;">{{ row.print_requests }}</td>
+        <td style="padding:9px;text-align:center;border:1px solid #e2e8f0;">{{ row.learning_logs }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post">
+    {% csrf_token %}
+    <label style="display:block;font-weight:700;color:#dc2626;margin-bottom:6px;">
+      اكتب كلمة <code style="background:#fee;padding:2px 8px;border-radius:4px;">DELETE</code> للتأكيد:
+    </label>
+    <input type="text" name="confirm_phrase" required pattern="DELETE" autocomplete="off"
+           style="width:260px;padding:10px;border:2px solid #ef4444;border-radius:6px;font-family:monospace;text-transform:uppercase;">
+
+    <div style="margin-top:24px;display:flex;gap:10px;">
+      <button type="submit" style="background:#dc2626;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:800;cursor:pointer;">
+        💣 تأكيد الحذف العميق
+      </button>
+      <a href="{% url 'admin:clients_marketplacecustomer_changelist' %}"
+         style="background:#94a3b8;color:#fff;padding:11px 22px;border-radius:8px;text-decoration:none;font-weight:700;">
+        إلغاء (آمن)
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

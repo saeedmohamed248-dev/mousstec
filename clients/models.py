@@ -1641,6 +1641,64 @@ class DesignPromptLog(models.Model):
         )
 
 
+class AIPromptLearningLog(models.Model):
+    """🌀 Data Flywheel — كل تفاعل توليد بيتسجل لبناء fine-tuning dataset مع الوقت.
+
+    بنحفظ الـ raw input + الـ domain اللي اللي الـ LLM حدده + الـ dynamic schema
+    + اختيارات المستخدم + الـ mega prompt + الصورة + boolean is_successful (feedback).
+    """
+    AUDIENCE_CHOICES = (
+        ('customer', _('عميل سوق')),
+        ('tenant', _('شركة / تاجر')),
+        ('anonymous', _('زائر')),
+    )
+
+    audience = models.CharField(max_length=12, choices=AUDIENCE_CHOICES, default='anonymous', db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    tenant = models.ForeignKey(
+        Client, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ai_learning_logs',
+    )
+    customer = models.ForeignKey(
+        MarketplaceCustomer, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ai_learning_logs',
+    )
+
+    raw_input = models.TextField(verbose_name=_("الفكرة الخام كما كتبها المستخدم"))
+    detected_domain = models.CharField(max_length=80, blank=True, db_index=True,
+        verbose_name=_("المجال اللي حدده الـ LLM"))
+    dynamic_schema = models.JSONField(default=dict, blank=True,
+        verbose_name=_("الـ JSON Schema الديناميكي"))
+    selections = models.JSONField(default=dict, blank=True,
+        verbose_name=_("اختيارات المستخدم"))
+
+    mega_prompt = models.TextField(blank=True, verbose_name=_("الـ Mega Prompt النهائي"))
+    negative_prompt = models.TextField(blank=True)
+    image_url = models.URLField(max_length=600, blank=True)
+    image_size = models.CharField(max_length=20, blank=True)
+
+    llm_model = models.CharField(max_length=80, blank=True)
+    image_model = models.CharField(max_length=80, blank=True)
+
+    is_successful = models.BooleanField(null=True, blank=True, db_index=True,
+        verbose_name=_("هل التصميم ناجح؟ (feedback من المستخدم)"))
+    feedback_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("سجل تعلم AI")
+        verbose_name_plural = _("🌀 Data Flywheel — سجلات تعلم الذكاء")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['detected_domain', '-created_at']),
+            models.Index(fields=['is_successful', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"AIL-{self.pk} | {self.detected_domain or '?'} | {self.raw_input[:40]}"
+
+
 def seed_default_design_packages():
     """يستدعى من management command أو migration لتأسيس الباقات.
 

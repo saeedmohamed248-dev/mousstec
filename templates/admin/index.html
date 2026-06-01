@@ -2,14 +2,27 @@
 {% load i18n static %}
 
 {% block content %}
-<!-- PWA Meta Tags -->
+<!-- PWA bootstrap (manifest + theme + SW registration + update toast + A2HS) -->
 <script>
-    if (!document.querySelector('link[rel="manifest"]')) {
-        const m = document.createElement('link'); m.rel='manifest'; m.href='/manifest.json';
-        document.head.appendChild(m);
-        const t = document.createElement('meta'); t.name='theme-color'; t.content='#0f172a';
-        document.head.appendChild(t);
-    }
+    (function () {
+        if (!document.querySelector('link[rel="manifest"]')) {
+            const m = document.createElement('link'); m.rel='manifest'; m.href='/manifest.json';
+            document.head.appendChild(m);
+        }
+        if (!document.querySelector('meta[name="theme-color"]')) {
+            const t = document.createElement('meta'); t.name='theme-color'; t.content='#7c3aed';
+            document.head.appendChild(t);
+        }
+        if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+            const a = document.createElement('link'); a.rel='apple-touch-icon'; a.href='/static/icon-192.png';
+            document.head.appendChild(a);
+        }
+        if (!document.querySelector('script[data-pwa-init]')) {
+            const s = document.createElement('script');
+            s.src = '/static/js/pwa-init.js'; s.defer = true; s.dataset.pwaInit = '1';
+            document.head.appendChild(s);
+        }
+    })();
 </script>
 <style>
     :root {
@@ -358,6 +371,20 @@
 
                 <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
                     <i class="fas fa-rocket"></i> الوصول السريع
+                </a>
+            {% endif %}
+
+            {# 🛡️ God Mode — Superuser only #}
+            {% if user.is_superuser and is_public_schema %}
+                <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
+                   style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
+                   title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
+                    <i class="fas fa-heart-pulse"></i> 🩺 System Health
+                </a>
+                <a href="/admin/clients/marketplacecustomer/" class="saas-quick-btn"
+                   style="background: linear-gradient(135deg, #7c3aed, #ec4899);"
+                   title="إدارة عملاء السوق + الهدايا + Impersonate">
+                    <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
                 </a>
             {% endif %}
         </div>
@@ -988,24 +1015,7 @@
         });
     });
 
-    // Service Worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(reg => {
-            console.log('SW registered:', reg.scope);
-        }).catch(err => console.warn('SW failed:', err));
-    }
-
-    // PWA Install
-    let deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault(); deferredPrompt = e;
-        if (!localStorage.getItem('pwa_install_dismissed')) {
-            const banner = document.createElement('div');
-            banner.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:14px 20px;border-radius:12px;box-shadow:0 10px 25px rgba(79,70,229,0.4);display:flex;align-items:center;gap:12px;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;';
-            banner.innerHTML = '<i class="fas fa-mobile-alt" style="font-size:20px;"></i><span>ثبّت Mouss Tec على جهازك</span><button onclick="deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;this.parentElement.remove();})" style="background:#fff;color:#4f46e5;border:none;padding:8px 16px;border-radius:8px;font-weight:900;cursor:pointer;font-family:inherit;margin-right:8px;">تثبيت</button><button onclick="this.parentElement.remove();localStorage.setItem(\'pwa_install_dismissed\',Date.now())" style="background:none;border:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:16px;">&times;</button>';
-            document.body.appendChild(banner);
-        }
-    });
+    // SW registration + update toast + A2HS handled centrally by /static/js/pwa-init.js
 
     // ===== AI Studio Functions =====
     function getCSRFToken() {

@@ -154,6 +154,7 @@ MIDDLEWARE = [
     'simple_history.middleware.HistoryRequestMiddleware',
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
+    'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner
     'erp_core.middleware.VisitorTrackingMiddleware',       # 5. تتبع الزوار للسوبر أدمن
 ]
 

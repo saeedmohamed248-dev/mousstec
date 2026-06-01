@@ -242,9 +242,46 @@
     </div>
 
     {% if total_remaining > 0 %}
+
+    <!-- 🧠 Universal AI Design (Dynamic Dropdowns — أي مجال تصميم) -->
+    <div class="generator-card" id="universalAI" style="border:2px solid #7c3aed;background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(236,72,153,0.04));margin-bottom:20px;">
+        <h3 class="gen-title" style="display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-brain" style="color:#a78bfa;"></i>
+            🧠 ذكاء التصميم الشامل
+            <span style="font-size:10px;background:#7c3aed;color:#fff;padding:3px 8px;border-radius:8px;font-weight:800;">جديد</span>
+        </h3>
+        <p style="font-size:12px;color:#cbd5e1;margin:6px 0 14px;line-height:1.7;">
+            اكتب فكرة التصميم بأي مجال (شبشب، غرفة معيشة، لوجو، تغليف منتج، …) والذكاء الاصطناعي
+            هيقترح عليك القوائم المناسبة تلقائياً. كل توليد بيدخل في برنامج التعلم الذاتي بتاعنا.
+        </p>
+
+        <div class="form-group">
+            <label>💡 فكرة التصميم</label>
+            <input type="text" id="uaiIdea" maxlength="500"
+                   placeholder="مثال: غرفة معيشة عصرية | شبشب بلاستيك للشاطئ | لوجو شركة تكنولوجيا"
+                   style="width:100%;">
+        </div>
+
+        <button type="button" id="uaiAnalyzeBtn" onclick="uaiAnalyze()"
+                style="margin-top:12px;width:100%;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;padding:12px;border-radius:10px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;">
+            <i class="fas fa-magnifying-glass-chart"></i> حلل الفكرة واقترح الخيارات
+        </button>
+
+        <div id="uaiSchemaBox" style="display:none;margin-top:14px;padding:14px;background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;">
+            <div id="uaiDomainBadge" style="margin-bottom:12px;font-size:12px;color:#c4b5fd;font-weight:800;"></div>
+            <div id="uaiFields"></div>
+            <button type="button" id="uaiGenBtn" onclick="uaiGenerate()"
+                    style="margin-top:14px;width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;padding:13px;border-radius:10px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
+                <i class="fas fa-wand-magic-sparkles"></i> ✨ ولّد التصميم
+            </button>
+        </div>
+
+        <div id="uaiResultBox" style="display:none;margin-top:14px;padding:14px;background:rgba(15,23,42,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;"></div>
+    </div>
+
     <!-- Generator -->
     <div class="generator-card" id="generator">
-        <h3 class="gen-title"><i class="fas fa-wand-magic-sparkles"></i> ولّد تصميم جديد</h3>
+        <h3 class="gen-title"><i class="fas fa-wand-magic-sparkles"></i> ولّد تصميم جديد (الوضع الكلاسيكي)</h3>
 
         <form id="genForm" enctype="multipart/form-data">
 
@@ -915,6 +952,191 @@ async function sendToMarketplaceFor(code) {
     } catch(e) { toast('حدث خطأ', 'error'); }
 }
 function sendToMarketplace() { if (lastDesignCode) sendToMarketplaceFor(lastDesignCode); }
+
+// ==========================================================
+// 🧠 Universal AI Design — Dynamic Schema Flow
+// POST /ai/design/analyze/  → schema with dropdowns
+// POST /ai/design/generate/ → mega prompt + image + flywheel log
+// POST /ai/design/feedback/ → mark success/failure
+// ==========================================================
+let _uaiSchema = null;     // last analyzed schema
+let _uaiLastResult = null; // last generation result
+
+function _uaiEsc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+async function uaiAnalyze() {
+    const idea = (document.getElementById('uaiIdea').value || '').trim();
+    if (!idea) { toast('اكتب فكرة التصميم الأول', 'error'); return; }
+    const btn = document.getElementById('uaiAnalyzeBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> بحلل الفكرة...';
+    try {
+        const r = await fetch('/ai/design/analyze/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify({ raw_idea: idea }),
+            credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (!d.success) { toast(d.message || 'تعذر التحليل', 'error'); return; }
+
+        _uaiSchema = d;
+        const box = document.getElementById('uaiSchemaBox');
+        const badge = document.getElementById('uaiDomainBadge');
+        const fieldsBox = document.getElementById('uaiFields');
+
+        badge.innerHTML = '<i class="fas fa-tag"></i> المجال: <span style="color:#fff;">'
+            + _uaiEsc(d.domain_ar || d.domain) + '</span>';
+
+        fieldsBox.innerHTML = d.fields.map(f =>
+            '<div class="form-group" style="margin-bottom:12px;">'
+            + '<label style="display:block;margin-bottom:6px;font-size:12px;color:#cbd5e1;font-weight:700;">'
+            + _uaiEsc(f.label) + '</label>'
+            + '<select data-uai-key="' + _uaiEsc(f.key) + '" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:13px;">'
+            + f.options.map(o => '<option value="' + _uaiEsc(o) + '">' + _uaiEsc(o) + '</option>').join('')
+            + '</select></div>'
+        ).join('');
+
+        box.style.display = 'block';
+        box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        toast('⚠️ تعذر الاتصال', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+async function uaiGenerate() {
+    if (!_uaiSchema) { toast('حلل الفكرة الأول', 'error'); return; }
+    const idea = (document.getElementById('uaiIdea').value || '').trim();
+    const selections = {};
+    document.querySelectorAll('#uaiFields [data-uai-key]').forEach(el => {
+        selections[el.getAttribute('data-uai-key')] = el.value;
+    });
+
+    const btn = document.getElementById('uaiGenBtn');
+    const orig = btn.innerHTML;
+    const box = document.getElementById('uaiResultBox');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> بصيغ البرومبت + بولد الصورة...';
+    box.style.display = 'block';
+    box.innerHTML = '<p style="text-align:center;color:#a78bfa;font-size:12px;"><i class="fas fa-cogs fa-spin"></i> المرحلة 1: صياغة Mega Prompt — المرحلة 2: توليد الصورة...</p>';
+
+    try {
+        const r = await fetch('/ai/design/generate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify({
+                raw_idea: idea,
+                domain: _uaiSchema.domain,
+                selections: selections,
+                schema: { fields: _uaiSchema.fields, domain: _uaiSchema.domain },
+                audience: 'customer',
+            }),
+            credentials: 'same-origin',
+        });
+        const d = await r.json();
+
+        if (!d.success) {
+            if (d.need_topup) {
+                box.innerHTML =
+                    '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:10px;">'
+                    + '<p style="color:#fca5a5;font-weight:800;font-size:13px;margin-bottom:10px;">' + _uaiEsc(d.message) + '</p>'
+                    + '<button onclick="openCustTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:9px 20px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن الباقة</button>'
+                    + '</div>';
+            } else {
+                box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + _uaiEsc(d.message || d.error || 'فشل') + '</p>';
+            }
+            return;
+        }
+
+        _uaiLastResult = d;
+        if (d.balance) refreshCustBalance(d.balance);
+        const img = d.image_url || ('data:image/png;base64,' + (d.image_b64 || ''));
+        const logId = d.log_id || '';
+
+        box.innerHTML =
+            '<img src="' + img + '" style="max-width:100%;border-radius:12px;border:2px solid #a78bfa;display:block;margin:0 auto 12px;">'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'
+            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.domain || 'design') + '</span>'
+            +     '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.model || 'flux') + '</span>'
+            + '</div>'
+            + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
+            +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Mega Prompt</summary>'
+            +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;direction:ltr;text-align:left;">' + _uaiEsc(d.mega_prompt) + '</p>'
+            + '</details>'
+            + (logId ? (
+                '<div id="uaiFeedback_' + logId + '" style="text-align:center;padding:10px;background:rgba(15,23,42,0.4);border-radius:10px;margin-bottom:10px;">'
+                + '<p style="font-size:12px;color:#cbd5e1;margin-bottom:8px;">هل التصميم طلع كويس؟ (رأيك بيساعد الذكاء يتعلم)</p>'
+                + '<button onclick="uaiFeedback(' + logId + ', true)" style="background:#10b981;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-up"></i> ممتاز</button>'
+                + '<button onclick="uaiFeedback(' + logId + ', false)" style="background:#ef4444;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-down"></i> مش مظبوط</button>'
+                + '</div>'
+            ) : '')
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+            +     '<button onclick="uaiSendToPrint()" style="flex:1;min-width:160px;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-print"></i> 🖨️ إرسال للمطبعة</button>'
+            +     '<a href="' + img + '" download="ai-design.png" style="flex:1;min-width:130px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
+            +     '<button onclick="uaiGenerate()" style="flex:1;min-width:130px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
+            + '</div>';
+    } catch (e) {
+        box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال</p>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+function uaiSendToPrint() {
+    if (!_uaiLastResult || !_uaiLastResult.image_url) { toast('ولّد التصميم الأول', 'error'); return; }
+    // نحوّل نتيجة الـ universal flow لـ shape اللي openSendToPrintBox بيتوقعه
+    const selectionsTxt = Object.entries(_uaiLastResult.selections || {})
+        .map(([k, v]) => `${k}: ${v}`).join(' | ');
+    _lastFluxResult = {
+        image_url: _uaiLastResult.image_url,
+        engineered_prompt: _uaiLastResult.mega_prompt,
+        negative_prompt: _uaiLastResult.negative_prompt,
+        raw_brief: _uaiLastResult.raw_idea + (selectionsTxt ? ' [' + selectionsTxt + ']' : ''),
+        // CustomerDesign.category restricted by CHOICES → نخليها 'other' والـ domain يروح في الـ title
+        category: 'other',
+        size: _uaiLastResult.size,
+        model: _uaiLastResult.model,
+    };
+    openSendToPrintBox();
+}
+
+async function uaiFeedback(logId, isSuccessful) {
+    try {
+        const r = await fetch('/ai/design/feedback/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify({ log_id: logId, is_successful: isSuccessful }),
+            credentials: 'same-origin',
+        });
+        const d = await r.json();
+        const wrap = document.getElementById('uaiFeedback_' + logId);
+        if (!wrap) return;
+        if (!d.success) {
+            wrap.innerHTML = '<p style="color:#fca5a5;font-size:12px;margin:0;">تعذر تسجيل التقييم.</p>';
+            return;
+        }
+        // ✅ تقييم اتسجّل. لو إيجابي + اتحفظ في الـ portfolio، نظهر الـ design_code
+        if (d.saved_to_portfolio && d.design_code) {
+            // نخزن الـ design_code عشان send-to-print يربط الطلب بـ CustomerDesign الموجود
+            if (_uaiLastResult) _uaiLastResult.portfolio_design_code = d.design_code;
+            wrap.innerHTML =
+                '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0 0 6px;"><i class="fas fa-check-circle"></i> شكراً! تقييمك اتسجل.</p>'
+                + '<p style="color:#a78bfa;font-size:11px;margin:0;"><i class="fas fa-images"></i> '
+                + (d.portfolio_was_existing ? 'التصميم متواجد بالفعل في معرضك' : 'تم حفظ التصميم في معرضك (Portfolio)')
+                + ' — كود: <code style="background:#0f172a;padding:2px 8px;border-radius:4px;color:#c4b5fd;">'
+                + _uaiEsc(d.design_code.slice(0, 8)) + '</code></p>';
+        } else if (d.is_successful) {
+            wrap.innerHTML = '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0;"><i class="fas fa-check-circle"></i> شكراً! تقييمك اتسجل وهيحسّن النموذج.</p>';
+        } else {
+            wrap.innerHTML = '<p style="color:#a78bfa;font-weight:700;font-size:12px;margin:0;"><i class="fas fa-info-circle"></i> تقييمك اتسجل — هنحاول نحسّن النتائج.</p>';
+        }
+    } catch (e) { /* silent */ }
+}
 </script>
 
 <!-- Chat Modal -->

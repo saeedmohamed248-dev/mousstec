@@ -1,0 +1,107 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .health-card { background:#fff; border:1px solid #cbd5e1; border-radius:12px; padding:18px; margin-bottom:20px; }
+  .health-card h2 { margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+  .health-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .health-table th, .health-table td { padding:8px; border:1px solid #e2e8f0; text-align:right; }
+  .health-table thead { background:#f1f5f9; }
+  .anomaly-badge { display:inline-block; background:#ef4444; color:#fff; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800; }
+  .ok-badge { display:inline-block; background:#10b981; color:#fff; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:800; }
+  .action-btn { background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; border:none; padding:9px 18px; border-radius:8px; font-weight:800; cursor:pointer; }
+</style>
+
+<div style="max-width:1100px;margin:24px auto;">
+  <h1 style="color:#0f172a;">🩺 System Health Radar</h1>
+  <p style="color:#475569;">رادار الـ Mouss Tec — يرصد الدورات غير المكتملة والـ anomalies. كل زرار «تنظيف» محمي بـ atomic transaction.</p>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin-bottom:14px;">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- ── Card 1: Stale Print Requests ── -->
+  <div class="health-card">
+    <h2>🖨️ طلبات طباعة معلقة > 24 ساعة
+      {% if stale_prints_count %}<span class="anomaly-badge">{{ stale_prints_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    </h2>
+    {% if stale_prints %}
+    <table class="health-table">
+      <thead><tr><th>الكود</th><th>العميل</th><th>نوع المنتج</th><th>الكمية</th><th>الإنشاء</th></tr></thead>
+      <tbody>
+        {% for r in stale_prints %}
+        <tr>
+          <td><code>{{ r.request_code|stringformat:'s'|slice:':8' }}</code></td>
+          <td>{{ r.customer.full_name }}</td>
+          <td>{{ r.get_product_type_display }}</td>
+          <td>{{ r.quantity }}</td>
+          <td>{{ r.created_at|date:'Y-m-d H:i' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('تعليم كل الطلبات المعلقة كـ cancelled؟');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="expire_stale_prints">
+      <button class="action-btn">🧹 إغلاق الطلبات المعلقة (Cancel)</button>
+    </form>
+    {% else %}<p style="color:#10b981;">✅ مفيش طلبات معلقة قديمة.</p>{% endif %}
+  </div>
+
+  <!-- ── Card 2: Failed AI Generation Logs ── -->
+  <div class="health-card">
+    <h2>🤖 سجلات توليد AI فاشلة (بدون صورة)
+      {% if failed_logs_count %}<span class="anomaly-badge">{{ failed_logs_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    </h2>
+    {% if failed_logs %}
+    <table class="health-table">
+      <thead><tr><th>#</th><th>الفكرة</th><th>المجال</th><th>التاريخ</th></tr></thead>
+      <tbody>
+        {% for l in failed_logs %}
+        <tr>
+          <td>{{ l.id }}</td>
+          <td>{{ l.raw_input|truncatechars:60 }}</td>
+          <td>{{ l.detected_domain|default:'—' }}</td>
+          <td>{{ l.created_at|date:'Y-m-d H:i' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('حذف سجلات التوليد الفاشلة الأقدم من 7 أيام؟');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="purge_failed_logs">
+      <button class="action-btn">🗑️ حذف الفاشل > 7 أيام</button>
+    </form>
+    {% else %}<p style="color:#10b981;">✅ مفيش سجلات فاشلة.</p>{% endif %}
+  </div>
+
+  <!-- ── Card 3: Abandoned Purchases ── -->
+  <div class="health-card">
+    <h2>💳 مشتريات مهجورة (Pending > 24 ساعة)
+      {% if abandoned_purchases_count %}<span class="anomaly-badge">{{ abandoned_purchases_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    </h2>
+    {% if abandoned_purchases %}
+    <table class="health-table">
+      <thead><tr><th>الكود</th><th>العميل</th><th>الباقة</th><th>السعر</th><th>الإنشاء</th></tr></thead>
+      <tbody>
+        {% for p in abandoned_purchases %}
+        <tr>
+          <td><code>{{ p.purchase_code|stringformat:'s'|slice:':8' }}</code></td>
+          <td>{{ p.customer.full_name }}</td>
+          <td>{{ p.package.name_ar }}</td>
+          <td>{{ p.price_paid }} ج</td>
+          <td>{{ p.created_at|date:'Y-m-d H:i' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('تعليم المشتريات المهجورة كـ expired؟');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="expire_abandoned_purchases">
+      <button class="action-btn">⏳ تعليم كـ Expired</button>
+    </form>
+    {% else %}<p style="color:#10b981;">✅ مفيش مشتريات مهجورة.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

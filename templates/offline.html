@@ -3,34 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>غير متصل | Mouss Tec</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Cairo', Arial, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .container { text-align: center; padding: 40px; max-width: 480px; }
-        .icon { font-size: 80px; margin-bottom: 20px; opacity: 0.3; }
-        h1 { font-size: 24px; font-weight: 900; margin-bottom: 10px; color: #f59e0b; }
-        p { font-size: 14px; color: #94a3b8; margin-bottom: 20px; line-height: 1.8; }
-        .retry-btn { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px 32px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; transition: 0.3s; }
-        .retry-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139,92,246,0.3); }
-        .status { margin-top: 20px; font-size: 12px; color: #475569; }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Cairo',Arial,sans-serif;background:#0f172a;color:#e2e8f0;
+             min-height:100vh;display:flex;align-items:center;justify-content:center;direction:rtl}
+        .container{text-align:center;padding:40px;max-width:480px}
+        .icon{font-size:84px;margin-bottom:16px;opacity:.35}
+        h1{font-size:24px;font-weight:900;margin-bottom:10px;color:#f59e0b}
+        p{font-size:14px;color:#94a3b8;margin-bottom:22px;line-height:1.8}
+        .retry-btn{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border:none;
+                   padding:14px 34px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;
+                   font-family:inherit;transition:.3s}
+        .retry-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(139,92,246,.35)}
+        .status{margin-top:18px;font-size:12px;color:#475569}
+        .pulse{animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:.3}50%{opacity:.6}}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon pulse">&#x1F6DC;</div>
-        <h1>انت غير متصل بالانترنت</h1>
-        <p>لا تقلق! النظام يعمل في وضع عدم الاتصال.<br>البيانات المحفوظة مسبقاً متاحة، وسيتم مزامنة اي تغييرات تلقائياً عند عودة الاتصال.</p>
-        <button class="retry-btn" onclick="window.location.reload()">اعادة المحاولة</button>
-        <div class="status" id="status">جاري مراقبة الاتصال...</div>
+        <div class="icon pulse">🛰️</div>
+        <h1>أنت غير متصل بالإنترنت</h1>
+        <p>لا تقلق — نظام Mouss Tec يعمل في وضع عدم الاتصال.<br>
+           الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال.</p>
+        <button class="retry-btn" type="button" onclick="window.location.reload()">إعادة المحاولة</button>
+        <div class="status" id="status">جاري مراقبة الاتصال…</div>
     </div>
     <script>
         window.addEventListener('online', () => {
-            document.getElementById('status').textContent = 'تم استعادة الاتصال! جاري التحميل...';
-            document.getElementById('status').style.color = '#10b981';
-            setTimeout(() => window.location.reload(), 1000);
+            const s = document.getElementById('status');
+            s.textContent = 'تم استعادة الاتصال — جاري التحميل…';
+            s.style.color = '#10b981';
+            setTimeout(() => window.location.reload(), 800);
         });
     </script>
 </body>
