@@ -15,6 +15,9 @@ import logging
 
 from clients import views as client_views
 from django.http import FileResponse
+from erp_core.ai import advisor_views as advisor_views
+from erp_core.ai import copilot_views as copilot_views
+from erp_core.ai import diagnostic_views as diagnostic_views
 
 # =====================================================================
 # 🏭 فلترة التطبيقات حسب قطاع المستأجر (Industry-Aware Admin)
@@ -242,6 +245,28 @@ urlpatterns = [
 
     # 🎨 Printing AI Studio endpoints
     path('printing/', include('printing.urls')),
+
+    # 🧠 المستشار الذكي (Cognitive Advisor Agent) — Two-Stage Pipeline
+    # Phase 1: Function-calling agent مع 4 tools متخصصة (cash flow, dead stock,
+    # inventory sim, report links). كل tool محصور في tenant schema الحالي.
+    path('advisor/printing/', advisor_views.advisor_page_printing, name='advisor_printing'),
+    path('advisor/automotive/', advisor_views.advisor_page_automotive, name='advisor_automotive'),
+    path('advisor/api/chat/', advisor_views.advisor_chat_api, name='advisor_chat_api'),
+    path('advisor/api/reset/', advisor_views.advisor_reset_api, name='advisor_reset_api'),
+
+    # 🎨 Premium AI Printing Copilot (Two-Stage Flux Pipeline)
+    # Phase 2: Refiner Arabic→English print prompt + Flux.1 image generation.
+    # Used by both Merchant AI Studio and Customer AI Studio.
+    path('printing-copilot/api/generate/', copilot_views.copilot_generate, name='copilot_generate'),
+    path('printing-copilot/api/send-to-print/', copilot_views.copilot_send_to_print, name='copilot_send_to_print'),
+    path('printing-copilot/api/customer-search/', copilot_views.copilot_customer_search, name='copilot_customer_search'),
+
+    # 🚗 Auto Diagnostic Expert (BMW/MINI N13/N20/N52/N54...)
+    # Phase 3: Two-stage refiner → BMW expert with torque specs & spatial accuracy.
+    path('diagnostic/shop/', diagnostic_views.diagnostic_page_shop, name='diagnostic_shop'),
+    path('diagnostic/customer/', diagnostic_views.diagnostic_page_customer, name='diagnostic_customer'),
+    path('diagnostic/api/chat/', diagnostic_views.diagnostic_chat_api, name='diagnostic_chat_api'),
+    path('diagnostic/api/reset/', diagnostic_views.diagnostic_reset_api, name='diagnostic_reset_api'),
 
     # 💳 بوابة الدفع عبر Paymob (Visa/Mastercard)
     path('payment/paymob/checkout/', client_views.paymob_checkout, name='paymob_checkout'),

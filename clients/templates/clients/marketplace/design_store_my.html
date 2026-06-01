@@ -414,7 +414,17 @@
             <button type="submit" class="btn-generate" id="genBtn">
                 <i class="fas fa-bolt"></i> ولّد التصميم (1 من رصيدك)
             </button>
+
+            <!-- ✨ Premium Flux Two-Stage Pipeline (Phase 2 Copilot) -->
+            <button type="button" id="fluxBtn" onclick="generateFluxDesign()"
+                    style="width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:12px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
+                <i class="fas fa-wand-magic-sparkles"></i> ✨ توليد فخم (Flux Two-Stage)
+            </button>
+            <p style="font-size:11px;color:#a78bfa;margin-top:6px;text-align:center;">جودة Flux.1 الفخمة للطباعة — ~15 قرش للصورة، مجاني من رصيدك</p>
         </form>
+
+        <!-- Flux result panel (مستقل عن resultBox عشان مايتعارضش مع DALL-E flow) -->
+        <div id="fluxResultBox" style="display:none;margin-top:16px;padding:16px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:14px;"></div>
 
         <div class="result-preview" id="resultBox">
             <img id="resultImg" src="">
@@ -563,6 +573,197 @@ document.getElementById('genForm')?.addEventListener('submit', async e => {
 function downloadAs(fmt) {
     if (!lastDesignCode) return;
     window.open(`/marketplace/design-store/${lastDesignCode}/download/${fmt}/`, '_blank');
+}
+
+// ==========================================================
+// ✨ Premium Flux Two-Stage Pipeline (Phase 2 Copilot)
+// POST /printing-copilot/api/generate/  (JSON)
+// POST /printing-copilot/api/send-to-print/
+// ==========================================================
+let _lastFluxResult = null;
+
+function getCsrfCookie() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+function escapeHtmlFlux(s) {
+    const div = document.createElement('div');
+    div.textContent = s || '';
+    return div.innerHTML;
+}
+
+async function generateFluxDesign() {
+    const form = document.getElementById('genForm');
+    const fd = new FormData(form);
+    const brief = (fd.get('description') || '').toString().trim();
+    const category = (fd.get('category') || 'other').toString();
+    const sizePreset = (fd.get('size_preset') || 'auto').toString();
+
+    if (!brief) { toast('اكتب وصف التصميم الأول', 'error'); return; }
+
+    // Map size_preset → pixel size for Flux
+    const sizeMap = {
+        'auto': '1024x1024',
+        'a4': '1024x1536', 'a3': '1024x1536', 'a5': '1024x1536',
+        'business_card': '1536x1024',
+        'banner_wide': '1536x1024', 'rollup': '1024x1536',
+        'sign_square': '1024x1024', 'sign_landscape': '1536x1024',
+        'tshirt_chest': '1024x1024', 'tshirt_full': '1024x1536',
+        'pants_pattern': '1024x1536', 'abaya_pattern': '1024x1536',
+        'full_body': '1024x1536',
+        'mug': '1536x1024', 'bag': '1024x1024',
+        'book_cover': '1024x1536', 'youtube_thumb': '1536x1024',
+        'film_poster': '1024x1536',
+        'custom': (fd.get('custom_width_px') || '1024') + 'x' + (fd.get('custom_height_px') || '1024'),
+    };
+    const size = sizeMap[sizePreset] || sizePreset;
+
+    if (!confirm('توليد فخم عبر Flux.1 — التكلفة ~15 قرش، ومش هتتخصم من رصيد باقتك. متابعة؟')) return;
+
+    const btn = document.getElementById('fluxBtn');
+    const box = document.getElementById('fluxResultBox');
+    const origLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refine ثم Flux... (15-25 ثانية)';
+    box.style.display = 'block';
+    box.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> المرحلة 1: تصفية الـ Prompt للإنجليزي الفخم... ثم المرحلة 2: Flux.1</p>';
+
+    try {
+        const r = await fetch('/printing-copilot/api/generate/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify({ brief, category, size, audience: 'customer' }),
+            credentials: 'same-origin',
+        });
+        const data = await r.json();
+
+        if (!data.success) {
+            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + (data.message || data.error || 'فشل التوليد') + '</p>';
+            return;
+        }
+
+        _lastFluxResult = data;
+        const imgUrl = data.image_url || ('data:image/png;base64,' + (data.image_b64 || ''));
+        const provider = (data.provider || 'flux').toUpperCase();
+        const cost = data.cost_estimate_egp ? data.cost_estimate_egp.toFixed(2) + ' ج.م' : '~';
+
+        box.innerHTML =
+            '<img src="' + imgUrl + '" style="max-width:100%;border-radius:12px;margin-bottom:12px;border:2px solid #a78bfa;display:block;margin-left:auto;margin-right:auto;">'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'
+            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">FLUX ' + provider + '</span>'
+            +     '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + (data.style_tag || 'premium') + '</span>'
+            +     '<span style="font-size:11px;background:#0ea5e9;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">💰 ' + cost + '</span>'
+            + '</div>'
+            + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
+            +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Engineered Prompt (Stage 1)</summary>'
+            +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;">' + escapeHtmlFlux(data.engineered_prompt || '') + '</p>'
+            + '</details>'
+            + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+            +     '<button onclick="openSendToPrintBox()" style="flex:1;min-width:170px;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;"><i class="fas fa-print"></i> 🖨️ إرسال للمطبعة</button>'
+            +     '<a href="' + imgUrl + '" download="flux-design.png" style="flex:1;min-width:120px;text-align:center;padding:12px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
+            +     '<button onclick="generateFluxDesign()" style="flex:1;min-width:120px;padding:12px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
+            + '</div>';
+    } catch (err) {
+        box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال — جرب تاني.</p>';
+        console.error('[FLUX]', err);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origLabel;
+    }
+}
+
+function openSendToPrintBox() {
+    if (!_lastFluxResult || !_lastFluxResult.image_url) { toast('ولّد التصميم الأول', 'error'); return; }
+    const box = document.getElementById('fluxResultBox');
+    if (document.getElementById('stpBox')) {
+        document.getElementById('stpBox').scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
+
+    box.insertAdjacentHTML('beforeend',
+        '<div id="stpBox" style="margin-top:14px;padding:16px;background:rgba(15,23,42,0.6);border:1px solid #7c3aed;border-radius:12px;">'
+        + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;text-align:center;"><i class="fas fa-print"></i> تفاصيل طلب الطباعة</p>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">نوع المنتج</label>'
+        +     '<select id="stpProductType" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;">'
+        +         '<option value="business_card">💳 كارت بزنس</option>'
+        +         '<option value="tshirt">👕 تيشرت</option>'
+        +         '<option value="flyer">📄 فلاير</option>'
+        +         '<option value="poster">🖼️ بوستر</option>'
+        +         '<option value="banner">🪧 بنر / ستاند</option>'
+        +         '<option value="mug">☕ ماج</option>'
+        +         '<option value="sticker">🏷️ ستيكر</option>'
+        +         '<option value="packaging">📦 تغليف / علبة</option>'
+        +         '<option value="pen">🖊️ قلم / هدايا</option>'
+        +         '<option value="notebook">📓 نوت بوك</option>'
+        +         '<option value="menu">📋 منيو</option>'
+        +         '<option value="invitation">💌 كارت دعوة</option>'
+        +         '<option value="other">✨ أخرى</option>'
+        +     '</select></div>'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">الكمية</label>'
+        +     '<input id="stpQuantity" type="number" min="1" value="100" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;"></div>'
+        + '</div>'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">رقم واتساب للتواصل</label>'
+        + '<input id="stpPhone" type="text" placeholder="01xxxxxxxxx" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">عنوان التسليم</label>'
+        + '<input id="stpAddress" type="text" placeholder="العنوان بالكامل + علامة مميزة" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)</label>'
+        + '<textarea id="stpNotes" rows="2" placeholder="مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..." style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;resize:vertical;margin-bottom:14px;"></textarea>'
+        + '<div style="display:flex;gap:8px;">'
+        +     '<button onclick="submitSendToPrint()" id="stpSubmitBtn" style="flex:1;padding:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة</button>'
+        +     '<button onclick="document.getElementById(\'stpBox\').remove()" style="padding:13px 20px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">إلغاء</button>'
+        + '</div></div>'
+    );
+    document.getElementById('stpBox').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function submitSendToPrint() {
+    if (!_lastFluxResult) return;
+    const btn = document.getElementById('stpSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+
+    const payload = {
+        image_url: _lastFluxResult.image_url,
+        engineered_prompt: _lastFluxResult.engineered_prompt,
+        negative_prompt: _lastFluxResult.negative_prompt,
+        brief: _lastFluxResult.raw_brief,
+        category: _lastFluxResult.category,
+        size: _lastFluxResult.size,
+        model: _lastFluxResult.model,
+        title: (_lastFluxResult.raw_brief || '').slice(0, 60),
+        product_type: document.getElementById('stpProductType').value,
+        quantity: parseInt(document.getElementById('stpQuantity').value || '1', 10),
+        delivery_phone: document.getElementById('stpPhone').value.trim(),
+        delivery_address: document.getElementById('stpAddress').value.trim(),
+        notes: document.getElementById('stpNotes').value.trim(),
+    };
+
+    try {
+        const r = await fetch('/printing-copilot/api/send-to-print/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify(payload),
+            credentials: 'same-origin',
+        });
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('stpBox').innerHTML =
+                '<p style="text-align:center;color:#6ee7b7;font-weight:800;font-size:16px;padding:14px;"><i class="fas fa-check-circle"></i> ' + (data.message || 'تم!') + '</p>'
+                + '<p style="text-align:center;color:#94a3b8;font-size:11px;">كود الطلب: <code style="background:#0f172a;padding:2px 10px;border-radius:4px;color:#c4b5fd;">' + (data.print_request_code || '—') + '</code></p>';
+            toast('✅ طلب الطباعة اتسجل!', 'success');
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
+            toast(data.message || data.error || 'فشل الإرسال', 'error');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
+        toast('⚠️ تعذر الاتصال', 'error');
+        console.error('[STP]', err);
+    }
 }
 
 async function sendWA(code = lastDesignCode) {

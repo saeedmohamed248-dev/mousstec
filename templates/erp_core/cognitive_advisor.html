@@ -1,0 +1,367 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المستشار الذكي — {{ sector_label }} | Mousstec ERP</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top right, #1a0a2e 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column;
+        }
+
+        /* ──────── Top Bar ──────── */
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 28px; background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.18);
+            position: sticky; top: 0; z-index: 50;
+        }
+        .topbar h1 {
+            font-size: 1.35rem; font-weight: 900;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899, #f59e0b);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .topbar .actions { display: flex; gap: 10px; }
+        .topbar .actions a, .topbar .actions button {
+            background: rgba(255,255,255,0.05); color: #cbd5e1;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 8px 14px; border-radius: 10px; font-family: inherit;
+            font-size: 0.85rem; font-weight: 700; cursor: pointer;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .topbar .actions a:hover, .topbar .actions button:hover {
+            background: rgba(139, 92, 246, 0.18); color: #fff; border-color: #8b5cf6;
+        }
+
+        /* ──────── Layout ──────── */
+        .shell { flex: 1; display: grid; grid-template-columns: 280px 1fr; max-width: 1400px; margin: 0 auto; width: 100%; gap: 24px; padding: 24px; }
+        @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .sidebar { display: none; } }
+
+        /* ──────── Sidebar with suggestions ──────── */
+        .sidebar {
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px; padding: 20px;
+            height: fit-content;
+        }
+        .sidebar h3 {
+            font-size: 0.95rem; color: #f59e0b; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .suggestion {
+            display: block; width: 100%; text-align: right;
+            background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.18);
+            color: #e2e8f0; padding: 11px 13px; border-radius: 12px;
+            font-family: inherit; font-size: 0.82rem; cursor: pointer;
+            margin-bottom: 8px; transition: all 0.18s; line-height: 1.6;
+        }
+        .suggestion:hover {
+            background: rgba(236, 72, 153, 0.18);
+            border-color: #ec4899; transform: translateX(-4px);
+        }
+
+        /* ──────── Chat area ──────── */
+        .chat-area {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px; display: flex; flex-direction: column;
+            height: calc(100vh - 140px); overflow: hidden;
+        }
+        .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.4); border-radius: 3px; }
+
+        .msg { max-width: 80%; padding: 14px 18px; border-radius: 16px; line-height: 1.8; font-size: 0.95rem; word-wrap: break-word; }
+        .msg.user {
+            align-self: flex-start;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff; border-bottom-right-radius: 4px;
+        }
+        .msg.assistant {
+            align-self: flex-end;
+            background: rgba(30, 41, 59, 0.85); color: #f1f5f9;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-bottom-left-radius: 4px;
+        }
+        .msg.assistant .advisor-link {
+            display: inline-block; margin-top: 6px;
+            background: linear-gradient(135deg, #ec4899, #f59e0b);
+            color: #fff !important; text-decoration: none;
+            padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;
+        }
+        .msg.assistant .advisor-link:hover { transform: scale(1.04); }
+        .msg.error {
+            align-self: center; background: rgba(220, 38, 38, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.4); color: #fecaca;
+            font-size: 0.88rem; max-width: 90%;
+        }
+
+        .typing { display: inline-flex; gap: 4px; padding: 14px 18px; }
+        .typing span {
+            width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%;
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.15s; }
+        .typing span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+        /* ──────── Composer ──────── */
+        .composer {
+            display: flex; gap: 10px; padding: 16px 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .composer textarea {
+            flex: 1; background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            color: #f8fafc; padding: 12px 16px; border-radius: 12px;
+            font-family: inherit; font-size: 0.95rem; resize: none;
+            min-height: 48px; max-height: 140px; line-height: 1.6;
+        }
+        .composer textarea:focus { outline: none; border-color: #ec4899; box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15); }
+        .composer button {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none; color: #fff; padding: 0 22px; border-radius: 12px;
+            font-family: inherit; font-weight: 800; font-size: 0.95rem;
+            cursor: pointer; min-width: 110px; transition: all 0.18s;
+        }
+        .composer button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139, 92, 246, 0.4); }
+        .composer button:disabled { opacity: 0.5; cursor: wait; }
+
+        /* ──────── Welcome ──────── */
+        .welcome {
+            text-align: center; margin: auto; padding: 30px; max-width: 540px;
+        }
+        .welcome .emoji { font-size: 3.5rem; margin-bottom: 12px; display: block; }
+        .welcome h2 {
+            font-size: 1.6rem; font-weight: 900; margin-bottom: 10px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .welcome p { color: #94a3b8; line-height: 1.8; font-size: 0.95rem; }
+        .tenant-badge {
+            display: inline-block; margin-top: 12px;
+            background: rgba(34, 197, 94, 0.12); color: #86efac;
+            padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1>{{ sector_emoji }} المستشار الذكي — {{ sector_label }}</h1>
+    <div class="actions">
+        <button id="reset-btn"><i class="fas fa-broom"></i> محادثة جديدة</button>
+        <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
+    </div>
+</div>
+
+<div class="shell">
+
+    <!-- ──────── Sidebar: Smart Suggestions ──────── -->
+    <aside class="sidebar">
+        <h3><i class="fas fa-lightbulb"></i> أسئلة جاهزة</h3>
+        <button class="suggestion" data-q="لو لميت الفلوس المكتوبة في الفواتير الآجلة، هيكون معايا كاش كام؟">
+            💰 توقع الكاش لو حصّلت كل المستحقات
+        </button>
+        <button class="suggestion" data-q="لو بعت 20% من المخزون الراكد بسعر السوق، الأرباح المتوقعة كام؟">
+            📈 محاكاة بيع 20% من الراكد
+        </button>
+        <button class="suggestion" data-q="إيه الأصناف اللي مش بيتباع وعندي فيها ركود في المخازن؟">
+            📦 تقرير الراكد والكاش المحبوس
+        </button>
+        <button class="suggestion" data-q="ودّيني لصفحة العميل رقم 14">
+            🔗 لينك مباشر لعميل
+        </button>
+        <button class="suggestion" data-q="لو بعت 50% من الراكد هحقق ربح كام؟">
+            🎯 سيناريو: 50% من الراكد
+        </button>
+    </aside>
+
+    <!-- ──────── Chat ──────── -->
+    <main class="chat-area">
+        <div class="messages" id="messages">
+            <div class="welcome" id="welcome">
+                <span class="emoji">{{ sector_emoji }}</span>
+                <h2>أهلاً! أنا مستشارك الذكي</h2>
+                <p>اسألني عن الكاش، الراكد، الأرباح، أو أي تقرير. كل الإجابات بتيجي من بياناتك الفعلية في النظام.</p>
+                <span class="tenant-badge"><i class="fas fa-shield-alt"></i> Tenant: {{ tenant_schema }}</span>
+            </div>
+        </div>
+
+        <form class="composer" id="composer">
+            <textarea id="query-input" placeholder="اسأل المستشار... (مثال: لو لميت الفلوس الكاش هيكون كام؟)" rows="1"></textarea>
+            <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i> إرسال</button>
+        </form>
+    </main>
+</div>
+
+<script>
+(function() {
+    const SECTOR = "{{ sector }}";
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const messagesEl = document.getElementById('messages');
+    const welcomeEl = document.getElementById('welcome');
+    const form = document.getElementById('composer');
+    const input = document.getElementById('query-input');
+    const sendBtn = document.getElementById('send-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function addMessage(text, role, { isHtml = false } = {}) {
+        if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        if (isHtml) {
+            // الموديل بيرجع HTML للأ links — نقبله بحدود معقولة (links + br + strong)
+            div.innerHTML = sanitize(text);
+        } else {
+            div.textContent = text;
+        }
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    // Whitelist-based sanitizer — نسمح بـ <a class="advisor-link">, <br>, <strong>, <b>, <em>, <ul>, <li>, <p>
+    function sanitize(html) {
+        const allowedTags = new Set(['A', 'BR', 'STRONG', 'B', 'EM', 'I', 'UL', 'OL', 'LI', 'P', 'CODE', 'SPAN']);
+        const allowedAttrs = { 'A': ['href', 'class'] };
+        const parser = new DOMParser();
+        const doc = parser.parseFromString('<div>' + html + '</div>', 'text/html');
+        const root = doc.body.firstChild;
+        function walk(node) {
+            const children = Array.from(node.childNodes);
+            children.forEach(child => {
+                if (child.nodeType === 1) {
+                    if (!allowedTags.has(child.tagName)) {
+                        child.replaceWith(document.createTextNode(child.textContent));
+                        return;
+                    }
+                    const allowed = allowedAttrs[child.tagName] || [];
+                    Array.from(child.attributes).forEach(attr => {
+                        if (!allowed.includes(attr.name.toLowerCase())) child.removeAttribute(attr.name);
+                    });
+                    if (child.tagName === 'A') {
+                        const href = child.getAttribute('href') || '';
+                        if (!href.startsWith('/') && !href.startsWith('https://')) {
+                            child.removeAttribute('href');
+                        }
+                    }
+                    walk(child);
+                }
+            });
+        }
+        walk(root);
+        return root.innerHTML;
+    }
+
+    function addTyping() {
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    async function sendQuery(query) {
+        addMessage(query, 'user');
+        input.value = '';
+        sendBtn.disabled = true;
+        const typingEl = addTyping();
+
+        try {
+            const resp = await fetch('/advisor/api/chat/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ query, sector: SECTOR }),
+                credentials: 'same-origin',
+            });
+            const data = await resp.json();
+            typingEl.remove();
+
+            if (data.success) {
+                // converts \n to <br> then sanitizes
+                const html = (data.answer || '').replace(/\n/g, '<br>');
+                addMessage(html, 'assistant', { isHtml: true });
+            } else {
+                addMessage(data.answer || '⚠️ حصل خطأ غير متوقع.', 'error');
+            }
+        } catch (err) {
+            typingEl.remove();
+            addMessage('⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.', 'error');
+            console.error(err);
+        } finally {
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = input.value.trim();
+        if (q) sendQuery(q);
+    });
+
+    // Enter to send (Shift+Enter = newline)
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    // Auto-grow textarea
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
+
+    // Suggestion buttons
+    document.querySelectorAll('.suggestion').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const q = btn.dataset.q;
+            if (q) sendQuery(q);
+        });
+    });
+
+    // Reset conversation
+    resetBtn.addEventListener('click', async () => {
+        if (!confirm('متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟')) return;
+        try {
+            const fd = new FormData();
+            fd.append('sector', SECTOR);
+            await fetch('/advisor/api/reset/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF },
+                body: fd,
+                credentials: 'same-origin',
+            });
+            messagesEl.innerHTML = '';
+            location.reload();
+        } catch (err) {
+            console.error(err);
+        }
+    });
+
+    input.focus();
+})();
+</script>
+
+</body>
+</html>

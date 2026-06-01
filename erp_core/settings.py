@@ -311,6 +311,23 @@ AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 # 🤖 OpenAI API — AI Studio (Image Generation via DALL-E)
 OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 
+# =====================================================================
+# 🧠 Cognitive Advisor Agent (Gemini Two-Stage Pipeline)
+# =====================================================================
+# المفتاح الأساسي للمستشار الذكي. لو فاضي يستخدم AI_VISION_API_KEY كـ fallback
+# عشان نتجنب تكرار المفاتيح في .env
+GEMINI_API_KEY = env.str('GEMINI_API_KEY', '') or AI_VISION_API_KEY
+GEMINI_REFINER_MODEL = env.str('GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
+GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
+
+# =====================================================================
+# 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)
+# =====================================================================
+# هتستخدم في Phase 2 (مولد الصور الفخم) — مهيأة هنا عشان متبقاش طلبات تعديل لاحقة
+TOGETHER_API_KEY = env.str('TOGETHER_API_KEY', '')
+REPLICATE_API_TOKEN = env.str('REPLICATE_API_TOKEN', '')
+FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' | 'replicate'
+
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 

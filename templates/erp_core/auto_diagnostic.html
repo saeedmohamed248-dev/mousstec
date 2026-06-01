@@ -1,0 +1,361 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خبير تشخيص BMW / MINI — {{ audience_label }}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top left, #0a1929 0%, #050b14 60%, #000 100%);
+            color: #e6f1ff; min-height: 100vh; display: flex; flex-direction: column;
+        }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 28px; background: rgba(10, 25, 41, 0.8);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            position: sticky; top: 0; z-index: 50;
+        }
+        .topbar h1 {
+            font-size: 1.35rem; font-weight: 900;
+            background: linear-gradient(135deg, #00d4ff, #0099ff, #6366f1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar .actions { display: flex; gap: 10px; }
+        .topbar .actions a, .topbar .actions button {
+            background: rgba(255,255,255,0.05); color: #a8b8d0;
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            padding: 8px 14px; border-radius: 10px; font-family: inherit;
+            font-size: 0.85rem; font-weight: 700; cursor: pointer;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .topbar .actions a:hover, .topbar .actions button:hover {
+            background: rgba(0, 212, 255, 0.15); color: #00d4ff; border-color: #00d4ff;
+        }
+
+        .shell { flex: 1; display: grid; grid-template-columns: 300px 1fr; max-width: 1400px; margin: 0 auto; width: 100%; gap: 24px; padding: 24px; }
+        @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .sidebar { display: none; } }
+
+        .sidebar {
+            background: rgba(15, 30, 50, 0.65);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 18px; padding: 20px; height: fit-content;
+        }
+        .sidebar h3 {
+            font-size: 0.95rem; color: #00d4ff; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .engine-chip {
+            display: inline-block; background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #c7d2fe; padding: 4px 10px; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 700; margin: 3px 2px;
+        }
+        .suggestion {
+            display: block; width: 100%; text-align: right;
+            background: rgba(0, 212, 255, 0.06); border: 1px solid rgba(0, 212, 255, 0.18);
+            color: #cbd5e1; padding: 11px 13px; border-radius: 12px;
+            font-family: inherit; font-size: 0.82rem; cursor: pointer;
+            margin-bottom: 8px; transition: all 0.18s; line-height: 1.6;
+        }
+        .suggestion:hover {
+            background: rgba(0, 153, 255, 0.18);
+            border-color: #0099ff; transform: translateX(-4px);
+        }
+        .suggestion .badge {
+            display: inline-block; background: #0099ff; color: #fff;
+            font-size: 0.65rem; padding: 1px 8px; border-radius: 4px; margin-left: 6px;
+        }
+
+        .chat-area {
+            background: rgba(10, 25, 41, 0.7);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            border-radius: 18px; display: flex; flex-direction: column;
+            height: calc(100vh - 140px); overflow: hidden;
+        }
+        .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.4); border-radius: 3px; }
+
+        .msg { max-width: 85%; padding: 14px 18px; border-radius: 16px; line-height: 1.85; font-size: 0.95rem; word-wrap: break-word; white-space: pre-wrap; }
+        .msg.user {
+            align-self: flex-start;
+            background: linear-gradient(135deg, #0099ff, #6366f1);
+            color: #fff; border-bottom-right-radius: 4px;
+        }
+        .msg.assistant {
+            align-self: flex-end;
+            background: rgba(15, 30, 50, 0.9); color: #e6f1ff;
+            border: 1px solid rgba(0, 212, 255, 0.15);
+            border-bottom-left-radius: 4px;
+        }
+        .msg.assistant h1, .msg.assistant h2, .msg.assistant h3, .msg.assistant strong {
+            color: #00d4ff;
+        }
+        .msg.error {
+            align-self: center; background: rgba(220, 38, 38, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.4); color: #fecaca;
+            font-size: 0.88rem; max-width: 90%;
+        }
+
+        .refined-card {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 10px; padding: 10px 14px; margin-top: 10px;
+            font-size: 0.8rem; color: #c7d2fe;
+        }
+        .refined-card .label { color: #8b9dc3; font-weight: 700; margin-left: 4px; }
+
+        .typing { display: inline-flex; gap: 4px; padding: 14px 18px; }
+        .typing span {
+            width: 8px; height: 8px; background: #00d4ff; border-radius: 50%;
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.15s; }
+        .typing span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+        .composer {
+            display: flex; gap: 10px; padding: 16px 20px;
+            background: rgba(10, 25, 41, 0.9);
+            border-top: 1px solid rgba(0, 212, 255, 0.15);
+        }
+        .composer textarea {
+            flex: 1; background: rgba(15, 30, 50, 0.7);
+            border: 1px solid rgba(0, 212, 255, 0.25);
+            color: #e6f1ff; padding: 12px 16px; border-radius: 12px;
+            font-family: inherit; font-size: 0.95rem; resize: none;
+            min-height: 48px; max-height: 140px; line-height: 1.6;
+        }
+        .composer textarea:focus { outline: none; border-color: #00d4ff; box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15); }
+        .composer button {
+            background: linear-gradient(135deg, #00d4ff, #0099ff);
+            border: none; color: #fff; padding: 0 22px; border-radius: 12px;
+            font-family: inherit; font-weight: 800; font-size: 0.95rem;
+            cursor: pointer; min-width: 110px; transition: all 0.18s;
+        }
+        .composer button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 212, 255, 0.4); }
+        .composer button:disabled { opacity: 0.5; cursor: wait; }
+
+        .welcome { text-align: center; margin: auto; padding: 30px; max-width: 540px; }
+        .welcome .emoji { font-size: 3.5rem; margin-bottom: 12px; display: block; }
+        .welcome h2 {
+            font-size: 1.6rem; font-weight: 900; margin-bottom: 10px;
+            background: linear-gradient(135deg, #00d4ff, #6366f1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .welcome p { color: #8b9dc3; line-height: 1.8; font-size: 0.95rem; }
+        .tenant-badge {
+            display: inline-block; margin-top: 12px;
+            background: rgba(34, 197, 94, 0.1); color: #86efac;
+            padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h1>{{ audience_emoji }} خبير تشخيص BMW / MINI — {{ audience_label }}</h1>
+    <div class="actions">
+        <button id="reset-btn"><i class="fas fa-broom"></i> محادثة جديدة</button>
+        <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
+    </div>
+</div>
+
+<div class="shell">
+
+    <aside class="sidebar">
+        <h3><i class="fas fa-microchip"></i> المحركات المدعومة</h3>
+        <div style="margin-bottom: 16px;">
+            <span class="engine-chip">N13</span>
+            <span class="engine-chip">N20</span>
+            <span class="engine-chip">N52</span>
+            <span class="engine-chip">N54</span>
+            <span class="engine-chip">N55</span>
+            <span class="engine-chip">N57</span>
+            <span class="engine-chip">B38</span>
+            <span class="engine-chip">B48</span>
+            <span class="engine-chip">B58</span>
+        </div>
+
+        <h3><i class="fas fa-bolt"></i> أسئلة شائعة</h3>
+
+        {% if audience == 'shop' %}
+            <button class="suggestion" data-q="P0301 على F30 N20 — العربية بترعش في الـ idle. إيه التشخيص المتسلسل وعزوم تربيط الـ coils؟">
+                <span class="badge">N20</span> P0301 ميس فاير
+            </button>
+            <button class="suggestion" data-q="N54 على E90 — صوت من الـ HPFP وإنذار Reduced Power. خطوات الفحص بالـ ISTA؟">
+                <span class="badge">N54</span> HPFP failure
+            </button>
+            <button class="suggestion" data-q="N13 على F20 — تحديد مكان الـ Turbo بالضبط واتجاه الـ Intake وفرقها عن N20">
+                <span class="badge">N13</span> تخطيط Turbo/Intake
+            </button>
+            <button class="suggestion" data-q="N52 على E60 — Valvetronic motor failure. أكواد العطل وعزم تربيط الـ Valvetronic motor؟">
+                <span class="badge">N52</span> Valvetronic
+            </button>
+            <button class="suggestion" data-q="N20 timing chain rattle — خطوات التغيير وعزوم تربيط الـ guides والـ tensioner">
+                <span class="badge">N20</span> Timing chain
+            </button>
+        {% else %}
+            <button class="suggestion" data-q="عربيتي F30 موديل 2014 بتترعش لما باقف وأحياناً نور المحرك بيولع. إيه ممكن يكون السبب؟">
+                🚙 رعشة في الـ idle
+            </button>
+            <button class="suggestion" data-q="بسمع صوت غريب من تحت الكبوت وهي شغالة، وفيه فقدان في العزم">
+                🔊 صوت + ضعف عزم
+            </button>
+            <button class="suggestion" data-q="ولّع نور Engine Reduced Power. أنا في الطريق — أقدر أكمل ولا لازم أوقف؟">
+                ⚠️ Reduced Power
+            </button>
+            <button class="suggestion" data-q="استهلاك الزيت بقى عالي قوي، هل ده طبيعي لـ BMW N52؟">
+                🛢️ استهلاك زيت عالي
+            </button>
+        {% endif %}
+    </aside>
+
+    <main class="chat-area">
+        <div class="messages" id="messages">
+            <div class="welcome" id="welcome">
+                <span class="emoji">{{ audience_emoji }}</span>
+                <h2>أهلاً بيك في خبير BMW / MINI</h2>
+                <p>اكتب الشكوى بالعامية، أو كود العطل من جهاز الفحص (مثلاً P0301)، أو حدد موديل السيارة + المحرك. الخبير هيرد بتشخيص هندسي دقيق.</p>
+                <span class="tenant-badge"><i class="fas fa-shield-alt"></i> Tenant: {{ tenant_schema }}</span>
+            </div>
+        </div>
+
+        <form class="composer" id="composer">
+            <textarea id="query-input" placeholder="اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)" rows="1"></textarea>
+            <button type="submit" id="send-btn"><i class="fas fa-stethoscope"></i> تشخيص</button>
+        </form>
+    </main>
+</div>
+
+<script>
+(function() {
+    const AUDIENCE = "{{ audience }}";
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const messagesEl = document.getElementById('messages');
+    const welcomeEl = document.getElementById('welcome');
+    const form = document.getElementById('composer');
+    const input = document.getElementById('query-input');
+    const sendBtn = document.getElementById('send-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    function addMessage(text, role) {
+        if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        div.textContent = text;  // textContent — تشخيص نص صرف، مش HTML
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    function addRefinedCard(refined) {
+        if (!refined || refined.refiner_status !== 'ok') return;
+        const card = document.createElement('div');
+        card.className = 'refined-card';
+        const dtcs = (refined.dtc_codes || []).join(', ') || 'لا يوجد';
+        const eng = (refined.vehicle_hint && refined.vehicle_hint.engine) || 'غير محدد';
+        const cat = refined.symptom_category || '—';
+        const urg = refined.urgency || '—';
+        card.innerHTML = `
+            <div><span class="label">DTC:</span> ${dtcs}</div>
+            <div><span class="label">المحرك:</span> ${eng} &nbsp;|&nbsp; <span class="label">التصنيف:</span> ${cat} &nbsp;|&nbsp; <span class="label">الأولوية:</span> ${urg}</div>
+        `;
+        messagesEl.appendChild(card);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addTyping() {
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    async function sendQuery(query) {
+        addMessage(query, 'user');
+        input.value = '';
+        sendBtn.disabled = true;
+        const typingEl = addTyping();
+
+        try {
+            const resp = await fetch('/diagnostic/api/chat/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ query, audience: AUDIENCE }),
+                credentials: 'same-origin',
+            });
+            const data = await resp.json();
+            typingEl.remove();
+
+            if (data.success) {
+                addRefinedCard(data.refined);
+                addMessage(data.answer || '⚠️ مفيش رد.', 'assistant');
+            } else {
+                addMessage(data.answer || '⚠️ حصل خطأ غير متوقع.', 'error');
+            }
+        } catch (err) {
+            typingEl.remove();
+            addMessage('⚠️ تعذر الاتصال بالخادم.', 'error');
+            console.error(err);
+        } finally {
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = input.value.trim();
+        if (q) sendQuery(q);
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
+
+    document.querySelectorAll('.suggestion').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const q = btn.dataset.q;
+            if (q) sendQuery(q);
+        });
+    });
+
+    resetBtn.addEventListener('click', async () => {
+        if (!confirm('متأكد إنك عاوز تبدأ من الأول؟')) return;
+        try {
+            const fd = new FormData();
+            fd.append('audience', AUDIENCE);
+            await fetch('/diagnostic/api/reset/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF },
+                body: fd,
+                credentials: 'same-origin',
+            });
+            location.reload();
+        } catch (err) { console.error(err); }
+    });
+
+    input.focus();
+})();
+</script>
+
+</body>
+</html>
