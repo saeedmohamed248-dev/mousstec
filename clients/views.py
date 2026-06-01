@@ -1493,6 +1493,61 @@ def super_admin_dashboard(request):
         status__in=['pending', 'quoted']
     ).select_related('customer', 'design').order_by('-created_at')[:30]
 
+    # --- 🛍️ عملاء السوق + إحصائيات نشاطهم ---
+    from django.db.models import Count, Sum
+    marketplace_customers = (
+        MarketplaceCustomer.objects.all()
+        .annotate(
+            requests_count=Count('requests', distinct=True),
+            designs_count=Count('designs', distinct=True),
+            purchases_count=Count('design_purchases', distinct=True),
+            spent_total=Sum('design_purchases__price_paid'),
+        )
+        .order_by('-last_active')[:100]
+    )
+    customers_summary = {
+        'total': MarketplaceCustomer.objects.count(),
+        'automotive': MarketplaceCustomer.objects.filter(sector='automotive').count(),
+        'printing': MarketplaceCustomer.objects.filter(sector='printing').count(),
+        'individuals': MarketplaceCustomer.objects.filter(customer_type='individual').count(),
+        'companies': MarketplaceCustomer.objects.filter(customer_type='company').count(),
+        'active_today': MarketplaceCustomer.objects.filter(
+            last_active__gte=timezone.now() - timedelta(days=1)
+        ).count(),
+        'blocked': MarketplaceCustomer.objects.filter(is_blocked=True).count(),
+        'with_designs': MarketplaceCustomer.objects.filter(designs__isnull=False).distinct().count(),
+    }
+
+    # --- 🏢 نشاط الشركات (آخر أحداث + إحصائيات) ---
+    from clients.models import VisitorLog
+    tenant_activity = []
+    for t in tenants:
+        last_visit = VisitorLog.objects.filter(tenant_schema=t.schema_name).order_by('-timestamp').first()
+        visits_today = VisitorLog.objects.filter(
+            tenant_schema=t.schema_name,
+            timestamp__gte=today_start,
+        ).count()
+        visits_7d = VisitorLog.objects.filter(
+            tenant_schema=t.schema_name,
+            timestamp__gte=week_ago,
+        ).count()
+        last_events = list(
+            PlatformEvent.objects.filter(tenant_schema=t.schema_name)
+            .order_by('-created_at')[:5]
+        )
+        tenant_activity.append({
+            'tenant': t,
+            'last_visit_at': last_visit.timestamp if last_visit else None,
+            'last_visit_path': last_visit.path if last_visit else '',
+            'visits_today': visits_today,
+            'visits_7d': visits_7d,
+            'last_events': last_events,
+        })
+    # رتب: آخر نشاط أولاً
+    from datetime import datetime, timezone as _tz
+    _epoch = datetime(1970, 1, 1, tzinfo=_tz.utc)
+    tenant_activity.sort(key=lambda x: x['last_visit_at'] or _epoch, reverse=True)
+
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
@@ -1518,7 +1573,72 @@ def super_admin_dashboard(request):
         'pending_design_purchases': pending_design_purchases,
         'pending_print_requests': pending_print_requests,
         'pending_marketplace_requests': pending_marketplace_requests,
+        'marketplace_customers': marketplace_customers,
+        'customers_summary': customers_summary,
+        'tenant_activity': tenant_activity,
     })
+
+
+# =====================================================================
+# 👤 تفاصيل عميل السوق (Marketplace Customer Detail - AJAX HTML)
+# =====================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_customer_detail(request, customer_id):
+    """يُرجع HTML بتفاصيل العميل + كل نشاطه (designs, purchases, requests, chats)."""
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('Access Denied')
+
+    customer = get_object_or_404(MarketplaceCustomer, pk=customer_id)
+    designs = list(customer.designs.select_related('purchase__package').order_by('-created_at')[:50])
+    purchases = list(customer.design_purchases.select_related('package').order_by('-created_at')[:20])
+    requests_list = list(customer.requests.order_by('-created_at')[:20])
+
+    # إجماليات
+    total_spent = sum((p.price_paid for p in purchases if p.status == 'paid'), Decimal('0'))
+    total_designs = len(designs)
+    total_purchases = len(purchases)
+
+    return render(request, 'clients/super_admin_customer_detail.html', {
+        'customer': customer,
+        'designs': designs,
+        'purchases': purchases,
+        'requests_list': requests_list,
+        'total_spent': total_spent,
+        'total_designs': total_designs,
+        'total_purchases': total_purchases,
+    })
+
+
+# =====================================================================
+# 🎁 API: قائمة الهدايا النشطة لشركة معينة (JSON) — للمودال في السوبر أدمن
+# =====================================================================
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_tenant_grants(request, tenant_id):
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return HttpResponseForbidden('Access Denied')
+    from clients.models import AIBonusGrant
+    tenant = get_object_or_404(Client, pk=tenant_id)
+    grants = AIBonusGrant.objects.filter(tenant=tenant, is_active=True).order_by('granted_at')
+    data = []
+    for g in grants:
+        if not g.is_valid:
+            continue
+        data.append({
+            'id': g.pk,
+            'reason': g.reason or '',
+            'is_welcome': (g.granted_by_id is None and 'ترحيب' in (g.reason or '')),
+            'granted_designs': g.granted_designs,
+            'granted_whatsapp': g.granted_whatsapp,
+            'granted_watermarks': g.granted_watermarks,
+            'remaining_designs': g.remaining_designs,
+            'remaining_whatsapp': g.remaining_whatsapp,
+            'remaining_watermarks': g.remaining_watermarks,
+            'granted_at': g.granted_at.strftime('%Y-%m-%d %H:%M'),
+        })
+    return JsonResponse({'grants': data})
 
 
 # =====================================================================
@@ -1596,10 +1716,44 @@ def impersonate_login(request):
         return redirect(f'/{admin_url}/login/')
 
     # --- إيجاد أو إنشاء admin user على هذا الـ tenant ---
-    from django.contrib.auth import login as auth_login
+    from django.contrib.auth import login as auth_login, logout as auth_logout
 
-    # ابحث عن أول superuser/staff على الـ tenant
-    admin_user = User.objects.filter(is_staff=True, is_active=True).order_by('-is_superuser', '-date_joined').first()
+    # 🛡️ تنظيف الـ session الحالي قبل الدخول لمنع تسرب بيانات من session سابق
+    # (السبب وراء «أحياناً بيدخل علي صفحة تانية» — session قديم لمستخدم آخر)
+    if request.user.is_authenticated:
+        auth_logout(request)
+    request.session.flush()
+
+    # 🎯 ابحث أولاً عن أدمن الشركة الحقيقي عن طريق إيميل الشركة (أدق من «آخر staff»)
+    admin_user = None
+    try:
+        with schema_context('public'):
+            tenant_obj = Client.objects.filter(schema_name=schema_name).first()
+        tenant_email = (getattr(tenant_obj, 'email', '') or '').strip().lower()
+        if tenant_email:
+            admin_user = User.objects.filter(
+                email__iexact=tenant_email, is_active=True
+            ).first()
+    except Exception:
+        admin_user = None
+
+    # 🔁 fallback: لو ملقيناش، استخدم أقدم superuser (مالك الشركة غالباً أول واحد)
+    if not admin_user:
+        admin_user = (
+            User.objects.filter(is_superuser=True, is_active=True)
+            .exclude(username__startswith='mousstec_admin_')
+            .order_by('date_joined')
+            .first()
+        )
+
+    # 🔁 fallback أخير: أقدم staff (مع استبعاد auto-created admins)
+    if not admin_user:
+        admin_user = (
+            User.objects.filter(is_staff=True, is_active=True)
+            .exclude(username__startswith='mousstec_admin_')
+            .order_by('date_joined')
+            .first()
+        )
 
     if not admin_user:
         # ⚠️ Tenant ليس له أدمن حقيقي — ننشئ بمعرّف مميز عشوائي (مش اسم ثابت قابل للتخمين)
@@ -1946,6 +2100,7 @@ def marketplace_register(request):
     full_name = data.get('full_name', '').strip()
     company_name = data.get('company_name', '').strip()
     phone = data.get('phone', '').strip()
+    password = data.get('password', '')
     job_title = data.get('job_title', '').strip()
     sector = data.get('sector', 'automotive')
     city = data.get('city', '').strip()
@@ -1953,6 +2108,9 @@ def marketplace_register(request):
 
     if not full_name or not phone:
         return JsonResponse({"error": "الاسم ورقم الموبايل مطلوبان"}, status=400)
+
+    if not password or len(password) < 6:
+        return JsonResponse({"error": "كلمة المرور مطلوبة (٦ حروف على الأقل)"}, status=400)
 
     if customer_type == 'company' and not company_name:
         return JsonResponse({"error": "اسم الشركة مطلوب"}, status=400)
@@ -1983,7 +2141,7 @@ def marketplace_register(request):
         }, status=409)
 
     try:
-        customer = MarketplaceCustomer.objects.create(
+        customer = MarketplaceCustomer(
             customer_type=customer_type,
             full_name=full_name,
             company_name=company_name,
@@ -1993,7 +2151,10 @@ def marketplace_register(request):
             sector=sector,
             city=city,
             is_verified=True,
+            last_login_at=timezone.now(),
         )
+        customer.set_password(password)
+        customer.save()
     except Exception as e:
         logger.error(f"[MARKETPLACE] Failed to create customer: {e}")
         return JsonResponse({"error": "فشل التسجيل. حاول مرة أخرى."}, status=500)
@@ -2154,17 +2315,17 @@ def marketplace_verify_otp(request):
 
 @csrf_exempt
 def marketplace_login(request):
-    """دخول عميل حالي — إرسال OTP فقط."""
+    """دخول عميل حالي — برقم الموبايل + كلمة المرور."""
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    # 🛡️ Rate limiting — 5 OTP requests per minute per IP (prevent OTP flood)
+    # 🛡️ Rate limiting — 8 محاولات/دقيقة/IP لمنع brute force
     client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
-    otp_rate_key = f'otp_login_rate:{client_ip}'
-    otp_count = cache.get(otp_rate_key, 0)
-    if otp_count >= 5:
-        return JsonResponse({"error": "طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
-    cache.set(otp_rate_key, otp_count + 1, 60)
+    rate_key = f'mp_login_rate:{client_ip}'
+    cnt = cache.get(rate_key, 0)
+    if cnt >= 8:
+        return JsonResponse({"error": "محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+    cache.set(rate_key, cnt + 1, 60)
 
     try:
         data = json.loads(request.body)
@@ -2172,13 +2333,11 @@ def marketplace_login(request):
         return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
 
     phone = data.get('phone', '').strip()
-    name = data.get('name', '').strip()
-    if not phone:
-        return JsonResponse({"error": "رقم الموبايل مطلوب"}, status=400)
-    if not name:
-        return JsonResponse({"error": "الاسم مطلوب للتحقق"}, status=400)
+    password = data.get('password', '')
+    if not phone or not password:
+        return JsonResponse({"error": "رقم الموبايل وكلمة المرور مطلوبان"}, status=400)
 
-    # Normalize — Egyptian phone normalization (consistent with marketplace_register)
+    # Normalize Egyptian phone
     cleaned = phone
     if not phone.startswith('+'):
         digits = phone.lstrip('0')
@@ -2188,25 +2347,28 @@ def marketplace_login(request):
             cleaned = f'+2{digits}'
         elif len(digits) == 12 and digits.startswith('201'):
             cleaned = f'+{digits}'
-        else:
-            cleaned = phone
 
     customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
     if not customer:
         return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
 
-    # 🛡️ Verify identity — name must match (case-insensitive, partial match OK)
-    stored_name = (customer.full_name or '').strip().lower()
-    input_name = name.strip().lower()
-    if not stored_name or input_name not in stored_name:
-        # Log failed attempt
-        logger.warning(f"[MARKETPLACE] Login failed — name mismatch for {cleaned[:6]}***")
-        return JsonResponse({"error": "الاسم غير مطابق للحساب المسجل"}, status=403)
+    if customer.is_blocked:
+        return JsonResponse({"error": "تم تعليق حسابك. تواصل مع الدعم."}, status=403)
+
+    # 🛡️ يدعم الحسابات القديمة (بدون باسورد) عبر مطابقة الاسم
+    if customer.has_usable_password():
+        if not customer.check_password(password):
+            logger.warning(f"[MARKETPLACE] Login failed — wrong password for {cleaned[:6]}***")
+            return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
+    else:
+        # حساب قديم بدون باسورد — أول دخول يضبط الباسورد المُرسَل
+        customer.set_password(password)
 
     customer.is_verified = True
     customer.session_token = uuid.uuid4()
-    customer.save(update_fields=['is_verified', 'session_token'])
-    logger.info(f"[MARKETPLACE] Login: {cleaned[:6]}***")
+    customer.last_login_at = timezone.now()
+    customer.save(update_fields=['is_verified', 'session_token', 'last_login_at', 'password_hash'])
+    logger.info(f"[MARKETPLACE] Login OK: {cleaned[:6]}***")
     response = JsonResponse({
         "status": "verified",
         "message": "تم الدخول بنجاح!",

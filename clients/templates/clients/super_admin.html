@@ -90,6 +90,12 @@
         <button data-tab="marketplace-approval" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_marketplace_requests %}border-green-500/40 text-green-400{% endif %}">
             <i class="fas fa-store ml-1"></i>موافقات السوق{% if pending_marketplace_requests %} ({{ pending_marketplace_requests|length }}){% endif %}
         </button>
+        <button data-tab="customers" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
+            <i class="fas fa-users ml-1"></i>عملاء السوق ({{ customers_summary.total|default:0 }})
+        </button>
+        <button data-tab="tenant-activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
+            <i class="fas fa-chart-line ml-1"></i>نشاط الشركات
+        </button>
     </div>
 
     <!-- ✅ رسائل النجاح/الخطأ -->
@@ -961,6 +967,175 @@
         </div>
     </div><!-- /tab-marketplace-approval -->
 
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--     TAB: عملاء السوق (Marketplace Customers)        -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="tab-content hidden" data-tab-content="customers">
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-5">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-white">{{ customers_summary.total }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي العملاء</p>
+            </div>
+            <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-emerald-400">{{ customers_summary.active_today }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">نشطون اليوم</p>
+            </div>
+            <div class="bg-slate-900/60 border border-violet-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-violet-400">{{ customers_summary.with_designs }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">عملوا تصاميم</p>
+            </div>
+            <div class="bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-blue-400">{{ customers_summary.automotive }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">🚗 سيارات</p>
+            </div>
+            <div class="bg-slate-900/60 border border-pink-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-pink-400">{{ customers_summary.printing }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">🎨 طباعة</p>
+            </div>
+            <div class="bg-slate-900/60 border border-cyan-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-cyan-400">{{ customers_summary.individuals }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">أفراد</p>
+            </div>
+            <div class="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-amber-400">{{ customers_summary.companies }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">شركات</p>
+            </div>
+            <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-red-400">{{ customers_summary.blocked }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">محظورين</p>
+            </div>
+        </div>
+
+        <!-- Customers Table -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+                <i class="fas fa-users text-blue-400"></i>
+                <span class="font-bold text-sm text-white">آخر ١٠٠ عميل نشاطاً</span>
+                <span class="text-xs text-slate-500 mr-2">— اضغط الصف لتفاصيل العميل</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-slate-800/50 text-slate-400 font-bold">
+                        <tr>
+                            <th class="px-3 py-2 text-right">الاسم / الشركة</th>
+                            <th class="px-3 py-2 text-right">📱 الموبايل</th>
+                            <th class="px-3 py-2 text-right">القطاع</th>
+                            <th class="px-3 py-2 text-center">📋 طلبات</th>
+                            <th class="px-3 py-2 text-center">🎨 تصاميم</th>
+                            <th class="px-3 py-2 text-center">🛒 مشتريات</th>
+                            <th class="px-3 py-2 text-center">💰 صرف (ج.م)</th>
+                            <th class="px-3 py-2 text-right">آخر نشاط</th>
+                            <th class="px-3 py-2 text-center">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for c in marketplace_customers %}
+                        <tr class="hover:bg-slate-800/40 transition cursor-pointer" onclick="showCustomerDetail({{ c.pk }})">
+                            <td class="px-3 py-3 text-white font-bold">
+                                {{ c.company_name|default:c.full_name }}
+                                {% if c.company_name %}<br><small class="text-slate-500 font-normal">{{ c.full_name }}</small>{% endif %}
+                            </td>
+                            <td class="px-3 py-3 text-slate-300" dir="ltr">{{ c.phone }}</td>
+                            <td class="px-3 py-3">
+                                {% if c.sector == 'automotive' %}
+                                <span class="bg-blue-500/15 text-blue-400 px-2 py-1 rounded text-[10px] font-bold">🚗 سيارات</span>
+                                {% else %}
+                                <span class="bg-pink-500/15 text-pink-400 px-2 py-1 rounded text-[10px] font-bold">🎨 طباعة</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-3 py-3 text-center text-white font-bold">{{ c.requests_count|default:0 }}</td>
+                            <td class="px-3 py-3 text-center text-violet-400 font-bold">{{ c.designs_count|default:0 }}</td>
+                            <td class="px-3 py-3 text-center text-amber-400 font-bold">{{ c.purchases_count|default:0 }}</td>
+                            <td class="px-3 py-3 text-center text-emerald-400 font-bold">{{ c.spent_total|default:0|floatformat:0 }}</td>
+                            <td class="px-3 py-3 text-slate-500 text-[10px]">{{ c.last_active|timesince }} مضت</td>
+                            <td class="px-3 py-3 text-center">
+                                {% if c.is_blocked %}
+                                <span class="bg-red-500/15 text-red-400 px-2 py-1 rounded text-[10px] font-bold">🛑 محظور</span>
+                                {% elif c.is_verified %}
+                                <span class="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold">✓ نشط</span>
+                                {% else %}
+                                <span class="bg-amber-500/15 text-amber-400 px-2 py-1 rounded text-[10px] font-bold">⏳ غير موثق</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="px-3 py-8 text-center text-slate-500">لا يوجد عملاء بعد.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div><!-- /tab-customers -->
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--     TAB: نشاط الشركات (Tenants Activity)             -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="tab-content hidden" data-tab-content="tenant-activity">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+                <i class="fas fa-chart-line text-cyan-400"></i>
+                <span class="font-bold text-sm text-white">نشاط الشركات — ترتيب حسب آخر نشاط</span>
+            </div>
+            <div class="divide-y divide-slate-800/60">
+                {% for a in tenant_activity %}
+                <div class="px-5 py-4 hover:bg-slate-800/30">
+                    <div class="flex items-start gap-3">
+                        <div class="event-icon bg-cyan-500/15 text-cyan-400">
+                            {% if a.tenant.industry == 'printing' %}🎨{% else %}🚗{% endif %}
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <p class="font-bold text-white text-sm">{{ a.tenant.name }}</p>
+                                <span class="text-[10px] text-slate-500">({{ a.tenant.schema_name }})</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded font-bold {% if a.tenant.status == 'active' %}bg-emerald-500/15 text-emerald-400{% elif a.tenant.status == 'trial' %}bg-indigo-500/15 text-indigo-400{% else %}bg-amber-500/15 text-amber-400{% endif %}">
+                                    {{ a.tenant.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap gap-3 text-[11px] text-slate-400 mb-2">
+                                {% if a.last_visit_at %}
+                                <span><i class="fas fa-clock text-cyan-400 ml-1"></i>آخر نشاط: {{ a.last_visit_at|timesince }} مضت</span>
+                                {% if a.last_visit_path %}<span class="text-slate-500" dir="ltr">📍 {{ a.last_visit_path|truncatechars:50 }}</span>{% endif %}
+                                {% else %}
+                                <span class="text-slate-500">⚠️ لم يدخل النظام بعد</span>
+                                {% endif %}
+                                <span><i class="fas fa-eye text-emerald-400 ml-1"></i>{{ a.visits_today }} طلب اليوم</span>
+                                <span><i class="fas fa-calendar text-violet-400 ml-1"></i>{{ a.visits_7d }} آخر ٧ أيام</span>
+                            </div>
+                            {% if a.last_events %}
+                            <div class="bg-slate-800/40 rounded-lg p-2 mt-2">
+                                <p class="text-[10px] text-slate-500 font-bold mb-1">آخر أحداث:</p>
+                                {% for ev in a.last_events %}
+                                <div class="text-[11px] text-slate-300 py-0.5 border-b border-slate-800/40 last:border-0">
+                                    <span class="text-slate-500">{{ ev.created_at|date:"Y-m-d H:i" }}</span>
+                                    — {{ ev.description|truncatechars:120 }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="px-5 py-8 text-center text-slate-500">لا يوجد شركات بعد.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div><!-- /tab-tenant-activity -->
+
+    <!-- Customer detail modal (lazy-loaded via JS) -->
+    <div id="customerDetailModal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this) closeCustomerDetail()">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+                <h3 class="font-black text-white text-lg"><i class="fas fa-user-circle ml-2 text-blue-400"></i>تفاصيل العميل</h3>
+                <button onclick="closeCustomerDetail()" class="text-slate-500 hover:text-white text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="customerDetailBody" class="p-6 text-sm text-slate-300">
+                <div class="text-center text-slate-500"><i class="fas fa-spinner fa-spin ml-2"></i> جاري التحميل...</div>
+            </div>
+        </div>
+    </div>
+
 </main>
 
 <!-- ══════════════ مودال تفعيل الاشتراك ══════════════ -->
@@ -1156,9 +1331,16 @@ document.querySelectorAll('[data-tab]').forEach(btn => {
         });
         this.classList.add('active');
         this.classList.remove('text-slate-400');
-        // Toggle tab content
+        // Toggle tab content (supports both id="tab-X" and data-tab-content="X")
         document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-        document.getElementById('tab-' + tab).classList.remove('hidden');
+        const byId = document.getElementById('tab-' + tab);
+        const byAttr = document.querySelector('[data-tab-content="' + tab + '"]');
+        const target = byId || byAttr;
+        if (target) {
+            target.classList.remove('hidden');
+        } else {
+            console.warn('Tab content not found for:', tab);
+        }
     });
 });
 
@@ -1313,12 +1495,52 @@ document.querySelectorAll('.ai-pkg-btn').forEach(btn => {
 // ═══════════════════════════════════════════
 // 🎁 Gift Bonus Modal
 // ═══════════════════════════════════════════
-function openGiftModal(tenantId, tenantName, curDesigns, curWA, curWM) {
+async function openGiftModal(tenantId, tenantName, curDesigns, curWA, curWM) {
     document.getElementById('gift-tenant-id').value = tenantId;
     document.getElementById('gift-tenant-name').textContent = tenantName;
     document.getElementById('gift-current-designs').textContent = curDesigns;
     document.getElementById('gift-current-whatsapp').textContent = curWA;
     document.getElementById('gift-current-watermarks').textContent = curWM;
+
+    // 📋 جلب قائمة الهدايا الحالية للشركة
+    const listBox = document.getElementById('gift-existing-list');
+    const listBody = document.getElementById('gift-existing-body');
+    listBox.classList.add('hidden');
+    listBody.innerHTML = '<div class="text-center text-slate-500 text-xs py-3"><i class="fas fa-spinner fa-spin ml-1"></i> جاري التحميل...</div>';
+    try {
+        const r = await fetch(`/superadmin/tenant/${tenantId}/grants/`);
+        if (r.ok) {
+            const data = await r.json();
+            if (data.grants && data.grants.length) {
+                listBox.classList.remove('hidden');
+                listBody.innerHTML = data.grants.map(g => `
+                    <div class="flex items-center justify-between gap-2 bg-slate-900/60 rounded-lg p-2 border border-slate-700/40">
+                        <div class="flex-1 text-xs">
+                            <div class="text-white font-bold">
+                                ${g.reason || 'هدية بدون سبب'}
+                                ${g.is_welcome ? '<span class="text-[9px] text-emerald-400 mr-1">(ترحيب تلقائي)</span>' : ''}
+                            </div>
+                            <div class="text-slate-400 text-[10px] mt-0.5">
+                                🎨 ${g.remaining_designs}/${g.granted_designs} •
+                                💬 ${g.remaining_whatsapp}/${g.granted_whatsapp} •
+                                💧 ${g.remaining_watermarks}/${g.granted_watermarks}
+                                <span class="text-slate-500 mr-1">— ${g.granted_at}</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="revokeGrant(${g.id}, ${tenantId}, '${(g.reason || 'هدية').replace(/'/g, '')}')"
+                            class="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition shrink-0">
+                            <i class="fas fa-times ml-1"></i>إلغاء
+                        </button>
+                    </div>
+                `).join('');
+            } else {
+                listBox.classList.add('hidden');
+            }
+        }
+    } catch (e) {
+        listBox.classList.add('hidden');
+    }
+
     const modal = document.getElementById('gift-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -1335,6 +1557,59 @@ function setGiftPreset(designs, wa, wm) {
     document.getElementById('grant_designs').value = designs;
     document.getElementById('grant_whatsapp').value = wa;
     document.getElementById('grant_watermarks').value = wm;
+}
+
+// 🛡️ منع double-submit (السبب اللي خلّى الهدية تتضاعف قبل كده)
+document.getElementById('giftForm')?.addEventListener('submit', function(e) {
+    const btn = document.getElementById('giftSubmitBtn');
+    if (btn.dataset.submitting === '1') {
+        e.preventDefault();
+        return false;
+    }
+    btn.dataset.submitting = '1';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+});
+
+// 🗑️ إلغاء هدية معينة
+async function revokeGrant(grantId, tenantId, label) {
+    if (!confirm(`إلغاء الهدية «${label}»؟ الرصيد المتبقي منها هيتشال فوراً.`)) return;
+    const fd = new FormData();
+    fd.append('action', 'revoke_bonus');
+    fd.append('tenant_id', tenantId);
+    fd.append('grant_id', grantId);
+    fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    try {
+        const r = await fetch(window.location.pathname, { method: 'POST', body: fd });
+        if (r.ok) {
+            window.location.reload();
+        } else {
+            alert('فشل الإلغاء');
+        }
+    } catch (e) {
+        alert('خطأ في الشبكة');
+    }
+}
+
+// 🛍️ Marketplace customer detail modal (lazy-loads activity)
+async function showCustomerDetail(customerId) {
+    const modal = document.getElementById('customerDetailModal');
+    const body = document.getElementById('customerDetailBody');
+    body.innerHTML = '<div class="text-center text-slate-500 py-8"><i class="fas fa-spinner fa-spin ml-2"></i> جاري التحميل...</div>';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    try {
+        const r = await fetch(`/superadmin/customer/${customerId}/detail/`);
+        if (!r.ok) throw new Error('فشل تحميل البيانات');
+        body.innerHTML = await r.text();
+    } catch (e) {
+        body.innerHTML = `<div class="text-center text-red-400 py-8">⚠️ ${e.message}</div>`;
+    }
+}
+function closeCustomerDetail() {
+    const modal = document.getElementById('customerDetailModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 </script>
 
@@ -1372,7 +1647,20 @@ function setGiftPreset(designs, wa, wm) {
             </div>
         </div>
 
-        <form method="post">{% csrf_token %}
+        <!-- 📋 الهدايا الحالية للشركة (يتم تعبئتها من JS) -->
+        <div id="gift-existing-list" class="mb-5 hidden">
+            <label class="text-xs font-bold text-amber-300 mb-2 block">
+                <i class="fas fa-history ml-1"></i> الهدايا النشطة حالياً (يمكن إلغاء كل واحدة على حدة):
+            </label>
+            <div id="gift-existing-body" class="space-y-2 max-h-48 overflow-y-auto bg-slate-800/40 rounded-xl p-3 border border-slate-700/50"></div>
+            <p class="text-[10px] text-amber-200/60 mt-2">
+                <i class="fas fa-info-circle ml-1"></i>
+                ملاحظة: أي شركة جديدة بتاخد <b>هدية ترحيب تلقائية (10 تصاميم + 5 واتساب + 5 علامة مائية)</b>.
+                لو ضفت هدية تانية، الرصيد المعروض = مجموع الهدايا كلها.
+            </p>
+        </div>
+
+        <form method="post" id="giftForm">{% csrf_token %}
             <input type="hidden" name="action" value="grant_ai_bonus">
             <input type="hidden" name="tenant_id" id="gift-tenant-id" value="">
 
@@ -1433,8 +1721,8 @@ function setGiftPreset(designs, wa, wm) {
                     class="flex-1 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition">
                     إلغاء
                 </button>
-                <button type="submit" id="giftSubmitBtn" onclick="this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i> جاري الإرسال...'; this.disabled=true; this.closest('form').submit();"
-                    class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white font-black transition shadow-lg shadow-pink-500/30">
+                <button type="submit" id="giftSubmitBtn"
+                    class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white font-black transition shadow-lg shadow-pink-500/30 disabled:opacity-60 disabled:cursor-not-allowed">
                     <i class="fas fa-gift ml-1"></i> إرسال الهدية
                 </button>
             </div>

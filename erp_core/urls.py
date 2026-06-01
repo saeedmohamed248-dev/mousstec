@@ -254,6 +254,8 @@ urlpatterns = [
     # 👑 لوحة المشرف الأعلى — إدارة كل الشركات
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
+    path('superadmin/customer/<int:customer_id>/detail/', client_views.super_admin_customer_detail, name='super_admin_customer_detail'),
+    path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
 
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),
