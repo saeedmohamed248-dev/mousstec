@@ -11,7 +11,7 @@ from django_tenants.utils import schema_context
 from django_tenants.signals import post_schema_sync
 from celery import current_app
 
-from .models import Client, Domain, EscrowLedger
+from .models import Client, Domain, EscrowLedger, MarketplaceCustomer
 
 # تهيئة رادار المراقبة
 logger = logging.getLogger('mouss_tec_core')
@@ -119,6 +119,30 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
             logger.info(f"📨 [ORCHESTRATOR]: Secured task successfully routed to Welcome Bot for {instance.name}")
         except Exception as e:
             logger.error(f"🔴 [ORCHESTRATOR ERROR]: Failed to route secure task to Welcome Bot - {e}")
+
+        # 🎁 هدية التسجيل: 10 تصاميم AI مجاناً لكل شركة جديدة
+        # (يتشغل تلقائي بمجرد إنشاء الـ tenant — مستقل عن باقة الاشتراك)
+        try:
+            from erp_core.ai.credits import grant_signup_bonus_tenant
+            grant_signup_bonus_tenant(instance)
+        except Exception as e:
+            logger.warning(f"🎁 [SIGNUP BONUS]: Failed to grant tenant signup bonus - {e}")
+
+
+# =====================================================================
+# 🎁 هدية تسجيل عميل الماركت بليس (10 تصاميم مجاناً)
+# =====================================================================
+@receiver(post_save, sender=MarketplaceCustomer)
+def grant_marketplace_signup_bonus(sender, instance, created, **kwargs):
+    """يدّي هدية الافتتاح لكل عميل ماركت بليس جديد."""
+    if not created:
+        return
+    try:
+        from erp_core.ai.credits import grant_signup_bonus_customer
+        grant_signup_bonus_customer(instance)
+    except Exception as e:
+        logger.warning(f"🎁 [SIGNUP BONUS]: customer {instance.pk} - {e}")
+
 
 # =====================================================================
 # 🌱 الحقن الاستباقي بعد إنشاء الـ Schema (Post-Schema Seeding)

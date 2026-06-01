@@ -286,6 +286,10 @@ urlpatterns = [
     path('printing-copilot/api/generate/', copilot_views.copilot_generate, name='copilot_generate'),
     path('printing-copilot/api/send-to-print/', copilot_views.copilot_send_to_print, name='copilot_send_to_print'),
     path('printing-copilot/api/customer-search/', copilot_views.copilot_customer_search, name='copilot_customer_search'),
+    # 💳 Credit balance + Top-up storefront
+    path('printing-copilot/api/balance/', copilot_views.copilot_balance, name='copilot_balance'),
+    path('printing-copilot/api/topup/catalog/', copilot_views.copilot_topup_catalog, name='copilot_topup_catalog'),
+    path('printing-copilot/api/topup/purchase/', copilot_views.copilot_topup_purchase, name='copilot_topup_purchase'),
 
     # 🚗 Auto Diagnostic Expert (BMW/MINI N13/N20/N52/N54...)
     # Phase 3: Two-stage refiner → BMW expert with torque specs & spatial accuracy.

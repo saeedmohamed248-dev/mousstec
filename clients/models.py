@@ -421,6 +421,14 @@ class Plan(models.Model):
     max_users = models.IntegerField(default=1)
     max_treasuries = models.IntegerField(default=1)
 
+    # 🎁 حصة تصاميم AI الشهرية المضمنة في الباقة (تتجدد كل شهر تلقائياً)
+    # — 550 ج = 50 تصميم | باقة 2 = 100 | باقة 3 = 300 (طلب الإمبراطورية)
+    monthly_ai_designs_quota = models.IntegerField(
+        default=0,
+        verbose_name=_("حصة تصاميم AI شهرياً"),
+        help_text=_("عدد التصاميم المجانية التي تحصل عليها الشركة شهرياً مع الاشتراك"),
+    )
+
     features = models.JSONField(default=list, blank=True, verbose_name=_("المميزات"))
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
@@ -539,6 +547,76 @@ class AIBonusGrant(models.Model):
         if self.expires_at and timezone.now() > self.expires_at:
             return False
         return True
+
+
+# =====================================================================
+# 💳 شحن تصاميم إضافية للشركات (Tenant Design Top-ups)
+# =====================================================================
+# باقات الشحن الواحدة (one-time purchase) للشركات لما حصة الباقة الشهرية تخلص:
+#   1000 تصميم = 250 ج | 2500 = 500 ج | 5000 = 900 ج
+# مستقلة عن AIAddonPackage (اللي هو monthly recurring).
+class TenantDesignTopUp(models.Model):
+    STATUS_CHOICES = (
+        ('pending', _('في انتظار الدفع')),
+        ('paid', _('مدفوعة — جاهزة للاستخدام')),
+        ('exhausted', _('تم استهلاكها بالكامل')),
+        ('refunded', _('مردودة')),
+        ('expired', _('منتهية الصلاحية')),
+    )
+    PAYMENT_METHODS = (
+        ('paymob', _('Paymob (Visa/Mastercard)')),
+        ('vodafone_cash', _('فودافون كاش')),
+        ('instapay', _('إنستاباي')),
+        ('admin_grant', _('منحة إدارية')),
+    )
+
+    purchase_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='design_topups')
+
+    designs_total = models.IntegerField(verbose_name=_("إجمالي التصاميم"))
+    designs_used = models.IntegerField(default=0, verbose_name=_("المستهلك"))
+    price_paid = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر المدفوع (ج.م)"))
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='paymob')
+    payment_reference = models.CharField(max_length=200, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name=_("ينتهي في (اختياري)"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("شحن تصاميم للشركة")
+        verbose_name_plural = _("💳 شحنات تصاميم الشركات")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['tenant', 'status'])]
+
+    def __str__(self):
+        return f"TopUp #{self.id} | {self.tenant.name} | {self.designs_total}×"
+
+    @property
+    def designs_remaining(self):
+        return max(self.designs_total - self.designs_used, 0)
+
+    @property
+    def is_usable(self):
+        if self.status != 'paid':
+            return False
+        if self.designs_remaining <= 0:
+            return False
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        return True
+
+    def consume_design(self):
+        """خصم تصميم واحد (atomic). يقفل التوب-أب لما يخلص."""
+        from django.db import transaction as _tx
+        with _tx.atomic():
+            type(self).objects.filter(pk=self.pk).update(designs_used=F('designs_used') + 1)
+            self.refresh_from_db()
+            if self.designs_used >= self.designs_total:
+                self.status = 'exhausted'
+                self.save(update_fields=['status'])
 
 
 class AIStudioSession(models.Model):

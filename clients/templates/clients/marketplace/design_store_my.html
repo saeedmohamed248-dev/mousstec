@@ -411,16 +411,18 @@
                 إعادة التوليد <strong>مجاني حسب باقتك</strong> (1-2 مرة لكل تصميم).
             </div>
 
-            <button type="submit" class="btn-generate" id="genBtn">
-                <i class="fas fa-bolt"></i> ولّد التصميم (1 من رصيدك)
+            <!-- ✨ Premium AI Generator (Flux primary, single entry point) -->
+            <button type="button" id="fluxBtn" onclick="generateFluxDesign()"
+                    class="btn-generate"
+                    style="width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
+                <i class="fas fa-wand-magic-sparkles"></i> ✨ ولّد التصميم
             </button>
 
-            <!-- ✨ Premium Flux Two-Stage Pipeline (Phase 2 Copilot) -->
-            <button type="button" id="fluxBtn" onclick="generateFluxDesign()"
-                    style="width:100%;margin-top:10px;padding:14px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:12px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
-                <i class="fas fa-wand-magic-sparkles"></i> ✨ توليد فخم (Flux Two-Stage)
-            </button>
-            <p style="font-size:11px;color:#a78bfa;margin-top:6px;text-align:center;">جودة Flux.1 الفخمة للطباعة — ~15 قرش للصورة، مجاني من رصيدك</p>
+            <!-- 💳 Live balance + Shop button -->
+            <div id="custBalanceBar" style="margin-top:12px;padding:10px 14px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> رصيد التصاميم: <strong id="custBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
+                <button onclick="openCustTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-family:inherit;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن باقة</button>
+            </div>
         </form>
 
         <!-- Flux result panel (مستقل عن resultBox عشان مايتعارضش مع DALL-E flow) -->
@@ -593,6 +595,82 @@ function escapeHtmlFlux(s) {
     return div.innerHTML;
 }
 
+// ──────────── 💳 Balance Bar + Top-up Modal (Customer) ────────────
+function refreshCustBalance(balance) {
+    const el = document.getElementById('custBalanceTotal');
+    if (!el) return;
+    if (balance && typeof balance.total === 'number') {
+        el.textContent = balance.total + ' تصميم';
+        el.style.color = balance.total > 5 ? '#fff' : (balance.total > 0 ? '#fbbf24' : '#fca5a5');
+    }
+}
+
+async function loadCustBalance() {
+    try {
+        const r = await fetch('/printing-copilot/api/balance/?audience=customer', { credentials: 'same-origin' });
+        const d = await r.json();
+        if (d.success && d.balance) refreshCustBalance(d.balance);
+    } catch (e) { console.warn('[CUST BALANCE]', e); }
+}
+
+let _custTopupCatalog = null;
+async function openCustTopupModal() {
+    if (!_custTopupCatalog) {
+        try {
+            const r = await fetch('/printing-copilot/api/topup/catalog/?audience=customer', { credentials: 'same-origin' });
+            const d = await r.json();
+            _custTopupCatalog = d.packages || [];
+        } catch (e) { toast('تعذر تحميل الباقات', 'error'); return; }
+    }
+
+    let existing = document.getElementById('custTopupModal');
+    if (existing) existing.remove();
+
+    const html =
+        '<div id="custTopupModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)document.getElementById(\'custTopupModal\').remove()">'
+        + '<div style="background:#0f172a;border:1px solid #7c3aed;border-radius:18px;padding:24px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;font-family:inherit;">'
+        +     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">'
+        +         '<h3 style="color:#c4b5fd;font-weight:900;font-size:18px;margin:0;"><i class="fas fa-coins"></i> اشحن باقة تصاميم</h3>'
+        +         '<button onclick="document.getElementById(\'custTopupModal\').remove()" style="background:#334155;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-family:inherit;">✕</button>'
+        +     '</div>'
+        +     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">'
+        +     _custTopupCatalog.map(p =>
+                '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(236,72,153,0.08));border:1px solid #7c3aed;border-radius:14px;padding:18px;text-align:center;">'
+                + (p.badge ? '<div style="display:inline-block;background:#ec4899;color:#fff;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;margin-bottom:10px;">' + escapeHtmlFlux(p.badge) + '</div>' : '')
+                + '<p style="color:#fff;font-weight:900;font-size:24px;margin:4px 0;">' + p.designs + '</p>'
+                + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">تصميم</p>'
+                + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' ج.م</p>'
+                + '<button onclick="purchaseCustTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> اشتري دلوقتي</button>'
+                + '</div>'
+            ).join('')
+        +     '</div>'
+        + '</div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function purchaseCustTopup(slug) {
+    try {
+        const r = await fetch('/printing-copilot/api/topup/purchase/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify({ package_slug: slug, audience: 'customer' }),
+            credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (d.success && d.checkout_url) {
+            window.location.href = d.checkout_url;
+        } else {
+            toast(d.message || 'تعذر بدء الشراء', 'error');
+        }
+    } catch (e) { toast('خطأ في الاتصال', 'error'); }
+}
+
+// Load balance on page ready
+if (document.getElementById('custBalanceBar')) {
+    loadCustBalance();
+}
+
 async function generateFluxDesign() {
     const form = document.getElementById('genForm');
     const fd = new FormData(form);
@@ -619,15 +697,13 @@ async function generateFluxDesign() {
     };
     const size = sizeMap[sizePreset] || sizePreset;
 
-    if (!confirm('توليد فخم عبر Flux.1 — التكلفة ~15 قرش، ومش هتتخصم من رصيد باقتك. متابعة؟')) return;
-
     const btn = document.getElementById('fluxBtn');
     const box = document.getElementById('fluxResultBox');
     const origLabel = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refine ثم Flux... (15-25 ثانية)';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد... (15-25 ثانية)';
     box.style.display = 'block';
-    box.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> المرحلة 1: تصفية الـ Prompt للإنجليزي الفخم... ثم المرحلة 2: Flux.1</p>';
+    box.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> المرحلة 1: تصفية وصياغة الـ Prompt... ثم المرحلة 2: توليد الصورة</p>';
 
     try {
         const r = await fetch('/printing-copilot/api/generate/', {
@@ -639,21 +715,31 @@ async function generateFluxDesign() {
         const data = await r.json();
 
         if (!data.success) {
-            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + (data.message || data.error || 'فشل التوليد') + '</p>';
+            if (data.need_topup) {
+                box.innerHTML =
+                    '<div style="text-align:center;padding:20px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:12px;">'
+                    + '<p style="color:#fca5a5;font-weight:800;font-size:14px;margin-bottom:10px;"><i class="fas fa-coins"></i> ' + (data.message || 'الرصيد خلص') + '</p>'
+                    + '<button onclick="openCustTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن باقة الآن</button>'
+                    + '</div>';
+            } else {
+                box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + (data.message || data.error || 'فشل التوليد') + '</p>';
+            }
             return;
         }
 
+        // ✅ نجاح — حدّث الرصيد
+        if (data.balance) refreshCustBalance(data.balance);
+
         _lastFluxResult = data;
         const imgUrl = data.image_url || ('data:image/png;base64,' + (data.image_b64 || ''));
-        const provider = (data.provider || 'flux').toUpperCase();
-        const cost = data.cost_estimate_egp ? data.cost_estimate_egp.toFixed(2) + ' ج.م' : '~';
+        const remaining = (data.balance && typeof data.balance.total === 'number') ? data.balance.total : null;
 
         box.innerHTML =
             '<img src="' + imgUrl + '" style="max-width:100%;border-radius:12px;margin-bottom:12px;border:2px solid #a78bfa;display:block;margin-left:auto;margin-right:auto;">'
             + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'
-            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">FLUX ' + provider + '</span>'
+            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">جودة فخمة</span>'
             +     '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + (data.style_tag || 'premium') + '</span>'
-            +     '<span style="font-size:11px;background:#0ea5e9;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">💰 ' + cost + '</span>'
+            +     (remaining !== null ? '<span style="font-size:11px;background:#0ea5e9;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;"><i class="fas fa-coins"></i> رصيد متبقي: ' + remaining + '</span>' : '')
             + '</div>'
             + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
             +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Engineered Prompt (Stage 1)</summary>'
