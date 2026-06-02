@@ -296,6 +296,16 @@ def run_copilot_pipeline(
     size = refined.get('recommended_size') or size_hint or '1024x1024'
     negative = refined.get('negative_prompt', '')
 
+    # 🛡️ Defensive sanitize — امسح أي عربي من الـ prompt + ضيف negative قاطع ضد النصوص الوهمية
+    import re as _re
+    prompt = _re.sub(r'[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+', '', prompt)
+    prompt = _re.sub(r'["«»“”]', '', prompt)
+    prompt = _re.sub(r'\s{2,}', ' ', prompt).strip()
+    extra_neg = ('any text, any letters, any words, any numbers, fake text, lorem ipsum, '
+                 'gibberish, placeholder text, garbled writing, calligraphy attempts, '
+                 'signs, labels, captions, typography')
+    negative = (negative + ', ' + extra_neg)[:600] if negative else extra_neg
+
     image_result = generate_flux_image(prompt, size=size, negative_prompt=negative)
 
     return {

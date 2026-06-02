@@ -190,9 +190,22 @@ text content (any "text" or "text_on_design" field with non-empty value):
 If NO text in selections → omit text_overlay, and instruct in negative_prompt to avoid
 any letters/glyphs/text artifacts.
 
-🅱️ NEGATIVE PROMPT — be specific: "blurry, low resolution, jpeg artifacts, watermark,
-signature, deformed anatomy, extra fingers, bad proportions, text artifacts, garbled text,
-cluttered background, oversaturated, amateur photography, stock photo cliche".
+🅱️ NEGATIVE PROMPT — be aggressive and specific. ALWAYS include:
+"any text, any letters, any words, any numbers, fake text, lorem ipsum, gibberish,
+placeholder text, garbled writing, calligraphy attempts, signs, labels, captions,
+typography, watermarks, signatures, blurry, low resolution, jpeg artifacts, deformed
+anatomy, extra fingers, bad proportions, cluttered background, oversaturated,
+amateur photography, stock photo cliche, ugly composition, poor lighting,
+flat colors, low contrast, plastic look, AI-generated artifacts"
+
+⛔️ FORBIDDEN IN MEGA PROMPT (these wreck image quality):
+- Never ask FLUX to "write", "show text", "display words", "include label", "show name"
+- Never describe specific text content even in English (FLUX hallucinates garbled letters)
+- For ANY surface that would normally have text (invoice rows, business card fields,
+  certificate names, signage), describe it as "CLEAN BLANK area ready for typography
+  overlay" or "minimalist solid color zone without any text"
+- For invoices/forms/structured docs: describe the visual TEMPLATE only (header bar,
+  table grid lines, color blocks) — NEVER ask FLUX to fill cells with data
 
 📐 SIZE GUIDANCE:
   - Square (1024x1024): logos, social posts, packaging top-down, product shots
@@ -453,9 +466,15 @@ def _has_arabic(s: str) -> bool:
 
 
 _TEXT_HINTS_AR = ('مكتوب', 'مكتوبة', 'كتابة', 'اسم', 'شعار', 'عبارة', 'جملة',
-                  'نص', 'كلمة', '«', '»', 'يكتب', 'بيكتب', 'بكتب')
+                  'نص', 'كلمة', '«', '»', 'يكتب', 'بيكتب', 'بكتب',
+                  'فاتورة', 'فواتير', 'دفتر', 'بزنس كارد', 'كارت', 'شهادة',
+                  'منيو', 'لوجو', 'لافتة', 'يافطة', 'إعلان', 'بنر', 'بوستر',
+                  'كتاب', 'غلاف', 'تيشرت', 'مج', 'ماج', 'تغليف', 'منتج')
 _TEXT_HINTS_EN = ('write', 'written', 'text', 'logo', 'name', 'phrase', 'word',
-                  'saying', 'quote', 'caption', 'tagline')
+                  'saying', 'quote', 'caption', 'tagline',
+                  'invoice', 'receipt', 'business card', 'certificate', 'menu',
+                  'banner', 'poster', 'flyer', 'book cover', 'mug', 't-shirt',
+                  'label', 'packaging', 'signage', 'brochure')
 
 
 def _ensure_text_field(fields: list[dict], raw_idea: str) -> None:

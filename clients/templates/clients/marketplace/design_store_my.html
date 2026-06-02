@@ -768,7 +768,16 @@ async function generateFluxDesign() {
             body: JSON.stringify({ brief, category, size, audience: 'customer' }),
             credentials: 'same-origin',
         });
-        const data = await r.json();
+        // 🔍 Diagnostic: capture status + raw body for visibility in console
+        const rawText = await r.text();
+        let data;
+        try { data = JSON.parse(rawText); }
+        catch (parseErr) {
+            console.error('[CLASSIC GENERATE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
+            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console للتفاصيل.</p>';
+            return;
+        }
+        if (!data.success) console.warn('[CLASSIC GENERATE] server returned error', data);
 
         if (!data.success) {
             if (data.need_topup) {
