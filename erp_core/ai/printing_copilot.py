@@ -171,19 +171,23 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str,
     last_error_body = ''
 
     for model in candidates:
-        steps = _MODEL_STEPS.get(model, 28)
+        is_pro = 'pro' in model.lower()
         payload = {
             'model': model,
             'prompt': prompt,
             'width': width,
             'height': height,
-            'steps': steps,
             'n': 1,
             'response_format': 'url',
         }
-        if 'dev' in model or 'pro' in model:
-            payload['guidance_scale'] = 3.5
-        if negative_prompt:
+        # FLUX-1.1-pro هو managed model — مش بياخد steps/guidance
+        # schnell/dev عادي بياخدوا steps
+        if not is_pro:
+            payload['steps'] = _MODEL_STEPS.get(model, 4)
+            if 'dev' in model:
+                payload['guidance_scale'] = 3.5
+        if negative_prompt and not is_pro:
+            # pro برضو مش بياخد negative_prompt
             payload['negative_prompt'] = negative_prompt
 
         headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
