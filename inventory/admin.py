@@ -210,6 +210,14 @@ class CustomUserAdmin(BaseUserAdmin):
         if connection.schema_name == 'public': return []
         return super().get_inline_instances(request, obj)
 
+    def save_model(self, request, obj, form, change):
+        # 👤 الموظف الجديد لازم يكون staff علشان يقدر يدخل /secure-portal/ (Django admin).
+        # من غير الفلاج ده Django بيعرض «You are authenticated… but not authorized»
+        # بعد ما الـ login ينجح. السوبر يوزر يفضل manual.
+        if not change and connection.schema_name != 'public' and not obj.is_staff:
+            obj.is_staff = True
+        super().save_model(request, obj, form, change)
+
     def save_formset(self, request, form, formset, change):
         # The User post_save signal auto-creates an EmployeeProfile via
         # get_or_create. When the admin add-view also submits the inline,
