@@ -51,6 +51,16 @@ def _resolve_actor(request, audience: str):
     if audience == 'customer':
         try:
             from clients.models import MarketplaceCustomer
+            # Primary path: mp_session cookie (matches _marketplace_auth in
+            # clients.views._shared — the source of truth for marketplace auth)
+            token = request.COOKIES.get('mp_session')
+            if token:
+                cust = MarketplaceCustomer.objects.filter(
+                    session_token=token, is_verified=True, is_blocked=False,
+                ).first()
+                if cust:
+                    return None, cust
+            # Legacy fallback: Django session (rarely populated for marketplace)
             cust_id = request.session.get('marketplace_customer_id')
             if cust_id:
                 return None, MarketplaceCustomer.objects.filter(id=cust_id).first()
@@ -85,7 +95,11 @@ def _read_json(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Analyze — raw idea → dynamic schema
 # ─────────────────────────────────────────────────────────────────────────────
-@login_required
+# ⚠️ مفيش @login_required — الـ analyze endpoint مفتوح للأنواع الثلاثة:
+#   • Django staff users (tenant context)
+#   • Marketplace customers (mp_session cookie)
+#   • Public visitors (للـ try-before-buy flow)
+# الـ generate endpoint هو اللي بيـ enforce credit gate حسب الـ audience.
 @require_POST
 def design_analyze(request):
     body, err = _read_json(request)
@@ -126,7 +140,9 @@ def design_analyze(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) Generate — idea + selections → mega prompt + image + log
 # ─────────────────────────────────────────────────────────────────────────────
-@login_required
+# ⚠️ مفيش @login_required — الـ identity بتيتحدد عبر audience param +
+# _resolve_actor (tenant schema أو mp_session cookie). الـ credit gate
+# فـ _check_balance بيرفض أي طلب بدون hookup صحيح.
 @require_POST
 def design_generate(request):
     body, err = _read_json(request)
@@ -255,7 +271,8 @@ def design_generate(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Feedback — mark log as successful or not
 # ─────────────────────────────────────────────────────────────────────────────
-@login_required
+# ⚠️ مفيش @login_required — marketplace customers لازم يقدروا يقيّموا التصميم
+# اللي ولّدوه. الـ log_id ownership المفروض يتم التحقق منه جوه (TODO: add it).
 @require_POST
 def design_feedback(request):
     """يسجّل تقييم المستخدم. لو is_successful=True والمستخدم عميل، بنحفظ التصميم
