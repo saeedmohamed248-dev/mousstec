@@ -297,10 +297,6 @@
         <div class="col-lg-8 col-12 mb-3 mb-lg-0 d-flex gap-2 flex-wrap">
 
             {% if is_public_schema and user.is_superuser %}
-                {# ===========================================================
-                   👑 SUPER ADMIN — Public Schema only
-                   كل أدوات الـ tenant مخفية. الـ super admin بيشوف SaaS controls بس.
-                   =========================================================== #}
                 <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
                    style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
                    title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
@@ -399,9 +395,6 @@
                     <i class="fas fa-rocket"></i> الوصول السريع
                 </a>
             {% endif %}
-            {# 🛡️ Super admin buttons (System Health, God Mode, Subscriptions, Revenue)
-               are now rendered exclusively in the `is_public_schema and user.is_superuser`
-               branch above — keeps the public-schema view a clean SaaS slate. #}
         </div>
         <div class="col-lg-4 col-12">
             <div class="omni-search-wrapper" onclick="toggleCommandPalette()">
