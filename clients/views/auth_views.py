@@ -103,6 +103,16 @@ def register_new_tenant_saas(request):
                             defaults={'tenant': tenant, 'is_primary': True},
                         )
 
+                        # 💳 سجل اشتراك ابتدائي — لازم يتعمل من signup عشان يظهر في
+                        # لوحة الإدارة الذكية (TenantSubscription admin)، وعلشان نظام
+                        # الفوترة و الـ entitlements يقدر يقرأ منه. غير مفعّل افتراضياً
+                        # — الأدمن بيفعّل الباقة يدوياً أو لما العميل يدفع.
+                        from clients.models import TenantSubscription
+                        TenantSubscription.objects.get_or_create(
+                            tenant=tenant,
+                            defaults={'is_active': False},
+                        )
+
                     success = True
 
                 except Exception as e:
