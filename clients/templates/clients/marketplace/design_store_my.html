@@ -622,7 +622,11 @@ function downloadAs(fmt) {
 let _lastFluxResult = null;
 
 function getCsrfCookie() {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    // السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf' (مش الاسم الافتراضي csrftoken).
+    // نقرأ mt_csrf أولاً، fallback لـ csrftoken للتوافق مع أي صفحة قديمة.
+    let m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+    if (m) return m[1];
+    m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return m ? m[1] : '';
 }
 
