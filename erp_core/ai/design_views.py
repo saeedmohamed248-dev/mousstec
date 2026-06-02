@@ -247,6 +247,33 @@ def design_generate(request):
 
     image_url = img.get('url')
 
+    # 🅰️ Post-processing: overlay Arabic/text onto image if LLM specified text_overlay
+    text_overlay_info = mega.get('text_overlay')
+    overlay_applied = False
+    if text_overlay_info and image_url:
+        try:
+            from .text_overlay import overlay_text_on_image_url, has_arabic
+            # نطبق الـ overlay دايماً لو فيه text_overlay (حتى للنص الإنجليزي عشان نضمن وضوح)
+            overlay_result = overlay_text_on_image_url(
+                image_url=image_url,
+                text=text_overlay_info['text'],
+                position=text_overlay_info.get('position', 'center'),
+                color=text_overlay_info.get('color', '#000000'),
+                font_size_ratio=float(text_overlay_info.get('font_ratio', 0.08)),
+            )
+            if overlay_result.get('success'):
+                # نبني absolute URL لو الـ storage path نسبي
+                new_url = overlay_result['url']
+                if new_url and new_url.startswith('/'):
+                    new_url = request.build_absolute_uri(new_url)
+                image_url = new_url
+                overlay_applied = True
+                logger.info(f'[DESIGN GENERATE] text overlay applied → {image_url}')
+            else:
+                logger.warning(f'[DESIGN GENERATE] overlay failed (non-fatal): {overlay_result.get("error")}')
+        except Exception as e:
+            logger.warning(f'[DESIGN GENERATE] overlay exception (non-fatal): {e}')
+
     # Consume credit
     credit_info = None
     try:
@@ -294,6 +321,7 @@ def design_generate(request):
         'image_url': image_url,
         'image_b64': img.get('b64_json'),
         'size': size,
+        'text_overlay_applied': overlay_applied,
         'provider': img.get('provider'),
         'model': img.get('model'),
         'balance': credit_info.get('balance') if credit_info else None,

@@ -30,10 +30,19 @@ _TIMEOUT_IMAGE = 60
 
 # Together AI Flux endpoint
 _TOGETHER_URL = 'https://api.together.xyz/v1/images/generations'
-# ⚠️ FLUX.1-schnell-Free was moved to dedicated-endpoint-only in 2026-05.
-# The serverless successor is `FLUX.1-schnell` (still very cheap, ~$0.003/img).
-# Override per-env via TOGETHER_FLUX_MODEL in .env if Together rotates models again.
-_DEFAULT_FLUX_MODEL = 'black-forest-labs/FLUX.1-schnell'
+# ⚠️ JUDGEMENT CALL:
+#   • FLUX.1-schnell   : 4 steps, ~$0.003/img  → low detail, fast. Bad for premium designs.
+#   • FLUX.1-dev       : 28 steps, ~$0.025/img → cinema-quality details. RECOMMENDED.
+#   • FLUX.1.1-pro     : ~$0.04/img            → top-tier (slowest).
+# Default = dev for premium output. Set TOGETHER_FLUX_MODEL in .env to override.
+_DEFAULT_FLUX_MODEL = 'black-forest-labs/FLUX.1-dev'
+
+# Quality knobs per model — bigger steps = sharper, more coherent images
+_MODEL_STEPS = {
+    'black-forest-labs/FLUX.1-schnell': 4,
+    'black-forest-labs/FLUX.1-dev': 28,
+    'black-forest-labs/FLUX.1.1-pro': 30,
+}
 
 # Replicate endpoint pattern
 _REPLICATE_BASE = 'https://api.replicate.com/v1'
@@ -153,15 +162,19 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str,
 
     model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
     width, height = _parse_size(size)
+    steps = _MODEL_STEPS.get(model, 28)  # default to dev quality if unknown model
     payload = {
         'model': model,
         'prompt': prompt,
         'width': width,
         'height': height,
-        'steps': 4,  # schnell = 4 steps
+        'steps': steps,
         'n': 1,
         'response_format': 'url',
     }
+    # FLUX.1-dev بيستفيد من guidance_scale 3.5-4 لـ adherence أعلى للـ prompt
+    if 'dev' in model or 'pro' in model:
+        payload['guidance_scale'] = 3.5
     if negative_prompt:
         payload['negative_prompt'] = negative_prompt
 

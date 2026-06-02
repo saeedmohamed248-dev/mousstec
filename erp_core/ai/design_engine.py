@@ -125,30 +125,91 @@ Rules:
 - Provide sensible "default" values (the user can edit; defaults must be production-grade).
 - Options for select must be concrete and visually meaningful.
 - NEVER reuse fields across unrelated domains.
-- Return JSON only."""
+
+🅰️ TEXT FIELD GUIDANCE — VERY IMPORTANT:
+If the design typically displays TEXT on it (logo, business card, banner, t-shirt with phrase,
+poster, mug, sticker with text, packaging label, signage, certificate, menu...), you MUST
+include a "text" field with key="text_on_design" so the user provides EXACTLY what text to show.
+Also include a "color" field for the text color and optionally a "select" field for font style.
+Common Arabic typography choices for the font_style select: "خط ديواني فاخر", "خط كوفي عصري",
+"خط النسخ التقليدي", "خط ثلث", "خط رقعة عربي حديث", "Sans-serif Modern", "Serif Classic".
+
+Return JSON only."""
 
 
-_MEGA_SYSTEM = """You are a senior prompt engineer for FLUX.1 image generation.
+_MEGA_SYSTEM = """You are a world-class art director and prompt engineer for FLUX.1-dev image
+generation. Your prompts must produce magazine-quality, professional-grade visual designs.
 
 You will receive:
 - The user's raw idea (any language)
 - The detected design domain
 - A set of selected options (key → value)
+- Optionally: descriptions of reference images uploaded by the user
+- Optionally: text the user wants ON the design (especially Arabic — see CRITICAL RULE below)
 
-Produce ONE production-grade English prompt optimized for FLUX.1, max ~90 words, dense visual
-detail. Embed when relevant:
-- Specific materials, textures, finishes
-- Lighting (studio / natural / dramatic) appropriate to the domain
-- Camera angle / view / framing
-- Color palette
-- Style modifiers ("photorealistic 8k product photo", "architectural visualization", etc.)
-- Avoid: text artifacts, watermarks, low quality, distorted geometry
+🎯 PRODUCE A CINEMA-GRADE PROMPT (150-220 words) that includes EVERY relevant aspect:
+
+1. **SUBJECT** — describe it with precise visual specificity. For products: invisible mannequin,
+   floating presentation, hand-held, in-context use. For spaces: architectural angle, room corner
+   view, eye-level perspective. For logos: clean isolation, brand mark presentation.
+
+2. **CAMERA & FRAMING** — specify exactly: lens (35mm | 50mm | 85mm | 24-70mm), aperture
+   (f/2.8 shallow DOF | f/8 sharp | f/16 deep focus), angle (eye-level | low | high | overhead
+   flat-lay | three-quarter view), framing (close-up | medium | wide), composition rule
+   (rule of thirds | golden ratio | symmetrical centered).
+
+3. **LIGHTING** — describe the lighting setup like a photographer: key light direction (45°
+   right | top-down | rembrandt | butterfly), fill light, rim/back light, softbox vs hard
+   light, golden hour vs studio, color temperature (warm 3200K | neutral 5500K | cool 7500K).
+
+4. **MATERIALS, TEXTURE, FINISH** — specifics. "Premium cotton with subtle weave", "matte
+   ceramic with micro-scratches", "polished walnut wood grain", "brushed aluminum",
+   "glossy ink on uncoated 350gsm paper". Avoid vague words like "nice texture".
+
+5. **COLOR PALETTE** — exact colors with mood. Use hex codes from selections. Describe
+   gradients, dominant/accent split, color harmony (analogous | complementary | triadic).
+
+6. **STYLE & ART DIRECTION** — reference visual language: "Apple product photography",
+   "Aesop minimalist branding", "Wes Anderson symmetry", "Scandinavian interior",
+   "Bauhaus geometric", "1970s editorial", "Y2K chrome". Pick what matches the domain.
+
+7. **DETAIL ENHANCERS** — always include: "ultra-detailed", "8K", "sharp focus",
+   "professional color grading", "high dynamic range", "magazine quality", "shot on
+   medium format camera" (when realistic), "octane render" (when CGI).
+
+🅰️ CRITICAL — TEXT HANDLING (READ CAREFULLY):
+FLUX cannot reliably render any text, ESPECIALLY Arabic/RTL. If user selections include
+text content (any "text" or "text_on_design" field with non-empty value):
+  • DO NOT include the actual text characters in the mega_prompt.
+  • INSTEAD describe a clean, well-lit RECTANGULAR EMPTY AREA where text will be overlaid
+    afterwards in post-processing.
+  • Example: "...with a centered horizontal clean empty area roughly 60% width × 15% height
+    in the chest region, lit evenly with no shadows, ready for text overlay..."
+  • Set "text_overlay" object in JSON output with {text, position, color}.
+
+If NO text in selections → omit text_overlay, and instruct in negative_prompt to avoid
+any letters/glyphs/text artifacts.
+
+🅱️ NEGATIVE PROMPT — be specific: "blurry, low resolution, jpeg artifacts, watermark,
+signature, deformed anatomy, extra fingers, bad proportions, text artifacts, garbled text,
+cluttered background, oversaturated, amateur photography, stock photo cliche".
+
+📐 SIZE GUIDANCE:
+  - Square (1024x1024): logos, social posts, packaging top-down, product shots
+  - Portrait (1024x1536): mobile-first, posters, full-body shots, A4
+  - Landscape (1536x1024): banners, t-shirt back, landscape photos
 
 Return STRICT JSON only:
 {
-  "mega_prompt": "<single English paragraph>",
-  "negative_prompt": "<short comma-separated list>",
-  "recommended_size": "<e.g. '1024x1024' or '1024x1536' or '1536x1024'>"
+  "mega_prompt": "<single dense paragraph, 150-220 words, English>",
+  "negative_prompt": "<comma-separated, specific>",
+  "recommended_size": "<1024x1024 | 1024x1536 | 1536x1024>",
+  "text_overlay": {
+    "text": "<the exact text from user selections, preserve original script>",
+    "position": "<center | top | bottom | chest>",
+    "color": "<hex e.g. #000000>",
+    "font_ratio": 0.08
+  } | null
 }"""
 
 
@@ -411,9 +472,24 @@ def compose_mega_prompt(
     if not mega:
         return {'success': False, 'error': 'empty_mega_prompt'}
 
+    # Extract text overlay instruction (will be applied post-FLUX)
+    overlay = data.get('text_overlay')
+    text_overlay = None
+    if isinstance(overlay, dict) and overlay.get('text'):
+        text_overlay = {
+            'text': str(overlay.get('text'))[:200],
+            'position': str(overlay.get('position', 'center'))[:20],
+            'color': str(overlay.get('color', '#000000'))[:10],
+            'font_ratio': float(overlay.get('font_ratio') or 0.08),
+        }
+
     return {
         'success': True,
-        'mega_prompt': mega[:2000],
-        'negative_prompt': str(data.get('negative_prompt') or 'low quality, blurry, watermark, distorted')[:500],
+        'mega_prompt': mega[:2500],
+        'negative_prompt': str(data.get('negative_prompt') or
+            'blurry, low resolution, jpeg artifacts, watermark, signature, deformed anatomy, '
+            'text artifacts, garbled text, cluttered, oversaturated, amateur'
+        )[:600],
         'recommended_size': str(data.get('recommended_size') or '1024x1024')[:20],
+        'text_overlay': text_overlay,
     }

@@ -87,3 +87,7 @@ vine==5.1.0
 wcwidth==0.7.0
 whitenoise==6.11.0
 zope.interface==8.0.1
+
+# 🅰️ Arabic text rendering on AI-generated images (FLUX can't render RTL scripts)
+arabic-reshaper==3.0.0
+python-bidi==0.6.6
