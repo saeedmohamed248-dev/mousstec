@@ -48,6 +48,71 @@ def async_welcome_bot_task(self, client_name, client_phone, business_type, full_
         raise self.retry(exc=exc)
 
 # =====================================================================
+# 📧 Helper: إرسال تحذير تجديد للعميل (email — مع stub لـ WhatsApp)
+# =====================================================================
+def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
+    """
+    يبعت email للـ tenant بإن اشتراكه/تجربته قربت تنتهي. لو فيه phone بنـ log
+    رسالة WhatsApp جاهزة للإرسال (الـ provider integration نقطة توسعة لاحقة).
+    Idempotency: cache key per (tenant, days_left) يمنع إعادة الإرسال نفس اليوم.
+    """
+    from django.core.cache import cache
+    from django.conf import settings
+    from django.core.mail import send_mail
+    import os
+
+    cache_key = f"dunning_sent:{tenant.schema_name}:{days_left}:{timezone.now().date()}"
+    if cache.get(cache_key):
+        return  # اتبعت دلوقتي — متبعتش تاني
+
+    base_domain = os.getenv('BASE_DOMAIN', getattr(settings, 'BASE_DOMAIN', 'mousstec.com'))
+    pricing_url = f"https://{base_domain}/pricing/?shop={tenant.schema_name}"
+
+    if is_trial:
+        period_word = "الفترة التجريبية"
+    else:
+        period_word = "اشتراك Mouss Tec"
+
+    if days_left == 0:
+        subject = f"⚠️ {period_word} ينتهي اليوم — Mouss Tec"
+        body_intro = f"عزيزي {tenant.name}،\n\n{period_word} الخاصة بشركتك تنتهي اليوم."
+    elif days_left == 1:
+        subject = f"⏰ {period_word} ينتهي بكرة — Mouss Tec"
+        body_intro = f"عزيزي {tenant.name}،\n\n{period_word} الخاصة بشركتك تنتهي خلال يوم واحد."
+    else:
+        subject = f"🔔 {period_word} ينتهي خلال {days_left} أيام — Mouss Tec"
+        body_intro = f"عزيزي {tenant.name}،\n\n{period_word} الخاصة بشركتك تنتهي خلال {days_left} أيام."
+
+    body = (
+        f"{body_intro}\n\n"
+        f"لضمان عدم انقطاع الخدمة، يرجى التجديد من خلال:\n{pricing_url}\n\n"
+        f"بعد انتهاء الاشتراك بـ 3 أيام، يدخل النظام في وضع 'القراءة فقط'، "
+        f"وبعدها يتم تعليق الوصول حتى التجديد.\n\n"
+        f"شكراً لثقتك في Mouss Tec 🚀"
+    )
+
+    # Email: لو SMTP متضبط
+    recipient = (tenant.email or '').strip()
+    if recipient and getattr(settings, 'EMAIL_HOST', ''):
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=None,  # DEFAULT_FROM_EMAIL
+            recipient_list=[recipient],
+            fail_silently=True,
+        )
+
+    # WhatsApp: stub — لما الـ provider يتربط، اللي بعد الـ log هيتبعت فعلاً
+    if tenant.phone:
+        logger.info(
+            f"📱 [DUNNING/WhatsApp queued] {tenant.name} ({tenant.phone}): "
+            f"{period_word} ينتهي خلال {days_left} يوم — {pricing_url}"
+        )
+
+    cache.set(cache_key, True, timeout=86400)  # 24 hours
+
+
+# =====================================================================
 # 💸 2. وكيل إدارة المطالبات والتعليق (Dunning & Grace Period Enforcer)
 # =====================================================================
 @shared_task
@@ -58,21 +123,42 @@ def orchestrate_billing_and_suspensions():
     ويطبق الـ Bulk Update لتفادي الـ N+1 Queries.
     """
     today = timezone.now().date()
-    warning_date = today + timedelta(days=3)
+    # نبعت تحذيرات في أكتر من نقطة عشان العميل ميتفاجئش — 3 أيام، يوم واحد، يوم
+    # الانتهاء نفسه. الـ orchestrate task بيتشغّل يومياً، فكل tenant بياخد على
+    # الأكتر notification واحد لكل warning window.
+    warning_windows = [3, 1, 0]  # أيام متبقية للتحذير
     grace_period_deadline = today - timedelta(days=3)
-    
+
     try:
         # -------------------------------------------------------------
         # أ. مرحلة التحذير الاستباقي (Early Warning - Retention)
         # -------------------------------------------------------------
-        # استخراج العملاء الذين ستنتهي تجربتهم أو اشتراكهم بعد 3 أيام
-        expiring_soon_trials = Client.objects.filter(status='trial', trial_ends_at=warning_date, is_active=True)
-        expiring_soon_active = Client.objects.filter(status='active', subscription_end_date=warning_date, is_active=True)
-        
-        warned_count = expiring_soon_trials.count() + expiring_soon_active.count()
+        warned_count = 0
+        for days_ahead in warning_windows:
+            warning_date = today + timedelta(days=days_ahead)
+            expiring_trials = Client.objects.filter(
+                status='trial', trial_ends_at=warning_date, is_active=True
+            ).exclude(schema_name='public')
+            expiring_active = Client.objects.filter(
+                status='active', subscription_end_date=warning_date, is_active=True
+            ).exclude(schema_name='public')
+
+            for tenant in list(expiring_trials) + list(expiring_active):
+                try:
+                    _send_subscription_warning(
+                        tenant,
+                        days_left=days_ahead,
+                        is_trial=(tenant.status == 'trial'),
+                    )
+                    warned_count += 1
+                except Exception as send_err:
+                    logger.warning(
+                        f"⚠️ [DUNNING]: notification failed for {tenant.schema_name} "
+                        f"({days_ahead}d left) — {send_err}"
+                    )
+
         if warned_count > 0:
-            # 💡 [هنا يتم استدعاء Notification Task لإرسال رسائل التجديد عبر الواتساب/الإيميل]
-            logger.info(f"🔔 [DUNNING SYSTEM]: {warned_count} clients warned about upcoming expiration.")
+            logger.info(f"🔔 [DUNNING SYSTEM]: {warned_count} renewal warnings dispatched.")
 
         # -------------------------------------------------------------
         # ب. مرحلة الإغلاق الناعم (Soft/Hard Suspension) - Bulk Update
