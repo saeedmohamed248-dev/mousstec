@@ -296,7 +296,35 @@
     <div class="row mb-4 align-items-center">
         <div class="col-lg-8 col-12 mb-3 mb-lg-0 d-flex gap-2 flex-wrap">
 
-            {% if industry == 'printing' %}
+            {% if is_public_schema and user.is_superuser %}
+                {# ===========================================================
+                   👑 SUPER ADMIN — Public Schema only
+                   كل أدوات الـ tenant مخفية. الـ super admin بيشوف SaaS controls بس.
+                   =========================================================== #}
+                <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
+                   style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
+                   title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
+                    <i class="fas fa-heart-pulse"></i> 🩺 System Health
+                </a>
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/marketplacecustomer/" class="saas-quick-btn"
+                   style="background: linear-gradient(135deg, #7c3aed, #ec4899);"
+                   title="إدارة عملاء السوق + الهدايا + Impersonate">
+                    <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
+                </a>
+                <a href="#" class="saas-quick-btn"
+                   style="background: linear-gradient(135deg, #0ea5e9, #6366f1);"
+                   title="إدارة الباقات والأسعار والمزايا — قادم قريباً"
+                   onclick="alert('قادم قريباً — Subscription Management Epic'); return false;">
+                    <i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات
+                </a>
+                <a href="#" class="saas-quick-btn"
+                   style="background: linear-gradient(135deg, #059669, #14b8a6);"
+                   title="إجمالي إيرادات المنصة — قادم قريباً"
+                   onclick="alert('قادم قريباً — Global Revenue Dashboard'); return false;">
+                    <i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة
+                </a>
+
+            {% elif industry == 'printing' %}
                 {# ===== أزرار المطابع ===== #}
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" class="saas-quick-btn" style="background: var(--print-grad);">
                     <i class="fas fa-plus-circle"></i> طلب طباعة جديد
@@ -373,20 +401,9 @@
                     <i class="fas fa-rocket"></i> الوصول السريع
                 </a>
             {% endif %}
-
-            {# 🛡️ God Mode — Superuser only #}
-            {% if user.is_superuser and is_public_schema %}
-                <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
-                   style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
-                   title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
-                    <i class="fas fa-heart-pulse"></i> 🩺 System Health
-                </a>
-                <a href="/admin/clients/marketplacecustomer/" class="saas-quick-btn"
-                   style="background: linear-gradient(135deg, #7c3aed, #ec4899);"
-                   title="إدارة عملاء السوق + الهدايا + Impersonate">
-                    <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
-                </a>
-            {% endif %}
+            {# 🛡️ Super admin buttons (System Health, God Mode, Subscriptions, Revenue)
+               are now rendered exclusively in the `is_public_schema and user.is_superuser`
+               branch above — keeps the public-schema view a clean SaaS slate. #}
         </div>
         <div class="col-lg-4 col-12">
             <div class="omni-search-wrapper" onclick="toggleCommandPalette()">
@@ -399,7 +416,9 @@
 
     <!-- ============================================================= -->
     <!-- كروت الإحصائيات العلوية — حسب الصناعة                          -->
+    <!-- 🛡️ مخفية في public schema — Super Admin ليه dashboard خاص في /superadmin/ -->
     <!-- ============================================================= -->
+    {% if not is_public_schema %}
     {% if industry == 'printing' %}
     {# ===== كروت إحصائيات المطابع ===== #}
     <div class="row mb-4">
@@ -554,10 +573,12 @@
     </div>
     {% endif %}
 
+    {% endif %}{# /not is_public_schema — end of tenant stats cards #}
+
     <!-- ============================================================= -->
-    <!-- الخزائن والأرصدة المالية (مشترك بين الصناعتين)                  -->
+    <!-- الخزائن والأرصدة المالية (tenant only)                          -->
     <!-- ============================================================= -->
-    {% if treasuries_data %}
+    {% if not is_public_schema and treasuries_data %}
     <div class="row mb-4">
         <div class="col-12 mb-2">
             <h5 class="font-weight-bold" style="color: #1e293b;">
@@ -590,8 +611,38 @@
     {% endif %}
 
     <!-- ============================================================= -->
-    <!-- المنطقة السفلية: تشارت + رادار — حسب الصناعة                   -->
+    <!-- 👑 Super Admin SaaS Welcome — public schema only                -->
     <!-- ============================================================= -->
+    {% if is_public_schema and user.is_superuser %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0" style="border-radius: 16px; background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); color: white;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h4 class="font-weight-bold mb-2" style="color: #c4b5fd;">
+                                <i class="fas fa-crown"></i> Super Admin Control Center
+                            </h4>
+                            <p class="mb-0" style="color: #cbd5e1; font-size: 14px;">
+                                لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح
+                                <a href="{% url 'super_admin_dashboard' %}" style="color: #fbbf24; font-weight: 700;">/superadmin/</a>.
+                            </p>
+                        </div>
+                        <a href="{% url 'super_admin_dashboard' %}" class="btn btn-lg font-weight-bold"
+                           style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1e1b4b; border-radius: 12px; padding: 12px 28px;">
+                            <i class="fas fa-arrow-left"></i> فتح غرفة عمليات SaaS
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ============================================================= -->
+    <!-- المنطقة السفلية: تشارت + رادار — tenant only (DTC widget هنا)   -->
+    <!-- ============================================================= -->
+    {% if not is_public_schema %}
     <div class="row">
         <div class="col-lg-8 col-12 mb-3">
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
@@ -706,11 +757,13 @@
             </div>
         </div>
     </div>
+    {% endif %}{# /not is_public_schema — end of bottom chart + radar (DTC widget) #}
 </div>
 
 <!-- ============================================================= -->
-<!-- شريط المستشار الذكي (مشترك)                                    -->
+<!-- شريط المستشار الذكي — tenant only (مخفي عن super admin)         -->
 <!-- ============================================================= -->
+{% if not is_public_schema %}
 <div id="aiSidebar" class="ai-sidebar">
     <div class="d-flex justify-content-between align-items-center">
         <h5 class="mb-0 font-weight-bold" style="color: #ec4899;"><i class="fas fa-robot"></i> Mouss Tec Copilot</h5>
@@ -741,6 +794,7 @@
         {% endif %}
     </div>
 </div>
+{% endif %}{# /not is_public_schema — end of AI sidebar (tenant only) #}
 
 <!-- ============================================================= -->
 <!-- JavaScript                                                      -->
