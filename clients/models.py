@@ -603,6 +603,168 @@ class PlanRevision(models.Model):
         )
 
 
+# =====================================================================
+# 💸 7d. PlatformInvoice — SaaS-level invoices للمنصة
+# =====================================================================
+# Phase 3: كل tenant بيدفع للمنصة (renewals/upgrades) يـ generate invoice
+# هنا. ده مش invoice المبيعات بتاع الـ tenant لعملائه — ده الـ invoice
+# اللي الـ MoussTec بتدّيه للـ tenant عشان الـ subscription.
+#
+# الـ Paymob webhook بيـ create + mark_paid في transaction واحدة، اللي
+# بتـ trigger الـ snapshot لـ TenantSubscription.locked_* تلقائياً.
+# =====================================================================
+class PlatformInvoice(models.Model):
+    STATUS_CHOICES = (
+        ('issued',   _('مصدرة (لم تُدفع بعد)')),
+        ('paid',     _('مدفوعة')),
+        ('failed',   _('فشلت المعالجة')),
+        ('refunded', _('مردودة')),
+        ('void',     _('ملغاة')),
+    )
+
+    invoice_number = models.SlugField(
+        max_length=30, unique=True, blank=True,
+        verbose_name=_("رقم الفاتورة"),
+        help_text=_("auto-generated في save() بصيغة INV-YYYY-NNNNNN"),
+    )
+
+    tenant = models.ForeignKey(
+        Client, on_delete=models.PROTECT, related_name='platform_invoices',
+        verbose_name=_("الشركة"),
+    )
+    subscription = models.ForeignKey(
+        'TenantSubscription', on_delete=models.PROTECT, related_name='invoices',
+        null=True, blank=True,
+        verbose_name=_("الاشتراك"),
+    )
+    plan_revision = models.ForeignKey(
+        PlanRevision, on_delete=models.PROTECT, related_name='invoices',
+        verbose_name=_("revision الباقة"),
+        help_text=_("الإصدار اللي اتفوتر عليه — مهم للـ audit والـ legal"),
+    )
+
+    # ── Period covered ──
+    period_start = models.DateField(verbose_name=_("بداية الفترة"))
+    period_end = models.DateField(verbose_name=_("نهاية الفترة"))
+    billing_cycle_months = models.IntegerField(verbose_name=_("عدد الشهور"))
+
+    # ── Pricing snapshot ──
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي قبل الخصم"))
+    discount_percent = models.IntegerField(default=0, verbose_name=_("نسبة الخصم (%)"))
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("قيمة الخصم"))
+    total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي المستحق"))
+    currency = models.CharField(max_length=3, default='EGP', verbose_name=_("العملة"))
+
+    # ── Entitlements snapshot (immutable record at billing time) ──
+    entitlements_snapshot = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("نسخة المزايا وقت الفوترة"),
+        help_text=_("immutable — للـ audit والـ legal لو حصل dispute"),
+    )
+
+    # ── Payment tracking ──
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='issued', db_index=True)
+    payment_provider = models.CharField(max_length=20, blank=True, verbose_name=_("بوابة الدفع"))
+    payment_reference = models.CharField(max_length=120, blank=True, db_index=True, verbose_name=_("مرجع الدفع"))
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الدفع"))
+
+    # ── Metadata ──
+    issued_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإصدار"))
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name=_("أصدرها"),
+    )
+
+    class Meta:
+        verbose_name = _("فاتورة منصة")
+        verbose_name_plural = _("💸 فواتير المنصة (SaaS)")
+        ordering = ['-issued_at']
+        indexes = [
+            models.Index(fields=['tenant', '-issued_at']),
+            models.Index(fields=['status', '-issued_at']),
+            models.Index(fields=['payment_provider', 'payment_reference']),
+        ]
+        # 🛡️ منع duplicates من نفس الـ provider بنفس الـ reference (idempotency)
+        constraints = [
+            models.UniqueConstraint(
+                fields=['payment_provider', 'payment_reference'],
+                condition=models.Q(payment_reference__gt=''),
+                name='unique_provider_payment_ref',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.invoice_number or 'INV-pending'} — {self.tenant.name} — {self.total} {self.currency}"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate invoice_number بعد ما الـ pk يبقى موجود
+        super().save(*args, **kwargs)
+        if not self.invoice_number:
+            year = (self.issued_at or timezone.now()).year
+            self.invoice_number = f"INV-{year}-{self.pk:06d}"
+            super().save(update_fields=['invoice_number'])
+
+    # ─────────────────────────────────────────────────────────────────
+    # 🎯 الـ business core: mark_paid يـ propagate كل الـ side effects
+    # ─────────────────────────────────────────────────────────────────
+    def mark_paid(self, *, payment_provider=None, payment_reference=None, paid_at=None):
+        """يـ finalize الفاتورة + يـ trigger snapshot + يـ extend الاشتراك.
+
+        Steps:
+          1. Update self.status='paid', paid_at, payment_*
+          2. Update subscription.plan لو الـ revision.plan مختلف
+          3. snapshot_from_plan(revision=self.plan_revision) — yetelock الـ
+             entitlements + price على إصدار الفاتورة بالظبط
+          4. Extend subscription.current_period_*
+          5. Update tenant.subscription_end_date + status='active'
+
+        كله في الـ DB transaction الـ caller (ميـ wrapش في transaction.atomic
+        داخلياً عشان الـ caller يـ control الـ scope).
+        """
+        from django.utils import timezone as _tz
+        self.status = 'paid'
+        self.paid_at = paid_at or _tz.now()
+        if payment_provider:
+            self.payment_provider = payment_provider
+        if payment_reference:
+            self.payment_reference = str(payment_reference)
+        self.save(update_fields=['status', 'paid_at', 'payment_provider', 'payment_reference'])
+
+        sub = self.subscription
+        if sub is None:
+            logger.warning(
+                f"[Invoice {self.invoice_number}] paid but no subscription attached — skipping side effects"
+            )
+            return
+
+        # 1. Update subscription.plan لو اتغير
+        target_plan = self.plan_revision.plan
+        if sub.plan_id != target_plan.id:
+            sub.plan = target_plan
+        sub.billing_cycle_months = self.billing_cycle_months
+        sub.current_period_start = self.period_start
+        sub.current_period_end = self.period_end
+        sub.is_active = True
+        sub.save()  # Phase 0b TenantSubscription.save() بـ يـ sync Client.max_* لو الـ plan اتغير
+
+        # 2. Snapshot على الـ revision المحدد (مش الـ latest — عشان الـ audit accurate)
+        sub.snapshot_from_plan(revision=self.plan_revision, save=True)
+
+        # 3. Extend الـ tenant
+        tenant = self.tenant
+        tenant.subscription_end_date = self.period_end
+        tenant.status = 'active'
+        tenant.is_active = True
+        tenant.save(update_fields=['subscription_end_date', 'status', 'is_active'])
+
+        logger.info(
+            f"💸 [Invoice {self.invoice_number}] paid via {self.payment_provider} "
+            f"ref={self.payment_reference} — tenant '{tenant.schema_name}' "
+            f"locked @ {sub.locked_monthly_price} until {sub.current_period_end}"
+        )
+
+
 
 # =====================================================================
 # 🤖 8. حزم إضافات الذكاء الاصطناعي (AI Studio Add-ons)

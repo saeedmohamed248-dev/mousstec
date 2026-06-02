@@ -28,7 +28,11 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from clients.models import Client, DesignPurchase, EscrowLedger
+from clients.models import (
+    Client, DesignPurchase, EscrowLedger,
+    Plan, PlanRevision, PlatformInvoice, TenantSubscription,
+)
+from clients.services.plan_mapping import resolve_plan_slug
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -348,19 +352,93 @@ def paymob_callback(request):
             days_to_add = period_days_map.get(billing_period, 30)
 
             if shop:
+                # Idempotency: لو PlatformInvoice متعمل بنفس الـ payment_reference،
+                # بنرجع نجاح بدون ما نـ re-process. Paymob ممكن يبعت webhook مرتين.
+                if PlatformInvoice.objects.filter(
+                    payment_provider='paymob',
+                    payment_reference=str(order_id),
+                    status='paid',
+                ).exists():
+                    logger.info(f"⚠️ [PAYMOB] Duplicate callback for order {order_id} — already processed; returning success")
+                    cache.delete(f'paymob_order_{order_id}')
+                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
+
+                # Resolve الـ legacy plan string → Plan FK
+                target_slug = resolve_plan_slug(plan)
+                if not target_slug:
+                    logger.error(f"🔴 [PAYMOB] Unknown legacy plan '{plan}' for shop '{shop}' — cannot resolve to Plan.slug")
+                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=failed&reason=plan_unknown')
+
+                try:
+                    plan_obj = Plan.objects.get(slug=target_slug)
+                except Plan.DoesNotExist:
+                    logger.error(f"🔴 [PAYMOB] Plan slug '{target_slug}' not found in DB — run seed migration 0011")
+                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=failed&reason=plan_missing')
+
                 try:
                     with transaction.atomic():
                         tenant = Client.objects.select_for_update().get(schema_name=shop)
+
+                        # Find or create subscription
+                        sub, _sub_created = TenantSubscription.objects.get_or_create(
+                            tenant=tenant,
+                            defaults={'plan': plan_obj, 'is_active': False},
+                        )
+
+                        # Latest revision للـ plan (يبقى عندنا revision لأن Phase 2 backfill عمل واحدة لكل Plan)
+                        revision = PlanRevision.objects.filter(plan=plan_obj).order_by('-effective_from').first()
+                        if revision is None:
+                            # Defensive fallback: لو ما فيش revision، نـ create one من الـ plan الحالي
+                            revision = PlanRevision.create_from_plan(
+                                plan_obj, change_reason='Auto-created on first Paymob payment',
+                            )
+
+                        # Period dates
+                        period_start = max(tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
+                        period_end = period_start + timedelta(days=days_to_add)
+
+                        # Pricing — نستخدم Plan.price_for_period عشان الخصم متطابق مع صفحة الـ pricing
+                        months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+                        months = months_map.get(billing_period, 1)
+                        subtotal = (plan_obj.monthly_price * months).quantize(Decimal('0.01'))
+                        total = plan_obj.price_for_period(months)
+                        discount_amount = (subtotal - total).quantize(Decimal('0.01'))
+                        discount_percent = int(round((discount_amount / subtotal) * 100)) if subtotal else 0
+
+                        # Create + mark paid في الـ transaction نفسه
+                        invoice = PlatformInvoice.objects.create(
+                            tenant=tenant,
+                            subscription=sub,
+                            plan_revision=revision,
+                            period_start=period_start,
+                            period_end=period_end,
+                            billing_cycle_months=months,
+                            subtotal=subtotal,
+                            discount_percent=discount_percent,
+                            discount_amount=discount_amount,
+                            total=total,
+                            entitlements_snapshot=dict(plan_obj.entitlements or {}),
+                            status='issued',
+                            payment_provider='paymob',
+                            payment_reference=str(order_id),
+                        )
+                        invoice.mark_paid()  # يـ trigger snapshot + extend sub + extend tenant
+
+                        # 🪪 Legacy compat: نحدث Client.plan (CharField) عشان الـ
+                        # callsites القديمة (middleware.py:96، subscription_views.py:442)
+                        # تفضل تشتغل. Phase 5 هيشيل الـ CharField كله.
                         tenant.plan = plan
-                        tenant.status = 'active'
-                        tenant.is_active = True
-                        base_date = max(tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
-                        tenant.subscription_end_date = base_date + timedelta(days=days_to_add)
-                        tenant.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
+                        tenant.save(update_fields=['plan'])
+
                         cache.delete(f'paymob_order_{order_id}')
-                        logger.info(f"✅ Paymob payment success: {shop} -> {plan} ({billing_period}, +{days_to_add} days)")
+                        logger.info(
+                            f"✅ Paymob payment success: {shop} → {target_slug} "
+                            f"({billing_period}, +{days_to_add} days, invoice={invoice.invoice_number})"
+                        )
                 except Client.DoesNotExist:
                     logger.error(f"🔴 Paymob callback: tenant {shop} not found")
+                except Exception as e:
+                    logger.exception(f"🔴 Paymob callback failed for {shop} order={order_id}: {e}")
 
             return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
 
