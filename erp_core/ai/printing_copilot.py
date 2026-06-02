@@ -66,12 +66,35 @@ ALWAYS embed (when relevant to the category):
 • Lighting: studio lighting, soft shadows for product mockups
 • Avoid: blurry, low-res, watermarks, lorem ipsum, fingers, text artifacts
 
+🅰️ CRITICAL — ARABIC TEXT EXTRACTION (READ CAREFULLY):
+FLUX cannot render Arabic. If the brief mentions explicit text/phrases to print
+on the design — patterns like:
+  • "مكتوب عليه X" / "مكتوبة X" / "مكتوب X"
+  • "نص X" / "نصها X" / "العبارة X"
+  • "كلمة X" / "كتابة X" / "اسم X"
+  • text inside quotes ("X" / 'X' / «X»)
+Extract that text VERBATIM (preserve original Arabic script, no translation) into
+the "text_overlay" field. Then:
+  • DO NOT include Arabic characters in the "prompt" field.
+  • In the prompt, describe a CLEAN BLANK rectangular area where text will be
+    overlaid afterwards (e.g. "...centered horizontal blank zone roughly 50% width
+    × 18% height in the chest region, evenly lit, ready for text overlay...").
+  • For t-shirts/clothing → position="chest". Posters/banners → "center". Cards → "bottom".
+
+If NO explicit text content in the brief → set "text_overlay": null.
+
 Return STRICT JSON:
 {
   "prompt": "<one paragraph, English, max 80 words, dense visual detail>",
   "negative_prompt": "<short list of things to avoid>",
   "style_tag": "<e.g., 'minimal-luxury-print' or 'baroque-gold'>",
-  "recommended_size": "<e.g., '1024x1024' or '1024x1536'>"
+  "recommended_size": "<e.g., '1024x1024' or '1024x1536'>",
+  "text_overlay": {
+    "text": "<extracted Arabic verbatim, max 200 chars>",
+    "position": "<center | top | bottom | chest>",
+    "color": "<hex, default #000000>",
+    "font_ratio": <float, default 0.08 (use 0.045 for t-shirts/apparel)>
+  } | null
 }
 """.strip()
 
@@ -115,11 +138,78 @@ def refine_design_prompt(
         parsed.setdefault('style_tag', 'premium-print')
         parsed.setdefault('recommended_size', size_hint or '1024x1024')
         parsed.setdefault('prompt', brief)
+        parsed.setdefault('text_overlay', None)
+
+        # 🛡️ FALLBACK: لو الـ LLM ما رجعش text_overlay لكن الـ brief فيه
+        # نص صريح للطباعة، نـ extract يدوياً بـ regex عشان مفيش Arabic
+        # garbled يطلع من FLUX.
+        if not parsed['text_overlay']:
+            extracted = _extract_text_overlay_from_brief(brief, category)
+            if extracted:
+                parsed['text_overlay'] = extracted
+                logger.info(f'[FLUX REFINER] LLM forgot text_overlay → extracted via regex: {extracted["text"][:50]!r}')
+
         parsed['success'] = True
         return parsed
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f'[FLUX REFINER] JSON parse failed: {e}')
         return fallback
+
+
+def _extract_text_overlay_from_brief(brief: str, category: str) -> dict | None:
+    """
+    Heuristic extraction للنص اللي المستخدم عاوزه على التصميم.
+    يـ catch الـ patterns الشائعة في الـ Arabic briefs.
+
+    يرجع dict شكل {text, position, color, font_ratio} أو None.
+    """
+    if not brief or not brief.strip():
+        return None
+
+    # Patterns بترتيب الأولوية — الأكثر تحديداً الأول.
+    # Capture greedy-but-bounded: 2-120 chars بعد الـ keyword، يقف عند
+    # علامة اقتباس/newline/نقطة (الـ terminator اختياري عشان نـ catch جمل في
+    # نهاية الـ brief بدون punctuation).
+    patterns = [
+        r'مكتوب\s+عليه\s+["\'«]?\s*([^"\'»\n.،]{2,120})',
+        r'مكتوبة?\s+["\'«]?\s*([^"\'»\n.،]{2,120})',
+        r'نص(?:ها|ه)?\s+["\'«]?\s*([^"\'»\n.،]{2,120})',
+        r'(?:العبارة|الجملة|الكلمة|كلمة)\s+["\'«]?\s*([^"\'»\n.،]{2,120})',
+        r'كتابة\s+["\'«]?\s*([^"\'»\n.،]{2,120})',
+        # Quotes-only fallback (last resort) — نص بين علامتي اقتباس صريحة
+        r'["«]([^"»\n]{2,100})["»]',
+    ]
+
+    extracted_text = None
+    for pat in patterns:
+        m = re.search(pat, brief)
+        if m:
+            candidate = m.group(1).strip()
+            # تخطى لو القيمة قصيرة جداً أو طويلة جداً
+            if 2 <= len(candidate) <= 200:
+                extracted_text = candidate
+                break
+
+    if not extracted_text:
+        return None
+
+    # تحديد الـ position حسب الـ category
+    cat_lower = (category or '').lower()
+    if cat_lower in ('tshirt', 't_shirt', 'shirt', 'apparel', 'hoodie'):
+        position, font_ratio = 'chest', 0.045
+    elif cat_lower in ('business_card', 'card', 'invitation'):
+        position, font_ratio = 'bottom', 0.07
+    elif cat_lower in ('poster', 'banner', 'flyer'):
+        position, font_ratio = 'center', 0.09
+    else:
+        position, font_ratio = 'center', 0.08
+
+    return {
+        'text': extracted_text[:200],
+        'position': position,
+        'color': '#000000',
+        'font_ratio': font_ratio,
+    }
 
 
 # =============================================================================
@@ -350,5 +440,8 @@ def run_copilot_pipeline(
         'model': image_result.get('model'),
         'cost_estimate_egp': image_result.get('cost_estimate_egp', 0),
         'refiner_status': 'ok' if refined.get('success') else 'fallback',
+        # 🅰️ Phase B: text_overlay metadata للـ post-processing في copilot_views
+        # لو موجود → الـ caller يتولى تطبيق الـ overlay على الصورة الناتجة.
+        'text_overlay': refined.get('text_overlay'),
         'error': image_result.get('error') if not image_result.get('success') else None,
     }

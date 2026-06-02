@@ -119,6 +119,32 @@ def copilot_generate(request):
         result['message'] = msg
         return JsonResponse(result, status=200)
 
+    # 🅰️ Phase B: Apply Arabic text overlay if refiner extracted text from brief
+    text_overlay_info = result.get('text_overlay')
+    overlay_applied = False
+    if text_overlay_info and result.get('image_url'):
+        try:
+            from .text_overlay import overlay_text_on_image_url
+            overlay_result = overlay_text_on_image_url(
+                image_url=result['image_url'],
+                text=text_overlay_info['text'],
+                position=text_overlay_info.get('position', 'center'),
+                color=text_overlay_info.get('color', '#000000'),
+                font_size_ratio=float(text_overlay_info.get('font_ratio', 0.08)),
+            )
+            if overlay_result.get('success'):
+                new_url = overlay_result['url']
+                if new_url and new_url.startswith('/'):
+                    new_url = request.build_absolute_uri(new_url)
+                result['image_url'] = new_url
+                overlay_applied = True
+                logger.info(f'[COPILOT VIEW] text overlay applied → {new_url}')
+            else:
+                logger.warning(f'[COPILOT VIEW] overlay failed (non-fatal): {overlay_result.get("error")}')
+        except Exception as e:
+            logger.warning(f'[COPILOT VIEW] overlay exception (non-fatal): {e}')
+    result['text_overlay_applied'] = overlay_applied
+
     # ✅ Success — اخصم credit + احفظ في الـ history
     try:
         consume_result = _consume_credit_after_success(audience, tenant, customer, {
