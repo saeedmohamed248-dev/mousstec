@@ -270,7 +270,9 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             messages.SUCCESS,
         )
 
-    exclude = ('auto_create_schema', 'auto_drop_schema')
+    # 🛑 auto_create_schema / auto_drop_schema هما class attributes من
+    # TenantMixin، مش model fields — وضعهم في exclude بيرفع FieldError ويوقع
+    # كل صفحات /secure-portal/clients/client/. سيبهم out of the form بدون exclude.
 
 # =====================================================================
 # 🛒 3. إدارة السوق المركزي (Global Marketplace - مصفى ومؤمن 🔐)
