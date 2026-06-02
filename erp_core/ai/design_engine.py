@@ -68,36 +68,64 @@ def _together_key() -> str:
 # =============================================================================
 _SCHEMA_SYSTEM = """You are a world-class creative prompt engineer for an image-generation system.
 
-Given a user's short raw idea in any language (Arabic or English), about ANY design domain
-(architectural interior design, footwear manufacturing, apparel, packaging, industrial product
-design, graphic design, jewelry, automotive, anything), you must:
+Given a user's short raw idea in any language (Arabic or English) about ANY design domain
+(interior design, footwear, apparel, packaging, industrial, graphic, jewelry, automotive,
+anything), you must:
 
 1. Identify the most specific design domain.
-2. Propose 3 to 5 dropdown fields that an expert practitioner in THAT exact domain would ask
-   the user to specify before generating a professional reference image.
-3. For each field, provide 4 to 7 carefully chosen options written in the same language as
-   the raw idea (Arabic if Arabic, English if English).
+2. Propose 4 to 7 fields an expert practitioner in THAT exact domain would ask before
+   generating a professional reference image. Each field has a TYPE chosen from this list,
+   picked to match what makes sense for the domain (don't use 'select' for everything):
 
-You must return STRICT JSON with this exact shape:
+   • "select"       — dropdown with 4-7 fixed options (e.g. style, mood, sub-category).
+   • "multi_select" — multiple choices from 4-7 options (e.g. furniture items, features).
+   • "text"         — short free text (max ~60 chars) — for brand names, slogans, model names.
+   • "number"       — single numeric value with optional unit (e.g. budget, weight, age).
+   • "dimensions"   — 2D (width × height) or 3D (length × width × height) measurements
+                     with a unit. Use this for any sized object: rooms, t-shirts, packaging.
+   • "color"        — single color picker (HTML color). Use for brand colors, walls, fabric.
+   • "range"        — min–max numeric range (e.g. price range, age range).
+
+3. Pick the RIGHT type per field:
+   • Room/space → ALWAYS include a "dimensions" field (length × width × height, meters).
+   • Logo/branding → "text" for brand name + 2× "color" + "select" for typography style.
+   • Apparel/t-shirt → "select" for size (S/M/L/XL/XXL) + "dimensions" for print area
+     (cm) + "color" for shirt + "color" for print + "select" for print position.
+   • Packaging → "dimensions" (cm) + "text" for product name + "color" + "select" for finish.
+   • Interior → "dimensions" + "color" for walls + "multi_select" for furniture items +
+     "select" for style + "select" for lighting.
+   • Footwear → "select" for size range + "select" for material + "color" + "select" for
+     view angle + "select" for sole type.
+   • Industrial/automotive → "color" + "dimensions" + "select" for material + "select"
+     for view.
+
+4. Field shape (return STRICT JSON, no markdown, no commentary):
+
 {
-  "domain": "<short label, e.g. 'Interior Design' or 'Footwear Manufacturing'>",
-  "domain_ar": "<Arabic translation of the domain>",
+  "domain": "<short English label>",
+  "domain_ar": "<Arabic translation>",
   "fields": [
     {
-      "key": "<snake_case stable key, e.g. 'architectural_style'>",
-      "label": "<human label in the user's language>",
-      "options": ["<opt1>", "<opt2>", "<opt3>", "..."]
+      "key": "<snake_case_key>",
+      "label": "<label in user's language>",
+      "type": "<one of: select, multi_select, text, number, dimensions, color, range>",
+      "options": ["..."],          // ONLY for select / multi_select (4-7 items)
+      "unit": "m" | "cm" | "mm" | "in" | "ج.م" | "kg" | "g" | "%" | "",
+      "axes": ["length","width","height"]  // ONLY for dimensions: 2 or 3 axes
+      "min": <num>, "max": <num>, "step": <num>,   // ONLY for number / range
+      "default": "<sensible default that hints at typical professional choice>",
+      "placeholder": "<for text fields>"
     },
     ...
   ]
 }
 
 Rules:
-- NEVER reuse fields across unrelated domains. Slippers must NOT get 'architectural style';
-  living rooms must NOT get 'sole type'.
-- Field keys are snake_case English; labels follow the user's language.
-- Options must be concrete and visually meaningful (a Flux image model will use them).
-- Return JSON only, no markdown fences, no commentary."""
+- Field keys snake_case English; labels in user's language.
+- Provide sensible "default" values (the user can edit; defaults must be production-grade).
+- Options for select must be concrete and visually meaningful.
+- NEVER reuse fields across unrelated domains.
+- Return JSON only."""
 
 
 _MEGA_SYSTEM = """You are a senior prompt engineer for FLUX.1 image generation.
@@ -197,6 +225,59 @@ def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> d
     return {'success': False, 'error': last_error, 'detail': last_detail, 'all_models_failed': True}
 
 
+def describe_reference_image(image_data_url: str, *, hint: str = '') -> dict[str, Any]:
+    """يحلل صورة مرفوعة (data URL base64) بـ Together Vision model ويرجع
+    وصف مختصر بالإنجليزي يقدر يندمج في الـ Mega Prompt.
+
+    image_data_url: 'data:image/jpeg;base64,...' أو 'data:image/png;base64,...'
+    hint: تلميح للوصف (مثلاً: 'logo' / 'wall texture' / 'product reference')
+    """
+    if not image_data_url or not image_data_url.startswith('data:image/'):
+        return {'success': False, 'error': 'invalid_image_data'}
+
+    key = _together_key()
+    if not key:
+        return {'success': False, 'error': 'together_key_missing'}
+
+    system = (
+        'You are a visual analyst for an image-generation pipeline. '
+        'Describe the uploaded reference image in 1-3 sentences focused on '
+        'visual style: colors (use hex if possible), texture, composition, '
+        'shapes, materials, mood. Be specific and useful for FLUX prompting. '
+        'Reply with PLAIN ENGLISH ONLY — no JSON, no markdown.'
+    )
+    user_content = [
+        {'type': 'text', 'text': f'Hint: {hint or "general reference"}. Describe this image:'},
+        {'type': 'image_url', 'image_url': {'url': image_data_url}},
+    ]
+    payload = {
+        # Together vision-capable models
+        'model': 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo',
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': user_content},
+        ],
+        'temperature': 0.3,
+        'max_tokens': 250,
+    }
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+    try:
+        resp = requests.post(_TOGETHER_CHAT_URL, json=payload, headers=headers, timeout=_TIMEOUT_LLM)
+        if resp.status_code != 200:
+            logger.warning(f'[DESIGN VISION] HTTP {resp.status_code}: {resp.text[:200]}')
+            return {'success': False, 'error': f'vision_http_{resp.status_code}'}
+        data = resp.json()
+        desc = (data.get('choices') or [{}])[0].get('message', {}).get('content', '').strip()
+        if not desc:
+            return {'success': False, 'error': 'vision_empty'}
+        return {'success': True, 'description': desc[:600]}
+    except requests.Timeout:
+        return {'success': False, 'error': 'vision_timeout'}
+    except Exception as e:
+        logger.exception('[DESIGN VISION] crashed')
+        return {'success': False, 'error': str(e)[:120]}
+
+
 def analyze_idea(raw_idea: str) -> dict[str, Any]:
     """يحلل فكرة المستخدم ويرجع dynamic schema (domain + dropdowns)."""
     raw = (raw_idea or '').strip()
@@ -216,26 +297,73 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
     if not isinstance(schema, dict) or 'fields' not in schema or not isinstance(schema['fields'], list):
         return {'success': False, 'error': 'invalid_schema_shape', 'raw': schema}
 
-    # Clamp 3-5 fields
-    schema['fields'] = schema['fields'][:5]
+    # Clamp 7 fields max
+    schema['fields'] = schema['fields'][:7]
     if len(schema['fields']) < 2:
         return {'success': False, 'error': 'too_few_fields', 'raw': schema}
 
-    # Normalize each field
+    _ALLOWED_TYPES = {'select', 'multi_select', 'text', 'number', 'dimensions', 'color', 'range'}
+
+    # Normalize each field according to its type
     cleaned = []
     for f in schema['fields']:
         if not isinstance(f, dict):
             continue
         key = str(f.get('key') or '').strip()
         label = str(f.get('label') or '').strip()
-        opts = f.get('options') or []
-        if not key or not label or not isinstance(opts, list) or len(opts) < 2:
+        ftype = str(f.get('type') or 'select').strip().lower()
+        if not key or not label:
             continue
-        cleaned.append({
+        if ftype not in _ALLOWED_TYPES:
+            ftype = 'select'
+
+        field = {
             'key': re.sub(r'[^a-z0-9_]', '_', key.lower())[:40] or 'field',
             'label': label[:80],
-            'options': [str(o)[:80] for o in opts[:8]],
-        })
+            'type': ftype,
+        }
+        # Optional metadata
+        unit = f.get('unit')
+        if unit:
+            field['unit'] = str(unit)[:10]
+        default = f.get('default')
+        if default not in (None, ''):
+            field['default'] = str(default)[:100]
+        placeholder = f.get('placeholder')
+        if placeholder:
+            field['placeholder'] = str(placeholder)[:100]
+
+        if ftype in ('select', 'multi_select'):
+            opts = f.get('options') or []
+            if not isinstance(opts, list) or len(opts) < 2:
+                # Skip — invalid select/multi_select
+                continue
+            field['options'] = [str(o)[:80] for o in opts[:8]]
+
+        elif ftype == 'dimensions':
+            axes = f.get('axes') or ['length', 'width']
+            if not isinstance(axes, list) or len(axes) not in (2, 3):
+                axes = ['length', 'width']
+            field['axes'] = [str(a)[:20] for a in axes[:3]]
+            field.setdefault('unit', 'cm')
+
+        elif ftype in ('number', 'range'):
+            for k_param in ('min', 'max', 'step'):
+                v = f.get(k_param)
+                if isinstance(v, (int, float)):
+                    field[k_param] = v
+
+        elif ftype == 'color':
+            # default should be a hex color
+            d = field.get('default', '')
+            if not (d.startswith('#') and len(d) in (4, 7)):
+                field['default'] = '#7c3aed'
+
+        elif ftype == 'text':
+            field.setdefault('placeholder', '')
+
+        cleaned.append(field)
+
     if len(cleaned) < 2:
         return {'success': False, 'error': 'no_valid_fields'}
 
@@ -251,20 +379,27 @@ def compose_mega_prompt(
     raw_idea: str,
     domain: str,
     selections: dict[str, str],
+    reference_descriptions: list[str] | None = None,
 ) -> dict[str, Any]:
-    """يدمج الفكرة + الاختيارات في English mega prompt للـ FLUX."""
+    """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt."""
     raw = (raw_idea or '').strip()
     if not raw:
         return {'success': False, 'error': 'empty_idea'}
 
-    # Build user message
     selection_lines = '\n'.join(
         f'- {k}: {v}' for k, v in (selections or {}).items() if v
     )
+    refs = ''
+    if reference_descriptions:
+        refs = '\n\nReference images uploaded by the user (incorporate their visual style):\n'
+        for i, desc in enumerate(reference_descriptions, 1):
+            refs += f'  [{i}] {desc}\n'
+
     user_msg = (
         f'Raw idea: {raw}\n'
         f'Detected domain: {domain or "General"}\n'
         f'User selections:\n{selection_lines or "(none)"}'
+        + refs
     )
 
     result = _call_together_llm(_MEGA_SYSTEM, user_msg, temperature=0.3)

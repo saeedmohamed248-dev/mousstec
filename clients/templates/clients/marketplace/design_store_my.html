@@ -270,6 +270,21 @@
         <div id="uaiSchemaBox" style="display:none;margin-top:14px;padding:14px;background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;">
             <div id="uaiDomainBadge" style="margin-bottom:12px;font-size:12px;color:#c4b5fd;font-weight:800;"></div>
             <div id="uaiFields"></div>
+
+            <!-- 🖼️ Reference Images Uploader -->
+            <div style="margin-top:18px;padding:14px;background:rgba(15,23,42,0.7);border:1px dashed #7c3aed;border-radius:10px;">
+                <label style="display:block;font-size:12px;color:#c4b5fd;font-weight:800;margin-bottom:8px;">
+                    <i class="fas fa-image"></i> 📎 ارفق صور مرجعية (اختياري، حتى 3 صور — لوجو، حائط، عينة لون...)
+                </label>
+                <p style="font-size:11px;color:#94a3b8;margin-bottom:10px;">
+                    💡 السيستم بيحلل كل صورة ويضمّ تفاصيلها (الألوان، الملمس، الأسلوب) في التصميم النهائي.
+                </p>
+                <input type="file" id="uaiRefFiles" accept="image/png,image/jpeg,image/webp" multiple
+                       onchange="uaiOnRefFiles(this)"
+                       style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#cbd5e1;font-family:inherit;font-size:12px;">
+                <div id="uaiRefPreviews" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+            </div>
+
             <button type="button" id="uaiGenBtn" onclick="uaiGenerate()"
                     style="margin-top:14px;width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;padding:13px;border-radius:10px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
                 <i class="fas fa-wand-magic-sparkles"></i> ✨ ولّد التصميم
@@ -968,6 +983,197 @@ let _uaiLastResult = null; // last generation result
 
 function _uaiEsc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
+// ─────────────────────────────────────────────────────────────────────────
+// 🖼️ Reference image uploads — convert to data URL, max 3 images, max 2MB
+// ─────────────────────────────────────────────────────────────────────────
+let _uaiRefImages = [];  // [{data_url, hint, filename}]
+
+function uaiOnRefFiles(input) {
+    const files = Array.from(input.files || []).slice(0, 3);
+    _uaiRefImages = [];
+    const previewBox = document.getElementById('uaiRefPreviews');
+    previewBox.innerHTML = '';
+    if (!files.length) return;
+
+    files.forEach((file, idx) => {
+        if (file.size > 2 * 1024 * 1024) {
+            toast('⚠️ ' + file.name + ' أكبر من 2 ميجا — اتجاهلت', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const i = _uaiRefImages.length;
+            _uaiRefImages.push({ data_url: dataUrl, hint: '', filename: file.name });
+
+            const card = document.createElement('div');
+            card.style.cssText = 'position:relative;width:120px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:6px;';
+            card.innerHTML =
+                '<img src="' + dataUrl + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;">'
+                + '<input type="text" maxlength="40" placeholder="نوع المرجع (مثال: لوجو)" '
+                + 'oninput="_uaiRefImages[' + i + '].hint=this.value" '
+                + 'style="width:100%;margin-top:5px;padding:5px;font-size:10px;border-radius:5px;border:1px solid #475569;background:#1e293b;color:#cbd5e1;font-family:inherit;">'
+                + '<button onclick="uaiRemoveRef(' + i + ')" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-weight:900;font-size:11px;">✕</button>';
+            previewBox.appendChild(card);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function uaiRemoveRef(idx) {
+    _uaiRefImages.splice(idx, 1);
+    // Re-render previews
+    const fakeInput = { files: [] };
+    document.getElementById('uaiRefPreviews').innerHTML = '';
+    // Re-build cards manually from remaining _uaiRefImages
+    const previewBox = document.getElementById('uaiRefPreviews');
+    _uaiRefImages.forEach((ref, i) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'position:relative;width:120px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:6px;';
+        card.innerHTML =
+            '<img src="' + ref.data_url + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;">'
+            + '<input type="text" maxlength="40" placeholder="نوع المرجع" value="' + _uaiEsc(ref.hint) + '" '
+            + 'oninput="_uaiRefImages[' + i + '].hint=this.value" '
+            + 'style="width:100%;margin-top:5px;padding:5px;font-size:10px;border-radius:5px;border:1px solid #475569;background:#1e293b;color:#cbd5e1;font-family:inherit;">'
+            + '<button onclick="uaiRemoveRef(' + i + ')" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-weight:900;font-size:11px;">✕</button>';
+        previewBox.appendChild(card);
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 🎛️ Render a single field based on its type — supports 7 input types
+// ─────────────────────────────────────────────────────────────────────────
+function _uaiRenderField(f) {
+    const key = _uaiEsc(f.key);
+    const label = _uaiEsc(f.label);
+    const unit = f.unit || '';
+    const def = f.default || '';
+    const baseStyle = 'width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:13px;box-sizing:border-box;';
+    const wrap = (inner) =>
+        '<div class="form-group uai-field" data-uai-key="' + key + '" data-uai-type="' + _uaiEsc(f.type) + '" style="margin-bottom:14px;">'
+        + '<label style="display:block;margin-bottom:6px;font-size:12px;color:#cbd5e1;font-weight:700;">'
+        + label + (unit ? ' <span style="color:#94a3b8;font-weight:500;">(' + _uaiEsc(unit) + ')</span>' : '')
+        + '</label>' + inner + '</div>';
+
+    if (f.type === 'select') {
+        const opts = (f.options || []).map(o =>
+            '<option value="' + _uaiEsc(o) + '"' + (o === def ? ' selected' : '') + '>' + _uaiEsc(o) + '</option>'
+        ).join('');
+        return wrap('<select data-uai-input style="' + baseStyle + '">' + opts + '</select>');
+    }
+
+    if (f.type === 'multi_select') {
+        const opts = (f.options || []).map(o =>
+            '<label style="display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);padding:6px 12px;border-radius:8px;margin:3px;cursor:pointer;font-size:12px;color:#e2e8f0;">'
+            + '<input type="checkbox" data-uai-input value="' + _uaiEsc(o) + '" style="width:14px;height:14px;">'
+            + _uaiEsc(o) + '</label>'
+        ).join('');
+        return wrap('<div style="display:flex;flex-wrap:wrap;gap:4px;">' + opts + '</div>');
+    }
+
+    if (f.type === 'text') {
+        const ph = _uaiEsc(f.placeholder || '');
+        return wrap('<input type="text" data-uai-input maxlength="100" placeholder="' + ph + '" value="' + _uaiEsc(def) + '" style="' + baseStyle + '">');
+    }
+
+    if (f.type === 'number') {
+        const min = f.min !== undefined ? ' min="' + f.min + '"' : '';
+        const max = f.max !== undefined ? ' max="' + f.max + '"' : '';
+        const step = f.step !== undefined ? ' step="' + f.step + '"' : ' step="any"';
+        return wrap('<input type="number" data-uai-input' + min + max + step + ' value="' + _uaiEsc(def) + '" style="' + baseStyle + '">');
+    }
+
+    if (f.type === 'range') {
+        const min = f.min !== undefined ? f.min : 0;
+        const max = f.max !== undefined ? f.max : 100;
+        const step = f.step !== undefined ? f.step : 1;
+        return wrap(
+            '<div style="display:flex;gap:8px;align-items:center;">'
+            + '<input type="number" data-uai-input data-uai-range="from" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="من" style="' + baseStyle + 'flex:1;">'
+            + '<span style="color:#94a3b8;">→</span>'
+            + '<input type="number" data-uai-input data-uai-range="to" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="إلى" style="' + baseStyle + 'flex:1;">'
+            + '</div>'
+        );
+    }
+
+    if (f.type === 'dimensions') {
+        const axes = f.axes || ['length', 'width'];
+        const axisLabel = { length: 'طول', width: 'عرض', height: 'ارتفاع', depth: 'عمق' };
+        const inputs = axes.map(ax =>
+            '<div style="flex:1;">'
+            + '<label style="display:block;font-size:10px;color:#94a3b8;margin-bottom:3px;">' + _uaiEsc(axisLabel[ax] || ax) + '</label>'
+            + '<input type="number" data-uai-input data-uai-axis="' + _uaiEsc(ax) + '" min="0" step="any" placeholder="0" style="' + baseStyle + '">'
+            + '</div>'
+        ).join('<span style="color:#7c3aed;font-weight:900;align-self:flex-end;padding-bottom:10px;">×</span>');
+        return wrap('<div style="display:flex;gap:6px;align-items:flex-end;">' + inputs + '</div>');
+    }
+
+    if (f.type === 'color') {
+        const c = def || '#7c3aed';
+        return wrap(
+            '<div style="display:flex;gap:8px;align-items:center;">'
+            + '<input type="color" data-uai-input value="' + _uaiEsc(c) + '" style="width:60px;height:42px;border-radius:8px;border:1px solid #475569;background:#0f172a;cursor:pointer;">'
+            + '<input type="text" data-uai-input-hex maxlength="7" pattern="#[0-9a-fA-F]{6}" value="' + _uaiEsc(c) + '" style="' + baseStyle + 'flex:1;font-family:monospace;">'
+            + '</div>'
+        );
+    }
+
+    // Fallback
+    return wrap('<input type="text" data-uai-input style="' + baseStyle + '">');
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 📥 Collect all values from rendered fields, formatting per type
+// ─────────────────────────────────────────────────────────────────────────
+function _uaiCollectSelections() {
+    const out = {};
+    document.querySelectorAll('#uaiFields .uai-field').forEach(wrap => {
+        const key = wrap.getAttribute('data-uai-key');
+        const type = wrap.getAttribute('data-uai-type');
+        if (!key) return;
+
+        if (type === 'select') {
+            const el = wrap.querySelector('[data-uai-input]');
+            if (el && el.value) out[key] = el.value;
+        } else if (type === 'multi_select') {
+            const vals = Array.from(wrap.querySelectorAll('[data-uai-input]:checked')).map(el => el.value);
+            if (vals.length) out[key] = vals.join('، ');
+        } else if (type === 'text') {
+            const el = wrap.querySelector('[data-uai-input]');
+            if (el && el.value.trim()) out[key] = el.value.trim();
+        } else if (type === 'number') {
+            const el = wrap.querySelector('[data-uai-input]');
+            const unit = wrap.querySelector('label span')?.textContent?.replace(/[()]/g, '').trim() || '';
+            if (el && el.value !== '') out[key] = unit ? `${el.value} ${unit}` : el.value;
+        } else if (type === 'range') {
+            const from = wrap.querySelector('[data-uai-range="from"]');
+            const to = wrap.querySelector('[data-uai-range="to"]');
+            if (from?.value || to?.value) {
+                out[key] = `${from?.value || '?'} → ${to?.value || '?'}`;
+            }
+        } else if (type === 'dimensions') {
+            const parts = Array.from(wrap.querySelectorAll('[data-uai-axis]'))
+                .map(el => el.value || '?').filter(v => v !== '?' && v !== '');
+            const unit = wrap.querySelector('label span')?.textContent?.replace(/[()]/g, '').trim() || '';
+            if (parts.length) out[key] = parts.join(' × ') + (unit ? ' ' + unit : '');
+        } else if (type === 'color') {
+            const el = wrap.querySelector('[data-uai-input]');
+            if (el && el.value) out[key] = el.value;
+        }
+    });
+    // Color hex sync
+    document.querySelectorAll('#uaiFields [data-uai-input-hex]').forEach(hex => {
+        const color = hex.previousElementSibling;
+        if (color && color.type === 'color') {
+            color.addEventListener('input', () => { hex.value = color.value; });
+            hex.addEventListener('input', () => {
+                if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) color.value = hex.value;
+            });
+        }
+    });
+    return out;
+}
+
 async function uaiAnalyze() {
     const idea = (document.getElementById('uaiIdea').value || '').trim();
     if (!idea) { toast('اكتب فكرة التصميم الأول', 'error'); return; }
@@ -1005,14 +1211,7 @@ async function uaiAnalyze() {
         badge.innerHTML = '<i class="fas fa-tag"></i> المجال: <span style="color:#fff;">'
             + _uaiEsc(d.domain_ar || d.domain) + '</span>';
 
-        fieldsBox.innerHTML = d.fields.map(f =>
-            '<div class="form-group" style="margin-bottom:12px;">'
-            + '<label style="display:block;margin-bottom:6px;font-size:12px;color:#cbd5e1;font-weight:700;">'
-            + _uaiEsc(f.label) + '</label>'
-            + '<select data-uai-key="' + _uaiEsc(f.key) + '" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:13px;">'
-            + f.options.map(o => '<option value="' + _uaiEsc(o) + '">' + _uaiEsc(o) + '</option>').join('')
-            + '</select></div>'
-        ).join('');
+        fieldsBox.innerHTML = d.fields.map(f => _uaiRenderField(f)).join('');
 
         box.style.display = 'block';
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1027,10 +1226,7 @@ async function uaiAnalyze() {
 async function uaiGenerate() {
     if (!_uaiSchema) { toast('حلل الفكرة الأول', 'error'); return; }
     const idea = (document.getElementById('uaiIdea').value || '').trim();
-    const selections = {};
-    document.querySelectorAll('#uaiFields [data-uai-key]').forEach(el => {
-        selections[el.getAttribute('data-uai-key')] = el.value;
-    });
+    const selections = _uaiCollectSelections();
 
     const btn = document.getElementById('uaiGenBtn');
     const orig = btn.innerHTML;
@@ -1050,6 +1246,7 @@ async function uaiGenerate() {
                 selections: selections,
                 schema: { fields: _uaiSchema.fields, domain: _uaiSchema.domain },
                 audience: 'customer',
+                reference_images: _uaiRefImages.map(r => ({ data_url: r.data_url, hint: r.hint })),
             }),
             credentials: 'same-origin',
         });
@@ -1113,20 +1310,97 @@ async function uaiGenerate() {
 
 function uaiSendToPrint() {
     if (!_uaiLastResult || !_uaiLastResult.image_url) { toast('ولّد التصميم الأول', 'error'); return; }
-    // نحوّل نتيجة الـ universal flow لـ shape اللي openSendToPrintBox بيتوقعه
-    const selectionsTxt = Object.entries(_uaiLastResult.selections || {})
+    if (document.getElementById('uaiStpBox')) {
+        document.getElementById('uaiStpBox').scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
+
+    const box = document.getElementById('uaiResultBox');
+    box.insertAdjacentHTML('beforeend',
+        '<div id="uaiStpBox" style="margin-top:14px;padding:16px;background:rgba(15,23,42,0.6);border:1px solid #7c3aed;border-radius:12px;">'
+        + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;text-align:center;"><i class="fas fa-print"></i> تفاصيل طلب الطباعة</p>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">نوع المنتج</label>'
+        +     '<select id="uaiStpType" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;">'
+        +         '<option value="business_card">💳 كارت بزنس</option>'
+        +         '<option value="tshirt">👕 تيشرت</option>'
+        +         '<option value="flyer">📄 فلاير</option>'
+        +         '<option value="poster">🖼️ بوستر</option>'
+        +         '<option value="banner">🪧 بنر / ستاند</option>'
+        +         '<option value="mug">☕ ماج</option>'
+        +         '<option value="sticker">🏷️ ستيكر</option>'
+        +         '<option value="packaging">📦 تغليف / علبة</option>'
+        +         '<option value="menu">📋 منيو</option>'
+        +         '<option value="invitation">💌 كارت دعوة</option>'
+        +         '<option value="other" selected>✨ أخرى (حسب التصميم)</option>'
+        +     '</select></div>'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">الكمية</label>'
+        +     '<input id="uaiStpQty" type="number" min="1" value="100" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;"></div>'
+        + '</div>'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">رقم واتساب للتواصل</label>'
+        + '<input id="uaiStpPhone" type="text" placeholder="01xxxxxxxxx" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">عنوان التسليم</label>'
+        + '<input id="uaiStpAddress" type="text" placeholder="العنوان بالكامل + علامة مميزة" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)</label>'
+        + '<textarea id="uaiStpNotes" rows="2" placeholder="مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..." style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;resize:vertical;margin-bottom:14px;"></textarea>'
+        + '<div style="display:flex;gap:8px;">'
+        +     '<button onclick="uaiSubmitPrint()" id="uaiStpSubmitBtn" style="flex:1;padding:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة</button>'
+        +     '<button onclick="document.getElementById(\'uaiStpBox\').remove()" style="padding:13px 20px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">إلغاء</button>'
+        + '</div></div>'
+    );
+    document.getElementById('uaiStpBox').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function uaiSubmitPrint() {
+    if (!_uaiLastResult) return;
+    const btn = document.getElementById('uaiStpSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+
+    // نضم اختيارات المستخدم في الـ brief عشان المطبعة تشوفها
+    const selTxt = Object.entries(_uaiLastResult.selections || {})
         .map(([k, v]) => `${k}: ${v}`).join(' | ');
-    _lastFluxResult = {
+
+    const payload = {
         image_url: _uaiLastResult.image_url,
         engineered_prompt: _uaiLastResult.mega_prompt,
         negative_prompt: _uaiLastResult.negative_prompt,
-        raw_brief: _uaiLastResult.raw_idea + (selectionsTxt ? ' [' + selectionsTxt + ']' : ''),
-        // CustomerDesign.category restricted by CHOICES → نخليها 'other' والـ domain يروح في الـ title
+        brief: _uaiLastResult.raw_idea + (selTxt ? ' — [' + selTxt + ']' : ''),
         category: 'other',
         size: _uaiLastResult.size,
         model: _uaiLastResult.model,
+        title: ((_uaiLastResult.domain || '') + ' - ' + (_uaiLastResult.raw_idea || '')).slice(0, 60),
+        product_type: document.getElementById('uaiStpType').value,
+        quantity: parseInt(document.getElementById('uaiStpQty').value || '1', 10),
+        delivery_phone: document.getElementById('uaiStpPhone').value.trim(),
+        delivery_address: document.getElementById('uaiStpAddress').value.trim(),
+        notes: document.getElementById('uaiStpNotes').value.trim(),
     };
-    openSendToPrintBox();
+
+    try {
+        const r = await fetch('/printing-copilot/api/send-to-print/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
+            body: JSON.stringify(payload),
+            credentials: 'same-origin',
+        });
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('uaiStpBox').innerHTML =
+                '<p style="text-align:center;color:#6ee7b7;font-weight:800;font-size:16px;padding:14px;"><i class="fas fa-check-circle"></i> ' + _uaiEsc(data.message || 'تم!') + '</p>'
+                + '<p style="text-align:center;color:#94a3b8;font-size:11px;">كود الطلب: <code style="background:#0f172a;padding:2px 10px;border-radius:4px;color:#c4b5fd;">' + _uaiEsc(data.print_request_code || '—') + '</code></p>';
+            toast('✅ طلب الطباعة اتسجل!', 'success');
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
+            toast(data.message || data.error || 'فشل الإرسال', 'error');
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
+        toast('⚠️ تعذر الاتصال', 'error');
+        console.error('[UAI STP]', err);
+    }
 }
 
 async function uaiFeedback(logId, isSuccessful) {

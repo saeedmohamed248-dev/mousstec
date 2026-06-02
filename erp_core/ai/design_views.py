@@ -19,7 +19,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .design_engine import analyze_idea, compose_mega_prompt, _llm_model
+from .design_engine import analyze_idea, compose_mega_prompt, describe_reference_image, _llm_model
 from .printing_copilot import generate_flux_image
 from .credits import (
     get_tenant_balance, get_customer_balance,
@@ -161,6 +161,7 @@ def design_generate(request):
     selections = body.get('selections') or {}
     audience = (body.get('audience') or 'customer').strip()
     size_hint = (body.get('size') or '').strip() or None
+    reference_images = body.get('reference_images') or []  # list of {data_url, hint}
 
     if audience not in _VALID_AUDIENCES:
         return JsonResponse({'success': False, 'error': 'invalid_audience'}, status=400)
@@ -168,6 +169,8 @@ def design_generate(request):
         return JsonResponse({'success': False, 'message': 'الفكرة فاضية.'}, status=400)
     if not isinstance(selections, dict):
         return JsonResponse({'success': False, 'message': 'الاختيارات بصيغة غلط.'}, status=400)
+    if not isinstance(reference_images, list) or len(reference_images) > 3:
+        return JsonResponse({'success': False, 'message': 'مرجع الصور غلط (أقصى 3 صور).'}, status=400)
 
     # Sanitize selections
     clean_selections = {
@@ -175,6 +178,28 @@ def design_generate(request):
         for k, v in selections.items()
         if k and v
     }
+
+    # 🖼️ Analyze reference images (vision LLM) — قبل ما نخصم credit
+    ref_descriptions = []
+    for ref in reference_images[:3]:
+        if not isinstance(ref, dict):
+            continue
+        data_url = (ref.get('data_url') or '').strip()
+        hint = (ref.get('hint') or '')[:60]
+        if not data_url.startswith('data:image/'):
+            continue
+        # Limit size: data URLs > 2MB are too large for vision API
+        if len(data_url) > 2_800_000:  # ~2MB base64 ≈ 2.1MB raw
+            return JsonResponse({
+                'success': False,
+                'message': '⚠️ صورة مرفوعة كبيرة جداً (الحد الأقصى 2 ميجا لكل صورة).',
+            }, status=400)
+        vis = describe_reference_image(data_url, hint=hint)
+        if vis.get('success'):
+            label = f'[{hint}] ' if hint else ''
+            ref_descriptions.append(label + vis['description'])
+        else:
+            logger.warning(f'[DESIGN GENERATE] vision failed: {vis.get("error")}')
 
     # Credit pre-check
     tenant, customer = _resolve_actor(request, audience)
@@ -185,9 +210,10 @@ def design_generate(request):
             'message': gate_msg, 'balance': balance or {}, 'audience': audience,
         }, status=200)
 
-    # Stage A: compose mega prompt via LLM
+    # Stage A: compose mega prompt via LLM (مع أوصاف الصور المرجعية لو موجودة)
     try:
-        mega = compose_mega_prompt(raw_idea, domain, clean_selections)
+        mega = compose_mega_prompt(raw_idea, domain, clean_selections,
+                                   reference_descriptions=ref_descriptions or None)
     except Exception as e:
         logger.exception('[DESIGN GENERATE] mega compose crashed')
         return JsonResponse({'success': False, 'message': '⚠️ تعذر صياغة البرومبت.', 'error': str(e)}, status=200)

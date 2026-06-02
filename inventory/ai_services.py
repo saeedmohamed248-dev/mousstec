@@ -52,6 +52,7 @@ def _call_together_text(messages, json_mode, max_retries):
         'model': model,
         'messages': messages,
         'temperature': 0.2,
+        'max_tokens': 800,   # ✅ بدون الحد ده الموديل بيولّد response طويل ويعدّي الـ timeout
     }
     if json_mode:
         payload['response_format'] = {'type': 'json_object'}
@@ -59,7 +60,8 @@ def _call_together_text(messages, json_mode, max_retries):
     last_error = None
     for attempt in range(max_retries):
         try:
-            response = requests.post(_TOGETHER_CHAT_URL, headers=headers, json=payload, timeout=30)
+            # ✅ Daphne default = 60s؛ نسيب margin مناسب لرد 70B JSON
+            response = requests.post(_TOGETHER_CHAT_URL, headers=headers, json=payload, timeout=45)
 
             if response.status_code == 200:
                 try:
