@@ -18,6 +18,9 @@ def tenant_context(request):
             and hasattr(request, 'tenant')
             and getattr(request, 'user', None)
             and request.user.is_authenticated
+            # 🎨 الهدية بتاعت AI Studio خاصة بقطاع التصميم/المطابع فقط —
+            # متبقاش في صفحات السيارات/قطع الغيار (automotive)
+            and getattr(request.tenant, 'industry', 'automotive') == 'printing'
         ):
             from clients.models import AIBonusGrant
             grants = list(
