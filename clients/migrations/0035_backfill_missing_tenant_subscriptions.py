@@ -26,7 +26,7 @@ def noop_reverse(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0033_platform_invoice'),
+        ('clients', '0034_merge_0033_merge_20260602_0453_0033_platform_invoice'),
     ]
 
     operations = [
