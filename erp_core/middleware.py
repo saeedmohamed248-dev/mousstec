@@ -201,6 +201,110 @@ class PWAInjectorMiddleware:
         return response
 
 
+class AttendanceReminderMiddleware:
+    """
+    👋 يحقن زرار عائم "سجّل حضورك" أسفل كل صفحة للموظفين اللي:
+    - عندهم Employee record نشط
+    - الـ HRSettings مفعّلة بصمة وجه أو GPS
+    - مسجّلوش clock_in لليوم لسه
+
+    الزرار بيوديهم على /hr/attendance/ مباشرة. Cached per (user, day)
+    لمدة 5 دقايق عشان مفيش 3 queries على كل request.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            self._inject_if_needed(request, response)
+        except Exception:
+            pass
+        return response
+
+    def _inject_if_needed(self, request, response):
+        # شروط مبكرة
+        if response.status_code != 200:
+            return
+        if 'text/html' not in response.get('Content-Type', ''):
+            return
+        if not hasattr(response, 'content') or not response.content:
+            return
+
+        # تخطّي صفحة الحضور نفسها + APIs + public schema
+        path = request.path_info
+        if path.startswith('/hr/attendance') or path.startswith('/api/'):
+            return
+        if getattr(connection, 'schema_name', 'public') == 'public':
+            return
+
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return
+
+        # كاش للموظف لمدة 5 دقايق
+        from django.core.cache import cache
+        from django.utils import timezone
+        today = timezone.now().date()
+        cache_key = f"attendance_reminder:{user.id}:{today}"
+        cached = cache.get(cache_key)
+
+        if cached == 'no_need':
+            return  # متعرّف إنه مش محتاج
+
+        if cached is None:
+            try:
+                from hr.models import Employee, AttendanceRecord, HRSettings
+                emp = Employee.objects.filter(user=user, is_active=True).first()
+                if not emp:
+                    cache.set(cache_key, 'no_need', timeout=300)
+                    return
+                hr = HRSettings.get_settings()
+                if not (hr.require_face_verification or hr.require_location):
+                    cache.set(cache_key, 'no_need', timeout=300)
+                    return
+                already = AttendanceRecord.objects.filter(
+                    employee=emp, date=today, clock_in__isnull=False,
+                ).exists()
+                if already:
+                    cache.set(cache_key, 'no_need', timeout=300)
+                    return
+                # محتاج check-in
+                cache.set(cache_key, {'name': emp.user.get_full_name() or emp.user.username}, timeout=300)
+                cached = cache.get(cache_key)
+            except Exception:
+                return
+
+        if not isinstance(cached, dict):
+            return
+
+        # حقن الزرار الـ floating
+        button_html = (
+            '<a href="/hr/attendance/" data-attendance-reminder="1" '
+            'style="position:fixed;bottom:20px;left:20px;z-index:99998;'
+            'background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;'
+            'padding:12px 20px;border-radius:50px;font-weight:800;font-size:14px;'
+            'text-decoration:none;box-shadow:0 8px 24px rgba(139,92,246,.4);'
+            'font-family:Cairo,sans-serif;display:flex;align-items:center;gap:8px;'
+            'direction:rtl;border:2px solid rgba(255,255,255,.2);">'
+            '<span style="font-size:18px;">👋</span>'
+            f'<span>سجّل حضورك يا {cached["name"]}</span>'
+            '</a>'
+        ).encode('utf-8')
+
+        body = response.content
+        # idempotency
+        if b'data-attendance-reminder' in body:
+            return
+        if b'</body>' not in body:
+            return
+
+        new_body = body.replace(b'</body>', button_html + b'</body>', 1)
+        response.content = new_body
+        if response.has_header('Content-Length'):
+            response['Content-Length'] = str(len(new_body))
+
+
 class AuditIPMiddleware:
     """
     يخزن IP المستخدم والمستخدم الحالي في thread-local

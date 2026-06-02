@@ -155,6 +155,7 @@ MIDDLEWARE = [
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
     'erp_core.middleware.PWAInjectorMiddleware',          # 🔌 حقن PWA bootstrap في كل صفحة HTML
+    'erp_core.middleware.AttendanceReminderMiddleware',   # 👋 زرار سجّل حضورك للموظفين
     'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner
     'erp_core.middleware.VisitorTrackingMiddleware',       # 5. تتبع الزوار للسوبر أدمن
 ]
