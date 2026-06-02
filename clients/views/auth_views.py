@@ -86,15 +86,24 @@ def register_new_tenant_saas(request):
                             admin_user.save()
 
                             try:
-                                if industry == 'automotive':
-                                    from inventory.models import EmployeeProfile, Branch
-                                    branch = Branch.objects.filter(name="الفرع الرئيسي").first()
-                                    EmployeeProfile.objects.get_or_create(
-                                        user=admin_user,
-                                        defaults={'role': 'admin', 'branch': branch, 'can_edit_posted_invoices': True},
-                                    )
-                            except Exception:
-                                pass
+                                # 👤 مالك الشركة لازم يبقى role='admin' بصلاحيات كاملة.
+                                # الـ inventory signal (post_save على User) بيـ auto-create
+                                # EmployeeProfile بـ role='cashier' الافتراضي قبل ما نوصل
+                                # هنا، فـ get_or_create يرجع الموجود من غير ما يحدّث.
+                                # update_or_create يضمن الـ role الصح حتى لو موجود مسبقاً.
+                                from inventory.models import EmployeeProfile, Branch
+                                branch = Branch.objects.filter(name="الفرع الرئيسي").first()
+                                EmployeeProfile.objects.update_or_create(
+                                    user=admin_user,
+                                    defaults={
+                                        'role': 'admin',
+                                        'branch': branch,
+                                        'can_edit_posted_invoices': True,
+                                    },
+                                )
+                            except Exception as profile_err:
+                                # لو table الـ EmployeeProfile مش موجود (مطابع) — تجاهل بصمت
+                                logger.warning(f"⚠️ [SIGNUP]: EmployeeProfile setup skipped — {profile_err}")
 
                         base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
                         url_safe_slug = schema_name.replace('_', '-')
@@ -126,9 +135,34 @@ def register_new_tenant_saas(request):
 
             if success:
                 url_safe_final = schema_name.replace('_', '-')
+                base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
+
+                # 🚪 توكن دخول تلقائي فوري — المستخدم لسه عامل signup ودخل
+                # كلمة سره. ما يحتاجش يكتبها تاني. زي Odoo: signup → onboarding
+                # → داخل النظام في خطوة واحدة (Auto-Login Handoff).
+                from django.core import signing
+                import time
+                try:
+                    auto_token = signing.dumps({
+                        'schema_name': schema_name,
+                        'user_id': admin_user.id,
+                        'created': int(time.time()),
+                    }, salt='tenant-auto-login-token')
+                    target_url = (
+                        f"https://{url_safe_final}.{base_domain}"
+                        f"/auto-login/?token={auto_token}"
+                    )
+                except Exception:
+                    # Fallback: لو فشلت التوقيع، redirect لصفحة الـ login العادية
+                    target_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
+
+                # display_url: للعرض كنص (نظيف بدون توكن)
+                # target_url: للزر/redirect (مع توكن دخول تلقائي)
+                display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': f"https://{url_safe_final}.{os.getenv('BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/",
+                    'target_url': target_url,
+                    'display_url': display_url,
                     'admin_email': data['email'],
                 })
             else:
