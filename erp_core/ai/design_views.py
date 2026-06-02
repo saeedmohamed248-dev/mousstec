@@ -229,6 +229,20 @@ def design_generate(request):
     negative = mega['negative_prompt']
     size = size_hint or mega['recommended_size']
 
+    # 🛡️ DEFENSIVE: لو هنعمل overlay، نمسح أي حروف عربية + علامات اقتباس من
+    # الـ prompt قبل ما يوصل لـ FLUX (عشان لو الـ LLM ضمّن النص الأصلي).
+    # كمان نضيف بنود سلبية صريحة ضد كتابة أي نص أو حروف.
+    if mega.get('text_overlay'):
+        import re as _re
+        # امسح Arabic ranges + الاقتباسات + أرقام عربية
+        mega_prompt = _re.sub(r'[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+', '', mega_prompt)
+        mega_prompt = _re.sub(r'["«»“”]', '', mega_prompt)
+        mega_prompt = _re.sub(r'\s{2,}', ' ', mega_prompt).strip()
+        # نقوي negative prompt
+        forbid = 'any text, any letters, any characters, any words, any writing, lorem ipsum, garbled text, fake text, gibberish, calligraphy'
+        negative = (negative + ', ' + forbid)[:600]
+        logger.info(f'[DESIGN GENERATE] text overlay active → stripped Arabic + reinforced negative')
+
     # Stage B: generate image via Together FLUX
     try:
         img = generate_flux_image(mega_prompt, size=size, negative_prompt=negative)

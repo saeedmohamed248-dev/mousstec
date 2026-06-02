@@ -428,12 +428,82 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
     if len(cleaned) < 2:
         return {'success': False, 'error': 'no_valid_fields'}
 
+    # 🅰️ SAFETY NET: لو الـ raw_idea فيه نص للكتابة على التصميم بس الـ LLM
+    # متجاهل وما ضافش حقل text_on_design → نضيفه قسراً
+    _ensure_text_field(cleaned, raw)
+
     return {
         'success': True,
         'domain': str(schema.get('domain') or 'General Design')[:80],
         'domain_ar': str(schema.get('domain_ar') or '')[:80],
         'fields': cleaned,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────
+def _has_arabic(s: str) -> bool:
+    if not s:
+        return False
+    for ch in s:
+        if '؀' <= ch <= 'ۿ' or 'ݐ' <= ch <= 'ݿ' or 'ﭐ' <= ch <= '﻿':
+            return True
+    return False
+
+
+_TEXT_HINTS_AR = ('مكتوب', 'مكتوبة', 'كتابة', 'اسم', 'شعار', 'عبارة', 'جملة',
+                  'نص', 'كلمة', '«', '»', 'يكتب', 'بيكتب', 'بكتب')
+_TEXT_HINTS_EN = ('write', 'written', 'text', 'logo', 'name', 'phrase', 'word',
+                  'saying', 'quote', 'caption', 'tagline')
+
+
+def _ensure_text_field(fields: list[dict], raw_idea: str) -> None:
+    """لو الـ idea فيه نص محتمل للطباعة على التصميم، يضيف حقول الـ text
+    تلقائياً (text_on_design + text_color + font_style) لو الـ LLM ما ضافش."""
+    if not fields:
+        return
+    # عندنا حقل نص مسبقاً؟
+    has_text_field = any(
+        f['type'] == 'text' and 'text' in f['key'].lower()
+        for f in fields
+    )
+    if has_text_field:
+        return
+
+    raw_lower = (raw_idea or '').lower()
+    needs_text = any(h in raw_lower for h in _TEXT_HINTS_EN)
+    if not needs_text:
+        needs_text = any(h in (raw_idea or '') for h in _TEXT_HINTS_AR)
+    # برضو لو الـ raw فيه أي نص عربي بشكل عام، نقترح حقل (الـ user يقدر يسيبه فاضي)
+    if not needs_text and _has_arabic(raw_idea):
+        needs_text = True
+
+    if not needs_text:
+        return
+
+    # اقترح نص محتمل من الـ raw_idea (لو فيه quoted text)
+    suggested = ''
+    for marker in ('"', '«', "'"):
+        if marker in (raw_idea or ''):
+            parts = raw_idea.split(marker)
+            if len(parts) >= 3:
+                suggested = parts[1][:50]
+                break
+
+    fields.insert(0, {
+        'key': 'text_on_design',
+        'label': 'النص اللي عاوزه يظهر على التصميم',
+        'type': 'text',
+        'placeholder': 'مثال: "خليك جميل" أو اسم البراند',
+        'default': suggested,
+    })
+    fields.insert(1, {
+        'key': 'text_color',
+        'label': 'لون النص',
+        'type': 'color',
+        'default': '#000000',
+    })
 
 
 def compose_mega_prompt(
@@ -482,6 +552,37 @@ def compose_mega_prompt(
             'color': str(overlay.get('color', '#000000'))[:10],
             'font_ratio': float(overlay.get('font_ratio') or 0.08),
         }
+
+    # 🅰️ SAFETY NET: لو الـ LLM متجاهل ورجع null، بنفحص الـ selections بنفسنا
+    # ولو لقينا text بقيمة فيها عربي (أو text_on_design موجود) نعمل overlay قسراً
+    if not text_overlay:
+        text_keys = ('text_on_design', 'design_text', 'logo_text', 'shirt_text',
+                     'banner_text', 'message', 'phrase', 'tagline', 'brand_name',
+                     'cover_text', 'company_name', 'title_text')
+        text_color = None
+        text_value = None
+        for k, v in (selections or {}).items():
+            if not v:
+                continue
+            kl = k.lower()
+            if any(t in kl for t in text_keys) and not _has_arabic(k):  # key matches
+                text_value = str(v)
+            elif 'text' in kl and 'color' in kl:
+                text_color = str(v)
+            elif any(t in kl for t in ('color',)) and not text_color and kl.startswith('text'):
+                text_color = str(v)
+        # لو لقينا text value → اعمل overlay
+        if text_value:
+            # position default = center؛ للقمصان نخليه chest
+            pos = 'center'
+            if 'shirt' in (domain or '').lower() or 'تيشرت' in (domain or ''):
+                pos = 'chest'
+            text_overlay = {
+                'text': text_value[:200],
+                'position': pos,
+                'color': (text_color or '#000000')[:10],
+                'font_ratio': 0.08,
+            }
 
     return {
         'success': True,
