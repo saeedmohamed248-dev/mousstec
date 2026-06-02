@@ -27,8 +27,8 @@ from django.conf import settings
 logger = logging.getLogger('mouss_tec_core')
 
 _TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
-# أقصر من gunicorn worker timeout (افتراضي 30s) لتجنب 502 من الـ proxy
-_TIMEOUT_LLM = 20
+# Daphne default http-timeout = 60s. نسيب margin مناسب للموديل 70B (بيرد JSON طويل)
+_TIMEOUT_LLM = 45
 
 # Defaults — overridable من settings
 # ملاحظة: النسخة "-Free" مش متاحة كـ serverless لكل الحسابات.
@@ -36,12 +36,11 @@ _TIMEOUT_LLM = 20
 _DEFAULT_LLM_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
 
 # Fallback chain — لو الموديل الأول فشل بـ 400/403 (مش متاح للحساب)،
-# نجرب الموديلات دي بالترتيب. كلها serverless معتمدة على Together.
+# نجرب الموديلات دي بالترتيب. أسماء متحقّق منها من Together model registry.
 _FALLBACK_LLM_MODELS = (
     'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-    'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-    'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
-    'Qwen/Qwen2.5-72B-Instruct-Turbo',
+    'deepseek-ai/DeepSeek-V3',
+    'Qwen/Qwen2.5-7B-Instruct-Turbo',
 )
 
 
@@ -145,7 +144,7 @@ def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> d
             'model': model_name,
             'messages': messages,
             'temperature': temperature,
-            'max_tokens': 1200,
+            'max_tokens': 800,
             'response_format': {'type': 'json_object'},
         }
         try:
