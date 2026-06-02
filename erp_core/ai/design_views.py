@@ -119,14 +119,21 @@ def design_analyze(request):
         return JsonResponse({'success': False, 'message': '⚠️ تعذر تحليل الفكرة الآن.', 'error': str(e)}, status=200)
 
     if not result.get('success'):
-        err_code = result.get('error', '')
+        err_code = str(result.get('error', ''))
         if 'key_missing' in err_code:
             msg = '🔑 خدمة الذكاء الاصطناعي مش مفعّلة — كلّم الإدارة.'
         elif 'timeout' in err_code:
             msg = '⏱️ التحليل بياخد وقت — جرب تاني.'
+        elif 'http_400' in err_code or 'http_403' in err_code or result.get('all_models_failed'):
+            msg = '🤖 موديل الذكاء مش متاح على حسابك حالياً — كلّم الإدارة (Together AI model access).'
+        elif 'http_429' in err_code:
+            msg = '⏳ الخدمة مشغولة (rate limit) — استنى ثانيتين وحاول تاني.'
         else:
             msg = '⚠️ مقدرناش نحلل الفكرة — جرب تصيغها بشكل تاني.'
-        return JsonResponse({'success': False, 'message': msg, 'error': err_code}, status=200)
+        return JsonResponse({
+            'success': False, 'message': msg, 'error': err_code,
+            'detail': result.get('detail', '')[:300] if result.get('detail') else '',
+        }, status=200)
 
     return JsonResponse({
         'success': True,

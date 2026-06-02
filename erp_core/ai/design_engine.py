@@ -30,11 +30,33 @@ _TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
 _TIMEOUT_LLM = 30
 
 # Defaults — overridable من settings
-_DEFAULT_LLM_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free'
+# ملاحظة: النسخة "-Free" مش متاحة كـ serverless لكل الحسابات.
+# لو الحساب اشترى credit، استخدم النسخة Paid اللي بتشتغل serverless بدون عقبات.
+_DEFAULT_LLM_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
+
+# Fallback chain — لو الموديل الأول فشل بـ 400/403 (مش متاح للحساب)،
+# نجرب الموديلات دي بالترتيب. كلها serverless معتمدة على Together.
+_FALLBACK_LLM_MODELS = (
+    'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+    'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+    'Qwen/Qwen2.5-72B-Instruct-Turbo',
+)
 
 
 def _llm_model() -> str:
     return str(getattr(settings, 'TOGETHER_LLM_MODEL', '') or _DEFAULT_LLM_MODEL).strip()
+
+
+def _llm_fallback_chain() -> tuple[str, ...]:
+    primary = _llm_model()
+    seen = {primary}
+    chain = [primary]
+    for m in _FALLBACK_LLM_MODELS:
+        if m not in seen:
+            chain.append(m)
+            seen.add(m)
+    return tuple(chain)
 
 
 def _together_key() -> str:
@@ -103,51 +125,76 @@ Return STRICT JSON only:
 
 
 def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> dict[str, Any]:
-    """يستدعي Together Chat Completions ويرجع JSON parsed (أو error dict)."""
+    """يستدعي Together Chat Completions — يجرب الـ fallback chain لو الموديل
+    الأول رجع 400/403/404 (مش متاح serverless للحساب)."""
     key = _together_key()
     if not key:
         return {'success': False, 'error': 'together_key_missing'}
 
-    payload = {
-        'model': _llm_model(),
-        'messages': [
-            {'role': 'system', 'content': system},
-            {'role': 'user', 'content': user},
-        ],
-        'temperature': temperature,
-        'max_tokens': 1200,
-        'response_format': {'type': 'json_object'},
-    }
     headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+    messages = [
+        {'role': 'system', 'content': system},
+        {'role': 'user', 'content': user},
+    ]
 
-    try:
-        resp = requests.post(_TOGETHER_CHAT_URL, json=payload, headers=headers, timeout=_TIMEOUT_LLM)
-        if resp.status_code != 200:
-            logger.warning(f'[DESIGN ENGINE LLM] HTTP {resp.status_code}: {resp.text[:200]}')
-            return {'success': False, 'error': f'together_llm_http_{resp.status_code}'}
+    last_error = 'unknown'
+    last_detail = ''
+    for model_name in _llm_fallback_chain():
+        payload = {
+            'model': model_name,
+            'messages': messages,
+            'temperature': temperature,
+            'max_tokens': 1200,
+            'response_format': {'type': 'json_object'},
+        }
         try:
-            data = resp.json()
-        except ValueError as e:
-            logger.warning(f'[DESIGN ENGINE LLM] non-JSON body: {e}')
-            return {'success': False, 'error': 'together_llm_invalid_body'}
-        choices = data.get('choices') or []
-        if not choices:
-            logger.warning(f'[DESIGN ENGINE LLM] empty choices: {data!r}')
-            return {'success': False, 'error': 'together_llm_empty_choices'}
-        raw = (choices[0].get('message') or {}).get('content') or ''
-        if not raw.strip():
-            return {'success': False, 'error': 'together_llm_empty_content'}
-        raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
-        parsed = json.loads(raw)
-        return {'success': True, 'data': parsed}
-    except requests.Timeout:
-        return {'success': False, 'error': 'together_llm_timeout'}
-    except json.JSONDecodeError as e:
-        logger.warning(f'[DESIGN ENGINE LLM] JSON parse failed: {e}')
-        return {'success': False, 'error': 'together_llm_invalid_json'}
-    except Exception as e:
-        logger.exception('[DESIGN ENGINE LLM] failed')
-        return {'success': False, 'error': str(e)}
+            resp = requests.post(_TOGETHER_CHAT_URL, json=payload, headers=headers, timeout=_TIMEOUT_LLM)
+            if resp.status_code in (400, 403, 404):
+                # الموديل ده مش متاح للحساب — جرب التالي
+                body = resp.text[:300]
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} HTTP {resp.status_code} — trying fallback. body={body}')
+                last_error = f'together_llm_http_{resp.status_code}'
+                last_detail = body
+                continue
+            if resp.status_code != 200:
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} HTTP {resp.status_code}: {resp.text[:200]}')
+                return {
+                    'success': False,
+                    'error': f'together_llm_http_{resp.status_code}',
+                    'detail': resp.text[:200],
+                    'model_tried': model_name,
+                }
+
+            try:
+                data = resp.json()
+            except ValueError as e:
+                logger.warning(f'[DESIGN ENGINE LLM] non-JSON body: {e}')
+                return {'success': False, 'error': 'together_llm_invalid_body'}
+
+            choices = data.get('choices') or []
+            if not choices:
+                return {'success': False, 'error': 'together_llm_empty_choices'}
+            raw = (choices[0].get('message') or {}).get('content') or ''
+            if not raw.strip():
+                return {'success': False, 'error': 'together_llm_empty_content'}
+            raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as e:
+                logger.warning(f'[DESIGN ENGINE LLM] JSON parse failed: {e} | raw={raw[:200]}')
+                return {'success': False, 'error': 'together_llm_invalid_json'}
+            return {'success': True, 'data': parsed, 'model_used': model_name}
+
+        except requests.Timeout:
+            last_error = 'together_llm_timeout'
+            logger.warning(f'[DESIGN ENGINE LLM] timeout on model={model_name} — trying fallback')
+            continue
+        except Exception as e:
+            logger.exception(f'[DESIGN ENGINE LLM] crashed on model={model_name}')
+            last_error = str(e)[:120]
+            continue
+
+    return {'success': False, 'error': last_error, 'detail': last_detail, 'all_models_failed': True}
 
 
 def analyze_idea(raw_idea: str) -> dict[str, Any]:
