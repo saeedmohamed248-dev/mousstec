@@ -249,18 +249,16 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
                     sub.current_period_end = end_date
                     sub.billing_cycle_months = 1
                     sub.is_active = True
-                    sub.save()
+                    sub.save()  # 🛡️ Phase 0b: sub.save() auto-syncs max_* on plan change
                     client.status = 'active'
                     client.subscription_end_date = end_date
                     client.is_active = True
-                    if sub.plan:
-                        client.max_branches = sub.plan.max_branches
-                        client.max_users = sub.plan.max_users
-                        client.max_treasuries = sub.plan.max_treasuries
                     client.save(update_fields=[
                         'status', 'subscription_end_date', 'is_active',
-                        'max_branches', 'max_users', 'max_treasuries',
                     ])
+                    # Defensive re-sync (idempotent — no-op if already in sync)
+                    if sub.plan_id:
+                        sub.sync_limits_to_tenant()
                     success += 1
             except Exception as e:
                 logger.error(f"🔴 [QUICK ACTIVATE ERROR]: {client.name} — {e}")
@@ -635,24 +633,20 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
                     sub.current_period_end = today + relativedelta(months=months)
                     sub.billing_cycle_months = months
                     sub.is_active = True
-                    sub.save()
+                    sub.save()  # 🛡️ Phase 0b: sub.save() auto-syncs max_* on plan change
 
-                    # Sync to Client model
+                    # Sync remaining Client fields (status/dates) — max_* handled by sub.save
                     client = sub.tenant
                     client.status = 'active'
                     client.subscription_end_date = sub.current_period_end
                     client.is_active = True
-
-                    # Sync plan limits if subscription has a Plan linked
-                    if sub.plan:
-                        client.max_branches = sub.plan.max_branches
-                        client.max_users = sub.plan.max_users
-                        client.max_treasuries = sub.plan.max_treasuries
-
                     client.save(update_fields=[
                         'status', 'subscription_end_date', 'is_active',
-                        'max_branches', 'max_users', 'max_treasuries',
                     ])
+
+                    # Defensive re-sync (idempotent — no-op if max_* already match Plan)
+                    if sub.plan_id:
+                        sub.sync_limits_to_tenant()
 
                     success += 1
                     logger.info(
@@ -714,22 +708,25 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 
     @admin.action(description='🔄 مزامنة بيانات الاشتراك → جدول العملاء (Client sync)')
     def sync_subscription_to_client(self, request, queryset):
-        """Sync TenantSubscription data back to Client model fields."""
+        """Force-sync TenantSubscription data back to Client model fields.
+
+        🛡️ Phase 0b: max_* مزامنتها بقت responsibility الـ TenantSubscription.save()،
+        لكن سيبنا الـ action ده كـ defensive backup يقدر الـ admin يـ trigger
+        force re-sync لو حصلت drift (مثلاً تعديل manual على tenant.max_*).
+        """
         count = 0
         for sub in queryset:
             try:
                 client = sub.tenant
-                if sub.plan:
-                    client.max_branches = sub.plan.max_branches
-                    client.max_users = sub.plan.max_users
-                    client.max_treasuries = sub.plan.max_treasuries
                 client.subscription_end_date = sub.current_period_end
                 client.status = 'active' if sub.is_active else 'suspended'
                 client.is_active = sub.is_active
                 client.save(update_fields=[
-                    'max_branches', 'max_users', 'max_treasuries',
                     'subscription_end_date', 'status', 'is_active',
                 ])
+                # Force max_* sync via centralized method (idempotent)
+                if sub.plan_id:
+                    sub.sync_limits_to_tenant()
                 count += 1
             except Exception as e:
                 logger.error(f"🔴 [SYNC ERROR]: {sub.tenant.name} — {e}")
@@ -740,22 +737,26 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         )
 
     def save_model(self, request, obj, form, change):
-        """Auto-sync Client model when saving subscription from admin."""
+        """Auto-sync Client model when saving subscription from admin.
+
+        🛡️ Phase 0b: max_* بقت تتـ sync تلقائياً في TenantSubscription.save()
+        لما الـ plan يتغير. هنا بنـ handle بس الـ Client-level fields
+        (status/dates/is_active) اللي مش جزء من الـ plan limits.
+        """
         super().save_model(request, obj, form, change)
         try:
             client = obj.tenant
-            if obj.plan:
-                client.max_branches = obj.plan.max_branches
-                client.max_users = obj.plan.max_users
-                client.max_treasuries = obj.plan.max_treasuries
             client.subscription_end_date = obj.current_period_end
             if obj.is_active and obj.current_period_end and obj.current_period_end >= timezone.now().date():
                 client.status = 'active'
                 client.is_active = True
             client.save(update_fields=[
-                'max_branches', 'max_users', 'max_treasuries',
                 'subscription_end_date', 'status', 'is_active',
             ])
+            # Defensive re-sync (idempotent — covers edge case where Plan limits
+            # changed without obj.plan_id changing, e.g., super admin edited a Plan row)
+            if obj.plan_id:
+                obj.sync_limits_to_tenant()
             logger.info(f"✅ [SUBSCRIPTION SAVE SYNC]: {client.name} synced from admin save.")
         except Exception as e:
             logger.error(f"🔴 [SUBSCRIPTION SAVE SYNC ERROR]: {e}")

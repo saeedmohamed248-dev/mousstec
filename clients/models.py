@@ -165,23 +165,11 @@ class Client(TenantMixin):
         return (addon_monthly_price * Decimal(str(remaining)) / Decimal('30')).quantize(Decimal('0.01'))
 
     def save(self, *args, **kwargs):
-        plan_changed = self._state.adding
-        if not plan_changed and self.pk:
-            old_plan = Client.objects.filter(pk=self.pk).values_list('plan', flat=True).first()
-            if old_plan and old_plan != self.plan:
-                plan_changed = True
-
-        if plan_changed:
-            if self.plan == 'silver':
-                self.max_branches, self.max_users, self.max_treasuries = 1, 1, 1
-                self.max_repair_cards, self.max_inventory_items = 150, 500
-            elif self.plan == 'gold':
-                self.max_branches, self.max_users, self.max_treasuries = 2, 4, 2
-                self.max_repair_cards, self.max_inventory_items = 0, 0
-            elif self.plan == 'empire':
-                self.max_branches, self.max_users, self.max_treasuries = 999, 9999, 999
-                self.max_repair_cards, self.max_inventory_items = 0, 0
-
+        # ⚠️  Phase 0b cleanup (2026-06): شلنا الـ hardcoded if/elif اللي كان
+        # بيـ overwrite max_* بناءً على Client.plan (CharField). الـ source
+        # of truth بقى TenantSubscription.plan (FK لـ Plan model)؛ مزامنة الـ
+        # limits بتـ enforce في TenantSubscription.save(). الـ Client.plan
+        # CharField متروك كـ legacy display field لحد Phase 5.
         super().save(*args, **kwargs)
 
 # =====================================================================
@@ -500,6 +488,54 @@ class TenantSubscription(models.Model):
     def __str__(self):
         plan_name = self.plan.name if self.plan else 'بدون باقة'
         return f"{self.tenant.name} — {plan_name}"
+
+    # ─────────────────────────────────────────────────────────────────
+    # 🛡️ Phase 0b: مزامنة مركزية للـ limits — Client.max_* تتحدث
+    # تلقائياً لما الـ subscription.plan يتغير. ده الـ source of truth
+    # الوحيد للـ copying logic؛ مفيش كود تاني في النظام مسموح يكتب
+    # على Client.max_* مباشرة (شُيلت من admin.py:257,648,723,748).
+    # ─────────────────────────────────────────────────────────────────
+    def save(self, *args, **kwargs):
+        # هل الـ plan FK اتغير؟ (يشمل أول save لما يكون _state.adding)
+        plan_changed = False
+        if self._state.adding:
+            plan_changed = self.plan_id is not None
+        elif self.pk:
+            old_plan_id = (
+                type(self).objects.filter(pk=self.pk)
+                .values_list('plan_id', flat=True).first()
+            )
+            if old_plan_id != self.plan_id:
+                plan_changed = True
+
+        super().save(*args, **kwargs)
+
+        # Sync بعد الـ save الأساسي عشان نضمن إن الـ FK محفوظ والـ DB consistent.
+        if plan_changed and self.plan_id and self.tenant_id:
+            self.sync_limits_to_tenant()
+
+    def sync_limits_to_tenant(self):
+        """ينقل max_* من Plan إلى Client. يتنادى من save() عند تغيير الـ plan،
+        أو يدوياً من admin actions كـ defensive re-sync. **Idempotent** —
+        لو القيم متطابقة بالفعل ميـ trigger أي save."""
+        tenant = self.tenant
+        plan = self.plan
+        # نسجل اللي اتغير عشان update_fields يبقى minimal
+        changes = {}
+        if tenant.max_branches != plan.max_branches:
+            changes['max_branches'] = plan.max_branches
+        if tenant.max_users != plan.max_users:
+            changes['max_users'] = plan.max_users
+        if tenant.max_treasuries != plan.max_treasuries:
+            changes['max_treasuries'] = plan.max_treasuries
+
+        if not changes:
+            return
+
+        for field, value in changes.items():
+            setattr(tenant, field, value)
+        # update_fields يمنع إعادة تشغيل أي logic تانية في Client.save()
+        tenant.save(update_fields=list(changes.keys()))
 
 
 # =====================================================================
