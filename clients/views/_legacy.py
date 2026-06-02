@@ -54,6 +54,7 @@ from .auth_views import (
     register_new_tenant_saas,
     smart_post_login_redirect,
     client_login_finder,
+    tenant_auto_login,
     mousstec_landing_page,
     automotive_landing_page,
     printing_landing_page,

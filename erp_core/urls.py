@@ -339,6 +339,9 @@ urlpatterns = [
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),
 
+    # 🚪 Universal auto-login (tenant-side, receives token from public login)
+    path('auto-login/', client_views.tenant_auto_login, name='tenant_auto_login'),
+
     # 1. 👑 لوحة تحكم الإدارة الآمنة (Central Admin Dashboard)
     path(f'{ADMIN_URL}/', admin.site.urls),
 

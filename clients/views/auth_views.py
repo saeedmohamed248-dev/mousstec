@@ -163,40 +163,176 @@ def smart_post_login_redirect(request):
     return redirect('/login/')
 
 
+def _find_user_across_tenants(identifier: str):
+    """
+    يدوّر على كل tenant active/trial ويلاقي User بنفس الإيميل (أو username).
+    بيرجع dict {'tenant': Client, 'user_id': int} أو None.
+    """
+    tenants = (
+        Client.objects.exclude(schema_name='public')
+        .filter(status__in=['active', 'trial'])
+        .only('id', 'schema_name', 'name', 'status')
+    )
+    for t in tenants:
+        try:
+            with schema_context(t.schema_name):
+                u = (
+                    User.objects.filter(email__iexact=identifier, is_active=True).first()
+                    or User.objects.filter(username__iexact=identifier, is_active=True).first()
+                )
+                if u:
+                    return {'tenant': t, 'user_id': u.id}
+        except Exception:
+            # schema قد يكون فيه مشكلة migrations — تجاهل وكمّل البحث
+            continue
+    return None
+
+
+def _build_login_url_for_tenant(request, tenant) -> str | None:
+    """يبني الـ URL الكامل لصفحة login شركة معينة (يستخدم Domain أو fallback subdomain)."""
+    domain = Domain.objects.filter(tenant=tenant).first()
+    if domain:
+        host = domain.domain
+    else:
+        safe_slug = tenant.schema_name.replace('_', '-')
+        request_host = request.get_host()
+        host_parts = request_host.split('.')
+        base_host = '.'.join(host_parts[-2:]) if len(host_parts) > 2 else request_host
+        host = f"{safe_slug}.{base_host}"
+    return f"{request.scheme}://{host}/{ADMIN_URL}/login/"
+
+
 def client_login_finder(request):
     """
-    صفحة 'جد حسابك' — يدخل العميل بريده، النظام يعيد توجيهه للـ Subdomain الصحيح.
+    صفحة دخول موحّدة بأسلوب Odoo:
+    - يدخل المستخدم email + password → النظام يلاقي شركته ويسجّل دخوله مباشرة
+      عبر redirect موقّع للـ subdomain (auto-login).
+    - لو ادخل phone/email بدون password → fallback للسلوك القديم (يلاقي الشركة
+      ويعرضله رابط دخولها).
     """
     error = None
     if request.method == 'POST':
-        email = request.POST.get('email', '').strip().lower()
-        if email:
-            tenant = Client.objects.filter(email__iexact=email).exclude(schema_name='public').first()
-            if not tenant:
-                tenant = Client.objects.filter(phone=email).exclude(schema_name='public').first()
-            if not tenant:
-                tenant = Client.objects.filter(
-                    models.Q(name__icontains=email) | models.Q(schema_name=email)
-                ).exclude(schema_name='public').first()
+        identifier = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '').strip()
 
-            if tenant:
-                safe_slug = tenant.schema_name.replace('_', '-')
-                request_host = request.get_host()
-                host_parts = request_host.split('.')
-                if len(host_parts) > 2:
-                    base_host = '.'.join(host_parts[-2:])
-                else:
-                    base_host = request_host
-                protocol = request.scheme
-                admin_slug = ADMIN_URL
-                login_url = f"{protocol}://{safe_slug}.{base_host}/{admin_slug}/login/"
-                return render(request, 'clients/login_finder.html', {
-                    'found_tenant': tenant,
-                    'login_url': login_url,
-                })
+        if not identifier:
+            return render(request, 'clients/login_finder.html', {'error': 'أدخل البريد أو رقم الموبايل'})
 
-            error = "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # المسار الأساسي (Odoo-style): email + password → دخول تلقائي
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if password:
+            match = _find_user_across_tenants(identifier)
+            if match:
+                tenant = match['tenant']
+                user_id = match['user_id']
+
+                # تحقّق من كلمة السر داخل schema الشركة
+                password_ok = False
+                with schema_context(tenant.schema_name):
+                    try:
+                        u = User.objects.get(pk=user_id, is_active=True)
+                        password_ok = u.check_password(password)
+                    except User.DoesNotExist:
+                        password_ok = False
+
+                if not password_ok:
+                    return render(request, 'clients/login_finder.html', {
+                        'error': 'كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.',
+                        'last_email': identifier,
+                    })
+
+                # ✅ توقيع توكن دخول مؤقت (120 ثانية) + redirect للـ subdomain
+                from django.core import signing
+                import time
+                token = signing.dumps({
+                    'schema_name': tenant.schema_name,
+                    'user_id': user_id,
+                    'created': int(time.time()),
+                }, salt='tenant-auto-login-token')
+
+                domain = Domain.objects.filter(tenant=tenant).first()
+                if not domain:
+                    return render(request, 'clients/login_finder.html', {
+                        'error': 'خطأ في إعدادات نطاق الشركة. اتصل بالدعم.',
+                    })
+                protocol = 'https' if request.is_secure() else request.scheme
+                target_url = f"{protocol}://{domain.domain}/auto-login/?token={token}"
+                return redirect(target_url)
+
+            # مفيش user بنفس الإيميل في أي شركة — هاتي رسالة موحّدة
+            return render(request, 'clients/login_finder.html', {
+                'error': 'لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة.',
+                'last_email': identifier,
+            })
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # Fallback (بدون password): البحث القديم بإيميل/موبايل الشركة
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        tenant = Client.objects.filter(email__iexact=identifier).exclude(schema_name='public').first()
+        if not tenant:
+            tenant = Client.objects.filter(phone=identifier).exclude(schema_name='public').first()
+        if not tenant:
+            tenant = Client.objects.filter(
+                models.Q(name__icontains=identifier) | models.Q(schema_name=identifier)
+            ).exclude(schema_name='public').first()
+
+        if tenant:
+            return render(request, 'clients/login_finder.html', {
+                'found_tenant': tenant,
+                'login_url': _build_login_url_for_tenant(request, tenant),
+            })
+
+        error = "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
     return render(request, 'clients/login_finder.html', {'error': error})
+
+
+# =====================================================================
+# 🚪 Auto-Login على الـ Tenant Subdomain (نتيجة universal login من public)
+# =====================================================================
+def tenant_auto_login(request):
+    """
+    GET /auto-login/?token=xxx
+    يُستدعى من الـ subdomain بعد ما المستخدم نجح في universal login على
+    الـ public. يتحقق من التوكن ويسجّل دخول المستخدم الفعلي (مش admin
+    impersonation) ثم يوجّهه للوحة المناسبة.
+    """
+    from django.contrib.auth import login as auth_login, logout as auth_logout
+    from django.core import signing
+
+    token = request.GET.get('token', '').strip()
+    if not token:
+        return redirect(f'/{ADMIN_URL}/login/')
+
+    try:
+        data = signing.loads(token, salt='tenant-auto-login-token', max_age=120)
+    except (signing.BadSignature, signing.SignatureExpired):
+        return redirect(f'/{ADMIN_URL}/login/?msg=token_expired')
+
+    schema_name = data.get('schema_name')
+    user_id = data.get('user_id')
+    current_schema = getattr(connection, 'schema_name', 'public')
+
+    # لازم نكون على الـ subdomain الصحيح
+    if not schema_name or current_schema == 'public' or current_schema != schema_name:
+        return redirect(f'/{ADMIN_URL}/login/')
+
+    # نظّف الـ session قبل الدخول (نفس منطق impersonate_login لمنع تسرّب جلسة)
+    if request.user.is_authenticated:
+        auth_logout(request)
+    request.session.flush()
+
+    try:
+        user = User.objects.get(pk=user_id, is_active=True)
+    except User.DoesNotExist:
+        return redirect(f'/{ADMIN_URL}/login/')
+
+    auth_login(request, user, backend='clients.backends.CaseInsensitiveEmailBackend')
+
+    # توجيه ذكي: staff → admin، عادي → dashboard
+    if user.is_staff or user.is_superuser:
+        return redirect(f'/{ADMIN_URL}/')
+    return redirect('/system/dashboard/')
 
 
 # =====================================================================
