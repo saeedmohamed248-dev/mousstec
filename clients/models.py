@@ -549,6 +549,62 @@ class Plan(models.Model):
 
 
 # =====================================================================
+# 📜 7c. PlanRevision — Append-only audit log لتغييرات الـ Plan
+# =====================================================================
+# كل ما الـ Plan يتعدّل (سعر أو entitlements)، signal بيـ create row جديد
+# هنا. الـ TenantSubscription.locked_plan_revision بيـ reference revision
+# معين كـ "ده الإصدار اللي العميل اشترك عليه".
+#
+# على مستوى الـ business: السوبر أدمن يقدر يـ rollback الـ Plan لـ revision
+# قديم، يقارن الفرق بين revisions، ويعمل audit trail كامل لكل تغيير سعر.
+# =====================================================================
+class PlanRevision(models.Model):
+    plan = models.ForeignKey(
+        Plan, on_delete=models.PROTECT, related_name='revisions',
+        verbose_name=_("الباقة"),
+    )
+    monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري"))
+    entitlements = models.JSONField(default=dict, blank=True, verbose_name=_("الصلاحيات"))
+
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='plan_revisions_authored',
+        verbose_name=_("غيّر بواسطة"),
+    )
+    change_reason = models.CharField(max_length=250, blank=True, verbose_name=_("سبب التغيير"))
+    effective_from = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الفعل"))
+
+    class Meta:
+        verbose_name = _("revision باقة")
+        verbose_name_plural = _("📜 سجل تعديلات الباقات")
+        ordering = ['-effective_from']
+        indexes = [
+            models.Index(fields=['plan', '-effective_from']),
+        ]
+
+    def __str__(self):
+        return f"{self.plan.slug} @ {self.monthly_price} ج.م ({self.effective_from:%Y-%m-%d %H:%M})"
+
+    @classmethod
+    def latest_for(cls, plan):
+        """Helper: أحدث revision لـ plan معين."""
+        return cls.objects.filter(plan=plan).order_by('-effective_from').first()
+
+    @classmethod
+    def create_from_plan(cls, plan, changed_by=None, change_reason=''):
+        """ينشئ revision جديد بـ snapshot من الـ plan الحالي.
+        الـ signal و الـ admin بـ يـ call ده مباشرة."""
+        return cls.objects.create(
+            plan=plan,
+            monthly_price=plan.monthly_price,
+            entitlements=dict(plan.entitlements or {}),
+            changed_by=changed_by,
+            change_reason=change_reason or '',
+        )
+
+
+
+# =====================================================================
 # 🤖 8. حزم إضافات الذكاء الاصطناعي (AI Studio Add-ons)
 # =====================================================================
 class AIAddonPackage(models.Model):
@@ -594,6 +650,33 @@ class TenantSubscription(models.Model):
     def __str__(self):
         plan_name = self.plan.name if self.plan else 'بدون باقة'
         return f"{self.tenant.name} — {plan_name}"
+
+    # ─────────────────────────────────────────────────────────────────
+    # 🎯 Phase 2: Grandfathering snapshots — كل tenant بيـ lock
+    # السعر والمزايا وقت الاشتراك/التجديد. تعديل Plan لاحقاً ميـ
+    # affect الـ tenant الموجود لحد الـ next renewal (الـ default)
+    # إلا لو SuperAdmin عمل force-apply صراحةً.
+    # ─────────────────────────────────────────────────────────────────
+    locked_monthly_price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name=_("السعر المثبت (snapshot)"),
+        help_text=_("نسخة من Plan.monthly_price وقت الاشتراك/التجديد"),
+    )
+    locked_entitlements = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("الصلاحيات المثبتة (snapshot)"),
+        help_text=_("نسخة من Plan.entitlements وقت الاشتراك/التجديد"),
+    )
+    locked_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name=_("تاريخ تثبيت الـ snapshot"),
+    )
+    locked_plan_revision = models.ForeignKey(
+        'PlanRevision', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='locked_subscriptions',
+        verbose_name=_("revision المرجعية"),
+        help_text=_("للـ audit — أي إصدار من الـ plan كان وقت الـ snapshot"),
+    )
 
     # ─────────────────────────────────────────────────────────────────
     # 🛡️ Phase 0b: مزامنة مركزية للـ limits — Client.max_* تتحدث
@@ -642,6 +725,65 @@ class TenantSubscription(models.Model):
             setattr(tenant, field, value)
         # update_fields يمنع إعادة تشغيل أي logic تانية في Client.save()
         tenant.save(update_fields=list(changes.keys()))
+
+    # ─────────────────────────────────────────────────────────────────
+    # 🎯 Phase 2: Snapshot mechanism — grandfathering
+    # ─────────────────────────────────────────────────────────────────
+    def snapshot_from_plan(self, revision=None, save=True):
+        """يـ copy الـ price والـ entitlements من الـ current Plan إلى الـ
+        locked_* fields. يتنادى:
+          - عند الاشتراك الأول (signal post-create)
+          - عند الـ renewal (من Paymob webhook في Phase 4)
+          - عند force-apply من SuperAdmin (admin action في Phase 5)
+
+        Params:
+          - revision: PlanRevision لاستخدامها كـ reference (لو None، نـ pick
+            الأحدث من الـ plan).
+          - save: لو False، نـ mutate self بس بدون DB save (للـ callers اللي
+            عاوزين يـ batch مع تغييرات تانية).
+        """
+        from django.utils import timezone as _tz
+        if not self.plan_id:
+            return  # مفيش plan = مفيش snapshot
+        plan = self.plan
+
+        # نختار الـ revision: المحدد، أو الأحدث من الـ plan
+        if revision is None:
+            revision = (
+                PlanRevision.objects.filter(plan_id=self.plan_id)
+                .order_by('-effective_from').first()
+            )
+
+        self.locked_monthly_price = plan.monthly_price
+        self.locked_entitlements = dict(plan.entitlements or {})
+        self.locked_at = _tz.now()
+        self.locked_plan_revision = revision
+
+        if save:
+            self.save(update_fields=[
+                'locked_monthly_price', 'locked_entitlements',
+                'locked_at', 'locked_plan_revision',
+            ])
+
+    @property
+    def effective_entitlements(self) -> dict:
+        """ترجع الـ entitlements الـ effective: locked لو موجود، وإلا fallback
+        لـ plan.entitlements. الـ source of truth الواحدة للـ EntitlementService."""
+        if self.locked_at and isinstance(self.locked_entitlements, dict) and self.locked_entitlements:
+            return self.locked_entitlements
+        # Fallback: لو الـ snapshot لسة ما اتعملش، نقرأ من الـ plan الحالي
+        if self.plan_id:
+            return dict(self.plan.entitlements or {})
+        return {}
+
+    @property
+    def effective_monthly_price(self):
+        """نفس الـ logic للسعر."""
+        if self.locked_at and self.locked_monthly_price is not None:
+            return self.locked_monthly_price
+        if self.plan_id:
+            return self.plan.monthly_price
+        return None
 
 
 # =====================================================================

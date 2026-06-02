@@ -11,7 +11,7 @@ from django_tenants.utils import schema_context
 from django_tenants.signals import post_schema_sync
 from celery import current_app
 
-from .models import Client, Domain, EscrowLedger, MarketplaceCustomer
+from .models import Client, Domain, EscrowLedger, MarketplaceCustomer, Plan, PlanRevision, TenantSubscription
 
 # تهيئة رادار المراقبة
 logger = logging.getLogger('mouss_tec_core')
@@ -261,3 +261,88 @@ def seed_tenant_after_schema_sync(sender, tenant, **kwargs):
         logger.error(
             f"🔴 [SCHEMA SYNC ERROR]: Provisioning failed for '{tenant.schema_name}' - {e}"
         )
+
+
+# =====================================================================
+# 🎯 Phase 2: Plan revision auto-logging + first-snapshot for subscriptions
+# =====================================================================
+@receiver(post_save, sender=Plan)
+def auto_create_plan_revision(sender, instance, created, **kwargs):
+    """يـ create PlanRevision لكل تعديل على Plan لو الـ price أو الـ
+    entitlements اتغيروا فعلاً (مش كل save).
+
+    Detection: نقارن مع الـ revision الأحدث. لو مفيش revisions، نـ create
+    الأولى (initial state). لو فيه revision وقيمة الـ price/entitlements
+    اتغيرت، نـ create revision جديدة.
+
+    الـ admin بيـ set instance._changed_by = request.user قبل الـ save عشان
+    نـ capture مين عمل التعديل. تفاصيل: clients/admin.py PlanAdmin.save_model.
+    """
+    try:
+        latest = PlanRevision.objects.filter(plan=instance).order_by('-effective_from').first()
+
+        changed = False
+        if latest is None:
+            # أول مرة الـ Plan ده يتحفظ → revision أولى (representing current state)
+            changed = True
+            reason = 'Initial revision (Plan created or first signal trigger)'
+        else:
+            price_changed = latest.monthly_price != instance.monthly_price
+            ent_changed = (latest.entitlements or {}) != (instance.entitlements or {})
+            if price_changed or ent_changed:
+                changed = True
+                reason_parts = []
+                if price_changed:
+                    reason_parts.append(f"price: {latest.monthly_price} → {instance.monthly_price}")
+                if ent_changed:
+                    reason_parts.append("entitlements changed")
+                reason = '; '.join(reason_parts)
+
+        if not changed:
+            return
+
+        changed_by = getattr(instance, '_changed_by', None)
+        explicit_reason = getattr(instance, '_change_reason', '')
+        final_reason = explicit_reason or reason
+
+        PlanRevision.objects.create(
+            plan=instance,
+            monthly_price=instance.monthly_price,
+            entitlements=dict(instance.entitlements or {}),
+            changed_by=changed_by,
+            change_reason=final_reason[:250],
+        )
+        logger.info(
+            f"📜 [PlanRevision] '{instance.slug}' new revision logged "
+            f"({final_reason}) by {changed_by or 'system'}"
+        )
+
+    except Exception as e:
+        # محظور نوقف الـ Plan.save() لو الـ revision logging فشل
+        logger.error(f"🔴 [PlanRevision ERROR] couldn't auto-log revision for {instance.slug}: {e}")
+
+
+@receiver(post_save, sender=TenantSubscription)
+def auto_snapshot_new_subscription(sender, instance, created, **kwargs):
+    """عند إنشاء TenantSubscription جديدة بـ plan، نـ snapshot الحالي
+    تلقائياً. ده بيضمن إن كل subscription بتولد بـ locked_* جاهزة
+    من اللحظة الأولى.
+
+    NOTE: ميـ overwriteش لو locked_at موجود — الـ admin بيـ control
+    re-snapshot عن طريق force-apply action (Phase 5).
+    """
+    if not created:
+        return  # تعديل subscription موجودة → نسيب الـ locked_* زي ما هي
+    if not instance.plan_id:
+        return  # subscription بدون plan → مفيش حاجة نـ snapshot
+    if instance.locked_at:
+        return  # snapshot موجود بالفعل (نادر، لكن دفاعي)
+
+    try:
+        instance.snapshot_from_plan(save=True)
+        logger.info(
+            f"📸 [Snapshot] new subscription for '{instance.tenant.schema_name}' "
+            f"locked at price={instance.locked_monthly_price}"
+        )
+    except Exception as e:
+        logger.error(f"🔴 [Snapshot ERROR] failed for subscription {instance.pk}: {e}")

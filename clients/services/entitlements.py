@@ -73,11 +73,12 @@ class EntitlementService:
 
     @classmethod
     def all_for_tenant(cls, tenant) -> dict:
-        """ترجع dict كامل بـ entitlements الـ tenant الحالية (مفيدة للـ UI/debugging)."""
-        plan = cls._get_plan(tenant)
-        if plan is None:
+        """ترجع dict كامل بـ entitlements الـ tenant الـ effective
+        (snapshot لو موجود، وإلا Plan الحالي)."""
+        sub = cls._get_subscription(tenant)
+        if sub is None:
             return {}
-        return dict(plan.entitlements or {})
+        return dict(sub.effective_entitlements)
 
     @classmethod
     def validate_codes(cls, codes: Iterable[str]) -> list[str]:
@@ -93,27 +94,31 @@ class EntitlementService:
     # Internal helpers
     # ─────────────────────────────────────────────────────────────────
     @classmethod
-    def _get_plan(cls, tenant):
-        """Resolve الـ effective Plan للـ tenant. Phase 1: من TenantSubscription.plan.
-        Phase 3 هيـ override لـ TenantSubscription.locked_entitlements عشان الـ grandfathering.
-        """
+    def _get_subscription(cls, tenant):
+        """Resolve الـ TenantSubscription للـ tenant. الـ source of truth الجديد
+        للـ entitlements (مش الـ Plan مباشرة) عشان نـ honor الـ grandfathering."""
         if tenant is None or not getattr(tenant, 'pk', None):
             return None
         try:
             sub = getattr(tenant, 'subscription', None)
         except Exception:
             sub = None
-        if sub is None:
-            return None
-        return sub.plan if sub.plan_id else None
+        return sub
 
     @classmethod
     def _lookup(cls, tenant, feature_code: str) -> Optional[dict]:
-        """Return raw config dict for a feature on a tenant, or None if absent."""
-        plan = cls._get_plan(tenant)
-        if plan is None:
+        """Return raw config dict for a feature on a tenant, or None if absent.
+
+        🎯 Phase 2: يقرأ من sub.effective_entitlements اللي بتـ pick:
+          - locked_entitlements لو الـ snapshot موجود (grandfathering)
+          - plan.entitlements كـ fallback (للـ tenants من قبل ما الـ Phase 2
+            backfill يجري — defensive نظراً لأن الـ data migration بتـ snapshot
+            كل الـ subscriptions الموجودة)
+        """
+        sub = cls._get_subscription(tenant)
+        if sub is None:
             return None
-        entitlements = plan.entitlements or {}
+        entitlements = sub.effective_entitlements
         if not isinstance(entitlements, dict):
             return None
         return entitlements.get(feature_code)
