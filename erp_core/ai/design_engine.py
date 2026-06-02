@@ -221,7 +221,7 @@ Return STRICT JSON only:
     "text": "<the exact text from user selections, preserve original script>",
     "position": "<center | top | bottom | chest>",
     "color": "<hex e.g. #000000>",
-    "font_ratio": 0.08
+    "font_ratio": <float 0.02-0.10. Recommendations: t-shirts/apparel=0.035, business cards/invitations=0.07, posters/banners=0.09, default=0.06>
   } | null
 }"""
 
@@ -623,15 +623,28 @@ def compose_mega_prompt(
                 text_color = str(v)
         # لو لقينا text value → اعمل overlay
         if text_value:
-            # position default = center؛ للقمصان نخليه chest
-            pos = 'center'
-            if 'shirt' in (domain or '').lower() or 'تيشرت' in (domain or ''):
+            # position + font_ratio حسب نوع المنتج
+            # القماش: الـ mockup فيه whitespace كتير حوالين المنتج، فلازم نص أصغر
+            # حتى يبان نسبة طبيعية على الصدر/المنطقة المخصصة.
+            d_lower = (domain or '').lower()
+            d_ar = (domain or '')
+            is_clothing = (
+                'shirt' in d_lower or 'apparel' in d_lower or 'clothing' in d_lower
+                or 'hoodie' in d_lower or 'tee' in d_lower
+                or 'تيشرت' in d_ar or 'قميص' in d_ar or 'ملابس' in d_ar
+                or 'هودي' in d_ar or 'بلوزة' in d_ar
+            )
+            if is_clothing:
                 pos = 'chest'
+                font_ratio = 0.035  # ~3.5% — حجم واقعي على mockup التيشرت
+            else:
+                pos = 'center'
+                font_ratio = 0.07
             text_overlay = {
                 'text': text_value[:200],
                 'position': pos,
                 'color': (text_color or '#000000')[:10],
-                'font_ratio': 0.08,
+                'font_ratio': font_ratio,
             }
 
     return {
