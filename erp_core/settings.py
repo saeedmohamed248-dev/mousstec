@@ -327,6 +327,9 @@ GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 # هتستخدم في Phase 2 (مولد الصور الفخم) — مهيأة هنا عشان متبقاش طلبات تعديل لاحقة
 TOGETHER_API_KEY = env.str('TOGETHER_API_KEY', '')
 TOGETHER_LLM_MODEL = env.str('TOGETHER_LLM_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')
+# ⚠️ FLUX.1-schnell-Free was retired from serverless tier in 2026-05.
+# Default = paid serverless `FLUX.1-schnell` (~$0.003/img). Override per-env.
+TOGETHER_FLUX_MODEL = env.str('TOGETHER_FLUX_MODEL', 'black-forest-labs/FLUX.1-schnell')
 REPLICATE_API_TOKEN = env.str('REPLICATE_API_TOKEN', '')
 FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' | 'replicate'
 

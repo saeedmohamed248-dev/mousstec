@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from django.contrib import messages
@@ -519,8 +520,28 @@ class AIAddonPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 # =====================================================================
 # عميل ⇄ مصمم: نفس الموديل، target_audience بيفرّق بين الفئتين.
 # الكروت اللي تظهر على /printing/ landing بتـ filter بـ target_audience.
+
+class DesignPackageAdminForm(forms.ModelForm):
+    """
+    🛠️ Free-text slug input — يلغي الـ dropdown اللي بييجي من
+    `choices=PACKAGE_TIERS` على الـ model field. الأدمن يكتب slug بحرية
+    (مثلاً 'des_15_promo' أو أي قيمة جديدة) من غير ما يكون مقيّد بـ enum.
+    """
+    slug = forms.CharField(
+        max_length=20,
+        help_text="معرّف فريد (snake_case) — مثال: cust_2 أو des_15. لازم يكون unique.",
+        widget=forms.TextInput(attrs={'placeholder': 'e.g. cust_2 / des_15 / promo_holiday'}),
+    )
+
+    class Meta:
+        model = DesignPackage
+        fields = '__all__'
+
+
 @admin.register(DesignPackage)
 class DesignPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    form = DesignPackageAdminForm
+    actions = ['mark_inactive', 'mark_active', 'delete_selected']
     list_display = (
         'icon_emoji', 'name_ar', 'target_audience_badge',
         'designs_count', 'designer_designs_count',
@@ -596,6 +617,24 @@ class DesignPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
         return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
     is_active_icon.short_description = "مفعّلة"
+
+    @admin.action(description="🚫 إخفاء الباقات المحددة (Mark Inactive — soft delete)")
+    def mark_inactive(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            f"✅ اتخفت {updated} باقة من /printing/. سجل المشتريات اتحفظ سليم.",
+            level=messages.SUCCESS,
+        )
+
+    @admin.action(description="✅ تفعيل الباقات المحددة (Mark Active)")
+    def mark_active(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            f"✅ اتفعّلت {updated} باقة وظهرت تاني على /printing/.",
+            level=messages.SUCCESS,
+        )
 
 
 # =====================================================================

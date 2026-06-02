@@ -30,7 +30,10 @@ _TIMEOUT_IMAGE = 60
 
 # Together AI Flux endpoint
 _TOGETHER_URL = 'https://api.together.xyz/v1/images/generations'
-_TOGETHER_FLUX_MODEL = 'black-forest-labs/FLUX.1-schnell-Free'
+# ⚠️ FLUX.1-schnell-Free was moved to dedicated-endpoint-only in 2026-05.
+# The serverless successor is `FLUX.1-schnell` (still very cheap, ~$0.003/img).
+# Override per-env via TOGETHER_FLUX_MODEL in .env if Together rotates models again.
+_DEFAULT_FLUX_MODEL = 'black-forest-labs/FLUX.1-schnell'
 
 # Replicate endpoint pattern
 _REPLICATE_BASE = 'https://api.replicate.com/v1'
@@ -148,9 +151,10 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str,
     if not key:
         return {'success': False, 'error': 'together_key_missing'}
 
+    model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
     width, height = _parse_size(size)
     payload = {
-        'model': _TOGETHER_FLUX_MODEL,
+        'model': model,
         'prompt': prompt,
         'width': width,
         'height': height,
@@ -182,7 +186,7 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str,
             'url': image_url if image_url and image_url.startswith('http') else None,
             'b64_json': image_url if image_url and not image_url.startswith('http') else None,
             'provider': 'together',
-            'model': _TOGETHER_FLUX_MODEL,
+            'model': model,
             'cost_estimate_egp': 0.15,  # ~0.003$ * 50 EGP/$
         }
     except requests.Timeout:
