@@ -373,8 +373,10 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
 
     # Clamp 7 fields max
     schema['fields'] = schema['fields'][:7]
-    if len(schema['fields']) < 2:
-        return {'success': False, 'error': 'too_few_fields', 'raw': schema}
+    if len(schema['fields']) < 1:
+        # 🛡️ Fallback schema لأي domain — نضمن إن المستخدم ياخد فورم دايماً
+        logger.warning(f'[DESIGN ENGINE] LLM returned empty fields for "{raw[:40]}" — using fallback')
+        schema['fields'] = _fallback_fields_for(schema.get('domain', ''))
 
     _ALLOWED_TYPES = {'select', 'multi_select', 'text', 'number', 'dimensions', 'color', 'range'}
 
@@ -438,8 +440,10 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
 
         cleaned.append(field)
 
-    if len(cleaned) < 2:
-        return {'success': False, 'error': 'no_valid_fields'}
+    if len(cleaned) < 1:
+        # 🛡️ نهائي fallback: لو حتى الـ LLM fields رفضت الـ validation
+        logger.warning(f'[DESIGN ENGINE] all fields failed validation — emergency fallback')
+        cleaned = _fallback_fields_for(schema.get('domain', ''))
 
     # 🅰️ SAFETY NET: لو الـ raw_idea فيه نص للكتابة على التصميم بس الـ LLM
     # متجاهل وما ضافش حقل text_on_design → نضيفه قسراً
@@ -456,6 +460,33 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────
+def _fallback_fields_for(domain: str) -> list[dict]:
+    """يرجع schema افتراضي لو الـ LLM فشل تماماً — يضمن للمستخدم فورم دايماً."""
+    d = (domain or '').lower()
+    # تيشرت / ملابس
+    if any(k in d for k in ('tshirt', 't-shirt', 'shirt', 'apparel', 'clothing', 'تيشرت', 'قميص', 'ملابس')):
+        return [
+            {'key': 'size', 'label': 'المقاس', 'type': 'select',
+             'options': ['S', 'M', 'L', 'XL', 'XXL'], 'default': 'L'},
+            {'key': 'shirt_color', 'label': 'لون القميص', 'type': 'color', 'default': '#FFFFFF'},
+            {'key': 'print_color', 'label': 'لون الطباعة', 'type': 'color', 'default': '#000000'},
+            {'key': 'style', 'label': 'الأسلوب', 'type': 'select',
+             'options': ['عصري بسيط', 'كلاسيكي', 'رياضي', 'فني / Artistic', 'Streetwear'],
+             'default': 'عصري بسيط'},
+        ]
+    # عام (default)
+    return [
+        {'key': 'style', 'label': 'الأسلوب العام', 'type': 'select',
+         'options': ['عصري بسيط', 'فاخر / Luxury', 'كلاسيكي', 'حيوي / Vibrant',
+                     'هادئ / Calm', 'احترافي / Corporate'],
+         'default': 'عصري بسيط'},
+        {'key': 'main_color', 'label': 'اللون الأساسي', 'type': 'color', 'default': '#7c3aed'},
+        {'key': 'mood', 'label': 'المزاج / الإحساس', 'type': 'select',
+         'options': ['دافئ', 'بارد', 'مفعم بالحيوية', 'احترافي', 'أنيق', 'مرح'],
+         'default': 'احترافي'},
+    ]
+
+
 def _has_arabic(s: str) -> bool:
     if not s:
         return False

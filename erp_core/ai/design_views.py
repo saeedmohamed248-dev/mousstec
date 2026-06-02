@@ -128,8 +128,10 @@ def design_analyze(request):
             msg = '🤖 موديل الذكاء مش متاح على حسابك حالياً — كلّم الإدارة (Together AI model access).'
         elif 'http_429' in err_code:
             msg = '⏳ الخدمة مشغولة (rate limit) — استنى ثانيتين وحاول تاني.'
+        elif 'too_few' in err_code or 'no_valid_fields' in err_code or 'invalid_schema' in err_code:
+            msg = '💡 الفكرة محتاجة تفاصيل أكتر — مثال: "تيشرت قطن أبيض عليه اسم خالد" بدل "تيشرت" بس.'
         else:
-            msg = '⚠️ مقدرناش نحلل الفكرة — جرب تصيغها بشكل تاني.'
+            msg = '⚠️ مقدرناش نحلل الفكرة — جرب تصيغها بتفاصيل أكتر (نوع المنتج + الاستخدام + التفاصيل).'
         return JsonResponse({
             'success': False, 'message': msg, 'error': err_code,
             'detail': result.get('detail', '')[:300] if result.get('detail') else '',

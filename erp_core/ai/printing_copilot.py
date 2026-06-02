@@ -160,53 +160,77 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str,
     if not key:
         return {'success': False, 'error': 'together_key_missing'}
 
-    model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
+    primary_model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
+    # 🛡️ Fallback chain: لو الـ primary رجع 400/403/404 (مش متاح للحساب)،
+    # نرجع تلقائياً لـ FLUX-schnell عشان المستخدم ياخد صورة دايماً
+    candidates = [primary_model]
+    if primary_model != 'black-forest-labs/FLUX.1-schnell':
+        candidates.append('black-forest-labs/FLUX.1-schnell')
+
     width, height = _parse_size(size)
-    steps = _MODEL_STEPS.get(model, 28)  # default to dev quality if unknown model
-    payload = {
-        'model': model,
-        'prompt': prompt,
-        'width': width,
-        'height': height,
-        'steps': steps,
-        'n': 1,
-        'response_format': 'url',
-    }
-    # FLUX.1-dev بيستفيد من guidance_scale 3.5-4 لـ adherence أعلى للـ prompt
-    if 'dev' in model or 'pro' in model:
-        payload['guidance_scale'] = 3.5
-    if negative_prompt:
-        payload['negative_prompt'] = negative_prompt
+    last_error_body = ''
 
-    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
-
-    try:
-        resp = requests.post(_TOGETHER_URL, json=payload, headers=headers, timeout=_TIMEOUT_IMAGE)
-        if resp.status_code != 200:
-            logger.error(f'[FLUX TOGETHER] HTTP {resp.status_code}: {resp.text[:300]}')
-            return {
-                'success': False,
-                'error': f'together_http_{resp.status_code}',
-                'detail': resp.text[:200],
-            }
-        data = resp.json()
-        items = data.get('data', [])
-        if not items:
-            return {'success': False, 'error': 'empty_response'}
-        image_url = items[0].get('url') or items[0].get('b64_json')
-        return {
-            'success': True,
-            'url': image_url if image_url and image_url.startswith('http') else None,
-            'b64_json': image_url if image_url and not image_url.startswith('http') else None,
-            'provider': 'together',
+    for model in candidates:
+        steps = _MODEL_STEPS.get(model, 28)
+        payload = {
             'model': model,
-            'cost_estimate_egp': 0.15,  # ~0.003$ * 50 EGP/$
+            'prompt': prompt,
+            'width': width,
+            'height': height,
+            'steps': steps,
+            'n': 1,
+            'response_format': 'url',
         }
-    except requests.Timeout:
-        return {'success': False, 'error': 'together_timeout'}
-    except Exception as e:
-        logger.exception('[FLUX TOGETHER] failed')
-        return {'success': False, 'error': str(e)}
+        if 'dev' in model or 'pro' in model:
+            payload['guidance_scale'] = 3.5
+        if negative_prompt:
+            payload['negative_prompt'] = negative_prompt
+
+        headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+
+        try:
+            resp = requests.post(_TOGETHER_URL, json=payload, headers=headers, timeout=_TIMEOUT_IMAGE)
+            if resp.status_code in (400, 403, 404):
+                # الموديل ده مش متاح للحساب → جرب التالي في الـ chain
+                logger.warning(f'[FLUX TOGETHER] model={model} HTTP {resp.status_code} — trying fallback. body={resp.text[:200]}')
+                last_error_body = resp.text[:300]
+                continue
+            if resp.status_code != 200:
+                logger.error(f'[FLUX TOGETHER] HTTP {resp.status_code}: {resp.text[:300]}')
+                return {
+                    'success': False,
+                    'error': f'together_http_{resp.status_code}',
+                    'detail': resp.text[:200],
+                }
+            data = resp.json()
+            items = data.get('data', [])
+            if not items:
+                last_error_body = 'empty data array'
+                continue
+            image_url = items[0].get('url') or items[0].get('b64_json')
+            return {
+                'success': True,
+                'url': image_url if image_url and image_url.startswith('http') else None,
+                'b64_json': image_url if image_url and not image_url.startswith('http') else None,
+                'provider': 'together',
+                'model': model,
+                'cost_estimate_egp': 0.15,
+            }
+        except requests.Timeout:
+            last_error_body = 'timeout'
+            logger.warning(f'[FLUX TOGETHER] timeout on {model} — trying fallback')
+            continue
+        except Exception as e:
+            logger.exception(f'[FLUX TOGETHER] failed on {model}')
+            last_error_body = str(e)[:200]
+            continue
+
+    # لو كل الموديلات فشلت
+    return {
+        'success': False,
+        'error': 'together_all_models_failed',
+        'detail': last_error_body,
+    }
 
 
 def _gen_via_replicate(prompt: str, size: str, negative_prompt: str) -> dict[str, Any]:
