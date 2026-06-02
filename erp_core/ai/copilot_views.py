@@ -326,9 +326,23 @@ def _persist_session(request, result: dict):
 
 
 def _get_marketplace_customer(request):
-    """يجيب MarketplaceCustomer المرتبط بالـ session (لو فيه)."""
+    """يجيب MarketplaceCustomer المرتبط بالـ marketplace cookie.
+
+    الـ marketplace customers بيستخدموا cookie اسمها mp_session فيها الـ
+    session_token (UUID). مش Django session — فـ request.user / login_required
+    مش بيشتغلوا معاهم. هنا بنحاكي نفس logic _marketplace_auth في
+    clients/views/_shared.py.
+
+    Fallback اختياري: لو الكوكي مش موجودة بنشوف Django session كـ legacy.
+    """
     try:
         from clients.models import MarketplaceCustomer
+        token = request.COOKIES.get('mp_session')
+        if token:
+            return MarketplaceCustomer.objects.filter(
+                session_token=token, is_verified=True, is_blocked=False,
+            ).first()
+        # Legacy fallback (Django session) — للحالات القديمة لو فيه
         cust_id = request.session.get('marketplace_customer_id')
         if cust_id:
             return MarketplaceCustomer.objects.filter(id=cust_id).first()
@@ -406,7 +420,8 @@ def _format_customer_label(c) -> str:
 # ---------------------------------------------------------------------------
 # 4. Balance API (للـ UI يعرض الرصيد المتاح live)
 # ---------------------------------------------------------------------------
-@login_required
+# ⚠️ مفيش @login_required — الـ marketplace customers بيستخدموا mp_session
+# cookie مش Django auth. الـ branching جوه بيتحقق من الـ audience.
 def copilot_balance(request):
     """يرجع رصيد التصاميم للمستخدم الحالي.
 
@@ -443,9 +458,8 @@ def copilot_balance(request):
 
 
 # ---------------------------------------------------------------------------
-# 5. Top-up Packages Catalog (للـ storefront)
+# 5. Top-up Packages Catalog (للـ storefront — public)
 # ---------------------------------------------------------------------------
-@login_required
 def copilot_topup_catalog(request):
     """يرجع قائمة باقات الشحن المتاحة. ?audience=merchant|customer"""
     audience = (request.GET.get('audience') or 'merchant').strip()
@@ -467,7 +481,8 @@ def copilot_topup_catalog(request):
 # ---------------------------------------------------------------------------
 # 6. Purchase a Top-up (creates pending purchase + return checkout link)
 # ---------------------------------------------------------------------------
-@login_required
+# ⚠️ مفيش @login_required — marketplace customer flow بيستخدم mp_session.
+# الـ branching جوه بيتأكد من tenant context (merchant) أو cookie (customer).
 @require_POST
 def copilot_topup_purchase(request):
     """
