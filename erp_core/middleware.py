@@ -147,6 +147,60 @@ class CSRFCookieCleanupMiddleware:
         return response
 
 
+class PWAInjectorMiddleware:
+    """
+    🔌 يحقن manifest + PWA bootstrap في <head> أي HTML response.
+    المشروع مفيهوش base.html مشترك — صفحات كتير مش بتعمل include للـ
+    pwa-init.js، فالـ Service Worker مش بيتسجّل والـ install prompt مش
+    بيظهر، وأي صفحة مش متخزّنة offline.
+
+    Idempotent: مش بيحقن لو الـ tag موجود فعلاً.
+    Skips: غير HTML, status != 200, الصفحات المخصّصة للـ admin/honeypot.
+    """
+    SCRIPT_TAG = b'<script src="/static/js/pwa-init.js" defer data-pwa-injector="1"></script>'
+    MANIFEST_TAG = b'<link rel="manifest" href="/manifest.json">'
+    THEME_TAG = b'<meta name="theme-color" content="#7c3aed">'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # إستثناءات مبكرة — مش HTML / مش 200 / مفيش body
+        if response.status_code != 200:
+            return response
+        ctype = response.get('Content-Type', '')
+        if 'text/html' not in ctype:
+            return response
+        if not hasattr(response, 'content') or not response.content:
+            return response
+
+        # تجاهل honeypot + APIs
+        path = request.path_info
+        if path.startswith('/api/') or path.startswith('/wp-') or 'honeypot' in path:
+            return response
+
+        try:
+            body = response.content
+            # Idempotency: pwa-init.js موجود فعلاً
+            if b'pwa-init.js' in body:
+                return response
+            if b'</head>' not in body:
+                return response
+
+            injection = self.MANIFEST_TAG + self.THEME_TAG + self.SCRIPT_TAG
+            new_body = body.replace(b'</head>', injection + b'</head>', 1)
+            response.content = new_body
+            if response.has_header('Content-Length'):
+                response['Content-Length'] = str(len(new_body))
+        except Exception:
+            # ميكسرش الصفحة لو حصل أي مشكلة في الـ injection
+            pass
+
+        return response
+
+
 class AuditIPMiddleware:
     """
     يخزن IP المستخدم والمستخدم الحالي في thread-local
