@@ -8,14 +8,19 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.0.0';
+const SW_VERSION   = 'v4.1.0';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
 
-/* ---------- App Shell ---------- */
+/* ---------- App Shell ----------
+ * نضيف '/' و '/secure-portal/' للـ pre-cache عشان لو الـ PWA اتفتحت
+ * أوفلاين قبل ما المستخدم يزور أي صفحة، يلاقي بداية فيها معلومات بدل
+ * offline.html فقط.
+ */
 const SHELL_ASSETS = [
     OFFLINE_URL,
+    '/',
     '/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png',
