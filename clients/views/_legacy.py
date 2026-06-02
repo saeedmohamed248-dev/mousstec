@@ -1974,102 +1974,63 @@ def design_store_generate(request):
     if learned_suffix:
         enhanced_desc += learned_suffix
 
-    # Generate via OpenAI
-    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
-    if not openai_key:
-        return JsonResponse({"error": "محرك التوليد غير متاح حالياً"}, status=503)
-
-    # Handle logo file — read into memory before API calls
+    # 🎨 Generate via Together AI FLUX.1-schnell (was OpenAI gpt-image-1/dall-e — migrated 2026-06)
+    # Logo upload: FLUX schnell لا يدعم image-to-image مباشرة. لو فيه لوجو، نضيفه
+    # في الـ prompt كـ instruction ونحفظ الملف للـ post-processing لاحقاً، بدل ما
+    # نقفل feature كاملاً. الـ visual outcome مش هيدمج اللوجو الفعلي إنما هيخلي
+    # مكان واضح ليه — المستخدم بيقدر يستلم اللوجو منفصل ويدمجه بنفسه أو نعمل
+    # post-process بـ Pillow في PR لاحق.
     logo_file = request.FILES.get('logo') if (
         not using_free_trial and purchase and purchase.package.allows_logo_upload
     ) else None
-    logo_bytes = None
-    if logo_file:
-        logo_bytes = logo_file.read()
-        logo_file.seek(0)  # Reset for later save
-        # Enhance prompt to instruct AI to integrate the logo
-        enhanced_desc += " IMPORTANT: Integrate the provided company logo naturally into the design. The logo should be clearly visible and well-placed within the composition."
+    logo_was_uploaded = bool(logo_file)
+    if logo_was_uploaded:
+        enhanced_desc += (
+            " IMPORTANT: Leave a clean, centered area with generous whitespace where a "
+            "company logo will be composited in post-processing. Do NOT generate any fake "
+            "logo or letterforms in that area — keep it visually empty so a real logo fits."
+        )
 
     try:
-        import openai
-        client = openai.OpenAI(api_key=openai_key)
+        from erp_core.ai.printing_copilot import generate_flux_image
+        flux_negative = (
+            "low quality, blurry, watermark, distorted text, fake logo, "
+            "duplicated elements, extra fingers, jpeg artifacts"
+        )
+        flux_result = generate_flux_image(
+            prompt=enhanced_desc[:1800],  # FLUX prompt limit
+            size=canonical_size,
+            negative_prompt=flux_negative,
+        )
 
-        # Try gpt-image-1 → dall-e-3 → dall-e-2
-        models_chain = ['gpt-image-1', 'dall-e-3', 'dall-e-2']
-        response = None
-        used_model = None
-        for m in models_chain:
+        if not flux_result.get('success'):
+            err = flux_result.get('error', 'unknown')
+            logger.error(f"[DESIGN STORE] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
+            return JsonResponse({
+                "error": "فشل توليد التصميم على Together AI. حاول تاني.",
+                "engine_error": err,
+            }, status=502)
+
+        used_model = flux_result.get('model', 'flux-schnell')
+        image_url = flux_result.get('url')
+        b64 = flux_result.get('b64_json')
+
+        # Persist whatever Together returned (url is short-lived, b64 is inline)
+        import uuid as _uuid
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        if b64:
+            import base64 as _b64
+            img_bytes = _b64.b64decode(b64)
+            filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
+            saved_path = default_storage.save(filename, ContentFile(img_bytes))
+            image_url = default_storage.url(saved_path)
+            if image_url.startswith('/'):
+                image_url = request.build_absolute_uri(image_url)
+        elif image_url:
             try:
-                # Map size per model
-                if m == 'gpt-image-1':
-                    model_size = GPT_IMAGE_SIZE_MAP.get(canonical_size, '1024x1024')
-                elif m == 'dall-e-2':
-                    model_size = '1024x1024'
-                else:
-                    model_size = canonical_size  # dall-e-3 supports 1024x1792
-
-                quality_level = purchase.package.quality_level if purchase else 'standard'
-
-                # If logo uploaded and model supports image editing → use edit API
-                if logo_bytes and m == 'gpt-image-1':
-                    import io
-                    logo_io = io.BytesIO(logo_bytes)
-                    logo_io.name = 'logo.png'
-                    edit_kwargs = {
-                        'model': m,
-                        'image': [logo_io],
-                        'prompt': enhanced_desc[:4000],
-                        'size': model_size,
-                        'n': 1,
-                        'quality': 'high',  # Always high for best results
-                    }
-                    response = client.images.edit(**edit_kwargs)
-                    used_model = m
-                    break
-                else:
-                    # Standard generation (no logo or non-gpt-image model)
-                    kwargs = {'model': m, 'prompt': enhanced_desc[:4000], 'size': model_size, 'n': 1}
-                    if m == 'dall-e-3':
-                        kwargs['quality'] = 'hd' if quality_level in ('hd', 'ultra') else 'standard'
-                    elif m == 'gpt-image-1':
-                        kwargs['quality'] = 'high'  # Always high quality for best results
-                    response = client.images.generate(**kwargs)
-                    used_model = m
-                    break
-            except openai.BadRequestError as e:
-                err_str = str(e)
-                recoverable = ('does not exist', 'model_not_found', 'invalid_value',
-                               'Invalid size', 'invalid_size', 'not supported',
-                               'Could not process', 'invalid_image')
-                if any(k in err_str for k in recoverable):
-                    logger.warning(f"[DESIGN STORE] Model {m} failed: {err_str[:120]}, trying next...")
-                    continue
-                raise
-
-        if not response:
-            return JsonResponse({"error": "فشل التوليد. حاول لاحقاً."}, status=502)
-
-        # Save image to disk
-        first = response.data[0]
-        image_url = getattr(first, 'url', None)
-        if not image_url:
-            b64 = getattr(first, 'b64_json', None)
-            if b64:
-                import base64 as _b64, uuid as _uuid
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
-                img_bytes = _b64.b64decode(b64)
-                filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
-                saved_path = default_storage.save(filename, ContentFile(img_bytes))
-                image_url = default_storage.url(saved_path)
-                if image_url.startswith('/'):
-                    image_url = request.build_absolute_uri(image_url)
-        else:
-            # Download and persist DALL-E URLs (they expire)
-            try:
-                import requests as _req, uuid as _uuid
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
+                import requests as _req
                 r = _req.get(image_url, timeout=30)
                 if r.status_code == 200:
                     filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
@@ -2079,7 +2040,9 @@ def design_store_generate(request):
                         local = request.build_absolute_uri(local)
                     image_url = local
             except Exception as e:
-                logger.warning(f"[DESIGN STORE] Failed to persist: {e}")
+                logger.warning(f"[DESIGN STORE] Failed to persist FLUX url: {e}")
+        else:
+            return JsonResponse({"error": "Together AI لم يُرجع صورة."}, status=502)
 
         # Create design record
         # Free trial: 0 regenerations. Paid: from package settings.
@@ -2156,7 +2119,7 @@ def design_store_generate(request):
             'jpg': f"/marketplace/design-store/{design.design_code}/download/jpg/",
         }
 
-        return JsonResponse({
+        response_payload = {
             "status": "success",
             "design_id": design.pk,
             "design_code": str(design.design_code),
@@ -2169,7 +2132,14 @@ def design_store_generate(request):
             "can_download": not using_free_trial,
             "can_send_whatsapp": not using_free_trial,
             "download_urls": download_urls if not using_free_trial else {},
-        })
+        }
+        if logo_was_uploaded:
+            response_payload["logo_notice"] = (
+                "اللوجو اتحفظ مع التصميم، بس محرك FLUX الحالي ميقدرش يدمجه "
+                "تلقائياً في الصورة. التصميم سايب مكان فاضي يستوعب اللوجو — "
+                "نقدر ندمجه يدوي أو بـ post-processing عند التحميل."
+            )
+        return JsonResponse(response_payload)
 
     except Exception as e:
         logger.error(f"[DESIGN STORE] Generate failed: {e}")
@@ -2343,89 +2313,67 @@ def design_store_regenerate(request, design_code):
     design.regenerations_used += 1
     design.save(update_fields=['regenerations_used'])
 
-    # Inline regenerate without consuming purchase quota
-    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
-    if not openai_key:
-        return JsonResponse({"error": "محرك التوليد غير متاح"}, status=503)
-
-    # Use the engineered prompt (best quality) or fall back to description
+    # 🎨 Regenerate via Together AI FLUX.1-schnell (migrated 2026-06)
     regen_prompt = design.engineered_prompt or design.description
     if not regen_prompt or len(regen_prompt) < 10:
         regen_prompt = f"Create a professional design: {design.title}. {design.description}"
 
     try:
-        import openai
-        client = openai.OpenAI(api_key=openai_key)
-        gpt_size_map = {
-            '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
-            '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
-        }
-        sz = gpt_size_map.get(design.size_preset, '1024x1024')
+        from erp_core.ai.printing_copilot import generate_flux_image
+        # Map Together-supported FLUX sizes — any non-standard size falls back to 1024x1024
+        SUPPORTED = {'1024x1024', '1024x1536', '1536x1024'}
+        sz = design.size_preset if design.size_preset in SUPPORTED else '1024x1024'
 
-        # Try gpt-image-1 → dall-e-3 fallback
-        models_to_try = ['gpt-image-1', 'dall-e-3']
-        resp = None
-        for m in models_to_try:
-            try:
-                kwargs = {
-                    'model': m,
-                    'prompt': regen_prompt[:4000],
-                    'size': sz if m == 'gpt-image-1' else design.size_preset or '1024x1024',
-                    'n': 1,
-                }
-                if m == 'gpt-image-1':
-                    kwargs['quality'] = 'high'
-                elif m == 'dall-e-3':
-                    kwargs['quality'] = 'hd'
-                resp = client.images.generate(**kwargs)
-                break
-            except Exception as model_err:
-                logger.warning(f"[REGEN] Model {m} failed: {model_err}")
-                continue
+        flux_result = generate_flux_image(
+            prompt=regen_prompt[:1800],
+            size=sz,
+            negative_prompt="low quality, blurry, watermark, distorted text, fake logo",
+        )
+        if not flux_result.get('success'):
+            err = flux_result.get('error', 'unknown')
+            logger.error(f"[REGEN] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
+            return JsonResponse({
+                "error": "فشل إعادة التوليد على Together AI. حاول تاني.",
+                "engine_error": err,
+            }, status=502)
 
-        if not resp:
-            return JsonResponse({"error": "فشل إعادة التوليد مع كل المحركات"}, status=502)
+        new_url = flux_result.get('url')
+        b64 = flux_result.get('b64_json')
 
-        first = resp.data[0]
-        new_url = getattr(first, 'url', None)
+        # Persist Together-hosted URLs locally (short-lived)
+        import uuid as _uuid
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
 
-        # gpt-image-1 returns b64_json, not url
-        if not new_url:
-            b64 = getattr(first, 'b64_json', None)
-            if b64:
-                import base64 as _b64
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
-                img_bytes = _b64.b64decode(b64)
-                filename = f"ai_store/{customer.uid}/regen_{uuid.uuid4().hex}.png"
-                saved = default_storage.save(filename, ContentFile(img_bytes))
-                local_url = default_storage.url(saved)
-                if local_url.startswith('/'):
-                    local_url = request.build_absolute_uri(local_url)
-                new_url = local_url
-
-        if not new_url:
-            return JsonResponse({"error": "لم يتم استلام صورة من المحرك"}, status=502)
-
-        # Persist DALL-E URLs (they expire after ~1 hour)
-        if 'oaidalleapiprodscus' in (new_url or ''):
+        if b64:
+            import base64 as _b64
+            img_bytes = _b64.b64decode(b64)
+            filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
+            saved = default_storage.save(filename, ContentFile(img_bytes))
+            local_url = default_storage.url(saved)
+            if local_url.startswith('/'):
+                local_url = request.build_absolute_uri(local_url)
+            new_url = local_url
+        elif new_url:
             try:
                 import requests as _req
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
                 r = _req.get(new_url, timeout=30)
                 if r.status_code == 200:
-                    filename = f"ai_store/{customer.uid}/regen_{uuid.uuid4().hex}.png"
+                    filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
                     saved = default_storage.save(filename, ContentFile(r.content))
                     local_url = default_storage.url(saved)
                     if local_url.startswith('/'):
                         local_url = request.build_absolute_uri(local_url)
                     new_url = local_url
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[REGEN] Failed to persist FLUX url: {e}")
+
+        if not new_url:
+            return JsonResponse({"error": "لم يتم استلام صورة من Together AI"}, status=502)
 
         design.image_url = new_url
-        design.save(update_fields=['image_url'])
+        design.model_used = flux_result.get('model', 'flux-schnell')
+        design.save(update_fields=['image_url', 'model_used'])
 
         # Save chat history for regeneration
         try:
@@ -2779,110 +2727,67 @@ def design_store_refine(request, design_code):
         f"Only change what the client specifically asked for."
     )
 
-    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
-    if not openai_key:
-        return JsonResponse({"error": "محرك التوليد غير متاح"}, status=503)
-
+    # 🎨 Refine via Together AI FLUX.1-schnell (migrated 2026-06)
+    # FLUX schnell لا يدعم image-to-image edit — بنعمل regenerate كامل بـ
+    # prompt محسّن يجمع الأصلي + تعليمات التعديل. الصورة الأصلية تتحفظ في
+    # تاريخ الـ chat فالعميل يقدر يقارن.
     try:
-        import openai
-        client_ai = openai.OpenAI(api_key=openai_key)
-        gpt_size_map = {
-            '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
-            '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
-        }
-        sz = gpt_size_map.get(design.size_preset, '1024x1024')
+        from erp_core.ai.printing_copilot import generate_flux_image
+        SUPPORTED = {'1024x1024', '1024x1536', '1536x1024'}
+        sz = design.size_preset if design.size_preset in SUPPORTED else '1024x1024'
 
-        # Try using image edit API (gpt-image-1) with the existing image for true refinement
-        resp = None
-        used_edit = False
+        flux_result = generate_flux_image(
+            prompt=refinement_prompt[:1800],
+            size=sz,
+            negative_prompt="low quality, blurry, watermark, distorted text, inconsistent style",
+        )
+        if not flux_result.get('success'):
+            err = flux_result.get('error', 'unknown')
+            logger.error(f"[REFINE] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
+            return JsonResponse({
+                "error": "فشل التعديل على Together AI. حاول تاني.",
+                "engine_error": err,
+            }, status=502)
 
-        # Attempt edit with existing image (best refinement quality)
-        if design.image_url:
-            try:
-                import requests as _req, io
-                img_resp = _req.get(design.image_url, timeout=15)
-                if img_resp.status_code == 200:
-                    img_io = io.BytesIO(img_resp.content)
-                    img_io.name = 'current.png'
-                    resp = client_ai.images.edit(
-                        model='gpt-image-1',
-                        image=[img_io],
-                        prompt=refinement_prompt[:4000],
-                        size=sz,
-                        n=1,
-                        quality='high',
-                    )
-                    used_edit = True
-            except Exception as edit_err:
-                logger.warning(f"[REFINE] Edit API failed, falling back to generate: {edit_err}")
+        new_url = flux_result.get('url')
+        b64 = flux_result.get('b64_json')
 
-        # Fallback: regenerate with refinement prompt
-        if not resp:
-            models_to_try = ['gpt-image-1', 'dall-e-3']
-            for m in models_to_try:
-                try:
-                    kwargs = {
-                        'model': m,
-                        'prompt': refinement_prompt[:4000],
-                        'size': sz if m == 'gpt-image-1' else design.size_preset or '1024x1024',
-                        'n': 1,
-                    }
-                    if m == 'gpt-image-1':
-                        kwargs['quality'] = 'high'
-                    elif m == 'dall-e-3':
-                        kwargs['quality'] = 'hd'
-                    resp = client_ai.images.generate(**kwargs)
-                    break
-                except Exception as model_err:
-                    logger.warning(f"[REFINE] Model {m} failed: {model_err}")
-                    continue
+        import uuid as _uuid
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
 
-        if not resp:
-            return JsonResponse({"error": "فشل التعديل مع كل المحركات"}, status=502)
-
-        first = resp.data[0]
-        new_url = getattr(first, 'url', None)
-
-        # Handle b64_json response
-        if not new_url:
-            b64 = getattr(first, 'b64_json', None)
-            if b64:
-                import base64 as _b64
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
-                img_bytes = _b64.b64decode(b64)
-                filename = f"ai_store/{customer.uid}/refine_{uuid.uuid4().hex}.png"
-                saved = default_storage.save(filename, ContentFile(img_bytes))
-                local_url = default_storage.url(saved)
-                if local_url.startswith('/'):
-                    local_url = request.build_absolute_uri(local_url)
-                new_url = local_url
-
-        # Persist DALL-E URLs
-        if new_url and 'oaidalleapiprodscus' in new_url:
+        if b64:
+            import base64 as _b64
+            img_bytes = _b64.b64decode(b64)
+            filename = f"ai_store/{customer.uid}/refine_{_uuid.uuid4().hex}.png"
+            saved = default_storage.save(filename, ContentFile(img_bytes))
+            local_url = default_storage.url(saved)
+            if local_url.startswith('/'):
+                local_url = request.build_absolute_uri(local_url)
+            new_url = local_url
+        elif new_url:
             try:
                 import requests as _req
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
                 r = _req.get(new_url, timeout=30)
                 if r.status_code == 200:
-                    filename = f"ai_store/{customer.uid}/refine_{uuid.uuid4().hex}.png"
+                    filename = f"ai_store/{customer.uid}/refine_{_uuid.uuid4().hex}.png"
                     saved = default_storage.save(filename, ContentFile(r.content))
                     local_url = default_storage.url(saved)
                     if local_url.startswith('/'):
                         local_url = request.build_absolute_uri(local_url)
                     new_url = local_url
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[REFINE] Failed to persist FLUX url: {e}")
 
         if not new_url:
-            return JsonResponse({"error": "لم يتم استلام صورة"}, status=502)
+            return JsonResponse({"error": "لم يتم استلام صورة من Together AI"}, status=502)
 
         # Update design
         design.image_url = new_url
         design.regenerations_used += 1
         design.engineered_prompt = refinement_prompt[:4000]
-        design.save(update_fields=['image_url', 'regenerations_used', 'engineered_prompt'])
+        design.model_used = flux_result.get('model', 'flux-schnell')
+        design.save(update_fields=['image_url', 'regenerations_used', 'engineered_prompt', 'model_used'])
 
         # Save AI response message
         DesignChatMessage.objects.create(
@@ -2895,7 +2800,7 @@ def design_store_refine(request, design_code):
             "status": "success",
             "image_url": new_url,
             "regenerations_left": design.regenerations_allowed - design.regenerations_used,
-            "used_edit_api": used_edit,
+            "used_edit_api": False,  # FLUX schnell = regenerate-style refinement
         })
     except Exception as e:
         logger.error(f"[REFINE] Failed: {e}")
