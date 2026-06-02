@@ -338,6 +338,17 @@ def design_generate(request):
     except Exception as e:
         logger.warning(f'[DESIGN GENERATE] flywheel log failed (non-fatal): {e}')
 
+    # 📄 PDF download URL — متاح فقط لو في log_id (يفترض كده دايماً)
+    print_spec_pdf_url = None
+    if log_id:
+        try:
+            from django.urls import reverse
+            print_spec_pdf_url = request.build_absolute_uri(
+                reverse('design_print_spec_pdf', args=[log_id])
+            )
+        except Exception:
+            print_spec_pdf_url = f'/ai/design/{log_id}/print-spec.pdf'
+
     return JsonResponse({
         'success': True,
         'log_id': log_id,
@@ -351,6 +362,7 @@ def design_generate(request):
         'image_b64': img.get('b64_json'),
         'size': size,
         'text_overlay_applied': overlay_applied,
+        'print_spec_pdf_url': print_spec_pdf_url,
         'provider': img.get('provider'),
         'model': img.get('model'),
         'balance': credit_info.get('balance') if credit_info else None,
@@ -435,3 +447,89 @@ def design_feedback(request):
     except Exception as e:
         logger.exception('[DESIGN FEEDBACK] failed')
         return JsonResponse({'success': False, 'error': str(e)}, status=200)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 📄 Print-Ready Spec PDF — download endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+@login_required
+def design_print_spec_pdf(request, log_id: int):
+    """يـ generate و يـ return PDF بمواصفات الطباعة لتصميم معين.
+
+    الـ access control: لازم الـ user يكون authenticated، ولو الـ log مرتبط
+    بـ MarketplaceCustomer، لازم الـ user الحالي هو نفس الـ customer أو superuser.
+    """
+    from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
+    from clients.models import AIPromptLearningLog, CustomerDesign
+    from .print_spec_pdf import build_print_spec_pdf
+
+    log = AIPromptLearningLog.objects.filter(id=log_id).first()
+    if not log:
+        return HttpResponseNotFound('log_not_found')
+
+    # Access check
+    is_owner = (
+        request.user.is_superuser
+        or (log.user_id and log.user_id == request.user.id)
+        or (log.customer_id and request.session.get('marketplace_customer_id') == log.customer_id)
+    )
+    if not is_owner:
+        return HttpResponseForbidden('forbidden')
+
+    # ── Gather data ──
+    text = ''
+    text_color = '#000000'
+    text_position = 'center'
+    if isinstance(log.selections, dict):
+        for k, v in log.selections.items():
+            kl = (k or '').lower()
+            if any(t in kl for t in ('text_on_design', 'text', 'النص', 'كتابة')) and v and not text:
+                text = str(v)
+            if 'color' in kl and isinstance(v, str) and v.startswith('#'):
+                text_color = v
+
+    # Category — نـ derive من detected_domain أو من ('category', ...)
+    cat = (log.detected_domain or '').lower()
+    if not cat or cat == 'universal_ai_design':
+        cat = 'other'
+
+    # Customer info
+    customer_name = '—'
+    customer_phone = '—'
+    if log.customer_id:
+        try:
+            from clients.models import MarketplaceCustomer
+            cust = MarketplaceCustomer.objects.filter(id=log.customer_id).first()
+            if cust:
+                customer_name = cust.full_name or cust.phone or '—'
+                customer_phone = cust.phone or '—'
+        except Exception:
+            pass
+
+    # Design code (نـ link لـ CustomerDesign لو موجود)
+    design_code = f'AIL-{log.id}'
+    cd = CustomerDesign.objects.filter(customer_id=log.customer_id, image_url=log.image_url).first() if log.customer_id else None
+    if cd:
+        design_code = str(cd.design_code)
+
+    try:
+        pdf_bytes = build_print_spec_pdf(
+            design_code=design_code,
+            image_url=log.image_url,
+            text=text,
+            text_color=text_color,
+            text_position=text_position,
+            category=cat,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            quantity=1,
+            notes='',
+            raw_idea=log.raw_input or '',
+        )
+    except Exception as e:
+        logger.exception(f'[PDF] generation failed for log_id={log_id}: {e}')
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    resp['Content-Disposition'] = f'attachment; filename="print-spec-{design_code}.pdf"'
+    return resp

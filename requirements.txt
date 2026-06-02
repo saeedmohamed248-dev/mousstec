@@ -91,3 +91,6 @@ zope.interface==8.0.1
 # 🅰️ Arabic text rendering on AI-generated images (FLUX can't render RTL scripts)
 arabic-reshaper==3.0.0
 python-bidi==0.6.6
+
+# 📄 Print-ready spec PDF generation (sent to print shops with each design)
+reportlab>=4.0,<5.0

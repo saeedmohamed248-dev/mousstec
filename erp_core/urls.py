@@ -301,6 +301,8 @@ urlpatterns = [
     path('ai/design/analyze/', design_views.design_analyze, name='design_analyze'),
     path('ai/design/generate/', design_views.design_generate, name='design_generate'),
     path('ai/design/feedback/', design_views.design_feedback, name='design_feedback'),
+    # 📄 Print-ready spec PDF — للتحميل وإرساله للمطبعة
+    path('ai/design/<int:log_id>/print-spec.pdf', design_views.design_print_spec_pdf, name='design_print_spec_pdf'),
 
     # 🛡️ God Mode — Super admin tools (impersonation + system health radar)
     path('admin-tools/impersonate/<int:customer_id>/',
