@@ -13,7 +13,7 @@ from .models import (
     Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest,
     BidOffer, EscrowLedger, Plan, AIAddonPackage,
     TenantSubscription, AILimitTracker, AIPromptLearningLog,
-    Feature, PlanRevision, PlatformInvoice,
+    Feature, PlanRevision, PlatformInvoice, DesignPackage,
 )
 
 import logging
@@ -506,6 +506,90 @@ class AIAddonPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     def monthly_price_styled(self, obj):
         return format_html('<b style="color:#6f42c1;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
     monthly_price_styled.short_description = "السعر الشهري"
+
+    def is_active_icon(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
+        return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
+    is_active_icon.short_description = "مفعّلة"
+
+
+# =====================================================================
+# 🎨 7c. باقات تصاميم AI (DesignPackage — one-time credit packs)
+# =====================================================================
+# عميل ⇄ مصمم: نفس الموديل، target_audience بيفرّق بين الفئتين.
+# الكروت اللي تظهر على /printing/ landing بتـ filter بـ target_audience.
+@admin.register(DesignPackage)
+class DesignPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        'icon_emoji', 'name_ar', 'target_audience_badge',
+        'designs_count', 'designer_designs_count',
+        'price_egp_styled', 'price_per_design_styled',
+        'free_regenerations_per_design', 'quality_level',
+        'is_featured_icon', 'is_active_icon', 'sort_order',
+    )
+    list_display_links = ('icon_emoji', 'name_ar')
+    list_editable = ('sort_order',)
+    list_filter = ('target_audience', 'is_active', 'is_featured', 'quality_level')
+    search_fields = ('slug', 'name_ar', 'badge_text')
+    ordering = ('target_audience', 'sort_order', 'designs_count')
+    readonly_fields = ('price_per_design', 'created_at')
+
+    fieldsets = (
+        ('📌 الأساسيات', {
+            'fields': (
+                'slug', 'target_audience', 'name_ar', 'badge_text',
+                'is_active', 'is_featured', 'sort_order',
+            ),
+        }),
+        ('💰 التسعير والعدد', {
+            'fields': (
+                'price_egp', 'designs_count', 'designer_designs_count',
+                'price_per_design',
+            ),
+            'description': (
+                'price_per_design يتحسب تلقائياً = price_egp ÷ designs_count. '
+                'designer_designs_count = نفس السعر للمصممين بعدد أكبر (0 = نفس عدد العملاء).'
+            ),
+        }),
+        ('⚙️ الصلاحيات والميزات', {
+            'fields': (
+                'allows_logo_upload', 'allows_watermark', 'allows_source_files',
+                'allows_commercial_use', 'allows_whatsapp_delivery',
+                'free_regenerations_per_design',
+            ),
+        }),
+        ('🎨 الجودة والعرض', {
+            'fields': (
+                'resolution_max', 'quality_level',
+                'icon_emoji', 'accent_color', 'description_html',
+            ),
+        }),
+        ('🕒 Metadata', {'fields': ('created_at',), 'classes': ('collapse',)}),
+    )
+
+    def target_audience_badge(self, obj):
+        if obj.target_audience == 'designer':
+            return format_html(
+                '<span style="background:#ec4899;color:#fff;padding:3px 9px;border-radius:6px;font-weight:700;font-size:11px;">🎨 مصمم</span>'
+            )
+        return format_html(
+            '<span style="background:#6366f1;color:#fff;padding:3px 9px;border-radius:6px;font-weight:700;font-size:11px;">👤 عميل</span>'
+        )
+    target_audience_badge.short_description = "الفئة"
+
+    def price_egp_styled(self, obj):
+        return format_html('<b style="color:#6f42c1;">{} ج.م</b>', f"{obj.price_egp:,.2f}")
+    price_egp_styled.short_description = "السعر"
+    price_egp_styled.admin_order_field = 'price_egp'
+
+    def price_per_design_styled(self, obj):
+        return format_html('<span style="color:#0ea5e9;">{} ج.م/تصميم</span>', f"{obj.price_per_design:,.2f}")
+    price_per_design_styled.short_description = "سعر التصميم"
+
+    def is_featured_icon(self, obj):
+        return format_html('<span style="font-size:16px;">⭐</span>') if obj.is_featured else ''
+    is_featured_icon.short_description = "مميزة"
 
     def is_active_icon(self, obj):
         if obj.is_active:

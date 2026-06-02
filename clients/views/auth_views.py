@@ -17,7 +17,7 @@ from django.utils.text import slugify
 from django_tenants.utils import schema_context
 
 from clients.forms import TenantSignupForm
-from clients.models import Client, Domain
+from clients.models import Client, DesignPackage, Domain
 
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
@@ -212,8 +212,34 @@ def automotive_landing_page(request):
 
 
 def printing_landing_page(request):
-    """صفحة تعريفية كاملة بقطاع المطابع والتصميم — مميزات، أسعار، وطريقة التسجيل"""
-    return render(request, 'clients/print_landing.html')
+    """صفحة تعريفية كاملة بقطاع المطابع والتصميم.
+
+    كروت باقات التصاميم بتيجي من DesignPackage model، مفصولة بـ target_audience:
+      • customer_packages → باقات الأفراد (الجزء العلوي)
+      • designer_packages → باقات المصممين والاستوديوهات (الجزء السفلي)
+    أي تعديل من Super Admin يظهر فوراً — مفيش hardcoded.
+    """
+    base_qs = DesignPackage.objects.filter(is_active=True).order_by('sort_order', 'designs_count')
+
+    customer_packages = list(base_qs.filter(target_audience='customer'))
+    designer_packages = list(base_qs.filter(target_audience='designer'))
+
+    # Featured fallback: لو مفيش is_featured متعبّى نعتبر التاني من ضمن 3 أو الـ middle = الأكثر طلباً
+    def _mark_popular(pkgs):
+        if not pkgs:
+            return
+        if any(p.is_featured for p in pkgs):
+            return  # عند الأدمن control كامل
+        if len(pkgs) >= 3:
+            pkgs[len(pkgs) // 2].is_featured = True  # in-memory only
+
+    _mark_popular(customer_packages)
+    _mark_popular(designer_packages)
+
+    return render(request, 'clients/print_landing.html', {
+        'customer_packages': customer_packages,
+        'designer_packages': designer_packages,
+    })
 
 
 # =====================================================================
