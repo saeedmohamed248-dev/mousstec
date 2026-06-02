@@ -16,119 +16,184 @@ def _get_cache():
     return caches['local_tier'] if 'local_tier' in caches else caches['default']
 
 # =====================================================================
-# 🛡️ المحرك المركزي المعزز (Cognitive AI Gateway - MAS Compliant)
+# 🛡️ Cognitive AI Gateway — Together AI for text/JSON, Gemini for vision
 # =====================================================================
-def call_gemini_layer(messages, json_mode=False, max_retries=3, require_pro=False):
-    """
-    🚀 بوابة الاتصال الذكية والمحصنة للوكلاء (Agents):
-    تم دمج التحصين الشامل: تطهير المفتاح، استخدام v1 Endpoint، ومقصلة تنظيف الـ JSON.
-    """
-    if not getattr(settings, 'ENABLE_AI_PREDICTIONS', False) or not getattr(settings, 'AI_VISION_API_KEY', None):
-        logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled or Missing Key.")
+_TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
+_DEFAULT_TOGETHER_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
+
+
+def _messages_contain_image(messages):
+    for msg in messages:
+        content = msg.get('content')
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get('type') == 'image_url':
+                    return True
+    return False
+
+
+def _strip_json_fences(text):
+    text = re.sub(r'^```json\s*', '', text)
+    text = re.sub(r'^```\s*', '', text)
+    text = re.sub(r'\s*```$', '', text)
+    return text.strip()
+
+
+def _call_together_text(messages, json_mode, max_retries):
+    api_key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
+    if not api_key:
+        logger.warning("⚠️ [COGNITIVE AGENT]: TOGETHER_API_KEY missing — text layer disabled.")
         return None
 
-    # نماذج Gemini المستقرة — fallback chain
-    # gemini-2.5-flash للجودة العالية، gemini-2.0-flash للسرعة، gemini-1.5-flash كـ fallback
-    primary_model = "gemini-2.5-flash" if require_pro else "gemini-2.0-flash"
-    fallback_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"]
+    model = str(getattr(settings, 'TOGETHER_LLM_MODEL', '') or _DEFAULT_TOGETHER_MODEL).strip()
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
 
-    # 🔥 تطهير المفتاح من أي \r أو \n أو مسافات عشوائية من ملف الـ .env
-    clean_key = str(settings.AI_VISION_API_KEY).strip()
+    payload = {
+        'model': model,
+        'messages': messages,
+        'temperature': 0.2,
+    }
+    if json_mode:
+        payload['response_format'] = {'type': 'json_object'}
 
-    # 🌐 استخدام الـ v1beta endpoint اللي بيدعم أحدث الموديلات
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(_TOGETHER_CHAT_URL, headers=headers, json=payload, timeout=30)
+
+            if response.status_code == 200:
+                try:
+                    raw_content = response.json()['choices'][0]['message']['content']
+                except (KeyError, IndexError, ValueError) as e:
+                    logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Together response: {response.text[:300]} — {e}")
+                    return None
+                if json_mode:
+                    raw_content = _strip_json_fences(raw_content)
+                return raw_content
+
+            if response.status_code == 429:
+                logger.warning(f"⏳ [COGNITIVE AGENT]: Together rate limit. Attempt {attempt + 1}/{max_retries}.")
+                time.sleep(2 ** attempt)
+                last_error = 'together_429'
+                continue
+
+            logger.error(f"🔴 [COGNITIVE AGENT] Together {model} HTTP {response.status_code}: {response.text[:300]}")
+            last_error = f'together_{response.status_code}'
+            break
+
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            logger.warning(f"⏳ [COGNITIVE AGENT]: Together connection lost. Attempt {attempt + 1}/{max_retries} — {e}")
+            time.sleep(2 ** attempt)
+            last_error = str(e)
+        except Exception as e:
+            logger.error(f"🔴 [COGNITIVE AGENT FATAL] Together: {e}")
+            last_error = str(e)
+            break
+
+    logger.error(f"🛑 [COGNITIVE AGENT]: Together text path exhausted. Last error: {last_error}")
+    return None
+
+
+def _call_gemini_vision(messages, json_mode, max_retries):
+    """Image-only path. Kept on Gemini until a Together vision model is wired up."""
+    api_key = str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+    if not api_key:
+        logger.warning("⚠️ [COGNITIVE AGENT]: AI_VISION_API_KEY missing — vision layer disabled.")
+        return None
+
+    primary_model = 'gemini-2.5-flash'
+    fallback_models = ['gemini-2.0-flash', 'gemini-2.0-flash-lite']
+    models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
+
     def _build_url(model):
-        return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
-
-    url = _build_url(primary_model)
-    headers = {"Content-Type": "application/json"}
+        return f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
     gemini_contents = []
     system_instruction = None
-    
     for msg in messages:
-        if msg["role"] == "system":
-            system_instruction = {"parts": [{"text": msg["content"]}]}
+        if msg['role'] == 'system':
+            system_instruction = {'parts': [{'text': msg['content']}]}
+            continue
+        parts = []
+        if isinstance(msg['content'], list):
+            for item in msg['content']:
+                if item.get('type') == 'text':
+                    parts.append({'text': item['text']})
+                elif item.get('type') == 'image_url':
+                    b64_data = item['image_url']['url'].split(',', 1)[-1]
+                    parts.append({'inline_data': {'mime_type': 'image/jpeg', 'data': b64_data}})
         else:
-            parts = []
-            if isinstance(msg["content"], list):
-                for item in msg["content"]:
-                    if item.get("type") == "text":
-                        parts.append({"text": item["text"]})
-                    elif item.get("type") == "image_url":
-                        b64_data = item["image_url"]["url"].split(",")[1]
-                        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64_data}})
-            else:
-                parts.append({"text": msg["content"]})
-            
-            gemini_contents.append({"role": "user" if msg["role"] == "user" else "model", "parts": parts})
+            parts.append({'text': msg['content']})
+        gemini_contents.append({'role': 'user' if msg['role'] == 'user' else 'model', 'parts': parts})
 
-    payload = {
-        "contents": gemini_contents,
-        "generationConfig": {
-            "temperature": 0.2, 
-        }
-    }
-    
+    payload = {'contents': gemini_contents, 'generationConfig': {'temperature': 0.2}}
     if system_instruction:
-        payload["systemInstruction"] = system_instruction
-        
+        payload['systemInstruction'] = system_instruction
     if json_mode:
-        payload["generationConfig"]["responseMimeType"] = "application/json"
+        payload['generationConfig']['responseMimeType'] = 'application/json'
 
-    # قائمة الموديلات اللي نجربها بالترتيب
-    models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
+    headers = {'Content-Type': 'application/json'}
     last_error = None
-
     for model in models_to_try:
-        current_url = _build_url(model)
         for attempt in range(max_retries):
             try:
-                response = requests.post(current_url, headers=headers, json=payload, timeout=30)
-
+                response = requests.post(_build_url(model), headers=headers, json=payload, timeout=30)
                 if response.status_code == 200:
-                    res_data = response.json()
                     try:
-                        raw_content = res_data['candidates'][0]['content']['parts'][0]['text']
-                    except (KeyError, IndexError) as e:
-                        logger.error(f"🔴 [COGNITIVE AGENT]: Malformed response from {model}: {res_data} — {e}")
-                        last_error = f"malformed response from {model}"
-                        break  # try next model
-
-                    # 🪓 مقصلة تنظيف الهلوسة (تجريد رد جوجل من علامات الماركداون إذا طلبنا JSON)
+                        raw_content = response.json()['candidates'][0]['content']['parts'][0]['text']
+                    except (KeyError, IndexError, ValueError) as e:
+                        logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Gemini response from {model} — {e}")
+                        last_error = 'malformed'
+                        break
                     if json_mode:
-                        raw_content = re.sub(r'^```json\s*', '', raw_content)
-                        raw_content = re.sub(r'^```\s*', '', raw_content)
-                        raw_content = re.sub(r'\s*```$', '', raw_content)
-
+                        raw_content = _strip_json_fences(raw_content)
                     if model != primary_model:
-                        logger.info(f"✅ [COGNITIVE AGENT]: Succeeded using fallback model {model}")
+                        logger.info(f"✅ [COGNITIVE AGENT]: Vision succeeded on fallback {model}")
                     return raw_content
-
-                elif response.status_code == 429:
-                    logger.warning(f"⏳ [COGNITIVE AGENT]: Rate Limit on {model}. Attempt {attempt + 1}/{max_retries}...")
+                if response.status_code == 429:
+                    logger.warning(f"⏳ [COGNITIVE AGENT]: Vision rate limit {model}. Attempt {attempt + 1}/{max_retries}")
                     time.sleep(2 ** attempt)
+                    last_error = 'vision_429'
                     continue
-                elif response.status_code in (400, 404):
-                    # Model not available — try next model immediately
-                    logger.warning(f"⚠️ [COGNITIVE AGENT]: Model {model} unavailable ({response.status_code}): {response.text[:200]}")
-                    last_error = f"{model} returned {response.status_code}"
-                    break  # break inner retry loop, move to next model
-                else:
-                    logger.error(f"🔴 [COGNITIVE AGENT ERROR] {model} {response.status_code}: {response.text[:300]}")
-                    last_error = f"{model} returned {response.status_code}"
+                if response.status_code in (400, 403, 404):
+                    logger.warning(f"⚠️ [COGNITIVE AGENT]: Vision model {model} unavailable ({response.status_code}): {response.text[:200]}")
+                    last_error = f'{model}_{response.status_code}'
                     break
-
+                logger.error(f"🔴 [COGNITIVE AGENT ERROR] Vision {model} {response.status_code}: {response.text[:300]}")
+                last_error = f'{model}_{response.status_code}'
+                break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                logger.warning(f"⏳ [COGNITIVE AGENT]: Connection lost. Attempt {attempt + 1}/{max_retries}... ({e})")
+                logger.warning(f"⏳ [COGNITIVE AGENT]: Vision connection lost. Attempt {attempt + 1}/{max_retries} — {e}")
                 time.sleep(2 ** attempt)
                 last_error = str(e)
             except Exception as e:
-                logger.error(f"🔴 [COGNITIVE AGENT FATAL] {model}: {e}")
+                logger.error(f"🔴 [COGNITIVE AGENT FATAL] Vision {model}: {e}")
                 last_error = str(e)
                 break
 
-    logger.error(f"🛑 [COGNITIVE AGENT]: All models exhausted. Last error: {last_error}")
+    logger.error(f"🛑 [COGNITIVE AGENT]: Vision path exhausted. Last error: {last_error}")
     return None
+
+
+def call_llm_layer(messages, json_mode=False, max_retries=3, require_pro=False):
+    """
+    Unified cognitive gateway:
+      • Text / JSON  → Together AI (TOGETHER_LLM_MODEL)
+      • Vision (image_url in payload) → Gemini, until a Together vision model is wired up.
+    Input/output shape preserved so all 9 legacy callers keep working unchanged.
+    `require_pro` is accepted for compatibility but currently ignored (single Together model).
+    """
+    if not getattr(settings, 'ENABLE_AI_PREDICTIONS', False):
+        logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled (ENABLE_AI_PREDICTIONS=False).")
+        return None
+
+    if _messages_contain_image(messages):
+        return _call_gemini_vision(messages, json_mode=json_mode, max_retries=max_retries)
+    return _call_together_text(messages, json_mode=json_mode, max_retries=max_retries)
+
+
+# 🪡 Back-compat alias — 9 callers across inventory/clients/printing still import this name.
+call_gemini_layer = call_llm_layer
 
 # =====================================================================
 # 🚗 1. مستشار الأعطال وتوقع قطع الغيار (Diagnostic Bot)

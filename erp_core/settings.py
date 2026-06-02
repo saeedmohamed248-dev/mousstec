@@ -326,6 +326,7 @@ GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 # =====================================================================
 # هتستخدم في Phase 2 (مولد الصور الفخم) — مهيأة هنا عشان متبقاش طلبات تعديل لاحقة
 TOGETHER_API_KEY = env.str('TOGETHER_API_KEY', '')
+TOGETHER_LLM_MODEL = env.str('TOGETHER_LLM_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')
 REPLICATE_API_TOKEN = env.str('REPLICATE_API_TOKEN', '')
 FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' | 'replicate'
 
