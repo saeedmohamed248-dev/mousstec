@@ -57,8 +57,39 @@ def has_arabic(text: str) -> bool:
     return False
 
 
+def _pil_has_libraqm() -> bool:
+    """يتحقق لو PIL مبني مع libraqm (HarfBuzz). نـ cache النتيجة على module level."""
+    global _LIBRAQM_CHECKED, _LIBRAQM_AVAILABLE
+    if _LIBRAQM_CHECKED:
+        return _LIBRAQM_AVAILABLE
+    try:
+        from PIL import features
+        _LIBRAQM_AVAILABLE = bool(features.check('raqm'))
+    except Exception:
+        _LIBRAQM_AVAILABLE = False
+    _LIBRAQM_CHECKED = True
+    logger.info(f'[TEXT OVERLAY] libraqm available: {_LIBRAQM_AVAILABLE}')
+    return _LIBRAQM_AVAILABLE
+
+
+_LIBRAQM_CHECKED = False
+_LIBRAQM_AVAILABLE = False
+
+
 def reshape_arabic(text: str) -> str:
-    """يحوّل النص العربي للـ shaped form الصحيح (مع البديل)."""
+    """يحوّل النص العربي للـ shaped form الصحيح.
+
+    🎯 Critical: لو PIL مبني مع libraqm (PIL 8+ مع HarfBuzz)، الـ shaping
+    والـ bidi بيتم تلقائياً على مستوى الـ rendering — فلازم نـ pass الـ
+    raw text بدون أي معالجة. لو نعمل reshape + bidi ثم نسيب libraqm يعمل
+    bidi تاني، النص يطلع مقلوب (double-reversal).
+
+    Fallback path للـ PIL بدون libraqm: reshape + bidi يدوياً.
+    """
+    if _pil_has_libraqm():
+        # libraqm handles shaping + bidi natively. Pass text untouched.
+        return text
+    # Legacy path: PIL بدون libraqm — لازم نـ pre-process
     try:
         import arabic_reshaper
         from bidi.algorithm import get_display
@@ -127,13 +158,25 @@ def overlay_text_on_image_url(
     overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
+    # 🎯 لو الـ text فيه عربي ومعانا libraqm، نـ pass direction='rtl' كـ hint
+    # واضح للـ shaper. لو لأ، نـ render LTR (default).
+    text_is_arabic = has_arabic(final_text)
+    text_kwargs = {}
+    if text_is_arabic and _pil_has_libraqm():
+        text_kwargs = {'direction': 'rtl', 'language': 'ar'}
+
     # قياس النص
     try:
-        bbox = draw.textbbox((0, 0), final_text, font=font)
+        bbox = draw.textbbox((0, 0), final_text, font=font, **text_kwargs)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
     except Exception:
-        text_w, text_h = font.getsize(final_text)  # legacy PIL
+        try:
+            bbox = draw.textbbox((0, 0), final_text, font=font)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+        except Exception:
+            text_w, text_h = font.getsize(final_text)  # legacy PIL
 
     # تحديد الـ position
     pos_map = {
@@ -146,10 +189,10 @@ def overlay_text_on_image_url(
 
     # ظل خفيف للقراءة (offset 2px أسود)
     shadow_color = (0, 0, 0, 110)
-    draw.text((x + 2, y + 2), final_text, font=font, fill=shadow_color)
+    draw.text((x + 2, y + 2), final_text, font=font, fill=shadow_color, **text_kwargs)
     # النص الفعلي
     color_rgb = _parse_hex_color(color)
-    draw.text((x, y), final_text, font=font, fill=color_rgb)
+    draw.text((x, y), final_text, font=font, fill=color_rgb, **text_kwargs)
 
     # دمج
     combined = Image.alpha_composite(img, overlay).convert('RGB')
