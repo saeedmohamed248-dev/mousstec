@@ -178,7 +178,7 @@ def ai_assistant_api(request):
         # ── Gemini API call (مجاني) ──
         gemini_reply = None
         try:
-            from inventory.ai_services import call_gemini_layer
+            from inventory.ai_services import call_llm_layer
 
             ai_enabled = getattr(settings, 'ENABLE_AI_PREDICTIONS', False)
             api_key = getattr(settings, 'AI_VISION_API_KEY', None)
@@ -197,7 +197,7 @@ def ai_assistant_api(request):
                         messages.append({"role": "assistant", "content": content})
 
                 messages.append({"role": "user", "content": user_message})
-                gemini_reply = call_gemini_layer(messages, json_mode=False, max_retries=1)
+                gemini_reply = call_llm_layer(messages, json_mode=False, max_retries=1)
         except Exception as e:
             logger.warning(f'AI Assistant Gemini fallback: {e}')
 

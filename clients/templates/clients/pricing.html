@@ -20,11 +20,6 @@
             0%,100% { box-shadow: 0 0 0 0 rgba(139,92,246,0.4); }
             50%      { box-shadow: 0 0 0 8px rgba(139,92,246,0); }
         }
-        .limited-flash { animation: flash-offer 1.5s infinite; }
-        @keyframes flash-offer {
-            0%,100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
     </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -114,52 +109,63 @@
             </button>
         </div>
 
-        <!-- ========== Automotive Plans ========== -->
-        <div id="automotive_plans" class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <!-- ========== Dynamic Plan Cards (from DB) ========== -->
+        {% for industry, plans in plans_by_industry.items %}
+        <div id="{{ industry }}_plans"
+             class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+             {% if industry != 'automotive' %}style="display:none;"{% endif %}>
 
-            <!-- Silver -->
-            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm relative">
-                {% if pricing.silver.limited_offer %}
+            {% for plan in plans %}
+            <div class="plan-card relative rounded-2xl p-8 backdrop-blur-sm
+                        {% if plan.is_popular %}popular-glow bg-gradient-to-b from-purple-900/40 to-slate-800/80 border border-purple-500/50
+                        {% else %}bg-slate-800/60 border border-slate-700/60{% endif %}">
+
+                {% if plan.is_popular %}
                 <div class="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span class="limited-flash bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg">
-                        <i class="fas fa-fire ml-1"></i> عرض لفترة محدودة!
+                    <span class="price-badge bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
+                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
                     </span>
                 </div>
                 {% endif %}
-                <div class="text-center mb-8 {% if pricing.silver.limited_offer %}mt-2{% endif %}">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-700 rounded-2xl mb-4">
-                        <i class="fas fa-store text-slate-300 text-2xl"></i>
+
+                <div class="text-center mb-8 {% if plan.is_popular %}mt-2{% endif %}">
+                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4
+                                {% if plan.is_popular %}bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-lg shadow-purple-500/30
+                                {% else %}bg-slate-700{% endif %}">
+                        <i class="fas fa-crown text-white text-2xl"></i>
                     </div>
-                    <h2 class="text-xl font-black text-white mb-1">سيلفر</h2>
-                    <p class="text-slate-400 text-sm">لمراكز الصيانة وتجار قطع الغيار</p>
+                    <h2 class="text-xl font-black text-white mb-1">{{ plan.name }}</h2>
                     <div class="mt-4">
-                        {% if pricing.silver.limited_offer %}
-                        <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.silver.original_price }}</span>
-                        {% endif %}
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.silver.price|unlocalize }}">{{ pricing.silver.price }}</span>
+                        <span class="text-4xl font-black text-white plan-price"
+                              data-base="{{ plan.monthly_price|floatformat:0|unlocalize }}">{{ plan.monthly_price|floatformat:0 }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
                     </div>
-                    {% if pricing.silver.limited_offer %}
-                    <p class="text-red-400 text-xs font-bold mt-2"><i class="fas fa-clock ml-1"></i> وفّر {{ pricing.silver.original_price|add:"-780" }} جنيه — العرض ينتهي قريباً</p>
-                    {% endif %}
                 </div>
+
                 <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فرع واحد + خزينة واحدة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> موظف واحد (المدير)</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> فواتير مبيعات ومشتريات</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-emerald-400 w-4"></i> ادارة المخزون الاساسية</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.max_branches }} فرع · {{ plan.max_treasuries }} خزينة</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.max_users }} مستخدم</li>
+                    {% if plan.monthly_ai_designs_quota %}
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.monthly_ai_designs_quota }} تصميم AI/شهر</li>
+                    {% endif %}
+                    {% for line in plan.features %}
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ line }}</li>
+                    {% endfor %}
+                    {% for label in plan.entitlement_labels %}
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ label }}</li>
+                    {% endfor %}
                     <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
-                    <li class="flex items-center gap-3 text-slate-500"><i class="fas fa-times text-slate-600 w-4"></i> <span class="line-through">سوق B2B المركزي</span></li>
                 </ul>
+
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('silver', '{{ pricing.silver.price|unlocalize }}', 'سيلفر')"
-                        class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
-                        {% if tenant and tenant.plan == 'silver' %}تجديد سيلفر{% else %}اختر سيلفر{% endif %}
+                    <button onclick="openSubscribeModal('{{ plan.legacy_slug }}', '{{ plan.monthly_price|floatformat:0|unlocalize }}', '{{ plan.name|escapejs }}')"
+                        class="w-full {% if plan.is_popular %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-3 rounded-xl transition duration-300">
+                        {% if tenant and tenant.plan == plan.legacy_slug %}تجديد {{ plan.name }}{% else %}اختر {{ plan.name }}{% endif %}
                     </button>
                     {% if not tenant %}
                     <form method="post">
                         {% csrf_token %}
-                        <input type="hidden" name="plan" value="silver">
+                        <input type="hidden" name="plan" value="{{ plan.legacy_slug }}">
                         <input type="hidden" name="shop" value="{{ shop }}">
                         <input type="hidden" name="action" value="trial">
                         <button type="submit" class="w-full bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
@@ -169,204 +175,13 @@
                     {% endif %}
                 </div>
             </div>
-
-            <!-- Gold (Popular) -->
-            <div class="plan-card popular-glow bg-gradient-to-b from-purple-900/40 to-slate-800/80 border border-purple-500/50 rounded-2xl p-8 backdrop-blur-sm relative">
-                <div class="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span class="price-badge bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
-                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
-                    </span>
-                </div>
-                <div class="text-center mb-8 mt-2">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-purple-500/30">
-                        <i class="fas fa-crown text-white text-2xl"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-1">جولد</h2>
-                    <p class="text-purple-300 text-sm">لمراكز الصيانة وتجار قطع الغيار الشامل</p>
-                    <div class="mt-4">
-                        <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.gold.original_price }}</span>
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.gold.price|unlocalize }}">{{ pricing.gold.price }}</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
-                    </div>
-                    <p class="text-emerald-400 text-xs font-bold mt-2"><i class="fas fa-tag ml-1"></i> وفّر <span class="gold-saving">485</span> جنيه</p>
-                </div>
-                <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> فرعين + خزينتين</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> 4 موظفين</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> سوق B2B المركزي كامل</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-purple-400 w-4"></i> تقارير مالية متقدمة</li>
-                    <li class="flex items-center gap-3 text-purple-300"><i class="fas fa-plus-circle text-purple-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} ج.م/شهر</li>
-                </ul>
-                <div class="space-y-2">
-                    <button onclick="openSubscribeModal('gold', '{{ pricing.gold.price|unlocalize }}', 'جولد')"
-                        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300">
-                        {% if tenant and tenant.plan == 'gold' %}تجديد جولد{% else %}اختر جولد{% endif %}
-                    </button>
-                    {% if not tenant %}
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="plan" value="gold">
-                        <input type="hidden" name="shop" value="{{ shop }}">
-                        <input type="hidden" name="action" value="trial">
-                        <button type="submit" class="w-full bg-transparent border border-purple-500/40 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
+            {% empty %}
+            <div class="col-span-3 text-center text-slate-500 py-12">
+                <i class="fas fa-info-circle ml-2"></i> لا توجد باقات متاحة حالياً لهذا القطاع.
             </div>
-
-            <!-- Empire -->
-            <div class="plan-card bg-slate-800/60 border border-amber-500/40 rounded-2xl p-8 backdrop-blur-sm">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl mb-4 shadow-lg shadow-amber-500/30">
-                        <i class="fas fa-building-columns text-white text-2xl"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-1">Empire</h2>
-                    <p class="text-amber-400 text-sm">لتجار القطع والشركات الكبيرة</p>
-                    <div class="mt-4">
-                        <span class="text-slate-500 text-lg line-through ml-2">{{ pricing.empire.original_price }}</span>
-                        <span class="text-4xl font-black text-white plan-price" data-base="{{ pricing.empire.price|unlocalize }}">{{ pricing.empire.price }}</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
-                    </div>
-                    <p class="text-emerald-400 text-xs font-bold mt-2"><i class="fas fa-tag ml-1"></i> وفّر <span class="empire-saving">1600</span> جنيه</p>
-                </div>
-                <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> فروع وخزائن غير محدودة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> موظفون غير محدودون</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Gold</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مزادات B2B العكسية</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> Escrow مالي متكامل</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم أولوية مباشر</li>
-                </ul>
-                <div class="space-y-2">
-                    <button onclick="openSubscribeModal('empire', '{{ pricing.empire.price|unlocalize }}', 'Empire')"
-                        class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
-                        {% if tenant and tenant.plan == 'empire' %}تجديد Empire{% else %}اختر Empire{% endif %}
-                    </button>
-                    {% if not tenant %}
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="plan" value="empire">
-                        <input type="hidden" name="shop" value="{{ shop }}">
-                        <input type="hidden" name="action" value="trial">
-                        <button type="submit" class="w-full bg-transparent border border-amber-500/30 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
+            {% endfor %}
         </div>
-
-        <!-- ========== Printing Plans ========== -->
-        <div id="printing_plans" class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto" style="display:none;">
-
-            <!-- Print Basic -->
-            <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-8 backdrop-blur-sm relative">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-cyan-700/30 rounded-2xl mb-4">
-                        <i class="fas fa-print text-cyan-300 text-2xl"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-1">Print Basic</h2>
-                    <p class="text-slate-400 text-sm">للمطابع الصغيرة واستوديوهات التصميم</p>
-                    <div class="mt-4">
-                        <span class="text-4xl font-black text-white plan-price" data-base="550">550</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
-                    </div>
-                </div>
-                <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> فرع واحد + خزينة واحدة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> مصمم واحد + ماكينة واحدة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> طلبات ومهام الطباعة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> ادارة الخامات والمخزون</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check text-cyan-400 w-4"></i> تقارير التكلفة والربح</li>
-                    <li class="flex items-center gap-3 text-cyan-400"><i class="fas fa-plus-circle text-cyan-400 w-4"></i> اضافة مصمم/ماكينة: {{ pricing.addon_price }} ج.م/شهر</li>
-                </ul>
-                <div class="space-y-2">
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=silver"
-                        class="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition duration-300">
-                        اختر Print Basic
-                    </a>
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=silver"
-                        class="block w-full text-center bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
-                    </a>
-                </div>
-            </div>
-
-            <!-- Print Pro (Popular) -->
-            <div class="plan-card popular-glow bg-gradient-to-b from-cyan-900/40 to-slate-800/80 border border-cyan-500/50 rounded-2xl p-8 backdrop-blur-sm relative">
-                <div class="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <span class="price-badge bg-gradient-to-r from-cyan-600 to-teal-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
-                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
-                    </span>
-                </div>
-                <div class="text-center mb-8 mt-2">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-cyan-600 to-teal-600 rounded-2xl mb-4 shadow-lg shadow-cyan-500/30">
-                        <i class="fas fa-palette text-white text-2xl"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-1">Print Pro</h2>
-                    <p class="text-cyan-300 text-sm">للمطابع المتوسطة ومكاتب التصميم</p>
-                    <div class="mt-4">
-                        <span class="text-4xl font-black text-white plan-price" data-base="880">880</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
-                    </div>
-                </div>
-                <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> فرعين + خزينتين</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> 4 مصممين + 3 ماكينات</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> سجل أعمال المصممين + تقييمات</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> حاسبة تكلفة الماكينات (CMYK)</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> تتبع AI/Manual للتصميمات</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-cyan-400 w-4"></i> تقارير مالية متقدمة</li>
-                    <li class="flex items-center gap-3 text-cyan-300"><i class="fas fa-plus-circle text-cyan-400 w-4"></i> اضافة مصمم/ماكينة: {{ pricing.addon_price }} ج.م/شهر</li>
-                </ul>
-                <div class="space-y-2">
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=gold"
-                        class="block w-full text-center bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-black py-3 rounded-xl shadow-lg shadow-cyan-500/20 transition duration-300">
-                        اختر Print Pro
-                    </a>
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=gold"
-                        class="block w-full text-center bg-transparent border border-cyan-500/40 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
-                    </a>
-                </div>
-            </div>
-
-            <!-- Print Enterprise -->
-            <div class="plan-card bg-slate-800/60 border border-amber-500/40 rounded-2xl p-8 backdrop-blur-sm">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl mb-4 shadow-lg shadow-amber-500/30">
-                        <i class="fas fa-industry text-white text-2xl"></i>
-                    </div>
-                    <h2 class="text-xl font-black text-white mb-1">Print Enterprise</h2>
-                    <p class="text-amber-400 text-sm">للمطابع الكبيرة ومجموعات التصميم</p>
-                    <div class="mt-4">
-                        <span class="text-4xl font-black text-white plan-price" data-base="2000">2,000</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
-                    </div>
-                </div>
-                <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> فروع وخزائن غير محدودة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> مصممون وماكينات غير محدودة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> جميع ميزات Print Pro</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> ادارة عملاء متقدمة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> تقارير ربحية كل ماكينة</li>
-                    <li class="flex items-center gap-3 text-slate-200"><i class="fas fa-check text-amber-400 w-4"></i> دعم أولوية مباشر</li>
-                </ul>
-                <div class="space-y-2">
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=empire"
-                        class="block w-full text-center bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black py-3 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300">
-                        اختر Print Enterprise
-                    </a>
-                    <a href="{% url 'saas_customer_signup' %}?industry=printing&plan=empire"
-                        class="block w-full text-center bg-transparent border border-amber-500/30 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                        <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
-                    </a>
-                </div>
-            </div>
-        </div>
+        {% endfor %}
 
         <!-- Addon Pricing Note -->
         <div class="max-w-3xl mx-auto mt-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-6 py-5 text-center">
@@ -465,7 +280,6 @@ function setIndustryTab(ind) {
     document.getElementById('tab_' + ind).classList.add('active-tab');
     document.getElementById('automotive_plans').style.display = ind === 'automotive' ? '' : 'none';
     document.getElementById('printing_plans').style.display = ind === 'printing' ? '' : 'none';
-    // Re-apply billing to update prices in newly visible section
     setBilling(currentBilling);
 }
 
@@ -480,45 +294,30 @@ function setBilling(period) {
     currentBilling = period;
     var cfg = billingConfig[period];
 
-    // Update active button style
     document.querySelectorAll('.billing-btn').forEach(function(btn) {
         btn.classList.remove('active');
     });
     document.getElementById('btn_' + period).classList.add('active');
 
-    // Update prices on cards
     document.querySelectorAll('.plan-price').forEach(function(el) {
-        var base = parseInt(el.getAttribute('data-base').replace(/[,\s]/g, ''));
-        var discounted = Math.round(base * (1 - cfg.discount / 100));
-        var total = discounted * cfg.months;
+        var base = parseFloat(el.getAttribute('data-base').replace(/[,\s]/g, ''));
+        if (isNaN(base)) return;
+        var discounted = base * (1 - cfg.discount / 100);
+        var total = Math.round(discounted * cfg.months);
         el.textContent = total.toLocaleString('en');
     });
 
-    // Update period labels
     document.querySelectorAll('.billing-label').forEach(function(el) {
         el.textContent = cfg.label;
     });
-
-    // Update saving amounts
-    var goldBase = 1250;
-    var goldOriginal = 2000;
-    var goldSaving = (goldOriginal - goldBase) + Math.round(goldBase * cfg.discount / 100 * cfg.months);
-    var goldEl = document.querySelector('.gold-saving');
-    if (goldEl) goldEl.textContent = goldSaving.toLocaleString('en');
-
-    var empireBase = 1800;
-    var empireOriginal = 3000;
-    var empireSaving = (empireOriginal - empireBase) + Math.round(empireBase * cfg.discount / 100 * cfg.months);
-    var empireEl = document.querySelector('.empire-saving');
-    if (empireEl) empireEl.textContent = empireSaving.toLocaleString('en');
 }
 
 function openSubscribeModal(plan, basePrice, name) {
     selectedPlan = plan;
     var cfg = billingConfig[currentBilling];
-    var base = parseInt(String(basePrice).replace(/[,\s]/g, ''));
-    var discounted = Math.round(base * (1 - cfg.discount / 100));
-    var total = discounted * cfg.months;
+    var base = parseFloat(String(basePrice).replace(/[,\s]/g, ''));
+    var discounted = base * (1 - cfg.discount / 100);
+    var total = Math.round(discounted * cfg.months);
     selectedPrice = total;
 
     document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace('جنيه / ', '');
@@ -572,7 +371,6 @@ function getCSRF() {
     return c ? decodeURIComponent(c[2]) : '';
 }
 
-// Close modal on outside click
 document.getElementById('subscribeModal').addEventListener('click', function(e) {
     if (e.target === this) closeSubscribeModal();
 });

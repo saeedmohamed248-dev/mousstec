@@ -192,8 +192,15 @@ def call_llm_layer(messages, json_mode=False, max_retries=3, require_pro=False):
     return _call_together_text(messages, json_mode=json_mode, max_retries=max_retries)
 
 
-# 🪡 Back-compat alias — 9 callers across inventory/clients/printing still import this name.
-call_gemini_layer = call_llm_layer
+# 🪡 Deprecated alias — kept temporarily so old imports don't crash.
+# All new code MUST call `call_llm_layer` directly. The router decides
+# Together-vs-Gemini based on payload (image_url ⇒ Gemini).
+def call_gemini_layer(*args, **kwargs):
+    logger.warning(
+        "⚠️ [DEPRECATED] call_gemini_layer is a misleading alias — use call_llm_layer. "
+        "Text/JSON goes to Together AI (Llama-3.3); vision goes to Gemini."
+    )
+    return call_llm_layer(*args, **kwargs)
 
 # =====================================================================
 # 🚗 1. مستشار الأعطال وتوقع قطع الغيار (Diagnostic Bot)
@@ -219,7 +226,7 @@ def predict_parts_from_dtc(dtc_code):
         {"role": "user", "content": f"DTC: {dtc_clean}"}
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True)
+    raw_response = call_llm_layer(messages, json_mode=True)
     if raw_response:
         try:
             parsed_data = json.loads(raw_response)
@@ -250,7 +257,7 @@ def scan_invoice_image_ai(image_base64):
         }
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    raw_response = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
     if raw_response:
         try: return json.loads(raw_response)
         except json.JSONDecodeError: pass
@@ -275,7 +282,7 @@ def predict_future_failures(brand, model_name, mileage):
         {"role": "user", "content": f"Brand: {brand}, Model: {model_name}, Mileage: {mileage} KM."}
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True)
+    raw_response = call_llm_layer(messages, json_mode=True)
     if raw_response:
         try:
             parsed_data = json.loads(raw_response)
@@ -300,7 +307,7 @@ def analyze_customer_sentiment(customer_notes_or_complaints):
         {"role": "user", "content": f"Feedback: '{customer_notes_or_complaints}'"}
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True)
+    raw_response = call_llm_layer(messages, json_mode=True)
     if raw_response:
         try: return json.loads(raw_response)
         except Exception: pass
@@ -330,7 +337,7 @@ def predict_market_price_elasticity(part_name, condition, average_cost):
         {"role": "user", "content": f"Part: {part_name}, Condition: {condition}, Avg Cost: {average_cost} EGP"}
     ]
     
-    raw_response = call_gemini_layer(messages, json_mode=True)
+    raw_response = call_llm_layer(messages, json_mode=True)
     if raw_response:
         try:
             parsed = json.loads(raw_response)

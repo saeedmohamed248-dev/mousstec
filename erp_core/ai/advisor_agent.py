@@ -1,21 +1,19 @@
 """
-🧠🧠 Two-Stage Cognitive Advisor Pipeline
+🧠🧠 Two-Stage Cognitive Advisor Pipeline (Together AI / Llama-3.3)
 =====================================================================
 المرحلة 1 (Refiner): بوت وسيط خفي بيصفي طلب المستخدم بالعامية ويحوله
                      لسؤال تقني نظيف ومرتب فيه السياق + النية.
 
-المرحلة 2 (Reasoning + Tools): بوت Gemini أقوى بيشوف الطلب المصفى،
-                               يستدعي الـ Tools المناسبة من advisor_tools،
-                               ويصيغ الرد النهائي للمستخدم.
+المرحلة 2 (Reasoning + Tools): Llama-3.3-70B عبر Together AI بيشوف الطلب،
+                               يستدعي الـ Tools المناسبة من advisor_tools
+                               عبر OpenAI tool-calling format، ويصيغ الرد.
 
-⚠️ كل الـ API calls محمية بـ Try/Except، وأي فشل بيرجع رسالة أنيقة للـ UI
-   مش 500.
+⚠️ كل النصوص والـ JSON تتم عبر Together AI حصراً (Llama-3.3) — لا Gemini.
 """
 from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 from typing import Any
 
@@ -29,20 +27,39 @@ logger = logging.getLogger('mouss_tec_core')
 # -----------------------------------------------------------------------------
 # Config
 # -----------------------------------------------------------------------------
-_GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+_TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
+_DEFAULT_LLM_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
 _TIMEOUT = 30
 _MAX_RETRIES = 2
-# الموديل بيقدر يطلب tool calls متتالية. بنحط cap عشان متبقاش حلقة لا نهائية.
 _MAX_TOOL_HOPS = 4
 
 
 def _api_key() -> str:
-    """يطهّر مفتاح Gemini من أي whitespace في الـ .env."""
-    return str(getattr(settings, 'GEMINI_API_KEY', '') or '').strip()
+    return str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
+
+
+def _model() -> str:
+    return str(getattr(settings, 'TOGETHER_LLM_MODEL', '') or _DEFAULT_LLM_MODEL).strip()
 
 
 def _is_enabled() -> bool:
     return bool(getattr(settings, 'ENABLE_AI_PREDICTIONS', True)) and bool(_api_key())
+
+
+# Translate Gemini-shaped function declarations into OpenAI tool-format.
+# (parameters are already JSON-Schema, so it's a thin wrapper.)
+def _openai_tools() -> list[dict]:
+    return [
+        {
+            'type': 'function',
+            'function': {
+                'name': fd['name'],
+                'description': fd['description'],
+                'parameters': fd.get('parameters', {'type': 'object', 'properties': {}}),
+            },
+        }
+        for fd in GEMINI_FUNCTION_DECLARATIONS
+    ]
 
 
 # =============================================================================
@@ -61,17 +78,11 @@ _REFINER_SYSTEM = """
   "parameters": { "<اسم_البارامتر>": "<القيمة>" },
   "language_hint": "ar"
 }
-
-أمثلة:
-- "لو لميت اللي على الناس هبقي معايا كاش كام؟" → intent=cash_flow, parameters={}
-- "أبيع 30% من الراكد هكسب كام؟" → intent=inventory_simulation, parameters={"percentage": 30}
-- "اعرضلي اللي مش بيتباع" → intent=dead_stock, parameters={}
-- "ودّيني لصفحة العميل رقم 14" → intent=report_link, parameters={"report_type":"customer_detail","customer_id":14}
 """.strip()
 
 
 def refine_query(user_query: str, sector: str = 'printing') -> dict[str, Any]:
-    """Stage 1: بوت وسيط خفي بيصفي السؤال. لو فشل بيرجع fallback آمن."""
+    """Stage 1: refiner — Together AI + JSON mode."""
     fallback = {
         'refined_question': user_query.strip(),
         'intent': 'general',
@@ -83,37 +94,27 @@ def refine_query(user_query: str, sector: str = 'printing') -> dict[str, Any]:
     if not _is_enabled():
         return fallback
 
-    model = getattr(settings, 'GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
-    url = f'{_GEMINI_BASE}/{model}:generateContent?key={_api_key()}'
+    # Lazy import to avoid circular dep at module load
+    from inventory.ai_services import call_llm_layer
 
-    payload = {
-        'systemInstruction': {'parts': [{'text': f'{_REFINER_SYSTEM}\n\nالقطاع الحالي: {sector}'}]},
-        'contents': [{'role': 'user', 'parts': [{'text': user_query}]}],
-        'generationConfig': {
-            'temperature': 0.1,
-            'responseMimeType': 'application/json',
-        },
-    }
-
+    messages = [
+        {'role': 'system', 'content': f'{_REFINER_SYSTEM}\n\nالقطاع الحالي: {sector}'},
+        {'role': 'user', 'content': user_query},
+    ]
+    raw = call_llm_layer(messages, json_mode=True, max_retries=2)
+    if not raw:
+        return fallback
     try:
-        resp = requests.post(url, json=payload, timeout=_TIMEOUT)
-        if resp.status_code != 200:
-            logger.warning(f'[ADVISOR REFINER] HTTP {resp.status_code}: {resp.text[:200]}')
-            return fallback
-
-        data = resp.json()
-        raw = data['candidates'][0]['content']['parts'][0]['text']
-        raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
         parsed = json.loads(raw)
         parsed['refiner_status'] = 'ok'
         return parsed
-    except Exception as e:
-        logger.warning(f'[ADVISOR REFINER] failed: {e}')
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f'[ADVISOR REFINER] JSON parse failed: {e}')
         return fallback
 
 
 # =============================================================================
-# Stage 2 — Reasoning + Function Calling
+# Stage 2 — Reasoning + Function Calling (Together AI tool-calling)
 # =============================================================================
 def _reasoning_system_prompt(sector: str) -> str:
     sector_label = 'التصاميم والمطابع' if sector == 'printing' else 'السيارات وقطع الغيار'
@@ -123,7 +124,7 @@ def _reasoning_system_prompt(sector: str) -> str:
 دورك:
 • ترد على أسئلة صاحب البزنس بالعامية المصرية الواضحة (مع أرقام دقيقة من قاعدة بياناته).
 • تستدعي الـ Tools المتاحة لما تحتاج بيانات حقيقية. متخمنش أرقام أبداً.
-• لو السؤال محتاج لينك صفحة (مثلاً عميل أو تقرير) استدعي generate_report_link واعرض الـ HTML اللي بيرجعه كما هو في ردك (مفيش escape).
+• لو السؤال محتاج لينك صفحة استدعي generate_report_link واعرض الـ HTML كما هو.
 • خلي ردك مختصر ومرتب: عنوان قصير، أرقام highlight، توصية عملية.
 
 قواعد صارمة:
@@ -139,22 +140,14 @@ def run_advisor_pipeline(
     history: list[dict] | None = None,
 ) -> dict[str, Any]:
     """
-    Pipeline كاملة: Refine → Reasoning → Tool Loop → Final Answer.
-
-    Args:
-        user_query: السؤال زي ما المستخدم كتبه.
-        sector: 'printing' or 'automotive'.
-        history: list من dicts {role, text} للسياق التاريخي للمحادثة.
-
-    Returns:
-        dict: {success, answer, refined, tool_calls, error?}
+    Pipeline كامل: Refine → Reasoning (Llama-3.3 tool-loop) → Final Answer.
     """
     if not _is_enabled():
         return {
             'success': False,
             'answer': (
                 '🌙 المستشار الذكي لسه مش مفعّل على السيرفر — '
-                'تواصل مع الإدارة لإضافة مفتاح Gemini.'
+                'تواصل مع الإدارة لإضافة مفتاح Together AI.'
             ),
             'error': 'ai_disabled',
         }
@@ -162,42 +155,31 @@ def run_advisor_pipeline(
     # --- Stage 1 ---
     refined = refine_query(user_query, sector=sector)
 
-    # --- Stage 2: Reasoning loop with function calling ---
-    model = getattr(settings, 'GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
-    url = f'{_GEMINI_BASE}/{model}:generateContent?key={_api_key()}'
-
-    # Build conversation contents
-    contents: list[dict] = []
-    for msg in (history or [])[-10:]:  # آخر 10 رسائل بس عشان نوفر tokens
-        role = 'user' if msg.get('role') == 'user' else 'model'
+    # --- Stage 2: build OpenAI-format chat history ---
+    messages: list[dict] = [
+        {'role': 'system', 'content': _reasoning_system_prompt(sector)},
+    ]
+    for msg in (history or [])[-10:]:
+        role = 'user' if msg.get('role') == 'user' else 'assistant'
         text = str(msg.get('text', '')).strip()
         if text:
-            contents.append({'role': role, 'parts': [{'text': text}]})
+            messages.append({'role': role, 'content': text})
 
-    # دفع السؤال المصفى للموديل + النص الأصلي عشان ميخسرش الـ context
-    contents.append({
+    messages.append({
         'role': 'user',
-        'parts': [{
-            'text': (
-                f'سؤال المستخدم الأصلي: {user_query}\n\n'
-                f'النية المستخرجة: {refined.get("intent")}\n'
-                f'السؤال بعد التصفية: {refined.get("refined_question")}'
-            ),
-        }],
+        'content': (
+            f'سؤال المستخدم الأصلي: {user_query}\n\n'
+            f'النية المستخرجة: {refined.get("intent")}\n'
+            f'السؤال بعد التصفية: {refined.get("refined_question")}'
+        ),
     })
 
-    base_payload = {
-        'systemInstruction': {'parts': [{'text': _reasoning_system_prompt(sector)}]},
-        'tools': [{'functionDeclarations': GEMINI_FUNCTION_DECLARATIONS}],
-        'generationConfig': {'temperature': 0.3},
-    }
-
+    tools = _openai_tools()
     tool_calls_log: list[dict] = []
 
     for hop in range(_MAX_TOOL_HOPS):
-        payload = {**base_payload, 'contents': contents}
         try:
-            resp = _post_with_retry(url, payload)
+            resp = _post_with_retry(messages, tools=tools, temperature=0.3)
         except Exception as e:
             logger.exception('[ADVISOR REASONING] network failure')
             return {
@@ -212,35 +194,28 @@ def run_advisor_pipeline(
             logger.error(f'[ADVISOR REASONING] HTTP {resp.status_code}: {resp.text[:300]}')
             return {
                 'success': False,
-                'answer': (
-                    '⚠️ المساعد الذكي مش متاح دلوقتي. لو الكلام بيتكرر، '
-                    'كلّم الدعم الفني.'
-                ),
-                'error': f'gemini_http_{resp.status_code}',
+                'answer': '⚠️ المساعد الذكي مش متاح دلوقتي — كلّم الدعم الفني لو الكلام بيتكرر.',
+                'error': f'together_http_{resp.status_code}',
                 'refined': refined,
                 'tool_calls': tool_calls_log,
             }
 
         try:
             data = resp.json()
-            candidate = data['candidates'][0]
-            parts = candidate['content'].get('parts', [])
-        except (KeyError, IndexError) as e:
-            logger.error(f'[ADVISOR REASONING] malformed response: {e} — {data!r}')
-            return {
-                'success': False,
-                'answer': '⚠️ وصلني رد غير مفهوم من السيرفر — حاول تاني.',
-                'error': 'malformed_response',
-                'refined': refined,
-                'tool_calls': tool_calls_log,
-            }
+        except ValueError as e:
+            logger.error(f'[ADVISOR REASONING] invalid JSON body: {e}')
+            return _malformed(refined, tool_calls_log)
 
-        # هل في function calls؟
-        function_calls = [p['functionCall'] for p in parts if 'functionCall' in p]
+        choices = data.get('choices') or []
+        if not choices:
+            logger.error(f'[ADVISOR REASONING] empty choices: {data!r}')
+            return _malformed(refined, tool_calls_log)
 
-        if not function_calls:
-            # خلص — نص نهائي
-            final_text = '\n'.join(p.get('text', '') for p in parts if 'text' in p).strip()
+        message = choices[0].get('message') or {}
+        tool_calls = message.get('tool_calls') or []
+
+        if not tool_calls:
+            final_text = (message.get('content') or '').strip()
             return {
                 'success': True,
                 'answer': final_text or 'تمام، خلصت — بس مفيش رد واضح.',
@@ -248,16 +223,22 @@ def run_advisor_pipeline(
                 'tool_calls': tool_calls_log,
             }
 
-        # Append model's request (tool call) to history
-        contents.append({'role': 'model', 'parts': parts})
+        # Append assistant turn (with tool_calls) — required by OpenAI format
+        messages.append({
+            'role': 'assistant',
+            'content': message.get('content') or '',
+            'tool_calls': tool_calls,
+        })
 
-        # Execute each tool call and append the response
-        tool_response_parts = []
-        for fc in function_calls:
-            fname = fc.get('name')
-            fargs = fc.get('args', {}) or {}
+        for tc in tool_calls:
+            fname = (tc.get('function') or {}).get('name')
+            raw_args = (tc.get('function') or {}).get('arguments') or '{}'
+            try:
+                fargs = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+            except json.JSONDecodeError:
+                fargs = {}
+
             tool_fn = TOOL_REGISTRY.get(fname)
-
             if not tool_fn:
                 result = {'success': False, 'error': f'tool {fname} غير موجود'}
             else:
@@ -271,16 +252,13 @@ def run_advisor_pipeline(
 
             tool_calls_log.append({'tool': fname, 'args': fargs, 'result_summary': _summarize(result)})
 
-            tool_response_parts.append({
-                'functionResponse': {
-                    'name': fname,
-                    'response': {'content': result},
-                },
+            messages.append({
+                'role': 'tool',
+                'tool_call_id': tc.get('id', ''),
+                'name': fname,
+                'content': json.dumps(result, ensure_ascii=False),
             })
 
-        contents.append({'role': 'user', 'parts': tool_response_parts})
-
-    # خلصت hops من غير ما يرد بنص نهائي
     return {
         'success': False,
         'answer': 'المساعد فضل يطلب بيانات بدون ما يجاوب — جرب صياغة أبسط للسؤال.',
@@ -293,12 +271,37 @@ def run_advisor_pipeline(
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
-def _post_with_retry(url: str, payload: dict) -> requests.Response:
-    """POST مع retry على 429 و connection errors."""
+def _malformed(refined, tool_log):
+    return {
+        'success': False,
+        'answer': '⚠️ وصلني رد غير مفهوم من السيرفر — حاول تاني.',
+        'error': 'malformed_response',
+        'refined': refined,
+        'tool_calls': tool_log,
+    }
+
+
+def _post_with_retry(
+    messages: list[dict],
+    *,
+    tools: list[dict] | None = None,
+    temperature: float = 0.3,
+) -> requests.Response:
+    """POST to Together chat completions with 429/connection retry."""
+    headers = {'Authorization': f'Bearer {_api_key()}', 'Content-Type': 'application/json'}
+    payload: dict[str, Any] = {
+        'model': _model(),
+        'messages': messages,
+        'temperature': temperature,
+    }
+    if tools:
+        payload['tools'] = tools
+        payload['tool_choice'] = 'auto'
+
     last_exc = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            resp = requests.post(url, json=payload, timeout=_TIMEOUT)
+            resp = requests.post(_TOGETHER_CHAT_URL, headers=headers, json=payload, timeout=_TIMEOUT)
             if resp.status_code == 429 and attempt < _MAX_RETRIES:
                 time.sleep(2 ** attempt)
                 continue
@@ -313,9 +316,8 @@ def _post_with_retry(url: str, payload: dict) -> requests.Response:
 
 
 def _summarize(result: Any) -> str:
-    """ملخص قصير للـ tool result عشان الـ logging مايستهلكش حجم."""
     if not isinstance(result, dict):
         return str(result)[:120]
     if not result.get('success'):
-        return f'error: {result.get("error", "?")[:80]}'
-    return result.get('notes', '')[:160] or 'ok'
+        return f'error: {str(result.get("error", "?"))[:80]}'
+    return str(result.get('notes', ''))[:160] or 'ok'

@@ -29,10 +29,10 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from clients.models import (
-    Client, DesignPurchase, EscrowLedger,
+    Client, DesignPurchase, EscrowLedger, Feature,
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
-from clients.services.plan_mapping import resolve_plan_slug
+from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -80,7 +80,7 @@ def saas_pricing_page(request):
 
         messages.error(request, "🛑 فشل تنفيذ عملية الاشتراك.")
 
-    # نظام خصومات الفترات الطويلة
+    # نظام خصومات الفترات الطويلة — display only; per-plan discounts live on Plan
     billing_discounts = {
         'monthly':      {'label': 'شهري',       'months': 1,  'discount': 0},
         'quarterly':    {'label': 'ربع سنوي',   'months': 3,  'discount': 9},
@@ -88,12 +88,45 @@ def saas_pricing_page(request):
         'annual':       {'label': 'سنوي',       'months': 12, 'discount': 25},
     }
 
+    # 💎 Dynamic plan catalog — single source of truth is the Plan model.
+    # Super Admin edits to monthly_price / entitlements / features propagate
+    # to this page on the next request (no cache).
+    feature_labels = dict(
+        Feature.objects.filter(is_active=True).values_list('code', 'name_ar')
+    )
+    plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
+
+    plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
+    for p in Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'):
+        ents = p.entitlements if isinstance(p.entitlements, dict) else {}
+        enabled_codes = [
+            code for code, cfg in ents.items()
+            if isinstance(cfg, dict) and cfg.get('enabled')
+        ]
+        plans_by_industry.setdefault(p.industry, []).append({
+            'slug': p.slug,
+            'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
+            'name': p.name,
+            'monthly_price': p.monthly_price,
+            'max_users': p.max_users,
+            'max_branches': p.max_branches,
+            'max_treasuries': p.max_treasuries,
+            'monthly_ai_designs_quota': p.monthly_ai_designs_quota,
+            'features': list(p.features or []),
+            'entitlement_labels': [
+                feature_labels[c] for c in enabled_codes if c in feature_labels
+            ],
+        })
+
+    # convention: middle plan in each industry = "most popular"
+    for plans_list in plans_by_industry.values():
+        for idx, plan_dict in enumerate(plans_list):
+            plan_dict['is_popular'] = (len(plans_list) >= 3 and idx == 1)
+
     return render(request, 'clients/pricing.html', {
         'tenant': tenant, 'shop': shop_schema,
+        'plans_by_industry': plans_by_industry,
         'pricing': {
-            'silver': {'price': 780, 'original_price': 1000, 'users': 1, 'branches': 1, 'treasuries': 1, 'limited_offer': True},
-            'gold': {'price': 1250, 'original_price': 2000, 'users': 4, 'branches': 2, 'treasuries': 2},
-            'empire': {'price': 1800, 'original_price': 3000},
             'addon_price': 125,
             'free_trial_days': 3,
             'vodafone_cash': '',

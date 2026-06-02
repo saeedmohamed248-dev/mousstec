@@ -1,14 +1,13 @@
 """
-🚗🚗 Auto Diagnostic Expert — Two-Stage BMW/MINI Pipeline
+🚗🚗 Auto Diagnostic Expert — Two-Stage BMW/MINI Pipeline (Together AI / Llama-3.3)
 =====================================================================
 المرحلة 1 (Refiner): يأخذ شكوى العميل بالعامية أو كود عطل (ISTA/INPA)
-                     ويصفيها لـ structured diagnostic query.
+                     ويصفيها لـ structured diagnostic query (JSON).
 
-المرحلة 2 (Expert): موديل Gemini متخصص في BMW + MINI Cooper مع تركيز
-                    خاص على محركات N13 / N20 / N52 / N54، يقدم خطوات
-                    إصلاح، تحديد مكان دقيق، وعزوم تربيط هندسية.
+المرحلة 2 (Expert): Llama-3.3-70B بيقدّم تشخيص هندسي صارم (BMW N13/N20/
+                    N52/N54...) — مكان دقيق، عزوم تربيط، خطوات إصلاح.
 
-كل API calls محمية بـ try/except. الـ errors بترجع رسائل عربية أنيقة.
+⚠️ كل النصوص عبر Together AI حصراً.
 """
 from __future__ import annotations
 
@@ -17,14 +16,12 @@ import logging
 import re
 from typing import Any
 
-import requests
 from django.conf import settings
 
-from .advisor_agent import _api_key as _gemini_key, _GEMINI_BASE, _post_with_retry
+from inventory.ai_services import call_llm_layer
 
 logger = logging.getLogger('mouss_tec_core')
 
-_TIMEOUT = 30
 _SUPPORTED_ENGINES = ('N13', 'N20', 'N52', 'N54', 'N55', 'N57', 'N63', 'B38', 'B48', 'B58')
 
 
@@ -48,17 +45,11 @@ _REFINER_SYSTEM = """
   "symptom_category": "<engine | electrical | transmission | cooling | turbo | fuel | exhaust | suspension | other>",
   "urgency": "<critical | high | medium | low>"
 }
-
-أمثلة:
-- "العربية بتتنفض في الـ idle وبتطفي" → category=engine, urgency=high
-- "P0301 BMW E90 N52" → dtc_codes=["P0301"], engine="N52", category=engine
-- "صوت من التيربو وفقدان عزم F30 N13" → category=turbo, engine="N13", model="F30"
 """.strip()
 
 
 def refine_complaint(text: str) -> dict[str, Any]:
-    """Stage 1: تنظيف الشكوى."""
-    key = _gemini_key()
+    """Stage 1: refine via Together AI + JSON mode. Always returns a dict."""
     fallback = {
         'refined_complaint': text.strip(),
         'dtc_codes': _extract_dtc_codes(text),
@@ -67,33 +58,28 @@ def refine_complaint(text: str) -> dict[str, Any]:
         'urgency': 'medium',
         'refiner_status': 'fallback',
     }
-    if not key:
+
+    if not _enabled():
         return fallback
 
-    model = getattr(settings, 'GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
-    url = f'{_GEMINI_BASE}/{model}:generateContent?key={key}'
-
-    payload = {
-        'systemInstruction': {'parts': [{'text': _REFINER_SYSTEM}]},
-        'contents': [{'role': 'user', 'parts': [{'text': text}]}],
-        'generationConfig': {
-            'temperature': 0.1,
-            'responseMimeType': 'application/json',
-        },
-    }
-
+    messages = [
+        {'role': 'system', 'content': _REFINER_SYSTEM},
+        {'role': 'user', 'content': text},
+    ]
+    raw = call_llm_layer(messages, json_mode=True, max_retries=2)
+    if not raw:
+        return fallback
     try:
-        resp = requests.post(url, json=payload, timeout=_TIMEOUT)
-        if resp.status_code != 200:
-            logger.warning(f'[DIAG REFINER] HTTP {resp.status_code}: {resp.text[:200]}')
-            return fallback
-        raw = resp.json()['candidates'][0]['content']['parts'][0]['text']
-        raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
         parsed = json.loads(raw)
         parsed['refiner_status'] = 'ok'
+        # Ensure shape — defensive defaults
+        parsed.setdefault('dtc_codes', _extract_dtc_codes(text))
+        parsed.setdefault('vehicle_hint', {'model': None, 'engine': None, 'year': None})
+        parsed.setdefault('symptom_category', 'other')
+        parsed.setdefault('urgency', 'medium')
         return parsed
-    except Exception as e:
-        logger.warning(f'[DIAG REFINER] failed: {e}')
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f'[DIAG REFINER] JSON parse failed: {e}')
         return fallback
 
 
@@ -131,7 +117,7 @@ N13, N20, N52, N54, N55, N57, N63, B38, B48, B58.
 
 {audience_note}
 
-اكتب الرد منظم في secṭṭons واضحة (Diagnosis, Likely Causes, Repair Steps,
+اكتب الرد منظم في sections واضحة (Diagnosis, Likely Causes, Repair Steps,
 Torque Specs, Parts Needed, Safety Notes). استخدم العربي الواضح.
 """.strip()
 
@@ -141,14 +127,8 @@ def run_diagnostic_pipeline(
     audience: str = 'shop',
     history: list[dict] | None = None,
 ) -> dict[str, Any]:
-    """
-    Pipeline كامل: refine → expert diagnosis.
-
-    Args:
-        audience: 'shop' (الورشة/الفني) or 'customer' (صاحب السيارة).
-    """
-    key = _gemini_key()
-    if not key:
+    """Pipeline كامل: refine → expert diagnosis (Llama-3.3 via Together)."""
+    if not _enabled():
         return {
             'success': False,
             'answer': '🔧 خدمة التشخيص الذكي لسه مش مفعّلة على السيرفر.',
@@ -160,86 +140,61 @@ def run_diagnostic_pipeline(
 
     # --- Stage 1 ---
     refined = refine_complaint(user_text)
+    if not isinstance(refined, dict):
+        refined = {'refiner_status': 'invalid', 'refined_complaint': user_text}
 
     # --- Stage 2 ---
-    model = getattr(settings, 'GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
-    url = f'{_GEMINI_BASE}/{model}:generateContent?key={key}'
-
-    contents: list[dict] = []
+    messages: list[dict] = [
+        {'role': 'system', 'content': _expert_system_prompt(audience)},
+    ]
     for msg in (history or [])[-8:]:
-        role = 'user' if msg.get('role') == 'user' else 'model'
+        role = 'user' if msg.get('role') == 'user' else 'assistant'
         text = str(msg.get('text', '')).strip()
         if text:
-            contents.append({'role': role, 'parts': [{'text': text}]})
+            messages.append({'role': role, 'content': text})
 
+    vehicle = refined.get('vehicle_hint') or {}
     enriched = (
         f'الشكوى الأصلية: {user_text}\n\n'
         f'بعد التصفية: {refined.get("refined_complaint")}\n'
         f'الـ DTC Codes المكتشفة: {", ".join(refined.get("dtc_codes") or []) or "لا يوجد"}\n'
-        f'السيارة: {refined.get("vehicle_hint", {}).get("model") or "غير محدد"}\n'
-        f'المحرك: {refined.get("vehicle_hint", {}).get("engine") or "غير محدد"}\n'
+        f'السيارة: {vehicle.get("model") or "غير محدد"}\n'
+        f'المحرك: {vehicle.get("engine") or "غير محدد"}\n'
         f'التصنيف: {refined.get("symptom_category")} | الأولوية: {refined.get("urgency")}\n\n'
         f'قدّم تشخيص هندسي كامل.'
     )
-    contents.append({'role': 'user', 'parts': [{'text': enriched}]})
+    messages.append({'role': 'user', 'content': enriched})
 
-    payload = {
-        'systemInstruction': {'parts': [{'text': _expert_system_prompt(audience)}]},
-        'contents': contents,
-        'generationConfig': {'temperature': 0.25},
-    }
-
-    try:
-        resp = _post_with_retry(url, payload)
-    except Exception as e:
-        logger.exception('[DIAG EXPERT] network failure')
-        return {
-            'success': False,
-            'answer': '⚠️ مش قادر أوصل لخدمة التشخيص — جرب تاني بعد ثواني.',
-            'error': str(e),
-            'refined': refined,
-        }
-
-    if resp.status_code != 200:
-        logger.error(f'[DIAG EXPERT] HTTP {resp.status_code}: {resp.text[:300]}')
+    final_text = call_llm_layer(messages, json_mode=False, max_retries=2)
+    if not final_text:
         return {
             'success': False,
             'answer': '⚠️ خبير التشخيص مش متاح دلوقتي — جرب تاني خلال ثواني.',
-            'error': f'gemini_http_{resp.status_code}',
-            'refined': refined,
-        }
-
-    try:
-        data = resp.json()
-        parts = data['candidates'][0]['content'].get('parts', [])
-        final_text = '\n'.join(p.get('text', '') for p in parts if 'text' in p).strip()
-    except (KeyError, IndexError) as e:
-        logger.error(f'[DIAG EXPERT] malformed response: {e}')
-        return {
-            'success': False,
-            'answer': '⚠️ وصلني رد غير مفهوم — جرب تاني.',
-            'error': 'malformed_response',
+            'error': 'together_unavailable',
             'refined': refined,
         }
 
     return {
         'success': True,
-        'answer': final_text or 'الموديل رد بفراغ — جرب تصيغ السؤال بشكل تاني.',
+        'answer': final_text.strip() or 'الموديل رد بفراغ — جرب تصيغ السؤال بشكل تاني.',
         'refined': refined,
         'audience': audience,
     }
 
 
 # =============================================================================
-# Local heuristics (fallback لو الـ refiner فشل)
+# Helpers
 # =============================================================================
+def _enabled() -> bool:
+    api_key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
+    return bool(getattr(settings, 'ENABLE_AI_PREDICTIONS', True)) and bool(api_key)
+
+
 _DTC_PATTERN = re.compile(r'\b([PCBU][0-9]{4}|[0-9A-F]{5})\b', re.IGNORECASE)
 
 
 def _extract_dtc_codes(text: str) -> list[str]:
-    """يستخرج أكواد DTC من النص (P0301, U0100, hex codes...)."""
     matches = _DTC_PATTERN.findall(text.upper())
-    # Dedup مع الحفاظ على الترتيب
     seen = set()
     out = []
     for m in matches:
@@ -250,7 +205,6 @@ def _extract_dtc_codes(text: str) -> list[str]:
 
 
 def _extract_engine_code(text: str) -> str | None:
-    """يستخرج كود المحرك (N13, N54, ...) من النص."""
     for code in _SUPPORTED_ENGINES:
         if re.search(rf'\b{code}\b', text, re.IGNORECASE):
             return code

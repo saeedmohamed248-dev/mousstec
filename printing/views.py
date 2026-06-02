@@ -959,7 +959,7 @@ def copilot_chat(request):
 
     # الخطوة 3: Gemini للرد الذكي
     try:
-        from inventory.ai_services import call_gemini_layer
+        from inventory.ai_services import call_llm_layer
         if getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and getattr(settings, 'AI_VISION_API_KEY', None):
             user_content = f"سؤال المستخدم: {query}"
             if db_context:
@@ -970,7 +970,7 @@ def copilot_chat(request):
                 {"role": "system", "content": system_knowledge},
                 {"role": "user", "content": user_content},
             ]
-            ai_response = call_gemini_layer(messages, json_mode=False, max_retries=1)
+            ai_response = call_llm_layer(messages, json_mode=False, max_retries=1)
             if ai_response:
                 return JsonResponse({
                     'status': 'success',

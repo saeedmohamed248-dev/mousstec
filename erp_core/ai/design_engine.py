@@ -125,8 +125,18 @@ def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> d
         if resp.status_code != 200:
             logger.warning(f'[DESIGN ENGINE LLM] HTTP {resp.status_code}: {resp.text[:200]}')
             return {'success': False, 'error': f'together_llm_http_{resp.status_code}'}
-        data = resp.json()
-        raw = data['choices'][0]['message']['content']
+        try:
+            data = resp.json()
+        except ValueError as e:
+            logger.warning(f'[DESIGN ENGINE LLM] non-JSON body: {e}')
+            return {'success': False, 'error': 'together_llm_invalid_body'}
+        choices = data.get('choices') or []
+        if not choices:
+            logger.warning(f'[DESIGN ENGINE LLM] empty choices: {data!r}')
+            return {'success': False, 'error': 'together_llm_empty_choices'}
+        raw = (choices[0].get('message') or {}).get('content') or ''
+        if not raw.strip():
+            return {'success': False, 'error': 'together_llm_empty_content'}
         raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
         parsed = json.loads(raw)
         return {'success': True, 'data': parsed}
