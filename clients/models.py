@@ -391,6 +391,57 @@ class EscrowLedger(models.Model):
 # =====================================================================
 # 💎 7. باقات الاشتراك الموحدة (Unified Subscription Plans)
 # =====================================================================
+# 💎 7a. Feature Catalog — مرجع مركزي لكل feature codes صالحة
+# =====================================================================
+# الفلسفة: code = source of truth لـ entitlements gating logic.
+# الـ Plan.entitlements JSONField بتـ reference codes من الجدول ده،
+# والـ Plan.clean() بتـ validate إن مفيش code غلط. ده بيمنع typos
+# زي "ai_studoi" تعدّي بدون error في الـ admin UI.
+# =====================================================================
+class Feature(models.Model):
+    CATEGORY_CHOICES = (
+        ('core',         _('🏛️ Core — أساسية')),
+        ('workshop',     _('🚗 Workshop — مراكز صيانة')),
+        ('printing',     _('🎨 Printing — مطابع')),
+        ('marketplace',  _('🛒 Marketplace — أسواق')),
+        ('analytics',    _('📊 Analytics — تقارير')),
+        ('integrations', _('🔌 Integrations — تكاملات')),
+        ('support',      _('🛟 Support — دعم')),
+    )
+
+    code = models.SlugField(
+        max_length=60, unique=True, verbose_name=_("الكود البرمجي"),
+        help_text=_("معرف فريد بـ snake_case — يتـ reference من Plan.entitlements"),
+    )
+    name_ar = models.CharField(max_length=120, verbose_name=_("الاسم بالعربية"))
+    name_en = models.CharField(max_length=120, verbose_name=_("الاسم بالإنجليزية"))
+    description = models.TextField(blank=True, verbose_name=_("الوصف"))
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, verbose_name=_("التصنيف"))
+
+    is_quantitative = models.BooleanField(
+        default=False,
+        verbose_name=_("له حد رقمي؟"),
+        help_text=_("True لو الـ feature لها monthly_limit أو quantitative cap"),
+    )
+    unit_label_ar = models.CharField(
+        max_length=40, blank=True, verbose_name=_("وحدة القياس"),
+        help_text=_("مثلاً: 'تصميم/شهر' أو 'رسالة/شهر' — للعرض في الـ UI"),
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name=_("مفعّل"))
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("ميزة")
+        verbose_name_plural = _("💎 Feature Catalog — مرجع المزايا")
+        ordering = ['category', 'sort_order', 'code']
+        indexes = [models.Index(fields=['category', 'is_active'])]
+
+    def __str__(self):
+        return f"[{self.category}] {self.name_ar} ({self.code})"
+
+
+# =====================================================================
 class Plan(models.Model):
     INDUSTRY_CHOICES = (
         ('automotive', _('سيارات')),
@@ -417,7 +468,25 @@ class Plan(models.Model):
         help_text=_("عدد التصاميم المجانية التي تحصل عليها الشركة شهرياً مع الاشتراك"),
     )
 
-    features = models.JSONField(default=list, blank=True, verbose_name=_("المميزات"))
+    # 📝 Legacy: قائمة marketing copy strings للعرض على صفحة الـ pricing.
+    # ⚠️ مش بتـ gate أي سلوك — ده لـ display بس. الـ behavior gating
+    # بيتم عبر entitlements الجديد. يبقى موجود لـ backward compat.
+    features = models.JSONField(default=list, blank=True, verbose_name=_("المميزات (عرض)"))
+
+    # 🎯 Phase 1: Hybrid entitlements — dict of feature_code → config
+    # Shape:
+    # {
+    #   "workshop_repair_cards": {"enabled": True, "monthly_limit": 150},
+    #   "b2b_marketplace":       {"enabled": True},
+    #   "reports_advanced":      {"enabled": False},
+    # }
+    # كل code لازم يكون موجود في Feature catalog (validated في clean()).
+    entitlements = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("الصلاحيات (entitlements)"),
+        help_text=_("dict من feature_code → {enabled: bool, monthly_limit?: int}"),
+    )
+
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
 
@@ -428,6 +497,43 @@ class Plan(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.monthly_price} ج.م/شهر"
+
+    def clean(self):
+        """يتحقق إن كل code في entitlements موجود في Feature catalog،
+        وإن الـ shape (enabled/monthly_limit) صحيحة. يتنادى من admin UI
+        قبل الـ save فـ المستخدم بيشوف validation error مفصل."""
+        super().clean()
+        from django.core.exceptions import ValidationError
+        if not isinstance(self.entitlements, dict):
+            raise ValidationError({'entitlements': _("entitlements لازم تكون dict، مش list/string.")})
+
+        if not self.entitlements:
+            return  # فاضي = OK، بنـ default للـ Feature catalog defaults
+
+        # نتحقق من الـ catalog الحالي. بنـ import لازم هنا لتجنب circular import.
+        valid_codes = set(Feature.objects.filter(is_active=True).values_list('code', flat=True))
+        quantitative_codes = set(
+            Feature.objects.filter(is_active=True, is_quantitative=True).values_list('code', flat=True)
+        )
+
+        errors = []
+        for code, config in self.entitlements.items():
+            if code not in valid_codes:
+                errors.append(f"'{code}' مش feature معروف في الـ catalog")
+                continue
+            if not isinstance(config, dict):
+                errors.append(f"'{code}': القيمة لازم تكون dict")
+                continue
+            if 'enabled' in config and not isinstance(config['enabled'], bool):
+                errors.append(f"'{code}.enabled' لازم تكون True/False")
+            if 'monthly_limit' in config:
+                if code not in quantitative_codes:
+                    errors.append(f"'{code}' مش quantitative — مش هياخد monthly_limit")
+                elif not isinstance(config['monthly_limit'], int) or config['monthly_limit'] < 0:
+                    errors.append(f"'{code}.monthly_limit' لازم تكون رقم صحيح ≥ 0")
+
+        if errors:
+            raise ValidationError({'entitlements': errors})
 
     def price_for_period(self, months):
         if months >= 12:
