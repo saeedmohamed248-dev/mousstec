@@ -253,13 +253,26 @@ def design_generate(request):
         return JsonResponse({'success': False, 'message': '⚠️ تعذر توليد الصورة.', 'error': str(e)}, status=200)
 
     if not img.get('success'):
-        err_code = img.get('error', '')
+        err_code = str(img.get('error', ''))
+        detail = str(img.get('detail', ''))[:300]
         msg = '⚠️ توليد الصورة فشل — جرب تاني.'
         if 'timeout' in err_code:
             msg = '⏱️ التوليد ياخد وقت أطول من المتوقع — جرب تاني.'
         elif 'key_missing' in err_code:
             msg = '🔑 خدمة توليد الصور مش مفعّلة.'
-        return JsonResponse({'success': False, 'message': msg, 'error': err_code}, status=200)
+        elif 'all_models_failed' in err_code:
+            msg = f'🤖 كل موديلات الصور رفضت — كلّم الإدارة. السبب: {detail[:120]}'
+        elif 'http_400' in err_code:
+            msg = f'⚠️ الـ FLUX رفض الـ prompt — جرب تعدل الفكرة. التفصيل: {detail[:120]}'
+        elif 'http_429' in err_code:
+            msg = '⏳ الخدمة مشغولة (rate limit) — استنى ثانيتين وحاول تاني.'
+        else:
+            msg = f'⚠️ توليد الصورة فشل ({err_code}) — جرب تاني.'
+        logger.warning(f'[DESIGN GENERATE] image failed: error={err_code} detail={detail}')
+        return JsonResponse({
+            'success': False, 'message': msg,
+            'error': err_code, 'detail': detail,
+        }, status=200)
 
     image_url = img.get('url')
 
