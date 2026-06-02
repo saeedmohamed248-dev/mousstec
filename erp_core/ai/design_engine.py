@@ -27,7 +27,8 @@ from django.conf import settings
 logger = logging.getLogger('mouss_tec_core')
 
 _TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
-_TIMEOUT_LLM = 30
+# أقصر من gunicorn worker timeout (افتراضي 30s) لتجنب 502 من الـ proxy
+_TIMEOUT_LLM = 20
 
 # Defaults — overridable من settings
 # ملاحظة: النسخة "-Free" مش متاحة كـ serverless لكل الحسابات.

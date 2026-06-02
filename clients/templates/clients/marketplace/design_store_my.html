@@ -978,8 +978,20 @@ async function uaiAnalyze() {
             body: JSON.stringify({ raw_idea: idea }),
             credentials: 'same-origin',
         });
-        const d = await r.json();
-        if (!d.success) { toast(d.message || 'تعذر التحليل', 'error'); return; }
+        // 🔍 Diagnostic: capture status + raw body for visibility in console
+        const rawText = await r.text();
+        let d;
+        try { d = JSON.parse(rawText); }
+        catch (parseErr) {
+            console.error('[UAI ANALYZE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
+            toast('⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console لمزيد من التفاصيل.', 'error');
+            return;
+        }
+        if (!d.success) {
+            console.warn('[UAI ANALYZE] server returned error', d);
+            toast(d.message || 'تعذر التحليل', 'error');
+            return;
+        }
 
         _uaiSchema = d;
         const box = document.getElementById('uaiSchemaBox');
@@ -1037,7 +1049,15 @@ async function uaiGenerate() {
             }),
             credentials: 'same-origin',
         });
-        const d = await r.json();
+        const rawText = await r.text();
+        let d;
+        try { d = JSON.parse(rawText); }
+        catch (parseErr) {
+            console.error('[UAI GENERATE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
+            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console لمزيد من التفاصيل.</p>';
+            return;
+        }
+        if (!d.success) console.warn('[UAI GENERATE] server returned error', d);
 
         if (!d.success) {
             if (d.need_topup) {
