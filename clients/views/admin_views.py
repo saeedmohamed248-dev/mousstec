@@ -33,6 +33,7 @@ from clients.models import (
     BidOffer,
     BlindBiddingRequest,
     Client,
+    DesignPurchase,
     Domain,
     EscrowLedger,
     MarketplaceCustomer,
