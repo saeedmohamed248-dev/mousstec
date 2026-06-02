@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>الإيرادات العامة — Mouss Tec SaaS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1200px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:28px; }
+        .stat { background:linear-gradient(135deg,#1e293b,#334155); border:1px solid #475569; border-radius:14px; padding:18px; }
+        .stat.green { background:linear-gradient(135deg,#064e3b,#065f46); border-color:#10b981; }
+        .stat.blue { background:linear-gradient(135deg,#0c4a6e,#0e7490); border-color:#0ea5e9; }
+        .stat.purple { background:linear-gradient(135deg,#4c1d95,#6d28d9); border-color:#a855f7; }
+        .stat.amber { background:linear-gradient(135deg,#78350f,#92400e); border-color:#f59e0b; }
+        .stat .val { font-size:26px; font-weight:900; }
+        .stat .cur { font-size:12px; color:#cbd5e1; }
+        .stat .lbl { font-size:12px; color:#e2e8f0; margin-top:4px; }
+        .grid-2 { display:grid; grid-template-columns:1fr 2fr; gap:20px; }
+        .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; }
+        .panel h3 { margin:0 0 14px; color:#fbbf24; font-size:14px; }
+        table { width:100%; border-collapse:collapse; font-size:12px; }
+        th { background:#334155; color:#cbd5e1; padding:10px; text-align:right; font-weight:700; font-size:11px; }
+        td { padding:10px; border-top:1px solid #334155; }
+        tr:hover { background:rgba(124,58,237,0.05); }
+        .badge { background:#7c3aed; color:#fff; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; }
+        .badge-paid { background:#10b981; }
+        .badge-issued { background:#94a3b8; }
+        .badge-failed { background:#ef4444; }
+        .btn-back { display:inline-block; padding:10px 18px; background:#334155; color:#e2e8f0; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px; margin-top:20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> ›
+        الإيرادات العامة
+    </div>
+
+    <h1><i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة للمنصة</h1>
+    <p class="sub">إجمالي تدفقات SaaS من فواتير المنصة (PlatformInvoice) المدفوعة. مش بيشمل مبيعات الـ tenants لعملائهم.</p>
+
+    <div class="stats-row">
+        <div class="stat green">
+            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="lbl"><i class="fas fa-infinity"></i> الإجمالي من بداية التشغيل</div>
+        </div>
+        <div class="stat blue">
+            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="lbl"><i class="fas fa-calendar"></i> هذا الشهر</div>
+        </div>
+        <div class="stat purple">
+            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="lbl"><i class="fas fa-clock"></i> آخر 30 يوم</div>
+        </div>
+        <div class="stat amber">
+            <div class="val">{{ invoices_count }}</div>
+            <div class="lbl"><i class="fas fa-file-invoice-dollar"></i> فواتير مدفوعة ({{ pending_count }} لم تُدفع)</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="panel">
+            <h3><i class="fas fa-layer-group"></i> الإيرادات حسب الباقة (Lifetime)</h3>
+            <table>
+                <thead><tr><th>الباقة</th><th>عدد</th><th>المجموع</th></tr></thead>
+                <tbody>
+                    {% for row in by_plan %}
+                        <tr>
+                            <td><code style="color:#a78bfa;">{{ row.plan_revision__plan__slug }}</code></td>
+                            <td>{{ row.count }}</td>
+                            <td><b style="color:#10b981;">{{ row.total|floatformat:2 }}</b></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px;">مفيش فواتير مدفوعة لسة.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <h3><i class="fas fa-receipt"></i> آخر 25 فاتورة</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم</th>
+                        <th>الشركة</th>
+                        <th>الباقة</th>
+                        <th>الفترة</th>
+                        <th>الإجمالي</th>
+                        <th>الحالة</th>
+                        <th>صدرت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                        <tr>
+                            <td><code style="font-size:11px;">{{ inv.invoice_number }}</code></td>
+                            <td>{{ inv.tenant.name|truncatechars:24 }}</td>
+                            <td>{{ inv.plan_revision.plan.slug }}</td>
+                            <td>{{ inv.billing_cycle_months }} شهر</td>
+                            <td><b>{{ inv.total|floatformat:2 }}</b></td>
+                            <td>
+                                {% if inv.status == 'paid' %}<span class="badge badge-paid">✅ {{ inv.get_status_display }}</span>
+                                {% elif inv.status == 'issued' %}<span class="badge badge-issued">⏳ {{ inv.get_status_display }}</span>
+                                {% elif inv.status == 'failed' %}<span class="badge badge-failed">❌ {{ inv.get_status_display }}</span>
+                                {% else %}<span class="badge">{{ inv.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ inv.issued_at|date:"Y-m-d" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">مفيش فواتير لسة.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <a class="btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> رجوع لـ SaaS Dashboard</a>
+</div>
+</body>
+</html>

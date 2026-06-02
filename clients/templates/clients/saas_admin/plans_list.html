@@ -1,0 +1,93 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>SaaS Plans Management — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1200px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:32px; }
+        .stat-card { background:linear-gradient(135deg,#1e293b,#334155); border:1px solid #475569; border-radius:14px; padding:18px; }
+        .stat-card .val { font-size:28px; font-weight:900; color:#fbbf24; }
+        .stat-card .lbl { font-size:12px; color:#cbd5e1; margin-top:4px; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th { background:#334155; color:#cbd5e1; padding:14px 12px; text-align:right; font-size:12px; font-weight:800; }
+        td { padding:14px 12px; border-top:1px solid #334155; font-size:13px; }
+        tr:hover { background:rgba(124,58,237,0.06); }
+        .badge { background:#7c3aed; color:#fff; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; }
+        .badge.industry-printing { background:#ec4899; }
+        .price { color:#10b981; font-weight:900; font-size:15px; }
+        .btn { display:inline-block; padding:8px 16px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; border:none; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; cursor:pointer; font-family:inherit; }
+        .btn:hover { filter:brightness(1.12); color:#fff; }
+        .btn-back { background:#334155; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> ›
+        إدارة الباقات
+    </div>
+
+    <h1><i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات</h1>
+    <p class="sub">السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه {{ features_count_total }} ميزة مفعلة.</p>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="val">{{ plans_data|length }}</div>
+            <div class="lbl"><i class="fas fa-cubes"></i> إجمالي الباقات</div>
+        </div>
+        <div class="stat-card">
+            <div class="val">{{ features_count_total }}</div>
+            <div class="lbl"><i class="fas fa-puzzle-piece"></i> ميزات نشطة في الـ catalog</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>الـ Slug</th>
+                <th>الباقة</th>
+                <th>القطاع</th>
+                <th>السعر/شهر</th>
+                <th>المشتركين النشطين</th>
+                <th>المزايا</th>
+                <th>الـ Revisions</th>
+                <th>إجراء</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in plans_data %}
+                <tr>
+                    <td><code style="color:#a78bfa;">{{ row.plan.slug }}</code></td>
+                    <td><b>{{ row.plan.name }}</b></td>
+                    <td><span class="badge industry-{{ row.plan.industry }}">{{ row.plan.get_industry_display }}</span></td>
+                    <td><span class="price">{{ row.plan.monthly_price|floatformat:2 }} ج.م</span></td>
+                    <td><b style="color:#0ea5e9;">{{ row.subscribers_count }}</b></td>
+                    <td>{{ row.features_count }} entitlements</td>
+                    <td>
+                        {{ row.revisions_count }}
+                        {% if row.latest_revision %}<br><span style="font-size:11px;color:#94a3b8;">آخرها {{ row.latest_revision.effective_from|date:"Y-m-d" }}</span>{% endif %}
+                    </td>
+                    <td><a class="btn" href="{% url 'saas_plan_edit' row.plan.id %}"><i class="fas fa-edit"></i> تعديل</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:30px;">مفيش باقات.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p style="margin-top:24px;">
+        <a class="btn btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> رجوع لـ SaaS Dashboard</a>
+    </p>
+</div>
+</body>
+</html>

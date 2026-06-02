@@ -311,16 +311,14 @@
                    title="إدارة عملاء السوق + الهدايا + Impersonate">
                     <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
                 </a>
-                <a href="#" class="saas-quick-btn"
+                <a href="{% url 'saas_plan_list' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #0ea5e9, #6366f1);"
-                   title="إدارة الباقات والأسعار والمزايا — قادم قريباً"
-                   onclick="alert('قادم قريباً — Subscription Management Epic'); return false;">
+                   title="إدارة الباقات والأسعار والمزايا الديناميكية">
                     <i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات
                 </a>
-                <a href="#" class="saas-quick-btn"
+                <a href="{% url 'saas_revenue_dashboard' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #059669, #14b8a6);"
-                   title="إجمالي إيرادات المنصة — قادم قريباً"
-                   onclick="alert('قادم قريباً — Global Revenue Dashboard'); return false;">
+                   title="إجمالي إيرادات المنصة وفواتير SaaS">
                     <i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة
                 </a>
 

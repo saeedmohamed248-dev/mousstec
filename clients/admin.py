@@ -13,6 +13,7 @@ from .models import (
     Client, Domain, GlobalB2BMarketplace, BlindBiddingRequest,
     BidOffer, EscrowLedger, Plan, AIAddonPackage,
     TenantSubscription, AILimitTracker, AIPromptLearningLog,
+    Feature, PlanRevision, PlatformInvoice,
 )
 
 import logging
@@ -902,6 +903,100 @@ class AIPromptLearningLogAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     def has_add_permission(self, request):
         # السجلات تتولد آلياً من توليد الذكاء — مفيش manual add
         return False
+
+
+# =====================================================================
+# 💎 Phase 5: Feature Catalog admin
+# =====================================================================
+@admin.register(Feature)
+class FeatureAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('code', 'name_ar', 'category', 'is_quantitative', 'unit_label_ar', 'is_active', 'sort_order')
+    list_filter = ('category', 'is_active', 'is_quantitative')
+    search_fields = ('code', 'name_ar', 'name_en', 'description')
+    ordering = ('category', 'sort_order', 'code')
+    fieldsets = (
+        ('🆔 الهوية', {'fields': ('code', 'name_ar', 'name_en', 'category')}),
+        ('⚙️ السلوك', {'fields': ('is_quantitative', 'unit_label_ar', 'description')}),
+        ('🔧 الحالة', {'fields': ('is_active', 'sort_order')}),
+    )
+
+
+# =====================================================================
+# 📜 Phase 5: PlanRevision audit admin (read-only)
+# =====================================================================
+@admin.register(PlanRevision)
+class PlanRevisionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('id', 'plan', 'monthly_price', 'changed_by', 'effective_from', 'change_reason')
+    list_filter = ('plan', 'effective_from')
+    search_fields = ('plan__slug', 'plan__name', 'change_reason', 'changed_by__username')
+    readonly_fields = ('plan', 'monthly_price', 'entitlements', 'changed_by', 'change_reason', 'effective_from')
+    date_hierarchy = 'effective_from'
+    ordering = ('-effective_from',)
+
+    def has_add_permission(self, request):
+        return False  # append-only — يـ create بـ signal بس
+
+    def has_change_permission(self, request, obj=None):
+        return False  # immutable audit log
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+# =====================================================================
+# 💸 Phase 5: PlatformInvoice ledger admin
+# =====================================================================
+@admin.register(PlatformInvoice)
+class PlatformInvoiceAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = (
+        'invoice_number', 'tenant', 'plan_slug', 'total', 'currency',
+        'billing_cycle_months', 'status_badge', 'issued_at', 'paid_at',
+    )
+    list_filter = ('status', 'payment_provider', 'currency', 'issued_at', 'plan_revision__plan')
+    search_fields = (
+        'invoice_number', 'payment_reference',
+        'tenant__name', 'tenant__schema_name',
+    )
+    readonly_fields = (
+        'invoice_number', 'tenant', 'subscription', 'plan_revision',
+        'period_start', 'period_end', 'billing_cycle_months',
+        'subtotal', 'discount_percent', 'discount_amount', 'total', 'currency',
+        'entitlements_snapshot', 'issued_at', 'paid_at',
+        'payment_provider', 'payment_reference', 'created_by',
+    )
+    fieldsets = (
+        ('📋 معرّفات', {'fields': ('invoice_number', 'tenant', 'subscription', 'plan_revision')}),
+        ('📅 الفترة', {'fields': ('period_start', 'period_end', 'billing_cycle_months')}),
+        ('💰 المبالغ', {'fields': ('subtotal', 'discount_percent', 'discount_amount', 'total', 'currency')}),
+        ('💳 الدفع', {'fields': ('status', 'payment_provider', 'payment_reference', 'paid_at')}),
+        ('📦 المزايا (snapshot)', {'fields': ('entitlements_snapshot',), 'classes': ('collapse',)}),
+        ('📝 ملاحظات', {'fields': ('notes', 'issued_at', 'created_by')}),
+    )
+    date_hierarchy = 'issued_at'
+    ordering = ('-issued_at',)
+
+    def plan_slug(self, obj):
+        return obj.plan_revision.plan.slug if obj.plan_revision_id else '—'
+    plan_slug.short_description = "الباقة"
+
+    def status_badge(self, obj):
+        colors = {'issued': '#94a3b8', 'paid': '#10b981', 'failed': '#ef4444',
+                  'refunded': '#f59e0b', 'void': '#64748b'}
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 9px;border-radius:6px;font-weight:700;font-size:11px;">{}</span>',
+            colors.get(obj.status, '#94a3b8'), obj.get_status_display(),
+        )
+    status_badge.short_description = "الحالة"
+
+    def has_add_permission(self, request):
+        return False  # invoices تتعمل عبر Paymob webhook أو الـ admin UI الجديد
+
+    def has_change_permission(self, request, obj=None):
+        # السماح بـ view بس، مفيش تعديل (immutable financial record)
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # invoices لا تُحذف — للـ legal/audit
 
 
 # 🛡️ God Mode — يسجّل MarketplaceCustomer admin مع الـ actions + impersonation

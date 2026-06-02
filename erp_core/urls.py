@@ -14,6 +14,7 @@ import time
 import logging
 
 from clients import views as client_views
+from clients.views import saas_admin_views as saas_admin_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -329,6 +330,11 @@ urlpatterns = [
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
     path('superadmin/customer/<int:customer_id>/detail/', client_views.super_admin_customer_detail, name='super_admin_customer_detail'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
+
+    # 🎛️ Phase 5: SaaS Control Center — Plan/Entitlement management + Revenue
+    path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),
+    path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),
+    path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
 
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),

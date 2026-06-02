@@ -1,0 +1,188 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تعديل {{ plan.name }} — SaaS Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1100px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:24px; }
+        .messages { margin-bottom:18px; }
+        .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
+        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
+        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .msg-info { background:rgba(14,165,233,0.15); border:1px solid #0ea5e9; color:#7dd3fc; }
+        .grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:24px; }
+        .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; margin-bottom:20px; }
+        .panel h3 { margin:0 0 14px; color:#fbbf24; font-size:15px; }
+        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin-bottom:6px; }
+        input[type=text], input[type=number], textarea, select {
+            width:100%; padding:10px 12px; background:#0f172a; border:1px solid #475569;
+            border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:13px;
+            box-sizing:border-box;
+        }
+        .feature-cat { margin-bottom:16px; }
+        .feature-cat-title { font-size:12px; color:#a78bfa; font-weight:900; margin:14px 0 8px; text-transform:uppercase; letter-spacing:0.5px; }
+        .feature-row { display:flex; gap:12px; align-items:center; padding:10px 12px; background:#0f172a; border-radius:8px; margin-bottom:6px; }
+        .feature-row label.toggle { display:flex; align-items:center; gap:8px; cursor:pointer; flex:1; margin:0; }
+        .feature-row input[type=checkbox] { width:18px; height:18px; accent-color:#a855f7; cursor:pointer; }
+        .feature-row .fname { font-weight:700; font-size:13px; color:#e2e8f0; }
+        .feature-row .fcode { font-size:10px; color:#64748b; font-family:monospace; }
+        .feature-row .flimit { width:120px; }
+        .feature-row .unit { font-size:11px; color:#94a3b8; min-width:60px; }
+        .rollout-options { display:flex; flex-direction:column; gap:8px; }
+        .rollout-option { display:block; padding:12px 14px; background:#0f172a; border:2px solid #334155; border-radius:10px; cursor:pointer; transition:0.2s; }
+        .rollout-option:has(input:checked) { border-color:#a855f7; background:rgba(168,85,247,0.08); }
+        .rollout-option input[type=radio] { margin-left:8px; }
+        .rollout-option .label-main { font-weight:800; font-size:13px; }
+        .rollout-option .label-sub { display:block; font-size:11px; color:#94a3b8; margin-top:4px; }
+        .rollout-option.danger:has(input:checked) { border-color:#ef4444; background:rgba(239,68,68,0.1); }
+        .confirm-box { display:none; margin-top:10px; padding:14px; background:rgba(239,68,68,0.1); border:2px solid #ef4444; border-radius:10px; }
+        .confirm-box.active { display:block; }
+        .confirm-box label { color:#fca5a5; }
+        .btn { display:inline-block; padding:11px 22px; border:none; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer; font-family:inherit; text-decoration:none; }
+        .btn-primary { background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; }
+        .btn-danger { background:linear-gradient(135deg,#dc2626,#ef4444); color:#fff; }
+        .btn-back { background:#334155; color:#e2e8f0; }
+        .revision { padding:8px 10px; background:#0f172a; border-radius:6px; margin-bottom:6px; font-size:11px; }
+        .revision .when { color:#a78bfa; font-weight:700; }
+        .revision .price { color:#fbbf24; }
+        .revision .reason { color:#94a3b8; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> ›
+        <a href="{% url 'saas_plan_list' %}">الباقات</a> ›
+        تعديل {{ plan.name }}
+    </div>
+
+    <h1><i class="fas fa-edit"></i> تعديل: {{ plan.name }} <code style="font-size:14px;color:#a78bfa;">({{ plan.slug }})</code></h1>
+    <p class="sub">
+        <span style="color:#0ea5e9;font-weight:700;">{{ active_subs_count }}</span> مشترك نشط على الباقة دي حالياً.
+        التغييرات في الأسعار/المزايا متحكم فيها بالـ Rollout اختيار تحت.
+    </p>
+
+    {% if messages %}
+        <div class="messages">
+            {% for m in messages %}
+                <div class="msg msg-{{ m.tags }}">{{ m }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="grid-2">
+            <div>
+                <div class="panel">
+                    <h3><i class="fas fa-tag"></i> السعر</h3>
+                    <label for="monthly_price">السعر الشهري (ج.م)</label>
+                    <input type="text" id="monthly_price" name="monthly_price" value="{{ plan.monthly_price }}" required>
+                </div>
+
+                <div class="panel">
+                    <h3><i class="fas fa-puzzle-piece"></i> الصلاحيات (Entitlements)</h3>
+                    {% regroup feature_rows by feature.category as cats %}
+                    {% for cat in cats %}
+                        <div class="feature-cat">
+                            <div class="feature-cat-title">{{ cat.list.0.feature.get_category_display }}</div>
+                            {% for row in cat.list %}
+                                <div class="feature-row">
+                                    <label class="toggle">
+                                        <input type="checkbox" name="feat_{{ row.feature.code }}_enabled" {% if row.enabled %}checked{% endif %}>
+                                        <span>
+                                            <span class="fname">{{ row.feature.name_ar }}</span><br>
+                                            <span class="fcode">{{ row.feature.code }}</span>
+                                        </span>
+                                    </label>
+                                    {% if row.feature.is_quantitative %}
+                                        <input class="flimit" type="number" min="0" name="feat_{{ row.feature.code }}_limit"
+                                               value="{{ row.monthly_limit|default_if_none:'' }}" placeholder="حد شهري (0=∞)">
+                                        <span class="unit">{{ row.feature.unit_label_ar }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="panel">
+                    <h3><i class="fas fa-rocket"></i> Rollout — متى يسري التعديل؟</h3>
+                    <div class="rollout-options">
+                        <label class="rollout-option">
+                            <input type="radio" name="rollout" value="next_renewal" checked>
+                            <span class="label-main">🟢 عند التجديد القادم (افتراضي)</span>
+                            <span class="label-sub">المشتركين الحاليين يفضلوا locked على السعر/المزايا القديمة لحد تجديد اشتراكهم. الـ revision الجديد بيـ apply بس على التجديد التالي.</span>
+                        </label>
+                        <label class="rollout-option">
+                            <input type="radio" name="rollout" value="new_subscribers_only">
+                            <span class="label-main">🟡 المشتركين الجدد فقط</span>
+                            <span class="label-sub">نفس السلوك السابق — تعديل الـ Plan يـ affect الـ subscribers الجداد بس. الاختلاف هنا تسجيل سبب التغيير في الـ revision.</span>
+                        </label>
+                        <label class="rollout-option danger">
+                            <input type="radio" name="rollout" value="force_apply" id="force_apply_radio">
+                            <span class="label-main">🔴 تطبيق فوري على كل المشتركين النشطين</span>
+                            <span class="label-sub">⚠️ خطر — هيـ overwrite الـ locked_* لكل المشتركين الحاليين بالقيم الجديدة. لا يمكن التراجع (إلا برولاوت revision قديم يدوياً).</span>
+                        </label>
+                    </div>
+                    <div class="confirm-box" id="confirm_box">
+                        <label for="confirm_text">⚠️ اكتب CONFIRM بحروف كبيرة بالظبط لتفعيل الإجراء:</label>
+                        <input type="text" id="confirm_text" name="confirm_text" placeholder="CONFIRM" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3><i class="fas fa-comment-dots"></i> سبب التغيير (audit log)</h3>
+                    <label for="change_reason">يـ appear في الـ PlanRevision (240 حرف max)</label>
+                    <input type="text" id="change_reason" name="change_reason" maxlength="240" placeholder="مثلاً: زيادة سعر سنوي بناءً على inflation Q2 2026">
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التغييرات</button>
+                    <a class="btn btn-back" href="{% url 'saas_plan_list' %}"><i class="fas fa-times"></i> إلغاء</a>
+                </div>
+            </div>
+
+            <div>
+                <div class="panel">
+                    <h3><i class="fas fa-scroll"></i> آخر 10 Revisions</h3>
+                    {% for r in revisions %}
+                        <div class="revision">
+                            <span class="when">{{ r.effective_from|date:"Y-m-d H:i" }}</span>
+                            <span class="price">{{ r.monthly_price }} ج.م</span><br>
+                            <span class="reason">{{ r.change_reason|default:"بدون سبب" }}</span>
+                            {% if r.changed_by %}<br><small>بواسطة {{ r.changed_by.username }}</small>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p style="color:#94a3b8;font-size:12px;">مفيش revisions لسة.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Show/hide CONFIRM box when force_apply selected
+    const radios = document.querySelectorAll('input[name="rollout"]');
+    const box = document.getElementById('confirm_box');
+    radios.forEach(r => r.addEventListener('change', () => {
+        if (document.getElementById('force_apply_radio').checked) {
+            box.classList.add('active');
+        } else {
+            box.classList.remove('active');
+            document.getElementById('confirm_text').value = '';
+        }
+    }));
+</script>
+</body>
+</html>
