@@ -207,8 +207,25 @@ class CustomUserAdmin(BaseUserAdmin):
     actions = ['pay_tech_commissions']
 
     def get_inline_instances(self, request, obj=None):
-        if connection.schema_name == 'public': return [] 
+        if connection.schema_name == 'public': return []
         return super().get_inline_instances(request, obj)
+
+    def save_formset(self, request, form, formset, change):
+        # The User post_save signal auto-creates an EmployeeProfile via
+        # get_or_create. When the admin add-view also submits the inline,
+        # the formset tries to INSERT a second profile for the same user
+        # and trips the user_id UNIQUE constraint. Redirect the inline's
+        # new instance onto the existing row so it becomes an UPDATE.
+        if formset.model is EmployeeProfile:
+            user = form.instance
+            existing = EmployeeProfile.objects.filter(user=user).first()
+            if existing is not None:
+                for f in formset.forms:
+                    if f.cleaned_data.get('DELETE'):
+                        continue
+                    if f.instance.pk is None:
+                        f.instance.pk = existing.pk
+        super().save_formset(request, form, formset, change)
 
     def get_branch(self, instance):
         if connection.schema_name == 'public': return "👑 إدارة سحابية مركزية"
