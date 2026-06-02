@@ -123,6 +123,90 @@
     .print-mini-stat .mini-value { font-size: 22px; font-weight: 800; color: #1e293b; }
     .print-mini-stat .mini-label { font-size: 12px; color: #64748b; font-weight: 600; }
     {% endif %}
+
+    /* ============================================================
+     * 📱 Mobile-First Optimizations (≤768px)
+     * — Django admin sidebar مش بيتعامل صح مع الشاشات الصغيرة،
+     * فبنخفي الـ nav-sidebar تلقائياً ونحوّل الـ hero لـ stack vertical.
+     * — الأرقام الكبيرة تتصغّر، الأزرار تبقى full-width، الكروت تتراص.
+     * ============================================================ */
+    @media (max-width: 768px) {
+        /* Django admin nav sidebar — اخفيه تلقائي وحط زرار يفتحه */
+        #nav-sidebar { transform: translateX(100%); transition: transform 0.3s ease; }
+        #nav-sidebar.shifted { transform: translateX(0); }
+        #main { margin-right: 0 !important; padding: 12px !important; }
+        #header { padding: 10px 12px !important; }
+        #branding h1 { font-size: 18px !important; }
+
+        /* Hero/welcome — نصوص أصغر، padding أقل */
+        .hero-section, .welcome-banner { padding: 16px !important; }
+        .hero-section h1, .welcome-banner h1 { font-size: 20px !important; line-height: 1.3; }
+        .hero-section p, .welcome-banner p { font-size: 13px !important; }
+
+        /* الكروت الإحصائية (stat cards) */
+        .stat-card, .kpi-card, .metric-card {
+            padding: 14px !important;
+            margin-bottom: 10px !important;
+        }
+        .stat-card h2, .stat-card .stat-value,
+        .kpi-card h2, .kpi-card .kpi-value { font-size: 22px !important; }
+        .stat-card .stat-label, .kpi-card .kpi-label { font-size: 11px !important; }
+
+        /* أزرار الـ Quick Actions — full width */
+        .quick-action-btn, .action-btn, .btn-action {
+            width: 100% !important;
+            margin-bottom: 8px !important;
+            font-size: 14px !important;
+            padding: 12px 14px !important;
+        }
+
+        /* الـ AI sidebar — full width لما يفتح */
+        .ai-sidebar-panel {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            right: 0 !important;
+        }
+        .ai-chat-box { font-size: 13px !important; }
+
+        /* جداول — horizontal scroll */
+        .table-responsive, table {
+            font-size: 12px !important;
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        thead th { padding: 6px 8px !important; }
+        tbody td { padding: 8px !important; }
+
+        /* Toolbar / Search bar — stack vertical */
+        .object-tools { float: none !important; }
+        .object-tools li { display: block; margin-bottom: 6px; }
+
+        /* Search bars في الـ hero */
+        .search-bar-wrapper { flex-direction: column !important; gap: 6px !important; }
+        .search-bar-wrapper input { width: 100% !important; }
+
+        /* Bootstrap row — تأكيد إن col-6 يبقى نص شاشة فعلاً مش أكتر */
+        .row > [class*="col-"] { padding-left: 6px !important; padding-right: 6px !important; }
+
+        /* Floating Ctrl+K — اخفيه على الموبايل (مفيش keyboard shortcut) */
+        .global-search-trigger { display: none !important; }
+
+        /* الـ Toast container — يقعد فوق عشان مينزلش تحت الـ keyboard */
+        .mousstec-toast-container { bottom: 80px !important; right: 10px !important; left: 10px !important; }
+
+        /* الـ print mini stats */
+        .print-mini-stat { padding: 10px !important; }
+        .print-mini-stat .mini-value { font-size: 18px !important; }
+        .print-mini-stat .mini-icon { font-size: 20px !important; }
+    }
+
+    /* Touch-friendly tap targets — حتى على tablets */
+    @media (max-width: 992px) {
+        button, a.btn, .nav-link {
+            min-height: 44px;  /* WCAG/Apple recommended min */
+        }
+    }
 </style>
 
 <input type="hidden" id="rawChartLabels" value="{{ chart_labels|default:'[]' }}">
