@@ -23,6 +23,8 @@ import secrets
 import hmac
 import hashlib
 
+logger = logging.getLogger('mouss_tec_core')
+
 # الاستدعاء الصريح والمباشر للاستمارات والموديلات
 from clients.forms import TenantSignupForm
 from clients.models import (
