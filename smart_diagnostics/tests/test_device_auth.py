@@ -73,6 +73,22 @@ class DeviceAuthTest(DiagnosticsTenantTestCase):
         c = self._make_consumer(other.chassis_number, token)
         self.assertFalse(c._authenticate_device())
 
+    def test_portable_device_accepts_any_vehicle(self):
+        """Workshop scanners (vehicle is NULL) authenticate for any tenant VIN."""
+        from smart_diagnostics.models import DiagnosticDevice
+        vehicle_a = self._bootstrap()
+        vehicle_b = make_customer_and_vehicle(vin='PORTABLE000000001', plate='P-1')
+        token = secrets.token_urlsafe(32)
+        # Portable device — NO vehicle binding
+        DiagnosticDevice.objects.create(vehicle=None, device_token=token, is_active=True)
+
+        # Same token authenticates for BOTH vehicles
+        c1 = self._make_consumer(vehicle_a.chassis_number, token)
+        self.assertTrue(c1._authenticate_device())
+
+        c2 = self._make_consumer(vehicle_b.chassis_number, token)
+        self.assertTrue(c2._authenticate_device())
+
     def test_last_seen_at_stamped(self):
         from smart_diagnostics.models import DiagnosticDevice
         vehicle = self._bootstrap()

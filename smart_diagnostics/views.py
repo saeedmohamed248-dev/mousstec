@@ -50,8 +50,13 @@ def device_list(request):
 @login_required
 @require_POST
 def device_register(request):
-    """POST { vin, hardware_id } → creates a DiagnosticDevice and shows the
-    token ONCE (stored in flash session)."""
+    """POST { vin?, hardware_id } → creates a DiagnosticDevice and shows the
+    token ONCE (stored in flash session).
+
+    `vin` is OPTIONAL: workshop scanners (ELM327 etc.) roam between
+    customer vehicles, so the device is registered without a permanent
+    vehicle binding. Provide a VIN only for permanently-installed devices
+    (Fleet IoT trackers)."""
     tenant = getattr(request, 'tenant', None)
     gate = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA)
     if not gate.allowed:
@@ -60,7 +65,13 @@ def device_register(request):
 
     vin = (request.POST.get('vin') or '').strip().upper()
     hardware_id = (request.POST.get('hardware_id') or '').strip()
-    vehicle = get_object_or_404(Vehicle, chassis_number=vin)
+
+    vehicle = None
+    if vin:
+        vehicle = Vehicle.objects.filter(chassis_number=vin).first()
+        if vehicle is None:
+            messages.error(request, f"رقم الشاسيه {vin} غير موجود في سجل المركبات.")
+            return redirect('smart_diagnostics:device-list')
 
     token = secrets.token_urlsafe(32)
     DiagnosticDevice.objects.create(
@@ -68,7 +79,11 @@ def device_register(request):
     )
     # Flash the token so it shows once after redirect; never persisted in cleartext on subsequent views.
     request.session['_recent_device_token'] = token
-    messages.success(request, f"تم تسجيل الجهاز لـ {vehicle.car_plate or vin}.")
+    if vehicle:
+        label = vehicle.car_plate or vin
+        messages.success(request, f"تم تسجيل الجهاز لـ {label}.")
+    else:
+        messages.success(request, "تم تسجيل جهاز محمول (غير مرتبط بمركبة محددة).")
     return redirect('smart_diagnostics:device-list')
 
 

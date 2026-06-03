@@ -109,10 +109,14 @@ class LiveTelemetryConsumer(AsyncJsonWebsocketConsumer):
         await self.close(code=code)
 
     def _authenticate_device(self) -> bool:
-        """Token-based device authentication. Confirms the device:
-          1. exists & is active in the tenant schema
-          2. is bound to the VIN claimed in the URL
-        Also stamps last_seen_at and caches device_id for scan binding.
+        """Token-based device authentication. Workshop scanners (ELM327)
+        are portable — they roam between customer vehicles — so the device
+        is NOT pinned to one VIN. The vehicle being scanned right now is
+        taken from the URL; the per-scan DiagnosticScan row carries the
+        tight (device, vehicle) coupling.
+
+        For permanently-installed devices (Fleet IoT), if `dev.vehicle_id`
+        is set, we enforce that the URL VIN matches as a defence in depth.
         """
         from django_tenants.utils import schema_context
         from smart_diagnostics.models import DiagnosticDevice
@@ -125,7 +129,9 @@ class LiveTelemetryConsumer(AsyncJsonWebsocketConsumer):
             )
             if not dev:
                 return False
-            if dev.vehicle.chassis_number.upper() != self.vin:
+            # If the device is permanently bound to a vehicle, enforce VIN match.
+            # Portable scanners (vehicle is NULL) accept any tenant vehicle.
+            if dev.vehicle_id and dev.vehicle.chassis_number.upper() != self.vin:
                 return False
             self.device_id = dev.id
             DiagnosticDevice.objects.filter(pk=dev.pk).update(last_seen_at=_tz.now())

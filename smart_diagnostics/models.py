@@ -22,13 +22,22 @@ User = get_user_model()
 
 
 class DiagnosticDevice(models.Model):
-    """جهاز OBD2 hardware مربوط بمركبة. الـ token هو المفتاح
-    اللي بـ يـ authenticate الـ WebSocket لما الجهاز يبعت live data."""
+    """جهاز فحص OBD2 محمول (مثل ELM327) — أداة ورشة بـ تتنقل بين
+    سيارات العملاء. الـ device نفسه ليس مرتبطاً بسيارة بعينها؛
+    الـ token هو المفتاح اللي بـ يـ authenticate الـ WebSocket،
+    والـ vehicle لكل scan يـ resolved من الـ URL وقت بدء الجلسة.
+
+    الـ vehicle FK هنا اختياري ويُستخدم فقط في حالة الأجهزة
+    المثبتة دائماً (Fleet IoT trackers مثلاً) — مش الـ workshop
+    diagnostic scanners.
+    """
 
     vehicle = models.ForeignKey(
-        'inventory.Vehicle', on_delete=models.CASCADE,
+        'inventory.Vehicle', on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='diagnostic_devices',
-        verbose_name=_("المركبة"),
+        verbose_name=_("المركبة (اختياري — للأجهزة المثبتة دائماً)"),
+        help_text=_("اتركها فارغة لأجهزة الورشة المحمولة (ELM327 وأمثاله)."),
     )
     device_token = models.CharField(
         max_length=64, unique=True, db_index=True,
@@ -44,7 +53,10 @@ class DiagnosticDevice(models.Model):
         verbose_name_plural = _("🔌 أجهزة الفحص الميدانية")
 
     def __str__(self):
-        return f"{self.vehicle.chassis_number[-6:]} → {self.device_token[:8]}…"
+        label = self.hardware_id or f"token:{self.device_token[:8]}…"
+        if self.vehicle_id:
+            return f"{label} → {self.vehicle.chassis_number[-6:]}"
+        return f"{label} (محمول)"
 
 
 class DiagnosticScan(models.Model):
