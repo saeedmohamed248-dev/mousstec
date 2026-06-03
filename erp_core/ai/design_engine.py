@@ -177,6 +177,17 @@ You will receive:
    "professional color grading", "high dynamic range", "magazine quality", "shot on
    medium format camera" (when realistic), "octane render" (when CGI).
 
+8. **TYPOGRAPHY & LAYOUT (for products that visually display structure even when text
+   is overlaid afterwards)** — when describing the design canvas/template:
+   • "clean professional typography spacing", "balanced grid alignment", "proper
+     visual hierarchy", "readable typographic layout", "premium editorial layout",
+     "well-proportioned negative space", "consistent baseline grid".
+   • For invoices/cards/menus/certificates: "professionally laid out fields with
+     clear hierarchy", "uniform line spacing", "no clutter or visual noise",
+     "subtle alignment guides", "corporate-grade composition".
+   • NEVER describe specific letterforms, words, or character details — FLUX will
+     hallucinate gibberish. Only describe spatial qualities of the typographic area.
+
 🅰️ CRITICAL — TEXT HANDLING (READ CAREFULLY):
 FLUX cannot reliably render any text, ESPECIALLY Arabic/RTL. If user selections include
 text content (any "text" or "text_on_design" field with non-empty value):

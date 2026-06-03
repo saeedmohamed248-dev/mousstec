@@ -200,14 +200,17 @@ def custom_404_handler(request, exception=None):
     if request.path.startswith('/api/'):
         return JsonResponse({"error": "endpoint_not_found", "message": "المسار المطلوب غير متوفر."}, status=404)
 
-    # 2. AJAX / Fragment endpoints — يرجع 404 status حقيقي مع HTML قصير
-    #    عشان الـ JS بتاع الـ modals يقدر يميز الخطأ ويعرض رسالة مفهومة.
+    # 2. AJAX / Fragment endpoints + file downloads — يرجع 404 status حقيقي بدل
+    #    ما يـ redirect للـ landing (اللي بيخلي الـ user يحس إن الزر اتعطل وودّاه home).
     is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     is_fetch_partial = (
         request.path.startswith('/superadmin/')
+        or request.path.startswith('/ai/')
         or '/api/' in request.path
         or '/detail/' in request.path
         or 'application/json' in request.headers.get('Accept', '')
+        # file downloads — لو في .pdf/.png/.jpg في الـ URL، الـ user قاصد ملف
+        or any(request.path.endswith(ext) for ext in ('.pdf', '.png', '.jpg', '.jpeg', '.csv', '.xlsx'))
     )
     if is_xhr or is_fetch_partial:
         from django.http import HttpResponseNotFound

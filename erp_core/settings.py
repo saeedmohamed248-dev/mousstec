@@ -331,7 +331,10 @@ TOGETHER_API_KEY = env.str('TOGETHER_API_KEY', '')
 TOGETHER_LLM_MODEL = env.str('TOGETHER_LLM_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')
 # ⚠️ FLUX.1-schnell-Free was retired from serverless tier in 2026-05.
 # Default = paid serverless `FLUX.1-schnell` (~$0.003/img). Override per-env.
-TOGETHER_FLUX_MODEL = env.str('TOGETHER_FLUX_MODEL', 'black-forest-labs/FLUX.1-schnell')
+# 🎨 Default = FLUX.1-dev (28 steps, ~$0.025/img) — cinema-quality details + accurate
+# typography. schnell (4 steps, ~$0.003/img) is faster but renders text poorly which
+# wrecks Arabic/English layouts. Override via .env only if you specifically need speed-over-quality.
+TOGETHER_FLUX_MODEL = env.str('TOGETHER_FLUX_MODEL', 'black-forest-labs/FLUX.1-dev')
 REPLICATE_API_TOKEN = env.str('REPLICATE_API_TOKEN', '')
 FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' | 'replicate'
 

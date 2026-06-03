@@ -465,7 +465,18 @@ def design_print_spec_pdf(request, log_id: int):
 
     log = AIPromptLearningLog.objects.filter(id=log_id).first()
     if not log:
-        return HttpResponseNotFound('log_not_found')
+        # نـ render HTML بسيط بدل text/plain — أوضح للـ user لما يـ open في tab جديد
+        logger.warning(f'[PDF] log_id={log_id} not found — requested by user={request.user.id}')
+        return HttpResponseNotFound(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">'
+            '<title>التصميم غير موجود</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            '<h2>⚠️ التصميم المطلوب غير موجود</h2>'
+            '<p>الـ design log رقم {} مش متوفر — يمكن اتحذف، أو الـ link قديم.</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
+            '</body></html>'.format(log_id)
+        )
 
     # Access check
     is_owner = (
@@ -474,7 +485,17 @@ def design_print_spec_pdf(request, log_id: int):
         or (log.customer_id and request.session.get('marketplace_customer_id') == log.customer_id)
     )
     if not is_owner:
-        return HttpResponseForbidden('forbidden')
+        logger.warning(f'[PDF] access denied for log_id={log_id}, user={request.user.id}')
+        return HttpResponseForbidden(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">'
+            '<title>غير مصرح</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            '<h2>🛡️ غير مصرح بالوصول</h2>'
+            '<p>التصميم ده مش بتاعك — مينفعش تحمّل الـ PDF بتاعه.</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
+            '</body></html>'
+        )
 
     # ── Gather data ──
     text = ''
@@ -526,9 +547,32 @@ def design_print_spec_pdf(request, log_id: int):
             notes='',
             raw_idea=log.raw_input or '',
         )
+    except ImportError as e:
+        # ReportLab مش متثبت — مشكلة infrastructure
+        logger.exception(f'[PDF] reportlab import failed for log_id={log_id}: {e}')
+        return HttpResponse(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>الـ PDF service مش مفعّل</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            '<h2>🔧 خدمة الـ PDF مش مفعّلة على السيرفر</h2>'
+            '<p>كلّم الإدارة — مكتبة ReportLab محتاجة تتثبت.</p>'
+            f'<p style="color:#94a3b8;font-size:12px;">Technical: {e}</p>'
+            '</body></html>',
+            content_type='text/html', status=503,
+        )
     except Exception as e:
         logger.exception(f'[PDF] generation failed for log_id={log_id}: {e}')
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        return HttpResponse(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>خطأ في توليد PDF</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            '<h2>⚠️ خطأ في توليد ملف الـ PDF</h2>'
+            '<p>حصل خطأ تقني أثناء بناء الـ PDF. الإدارة هتـ check.</p>'
+            f'<p style="color:#94a3b8;font-size:12px;">Technical: {type(e).__name__}: {str(e)[:200]}</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
+            '</body></html>',
+            content_type='text/html', status=500,
+        )
 
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="print-spec-{design_code}.pdf"'
