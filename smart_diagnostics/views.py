@@ -1,33 +1,71 @@
 """Tenant-side HTML views for the Live Diagnostics dashboard."""
+import logging
 import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import connection
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from inventory.models import Vehicle
 from smart_diagnostics.models import DiagnosticDevice
 from smart_diagnostics.services.quota import (
     DiagnosticsQuotaService,
     FEATURE_LIVE_DATA,
 )
 
+logger = logging.getLogger('mouss_tec_core')
+
+
+def _on_public_schema() -> bool:
+    """True if we're serving from the public/shared schema — diagnostics
+    views require a tenant context (Vehicle table only exists per-tenant)."""
+    try:
+        return connection.schema_name == 'public'
+    except Exception:
+        return False
+
 
 @login_required
 def live_dashboard(request, vin: str):
+    # 1. Reject public-schema access early (Vehicle table doesn't exist there).
+    if _on_public_schema():
+        return HttpResponse(
+            "هذه الصفحة متاحة فقط من نطاق الشركة (tenant). "
+            "ادخل من sub-domain شركتك مباشرة.",
+            status=400,
+            content_type='text/html; charset=utf-8',
+        )
+
     tenant = getattr(request, 'tenant', None)
-    gate = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA)
+
+    try:
+        gate = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA)
+    except Exception as e:
+        logger.error(f"[live_dashboard] entitlement check failed: {e}", exc_info=True)
+        gate = type('G', (), {'allowed': False, 'reason': 'تعذّر التحقق من الباقة', 'feature_code': FEATURE_LIVE_DATA})()
+
     if not gate.allowed:
         return render(request, 'smart_diagnostics/live_dashboard.html', {
             'vehicle': None,
             'denied': True,
-            'reason': gate.reason,
+            'reason': getattr(gate, 'reason', 'الباقة غير مفعّلة'),
         }, status=402)
 
-    vehicle = get_object_or_404(Vehicle, chassis_number=vin.upper())
+    # 2. Vehicle lookup — clean 404 instead of crashing the request.
+    from inventory.models import Vehicle  # imported lazily; public-schema requests already rejected above
+    vehicle = Vehicle.objects.filter(chassis_number=vin.upper()).first()
+    if vehicle is None:
+        return render(request, 'smart_diagnostics/live_dashboard.html', {
+            'vehicle': None,
+            'denied': True,
+            'reason': f'لا توجد مركبة بـ VIN: {vin}. تأكد من الرقم في سجل المركبات.',
+        }, status=404)
+
     return render(request, 'smart_diagnostics/live_dashboard.html', {
         'vehicle': vehicle,
+        'denied': False,
     })
 
 

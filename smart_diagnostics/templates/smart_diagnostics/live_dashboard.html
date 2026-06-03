@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 Live Diagnostics — {{ vehicle.car_plate|default:vehicle.chassis_number }}</title>
+    <title>🔧 Live Diagnostics — {% if vehicle %}{{ vehicle.car_plate|default:vehicle.chassis_number }}{% else %}غير متاح{% endif %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -79,17 +79,30 @@
 <div class="topbar">
     <div>
         <div class="brand">🔧 Mousstec Live Diagnostics</div>
-        <div class="vin">VIN: {{ vehicle.chassis_number }} &middot; {{ vehicle.brand }} {{ vehicle.model_name }}</div>
+        {% if vehicle %}
+        <div class="vin">VIN: {{ vehicle.chassis_number }} &middot; {{ vehicle.brand }} {{ vehicle.model_name|default:"" }}</div>
+        {% else %}
+        <div class="vin">غير متصل بمركبة</div>
+        {% endif %}
     </div>
     <div id="wsStatus" class="status-pill idle">⏳ Connecting…</div>
 </div>
 
+{% if denied %}
+<div class="deny-banner" style="display:block;">
+    <h2>🛑 {{ reason|default:"الاشتراك غير مفعّل" }}</h2>
+    <p>يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر، وأن تكون المركبة مسجَّلة في النظام.</p>
+    <a href="/api/diagnostics/upgrade/">ترقية الباقة</a>
+</div>
+{% else %}
 <div id="denyBanner" class="deny-banner">
     <h2 id="denyTitle">🛑 الاشتراك غير مفعّل</h2>
     <p id="denyText">يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر.</p>
     <a href="/api/diagnostics/upgrade/">ترقية الباقة</a>
 </div>
+{% endif %}
 
+{% if vehicle %}
 <div class="main" id="dashContent">
     <div class="card full">
         <div class="card-title">📊 القياسات الحية</div>
@@ -243,5 +256,6 @@
     connect();
 })();
 </script>
+{% endif %}
 </body>
 </html>
