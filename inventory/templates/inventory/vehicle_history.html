@@ -53,6 +53,28 @@
             </div>
         </div>
 
+        <!-- 🔧 Smart Diagnostics Quick Actions -->
+        <div class="mb-6 flex flex-wrap gap-3">
+            {% if has_live_diagnostics %}
+                <a href="/api/diagnostics/live/{{ vehicle.chassis_number }}/"
+                   class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-lg shadow-emerald-500/20">
+                    <i class="fas fa-wave-square"></i> Live Diagnostics
+                </a>
+                <a href="/api/diagnostics/vin/{{ vehicle.chassis_number }}/passport/"
+                   class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition border border-slate-700">
+                    <i class="fas fa-passport"></i> الجواز الصحي
+                    {% if open_fault_count %}
+                    <span class="bg-red-500/20 text-red-300 text-xs px-2 py-0.5 rounded-full border border-red-500/30">{{ open_fault_count }} عطل مفتوح</span>
+                    {% endif %}
+                </a>
+            {% else %}
+                <a href="/api/diagnostics/upgrade/"
+                   class="flex items-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-lg shadow-amber-500/20">
+                    <i class="fas fa-crown"></i> فعّل Premium Diagnostics — فحص لحظي ذكي
+                </a>
+            {% endif %}
+        </div>
+
         <!-- Service History -->
         <h3 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2"><i class="fas fa-history text-purple-400"></i> سجل الصيانة</h3>
         {% if history %}

@@ -25,6 +25,8 @@ LEGACY_TO_PLAN_SLUG = {
     'print_basic':      'print-starter',
     'print_pro':        'print-pro',
     'print_enterprise': 'print-enterprise',
+    # 🔧 Smart Diagnostics Premium tier — identity mapping (no legacy alias)
+    'premium_diagnostics': 'premium_diagnostics',
 }
 
 

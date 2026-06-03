@@ -678,7 +678,41 @@ class TenantSubscriptionAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         'activate_subscription_12_months',
         'deactivate_subscriptions',
         'sync_subscription_to_client',
+        'refill_diag_api_quota_50',
+        'refill_diag_api_quota_200',
+        'grant_diagnostics_promo',
     ]
+
+    # ── Smart Diagnostics admin actions ──────────────────────────
+    @admin.action(description="🔧 Refill حصة فحوصات الـ API بـ +50")
+    def refill_diag_api_quota_50(self, request, queryset):
+        n = 0
+        for sub in queryset:
+            sub.refill_diag_api_quota(50)
+            n += 1
+        self.message_user(request, f"تم إضافة 50 لـ {n} اشتراك.")
+
+    @admin.action(description="🔧 Refill حصة فحوصات الـ API بـ +200")
+    def refill_diag_api_quota_200(self, request, queryset):
+        n = 0
+        for sub in queryset:
+            sub.refill_diag_api_quota(200)
+            n += 1
+        self.message_user(request, f"تم إضافة 200 لـ {n} اشتراك.")
+
+    @admin.action(description="🎁 منح Promo Diagnostics (100 scan مجاناً)")
+    def grant_diagnostics_promo(self, request, queryset):
+        # Promo = +100 scans + ensure feature enabled in locked_entitlements snapshot
+        n = 0
+        for sub in queryset:
+            sub.refill_diag_api_quota(100)
+            ent = dict(sub.locked_entitlements or {})
+            ent.setdefault('diagnostics_external_api_scans', {'enabled': True})
+            ent['diagnostics_external_api_scans']['enabled'] = True
+            sub.locked_entitlements = ent
+            sub.save(update_fields=['locked_entitlements'])
+            n += 1
+        self.message_user(request, f"تم منح promo لـ {n} اشتراك.")
 
     # ── Display columns ──────────────────────────────────────────
 

@@ -171,6 +171,9 @@ class MockConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"⚠️ [MOCK CONSUMER ERR] Payload exception: {e}")
 
+# 🔧 Smart Diagnostics — live telemetry routes
+from smart_diagnostics.routing import websocket_urlpatterns as _diag_ws_patterns
+
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
@@ -180,6 +183,7 @@ application = ProtocolTypeRouter({
                 path("ws/dashboard/sync/", MockConsumer.as_asgi()),
                 path("ws/telemetry/obd2/", MockConsumer.as_asgi()),
                 path("ws/notifications/", MockConsumer.as_asgi()),
+                *_diag_ws_patterns,
             ])
         )
     ),

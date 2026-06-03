@@ -841,6 +841,35 @@ class TenantSubscription(models.Model):
     )
 
     # ─────────────────────────────────────────────────────────────────
+    # 🔧 Smart Diagnostics — external API budget (pay-per-call)
+    # ─────────────────────────────────────────────────────────────────
+    # حصة الـ external DTC/VIN API calls المتبقية للشهر الحالي.
+    # بـ تتدفع 1 لكل scan جديد بـ يخبط الـ external provider (CarMD وأمثاله).
+    # الـ cache hits ميـ deductش. الـ refill بـ يحصل من admin action أو cron.
+    diag_api_quota_remaining = models.IntegerField(
+        default=0,
+        verbose_name=_("حصة فحوصات الـ API المتبقية"),
+        help_text=_("بـ تتدفع 1 لكل external API call يـ miss الـ cache. الـ refill شهرياً أو يدوياً."),
+    )
+    diag_api_scans_used_total = models.IntegerField(
+        default=0,
+        verbose_name=_("إجمالي فحوصات API المستهلكة (lifetime)"),
+    )
+    diag_api_last_refill_at = models.DateTimeField(null=True, blank=True)
+
+    def refill_diag_api_quota(self, amount: int, reset: bool = False):
+        """يـ refill الـ scan quota. amount > 0 = إضافة؛ reset=True يـ set مباشرة."""
+        from django.utils import timezone as _tz
+        if reset:
+            self.diag_api_quota_remaining = max(0, int(amount))
+        else:
+            self.diag_api_quota_remaining = max(0, self.diag_api_quota_remaining + int(amount))
+        self.diag_api_last_refill_at = _tz.now()
+        self.save(update_fields=[
+            'diag_api_quota_remaining', 'diag_api_last_refill_at',
+        ])
+
+    # ─────────────────────────────────────────────────────────────────
     # 🛡️ Phase 0b: مزامنة مركزية للـ limits — Client.max_* تتحدث
     # تلقائياً لما الـ subscription.plan يتغير. ده الـ source of truth
     # الوحيد للـ copying logic؛ مفيش كود تاني في النظام مسموح يكتب

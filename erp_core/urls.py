@@ -30,7 +30,7 @@ _original_get_app_list = admin.AdminSite.get_app_list
 
 # Apps that live ONLY in TENANT_APPS — their tables don't exist in the public schema.
 # Hide them from the admin sidebar when the request is served from public.
-_TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export'}
+_TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export', 'smart_diagnostics'}
 
 def _industry_filtered_get_app_list(self, request, app_label=None):
     app_list = _original_get_app_list(self, request, app_label=app_label)
@@ -345,6 +345,7 @@ urlpatterns = [
     path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),
     path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
+    path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),
 
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),
@@ -476,6 +477,9 @@ urlpatterns = [
 
     # 👥 الموارد البشرية (حضور/رواتب/سلف/تصميم)
     path('hr/', include('hr.urls')),
+
+    # 🔧 Smart Diagnostics & Telematics (Premium SaaS)
+    path('api/diagnostics/', include('smart_diagnostics.urls')),
 ]
 
 # =====================================================================

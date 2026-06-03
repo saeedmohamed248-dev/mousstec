@@ -336,9 +336,26 @@ def vehicle_history(request, chassis_number):
         chassis_number=chassis_number,
     )
     history = SaleInvoice.objects.filter(vehicle=vehicle, status='posted').order_by('-date_created')
+
+    # 🔧 Smart Diagnostics entitlement — drives the 'Live Diagnostics' button visibility
+    has_live_diagnostics = False
+    fault_count = 0
+    try:
+        from smart_diagnostics.services.quota import (
+            DiagnosticsQuotaService, FEATURE_LIVE_DATA,
+        )
+        from smart_diagnostics.models import FaultLog
+        tenant = getattr(request, 'tenant', None)
+        has_live_diagnostics = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA).allowed
+        fault_count = FaultLog.objects.filter(vehicle=vehicle, resolved_at__isnull=True).count()
+    except Exception:
+        pass
+
     return render(request, 'inventory/vehicle_history.html', {
         'vehicle': vehicle,
         'history': history,
+        'has_live_diagnostics': has_live_diagnostics,
+        'open_fault_count': fault_count,
     })
 
 

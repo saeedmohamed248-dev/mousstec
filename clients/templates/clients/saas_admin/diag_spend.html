@@ -1,0 +1,151 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 تحليل تكلفة Smart Diagnostics — Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{font-family:'Cairo',sans-serif;background:#050b14;color:#e6f1ff}</style>
+</head>
+<body class="min-h-screen">
+
+<nav class="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-red-600 to-orange-600 p-2 rounded-xl"><i class="fas fa-coins text-white"></i></div>
+            <span class="text-lg font-black bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">Smart Diagnostics — تحليل التكلفة</span>
+        </div>
+        <div class="flex gap-2">
+            <a href="?refresh=1" class="text-xs font-bold text-slate-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-sync"></i> تحديث</a>
+            <a href="{% url 'saas_revenue_dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700">الإيرادات</a>
+        </div>
+    </div>
+</nav>
+
+<main class="container mx-auto px-4 py-8 max-w-7xl">
+
+{% if unavailable %}
+    <div class="bg-amber-900/30 border border-amber-500/40 rounded-2xl p-6 text-center">
+        <h2 class="text-lg font-black text-amber-300">⚠️ وحدة Smart Diagnostics غير مثبتة</h2>
+        <p class="text-slate-400 mt-2">لا يمكن تجميع بيانات API spend.</p>
+    </div>
+{% else %}
+
+    <!-- Global KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gradient-to-br from-red-900/40 to-orange-900/30 border border-red-500/30 rounded-2xl p-5">
+            <div class="text-xs text-red-300 uppercase tracking-widest mb-1">إجمالي مصروف API</div>
+            <div class="text-3xl font-black text-white">${{ global_total_cost|floatformat:2 }}</div>
+            <div class="text-xs text-slate-400 mt-1">USD — كل الـ tenants</div>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">إجمالي Calls</div>
+            <div class="text-3xl font-black text-cyan-300">{{ global_calls }}</div>
+            <div class="text-xs text-slate-500 mt-1">{{ global_cache_hits }} منها cache hits</div>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Cache Hit Ratio</div>
+            <div class="text-3xl font-black text-emerald-300">{{ global_cache_pct }}%</div>
+            <div class="text-xs text-slate-500 mt-1">كل cache hit = $0 توفير</div>
+        </div>
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+            <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">Tenants Active</div>
+            <div class="text-3xl font-black text-purple-300">{{ tenants_using }}</div>
+            <div class="text-xs text-slate-500 mt-1">شركات استخدمت الوحدة</div>
+        </div>
+    </div>
+
+    <!-- Trend chart -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-8">
+        <h3 class="text-sm font-black text-slate-300 mb-4"><i class="fas fa-chart-line text-red-400"></i> تكلفة آخر 30 يوم (USD/يوم — للـ calls اللي خبطت external)</h3>
+        <div style="height:320px"><canvas id="trendChart"></canvas></div>
+    </div>
+
+    <!-- Top consumers -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-8">
+        <h3 class="text-sm font-black text-slate-300 mb-4"><i class="fas fa-fire text-orange-400"></i> أعلى 10 Tenants استهلاكاً</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs text-slate-500 border-b border-slate-800">
+                    <tr>
+                        <th class="py-2 text-right">الشركة</th>
+                        <th class="py-2 text-right">Schema</th>
+                        <th class="py-2">إجمالي Calls</th>
+                        <th class="py-2">Cache %</th>
+                        <th class="py-2">إجمالي $</th>
+                        <th class="py-2">آخر 30 يوم $</th>
+                        <th class="py-2">آخر 24س Calls</th>
+                        <th class="py-2">آخر اتصال</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in top_consumers %}
+                    <tr class="border-b border-slate-800/60 hover:bg-slate-800/30">
+                        <td class="py-3 font-bold">{{ t.tenant_name }}</td>
+                        <td class="py-3 text-slate-500 font-mono text-xs">{{ t.schema }}</td>
+                        <td class="py-3 text-center">{{ t.calls }}</td>
+                        <td class="py-3 text-center {% if t.cache_hit_pct >= 70 %}text-emerald-300{% elif t.cache_hit_pct >= 40 %}text-amber-300{% else %}text-red-300{% endif %}">{{ t.cache_hit_pct }}%</td>
+                        <td class="py-3 text-center font-black text-red-300">${{ t.total_cost|floatformat:2 }}</td>
+                        <td class="py-3 text-center">${{ t.last_30d_cost|floatformat:2 }}</td>
+                        <td class="py-3 text-center">{{ t.last_24h_calls }}</td>
+                        <td class="py-3 text-center text-xs text-slate-500">{{ t.last_call|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="py-8 text-center text-slate-500">لا توجد بيانات بعد — انتظر حتى يستخدم العملاء الوحدة.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- All tenants table (collapsible) -->
+    {% if all_tenants|length > 10 %}
+    <details class="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 mb-8">
+        <summary class="cursor-pointer font-bold text-slate-300 text-sm">عرض كل الـ tenants ({{ all_tenants|length }})</summary>
+        <div class="overflow-x-auto mt-4">
+            <table class="w-full text-xs">
+                <thead class="text-slate-500"><tr><th class="text-right py-2">الشركة</th><th>Calls</th><th>Cache</th><th>Total $</th></tr></thead>
+                <tbody>
+                {% for t in all_tenants %}<tr class="border-b border-slate-800/40"><td class="py-2">{{ t.tenant_name }}</td><td class="text-center">{{ t.calls }}</td><td class="text-center">{{ t.cache_hit_pct }}%</td><td class="text-center">${{ t.total_cost|floatformat:2 }}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
+    <p class="text-xs text-slate-600 text-center">الـ data بـ تتـ cache لمدة 5 دقايق — اضغط <a href="?refresh=1" class="text-emerald-400 hover:underline">تحديث</a> للتحديث الفوري.</p>
+
+<script>
+    const dailyData = {{ daily_series_json|safe }};
+    new Chart(document.getElementById('trendChart'), {
+        type: 'bar',
+        data: {
+            labels: dailyData.map(d => d.date.substr(5)),  // MM-DD
+            datasets: [
+                { label: 'تكلفة (USD)', data: dailyData.map(d => d.cost),
+                  backgroundColor: '#ef4444aa', borderColor: '#ef4444', borderWidth: 1, yAxisID: 'y' },
+                { label: 'Calls (paid)', type: 'line', data: dailyData.map(d => d.calls),
+                  borderColor: '#06b6d4', backgroundColor: '#06b6d420', tension: 0.3, yAxisID: 'y1' },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#e6f1ff' } } },
+            scales: {
+                x: { ticks: { color: '#8fb3d9' }, grid: { color: '#1a2a3a' } },
+                y: { type: 'linear', position: 'left', ticks: { color: '#ef4444' }, title: { display: true, text: 'USD', color: '#ef4444' }, grid: { color: '#1a2a3a' } },
+                y1: { type: 'linear', position: 'right', ticks: { color: '#06b6d4' }, title: { display: true, text: 'Calls', color: '#06b6d4' }, grid: { drawOnChartArea: false } },
+            }
+        }
+    });
+</script>
+
+{% endif %}
+
+</main>
+
+</body>
+</html>

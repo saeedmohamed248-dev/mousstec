@@ -108,7 +108,11 @@ SHARED_APPS = (
     'storages',        
     'axes',            
     'simple_history',  
-    'django_celery_beat', 
+    'django_celery_beat',
+
+    # 🧬 Smart Diagnostics — Shared catalog (DTC codes, VIN decode cache, API cost rates)
+    # نواة معرفة عامة بين كل الـ tenants عشان نـ amortize الـ external API cost
+    'diagnostics_catalog',
 )
 
 TENANT_APPS = (
@@ -120,6 +124,7 @@ TENANT_APPS = (
     'inventory',       # 🏎️ النواة التشغيلية للورش (قطاع السيارات)
     'printing',        # 🎨 النواة التشغيلية للمطابع (قطاع الطباعة والتصميم)
     'hr',              # 👥 الموارد البشرية المؤتمتة (حضور/رواتب/سلف/تصميم)
+    'smart_diagnostics',  # 🔧 Mousstec Smart Diagnostics & Telematics (Premium SaaS)
     'import_export',
     'rest_framework',
     'simple_history',
@@ -549,6 +554,16 @@ CELERY_BEAT_SCHEDULE = {
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',
         'schedule': crontab(hour=22, minute=0),  # كل يوم 10 مساءً
+    },
+    # ── Smart Diagnostics: monthly quota refill (1st @ 00:30 UTC) ───
+    'diag_monthly_quota_refill': {
+        'task': 'smart_diagnostics.tasks.monthly_refill_diag_api_quotas',
+        'schedule': crontab(day_of_month=1, hour=0, minute=30),
+    },
+    # ── Smart Diagnostics: hourly telemetry frame purge ─────────────
+    'diag_purge_telemetry_frames': {
+        'task': 'smart_diagnostics.tasks.purge_old_telemetry_frames',
+        'schedule': crontab(minute=15),  # كل ساعة على دقيقة 15
     },
 }
 

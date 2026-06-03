@@ -262,3 +262,129 @@ def revenue_dashboard(request):
         'by_plan': by_plan,
         'recent_invoices': recent_invoices,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔧 Smart Diagnostics — Cross-Tenant API Spend Analytics
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def diagnostics_spend_dashboard(request):
+    """Aggregate Smart Diagnostics APICallLog across all tenant schemas.
+
+    Walks every tenant via django_tenants schema_context (this is the
+    correct way — APICallLog lives per-schema). Caches results for 5min
+    so we don't melt the DB if a SuperAdmin refreshes the page.
+    """
+    from django.core.cache import cache
+    from django.db.models import Q
+    from django_tenants.utils import schema_context
+    from collections import defaultdict
+    import json
+
+    CACHE_KEY = 'diag_spend_dashboard_v1'
+    CACHE_TTL = 300  # 5 minutes
+
+    cached = cache.get(CACHE_KEY)
+    if cached and not request.GET.get('refresh'):
+        ctx = cached
+    else:
+        # Lazy imports — these models live in non-shared apps that may be
+        # absent in some deploys.
+        try:
+            from smart_diagnostics.models import APICallLog
+        except Exception:
+            return render(request, 'clients/saas_admin/diag_spend.html', {
+                'unavailable': True,
+            })
+
+        today = timezone.localdate()
+        start_of_30d = today - timedelta(days=30)
+        start_of_24h = timezone.now() - timedelta(hours=24)
+
+        # Per-tenant aggregates
+        per_tenant = []  # list of dicts
+        daily_buckets = defaultdict(lambda: {'cost': Decimal('0'), 'calls': 0, 'cache_hits': 0})
+
+        all_tenants = (
+            Client.objects.exclude(schema_name='public')
+            .filter(status__in=['active', 'trial', 'grace'])
+            .only('id', 'schema_name', 'name')
+        )
+
+        global_total_cost = Decimal('0')
+        global_calls = 0
+        global_cache_hits = 0
+
+        for tenant in all_tenants:
+            try:
+                with schema_context(tenant.schema_name):
+                    qs = APICallLog.objects.all()
+                    total_cost = qs.aggregate(s=Sum('cost_usd'))['s'] or Decimal('0')
+                    calls = qs.count()
+                    cache_hits = qs.filter(cache_hit=True).count()
+                    last_30d_cost = (
+                        qs.filter(timestamp__gte=start_of_30d).aggregate(s=Sum('cost_usd'))['s']
+                        or Decimal('0')
+                    )
+                    last_24h_calls = qs.filter(timestamp__gte=start_of_24h).count()
+                    last_call = qs.order_by('-timestamp').values_list('timestamp', flat=True).first()
+
+                    if calls == 0:
+                        continue  # tenant never used the diagnostics module
+
+                    per_tenant.append({
+                        'tenant_id': tenant.id,
+                        'tenant_name': tenant.name,
+                        'schema': tenant.schema_name,
+                        'total_cost': total_cost,
+                        'calls': calls,
+                        'cache_hits': cache_hits,
+                        'cache_hit_pct': round((cache_hits * 100.0 / calls), 1) if calls else 0,
+                        'last_30d_cost': last_30d_cost,
+                        'last_24h_calls': last_24h_calls,
+                        'last_call': last_call,
+                    })
+
+                    global_total_cost += total_cost
+                    global_calls += calls
+                    global_cache_hits += cache_hits
+
+                    # Daily cost trend (last 30 days, paid calls only)
+                    paid_qs = qs.filter(timestamp__gte=start_of_30d, cache_hit=False)
+                    for row in paid_qs.values('timestamp__date').annotate(s=Sum('cost_usd'), n=Count('id')):
+                        day = row['timestamp__date']
+                        daily_buckets[day]['cost'] += row['s'] or Decimal('0')
+                        daily_buckets[day]['calls'] += row['n']
+            except Exception as e:
+                logger.warning(f"[DiagSpend] skip tenant {tenant.schema_name}: {e}")
+
+        per_tenant.sort(key=lambda r: r['total_cost'], reverse=True)
+        global_cache_pct = (
+            round(global_cache_hits * 100.0 / global_calls, 1) if global_calls else 0
+        )
+
+        # Build daily series (fill missing days with 0 for a continuous chart)
+        days = [(start_of_30d + timedelta(days=i)) for i in range(31)]
+        daily_series = [
+            {
+                'date': d.isoformat(),
+                'cost': float(daily_buckets[d]['cost']),
+                'calls': daily_buckets[d]['calls'],
+            }
+            for d in days
+        ]
+
+        ctx = {
+            'global_total_cost': global_total_cost,
+            'global_calls': global_calls,
+            'global_cache_hits': global_cache_hits,
+            'global_cache_pct': global_cache_pct,
+            'tenants_using': len(per_tenant),
+            'top_consumers': per_tenant[:10],
+            'all_tenants': per_tenant,
+            'daily_series_json': json.dumps(daily_series),
+            'unavailable': False,
+        }
+        cache.set(CACHE_KEY, ctx, CACHE_TTL)
+
+    return render(request, 'clients/saas_admin/diag_spend.html', ctx)

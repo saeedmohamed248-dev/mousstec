@@ -1,0 +1,247 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Live Diagnostics — {{ vehicle.car_plate|default:vehicle.chassis_number }}</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top left, #0a1929 0%, #050b14 60%, #000 100%);
+            color: #e6f1ff; min-height: 100vh;
+        }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 24px; background: rgba(10, 25, 41, 0.85);
+            backdrop-filter: blur(14px); border-bottom: 1px solid rgba(100,180,255,.12);
+        }
+        .topbar .brand { font-weight: 900; font-size: 18px; }
+        .topbar .vin { color: #8fb3d9; font-size: 13px; font-family: monospace; }
+        .status-pill {
+            padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        }
+        .status-pill.live  { background: #0c3220; color: #36d399; border: 1px solid #36d39940; }
+        .status-pill.idle  { background: #2c1a00; color: #f1a13a; border: 1px solid #f1a13a40; }
+        .status-pill.error { background: #3a0c12; color: #ff5470; border: 1px solid #ff547040; }
+
+        .main {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 22px;
+            max-width: 1400px; margin: 0 auto;
+        }
+        .card {
+            background: rgba(15, 32, 52, 0.7); border: 1px solid rgba(100,180,255,.1);
+            border-radius: 14px; padding: 18px; backdrop-filter: blur(8px);
+        }
+        .card-title {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 14px; font-weight: 700; color: #8fb3d9;
+            margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .gauges {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;
+        }
+        .gauge { text-align: center; padding: 14px 8px; background: rgba(8,18,32,0.6); border-radius: 10px; }
+        .gauge .label { font-size: 11px; color: #6c8fb3; letter-spacing: 0.5px; }
+        .gauge .value { font-size: 28px; font-weight: 900; margin-top: 4px;
+                       background: linear-gradient(135deg, #4dd0e1, #36d399);
+                       -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gauge .unit { font-size: 12px; color: #8fb3d9; }
+        .gauge.warn .value { background: linear-gradient(135deg, #f1a13a, #ff5470);
+                            -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .chart-wrap { position: relative; height: 280px; }
+        .full { grid-column: 1 / -1; }
+        .log {
+            max-height: 320px; overflow-y: auto; font-family: monospace; font-size: 12px;
+            background: #050b14; padding: 12px; border-radius: 8px; color: #8fb3d9;
+        }
+        .log-row { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid #0a1929; }
+        .log-row .ts { color: #486581; flex-shrink: 0; }
+        .deny-banner {
+            display: none; margin: 20px auto; max-width: 700px; padding: 24px;
+            background: linear-gradient(135deg, #3a0c12 0%, #5d1421 100%);
+            border: 1px solid #ff547040; border-radius: 14px; text-align: center;
+        }
+        .deny-banner h2 { color: #ff5470; margin-bottom: 8px; }
+        .deny-banner a {
+            display: inline-block; margin-top: 14px; padding: 10px 22px;
+            background: #36d399; color: #050b14; border-radius: 8px;
+            text-decoration: none; font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div>
+        <div class="brand">🔧 Mousstec Live Diagnostics</div>
+        <div class="vin">VIN: {{ vehicle.chassis_number }} &middot; {{ vehicle.brand }} {{ vehicle.model_name }}</div>
+    </div>
+    <div id="wsStatus" class="status-pill idle">⏳ Connecting…</div>
+</div>
+
+<div id="denyBanner" class="deny-banner">
+    <h2 id="denyTitle">🛑 الاشتراك غير مفعّل</h2>
+    <p id="denyText">يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر.</p>
+    <a href="/api/diagnostics/upgrade/">ترقية الباقة</a>
+</div>
+
+<div class="main" id="dashContent">
+    <div class="card full">
+        <div class="card-title">📊 القياسات الحية</div>
+        <div class="gauges">
+            <div class="gauge"><div class="label">RPM</div>
+                <div class="value" id="g_rpm">—</div>
+                <div class="unit">دورة/د</div></div>
+            <div class="gauge"><div class="label">Engine Load</div>
+                <div class="value" id="g_load">—</div>
+                <div class="unit">%</div></div>
+            <div class="gauge" id="gauge_coolant"><div class="label">Coolant Temp</div>
+                <div class="value" id="g_coolant">—</div>
+                <div class="unit">°C</div></div>
+            <div class="gauge"><div class="label">Vehicle Speed</div>
+                <div class="value" id="g_speed">—</div>
+                <div class="unit">كم/س</div></div>
+            <div class="gauge"><div class="label">Throttle</div>
+                <div class="value" id="g_throttle">—</div>
+                <div class="unit">%</div></div>
+            <div class="gauge"><div class="label">Battery</div>
+                <div class="value" id="g_battery">—</div>
+                <div class="unit">V</div></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📈 RPM &amp; Speed (آخر 60 ثانية)</div>
+        <div class="chart-wrap"><canvas id="chartRPM"></canvas></div>
+    </div>
+    <div class="card">
+        <div class="card-title">🌡️ Coolant &amp; Load (آخر 60 ثانية)</div>
+        <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
+    </div>
+
+    <div class="card full">
+        <div class="card-title">📝 سجل الإطارات الواردة</div>
+        <div id="frameLog" class="log"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const VIN = "{{ vehicle.chassis_number|escapejs }}";
+    const ROLE = "viewer"; // dashboard = viewer
+    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsProto}://${location.host}/ws/diagnostics/live/${VIN}/?role=${ROLE}`;
+
+    const els = {
+        status: document.getElementById('wsStatus'),
+        deny: document.getElementById('denyBanner'),
+        denyText: document.getElementById('denyText'),
+        denyTitle: document.getElementById('denyTitle'),
+        dashContent: document.getElementById('dashContent'),
+        log: document.getElementById('frameLog'),
+        gaugeCoolant: document.getElementById('gauge_coolant'),
+    };
+
+    const MAX_POINTS = 60;
+    const ts = [];
+    const buf = { rpm: [], load: [], coolant: [], speed: [] };
+
+    function mkChart(canvasId, datasets, yLabel) {
+        return new Chart(document.getElementById(canvasId), {
+            type: 'line',
+            data: { labels: ts, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                plugins: { legend: { labels: { color: '#8fb3d9' } } },
+                scales: {
+                    x: { ticks: { color: '#6c8fb3', maxTicksLimit: 8 }, grid: { color: '#0a1929' } },
+                    y: { ticks: { color: '#6c8fb3' }, grid: { color: '#0a1929' },
+                         title: { display: true, text: yLabel, color: '#8fb3d9' } },
+                }
+            }
+        });
+    }
+
+    const chartRPM = mkChart('chartRPM', [
+        { label: 'RPM', data: buf.rpm, borderColor: '#36d399', backgroundColor: '#36d39920', tension: 0.3, yAxisID: 'y' },
+        { label: 'Speed (km/h)', data: buf.speed, borderColor: '#4dd0e1', backgroundColor: '#4dd0e120', tension: 0.3 },
+    ], 'value');
+    const chartTemp = mkChart('chartTemp', [
+        { label: 'Coolant °C', data: buf.coolant, borderColor: '#f1a13a', backgroundColor: '#f1a13a20', tension: 0.3 },
+        { label: 'Load %', data: buf.load, borderColor: '#a78bfa', backgroundColor: '#a78bfa20', tension: 0.3 },
+    ], 'value');
+
+    function pushFrame(d) {
+        const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        ts.push(now); if (ts.length > MAX_POINTS) ts.shift();
+        const num = v => (v === null || v === undefined) ? null : Number(v);
+        buf.rpm.push(num(d.rpm));         if (buf.rpm.length > MAX_POINTS) buf.rpm.shift();
+        buf.load.push(num(d.engine_load_pct));      if (buf.load.length > MAX_POINTS) buf.load.shift();
+        buf.coolant.push(num(d.coolant_temp_c));    if (buf.coolant.length > MAX_POINTS) buf.coolant.shift();
+        buf.speed.push(num(d.vehicle_speed_kph));   if (buf.speed.length > MAX_POINTS) buf.speed.shift();
+        chartRPM.update('none'); chartTemp.update('none');
+
+        const set = (id, v, fmt) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (v === null || v === undefined) ? '—' : (fmt ? fmt(v) : v);
+        };
+        set('g_rpm', d.rpm);
+        set('g_load', d.engine_load_pct, v => Number(v).toFixed(1));
+        set('g_coolant', d.coolant_temp_c, v => Number(v).toFixed(0));
+        set('g_speed', d.vehicle_speed_kph);
+        set('g_throttle', d.throttle_pct, v => Number(v).toFixed(1));
+        set('g_battery', d.battery_v, v => Number(v).toFixed(2));
+
+        // Visual warning when coolant > 105°C
+        if (d.coolant_temp_c !== null && Number(d.coolant_temp_c) > 105) {
+            els.gaugeCoolant.classList.add('warn');
+        } else {
+            els.gaugeCoolant.classList.remove('warn');
+        }
+
+        const row = document.createElement('div');
+        row.className = 'log-row';
+        row.innerHTML = `<span class="ts">${now}</span><span>${JSON.stringify(d)}</span>`;
+        els.log.insertBefore(row, els.log.firstChild);
+        while (els.log.children.length > 80) els.log.removeChild(els.log.lastChild);
+    }
+
+    let ws;
+    function connect() {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            els.status.textContent = '🟢 LIVE';
+            els.status.className = 'status-pill live';
+        };
+        ws.onclose = () => {
+            els.status.textContent = '🔴 Disconnected — retrying…';
+            els.status.className = 'status-pill error';
+            setTimeout(connect, 3000);
+        };
+        ws.onerror = () => {
+            els.status.textContent = '⚠️ Error';
+            els.status.className = 'status-pill error';
+        };
+        ws.onmessage = (ev) => {
+            let msg;
+            try { msg = JSON.parse(ev.data); } catch (e) { return; }
+            if (msg.type === 'denied') {
+                els.deny.style.display = 'block';
+                els.dashContent.style.display = 'none';
+                els.denyText.textContent = 'سبب الحجب: ' + msg.reason;
+                ws.close();
+                return;
+            }
+            if (msg.type === 'frame' && msg.data) pushFrame(msg.data);
+        };
+    }
+    connect();
+})();
+</script>
+</body>
+</html>

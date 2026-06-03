@@ -1,0 +1,107 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔌 أجهزة الفحص OBD2</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{font-family:'Cairo',sans-serif;background:radial-gradient(circle at top left,#0a1929 0%,#050b14 60%,#000 100%)}</style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-cyan-600 to-blue-600 p-2 rounded-xl"><i class="fas fa-plug text-white"></i></div>
+            <span class="text-lg font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">أجهزة الفحص OBD2</span>
+        </div>
+        <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+    </div>
+</nav>
+
+<main class="container mx-auto px-4 py-8 max-w-5xl">
+
+{% if denied %}
+    <div class="bg-red-900/40 border border-red-500/40 rounded-2xl p-8 text-center mb-6">
+        <h2 class="text-xl font-black text-red-300 mb-2">🛑 الميزة غير مفعّلة</h2>
+        <p class="text-slate-300">{{ reason }}</p>
+        <a href="/api/diagnostics/upgrade/" class="inline-block mt-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold px-6 py-2 rounded-xl">ترقية الباقة</a>
+    </div>
+{% else %}
+
+    {% if recently_created_token %}
+    <div class="bg-emerald-900/40 border border-emerald-500/40 rounded-2xl p-6 mb-6">
+        <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-key"></i> توكن الجهاز (يُعرض مرة واحدة)</h3>
+        <code class="block bg-black/60 text-emerald-300 p-4 rounded-xl font-mono text-sm break-all select-all">{{ recently_created_token }}</code>
+        <p class="text-xs text-amber-300 mt-2"><i class="fas fa-exclamation-triangle"></i> احفظ هذا التوكن الآن — لن نعرضه مرة أخرى. الجهاز سيستخدمه للاتصال بـ WebSocket.</p>
+    </div>
+    {% endif %}
+
+    {% if messages %}{% for m in messages %}
+        <div class="mb-3 p-3 rounded-xl border {% if 'success' in m.tags %}bg-emerald-900/30 border-emerald-500/40 text-emerald-200{% else %}bg-red-900/30 border-red-500/40 text-red-200{% endif %}">{{ m }}</div>
+    {% endfor %}{% endif %}
+
+    <!-- Register form -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-8">
+        <h3 class="text-sm font-black text-slate-300 mb-4"><i class="fas fa-plus-circle text-emerald-400"></i> تسجيل جهاز جديد</h3>
+        <form method="post" action="{% url 'smart_diagnostics:device-register' %}" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {% csrf_token %}
+            <input name="vin" required maxlength="17" placeholder="VIN (17 خانة)"
+                   class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm placeholder-slate-500 focus:border-cyan-500 focus:outline-none uppercase">
+            <input name="hardware_id" placeholder="Hardware ID (اختياري)"
+                   class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm placeholder-slate-500 focus:border-cyan-500 focus:outline-none">
+            <button class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl px-4 py-2 text-sm hover:from-emerald-500"><i class="fas fa-check"></i> توليد توكن</button>
+        </form>
+    </div>
+
+    <!-- Devices list -->
+    <div class="space-y-3">
+        {% for d in devices %}
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center {% if d.is_active %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% else %}bg-slate-700/40 text-slate-500 border border-slate-700{% endif %}">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-white truncate">{{ d.vehicle.car_plate|default:"بدون لوحة" }} <span class="text-slate-500 font-mono text-xs">{{ d.vehicle.chassis_number|truncatechars:14 }}</span></p>
+                    <p class="text-xs text-slate-500">HW: {{ d.hardware_id|default:"—" }} · آخر اتصال: {{ d.last_seen_at|default:"لم يتصل بعد" }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                {% if d.is_active %}<span class="text-xs bg-emerald-500/15 text-emerald-300 px-2 py-1 rounded-full border border-emerald-500/20">نشط</span>
+                {% else %}<span class="text-xs bg-slate-700/40 text-slate-400 px-2 py-1 rounded-full border border-slate-700">موقوف</span>{% endif %}
+
+                <form method="post" action="{% url 'smart_diagnostics:device-rotate' d.id %}" onsubmit="return confirm('تدوير التوكن سيمنع الجهاز الحالي من الاتصال — تأكيد؟')">
+                    {% csrf_token %}
+                    <button title="تدوير التوكن" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-lg"><i class="fas fa-sync"></i></button>
+                </form>
+                <form method="post" action="{% url 'smart_diagnostics:device-toggle' d.id %}">
+                    {% csrf_token %}
+                    <button title="تفعيل/إيقاف" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1 rounded-lg">
+                        {% if d.is_active %}<i class="fas fa-power-off text-red-400"></i>{% else %}<i class="fas fa-power-off text-emerald-400"></i>{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-center text-slate-500 py-8">لا توجد أجهزة بعد. سجّل أول جهاز فوق.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Connection guide -->
+    <div class="mt-10 bg-slate-900/40 border border-slate-800 rounded-2xl p-6 text-sm text-slate-400">
+        <h4 class="font-black text-slate-300 mb-3"><i class="fas fa-info-circle text-cyan-400"></i> تعليمات الاتصال للأجهزة</h4>
+        <p class="mb-2">الجهاز يتصل بـ WebSocket على المسار التالي مع <code class="bg-black/40 px-2 py-0.5 rounded text-cyan-300">role=device</code> و <code class="bg-black/40 px-2 py-0.5 rounded text-cyan-300">token=...</code>:</p>
+        <code class="block bg-black/60 p-3 rounded-xl text-cyan-300 font-mono text-xs break-all">wss://{{ request.get_host }}/ws/diagnostics/live/&lt;VIN&gt;/?role=device&amp;token=&lt;DEVICE_TOKEN&gt;</code>
+        <p class="mt-3">Frame format (JSON):</p>
+        <code class="block bg-black/60 p-3 rounded-xl text-emerald-300 font-mono text-xs">{"rpm":850,"engine_load_pct":18.5,"coolant_temp_c":92.0,"vehicle_speed_kph":0,"throttle_pct":0,"battery_v":13.8}</code>
+    </div>
+
+{% endif %}
+</main>
+
+</body>
+</html>
