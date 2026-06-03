@@ -206,17 +206,46 @@ the "FRONT view" with text on the upper-chest area as already specified above.
 The text_overlay.position field MUST match: "back" for back placement, "chest" for front.
 
 9. **APPAREL & PRODUCT MOCKUP RULES** (CRITICAL — apparel/clothing/mug/bag/hoodie domains):
-   The output MUST look like a HIGH-END E-COMMERCE PRODUCT PHOTOGRAPH, not a flat
-   collage. Required qualities:
-   • Studio lighting: softbox key + subtle fill, natural shadow, 3-point setup.
-   • Realistic fabric draping with visible folds, weave, and weight — never flat 2D.
-   • Garment perfectly centered in frame, full product visible with breathing room
-     (margin) on all sides — NEVER let the garment touch the image edges.
-   • Background: clean neutral (#f5f5f7 / off-white / soft gradient) OR contextual
-     lifestyle (wooden table flat-lay, hanger on warm wall) — never bright primary
-     colors or distracting patterns.
-   • Camera angle: dead-front centered for hangs, slight 5° three-quarter for
-     mannequin/flat-lays. Eye-level. 50mm-85mm lens look.
+   The output MUST look like an EDITORIAL HIGH-FASHION PRODUCT MOCKUP — the kind
+   you see on Nike/Aesop/COS websites. NOT a flat collage, NOT clipart, NOT
+   stock-photo cliché. Required qualities:
+
+   STYLING & PRESENTATION:
+   • Invisible mannequin presentation OR premium hanger OR luxury flat-lay on
+     textured surface (oak, marble, linen) — pick what fits the brand vibe.
+   • Realistic 3D garment shaping: visible chest curvature, sleeve volume, neckline
+     drape, hem fall — NEVER 2D silhouette.
+   • Subtle fabric folds and natural wrinkles around armholes, shoulder seams, and
+     hem — communicates real material weight.
+
+   LIGHTING & ATMOSPHERE:
+   • Dramatic studio lighting: key-light from 45° upper-left, subtle fill, soft
+     rim-light to define garment edge against background.
+   • Dropped shadow on background surface (~30% opacity, ~15% gaussian blur, offset
+     to bottom-right matching key-light direction).
+   • Shallow depth-of-field on background (f/2.8-f/4 look), garment in tack-sharp focus.
+   • Color temperature: 5000-5500K natural daylight feel.
+
+   FABRIC SURFACE DETAIL (this is what makes overlay text integrate later):
+   • Describe visible cotton/jersey weave texture, micro-fibers catching light,
+     subtle fabric grain showing across the surface — high resolution.
+   • Surface should have soft luminance variation (NOT a flat block of color) so
+     overlaid text inherits realistic depth via blend.
+   • For the upper-chest/upper-back zone where text will be overlaid: describe a
+     "clean blank canvas of textured fabric with subtle highlights showing the
+     screen-print-ready surface, evenly lit, no folds or seams interrupting it".
+
+   BACKGROUND:
+   • Premium neutral: #f5f5f7 / off-white / warm cream / soft 5% grey gradient
+     OR editorial context: warm wall + wooden floor, marble surface, linen drop.
+   • NEVER: bright primary colors, busy patterns, gradient rainbows, clipart icons,
+     emoji, photo collages.
+
+   CAMERA:
+   • Dead-front centered for hangs (0° azimuth).
+   • Slight 5-10° three-quarter for mannequin presentations.
+   • Eye-level OR very slight low-angle (3-5°) for hero feel.
+   • 50mm-85mm full-frame lens look (no fisheye, no extreme wide).
 
    ⚡ TEXT POSITIONING ZONE (when text_overlay will be applied later):
    For t-shirts / hoodies / sweatshirts:

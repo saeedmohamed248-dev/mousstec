@@ -154,10 +154,6 @@ def overlay_text_on_image_url(
     except Exception as e:
         return {'success': False, 'error': f'font_load: {e}'}
 
-    # طبقة شفافة للرسم عشان نحافظ على جودة الـ image
-    overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-
     # 🎯 لو الـ text فيه عربي ومعانا libraqm، نـ pass direction='rtl' كـ hint
     # واضح للـ shaper. لو لأ، نـ render LTR (default).
     text_is_arabic = has_arabic(final_text)
@@ -165,14 +161,15 @@ def overlay_text_on_image_url(
     if text_is_arabic and _pil_has_libraqm():
         text_kwargs = {'direction': 'rtl', 'language': 'ar'}
 
-    # قياس النص
+    # قياس النص (نـ measure على draw مؤقت قبل ما نبني الطبقات الفعلية)
+    _measure_draw = ImageDraw.Draw(Image.new('RGBA', (1, 1), (0, 0, 0, 0)))
     try:
-        bbox = draw.textbbox((0, 0), final_text, font=font, **text_kwargs)
+        bbox = _measure_draw.textbbox((0, 0), final_text, font=font, **text_kwargs)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
     except Exception:
         try:
-            bbox = draw.textbbox((0, 0), final_text, font=font)
+            bbox = _measure_draw.textbbox((0, 0), final_text, font=font)
             text_w = bbox[2] - bbox[0]
             text_h = bbox[3] - bbox[1]
         except Exception:
@@ -193,16 +190,53 @@ def overlay_text_on_image_url(
         'back':   ((w - text_w) // 2, int(h * 0.38) - text_h // 2),
     }
     x, y = pos_map.get(position, pos_map['center'])
-
-    # ظل خفيف للقراءة (offset 2px أسود)
-    shadow_color = (0, 0, 0, 110)
-    draw.text((x + 2, y + 2), final_text, font=font, fill=shadow_color, **text_kwargs)
-    # النص الفعلي
     color_rgb = _parse_hex_color(color)
-    draw.text((x, y), final_text, font=font, fill=color_rgb, **text_kwargs)
 
-    # دمج
-    combined = Image.alpha_composite(img, overlay).convert('RGB')
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # 🎨 Multi-layer compositing عشان النص ينتمي للقماش (مش flat sticker):
+    # 1️⃣ Soft drop shadow layer: gaussian-blurred, larger offset، أعمق depth
+    # 2️⃣ Text layer: مع micro-blur على الـ edges عشان ينطبع زي screen-print
+    # 3️⃣ Composition: shadow @ 38% opacity + text @ 88% opacity (يـ blend
+    #     مع الـ fabric texture بدل ما يكون block صلب)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    try:
+        from PIL import ImageFilter
+    except ImportError:
+        ImageFilter = None
+
+    # احسب shadow offset حسب حجم الخط — أعمق وأكبر للـ headings
+    shadow_offset_x = max(3, int(font_size * 0.05))
+    shadow_offset_y = max(4, int(font_size * 0.07))
+    shadow_blur_radius = max(2, int(font_size * 0.08))
+
+    # Layer 1: shadow (يـ blur بعد ما يـ render)
+    shadow_layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow_layer)
+    shadow_draw.text(
+        (x + shadow_offset_x, y + shadow_offset_y),
+        final_text, font=font, fill=(0, 0, 0, 255), **text_kwargs,
+    )
+    if ImageFilter:
+        shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=shadow_blur_radius))
+    # خفض opacity للـ shadow عشان يبقى soft (38%)
+    shadow_alpha = shadow_layer.split()[-1].point(lambda p: int(p * 0.38))
+    shadow_layer.putalpha(shadow_alpha)
+
+    # Layer 2: النص الفعلي مع micro-blur (0.6px) عشان edges screen-print
+    text_layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+    text_draw = ImageDraw.Draw(text_layer)
+    # color_rgb دلوقتي 4-tuple (r,g,b,a) من _parse_hex_color — نـ force alpha=255
+    text_fill = (color_rgb[0], color_rgb[1], color_rgb[2], 255)
+    text_draw.text((x, y), final_text, font=font, fill=text_fill, **text_kwargs)
+    if ImageFilter:
+        text_layer = text_layer.filter(ImageFilter.GaussianBlur(radius=0.6))
+    # opacity 88% عشان الـ fabric texture يبان من تحت → realistic ink integration
+    text_alpha = text_layer.split()[-1].point(lambda p: int(p * 0.88))
+    text_layer.putalpha(text_alpha)
+
+    # Compose: shadow أولاً، بعدها النص فوقيه
+    combined = Image.alpha_composite(img, shadow_layer)
+    combined = Image.alpha_composite(combined, text_layer).convert('RGB')
 
     # ── 4) حفظ على storage (S3 لو متفعّل، أو local) ──
     buf = io.BytesIO()
