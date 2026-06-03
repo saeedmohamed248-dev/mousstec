@@ -206,8 +206,10 @@ def custom_404_handler(request, exception=None):
     is_fetch_partial = (
         request.path.startswith('/superadmin/')
         or request.path.startswith('/ai/')
+        or request.path.startswith('/marketplace/')  # gallery/store URLs ميـ redirectش لـ home
         or '/api/' in request.path
         or '/detail/' in request.path
+        or '/download/' in request.path  # أي download endpoint
         or 'application/json' in request.headers.get('Accept', '')
         # file downloads — لو في .pdf/.png/.jpg في الـ URL، الـ user قاصد ملف
         or any(request.path.endswith(ext) for ext in ('.pdf', '.png', '.jpg', '.jpeg', '.csv', '.xlsx'))
@@ -306,6 +308,9 @@ urlpatterns = [
     path('ai/design/feedback/', design_views.design_feedback, name='design_feedback'),
     # 📄 Print-ready spec PDF — للتحميل وإرساله للمطبعة
     path('ai/design/<int:log_id>/print-spec.pdf', design_views.design_print_spec_pdf, name='design_print_spec_pdf'),
+    # 📄 Same PDF but by CustomerDesign.design_code (UUID) — للـ gallery cards
+    path('marketplace/design-store/<uuid:design_code>/print-spec.pdf',
+         design_views.design_print_spec_pdf_by_code, name='design_print_spec_pdf_by_code'),
 
     # 🛡️ God Mode — Super admin tools (impersonation + system health radar)
     path('admin-tools/impersonate/<int:customer_id>/',

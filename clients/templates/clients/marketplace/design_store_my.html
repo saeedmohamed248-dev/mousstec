@@ -524,7 +524,7 @@
                     <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/jpg/" title="JPG">
                         JPG
                     </a>
-                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/pdf/" title="PDF">
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/print-spec.pdf" target="_blank" title="PDF مع مواصفات الطباعة">
                         <i class="fas fa-file-pdf"></i>
                     </a>
                     {% endif %}
@@ -625,8 +625,17 @@ document.getElementById('genForm')?.addEventListener('submit', async e => {
 });
 
 function downloadAs(fmt) {
-    if (!lastDesignCode) return;
-    window.open(`/marketplace/design-store/${lastDesignCode}/download/${fmt}/`, '_blank');
+    if (!lastDesignCode) {
+        // مفيش design_code لسة (مثلاً الـ generation فشل أو ما اتعملش save) — نـ alert بدل ما نفتح tab فاضي
+        alert('⚠️ ولّد تصميم الأول قبل التحميل.');
+        return;
+    }
+    // الـ PDF بقى spec sheet بمواصفات الطباعة (مش raw image)
+    if (fmt === 'pdf') {
+        window.open(`/marketplace/design-store/${lastDesignCode}/print-spec.pdf`, '_blank');
+    } else {
+        window.open(`/marketplace/design-store/${lastDesignCode}/download/${fmt}/`, '_blank');
+    }
 }
 
 // ==========================================================

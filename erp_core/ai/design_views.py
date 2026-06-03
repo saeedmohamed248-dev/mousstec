@@ -577,3 +577,115 @@ def design_print_spec_pdf(request, log_id: int):
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
     resp['Content-Disposition'] = f'attachment; filename="print-spec-{design_code}.pdf"'
     return resp
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 📄 Print-Ready Spec PDF — via CustomerDesign.design_code (gallery cards path)
+# ─────────────────────────────────────────────────────────────────────────────
+@login_required
+def design_print_spec_pdf_by_code(request, design_code):
+    """نسخة من design_print_spec_pdf بتـ accept UUID design_code بدل log_id.
+
+    هي اللي بيـ link لها الـ buttons في gallery cards (لما الـ user يكون شايف
+    تصاميم محفوظة، مفيش معاه log_id مباشرة). بـ resolve الـ log من
+    CustomerDesign.image_url match، وبيقع على CustomerDesign data كـ fallback.
+    """
+    from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotFound
+    from clients.models import AIPromptLearningLog, CustomerDesign, MarketplaceCustomer
+    from .print_spec_pdf import build_print_spec_pdf
+
+    cd = CustomerDesign.objects.filter(design_code=design_code).first()
+    if not cd:
+        logger.warning(f'[PDF] CustomerDesign with code={design_code} not found')
+        return HttpResponseNotFound(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">'
+            '<title>التصميم غير موجود</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            f'<h2>⚠️ التصميم رقم {design_code} غير موجود</h2>'
+            '<p>الـ design code مش متعرف عليه — يمكن اتحذف أو الـ link غلط.</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
+            '</body></html>'
+        )
+
+    # Access check — العميل لازم يكون مالك التصميم أو superuser
+    customer_id_in_session = request.session.get('marketplace_customer_id')
+    is_owner = (
+        request.user.is_superuser
+        or (cd.customer_id and customer_id_in_session == cd.customer_id)
+    )
+    if not is_owner:
+        logger.warning(f'[PDF] access denied for design_code={design_code}, user={request.user.id}')
+        return HttpResponseForbidden(
+            '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">'
+            '<title>غير مصرح</title>'
+            '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
+            '</head><body>'
+            '<h2>🛡️ غير مصرح بالوصول</h2>'
+            '<p>التصميم ده مش بتاعك — مينفعش تحمّل الـ PDF بتاعه.</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
+            '</body></html>'
+        )
+
+    # نحاول نلاقي الـ log المرتبط (نفس customer + image_url)
+    log = AIPromptLearningLog.objects.filter(
+        customer_id=cd.customer_id,
+        image_url=cd.image_url,
+    ).first()
+
+    # Gather text + color من log أو من CustomerDesign
+    text = ''
+    text_color = '#000000'
+    text_position = 'center'
+    if log and isinstance(log.selections, dict):
+        for k, v in log.selections.items():
+            kl = (k or '').lower()
+            if any(t in kl for t in ('text_on_design', 'text', 'النص', 'كتابة')) and v and not text:
+                text = str(v)
+            if 'color' in kl and isinstance(v, str) and v.startswith('#'):
+                text_color = v
+    if not text:
+        text = (cd.title or cd.raw_input or '')[:200]
+
+    cat = (log.detected_domain if log else cd.category) or 'other'
+
+    customer_name = '—'
+    customer_phone = '—'
+    cust = MarketplaceCustomer.objects.filter(id=cd.customer_id).first() if cd.customer_id else None
+    if cust:
+        customer_name = cust.full_name or cust.phone or '—'
+        customer_phone = cust.phone or '—'
+
+    try:
+        pdf_bytes = build_print_spec_pdf(
+            design_code=str(cd.design_code),
+            image_url=cd.image_url,
+            text=text,
+            text_color=text_color,
+            text_position=text_position,
+            category=cat,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            quantity=1,
+            notes='',
+            raw_idea=(log.raw_input if log else cd.raw_input) or '',
+        )
+    except ImportError as e:
+        logger.exception(f'[PDF] reportlab import failed for design_code={design_code}: {e}')
+        return HttpResponse(
+            '<h2>🔧 خدمة الـ PDF مش مفعّلة على السيرفر</h2>'
+            f'<p>Technical: {e}</p>',
+            content_type='text/html', status=503,
+        )
+    except Exception as e:
+        logger.exception(f'[PDF] generation failed for design_code={design_code}: {e}')
+        return HttpResponse(
+            '<h2>⚠️ خطأ في توليد ملف الـ PDF</h2>'
+            f'<p>Technical: {type(e).__name__}: {str(e)[:200]}</p>'
+            '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>',
+            content_type='text/html', status=500,
+        )
+
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    resp['Content-Disposition'] = f'attachment; filename="print-spec-{cd.design_code}.pdf"'
+    return resp

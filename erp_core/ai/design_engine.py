@@ -188,6 +188,37 @@ You will receive:
    • NEVER describe specific letterforms, words, or character details — FLUX will
      hallucinate gibberish. Only describe spatial qualities of the typographic area.
 
+9. **APPAREL & PRODUCT MOCKUP RULES** (CRITICAL — apparel/clothing/mug/bag/hoodie domains):
+   The output MUST look like a HIGH-END E-COMMERCE PRODUCT PHOTOGRAPH, not a flat
+   collage. Required qualities:
+   • Studio lighting: softbox key + subtle fill, natural shadow, 3-point setup.
+   • Realistic fabric draping with visible folds, weave, and weight — never flat 2D.
+   • Garment perfectly centered in frame, full product visible with breathing room
+     (margin) on all sides — NEVER let the garment touch the image edges.
+   • Background: clean neutral (#f5f5f7 / off-white / soft gradient) OR contextual
+     lifestyle (wooden table flat-lay, hanger on warm wall) — never bright primary
+     colors or distracting patterns.
+   • Camera angle: dead-front centered for hangs, slight 5° three-quarter for
+     mannequin/flat-lays. Eye-level. 50mm-85mm lens look.
+
+   ⚡ TEXT POSITIONING ZONE (when text_overlay will be applied later):
+   For t-shirts / hoodies / sweatshirts:
+     • Describe the blank typography area as the UPPER-CHEST CENTER (between
+       the collar and the upper-pectoral line — i.e. roughly 25–40% from the top
+       of the garment, NOT the lower hem or near seams/edges).
+     • Specifically use words like: "clean upper chest area centered horizontally,
+       evenly lit, well-clear of collar seam and arm seams, with ~15-20% margin
+       from any garment edge or seam".
+     • Forbidden: "lower belly area", "across the entire shirt", "near the hem",
+       "at the bottom edge", "wrapping around the sides".
+   For mugs/bags: centered on visible face, generous margins from handle/strap.
+   For caps: front center panel only.
+
+   Negative-prompt additions ALWAYS for apparel: "text overflowing garment edges,
+   text near seams, text at lower hem, off-center layout, cropped product, blown
+   highlights on fabric, plastic mannequin look, cheap collage feel, AI-flat
+   composite, harsh shadows, oversaturated fabric".
+
 🅰️ CRITICAL — TEXT HANDLING (READ CAREFULLY):
 FLUX cannot reliably render any text, ESPECIALLY Arabic/RTL. If user selections include
 text content (any "text" or "text_on_design" field with non-empty value):

@@ -183,7 +183,10 @@ def overlay_text_on_image_url(
         'top':    ((w - text_w) // 2, int(h * 0.08)),
         'center': ((w - text_w) // 2, (h - text_h) // 2),
         'bottom': ((w - text_w) // 2, int(h * 0.85) - text_h),
-        'chest':  ((w - text_w) // 2, int(h * 0.42)),   # T-shirt صدر
+        # T-shirt UPPER chest area — تقريباً 32% من الـ top (مش 42% اللي
+        # كان قريب من البطن). 32% بيقع على منطقة الصدر العلوية بين
+        # الكولّر والصدر — اللي بتبان عليها الـ branding في mockups المحترفة.
+        'chest':  ((w - text_w) // 2, int(h * 0.32) - text_h // 2),
     }
     x, y = pos_map.get(position, pos_map['center'])
 
