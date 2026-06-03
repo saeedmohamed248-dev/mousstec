@@ -894,6 +894,13 @@
                                 <i class="fas fa-image ml-1"></i>التصميم
                             </a>
                             {% endif %}
+                            {% if pr.print_spec_pdf %}
+                            <a href="{{ pr.print_spec_pdf.url }}" target="_blank"
+                               class="text-[10px] font-bold px-2 py-1 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25 transition"
+                               title="PDF بكل المواصفات للمطبعة">
+                                <i class="fas fa-file-pdf ml-1"></i>📄 PDF للمطبعة
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0027_merge_20260601_1503'),
+        ('clients', '0027_add_ai_prompt_learning_log'),
     ]
 
     operations = [

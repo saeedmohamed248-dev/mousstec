@@ -2035,6 +2035,13 @@ class DesignPrintRequest(models.Model):
         verbose_name=_("السعر المقترح من المنصة"))
     admin_notes = models.TextField(blank=True, verbose_name=_("ملاحظات الإدارة"))
 
+    # 📄 Print spec PDF — يتم توليده تلقائياً عند الإرسال للمطبعة
+    print_spec_pdf = models.FileField(
+        upload_to='marketplace/print_specs/', null=True, blank=True,
+        verbose_name=_("ملف PDF بمواصفات الطباعة"),
+        help_text=_("PDF بكل تفاصيل الطباعة (نص + لون + خامة + مقاسات) — يتولّد تلقائياً"),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

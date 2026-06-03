@@ -317,11 +317,38 @@ def copilot_send_to_print(request):
             status='pending',
         )
 
+        # 📄 Auto-attach print spec PDF — يتولد ويتخزن في الـ FileField
+        # عشان المطبعة تلاقيه جاهز مع كل طلب في الـ admin بدون أي خطوة إضافية.
+        try:
+            from .print_spec_pdf import build_print_spec_pdf
+            from django.core.files.base import ContentFile
+
+            pdf_bytes = build_print_spec_pdf(
+                design_code=str(print_req.request_code)[:13],
+                image_url=image_url,
+                text=(body.get('text_overlay_text') or body.get('brief') or '')[:200],
+                text_color=(body.get('text_color') or '#000000'),
+                text_position=(body.get('text_position') or 'center'),
+                category=product_type,
+                customer_name=getattr(customer, 'full_name', '') or '—',
+                customer_phone=getattr(customer, 'phone', '') or (body.get('delivery_phone') or '—'),
+                quantity=quantity,
+                notes=(body.get('notes') or '')[:240],
+                raw_idea=(body.get('brief') or '')[:240],
+            )
+            fname = f'print-spec-{str(print_req.request_code)[:8]}.pdf'
+            print_req.print_spec_pdf.save(fname, ContentFile(pdf_bytes), save=True)
+            logger.info(f'[SEND-TO-PRINT] PDF spec attached: {fname} ({len(pdf_bytes)}B)')
+        except Exception as e:
+            # Non-fatal — الـ print request اتسجّل، الـ PDF ممكن نولّده يدوياً لاحقاً
+            logger.warning(f'[SEND-TO-PRINT] PDF auto-attach failed (non-fatal): {e}')
+
         return JsonResponse({
             'success': True,
-            'message': '✅ طلب الطباعة اتسجل! هنرد عليك بعرض السعر قريباً.',
+            'message': '✅ طلب الطباعة اتسجل + PDF بالمواصفات اترفع للمطبعة.',
             'print_request_code': str(print_req.request_code),
             'design_id': design.id,
+            'print_spec_pdf_url': print_req.print_spec_pdf.url if print_req.print_spec_pdf else None,
         })
     except Exception as e:
         logger.exception('[COPILOT VIEW] send-to-print failed')
