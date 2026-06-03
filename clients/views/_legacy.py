@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.db.models import Count, Min, Sum, F, Avg, Max
 from django.utils import timezone
 from django.db import models, transaction, connection
@@ -1290,8 +1290,14 @@ def design_store_confirm_payment(request, purchase_id):
     return JsonResponse({"error": "POST only"}, status=405)
 
 
+@ensure_csrf_cookie
 def design_store_my_designs(request):
-    """📚 صفحة تصاميمي + الرصيد المتبقي."""
+    """📚 صفحة تصاميمي + الرصيد المتبقي.
+
+    🛡️ ensure_csrf_cookie: نضمن إن الـ mt_csrf cookie متضبط في الـ response
+    حتى لو الـ template تعديل أو الـ {% csrf_token %} اتشال. ده الـ
+    bulletproof source — الـ Universal flow POSTs (analyze/generate/refine)
+    بتعتمد عليه."""
     customer = _marketplace_auth(request)
     if not customer:
         return redirect('/marketplace/')
