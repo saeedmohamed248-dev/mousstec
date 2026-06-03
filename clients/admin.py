@@ -15,6 +15,7 @@ from .models import (
     BidOffer, EscrowLedger, Plan, AIAddonPackage,
     TenantSubscription, AILimitTracker, AIPromptLearningLog,
     Feature, PlanRevision, PlatformInvoice, DesignPackage,
+    DiagnosticsAddon,
 )
 
 import logging
@@ -93,7 +94,11 @@ class TenantSubscriptionInline(admin.StackedInline):
     readonly_fields = ('created_at', 'updated_at', 'subscription_summary')
     fieldsets = (
         (None, {
-            'fields': ('plan', 'ai_addon', 'billing_cycle_months', 'current_period_start', 'current_period_end', 'is_active', 'subscription_summary'),
+            'fields': (
+                'plan', 'ai_addon', 'diagnostics_addon',
+                'billing_cycle_months', 'current_period_start', 'current_period_end',
+                'is_active', 'subscription_summary',
+            ),
         }),
     )
 
@@ -102,6 +107,7 @@ class TenantSubscriptionInline(admin.StackedInline):
             return "—"
         plan_name = obj.plan.name if obj.plan else 'بدون باقة'
         addon_name = obj.ai_addon.name if obj.ai_addon else 'بدون'
+        diag_addon = obj.diagnostics_addon.name if obj.diagnostics_addon_id else 'بدون'
         status_color = '#28a745' if obj.is_active else '#dc3545'
         status_text = 'فعّال' if obj.is_active else 'غير فعّال'
 
@@ -487,6 +493,46 @@ class PlanAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             obj.max_branches, obj.max_users, obj.max_treasuries
         )
     limits_overview.short_description = "الحدود"
+
+    def is_active_icon(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color:#28a745; font-size:16px;">✅</span>')
+        return format_html('<span style="color:#dc3545; font-size:16px;">❌</span>')
+    is_active_icon.short_description = "مفعّلة"
+
+
+# =====================================================================
+# 🔧 6.5 حزم Smart Diagnostics (Add-ons)
+# =====================================================================
+@admin.register(DiagnosticsAddon)
+class DiagnosticsAddonAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'monthly_price_styled', 'monthly_api_quota', 'feature_count', 'is_active_icon')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    ordering = ('sort_order',)
+
+    fieldsets = (
+        ('بيانات الحزمة', {
+            'fields': ('slug', 'name', 'monthly_price', 'is_active', 'sort_order'),
+        }),
+        ('الحصص والميزات', {
+            'fields': ('monthly_api_quota', 'entitlements', 'features'),
+            'description': (
+                'entitlements لازم تكون dict بـ feature codes صحيحة من Feature catalog '
+                '(مثلاً: {"diagnostics_live_data": {"enabled": true}, '
+                '"diagnostics_external_api_scans": {"enabled": true, "monthly_limit": 200}}).'
+            ),
+        }),
+    )
+
+    def monthly_price_styled(self, obj):
+        return format_html('<b style="color:#0dcaf0;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+    monthly_price_styled.short_description = "السعر الشهري"
+
+    def feature_count(self, obj):
+        return len(obj.entitlements or {})
+    feature_count.short_description = "عدد المميزات"
 
     def is_active_icon(self, obj):
         if obj.is_active:

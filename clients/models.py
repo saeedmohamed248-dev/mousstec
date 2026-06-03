@@ -791,12 +791,65 @@ class AIAddonPackage(models.Model):
 
 
 # =====================================================================
+# 🔧 8.5 حزمة Smart Diagnostics (Add-on) — تنضاف لأي باقة موجودة
+# =====================================================================
+# الفلسفة: الـ Smart Diagnostics مش باقة مستقلة بـ تـ replace الـ plan
+# الأساسي للشركة. بدل كده، هي **add-on** يتـ activate على tenant
+# عنده Empire/Gold/Pro/أي حاجة. الـ effective_entitlements بتـ merge:
+#   plan.entitlements ∪ diagnostics_addon.entitlements
+# عشان الفني/المركز يستفيد من كل مميزات باقته + الـ diagnostics.
+# =====================================================================
+class DiagnosticsAddon(models.Model):
+    slug = models.SlugField(max_length=40, unique=True)
+    name = models.CharField(max_length=120, verbose_name=_("اسم الحزمة"))
+    monthly_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        verbose_name=_("السعر الشهري (ج.م)"),
+    )
+
+    monthly_api_quota = models.IntegerField(
+        default=200,
+        verbose_name=_("حصة فحوصات API الخارجية شهرياً"),
+        help_text=_("بـ يـ refill diag_api_quota_remaining في 1st كل شهر"),
+    )
+
+    # الميزات المفعّلة في الـ addon ده (feature codes من Feature catalog)
+    entitlements = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("الصلاحيات (entitlements)"),
+        help_text=_("dict من feature_code → {enabled: bool, monthly_limit?: int}"),
+    )
+
+    features = models.JSONField(
+        default=list, blank=True,
+        verbose_name=_("مميزات الحزمة (للعرض على الـ pricing page)"),
+    )
+
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("حزمة Smart Diagnostics")
+        verbose_name_plural = _("🔧 حزم Smart Diagnostics (Add-ons)")
+        ordering = ['sort_order']
+
+    def __str__(self):
+        return f"🔧 {self.name} — {self.monthly_price} ج.م/شهر"
+
+
+# =====================================================================
 # 📋 9. اشتراك المستأجر (Tenant Subscription)
 # =====================================================================
 class TenantSubscription(models.Model):
     tenant = models.OneToOneField(Client, on_delete=models.CASCADE, related_name='subscription', verbose_name=_("المستأجر"))
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("الباقة"))
     ai_addon = models.ForeignKey(AIAddonPackage, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("حزمة AI"))
+    diagnostics_addon = models.ForeignKey(
+        DiagnosticsAddon, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name=_("🔧 حزمة Smart Diagnostics"),
+        help_text=_("اختياري — يفعّل ميزات التشخيص الذكي فوق الباقة الأساسية"),
+    )
 
     billing_cycle_months = models.IntegerField(default=1, verbose_name=_("دورة الفوترة (أشهر)"))
     current_period_start = models.DateField(null=True, blank=True)
@@ -959,9 +1012,26 @@ class TenantSubscription(models.Model):
     @property
     def effective_entitlements(self) -> dict:
         """ترجع الـ entitlements الـ effective: locked لو موجود، وإلا fallback
-        لـ plan.entitlements. الـ source of truth الواحدة للـ EntitlementService."""
+        لـ plan.entitlements. الـ source of truth الواحدة للـ EntitlementService.
+
+        🔧 Add-on merging: لو في diagnostics_addon مفعّل على الـ tenant،
+        بـ نـ merge الـ entitlements بتاعته فوق الـ base. ده بيخلي الـ tenant
+        يحتفظ بـ مميزات باقته الأساسية (Empire/Gold) + يحصل على مميزات
+        التشخيص بدون ما يـ swap الـ plan.
+        """
+        # 1. الـ base entitlements من الـ plan/snapshot
+        base = self._base_entitlements()
+        # 2. merge أي add-on entitlements (diagnostics_addon حالياً)
+        if self.diagnostics_addon_id and self.diagnostics_addon and self.diagnostics_addon.is_active:
+            addon_ents = dict(self.diagnostics_addon.entitlements or {})
+            # دمج: addon overrides base لو كان فيه conflict على نفس الـ feature
+            base = {**base, **addon_ents}
+        return base
+
+    def _base_entitlements(self) -> dict:
+        """الـ entitlements من الـ plan قبل أي addon merging."""
         if self.locked_at and isinstance(self.locked_entitlements, dict) and self.locked_entitlements:
-            return self.locked_entitlements
+            return dict(self.locked_entitlements)
         # Fallback: لو الـ snapshot لسة ما اتعملش، نقرأ من الـ plan الحالي
         if self.plan_id:
             return dict(self.plan.entitlements or {})
