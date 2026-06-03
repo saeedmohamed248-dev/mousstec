@@ -1461,13 +1461,17 @@ async function uaiFeedback(logId, isSuccessful) {
     <div class="chat-box">
         <div class="chat-header">
             <h3 id="chatTitle"><i class="fas fa-comments" style="color:#ec4899;"></i> محادثة التصميم</h3>
+            <span id="chatRemainingBadge" style="background:#1e293b;color:#fbbf24;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;margin-right:auto;display:none;">
+                <i class="fas fa-rotate"></i> متبقي <b id="chatRemainingCount">—</b> محاولات تعديل
+            </span>
             <button class="chat-close" onclick="closeChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chatMessages">
             <div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>
         </div>
         <div class="chat-input-row">
-            <input type="text" id="chatRefineInput" placeholder="اكتب تعديل على التصميم..." onkeydown="if(event.key==='Enter')chatRefine()">
+            <input type="text" id="chatRefineInput" placeholder="مثال: غيّر اللون للأزرق | اكتب على الضهر | كبّر الخط | اللوجو على القدام"
+                   onkeydown="if(event.key==='Enter')chatRefine()">
             <button onclick="chatRefine()" id="chatRefineBtn"><i class="fas fa-paper-plane"></i> عدّل</button>
         </div>
     </div>
@@ -1486,6 +1490,28 @@ async function openChat(code) {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
         document.getElementById('chatTitle').innerHTML = `<i class="fas fa-comments" style="color:#ec4899;"></i> ${d.title || 'محادثة التصميم'}`;
+
+        // 🔢 Remaining count badge
+        const remBadge = document.getElementById('chatRemainingBadge');
+        const remCount = document.getElementById('chatRemainingCount');
+        if (typeof d.regenerations_left === 'number') {
+            remCount.textContent = d.regenerations_left;
+            remBadge.style.display = 'inline-block';
+            remBadge.style.background = d.regenerations_left > 0 ? '#1e293b' : '#7f1d1d';
+            remBadge.style.color = d.regenerations_left > 0 ? '#fbbf24' : '#fecaca';
+        }
+        // Disable input + button if no refinements left
+        const inputEl = document.getElementById('chatRefineInput');
+        const sendBtn = document.getElementById('chatRefineBtn');
+        if (d.can_refine === false) {
+            inputEl.disabled = true;
+            inputEl.placeholder = '🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد';
+            sendBtn.disabled = true;
+        } else {
+            inputEl.disabled = false;
+            sendBtn.disabled = false;
+        }
+
         const box = document.getElementById('chatMessages');
         if (!d.messages || d.messages.length === 0) {
             box.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ بكتابة تعديل</div>';
@@ -1543,22 +1569,46 @@ async function chatRefine() {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
 
-        // Add AI response
+        // Add AI response — مع placement label لو الـ design اتنقل للضهر
+        const placementLabel = d.placement === 'back' ? '🔄 الضهر' : '👕 القدام';
         const aiDiv = document.createElement('div');
         aiDiv.className = 'chat-msg assistant';
-        aiDiv.innerHTML = `<div>تم تعديل التصميم حسب طلبك ✅</div><img src="${d.image_url}" loading="lazy"><div class="time">الآن — متبقي ${d.regenerations_left} تعديل</div>`;
+        aiDiv.innerHTML = `<div>تم تعديل التصميم حسب طلبك ✅ (${placementLabel})</div><img src="${d.image_url}" loading="lazy"><div class="time">الآن — متبقي <b>${d.regenerations_left}</b> تعديل</div>`;
         box.appendChild(aiDiv);
         box.scrollTop = box.scrollHeight;
         toast('✅ تم التعديل!', 'success');
+
+        // 🔢 Update remaining badge
+        const remCount = document.getElementById('chatRemainingCount');
+        const remBadge = document.getElementById('chatRemainingBadge');
+        if (remCount) {
+            remCount.textContent = d.regenerations_left;
+            remBadge.style.background = d.regenerations_left > 0 ? '#1e293b' : '#7f1d1d';
+            remBadge.style.color = d.regenerations_left > 0 ? '#fbbf24' : '#fecaca';
+        }
+        // Block input if exhausted
+        if (d.regenerations_left <= 0) {
+            input.disabled = true;
+            input.placeholder = '🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد';
+            btn.disabled = true;
+        }
     } catch(e) {
         const errDiv = document.createElement('div');
         errDiv.className = 'chat-msg assistant';
-        errDiv.innerHTML = `<div style="color:#ef4444;">${e.message}</div>`;
+        errDiv.innerHTML = `<div style="color:#ef4444;">${e.message || 'فشل التعديل'}</div>`;
         box.appendChild(errDiv);
-        toast(e.message, 'error');
+        toast(e.message || 'فشل التعديل', 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> عدّل';
+        if (!btn.disabled) {
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> عدّل';
+        }
+        // ما نـ re-enable الـ btn هنا — لو اتـ disable من 0-remaining، يفضل disabled
+        if (input.disabled) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-ban"></i> منتهي';
+        } else {
+            btn.disabled = false;
+        }
     }
 }
 

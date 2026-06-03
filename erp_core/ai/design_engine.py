@@ -188,6 +188,23 @@ You will receive:
    • NEVER describe specific letterforms, words, or character details — FLUX will
      hallucinate gibberish. Only describe spatial qualities of the typographic area.
 
+9b. **PLACEMENT DETECTION** (apparel only — t-shirts, hoodies, sweatshirts, caps):
+The brief may indicate WHERE the design should appear on the garment. Detect signals:
+  • Arabic back signals: "ضهر", "في الضهر", "خلف", "من ورا", "الظهر"
+  • English back signals: "back", "rear", "back side", "on the back"
+  • Arabic front signals: "قدام", "وش", "الصدر", "في الوش"
+  • English front signals: "front", "chest", "on the front"
+
+If BACK is detected → emit "print_placement": "back" AND describe the mockup as the
+"BACK view of the apparel showing the rear panel" with text positioned on the
+"upper-back area centered between the shoulder blades" (35-45% from top of garment).
+For caps: "back of the cap, centered embroidered area".
+
+If FRONT or unspecified → emit "print_placement": "front" AND describe mockup as
+the "FRONT view" with text on the upper-chest area as already specified above.
+
+The text_overlay.position field MUST match: "back" for back placement, "chest" for front.
+
 9. **APPAREL & PRODUCT MOCKUP RULES** (CRITICAL — apparel/clothing/mug/bag/hoodie domains):
    The output MUST look like a HIGH-END E-COMMERCE PRODUCT PHOTOGRAPH, not a flat
    collage. Required qualities:
@@ -259,9 +276,10 @@ Return STRICT JSON only:
   "mega_prompt": "<single dense paragraph, 150-220 words, English>",
   "negative_prompt": "<comma-separated, specific>",
   "recommended_size": "<1024x1024 | 1024x1536 | 1536x1024>",
+  "print_placement": "<'front' | 'back'> (apparel only; 'front' for non-apparel)",
   "text_overlay": {
     "text": "<the exact text from user selections, preserve original script>",
-    "position": "<center | top | bottom | chest>",
+    "position": "<center | top | bottom | chest | back>",
     "color": "<hex e.g. #000000>",
     "font_ratio": <float 0.02-0.10. Recommendations: t-shirts/apparel=0.035, business cards/invitations=0.07, posters/banners=0.09, default=0.06>
   } | null
@@ -689,6 +707,18 @@ def compose_mega_prompt(
                 'font_ratio': font_ratio,
             }
 
+    # 🔄 Placement: LLM-provided OR regex fallback من الـ raw_idea + selections
+    placement = str(data.get('print_placement') or '').strip().lower()
+    if placement not in ('front', 'back'):
+        # Regex fallback — نشيك على الـ raw_idea + selections values
+        from .printing_copilot import detect_placement_from_text
+        combined = (raw_idea or '') + ' ' + ' '.join(str(v) for v in (clean_selections or {}).values())
+        placement = detect_placement_from_text(combined)
+
+    # Override text_overlay.position إذا placement=back وكان front-based
+    if placement == 'back' and text_overlay and text_overlay.get('position') in ('chest', 'center', None):
+        text_overlay['position'] = 'back'
+
     return {
         'success': True,
         'mega_prompt': mega[:2500],
@@ -697,5 +727,6 @@ def compose_mega_prompt(
             'text artifacts, garbled text, cluttered, oversaturated, amateur'
         )[:600],
         'recommended_size': str(data.get('recommended_size') or '1024x1024')[:20],
+        'print_placement': placement,
         'text_overlay': text_overlay,
     }

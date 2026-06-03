@@ -2673,6 +2673,10 @@ def design_store_chat_history(request, design_code):
         "status": "success",
         "design_code": str(design.design_code),
         "title": design.title,
+        "regenerations_used": design.regenerations_used,
+        "regenerations_allowed": design.regenerations_allowed,
+        "regenerations_left": design.regenerations_allowed - design.regenerations_used,
+        "can_refine": design.can_regenerate,
         "messages": [
             {
                 "role": m['role'],
@@ -2720,14 +2724,32 @@ def design_store_refine(request, design_code):
         design=design, role='user', content=refinement_text, is_refinement=True
     )
 
-    # Build refinement prompt
+    # 🔄 Placement detection — front/back من الـ refinement_text + الـ raw_input الأصلي
+    from erp_core.ai.printing_copilot import detect_placement_from_text
+    combined_signals = f"{design.raw_input or ''} {refinement_text}"
+    placement = detect_placement_from_text(combined_signals)
+
+    # Build refinement prompt + inject placement instruction لـ FLUX
     base_prompt = design.engineered_prompt or design.description
+    placement_instr = ''
+    if placement == 'back':
+        placement_instr = (
+            ' SHOT COMPOSITION: rear/back view of the apparel showing the back panel, '
+            'with a clean blank area centered between the shoulder blades (upper-back '
+            'area, ~38% from top) ready for text overlay afterward.'
+        )
+    else:
+        placement_instr = (
+            ' SHOT COMPOSITION: front view of the apparel with a clean blank area on '
+            'the upper-chest region (~32% from top) ready for text overlay afterward.'
+        )
     refinement_prompt = (
         f"{base_prompt[:2500]} "
         f"REFINEMENT INSTRUCTION: The client wants to modify the existing design. "
         f"Keep everything from the original design but apply these changes: {refinement_text}. "
         f"Maintain the same style, color palette, and composition. "
         f"Only change what the client specifically asked for."
+        f"{placement_instr}"
     )
 
     # 🎨 Refine via Together AI FLUX.1-schnell (migrated 2026-06)
@@ -2785,6 +2807,36 @@ def design_store_refine(request, design_code):
         if not new_url:
             return JsonResponse({"error": "لم يتم استلام صورة من Together AI"}, status=502)
 
+        # 🅰️ Text overlay — لو الـ design الأصلي كان فيه نص عربي، نـ re-extract
+        # ونـ apply على الصورة الجديدة في الـ position المناسب للـ placement.
+        overlay_applied = False
+        try:
+            from erp_core.ai.printing_copilot import _extract_text_overlay_from_brief
+            from erp_core.ai.text_overlay import overlay_text_on_image_url
+            extracted = _extract_text_overlay_from_brief(
+                design.raw_input or design.title or '',
+                design.category or 'other',
+            )
+            if extracted:
+                # نـ override الـ position حسب الـ placement
+                extracted['position'] = 'back' if placement == 'back' else 'chest'
+                ov = overlay_text_on_image_url(
+                    image_url=new_url,
+                    text=extracted['text'],
+                    position=extracted['position'],
+                    color=extracted.get('color', '#000000'),
+                    font_size_ratio=float(extracted.get('font_ratio', 0.045)),
+                )
+                if ov.get('success'):
+                    final_url = ov['url']
+                    if final_url and final_url.startswith('/'):
+                        final_url = request.build_absolute_uri(final_url)
+                    new_url = final_url
+                    overlay_applied = True
+                    logger.info(f"[REFINE] Arabic overlay applied at position={extracted['position']}")
+        except Exception as e:
+            logger.warning(f"[REFINE] overlay step failed (non-fatal): {e}")
+
         # Update design
         design.image_url = new_url
         design.regenerations_used += 1
@@ -2793,9 +2845,10 @@ def design_store_refine(request, design_code):
         design.save(update_fields=['image_url', 'regenerations_used', 'engineered_prompt', 'model_used'])
 
         # Save AI response message
+        placement_label = 'في الضهر 🔄' if placement == 'back' else 'في الصدر'
         DesignChatMessage.objects.create(
             design=design, role='assistant',
-            content=f"تم تعديل التصميم: {refinement_text[:100]}",
+            content=f"تم تعديل التصميم ({placement_label}): {refinement_text[:100]}",
             image_url=new_url, is_refinement=True
         )
 
@@ -2803,6 +2856,10 @@ def design_store_refine(request, design_code):
             "status": "success",
             "image_url": new_url,
             "regenerations_left": design.regenerations_allowed - design.regenerations_used,
+            "regenerations_used": design.regenerations_used,
+            "regenerations_allowed": design.regenerations_allowed,
+            "placement": placement,
+            "overlay_applied": overlay_applied,
             "used_edit_api": False,  # FLUX schnell = regenerate-style refinement
         })
     except Exception as e:

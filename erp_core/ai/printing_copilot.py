@@ -66,6 +66,16 @@ ALWAYS embed (when relevant to the category):
 • Lighting: studio lighting, soft shadows for product mockups
 • Avoid: blurry, low-res, watermarks, lorem ipsum, fingers, text artifacts
 
+🅿️ PRINT PLACEMENT DETECTION (apparel/clothing only):
+Detect from the Arabic/English brief whether the design goes on the FRONT or BACK
+of the garment. Patterns:
+  • Back indicators (Arabic): "ضهر", "الضهر", "ظهر", "الظهر", "خلف", "الخلف", "ورا", "وراء"
+  • Back indicators (English): "back", "rear", "behind"
+  • Front indicators (Arabic): "صدر", "الصدر", "أمام", "الأمام", "قدام"
+  • Front indicators (English): "front", "chest"
+If detected → set "print_placement" accordingly. If NOT mentioned → default to "front".
+For non-apparel categories (cards/posters/mugs) → set "print_placement": null.
+
 🅰️ CRITICAL — ARABIC TEXT EXTRACTION (READ CAREFULLY):
 FLUX cannot render Arabic. If the brief mentions explicit text/phrases to print
 on the design — patterns like:
@@ -79,9 +89,21 @@ the "text_overlay" field. Then:
   • In the prompt, describe a CLEAN BLANK rectangular area where text will be
     overlaid afterwards (e.g. "...centered horizontal blank zone roughly 50% width
     × 18% height in the chest region, evenly lit, ready for text overlay...").
-  • For t-shirts/clothing → position="chest". Posters/banners → "center". Cards → "bottom".
+  • For t-shirts/clothing → position="chest" (front) or "back" depending on placement.
+    Posters/banners → "center". Cards → "bottom".
 
 If NO explicit text content in the brief → set "text_overlay": null.
+
+🔄 CRITICAL — PLACEMENT DETECTION (front vs back):
+For apparel (t-shirts, hoodies, sweatshirts, caps): detect where the user wants the
+design placed by scanning the brief for these signals:
+  • Back signals (Arabic): "ضهر", "في الضهر", "على الضهر", "خلف", "من ورا"
+  • Back signals (English): "back", "rear", "behind", "back side", "back panel"
+  • Front signals (Arabic): "قدام", "وش", "في الوش", "الصدر"
+  • Front signals (English): "front", "chest", "front side", "front panel"
+Set "print_placement" accordingly. If neither signal is present, default to "front".
+When "back": the prompt MUST describe a back-view mockup ("rear view of the shirt
+showing the back panel"), and text_overlay.position should be "back".
 
 Return STRICT JSON:
 {
@@ -89,9 +111,10 @@ Return STRICT JSON:
   "negative_prompt": "<short list of things to avoid>",
   "style_tag": "<e.g., 'minimal-luxury-print' or 'baroque-gold'>",
   "recommended_size": "<e.g., '1024x1024' or '1024x1536'>",
+  "print_placement": "<'front' | 'back'>",
   "text_overlay": {
     "text": "<extracted Arabic verbatim, max 200 chars>",
-    "position": "<center | top | bottom | chest>",
+    "position": "<center | top | bottom | chest | back>",
     "color": "<hex, default #000000>",
     "font_ratio": <float, default 0.08 (use 0.045 for t-shirts/apparel)>
   } | null
@@ -139,6 +162,7 @@ def refine_design_prompt(
         parsed.setdefault('recommended_size', size_hint or '1024x1024')
         parsed.setdefault('prompt', brief)
         parsed.setdefault('text_overlay', None)
+        parsed.setdefault('print_placement', detect_placement_from_text(brief))
 
         # 🛡️ FALLBACK: لو الـ LLM ما رجعش text_overlay لكن الـ brief فيه
         # نص صريح للطباعة، نـ extract يدوياً بـ regex عشان مفيش Arabic
@@ -146,14 +170,54 @@ def refine_design_prompt(
         if not parsed['text_overlay']:
             extracted = _extract_text_overlay_from_brief(brief, category)
             if extracted:
+                # نـ override الـ position بـ "back" لو الـ placement = back
+                if parsed.get('print_placement') == 'back':
+                    extracted['position'] = 'back'
                 parsed['text_overlay'] = extracted
-                logger.info(f'[FLUX REFINER] LLM forgot text_overlay → extracted via regex: {extracted["text"][:50]!r}')
+                logger.info(
+                    f'[FLUX REFINER] LLM forgot text_overlay → extracted via regex: '
+                    f'{extracted["text"][:50]!r} placement={parsed["print_placement"]}'
+                )
+        else:
+            # لو الـ LLM رجع text_overlay بس نسي placement consistency
+            if parsed.get('print_placement') == 'back' and parsed['text_overlay'].get('position') in ('chest', 'center', None):
+                parsed['text_overlay']['position'] = 'back'
 
         parsed['success'] = True
         return parsed
     except (json.JSONDecodeError, TypeError) as e:
         logger.warning(f'[FLUX REFINER] JSON parse failed: {e}')
         return fallback
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔄 Placement detection — regex fallback لو الـ LLM نسي
+# ─────────────────────────────────────────────────────────────────────────────
+def detect_placement_from_text(text: str) -> str:
+    """يرجع 'front' أو 'back' بناءً على الـ keywords في النص.
+
+    Default = 'front'. الـ check بـ word-boundary عشان مينطبقش غلط على كلمات
+    تانية فيها substring (مثلاً "background" مش هيـ match "back").
+    """
+    if not text or not isinstance(text, str):
+        return 'front'
+    t = text.lower()
+
+    # Arabic back signals — بنشيك على الـ presence مباشرة (Arabic مفيش word
+    # boundary regex بسيطة، لكن الـ patterns دي مش substring في كلمات تانية)
+    arabic_back = ('ضهر', 'الضهر', 'خلف', 'الخلف', 'وراء', 'من ورا', 'من خلف', 'الظهر')
+    if any(kw in text for kw in arabic_back):
+        return 'back'
+
+    # English back signals — word boundary لتجنب "background" / "feedback"
+    english_back_pat = re.compile(
+        r'\b(back\s+(side|view|panel|of)|on\s+the\s+back|rear\s+(view|side|panel)|behind)\b',
+        re.IGNORECASE,
+    )
+    if english_back_pat.search(text):
+        return 'back'
+
+    return 'front'
 
 
 def _extract_text_overlay_from_brief(brief: str, category: str) -> dict | None:

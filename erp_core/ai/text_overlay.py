@@ -187,6 +187,10 @@ def overlay_text_on_image_url(
         # كان قريب من البطن). 32% بيقع على منطقة الصدر العلوية بين
         # الكولّر والصدر — اللي بتبان عليها الـ branding في mockups المحترفة.
         'chest':  ((w - text_w) // 2, int(h * 0.32) - text_h // 2),
+        # 🔄 BACK view — منطقة بين لوحي الكتف (upper back). الـ mockup المفروض
+        # يكون back-view من FLUX، فالنص يبقى في 38% من الـ top — اللي بيـ correspond
+        # للـ upper-back area تحت الـ collar شوية.
+        'back':   ((w - text_w) // 2, int(h * 0.38) - text_h // 2),
     }
     x, y = pos_map.get(position, pos_map['center'])
 
