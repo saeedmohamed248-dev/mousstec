@@ -225,16 +225,35 @@
     }
 
     let ws;
+    let permanentlyDenied = false;  // 🛡️ Stop reconnecting لو الـ server رفض الـ subscription
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+
     function connect() {
+        if (permanentlyDenied) {
+            els.status.textContent = '🛑 Access denied — اشترك للوصول';
+            els.status.className = 'status-pill error';
+            return;
+        }
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            els.status.textContent = '⏸ تم إيقاف المحاولات — حدّث الصفحة';
+            els.status.className = 'status-pill error';
+            return;
+        }
+
         ws = new WebSocket(wsUrl);
         ws.onopen = () => {
+            reconnectAttempts = 0;  // reset on successful connect
             els.status.textContent = '🟢 LIVE';
             els.status.className = 'status-pill live';
         };
         ws.onclose = () => {
-            els.status.textContent = '🔴 Disconnected — retrying…';
+            if (permanentlyDenied) return;  // 🛡️ مفيش reconnect بعد deny
+            reconnectAttempts++;
+            const backoff = Math.min(3000 * Math.pow(2, reconnectAttempts - 1), 60000);  // exponential backoff: 3s, 6s, 12s, 24s, 48s, cap 60s
+            els.status.textContent = `🔴 Disconnected — retry ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${Math.round(backoff/1000)}s…`;
             els.status.className = 'status-pill error';
-            setTimeout(connect, 3000);
+            setTimeout(connect, backoff);
         };
         ws.onerror = () => {
             els.status.textContent = '⚠️ Error';
@@ -244,6 +263,7 @@
             let msg;
             try { msg = JSON.parse(ev.data); } catch (e) { return; }
             if (msg.type === 'denied') {
+                permanentlyDenied = true;  // 🛡️ block all future reconnects
                 els.deny.style.display = 'block';
                 els.dashContent.style.display = 'none';
                 els.denyText.textContent = 'سبب الحجب: ' + msg.reason;
