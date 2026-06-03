@@ -294,212 +294,6 @@
         <div id="uaiResultBox" style="display:none;margin-top:14px;padding:14px;background:rgba(15,23,42,0.6);border:1px solid rgba(124,58,237,0.3);border-radius:12px;"></div>
     </div>
 
-    <!-- Generator -->
-    <div class="generator-card" id="generator">
-        <h3 class="gen-title"><i class="fas fa-wand-magic-sparkles"></i> ولّد تصميم جديد (الوضع الكلاسيكي)</h3>
-
-        <form id="genForm" enctype="multipart/form-data">
-
-            <!-- Category -->
-            <div class="form-group">
-                <label>نوع التصميم</label>
-                <select name="category" id="categorySel">
-                    <optgroup label="🏢 هوية تجارية">
-                        <option value="logo">🔖 لوجو / Brand Mark</option>
-                        <option value="business_card">💳 كارت بزنس</option>
-                        <option value="letterhead">📃 ورق رسمي / Letterhead</option>
-                        <option value="stamp">🔏 ختم / Stamp</option>
-                    </optgroup>
-                    <optgroup label="📱 سوشيال ميديا">
-                        <option value="social_post">📱 بوست سوشيال ميديا</option>
-                        <option value="story">📲 ستوري / Reels</option>
-                        <option value="cover">🖼️ غلاف فيسبوك / يوتيوب</option>
-                    </optgroup>
-                    <optgroup label="🖨️ مطبوعات">
-                        <option value="flyer">📄 فلاير</option>
-                        <option value="poster">🖼️ بوستر / إعلان</option>
-                        <option value="banner">🪧 بنر / Roll-up</option>
-                        <option value="sign">🏗️ يافطة / كلادينج / لافتة</option>
-                        <option value="menu">📋 منيو</option>
-                        <option value="invitation">💌 دعوة / كارت مناسبة</option>
-                        <option value="certificate">📜 شهادة / Certificate</option>
-                        <option value="brochure">📰 بروشور</option>
-                        <option value="receipt_form">🧾 فاتورة / إيصال / نموذج</option>
-                    </optgroup>
-                    <optgroup label="👕 ملابس ومنتجات">
-                        <option value="tshirt">👕 تيشرت</option>
-                        <option value="pants">👖 بنطلون / تصميم ملابس</option>
-                        <option value="abaya">🧕 عباية / جلابية</option>
-                        <option value="uniform">🥋 يونيفورم / زي موحد</option>
-                        <option value="cap">🧢 كاب / طاقية</option>
-                        <option value="bag">👜 شنطة / حقيبة</option>
-                        <option value="shoe">👟 حذاء / جزمة</option>
-                    </optgroup>
-                    <optgroup label="📦 تغليف ومنتجات">
-                        <option value="packaging">📦 تغليف منتج / علبة</option>
-                        <option value="label">🏷️ ليبل / ملصق منتج</option>
-                        <option value="sticker">🏷️ ستيكر</option>
-                        <option value="mug_design">☕ تصميم ماج</option>
-                        <option value="mockup">🎁 Mockup منتج</option>
-                    </optgroup>
-                    <optgroup label="🎬 وسائط متعددة">
-                        <option value="film_poster">🎬 بوستر فيلم / مسلسل</option>
-                        <option value="book_cover">📚 غلاف كتاب</option>
-                        <option value="album_cover">💿 غلاف ألبوم</option>
-                        <option value="thumbnail">🖱️ Thumbnail يوتيوب</option>
-                    </optgroup>
-                    <optgroup label="🔧 أخرى">
-                        <option value="pattern">🔲 باترن / نقشة متكررة</option>
-                        <option value="illustration">🎨 رسم توضيحي</option>
-                        <option value="infographic">📊 إنفوجرافيك</option>
-                        <option value="car_wrap">🚗 رسم سيارة / Wrap</option>
-                        <option value="other">✨ أخرى — اكتب في الوصف</option>
-                    </optgroup>
-                </select>
-            </div>
-
-            <!-- Title -->
-            <div class="form-group" style="margin-top:14px;">
-                <label>عنوان مختصر (اختياري)</label>
-                <input type="text" name="title" placeholder="مثال: لوجو شركة فيكسيت">
-            </div>
-
-            <!-- Description -->
-            <div class="form-group" style="margin-top:14px;">
-                <label>وصف التصميم بالتفصيل *</label>
-                <textarea name="description" placeholder="اكتب اللي تتخيله — الألوان، الأسلوب، اسم البراند، أي تفاصيل مهمة..." required></textarea>
-            </div>
-
-            <!-- Size & Format -->
-            <div class="form-row" style="margin-top:14px;">
-                <div class="form-group">
-                    <label>📐 المقاس</label>
-                    <select name="size_preset" id="sizeSel" onchange="toggleCustomSize()">
-                        <optgroup label="🤖 ذكي">
-                            <option value="auto" selected>🤖 تلقائي (AI يختار الأنسب)</option>
-                        </optgroup>
-                        <optgroup label="📱 سوشيال ميديا">
-                            <option value="1024x1024">🟦 مربع 1:1 (بوست إنستا/فيسبوك)</option>
-                            <option value="1024x1536">📱 طولي 2:3 (Story / Reels)</option>
-                            <option value="1536x1024">🖥️ أفقي 3:2 (Cover / Thumbnail)</option>
-                        </optgroup>
-                        <optgroup label="🖨️ مطبوعات ورقية">
-                            <option value="a4">📄 A4 (فلاير / ورق رسمي)</option>
-                            <option value="a3">📑 A3 (بوستر / بروشور)</option>
-                            <option value="a5">📃 A5 (دعوة / كارت)</option>
-                            <option value="business_card">💳 كارت بزنس (9×5 سم)</option>
-                        </optgroup>
-                        <optgroup label="🪧 يافطات ولافتات">
-                            <option value="banner_wide">🪧 بنر عريض (3:1)</option>
-                            <option value="rollup">📐 Roll-up (طولي 2:5)</option>
-                            <option value="sign_square">🏗️ يافطة مربعة (1:1)</option>
-                            <option value="sign_landscape">🏗️ يافطة أفقية (2:1)</option>
-                        </optgroup>
-                        <optgroup label="👕 ملابس ومنتجات">
-                            <option value="tshirt_chest">👕 طبعة تيشرت (صدر)</option>
-                            <option value="tshirt_full">👕 تيشرت كامل (أمام)</option>
-                            <option value="pants_pattern">👖 تصميم بنطلون</option>
-                            <option value="abaya_pattern">🧕 تصميم عباية / جلابية</option>
-                            <option value="full_body">🧍 ملابس Full Body</option>
-                            <option value="mug">☕ ماج</option>
-                            <option value="bag">👜 شنطة / حقيبة</option>
-                        </optgroup>
-                        <optgroup label="🎬 أغلفة ووسائط">
-                            <option value="book_cover">📚 غلاف كتاب (طولي)</option>
-                            <option value="youtube_thumb">🖱️ Thumbnail يوتيوب (16:9)</option>
-                            <option value="film_poster">🎬 بوستر فيلم (طولي)</option>
-                        </optgroup>
-                        <optgroup label="⚙️ مخصص">
-                            <option value="custom">⚙️ مقاس مخصص (بالبيكسل)</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>📁 الصيغة</label>
-                    <select name="output_format">
-                        <option value="png">PNG (شفافية)</option>
-                        <option value="jpg">JPEG</option>
-                        <option value="webp">WebP</option>
-                        <option value="pdf">PDF (للطباعة)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Custom dimensions -->
-            <div class="form-row" id="customSizeBox" style="display:none;">
-                <div class="form-group">
-                    <label>العرض (px)</label>
-                    <input type="number" name="custom_width_px" min="256" max="4096" placeholder="1024">
-                </div>
-                <div class="form-group">
-                    <label>الارتفاع (px)</label>
-                    <input type="number" name="custom_height_px" min="256" max="4096" placeholder="1024">
-                </div>
-            </div>
-
-            <!-- Weight (for packaging) -->
-            <div class="form-group" id="weightBox" style="display:none; margin-top:14px;">
-                <label>⚖️ وزن المنتج (كجم) — اختياري لتصاميم التغليف</label>
-                <input type="number" name="weight_kg" step="0.01" min="0" placeholder="مثال: 0.5">
-            </div>
-
-            <!-- Multi-angle mockup (for tshirt, mug, packaging) -->
-            <div id="multiAngleBox" style="display:none; margin-top:14px;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);padding:10px 14px;border-radius:12px;">
-                    <input type="checkbox" name="multi_angle" value="1" style="width:18px;height:18px;">
-                    <span style="color:#10b981;font-weight:700;"><i class="fas fa-cube"></i> عرض من جميع الاتجاهات (أمام + خلف + جانب)</span>
-                </label>
-            </div>
-
-            <!-- Logo upload -->
-            <div class="logo-upload">
-                <label><i class="fas fa-image"></i> ارفع لوجو شركتك (اختياري — يدمج تلقائياً)</label>
-                <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" onchange="previewLogo(event)" style="margin-top:6px;">
-                <div class="logo-preview" id="logoPreview"></div>
-            </div>
-
-            <div class="specs-note">
-                💡 الأماكن الفارغة بتتولد تلقائياً بالأنسب للتصميم. كل توليد بيخصم 1 من رصيدك.
-                إعادة التوليد <strong>مجاني حسب باقتك</strong> (1-2 مرة لكل تصميم).
-            </div>
-
-            <!-- ✨ Premium AI Generator (Flux primary, single entry point) -->
-            <button type="button" id="fluxBtn" onclick="generateFluxDesign()"
-                    class="btn-generate"
-                    style="width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
-                <i class="fas fa-wand-magic-sparkles"></i> ✨ ولّد التصميم
-            </button>
-
-            <!-- 💳 Live balance + Shop button -->
-            <div id="custBalanceBar" style="margin-top:12px;padding:10px 14px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:12px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> رصيد التصاميم: <strong id="custBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
-                <button onclick="openCustTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:6px 14px;border-radius:8px;font-family:inherit;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن باقة</button>
-            </div>
-        </form>
-
-        <!-- Flux result panel (مستقل عن resultBox عشان مايتعارضش مع DALL-E flow) -->
-        <div id="fluxResultBox" style="display:none;margin-top:16px;padding:16px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:14px;"></div>
-
-        <div class="result-preview" id="resultBox">
-            <img id="resultImg" src="">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                <button class="btn-small btn-dl" onclick="downloadAs('png')" title="PNG"><i class="fas fa-image"></i> PNG</button>
-                <button class="btn-small btn-dl" onclick="downloadAs('jpg')" title="JPG"><i class="fas fa-image"></i> JPG</button>
-                <button class="btn-small btn-dl" onclick="downloadAs('pdf')" title="PDF"><i class="fas fa-file-pdf"></i> PDF</button>
-                <button class="btn-small btn-wa" onclick="sendWA()"><i class="fab fa-whatsapp"></i> واتساب</button>
-                <button class="btn-small btn-regen" onclick="regenLast()"><i class="fas fa-rotate-right"></i> إعادة (<span id="regenLeft">0</span>)</button>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
-                <button class="btn-small" style="background:#f97316;color:#fff;" onclick="addWatermark()" title="علامة مائية"><i class="fas fa-droplet"></i> علامة مائية</button>
-                <button class="btn-small" style="background:#10b981;color:#fff;" onclick="sendToMarketplace()" title="أرسل لسوق الطباعة"><i class="fas fa-store"></i> أرسل لسوق الطباعة</button>
-                <button class="btn-small btn-chat" onclick="openChat(lastDesignCode)" title="المحادثة"><i class="fas fa-comments"></i> المحادثة</button>
-            </div>
-            <div class="refine-row" id="refineRow">
-                <input type="text" id="refineInput" placeholder="عدّل التصميم... مثال: غير اللون للأزرق، صغّر اللوجو، زود إضاءة...">
-                <button onclick="refineDesign()" id="refineBtn"><i class="fas fa-magic"></i> عدّل</button>
-            </div>
-        </div>
-    </div>
     {% endif %}
 
     <!-- Designs Library -->
@@ -624,26 +418,9 @@ document.getElementById('genForm')?.addEventListener('submit', async e => {
     }
 });
 
-function downloadAs(fmt) {
-    if (!lastDesignCode) {
-        // مفيش design_code لسة (مثلاً الـ generation فشل أو ما اتعملش save) — نـ alert بدل ما نفتح tab فاضي
-        alert('⚠️ ولّد تصميم الأول قبل التحميل.');
-        return;
-    }
-    // الـ PDF بقى spec sheet بمواصفات الطباعة (مش raw image)
-    if (fmt === 'pdf') {
-        window.open(`/marketplace/design-store/${lastDesignCode}/print-spec.pdf`, '_blank');
-    } else {
-        window.open(`/marketplace/design-store/${lastDesignCode}/download/${fmt}/`, '_blank');
-    }
-}
-
-// ==========================================================
-// ✨ Premium Flux Two-Stage Pipeline (Phase 2 Copilot)
-// POST /printing-copilot/api/generate/  (JSON)
-// POST /printing-copilot/api/send-to-print/
-// ==========================================================
-let _lastFluxResult = null;
+// 🗑️ Classic Flux pipeline removed 2026-06 — كل التوليد بقى عبر Universal AI Design
+// (uaiAnalyze + uaiGenerate). الـ helpers اللي بتاخد design_code صريح (sendWAFor,
+// regenDesign, addWatermarkFor, sendToMarketplaceFor) فاضلين للـ gallery cards.
 
 function getCsrfCookie() {
     // السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf' (مش الاسم الافتراضي csrftoken).
@@ -736,195 +513,6 @@ if (document.getElementById('custBalanceBar')) {
     loadCustBalance();
 }
 
-async function generateFluxDesign() {
-    const form = document.getElementById('genForm');
-    const fd = new FormData(form);
-    const brief = (fd.get('description') || '').toString().trim();
-    const category = (fd.get('category') || 'other').toString();
-    const sizePreset = (fd.get('size_preset') || 'auto').toString();
-
-    if (!brief) { toast('اكتب وصف التصميم الأول', 'error'); return; }
-
-    // Map size_preset → pixel size for Flux
-    const sizeMap = {
-        'auto': '1024x1024',
-        'a4': '1024x1536', 'a3': '1024x1536', 'a5': '1024x1536',
-        'business_card': '1536x1024',
-        'banner_wide': '1536x1024', 'rollup': '1024x1536',
-        'sign_square': '1024x1024', 'sign_landscape': '1536x1024',
-        'tshirt_chest': '1024x1024', 'tshirt_full': '1024x1536',
-        'pants_pattern': '1024x1536', 'abaya_pattern': '1024x1536',
-        'full_body': '1024x1536',
-        'mug': '1536x1024', 'bag': '1024x1024',
-        'book_cover': '1024x1536', 'youtube_thumb': '1536x1024',
-        'film_poster': '1024x1536',
-        'custom': (fd.get('custom_width_px') || '1024') + 'x' + (fd.get('custom_height_px') || '1024'),
-    };
-    const size = sizeMap[sizePreset] || sizePreset;
-
-    const btn = document.getElementById('fluxBtn');
-    const box = document.getElementById('fluxResultBox');
-    const origLabel = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد... (15-25 ثانية)';
-    box.style.display = 'block';
-    box.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> المرحلة 1: تصفية وصياغة الـ Prompt... ثم المرحلة 2: توليد الصورة</p>';
-
-    try {
-        const r = await fetch('/printing-copilot/api/generate/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
-            body: JSON.stringify({ brief, category, size, audience: 'customer' }),
-            credentials: 'same-origin',
-        });
-        // 🔍 Diagnostic: capture status + raw body for visibility in console
-        const rawText = await r.text();
-        let data;
-        try { data = JSON.parse(rawText); }
-        catch (parseErr) {
-            console.error('[CLASSIC GENERATE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
-            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console للتفاصيل.</p>';
-            return;
-        }
-        if (!data.success) console.warn('[CLASSIC GENERATE] server returned error', data);
-
-        if (!data.success) {
-            if (data.need_topup) {
-                box.innerHTML =
-                    '<div style="text-align:center;padding:20px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:12px;">'
-                    + '<p style="color:#fca5a5;font-weight:800;font-size:14px;margin-bottom:10px;"><i class="fas fa-coins"></i> ' + (data.message || 'الرصيد خلص') + '</p>'
-                    + '<button onclick="openCustTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن باقة الآن</button>'
-                    + '</div>';
-            } else {
-                box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + (data.message || data.error || 'فشل التوليد') + '</p>';
-            }
-            return;
-        }
-
-        // ✅ نجاح — حدّث الرصيد
-        if (data.balance) refreshCustBalance(data.balance);
-
-        _lastFluxResult = data;
-        const imgUrl = data.image_url || ('data:image/png;base64,' + (data.image_b64 || ''));
-        const remaining = (data.balance && typeof data.balance.total === 'number') ? data.balance.total : null;
-
-        box.innerHTML =
-            '<img src="' + imgUrl + '" style="max-width:100%;border-radius:12px;margin-bottom:12px;border:2px solid #a78bfa;display:block;margin-left:auto;margin-right:auto;">'
-            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'
-            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">جودة فخمة</span>'
-            +     '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + (data.style_tag || 'premium') + '</span>'
-            +     (remaining !== null ? '<span style="font-size:11px;background:#0ea5e9;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;"><i class="fas fa-coins"></i> رصيد متبقي: ' + remaining + '</span>' : '')
-            + '</div>'
-            + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
-            +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Engineered Prompt (Stage 1)</summary>'
-            +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;">' + escapeHtmlFlux(data.engineered_prompt || '') + '</p>'
-            + '</details>'
-            + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
-            +     '<button onclick="openSendToPrintBox()" style="flex:1;min-width:170px;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;"><i class="fas fa-print"></i> 🖨️ إرسال للمطبعة</button>'
-            +     '<a href="' + imgUrl + '" download="flux-design.png" style="flex:1;min-width:120px;text-align:center;padding:12px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
-            +     '<button onclick="generateFluxDesign()" style="flex:1;min-width:120px;padding:12px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
-            + '</div>';
-    } catch (err) {
-        box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال — جرب تاني.</p>';
-        console.error('[FLUX]', err);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = origLabel;
-    }
-}
-
-function openSendToPrintBox() {
-    if (!_lastFluxResult || !_lastFluxResult.image_url) { toast('ولّد التصميم الأول', 'error'); return; }
-    const box = document.getElementById('fluxResultBox');
-    if (document.getElementById('stpBox')) {
-        document.getElementById('stpBox').scrollIntoView({ behavior: 'smooth' });
-        return;
-    }
-
-    box.insertAdjacentHTML('beforeend',
-        '<div id="stpBox" style="margin-top:14px;padding:16px;background:rgba(15,23,42,0.6);border:1px solid #7c3aed;border-radius:12px;">'
-        + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;text-align:center;"><i class="fas fa-print"></i> تفاصيل طلب الطباعة</p>'
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
-        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">نوع المنتج</label>'
-        +     '<select id="stpProductType" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;">'
-        +         '<option value="business_card">💳 كارت بزنس</option>'
-        +         '<option value="tshirt">👕 تيشرت</option>'
-        +         '<option value="flyer">📄 فلاير</option>'
-        +         '<option value="poster">🖼️ بوستر</option>'
-        +         '<option value="banner">🪧 بنر / ستاند</option>'
-        +         '<option value="mug">☕ ماج</option>'
-        +         '<option value="sticker">🏷️ ستيكر</option>'
-        +         '<option value="packaging">📦 تغليف / علبة</option>'
-        +         '<option value="pen">🖊️ قلم / هدايا</option>'
-        +         '<option value="notebook">📓 نوت بوك</option>'
-        +         '<option value="menu">📋 منيو</option>'
-        +         '<option value="invitation">💌 كارت دعوة</option>'
-        +         '<option value="other">✨ أخرى</option>'
-        +     '</select></div>'
-        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">الكمية</label>'
-        +     '<input id="stpQuantity" type="number" min="1" value="100" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;"></div>'
-        + '</div>'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">رقم واتساب للتواصل</label>'
-        + '<input id="stpPhone" type="text" placeholder="01xxxxxxxxx" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">عنوان التسليم</label>'
-        + '<input id="stpAddress" type="text" placeholder="العنوان بالكامل + علامة مميزة" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)</label>'
-        + '<textarea id="stpNotes" rows="2" placeholder="مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..." style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;resize:vertical;margin-bottom:14px;"></textarea>'
-        + '<div style="display:flex;gap:8px;">'
-        +     '<button onclick="submitSendToPrint()" id="stpSubmitBtn" style="flex:1;padding:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة</button>'
-        +     '<button onclick="document.getElementById(\'stpBox\').remove()" style="padding:13px 20px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">إلغاء</button>'
-        + '</div></div>'
-    );
-    document.getElementById('stpBox').scrollIntoView({ behavior: 'smooth' });
-}
-
-async function submitSendToPrint() {
-    if (!_lastFluxResult) return;
-    const btn = document.getElementById('stpSubmitBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
-
-    const payload = {
-        image_url: _lastFluxResult.image_url,
-        engineered_prompt: _lastFluxResult.engineered_prompt,
-        negative_prompt: _lastFluxResult.negative_prompt,
-        brief: _lastFluxResult.raw_brief,
-        category: _lastFluxResult.category,
-        size: _lastFluxResult.size,
-        model: _lastFluxResult.model,
-        title: (_lastFluxResult.raw_brief || '').slice(0, 60),
-        product_type: document.getElementById('stpProductType').value,
-        quantity: parseInt(document.getElementById('stpQuantity').value || '1', 10),
-        delivery_phone: document.getElementById('stpPhone').value.trim(),
-        delivery_address: document.getElementById('stpAddress').value.trim(),
-        notes: document.getElementById('stpNotes').value.trim(),
-    };
-
-    try {
-        const r = await fetch('/printing-copilot/api/send-to-print/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
-            body: JSON.stringify(payload),
-            credentials: 'same-origin',
-        });
-        const data = await r.json();
-        if (data.success) {
-            document.getElementById('stpBox').innerHTML =
-                '<p style="text-align:center;color:#6ee7b7;font-weight:800;font-size:16px;padding:14px;"><i class="fas fa-check-circle"></i> ' + (data.message || 'تم!') + '</p>'
-                + '<p style="text-align:center;color:#94a3b8;font-size:11px;">كود الطلب: <code style="background:#0f172a;padding:2px 10px;border-radius:4px;color:#c4b5fd;">' + (data.print_request_code || '—') + '</code></p>';
-            toast('✅ طلب الطباعة اتسجل!', 'success');
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-            toast(data.message || data.error || 'فشل الإرسال', 'error');
-        }
-    } catch (err) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-        toast('⚠️ تعذر الاتصال', 'error');
-        console.error('[STP]', err);
-    }
-}
 
 async function sendWA(code = lastDesignCode) {
     if (!code) return;
@@ -946,7 +534,8 @@ async function regenDesign(code) {
     if (d.image_url) { toast('✅ تم!', 'success'); setTimeout(() => location.reload(), 1500); }
     else toast(d.error || 'فشل', 'error');
 }
-function regenLast() { if (lastDesignCode) regenDesign(lastDesignCode); }
+// regenLast/addWatermark/sendToMarketplace (no-arg wrappers based on lastDesignCode)
+// removed 2026-06 — gallery cards use *For(code) variants directly.
 
 // ====== Watermark ======
 async function addWatermarkFor(code) {
@@ -967,7 +556,6 @@ async function addWatermarkFor(code) {
         }
     } catch(e) { toast('حدث خطأ', 'error'); }
 }
-function addWatermark() { if (lastDesignCode) addWatermarkFor(lastDesignCode); }
 
 // ====== Send to B2B Marketplace ======
 async function sendToMarketplaceFor(code) {
@@ -988,7 +576,6 @@ async function sendToMarketplaceFor(code) {
         }
     } catch(e) { toast('حدث خطأ', 'error'); }
 }
-function sendToMarketplace() { if (lastDesignCode) sendToMarketplaceFor(lastDesignCode); }
 
 // ==========================================================
 // 🧠 Universal AI Design — Dynamic Schema Flow
@@ -1612,35 +1199,8 @@ async function chatRefine() {
     }
 }
 
-// ====== Refine from result preview ======
-async function refineDesign() {
-    if (!lastDesignCode) return;
-    const input = document.getElementById('refineInput');
-    const text = input.value.trim();
-    if (!text) { toast('اكتب التعديل المطلوب', 'error'); return; }
-
-    const btn = document.getElementById('refineBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التعديل...';
-
-    try {
-        const fd = new FormData();
-        fd.append('refinement', text);
-        const r = await fetch(`/marketplace/design-store/${lastDesignCode}/refine/`, {method:'POST', body:fd});
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error);
-
-        document.getElementById('resultImg').src = d.image_url;
-        lastImageUrl = d.image_url;
-        input.value = '';
-        toast(`✅ تم التعديل! متبقي ${d.regenerations_left} تعديل`, 'success');
-    } catch(e) {
-        toast(e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic"></i> عدّل';
-    }
-}
+// 🗑️ refineDesign() removed 2026-06 — التعديل بقى عبر chatRefine() في الـ chat modal
+// والـ Universal flow بيحفظ النتيجة كـ CustomerDesign مباشرة.
 </script>
 
 </body>
