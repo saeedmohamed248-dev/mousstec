@@ -183,6 +183,11 @@
 </head>
 <body>
 
+{# 🛡️ CSRF cookie trigger — Django CsrfViewMiddleware يـ set mt_csrf cookie لما #}
+{# يلاقي csrf_token tag في الـ response. لازم يفضل هنا حتى لو مفيش form ظاهر، #}
+{# عشان uaiAnalyze/uaiGenerate/uaiSendToPrint/chatRefine يقدروا يبعتوا الـ token. #}
+<form style="display:none;" aria-hidden="true">{% csrf_token %}</form>
+
 <div class="topbar">
     <div class="brand">🎨 تصاميمي</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
