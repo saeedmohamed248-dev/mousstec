@@ -164,9 +164,14 @@ You will receive:
 
 🎯 PRODUCE A CINEMA-GRADE PROMPT (150-220 words) that includes EVERY relevant aspect:
 
-1. **SUBJECT** — describe it with precise visual specificity. For products: invisible mannequin,
-   floating presentation, hand-held, in-context use. For spaces: architectural angle, room corner
-   view, eye-level perspective. For logos: clean isolation, brand mark presentation.
+1. **SUBJECT** — describe it with precise visual specificity. For apparel/garments: MANDATORY
+   invisible-mannequin (ghost-mannequin) presentation — the garment must appear filled out by
+   an unseen human form, exhibiting authentic 3D volume: chest curvature, shoulder slope,
+   sleeve roundness, collar drape, hem fall, and interior neckline shadow visible through the
+   opening. NEVER a flat-lay silhouette, NEVER a 2D cutout, NEVER a visible mannequin or
+   model. For non-apparel products: floating presentation, hand-held, or in-context use. For
+   spaces: architectural angle, room corner view, eye-level perspective. For logos: clean
+   isolation, brand mark presentation.
 
 2. **CAMERA & FRAMING** — specify exactly: lens (35mm | 50mm | 85mm | 24-70mm), aperture
    (f/2.8 shallow DOF | f/8 sharp | f/16 deep focus), angle (eye-level | low | high | overhead
@@ -225,13 +230,18 @@ The text_overlay.position field MUST match: "back" for back placement, "chest" f
    you see on Nike/Aesop/COS websites. NOT a flat collage, NOT clipart, NOT
    stock-photo cliché. Required qualities:
 
-   STYLING & PRESENTATION:
-   • Invisible mannequin presentation OR premium hanger OR luxury flat-lay on
-     textured surface (oak, marble, linen) — pick what fits the brand vibe.
-   • Realistic 3D garment shaping: visible chest curvature, sleeve volume, neckline
-     drape, hem fall — NEVER 2D silhouette.
-   • Subtle fabric folds and natural wrinkles around armholes, shoulder seams, and
-     hem — communicates real material weight.
+   STYLING & PRESENTATION (NON-NEGOTIABLE):
+   • MANDATORY invisible-mannequin (ghost-mannequin) presentation for ALL garments —
+     the shirt/hoodie/sweatshirt MUST appear three-dimensionally filled by an unseen
+     wearer. No flat-lay folded shots, no plain hanger shots, no visible model.
+   • Realistic 3D garment shaping is REQUIRED: pronounced chest curvature, rounded
+     sleeve volume, natural neckline drape with interior collar shadow visible
+     through the opening, hem fall under gravity — NEVER 2D silhouette, NEVER
+     cardboard-flat appearance.
+   • Authentic 100% combed cotton texture: visible jersey knit weave, subtle
+     micro-wrinkles where fabric tensions over the shoulder/chest/sleeve,
+     soft fabric folds around armholes and hem communicating real material weight
+     and cotton's natural matte sheen (NEVER glossy/plastic, NEVER synthetic look).
 
    LIGHTING & ATMOSPHERE:
    • Dramatic studio lighting: key-light from 45° upper-left, subtle fill, soft
@@ -250,11 +260,27 @@ The text_overlay.position field MUST match: "back" for back placement, "chest" f
      "clean blank canvas of textured fabric with subtle highlights showing the
      screen-print-ready surface, evenly lit, no folds or seams interrupting it".
 
-   BACKGROUND:
-   • Premium neutral: #f5f5f7 / off-white / warm cream / soft 5% grey gradient
-     OR editorial context: warm wall + wooden floor, marble surface, linen drop.
-   • NEVER: bright primary colors, busy patterns, gradient rainbows, clipart icons,
-     emoji, photo collages.
+   BACKGROUND & SCENE (MANDATORY EDITORIAL ENVIRONMENT):
+   • FORBIDDEN: pure blank/solid white (#ffffff) backdrop, isolated cutout look,
+     e-commerce sterile white, bright primary colors, busy patterns, gradient
+     rainbows, clipart icons, emoji, photo collages.
+   • REQUIRED: a professional editorial studio environment — choose ONE per shot:
+       (a) High-key seamless studio cyclorama in warm cream / #f2efe8 / soft 5%
+           warm-grey gradient with visible falloff and a subtle floor-shadow
+           anchoring the garment in 3D space; OR
+       (b) Luxury editorial flat-lay / styled scene on a textured surface
+           (honed Carrara marble, raw oak plank, linen drop cloth, brushed
+           concrete, travertine) with carefully arranged in-context props
+           (folded magazine, ceramic mug, dried botanical, brass pin) at the
+           periphery, out of focus.
+   • Dramatic soft lighting: large softbox key from 45° upper-left producing a
+     gentle wrap with smooth highlight-to-shadow transition; subtle bounce fill;
+     gentle rim to separate garment from background.
+   • Shallow background depth-of-field (f/2.8–f/4 equivalent) with creamy
+     background bokeh and atmospheric haze — garment in tack-sharp focus,
+     environment softly blurred to convey editorial depth.
+   • Cinematic color grading: low-contrast roll-off in shadows, warm midtones,
+     filmic highlight bloom — Kodak Portra / Aesop / COS / Jacquemus campaign vibe.
 
    CAMERA:
    • Dead-front centered for hangs (0° azimuth).
@@ -277,17 +303,36 @@ The text_overlay.position field MUST match: "back" for back placement, "chest" f
 
    Negative-prompt additions ALWAYS for apparel: "text overflowing garment edges,
    text near seams, text at lower hem, off-center layout, cropped product, blown
-   highlights on fabric, plastic mannequin look, cheap collage feel, AI-flat
-   composite, harsh shadows, oversaturated fabric".
+   highlights on fabric, plastic mannequin look, visible mannequin, visible model,
+   flat 2D silhouette, cardboard cutout garment, cheap collage feel, AI-flat
+   composite, harsh shadows, oversaturated fabric, pure white #ffffff background,
+   sterile e-commerce backdrop, isolated product cutout, clipart aesthetic,
+   flat digital sticker text, decal slapped on shirt, text floating above fabric,
+   text ignoring fabric folds, rigid logo decal, vinyl heat-transfer plastic look,
+   glossy plastic shirt, synthetic fabric sheen".
 
-🅰️ CRITICAL — TEXT HANDLING (READ CAREFULLY):
+🅰️ CRITICAL — TEXT HANDLING & INTEGRATED TYPOGRAPHY (READ CAREFULLY):
 FLUX cannot reliably render any text, ESPECIALLY Arabic/RTL. If user selections include
 text content (any "text" or "text_on_design" field with non-empty value):
   • DO NOT include the actual text characters in the mega_prompt.
   • INSTEAD describe a clean, well-lit RECTANGULAR EMPTY AREA where text will be overlaid
-    afterwards in post-processing.
-  • Example: "...with a centered horizontal clean empty area roughly 60% width × 15% height
-    in the chest region, lit evenly with no shadows, ready for text overlay..."
+    afterwards in post-processing — AND describe that area as already exhibiting the
+    micro-shading and surface variation that the overlay must conform to.
+  • The blank zone description MUST communicate that any subsequent print will be
+    INTEGRATED into the fabric (NOT a flat digital sticker slapped on top):
+      – "screen-print-ready zone with visible cotton weave micro-texture showing
+         through, soft luminance variation following the garment's chest curvature,
+         subtle micro-wrinkles and surface shading inherited from the 3D form"
+      – "the printable area receives the same key-light falloff as the surrounding
+         fabric so overlaid ink will pick up identical highlights and shadow gradients"
+      – "ink-on-cotton appearance: slight fiber-level absorption look, matte
+         finish characteristic of DTG / high-end silkscreen print, ink that
+         deforms naturally over fabric folds and micro-wrinkles rather than
+         sitting as a rigid flat decal"
+  • Example: "...with a centered horizontal clean printable zone roughly 60% width
+    × 15% height in the upper-chest region, lit by the same 45° key as the body,
+    weave texture visible, soft shadow gradient following chest curvature, ready
+    for screen-print-style text overlay that will conform to fabric topology..."
   • Set "text_overlay" object in JSON output with {text, position, color}.
 
 If NO text in selections → omit text_overlay, and instruct in negative_prompt to avoid
