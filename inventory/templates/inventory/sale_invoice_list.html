@@ -1,0 +1,96 @@
+{% extends "inventory/_base_portal.html" %}
+{% block title %}📄 الفواتير وأوامر الشغل{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-file-invoice"></i></span>
+    الفواتير وأوامر الشغل
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <div class="flex gap-2">
+    <a href="{% url 'inventory:lightning_pos' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white transition"><i class="fas fa-bolt ml-1"></i> POS سريع</a>
+    <a href="{% url 'inventory:job_card_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> أمر شغل جديد</a>
+  </div>
+</header>
+
+<!-- Filters -->
+<form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <div class="sm:col-span-2 relative">
+      <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
+      <input name="q" value="{{ q }}" placeholder="ابحث برقم الفاتورة، اسم العميل، أو الهاتف..." class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
+    </div>
+    <select name="status" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">— كل الحالات —</option>
+      {% for v, l in status_choices %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+    <select name="type" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">— كل الأنواع —</option>
+      {% for v, l in type_choices %}<option value="{{ v }}" {% if inv_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="flex justify-end mt-3 gap-2">
+    {% if q or status or inv_type %}<a href="{% url 'inventory:sale_invoice_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">إلغاء الفلاتر</a>{% endif %}
+    <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-5 py-1.5 rounded-lg"><i class="fas fa-filter ml-1"></i> فلترة</button>
+  </div>
+</form>
+
+<!-- Table -->
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-right py-3 px-4">#</th>
+          <th class="text-right py-3 px-4">التاريخ</th>
+          <th class="text-right py-3 px-4">العميل</th>
+          <th class="text-right py-3 px-4">المركبة</th>
+          <th class="text-right py-3 px-4">النوع</th>
+          <th class="text-right py-3 px-4">الحالة</th>
+          <th class="text-left py-3 px-4">الإجمالي</th>
+          <th class="text-left py-3 px-4">المتبقي</th>
+          <th class="text-center py-3 px-4">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in page.object_list %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ inv.id }}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4"><b>{{ inv.customer.name }}</b><br><span class="text-xs text-slate-500">{{ inv.customer.phone }}</span></td>
+          <td class="py-3 px-4 text-xs">{% if inv.vehicle %}<span class="font-mono">{{ inv.vehicle.car_plate|default:"—" }}</span><br><span class="text-slate-500">{{ inv.vehicle.model_name|default:"" }}</span>{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
+          <td class="py-3 px-4">
+            {% if inv.invoice_type == 'maintenance' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">🔧 صيانة</span>{% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">🛒 قطع</span>{% endif %}
+          </td>
+          <td class="py-3 px-4">
+            {% if inv.status == 'posted' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 border border-green-500/30">✓ {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'in_progress' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">⚙ {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'ready' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">📦 {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'quality_check' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">🔍 {{ inv.get_status_display }}</span>
+            {% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 border border-slate-600/40">📝 {{ inv.get_status_display }}</span>{% endif %}
+          </td>
+          <td class="py-3 px-4 text-left font-bold text-emerald-400">{{ inv.total_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-left font-bold {% if inv.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ inv.due_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center">
+            <a href="{% url 'inventory:print_invoice_a4' inv.id %}" target="_blank" class="text-slate-400 hover:text-sky-400 mx-1" title="طباعة A4"><i class="fas fa-file-pdf"></i></a>
+            <a href="{% url 'inventory:print_invoice_thermal' inv.id %}" target="_blank" class="text-slate-400 hover:text-purple-400 mx-1" title="طباعة حرارية"><i class="fas fa-receipt"></i></a>
+            <a href="/secure-portal/inventory/saleinvoice/{{ inv.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="تعديل تفصيلي"><i class="fas fa-pen"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center py-12 text-slate-600">لا توجد فواتير مطابقة. <a href="{% url 'inventory:job_card_create' %}" class="text-emerald-400 hover:text-emerald-300 font-bold">أنشئ أمر شغل جديد ←</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">صفحة {{ page.number }} من {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

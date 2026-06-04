@@ -1,6 +1,7 @@
 from django.contrib import admin
 from decimal import Decimal
 from django.urls import reverse
+from django.shortcuts import redirect
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 from django.db.models import Sum, F, Max, Avg, Count
@@ -468,6 +469,11 @@ class ProductAdmin(SecureImportExportAdmin):
     list_filter = ('brand', 'car_model', 'condition')
     filter_horizontal = ('alternatives',)
     actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai']
+
+    def add_view(self, request, form_url='', extra_context=None):
+        # Redirect the admin "Add Product" entry-point to our custom Quick Product
+        # screen, which exposes the "Initial Stock Qty" field. Edits stay in admin.
+        return redirect('inventory:quick_product')
 
     fieldsets = (
         (_('⚡ إدخال سريع — الحقول الأساسية'), {

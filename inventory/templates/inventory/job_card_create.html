@@ -1,13 +1,7 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<title>📋 أمر شغل جديد</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% extends "inventory/_base_portal.html" %}
+{% block title %}📋 أمر شغل جديد{% endblock %}
+{% block extra_head %}
 <style>
-  body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#0f172a; }
   .panel { background:rgba(30,41,59,0.55); backdrop-filter: blur(8px); border:1px solid rgba(71,85,105,0.4); border-radius:1rem; padding:1rem; }
   .lbl   { display:block; font-size:11px; font-weight:700; color:#cbd5e1; margin-bottom:4px; }
   .inp   { width:100%; background:#0f172a; color:#fff; padding:.6rem .75rem; border-radius:.5rem; border:1px solid #334155; outline:none; }
@@ -17,20 +11,43 @@
   .dvi-opt.on-green  { background:rgba(16,185,129,.2); border-color:#10b981; color:#34d399; }
   .dvi-opt.on-yellow { background:rgba(245,158,11,.2); border-color:#f59e0b; color:#fbbf24; }
   .dvi-opt.on-red    { background:rgba(239,68,68,.2);  border-color:#ef4444; color:#f87171; }
+  .type-card { cursor:pointer; padding:1rem; border-radius:.75rem; border:2px solid #334155; background:rgba(15,23,42,.6); transition:all .15s ease; }
+  .type-card:hover { border-color:#64748b; }
+  .type-card.active { border-color:#a78bfa; background:linear-gradient(135deg, rgba(124,58,237,.25), rgba(16,185,129,.15)); box-shadow:0 0 0 1px rgba(167,139,250,.4); }
+  .dvi-section.is-disabled { opacity:.35; pointer-events:none; filter:grayscale(.4); }
 </style>
-</head>
-<body class="text-slate-100 min-h-screen">
-{% csrf_token %}
-<div class="max-w-7xl mx-auto p-4 sm:p-6 space-y-4">
+{% endblock %}
 
-  <header class="flex items-center justify-between">
-    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
-      <span class="text-emerald-400"><i class="fas fa-clipboard-list"></i></span>
-      أمر شغل جديد
-      {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
-    </h1>
-    <a href="{% url 'inventory:dashboard' %}" class="text-sm text-slate-400 hover:text-white"><i class="fas fa-home"></i> الرئيسية</a>
-  </header>
+{% block content %}
+<header class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-emerald-400"><i class="fas fa-clipboard-list"></i></span>
+    أمر شغل جديد
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+</header>
+
+<!-- Invoice Type Toggle -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+  <div id="type-sale" class="type-card active" onclick="setInvoiceType('sale')">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-base font-black text-white"><i class="fas fa-boxes text-purple-400"></i> فاتورة قطع غيار فقط</p>
+        <p class="text-xs text-slate-400 mt-1">بيع قطع للعميل بدون فحص أو خدمات صيانة.</p>
+      </div>
+      <i class="fas fa-check-circle text-purple-400 text-xl check-icon"></i>
+    </div>
+  </div>
+  <div id="type-maintenance" class="type-card" onclick="setInvoiceType('maintenance')">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-base font-black text-white"><i class="fas fa-screwdriver-wrench text-emerald-400"></i> أمر شغل وصيانة</p>
+        <p class="text-xs text-slate-400 mt-1">قطع + مصنعيات + فحص DVI كامل للمركبة.</p>
+      </div>
+      <i class="fas fa-check-circle text-emerald-400 text-xl check-icon hidden"></i>
+    </div>
+  </div>
+</div>
 
   <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -107,7 +124,7 @@
     <!-- COL C: DVI + Notes + Totals                     -->
     <!-- ============================================== -->
     <section class="space-y-4 xl:col-span-1">
-      <div class="panel">
+      <div class="panel dvi-section" id="dvi-section">
         <h3 class="text-sm font-black text-rose-300 mb-3"><i class="fas fa-shield-halved"></i> فحص المركبة (DVI)</h3>
         <p class="text-xs text-slate-500 mb-3">يُحفظ فقط إذا تم ربط مركبة.</p>
         {% for f, label in dvi_fields %}{% endfor %}
@@ -142,8 +159,9 @@
       </div>
     </section>
   </div>
-</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URLS = {
@@ -153,12 +171,26 @@ const URLS = {
 };
 
 const state = {
+  invoice_type: 'sale',   // 'sale' (parts only) | 'maintenance' (parts + services + DVI)
   customer_id: null,
   vehicle_id: null,
   parts: new Map(),       // pid → {id, sku, name, price, qty, stock}
   services: [],           // [{service_id, name, price}]
   dvi: { brakes_status:'green', engine_oil_status:'green', tires_status:'green', battery_status:'green' },
 };
+
+function setInvoiceType(t) {
+  state.invoice_type = t;
+  const sale = document.getElementById('type-sale');
+  const maint = document.getElementById('type-maintenance');
+  sale.classList.toggle('active', t === 'sale');
+  maint.classList.toggle('active', t === 'maintenance');
+  sale.querySelector('.check-icon').classList.toggle('hidden', t !== 'sale');
+  maint.querySelector('.check-icon').classList.toggle('hidden', t !== 'maintenance');
+  // Hide DVI section when "parts only" — keeps the form focused
+  const dvi = document.getElementById('dvi-section');
+  if (dvi) dvi.classList.toggle('is-disabled', t === 'sale');
+}
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -324,6 +356,7 @@ async function saveJobCard() {
   btn.disabled = true;
   flash('جارٍ الحفظ...', 'info');
   const payload = {
+    invoice_type: state.invoice_type,
     customer_id: state.customer_id,
     customer_name: $('cust-name').value,
     customer_phone: $('cust-phone').value,
@@ -361,6 +394,6 @@ function flash(msg, type) {
   el.textContent = msg;
   el.className = 'text-xs text-center mt-2 ' + ({ error:'text-red-400', success:'text-emerald-400', info:'text-slate-300' }[type] || '');
 }
+setInvoiceType('sale');
 </script>
-</body>
-</html>
+{% endblock %}

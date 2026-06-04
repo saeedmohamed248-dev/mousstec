@@ -40,6 +40,10 @@ urlpatterns = [
     path('job-card/customers/', views_lightning.customer_search, name='job_card_customer_search'),
     path('job-card/save/', views_lightning.job_card_save, name='job_card_save'),
 
+    # 📊 Modern list views (replace Django admin changelist for daily ops)
+    path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
+    path('products/', views_lightning.product_list, name='product_list'),
+
     # 👨‍🔧 واجهة كشك الفنيين (Tablet UI) لضبط وقت المهام والإنتاجية
     path('mechanic-bay/', views.mechanic_kiosk_interface, name='mechanic_kiosk'),
 

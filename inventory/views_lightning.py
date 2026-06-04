@@ -11,6 +11,7 @@ models — no schema changes, no new tables.
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.shortcuts import render
@@ -421,8 +422,10 @@ def job_card_save(request):
                 mileage = int(payload.get("mileage")) if payload.get("mileage") else None
             except (TypeError, ValueError):
                 mileage = None
+            requested_type = payload.get("invoice_type")
+            invoice_type = requested_type if requested_type in ("sale", "maintenance") else ("maintenance" if services else "sale")
             invoice = SaleInvoice.objects.create(
-                invoice_type="maintenance" if services else "sale",
+                invoice_type=invoice_type,
                 status="in_progress",
                 customer=customer,
                 vehicle=vehicle,
@@ -486,3 +489,82 @@ def job_card_save(request):
         })
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ أمر الشغل: {exc}"}, status=500)
+
+
+# =====================================================================
+# 4. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+def sale_invoice_list(request):
+    branch = _get_branch_for_user(request.user)
+    qs = (SaleInvoice.objects
+          .select_related("customer", "vehicle", "branch")
+          .order_by("-date_created"))
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        cond = Q(customer__name__icontains=q) | Q(customer__phone__icontains=q)
+        if q.isdigit():
+            cond |= Q(id=int(q))
+        qs = qs.filter(cond)
+
+    status = (request.GET.get("status") or "").strip()
+    if status:
+        qs = qs.filter(status=status)
+
+    inv_type = (request.GET.get("type") or "").strip()
+    if inv_type in ("sale", "maintenance"):
+        qs = qs.filter(invoice_type=inv_type)
+
+    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    return render(request, "inventory/sale_invoice_list.html", {
+        "page": page,
+        "q": q,
+        "status": status,
+        "inv_type": inv_type,
+        "status_choices": SaleInvoice.STATUS_CHOICES,
+        "type_choices": SaleInvoice.INVOICE_TYPES,
+        "branch": branch,
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+def product_list(request):
+    branch = _get_branch_for_user(request.user)
+    qs = Product.objects.filter(is_active=True).order_by("name")
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(part_number__icontains=q)
+                       | Q(brand__icontains=q) | Q(car_model__icontains=q))
+
+    stock_filter = (request.GET.get("stock") or "").strip()
+    page = Paginator(qs, 30).get_page(request.GET.get("page"))
+
+    # annotate live stock + low-stock flag for the page slice only (avoid full-table aggregate)
+    products_view = []
+    for p in page.object_list:
+        stock_qs = p.inventory_set.all()
+        if branch is not None:
+            stock_qs = stock_qs.filter(branch=branch)
+        stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
+        is_low = stock <= (p.min_stock_level or 0)
+        products_view.append({"product": p, "stock": stock, "is_low": is_low})
+
+    if stock_filter == "low":
+        products_view = [r for r in products_view if r["is_low"]]
+    elif stock_filter == "out":
+        products_view = [r for r in products_view if r["stock"] == 0]
+
+    return render(request, "inventory/product_list.html", {
+        "page": page,
+        "rows": products_view,
+        "q": q,
+        "stock_filter": stock_filter,
+        "branch": branch,
+    })

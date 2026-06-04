@@ -1,0 +1,81 @@
+{% extends "inventory/_base_portal.html" %}
+{% block title %}📦 القطع والمخزون{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-boxes-stacked"></i></span>
+    القطع والمخزون
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:quick_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> إضافة قطعة جديدة</a>
+</header>
+
+<!-- Filters -->
+<form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <div class="sm:col-span-3 relative">
+      <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
+      <input name="q" value="{{ q }}" placeholder="ابحث بالاسم، SKU، الماركة، أو الموديل..." class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <select name="stock" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">— كل القطع —</option>
+      <option value="low"  {% if stock_filter == 'low' %}selected{% endif %}>تحت حد التنبيه</option>
+      <option value="out"  {% if stock_filter == 'out' %}selected{% endif %}>نفد المخزون</option>
+    </select>
+  </div>
+  <div class="flex justify-end mt-3 gap-2">
+    {% if q or stock_filter %}<a href="{% url 'inventory:product_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">إلغاء الفلاتر</a>{% endif %}
+    <button class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-5 py-1.5 rounded-lg"><i class="fas fa-filter ml-1"></i> فلترة</button>
+  </div>
+</form>
+
+<!-- Table -->
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-right py-3 px-4">SKU</th>
+          <th class="text-right py-3 px-4">الاسم</th>
+          <th class="text-right py-3 px-4">الماركة / الموديل</th>
+          <th class="text-left py-3 px-4">التكلفة</th>
+          <th class="text-left py-3 px-4">سعر البيع</th>
+          <th class="text-center py-3 px-4">المخزون</th>
+          <th class="text-center py-3 px-4">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
+          <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
+          <td class="py-3 px-4 text-left text-slate-400">{{ row.product.purchase_price|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-left font-bold text-emerald-400">{{ row.product.retail_price|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center">
+            {% if row.stock == 0 %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">نفد ({{ row.stock }})</span>
+            {% elif row.is_low %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">منخفض ({{ row.stock }})</span>
+            {% else %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">{{ row.stock }}</span>{% endif %}
+            <p class="text-xs text-slate-600 mt-1">حد التنبيه: {{ row.product.min_stock_level }}</p>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="تعديل تفصيلي"><i class="fas fa-pen"></i></a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-12 text-slate-600">لا توجد قطع مطابقة. <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">أضف قطعة جديدة ←</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if stock_filter %}stock={{ stock_filter }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">صفحة {{ page.number }} من {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if stock_filter %}stock={{ stock_filter }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
