@@ -352,55 +352,51 @@ def design_generate(request):
     # 💾 Auto-save to portfolio for customer audience → unified marketplace loop
     # يولّد design_code فوراً عشان الـ refinement chat يقدر يفتح ويعدل التصميم
     # من غير ما المستخدم يحتاج يدوس thumbs-up الأول.
+    # 🚫 NO DEDUP — كل generation = CustomerDesign جديد. لو دوّبلنا بالـ
+    # image_url match هنرجع للمستخدم الصورة القديمة (cache من قبل ترقية
+    # _MEGA_SYSTEM) → بيكسر الـ test loop.
     design_code = None
     design_id = None
     if audience == 'customer' and customer and image_url:
         try:
             from clients.models import CustomerDesign
-            existing = CustomerDesign.objects.filter(
-                customer_id=customer.id, image_url=image_url[:600],
-            ).first()
-            if existing:
-                design_code = str(existing.design_code)
-                design_id = existing.id
-            else:
-                valid_sizes = dict(CustomerDesign.SIZE_PRESETS).keys()
-                size_preset = size if size in valid_sizes else 'auto'
-                title = (raw_idea or 'تصميم AI')[:60]
-                sel_lines = '\n'.join(f'• {k}: {v}' for k, v in (clean_selections or {}).items())
-                desc = (
-                    f'المجال: {domain}\n'
-                    f'الفكرة: {raw_idea}\n\n'
-                    f'الاختيارات:\n{sel_lines}'
-                )[:2000]
-                design = CustomerDesign.objects.create(
-                    customer_id=customer.id,
-                    is_free_trial=True,
-                    title=title,
-                    description=desc,
-                    category='other',
-                    raw_input=(raw_idea or '')[:2000],
-                    engineered_prompt=(mega_prompt or '')[:2000],
-                    negative_prompt=(negative or '')[:1000],
-                    image_url=image_url[:600],
-                    model_used=(img.get('model') or 'flux')[:50],
-                    size_preset=size_preset,
+            valid_sizes = dict(CustomerDesign.SIZE_PRESETS).keys()
+            size_preset = size if size in valid_sizes else 'auto'
+            title = (raw_idea or 'تصميم AI')[:60]
+            sel_lines = '\n'.join(f'• {k}: {v}' for k, v in (clean_selections or {}).items())
+            desc = (
+                f'المجال: {domain}\n'
+                f'الفكرة: {raw_idea}\n\n'
+                f'الاختيارات:\n{sel_lines}'
+            )[:2000]
+            design = CustomerDesign.objects.create(
+                customer_id=customer.id,
+                is_free_trial=True,
+                title=title,
+                description=desc,
+                category='other',
+                raw_input=(raw_idea or '')[:2000],
+                engineered_prompt=(mega_prompt or '')[:2000],
+                negative_prompt=(negative or '')[:1000],
+                image_url=image_url[:600],
+                model_used=(img.get('model') or 'flux')[:50],
+                size_preset=size_preset,
+            )
+            design_code = str(design.design_code)
+            design_id = design.id
+            # سجّل أول رسالتين في الـ chat history (user idea + assistant image)
+            try:
+                from clients.models import DesignChatMessage
+                DesignChatMessage.objects.create(
+                    design=design, role='user', content=raw_idea[:500], image_url=''
                 )
-                design_code = str(design.design_code)
-                design_id = design.id
-                # سجّل أول رسالتين في الـ chat history (user idea + assistant image)
-                try:
-                    from clients.models import DesignChatMessage
-                    DesignChatMessage.objects.create(
-                        design=design, role='user', content=raw_idea[:500], image_url=''
-                    )
-                    DesignChatMessage.objects.create(
-                        design=design, role='assistant',
-                        content=f'تم توليد التصميم: {title}',
-                        image_url=image_url[:600],
-                    )
-                except Exception:
-                    pass
+                DesignChatMessage.objects.create(
+                    design=design, role='assistant',
+                    content=f'تم توليد التصميم: {title}',
+                    image_url=image_url[:600],
+                )
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f'[DESIGN GENERATE] auto-save to portfolio failed (non-fatal): {e}')
 

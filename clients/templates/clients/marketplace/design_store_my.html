@@ -949,29 +949,32 @@ async function uaiGenerate() {
 
         // 💬 Auto-activate refinement chat — يفتح الـ chat modal ويعرض الـ kickoff prompt
         // عشان العميل يقدر يعدل التصميم فوراً (multi-agent interactive loop).
+        // openChat بـ async + بيـ overwrite #chatMessages.innerHTML من response السيرفر،
+        // فلازم نـ await النتيجة قبل ما نـ inject الـ kickoff (تجنباً للـ race).
         if (d.design_code) {
             _uaiLastResult.portfolio_design_code = d.design_code;
-            setTimeout(() => {
+            (async () => {
                 try {
-                    openChat(d.design_code);
-                    setTimeout(() => {
-                        const msgBox = document.getElementById('chatMessages');
-                        if (msgBox && !msgBox.querySelector('.uai-kickoff')) {
-                            const kickoff = document.createElement('div');
-                            kickoff.className = 'chat-msg assistant uai-kickoff';
-                            kickoff.innerHTML =
-                                '<div style="font-weight:700;">جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!</div>'
-                                + '<div class="time">الآن</div>';
-                            msgBox.appendChild(kickoff);
-                            msgBox.scrollTop = msgBox.scrollHeight;
-                            const inp = document.getElementById('chatRefineInput');
-                            if (inp && !inp.disabled) inp.focus();
-                        }
-                    }, 700);
+                    await openChat(d.design_code);
+                    const msgBox = document.getElementById('chatMessages');
+                    if (msgBox && !msgBox.querySelector('.uai-kickoff')) {
+                        // امسح أي placeholder 'لا توجد رسائل' عشان الـ kickoff يفضل واضح
+                        const empty = msgBox.querySelector('.chat-empty');
+                        if (empty) empty.remove();
+                        const kickoff = document.createElement('div');
+                        kickoff.className = 'chat-msg assistant uai-kickoff';
+                        kickoff.innerHTML =
+                            '<div style="font-weight:700;">جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!</div>'
+                            + '<div class="time">الآن</div>';
+                        msgBox.appendChild(kickoff);
+                        msgBox.scrollTop = msgBox.scrollHeight;
+                        const inp = document.getElementById('chatRefineInput');
+                        if (inp && !inp.disabled) inp.focus();
+                    }
                 } catch (chatErr) {
                     console.warn('[UAI] auto-chat open failed:', chatErr);
                 }
-            }, 400);
+            })();
         }
     } catch (e) {
         box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال</p>';

@@ -332,6 +332,12 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str, *, block_sch
     width, height = _parse_size(size)
     last_error_body = ''
 
+    # 🎲 Random seed per request — يضمن إن نفس الـ prompt يرجع صورة مختلفة كل
+    # مرة، ويـ break أي HTTP-level caching من Together. بدون seed بعض الـ
+    # providers بترجع صورة متطابقة لـ prompt متطابق.
+    import random as _random
+    request_seed = _random.randint(1, 2**31 - 1)
+
     for model in candidates:
         is_pro = 'pro' in model.lower()
         payload = {
@@ -341,6 +347,7 @@ def _gen_via_together(prompt: str, size: str, negative_prompt: str, *, block_sch
             'height': height,
             'n': 1,
             'response_format': 'url',
+            'seed': request_seed,
         }
         # FLUX-1.1-pro هو managed model — مش بياخد steps/guidance_scale
         # schnell/dev بياخدوا steps. pro بياخد negative_prompt برضو.
