@@ -11,3 +11,12 @@ Once every name has been moved to its dedicated submodule, `_legacy` is
 deleted.
 """
 from ._legacy import *  # noqa: F401,F403
+
+# Explicit re-exports for Phase 5 Brand Memory endpoints — the wildcard
+# above did not surface these names reliably under Daphne boot, causing
+# AttributeError in erp_core/urls.py and a 502.
+from ._legacy import (  # noqa: F401
+    brand_profile_view,
+    brand_profile_delete_logo,
+)
+from ._legacy import brand_profile_view, brand_profile_delete_logo
