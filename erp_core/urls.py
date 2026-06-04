@@ -464,6 +464,7 @@ urlpatterns = [
 
     # 🎨 Brand Memory — Asset Library (Phase 5)
     path('marketplace/brand-profile/', client_views.brand_profile_view, name='brand_profile'),
+    path('marketplace/brand-profile/edit/', client_views.brand_profile_page, name='brand_profile_page'),
     path('marketplace/brand-profile/logo/<str:slot>/delete/', client_views.brand_profile_delete_logo, name='brand_profile_delete_logo'),
 
     # Merchant-side marketplace

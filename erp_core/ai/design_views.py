@@ -490,6 +490,71 @@ def design_generate(request):
             logger.warning(f'[DESIGN GENERATE] overlay exception (non-fatal): {e}')
 
     # ═══════════════════════════════════════════════════════════════════
+    # 🎨 BRAND LOGO COMPOSITING (PIL) — paste the customer's saved logo
+    # ─────────────────────────────────────────────────────────────────
+    # FLUX can't render an exact brand logo; the LLM was instructed to
+    # leave a reserved area (via apply_brand_profile's logo hint). We now
+    # composite the REAL logo onto that area using PIL — exact pixels,
+    # category-aware placement, soft shadow for natural integration.
+    # Runs AFTER text_overlay so the logo sits on top, and BEFORE the
+    # quality gate so the gate verifies the final branded design.
+    # ═══════════════════════════════════════════════════════════════════
+    logo_composite_applied = False
+    logo_composite_meta: dict = {}
+    if brand_logo_url and image_url and active_engine != 'ideogram':
+        # Skip Ideogram: it's used for logo/document/signage categories where
+        # the brand identity is meant to be GENERATED into the design, not
+        # pasted on top. Compositing onto a logo design would corrupt it.
+        try:
+            from .logo_overlay import composite_logo_on_image_url
+            # Prefer the original ImageField (handles private storage,
+            # SVG-via-FieldFile better than the public URL).
+            logo_src: Any = brand_logo_url
+            if customer is not None:
+                try:
+                    bp_ref = getattr(customer, 'brand_profile', None)
+                    if bp_ref and bp_ref.has_logo:
+                        logo_src = bp_ref.logo_image
+                except Exception:
+                    pass
+
+            composite_result = composite_logo_on_image_url(
+                image_url=image_url,
+                logo_source=logo_src,
+                category=presentation_category or '',
+                text_overlay_position=(
+                    text_overlay_info.get('position') if text_overlay_info else None
+                ),
+            )
+            if composite_result.get('success'):
+                new_url = composite_result['url']
+                if new_url and new_url.startswith('/'):
+                    new_url = request.build_absolute_uri(new_url)
+                image_url = new_url
+                logo_composite_applied = True
+                logo_composite_meta = {
+                    'placement': composite_result.get('placement'),
+                    'width_ratio': composite_result.get('width_ratio'),
+                    'avoided_text': composite_result.get('avoided_text'),
+                }
+                logger.info(
+                    f'[DESIGN GENERATE] brand logo composited → '
+                    f'placement={logo_composite_meta.get("placement")} '
+                    f'avoided_text={logo_composite_meta.get("avoided_text")}'
+                )
+            elif composite_result.get('skipped'):
+                logger.info(
+                    f'[DESIGN GENERATE] logo composite skipped — {composite_result.get("error")}'
+                )
+            else:
+                logger.warning(
+                    f'[DESIGN GENERATE] logo composite failed (non-fatal): '
+                    f'{composite_result.get("error")}'
+                )
+        except Exception as e:
+            logger.warning(f'[DESIGN GENERATE] logo composite exception (non-fatal): {e}')
+
+    # ═══════════════════════════════════════════════════════════════════
     # 🔍 QUALITY GATE — Vision-based verification + Auto-regenerate
     # ─────────────────────────────────────────────────────────────────
     # نـ verify الصورة المولّدة ضد الـ brief. لو الـ verdict ضعيف،
@@ -764,6 +829,10 @@ def design_generate(request):
         'brand_applied': (mega.get('brand_applied') or {}).get('applied', False),
         'brand_name': (mega.get('brand_applied') or {}).get('brand_name', ''),
         'brand_logo_url': brand_logo_url,
+        # 🎨 Logo compositing (PIL paste of the real brand logo)
+        'logo_composite_applied': logo_composite_applied,
+        'logo_placement': logo_composite_meta.get('placement'),
+        'logo_avoided_text_zone': logo_composite_meta.get('avoided_text'),
     }
 
     # 🎨 Bump brand profile usage counter (non-fatal)

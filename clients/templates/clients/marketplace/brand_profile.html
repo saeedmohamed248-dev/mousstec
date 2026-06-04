@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملف البراند | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1e38 100%);
+            color: #f8fafc; min-height: 100vh;
+        }
+        .topbar {
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .brand {
+            font-weight: 900; font-size: 1.1rem;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 6px 14px; border-radius: 8px; }
+        .topbar a:hover { color: #ec4899; background: rgba(236,72,153,0.1); }
+
+        .hero { text-align: center; padding: 40px 20px 10px; }
+        .hero h1 {
+            font-size: 2rem; font-weight: 900; margin-bottom: 10px;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .hero p { color: #94a3b8; font-size: 1rem; max-width: 600px; margin: 0 auto; line-height: 1.7; }
+
+        .container { max-width: 900px; margin: 24px auto 60px; padding: 0 20px; }
+        .card {
+            background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 18px; padding: 28px; margin-bottom: 20px; backdrop-filter: blur(8px);
+        }
+        .card h2 {
+            font-size: 1.15rem; font-weight: 900; margin-bottom: 4px; color: #f1f5f9;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .card h2 i { color: #ec4899; }
+        .card .hint { color: #94a3b8; font-size: 0.85rem; margin-bottom: 18px; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+
+        label { display: block; color: #cbd5e1; font-size: 0.85rem; font-weight: 700; margin-bottom: 6px; }
+        input[type=text], input[type=color], select, textarea {
+            width: 100%; padding: 11px 13px; border-radius: 10px;
+            background: rgba(15,23,42,0.7); color: #f8fafc;
+            border: 1px solid rgba(255,255,255,0.08); font-family: inherit; font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type=text]:focus, select:focus, textarea:focus {
+            outline: none; border-color: #ec4899; box-shadow: 0 0 0 3px rgba(236,72,153,0.15);
+        }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .color-row { display: flex; gap: 8px; align-items: center; }
+        .color-row input[type=color] {
+            width: 50px; height: 42px; padding: 2px; cursor: pointer;
+        }
+        .color-row input[type=text] { flex: 1; font-family: monospace; }
+
+        .logo-uploader {
+            border: 2px dashed rgba(255,255,255,0.12); border-radius: 14px;
+            padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s;
+            background: rgba(15,23,42,0.3);
+        }
+        .logo-uploader:hover { border-color: #ec4899; background: rgba(236,72,153,0.05); }
+        .logo-uploader.has-file { border-color: #10b981; background: rgba(16,185,129,0.05); }
+        .logo-uploader img { max-height: 120px; max-width: 100%; border-radius: 8px; margin: 8px 0; }
+        .logo-uploader i { font-size: 2rem; color: #64748b; margin-bottom: 8px; }
+        .logo-uploader .filename { color: #cbd5e1; font-size: 0.85rem; margin-top: 6px; }
+        .logo-uploader input[type=file] { display: none; }
+        .logo-actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+        .logo-actions button {
+            padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(239,68,68,0.1); color: #fca5a5; font-family: inherit;
+            font-size: 0.8rem; cursor: pointer; font-weight: 700;
+        }
+        .logo-actions button:hover { background: rgba(239,68,68,0.2); }
+
+        .switch-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 14px; background: rgba(15,23,42,0.5); border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px;
+        }
+        .switch-row label { margin: 0; cursor: pointer; }
+        .switch-row .desc { color: #94a3b8; font-size: 0.78rem; font-weight: 400; margin-top: 2px; }
+        .switch {
+            position: relative; width: 44px; height: 24px; flex-shrink: 0;
+            background: rgba(100,116,139,0.4); border-radius: 24px; cursor: pointer; transition: background 0.2s;
+        }
+        .switch.on { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+        .switch::after {
+            content: ''; position: absolute; top: 2px; right: 2px;
+            width: 20px; height: 20px; background: #fff; border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .switch.on::after { transform: translateX(-20px); }
+
+        .actions {
+            display: flex; gap: 12px; justify-content: space-between;
+            align-items: center; margin-top: 26px;
+        }
+        .btn {
+            padding: 13px 28px; border-radius: 12px; border: none;
+            font-family: inherit; font-weight: 900; font-size: 1rem; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff;
+            box-shadow: 0 4px 14px rgba(139,92,246,0.35);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(236,72,153,0.45); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-danger {
+            background: rgba(239,68,68,0.12); color: #fca5a5;
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+        .toast {
+            position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+            padding: 14px 22px; border-radius: 12px; font-weight: 700;
+            backdrop-filter: blur(12px); z-index: 1000; display: none;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+        }
+        .toast.success { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.5); color: #6ee7b7; }
+        .toast.error { background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #fca5a5; }
+        .toast.show { display: block; animation: slidedown 0.3s; }
+        @keyframes slidedown { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+        .loading-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center; z-index: 999;
+        }
+        .loading-overlay.show { display: flex; }
+        .spinner {
+            width: 48px; height: 48px; border: 4px solid rgba(236,72,153,0.2);
+            border-top-color: #ec4899; border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .stat-chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+            background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+            color: #c4b5fd; border-radius: 16px; font-size: 0.8rem; font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand"><i class="fas fa-palette"></i> ملف البراند</div>
+        <div>
+            <a href="/marketplace/design-store/"><i class="fas fa-arrow-right"></i> رجوع للمتجر</a>
+        </div>
+    </div>
+
+    <div class="hero">
+        <h1>🎨 هوية البراند بتاعتك</h1>
+        <p>اللوجو، الألوان، الخطوط، والستايل — هيتطبقوا تلقائياً على كل تصميم AI تطلبه. اللي بتحفظه هنا بيتحقن مباشرة في الـ design pipeline.</p>
+        <div style="margin-top: 14px;">
+            <span class="stat-chip" id="designs-count" style="display:none;">
+                <i class="fas fa-check-circle"></i>
+                <span id="designs-count-num">0</span> تصميم اتعملوا بهذه الهوية
+            </span>
+        </div>
+    </div>
+
+    <div class="container">
+        <form id="brand-form" enctype="multipart/form-data">
+
+            <!-- Identity -->
+            <div class="card">
+                <h2><i class="fas fa-id-badge"></i> الهوية</h2>
+                <p class="hint">اسم البراند والتاج لاين الأساسي.</p>
+                <div class="grid">
+                    <div>
+                        <label>اسم البراند (عربي) *</label>
+                        <input type="text" name="brand_name" id="brand_name" required maxlength="120" placeholder="مثلاً: موس تك">
+                    </div>
+                    <div>
+                        <label>اسم البراند (English)</label>
+                        <input type="text" name="brand_name_en" id="brand_name_en" maxlength="120" placeholder="e.g. Mouss Tec">
+                    </div>
+                </div>
+                <div style="margin-top: 14px;">
+                    <label>التاج لاين / الشعار</label>
+                    <input type="text" name="tagline" id="tagline" maxlength="200" placeholder="جملة قصيرة بتعبّر عن البراند">
+                </div>
+            </div>
+
+            <!-- Logos -->
+            <div class="card">
+                <h2><i class="fas fa-image"></i> اللوجو</h2>
+                <p class="hint">PNG/JPG/WEBP/SVG — أقصى حجم 5MB.</p>
+                <div class="grid">
+                    <div>
+                        <label>اللوجو الأساسي</label>
+                        <div class="logo-uploader" id="logo-uploader" onclick="document.getElementById('logo-input').click()">
+                            <input type="file" name="logo" id="logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+                            <div id="logo-empty">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div>اسحب اللوجو هنا أو اضغط للاختيار</div>
+                            </div>
+                            <div id="logo-preview-wrap" style="display:none;">
+                                <img id="logo-preview" alt="logo preview">
+                                <div class="filename" id="logo-filename"></div>
+                            </div>
+                        </div>
+                        <div class="logo-actions" id="logo-actions" style="display:none;">
+                            <button type="button" onclick="deleteLogo('primary', event)">
+                                <i class="fas fa-trash"></i> حذف الأساسي
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label>اللوجو البديل (اختياري)</label>
+                        <div class="logo-uploader" id="logo-alt-uploader" onclick="document.getElementById('logo-alt-input').click()">
+                            <input type="file" name="logo_alt" id="logo-alt-input" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+                            <div id="logo-alt-empty">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div>نسخة بديلة (داكنة/أحادية اللون)</div>
+                            </div>
+                            <div id="logo-alt-preview-wrap" style="display:none;">
+                                <img id="logo-alt-preview" alt="alt logo preview">
+                                <div class="filename" id="logo-alt-filename"></div>
+                            </div>
+                        </div>
+                        <div class="logo-actions" id="logo-alt-actions" style="display:none;">
+                            <button type="button" onclick="deleteLogo('alt', event)">
+                                <i class="fas fa-trash"></i> حذف البديل
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors -->
+            <div class="card">
+                <h2><i class="fas fa-fill-drip"></i> الألوان</h2>
+                <p class="hint">هيتم استخدامها كـ palette رئيسي في كل تصميم.</p>
+                <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div>
+                        <label>اللون الأساسي *</label>
+                        <div class="color-row">
+                            <input type="color" id="primary_color_picker" value="#7c3aed">
+                            <input type="text" name="primary_color" id="primary_color" value="#7c3aed" pattern="^#[0-9A-Fa-f]{3,8}$">
+                        </div>
+                    </div>
+                    <div>
+                        <label>اللون الثانوي *</label>
+                        <div class="color-row">
+                            <input type="color" id="secondary_color_picker" value="#1e293b">
+                            <input type="text" name="secondary_color" id="secondary_color" value="#1e293b" pattern="^#[0-9A-Fa-f]{3,8}$">
+                        </div>
+                    </div>
+                    <div>
+                        <label>لون التمييز (اختياري)</label>
+                        <div class="color-row">
+                            <input type="color" id="accent_color_picker" value="#ec4899">
+                            <input type="text" name="accent_color" id="accent_color" placeholder="#ec4899">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Style -->
+            <div class="card">
+                <h2><i class="fas fa-magic"></i> الستايل والنبرة</h2>
+                <p class="hint">بتوجّه الـ AI ليفهم القطاع والمزاج العام.</p>
+                <div class="grid">
+                    <div>
+                        <label>القطاع</label>
+                        <select name="industry" id="industry"></select>
+                    </div>
+                    <div>
+                        <label>الجمالية البصرية</label>
+                        <select name="aesthetic" id="aesthetic"></select>
+                    </div>
+                    <div>
+                        <label>النبرة / المزاج</label>
+                        <select name="tone" id="tone"></select>
+                    </div>
+                    <div>
+                        <label>الخط العربي</label>
+                        <select name="arabic_font" id="arabic_font"></select>
+                    </div>
+                    <div>
+                        <label>الخط الإنجليزي</label>
+                        <select name="english_font" id="english_font"></select>
+                    </div>
+                </div>
+                <div style="margin-top: 14px;">
+                    <label>ملاحظات الستايل (تعليمات إضافية للـ AI)</label>
+                    <textarea name="style_notes" id="style_notes" maxlength="500" placeholder="مثلاً: استخدم نمط minimalist، تجنّب الزخارف، خلفية فاتحة..."></textarea>
+                </div>
+            </div>
+
+            <!-- Auto-inject toggles -->
+            <div class="card">
+                <h2><i class="fas fa-bolt"></i> الحقن التلقائي</h2>
+                <p class="hint">تحكّم في إيه اللي يتطبق تلقائياً على كل تصميم جديد.</p>
+
+                <div class="switch-row">
+                    <div>
+                        <label>تفعيل ملف البراند</label>
+                        <div class="desc">لو طفيته، التصاميم هتتعمل من غير هويتك.</div>
+                    </div>
+                    <div class="switch on" id="switch-is_active" data-name="is_active" onclick="toggleSwitch(this)"></div>
+                </div>
+
+                <div class="switch-row">
+                    <div>
+                        <label>حقن اللوجو تلقائياً</label>
+                        <div class="desc">يضيف اللوجو لكل تصميم بشكل طبيعي.</div>
+                    </div>
+                    <div class="switch on" id="switch-auto_inject_logo" data-name="auto_inject_logo" onclick="toggleSwitch(this)"></div>
+                </div>
+
+                <div class="switch-row">
+                    <div>
+                        <label>حقن الألوان تلقائياً</label>
+                        <div class="desc">يستخدم الـ palette بتاعتك في كل تصميم.</div>
+                    </div>
+                    <div class="switch on" id="switch-auto_inject_colors" data-name="auto_inject_colors" onclick="toggleSwitch(this)"></div>
+                </div>
+
+                <input type="hidden" name="is_active" id="is_active" value="1">
+                <input type="hidden" name="auto_inject_logo" id="auto_inject_logo" value="1">
+                <input type="hidden" name="auto_inject_colors" id="auto_inject_colors" value="1">
+            </div>
+
+            <div class="actions">
+                <button type="button" class="btn btn-danger" onclick="deleteProfile()">
+                    <i class="fas fa-trash"></i> حذف الملف كاملاً
+                </button>
+                <button type="submit" class="btn btn-primary" id="save-btn">
+                    <i class="fas fa-save"></i> حفظ ملف البراند
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+    <script>
+        const API_URL = '/marketplace/brand-profile/';
+
+        function getCookie(name) {
+            const v = `; ${document.cookie}`.split(`; ${name}=`);
+            if (v.length === 2) return v.pop().split(';').shift();
+            return '';
+        }
+
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => t.classList.remove('show'), 3500);
+        }
+
+        function setLoading(on) {
+            document.getElementById('loading').classList.toggle('show', on);
+            document.getElementById('save-btn').disabled = on;
+        }
+
+        function toggleSwitch(el) {
+            el.classList.toggle('on');
+            const name = el.dataset.name;
+            document.getElementById(name).value = el.classList.contains('on') ? '1' : '0';
+        }
+
+        // ── Color picker ↔ text sync ──────────────────────────
+        ['primary', 'secondary', 'accent'].forEach(k => {
+            const picker = document.getElementById(`${k}_color_picker`);
+            const text = document.getElementById(`${k}_color`);
+            picker.addEventListener('input', () => { text.value = picker.value; });
+            text.addEventListener('input', () => {
+                if (/^#[0-9A-Fa-f]{6}$/.test(text.value)) picker.value = text.value;
+            });
+        });
+
+        // ── Logo previews ──────────────────────────────────────
+        function wireLogoInput(inputId, wrapId, emptyId, previewId, filenameId, actionsId) {
+            document.getElementById(inputId).addEventListener('change', e => {
+                const f = e.target.files[0];
+                if (!f) return;
+                if (f.size > 5 * 1024 * 1024) { showToast('الحجم أكبر من 5MB', 'error'); e.target.value = ''; return; }
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    document.getElementById(previewId).src = ev.target.result;
+                    document.getElementById(filenameId).textContent = f.name;
+                    document.getElementById(emptyId).style.display = 'none';
+                    document.getElementById(wrapId).style.display = 'block';
+                    document.getElementById(actionsId).style.display = 'flex';
+                    document.getElementById(inputId).closest('.logo-uploader').classList.add('has-file');
+                };
+                reader.readAsDataURL(f);
+            });
+        }
+        wireLogoInput('logo-input', 'logo-preview-wrap', 'logo-empty', 'logo-preview', 'logo-filename', 'logo-actions');
+        wireLogoInput('logo-alt-input', 'logo-alt-preview-wrap', 'logo-alt-empty', 'logo-alt-preview', 'logo-alt-filename', 'logo-alt-actions');
+
+        // ── Populate selects ───────────────────────────────────
+        function fillSelect(id, choices, selected) {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '';
+            choices.forEach(([val, label]) => {
+                const o = document.createElement('option');
+                o.value = val; o.textContent = label;
+                if (val === selected) o.selected = true;
+                sel.appendChild(o);
+            });
+        }
+
+        // ── Hydrate form from API ──────────────────────────────
+        async function loadProfile() {
+            setLoading(true);
+            try {
+                const res = await fetch(API_URL, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'فشل التحميل');
+
+                const c = data.choices || {};
+                const p = data.profile;
+
+                fillSelect('industry', c.industry || [], p ? p.industry : 'other');
+                fillSelect('aesthetic', c.aesthetic || [], p ? p.aesthetic : 'modern_minimal');
+                fillSelect('tone', c.tone || [], p ? p.tone : 'warm');
+                fillSelect('arabic_font', c.font_style || [], p ? p.arabic_font : 'arabic_modern');
+                fillSelect('english_font', c.font_style || [], p ? p.english_font : 'modern_sans');
+
+                if (!p) return;
+
+                document.getElementById('brand_name').value = p.brand_name || '';
+                document.getElementById('brand_name_en').value = p.brand_name_en || '';
+                document.getElementById('tagline').value = p.tagline || '';
+                document.getElementById('style_notes').value = p.style_notes || '';
+
+                const setColor = (k, v) => {
+                    document.getElementById(`${k}_color`).value = v || '';
+                    if (/^#[0-9A-Fa-f]{6}$/.test(v)) document.getElementById(`${k}_color_picker`).value = v;
+                };
+                setColor('primary', p.primary_color);
+                setColor('secondary', p.secondary_color);
+                setColor('accent', p.accent_color);
+
+                const setSwitch = (name, on) => {
+                    const el = document.getElementById(`switch-${name}`);
+                    el.classList.toggle('on', !!on);
+                    document.getElementById(name).value = on ? '1' : '0';
+                };
+                setSwitch('is_active', p.is_active);
+                setSwitch('auto_inject_logo', p.auto_inject_logo);
+                setSwitch('auto_inject_colors', p.auto_inject_colors);
+
+                if (p.logo_url) {
+                    document.getElementById('logo-preview').src = p.logo_url;
+                    document.getElementById('logo-filename').textContent = 'اللوجو المحفوظ';
+                    document.getElementById('logo-empty').style.display = 'none';
+                    document.getElementById('logo-preview-wrap').style.display = 'block';
+                    document.getElementById('logo-actions').style.display = 'flex';
+                    document.getElementById('logo-uploader').classList.add('has-file');
+                }
+                if (p.logo_alt_url) {
+                    document.getElementById('logo-alt-preview').src = p.logo_alt_url;
+                    document.getElementById('logo-alt-filename').textContent = 'اللوجو البديل المحفوظ';
+                    document.getElementById('logo-alt-empty').style.display = 'none';
+                    document.getElementById('logo-alt-preview-wrap').style.display = 'block';
+                    document.getElementById('logo-alt-actions').style.display = 'flex';
+                    document.getElementById('logo-alt-uploader').classList.add('has-file');
+                }
+
+                if (p.designs_with_brand > 0) {
+                    document.getElementById('designs-count').style.display = 'inline-flex';
+                    document.getElementById('designs-count-num').textContent = p.designs_with_brand;
+                }
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ── Save ───────────────────────────────────────────────
+        document.getElementById('brand-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            setLoading(true);
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST', body: fd,
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'فشل الحفظ');
+                showToast(data.message || '✅ تم الحفظ', 'success');
+                // refresh logo URLs after upload
+                setTimeout(loadProfile, 500);
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // ── Delete logo slot ───────────────────────────────────
+        async function deleteLogo(slot, ev) {
+            ev.stopPropagation();
+            if (!confirm(`تأكيد حذف اللوجو ${slot === 'primary' ? 'الأساسي' : 'البديل'}؟`)) return;
+            setLoading(true);
+            try {
+                const res = await fetch(`/marketplace/brand-profile/logo/${slot}/delete/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'فشل الحذف');
+                showToast('تم حذف اللوجو', 'success');
+                loadProfile();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ── Delete whole profile ───────────────────────────────
+        async function deleteProfile() {
+            if (!confirm('هتمسح ملف البراند كله — متأكد؟ ده مش بيتراجع.')) return;
+            setLoading(true);
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    credentials: 'same-origin',
+                });
+                if (!res.ok) throw new Error('فشل الحذف');
+                showToast('اتمسح الملف', 'success');
+                setTimeout(() => location.reload(), 800);
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        loadProfile();
+    </script>
+</body>
+</html>

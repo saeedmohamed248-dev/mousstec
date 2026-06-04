@@ -18,5 +18,6 @@ from ._legacy import *  # noqa: F401,F403
 from ._legacy import (  # noqa: F401
     brand_profile_view,
     brand_profile_delete_logo,
+    brand_profile_page,
 )
-from ._legacy import brand_profile_view, brand_profile_delete_logo
+from ._legacy import brand_profile_view, brand_profile_delete_logo, brand_profile_page

@@ -3111,3 +3111,16 @@ def brand_profile_delete_logo(request, slot):
         bp.logo_alt_image = None
     bp.save(update_fields=['logo_image' if slot == 'primary' else 'logo_alt_image'])
     return JsonResponse({"status": "success", "slot": slot})
+
+
+def brand_profile_page(request):
+    """🎨 صفحة تحرير ملف البراند — تستهلك JSON API الموجود."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        # /marketplace/login/ is a JSON-only POST API. The actual login UI
+        # lives as a modal inside the sector pages, reached via /marketplace/
+        # (choose_sector.html). Send unauthenticated users there.
+        return redirect(f"/marketplace/?next={request.path}")
+    return render(request, 'clients/marketplace/brand_profile.html', {
+        'customer': customer,
+    })
