@@ -141,6 +141,29 @@ Rules:
 - Options for select must be concrete and visually meaningful.
 - NEVER reuse fields across unrelated domains.
 
+📏 DIMENSIONS DEFAULTS — NEVER ZERO, NEVER EMPTY (CRITICAL):
+For ANY field with type="dimensions", you MUST provide a "default" object with
+realistic per-axis values in the chosen unit. It is FORBIDDEN to return 0, null,
+empty string, or omit any axis. Use these professional defaults per domain (unit=cm
+unless noted otherwise):
+  • t-shirt print area      → {"length": 28, "width": 32}
+  • t-shirt back print      → {"length": 30, "width": 36}
+  • hoodie front            → {"length": 30, "width": 28}
+  • cap front panel         → {"length": 11, "width": 5}
+  • mug wrap                → {"length": 20, "width": 9}
+  • business card           → {"length": 9, "width": 5.5}
+  • invitation card         → {"length": 13, "width": 18}
+  • A4 flyer / menu         → {"length": 21, "width": 29.7}
+  • A3 poster               → {"length": 29.7, "width": 42}
+  • banner / standee        → {"length": 60, "width": 150}
+  • sticker                 → {"length": 10, "width": 10}
+  • packaging box face      → {"length": 20, "width": 20}
+  • room / interior (unit=m)→ {"length": 5, "width": 4, "height": 3}
+  • unknown / fallback      → {"length": 25, "width": 25}
+Example field:
+  {"key":"print_area","label":"حجم الطباعة","type":"dimensions","unit":"cm",
+   "axes":["length","width"],"default":{"length":28,"width":32}}
+
 🅰️ TEXT FIELD GUIDANCE — VERY IMPORTANT:
 If the design typically displays TEXT on it (logo, business card, banner, t-shirt with phrase,
 poster, mug, sticker with text, packaging label, signage, certificate, menu...), you MUST
@@ -333,7 +356,45 @@ text content (any "text" or "text_on_design" field with non-empty value):
     × 15% height in the upper-chest region, lit by the same 45° key as the body,
     weave texture visible, soft shadow gradient following chest curvature, ready
     for screen-print-style text overlay that will conform to fabric topology..."
-  • Set "text_overlay" object in JSON output with {text, position, color}.
+  • Set "text_overlay" object in JSON output with {text, position, color, font_ratio}.
+
+🔠 TYPOGRAPHY SCALE — DEFAULT TO PROMINENT, NOT TINY (CRITICAL):
+The previous default produced microscopic text that looks like a misprint. From now on,
+graphic-tee/poster/banner text MUST be sized like real merchandise — large, confident,
+spanning a meaningful portion of the print area. Apply this scale strictly:
+
+  APPAREL (t-shirt, hoodie, sweatshirt — front/back chest print):
+    • DEFAULT (no size hint from user)        → font_ratio = 0.13  (graphic-tee scale,
+        text spans ~55-70% of chest width — what you see on Nike/Supreme/Off-White tees)
+    • Big statement / "كبير" / "بارز" / "fill the chest" → font_ratio = 0.18
+    • Small pocket logo / "صغير" / "pocket" / "شعار صغير" / "لوجو صغير" → font_ratio = 0.045
+    • Medium / "متوسط" / "وسط" → font_ratio = 0.09
+    Also widen the printable-zone description from "15% height" to "30-40% height" for
+    default and big sizes, so the zone visually accommodates the prominent text.
+
+  CAPS / SLEEVES / SMALL ACCESSORY AREAS:
+    • Always treat as pocket-scale → font_ratio = 0.05
+
+  POSTERS / BANNERS / SIGNAGE:
+    • Headline text → font_ratio = 0.14
+    • Sub-headline / supporting → font_ratio = 0.07
+
+  BUSINESS CARDS / INVITATIONS / MENUS / CERTIFICATES:
+    • Primary name / brand → font_ratio = 0.09
+    • Secondary lines     → font_ratio = 0.045
+
+  MUGS / BAGS / STICKERS:
+    • Main text → font_ratio = 0.12
+    • Small tag → font_ratio = 0.05
+
+Trigger words to DOWNSIZE (override default to pocket-scale ≤0.05):
+  Arabic: "صغير", "بسيط", "خفيف", "pocket", "جيب", "شعار صغير", "لوجو صغير", "discreet"
+  English: "small", "tiny", "pocket", "subtle", "minimal", "discreet", "tag"
+Trigger words to UPSIZE (override default to ≥0.16):
+  Arabic: "كبير", "بارز", "واضح", "ضخم", "fill", "خط عريض جداً", "يملا الصدر"
+  English: "big", "huge", "bold", "oversized", "fill the chest", "statement", "loud"
+If user says nothing about size → use the DEFAULT scale above (never go below 0.09 for
+any apparel/poster/main-text context).
 
 If NO text in selections → omit text_overlay, and instruct in negative_prompt to avoid
 any letters/glyphs/text artifacts.
@@ -360,17 +421,45 @@ flat colors, low contrast, plastic look, AI-generated artifacts"
   - Portrait (1024x1536): mobile-first, posters, full-body shots, A4
   - Landscape (1536x1024): banners, t-shirt back, landscape photos
 
+📏 PRINT DIMENSIONS (REAL-WORLD cm) — ALWAYS ESTIMATE, NEVER ZERO:
+You MUST return a "print_dimensions_cm" object with realistic physical print-area sizes
+in centimetres, even when the user did not provide dimensions. Estimate from the
+product type using these defaults and ADJUST upward when the user asks for a big print:
+
+  apparel front print  → {"width": 28, "height": 32}   (standard chest area, A4-ish)
+  apparel back print   → {"width": 30, "height": 36}   (full back panel)
+  pocket logo          → {"width": 9,  "height": 9}
+  hoodie front         → {"width": 30, "height": 28}   (above kangaroo pocket)
+  cap front panel      → {"width": 11, "height": 5}
+  tote bag / canvas    → {"width": 25, "height": 25}
+  mug wrap             → {"width": 20, "height": 9}
+  business card        → {"width": 9,  "height": 5.5}
+  invitation card      → {"width": 13, "height": 18}
+  A4 flyer / menu      → {"width": 21, "height": 29.7}
+  A3 poster            → {"width": 29.7, "height": 42}
+  banner / standee     → {"width": 60, "height": 150}
+  sticker (square)     → {"width": 10, "height": 10}
+  packaging / box face → {"width": 20, "height": 20}
+  unknown product      → {"width": 25, "height": 25}   (safe fallback — NEVER 0)
+
+Both width and height MUST be positive numbers (use floats if needed, e.g. 5.5). It is
+FORBIDDEN to return 0, null, "auto", or omit either axis. If the user provided explicit
+dimensions in the brief or selections, use those instead of the defaults.
+
 Return STRICT JSON only:
 {
   "mega_prompt": "<single dense paragraph, 150-220 words, English>",
   "negative_prompt": "<comma-separated, specific>",
   "recommended_size": "<1024x1024 | 1024x1536 | 1536x1024>",
   "print_placement": "<'front' | 'back'> (apparel only; 'front' for non-apparel)",
+  "print_dimensions_cm": {"width": <positive number>, "height": <positive number>},
   "text_overlay": {
     "text": "<the exact text from user selections, preserve original script>",
     "position": "<center | top | bottom | chest | back>",
     "color": "<hex e.g. #000000>",
-    "font_ratio": <float 0.02-0.10. Recommendations: t-shirts/apparel=0.035, business cards/invitations=0.07, posters/banners=0.09, default=0.06>
+    "font_ratio": <float 0.04-0.20 — APPLY THE TYPOGRAPHY SCALE ABOVE. For apparel
+                   with no user size hint, DEFAULT TO 0.13 (graphic-tee scale).
+                   Use 0.045 ONLY when user explicitly asked for pocket/small logo>
   } | null
 }"""
 
@@ -753,11 +842,29 @@ def compose_mega_prompt(
     overlay = data.get('text_overlay')
     text_overlay = None
     if isinstance(overlay, dict) and overlay.get('text'):
+        # 🔠 Clamp font_ratio إلى الـ graphic-tee scale الجديد: مفيش حاجة تحت 0.045
+        # (pocket logo) ومفيش حاجة فوق 0.20 (لإحترام حدود الـ printable zone).
+        # لو الـ LLM رجع قيمة منخفضة قديمة (0.035 مثلاً)، نـ bump للـ default الجديد.
+        raw_ratio = overlay.get('font_ratio')
+        try:
+            ratio = float(raw_ratio) if raw_ratio is not None else 0.13
+        except (TypeError, ValueError):
+            ratio = 0.13
+        # حماية ضد القيم القديمة الميكروسكوبية (≤0.05) إلا لو فيه نية صريحة pocket
+        raw_for_pocket = (raw_idea or '').lower() + ' ' + ' '.join(
+            str(v).lower() for v in (selections or {}).values()
+        )
+        wants_pocket = any(t in raw_for_pocket for t in (
+            'pocket', 'صغير', 'جيب', 'شعار صغير', 'لوجو صغير', 'subtle', 'discreet', 'minimal'
+        ))
+        if ratio < 0.09 and not wants_pocket:
+            ratio = 0.13  # bump للـ graphic-tee default
+        ratio = max(0.04, min(0.20, ratio))  # hard clamp
         text_overlay = {
             'text': str(overlay.get('text'))[:200],
             'position': str(overlay.get('position', 'center'))[:20],
             'color': str(overlay.get('color', '#000000'))[:10],
-            'font_ratio': float(overlay.get('font_ratio') or 0.08),
+            'font_ratio': ratio,
         }
 
     # 🅰️ SAFETY NET: لو الـ LLM متجاهل ورجع null، بنفحص الـ selections بنفسنا
@@ -778,11 +885,8 @@ def compose_mega_prompt(
                 text_color = str(v)
             elif any(t in kl for t in ('color',)) and not text_color and kl.startswith('text'):
                 text_color = str(v)
-        # لو لقينا text value → اعمل overlay
+        # لو لقينا text value → اعمل overlay بالـ graphic-tee scale (مش الميكروسكوبي القديم)
         if text_value:
-            # position + font_ratio حسب نوع المنتج
-            # القماش: الـ mockup فيه whitespace كتير حوالين المنتج، فلازم نص أصغر
-            # حتى يبان نسبة طبيعية على الصدر/المنطقة المخصصة.
             d_lower = (domain or '').lower()
             d_ar = (domain or '')
             is_clothing = (
@@ -791,12 +895,28 @@ def compose_mega_prompt(
                 or 'تيشرت' in d_ar or 'قميص' in d_ar or 'ملابس' in d_ar
                 or 'هودي' in d_ar or 'بلوزة' in d_ar
             )
+            # تحديد الـ font_ratio من نية المستخدم (pocket / big / default)
+            combined_intent = (raw_idea or '').lower() + ' ' + ' '.join(
+                str(v).lower() for v in (selections or {}).values()
+            )
+            wants_pocket = any(t in combined_intent for t in (
+                'pocket', 'صغير', 'جيب', 'شعار صغير', 'لوجو صغير', 'subtle', 'discreet', 'minimal'
+            ))
+            wants_big = any(t in combined_intent for t in (
+                'big', 'huge', 'bold', 'oversized', 'statement',
+                'كبير', 'بارز', 'ضخم', 'يملا الصدر',
+            ))
             if is_clothing:
                 pos = 'chest'
-                font_ratio = 0.035  # ~3.5% — حجم واقعي على mockup التيشرت
+                if wants_pocket:
+                    font_ratio = 0.045
+                elif wants_big:
+                    font_ratio = 0.18
+                else:
+                    font_ratio = 0.13  # graphic-tee default — بارز ومرئي
             else:
                 pos = 'center'
-                font_ratio = 0.07
+                font_ratio = 0.045 if wants_pocket else (0.14 if wants_big else 0.09)
             text_overlay = {
                 'text': text_value[:200],
                 'position': pos,
@@ -816,6 +936,50 @@ def compose_mega_prompt(
     if placement == 'back' and text_overlay and text_overlay.get('position') in ('chest', 'center', None):
         text_overlay['position'] = 'back'
 
+    # 📏 Print dimensions in cm — LLM-provided OR category-based fallback.
+    # Guards ضد 0 / null / missing axis. لو الـ LLM رجع حاجة باطلة، نـ derive
+    # من الـ domain. الـ UI بيعرض ده في sidebar "📐 المقاس المقترح".
+    raw_dims = data.get('print_dimensions_cm') if isinstance(data, dict) else None
+
+    def _coerce_positive(val, fallback: float) -> float:
+        try:
+            n = float(val)
+            return n if n > 0 else fallback
+        except (TypeError, ValueError):
+            return fallback
+
+    # Category fallbacks (نفس الـ table اللي في الـ system prompt)
+    d_lower = (domain or '').lower()
+    d_ar = (domain or '')
+    is_apparel = any(t in d_lower for t in (
+        'shirt', 'apparel', 'clothing', 'hoodie', 'tee', 'garment'
+    )) or any(t in d_ar for t in ('تيشرت', 'قميص', 'ملابس', 'هودي', 'بلوزة'))
+    if 'cap' in d_lower or 'كاب' in d_ar:
+        default_w, default_h = 11.0, 5.0
+    elif 'mug' in d_lower or 'ماج' in d_ar:
+        default_w, default_h = 20.0, 9.0
+    elif 'business' in d_lower or 'كارت' in d_ar:
+        default_w, default_h = 9.0, 5.5
+    elif 'poster' in d_lower or 'بوستر' in d_ar:
+        default_w, default_h = 29.7, 42.0
+    elif 'banner' in d_lower or 'بنر' in d_ar:
+        default_w, default_h = 60.0, 150.0
+    elif 'sticker' in d_lower or 'ستيكر' in d_ar:
+        default_w, default_h = 10.0, 10.0
+    elif is_apparel:
+        if placement == 'back':
+            default_w, default_h = 30.0, 36.0
+        else:
+            default_w, default_h = 28.0, 32.0
+    else:
+        default_w, default_h = 25.0, 25.0
+
+    if isinstance(raw_dims, dict):
+        w_cm = _coerce_positive(raw_dims.get('width'), default_w)
+        h_cm = _coerce_positive(raw_dims.get('height'), default_h)
+    else:
+        w_cm, h_cm = default_w, default_h
+
     return {
         'success': True,
         'mega_prompt': mega[:2500],
@@ -826,4 +990,5 @@ def compose_mega_prompt(
         'recommended_size': str(data.get('recommended_size') or '1024x1024')[:20],
         'print_placement': placement,
         'text_overlay': text_overlay,
+        'print_dimensions_cm': {'width': round(w_cm, 1), 'height': round(h_cm, 1)},
     }

@@ -406,11 +406,19 @@ def design_generate(request):
     is_apparel = any(k in (domain or '').lower() for k in (
         'apparel', 'tshirt', 't-shirt', 'shirt', 'hoodie', 'sweatshirt', 'garment', 'clothing',
     ))
+    # 📏 Print dimensions: نفضل اللي رجع من compose_mega_prompt (LLM + safety fallback).
+    # هو دايماً بيرجع width/height موجبين، فمفيش حالة 0 x 0 للـ UI.
+    dims = mega.get('print_dimensions_cm') if isinstance(mega, dict) else None
+    if isinstance(dims, dict) and dims.get('width') and dims.get('height'):
+        dims_label = f"{dims['width']} × {dims['height']} cm"
+    else:
+        dims_label = size  # last-resort: عرض الـ image size بالـ pixels
     structured_meta = {
         'fabric': '100% Combed Cotton — Jersey Knit' if is_apparel else None,
         'print_tech': 'DTG / Screen-Print (integrated ink absorption)' if is_apparel else None,
         'placement': (mega.get('print_placement') if isinstance(mega, dict) else None) or ('front' if is_apparel else None),
-        'suggested_dimensions': size,
+        'suggested_dimensions': dims_label,
+        'print_dimensions_cm': dims if isinstance(dims, dict) else None,
         'text_overlay': bool(text_overlay_info),
         'overlay_applied': overlay_applied,
     }
