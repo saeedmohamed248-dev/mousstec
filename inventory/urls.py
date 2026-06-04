@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from . import views
 from . import views_lightning
 from . import views_tech
+from . import views_hr
 from .api_obd import ReceiveOBDDataView
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
@@ -55,6 +56,9 @@ urlpatterns = [
 
     # 🛠️ DMS Tier-1 — Tech Workspace (Pillar 3)
     path('tech-workspace/', views_tech.tech_workspace, name='tech_workspace'),
+
+    # 🧑‍💼 DMS Tier-1 — HR Workspace (Pillar 1 — attendance review)
+    path('hr-workspace/', views_hr.hr_workspace, name='hr_workspace'),
 
     # ▶️ RepairLog APIs (timer + flags + media)
     path('api/repair-log/start/',                       views_tech.repair_log_start,             name='repair_log_start'),

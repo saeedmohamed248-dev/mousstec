@@ -488,6 +488,253 @@ def _gen_via_replicate(prompt: str, size: str, negative_prompt: str) -> dict[str
 
 
 # =============================================================================
+# Ideogram — Best-in-class TEXT RENDERING engine
+# =============================================================================
+# Use cases where Ideogram wins over FLUX (huge quality jump):
+#   • Business cards / invoices / certificates / menus → readable text in-image
+#   • Logos / wordmarks → actually-spelled brand names
+#   • Signage / posters / banners → headline text rendered correctly
+#   • Social posts → captions baked into image without overlay
+#   • Mugs / stickers / t-shirts with English text
+#
+# Ideogram cannot do photo-realistic ghost-mannequin apparel as well as FLUX,
+# so we route product-photography categories to FLUX and text-heavy categories
+# to Ideogram. The router lives in `pick_design_engine()` below.
+def _gen_via_ideogram(
+    prompt: str,
+    size: str,
+    negative_prompt: str = '',
+    *,
+    style_type: str = 'AUTO',
+    rendering_speed: str = 'BALANCED',
+) -> dict[str, Any]:
+    """يولّد صورة عبر Ideogram v3 (مع v2 fallback).
+
+    Ideogram بيتعامل مع النصوص (خاصة عربي) بدقة عالية جداً مقارنةً بـ FLUX.
+    style_type: AUTO | REALISTIC | DESIGN | GENERAL | RENDER_3D | ANIME
+    rendering_speed: TURBO (سريع) | BALANCED (متوسط) | QUALITY (أبطأ لكن أحسن).
+    """
+    key = str(getattr(settings, 'IDEOGRAM_API_KEY', '') or '').strip()
+    if not key:
+        return {'success': False, 'error': 'ideogram_key_missing'}
+
+    aspect = _IDEOGRAM_ASPECT_MAP.get(size, '1x1')
+
+    # ── Try v3 first (recommended) ──────────────────────────────────────
+    headers_v3 = {'Api-Key': key}
+    # v3 uses multipart/form-data, not JSON
+    form_v3 = {
+        'prompt': prompt[:1800],
+        'aspect_ratio': aspect,
+        'style_type': style_type,
+        'rendering_speed': rendering_speed,
+        'num_images': '1',
+    }
+    if negative_prompt:
+        form_v3['negative_prompt'] = negative_prompt[:600]
+
+    try:
+        resp = requests.post(
+            _IDEOGRAM_URL_V3,
+            headers=headers_v3,
+            data=form_v3,
+            timeout=_TIMEOUT_IMAGE,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get('data') or []
+            if items:
+                url = items[0].get('url')
+                if url:
+                    return {
+                        'success': True,
+                        'url': url,
+                        'provider': 'ideogram',
+                        'model': 'ideogram-v3',
+                        'cost_estimate_egp': 0.40,  # ~$0.008/img → ~0.40 EGP
+                    }
+        else:
+            logger.warning(
+                f'[IDEOGRAM v3] HTTP {resp.status_code}: {resp.text[:300]}'
+            )
+    except requests.Timeout:
+        logger.warning('[IDEOGRAM v3] timeout — trying v2')
+    except Exception as e:
+        logger.warning(f'[IDEOGRAM v3] failed: {e} — trying v2')
+
+    # ── Fallback to v2 (older, JSON API) ────────────────────────────────
+    headers_v2 = {'Api-Key': key, 'Content-Type': 'application/json'}
+    payload_v2 = {
+        'image_request': {
+            'prompt': prompt[:1800],
+            'aspect_ratio': 'ASPECT_' + aspect.replace('x', '_'),
+            'model': 'V_2',
+            'magic_prompt_option': 'AUTO',
+        }
+    }
+    if negative_prompt:
+        payload_v2['image_request']['negative_prompt'] = negative_prompt[:600]
+
+    try:
+        resp = requests.post(
+            _IDEOGRAM_URL_V2,
+            headers=headers_v2,
+            json=payload_v2,
+            timeout=_TIMEOUT_IMAGE,
+        )
+        if resp.status_code != 200:
+            logger.error(
+                f'[IDEOGRAM v2] HTTP {resp.status_code}: {resp.text[:300]}'
+            )
+            return {
+                'success': False,
+                'error': f'ideogram_http_{resp.status_code}',
+                'detail': resp.text[:300],
+            }
+        data = resp.json()
+        items = data.get('data') or []
+        if not items:
+            return {'success': False, 'error': 'ideogram_empty_data'}
+        url = items[0].get('url')
+        if not url:
+            return {'success': False, 'error': 'ideogram_no_url'}
+        return {
+            'success': True,
+            'url': url,
+            'provider': 'ideogram',
+            'model': 'ideogram-v2',
+            'cost_estimate_egp': 0.40,
+        }
+    except requests.Timeout:
+        return {'success': False, 'error': 'ideogram_timeout'}
+    except Exception as e:
+        logger.exception('[IDEOGRAM v2] crashed')
+        return {'success': False, 'error': str(e)[:200]}
+
+
+# =============================================================================
+# Smart Engine Router — Picks Ideogram vs FLUX per category & text needs
+# =============================================================================
+# Categories where in-image text MUST be readable → Ideogram wins.
+# (We still route apparel/footwear/furniture/etc. to FLUX even if they have a
+# small text overlay, because product-photography quality outweighs text
+# accuracy when the text is applied via post-overlay anyway.)
+_TEXT_CRITICAL_CATEGORIES = frozenset({
+    'document',       # invoices, business cards, menus, certificates
+    'logo',           # wordmarks, brand marks
+    'signage',        # posters, banners, billboards
+    'social_post',    # captions baked into post
+})
+
+# Categories where FLUX-dev's photo-realism is non-negotiable.
+# Text overlay (PIL post-processing) handles any text needs.
+_PHOTO_CRITICAL_CATEGORIES = frozenset({
+    'apparel', 'footwear', 'furniture', 'electronics', 'appliance',
+    'architecture', 'interior', 'vehicle', 'food', 'jewelry', 'cosmetics',
+    'character', 'illustration', 'industrial', 'packaging',
+})
+
+
+def pick_design_engine(
+    category: str | None,
+    has_text_content: bool = False,
+    has_arabic: bool = False,
+    force_engine: str | None = None,
+) -> str:
+    """يقرر إيه الـ engine الأنسب — 'ideogram' أو 'flux'.
+
+    Logic:
+      1. force_engine override → respected if valid.
+      2. Categories اللي محتاجة text in-image (document/logo/signage/post)
+         → Ideogram (لو الـ key متاح).
+      3. Photo-critical product categories (apparel/footwear/furniture/...)
+         → FLUX (الـ text بيتـ overlay بـ PIL بعدين).
+      4. حالة فريدة: لو الـ category مش text-critical لكن فيه نص عربي مطلوب
+         يطلع داخل الصورة (مش overlay) — برضو Ideogram.
+      5. default → FLUX.
+    """
+    if force_engine in ('flux', 'ideogram'):
+        return force_engine
+
+    has_ideogram_key = bool(str(getattr(settings, 'IDEOGRAM_API_KEY', '') or '').strip())
+    cat = (category or '').lower()
+
+    if cat in _TEXT_CRITICAL_CATEGORIES and has_ideogram_key:
+        return 'ideogram'
+
+    # If user wants Arabic text rendered in-image (not overlay), Ideogram is
+    # the only sane choice. But for product mockups we keep FLUX + overlay.
+    if has_arabic and has_text_content and cat not in _PHOTO_CRITICAL_CATEGORIES and has_ideogram_key:
+        return 'ideogram'
+
+    return 'flux'
+
+
+def generate_design_image(
+    prompt: str,
+    size: str = '1024x1024',
+    negative_prompt: str = '',
+    *,
+    category: str | None = None,
+    has_text_content: bool = False,
+    has_arabic: bool = False,
+    force_engine: str | None = None,
+    block_schnell_fallback: bool = True,
+) -> dict[str, Any]:
+    """🧠 Universal entry point — يختار Ideogram vs FLUX تلقائياً حسب الـ category.
+
+    دي الـ function اللي design_views يستخدمها بدل ما يستدعي generate_flux_image
+    مباشرة. بـ category-aware routing + automatic fallback.
+
+    Returns: نفس شكل generate_flux_image (success, url|b64_json, provider, model).
+    """
+    engine = pick_design_engine(
+        category=category,
+        has_text_content=has_text_content,
+        has_arabic=has_arabic,
+        force_engine=force_engine,
+    )
+
+    if engine == 'ideogram':
+        # Ideogram routing
+        # style_type per category — DESIGN لـ logo/document، GENERAL للباقي
+        if (category or '').lower() in ('logo', 'document'):
+            style_type = 'DESIGN'
+        elif (category or '').lower() == 'signage':
+            style_type = 'DESIGN'
+        else:
+            style_type = 'AUTO'
+        result = _gen_via_ideogram(
+            prompt=prompt,
+            size=size,
+            negative_prompt=negative_prompt,
+            style_type=style_type,
+            rendering_speed='QUALITY',  # text-critical → don't compromise
+        )
+        # 🛡️ Auto-fallback to FLUX لو Ideogram فشل لأي سبب
+        if not result.get('success'):
+            logger.warning(
+                f'[ENGINE ROUTER] Ideogram failed ({result.get("error")}) — '
+                f'falling back to FLUX for category={category}'
+            )
+            result = generate_flux_image(
+                prompt=prompt, size=size, negative_prompt=negative_prompt,
+                block_schnell_fallback=block_schnell_fallback,
+            )
+            result['fallback_from'] = 'ideogram'
+        result['engine'] = 'ideogram' if result.get('provider') == 'ideogram' else 'flux'
+        return result
+
+    # FLUX routing (default)
+    result = generate_flux_image(
+        prompt=prompt, size=size, negative_prompt=negative_prompt,
+        block_schnell_fallback=block_schnell_fallback,
+    )
+    result['engine'] = 'flux'
+    return result
+
+
+# =============================================================================
 # Combined Pipeline (refine → generate)
 # =============================================================================
 def run_copilot_pipeline(

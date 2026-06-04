@@ -27,7 +27,7 @@ from .design_engine import (
     describe_reference_image,
     _llm_model,
 )
-from .printing_copilot import generate_flux_image
+from .printing_copilot import generate_flux_image, generate_design_image, pick_design_engine
 from .credits import (
     get_tenant_balance, get_customer_balance,
     consume_tenant_credit, consume_customer_credit,
@@ -323,12 +323,88 @@ def design_generate(request):
         )
         negative = (negative + ', ' + logo_guards)[:1200]
 
-    # Stage B: generate image via Together FLUX
+    # ═══════════════════════════════════════════════════════════════════
+    # Stage B: Smart engine routing — Ideogram for text-critical, FLUX for photo
+    # ─────────────────────────────────────────────────────────────────
+    # text_overlay اللي رجع من compose_mega_prompt بيدلنا على وجود نص مطلوب.
+    # لو الـ engine = ideogram، النص لازم يدخل الـ prompt مباشرة (Ideogram
+    # بيرسمه بدقة)، والـ post-overlay بيتـ skip لأنه مش محتاج.
+    # ═══════════════════════════════════════════════════════════════════
+    text_overlay_info = mega.get('text_overlay')
+    has_text_content = bool(text_overlay_info and text_overlay_info.get('text'))
+    overlay_text_raw = text_overlay_info.get('text', '') if has_text_content else ''
+    import re as _re_arabic
+    has_arabic_in_text = bool(_re_arabic.search(r'[؀-ۿ]', overlay_text_raw))
+
+    chosen_engine = pick_design_engine(
+        category=presentation_category,
+        has_text_content=has_text_content,
+        has_arabic=has_arabic_in_text,
+    )
+
+    # ─── Ideogram-specific prompt adaptation ──────────────────────────
+    # لو راحنا Ideogram، الـ prompt لازم يحوي النص نفسه (مش "blank zone").
+    # نستبدل التعليمات الـ "leave clean zone for overlay" بـ instruction
+    # صريحة "render the exact text X in [position]".
+    ideogram_prompt = mega_prompt
+    if chosen_engine == 'ideogram' and has_text_content:
+        text_val = overlay_text_raw.strip()
+        position = text_overlay_info.get('position', 'center')
+        text_color = text_overlay_info.get('color', '#000000')
+        # Strip the "leave blank zone for overlay" instructions — Ideogram renders text directly
+        ideogram_prompt = _re_arabic.sub(
+            r'(?i)(clean blank|empty rectangular|printable zone|ready for (?:text )?overlay|leave a clean[^.]*)',
+            '',
+            ideogram_prompt,
+        )
+        position_phrase = {
+            'chest': 'centered on the upper chest area',
+            'back': 'centered on the upper back panel',
+            'top': 'at the top of the design',
+            'bottom': 'at the bottom of the design',
+            'center': 'centered prominently',
+        }.get(position, 'centered prominently')
+        # Inject explicit text render instruction at the start (highest priority for Ideogram)
+        text_instruction = (
+            f'IMPORTANT TEXT RENDERING: Render the exact text "{text_val}" '
+            f'{position_phrase} in color {text_color}, using a professional, '
+            f'highly legible font. The text MUST be spelled exactly as given. '
+        )
+        ideogram_prompt = (text_instruction + ideogram_prompt)[:1800]
+        # Strip "any text, any letters" from negative_prompt — we WANT text now
+        negative = _re_arabic.sub(
+            r'(?i)(any text|any letters|any words|any numbers|fake text|'
+            r'lorem ipsum|gibberish|placeholder text|garbled writing|'
+            r'calligraphy attempts|typography),?\s*',
+            '',
+            negative,
+        )
+        negative = _re_arabic.sub(r',\s*,', ', ', negative).strip(', ')
+
+    # Run the smart router
     try:
-        img = generate_flux_image(mega_prompt, size=size, negative_prompt=negative)
+        active_prompt = ideogram_prompt if chosen_engine == 'ideogram' else mega_prompt
+        img = generate_design_image(
+            prompt=active_prompt,
+            size=size,
+            negative_prompt=negative,
+            category=presentation_category,
+            has_text_content=has_text_content,
+            has_arabic=has_arabic_in_text,
+            force_engine=chosen_engine,
+            block_schnell_fallback=True,
+        )
     except Exception as e:
         logger.exception('[DESIGN GENERATE] image crashed')
         return JsonResponse({'success': False, 'message': '⚠️ تعذر توليد الصورة.', 'error': str(e)}, status=200)
+
+    active_engine = img.get('engine', 'flux')
+    logger.info(
+        f'[DESIGN GENERATE] category={presentation_category} '
+        f'engine={active_engine} has_text={has_text_content} '
+        f'has_arabic={has_arabic_in_text} '
+        f'fallback_from={img.get("fallback_from", "")}'
+    )
 
     if not img.get('success'):
         err_code = str(img.get('error', ''))
@@ -355,9 +431,16 @@ def design_generate(request):
     image_url = img.get('url')
 
     # 🅰️ Post-processing: overlay Arabic/text onto image if LLM specified text_overlay
-    text_overlay_info = mega.get('text_overlay')
+    # ⚠️ Skip overlay لو الـ engine = ideogram لأن النص بقى مدمج داخل الصورة الأصلية.
+    # Ideogram بيرسم النص بدقة أعلى من أي PIL overlay، فلا داعي نـ double-render.
     overlay_applied = False
-    if text_overlay_info and image_url:
+    overlay_skipped_reason = ''
+    if active_engine == 'ideogram' and text_overlay_info:
+        overlay_skipped_reason = 'ideogram_rendered_in_image'
+        # نـ mark النص كـ "applied" عشان الـ UI يعرض metadata صحيح
+        overlay_applied = True
+        logger.info('[DESIGN GENERATE] overlay skipped — Ideogram rendered text in-image')
+    elif text_overlay_info and image_url:
         try:
             from .text_overlay import overlay_text_on_image_url, has_arabic
             # نطبق الـ overlay دايماً لو فيه text_overlay (حتى للنص الإنجليزي عشان نضمن وضوح)
@@ -514,6 +597,9 @@ def design_generate(request):
         'print_dimensions_cm': dims if isinstance(dims, dict) else None,
         'text_overlay': bool(text_overlay_info),
         'overlay_applied': overlay_applied,
+        'engine': active_engine,                                       # 'ideogram' | 'flux'
+        'overlay_skipped_reason': overlay_skipped_reason or None,
+        'text_rendered_in_image': active_engine == 'ideogram' and has_text_content,
     }
 
     return JsonResponse({
@@ -535,6 +621,8 @@ def design_generate(request):
         'print_spec_pdf_url': print_spec_pdf_url,
         'provider': img.get('provider'),
         'model': img.get('model'),
+        'engine': active_engine,
+        'engine_fallback_from': img.get('fallback_from'),
         'structured_meta': structured_meta,
         'balance': credit_info.get('balance') if credit_info else None,
         'credit': credit_info,

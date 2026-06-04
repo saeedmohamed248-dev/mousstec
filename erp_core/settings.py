@@ -347,6 +347,24 @@ TOGETHER_FLUX_MODEL = env.str('TOGETHER_FLUX_MODEL', 'black-forest-labs/FLUX.1-d
 REPLICATE_API_TOKEN = env.str('REPLICATE_API_TOKEN', '')
 FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' | 'replicate'
 
+# =====================================================================
+# 🅰️ Ideogram v3 — Text-rendering engine (preferred for documents/logos/signage)
+# =====================================================================
+# Ideogram renders in-image text (especially Arabic/RTL) with ~95% accuracy
+# vs FLUX's ~20%. Used as the engine of choice for:
+#   • Business cards / invoices / certificates / menus  (category=document)
+#   • Logos / wordmarks                                  (category=logo)
+#   • Posters / banners / billboards                     (category=signage)
+#   • Social posts with captions                         (category=social_post)
+#
+# FLUX-dev still handles photo-realistic product mockups (apparel, footwear,
+# furniture, electronics, ...) — better photorealism, and text needs are
+# handled via PIL post-overlay.
+#
+# Get a key: https://ideogram.ai/manage-api  (~$0.008/image on Quality tier)
+# If unset, the smart router falls back to FLUX for all categories.
+IDEOGRAM_API_KEY = env.str('IDEOGRAM_API_KEY', '')
+
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 

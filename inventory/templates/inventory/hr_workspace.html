@@ -1,0 +1,183 @@
+{% extends "inventory/_base_portal.html" %}
+{% load static %}
+
+{% block title %}الموارد البشرية | الحضور والانصراف{% endblock %}
+
+{% block extra_head %}
+<style>
+  .chip { display:inline-flex; align-items:center; gap:.25rem; padding:.15rem .55rem;
+          border-radius:9999px; font-size:.7rem; font-weight:800; }
+  .pulse-dot { width:.5rem; height:.5rem; border-radius:9999px; background:#10b981;
+               box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 1.6s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow:0 0 0 0 rgba(16,185,129,.6); }
+    70%  { box-shadow:0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow:0 0 0 0 rgba(16,185,129,0); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container mx-auto px-4 py-6 max-w-7xl">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-black text-white">
+        <i class="fas fa-users-gear text-emerald-400 ml-2"></i>
+        لوحة الموارد البشرية
+      </h1>
+      <p class="text-sm text-slate-400 mt-1">
+        الحضور والانصراف المُسجّل بالـ GPS — للمراجعة وكشف رواتب الفترة.
+      </p>
+    </div>
+    <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700">
+      <i class="fas fa-home ml-1"></i>الرئيسية
+    </a>
+  </div>
+
+  <!-- Stat strip -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">إجمالي الموظفين</div>
+      <div class="text-2xl font-black text-white mt-1">{{ head.total_employees }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400 flex items-center gap-1.5">
+        <span class="pulse-dot"></span> داخل العمل الآن
+      </div>
+      <div class="text-2xl font-black text-emerald-300 mt-1">{{ head.in_now }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">تسجيلات حضور اليوم</div>
+      <div class="text-2xl font-black text-indigo-300 mt-1">{{ head.in }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">تسجيلات انصراف اليوم</div>
+      <div class="text-2xl font-black text-rose-300 mt-1">{{ head.out }}</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 mb-5
+                            grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+    <div>
+      <label class="block text-xs text-slate-400 font-bold mb-1">التاريخ</label>
+      <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}"
+             class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-500 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 font-bold mb-1">النوع</label>
+      <select name="event" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">— كل الحركات —</option>
+        <option value="in"  {% if event_type == 'in'  %}selected{% endif %}>حضور</option>
+        <option value="out" {% if event_type == 'out' %}selected{% endif %}>انصراف</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-400 font-bold mb-1">الموظف</label>
+      <select name="employee" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">— الكل —</option>
+        {% for emp in employees %}
+        <option value="{{ emp.id }}" {% if employee_id == emp.id|stringformat:"s" %}selected{% endif %}>
+          {{ emp.user.get_full_name|default:emp.user.username }} ({{ emp.get_role_display }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg">
+        <i class="fas fa-filter ml-1"></i> تصفية
+      </button>
+      <a href="{% url 'inventory:hr_workspace' %}" class="px-3 py-2 rounded-lg text-xs font-bold text-slate-400 border border-slate-700 hover:text-white">
+        مسح
+      </a>
+    </div>
+  </form>
+
+  <!-- Attendance table -->
+  <div class="bg-slate-900/70 border border-slate-800 rounded-2xl overflow-hidden">
+    <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+      <div class="text-sm font-bold text-white">
+        <i class="fas fa-list-check text-indigo-400 ml-1"></i>
+        سجل {{ selected_date|date:'l j F Y' }}
+      </div>
+      <div class="text-xs text-slate-500">{{ records|length }} حركة</div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-950/70 text-slate-400 text-xs">
+          <tr>
+            <th class="text-right px-4 py-3">الموظف</th>
+            <th class="text-right px-4 py-3">الدور</th>
+            <th class="text-right px-4 py-3">الفرع</th>
+            <th class="text-right px-4 py-3">النوع</th>
+            <th class="text-right px-4 py-3">الوقت</th>
+            <th class="text-right px-4 py-3">إحداثيات GPS</th>
+            <th class="text-right px-4 py-3">الدقة (م)</th>
+            <th class="text-right px-4 py-3">الخريطة</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/70">
+          {% for r in records %}
+          <tr class="hover:bg-slate-800/30 transition">
+            <td class="px-4 py-3 font-bold text-white">
+              {{ r.employee.user.get_full_name|default:r.employee.user.username }}
+            </td>
+            <td class="px-4 py-3 text-slate-300">{{ r.employee.get_role_display }}</td>
+            <td class="px-4 py-3 text-slate-400">
+              {{ r.employee.branch.name|default:"—" }}
+            </td>
+            <td class="px-4 py-3">
+              {% if r.event_type == 'in' %}
+                <span class="chip bg-emerald-500/15 text-emerald-300">
+                  <i class="fas fa-arrow-right-to-bracket"></i> حضور
+                </span>
+              {% else %}
+                <span class="chip bg-rose-500/15 text-rose-300">
+                  <i class="fas fa-right-from-bracket"></i> انصراف
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 font-mono text-slate-200">
+              {{ r.occurred_at|date:'H:i:s' }}
+            </td>
+            <td class="px-4 py-3 font-mono text-xs text-slate-400">
+              {{ r.lat }}, {{ r.lng }}
+            </td>
+            <td class="px-4 py-3 text-xs
+                {% if r.accuracy_m and r.accuracy_m > 100 %}text-amber-300{% else %}text-slate-400{% endif %}">
+              {% if r.accuracy_m %}{{ r.accuracy_m|floatformat:0 }} م{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              {# 📍 Google Maps deep link generated from stored lat/lng — opens in new tab #}
+              <a href="https://www.google.com/maps?q={{ r.lat }},{{ r.lng }}"
+                 target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-1 text-xs font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-1 rounded-lg">
+                <i class="fas fa-location-dot"></i> فتح الموقع
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="px-4 py-10 text-center text-slate-500">
+              <i class="fas fa-circle-info ml-1"></i>
+              لا توجد حركات حضور في هذا التاريخ بالتصفية الحالية.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if records|length >= 300 %}
+    <div class="px-5 py-3 text-xs text-amber-300/80 bg-amber-500/5 border-t border-amber-500/20">
+      <i class="fas fa-triangle-exclamation ml-1"></i>
+      عرض أول 300 حركة فقط — استخدم التصفية لتضييق النطاق.
+    </div>
+    {% endif %}
+  </div>
+
+</main>
+{% endblock %}

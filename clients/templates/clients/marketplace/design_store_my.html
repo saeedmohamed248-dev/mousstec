@@ -940,6 +940,12 @@ async function uaiGenerate() {
             +     '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;">'
             +       '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.domain || 'design') + '</span>'
             +       '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.model || 'flux') + '</span>'
+            +       (d.engine === 'ideogram'
+                      ? '<span style="font-size:11px;background:#0891b2;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="النصوص اترسمت داخل الصورة مباشرة بدقة عالية">🅰️ Ideogram (نص مدمج)</span>'
+                      : '<span style="font-size:11px;background:#6366f1;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="صور فوتوريالستك بـ FLUX-dev">🎨 FLUX</span>')
+            +       (d.engine_fallback_from
+                      ? '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="الـ engine الأصلي ' + _uaiEsc(d.engine_fallback_from) + ' فشل واتحوّل للـ fallback">↩️ fallback</span>'
+                      : '')
             +     '</div>'
             +   '</div>'
             +   (metaHtml ? '<div>' + metaHtml + '</div>' : '')
