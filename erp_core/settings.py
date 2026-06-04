@@ -694,18 +694,5 @@ AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 MOUSS_TEC_ESCROW_FEE_PERCENTAGE = env.float('ESCROW_FEE_PERCENTAGE', default=2.5)
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 
-SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00  
+SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00
 SAAS_ADDON_PRICE_EXTRA_USER = 150.00
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-
-sentry_sdk.init(
-    dsn="https://ef0b47068493fe47a504ebfca72bbbc4@o4511487537840128.ingest.de.sentry.io/4511487544328272",
-    integrations=[DjangoIntegration()],
-    
-    # نسبة لقط البيانات (1.0 تعني تسجيل كل الأخطاء والأداء بنسبة 100%)
-    traces_sample_rate=1.0,
-    
-    # إرسال بيانات المستخدم المتسبب في الخطأ لتسهيل تتبعه
-    send_default_pii=True
-)
