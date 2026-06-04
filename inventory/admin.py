@@ -466,8 +466,35 @@ class ProductAdmin(SecureImportExportAdmin):
     list_display = ('display_image', 'part_number', 'name', 'brand', 'retail_price_styled', 'current_total_stock', 'stock_health_bar', 'days_to_stockout')
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
     list_filter = ('brand', 'car_model', 'condition')
-    filter_horizontal = ('alternatives',) 
-    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai'] 
+    filter_horizontal = ('alternatives',)
+    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai']
+
+    fieldsets = (
+        (_('⚡ إدخال سريع — الحقول الأساسية'), {
+            'fields': (
+                ('name', 'part_number'),
+                ('brand', 'condition'),
+                ('purchase_price', 'retail_price'),
+                'min_stock_level',
+                ('car_model', 'car_year'),
+                ('engine_code', 'chassis_compatibility'),
+            ),
+            'description': _('الحقول المطلوبة لإنشاء قطعة جديدة بسرعة. باقي الحقول تحت قسم "الإعدادات المتقدمة".'),
+        }),
+        (_('🛠️ الإعدادات المتقدمة (منظومة AI / B2B / المخزون التشغيلي)'), {
+            'classes': ('collapse',),
+            'fields': (
+                ('barcode', 'is_active'),
+                ('b2b_wholesale_price', 'core_charge'),
+                ('average_cost', 'warranty_months'),
+                'oem_cross_reference',
+                'alternatives',
+                'image',
+                ('ai_suggested_price', 'ai_calculated_min_stock'),
+                ('is_b2b_published', 'shopify_product_id'),
+            ),
+        }),
+    )
 
     def display_image(self, obj):
         if obj.image: return format_html('<img src="{}" width="50" height="50" style="border-radius: 6px; border:1px solid #e2e8f0;" />', obj.image.url)
