@@ -40,6 +40,10 @@ urlpatterns = [
     path('job-card/customers/', views_lightning.customer_search, name='job_card_customer_search'),
     path('job-card/save/', views_lightning.job_card_save, name='job_card_save'),
 
+    # 💸 Quick Expense — record outgoing daily expenses against a treasury
+    path('expense/', views_lightning.quick_expense, name='quick_expense'),
+    path('expense/create/', views_lightning.quick_expense_create, name='quick_expense_create'),
+
     # 📊 Modern list views (replace Django admin changelist for daily ops)
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('products/', views_lightning.product_list, name='product_list'),

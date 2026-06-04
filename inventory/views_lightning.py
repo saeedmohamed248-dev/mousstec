@@ -19,9 +19,10 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
-    Branch, Customer, Inventory, InventoryMovement, Product,
+    Branch, Customer, ExpenseCategory, FinancialTransaction,
+    Inventory, InventoryMovement, Product,
     SaleInvoice, SaleInvoiceItem, SaleInvoiceServiceItem,
-    ServiceCatalog, Vehicle, VehicleInspection,
+    ServiceCatalog, Treasury, Vehicle, VehicleInspection,
 )
 from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
@@ -38,6 +39,41 @@ def _walk_in_customer():
         defaults={"name": WALK_IN_NAME},
     )
     return cust
+
+
+def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user):
+    """
+    Apply a customer payment to a SaleInvoice atomically:
+      - lock treasury row, credit balance
+      - set invoice.paid_amount + invoice.treasury
+      - create FinancialTransaction(in) linked to the invoice
+    Returns the recorded Decimal amount (or Decimal('0') if nothing to record).
+    Must be called inside an outer transaction.atomic block.
+    """
+    try:
+        paid = Decimal(str(paid_amount_raw)) if paid_amount_raw not in (None, "") else Decimal("0")
+    except InvalidOperation:
+        paid = Decimal("0")
+    if paid <= 0 or not treasury_id:
+        return Decimal("0")
+    treasury = (Treasury.objects.select_for_update()
+                .filter(id=treasury_id, branch=invoice.branch, is_active=True).first())
+    if treasury is None:
+        raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
+    treasury.balance = (treasury.balance or Decimal("0")) + paid
+    treasury.save(update_fields=["balance"])
+    FinancialTransaction.objects.create(
+        treasury=treasury,
+        transaction_type="in",
+        amount=paid,
+        description=f"دفعة فاتورة #{invoice.id} — {invoice.customer.name}",
+        sale_invoice=invoice,
+        customer=invoice.customer,
+    )
+    invoice.paid_amount = paid
+    invoice.treasury = treasury
+    invoice.save(update_fields=["paid_amount", "treasury"])
+    return paid
 
 
 def _resolve_customer(name, phone):
@@ -64,9 +100,13 @@ def _resolve_customer(name, phone):
 @tenant_required
 def lightning_pos(request):
     branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
     return render(request, "inventory/lightning_pos.html", {
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
+        "treasuries": treasury_qs,
     })
 
 
@@ -165,11 +205,16 @@ def lightning_pos_checkout(request):
                     }, status=409)
                 line_specs.append((inv, pid, qty, price))
 
+            try:
+                discount = Decimal(str(payload.get("discount") or "0"))
+            except InvalidOperation:
+                discount = Decimal("0")
             invoice = SaleInvoice.objects.create(
                 invoice_type="sale",
                 status="posted",
                 customer=customer,
                 branch=branch,
+                discount=discount,
                 paid_amount=Decimal("0.00"),
             )
 
@@ -198,11 +243,18 @@ def lightning_pos_checkout(request):
                 )
 
             invoice.update_total()
+            # Payment — if user provided treasury+paid, override the auto-fill done by update_total
+            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
+                _record_invoice_payment(invoice, payload.get("treasury_id"),
+                                        payload.get("paid_amount"), request.user)
+                invoice.refresh_from_db()
 
         return _json_response_safe({
             "ok": True,
             "invoice_id": invoice.id,
             "total": float(invoice.total_amount),
+            "paid": float(invoice.paid_amount),
+            "due": float(invoice.due_amount),
             "print_url": reverse("inventory:print_invoice_thermal", args=[invoice.id]),
         })
     except Exception as exc:  # noqa: BLE001
@@ -319,10 +371,14 @@ DVI_FIELDS = ("brakes_status", "engine_oil_status", "tires_status", "battery_sta
 @tenant_required
 def job_card_create(request):
     branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
     return render(request, "inventory/job_card_create.html", {
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
         "services": ServiceCatalog.objects.all().order_by("name"),
+        "treasuries": treasury_qs,
     })
 
 
@@ -482,11 +538,17 @@ def job_card_save(request):
                 )
 
             invoice.update_total()
+            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
+                _record_invoice_payment(invoice, payload.get("treasury_id"),
+                                        payload.get("paid_amount"), request.user)
+                invoice.refresh_from_db()
 
         return _json_response_safe({
             "ok": True,
             "invoice_id": invoice.id,
             "total": float(invoice.total_amount),
+            "paid": float(invoice.paid_amount),
+            "due": float(invoice.due_amount),
             "print_url": reverse("inventory:print_invoice_a4", args=[invoice.id]),
         })
     except Exception as exc:  # noqa: BLE001
@@ -494,7 +556,71 @@ def job_card_save(request):
 
 
 # =====================================================================
-# 4. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
+# 4. QUICK EXPENSE — daily out-of-pocket expense entry
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+def quick_expense(request):
+    branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    return render(request, "inventory/quick_expense.html", {
+        "branch": branch,
+        "branches": Branch.objects.all() if branch is None else None,
+        "treasuries": treasury_qs,
+        "categories": ExpenseCategory.objects.all().order_by("name"),
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@require_POST
+def quick_expense_create(request):
+    treasury_id = request.POST.get("treasury_id")
+    try:
+        amount = Decimal(str(request.POST.get("amount") or "0"))
+    except InvalidOperation:
+        amount = Decimal("0")
+    if amount <= 0:
+        return _json_response_safe({"error": "أدخل مبلغاً صحيحاً أكبر من صفر."}, status=400)
+    if not treasury_id:
+        return _json_response_safe({"error": "اختر الخزنة."}, status=400)
+    description = (request.POST.get("description") or "").strip() or "مصروف يومي"
+    category_id = request.POST.get("category_id") or None
+
+    try:
+        with transaction.atomic():
+            treasury = (Treasury.objects.select_for_update()
+                        .filter(id=treasury_id, is_active=True).first())
+            if treasury is None:
+                return _json_response_safe({"error": "الخزنة غير موجودة."}, status=404)
+            if (treasury.balance or Decimal("0")) < amount:
+                return _json_response_safe({
+                    "error": f"رصيد الخزنة غير كافٍ (متاح: {treasury.balance})."
+                }, status=409)
+            category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
+            treasury.balance = (treasury.balance or Decimal("0")) - amount
+            treasury.save(update_fields=["balance"])
+            tx = FinancialTransaction.objects.create(
+                treasury=treasury,
+                transaction_type="out",
+                amount=amount,
+                description=description,
+                category=category,
+            )
+        return _json_response_safe({
+            "ok": True,
+            "transaction_id": tx.id,
+            "new_balance": float(treasury.balance),
+        })
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل تسجيل المصروف: {exc}"}, status=500)
+
+
+# =====================================================================
+# 5. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
 # =====================================================================
 
 @login_required(login_url='/secure-portal/')

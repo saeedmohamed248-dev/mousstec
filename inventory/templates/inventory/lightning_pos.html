@@ -63,9 +63,25 @@
       <p class="text-xs text-slate-500 mt-2">اتركهما فارغين للبيع كـ "عميل نقدي".</p>
     </div>
 
+    <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
+      <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> الدفع</h3>
+      <label class="block text-xs font-bold text-slate-300 mb-1">الخزنة</label>
+      <select id="treasury" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-3 focus:border-sky-400 focus:outline-none">
+        <option value="">— تأجيل الدفع (آجل) —</option>
+        {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
+      </select>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="block text-xs font-bold text-slate-300 mb-1">خصم</label><input id="discount" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
+        <div><label class="block text-xs font-bold text-slate-300 mb-1">المدفوع</label><input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
+      </div>
+    </div>
+
     <div class="bg-gradient-to-br from-purple-900/40 to-emerald-900/30 rounded-2xl p-5 border border-purple-500/30">
       <div class="flex justify-between text-slate-300 text-sm mb-1"><span>عدد القطع</span><span id="cart-count">0</span></div>
-      <div class="flex justify-between items-baseline mb-4"><span class="text-slate-300 text-sm">الإجمالي</span><span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span></div>
+      <div class="flex justify-between text-slate-300 text-xs mb-1"><span>الإجمالي قبل الخصم</span><span id="t-sub">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-2"><span class="text-slate-300 text-sm">الإجمالي بعد الخصم</span><span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span></div>
+      <div class="flex justify-between text-xs"><span class="text-slate-400">المدفوع</span><span id="t-paid" class="text-emerald-300 font-bold">0.00</span></div>
+      <div class="flex justify-between text-xs mb-4"><span class="text-slate-400">المتبقي على العميل</span><span id="t-due" class="text-red-400 font-bold">0.00</span></div>
       <button id="checkout" class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>
         <i class="fas fa-print"></i> اعتماد وطباعة
       </button>
@@ -127,16 +143,31 @@ function renderCart() {
         <td class="py-2"><button class="text-red-400 hover:text-red-300" onclick="setQty(${it.id}, 0)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
+  recomputeTotals();
+}
+function recomputeTotals() {
+  const sub = [...cart.values()].reduce((s, i) => s + i.price * i.qty, 0);
+  const disc = Math.max(0, parseFloat($('discount').value) || 0);
+  const total = Math.max(0, sub - disc);
+  const paid = Math.max(0, parseFloat($('paid').value) || 0);
   $('cart-count').textContent = [...cart.values()].reduce((s, i) => s + i.qty, 0);
-  $('cart-total').textContent = [...cart.values()].reduce((s, i) => s + i.price * i.qty, 0).toFixed(2);
+  $('t-sub').textContent = sub.toFixed(2);
+  $('cart-total').textContent = total.toFixed(2);
+  $('t-paid').textContent = paid.toFixed(2);
+  $('t-due').textContent = Math.max(0, total - paid).toFixed(2);
   $('checkout').disabled = cart.size === 0;
 }
+['discount','paid'].forEach(id => $(id).addEventListener('input', recomputeTotals));
+$('cart-total').addEventListener('click', () => { $('paid').value = $('cart-total').textContent; recomputeTotals(); });
 $('checkout').addEventListener('click', async () => {
   $('checkout').disabled = true;
   flash('جارٍ الاعتماد...', 'info');
   const branchPicker = document.getElementById('branch-picker');
   const payload = { customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
     branch_id: branchPicker ? branchPicker.value : null,
+    treasury_id: $('treasury').value || null,
+    discount: $('discount').value || 0,
+    paid_amount: $('paid').value || 0,
     items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price })) };
   try {
     const r = await fetch(URLS.checkout, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });

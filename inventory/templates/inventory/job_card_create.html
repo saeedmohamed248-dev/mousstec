@@ -154,11 +154,24 @@
           <div><label class="lbl">ضريبة %</label><input id="tax" type="number" step="0.01" value="0" class="inp"></div>
         </div>
 
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div class="col-span-2">
+            <label class="lbl"><i class="fas fa-cash-register text-sky-300"></i> الخزنة (للسداد)</label>
+            <select id="treasury" class="inp">
+              <option value="">— تأجيل الدفع (آجل) —</option>
+              {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
+            </select>
+          </div>
+          <div><label class="lbl">المدفوع الآن</label><input id="paid" type="number" step="0.01" min="0" value="0" class="inp"></div>
+          <div><label class="lbl">المتبقي</label><input id="due-display" readonly class="inp bg-slate-800 text-red-400 font-bold"></div>
+        </div>
+
         <div class="mt-4 bg-gradient-to-br from-emerald-900/30 to-purple-900/30 rounded-xl p-3 border border-emerald-500/30">
           <div class="flex justify-between text-xs text-slate-300"><span>قطع</span><span id="t-parts">0.00</span></div>
           <div class="flex justify-between text-xs text-slate-300"><span>خدمات</span><span id="t-svc">0.00</span></div>
           <div class="flex justify-between text-xs text-slate-300"><span>ضريبة تقديرية</span><span id="t-tax">0.00</span></div>
           <div class="flex justify-between mt-1"><span class="font-bold">الإجمالي</span><span id="t-total" class="text-2xl font-black text-emerald-400">0.00</span></div>
+          <button type="button" onclick="payFull()" class="w-full mt-2 text-xs font-bold text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 rounded-lg py-1.5">دفع كامل الإجمالي ⏎</button>
         </div>
 
         <button id="save-btn" onclick="saveJobCard()" class="w-full mt-4 bg-gradient-to-r from-emerald-600 to-purple-600 hover:from-emerald-500 hover:to-purple-500 text-white text-lg font-black py-3 rounded-xl disabled:opacity-40">
@@ -352,12 +365,16 @@ function recomputeTotals() {
   const taxP = parseFloat($('tax').value) || 0;
   const sub = tParts + tSvc + extra - disc;
   const tax = sub * (taxP / 100);
+  const total = sub + tax;
+  const paid = Math.max(0, parseFloat($('paid').value) || 0);
   $('t-parts').textContent = tParts.toFixed(2);
   $('t-svc').textContent = tSvc.toFixed(2);
   $('t-tax').textContent = tax.toFixed(2);
-  $('t-total').textContent = (sub + tax).toFixed(2);
+  $('t-total').textContent = total.toFixed(2);
+  $('due-display').value = Math.max(0, total - paid).toFixed(2);
 }
-['discount','labor-extra','tax'].forEach(id => $(id).addEventListener('input', recomputeTotals));
+function payFull() { $('paid').value = $('t-total').textContent; recomputeTotals(); }
+['discount','labor-extra','tax','paid'].forEach(id => $(id).addEventListener('input', recomputeTotals));
 
 // ------ Save
 async function saveJobCard() {
@@ -381,6 +398,8 @@ async function saveJobCard() {
     discount: $('discount').value,
     labor_cost_manual: $('labor-extra').value,
     tax_percentage: $('tax').value,
+    treasury_id: $('treasury').value || null,
+    paid_amount: $('paid').value || 0,
     items: [...state.parts.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price })),
     services: state.services.map(s => ({ service_id: s.service_id, price: s.price })),
     dvi: { ...state.dvi, technician_notes: $('dvi-notes').value },
