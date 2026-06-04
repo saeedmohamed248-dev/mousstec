@@ -119,7 +119,11 @@ TENANT_APPS = (
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
+    # 🛡️ sessions intentionally NOT here — kept only in SHARED_APPS (public schema)
+    # so the session cookie shared across tenant subdomains via SESSION_COOKIE_DOMAIN
+    # resolves to the same session row regardless of which tenant's schema is active.
+    # Having it in TENANT_APPS created per-tenant django_session tables, which caused
+    # login (written to public) and refresh (looked up in tenant schema) to mismatch.
     'django.contrib.messages',
     'inventory',       # 🏎️ النواة التشغيلية للورش (قطاع السيارات)
     'printing',        # 🎨 النواة التشغيلية للمطابع (قطاع الطباعة والتصميم)
