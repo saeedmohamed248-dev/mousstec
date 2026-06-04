@@ -2760,28 +2760,68 @@ def design_store_refine(request, design_code):
         f"{placement_instr}"
     )
 
-    # 🎨 Refine via Together AI FLUX.1-schnell (migrated 2026-06)
-    # FLUX schnell لا يدعم image-to-image edit — بنعمل regenerate كامل بـ
-    # prompt محسّن يجمع الأصلي + تعليمات التعديل. الصورة الأصلية تتحفظ في
-    # تاريخ الـ chat فالعميل يقدر يقارن.
+    # 🧠 Smart Refine: Kontext i2i لو الـ intent يدعمه، fallback لـ full regenerate.
+    # ده بيخلي "غيّر اللون" يعدل الصورة فعلاً بدل ما يبني واحدة جديدة من الصفر.
+    # الـ classifier يصنف الـ intent + يحدد لو الـ Kontext يقدر يتعامل معاه.
     try:
-        from erp_core.ai.printing_copilot import generate_flux_image
+        from erp_core.ai.printing_copilot import (
+            classify_refinement_intent, refine_design_image, generate_flux_image,
+        )
         SUPPORTED = {'1024x1024', '1024x1536', '1536x1024'}
         sz = design.size_preset if design.size_preset in SUPPORTED else '1024x1024'
 
-        flux_result = generate_flux_image(
-            prompt=refinement_prompt[:1800],
+        # 🎯 Classify intent (color/add/remove/style/text/regenerate)
+        intent_info = classify_refinement_intent(refinement_text)
+        logger.info(
+            f'[REFINE] intent={intent_info["intent"]} '
+            f'can_kontext={intent_info["can_use_kontext"]} '
+            f'confidence={intent_info["confidence"]} '
+            f'signals={intent_info["detected_signals"]}'
+        )
+
+        # 🌐 لـ Kontext: نـ translate الـ refinement للإنجليزي (Kontext أحسن
+        # مع English). نستخدم نفس الـ LLM gateway. لو فشلت الترجمة، نمشي بالعربي.
+        refinement_en = refinement_text
+        if intent_info['can_use_kontext']:
+            try:
+                from inventory.ai_services import call_llm_layer
+                translated = call_llm_layer([
+                    {'role': 'system', 'content': (
+                        'You translate Arabic image-editing instructions to '
+                        'concise English for FLUX.1-Kontext. Reply with ONE short '
+                        'English sentence — no explanation, no quotes.'
+                    )},
+                    {'role': 'user', 'content': refinement_text},
+                ], json_mode=False, max_retries=1)
+                if translated and len(translated.strip()) > 2:
+                    refinement_en = translated.strip().strip('"\'')[:500]
+            except Exception as e:
+                logger.warning(f'[REFINE] translation failed (non-fatal): {e}')
+
+        # 🎨 Run the smart refine — Kontext or full regen
+        flux_result = refine_design_image(
+            image_url=design.image_url,
+            refinement_text_en=refinement_en,
             size=sz,
+            category=design.category,
+            intent=intent_info['intent'],
+            fallback_full_prompt=refinement_prompt[:1800],
             negative_prompt="low quality, blurry, watermark, distorted text, inconsistent style",
-            block_schnell_fallback=True,  # marketplace refine: dev only
         )
         if not flux_result.get('success'):
             err = flux_result.get('error', 'unknown')
-            logger.error(f"[REFINE] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
+            logger.error(f"[REFINE] failed: {err} — {flux_result.get('detail', '')[:200]}")
             return JsonResponse({
-                "error": "فشل التعديل على Together AI. حاول تاني.",
+                "error": "فشل التعديل. حاول تاني بصياغة مختلفة.",
                 "engine_error": err,
+                "intent": intent_info['intent'],
             }, status=502)
+
+        refinement_method = flux_result.get('refinement_method', 'unknown')
+        logger.info(
+            f'[REFINE] success — method={refinement_method} '
+            f'model={flux_result.get("model")} intent={intent_info["intent"]}'
+        )
 
         new_url = flux_result.get('url')
         b64 = flux_result.get('b64_json')
@@ -2846,30 +2886,42 @@ def design_store_refine(request, design_code):
         except Exception as e:
             logger.warning(f"[REFINE] overlay step failed (non-fatal): {e}")
 
+        # 💾 احفظ الصورة الأصلية قبل التعديل عشان العميل يقارن بعدين
+        previous_image_url = design.image_url
+
         # Update design
         design.image_url = new_url
         design.regenerations_used += 1
         design.engineered_prompt = refinement_prompt[:4000]
-        design.model_used = flux_result.get('model', 'flux-schnell')
+        design.model_used = flux_result.get('model', 'unknown')
         design.save(update_fields=['image_url', 'regenerations_used', 'engineered_prompt', 'model_used'])
 
-        # Save AI response message
+        # Save AI response message — مع الـ method label عشان UI يعرف يعرض الـ badge
+        method_label = {
+            'kontext_i2i': '✏️ تعديل دقيق',
+            'full_regenerate': '🔄 إعادة توليد كامل',
+        }.get(refinement_method, refinement_method)
         placement_label = 'في الضهر 🔄' if placement == 'back' else 'في الصدر'
         DesignChatMessage.objects.create(
             design=design, role='assistant',
-            content=f"تم تعديل التصميم ({placement_label}): {refinement_text[:100]}",
-            image_url=new_url, is_refinement=True
+            content=f"تم {method_label} ({placement_label}): {refinement_text[:100]}",
+            image_url=new_url, is_refinement=True,
         )
 
         return JsonResponse({
             "status": "success",
             "image_url": new_url,
+            "previous_image_url": previous_image_url,    # للـ before/after comparison
             "regenerations_left": design.regenerations_allowed - design.regenerations_used,
             "regenerations_used": design.regenerations_used,
             "regenerations_allowed": design.regenerations_allowed,
             "placement": placement,
             "overlay_applied": overlay_applied,
-            "used_edit_api": False,  # FLUX schnell = regenerate-style refinement
+            "refinement_method": refinement_method,      # kontext_i2i | full_regenerate
+            "refinement_intent": intent_info['intent'],   # color_change | style_tweak | ...
+            "intent_confidence": intent_info['confidence'],
+            "used_edit_api": refinement_method == 'kontext_i2i',
+            "model": flux_result.get('model'),
         })
     except Exception as e:
         logger.error(f"[REFINE] Failed: {e}")

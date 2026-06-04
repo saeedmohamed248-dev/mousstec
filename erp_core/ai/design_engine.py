@@ -1169,6 +1169,192 @@ def describe_reference_image(image_data_url: str, *, hint: str = '') -> dict[str
         return {'success': False, 'error': str(e)[:120]}
 
 
+# =============================================================================
+# 🔍 Quality Gate — Vision-based verification of generated designs
+# =============================================================================
+# يتم استدعاؤها بعد التوليد للتحقق إن الصورة فعلاً تطابق الـ brief.
+# لو الـ score < 6، الـ caller (design_views) يـ trigger auto-regenerate مرة
+# واحدة بـ prompt augmented بالـ suggestion. ده الـ safety net النهائي اللي
+# يضمن إن العميل ما يشوفش output غلط حتى لو الـ recipes فشلت.
+_QUALITY_GATE_TIMEOUT = 12
+
+_QUALITY_GATE_SYSTEM = """You are a senior visual QA reviewer at a premium design studio.
+
+Your ONLY job: given a generated image, the user's original brief (Arabic or
+English), the expected category, expected subtype, and any expected text — rate
+how well the image actually matches what the user asked for.
+
+You will receive:
+  • The user's original brief
+  • The expected presentation_category (e.g. footwear, furniture, document, ...)
+  • The expected subtype (e.g. slipper, table, invoice) — may be empty
+  • The expected text content that should appear on the image (may be empty)
+  • The generated image itself
+
+Return STRICT JSON with this shape:
+{
+  "score": <integer 1-10>,
+  "category_match": <true | false>,
+  "subtype_match": <true | false | null if no subtype expected>,
+  "text_match": <true | false | null if no text expected>,
+  "key_issues": ["short concrete issue 1", "issue 2", ...],
+  "correction_suggestion": "<one short English sentence telling FLUX what to FIX on regeneration>",
+  "verdict": "<one of: 'excellent' | 'acceptable' | 'needs_regen' | 'critical_fail'>"
+}
+
+Scoring rubric:
+  9-10 → looks like a premium design agency output, matches brief perfectly
+  7-8  → solid match with minor cosmetic issues
+  6    → matches the brief but quality is mediocre
+  4-5  → noticeable mismatch (wrong subtype, low quality, distorted)
+  1-3  → critical fail (completely wrong category/subtype, garbled, ugly)
+
+Subtype rules (READ CAREFULLY — this is the most common failure):
+  • If expected subtype = "slipper" but the image shows a SNEAKER / athletic shoe
+    with laces → subtype_match = false, score ≤ 4, verdict = "critical_fail",
+    correction = "Generate a flat slipper with rubber sole and simple strap, NOT a sneaker, NOT laced."
+  • If expected subtype = "table" but the image shows a full room interior →
+    subtype_match = false, score ≤ 4, correction tells FLUX to focus on the table alone.
+  • If expected subtype = "tshirt" but image shows a hoodie → subtype_match = false.
+  • If expected subtype is empty → subtype_match = null (not applicable).
+
+Text rules:
+  • If expected text is provided and clearly readable + correctly spelled in image → text_match = true.
+  • If text is garbled / misspelled / missing → text_match = false, mention it in key_issues.
+  • If no expected text → text_match = null.
+
+Verdict mapping:
+  • score ≥ 8 AND all matches true → "excellent"
+  • score 6-7 with no critical mismatch → "acceptable"
+  • score 4-5 OR any false match → "needs_regen"
+  • score ≤ 3 OR completely wrong category → "critical_fail"
+
+Be honest and strict. The user is paying for premium output."""
+
+
+def verify_design_quality(
+    image_url: str,
+    *,
+    raw_idea: str,
+    category: str | None = None,
+    subtype: str | None = None,
+    expected_text: str | None = None,
+) -> dict[str, Any]:
+    """🔍 يفحص الصورة المولّدة ضد الـ brief عبر Llama Vision.
+
+    Returns:
+        {
+          'success': True,
+          'score': 1-10,
+          'category_match': bool,
+          'subtype_match': bool | None,
+          'text_match': bool | None,
+          'key_issues': [str, ...],
+          'correction_suggestion': str,
+          'verdict': 'excellent' | 'acceptable' | 'needs_regen' | 'critical_fail',
+          'should_regenerate': bool,    # convenience: verdict in ('needs_regen', 'critical_fail')
+        }
+        Or {'success': False, 'error': '...'} لو فشل.
+    """
+    if not image_url:
+        return {'success': False, 'error': 'no_image_url'}
+    key = _together_key()
+    if not key:
+        return {'success': False, 'error': 'together_key_missing'}
+
+    # Build the user message
+    fields = [
+        f'User brief: {(raw_idea or "")[:500]}',
+        f'Expected category: {category or "unknown"}',
+    ]
+    if subtype:
+        fields.append(f'Expected subtype: {subtype}  ⚠️ The image MUST be this exact subtype.')
+    else:
+        fields.append('Expected subtype: (none — any subtype within category is OK)')
+    if expected_text:
+        fields.append(f'Expected text on design: "{expected_text[:200]}"')
+    else:
+        fields.append('Expected text: (none)')
+    user_text = '\n'.join(fields) + '\nAnalyse the image and reply with STRICT JSON.'
+
+    user_content = [
+        {'type': 'text', 'text': user_text},
+        {'type': 'image_url', 'image_url': {'url': image_url}},
+    ]
+    payload = {
+        'model': 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo',
+        'messages': [
+            {'role': 'system', 'content': _QUALITY_GATE_SYSTEM},
+            {'role': 'user', 'content': user_content},
+        ],
+        'temperature': 0.2,
+        'max_tokens': 400,
+        'response_format': {'type': 'json_object'},
+    }
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+
+    try:
+        resp = requests.post(
+            _TOGETHER_CHAT_URL, json=payload, headers=headers,
+            timeout=_QUALITY_GATE_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            logger.warning(
+                f'[QUALITY GATE] HTTP {resp.status_code}: {resp.text[:200]}'
+            )
+            return {'success': False, 'error': f'gate_http_{resp.status_code}'}
+        data = resp.json()
+        raw = (data.get('choices') or [{}])[0].get('message', {}).get('content', '').strip()
+        if not raw:
+            return {'success': False, 'error': 'gate_empty'}
+
+        # Strip markdown fences if model wrapped JSON
+        raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as e:
+            logger.warning(f'[QUALITY GATE] JSON parse failed: {e} | raw={raw[:200]}')
+            return {'success': False, 'error': 'gate_invalid_json', 'raw': raw[:200]}
+
+        # Normalize fields
+        score = int(parsed.get('score') or 7)
+        score = max(1, min(10, score))
+        verdict = str(parsed.get('verdict') or '').lower().strip()
+        if verdict not in ('excellent', 'acceptable', 'needs_regen', 'critical_fail'):
+            # Derive verdict from score if model omitted it
+            if score >= 8:
+                verdict = 'excellent'
+            elif score >= 6:
+                verdict = 'acceptable'
+            elif score >= 4:
+                verdict = 'needs_regen'
+            else:
+                verdict = 'critical_fail'
+
+        issues = parsed.get('key_issues') or []
+        if not isinstance(issues, list):
+            issues = []
+        issues = [str(x)[:200] for x in issues[:6]]
+
+        return {
+            'success': True,
+            'score': score,
+            'category_match': bool(parsed.get('category_match', True)),
+            'subtype_match': parsed.get('subtype_match'),  # may be None
+            'text_match': parsed.get('text_match'),        # may be None
+            'key_issues': issues,
+            'correction_suggestion': str(parsed.get('correction_suggestion') or '')[:400],
+            'verdict': verdict,
+            'should_regenerate': verdict in ('needs_regen', 'critical_fail'),
+        }
+    except requests.Timeout:
+        logger.warning('[QUALITY GATE] timeout — skipping verification')
+        return {'success': False, 'error': 'gate_timeout'}
+    except Exception as e:
+        logger.exception('[QUALITY GATE] crashed')
+        return {'success': False, 'error': str(e)[:120]}
+
+
 def analyze_idea(raw_idea: str) -> dict[str, Any]:
     """يحلل فكرة المستخدم ويرجع dynamic schema (domain + dropdowns)."""
     raw = (raw_idea or '').strip()
@@ -2044,6 +2230,118 @@ def _adaptive_font_ratio(text: str, base_ratio: float, is_apparel: bool) -> floa
     return max(floor, min(ceiling, ratio))
 
 
+def apply_brand_profile(
+    selections: dict[str, str],
+    brand_context: dict | None,
+    reference_descriptions: list[str] | None = None,
+) -> tuple[dict[str, str], list[str], dict]:
+    """🎨 يدمج ملف البراند المحفوظ مع الـ user selections قبل بناء الـ mega_prompt.
+
+    Smart Merge Logic:
+      • الـ explicit selections دايماً تفوز — لو العميل اختار لون أحمر، البراند
+        مش هيـ override-ه باللون البنفسجي بتاعه.
+      • الـ brand defaults بتدخل بس في الـ slots اللي العميل سايبها فاضية.
+      • الـ logo بيتذكر في الـ reference descriptions عشان الـ LLM يـ leave space ليه.
+
+    Args:
+        selections: explicit choices من الـ form (الـ user dropdowns).
+        brand_context: من brand_profile.as_brand_context() — أو None لو مفيش
+                       brand profile / مش active.
+        reference_descriptions: descriptions حالية من الـ uploaded references.
+
+    Returns:
+        (merged_selections, augmented_refs, brand_applied_meta)
+        brand_applied_meta بيتسجل في الـ response عشان UI يعرض indicator.
+    """
+    merged = dict(selections or {})
+    refs_out = list(reference_descriptions or [])
+    meta = {
+        'applied': False,
+        'brand_name': '',
+        'colors_applied': False,
+        'logo_described': False,
+        'style_applied': False,
+    }
+
+    if not brand_context:
+        return merged, refs_out, meta
+
+    meta['applied'] = True
+    meta['brand_name'] = brand_context.get('brand_name', '')
+
+    # ── Color merge — only fill EMPTY slots ──────────────────────
+    # Detect existing color choices: any selection whose key contains 'color'
+    # OR matches typical color keys.
+    color_keys_in_selections = {
+        k.lower() for k in merged.keys()
+        if 'color' in k.lower() or 'لون' in k or k.lower() in (
+            'primary', 'secondary', 'accent', 'brand_color', 'main_color'
+        )
+    }
+    has_color_choice = any(merged.get(k) for k in color_keys_in_selections)
+
+    if 'primary_color' in brand_context and not has_color_choice:
+        merged.setdefault('brand_primary_color', brand_context['primary_color'])
+        if 'secondary_color' in brand_context:
+            merged.setdefault('brand_secondary_color', brand_context['secondary_color'])
+        if brand_context.get('accent_color'):
+            merged.setdefault('brand_accent_color', brand_context['accent_color'])
+        meta['colors_applied'] = True
+
+    # ── Aesthetic/tone — only if no style selection exists ───────
+    style_keys = {'style', 'aesthetic', 'mood', 'vibe', 'الأسلوب', 'المزاج'}
+    has_style_choice = any(
+        any(k.lower() == sk or sk in k.lower() for sk in style_keys)
+        for k in merged.keys() if merged.get(k)
+    )
+    if not has_style_choice:
+        if 'aesthetic' in brand_context:
+            merged['brand_aesthetic'] = brand_context['aesthetic']
+            meta['style_applied'] = True
+        if 'tone' in brand_context:
+            merged['brand_tone'] = brand_context['tone']
+        if brand_context.get('style_notes'):
+            merged['brand_style_notes'] = brand_context['style_notes']
+
+    # ── Industry context — always helpful for LLM ────────────────
+    if brand_context.get('industry'):
+        merged.setdefault('brand_industry', brand_context['industry'])
+
+    # ── Brand name / tagline — useful as design context ─────────
+    if brand_context.get('brand_name'):
+        merged.setdefault('brand_name', brand_context['brand_name'])
+    if brand_context.get('brand_name_en'):
+        merged.setdefault('brand_name_en', brand_context['brand_name_en'])
+    if brand_context.get('tagline'):
+        merged.setdefault('brand_tagline', brand_context['tagline'])
+
+    # ── Font preferences ─────────────────────────────────────────
+    if brand_context.get('arabic_font_pref'):
+        merged.setdefault('preferred_arabic_font', brand_context['arabic_font_pref'])
+    if brand_context.get('english_font_pref'):
+        merged.setdefault('preferred_english_font', brand_context['english_font_pref'])
+
+    # ── Logo reference description ──────────────────────────────
+    # The actual logo image is added to reference_images in the calling view
+    # (it goes through describe_reference_image like any uploaded ref). Here
+    # we just hint to the LLM that a logo slot must be reserved.
+    if brand_context.get('logo_described'):
+        logo_hint = (
+            f"BRAND LOGO RESERVED: The customer has an established brand "
+            f"identity ({brand_context.get('brand_name', 'their brand')}). "
+            f"Leave a clean, well-positioned area in the design for the "
+            f"brand logo to be composited in post-processing. Logo size: "
+            f"~8-12% of the canvas, placed where brand identity naturally "
+            f"appears for this design type (top corner for documents, "
+            f"chest for apparel, tongue for sneakers, label area for "
+            f"packaging, etc.)."
+        )
+        refs_out.append(logo_hint)
+        meta['logo_described'] = True
+
+    return merged, refs_out, meta
+
+
 def compose_mega_prompt(
     raw_idea: str,
     domain: str,
@@ -2051,6 +2349,7 @@ def compose_mega_prompt(
     reference_descriptions: list[str] | None = None,
     presentation_category: str | None = None,
     subtype: str | None = None,
+    brand_context: dict | None = None,
 ) -> dict[str, Any]:
     """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt.
 
@@ -2064,6 +2363,14 @@ def compose_mega_prompt(
     raw = (raw_idea or '').strip()
     if not raw:
         return {'success': False, 'error': 'empty_idea'}
+
+    # 🎨 Apply brand profile FIRST — merges brand defaults into empty selection
+    # slots and adds logo description to references. Explicit selections win.
+    brand_meta = {'applied': False}
+    if brand_context:
+        selections, reference_descriptions, brand_meta = apply_brand_profile(
+            selections, brand_context, reference_descriptions,
+        )
 
     # Resolve category (server-side, deterministic)
     category = (presentation_category or '').strip().lower()
@@ -2269,7 +2576,21 @@ def compose_mega_prompt(
         else:
             default_w, default_h = 28.0, 32.0
     elif category == 'footwear':
-        default_w, default_h = 28.0, 11.0  # avg sneaker side-view
+        # Subtype-specific footwear dimensions (side-profile real-world cm)
+        if sub == 'slipper':
+            default_w, default_h = 27.0, 10.0   # شبشب — flat, low profile
+        elif sub == 'sandal':
+            default_w, default_h = 26.0, 9.0    # صندل — strappy, low
+        elif sub == 'sneaker':
+            default_w, default_h = 28.0, 12.0   # كوتشي — chunky midsole
+        elif sub == 'boot':
+            default_w, default_h = 28.0, 22.0   # بوت — high ankle/calf
+        elif sub == 'formal':
+            default_w, default_h = 28.0, 9.0    # كلاسيك — sleek, low
+        elif sub == 'heels':
+            default_w, default_h = 25.0, 12.0   # كعب — heel adds height
+        else:
+            default_w, default_h = 28.0, 11.0   # neutral footwear default
     elif category == 'signage':
         if 'roll' in blob or 'رول' in blob:
             default_w, default_h = 85.0, 200.0
@@ -2377,6 +2698,153 @@ def compose_mega_prompt(
             )
         mega = _re_leak.sub(r'\s{2,}', ' ', mega).strip(' ,.')
 
+    # 🎯 DEFENSIVE SUBTYPE INJECTION — لو الـ LLM رجع mega_prompt مش
+    # ذاكر الـ subtype صراحة، نـ prepend instruction قسرية في البداية عشان
+    # FLUX ياخدها كـ أعلى priority. ده fix رئيسي لـ bug الـ شبشب/كوتشي.
+    SUBTYPE_HERO_PHRASE = {
+        # Footwear — each subtype has a hero opener
+        ('footwear', 'slipper'): (
+            'A flat rubber-soled SLIPPER (شبشب) with open or simple strap upper, '
+            'NOT a sneaker, NOT an athletic shoe, NOT laced. '
+        ),
+        ('footwear', 'sandal'): (
+            'An open SANDAL with strap-only upper on a structured sole, '
+            'NOT a closed-toe sneaker. '
+        ),
+        ('footwear', 'sneaker'): (
+            'An athletic SNEAKER with laces, padded tongue, and cushioned midsole. '
+        ),
+        ('footwear', 'boot'): (
+            'An ankle or mid-calf BOOT with lugged sole, '
+            'NOT a low sneaker, NOT a slipper. '
+        ),
+        ('footwear', 'formal'): (
+            'A polished FORMAL DRESS SHOE (oxford/derby/loafer), '
+            'NOT a sneaker, NOT a boot. '
+        ),
+        ('footwear', 'heels'): (
+            'A pointed-toe HIGH HEEL pump with sculpted heel, '
+            'NOT a flat shoe. '
+        ),
+        # Apparel — only inject when subtype meaningfully differs from default tee
+        ('apparel', 'hoodie'): (
+            'A pullover HOODIE with kangaroo pocket and drawstring hood, '
+            'NOT a t-shirt. '
+        ),
+        ('apparel', 'polo'): (
+            'A collared POLO SHIRT with button placket, '
+            'NOT a crew-neck t-shirt. '
+        ),
+        ('apparel', 'jersey'): (
+            'An athletic JERSEY in mesh fabric, '
+            'NOT a cotton casual t-shirt. '
+        ),
+        ('apparel', 'abaya'): (
+            'A flowing full-length ABAYA modest robe, '
+            'NOT a t-shirt, NOT chest-printed. '
+        ),
+        ('apparel', 'dress'): (
+            'A woman\'s DRESS showing full silhouette and skirt drape, '
+            'NOT a t-shirt. '
+        ),
+        ('apparel', 'pants'): (
+            'PANTS / trousers showing full leg silhouette, '
+            'NOT a t-shirt. '
+        ),
+        ('apparel', 'jacket'): (
+            'A JACKET (bomber/blazer/denim) showing full silhouette with sleeves, '
+            'NOT a t-shirt. '
+        ),
+        # Furniture
+        ('furniture', 'table'): (
+            'A standalone TABLE catalog hero shot, '
+            'NOT a full room interior. '
+        ),
+        ('furniture', 'chair'): (
+            'A standalone CHAIR catalog hero shot, '
+            'NOT a person sitting. '
+        ),
+        ('furniture', 'sofa'): (
+            'A standalone SOFA catalog hero shot. '
+        ),
+        ('furniture', 'bed'): (
+            'A standalone BED catalog hero shot with headboard and bedding. '
+        ),
+        ('furniture', 'storage'): (
+            'A standalone STORAGE piece (wardrobe/shelf/cabinet) front-on. '
+        ),
+        # Electronics
+        ('electronics', 'laptop'): (
+            'A LAPTOP open at ~110° showing keyboard + screen + side profile. '
+        ),
+        ('electronics', 'phone'): (
+            'A SMARTPHONE vertical 3/4 view. '
+        ),
+        ('electronics', 'tablet'): (
+            'A TABLET flat or slight angle. '
+        ),
+        ('electronics', 'monitor'): (
+            'A MONITOR with stand visible. '
+        ),
+        ('electronics', 'audio'): (
+            'HEADPHONES or earbuds hero shot showing earcups/case. '
+        ),
+        ('electronics', 'camera'): (
+            'A CAMERA body + lens 3/4 view. '
+        ),
+        ('electronics', 'wearable'): (
+            'A SMARTWATCH 3/4 view with strap curving. '
+        ),
+        # Jewelry
+        ('jewelry', 'ring'): (
+            'A macro shot of a RING showing band + setting + gemstone. '
+        ),
+        ('jewelry', 'necklace'): (
+            'A NECKLACE laid in graceful curve OR worn invisibly (ghost-neck). '
+        ),
+        ('jewelry', 'bracelet'): (
+            'A BRACELET in S-curve OR on ghost wrist. '
+        ),
+        ('jewelry', 'earring'): (
+            'A pair of EARRINGS shown floating OR on neutral display. '
+        ),
+        # Vehicle
+        ('vehicle', 'car'): (
+            'A modern CAR (sedan/SUV/hatchback) 3/4 hero shot. '
+        ),
+        ('vehicle', 'motorcycle'): (
+            'A MOTORCYCLE side profile showing frame, engine, fairing. '
+        ),
+        ('vehicle', 'bicycle'): (
+            'A BICYCLE side profile on clean background. '
+        ),
+        ('vehicle', 'truck'): (
+            'A TRUCK or van side profile. '
+        ),
+        # Food
+        ('food', 'dessert'): (
+            'A close-up macro DESSERT showing texture, glaze, and crumbs. '
+        ),
+        ('food', 'fastfood'): (
+            'A hero FAST FOOD shot (burger cross-section / pizza pull). '
+        ),
+        ('food', 'beverage'): (
+            'A tall BEVERAGE glass with condensation and garnish. '
+        ),
+        ('food', 'dish'): (
+            'A plated DISH from 3/4 or top-down. '
+        ),
+    }
+
+    if category and sub:
+        hero = SUBTYPE_HERO_PHRASE.get((category, sub))
+        if hero:
+            # Check if subtype keyword already appears in mega (case-insensitive)
+            sub_kw = sub.upper()
+            if sub_kw not in mega.upper() and sub.lower() not in mega.lower():
+                # Inject defensive opener at the start
+                mega = (hero + mega)[:2700]
+
     # 🛡️ FOOTWEAR subtype leakage — لو الـ subtype = slipper، شيل أي ذكر
     # لـ sneaker/laces/athletic عشان الـ FLUX ميرجعش لـ default sneaker.
     # ده الإصلاح الرئيسي لـ bug الـ "شبشب طلع كوتشي".
@@ -2453,4 +2921,5 @@ def compose_mega_prompt(
         'print_dimensions_cm': {'width': round(w_cm, 1), 'height': round(h_cm, 1)},
         'presentation_category': category,
         'subtype': sub or '',
+        'brand_applied': brand_meta,
     }

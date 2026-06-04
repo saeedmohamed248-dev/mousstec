@@ -670,6 +670,302 @@ def pick_design_engine(
     return 'flux'
 
 
+# =============================================================================
+# 🎨 FLUX.1-Kontext — True Image-to-Image editing (Together AI)
+# =============================================================================
+# Use cases:
+#   • "غيّر اللون للأزرق" — change a single attribute, keep everything else
+#   • "اشيل النص" / "ضيف ظل" — surgical edits
+#   • "خليه أوضح" / "اعمله أفخم" — style enhancement on existing layout
+#
+# FLUX.1-Kontext-dev بياخد:
+#   - image_url (الصورة الأصلية)
+#   - prompt (تعليمات التعديل ENG)
+#   - يرجع نسخة معدّلة بنفس الـ composition + الـ subject + الـ layout
+#
+# Cost: ~$0.030 / edit (أعلى شوية من generation عشان الـ encoding)
+# Pricing: Together AI documented at ~3¢/image for Kontext-dev tier.
+# Fallback: لو Kontext فشل → نعمل full regenerate بـ FLUX-dev (نخسر الـ
+# composition بس على الأقل ناخد صورة)
+_FLUX_KONTEXT_MODEL = 'black-forest-labs/FLUX.1-Kontext-dev'
+_FLUX_KONTEXT_PRO_MODEL = 'black-forest-labs/FLUX.1-Kontext-pro'
+
+
+def _gen_via_flux_kontext(
+    image_url: str,
+    edit_instruction: str,
+    size: str = '1024x1024',
+    *,
+    use_pro: bool = False,
+) -> dict[str, Any]:
+    """يعدّل صورة موجودة بـ FLUX.1-Kontext (image-to-image edit).
+
+    image_url: رابط الصورة الأصلية (http accessible)
+    edit_instruction: تعليمات التعديل بالإنجليزي ("change the color to navy blue")
+    use_pro: True لتجربة Kontext-pro (أحسن جودة، أعلى تكلفة)
+    """
+    key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
+    if not key:
+        return {'success': False, 'error': 'together_key_missing'}
+    if not image_url or not edit_instruction:
+        return {'success': False, 'error': 'missing_input'}
+
+    model = _FLUX_KONTEXT_PRO_MODEL if use_pro else _FLUX_KONTEXT_MODEL
+    width, height = _parse_size(size)
+
+    import random as _random
+    payload = {
+        'model': model,
+        'prompt': edit_instruction[:1500],
+        'image_url': image_url,         # Kontext-specific input
+        'width': width,
+        'height': height,
+        'n': 1,
+        'response_format': 'url',
+        'seed': _random.randint(1, 2**31 - 1),
+    }
+    headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
+
+    try:
+        resp = requests.post(
+            _TOGETHER_URL, json=payload, headers=headers, timeout=_TIMEOUT_IMAGE,
+        )
+        if resp.status_code != 200:
+            logger.warning(
+                f'[FLUX KONTEXT] HTTP {resp.status_code}: {resp.text[:300]}'
+            )
+            return {
+                'success': False,
+                'error': f'kontext_http_{resp.status_code}',
+                'detail': resp.text[:300],
+            }
+        data = resp.json()
+        items = data.get('data', [])
+        if not items:
+            return {'success': False, 'error': 'kontext_empty_data'}
+        out = items[0].get('url') or items[0].get('b64_json')
+        if not out:
+            return {'success': False, 'error': 'kontext_no_url'}
+        return {
+            'success': True,
+            'url': out if out.startswith('http') else None,
+            'b64_json': out if not out.startswith('http') else None,
+            'provider': 'together',
+            'model': model,
+            'engine': 'kontext',
+            'cost_estimate_egp': 1.50,   # ~$0.030 → ~1.5 EGP
+        }
+    except requests.Timeout:
+        return {'success': False, 'error': 'kontext_timeout'}
+    except Exception as e:
+        logger.exception('[FLUX KONTEXT] failed')
+        return {'success': False, 'error': str(e)[:200]}
+
+
+# =============================================================================
+# 🎯 Refinement Intent Classifier — Arabic + English NLU
+# =============================================================================
+# Categories of refinement signals — determine if we can do i2i (Kontext) or
+# need full regenerate:
+#
+#   ✅ Kontext-friendly (surgical edit, keeps composition):
+#       • color_change      → "غيّر اللون للأزرق" / "make it red"
+#       • element_add       → "ضيف ظل" / "add a logo on the chest"
+#       • element_remove    → "اشيل النص" / "remove the text"
+#       • style_tweak       → "خليه أفخم" / "make it more elegant"
+#       • text_change       → "غيّر النص لـ X" / "change the text to X"
+#
+#   🔄 Needs full regenerate (composition change):
+#       • subtype_change    → "اعمله شبشب مش كوتشي" / "make it a slipper"
+#       • full_redesign     → "اعمله تاني من الأول" / "start over"
+#       • drastic_change    → "غيّر المنتج كله"
+#
+_COLOR_KEYWORDS_AR = (
+    'لون', 'الوان', 'ألوان', 'أحمر', 'أزرق', 'أخضر', 'أصفر', 'أبيض', 'أسود',
+    'بنفسجي', 'وردي', 'برتقالي', 'فضي', 'ذهبي', 'بني', 'رمادي', 'بيج',
+)
+_COLOR_KEYWORDS_EN = (
+    'color', 'colour', 'red', 'blue', 'green', 'yellow', 'white', 'black',
+    'purple', 'pink', 'orange', 'silver', 'gold', 'brown', 'gray', 'beige',
+    'navy', 'cyan', 'magenta',
+)
+_ADD_KEYWORDS_AR = ('ضيف', 'اضف', 'أضف', 'حط', 'ركّب', 'زود')
+_ADD_KEYWORDS_EN = ('add', 'put', 'place', 'include', 'insert')
+_REMOVE_KEYWORDS_AR = ('اشيل', 'شيل', 'احذف', 'امسح', 'الغي', 'إلغ')
+_REMOVE_KEYWORDS_EN = ('remove', 'delete', 'take off', 'get rid of', 'erase')
+_STYLE_KEYWORDS_AR = ('خليه', 'اعمله', 'فخم', 'بسيط', 'حديث', 'كلاسيكي',
+                       'هادي', 'مفعم', 'أوضح', 'أنعم')
+_STYLE_KEYWORDS_EN = ('make it', 'more elegant', 'cleaner', 'modern',
+                       'classic', 'softer', 'bolder', 'sharper')
+_TEXT_CHANGE_AR = ('غيّر النص', 'غير النص', 'بدّل الكلام', 'الكتابة')
+_TEXT_CHANGE_EN = ('change the text', 'replace the text', 'update the caption')
+
+# Signals that REQUIRE full regenerate (composition/subject change):
+_REGENERATE_SIGNALS_AR = (
+    'من الأول', 'من جديد', 'كله', 'تاني', 'مختلف تماماً', 'حاجة تانية خالص',
+    'مش هو ده', 'غيّر المنتج', 'اعمل واحد جديد',
+)
+_REGENERATE_SIGNALS_EN = (
+    'start over', 'from scratch', 'completely different', 'redo it',
+    'try again entirely', 'different product',
+)
+
+
+def classify_refinement_intent(refinement_text: str) -> dict[str, Any]:
+    """يحلل تعليمات التعديل ويرجع intent classification.
+
+    Returns:
+        {
+            'intent': 'color_change' | 'element_add' | 'element_remove' |
+                      'style_tweak' | 'text_change' | 'regenerate',
+            'can_use_kontext': bool,
+            'confidence': 'high' | 'medium' | 'low',
+            'detected_signals': [str],
+        }
+    """
+    if not refinement_text:
+        return {
+            'intent': 'regenerate', 'can_use_kontext': False,
+            'confidence': 'low', 'detected_signals': [],
+        }
+
+    t = refinement_text.lower().strip()
+    signals = []
+
+    # Full regenerate signals (highest priority — if user wants total redo, do it)
+    for kw in _REGENERATE_SIGNALS_AR + _REGENERATE_SIGNALS_EN:
+        if kw.lower() in t:
+            return {
+                'intent': 'regenerate',
+                'can_use_kontext': False,
+                'confidence': 'high',
+                'detected_signals': [kw],
+            }
+
+    # Color change
+    color_hit = any(kw in t for kw in _COLOR_KEYWORDS_AR) or any(
+        kw in t for kw in _COLOR_KEYWORDS_EN
+    )
+    if color_hit:
+        signals.append('color_keyword')
+
+    # Element add
+    add_hit = any(kw in t for kw in _ADD_KEYWORDS_AR) or any(
+        kw in t for kw in _ADD_KEYWORDS_EN
+    )
+    if add_hit:
+        signals.append('add_keyword')
+
+    # Element remove
+    remove_hit = any(kw in t for kw in _REMOVE_KEYWORDS_AR) or any(
+        kw in t for kw in _REMOVE_KEYWORDS_EN
+    )
+    if remove_hit:
+        signals.append('remove_keyword')
+
+    # Text change
+    text_hit = any(kw in t for kw in _TEXT_CHANGE_AR) or any(
+        kw in t for kw in _TEXT_CHANGE_EN
+    )
+    if text_hit:
+        signals.append('text_change_keyword')
+
+    # Style tweak
+    style_hit = any(kw in t for kw in _STYLE_KEYWORDS_AR) or any(
+        kw in t for kw in _STYLE_KEYWORDS_EN
+    )
+    if style_hit:
+        signals.append('style_keyword')
+
+    # Decide intent — priority order
+    if text_hit:
+        intent = 'text_change'
+    elif color_hit and not (remove_hit or add_hit):
+        intent = 'color_change'
+    elif add_hit and not remove_hit:
+        intent = 'element_add'
+    elif remove_hit and not add_hit:
+        intent = 'element_remove'
+    elif style_hit:
+        intent = 'style_tweak'
+    elif signals:
+        # Mixed signals — default to general style tweak (Kontext can handle)
+        intent = 'style_tweak'
+    else:
+        # No recognized signal → safer to regenerate
+        intent = 'regenerate'
+
+    can_use_kontext = intent in (
+        'color_change', 'element_add', 'element_remove',
+        'style_tweak', 'text_change',
+    )
+    confidence = 'high' if len(signals) >= 2 else ('medium' if signals else 'low')
+
+    return {
+        'intent': intent,
+        'can_use_kontext': can_use_kontext,
+        'confidence': confidence,
+        'detected_signals': signals,
+    }
+
+
+def refine_design_image(
+    image_url: str,
+    refinement_text_en: str,
+    *,
+    size: str = '1024x1024',
+    category: str | None = None,
+    force_regenerate: bool = False,
+    intent: str | None = None,
+    fallback_full_prompt: str | None = None,
+    negative_prompt: str = '',
+) -> dict[str, Any]:
+    """🧠 Smart refine entry point.
+
+    لو الـ intent يدعم Kontext (color/add/remove/style/text):
+        → Kontext image-to-image edit
+        → fallback لـ full regenerate لو Kontext فشل
+    لو الـ intent = regenerate (أو force_regenerate=True):
+        → full FLUX/Ideogram via generate_design_image
+
+    refinement_text_en: تعليمات التعديل (يفضل تكون بالإنجليزي لـ Kontext)
+    fallback_full_prompt: الـ mega_prompt الأصلي + التعديل (للـ regenerate path)
+    """
+    can_kontext = (
+        not force_regenerate
+        and intent in ('color_change', 'element_add', 'element_remove',
+                       'style_tweak', 'text_change')
+    )
+
+    if can_kontext:
+        result = _gen_via_flux_kontext(
+            image_url=image_url,
+            edit_instruction=refinement_text_en,
+            size=size,
+        )
+        if result.get('success'):
+            result['refinement_method'] = 'kontext_i2i'
+            result['intent'] = intent
+            return result
+        logger.warning(
+            f'[REFINE] Kontext failed ({result.get("error")}) — '
+            f'falling back to full regenerate'
+        )
+
+    # Full regenerate fallback / explicit regenerate intent
+    prompt = fallback_full_prompt or refinement_text_en
+    result = generate_design_image(
+        prompt=prompt,
+        size=size,
+        negative_prompt=negative_prompt,
+        category=category,
+        block_schnell_fallback=True,
+    )
+    result['refinement_method'] = 'full_regenerate'
+    result['intent'] = intent or 'regenerate'
+    return result
+
+
 def generate_design_image(
     prompt: str,
     size: str = '1024x1024',

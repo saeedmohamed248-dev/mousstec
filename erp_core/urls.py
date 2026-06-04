@@ -462,6 +462,10 @@ urlpatterns = [
     path('marketplace/design-store/<uuid:design_code>/chat/', client_views.design_store_chat_history, name='design_store_chat'),
     path('marketplace/design-store/<uuid:design_code>/refine/', client_views.design_store_refine, name='design_store_refine'),
 
+    # 🎨 Brand Memory — Asset Library (Phase 5)
+    path('marketplace/brand-profile/', client_views.brand_profile_view, name='brand_profile'),
+    path('marketplace/brand-profile/logo/<str:slot>/delete/', client_views.brand_profile_delete_logo, name='brand_profile_delete_logo'),
+
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),
     path('marketplace/merchant/feed/count/', client_views.marketplace_merchant_feed_count, name='marketplace_merchant_feed_count'),

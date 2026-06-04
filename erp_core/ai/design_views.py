@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
@@ -233,12 +234,36 @@ def design_generate(request):
             'message': gate_msg, 'balance': balance or {}, 'audience': audience,
         }, status=200)
 
+    # 🎨 Load customer's brand profile (if exists and active) — auto-inherit
+    # برand identity في كل تصميم. الـ apply_brand_profile() داخل compose_mega_prompt
+    # بـ merge الـ brand defaults مع الـ explicit selections (explicit يفوز).
+    brand_context = None
+    brand_logo_url = None
+    if customer is not None:
+        try:
+            bp = getattr(customer, 'brand_profile', None)
+            if bp and bp.is_active:
+                brand_context = bp.as_brand_context()
+                if bp.auto_inject_logo and bp.has_logo:
+                    brand_context['logo_described'] = True
+                    try:
+                        brand_logo_url = bp.logo_image.url
+                    except Exception:
+                        pass
+                logger.info(
+                    f'[DESIGN GENERATE] brand profile applied: {bp.brand_name} '
+                    f'(colors={bp.auto_inject_colors} logo={bp.auto_inject_logo})'
+                )
+        except Exception as e:
+            logger.warning(f'[DESIGN GENERATE] brand profile lookup failed: {e}')
+
     # Stage A: compose mega prompt via LLM (مع أوصاف الصور المرجعية لو موجودة)
     try:
         mega = compose_mega_prompt(raw_idea, domain, clean_selections,
                                    reference_descriptions=ref_descriptions or None,
                                    presentation_category=presentation_category,
-                                   subtype=client_subtype or None)
+                                   subtype=client_subtype or None,
+                                   brand_context=brand_context)
     except Exception as e:
         logger.exception('[DESIGN GENERATE] mega compose crashed')
         return JsonResponse({'success': False, 'message': '⚠️ تعذر صياغة البرومبت.', 'error': str(e)}, status=200)
@@ -464,6 +489,129 @@ def design_generate(request):
         except Exception as e:
             logger.warning(f'[DESIGN GENERATE] overlay exception (non-fatal): {e}')
 
+    # ═══════════════════════════════════════════════════════════════════
+    # 🔍 QUALITY GATE — Vision-based verification + Auto-regenerate
+    # ─────────────────────────────────────────────────────────────────
+    # نـ verify الصورة المولّدة ضد الـ brief. لو الـ verdict ضعيف،
+    # نعيد التوليد مرة واحدة بـ prompt augmented بالـ correction.
+    # ده الـ safety net النهائي اللي يمنع وصول design غلط للعميل.
+    # ═══════════════════════════════════════════════════════════════════
+    quality_report = None
+    quality_regenerated = False
+    quality_gate_enabled = bool(
+        getattr(settings, 'DESIGN_QUALITY_GATE_ENABLED', True)
+        and image_url
+    )
+
+    if quality_gate_enabled:
+        try:
+            from .design_engine import verify_design_quality
+            expected_text = (
+                text_overlay_info.get('text', '') if text_overlay_info else ''
+            )
+            quality_report = verify_design_quality(
+                image_url=image_url,
+                raw_idea=raw_idea,
+                category=presentation_category,
+                subtype=(mega.get('subtype') or body.get('subtype') or '').strip() or None,
+                expected_text=expected_text or None,
+            )
+            logger.info(
+                f'[QUALITY GATE] success={quality_report.get("success")} '
+                f'score={quality_report.get("score")} '
+                f'verdict={quality_report.get("verdict")} '
+                f'subtype_match={quality_report.get("subtype_match")} '
+                f'issues={quality_report.get("key_issues")}'
+            )
+
+            # 🔄 Auto-regenerate لو verdict ضعيف
+            if (quality_report.get('success')
+                    and quality_report.get('should_regenerate')
+                    and not quality_regenerated):
+                suggestion = quality_report.get('correction_suggestion') or ''
+                issues_text = '; '.join(quality_report.get('key_issues') or [])
+                logger.warning(
+                    f'[QUALITY GATE] verdict={quality_report.get("verdict")} '
+                    f'score={quality_report.get("score")} — auto-regenerating. '
+                    f'Suggestion: {suggestion[:150]}'
+                )
+
+                # Augment الـ prompt بالـ correction
+                correction_block = (
+                    f'CRITICAL FIX REQUIRED — previous attempt failed quality check. '
+                    f'Issues found: {issues_text[:250]}. '
+                    f'You MUST FIX: {suggestion}. '
+                )
+                augmented_prompt = (
+                    correction_block
+                    + (ideogram_prompt if chosen_engine == 'ideogram' else mega_prompt)
+                )[:2700]
+
+                try:
+                    retry_img = generate_design_image(
+                        prompt=augmented_prompt,
+                        size=size,
+                        negative_prompt=negative,
+                        category=presentation_category,
+                        has_text_content=has_text_content,
+                        has_arabic=has_arabic_in_text,
+                        force_engine=chosen_engine,
+                        block_schnell_fallback=True,
+                    )
+                    if retry_img.get('success') and retry_img.get('url'):
+                        # Apply overlay على الصورة الجديدة لو مش Ideogram
+                        new_url = retry_img['url']
+                        if active_engine != 'ideogram' and text_overlay_info:
+                            try:
+                                from .text_overlay import overlay_text_on_image_url
+                                retry_ov = overlay_text_on_image_url(
+                                    image_url=new_url,
+                                    text=text_overlay_info['text'],
+                                    position=text_overlay_info.get('position', 'center'),
+                                    color=text_overlay_info.get('color', '#000000'),
+                                    font_size_ratio=float(text_overlay_info.get('font_ratio', 0.08)),
+                                )
+                                if retry_ov.get('success'):
+                                    new_url = retry_ov['url']
+                                    if new_url and new_url.startswith('/'):
+                                        new_url = request.build_absolute_uri(new_url)
+                            except Exception:
+                                pass
+                        image_url = new_url
+                        img = retry_img  # update so response shows the retry's model
+                        active_engine = retry_img.get('engine', active_engine)
+                        quality_regenerated = True
+
+                        # Re-verify the new image (cheap & gives final score)
+                        try:
+                            requalified = verify_design_quality(
+                                image_url=image_url,
+                                raw_idea=raw_idea,
+                                category=presentation_category,
+                                subtype=(mega.get('subtype') or body.get('subtype') or '').strip() or None,
+                                expected_text=expected_text or None,
+                            )
+                            if requalified.get('success'):
+                                # نخلي الـ original report محفوظ كـ history لكن
+                                # نعرض النتيجة الجديدة كـ final
+                                quality_report = {
+                                    **requalified,
+                                    'auto_regenerated': True,
+                                    'original_verdict': quality_report.get('verdict'),
+                                    'original_score': quality_report.get('score'),
+                                }
+                        except Exception as e:
+                            logger.warning(f'[QUALITY GATE] re-verify failed: {e}')
+                    else:
+                        logger.warning(
+                            f'[QUALITY GATE] retry generation failed: '
+                            f'{retry_img.get("error")} — keeping original'
+                        )
+                except Exception as e:
+                    logger.warning(f'[QUALITY GATE] retry exception (non-fatal): {e}')
+        except Exception as e:
+            logger.warning(f'[QUALITY GATE] verification exception (non-fatal): {e}')
+
     # Consume credit
     credit_info = None
     try:
@@ -494,6 +642,13 @@ def design_generate(request):
             image_size=size[:20],
             llm_model=_llm_model()[:80],
             image_model=(img.get('model') or '')[:80],
+            # 🔍 Quality Gate fields
+            presentation_category=(presentation_category or '')[:20],
+            detected_subtype=((mega.get('subtype') or body.get('subtype') or '') if isinstance(mega, dict) else '')[:20],
+            quality_score=(quality_report or {}).get('score') if quality_report else None,
+            quality_verdict=((quality_report or {}).get('verdict') or '')[:20] if quality_report else '',
+            quality_issues=(quality_report or {}).get('key_issues') or [],
+            auto_regenerated=quality_regenerated,
         )
         log_id = log.id
     except Exception as e:
@@ -600,7 +755,28 @@ def design_generate(request):
         'engine': active_engine,                                       # 'ideogram' | 'flux'
         'overlay_skipped_reason': overlay_skipped_reason or None,
         'text_rendered_in_image': active_engine == 'ideogram' and has_text_content,
+        # 🔍 Quality Gate metadata (visible in sidebar)
+        'quality_score': (quality_report or {}).get('score') if quality_report else None,
+        'quality_verdict': (quality_report or {}).get('verdict') if quality_report else None,
+        'quality_issues': (quality_report or {}).get('key_issues') if quality_report else None,
+        'auto_regenerated': quality_regenerated,
+        # 🎨 Brand profile metadata
+        'brand_applied': (mega.get('brand_applied') or {}).get('applied', False),
+        'brand_name': (mega.get('brand_applied') or {}).get('brand_name', ''),
+        'brand_logo_url': brand_logo_url,
     }
+
+    # 🎨 Bump brand profile usage counter (non-fatal)
+    if customer is not None and (mega.get('brand_applied') or {}).get('applied'):
+        try:
+            bp = getattr(customer, 'brand_profile', None)
+            if bp and bp.is_active:
+                from django.db.models import F
+                type(bp).objects.filter(pk=bp.pk).update(
+                    designs_with_brand=F('designs_with_brand') + 1,
+                )
+        except Exception:
+            pass
 
     return JsonResponse({
         'success': True,
@@ -623,6 +799,8 @@ def design_generate(request):
         'model': img.get('model'),
         'engine': active_engine,
         'engine_fallback_from': img.get('fallback_from'),
+        'quality_report': quality_report,
+        'auto_regenerated': quality_regenerated,
         'structured_meta': structured_meta,
         'balance': credit_info.get('balance') if credit_info else None,
         'credit': credit_info,

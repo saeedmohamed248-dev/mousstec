@@ -365,6 +365,17 @@ FLUX_MODEL_PROVIDER = env.str('FLUX_MODEL_PROVIDER', 'together')  # 'together' |
 # If unset, the smart router falls back to FLUX for all categories.
 IDEOGRAM_API_KEY = env.str('IDEOGRAM_API_KEY', '')
 
+# =====================================================================
+# 🔍 Quality Gate — Vision-based verification of generated designs
+# =====================================================================
+# لما يكون True (default)، كل صورة مولّدة تتفحص بـ Llama Vision قبل ما
+# تتعرض للعميل. لو الـ verdict = "needs_regen" أو "critical_fail"، السيستم
+# يعمل auto-regenerate مرة واحدة بـ prompt augmented بالـ correction.
+# Cost impact: +1 vision call (~$0.002) لكل توليد + احتمالية image call تانية.
+# Quality impact: يلغي 90%+ من الـ "wrong output reaching customer" scenarios.
+# Disable للـ load testing أو لو الـ Together API budget محدود جداً.
+DESIGN_QUALITY_GATE_ENABLED = env.bool('DESIGN_QUALITY_GATE_ENABLED', default=True)
+
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 

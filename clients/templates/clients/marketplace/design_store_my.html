@@ -946,7 +946,35 @@ async function uaiGenerate() {
             +       (d.engine_fallback_from
                       ? '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="الـ engine الأصلي ' + _uaiEsc(d.engine_fallback_from) + ' فشل واتحوّل للـ fallback">↩️ fallback</span>'
                       : '')
+            +       (d.quality_report && d.quality_report.score
+                      ? (function(){
+                          var qr = d.quality_report;
+                          var verdict = qr.verdict || 'acceptable';
+                          var sc = qr.score;
+                          var palette = { excellent: '#10b981', acceptable: '#84cc16', needs_regen: '#f97316', critical_fail: '#ef4444' };
+                          var label = { excellent: 'ممتاز', acceptable: 'مقبول', needs_regen: 'تعديل', critical_fail: 'فشل' };
+                          var bg = palette[verdict] || '#6b7280';
+                          var lab = label[verdict] || verdict;
+                          var issues = (qr.key_issues || []).slice(0, 3).join(' • ');
+                          var tip = '🔍 فحص جودة بصري (Vision LLM):\n' + lab + ' — ' + sc + '/10' + (issues ? '\n• ' + issues : '');
+                          return '<span style="font-size:11px;background:' + bg + ';color:#fff;padding:4px 12px;border-radius:12px;font-weight:800;cursor:help;" title="' + _uaiEsc(tip) + '">🔍 ' + sc + '/10 · ' + _uaiEsc(lab) + '</span>';
+                      })()
+                      : '')
+            +       (d.auto_regenerated
+                      ? '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="السيستم لاحظ نقص في الجودة وأعاد التوليد تلقائياً بنسخة محسّنة">🔄 اتعدّل تلقائياً</span>'
+                      : '')
             +     '</div>'
+            +     (d.quality_report && d.quality_report.key_issues && d.quality_report.key_issues.length && (d.quality_report.verdict === 'acceptable' || d.quality_report.verdict === 'needs_regen' || d.quality_report.verdict === 'critical_fail')
+                      ? '<details style="margin-top:10px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:8px;padding:8px 12px;">'
+                        + '<summary style="cursor:pointer;color:#fb923c;font-weight:700;font-size:11px;">⚠️ ملاحظات الـ Vision (' + (d.quality_report.key_issues.length) + ')</summary>'
+                        + '<ul style="margin:6px 0 0 18px;padding:0;font-size:11px;color:#cbd5e1;line-height:1.6;">'
+                        +   d.quality_report.key_issues.map(function(i){ return '<li>' + _uaiEsc(i) + '</li>'; }).join('')
+                        + '</ul>'
+                        + (d.quality_report.correction_suggestion
+                            ? '<p style="margin-top:6px;font-size:10px;color:#94a3b8;direction:ltr;text-align:left;">💡 ' + _uaiEsc(d.quality_report.correction_suggestion) + '</p>'
+                            : '')
+                        + '</details>'
+                      : '')
             +   '</div>'
             +   (metaHtml ? '<div>' + metaHtml + '</div>' : '')
             + '</div>'
@@ -1149,7 +1177,7 @@ async function uaiFeedback(logId, isSuccessful) {
             <div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>
         </div>
         <div class="chat-input-row">
-            <input type="text" id="chatRefineInput" placeholder="مثال: غيّر اللون للأزرق | اكتب على الضهر | كبّر الخط | اللوجو على القدام"
+            <input type="text" id="chatRefineInput" placeholder="✏️ تعديل دقيق: غيّر اللون للأزرق | شيل النص | ضيف ظل | خليه أفخم   ·   🔄 إعادة كاملة: اعمله من الأول"
                    onkeydown="if(event.key==='Enter')chatRefine()">
             <button onclick="chatRefine()" id="chatRefineBtn"><i class="fas fa-paper-plane"></i> عدّل</button>
         </div>
@@ -1248,11 +1276,62 @@ async function chatRefine() {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
 
-        // Add AI response — مع placement label لو الـ design اتنقل للضهر
+        // Add AI response — مع placement label + method badge + before/after comparison
         const placementLabel = d.placement === 'back' ? '🔄 الضهر' : '👕 القدام';
+
+        // 🎯 Method badge — kontext_i2i (تعديل دقيق) vs full_regenerate (إعادة كاملة)
+        const methodMeta = {
+            'kontext_i2i': {
+                label: '✏️ تعديل دقيق (الصورة الأصلية محفوظة)',
+                bg: '#0891b2', tooltip: 'استخدم FLUX.1-Kontext لتعديل الصورة الأصلية بدون إعادة توليد كاملة'
+            },
+            'full_regenerate': {
+                label: '🔄 إعادة توليد كامل',
+                bg: '#f59e0b', tooltip: 'التعديل يحتاج تغيير جذري في التصميم'
+            },
+        };
+        const meta = methodMeta[d.refinement_method] || null;
+        const methodBadge = meta
+            ? `<span style="font-size:10px;background:${meta.bg};color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;margin-left:6px;" title="${meta.tooltip}">${meta.label}</span>`
+            : '';
+
+        // 🎯 Intent badge (إذا متاح)
+        const intentLabel = {
+            'color_change': '🎨 تغيير لون',
+            'element_add': '➕ إضافة عنصر',
+            'element_remove': '✂️ حذف عنصر',
+            'style_tweak': '✨ تحسين أسلوب',
+            'text_change': '📝 تعديل نص',
+            'regenerate': '🔁 إعادة',
+        };
+        const intentBadge = d.refinement_intent && intentLabel[d.refinement_intent]
+            ? `<span style="font-size:10px;background:#475569;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;margin-left:4px;">${intentLabel[d.refinement_intent]}</span>`
+            : '';
+
+        // 🔀 Before/after comparison (لو في previous_image_url)
+        const comparisonHtml = d.previous_image_url
+            ? `<details style="margin-top:6px;background:rgba(8,145,178,0.08);border:1px solid rgba(8,145,178,0.25);border-radius:8px;padding:6px 10px;">
+                  <summary style="cursor:pointer;color:#22d3ee;font-weight:700;font-size:11px;">🔀 قبل / بعد</summary>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                    <div>
+                      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:4px;font-weight:700;">قبل</div>
+                      <img src="${d.previous_image_url}" loading="lazy" style="width:100%;border-radius:6px;border:1px solid rgba(255,255,255,0.1);">
+                    </div>
+                    <div>
+                      <div style="font-size:10px;color:#22d3ee;text-align:center;margin-bottom:4px;font-weight:700;">بعد</div>
+                      <img src="${d.image_url}" loading="lazy" style="width:100%;border-radius:6px;border:1px solid rgba(34,211,238,0.4);">
+                    </div>
+                  </div>
+                </details>`
+            : '';
+
         const aiDiv = document.createElement('div');
         aiDiv.className = 'chat-msg assistant';
-        aiDiv.innerHTML = `<div>تم تعديل التصميم حسب طلبك ✅ (${placementLabel})</div><img src="${d.image_url}" loading="lazy"><div class="time">الآن — متبقي <b>${d.regenerations_left}</b> تعديل</div>`;
+        aiDiv.innerHTML = `
+            <div>تم تعديل التصميم حسب طلبك ✅ (${placementLabel}) ${methodBadge}${intentBadge}</div>
+            <img src="${d.image_url}" loading="lazy">
+            ${comparisonHtml}
+            <div class="time">الآن — متبقي <b>${d.regenerations_left}</b> تعديل</div>`;
         box.appendChild(aiDiv);
         box.scrollTop = box.scrollHeight;
         toast('✅ تم التعديل!', 'success');

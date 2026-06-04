@@ -2193,6 +2193,185 @@ class DesignPromptLog(models.Model):
         )
 
 
+class CustomerBrandProfile(models.Model):
+    """🎨 Brand Memory — هوية البراند المحفوظة للعميل.
+
+    العميل يـ setup ملف البراند مرة واحدة (لوجو + ألوان + أسلوب)، ومن ساعتها
+    كل تصميم يقوم بتوليده يـ inject الـ brand identity تلقائياً بدون إعادة كتابة.
+
+    Smart Merge Logic:
+      • الـ explicit selections في الـ form بتـ override الـ brand defaults.
+      • الـ brand defaults بتدخل بس في الـ slots اللي العميل سايبها فاضية.
+      • الـ logo image بيدخل reference_images تلقائياً (للـ vision analysis).
+    """
+    INDUSTRY_CHOICES = (
+        ('fashion', _('موضة / ملابس')),
+        ('food', _('مطاعم / طعام')),
+        ('tech', _('تكنولوجيا')),
+        ('beauty', _('تجميل')),
+        ('jewelry', _('مجوهرات')),
+        ('home', _('أثاث / ديكور')),
+        ('education', _('تعليم')),
+        ('healthcare', _('صحة / طب')),
+        ('automotive', _('سيارات')),
+        ('real_estate', _('عقارات')),
+        ('retail', _('تجزئة')),
+        ('services', _('خدمات')),
+        ('events', _('مناسبات')),
+        ('agency', _('وكالة / استشارات')),
+        ('other', _('أخرى')),
+    )
+
+    AESTHETIC_CHOICES = (
+        ('modern_minimal', _('عصري بسيط')),
+        ('luxury_elegant', _('فاخر أنيق')),
+        ('bold_playful', _('جريء مرح')),
+        ('classic_traditional', _('كلاسيكي تراثي')),
+        ('natural_organic', _('طبيعي عضوي')),
+        ('tech_futuristic', _('تقني مستقبلي')),
+        ('artisan_handcrafted', _('حرفي صناعة يدوية')),
+        ('corporate_professional', _('شركاتي محترف')),
+    )
+
+    TONE_CHOICES = (
+        ('formal', _('رسمي')),
+        ('casual', _('غير رسمي / صديق')),
+        ('playful', _('مرح / فكاهي')),
+        ('authoritative', _('واثق / مرجعي')),
+        ('warm', _('دافئ / إنساني')),
+        ('luxurious', _('فاخر / حصري')),
+    )
+
+    FONT_STYLE_CHOICES = (
+        ('modern_sans', 'Modern Sans-serif'),
+        ('classic_serif', 'Classic Serif'),
+        ('geometric', 'Geometric Sans'),
+        ('elegant_script', 'Elegant Script'),
+        ('bold_display', 'Bold Display'),
+        ('arabic_naskh', 'خط النسخ التقليدي'),
+        ('arabic_kufi', 'خط كوفي عصري'),
+        ('arabic_diwani', 'خط ديواني فاخر'),
+        ('arabic_modern', 'خط عربي عصري'),
+    )
+
+    customer = models.OneToOneField(
+        MarketplaceCustomer, on_delete=models.CASCADE,
+        related_name='brand_profile',
+        verbose_name=_("العميل"),
+    )
+
+    # Identity
+    brand_name = models.CharField(max_length=120, verbose_name=_("اسم البراند"))
+    brand_name_en = models.CharField(max_length=120, blank=True,
+        verbose_name=_("الاسم بالإنجليزي (اختياري)"))
+    tagline = models.CharField(max_length=200, blank=True,
+        verbose_name=_("الشعار / السلوجان"),
+        help_text=_("جملة قصيرة بتلخص رسالة البراند"))
+
+    # Visual identity — colors
+    primary_color = models.CharField(max_length=9, default='#7c3aed',
+        verbose_name=_("اللون الرئيسي"),
+        help_text=_("لون البراند الأساسي — هيظهر في كل تصميم"))
+    secondary_color = models.CharField(max_length=9, default='#1e293b',
+        verbose_name=_("اللون الثانوي"))
+    accent_color = models.CharField(max_length=9, blank=True, default='',
+        verbose_name=_("لون التمييز (اختياري)"))
+
+    # Visual identity — logo
+    logo_image = models.ImageField(
+        upload_to='brand_profiles/logos/%Y/%m/',
+        blank=True, null=True,
+        verbose_name=_("اللوجو"),
+        help_text=_("هيتستخدم كـ reference في كل تصميم تلقائياً"),
+    )
+    logo_alt_image = models.ImageField(
+        upload_to='brand_profiles/logos/%Y/%m/',
+        blank=True, null=True,
+        verbose_name=_("لوجو بديل (لون مختلف / monochrome)"),
+    )
+
+    # Brand voice
+    industry = models.CharField(
+        max_length=20, choices=INDUSTRY_CHOICES, default='other',
+        verbose_name=_("المجال"),
+    )
+    aesthetic = models.CharField(
+        max_length=30, choices=AESTHETIC_CHOICES, default='modern_minimal',
+        verbose_name=_("الأسلوب البصري"),
+    )
+    tone = models.CharField(
+        max_length=20, choices=TONE_CHOICES, default='warm',
+        verbose_name=_("نبرة البراند"),
+    )
+    arabic_font = models.CharField(
+        max_length=30, choices=FONT_STYLE_CHOICES, default='arabic_modern',
+        verbose_name=_("الخط العربي المفضل"),
+    )
+    english_font = models.CharField(
+        max_length=30, choices=FONT_STYLE_CHOICES, default='modern_sans',
+        verbose_name=_("الخط الإنجليزي المفضل"),
+    )
+
+    # Free-form style notes for the LLM
+    style_notes = models.TextField(
+        blank=True, max_length=500,
+        verbose_name=_("ملاحظات أسلوب إضافية"),
+        help_text=_("أي تفاصيل عن أسلوب البراند بتحب الـ AI يتبعها — مثلاً 'استخدم زخارف إسلامية' أو 'تجنب الزهور'"),
+    )
+
+    # Control
+    is_active = models.BooleanField(default=True, db_index=True,
+        verbose_name=_("نشط — يطبّق تلقائياً"),
+        help_text=_("لو معطّل، التصميمات الجديدة مش هتاخد ملف البراند تلقائياً"))
+    auto_inject_logo = models.BooleanField(default=True,
+        verbose_name=_("ضع اللوجو تلقائياً في كل تصميم"))
+    auto_inject_colors = models.BooleanField(default=True,
+        verbose_name=_("استخدم ألوان البراند تلقائياً"))
+
+    # Stats
+    designs_with_brand = models.PositiveIntegerField(default=0,
+        verbose_name=_("عدد التصميمات اللي استخدمت ملف البراند"))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("ملف براند العميل")
+        verbose_name_plural = _("🎨 ملفات البراند")
+
+    def __str__(self):
+        return f"{self.brand_name} ({self.customer})"
+
+    @property
+    def has_logo(self) -> bool:
+        return bool(self.logo_image and self.logo_image.name)
+
+    def as_brand_context(self) -> dict:
+        """يرجع dict شكلها يندمج في selections + يـ describe الـ aesthetic
+        للـ mega_prompt. الـ design_engine بتـ merge ده مع الـ explicit
+        selections (explicit يفوز دايماً)."""
+        ctx = {
+            'brand_name': self.brand_name,
+            'industry': self.get_industry_display(),
+            'aesthetic': self.get_aesthetic_display(),
+            'tone': self.get_tone_display(),
+        }
+        if self.auto_inject_colors:
+            ctx['primary_color'] = self.primary_color
+            ctx['secondary_color'] = self.secondary_color
+            if self.accent_color:
+                ctx['accent_color'] = self.accent_color
+        if self.tagline:
+            ctx['tagline'] = self.tagline
+        if self.brand_name_en:
+            ctx['brand_name_en'] = self.brand_name_en
+        if self.style_notes:
+            ctx['style_notes'] = self.style_notes
+        ctx['arabic_font_pref'] = self.get_arabic_font_display()
+        ctx['english_font_pref'] = self.get_english_font_display()
+        return ctx
+
+
 class AIPromptLearningLog(models.Model):
     """🌀 Data Flywheel — كل تفاعل توليد بيتسجل لبناء fine-tuning dataset مع الوقت.
 
@@ -2236,6 +2415,23 @@ class AIPromptLearningLog(models.Model):
         verbose_name=_("هل التصميم ناجح؟ (feedback من المستخدم)"))
     feedback_at = models.DateTimeField(null=True, blank=True)
 
+    # 🔍 Quality Gate (Vision-based verification)
+    quality_score = models.IntegerField(null=True, blank=True, db_index=True,
+        verbose_name=_("درجة الجودة (1-10) من Vision LLM"))
+    quality_verdict = models.CharField(max_length=20, blank=True, db_index=True,
+        verbose_name=_("حكم الجودة"),
+        help_text="excellent | acceptable | needs_regen | critical_fail")
+    quality_issues = models.JSONField(default=list, blank=True,
+        verbose_name=_("المشاكل المكتشفة"))
+    auto_regenerated = models.BooleanField(default=False, db_index=True,
+        verbose_name=_("هل اتعاد توليده تلقائياً بسبب فشل Quality Gate؟"))
+    presentation_category = models.CharField(max_length=20, blank=True, db_index=True,
+        verbose_name=_("فئة العرض"),
+        help_text="apparel | document | footwear | furniture | ...")
+    detected_subtype = models.CharField(max_length=20, blank=True, db_index=True,
+        verbose_name=_("الـ subtype داخل الفئة"),
+        help_text="slipper | sneaker | table | laptop | ...")
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -2245,6 +2441,8 @@ class AIPromptLearningLog(models.Model):
         indexes = [
             models.Index(fields=['detected_domain', '-created_at']),
             models.Index(fields=['is_successful', '-created_at']),
+            models.Index(fields=['presentation_category', 'detected_subtype']),
+            models.Index(fields=['quality_verdict', '-created_at']),
         ]
 
     def __str__(self):
