@@ -2074,6 +2074,256 @@ class DesignChatMessage(models.Model):
         return f'{self.get_role_display()}: {self.content[:50]}'
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 💬 N — Conversational Design Builder (Phase N.1)
+# ───────────────────────────────────────────────────────────────────────────
+# Session-level multi-turn chat where the customer builds up a design in
+# natural language. Distinct from DesignChatMessage above, which is a
+# post-design refine thread attached to a finalized CustomerDesign.
+#
+# Architecture: Hybrid (Model C). Free chat early ("planning"), cheap
+# generate when the user commits, then FLUX-Kontext refinement on the live
+# image. The intent classifier (Llama-3-8B JSON mode) routes each user
+# message to chat | generate | refine; undo/finalize are explicit buttons.
+#
+# State of truth: `accumulated_context` JSON (the merged prompt state).
+# The chat transcript lives in DesignConversationTurn rows.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class DesignConversation(models.Model):
+    """💬 جلسة محادثة لبناء تصميم — multi-turn chat → image.
+
+    Each row = one customer's design-building session. References the
+    "live" CustomerDesign that the chat is iterating on (NULL until the
+    first generation). Carries the accumulated prompt state across turns
+    in JSON, and tracks cost / turn limits per session.
+    """
+    STAGE_CHOICES = (
+        ('planning',  _('تخطيط — لسه بنتكلم')),
+        ('generated', _('اتولّد أول تصميم')),
+        ('refining',  _('قيد التعديل')),
+        ('finalized', _('تم الاعتماد')),
+        ('abandoned', _('متروك')),
+    )
+
+    conversation_code = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True, db_index=True,
+        verbose_name=_("رمز المحادثة"),
+    )
+    customer = models.ForeignKey(
+        MarketplaceCustomer, on_delete=models.CASCADE,
+        related_name='design_conversations',
+        verbose_name=_("العميل"),
+    )
+
+    # The "live" design being iterated. NULL during planning stage.
+    # PROTECT (not CASCADE) so accidentally deleting a finalized design
+    # doesn't nuke its conversation history — analytics value.
+    current_design = models.ForeignKey(
+        CustomerDesign, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='source_conversations',
+        verbose_name=_("التصميم الحالي"),
+    )
+
+    # 🎨 Snapshot the brand profile at conversation start. Lets analytics
+    # see what brand state was applied even if the customer edits/deletes
+    # their CustomerBrandProfile later. Empty dict for guests / no brand.
+    brand_profile_snapshot = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("لقطة من ملف البراند وقت بدء المحادثة"),
+    )
+
+    # 🧠 The merged prompt state — the source of truth for the next
+    # generation/refinement. Schema (informally):
+    #   {
+    #     "raw_idea": "تيشرت رياضي للجري",
+    #     "selections": {"color_primary": "navy", "style": "minimal"},
+    #     "reference_descriptions": [...],
+    #     "domain": "apparel",
+    #     "presentation_category": "apparel",
+    #     "subtype": "tshirt",
+    #     "brand_disabled": false,
+    #     "history": [{"turn": 1, "patch": {...}}, ...]
+    #   }
+    accumulated_context = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("السياق المتراكم عبر التيرنات"),
+    )
+
+    stage = models.CharField(
+        max_length=12, choices=STAGE_CHOICES, default='planning',
+        db_index=True,
+        verbose_name=_("المرحلة"),
+    )
+
+    # 🛡️ Advisory lock to prevent concurrent-message races (user double-taps
+    # send → two parallel turns → state corruption). The orchestrator sets
+    # this to `now + 30s` while processing a turn; expired locks are ignored.
+    locked_until = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name=_("مقفول حتى (advisory lock)"),
+    )
+
+    # 📊 Per-session counters & limits (DESIGN_CHAT_* defaults from settings).
+    turn_count = models.PositiveSmallIntegerField(default=0,
+        verbose_name=_("عدد التيرنات"))
+    image_count = models.PositiveSmallIntegerField(default=0,
+        verbose_name=_("عدد الصور المولّدة"))
+    total_cost_credits = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0,
+        verbose_name=_("التكلفة الإجمالية (credits)"),
+    )
+
+    # Lifecycle timestamps
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    finalized_at = models.DateTimeField(null=True, blank=True)
+    abandoned_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("💬 محادثة تصميم")
+        verbose_name_plural = _("💬 محادثات التصاميم")
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['customer', 'stage']),
+            models.Index(fields=['stage', '-updated_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f'Conversation {self.conversation_code} ({self.stage})'
+
+    # ── Convenience methods ───────────────────────────────────
+    @property
+    def is_active(self) -> bool:
+        return self.stage in ('planning', 'generated', 'refining')
+
+    @property
+    def is_locked(self) -> bool:
+        """True if a turn is currently being processed."""
+        if not self.locked_until:
+            return False
+        from django.utils import timezone
+        return self.locked_until > timezone.now()
+
+    def can_send_another_turn(self) -> tuple[bool, str]:
+        """Cost & turn limits per session — returns (allowed, reason)."""
+        from django.conf import settings as _s
+        max_turns = int(getattr(_s, 'DESIGN_CHAT_MAX_TURNS', 30))
+        max_images = int(getattr(_s, 'DESIGN_CHAT_MAX_IMAGES', 8))
+        if self.turn_count >= max_turns:
+            return False, 'max_turns_reached'
+        if self.image_count >= max_images:
+            return False, 'max_images_reached'
+        if self.is_locked:
+            return False, 'in_flight'
+        if self.stage in ('finalized', 'abandoned'):
+            return False, 'closed'
+        return True, ''
+
+
+class DesignConversationTurn(models.Model):
+    """💬 تيرن واحد في محادثة تصميم — رسالة من user أو assistant.
+
+    Carries the classified intent (so analytics can see drop-off points
+    where the classifier mis-routed) and the design snapshot at this turn
+    (so 'undo' reverts to a prior known-good image).
+    """
+    ROLE_CHOICES = (
+        ('user',      _('العميل')),
+        ('assistant', _('المصمم AI')),
+        ('system',    _('النظام')),
+    )
+    INTENT_CHOICES = (
+        ('chat',      _('دردشة (بدون توليد)')),
+        ('generate',  _('توليد صورة جديدة')),
+        ('refine',    _('تعديل الصورة الحالية')),
+        ('undo',      _('رجوع للحالة السابقة')),
+        ('finalize',  _('اعتماد التصميم')),
+        ('unknown',   _('غير محدد')),
+    )
+
+    conversation = models.ForeignKey(
+        DesignConversation, on_delete=models.CASCADE,
+        related_name='turns',
+        verbose_name=_("المحادثة"),
+    )
+    turn_index = models.PositiveSmallIntegerField(
+        verbose_name=_("ترتيب التيرن"),
+        help_text=_("بداية من 1 — يـ increment على كل user message"),
+    )
+
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    content = models.TextField(verbose_name=_("محتوى الرسالة"))
+
+    intent = models.CharField(
+        max_length=12, choices=INTENT_CHOICES, default='unknown',
+        db_index=True,
+        verbose_name=_("النية المصنّفة"),
+    )
+    intent_confidence = models.FloatField(
+        default=0.0,
+        verbose_name=_("ثقة المصنِّف (0-1)"),
+    )
+
+    # Snapshot of the design at this turn — enables 'undo' to revert
+    # current_design to a prior known-good state without re-rendering.
+    # NULL for chat-only turns that didn't produce an image.
+    design_snapshot = models.ForeignKey(
+        CustomerDesign, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='conversation_snapshots',
+        verbose_name=_("صورة التيرن"),
+    )
+
+    # 💰 Per-turn cost attribution — sum to get session total
+    token_cost_credits = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0,
+        verbose_name=_("تكلفة الـ tokens"),
+    )
+    image_cost_credits = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0,
+        verbose_name=_("تكلفة الصورة"),
+    )
+    engine_used = models.CharField(
+        max_length=20, blank=True,
+        verbose_name=_("المحرك المستخدم"),
+        help_text=_("flux | ideogram | kontext | llm_only"),
+    )
+
+    # 🧠 Patch applied to accumulated_context this turn — lets us
+    # replay the conversation state at any point (for undo / debugging).
+    context_patch = models.JSONField(
+        default=dict, blank=True,
+        verbose_name=_("التعديل على السياق هذا التيرن"),
+    )
+
+    # Error capture for failed turns (FLUX timeout, classifier ambiguous, ...)
+    error_code = models.CharField(max_length=50, blank=True)
+    error_detail = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("💬 تيرن محادثة تصميم")
+        verbose_name_plural = _("💬 تيرنات محادثات التصاميم")
+        ordering = ['conversation', 'turn_index', 'created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['conversation', 'turn_index', 'role'],
+                name='uniq_conv_turn_role',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['conversation', 'turn_index']),
+            models.Index(fields=['intent', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        snippet = (self.content or '')[:60].replace('\n', ' ')
+        return f'[{self.conversation_id}#{self.turn_index}] {self.role}: {snippet}'
+
+
 class DesignPrintRequest(models.Model):
     """
     🖨️ طلب طباعة تصميم — العميل عجبه التصميم وعاوز يطبعه.

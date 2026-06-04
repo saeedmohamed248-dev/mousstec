@@ -376,6 +376,17 @@ IDEOGRAM_API_KEY = env.str('IDEOGRAM_API_KEY', '')
 # Disable للـ load testing أو لو الـ Together API budget محدود جداً.
 DESIGN_QUALITY_GATE_ENABLED = env.bool('DESIGN_QUALITY_GATE_ENABLED', default=True)
 
+# 💬 Conversational Design Builder (Phase N) — feature flag + limits.
+# الـ flag = False افتراضياً عشان نـ deploy الكود بدون ما نـ expose الـ UI.
+# لو الـ flag = False → الـ endpoints بترجع 404 (مش 503) عشان مفيش signal للـ probing.
+DESIGN_CHAT_ENABLED = env.bool('DESIGN_CHAT_ENABLED', default=False)
+# Advisory lock duration per turn — يمنع double-tap race على نفس المحادثة.
+DESIGN_CHAT_LOCK_TIMEOUT_SECONDS = env.int('DESIGN_CHAT_LOCK_TIMEOUT_SECONDS', 60)
+# Per-conversation hard limits — يحمي balance من runaway sessions.
+DESIGN_CHAT_MAX_TURNS = env.int('DESIGN_CHAT_MAX_TURNS', 30)
+DESIGN_CHAT_MAX_IMAGES = env.int('DESIGN_CHAT_MAX_IMAGES', 8)
+DESIGN_CHAT_IDLE_MINUTES = env.int('DESIGN_CHAT_IDLE_MINUTES', 60)
+
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 

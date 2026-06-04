@@ -467,6 +467,13 @@ urlpatterns = [
     path('marketplace/brand-profile/edit/', client_views.brand_profile_page, name='brand_profile_page'),
     path('marketplace/brand-profile/logo/<str:slot>/delete/', client_views.brand_profile_delete_logo, name='brand_profile_delete_logo'),
 
+    # 💬 Conversational Design Builder (Phase N) — feature-flagged
+    path('marketplace/design-chat/start/', client_views.design_chat_start, name='design_chat_start'),
+    path('marketplace/design-chat/<uuid:conversation_code>/', client_views.design_chat_state, name='design_chat_state'),
+    path('marketplace/design-chat/<uuid:conversation_code>/message/', client_views.design_chat_message, name='design_chat_message'),
+    path('marketplace/design-chat/<uuid:conversation_code>/undo/', client_views.design_chat_undo, name='design_chat_undo'),
+    path('marketplace/design-chat/<uuid:conversation_code>/finalize/', client_views.design_chat_finalize, name='design_chat_finalize'),
+
     # Merchant-side marketplace
     path('marketplace/merchant/feed/', client_views.marketplace_merchant_feed, name='marketplace_merchant_feed'),
     path('marketplace/merchant/feed/count/', client_views.marketplace_merchant_feed_count, name='marketplace_merchant_feed_count'),

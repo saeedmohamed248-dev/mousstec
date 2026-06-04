@@ -21,3 +21,12 @@ from ._legacy import (  # noqa: F401
     brand_profile_page,
 )
 from ._legacy import brand_profile_view, brand_profile_delete_logo, brand_profile_page
+
+# 💬 Phase N — Conversational Design Builder endpoints (N.3)
+from .design_chat_views import (  # noqa: F401
+    design_chat_start,
+    design_chat_message,
+    design_chat_undo,
+    design_chat_finalize,
+    design_chat_state,
+)

@@ -16,9 +16,11 @@ Layers covered:
 No real Ideogram / FLUX / Together LLM calls happen here. We mock
 `_call_together_llm` so the suite runs offline and deterministic.
 """
+import json
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from clients.models import MarketplaceCustomer, CustomerBrandProfile
 from erp_core.ai.design_engine import apply_brand_profile, compose_mega_prompt
@@ -647,8 +649,11 @@ class SVGLogoSupportTests(TestCase):
         """If cairosvg is installed, SVG bytes must produce a valid PIL image."""
         try:
             import cairosvg  # noqa: F401
-        except ImportError:
-            self.skipTest('cairosvg not installed in this environment')
+            # cairosvg imports lazily — force libcairo dlopen so we skip
+            # cleanly on machines where the dylib isn't on the loader path.
+            cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>')
+        except (ImportError, OSError) as e:
+            self.skipTest(f'cairosvg/libcairo not usable in this env: {e}')
 
         from erp_core.ai.logo_overlay import _bytes_to_pil
         img = _bytes_to_pil(self._MINIMAL_SVG, hint_name='brand.svg')
@@ -671,8 +676,11 @@ class SVGLogoSupportTests(TestCase):
         """Full pipeline: SVG logo URL → CairoSVG → PIL → composite onto apparel."""
         try:
             import cairosvg  # noqa: F401
-        except ImportError:
-            self.skipTest('cairosvg not installed in this environment')
+            # cairosvg imports lazily — force libcairo dlopen so we skip
+            # cleanly on machines where the dylib isn't on the loader path.
+            cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>')
+        except (ImportError, OSError) as e:
+            self.skipTest(f'cairosvg/libcairo not usable in this env: {e}')
 
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         # Canvas response (JPEG), then logo response (SVG)
@@ -718,3 +726,1048 @@ class SVGLogoSupportTests(TestCase):
         )
         self.assertFalse(result['success'])
         self.assertEqual(result['error'], 'logo_load_failed')
+
+
+# ===========================================================================
+# N.1 — DesignConversation / DesignConversationTurn model layer
+# ===========================================================================
+class DesignConversationModelTests(TestCase):
+    """Smoke tests for the new conversational design models: FK semantics,
+    JSON round-trip, lock detection, turn/image limit enforcement."""
+
+    def _make_conv(self, phone='+201000000010', **overrides):
+        from clients.models import DesignConversation
+        customer = _make_customer(phone=phone)
+        defaults = dict(
+            customer=customer,
+            stage='planning',
+            accumulated_context={'raw_idea': 'تيشرت رياضي', 'selections': {}},
+            brand_profile_snapshot={'brand_name': 'X'},
+        )
+        defaults.update(overrides)
+        return DesignConversation.objects.create(**defaults)
+
+    def test_create_minimal_conversation(self):
+        conv = self._make_conv()
+        self.assertIsNotNone(conv.conversation_code)
+        self.assertEqual(conv.stage, 'planning')
+        self.assertEqual(conv.turn_count, 0)
+        self.assertEqual(conv.image_count, 0)
+        self.assertTrue(conv.is_active)
+
+    def test_accumulated_context_json_roundtrip(self):
+        from clients.models import DesignConversation
+        ctx = {
+            'raw_idea': 'تيشرت',
+            'selections': {'color_primary': 'navy', 'style': 'minimal'},
+            'history': [{'turn': 1, 'patch': {'raw_idea': 'تيشرت'}}],
+        }
+        conv = self._make_conv(accumulated_context=ctx)
+        conv.refresh_from_db()
+        self.assertEqual(conv.accumulated_context['selections']['color_primary'], 'navy')
+        self.assertEqual(len(conv.accumulated_context['history']), 1)
+
+    def test_is_locked_respects_expiry(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        conv = self._make_conv()
+        # Not locked initially
+        self.assertFalse(conv.is_locked)
+        # Lock 30s into the future
+        conv.locked_until = timezone.now() + timedelta(seconds=30)
+        conv.save(update_fields=['locked_until'])
+        self.assertTrue(conv.is_locked)
+        # Expired lock
+        conv.locked_until = timezone.now() - timedelta(seconds=1)
+        conv.save(update_fields=['locked_until'])
+        self.assertFalse(conv.is_locked)
+
+    def test_can_send_another_turn_blocks_at_turn_limit(self):
+        from django.test import override_settings
+        with override_settings(DESIGN_CHAT_MAX_TURNS=3):
+            conv = self._make_conv()
+            conv.turn_count = 3
+            conv.save(update_fields=['turn_count'])
+            allowed, reason = conv.can_send_another_turn()
+            self.assertFalse(allowed)
+            self.assertEqual(reason, 'max_turns_reached')
+
+    def test_can_send_another_turn_blocks_at_image_limit(self):
+        from django.test import override_settings
+        with override_settings(DESIGN_CHAT_MAX_IMAGES=2):
+            conv = self._make_conv()
+            conv.image_count = 2
+            conv.save(update_fields=['image_count'])
+            allowed, reason = conv.can_send_another_turn()
+            self.assertFalse(allowed)
+            self.assertEqual(reason, 'max_images_reached')
+
+    def test_can_send_another_turn_blocks_when_finalized(self):
+        conv = self._make_conv(stage='finalized')
+        allowed, reason = conv.can_send_another_turn()
+        self.assertFalse(allowed)
+        self.assertEqual(reason, 'closed')
+
+    def test_can_send_another_turn_blocks_when_in_flight(self):
+        from django.utils import timezone
+        from datetime import timedelta
+        conv = self._make_conv()
+        conv.locked_until = timezone.now() + timedelta(seconds=20)
+        conv.save(update_fields=['locked_until'])
+        allowed, reason = conv.can_send_another_turn()
+        self.assertFalse(allowed)
+        self.assertEqual(reason, 'in_flight')
+
+    def test_can_send_another_turn_allows_under_limits(self):
+        conv = self._make_conv()
+        allowed, reason = conv.can_send_another_turn()
+        self.assertTrue(allowed)
+        self.assertEqual(reason, '')
+
+    def test_customer_cascade_deletes_conversation(self):
+        """When a customer is deleted, their conversations cascade."""
+        from clients.models import DesignConversation
+        conv = self._make_conv()
+        conv_id = conv.pk
+        conv.customer.delete()
+        self.assertFalse(DesignConversation.objects.filter(pk=conv_id).exists())
+
+    def test_turn_creation_and_ordering(self):
+        from clients.models import DesignConversationTurn
+        conv = self._make_conv()
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='user',
+            content='ابدأ بتيشرت أزرق',
+            intent='chat', intent_confidence=0.85,
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='تمام، يا تحب نضيف نص؟',
+            intent='chat', intent_confidence=0.9,
+        )
+        turns = list(conv.turns.all())
+        self.assertEqual(len(turns), 2)
+        # ordering = [conversation, turn_index, created_at]
+        self.assertEqual(turns[0].role, 'user')
+        self.assertEqual(turns[1].role, 'assistant')
+
+    def test_unique_constraint_blocks_duplicate_role_per_turn(self):
+        """Same (conversation, turn_index, role) tuple cannot repeat."""
+        from clients.models import DesignConversationTurn
+        from django.db import IntegrityError
+        conv = self._make_conv()
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='user', content='A',
+        )
+        with self.assertRaises(IntegrityError):
+            DesignConversationTurn.objects.create(
+                conversation=conv, turn_index=1, role='user', content='B',
+            )
+
+    def test_design_snapshot_set_null_on_design_delete(self):
+        """Deleting a CustomerDesign nulls the snapshot FK — turn history
+        survives for analytics even after the design is gone."""
+        from clients.models import (
+            DesignConversationTurn, CustomerDesign, MarketplaceCustomer,
+        )
+        conv = self._make_conv()
+        design = CustomerDesign.objects.create(
+            customer=conv.customer,
+            title='Test design',
+            description='Test',
+            category='other',
+        )
+        turn = DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='Generated', intent='generate',
+            design_snapshot=design,
+        )
+        design.delete()
+        turn.refresh_from_db()
+        self.assertIsNone(turn.design_snapshot)
+
+    def test_context_patch_stores_intent_extracted_changes(self):
+        from clients.models import DesignConversationTurn
+        conv = self._make_conv()
+        patch = {
+            'selections.color_primary': 'navy',
+            'selections.style': 'minimal',
+        }
+        turn = DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=2, role='user',
+            content='خليه أزرق ومينيمال',
+            intent='refine', intent_confidence=0.92,
+            context_patch=patch,
+        )
+        turn.refresh_from_db()
+        self.assertEqual(turn.context_patch['selections.color_primary'], 'navy')
+
+
+# ===========================================================================
+# N.2 — Intent Classifier (classify_chat_intent + apply_context_patch)
+# ===========================================================================
+def _make_llm_response(intent, confidence, extracted=None, reasoning='ok'):
+    """Shape that _call_together_llm returns on success — used in mocks."""
+    return {
+        'success': True,
+        'data': {
+            'intent': intent,
+            'confidence': confidence,
+            'extracted_changes': extracted or {},
+            'reasoning_brief': reasoning,
+        },
+        'model_used': 'meta-llama/Llama-3-8B-Instruct-Turbo',
+    }
+
+
+class IntentClassifierArabicTests(TestCase):
+    """Arabic-language intent classification — the primary user surface."""
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_generate__make_a_tshirt(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.95)
+        r = classify_chat_intent('اعمل لي تيشرت رياضي')
+        self.assertEqual(r['intent'], 'generate')
+        self.assertGreaterEqual(r['confidence'], 0.7)
+        self.assertIsNone(r['fallback_reason'])
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_generate__start_a_poster(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.92)
+        r = classify_chat_intent('ابدأ بتصميم بوستر للمطعم')
+        self.assertEqual(r['intent'], 'generate')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_refine__change_color(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.93, {'color': 'navy'},
+        )
+        r = classify_chat_intent('غيّر اللون للأزرق', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+        self.assertEqual(r['extracted_changes']['color'], 'navy')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_refine__remove_text(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.90, {'remove_elements': ['text']},
+        )
+        r = classify_chat_intent('اشيل النص', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+        self.assertIn('text', r['extracted_changes']['remove_elements'])
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_refine__move_logo(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.88, {'position_change': 'right'},
+        )
+        r = classify_chat_intent('حرّك اللوجو لليمين', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_chat__color_question(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('chat', 0.85)
+        r = classify_chat_intent('إيه أحسن لون لمنتج فاخر؟')
+        self.assertEqual(r['intent'], 'chat')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_chat__show_examples(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('chat', 0.80)
+        r = classify_chat_intent('اعرض لي أمثلة')
+        self.assertEqual(r['intent'], 'chat')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_chat__pricing_question(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('chat', 0.95)
+        r = classify_chat_intent('كم تكلفة التصميم؟')
+        self.assertEqual(r['intent'], 'chat')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_generate__generate_logo(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.97)
+        r = classify_chat_intent('ولّد لوجو لشركة تكنولوجيا')
+        self.assertEqual(r['intent'], 'generate')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_arabic_refine__make_smaller(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.85, {'size_change': 'smaller'},
+        )
+        r = classify_chat_intent('خليه أصغر شوية', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+
+
+class IntentClassifierEnglishAndCodeSwitchTests(TestCase):
+    """English + Arabic-English code-switched messages."""
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_english_generate(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.93)
+        r = classify_chat_intent('Generate a flyer for the restaurant')
+        self.assertEqual(r['intent'], 'generate')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_english_refine_change_color(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.91, {'color': 'navy'},
+        )
+        r = classify_chat_intent('change the color to navy', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_english_refine_make_minimal(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.89, {'style_change': 'minimal'},
+        )
+        r = classify_chat_intent('make it more minimal', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_codeswitch_refine(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.86, {'color': 'navy'},
+        )
+        # Mixed: Arabic verb + English color
+        r = classify_chat_intent('change the لون to navy', has_current_design=True)
+        self.assertEqual(r['intent'], 'refine')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_english_chat__font_advice(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('chat', 0.88)
+        r = classify_chat_intent('what fonts work best for restaurants?')
+        self.assertEqual(r['intent'], 'chat')
+
+
+class IntentClassifierEdgeCaseTests(TestCase):
+    """The hard cases: ambiguity, errors, downgrades, threshold edges."""
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_low_confidence_falls_back_to_chat(self, mock_llm):
+        """confidence < 0.7 → 'chat' regardless of raw intent."""
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.50)
+        r = classify_chat_intent('خليه حلو')
+        self.assertEqual(r['intent'], 'chat')
+        self.assertEqual(r['raw_intent'], 'generate')
+        self.assertEqual(r['fallback_reason'], 'low_confidence')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_exact_threshold_passes(self, mock_llm):
+        """Confidence == 0.70 should pass (>= threshold)."""
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 0.70)
+        r = classify_chat_intent('اعمل تصميم')
+        self.assertEqual(r['intent'], 'generate')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_refine_without_current_design_downgrades_to_generate(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response(
+            'refine', 0.90, {'color': 'navy'},
+        )
+        # has_current_design defaults to False
+        r = classify_chat_intent('غيّر اللون للأزرق')
+        self.assertEqual(r['intent'], 'generate')
+        self.assertEqual(r['raw_intent'], 'refine')
+        self.assertTrue(r['downgraded'])
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_classifier_llm_failure_returns_safe_chat(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = {'success': False, 'error': 'together_timeout'}
+        r = classify_chat_intent('اعمل تصميم')
+        self.assertEqual(r['intent'], 'chat')
+        self.assertEqual(r['fallback_reason'], 'classifier_error')
+        self.assertFalse(r['success'])
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_invalid_intent_string_falls_back(self, mock_llm):
+        """If LLM hallucinates an intent like 'maybe_generate', fall back."""
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('maybe_generate', 0.95)
+        r = classify_chat_intent('اعمل حاجة')
+        self.assertEqual(r['intent'], 'chat')
+        self.assertEqual(r['fallback_reason'], 'invalid_intent')
+        self.assertEqual(r['raw_intent'], 'maybe_generate')
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_confidence_clamped_above_one(self, mock_llm):
+        """LLM returns 1.5 → clamped to 1.0."""
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('generate', 1.5)
+        r = classify_chat_intent('اعمل تصميم')
+        self.assertEqual(r['confidence'], 1.0)
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_confidence_clamped_below_zero(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('chat', -0.3)
+        r = classify_chat_intent('اعمل تصميم')
+        self.assertEqual(r['confidence'], 0.0)
+
+    def test_empty_message_returns_chat_without_llm_call(self):
+        """Empty input shouldn't even reach the LLM."""
+        from erp_core.ai.design_chat import classify_chat_intent
+        r = classify_chat_intent('   ')
+        self.assertEqual(r['intent'], 'chat')
+        self.assertEqual(r['fallback_reason'], 'empty_message')
+        self.assertEqual(r['cost_usd'], 0.0)
+
+    @patch('erp_core.ai.design_chat._call_together_llm')
+    def test_recent_turns_context_included_in_prompt(self, mock_llm):
+        from erp_core.ai.design_chat import classify_chat_intent
+        mock_llm.return_value = _make_llm_response('refine', 0.85)
+        recent = [
+            {'role': 'user', 'content': 'اعمل تيشرت'},
+            {'role': 'assistant', 'content': 'اتعمل التصميم.'},
+        ]
+        classify_chat_intent(
+            'دلوقتي خليه أزرق',
+            has_current_design=True,
+            recent_turns=recent,
+        )
+        args, _ = mock_llm.call_args
+        user_msg = args[1]
+        # Recent turn content should appear in the prompt
+        self.assertIn('اعمل تيشرت', user_msg)
+        self.assertIn('دلوقتي خليه أزرق', user_msg)
+
+
+class ContextPatchTests(TestCase):
+    """apply_context_patch — merges extracted_changes into accumulated_context."""
+
+    def test_empty_patch_only_appends_history(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {}, 'history': []}
+        new_ctx, applied = apply_context_patch(ctx, {}, turn_index=1)
+        self.assertEqual(applied, {})
+        self.assertEqual(len(new_ctx['history']), 1)
+        self.assertEqual(new_ctx['history'][0]['turn'], 1)
+
+    def test_color_change_updates_selections(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {'style': 'minimal'}, 'history': []}
+        new_ctx, applied = apply_context_patch(
+            ctx, {'color': 'navy'}, turn_index=2,
+        )
+        self.assertEqual(new_ctx['selections']['color_primary'], 'navy')
+        self.assertEqual(new_ctx['selections']['style'], 'minimal')  # preserved
+        self.assertEqual(applied['selections.color_primary'], 'navy')
+
+    def test_explicit_override_replaces_prior_value(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {'color_primary': 'red'}, 'history': []}
+        new_ctx, _ = apply_context_patch(
+            ctx, {'color': 'blue'}, turn_index=2,
+        )
+        # New explicit choice WINS — explicit selections always do
+        self.assertEqual(new_ctx['selections']['color_primary'], 'blue')
+
+    def test_remove_elements_accumulates(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {
+            'selections': {'remove_elements': ['text']},
+            'history': [],
+        }
+        new_ctx, _ = apply_context_patch(
+            ctx, {'remove_elements': ['logo']}, turn_index=3,
+        )
+        self.assertEqual(
+            sorted(new_ctx['selections']['remove_elements']),
+            ['logo', 'text'],
+        )
+
+    def test_remove_elements_dedupes(self):
+        """Same element requested twice doesn't duplicate."""
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {'remove_elements': ['text']}, 'history': []}
+        new_ctx, _ = apply_context_patch(
+            ctx, {'remove_elements': ['text', 'shadow']}, turn_index=2,
+        )
+        self.assertEqual(
+            sorted(new_ctx['selections']['remove_elements']),
+            ['shadow', 'text'],
+        )
+
+    def test_null_values_dont_clear_existing(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {'color_primary': 'red'}, 'history': []}
+        new_ctx, applied = apply_context_patch(
+            ctx, {'color': None, 'style_change': ''}, turn_index=2,
+        )
+        # Existing red survives — null doesn't wipe it
+        self.assertEqual(new_ctx['selections']['color_primary'], 'red')
+        self.assertEqual(applied, {})
+
+    def test_other_field_appends_to_extra_notes(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {}, 'history': []}
+        new_ctx, _ = apply_context_patch(
+            ctx, {'other': 'avoid bright colors'}, turn_index=2,
+        )
+        self.assertIn('avoid bright colors', new_ctx['selections']['extra_notes'])
+
+    def test_history_accumulates_per_turn(self):
+        from erp_core.ai.design_chat import apply_context_patch
+        ctx = {'selections': {}, 'history': []}
+        ctx, _ = apply_context_patch(ctx, {'color': 'red'}, turn_index=1)
+        ctx, _ = apply_context_patch(ctx, {'color': 'blue'}, turn_index=2)
+        ctx, _ = apply_context_patch(ctx, {'style_change': 'minimal'}, turn_index=3)
+        self.assertEqual(len(ctx['history']), 3)
+        self.assertEqual([h['turn'] for h in ctx['history']], [1, 2, 3])
+
+    def test_input_dict_not_mutated(self):
+        """apply_context_patch returns a copy — original ctx unchanged."""
+        from erp_core.ai.design_chat import apply_context_patch
+        original = {'selections': {'color_primary': 'red'}, 'history': []}
+        import json
+        snapshot = json.dumps(original)
+        apply_context_patch(original, {'color': 'blue'}, turn_index=1)
+        self.assertEqual(json.dumps(original), snapshot)
+
+
+# ===========================================================================
+# N.3 — Orchestrator HTTP endpoints
+# ===========================================================================
+from django.test import Client as DjangoClient, override_settings
+
+
+def _authed_client(customer):
+    """Return a Django test Client with the mp_session cookie set."""
+    c = DjangoClient()
+    c.cookies['mp_session'] = str(customer.session_token)
+    return c
+
+
+class _TenantDomainProvisionMixin:
+    """django-tenants' TenantMainMiddleware bounces requests whose hostname
+    doesn't map to a registered Domain row → returns 404. The Django test
+    Client defaults to host='testserver', which isn't in any tenant's
+    domains. We provision a `testserver` Domain pointing at the public
+    schema tenant for the lifetime of the test class.
+
+    Marketplace endpoints live on the public schema, so this is sufficient.
+    """
+    _provisioned_domain = None
+    _provisioned_tenant = None
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from django_tenants.utils import get_tenant_model, get_tenant_domain_model
+        TenantModel = get_tenant_model()
+        DomainModel = get_tenant_domain_model()
+        # Reuse or create the public tenant
+        public = TenantModel.objects.filter(schema_name='public').first()
+        if public is None:
+            public = TenantModel(
+                schema_name='public', name='Public', owner_name='Test',
+                phone='000',
+            )
+            public.auto_create_schema = False
+            public.save(verbosity=0)
+            cls._provisioned_tenant = public
+        # Add testserver domain if missing
+        existing = DomainModel.objects.filter(domain='testserver').first()
+        if existing is None:
+            cls._provisioned_domain = DomainModel.objects.create(
+                tenant=public, domain='testserver', is_primary=False,
+            )
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._provisioned_domain is not None:
+            try:
+                cls._provisioned_domain.delete()
+            except Exception:
+                pass
+        if cls._provisioned_tenant is not None:
+            try:
+                cls._provisioned_tenant.delete(force_drop=False)
+            except Exception:
+                pass
+        super().tearDownClass()
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatStartTests(_TenantDomainProvisionMixin, TestCase):
+
+    def test_disabled_flag_returns_404(self):
+        from django.test import override_settings as _os
+        with _os(DESIGN_CHAT_ENABLED=False):
+            customer = _make_customer()
+            c = _authed_client(customer)
+            r = c.post(
+                '/marketplace/design-chat/start/',
+                data='{}', content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 404)
+
+    def test_unauthenticated_returns_401(self):
+        c = DjangoClient()
+        r = c.post(
+            '/marketplace/design-chat/start/',
+            data='{}', content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 401)
+
+    def test_creates_conversation_with_brand_snapshot(self):
+        customer = _make_customer()
+        _make_brand(customer)
+        c = _authed_client(customer)
+        r = c.post(
+            '/marketplace/design-chat/start/',
+            data=json.dumps({'initial_message': 'تيشرت رياضي'}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 201)
+        data = r.json()
+        self.assertIn('conversation_code', data)
+        self.assertTrue(data['brand_applied'])
+        self.assertEqual(data['turn_count'], 1)
+
+    def test_no_initial_message_creates_empty_conversation(self):
+        customer = _make_customer()
+        c = _authed_client(customer)
+        r = c.post(
+            '/marketplace/design-chat/start/',
+            data='{}', content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 201)
+        data = r.json()
+        self.assertEqual(data['turn_count'], 0)
+        self.assertFalse(data['brand_applied'])
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatMessageTests(_TenantDomainProvisionMixin, TestCase):
+
+    def _start_conv(self, customer):
+        from clients.models import DesignConversation
+        return DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={'raw_idea': '', 'selections': {}, 'history': []},
+            brand_profile_snapshot={},
+        )
+
+    def test_disabled_flag_returns_404(self):
+        from django.test import override_settings as _os
+        with _os(DESIGN_CHAT_ENABLED=False):
+            customer = _make_customer()
+            conv = self._start_conv(customer)
+            c = _authed_client(customer)
+            r = c.post(
+                f'/marketplace/design-chat/{conv.conversation_code}/message/',
+                data=json.dumps({'message': 'hi'}),
+                content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 404)
+
+    def test_other_customer_conversation_returns_404_not_403(self):
+        """Existence-leak protection — wrong owner = 404."""
+        c1 = _make_customer(phone='+201000000020')
+        c2 = _make_customer(phone='+201000000021')
+        conv = self._start_conv(c1)
+        client = _authed_client(c2)
+        r = client.post(
+            f'/marketplace/design-chat/{conv.conversation_code}/message/',
+            data=json.dumps({'message': 'hi'}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_empty_message_returns_400(self):
+        customer = _make_customer()
+        conv = self._start_conv(customer)
+        c = _authed_client(customer)
+        r = c.post(
+            f'/marketplace/design-chat/{conv.conversation_code}/message/',
+            data=json.dumps({'message': '   '}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 400)
+
+    @patch('clients.views.design_chat_views.classify_chat_intent')
+    @patch('clients.views.design_chat_views.generate_chat_reply')
+    def test_chat_intent_creates_two_turns_no_image(self, mock_reply, mock_classify):
+        from clients.models import DesignConversationTurn
+        mock_classify.return_value = {
+            'intent': 'chat', 'confidence': 0.85,
+            'extracted_changes': {}, 'reasoning_brief': '',
+            'raw_intent': 'chat', 'downgraded': False,
+            'fallback_reason': None, 'cost_usd': 0.0001, 'success': True,
+        }
+        mock_reply.return_value = {
+            'success': True, 'reply': 'تمام، إيه القطاع بتاعك؟',
+            'suggested_next': None, 'cost_usd': 0.0002,
+        }
+        customer = _make_customer()
+        conv = self._start_conv(customer)
+        c = _authed_client(customer)
+        r = c.post(
+            f'/marketplace/design-chat/{conv.conversation_code}/message/',
+            data=json.dumps({'message': 'أنا مش متأكد من اللون'}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['intent'], 'chat')
+        self.assertIsNone(data['image_url'])
+        # User + assistant turn both at turn_index=1 (paired by UniqueConstraint)
+        conv.refresh_from_db()
+        self.assertEqual(conv.turn_count, 1)
+        self.assertEqual(DesignConversationTurn.objects.filter(conversation=conv).count(), 2)
+
+    @patch('clients.views.design_chat_views.classify_chat_intent')
+    @patch('clients.views.design_chat_views.compose_mega_prompt', create=True)
+    @patch('clients.views.design_chat_views.generate_design_image', create=True)
+    def test_generate_intent_creates_customerdesign_and_links(
+        self, mock_gen, mock_compose, mock_classify,
+    ):
+        # Patch the internal imports inside _exec_generate
+        from erp_core.ai import design_engine, printing_copilot
+        mock_classify.return_value = {
+            'intent': 'generate', 'confidence': 0.95,
+            'extracted_changes': {}, 'reasoning_brief': '',
+            'raw_intent': 'generate', 'downgraded': False,
+            'fallback_reason': None, 'cost_usd': 0.0001, 'success': True,
+        }
+        with patch.object(design_engine, 'compose_mega_prompt') as mc, \
+             patch.object(printing_copilot, 'generate_design_image') as mg:
+            mc.return_value = {
+                'success': True,
+                'mega_prompt': 'A modern tshirt design.',
+                'negative_prompt': '',
+                'recommended_size': '1024x1024',
+                'presentation_category': 'apparel',
+                'brand_applied': {'applied': False},
+            }
+            mg.return_value = {
+                'success': True,
+                'url': 'https://cdn.test/generated.jpg',
+                'engine': 'flux',
+                'provider': 'together',
+            }
+
+            customer = _make_customer()
+            conv = self._start_conv(customer)
+            conv.accumulated_context = {
+                'raw_idea': 'تيشرت أزرق', 'selections': {}, 'history': [],
+            }
+            conv.save()
+            c = _authed_client(customer)
+            r = c.post(
+                f'/marketplace/design-chat/{conv.conversation_code}/message/',
+                data=json.dumps({'message': 'اعمل تيشرت رياضي'}),
+                content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 200)
+            data = r.json()
+            self.assertEqual(data['intent'], 'generate')
+            self.assertEqual(data['image_url'], 'https://cdn.test/generated.jpg')
+            self.assertIsNotNone(data['design_id'])
+            self.assertEqual(data['stage'], 'generated')
+            conv.refresh_from_db()
+            self.assertIsNotNone(conv.current_design)
+            self.assertEqual(conv.image_count, 1)
+
+    @patch('clients.views.design_chat_views.classify_chat_intent')
+    def test_refine_intent_with_current_design_calls_kontext(self, mock_classify):
+        from erp_core.ai import printing_copilot
+        from clients.models import CustomerDesign
+        mock_classify.return_value = {
+            'intent': 'refine', 'confidence': 0.91,
+            'extracted_changes': {'color': 'navy'},
+            'reasoning_brief': '', 'raw_intent': 'refine',
+            'downgraded': False, 'fallback_reason': None,
+            'cost_usd': 0.0001, 'success': True,
+        }
+        customer = _make_customer()
+        prior_design = CustomerDesign.objects.create(
+            customer=customer, title='Prior', description='', category='other',
+            image_url='https://cdn.test/prior.jpg', model_used='flux',
+        )
+        conv = self._start_conv(customer)
+        conv.current_design = prior_design
+        conv.stage = 'generated'
+        conv.image_count = 1
+        conv.save()
+
+        with patch.object(printing_copilot, '_gen_via_flux_kontext') as mk:
+            mk.return_value = {
+                'success': True,
+                'url': 'https://cdn.test/refined.jpg',
+            }
+            c = _authed_client(customer)
+            r = c.post(
+                f'/marketplace/design-chat/{conv.conversation_code}/message/',
+                data=json.dumps({'message': 'غيّر اللون للأزرق'}),
+                content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 200)
+            data = r.json()
+            self.assertEqual(data['intent'], 'refine')
+            self.assertEqual(data['image_url'], 'https://cdn.test/refined.jpg')
+            self.assertEqual(data['engine_used'], 'kontext')
+            conv.refresh_from_db()
+            self.assertEqual(conv.image_count, 2)
+            self.assertEqual(conv.stage, 'refining')
+            # Prior design preserved as a turn snapshot — survives for undo
+            self.assertNotEqual(conv.current_design.pk, prior_design.pk)
+
+    def test_explicit_intent_override_bypasses_classifier(self):
+        """When intent='chat' is in the POST body, classifier is NOT called."""
+        with patch('clients.views.design_chat_views.classify_chat_intent') as mc, \
+             patch('clients.views.design_chat_views.generate_chat_reply') as mr:
+            mr.return_value = {
+                'success': True, 'reply': 'OK', 'suggested_next': None,
+                'cost_usd': 0.0,
+            }
+            customer = _make_customer()
+            conv = self._start_conv(customer)
+            c = _authed_client(customer)
+            r = c.post(
+                f'/marketplace/design-chat/{conv.conversation_code}/message/',
+                data=json.dumps({'message': 'اعمل تيشرت', 'intent': 'chat'}),
+                content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 200)
+            self.assertFalse(mc.called)  # classifier bypassed
+            self.assertTrue(mr.called)
+
+    def test_turn_limit_returns_429(self):
+        with override_settings(DESIGN_CHAT_MAX_TURNS=3):
+            customer = _make_customer()
+            conv = self._start_conv(customer)
+            conv.turn_count = 3
+            conv.save(update_fields=['turn_count'])
+            c = _authed_client(customer)
+            r = c.post(
+                f'/marketplace/design-chat/{conv.conversation_code}/message/',
+                data=json.dumps({'message': 'hi'}),
+                content_type='application/json',
+            )
+            self.assertEqual(r.status_code, 429)
+            self.assertEqual(r.json()['error'], 'turn_limit_reached')
+
+    def test_in_flight_lock_returns_409(self):
+        from datetime import timedelta
+        customer = _make_customer()
+        conv = self._start_conv(customer)
+        conv.locked_until = timezone.now() + timedelta(seconds=30)
+        conv.save(update_fields=['locked_until'])
+        c = _authed_client(customer)
+        r = c.post(
+            f'/marketplace/design-chat/{conv.conversation_code}/message/',
+            data=json.dumps({'message': 'hi'}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 409)
+
+    def test_finalized_conversation_returns_410(self):
+        customer = _make_customer()
+        conv = self._start_conv(customer)
+        conv.stage = 'finalized'
+        conv.save(update_fields=['stage'])
+        c = _authed_client(customer)
+        r = c.post(
+            f'/marketplace/design-chat/{conv.conversation_code}/message/',
+            data=json.dumps({'message': 'hi'}),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 410)
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatUndoTests(_TenantDomainProvisionMixin, TestCase):
+
+    def test_nothing_to_undo_returns_400(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/undo/')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error'], 'nothing_to_undo')
+
+    def test_undo_reverts_to_prior_design(self):
+        from clients.models import (
+            CustomerDesign, DesignConversation, DesignConversationTurn,
+        )
+        customer = _make_customer()
+        d1 = CustomerDesign.objects.create(
+            customer=customer, title='D1', description='', category='other',
+            image_url='https://cdn.test/d1.jpg',
+        )
+        d2 = CustomerDesign.objects.create(
+            customer=customer, title='D2', description='', category='other',
+            image_url='https://cdn.test/d2.jpg',
+        )
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='refining',
+            accumulated_context={}, brand_profile_snapshot={},
+            current_design=d2, turn_count=2, image_count=2,
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='generated', intent='generate', design_snapshot=d1,
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=2, role='assistant',
+            content='refined', intent='refine', design_snapshot=d2,
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/undo/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['image_url'], 'https://cdn.test/d1.jpg')
+        conv.refresh_from_db()
+        self.assertEqual(conv.current_design.pk, d1.pk)
+
+    def test_undo_on_finalized_returns_410(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='finalized',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/undo/')
+        self.assertEqual(r.status_code, 410)
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatFinalizeTests(_TenantDomainProvisionMixin, TestCase):
+
+    def test_finalize_without_design_returns_400(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/finalize/')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error'], 'no_design_to_finalize')
+
+    def test_finalize_sets_stage_and_timestamp(self):
+        from clients.models import CustomerDesign, DesignConversation
+        customer = _make_customer()
+        d = CustomerDesign.objects.create(
+            customer=customer, title='X', description='', category='other',
+            image_url='https://cdn.test/x.jpg',
+        )
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+            current_design=d,
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/finalize/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['stage'], 'finalized')
+        self.assertEqual(data['design_id'], d.pk)
+        conv.refresh_from_db()
+        self.assertEqual(conv.stage, 'finalized')
+        self.assertIsNotNone(conv.finalized_at)
+
+    def test_already_finalized_returns_410(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='finalized',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = _authed_client(customer)
+        r = c.post(f'/marketplace/design-chat/{conv.conversation_code}/finalize/')
+        self.assertEqual(r.status_code, 410)
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatStateTests(_TenantDomainProvisionMixin, TestCase):
+
+    def test_state_returns_full_transcript(self):
+        from clients.models import (
+            DesignConversation, DesignConversationTurn,
+        )
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={'brand_name': 'X'},
+            turn_count=1,
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='user',
+            content='ابدأ تيشرت', intent='chat', intent_confidence=0.8,
+        )
+        c = _authed_client(customer)
+        r = c.get(f'/marketplace/design-chat/{conv.conversation_code}/')
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data['stage'], 'planning')
+        self.assertEqual(len(data['turns']), 1)
+        self.assertEqual(data['turns'][0]['content'], 'ابدأ تيشرت')
+        self.assertTrue(data['brand_applied'])
+        self.assertFalse(data['can_finalize'])  # no current_design
+
+    def test_state_unauthenticated_returns_401(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = DjangoClient()  # no cookie
+        r = c.get(f'/marketplace/design-chat/{conv.conversation_code}/')
+        self.assertEqual(r.status_code, 401)
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class DesignChatLockRaceTests(_TenantDomainProvisionMixin, TestCase):
+    """Verifies the advisory lock prevents concurrent-turn corruption."""
+
+    def test_concurrent_lock_acquire_only_one_wins(self):
+        """Atomic _acquire_lock returns True for exactly one caller."""
+        from clients.models import DesignConversation
+        from clients.views.design_chat_views import _acquire_lock
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        first = _acquire_lock(conv)
+        # Reload fresh — simulate a parallel request hitting the same row
+        conv2 = DesignConversation.objects.get(pk=conv.pk)
+        second = _acquire_lock(conv2)
+        self.assertTrue(first)
+        self.assertFalse(second)
+
+    def test_expired_lock_can_be_reacquired(self):
+        from datetime import timedelta
+        from clients.models import DesignConversation
+        from clients.views.design_chat_views import _acquire_lock
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+            locked_until=timezone.now() - timedelta(seconds=10),
+        )
+        self.assertTrue(_acquire_lock(conv))
