@@ -809,7 +809,7 @@ def compose_mega_prompt(
     if placement not in ('front', 'back'):
         # Regex fallback — نشيك على الـ raw_idea + selections values
         from .printing_copilot import detect_placement_from_text
-        combined = (raw_idea or '') + ' ' + ' '.join(str(v) for v in (clean_selections or {}).values())
+        combined = (raw_idea or '') + ' ' + ' '.join(str(v) for v in (selections or {}).values())
         placement = detect_placement_from_text(combined)
 
     # Override text_overlay.position إذا placement=back وكان front-based
