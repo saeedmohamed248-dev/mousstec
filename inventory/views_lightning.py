@@ -19,7 +19,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
     Branch, Customer, Inventory, InventoryMovement, Product,
-    SaleInvoice, SaleInvoiceItem,
+    SaleInvoice, SaleInvoiceItem, SaleInvoiceServiceItem,
+    ServiceCatalog, Vehicle, VehicleInspection,
 )
 from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
@@ -303,3 +304,185 @@ def quick_product_create(request):
         })
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل إنشاء القطعة: {exc}"}, status=500)
+
+
+# =====================================================================
+# 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
+# =====================================================================
+
+DVI_FIELDS = ("brakes_status", "engine_oil_status", "tires_status", "battery_status")
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+def job_card_create(request):
+    branch = _get_branch_for_user(request.user)
+    return render(request, "inventory/job_card_create.html", {
+        "branch": branch,
+        "services": ServiceCatalog.objects.all().order_by("name"),
+    })
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@require_GET
+def customer_search(request):
+    """Suggest customers for the Job Card customer panel — match by name or phone."""
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return _json_response_safe({"results": []})
+    qs = Customer.objects.filter(Q(name__icontains=q) | Q(phone__icontains=q))[:10]
+    results = [{
+        "id": c.id, "name": c.name, "phone": c.phone,
+        "vip": c.vip_tier,
+        "vehicles": [{"id": v.id, "plate": v.car_plate or "—",
+                       "chassis": v.chassis_number, "model": v.model_name or ""}
+                      for v in c.vehicles.all()[:6]],
+    } for c in qs]
+    return _json_response_safe({"results": results})
+
+
+@login_required(login_url='/secure-portal/')
+@tenant_required
+@require_POST
+def job_card_save(request):
+    """
+    Atomic Job Card save: creates SaleInvoice + parts + services + DVI.
+    Deducts inventory for any parts on the card (locked rows).
+    """
+    import json as _json
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات JSON غير صالحة."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        bid = payload.get("branch_id")
+        branch = Branch.objects.filter(id=bid).first() if bid else None
+    if branch is None:
+        return _json_response_safe({"error": "لم يتم تحديد الفرع."}, status=400)
+
+    items = payload.get("items") or []
+    services = payload.get("services") or []
+    if not items and not services:
+        return _json_response_safe({"error": "أضف قطعاً أو خدمات قبل الحفظ."}, status=400)
+
+    try:
+        with transaction.atomic():
+            # --- Customer ----------------------------------------------------
+            cust_id = payload.get("customer_id")
+            if cust_id:
+                customer = Customer.objects.filter(id=cust_id).first()
+                if customer is None:
+                    return _json_response_safe({"error": "العميل المحدد غير موجود."}, status=400)
+            else:
+                customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
+
+            # --- Vehicle (optional but recommended for maintenance) ----------
+            vehicle = None
+            veh_id = payload.get("vehicle_id")
+            if veh_id:
+                vehicle = Vehicle.objects.filter(id=veh_id, customer=customer).first()
+            elif payload.get("vehicle_chassis"):
+                chassis = payload["vehicle_chassis"].strip().upper()
+                vehicle = Vehicle.objects.filter(chassis_number=chassis).first()
+                if vehicle is None:
+                    vehicle = Vehicle.objects.create(
+                        customer=customer,
+                        chassis_number=chassis,
+                        car_plate=(payload.get("vehicle_plate") or "").strip() or None,
+                        brand=(payload.get("vehicle_brand") or "BMW").strip(),
+                        model_name=(payload.get("vehicle_model") or "").strip() or None,
+                    )
+
+            # --- Parts: lock + validate stock --------------------------------
+            line_specs = []
+            for raw in items:
+                pid = int(raw.get("product_id"))
+                qty = int(raw.get("qty") or 0)
+                if qty <= 0:
+                    return _json_response_safe({"error": "كمية القطعة غير صالحة."}, status=400)
+                try:
+                    price = Decimal(str(raw.get("price")))
+                except (InvalidOperation, TypeError):
+                    return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                inv = (Inventory.objects.select_for_update()
+                       .filter(product_id=pid, branch=branch).first())
+                if inv is None or inv.quantity < qty:
+                    available = inv.quantity if inv else 0
+                    return _json_response_safe({
+                        "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {qty})."
+                    }, status=409)
+                line_specs.append((inv, qty, price))
+
+            # --- Create the invoice header ----------------------------------
+            try:
+                mileage = int(payload.get("mileage")) if payload.get("mileage") else None
+            except (TypeError, ValueError):
+                mileage = None
+            invoice = SaleInvoice.objects.create(
+                invoice_type="maintenance" if services else "sale",
+                status="in_progress",
+                customer=customer,
+                vehicle=vehicle,
+                branch=branch,
+                mileage=mileage,
+                notes=(payload.get("notes") or "").strip() or None,
+                labor_cost_manual=Decimal(str(payload.get("labor_cost_manual") or "0")),
+                discount=Decimal(str(payload.get("discount") or "0")),
+                tax_percentage=Decimal(str(payload.get("tax_percentage") or "0")),
+            )
+
+            # --- Parts -------------------------------------------------------
+            for inv, qty, price in line_specs:
+                product = inv.product
+                SaleInvoiceItem.objects.create(
+                    invoice=invoice, product=product, quantity=qty,
+                    unit_price=price,
+                    cost_at_sale=product.average_cost or Decimal("0.00"),
+                )
+                before = inv.quantity
+                inv.quantity = before - qty
+                inv.save(update_fields=["quantity"])
+                InventoryMovement.objects.create(
+                    product=product, branch=branch, reason="sale",
+                    quantity_change=-qty, quantity_before=before, quantity_after=inv.quantity,
+                    reference_type="SaleInvoice", reference_id=invoice.id,
+                    created_by=request.user,
+                )
+
+            # --- Services ----------------------------------------------------
+            for svc in services:
+                svc_id = int(svc.get("service_id"))
+                service = ServiceCatalog.objects.filter(id=svc_id).first()
+                if service is None:
+                    continue
+                price = svc.get("price")
+                SaleInvoiceServiceItem.objects.create(
+                    invoice=invoice, service=service,
+                    price=Decimal(str(price)) if price not in (None, "") else None,
+                )
+
+            # --- DVI (only if vehicle attached) ------------------------------
+            dvi = payload.get("dvi") or {}
+            if vehicle and any(dvi.get(k) for k in DVI_FIELDS):
+                VehicleInspection.objects.create(
+                    invoice=invoice, vehicle=vehicle,
+                    brakes_status=dvi.get("brakes_status") or "green",
+                    engine_oil_status=dvi.get("engine_oil_status") or "green",
+                    tires_status=dvi.get("tires_status") or "green",
+                    battery_status=dvi.get("battery_status") or "green",
+                    technician_notes=(dvi.get("technician_notes") or "").strip(),
+                )
+
+            invoice.update_total()
+
+        return _json_response_safe({
+            "ok": True,
+            "invoice_id": invoice.id,
+            "total": float(invoice.total_amount),
+            "print_url": reverse("inventory:print_invoice_a4", args=[invoice.id]),
+        })
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ أمر الشغل: {exc}"}, status=500)

@@ -236,21 +236,21 @@
                 <i class="fas fa-bolt text-purple-400"></i> الوصول السريع
             </h2>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <a href="/system/pos/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl"><i class="fas fa-cash-register"></i></div>
-                    <span class="text-xs font-black text-slate-300">نقطة البيع</span>
+                <a href="{% url 'inventory:lightning_pos' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl"><i class="fas fa-bolt"></i></div>
+                    <span class="text-xs font-black text-slate-300">🛒 نقطة بيع سريعة</span>
+                </a>
+                <a href="{% url 'inventory:job_card_create' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl"><i class="fas fa-clipboard-list"></i></div>
+                    <span class="text-xs font-black text-slate-300">📋 أمر شغل جديد</span>
                 </a>
                 <a href="/system/mechanic-bay/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-indigo-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                     <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl"><i class="fas fa-wrench"></i></div>
-                    <span class="text-xs font-black text-slate-300">كشف الصيانة</span>
+                    <span class="text-xs font-black text-slate-300">كشك الفنيين</span>
                 </a>
-                <a href="/secure-portal/inventory/saleinvoice/add/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl"><i class="fas fa-file-plus"></i></div>
-                    <span class="text-xs font-black text-slate-300">فاتورة جديدة</span>
-                </a>
-                <a href="/secure-portal/inventory/product/add/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-pink-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                <a href="{% url 'inventory:quick_product' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-pink-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                     <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl"><i class="fas fa-boxes"></i></div>
-                    <span class="text-xs font-black text-slate-300">إضافة صنف</span>
+                    <span class="text-xs font-black text-slate-300">إضافة قطعة</span>
                 </a>
                 <a href="/secure-portal/inventory/" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                     <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 text-xl"><i class="fas fa-cogs"></i></div>

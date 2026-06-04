@@ -35,6 +35,11 @@ urlpatterns = [
     path('quick-product/', views_lightning.quick_product_entry, name='quick_product'),
     path('quick-product/create/', views_lightning.quick_product_create, name='quick_product_create'),
 
+    # 📋 Job Card (Repair Order) — single-screen customer + vehicle + parts + services + DVI
+    path('job-card/', views_lightning.job_card_create, name='job_card_create'),
+    path('job-card/customers/', views_lightning.customer_search, name='job_card_customer_search'),
+    path('job-card/save/', views_lightning.job_card_save, name='job_card_save'),
+
     # 👨‍🔧 واجهة كشك الفنيين (Tablet UI) لضبط وقت المهام والإنتاجية
     path('mechanic-bay/', views.mechanic_kiosk_interface, name='mechanic_kiosk'),
 

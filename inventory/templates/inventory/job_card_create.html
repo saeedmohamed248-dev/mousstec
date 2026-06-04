@@ -1,0 +1,366 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>📋 أمر شغل جديد</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#0f172a; }
+  .panel { background:rgba(30,41,59,0.55); backdrop-filter: blur(8px); border:1px solid rgba(71,85,105,0.4); border-radius:1rem; padding:1rem; }
+  .lbl   { display:block; font-size:11px; font-weight:700; color:#cbd5e1; margin-bottom:4px; }
+  .inp   { width:100%; background:#0f172a; color:#fff; padding:.6rem .75rem; border-radius:.5rem; border:1px solid #334155; outline:none; }
+  .inp:focus { border-color:#a78bfa; }
+  .pill  { padding:.25rem .6rem; border-radius:9999px; font-size:11px; font-weight:700; }
+  .dvi-opt { cursor:pointer; flex:1; text-align:center; padding:.5rem; border-radius:.5rem; font-size:11px; font-weight:700; border:1px solid #334155; }
+  .dvi-opt.on-green  { background:rgba(16,185,129,.2); border-color:#10b981; color:#34d399; }
+  .dvi-opt.on-yellow { background:rgba(245,158,11,.2); border-color:#f59e0b; color:#fbbf24; }
+  .dvi-opt.on-red    { background:rgba(239,68,68,.2);  border-color:#ef4444; color:#f87171; }
+</style>
+</head>
+<body class="text-slate-100 min-h-screen">
+{% csrf_token %}
+<div class="max-w-7xl mx-auto p-4 sm:p-6 space-y-4">
+
+  <header class="flex items-center justify-between">
+    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+      <span class="text-emerald-400"><i class="fas fa-clipboard-list"></i></span>
+      أمر شغل جديد
+      {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+    </h1>
+    <a href="{% url 'inventory:dashboard' %}" class="text-sm text-slate-400 hover:text-white"><i class="fas fa-home"></i> الرئيسية</a>
+  </header>
+
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+    <!-- ============================================== -->
+    <!-- COL A: Customer + Vehicle                       -->
+    <!-- ============================================== -->
+    <section class="space-y-4 xl:col-span-1">
+      <div class="panel">
+        <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> العميل</h3>
+        <div class="relative">
+          <input id="cust-search" placeholder="ابحث بالاسم أو رقم الهاتف..." class="inp pl-8">
+          <i class="fas fa-search absolute left-3 top-3 text-slate-500"></i>
+        </div>
+        <div id="cust-results" class="mt-2 max-h-44 overflow-y-auto space-y-1"></div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div><label class="lbl">اسم العميل</label><input id="cust-name" class="inp"></div>
+          <div><label class="lbl">الهاتف</label><input id="cust-phone" class="inp"></div>
+        </div>
+        <p id="cust-status" class="text-xs text-slate-500 mt-2">سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً.</p>
+      </div>
+
+      <div class="panel">
+        <h3 class="text-sm font-black text-blue-300 mb-3"><i class="fas fa-car"></i> المركبة</h3>
+        <div id="cust-vehicles" class="space-y-1 mb-3"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="col-span-2"><label class="lbl">رقم الشاسيه (VIN)</label><input id="veh-chassis" maxlength="17" class="inp font-mono"></div>
+          <div><label class="lbl">رقم اللوحة</label><input id="veh-plate" class="inp"></div>
+          <div><label class="lbl">العداد (كم)</label><input id="veh-mileage" type="number" class="inp"></div>
+          <div><label class="lbl">الماركة</label><input id="veh-brand" value="BMW" class="inp"></div>
+          <div><label class="lbl">الموديل</label><input id="veh-model" placeholder="F30 / X5..." class="inp"></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">اختياري — اتركه فارغاً للبيع بدون ربط مركبة.</p>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- COL B: Parts + Services                         -->
+    <!-- ============================================== -->
+    <section class="space-y-4 xl:col-span-1">
+      <div class="panel">
+        <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-cogs"></i> القطع</h3>
+        <div class="relative">
+          <input id="part-search" placeholder="SKU أو باركود أو اسم..." class="inp pl-8">
+          <i class="fas fa-search absolute left-3 top-3 text-slate-500"></i>
+        </div>
+        <div id="part-results" class="mt-2 max-h-40 overflow-y-auto space-y-1"></div>
+        <div class="mt-3 max-h-60 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="text-slate-500"><tr><th class="text-right py-1">SKU</th><th class="text-right py-1">القطعة</th><th class="text-center">الكمية</th><th class="text-left">السعر</th><th></th></tr></thead>
+            <tbody id="parts-body"><tr><td colspan="5" class="text-center py-4 text-slate-600">لم تتم إضافة قطع</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tools"></i> المصنعيات / الخدمات</h3>
+        <div class="flex gap-2 mb-2">
+          <select id="svc-select" class="inp flex-1">
+            <option value="">— اختر خدمة من الكتالوج —</option>
+            {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.labor_price }}">{{ s.name }} ({{ s.labor_price }} ج.م)</option>{% endfor %}
+          </select>
+          <button onclick="addService()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 rounded-lg"><i class="fas fa-plus"></i></button>
+        </div>
+        <div class="max-h-44 overflow-y-auto">
+          <table class="w-full text-xs">
+            <thead class="text-slate-500"><tr><th class="text-right py-1">الخدمة</th><th class="text-left">السعر</th><th></th></tr></thead>
+            <tbody id="svc-body"><tr><td colspan="3" class="text-center py-4 text-slate-600">لم تُضَف خدمات</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- COL C: DVI + Notes + Totals                     -->
+    <!-- ============================================== -->
+    <section class="space-y-4 xl:col-span-1">
+      <div class="panel">
+        <h3 class="text-sm font-black text-rose-300 mb-3"><i class="fas fa-shield-halved"></i> فحص المركبة (DVI)</h3>
+        <p class="text-xs text-slate-500 mb-3">يُحفظ فقط إذا تم ربط مركبة.</p>
+        {% for f, label in dvi_fields %}{% endfor %}
+        <div id="dvi-grid" class="space-y-3">
+          <!-- rows injected by JS -->
+        </div>
+        <label class="lbl mt-3">ملاحظات الفني</label>
+        <textarea id="dvi-notes" rows="2" class="inp"></textarea>
+      </div>
+
+      <div class="panel">
+        <h3 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-note-sticky"></i> الشكوى والإجمالي</h3>
+        <label class="lbl">شكوى العميل / ملاحظات</label>
+        <textarea id="inv-notes" rows="2" class="inp mb-3"></textarea>
+        <div class="grid grid-cols-3 gap-2">
+          <div><label class="lbl">خصم</label><input id="discount" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">مصنعية إضافية</label><input id="labor-extra" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">ضريبة %</label><input id="tax" type="number" step="0.01" value="0" class="inp"></div>
+        </div>
+
+        <div class="mt-4 bg-gradient-to-br from-emerald-900/30 to-purple-900/30 rounded-xl p-3 border border-emerald-500/30">
+          <div class="flex justify-between text-xs text-slate-300"><span>قطع</span><span id="t-parts">0.00</span></div>
+          <div class="flex justify-between text-xs text-slate-300"><span>خدمات</span><span id="t-svc">0.00</span></div>
+          <div class="flex justify-between text-xs text-slate-300"><span>ضريبة تقديرية</span><span id="t-tax">0.00</span></div>
+          <div class="flex justify-between mt-1"><span class="font-bold">الإجمالي</span><span id="t-total" class="text-2xl font-black text-emerald-400">0.00</span></div>
+        </div>
+
+        <button id="save-btn" onclick="saveJobCard()" class="w-full mt-4 bg-gradient-to-r from-emerald-600 to-purple-600 hover:from-emerald-500 hover:to-purple-500 text-white text-lg font-black py-3 rounded-xl disabled:opacity-40">
+          <i class="fas fa-paper-plane"></i> حفظ أمر الشغل
+        </button>
+        <p id="msg" class="text-xs text-center mt-2"></p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const URLS = {
+  custSearch: "{% url 'inventory:job_card_customer_search' %}",
+  partSearch: "{% url 'inventory:lightning_pos_search' %}",
+  save:       "{% url 'inventory:job_card_save' %}",
+};
+
+const state = {
+  customer_id: null,
+  vehicle_id: null,
+  parts: new Map(),       // pid → {id, sku, name, price, qty, stock}
+  services: [],           // [{service_id, name, price}]
+  dvi: { brakes_status:'green', engine_oil_status:'green', tires_status:'green', battery_status:'green' },
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ------ DVI builder
+const DVI = [
+  ['brakes_status', 'الفرامل', 'fa-stop-circle'],
+  ['engine_oil_status', 'زيت المحرك', 'fa-oil-can'],
+  ['tires_status', 'الإطارات', 'fa-circle-notch'],
+  ['battery_status', 'البطارية', 'fa-car-battery'],
+];
+const COLORS = [['green','ممتاز'], ['yellow','متابعة'], ['red','تغيير فوري']];
+$('dvi-grid').innerHTML = DVI.map(([key, label, icon]) => `
+  <div>
+    <div class="text-xs text-slate-400 mb-1"><i class="fas ${icon}"></i> ${label}</div>
+    <div class="flex gap-1" data-dvi="${key}">
+      ${COLORS.map(([v, n]) => `<div class="dvi-opt ${v === 'green' ? 'on-green' : ''}" data-val="${v}" onclick="setDvi('${key}','${v}')">${n}</div>`).join('')}
+    </div>
+  </div>`).join('');
+
+function setDvi(key, val) {
+  state.dvi[key] = val;
+  const row = document.querySelector(`[data-dvi="${key}"]`);
+  row.querySelectorAll('.dvi-opt').forEach(el => {
+    el.classList.remove('on-green', 'on-yellow', 'on-red');
+    if (el.dataset.val === val) el.classList.add('on-' + val);
+  });
+}
+
+// ------ Customer search
+let custTimer;
+$('cust-search').addEventListener('input', (e) => {
+  clearTimeout(custTimer);
+  custTimer = setTimeout(() => doCustSearch(e.target.value), 200);
+});
+async function doCustSearch(q) {
+  if (q.trim().length < 2) { $('cust-results').innerHTML = ''; return; }
+  const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q));
+  const data = await r.json();
+  $('cust-results').innerHTML = (data.results || []).map(c => `
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/30 rounded p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${JSON.stringify(c)})'>
+      <b>${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
+      <span class="pill bg-slate-800 text-slate-300 mr-1">${esc(c.vip)}</span>
+    </div>
+  `).join('') || '<p class="text-xs text-slate-500">لا توجد نتائج</p>';
+}
+function pickCustomer(c) {
+  state.customer_id = c.id; state.vehicle_id = null;
+  $('cust-name').value = c.name; $('cust-phone').value = c.phone;
+  $('cust-status').textContent = `تم ربط العميل #${c.id}`;
+  $('cust-results').innerHTML = '';
+  $('cust-vehicles').innerHTML = c.vehicles.length
+    ? c.vehicles.map(v => `<div class="cursor-pointer bg-slate-900/60 hover:bg-blue-900/30 rounded p-2 text-xs border border-slate-700/40" onclick="pickVehicle(${v.id}, '${esc(v.plate)}', '${esc(v.chassis)}', '${esc(v.model)}')"><b>${esc(v.plate)}</b> · ${esc(v.chassis)} · ${esc(v.model)}</div>`).join('')
+    : '<p class="text-xs text-slate-500">لا توجد مركبات مسجلة — أدخل واحدة جديدة بالأسفل.</p>';
+}
+function pickVehicle(id, plate, chassis, model) {
+  state.vehicle_id = id;
+  $('veh-chassis').value = chassis; $('veh-plate').value = plate; $('veh-model').value = model;
+}
+$('cust-name').addEventListener('input', () => { state.customer_id = null; });
+$('cust-phone').addEventListener('input', () => { state.customer_id = null; });
+$('veh-chassis').addEventListener('input', () => { state.vehicle_id = null; });
+
+// ------ Parts search
+let partTimer;
+$('part-search').addEventListener('input', (e) => {
+  clearTimeout(partTimer);
+  partTimer = setTimeout(() => doPartSearch(e.target.value), 200);
+});
+async function doPartSearch(q) {
+  if (q.trim().length < 2) { $('part-results').innerHTML = ''; return; }
+  const r = await fetch(URLS.partSearch + '?q=' + encodeURIComponent(q));
+  const data = await r.json();
+  $('part-results').innerHTML = (data.results || []).map(p => `
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/30 rounded p-2 text-sm border border-slate-700/40 flex justify-between" onclick='addPart(${JSON.stringify(p)})'>
+      <span><b>${esc(p.name)}</b> <span class="text-xs text-slate-400">· ${esc(p.sku)} · مخزون ${p.stock}</span></span>
+      <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
+    </div>`).join('') || '<p class="text-xs text-slate-500">لا توجد نتائج</p>';
+}
+function addPart(p) {
+  if (p.stock <= 0) { flash('بدون مخزون.', 'error'); return; }
+  const ex = state.parts.get(p.id);
+  if (ex) { if (ex.qty + 1 > p.stock) { flash('وصلت الحد الأقصى.', 'error'); return; } ex.qty += 1; }
+  else { state.parts.set(p.id, { ...p, qty: 1 }); }
+  renderParts();
+}
+function setPartQty(id, q) {
+  const it = state.parts.get(id); if (!it) return;
+  q = Math.max(0, Math.min(q, it.stock));
+  if (q === 0) state.parts.delete(id); else it.qty = q;
+  renderParts();
+}
+function renderParts() {
+  const body = $('parts-body');
+  if (!state.parts.size) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-600">لم تتم إضافة قطع</td></tr>';
+  } else {
+    body.innerHTML = [...state.parts.values()].map(it => `
+      <tr class="border-b border-slate-700/30">
+        <td class="py-1.5 font-mono text-xs text-slate-400">${esc(it.sku)}</td>
+        <td class="py-1.5">${esc(it.name)}</td>
+        <td class="py-1.5 text-center">
+          <button onclick="setPartQty(${it.id}, ${it.qty - 1})" class="px-1.5">−</button>
+          <span class="px-2 font-bold">${it.qty}</span>
+          <button onclick="setPartQty(${it.id}, ${it.qty + 1})" class="px-1.5">+</button>
+        </td>
+        <td class="py-1.5 text-left text-emerald-400 font-bold">${(it.price * it.qty).toFixed(2)}</td>
+        <td><button onclick="setPartQty(${it.id}, 0)" class="text-red-400"><i class="fas fa-trash"></i></button></td>
+      </tr>`).join('');
+  }
+  recomputeTotals();
+}
+
+// ------ Services
+function addService() {
+  const sel = $('svc-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (!sel.value) return;
+  state.services.push({
+    service_id: parseInt(sel.value),
+    name: opt.textContent.split(' (')[0],
+    price: parseFloat(opt.dataset.price || 0),
+  });
+  sel.value = '';
+  renderServices();
+}
+function removeService(idx) { state.services.splice(idx, 1); renderServices(); }
+function setSvcPrice(idx, v) { state.services[idx].price = parseFloat(v) || 0; recomputeTotals(); }
+function renderServices() {
+  const body = $('svc-body');
+  if (!state.services.length) {
+    body.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-600">لم تُضَف خدمات</td></tr>';
+  } else {
+    body.innerHTML = state.services.map((s, i) => `
+      <tr class="border-b border-slate-700/30">
+        <td class="py-1.5">${esc(s.name)}</td>
+        <td class="py-1.5 text-left"><input type="number" step="0.01" value="${s.price.toFixed(2)}" onchange="setSvcPrice(${i}, this.value)" class="bg-slate-900 px-2 py-1 rounded w-24 text-left"></td>
+        <td><button onclick="removeService(${i})" class="text-red-400"><i class="fas fa-trash"></i></button></td>
+      </tr>`).join('');
+  }
+  recomputeTotals();
+}
+
+// ------ Totals (estimate matches SaleInvoice.update_total logic)
+function recomputeTotals() {
+  const tParts = [...state.parts.values()].reduce((s, i) => s + i.price * i.qty, 0);
+  const tSvc = state.services.reduce((s, i) => s + i.price, 0);
+  const extra = parseFloat($('labor-extra').value) || 0;
+  const disc = parseFloat($('discount').value) || 0;
+  const taxP = parseFloat($('tax').value) || 0;
+  const sub = tParts + tSvc + extra - disc;
+  const tax = sub * (taxP / 100);
+  $('t-parts').textContent = tParts.toFixed(2);
+  $('t-svc').textContent = tSvc.toFixed(2);
+  $('t-tax').textContent = tax.toFixed(2);
+  $('t-total').textContent = (sub + tax).toFixed(2);
+}
+['discount','labor-extra','tax'].forEach(id => $(id).addEventListener('input', recomputeTotals));
+
+// ------ Save
+async function saveJobCard() {
+  const btn = $('save-btn');
+  btn.disabled = true;
+  flash('جارٍ الحفظ...', 'info');
+  const payload = {
+    customer_id: state.customer_id,
+    customer_name: $('cust-name').value,
+    customer_phone: $('cust-phone').value,
+    vehicle_id: state.vehicle_id,
+    vehicle_chassis: $('veh-chassis').value,
+    vehicle_plate: $('veh-plate').value,
+    vehicle_brand: $('veh-brand').value,
+    vehicle_model: $('veh-model').value,
+    mileage: $('veh-mileage').value,
+    notes: $('inv-notes').value,
+    discount: $('discount').value,
+    labor_cost_manual: $('labor-extra').value,
+    tax_percentage: $('tax').value,
+    items: [...state.parts.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price })),
+    services: state.services.map(s => ({ service_id: s.service_id, price: s.price })),
+    dvi: { ...state.dvi, technician_notes: $('dvi-notes').value },
+  };
+  try {
+    const r = await fetch(URLS.save, {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { flash(data.error || 'فشل الحفظ.', 'error'); btn.disabled = false; return; }
+    flash(`تم! أمر الشغل #${data.invoice_id} — جارٍ فتح الطباعة`, 'success');
+    window.open(data.print_url, '_blank');
+    setTimeout(() => window.location.reload(), 1500);
+  } catch {
+    flash('خطأ في الشبكة.', 'error');
+    btn.disabled = false;
+  }
+}
+function flash(msg, type) {
+  const el = $('msg');
+  el.textContent = msg;
+  el.className = 'text-xs text-center mt-2 ' + ({ error:'text-red-400', success:'text-emerald-400', info:'text-slate-300' }[type] || '');
+}
+</script>
+</body>
+</html>
