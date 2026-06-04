@@ -711,3 +711,22 @@ def design_chat_state(request, conversation_code):
         ).count() > 1,
         'can_finalize': conv.current_design is not None and conv.stage not in ('finalized', 'abandoned'),
     }, status=200)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Endpoint 6 — Page renderer (HTML — the UI shell that consumes the 5 APIs)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def design_chat_page(request):
+    """GET /marketplace/design-chat/ — renders the sidebar+canvas UI.
+
+    Same 404-on-disabled-flag policy as the API endpoints. Unauthenticated
+    users redirect to the marketplace entry (sector picker has the login
+    modal — same pattern as brand_profile_page)."""
+    from django.shortcuts import redirect, render
+    _ensure_enabled()
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect(f'/marketplace/?next={request.path}')
+    return render(request, 'clients/marketplace/design_chat.html', {
+        'customer': customer,
+    })

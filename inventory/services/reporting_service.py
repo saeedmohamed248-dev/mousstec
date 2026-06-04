@@ -83,6 +83,46 @@ class ReportingService:
             return ""
 
     # ------------------------------------------------------------------
+    # Unified Dashboard Stats — single source of truth for today's KPIs.
+    # Used by both branch_dashboard (/system/dashboard/) and the secure-portal
+    # admin index (_automotive_dashboard) so the two pages can never disagree.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def get_today_dashboard_stats(user, branch=None):
+        from inventory.models import (
+            SaleInvoice, Inventory, FinancialTransaction,
+        )
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today = now.date()
+
+        invoices_qs = SaleInvoice.objects.filter(
+            date_created__gte=today_start, status='posted',
+        )
+        expenses_qs = FinancialTransaction.objects.filter(
+            transaction_type='out', date__gte=today_start,
+        )
+        inv_qs = Inventory.objects.select_related('product', 'branch')
+
+        if branch and not getattr(user, 'is_superuser', False):
+            invoices_qs = invoices_qs.filter(branch=branch)
+            expenses_qs = expenses_qs.filter(treasury__branch=branch)
+            inv_qs = inv_qs.filter(branch=branch)
+
+        low_stock = inv_qs.filter(quantity__lte=F('product__min_stock_level'))
+
+        return {
+            'today': today,
+            'invoices_qs': invoices_qs,
+            'low_stock_qs': low_stock,
+            'total_sales_today': invoices_qs.aggregate(s=Sum('total_amount'))['s'] or 0,
+            'net_profit_today': invoices_qs.aggregate(s=Sum('net_profit'))['s'] or 0,
+            'total_expenses_today': expenses_qs.aggregate(s=Sum('amount'))['s'] or 0,
+            'invoices_count': invoices_qs.count(),
+            'low_stock_count': low_stock.count(),
+        }
+
+    # ------------------------------------------------------------------
     # Copilot Business Data Query Engine
     # ------------------------------------------------------------------
     @staticmethod

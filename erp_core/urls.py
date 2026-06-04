@@ -468,6 +468,7 @@ urlpatterns = [
     path('marketplace/brand-profile/logo/<str:slot>/delete/', client_views.brand_profile_delete_logo, name='brand_profile_delete_logo'),
 
     # 💬 Conversational Design Builder (Phase N) — feature-flagged
+    path('marketplace/design-chat/', client_views.design_chat_page, name='design_chat_page'),
     path('marketplace/design-chat/start/', client_views.design_chat_start, name='design_chat_start'),
     path('marketplace/design-chat/<uuid:conversation_code>/', client_views.design_chat_state, name='design_chat_state'),
     path('marketplace/design-chat/<uuid:conversation_code>/message/', client_views.design_chat_message, name='design_chat_message'),

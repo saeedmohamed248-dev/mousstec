@@ -1440,21 +1440,27 @@ def _automotive_dashboard(request, extra_context):
         try: can_see_finance = request.user.employee_profile.role in ['admin', 'manager']
         except Exception: pass
 
-    sales_qs = SaleInvoice.objects.filter(status='posted', date_created__gte=first_day_of_month)
-    inv_qs = Inventory.objects.all()
-    treasury_qs = Treasury.objects.filter(is_active=True)
-
+    # Resolve user branch once — used for both shared stats and treasury filter
+    user_branch = None
     if not request.user.is_superuser:
         try:
-            branch = request.user.employee_profile.branch
-            if branch:
-                sales_qs = sales_qs.filter(branch=branch)
-                inv_qs = inv_qs.filter(branch=branch)
-                treasury_qs = treasury_qs.filter(branch=branch)
-        except Exception: pass
+            user_branch = request.user.employee_profile.branch
+        except Exception:
+            user_branch = None
 
-    total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    net_profit = sales_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if user_branch:
+        treasury_qs = treasury_qs.filter(branch=user_branch)
+
+    # 🔁 Unified KPI source — same logic as /system/dashboard/ branch_dashboard.
+    # Headline cards (total_sales_today / net_profit_today / total_expenses_today)
+    # must match the branch dashboard exactly, so we pull them from ReportingService.
+    from inventory.services.reporting_service import ReportingService
+    today_stats = ReportingService.get_today_dashboard_stats(request.user, user_branch)
+    total_revenue = today_stats['total_sales_today']
+    net_profit = today_stats['net_profit_today']
+    total_expenses_today = today_stats['total_expenses_today']
+    low_stock_count = today_stats['low_stock_count']
     total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
 
     treasuries_data = []
@@ -1470,17 +1476,12 @@ def _automotive_dashboard(request, extra_context):
             total_treasury_balance += t.balance
 
     open_orders = SaleInvoice.objects.exclude(status='posted')
-    if not request.user.is_superuser:
-        try:
-            if request.user.employee_profile.branch:
-                open_orders = open_orders.filter(branch=request.user.employee_profile.branch)
-        except Exception: pass
+    if user_branch:
+        open_orders = open_orders.filter(branch=user_branch)
     open_orders_count = open_orders.count()
 
     yesterday = timezone.now() - timedelta(days=1)
     delayed_orders_count = open_orders.filter(date_created__lte=yesterday).count()
-
-    low_stock_count = inv_qs.filter(quantity__lte=F('product__min_stock_level')).values('product').distinct().count()
 
     chart_labels = []
     chart_revenue = []
@@ -1495,11 +1496,8 @@ def _automotive_dashboard(request, extra_context):
             date_created__year=target_month.year,
             date_created__month=target_month.month
         )
-        if not request.user.is_superuser:
-            try:
-                if request.user.employee_profile.branch:
-                    month_invoices = month_invoices.filter(branch=request.user.employee_profile.branch)
-            except Exception: pass
+        if user_branch:
+            month_invoices = month_invoices.filter(branch=user_branch)
 
         rev = month_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
@@ -1511,12 +1509,14 @@ def _automotive_dashboard(request, extra_context):
     if not can_see_finance:
         display_revenue = "🔒 مخفي"
         display_profit = "🔒 مخفي"
+        display_expenses = "🔒 مخفي"
         display_debt = "🔒 مخفي"
         safe_chart_revenue = [0] * 6
         safe_chart_profit = [0] * 6
     else:
         display_revenue = f"{float(total_revenue):,.0f}"
         display_profit = f"{float(net_profit):,.0f}"
+        display_expenses = f"{float(total_expenses_today):,.0f}"
         display_debt = f"{float(total_debt):,.0f}"
         safe_chart_revenue = chart_revenue
         safe_chart_profit = chart_profit
@@ -1541,6 +1541,7 @@ def _automotive_dashboard(request, extra_context):
         'stats': {
             'total_sales_today': display_revenue,
             'net_profit_today': display_profit,
+            'total_expenses_today': display_expenses,
             'total_debt': display_debt,
             'total_treasury': display_treasury,
             'invoices_count': invoices_label,

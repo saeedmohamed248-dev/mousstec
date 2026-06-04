@@ -126,30 +126,27 @@ def role_required(*allowed_roles):
 @login_required(login_url='/secure-portal/')
 @tenant_required
 def branch_dashboard(request):
-    today = timezone.now().date()
     is_admin = request.user.is_superuser or (
         hasattr(request.user, 'employee_profile')
         and request.user.employee_profile.role in ('admin', 'manager')
     )
     branch = _get_branch_for_user(request.user)
 
-    invoices_qs = SaleInvoice.objects.filter(date_created__date=today)
-    inv_qs = Inventory.objects.select_related('product', 'branch')
-
-    if branch and not request.user.is_superuser:
-        invoices_qs = invoices_qs.filter(branch=branch)
-        inv_qs = inv_qs.filter(branch=branch)
-
-    low_stock = inv_qs.filter(quantity__lte=F('product__min_stock_level'))
+    from inventory.services.reporting_service import ReportingService
+    raw = ReportingService.get_today_dashboard_stats(request.user, branch)
+    today = raw['today']
+    low_stock = raw['low_stock_qs']
 
     stats = {
-        'total_sales_today': invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
+        'total_sales_today': raw['total_sales_today'],
         'net_profit_today': (
-            invoices_qs.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
-            if is_admin else "🔒 صلاحية المدير فقط"
+            raw['net_profit_today'] if is_admin else "🔒 صلاحية المدير فقط"
         ),
-        'invoices_count': invoices_qs.count(),
-        'low_stock_count': low_stock.count(),
+        'total_expenses_today': (
+            raw['total_expenses_today'] if is_admin else "🔒 صلاحية المدير فقط"
+        ),
+        'invoices_count': raw['invoices_count'],
+        'low_stock_count': raw['low_stock_count'],
     }
 
     # Trial / subscription countdown

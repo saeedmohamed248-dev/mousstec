@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محادثة التصميم | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-0: #0f172a;
+            --bg-1: #1e1e38;
+            --bg-card: rgba(30,41,59,0.5);
+            --border: rgba(255,255,255,0.08);
+            --text-0: #f8fafc;
+            --text-1: #cbd5e1;
+            --text-2: #94a3b8;
+            --pink: #ec4899;
+            --purple: #8b5cf6;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --blue: #3b82f6;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 100%);
+            color: var(--text-0); min-height: 100vh; overflow: hidden;
+        }
+
+        /* ── Topbar ──────────────────────────────────────────── */
+        .topbar {
+            background: rgba(15,23,42,0.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; height: 56px;
+        }
+        .brand {
+            font-weight: 900; font-size: 1.1rem;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar a { color: var(--text-2); text-decoration: none; font-size: 0.9rem; padding: 6px 14px; border-radius: 8px; }
+        .topbar a:hover { color: var(--pink); background: rgba(236,72,153,0.1); }
+
+        /* ── Main grid: sidebar + canvas (desktop) ──────────── */
+        .main {
+            display: grid; grid-template-columns: 380px 1fr;
+            height: calc(100vh - 56px); overflow: hidden;
+        }
+        @media (max-width: 1023px) {
+            .main { grid-template-columns: 1fr; grid-template-rows: 40vh 1fr; height: calc(100vh - 56px); }
+        }
+
+        /* ── Sidebar (chat panel) ───────────────────────────── */
+        .sidebar {
+            background: rgba(15,23,42,0.6); backdrop-filter: blur(8px);
+            border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; height: 100%; overflow: hidden;
+        }
+        @media (max-width: 1023px) {
+            .sidebar { border-left: none; border-top: 1px solid var(--border); order: 2; }
+        }
+
+        .sidebar-header {
+            padding: 14px 16px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .brand-chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+            background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+            color: #c4b5fd; border-radius: 14px; font-size: 0.78rem; font-weight: 700;
+        }
+        .stage-chip {
+            display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+            border-radius: 14px; font-size: 0.75rem; font-weight: 700;
+        }
+        .stage-planning  { background: rgba(59,130,246,0.15);  border: 1px solid rgba(59,130,246,0.3);  color: #93c5fd; }
+        .stage-generated { background: rgba(16,185,129,0.15);  border: 1px solid rgba(16,185,129,0.3);  color: #6ee7b7; }
+        .stage-refining  { background: rgba(245,158,11,0.15);  border: 1px solid rgba(245,158,11,0.3);  color: #fcd34d; }
+        .stage-finalized { background: rgba(139,92,246,0.2);   border: 1px solid rgba(139,92,246,0.4);  color: #c4b5fd; }
+        .stage-abandoned { background: rgba(100,116,139,0.2);  border: 1px solid rgba(100,116,139,0.4); color: #cbd5e1; }
+
+        /* ── Transcript ─────────────────────────────────────── */
+        .transcript {
+            flex: 1; overflow-y: auto; padding: 16px;
+            display: flex; flex-direction: column; gap: 10px;
+            scrollbar-width: thin;
+        }
+        .transcript::-webkit-scrollbar { width: 6px; }
+        .transcript::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+        .empty-state {
+            text-align: center; color: var(--text-2); padding: 40px 20px;
+            font-size: 0.92rem; line-height: 1.6;
+        }
+        .empty-state i { font-size: 2.4rem; color: var(--purple); margin-bottom: 12px; display: block; }
+
+        .msg { max-width: 86%; display: flex; flex-direction: column; gap: 6px; }
+        .msg-user { align-self: flex-start; align-items: flex-start; }
+        .msg-assistant { align-self: flex-end; align-items: flex-end; }
+        .msg-system { align-self: center; max-width: 95%; }
+
+        .bubble {
+            padding: 10px 14px; border-radius: 14px; font-size: 0.92rem;
+            line-height: 1.55; word-wrap: break-word;
+        }
+        .msg-user .bubble {
+            background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.12));
+            border: 1px solid rgba(139,92,246,0.25); color: var(--text-0);
+            border-bottom-right-radius: 4px;
+        }
+        .msg-assistant .bubble {
+            background: rgba(30,41,59,0.7);
+            border: 1px solid var(--border); color: var(--text-0);
+            border-bottom-left-radius: 4px;
+        }
+        .msg-system .bubble {
+            background: rgba(100,116,139,0.15); border: 1px solid rgba(100,116,139,0.25);
+            color: var(--text-2); font-size: 0.8rem; padding: 6px 14px; border-radius: 16px;
+            text-align: center;
+        }
+
+        .msg-thumb {
+            margin-top: 4px; max-width: 140px; border-radius: 10px;
+            border: 1px solid var(--border); cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .msg-thumb:hover { transform: scale(1.04); }
+
+        .msg-meta {
+            font-size: 0.7rem; color: var(--text-2); padding: 0 4px;
+            display: flex; gap: 8px; align-items: center;
+        }
+
+        /* Smart-visibility intent badges — only render for non-obvious turns */
+        .intent-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700;
+            cursor: help;
+        }
+        .intent-fallback { background: rgba(100,116,139,0.2); color: #cbd5e1; border: 1px solid rgba(100,116,139,0.35); }
+        .intent-downgraded { background: rgba(245,158,11,0.18); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+        .intent-error { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+
+        .suggested-next {
+            margin-top: 6px; padding: 6px 10px; font-size: 0.78rem;
+            background: rgba(236,72,153,0.08); border: 1px dashed rgba(236,72,153,0.3);
+            color: #fbcfe8; border-radius: 8px;
+        }
+
+        .typing {
+            display: none; align-self: flex-end; padding: 10px 14px;
+            background: rgba(30,41,59,0.7); border: 1px solid var(--border);
+            border-radius: 14px; border-bottom-left-radius: 4px; gap: 4px;
+        }
+        .typing.show { display: flex; }
+        .typing span {
+            width: 6px; height: 6px; background: var(--text-2); border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.15s; }
+        .typing span:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* ── Quick actions row ──────────────────────────────── */
+        .quick-actions {
+            display: flex; gap: 6px; padding: 8px 12px;
+            border-top: 1px solid var(--border);
+            background: rgba(15,23,42,0.5);
+        }
+        .qa-btn {
+            flex: 1; padding: 8px 6px; border-radius: 10px;
+            border: 1px solid var(--border); background: rgba(30,41,59,0.5);
+            color: var(--text-1); font-family: inherit; font-size: 0.78rem;
+            font-weight: 700; cursor: pointer; transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .qa-btn:hover:not(:disabled) {
+            background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #fff;
+        }
+        .qa-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .qa-finalize:hover:not(:disabled) {
+            background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: #6ee7b7;
+        }
+
+        /* ── Input area ─────────────────────────────────────── */
+        .input-area {
+            padding: 12px; border-top: 1px solid var(--border);
+            background: rgba(15,23,42,0.7);
+        }
+        .input-row { display: flex; gap: 8px; align-items: flex-end; }
+        .input-row textarea {
+            flex: 1; padding: 10px 12px; border-radius: 12px;
+            background: rgba(15,23,42,0.7); color: var(--text-0);
+            border: 1px solid var(--border); font-family: inherit; font-size: 0.95rem;
+            resize: none; min-height: 44px; max-height: 140px; line-height: 1.4;
+            transition: border-color 0.2s;
+        }
+        .input-row textarea:focus {
+            outline: none; border-color: var(--pink);
+            box-shadow: 0 0 0 3px rgba(236,72,153,0.1);
+        }
+        .send-btn {
+            padding: 10px 18px; border-radius: 12px; border: none;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            color: #fff; font-family: inherit; font-weight: 900; font-size: 1rem;
+            cursor: pointer; transition: transform 0.15s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .send-btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Cost meter (sidebar footer) ────────────────────── */
+        .meter {
+            padding: 8px 14px; border-top: 1px solid var(--border);
+            background: rgba(15,23,42,0.85);
+            display: flex; flex-direction: column; gap: 5px;
+            font-size: 0.72rem; color: var(--text-2);
+        }
+        .meter-row { display: flex; align-items: center; gap: 8px; }
+        .meter-label { min-width: 50px; }
+        .meter-bar {
+            flex: 1; height: 5px; background: rgba(100,116,139,0.25);
+            border-radius: 3px; overflow: hidden;
+        }
+        .meter-fill {
+            height: 100%; background: linear-gradient(90deg, var(--green), var(--cyan));
+            transition: width 0.3s;
+        }
+        .meter-fill.warn { background: linear-gradient(90deg, var(--orange), var(--red)); }
+        .meter-val { min-width: 38px; text-align: left; font-weight: 700; color: var(--text-1); }
+
+        /* ── Canvas (right side) ────────────────────────────── */
+        .canvas {
+            padding: 20px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+            overflow-y: auto; height: 100%;
+        }
+        @media (max-width: 1023px) {
+            .canvas { order: 1; padding: 12px; }
+        }
+        .canvas-frame {
+            position: relative;
+            background: rgba(30,41,59,0.4); border: 1px solid var(--border);
+            border-radius: 18px; padding: 14px;
+            max-width: min(680px, 100%); width: 100%;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 280px;
+        }
+        @media (max-width: 1023px) {
+            .canvas-frame { min-height: auto; padding: 8px; }
+        }
+        .canvas-frame img {
+            max-width: 100%; max-height: calc(100vh - 240px);
+            border-radius: 12px; display: block;
+            transition: opacity 0.3s;
+        }
+        @media (max-width: 1023px) {
+            .canvas-frame img { max-height: 32vh; }
+        }
+        .canvas-empty {
+            text-align: center; color: var(--text-2); padding: 40px 20px;
+        }
+        .canvas-empty i {
+            font-size: 3.4rem; margin-bottom: 14px; display: block;
+            background: linear-gradient(135deg, var(--pink), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .canvas-empty p { font-size: 1rem; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+
+        .canvas-badges {
+            position: absolute; top: 22px; right: 22px;
+            display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+        }
+        .engine-badge {
+            padding: 5px 10px; border-radius: 12px; font-size: 0.72rem;
+            font-weight: 700; backdrop-filter: blur(8px);
+            background: rgba(15,23,42,0.7); border: 1px solid var(--border);
+            color: var(--text-1);
+        }
+        .engine-flux     { color: #93c5fd; border-color: rgba(59,130,246,0.4); }
+        .engine-ideogram { color: #6ee7b7; border-color: rgba(16,185,129,0.4); }
+        .engine-kontext  { color: #fcd34d; border-color: rgba(245,158,11,0.4); }
+
+        .canvas-actions {
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+        }
+        .ca-btn {
+            padding: 10px 18px; border-radius: 12px;
+            font-family: inherit; font-weight: 700; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.15s; border: 1px solid var(--border);
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .ca-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .ca-download { background: rgba(30,41,59,0.6); color: var(--text-0); }
+        .ca-download:hover:not(:disabled) { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
+        .ca-finalize {
+            background: linear-gradient(135deg, var(--green), var(--cyan)); color: #fff;
+            border-color: transparent;
+        }
+        .ca-finalize:hover:not(:disabled) { transform: translateY(-1px); }
+
+        /* ── Toast ──────────────────────────────────────────── */
+        .toast {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            padding: 12px 20px; border-radius: 12px; font-weight: 700;
+            backdrop-filter: blur(12px); z-index: 1000; display: none;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.4); font-size: 0.92rem;
+            max-width: 90vw;
+        }
+        .toast.success { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.5); color: #6ee7b7; }
+        .toast.error   { background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #fca5a5; }
+        .toast.info    { background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.5); color: #93c5fd; }
+        .toast.show { display: block; animation: slidedown 0.3s; }
+        @keyframes slidedown { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+        /* ── Confirm modal ──────────────────────────────────── */
+        .modal-bg {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.7);
+            backdrop-filter: blur(6px); display: none; align-items: center; justify-content: center;
+            z-index: 999; padding: 20px;
+        }
+        .modal-bg.show { display: flex; }
+        .modal {
+            background: linear-gradient(135deg, var(--bg-1), #2d1b4e);
+            border: 1px solid var(--border); border-radius: 18px; padding: 26px;
+            max-width: 440px; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        }
+        .modal h3 { font-size: 1.15rem; font-weight: 900; margin-bottom: 8px; }
+        .modal p { color: var(--text-1); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 9px 18px; border-radius: 10px; border: 1px solid var(--border);
+            font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+        }
+        .modal-cancel { background: transparent; color: var(--text-1); }
+        .modal-cancel:hover { background: rgba(255,255,255,0.05); }
+        .modal-confirm {
+            background: linear-gradient(135deg, var(--green), var(--cyan));
+            color: #fff; border-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand"><i class="fas fa-comments"></i> محادثة التصميم</div>
+        <div style="display:flex; gap:6px;">
+            <a href="/marketplace/design-store/"><i class="fas fa-store"></i> المتجر</a>
+            <a href="/marketplace/brand-profile/edit/"><i class="fas fa-palette"></i> البراند</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- ─── Sidebar (chat panel) ──────────────────────── -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="stage-chip" id="stage-chip" data-stage="planning">
+                    <i class="fas fa-circle" style="font-size:0.5rem;"></i>
+                    <span id="stage-label">تخطيط</span>
+                </span>
+                <span class="brand-chip" id="brand-chip" style="display:none;">
+                    <i class="fas fa-palette"></i> البراند مفعّل
+                </span>
+            </div>
+
+            <div class="transcript" id="transcript">
+                <div class="empty-state" id="empty-state">
+                    <i class="fas fa-magic"></i>
+                    <div><strong>ابدأ المحادثة لتصميم منتجك</strong></div>
+                    <div style="margin-top:8px; font-size:0.85rem;">
+                        اكتب فكرتك بكلامك الطبيعي — مثلاً:<br>
+                        "اعمل لي تيشرت رياضي بالأزرق"<br>
+                        أو "ابدأ بوستر لمطعم"
+                    </div>
+                </div>
+                <div class="typing" id="typing">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="qa-btn" id="qa-generate" onclick="quickAction('generate')" disabled>
+                    <i class="fas fa-magic"></i> ولّد
+                </button>
+                <button class="qa-btn" id="qa-undo" onclick="undoTurn()" disabled>
+                    <i class="fas fa-undo"></i> تراجع
+                </button>
+                <button class="qa-btn qa-finalize" id="qa-finalize" onclick="askFinalize()" disabled>
+                    <i class="fas fa-check"></i> اعتماد
+                </button>
+            </div>
+
+            <div class="input-area">
+                <div class="input-row">
+                    <textarea
+                        id="msg-input"
+                        placeholder="اكتب رسالتك..."
+                        rows="1"
+                        oninput="autoGrow(this)"
+                        onkeydown="onInputKey(event)"
+                    ></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="meter">
+                <div class="meter-row">
+                    <span class="meter-label">تيرنات</span>
+                    <div class="meter-bar"><div class="meter-fill" id="turns-fill" style="width:0%"></div></div>
+                    <span class="meter-val" id="turns-val">0 / 30</span>
+                </div>
+                <div class="meter-row">
+                    <span class="meter-label">صور</span>
+                    <div class="meter-bar"><div class="meter-fill" id="images-fill" style="width:0%"></div></div>
+                    <span class="meter-val" id="images-val">0 / 8</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ─── Canvas (right side) ───────────────────────── -->
+        <main class="canvas">
+            <div class="canvas-frame">
+                <div class="canvas-badges" id="canvas-badges" style="display:none;">
+                    <span class="engine-badge" id="engine-badge"></span>
+                </div>
+                <div class="canvas-empty" id="canvas-empty">
+                    <i class="fas fa-image"></i>
+                    <p>
+                        <strong>التصميم هيبان هنا</strong><br>
+                        ابدأ المحادثة في الجانب → الذكاء الاصطناعي بيولّد التصميم لما يبقى عنده تفاصيل كافية.
+                    </p>
+                </div>
+                <img id="canvas-img" alt="design preview" style="display:none;">
+            </div>
+
+            <div class="canvas-actions">
+                <button class="ca-btn ca-download" id="ca-download" onclick="downloadImage()" disabled>
+                    <i class="fas fa-download"></i> تنزيل
+                </button>
+                <button class="ca-btn ca-finalize" id="ca-finalize" onclick="askFinalize()" disabled>
+                    <i class="fas fa-check-circle"></i> اعتماد التصميم
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- ─── Toast + Modal ──────────────────────────────── -->
+    <div class="toast" id="toast"></div>
+    <div class="modal-bg" id="modal-bg">
+        <div class="modal">
+            <h3 id="modal-title">تأكيد</h3>
+            <p id="modal-body">هل أنت متأكد؟</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-cancel" onclick="closeModal()">إلغاء</button>
+                <button class="modal-btn modal-confirm" id="modal-confirm-btn">تأكيد</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // State
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const STORAGE_KEY = 'mp_design_chat_active';
+        const API = '/marketplace/design-chat';
+        const LIMITS = { turns: 30, images: 8 };
+
+        let state = {
+            convCode: null,
+            stage: 'planning',
+            currentImageUrl: null,
+            turnCount: 0,
+            imageCount: 0,
+            canUndo: false,
+            canFinalize: false,
+            brandApplied: false,
+            sending: false,
+        };
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Helpers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function getCookie(name) {
+            const v = `; ${document.cookie}`.split(`; ${name}=`);
+            return v.length === 2 ? v.pop().split(';').shift() : '';
+        }
+        function showToast(msg, type='info', ms=3500) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.className = `toast ${type} show`;
+            setTimeout(() => t.classList.remove('show'), ms);
+        }
+        function escapeHtml(s) {
+            return (s || '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[c]);
+        }
+        function autoGrow(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+        }
+        function onInputKey(e) {
+            // Enter to send, Shift+Enter for newline
+            if (e.key === 'Enter' && !e.shiftKey && !state.sending) {
+                e.preventDefault(); sendMessage();
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // API client
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        async function api(path, opts = {}) {
+            const res = await fetch(`${API}${path}`, {
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                ...opts,
+            });
+            const data = await res.json().catch(() => ({}));
+            return { ok: res.ok, status: res.status, data };
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Rendering
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const STAGE_LABELS = {
+            planning: 'تخطيط', generated: 'تم التوليد',
+            refining: 'تعديل', finalized: 'تم الاعتماد', abandoned: 'متروك',
+        };
+        function renderStage() {
+            const chip = document.getElementById('stage-chip');
+            const label = document.getElementById('stage-label');
+            chip.className = `stage-chip stage-${state.stage}`;
+            label.textContent = STAGE_LABELS[state.stage] || state.stage;
+            document.getElementById('brand-chip').style.display = state.brandApplied ? 'inline-flex' : 'none';
+        }
+        function renderMeter() {
+            const tPct = Math.min(100, (state.turnCount / LIMITS.turns) * 100);
+            const iPct = Math.min(100, (state.imageCount / LIMITS.images) * 100);
+            const tFill = document.getElementById('turns-fill');
+            const iFill = document.getElementById('images-fill');
+            tFill.style.width = tPct + '%';
+            iFill.style.width = iPct + '%';
+            tFill.classList.toggle('warn', tPct >= 80);
+            iFill.classList.toggle('warn', iPct >= 80);
+            document.getElementById('turns-val').textContent = `${state.turnCount} / ${LIMITS.turns}`;
+            document.getElementById('images-val').textContent = `${state.imageCount} / ${LIMITS.images}`;
+        }
+        function renderActions() {
+            document.getElementById('qa-undo').disabled = !state.canUndo || state.sending;
+            document.getElementById('qa-finalize').disabled = !state.canFinalize || state.sending;
+            document.getElementById('qa-generate').disabled = state.sending || state.stage === 'finalized';
+            document.getElementById('ca-download').disabled = !state.currentImageUrl;
+            document.getElementById('ca-finalize').disabled = !state.canFinalize || state.sending;
+        }
+        function renderCanvas() {
+            const img = document.getElementById('canvas-img');
+            const empty = document.getElementById('canvas-empty');
+            const badges = document.getElementById('canvas-badges');
+            if (state.currentImageUrl) {
+                img.src = state.currentImageUrl;
+                img.style.display = 'block';
+                empty.style.display = 'none';
+                badges.style.display = state.currentEngine ? 'flex' : 'none';
+                if (state.currentEngine) {
+                    const eb = document.getElementById('engine-badge');
+                    eb.textContent = state.currentEngine.toUpperCase();
+                    eb.className = `engine-badge engine-${state.currentEngine}`;
+                }
+            } else {
+                img.style.display = 'none';
+                empty.style.display = 'block';
+                badges.style.display = 'none';
+            }
+        }
+        function buildIntentBadge(turn) {
+            // Smart visibility: only show when something non-obvious happened
+            if (turn.fallback_reason === 'classifier_error') {
+                return `<span class="intent-badge intent-error" title="حصل خطأ مؤقت في الذكاء"><i class="fas fa-triangle-exclamation"></i> مؤقت</span>`;
+            }
+            if (turn.fallback_reason === 'low_confidence') {
+                return `<span class="intent-badge intent-fallback" title="مكنتش متأكد من قصدك — لو عاوز توليد دوس 'ولّد'">💬 مش متأكد</span>`;
+            }
+            if (turn.downgraded) {
+                return `<span class="intent-badge intent-downgraded" title="قلت 'عدّل' بس لسه مفيش تصميم — ولّدت بدل ما أعدّل"><i class="fas fa-shuffle"></i> تحويل تلقائي</span>`;
+            }
+            return '';
+        }
+        function appendTurn(turn) {
+            const t = document.getElementById('transcript');
+            const empty = document.getElementById('empty-state');
+            if (empty) empty.style.display = 'none';
+
+            const div = document.createElement('div');
+            div.className = `msg msg-${turn.role}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerHTML = escapeHtml(turn.content).replace(/\n/g, '<br>');
+            div.appendChild(bubble);
+
+            if (turn.image_url) {
+                const img = document.createElement('img');
+                img.className = 'msg-thumb';
+                img.src = turn.image_url;
+                img.alt = 'design';
+                img.onclick = () => {
+                    state.currentImageUrl = turn.image_url;
+                    state.currentEngine = turn.engine_used;
+                    renderCanvas();
+                };
+                div.appendChild(img);
+            }
+            if (turn.suggested_next) {
+                const sug = document.createElement('div');
+                sug.className = 'suggested-next';
+                sug.innerHTML = `<i class="fas fa-lightbulb"></i> ${escapeHtml(turn.suggested_next)}`;
+                div.appendChild(sug);
+            }
+
+            const badge = buildIntentBadge(turn);
+            if (badge) {
+                const meta = document.createElement('div');
+                meta.className = 'msg-meta';
+                meta.innerHTML = badge;
+                div.appendChild(meta);
+            }
+
+            // Insert before the typing indicator so typing always stays at the bottom
+            const typing = document.getElementById('typing');
+            t.insertBefore(div, typing);
+            t.scrollTop = t.scrollHeight;
+        }
+        function setTyping(on) {
+            document.getElementById('typing').classList.toggle('show', on);
+            if (on) {
+                const t = document.getElementById('transcript');
+                t.scrollTop = t.scrollHeight;
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Lifecycle
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        async function init() {
+            const cached = localStorage.getItem(STORAGE_KEY);
+            if (cached) {
+                try {
+                    const r = await api(`/${cached}/`);
+                    if (r.ok) {
+                        hydrate(cached, r.data);
+                        return;
+                    }
+                    // Stale/missing → fall through to start
+                    localStorage.removeItem(STORAGE_KEY);
+                } catch (e) { localStorage.removeItem(STORAGE_KEY); }
+            }
+            await startNew();
+        }
+        async function startNew() {
+            const r = await api('/start/', { method: 'POST', body: '{}' });
+            if (r.status === 404) {
+                document.body.innerHTML = '<div style="padding:60px; text-align:center; color:#fca5a5;"><h1>الميزة لسه مش متاحة</h1><p>محادثة التصميم بنفعّلها تدريجياً. <a href="/marketplace/" style="color:#ec4899;">رجوع</a></p></div>';
+                return;
+            }
+            if (r.status === 401) { window.location = '/marketplace/'; return; }
+            if (!r.ok) { showToast('فشل بدء المحادثة', 'error'); return; }
+            state.convCode = r.data.conversation_code;
+            state.stage = r.data.stage;
+            state.brandApplied = r.data.brand_applied;
+            state.turnCount = r.data.turn_count || 0;
+            localStorage.setItem(STORAGE_KEY, state.convCode);
+            renderStage(); renderMeter(); renderActions(); renderCanvas();
+        }
+        function hydrate(code, data) {
+            state.convCode = code;
+            state.stage = data.stage;
+            state.brandApplied = data.brand_applied;
+            state.turnCount = data.turn_count;
+            state.imageCount = data.image_count;
+            state.canUndo = data.can_undo;
+            state.canFinalize = data.can_finalize;
+            if (data.current_design) {
+                state.currentImageUrl = data.current_design.image_url;
+            }
+            // Re-render transcript from server
+            const t = document.getElementById('transcript');
+            const empty = document.getElementById('empty-state');
+            if (data.turns && data.turns.length) {
+                if (empty) empty.style.display = 'none';
+                // Group by turn_index to reconstruct pairing
+                for (const turn of data.turns) {
+                    appendTurn({
+                        role: turn.role,
+                        content: turn.content,
+                        image_url: turn.image_url,
+                        engine_used: turn.engine_used,
+                    });
+                }
+            }
+            renderStage(); renderMeter(); renderActions(); renderCanvas();
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Send message + quick actions
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        async function sendMessage(explicitIntent) {
+            const input = document.getElementById('msg-input');
+            const msg = input.value.trim();
+            if (!msg || state.sending) return;
+            state.sending = true;
+            renderActions();
+            document.getElementById('send-btn').disabled = true;
+
+            // Optimistic: render the user message immediately
+            appendTurn({ role: 'user', content: msg });
+            input.value = '';
+            input.style.height = 'auto';
+            setTyping(true);
+
+            const body = { message: msg };
+            if (explicitIntent) body.intent = explicitIntent;
+            const r = await api(`/${state.convCode}/message/`, {
+                method: 'POST', body: JSON.stringify(body),
+            });
+            setTyping(false);
+
+            if (r.status === 409) {
+                showToast('فيه رسالة شغّالة دلوقتي — استنى ثانية', 'info');
+            } else if (r.status === 429) {
+                showToast('وصلت لحد الجلسة — اعمل اعتماد أو ابدأ جديدة', 'error', 5000);
+            } else if (r.status === 410) {
+                showToast('المحادثة دي اتقفلت', 'error');
+            } else if (r.status === 404) {
+                document.body.innerHTML = '<div style="padding:60px; text-align:center;"><h1>الميزة مش متاحة</h1></div>';
+            } else if (!r.ok) {
+                showToast(r.data.error || 'حصل خطأ', 'error');
+            } else {
+                appendTurn({
+                    role: 'assistant',
+                    content: r.data.reply,
+                    image_url: r.data.image_url,
+                    engine_used: r.data.engine_used,
+                    suggested_next: r.data.suggested_next,
+                    fallback_reason: r.data.fallback_reason,
+                    downgraded: r.data.downgraded,
+                });
+                state.stage = r.data.stage;
+                state.turnCount = r.data.turn_count;
+                state.imageCount = r.data.image_count;
+                state.canUndo = r.data.can_undo;
+                state.canFinalize = r.data.stage !== 'finalized' && r.data.image_count > 0;
+                if (r.data.image_url) {
+                    state.currentImageUrl = r.data.image_url;
+                    state.currentEngine = r.data.engine_used;
+                }
+                renderStage(); renderMeter(); renderCanvas();
+            }
+            state.sending = false;
+            renderActions();
+            document.getElementById('send-btn').disabled = false;
+            input.focus();
+        }
+        function quickAction(intent) {
+            const input = document.getElementById('msg-input');
+            if (!input.value.trim()) {
+                input.focus();
+                showToast('اكتب وصف صغير الأول، بعدين دوس على الزرار', 'info');
+                return;
+            }
+            sendMessage(intent);
+        }
+        async function undoTurn() {
+            if (state.sending || !state.canUndo) return;
+            state.sending = true; renderActions();
+            const r = await api(`/${state.convCode}/undo/`, { method: 'POST' });
+            if (r.ok) {
+                state.currentImageUrl = r.data.image_url;
+                state.turnCount = r.data.turn_count;
+                state.canUndo = r.data.can_undo;
+                state.stage = r.data.stage;
+                appendTurn({ role: 'system', content: '↩️ تم التراجع للتصميم السابق' });
+                renderStage(); renderMeter(); renderCanvas();
+                showToast('تم التراجع', 'success');
+            } else {
+                showToast(r.data.error || 'فشل التراجع', 'error');
+            }
+            state.sending = false; renderActions();
+        }
+        function askFinalize() {
+            openModal({
+                title: 'اعتماد التصميم',
+                body: 'هتقفل المحادثة دي وتعتمد التصميم الحالي. مش هتقدر تعدّل بعد كده. متأكد؟',
+                onConfirm: doFinalize,
+            });
+        }
+        async function doFinalize() {
+            closeModal();
+            state.sending = true; renderActions();
+            const r = await api(`/${state.convCode}/finalize/`, { method: 'POST' });
+            if (r.ok) {
+                localStorage.removeItem(STORAGE_KEY);
+                showToast('✅ تم الاعتماد — هنرجعك لتصاميمك', 'success', 2000);
+                setTimeout(() => {
+                    window.location = '/marketplace/design-store/my/';
+                }, 1500);
+            } else {
+                showToast(r.data.error || 'فشل الاعتماد', 'error');
+                state.sending = false; renderActions();
+            }
+        }
+        function downloadImage() {
+            if (!state.currentImageUrl) return;
+            const a = document.createElement('a');
+            a.href = state.currentImageUrl;
+            a.download = `design-${state.convCode || 'image'}.jpg`;
+            a.target = '_blank'; document.body.appendChild(a); a.click(); a.remove();
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Modal helpers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        let modalCallback = null;
+        function openModal({ title, body, onConfirm }) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').textContent = body;
+            modalCallback = onConfirm;
+            document.getElementById('modal-bg').classList.add('show');
+        }
+        function closeModal() {
+            document.getElementById('modal-bg').classList.remove('show');
+            modalCallback = null;
+        }
+        document.getElementById('modal-confirm-btn').onclick = () => {
+            if (modalCallback) modalCallback();
+        };
+        document.getElementById('modal-bg').onclick = e => {
+            if (e.target.id === 'modal-bg') closeModal();
+        };
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Boot
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        init();
+    </script>
+</body>
+</html>

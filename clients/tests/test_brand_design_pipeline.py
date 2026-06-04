@@ -1771,3 +1771,49 @@ class DesignChatLockRaceTests(_TenantDomainProvisionMixin, TestCase):
             locked_until=timezone.now() - timedelta(seconds=10),
         )
         self.assertTrue(_acquire_lock(conv))
+
+
+# ===========================================================================
+# N.4 — Page render view
+# ===========================================================================
+class DesignChatPageRenderTests(_TenantDomainProvisionMixin, TestCase):
+    """The HTML shell that consumes the 5 API endpoints."""
+
+    @override_settings(DESIGN_CHAT_ENABLED=False)
+    def test_disabled_flag_returns_404(self):
+        customer = _make_customer()
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-chat/')
+        self.assertEqual(r.status_code, 404)
+
+    @override_settings(DESIGN_CHAT_ENABLED=True)
+    def test_unauthenticated_redirects_to_marketplace(self):
+        c = DjangoClient()
+        r = c.get('/marketplace/design-chat/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/marketplace/', r.url)
+
+    @override_settings(DESIGN_CHAT_ENABLED=True)
+    def test_authenticated_renders_html_shell(self):
+        customer = _make_customer()
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-chat/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode('utf-8')
+        # Sanity-check the shell loaded with key markers
+        self.assertIn('محادثة التصميم', html)
+        self.assertIn('id="transcript"', html)
+        self.assertIn('id="canvas-img"', html)
+        self.assertIn('/marketplace/design-chat', html)  # API base
+        self.assertIn('mp_design_chat_active', html)     # localStorage key
+        # All 5 API endpoints reachable from the template's JS
+        for path in ('/start/', '/message/', '/undo/', '/finalize/'):
+            self.assertIn(path, html)
+
+    @override_settings(DESIGN_CHAT_ENABLED=True)
+    def test_render_includes_rtl_direction(self):
+        """RTL is critical for chat bubble alignment."""
+        customer = _make_customer()
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-chat/')
+        self.assertIn('dir="rtl"', r.content.decode('utf-8'))

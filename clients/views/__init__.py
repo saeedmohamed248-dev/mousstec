@@ -29,4 +29,5 @@ from .design_chat_views import (  # noqa: F401
     design_chat_undo,
     design_chat_finalize,
     design_chat_state,
+    design_chat_page,
 )
