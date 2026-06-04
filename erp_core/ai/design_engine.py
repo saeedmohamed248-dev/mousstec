@@ -27,10 +27,11 @@ from django.conf import settings
 logger = logging.getLogger('mouss_tec_core')
 
 _TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
-# Daphne default http-timeout = 60s. عاوزين الفولباك يـ fire بسرعة لو الموديل
-# الأساسي بطيء → 25s per model = أقصى انتظار 75s (3 موديلات) لكن في الغالب
-# الموديل الأول بيرد في 2-5s. القديم كان 45s = فولباك متأخر.
-_TIMEOUT_LLM = 25
+# 🚨 Nginx proxy gateway = 30s upstream cut-off. عاوزين worst-case budget يفضل
+# تحت 30s: Llama timeout (12s) + Qwen success (~3s) ≈ 15s — مريح جداً.
+# الموديل الناجح في الغالب بيرد في 2-5s فعشان كده 12s margin معقول جداً
+# (مش بنخسر أي طلب حقيقي، بس بنـ cascade أسرع لما يكون فيه congestion).
+_TIMEOUT_LLM = 12
 
 # Defaults — overridable من settings
 # ملاحظة: النسخة "-Free" مش متاحة كـ serverless لكل الحسابات.

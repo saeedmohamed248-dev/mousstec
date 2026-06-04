@@ -370,17 +370,26 @@
 let lastDesignCode = null;
 let lastImageUrl = null;
 
+// 🛡️ Classic form deprecated (commit 56a0f52) — كل الـ DOM refs دي اتشالت.
+// نخلي الـ helpers موجودة لكن defensive عشان مفيش TypeError يـ crash الـ script
+// ويـ block uaiAnalyze/uaiGenerate/chat wiring اللي بعدها.
 function toggleCustomSize() {
-    const sel = document.getElementById('sizeSel').value;
-    document.getElementById('customSizeBox').style.display = sel === 'custom' ? 'grid' : 'none';
+    const sel = document.getElementById('sizeSel');
+    const box = document.getElementById('customSizeBox');
+    if (!sel || !box) return;  // Classic form مش موجود = ما تعملش حاجة
+    box.style.display = sel.value === 'custom' ? 'grid' : 'none';
 }
-document.getElementById('categorySel').addEventListener('change', e => {
-    const v = e.target.value;
-    document.getElementById('weightBox').style.display = v === 'packaging' ? 'flex' : 'none';
-    // Show multi-angle option for mockup-able categories
-    const mockupCats = ['tshirt', 'pants', 'abaya', 'uniform', 'cap', 'bag', 'shoe', 'mug_design', 'mug', 'packaging', 'mockup'];
-    document.getElementById('multiAngleBox').style.display = mockupCats.includes(v) ? 'block' : 'none';
-});
+const _categorySelEl = document.getElementById('categorySel');
+if (_categorySelEl) {
+    _categorySelEl.addEventListener('change', e => {
+        const v = e.target.value;
+        const wb = document.getElementById('weightBox');
+        if (wb) wb.style.display = v === 'packaging' ? 'flex' : 'none';
+        const mockupCats = ['tshirt', 'pants', 'abaya', 'uniform', 'cap', 'bag', 'shoe', 'mug_design', 'mug', 'packaging', 'mockup'];
+        const mab = document.getElementById('multiAngleBox');
+        if (mab) mab.style.display = mockupCats.includes(v) ? 'block' : 'none';
+    });
+}
 
 function previewLogo(e) {
     const f = e.target.files[0];
