@@ -862,6 +862,7 @@ async function uaiGenerate() {
             body: JSON.stringify({
                 raw_idea: idea,
                 domain: _uaiSchema.domain,
+                presentation_category: _uaiSchema.presentation_category || null,
                 selections: selections,
                 schema: { fields: _uaiSchema.fields, domain: _uaiSchema.domain },
                 audience: 'customer',
@@ -898,13 +899,27 @@ async function uaiGenerate() {
         const logId = d.log_id || '';
         const meta = d.structured_meta || {};
 
-        // 🧵 Metadata sidebar: Fabric / Print Tech / Placement / Dimensions
+        // 🧵 Metadata sidebar: category-driven rows
         const metaRows = [];
-        if (meta.fabric)               metaRows.push(['🧵 الخامة', meta.fabric]);
+        const CAT_LABEL_AR = {
+            apparel: 'ملابس', document: 'مستند ورقي', signage: 'لافتة/بوستر',
+            logo: 'لوجو', packaging: 'تغليف', footwear: 'حذاء',
+            interior: 'تصميم داخلي', vehicle: 'تغليف عربية', accessory: 'إكسسوار',
+            other: 'تصميم عام',
+        };
+        if (meta.category)             metaRows.push(['🏷️ النوع', CAT_LABEL_AR[meta.category] || meta.category]);
+        // 'fabric' is the apparel-specific key; 'material' is the generic one
+        const materialLabel = meta.fabric || meta.material;
+        if (materialLabel)             metaRows.push(['🧵 الخامة', materialLabel]);
         if (meta.print_tech)           metaRows.push(['🖨️ تقنية الطباعة', meta.print_tech]);
-        if (meta.placement)            metaRows.push(['📍 موضع الطباعة', meta.placement === 'back' ? 'الضهر' : 'القدام']);
+        if (meta.placement && meta.category === 'apparel') metaRows.push(['📍 موضع الطباعة', meta.placement === 'back' ? 'الضهر' : 'القدام']);
         if (meta.suggested_dimensions) metaRows.push(['📐 المقاس المقترح', meta.suggested_dimensions]);
-        if (meta.overlay_applied)      metaRows.push(['🅰️ النص مدمج', 'تم — مطبوع بأسلوب DTG']);
+        if (meta.overlay_applied) {
+            const overlayLabel = meta.category === 'apparel'
+                ? 'تم — مطبوع بأسلوب DTG'
+                : 'تم — مدمج بطباعة رقمية';
+            metaRows.push(['🅰️ النص مدمج', overlayLabel]);
+        }
         const metaHtml = metaRows.length
             ? '<div style="background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;padding:14px;">'
               + '<p style="font-size:12px;font-weight:800;color:#c4b5fd;margin:0 0 10px;border-bottom:1px solid rgba(124,58,237,0.3);padding-bottom:8px;"><i class="fas fa-clipboard-list"></i> تفاصيل التصميم</p>'

@@ -19,7 +19,14 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .design_engine import analyze_idea, compose_mega_prompt, describe_reference_image, _llm_model
+from .design_engine import (
+    _classify_presentation_category,
+    PRESENTATION_CATEGORIES,
+    analyze_idea,
+    compose_mega_prompt,
+    describe_reference_image,
+    _llm_model,
+)
 from .printing_copilot import generate_flux_image
 from .credits import (
     get_tenant_balance, get_customer_balance,
@@ -164,6 +171,13 @@ def design_generate(request):
     audience = (body.get('audience') or 'customer').strip()
     size_hint = (body.get('size') or '').strip() or None
     reference_images = body.get('reference_images') or []  # list of {data_url, hint}
+    # 🎯 Presentation category — trust client (from analyze step) if valid, else derive.
+    # ده اللي بيـ dispatch الـ recipe block في _MEGA_SYSTEM (apparel vs document vs ...).
+    client_category = (body.get('presentation_category') or '').strip().lower()
+    if client_category in PRESENTATION_CATEGORIES:
+        presentation_category = client_category
+    else:
+        presentation_category = _classify_presentation_category(raw_idea, domain)
 
     if audience not in _VALID_AUDIENCES:
         return JsonResponse({'success': False, 'error': 'invalid_audience'}, status=400)
@@ -215,7 +229,8 @@ def design_generate(request):
     # Stage A: compose mega prompt via LLM (مع أوصاف الصور المرجعية لو موجودة)
     try:
         mega = compose_mega_prompt(raw_idea, domain, clean_selections,
-                                   reference_descriptions=ref_descriptions or None)
+                                   reference_descriptions=ref_descriptions or None,
+                                   presentation_category=presentation_category)
     except Exception as e:
         logger.exception('[DESIGN GENERATE] mega compose crashed')
         return JsonResponse({'success': False, 'message': '⚠️ تعذر صياغة البرومبت.', 'error': str(e)}, status=200)
@@ -246,14 +261,8 @@ def design_generate(request):
         logger.info(f'[DESIGN GENERATE] text overlay active → stripped Arabic + reinforced negative')
 
     # 🛡️ APPAREL DEFENSIVE: FLUX بيرجع للـ dressforms حتى لو الـ LLM ما طلبهاش.
-    # نـ append الـ anti-mannequin negative terms قسراً لأي domain ملابس.
-    is_apparel_domain = any(k in (domain or '').lower() for k in (
-        'apparel', 'tshirt', 't-shirt', 'shirt', 'hoodie', 'sweatshirt',
-        'garment', 'clothing', 'tee',
-    )) or any(k in (domain or '') for k in (
-        'تيشرت', 'قميص', 'ملابس', 'هودي', 'بلوزة',
-    ))
-    if is_apparel_domain:
+    # نـ append الـ anti-mannequin negative terms قسراً — ONLY لو category=apparel.
+    if presentation_category == 'apparel':
         mannequin_guards = (
             'visible mannequin, mannequin head, mannequin neck, mannequin face, '
             'dressform, dress form, tailor dummy, headed mannequin, '
@@ -262,13 +271,49 @@ def design_generate(request):
             'exposed support stand, base pedestal, store dummy'
         )
         negative = (negative + ', ' + mannequin_guards)[:1200]
-        # برضو نـ inject hint إيجابي في الـ mega_prompt
         if 'invisible mannequin' not in mega_prompt.lower() and 'ghost mannequin' not in mega_prompt.lower():
             mega_prompt = (
                 'INVISIBLE GHOST-MANNEQUIN presentation (NO visible mannequin, '
                 'NO head, NO neck stand, NO dressform — garment shaped by an '
                 'unseen wearer with realistic 3D volume). ' + mega_prompt
             )[:2500]
+
+    # 🛡️ DOCUMENT DEFENSIVE: FLUX بيحب يضيف pencils/marble/props للـ documents.
+    # نـ append هارد block + force flat-paper hint للـ mega_prompt.
+    if presentation_category == 'document':
+        document_guards = (
+            'pencil, pen on desk, marble surface, wooden desk, oak desk, '
+            'linen cloth, coffee mug, ceramic mug, plant, botanical, magazine, '
+            'editorial flat-lay, props, depth of field, bokeh, out-of-focus background, '
+            'perspective tilt, curled paper, paper stack, hand holding paper, '
+            'fabric, cotton, jersey, mannequin, garment, shirt, '
+            'lorem ipsum, fake invoice text, garbled text, fake business name, '
+            'random numbers, gibberish letters, hallucinated text'
+        )
+        negative = (negative + ', ' + document_guards)[:1200]
+        if 'flat digital' not in mega_prompt.lower() and 'flat document' not in mega_prompt.lower():
+            mega_prompt = (
+                'FLAT DIGITAL DOCUMENT TEMPLATE on pure white background (NO photography, '
+                'NO marble, NO desk, NO pencils, NO props, NO depth-of-field — '
+                'straight-on 90° flat scan view, document fills 90% of canvas). '
+                + mega_prompt
+            )[:2500]
+
+    # 🛡️ FOOTWEAR DEFENSIVE: avoid mannequin/foot/leg.
+    if presentation_category == 'footwear':
+        footwear_guards = (
+            'foot, leg, ankle, sock, person, model, human, mannequin, '
+            'fabric texture, garment language, ghost mannequin'
+        )
+        negative = (negative + ', ' + footwear_guards)[:1200]
+
+    # 🛡️ LOGO DEFENSIVE: pure mark, no product context.
+    if presentation_category == 'logo':
+        logo_guards = (
+            'product, t-shirt, mannequin, photograph, mockup, scene, background props, '
+            'fabric, paper texture, depth, shadow on surface, 3d object'
+        )
+        negative = (negative + ', ' + logo_guards)[:1200]
 
     # Stage B: generate image via Together FLUX
     try:
@@ -425,23 +470,38 @@ def design_generate(request):
         except Exception as e:
             logger.warning(f'[DESIGN GENERATE] auto-save to portfolio failed (non-fatal): {e}')
 
-    # 🧵 Structured product/print metadata — هيتعرض جنب الصورة في الـ UI
-    # نستنتجه من الـ domain + selections (مش هيرجع من الـ LLM بشكل ثابت).
+    # 🧵 Structured product/print metadata — category-driven labels
     text_overlay_info = mega.get('text_overlay') if isinstance(mega, dict) else None
-    is_apparel = any(k in (domain or '').lower() for k in (
-        'apparel', 'tshirt', 't-shirt', 'shirt', 'hoodie', 'sweatshirt', 'garment', 'clothing',
-    ))
-    # 📏 Print dimensions: نفضل اللي رجع من compose_mega_prompt (LLM + safety fallback).
-    # هو دايماً بيرجع width/height موجبين، فمفيش حالة 0 x 0 للـ UI.
     dims = mega.get('print_dimensions_cm') if isinstance(mega, dict) else None
     if isinstance(dims, dict) and dims.get('width') and dims.get('height'):
         dims_label = f"{dims['width']} × {dims['height']} cm"
     else:
-        dims_label = size  # last-resort: عرض الـ image size بالـ pixels
+        dims_label = size
+
+    # Per-category material + print-tech labels (visible in sidebar)
+    CATEGORY_META = {
+        'apparel':   ('100% Combed Cotton — Jersey Knit', 'DTG / Screen-Print (integrated ink absorption)'),
+        'document':  ('Coated 150-300 gsm paper', 'Digital offset (CMYK)'),
+        'footwear':  ('Leather / Mesh upper', 'Product photography'),
+        'accessory': ('Per-product material', 'Sublimation / DTG / Vinyl (per surface)'),
+        'logo':      ('Vector artwork', 'Brand asset (transparent PNG / SVG)'),
+        'signage':   ('Flex / Vinyl banner', 'Solvent / Eco-solvent print'),
+        'packaging': ('350 gsm Cardstock', 'Offset + UV varnish'),
+        'interior':  ('Architectural visualization', 'Render (not a physical print)'),
+        'vehicle':   ('Cast vinyl wrap', 'Solvent print + laminate'),
+        'other':     (None, None),
+    }
+    material, print_tech = CATEGORY_META.get(presentation_category, (None, None))
+
     structured_meta = {
-        'fabric': '100% Combed Cotton — Jersey Knit' if is_apparel else None,
-        'print_tech': 'DTG / Screen-Print (integrated ink absorption)' if is_apparel else None,
-        'placement': (mega.get('print_placement') if isinstance(mega, dict) else None) or ('front' if is_apparel else None),
+        'category': presentation_category,
+        'material': material,
+        # backwards-compat: keep 'fabric' key for the apparel sidebar template
+        'fabric': material if presentation_category == 'apparel' else None,
+        'print_tech': print_tech,
+        'placement': (mega.get('print_placement') if isinstance(mega, dict) else None) or (
+            'front' if presentation_category == 'apparel' else None
+        ),
         'suggested_dimensions': dims_label,
         'print_dimensions_cm': dims if isinstance(dims, dict) else None,
         'text_overlay': bool(text_overlay_info),
@@ -455,6 +515,7 @@ def design_generate(request):
         'design_id': design_id,
         'audience': audience,
         'domain': domain,
+        'presentation_category': presentation_category,
         'raw_idea': raw_idea,
         'selections': clean_selections,
         'mega_prompt': mega_prompt,

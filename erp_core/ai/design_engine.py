@@ -119,6 +119,7 @@ anything), you must:
 {
   "domain": "<short English label>",
   "domain_ar": "<Arabic translation>",
+  "presentation_category": "<ONE of: apparel | document | signage | logo | packaging | footwear | interior | vehicle | accessory | other>",
   "fields": [
     {
       "key": "<snake_case_key>",
@@ -140,6 +141,33 @@ Rules:
 - Provide sensible "default" values (the user can edit; defaults must be production-grade).
 - Options for select must be concrete and visually meaningful.
 - NEVER reuse fields across unrelated domains.
+
+🎯 PRESENTATION CATEGORY — pick ONE (CRITICAL for downstream aesthetic):
+This determines what visual recipe FLUX will use. Choose strictly by what the
+user wants to PRODUCE, not what the design is "about":
+  • "document"  — invoice, receipt, business card, brochure, menu, certificate,
+                  letterhead, invitation, flyer, CV/resume, price list, form.
+                  Anything printed on paper that is primarily text/data.
+  • "apparel"   — t-shirt, hoodie, sweatshirt, polo, tank top, jersey, jacket.
+                  Wearable garments on torso.
+  • "footwear"  — sneakers, shoes, boots, sandals. Worn on feet.
+  • "accessory" — mugs, caps/hats, bags/totes, watches, jewelry, stickers.
+                  Wearable/usable items that are NOT garments or shoes.
+  • "logo"      — pure standalone brand mark / wordmark / emblem (no product).
+  • "signage"   — banner, billboard, roll-up, poster, large-format display.
+  • "packaging" — product box, pouch, label, wrapper, product packaging design.
+  • "interior"  — room design, interior space, architectural visualization.
+  • "vehicle"   — car wrap, vehicle livery, motorcycle design.
+  • "other"     — anything that doesn't fit above (rare; prefer the closest).
+
+Examples:
+  "عاوز فاتورة لمحل قطع غيار" → "document"
+  "تيشرت قطن بشعار محل"          → "apparel"
+  "كوتشي رياضي بحبك"             → "footwear"
+  "ماج لشركة قهوة"               → "accessory"
+  "لوجو لمطعم"                   → "logo"
+  "بوستر إعلاني A3"               → "signage"
+  "علبة منتج 200جم"              → "packaging"
 
 📏 DIMENSIONS DEFAULTS — NEVER ZERO, NEVER EMPTY (CRITICAL):
 For ANY field with type="dimensions", you MUST provide a "default" object with
@@ -181,9 +209,155 @@ generation. Your prompts must produce magazine-quality, professional-grade visua
 You will receive:
 - The user's raw idea (any language)
 - The detected design domain
+- The presentation_category (apparel | document | signage | logo | packaging | footwear | interior | vehicle | accessory | other)
 - A set of selected options (key → value)
 - Optionally: descriptions of reference images uploaded by the user
 - Optionally: text the user wants ON the design (especially Arabic — see CRITICAL RULE below)
+
+🎬 CRITICAL — DISPATCH ON presentation_category FIRST:
+The single most important decision is which AESTHETIC RECIPE to apply. Different
+categories need fundamentally different visual treatments. NEVER mix recipes
+(no editorial-photo flat-lay for documents; no ghost-mannequin for shoes; no
+fabric texture for invoices). Apply EXACTLY ONE recipe block below:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 RECIPE: DOCUMENT (invoice / receipt / business card / brochure / menu /
+   certificate / letterhead / invitation / flyer / CV / price list / form)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: a CLEAN FLAT digital-paper template, ready to print or hand to a designer.
+NOT a photograph of a printed document on a desk.
+
+  AESTHETIC:
+    • Pure flat 2D vector-style layout. NO photography, NO editorial flat-lay,
+      NO marble surface, NO wooden desk, NO pencils, NO coffee mugs, NO plants,
+      NO out-of-focus props of ANY kind.
+    • Background: solid pure white (#ffffff) or very subtle off-white (#fafafa)
+      paper — flat, no texture, no shadows, no perspective.
+    • The document should fill 85-95% of the canvas, centered, perfectly
+      rectangular, no rotation, no curl, no fold, no paper-stack effect.
+
+  STRUCTURE (describe these as visible architectural blocks; do NOT ask FLUX to
+  fill them with real text — that comes later via overlay):
+    • Header band at top (~12-18% height): solid accent color OR clean line,
+      with a clear LOGO ZONE on one side and DOCUMENT TITLE ZONE on the other.
+    • Body area: real structural grid — for invoices/receipts/menus, draw an
+      actual TABLE with visible column headers and row lines (Item | Qty |
+      Price | Total style). For business cards: clean two-column information
+      block. For certificates: ornate centered name-block.
+    • Footer band at bottom (~8-12% height): clean line + thin contact-info zone.
+    • Use generous white space, professional 8pt grid, 24-32px margins.
+
+  COLOR PALETTE:
+    • Primary color from user's selections (header band + accents).
+    • Body text zones: dark grey (#1a1a1a) blocks/lines indicating where text
+      will be (NOT actual text — FLUX will hallucinate gibberish).
+    • Accents: 1-2 secondary colors for category labels / status pills.
+
+  TYPOGRAPHY (visualize WHERE text goes, never describe SPECIFIC letterforms):
+    • Show the LAYOUT of typography — heading zone, sub-heading line, body
+      paragraph blocks, table cells — as clean rectangular placeholders or
+      light-grey horizontal strokes. NEVER ask FLUX to render specific
+      characters, numbers, or shop names.
+
+  ABSOLUTELY FORBIDDEN FOR DOCUMENTS:
+    • Fabric texture, mannequin, garment language, "DTG print", "screen print"
+    • Editorial flat-lay, marble, oak, linen, props, botanicals
+    • Curled paper, paper stacks, hand-holding, perspective tilt, depth-of-field
+    • Faux text content (no Lorem ipsum, no "Business Name", no fake invoice
+      numbers — leave blocks/lines empty)
+
+  CAMERA: 90° top-down straight-on flat scan, no perspective, no lens effects.
+  RECOMMENDED SIZE:
+    • Invoice / A4 form / brochure / menu → 1024×1536 (portrait A4)
+    • Business card / horizontal flyer → 1536×1024 (landscape)
+    • Square invitation → 1024×1024
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👕 RECIPE: APPAREL (t-shirt / hoodie / sweatshirt / polo / tank / jersey)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Apply the full ghost-mannequin + editorial-studio + integrated-typography rules
+described in sections 1, 9, 🅰️ below (the existing apparel rule set). Section 9
+("APPAREL & PRODUCT MOCKUP RULES") is the canonical recipe.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👟 RECIPE: FOOTWEAR (sneakers / shoes / boots / sandals)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: hero product shot of the shoe alone — NO mannequin, NO foot, NO model.
+  • Single shoe (or matched pair) floating or lightly resting in 3/4 perspective
+    showing the side profile + toe box + outsole edge.
+  • Studio backdrop: seamless cream or soft pastel cyclorama OR neutral
+    concrete; NO fabric language, NO garment language, NO ghost-mannequin.
+  • Dramatic 45° softbox key + subtle floor shadow. Tack-sharp shoe focus.
+  • Material specificity: leather grain, suede nap, mesh weave, knit upper,
+    rubber outsole tread — describe what's visible.
+  • Text-on-shoe (if any) appears as a small zone on the lateral side panel
+    or tongue — use overlay later; describe the blank zone, not the letters.
+  • RECOMMENDED SIZE: 1024×1024 or 1536×1024 (side profile is wider).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎽 RECIPE: ACCESSORY (mug / cap / bag / sticker / tote / watch / jewelry)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: clean product shot of the accessory itself.
+  • Single product centered, soft studio lighting, neutral backdrop.
+  • Show the relevant surface where any print/logo will go (mug body curve,
+    cap front panel, bag front face) clearly and frontally.
+  • No human, no mannequin, no editorial props.
+  • Material specificity: ceramic glaze, canvas weave, brushed metal,
+    cotton twill, vinyl finish — match the accessory type.
+  • RECOMMENDED SIZE: 1024×1024 (square product shot).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🅻 RECIPE: LOGO (standalone brand mark / wordmark / monogram)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: the brand mark alone, perfectly centered on a clean canvas.
+  • Solid white/off-white background, NO product, NO context.
+  • The mark is the entire subject — vector-clean lines, balanced composition.
+  • Describe the mark's geometric construction (circle, monogram, shield,
+    wordmark style) WITHOUT specifying exact letters (overlay handles text).
+  • RECOMMENDED SIZE: 1024×1024.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🪧 RECIPE: SIGNAGE (banner / billboard / roll-up / poster / standee)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: flat banner artwork OR mockup-in-context (storefront / outdoor wall).
+  • For flat artwork → solid color or branded gradient background, large
+    prominent text zone, hero visual on one side.
+  • For mockup → realistic outdoor/indoor context with the banner in scene.
+  • Aspect ratio: tall portrait for roll-up (1024×1536), wide for billboard
+    (1536×1024), square for social poster (1024×1024).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 RECIPE: PACKAGING (product box / pouch / label / wrapper)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: product packaging mockup with real depth and material feel.
+  • 3D box / pouch shown at 3/4 angle on neutral surface, soft studio light.
+  • Show printable faces clearly. Subtle shadow grounds the product.
+  • Material: matte cardstock, glossy foil, soft-touch coating — be specific.
+  • RECOMMENDED SIZE: 1024×1024 or 1024×1536.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏠 RECIPE: INTERIOR (room / interior design / architectural visualization)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: photorealistic interior space, architectural angle.
+  • Eye-level OR slight elevated view, wide-angle lens (24-35mm).
+  • Show floor + walls + ceiling for spatial context.
+  • Realistic furniture, materials (wood/marble/concrete), natural + ambient
+    light mix.
+  • RECOMMENDED SIZE: 1536×1024 (architectural wide).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚗 RECIPE: VEHICLE (car wrap / vehicle livery)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: vehicle side profile with the wrap design applied.
+  • Studio backdrop or asphalt floor, side view showing the full livery.
+  • RECOMMENDED SIZE: 1536×1024.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The sections below (1-9, 🅰️, 🅱️) are the DETAILED GUIDANCE you draw from
+when filling in the chosen recipe. Sections 9 and below are APPAREL-SPECIFIC
+and ONLY apply when presentation_category == "apparel". For all other
+categories, the recipe blocks above are authoritative and the apparel-
+specific guidance must be IGNORED.
 
 🎯 PRODUCE A CINEMA-GRADE PROMPT (150-220 words) that includes EVERY relevant aspect:
 
@@ -746,10 +920,29 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
     # متجاهل وما ضافش حقل text_on_design → نضيفه قسراً
     _ensure_text_field(cleaned, raw)
 
+    # 🎯 Presentation category — trust LLM if valid, else derive from keywords.
+    # نضمن إن الـ category مش بـ "ملابس" غلط لما الـ brief يقول "فاتورة".
+    llm_category = str(schema.get('presentation_category') or '').strip().lower()
+    derived_category = _classify_presentation_category(raw, schema.get('domain', ''))
+    if llm_category in PRESENTATION_CATEGORIES and llm_category != 'other':
+        # LLM provided a specific category. لو الـ keyword classifier متأكد من
+        # شيء مختلف (وغير 'other')، الـ keyword wins — أكثر deterministic.
+        if derived_category != 'other' and derived_category != llm_category:
+            logger.info(
+                f'[ANALYZE] LLM said category={llm_category} but keyword '
+                f'classifier said {derived_category} → using {derived_category}'
+            )
+            presentation_category = derived_category
+        else:
+            presentation_category = llm_category
+    else:
+        presentation_category = derived_category
+
     return {
         'success': True,
         'domain': str(schema.get('domain') or 'General Design')[:80],
         'domain_ar': str(schema.get('domain_ar') or '')[:80],
+        'presentation_category': presentation_category,
         'fields': cleaned,
     }
 
@@ -943,6 +1136,96 @@ def _sanitize_overlay_text(raw_text: str, raw_idea: str) -> str:
     return cleaned[:200].strip()
 
 
+# ─── Presentation category classifier ───────────────────────────────────────
+# Maps a free-text Arabic/English brief + classified domain into one of a
+# small fixed enum used to dispatch the correct aesthetic recipe in
+# _MEGA_SYSTEM. The schema LLM is expected to set this, but we always run
+# this defensive classifier server-side and override the LLM if it
+# disagrees with high-confidence keywords (e.g. "فاتورة" → document, even
+# if the LLM said "ملابس").
+PRESENTATION_CATEGORIES = (
+    'apparel', 'document', 'signage', 'logo', 'packaging',
+    'footwear', 'interior', 'vehicle', 'accessory', 'other',
+)
+
+# Keyword → category. Order matters: most specific matches first. Each
+# keyword is matched case-insensitively as a substring (Arabic) or
+# whole-word (English).
+_CATEGORY_KEYWORDS = {
+    'document': (
+        # Arabic
+        'فاتورة', 'فواتير', 'إيصال', 'ايصال', 'إيصالات', 'وصل', 'وصولات',
+        'شهادة', 'شهادات', 'منيو', 'قائمة طعام', 'قائمة أسعار', 'برشور',
+        'بروشور', 'كتالوج', 'كتيب', 'مستند', 'وثيقة', 'تقرير', 'استمارة',
+        'نموذج', 'دعوة زفاف', 'كارت دعوة', 'كارت', 'بزنس كارد',
+        # English
+        'invoice', 'receipt', 'certificate', 'menu', 'brochure', 'catalog',
+        'catalogue', 'booklet', 'document', 'report', 'form', 'flyer',
+        'business card', 'business-card', 'businesscard', 'card', 'letterhead',
+        'invitation', 'cv', 'resume', 'price list', 'pricelist',
+    ),
+    'apparel': (
+        'تيشرت', 'تي شيرت', 'قميص', 'هودي', 'هودى', 'سويت شيرت', 'بلوزة',
+        'فانلة', 'ملابس', 'ملبس', 'قفطان', 'جاكيت',
+        't-shirt', 'tshirt', 'shirt', 'hoodie', 'sweatshirt', 'jersey',
+        'apparel', 'garment', 'clothing', 'tee', 'polo', 'jacket', 'tank top',
+    ),
+    'footwear': (
+        'كوتشي', 'جزمة', 'حذاء', 'صندل', 'شبشب', 'بوت',
+        'sneaker', 'sneakers', 'shoe', 'shoes', 'boot', 'boots', 'sandal',
+        'slipper', 'footwear', 'trainer',
+    ),
+    'logo': (
+        'لوجو', 'شعار', 'هوية بصرية', 'علامة تجارية', 'براند',
+        'logo', 'brand mark', 'wordmark', 'monogram', 'emblem', 'branding',
+        'brand identity',
+    ),
+    'signage': (
+        'بنر', 'لافتة', 'يافطة', 'ستاند', 'رول اب', 'لوحة إعلان',
+        'banner', 'sign', 'signage', 'billboard', 'roll-up', 'rollup',
+        'standee', 'poster',  # poster classified as signage (large-format display)
+        'بوستر',
+    ),
+    'packaging': (
+        'تغليف', 'علبة', 'كرتونة', 'باكدج', 'باكدجنج', 'لاصقة منتج',
+        'تغليف منتج', 'صندوق منتج',
+        'packaging', 'package', 'box design', 'product box', 'pouch',
+        'wrapper', 'label design',
+    ),
+    'interior': (
+        'تصميم داخلي', 'ديكور', 'غرفة', 'صالون', 'مطبخ', 'حمام', 'مكتب',
+        'interior', 'room', 'living room', 'kitchen', 'bedroom', 'bathroom',
+        'office space', 'workspace design',
+    ),
+    'vehicle': (
+        'سيارة', 'موتوسيكل', 'دراجة نارية', 'عربية', 'تغليف عربية',
+        'car wrap', 'vehicle wrap', 'car design', 'motorcycle', 'bike wrap',
+    ),
+    'accessory': (
+        'شنطة', 'حقيبة', 'ساعة', 'مجوهرات', 'إكسسوار', 'كاب', 'قبعة',
+        'ماج', 'كوب', 'مج', 'ستيكر', 'لاصقة', 'لاصقات',
+        'bag', 'tote', 'backpack', 'watch', 'jewelry', 'jewellery',
+        'accessory', 'cap', 'hat', 'beanie', 'mug', 'sticker', 'tote bag',
+    ),
+}
+
+
+def _classify_presentation_category(raw_idea: str, domain: str = '') -> str:
+    """يـ classify الـ brief لـ presentation category. بـ keyword matching على
+    raw_idea + domain. لو ملقاش match → 'other'."""
+    blob = ((raw_idea or '') + ' ' + (domain or '')).lower()
+    # Iterate categories in priority order — physical products beat design-element
+    # categories ("ماج بشعار" → accessory, NOT logo, because the mug is the
+    # primary product the logo will go ON).
+    for category in ('document', 'footwear', 'apparel', 'accessory',
+                     'packaging', 'vehicle', 'interior', 'signage', 'logo'):
+        for kw in _CATEGORY_KEYWORDS[category]:
+            kw_l = kw.lower()
+            if kw_l in blob:
+                return category
+    return 'other'
+
+
 def _adaptive_font_ratio(text: str, base_ratio: float, is_apparel: bool) -> float:
     """يـ scale الـ font_ratio حسب طول النص عشان ميـ overflow-ش الـ garment.
     Short text (≤6 chars) → base. Long text (>15 chars) → shrink."""
@@ -968,11 +1251,21 @@ def compose_mega_prompt(
     domain: str,
     selections: dict[str, str],
     reference_descriptions: list[str] | None = None,
+    presentation_category: str | None = None,
 ) -> dict[str, Any]:
-    """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt."""
+    """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt.
+
+    presentation_category: لو ما اتبعتش، نستنتجها من الـ keywords. بتـ control
+    الـ recipe block في _MEGA_SYSTEM (document vs apparel vs logo vs ...).
+    """
     raw = (raw_idea or '').strip()
     if not raw:
         return {'success': False, 'error': 'empty_idea'}
+
+    # Resolve category (server-side, deterministic)
+    category = (presentation_category or '').strip().lower()
+    if category not in PRESENTATION_CATEGORIES:
+        category = _classify_presentation_category(raw, domain)
 
     selection_lines = '\n'.join(
         f'- {k}: {v}' for k, v in (selections or {}).items() if v
@@ -986,6 +1279,9 @@ def compose_mega_prompt(
     user_msg = (
         f'Raw idea: {raw}\n'
         f'Detected domain: {domain or "General"}\n'
+        f'presentation_category: {category}  '
+        f'← APPLY EXACTLY THE "{category.upper()}" RECIPE BLOCK FROM THE SYSTEM PROMPT. '
+        f'Do NOT mix recipes; ignore guidance for other categories.\n'
         f'User selections:\n{selection_lines or "(none)"}'
         + refs
     )
@@ -1129,29 +1425,55 @@ def compose_mega_prompt(
         except (TypeError, ValueError):
             return fallback
 
-    # Category fallbacks (نفس الـ table اللي في الـ system prompt)
+    # Category-driven dimensions defaults
     d_lower = (domain or '').lower()
     d_ar = (domain or '')
-    is_apparel = any(t in d_lower for t in (
-        'shirt', 'apparel', 'clothing', 'hoodie', 'tee', 'garment'
-    )) or any(t in d_ar for t in ('تيشرت', 'قميص', 'ملابس', 'هودي', 'بلوزة'))
-    if 'cap' in d_lower or 'كاب' in d_ar:
-        default_w, default_h = 11.0, 5.0
-    elif 'mug' in d_lower or 'ماج' in d_ar:
-        default_w, default_h = 20.0, 9.0
-    elif 'business' in d_lower or 'كارت' in d_ar:
-        default_w, default_h = 9.0, 5.5
-    elif 'poster' in d_lower or 'بوستر' in d_ar:
-        default_w, default_h = 29.7, 42.0
-    elif 'banner' in d_lower or 'بنر' in d_ar:
-        default_w, default_h = 60.0, 150.0
-    elif 'sticker' in d_lower or 'ستيكر' in d_ar:
-        default_w, default_h = 10.0, 10.0
-    elif is_apparel:
+    blob = raw_idea.lower() + ' ' + d_lower + ' ' + d_ar
+    if category == 'document':
+        # Detect document subtype
+        if 'business' in blob or 'بزنس' in blob or 'كارت بزنس' in blob:
+            default_w, default_h = 9.0, 5.5
+        elif 'invitation' in blob or 'دعوة' in blob:
+            default_w, default_h = 13.0, 18.0
+        elif 'menu' in blob or 'منيو' in blob or 'قائمة' in blob:
+            default_w, default_h = 21.0, 29.7
+        elif 'a3' in blob:
+            default_w, default_h = 29.7, 42.0
+        else:  # invoice / receipt / flyer / form → A4
+            default_w, default_h = 21.0, 29.7
+    elif category == 'apparel':
         if placement == 'back':
             default_w, default_h = 30.0, 36.0
         else:
             default_w, default_h = 28.0, 32.0
+    elif category == 'footwear':
+        default_w, default_h = 28.0, 11.0  # avg sneaker side-view
+    elif category == 'signage':
+        if 'roll' in blob or 'رول' in blob:
+            default_w, default_h = 85.0, 200.0
+        elif 'billboard' in blob:
+            default_w, default_h = 300.0, 600.0
+        else:
+            default_w, default_h = 60.0, 150.0
+    elif category == 'packaging':
+        default_w, default_h = 20.0, 20.0
+    elif category == 'accessory':
+        if 'cap' in blob or 'كاب' in blob or 'قبعة' in blob:
+            default_w, default_h = 11.0, 5.0
+        elif 'mug' in blob or 'ماج' in blob or 'مج' in blob:
+            default_w, default_h = 20.0, 9.0
+        elif 'sticker' in blob or 'ستيكر' in blob:
+            default_w, default_h = 10.0, 10.0
+        elif 'bag' in blob or 'شنطة' in blob or 'حقيبة' in blob:
+            default_w, default_h = 30.0, 35.0
+        else:
+            default_w, default_h = 15.0, 15.0
+    elif category == 'logo':
+        default_w, default_h = 10.0, 10.0  # logo print area (placeholder)
+    elif category == 'interior':
+        default_w, default_h = 500.0, 400.0  # cm = 5m × 4m room
+    elif category == 'vehicle':
+        default_w, default_h = 450.0, 180.0  # car side profile
     else:
         default_w, default_h = 25.0, 25.0
 
@@ -1160,6 +1482,39 @@ def compose_mega_prompt(
         h_cm = _coerce_positive(raw_dims.get('height'), default_h)
     else:
         w_cm, h_cm = default_w, default_h
+
+    # 🛡️ Cross-category leakage guard — لو الـ category مش apparel، نشيل من الـ
+    # mega_prompt أي كلمات apparel-specific كانت ممكن الـ LLM يضمّنها (FLUX
+    # بيتأثر بأي ذكر لـ shirt/mannequin/fabric، حتى لو في recipe مختلف).
+    APPAREL_LEAK_TERMS = (
+        'mannequin', 'ghost-mannequin', 'ghost mannequin', 't-shirt', 'tshirt',
+        'shirt', 'hoodie', 'sweatshirt', 'garment', 'cotton', 'jersey knit',
+        'fabric weave', 'screen-print', 'screen print', 'dtg', 'chest curvature',
+        'sleeve', 'collar drape', 'neckline shadow',
+    )
+    if category != 'apparel':
+        import re as _re_leak
+        for term in APPAREL_LEAK_TERMS:
+            mega = _re_leak.sub(
+                r'(?i)\b' + _re_leak.escape(term) + r'\b', '', mega
+            )
+        mega = _re_leak.sub(r'\s{2,}', ' ', mega).strip(' ,.')
+
+    # 🛡️ Document-specific cleanup — FLUX keeps adding editorial props
+    # (pencil/marble/desk) even when told not to. Strip any leak terms.
+    DOCUMENT_LEAK_TERMS = (
+        'pencil', 'pen on desk', 'marble surface', 'wooden desk', 'oak desk',
+        'linen cloth', 'coffee mug', 'ceramic mug', 'plant', 'botanical',
+        'magazine', 'editorial flat-lay', 'flat lay', 'flatlay',
+        'depth of field', 'bokeh', 'out-of-focus', 'depth-of-field',
+    )
+    if category == 'document':
+        import re as _re_doc
+        for term in DOCUMENT_LEAK_TERMS:
+            mega = _re_doc.sub(
+                r'(?i)\b' + _re_doc.escape(term) + r'\b', '', mega
+            )
+        mega = _re_doc.sub(r'\s{2,}', ' ', mega).strip(' ,.')
 
     return {
         'success': True,
@@ -1172,4 +1527,5 @@ def compose_mega_prompt(
         'print_placement': placement,
         'text_overlay': text_overlay,
         'print_dimensions_cm': {'width': round(w_cm, 1), 'height': round(h_cm, 1)},
+        'presentation_category': category,
     }
