@@ -27,21 +27,35 @@ from django.conf import settings
 logger = logging.getLogger('mouss_tec_core')
 
 _TOGETHER_CHAT_URL = 'https://api.together.xyz/v1/chat/completions'
-# Daphne default http-timeout = 60s. نسيب margin مناسب للموديل 70B (بيرد JSON طويل)
-_TIMEOUT_LLM = 45
+# Daphne default http-timeout = 60s. عاوزين الفولباك يـ fire بسرعة لو الموديل
+# الأساسي بطيء → 25s per model = أقصى انتظار 75s (3 موديلات) لكن في الغالب
+# الموديل الأول بيرد في 2-5s. القديم كان 45s = فولباك متأخر.
+_TIMEOUT_LLM = 25
 
 # Defaults — overridable من settings
 # ملاحظة: النسخة "-Free" مش متاحة كـ serverless لكل الحسابات.
 # لو الحساب اشترى credit، استخدم النسخة Paid اللي بتشتغل serverless بدون عقبات.
 _DEFAULT_LLM_MODEL = 'meta-llama/Llama-3.3-70B-Instruct-Turbo'
 
-# Fallback chain — لو الموديل الأول فشل بـ 400/403 (مش متاح للحساب)،
-# نجرب الموديلات دي بالترتيب. أسماء متحقّق منها من Together model registry.
+# Fallback chain — لو الموديل الأول فشل بأي خطأ retryable (timeout / 4xx-unsupported
+# / 5xx-transient)، نجرب الموديلات دي بالترتيب. أسماء متحقّق منها من Together
+# model registry وتم اختبارها live في 2026-06-04.
+#
+# ⚠️ DeepSeek-V3 كان بيرجع 503 بشكل متكرر (Service Unavailable on Together's side)
+# لذا اتحرك للآخر. الـ Qwen-2.5-7B بيشتغل بثبات و reliable كـ first fallback.
 _FALLBACK_LLM_MODELS = (
     'meta-llama/Llama-3.3-70B-Instruct-Turbo',
-    'deepseek-ai/DeepSeek-V3',
     'Qwen/Qwen2.5-7B-Instruct-Turbo',
+    'deepseek-ai/DeepSeek-V3',
 )
+
+# Status codes اللي نعتبرها retryable على نفس الـ chain — نجرب الموديل التالي
+# بدل ما نـ fail فوراً. بتشمل:
+#   • 400/403/404 → الموديل مش متاح للحساب (subscription/quota)
+#   • 408         → request timeout
+#   • 429         → rate limit
+#   • 500/502/503/504 → transient server-side errors (DeepSeek بيـ 503 كتير)
+_RETRYABLE_HTTP_STATUS = frozenset({400, 403, 404, 408, 429, 500, 502, 503, 504})
 
 
 def _llm_model() -> str:
@@ -340,14 +354,15 @@ def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> d
         }
         try:
             resp = requests.post(_TOGETHER_CHAT_URL, json=payload, headers=headers, timeout=_TIMEOUT_LLM)
-            if resp.status_code in (400, 403, 404):
-                # الموديل ده مش متاح للحساب — جرب التالي
+            if resp.status_code in _RETRYABLE_HTTP_STATUS:
+                # الموديل ده مش متاح أو transient error — جرب التالي
                 body = resp.text[:300]
                 logger.warning(f'[DESIGN ENGINE LLM] model={model_name} HTTP {resp.status_code} — trying fallback. body={body}')
                 last_error = f'together_llm_http_{resp.status_code}'
                 last_detail = body
                 continue
             if resp.status_code != 200:
+                # Non-retryable HTTP (مثلاً 401 unauthorized) — مفيش فايدة من fallback
                 logger.warning(f'[DESIGN ENGINE LLM] model={model_name} HTTP {resp.status_code}: {resp.text[:200]}')
                 return {
                     'success': False,
@@ -359,21 +374,28 @@ def _call_together_llm(system: str, user: str, *, temperature: float = 0.4) -> d
             try:
                 data = resp.json()
             except ValueError as e:
-                logger.warning(f'[DESIGN ENGINE LLM] non-JSON body: {e}')
-                return {'success': False, 'error': 'together_llm_invalid_body'}
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} non-JSON body: {e} — trying fallback')
+                last_error = 'together_llm_invalid_body'
+                continue
 
             choices = data.get('choices') or []
             if not choices:
-                return {'success': False, 'error': 'together_llm_empty_choices'}
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} empty choices — trying fallback')
+                last_error = 'together_llm_empty_choices'
+                continue
             raw = (choices[0].get('message') or {}).get('content') or ''
             if not raw.strip():
-                return {'success': False, 'error': 'together_llm_empty_content'}
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} empty content — trying fallback')
+                last_error = 'together_llm_empty_content'
+                continue
             raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', raw.strip())
             try:
                 parsed = json.loads(raw)
             except json.JSONDecodeError as e:
-                logger.warning(f'[DESIGN ENGINE LLM] JSON parse failed: {e} | raw={raw[:200]}')
-                return {'success': False, 'error': 'together_llm_invalid_json'}
+                logger.warning(f'[DESIGN ENGINE LLM] model={model_name} JSON parse failed: {e} | raw={raw[:200]} — trying fallback')
+                last_error = 'together_llm_invalid_json'
+                last_detail = raw[:200]
+                continue
             return {'success': True, 'data': parsed, 'model_used': model_name}
 
         except requests.Timeout:
