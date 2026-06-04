@@ -149,10 +149,6 @@ def overlay_text_on_image_url(
     # ── 3) رسم النص بـ font_size مناسب لحجم الصورة ──
     w, h = img.size
     font_size = max(28, int(h * font_size_ratio))
-    try:
-        font = ImageFont.truetype(font_path, font_size)
-    except Exception as e:
-        return {'success': False, 'error': f'font_load: {e}'}
 
     # 🎯 لو الـ text فيه عربي ومعانا libraqm، نـ pass direction='rtl' كـ hint
     # واضح للـ shaper. لو لأ، نـ render LTR (default).
@@ -161,19 +157,47 @@ def overlay_text_on_image_url(
     if text_is_arabic and _pil_has_libraqm():
         text_kwargs = {'direction': 'rtl', 'language': 'ar'}
 
-    # قياس النص (نـ measure على draw مؤقت قبل ما نبني الطبقات الفعلية)
+    # ── 3a) Auto-fit width: قبل ما نـ render، نـ measure النص بالـ font_size
+    # المقترح. لو طوله > 78% من عرض الصورة، نـ shrink الـ font_size عشان
+    # يـ fit. ده بيمنع النص من إنه يطلع برة الـ garment / يتقطع من الـ
+    # edges. الـ printable zone على الـ chest عادة ~65-70% من عرض الـ
+    # image؛ فـ 78% حد أقصى آمن.
     _measure_draw = ImageDraw.Draw(Image.new('RGBA', (1, 1), (0, 0, 0, 0)))
-    try:
-        bbox = _measure_draw.textbbox((0, 0), final_text, font=font, **text_kwargs)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-    except Exception:
+    max_text_width = int(w * 0.78)
+    min_font_size = max(20, int(h * 0.05))  # ما ننزلش تحت 5% — يبقى مقروء
+
+    def _measure(font_obj):
         try:
-            bbox = _measure_draw.textbbox((0, 0), final_text, font=font)
-            text_w = bbox[2] - bbox[0]
-            text_h = bbox[3] - bbox[1]
+            bbox = _measure_draw.textbbox((0, 0), final_text, font=font_obj, **text_kwargs)
+            return bbox[2] - bbox[0], bbox[3] - bbox[1]
         except Exception:
-            text_w, text_h = font.getsize(final_text)  # legacy PIL
+            try:
+                bbox = _measure_draw.textbbox((0, 0), final_text, font=font_obj)
+                return bbox[2] - bbox[0], bbox[3] - bbox[1]
+            except Exception:
+                return font_obj.getsize(final_text)  # legacy PIL
+
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except Exception as e:
+        return {'success': False, 'error': f'font_load: {e}'}
+
+    text_w, text_h = _measure(font)
+    if text_w > max_text_width and text_w > 0:
+        # shrink proportionally — نضرب الـ font_size في النسبة عشان يبقى exact fit
+        shrink_ratio = max_text_width / float(text_w)
+        new_font_size = max(min_font_size, int(font_size * shrink_ratio * 0.97))  # 0.97 buffer
+        if new_font_size < font_size:
+            logger.info(
+                f'[TEXT OVERLAY] shrinking font {font_size}px → {new_font_size}px '
+                f'(text_w={text_w} > max={max_text_width})'
+            )
+            try:
+                font = ImageFont.truetype(font_path, new_font_size)
+                font_size = new_font_size
+                text_w, text_h = _measure(font)
+            except Exception:
+                pass  # keep original font if reload failed
 
     # تحديد الـ position
     pos_map = {

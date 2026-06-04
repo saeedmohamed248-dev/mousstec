@@ -334,6 +334,49 @@ The text_overlay.position field MUST match: "back" for back placement, "chest" f
    text ignoring fabric folds, rigid logo decal, vinyl heat-transfer plastic look,
    glossy plastic shirt, synthetic fabric sheen".
 
+🅰️🅰️🅰️ TEXT CONTENT EXTRACTION — READ FIRST (the most common failure mode):
+The user's text content is what they want PRINTED on the design. It is NEVER the
+words they used to describe the task. You must strip "instruction" language and keep
+only the actual content. Apply these rules in order:
+
+  RULE 1 — If `selections.text_on_design` (or any field whose key contains "text")
+           is non-empty, USE IT VERBATIM. Do not paraphrase, do not translate, do
+           not add words. This is the source of truth.
+
+  RULE 2 — If selections has no text field but the raw_idea contains a pattern like:
+             "مكتوب عليه X"          → extract X
+             "اكتب X"                → extract X
+             "كاتب عليه X"           → extract X
+             "في الوش X" / "على X"   → extract X
+             "X في الوش"             → extract X (X precedes the placement phrase)
+             "with the text 'X'"     → extract X
+             "saying X" / "that says X" → extract X
+           The extracted X is the text_overlay.text. Everything else (the verb, the
+           placement phrase, qualifiers like "بخط جميل" / "in a nice font") is
+           INSTRUCTION about HOW to print, NOT the content itself.
+
+  RULE 3 — INSTRUCTION WORDS — never use these as the text content, even if they
+           appear in the raw_idea. Strip them out before storing:
+             Arabic:  "مكتوب", "مكتوب عليه", "اكتب", "كاتب", "بخط", "بخط جميل",
+                      "بخط مناسب", "بخط واضح", "في الوش", "على الوش", "في القدام",
+                      "في الضهر", "جميل", "مناسب", "بطريقة", "تصميم", "design",
+                      "عليه", "فيه"
+             English: "write", "written", "with text", "saying", "that says",
+                      "in a nice font", "in bold", "design with", "logo with"
+
+  RULE 4 — If after extraction the text is empty OR is purely an instruction word,
+           set text_overlay = null (no text to print) instead of guessing.
+
+  Examples:
+    raw_idea="كوتشي رياضي مكتوب عليه في الوش بحبك بخط مناسب وجميل"
+      → text = "بحبك"  (NOT "مكتوب عليه" / "بخط مناسب" / "في الوش")
+    raw_idea="تيشرت قطن مكتوب عليه الصبر حدود"
+      → text = "الصبر حدود"
+    raw_idea="تيشرت بحبك"  (no instruction verb)
+      → text = "بحبك"
+    raw_idea="t-shirt that says 'live free'"
+      → text = "live free"  (quotes removed, instruction stripped)
+
 🅰️ CRITICAL — TEXT HANDLING & INTEGRATED TYPOGRAPHY (READ CAREFULLY):
 FLUX cannot reliably render any text, ESPECIALLY Arabic/RTL. If user selections include
 text content (any "text" or "text_on_design" field with non-empty value):
@@ -406,6 +449,14 @@ typography, watermarks, signatures, blurry, low resolution, jpeg artifacts, defo
 anatomy, extra fingers, bad proportions, cluttered background, oversaturated,
 amateur photography, stock photo cliche, ugly composition, poor lighting,
 flat colors, low contrast, plastic look, AI-generated artifacts"
+
+FOR APPAREL (t-shirt/hoodie/sweatshirt) ALSO INCLUDE these visible-mannequin
+guards (FLUX keeps regressing to dressforms — be ruthless):
+  "visible mannequin, mannequin head, mannequin neck, mannequin shoulders,
+   mannequin face, dressform, dress form, tailor's dummy, headed mannequin,
+   golden mannequin bust, wooden mannequin stand, mannequin stand,
+   showroom dummy, body form, store dummy, store fixture, hanger visible,
+   plastic figure, white plastic torso, exposed support stand, base pedestal"
 
 ⛔️ FORBIDDEN IN MEGA PROMPT (these wreck image quality):
 - Never ask FLUX to "write", "show text", "display words", "include label", "show name"
@@ -802,6 +853,116 @@ def _ensure_text_field(fields: list[dict], raw_idea: str) -> None:
     })
 
 
+# ─── Text-extraction & sanitization helpers ─────────────────────────────────
+# Used by compose_mega_prompt to:
+#   (a) extract the actual content text from a raw Arabic/English brief
+#   (b) strip instruction-words the LLM sometimes confuses for content
+#   (c) pick a font_ratio that fits the text length on the chosen surface
+# ─────────────────────────────────────────────────────────────────────────────
+import re as _re_overlay
+
+_INSTRUCTION_WORDS_AR = (
+    'مكتوب عليه', 'مكتوب', 'اكتب', 'كاتب عليه', 'كاتب', 'بخط جميل', 'بخط مناسب',
+    'بخط واضح', 'بخط عريض', 'بخط رفيع', 'بخط', 'بطريقة', 'تصميم', 'في الوش',
+    'على الوش', 'في القدام', 'في الضهر', 'في الخلف', 'من ورا',
+    'وجميل', 'ومناسب', 'يكون', 'يبقى',
+    # ⚠️ NOT in list: 'جميل', 'مناسب', 'عليه', 'فيه', 'و' — لأنها بتظهر داخل
+    # أو كأجزاء من كلمات حقيقية ("حدود" فيها "و"). نشيلها بس لو وقفوا كـ
+    # كلمات منفصلة بـ word-boundary.
+)
+_INSTRUCTION_WORDS_EN = (
+    'write', 'written', 'with text', 'with the text', 'saying', 'that says',
+    'in a nice font', 'in bold', 'in italics', 'design with', 'logo with',
+    'print', 'printed', 'a nice', 'and beautiful', 'beautiful',
+)
+# Standalone Arabic short tokens — only strip when they appear as whole words,
+# never inside another word.
+_INSTRUCTION_STANDALONE_AR = ('جميل', 'مناسب', 'عليه', 'فيه', 'و')
+
+# Pattern: capture text following Arabic instruction verbs
+_AR_CONTENT_RE = _re_overlay.compile(
+    r'(?:مكتوب\s*عليه|اكتب|كاتب\s*عليه|كاتب)\s+'
+    r'(?:في\s*\S+\s+)?'                # optional placement phrase ("في الوش")
+    r'([^\s][^\n]*?)'                  # the actual content (non-greedy)
+    r'(?:\s+(?:بخط|بطريقة|بأسلوب|جميل|مناسب|وجميل|ومناسب)|$)',
+    flags=_re_overlay.IGNORECASE,
+)
+# English: "saying X" / "that says X" / "with text 'X'"
+_EN_CONTENT_RE = _re_overlay.compile(
+    r"(?:saying|that\s+says|with\s+(?:the\s+)?text)\s+['\"]?([^'\"\n]+?)['\"]?(?:\s+in\s+|$)",
+    flags=_re_overlay.IGNORECASE,
+)
+
+
+def _strip_instruction_words(text: str) -> str:
+    """يشيل كلمات التعليمات من النص. لو النص بقى فاضي → '' (يبقى overlay=null).
+    Multi-word phrases بـ substring match. Single short tokens بـ word-boundary
+    عشان ميـ eat-ش حروف داخل كلمات حقيقية ("و" داخل "حدود")."""
+    if not text:
+        return ''
+    t = text.strip().strip('"\'""''')
+    # Multi-word / unique phrases — substring-safe (مفيش short tokens هنا)
+    for w in sorted(_INSTRUCTION_WORDS_AR + _INSTRUCTION_WORDS_EN, key=len, reverse=True):
+        if w.lower() in t.lower():
+            t = _re_overlay.sub(_re_overlay.escape(w), ' ', t, flags=_re_overlay.IGNORECASE)
+    # Standalone short tokens — match only as whole words via lookarounds.
+    # Arabic doesn't have \b semantics in regex, فبنستخدم whitespace/punct على
+    # الـ edges. (^|[\s،,.؛:]) و (?=$|[\s،,.؛:])
+    for token in _INSTRUCTION_STANDALONE_AR:
+        pattern = r'(^|[\s،,.؛:])' + _re_overlay.escape(token) + r'(?=$|[\s،,.؛:])'
+        t = _re_overlay.sub(pattern, r'\1', t)
+    t = _re_overlay.sub(r'\s{2,}', ' ', t).strip(' .,:;،؛-')
+    return t
+
+
+def _extract_content_from_brief(raw_idea: str) -> str:
+    """يـ extract الـ content text من raw_idea باستخدام regex patterns.
+    لو ملقاش match واضح → ''. لو لقى → بنرجع النص بدون أي كلمات تعليمات."""
+    if not raw_idea:
+        return ''
+    m = _AR_CONTENT_RE.search(raw_idea)
+    if m:
+        candidate = _strip_instruction_words(m.group(1))
+        if candidate and len(candidate) >= 2:
+            return candidate[:200]
+    m = _EN_CONTENT_RE.search(raw_idea)
+    if m:
+        candidate = m.group(1).strip()
+        if candidate:
+            return candidate[:200]
+    return ''
+
+
+def _sanitize_overlay_text(raw_text: str, raw_idea: str) -> str:
+    """يـ clean الـ text اللي رجع من الـ LLM أو الـ selections.
+    لو بعد التنظيف بقى فاضي/instruction word، يحاول regex extraction من raw_idea."""
+    cleaned = _strip_instruction_words(raw_text or '')
+    # لو الـ cleaned فاضي أو طوله أقل من 2 حرف → جرب extract من raw_idea
+    if not cleaned or len(cleaned.strip()) < 2:
+        cleaned = _extract_content_from_brief(raw_idea)
+    return cleaned[:200].strip()
+
+
+def _adaptive_font_ratio(text: str, base_ratio: float, is_apparel: bool) -> float:
+    """يـ scale الـ font_ratio حسب طول النص عشان ميـ overflow-ش الـ garment.
+    Short text (≤6 chars) → base. Long text (>15 chars) → shrink."""
+    char_count = max(1, len(text or ''))
+    if char_count <= 6:
+        ratio = base_ratio
+    elif char_count <= 12:
+        ratio = base_ratio * 0.85
+    elif char_count <= 20:
+        ratio = base_ratio * 0.70
+    elif char_count <= 30:
+        ratio = base_ratio * 0.55
+    else:
+        ratio = base_ratio * 0.45
+    # Hard floor/ceiling
+    floor = 0.06 if is_apparel else 0.045
+    ceiling = 0.20 if is_apparel else 0.18
+    return max(floor, min(ceiling, ratio))
+
+
 def compose_mega_prompt(
     raw_idea: str,
     domain: str,
@@ -841,31 +1002,59 @@ def compose_mega_prompt(
     # Extract text overlay instruction (will be applied post-FLUX)
     overlay = data.get('text_overlay')
     text_overlay = None
+    # Domain heuristics — needed for adaptive font sizing
+    d_lower_for_overlay = (domain or '').lower()
+    d_ar_for_overlay = (domain or '')
+    is_apparel_for_overlay = (
+        'shirt' in d_lower_for_overlay or 'apparel' in d_lower_for_overlay
+        or 'clothing' in d_lower_for_overlay or 'hoodie' in d_lower_for_overlay
+        or 'tee' in d_lower_for_overlay
+        or 'تيشرت' in d_ar_for_overlay or 'قميص' in d_ar_for_overlay
+        or 'ملابس' in d_ar_for_overlay or 'هودي' in d_ar_for_overlay
+    )
+    # Intent signals for overrides
+    intent_blob = (raw_idea or '').lower() + ' ' + ' '.join(
+        str(v).lower() for v in (selections or {}).values()
+    )
+    wants_pocket = any(t in intent_blob for t in (
+        'pocket', 'صغير', 'جيب', 'شعار صغير', 'لوجو صغير', 'subtle', 'discreet', 'minimal'
+    ))
+    wants_big = any(t in intent_blob for t in (
+        'big', 'huge', 'bold', 'oversized', 'statement',
+        'كبير', 'بارز', 'ضخم', 'يملا الصدر',
+    ))
+
     if isinstance(overlay, dict) and overlay.get('text'):
-        # 🔠 Clamp font_ratio إلى الـ graphic-tee scale الجديد: مفيش حاجة تحت 0.045
-        # (pocket logo) ومفيش حاجة فوق 0.20 (لإحترام حدود الـ printable zone).
-        # لو الـ LLM رجع قيمة منخفضة قديمة (0.035 مثلاً)، نـ bump للـ default الجديد.
-        raw_ratio = overlay.get('font_ratio')
-        try:
-            ratio = float(raw_ratio) if raw_ratio is not None else 0.13
-        except (TypeError, ValueError):
-            ratio = 0.13
-        # حماية ضد القيم القديمة الميكروسكوبية (≤0.05) إلا لو فيه نية صريحة pocket
-        raw_for_pocket = (raw_idea or '').lower() + ' ' + ' '.join(
-            str(v).lower() for v in (selections or {}).values()
-        )
-        wants_pocket = any(t in raw_for_pocket for t in (
-            'pocket', 'صغير', 'جيب', 'شعار صغير', 'لوجو صغير', 'subtle', 'discreet', 'minimal'
-        ))
-        if ratio < 0.09 and not wants_pocket:
-            ratio = 0.13  # bump للـ graphic-tee default
-        ratio = max(0.04, min(0.20, ratio))  # hard clamp
-        text_overlay = {
-            'text': str(overlay.get('text'))[:200],
-            'position': str(overlay.get('position', 'center'))[:20],
-            'color': str(overlay.get('color', '#000000'))[:10],
-            'font_ratio': ratio,
-        }
+        # 🧼 Sanitize: شيل كلمات التعليمات اللي ممكن الـ LLM خلطها مع الـ content.
+        # ('مكتوب عليه بحبك' → 'بحبك'). لو بعد التنظيف فاضي، يحاول regex من raw_idea.
+        clean_text = _sanitize_overlay_text(str(overlay.get('text')), raw_idea)
+        if not clean_text:
+            # النص الناتج فاضي → اعتبر مفيش text overlay بدل ما نرسم instruction word
+            text_overlay = None
+        else:
+            # 🔠 Pick the base ratio from intent, then adapt to character count
+            if wants_pocket:
+                base = 0.045
+            elif wants_big:
+                base = 0.18 if is_apparel_for_overlay else 0.14
+            else:
+                base = 0.13 if is_apparel_for_overlay else 0.09
+            # Allow LLM-supplied ratio to influence base IF it's in plausible range
+            raw_ratio = overlay.get('font_ratio')
+            try:
+                llm_ratio = float(raw_ratio) if raw_ratio is not None else None
+            except (TypeError, ValueError):
+                llm_ratio = None
+            if llm_ratio is not None and 0.05 <= llm_ratio <= 0.20:
+                # Trust LLM hint but still pass through adaptive scaling
+                base = llm_ratio
+            ratio = _adaptive_font_ratio(clean_text, base, is_apparel_for_overlay)
+            text_overlay = {
+                'text': clean_text,
+                'position': str(overlay.get('position', 'center'))[:20],
+                'color': str(overlay.get('color', '#000000'))[:10],
+                'font_ratio': round(ratio, 3),
+            }
 
     # 🅰️ SAFETY NET: لو الـ LLM متجاهل ورجع null، بنفحص الـ selections بنفسنا
     # ولو لقينا text بقيمة فيها عربي (أو text_on_design موجود) نعمل overlay قسراً
@@ -885,44 +1074,36 @@ def compose_mega_prompt(
                 text_color = str(v)
             elif any(t in kl for t in ('color',)) and not text_color and kl.startswith('text'):
                 text_color = str(v)
-        # لو لقينا text value → اعمل overlay بالـ graphic-tee scale (مش الميكروسكوبي القديم)
+        # لو لقينا text value → نـ sanitize ثم نـ apply adaptive ratio
         if text_value:
-            d_lower = (domain or '').lower()
-            d_ar = (domain or '')
-            is_clothing = (
-                'shirt' in d_lower or 'apparel' in d_lower or 'clothing' in d_lower
-                or 'hoodie' in d_lower or 'tee' in d_lower
-                or 'تيشرت' in d_ar or 'قميص' in d_ar or 'ملابس' in d_ar
-                or 'هودي' in d_ar or 'بلوزة' in d_ar
-            )
-            # تحديد الـ font_ratio من نية المستخدم (pocket / big / default)
-            combined_intent = (raw_idea or '').lower() + ' ' + ' '.join(
-                str(v).lower() for v in (selections or {}).values()
-            )
-            wants_pocket = any(t in combined_intent for t in (
-                'pocket', 'صغير', 'جيب', 'شعار صغير', 'لوجو صغير', 'subtle', 'discreet', 'minimal'
-            ))
-            wants_big = any(t in combined_intent for t in (
-                'big', 'huge', 'bold', 'oversized', 'statement',
-                'كبير', 'بارز', 'ضخم', 'يملا الصدر',
-            ))
-            if is_clothing:
-                pos = 'chest'
-                if wants_pocket:
-                    font_ratio = 0.045
-                elif wants_big:
-                    font_ratio = 0.18
+            clean_text = _sanitize_overlay_text(text_value, raw_idea)
+            if clean_text:
+                d_lower = (domain or '').lower()
+                d_ar = (domain or '')
+                is_clothing = (
+                    'shirt' in d_lower or 'apparel' in d_lower or 'clothing' in d_lower
+                    or 'hoodie' in d_lower or 'tee' in d_lower
+                    or 'تيشرت' in d_ar or 'قميص' in d_ar or 'ملابس' in d_ar
+                    or 'هودي' in d_ar or 'بلوزة' in d_ar
+                )
+                if is_clothing:
+                    pos = 'chest'
+                    if wants_pocket:
+                        base = 0.045
+                    elif wants_big:
+                        base = 0.18
+                    else:
+                        base = 0.13
                 else:
-                    font_ratio = 0.13  # graphic-tee default — بارز ومرئي
-            else:
-                pos = 'center'
-                font_ratio = 0.045 if wants_pocket else (0.14 if wants_big else 0.09)
-            text_overlay = {
-                'text': text_value[:200],
-                'position': pos,
-                'color': (text_color or '#000000')[:10],
-                'font_ratio': font_ratio,
-            }
+                    pos = 'center'
+                    base = 0.045 if wants_pocket else (0.14 if wants_big else 0.09)
+                font_ratio = _adaptive_font_ratio(clean_text, base, is_clothing)
+                text_overlay = {
+                    'text': clean_text,
+                    'position': pos,
+                    'color': (text_color or '#000000')[:10],
+                    'font_ratio': round(font_ratio, 3),
+                }
 
     # 🔄 Placement: LLM-provided OR regex fallback من الـ raw_idea + selections
     placement = str(data.get('print_placement') or '').strip().lower()

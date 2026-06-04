@@ -245,6 +245,31 @@ def design_generate(request):
         negative = (negative + ', ' + forbid)[:600]
         logger.info(f'[DESIGN GENERATE] text overlay active → stripped Arabic + reinforced negative')
 
+    # 🛡️ APPAREL DEFENSIVE: FLUX بيرجع للـ dressforms حتى لو الـ LLM ما طلبهاش.
+    # نـ append الـ anti-mannequin negative terms قسراً لأي domain ملابس.
+    is_apparel_domain = any(k in (domain or '').lower() for k in (
+        'apparel', 'tshirt', 't-shirt', 'shirt', 'hoodie', 'sweatshirt',
+        'garment', 'clothing', 'tee',
+    )) or any(k in (domain or '') for k in (
+        'تيشرت', 'قميص', 'ملابس', 'هودي', 'بلوزة',
+    ))
+    if is_apparel_domain:
+        mannequin_guards = (
+            'visible mannequin, mannequin head, mannequin neck, mannequin face, '
+            'dressform, dress form, tailor dummy, headed mannequin, '
+            'golden mannequin bust, wooden mannequin stand, mannequin stand, '
+            'showroom dummy, plastic figure, white plastic torso, '
+            'exposed support stand, base pedestal, store dummy'
+        )
+        negative = (negative + ', ' + mannequin_guards)[:1200]
+        # برضو نـ inject hint إيجابي في الـ mega_prompt
+        if 'invisible mannequin' not in mega_prompt.lower() and 'ghost mannequin' not in mega_prompt.lower():
+            mega_prompt = (
+                'INVISIBLE GHOST-MANNEQUIN presentation (NO visible mannequin, '
+                'NO head, NO neck stand, NO dressform — garment shaped by an '
+                'unseen wearer with realistic 3D volume). ' + mega_prompt
+            )[:2500]
+
     # Stage B: generate image via Together FLUX
     try:
         img = generate_flux_image(mega_prompt, size=size, negative_prompt=negative)
