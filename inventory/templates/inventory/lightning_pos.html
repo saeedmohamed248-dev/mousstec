@@ -8,12 +8,21 @@
 {% endblock %}
 
 {% block content %}
-<header class="flex items-center justify-between mb-4">
+<header class="flex items-center justify-between mb-4 flex-wrap gap-3">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-yellow-400"><i class="fas fa-bolt"></i></span>
     Lightning POS
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
+  {% if branches %}
+  <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
+    <i class="fas fa-code-branch text-amber-300"></i>
+    <label class="text-xs font-bold text-amber-300">الفرع:</label>
+    <select id="branch-picker" class="bg-slate-900 text-white text-sm px-2 py-1 rounded border border-slate-700">
+      {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
 </header>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -125,7 +134,9 @@ function renderCart() {
 $('checkout').addEventListener('click', async () => {
   $('checkout').disabled = true;
   flash('جارٍ الاعتماد...', 'info');
+  const branchPicker = document.getElementById('branch-picker');
   const payload = { customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
+    branch_id: branchPicker ? branchPicker.value : null,
     items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price })) };
   try {
     const r = await fetch(URLS.checkout, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });

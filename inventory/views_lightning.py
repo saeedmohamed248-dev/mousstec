@@ -66,6 +66,7 @@ def lightning_pos(request):
     branch = _get_branch_for_user(request.user)
     return render(request, "inventory/lightning_pos.html", {
         "branch": branch,
+        "branches": Branch.objects.all() if branch is None else None,
     })
 
 
@@ -320,6 +321,7 @@ def job_card_create(request):
     branch = _get_branch_for_user(request.user)
     return render(request, "inventory/job_card_create.html", {
         "branch": branch,
+        "branches": Branch.objects.all() if branch is None else None,
         "services": ServiceCatalog.objects.all().order_by("name"),
     })
 

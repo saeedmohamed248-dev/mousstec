@@ -19,12 +19,21 @@
 {% endblock %}
 
 {% block content %}
-<header class="flex items-center justify-between mb-4">
+<header class="flex items-center justify-between mb-4 flex-wrap gap-3">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-emerald-400"><i class="fas fa-clipboard-list"></i></span>
     أمر شغل جديد
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
+  {% if branches %}
+  <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
+    <i class="fas fa-code-branch text-amber-300"></i>
+    <label class="text-xs font-bold text-amber-300">الفرع:</label>
+    <select id="branch-picker" class="bg-slate-900 text-white text-sm px-2 py-1 rounded border border-slate-700">
+      {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
 </header>
 
 <!-- Invoice Type Toggle -->
@@ -355,8 +364,10 @@ async function saveJobCard() {
   const btn = $('save-btn');
   btn.disabled = true;
   flash('جارٍ الحفظ...', 'info');
+  const branchPicker = document.getElementById('branch-picker');
   const payload = {
     invoice_type: state.invoice_type,
+    branch_id: branchPicker ? branchPicker.value : null,
     customer_id: state.customer_id,
     customer_name: $('cust-name').value,
     customer_phone: $('cust-phone').value,
