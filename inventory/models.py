@@ -1,7 +1,7 @@
 from django.db import models, transaction, connection
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from simple_history.models import HistoricalRecords
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
@@ -25,21 +25,53 @@ class Branch(models.Model):
 
 class EmployeeProfile(models.Model):
     ROLE_CHOICES = (
-        ('admin', _('مدير عام (أدمن)')),
-        ('manager', _('مدير فرع')),
-        ('cashier', _('كاشير / استقبال')),
-        ('tech', _('فني / ميكانيكي')),
-        ('stock', _('أمين مخزن')),
+        ('admin',    _('مدير عام (أدمن)')),
+        ('manager',  _('مدير فرع')),
+        ('sales',    _('مبيعات (Sales)')),
+        ('engineer', _('مهندس تشخيص (Engineer)')),
+        ('tech',     _('فني / ميكانيكي (Technician)')),
+        ('cashier',  _('كاشير / استقبال (Cashier)')),
+        ('stock',    _('أمين مخزن')),
+        ('hr',       _('موارد بشرية (HR)')),
     )
+
+    WORKSPACE_MAP = {
+        'admin':    '/system/dashboard/',
+        'manager':  '/system/dashboard/',
+        'sales':    '/system/dashboard/',
+        'cashier':  '/system/dashboard/',
+        'stock':    '/system/dashboard/',
+        'engineer': '/system/tech-workspace/',
+        'tech':     '/system/tech-workspace/',
+        'hr':       '/system/hr-workspace/',
+    }
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile', verbose_name=_("المستخدم"))
     branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("الفرع التابع له"))
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='cashier', verbose_name=_("الدور الوظيفي"))
     can_edit_posted_invoices = models.BooleanField(default=False, verbose_name=_("صلاحية تعديل الفواتير المعتمدة؟"))
+    can_see_costs = models.BooleanField(default=False, verbose_name=_("صلاحية رؤية أسعار التكلفة؟"),
+        help_text=_("Sales = False بشكل افتراضي — يرى أسعار البيع فقط"))
+
     commission_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("رصيد العمولات المستحقة"))
+    commission_rate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,
+        verbose_name=_("نسبة عمولة المبيعات %"),
+        help_text=_("تُطبَّق على هامش الربح للقطع التي يبيعها الموظف"))
+
+    # 📍 GPS — last known check-in (denormalised for fast HR dashboards)
+    last_checkin_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر تسجيل حضور"))
+    last_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name=_("آخر Lat"))
+    last_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name=_("آخر Lng"))
 
     class Meta:
         verbose_name = _("ملف الموظف")
         verbose_name_plural = _("ملفات الموظفين والصلاحيات")
+
+    def default_workspace_url(self) -> str:
+        if self.user.is_superuser:
+            return '/system/dashboard/'
+        return self.WORKSPACE_MAP.get(self.role, '/system/dashboard/')
+
     def __str__(self):
         branch_name = self.branch.name if self.branch else "إدارة عامة"
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
@@ -281,7 +313,18 @@ class Treasury(models.Model):
     def __str__(self): return f"{self.name} ({self.balance})"
 
 class ExpenseCategory(models.Model):
+    SYSTEM_KEYS = (
+        ('salaries',  _('رواتب وأجور')),
+        ('rent',      _('إيجار')),
+        ('utilities', _('مرافق')),
+        ('other',     _('أخرى')),
+    )
     name = models.CharField(max_length=100, unique=True, verbose_name=_("بند المصروف"))
+    system_key = models.CharField(
+        max_length=30, choices=SYSTEM_KEYS, blank=True, db_index=True,
+        verbose_name=_("مفتاح النظام"),
+        help_text=_("مفتاح ثابت للتعرف الآلي — مثلاً 'salaries' يفعّل قائمة الموظفين تلقائياً"),
+    )
     class Meta: verbose_name_plural = _("بنود المصروفات")
     def __str__(self): return self.name
 
@@ -435,6 +478,18 @@ class SaleInvoiceItem(models.Model):
     core_charge_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
     is_core_returned = models.BooleanField(default=False, verbose_name=_("تم استلام القطعة التالفة؟"))
     warranty_end_date = models.DateField(blank=True, null=True, verbose_name=_("تاريخ انتهاء الضمان"))
+
+    # 💰 Pillar 3 — Sales commission attribution
+    salesperson = models.ForeignKey(
+        EmployeeProfile, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='sold_items',
+        limit_choices_to={'role__in': ['sales', 'cashier', 'manager']},
+        verbose_name=_("بائع القطعة (للعمولة)"),
+    )
+    commission_accrued = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00, editable=False,
+        verbose_name=_("العمولة المُحتسبة"),
+    )
     
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
@@ -920,3 +975,186 @@ class B2BListingRequest(models.Model):
 
     def __str__(self):
         return f"{self.product.name} — {self.get_status_display()}"
+
+
+# =====================================================================
+# 🚀 DMS Tier-1 — Pillars 1/2/3/4 (Attendance, OBD, Repair, Feedback)
+# =====================================================================
+
+class AttendanceCheckIn(models.Model):
+    """GPS-stamped check-in / check-out from the Tech & HR workspaces.
+    Browser sends navigator.geolocation.getCurrentPosition() → /api/attendance/checkin/."""
+    EVENT_CHOICES = (('in', _('حضور')), ('out', _('انصراف')))
+
+    employee = models.ForeignKey(
+        EmployeeProfile, on_delete=models.CASCADE, related_name='checkins',
+        verbose_name=_("الموظف"),
+    )
+    event_type = models.CharField(max_length=5, choices=EVENT_CHOICES, default='in', verbose_name=_("النوع"))
+    occurred_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name=_("اللحظة الزمنية"))
+
+    lat = models.DecimalField(max_digits=9, decimal_places=6, verbose_name=_("Latitude"))
+    lng = models.DecimalField(max_digits=9, decimal_places=6, verbose_name=_("Longitude"))
+    accuracy_m = models.FloatField(null=True, blank=True, verbose_name=_("دقة GPS (متر)"))
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    is_inside_geofence = models.BooleanField(default=False, verbose_name=_("داخل حدود الفرع؟"))
+    flagged_reason = models.CharField(max_length=120, blank=True, verbose_name=_("سبب التنبيه"))
+
+    class Meta:
+        verbose_name = _("حركة حضور")
+        verbose_name_plural = _("سجل الحضور والانصراف (GPS)")
+        indexes = [models.Index(fields=['employee', '-occurred_at'])]
+
+    def __str__(self):
+        return f"{self.employee} — {self.get_event_type_display()} @ {self.occurred_at:%Y-%m-%d %H:%M}"
+
+
+class VehicleDiagnosticReport(models.Model):
+    """OBD scan attached to a Job Card (SaleInvoice with invoice_type='maintenance').
+    Mobile app POSTs JSON to /api/obd/ingest/ with VIN + fault_codes + live PIDs."""
+    SCAN_CHOICES = (
+        ('pre_repair',  _('فحص قبل الإصلاح')),
+        ('post_repair', _('فحص بعد الإصلاح / تأكيد جودة')),
+        ('ad_hoc',      _('فحص خارجي')),
+    )
+
+    job_card = models.ForeignKey(
+        'SaleInvoice', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='diagnostic_reports',
+        verbose_name=_("بطاقة الإصلاح المرتبطة"),
+    )
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.PROTECT, related_name='diagnostic_reports',
+        verbose_name=_("المركبة"),
+    )
+    engineer = models.ForeignKey(
+        EmployeeProfile, on_delete=models.SET_NULL, null=True, blank=True,
+        limit_choices_to={'role__in': ['engineer', 'tech']},
+        related_name='diagnostic_reports',
+        verbose_name=_("المهندس / الفني"),
+    )
+
+    scan_type = models.CharField(max_length=20, choices=SCAN_CHOICES, verbose_name=_("نوع الفحص"))
+    scanned_at = models.DateTimeField(default=timezone.now, db_index=True, verbose_name=_("وقت الفحص"))
+
+    fault_codes = models.JSONField(default=list, blank=True, verbose_name=_("أكواد الأعطال (DTCs)"),
+        help_text=_("مصفوفة مثل: ['P0171', 'P0300']"))
+    live_data = models.JSONField(default=dict, blank=True, verbose_name=_("القراءات الحية (PIDs)"),
+        help_text=_("RPM, coolant_temp_c, maf_gs, ..."))
+
+    device_id = models.CharField(max_length=80, blank=True, verbose_name=_("معرّف جهاز المسح"))
+    raw_payload = models.JSONField(default=dict, blank=True, editable=False)
+
+    severity_score = models.IntegerField(default=0, verbose_name=_("درجة الخطورة (0-100)"))
+
+    class Meta:
+        verbose_name = _("تقرير OBD")
+        verbose_name_plural = _("تقارير OBD التشخيصية")
+        indexes = [models.Index(fields=['vehicle', '-scanned_at'])]
+
+    def __str__(self):
+        return f"OBD #{self.id} — {self.vehicle} ({self.get_scan_type_display()})"
+
+
+class RepairLog(models.Model):
+    """Technician's per-task work log on a Job Card — drives the Tech Workspace timer & flags."""
+    STATUS_CHOICES = (
+        ('open',    _('قيد التنفيذ')),
+        ('paused',  _('متوقف مؤقتاً')),
+        ('done',    _('مكتمل')),
+        ('blocked', _('بانتظار قطع إضافية')),
+    )
+
+    job_card = models.ForeignKey(
+        'SaleInvoice', on_delete=models.CASCADE, related_name='repair_logs',
+        verbose_name=_("بطاقة الإصلاح"),
+    )
+    technician = models.ForeignKey(
+        EmployeeProfile, on_delete=models.PROTECT, related_name='repair_logs',
+        limit_choices_to={'role__in': ['tech', 'engineer']},
+        verbose_name=_("الفني"),
+    )
+
+    task_title = models.CharField(max_length=160, verbose_name=_("عنوان المهمة"))
+    tech_notes = models.TextField(blank=True, verbose_name=_("ملاحظات فنية"))
+
+    started_at = models.DateTimeField(default=timezone.now, verbose_name=_("وقت البدء"))
+    ended_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت الانتهاء"))
+    paused_seconds = models.IntegerField(default=0, verbose_name=_("ثوانٍ توقف"))
+    last_paused_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='open', verbose_name=_("الحالة"))
+    needs_extra_parts = models.BooleanField(default=False, verbose_name=_("يحتاج قطع إضافية؟"))
+    extra_parts_note = models.TextField(blank=True, verbose_name=_("تفاصيل القطع المطلوبة"))
+
+    class Meta:
+        verbose_name = _("سجل إصلاح")
+        verbose_name_plural = _("سجلات الإصلاح (Tech)")
+        indexes = [models.Index(fields=['job_card', '-started_at']),
+                   models.Index(fields=['technician', 'status'])]
+
+    @property
+    def duration_minutes(self) -> int:
+        end = self.ended_at or timezone.now()
+        total = (end - self.started_at).total_seconds() - (self.paused_seconds or 0)
+        return max(int(total // 60), 0)
+
+    def __str__(self):
+        return f"RepairLog #{self.id} — {self.task_title} ({self.get_status_display()})"
+
+
+class RepairLogMedia(models.Model):
+    MEDIA_KIND = (
+        ('before', _('قبل الإصلاح')),
+        ('after',  _('بعد الإصلاح')),
+        ('issue',  _('مشكلة/تحذير')),
+    )
+    log = models.ForeignKey(RepairLog, on_delete=models.CASCADE, related_name='media')
+    kind = models.CharField(max_length=10, choices=MEDIA_KIND, default='before', verbose_name=_("النوع"))
+    image = models.ImageField(upload_to='repair_logs/%Y/%m/', verbose_name=_("الصورة"))
+    caption = models.CharField(max_length=200, blank=True, verbose_name=_("تعليق"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("مرفق سجل إصلاح")
+        verbose_name_plural = _("مرفقات سجلات الإصلاح")
+
+
+class CustomerFeedback(models.Model):
+    """Public UUID link sent to customer after invoice 'posted' for rating + signature."""
+    sale_invoice = models.OneToOneField(
+        'SaleInvoice', on_delete=models.CASCADE, related_name='feedback',
+        verbose_name=_("الفاتورة"),
+    )
+    public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False,
+        verbose_name=_("رمز الرابط العام"))
+
+    rating = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name=_("التقييم (1-5)"),
+    )
+    comment = models.TextField(blank=True, verbose_name=_("ملاحظات العميل"))
+
+    received_in_good_condition = models.BooleanField(default=False,
+        verbose_name=_("استلمت السيارة بحالة جيدة"))
+    signature_image = models.ImageField(upload_to='signatures/%Y/%m/', null=True, blank=True,
+        verbose_name=_("توقيع رقمي"))
+
+    sent_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("تقييم وتوقيع عميل")
+        verbose_name_plural = _("تقييمات وتوقيعات العملاء")
+
+    @property
+    def public_url(self) -> str:
+        return f"/feedback/{self.public_token}/"
+
+    def __str__(self):
+        return f"Feedback INV#{self.sale_invoice_id} ({self.rating or '—'})"

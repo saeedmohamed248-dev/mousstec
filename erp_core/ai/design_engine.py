@@ -1145,7 +1145,20 @@ def _sanitize_overlay_text(raw_text: str, raw_idea: str) -> str:
 # if the LLM said "ملابس").
 PRESENTATION_CATEGORIES = (
     'apparel', 'document', 'signage', 'logo', 'packaging',
-    'footwear', 'interior', 'vehicle', 'accessory', 'other',
+    'footwear', 'interior', 'vehicle', 'accessory',
+    # ── Expanded 2026-06: universal coverage ───────────────────────
+    'furniture',      # طربيزة، كرسي، كنبة، سرير، خزانة، رف
+    'electronics',    # لاب توب، موبايل، تابلت، سماعات، كاميرا
+    'appliance',      # ثلاجة، غسالة، ميكروويف، بوتاجاز
+    'architecture',   # بيت، فيلا، عمارة، مسجد، مدرسة
+    'food',           # طبق، كيك، مشروب، بيتزا
+    'jewelry',        # خاتم، سلسلة، إسوارة، حلق
+    'cosmetics',      # روج، كريم، عطر، makeup product
+    'industrial',     # آلة صناعية، معدّة، أداة
+    'social_post',    # منشور انستجرام/فيسبوك بدون نص ضخم
+    'character',      # شخصية كرتون، أفاتار، mascot
+    'illustration',   # رسم، آرت، ديجيتال إلستريشن
+    'other',
 )
 
 # Keyword → category. Order matters: most specific matches first. Each
@@ -1202,12 +1215,232 @@ _CATEGORY_KEYWORDS = {
         'car wrap', 'vehicle wrap', 'car design', 'motorcycle', 'bike wrap',
     ),
     'accessory': (
-        'شنطة', 'حقيبة', 'ساعة', 'مجوهرات', 'إكسسوار', 'كاب', 'قبعة',
+        'شنطة', 'حقيبة', 'ساعة', 'إكسسوار', 'كاب', 'قبعة',
         'ماج', 'كوب', 'مج', 'ستيكر', 'لاصقة', 'لاصقات',
-        'bag', 'tote', 'backpack', 'watch', 'jewelry', 'jewellery',
+        'bag', 'tote', 'backpack', 'watch',
         'accessory', 'cap', 'hat', 'beanie', 'mug', 'sticker', 'tote bag',
     ),
+    # ── New categories (2026-06) ─────────────────────────────────
+    'furniture': (
+        'طربيزة', 'ترابيزة', 'كرسي', 'كنبة', 'صوفا', 'كنب', 'سرير',
+        'خزانة', 'دولاب', 'مكتب', 'رف', 'ركنة', 'مكتبة', 'كومودينو',
+        'فوتيه', 'بوفيه', 'مرتبة', 'سفرة', 'انتريه', 'نيش',
+        'table', 'desk', 'chair', 'armchair', 'sofa', 'couch', 'bed',
+        'wardrobe', 'cabinet', 'shelf', 'bookshelf', 'dresser', 'nightstand',
+        'stool', 'bench', 'dining table', 'coffee table', 'side table',
+        'furniture', 'console', 'ottoman',
+    ),
+    'electronics': (
+        'لاب توب', 'لابتوب', 'لاب-توب', 'موبايل', 'هاتف', 'تابلت',
+        'سماعات', 'سماعة', 'كاميرا', 'شاشة', 'تلفزيون', 'بلايستيشن',
+        'كمبيوتر', 'بي سي', 'ايباد', 'ايفون', 'ساعة ذكية',
+        'laptop', 'notebook', 'phone', 'smartphone', 'mobile', 'tablet',
+        'ipad', 'iphone', 'monitor', 'tv', 'television', 'screen',
+        'headphones', 'earbuds', 'earphones', 'camera', 'dslr',
+        'pc', 'computer', 'console', 'playstation', 'xbox', 'gadget',
+        'smartwatch', 'drone',
+    ),
+    'appliance': (
+        'ثلاجة', 'غسالة', 'ميكروويف', 'بوتاجاز', 'فرن', 'مكنسة',
+        'مكواة', 'سخان', 'تكييف', 'مروحة', 'خلاط', 'محمصة', 'نشافة',
+        'fridge', 'refrigerator', 'washing machine', 'washer', 'dryer',
+        'microwave', 'oven', 'stove', 'cooker', 'vacuum', 'iron',
+        'heater', 'air conditioner', 'ac unit', 'fan', 'blender',
+        'toaster', 'kettle', 'dishwasher', 'appliance',
+    ),
+    'architecture': (
+        'بيت', 'فيلا', 'عمارة', 'مبنى', 'مسجد', 'كنيسة', 'مدرسة',
+        'مستشفى', 'برج', 'واجهة', 'فاساد', 'سور', 'بوابة',
+        'house', 'villa', 'building', 'apartment building', 'tower',
+        'mosque', 'church', 'school building', 'hospital', 'facade',
+        'exterior', 'architecture', 'rooftop', 'gate', 'compound',
+    ),
+    'food': (
+        'طبق', 'أكلة', 'وجبة', 'كيك', 'بيتزا', 'برجر', 'ساندويتش',
+        'مشروب', 'كوكتيل', 'قهوة', 'عصير', 'حلويات', 'كنافة', 'بسبوسة',
+        'مكرونة', 'دجاج', 'لحمة', 'سلطة', 'فطار', 'عشاء', 'غداء',
+        'dish', 'meal', 'food', 'cake', 'pizza', 'burger', 'sandwich',
+        'drink', 'cocktail', 'coffee', 'juice', 'dessert', 'pastry',
+        'pasta', 'chicken', 'meat', 'salad', 'breakfast', 'dinner',
+        'lunch', 'snack',
+    ),
+    'jewelry': (
+        'خاتم', 'محبس', 'سلسلة', 'إسوارة', 'أسوارة', 'غويشة', 'حلق',
+        'تيتو', 'دبلة', 'مجوهرات', 'ذهب', 'فضة', 'ألماظ', 'ألماس',
+        'ring', 'wedding band', 'necklace', 'chain', 'bracelet',
+        'earring', 'earrings', 'pendant', 'jewelry', 'jewellery',
+        'gold', 'silver', 'diamond', 'gem', 'gemstone', 'tiara',
+    ),
+    'cosmetics': (
+        'روج', 'أحمر شفايف', 'كريم', 'عطر', 'برفان', 'مكياج', 'ميك اب',
+        'ماسكارا', 'فاونديشن', 'بودر', 'كحل', 'باليت ظلال', 'سيروم',
+        'lipstick', 'lip gloss', 'cream', 'perfume', 'fragrance',
+        'makeup', 'mascara', 'foundation', 'powder', 'eyeliner',
+        'eyeshadow', 'palette', 'serum', 'skincare', 'cosmetic',
+    ),
+    'industrial': (
+        'آلة', 'ماكينة', 'معدّة', 'مكنة', 'موتور', 'مضخة',
+        'machine', 'machinery', 'industrial', 'pump', 'generator',
+        'compressor', 'engine', 'equipment', 'tool', 'cnc',
+    ),
+    'social_post': (
+        'بوست', 'منشور', 'ستوري', 'انستجرام بوست', 'فيس بوك بوست',
+        'instagram post', 'facebook post', 'social post', 'reel cover',
+        'story', 'thumbnail', 'social media', 'تيك توك', 'tiktok',
+    ),
+    'character': (
+        'شخصية', 'كرتون', 'أفاتار', 'ماسكوت', 'تميمة',
+        'character', 'cartoon', 'avatar', 'mascot', 'anime',
+        'persona', 'illustration of a person',
+    ),
+    'illustration': (
+        'رسم', 'رسمة', 'آرت', 'إلستريشن', 'لوحة', 'بورتريه',
+        'illustration', 'artwork', 'drawing', 'painting', 'portrait',
+        'concept art', 'digital art', 'sketch',
+    ),
 }
+
+# ─── Subtype keywords (within parent category) ─────────────────────
+# الفئات اللي فيها variations بصرية كبيرة محتاجة dispatch داخلي عشان
+# الـ recipe ميـ generalize-ش. مثلاً footwear بدون subtype = "shoe" عام →
+# الـ FLUX بيختار sneaker. لازم نـ pass للـ LLM "subtype=slipper" صراحة.
+_SUBTYPE_KEYWORDS = {
+    'footwear': {
+        'slipper': ('شبشب', 'شباشب', 'slipper', 'slippers', 'flip-flop',
+                    'flip flop', 'flipflop', 'home shoe', 'house shoe'),
+        'sandal': ('صندل', 'صنادل', 'sandal', 'sandals'),
+        'sneaker': ('كوتشي', 'كوتش', 'sneaker', 'sneakers', 'trainer',
+                    'trainers', 'running shoe', 'athletic shoe'),
+        'boot': ('بوت', 'جزمة', 'بوتس', 'boot', 'boots', 'ankle boot',
+                 'combat boot'),
+        'formal': ('كلاسيك', 'حذاء رسمي', 'oxford', 'derby', 'loafer',
+                   'formal shoe', 'dress shoe'),
+        'heels': ('كعب', 'كعب عالي', 'حذاء كعب', 'high heels', 'heels',
+                  'stiletto', 'pumps'),
+    },
+    'apparel': {
+        'tshirt': ('تيشرت', 'تي شيرت', 'تي-شيرت', 't-shirt', 'tshirt',
+                   'tee', 'graphic tee'),
+        'hoodie': ('هودي', 'هودى', 'hoodie', 'pullover hoodie'),
+        'sweatshirt': ('سويت شيرت', 'سويت-شيرت', 'sweatshirt', 'crewneck'),
+        'polo': ('بولو', 'polo shirt', 'polo'),
+        'tank': ('فانلة', 'تانك', 'tank top', 'tanktop', 'sleeveless'),
+        'jersey': ('فانلة فريق', 'جيرسي', 'jersey', 'football jersey',
+                   'sports jersey'),
+        'jacket': ('جاكيت', 'جاكت', 'jacket', 'blazer', 'coat'),
+        'abaya': ('عباية', 'عبايه', 'abaya', 'jalabiya', 'kaftan',
+                  'قفطان', 'جلابية'),
+        'dress': ('فستان', 'dress', 'gown'),
+        'pants': ('بنطلون', 'بنطلون جينز', 'بنطلونات', 'pants', 'trousers',
+                  'jeans'),
+        'uniform': ('يونيفورم', 'زي موحد', 'uniform', 'workwear', 'scrubs'),
+    },
+    'furniture': {
+        'table': ('طربيزة', 'ترابيزة', 'سفرة', 'مكتب', 'table', 'desk',
+                  'dining table', 'coffee table', 'side table'),
+        'chair': ('كرسي', 'كراسي', 'فوتيه', 'chair', 'armchair', 'stool',
+                  'dining chair', 'office chair'),
+        'sofa': ('كنبة', 'كنب', 'صوفا', 'انتريه', 'sofa', 'couch',
+                 'sectional', 'loveseat'),
+        'bed': ('سرير', 'مرتبة', 'bed', 'mattress', 'bunk bed'),
+        'storage': ('خزانة', 'دولاب', 'مكتبة', 'رف', 'كومودينو', 'نيش',
+                    'بوفيه', 'wardrobe', 'cabinet', 'shelf', 'bookshelf',
+                    'dresser', 'nightstand', 'console', 'sideboard'),
+    },
+    'electronics': {
+        'laptop': ('لاب توب', 'لابتوب', 'لاب-توب', 'laptop', 'notebook',
+                   'macbook'),
+        'phone': ('موبايل', 'هاتف', 'ايفون', 'phone', 'smartphone',
+                  'mobile', 'iphone'),
+        'tablet': ('تابلت', 'ايباد', 'tablet', 'ipad'),
+        'monitor': ('شاشة', 'تلفزيون', 'tv', 'monitor', 'television',
+                    'display', 'screen'),
+        'audio': ('سماعات', 'سماعة', 'headphones', 'earbuds', 'earphones',
+                  'speaker', 'سبيكر'),
+        'camera': ('كاميرا', 'camera', 'dslr', 'mirrorless'),
+        'wearable': ('ساعة ذكية', 'smartwatch', 'smart watch', 'fitness band'),
+        'console': ('بلايستيشن', 'playstation', 'xbox', 'nintendo',
+                    'console', 'gaming'),
+    },
+    'appliance': {
+        'fridge': ('ثلاجة', 'fridge', 'refrigerator', 'freezer'),
+        'laundry': ('غسالة', 'نشافة', 'washing machine', 'washer', 'dryer'),
+        'cooking': ('ميكروويف', 'بوتاجاز', 'فرن', 'محمصة', 'microwave',
+                    'oven', 'stove', 'cooker', 'toaster'),
+        'cleaning': ('مكنسة', 'vacuum', 'dishwasher'),
+        'climate': ('تكييف', 'مروحة', 'سخان', 'air conditioner', 'ac',
+                    'fan', 'heater'),
+    },
+    'vehicle': {
+        'car': ('سيارة', 'عربية', 'car', 'sedan', 'suv', 'hatchback'),
+        'truck': ('تروك', 'فان', 'truck', 'van', 'pickup'),
+        'motorcycle': ('موتوسيكل', 'موتور', 'motorcycle', 'bike', 'scooter'),
+        'bicycle': ('دراجة', 'bicycle', 'bike', 'cycle'),
+    },
+    'food': {
+        'dish': ('طبق', 'وجبة', 'dish', 'plate', 'meal', 'entree'),
+        'dessert': ('كيك', 'حلويات', 'كنافة', 'بسبوسة', 'cake', 'dessert',
+                    'pastry', 'cupcake', 'donut'),
+        'fastfood': ('بيتزا', 'برجر', 'ساندويتش', 'pizza', 'burger',
+                     'sandwich', 'fries', 'hotdog'),
+        'beverage': ('مشروب', 'كوكتيل', 'قهوة', 'عصير', 'drink', 'coffee',
+                     'juice', 'cocktail', 'tea', 'smoothie'),
+    },
+    'jewelry': {
+        'ring': ('خاتم', 'محبس', 'دبلة', 'ring', 'wedding band'),
+        'necklace': ('سلسلة', 'كولير', 'necklace', 'chain', 'pendant'),
+        'bracelet': ('إسوارة', 'أسوارة', 'غويشة', 'bracelet', 'bangle'),
+        'earring': ('حلق', 'تيتو', 'earring', 'earrings', 'stud'),
+    },
+    'document': {
+        'business_card': ('بزنس كارد', 'كارت بزنس', 'كارت شخصي',
+                          'business card', 'business-card'),
+        'invoice': ('فاتورة', 'إيصال', 'ايصال', 'وصل', 'invoice', 'receipt'),
+        'menu': ('منيو', 'قائمة طعام', 'قائمة', 'menu', 'food menu'),
+        'certificate': ('شهادة', 'certificate', 'diploma'),
+        'invitation': ('دعوة', 'كارت دعوة', 'دعوة زفاف', 'invitation',
+                       'wedding invitation'),
+        'flyer': ('فلاير', 'منشور إعلاني', 'flyer', 'leaflet'),
+        'brochure': ('برشور', 'بروشور', 'كتيب', 'brochure', 'booklet'),
+        'letterhead': ('letterhead', 'هيدر', 'ورق رسمي'),
+        'cv': ('cv', 'resume', 'سيرة ذاتية'),
+    },
+    'signage': {
+        'banner': ('بنر', 'banner', 'street banner'),
+        'rollup': ('رول اب', 'ستاند', 'roll-up', 'rollup', 'standee'),
+        'billboard': ('billboard', 'لوحة إعلانية كبيرة'),
+        'storefront': ('لافتة محل', 'يافطة محل', 'storefront', 'shop sign',
+                       'لافتة', 'يافطة'),
+        'poster': ('بوستر', 'poster'),
+    },
+}
+
+
+def _classify_subtype(raw_idea: str, category: str) -> str | None:
+    """يحدد الـ subtype داخل category معينة بناءً على الـ keywords.
+
+    مثال: category='footwear' + raw='شبشب أبيض' → 'slipper'
+          category='furniture' + raw='ترابيزة خشب' → 'table'
+
+    لو ملقاش match أو الـ category مفيهاش subtypes → None.
+    Order matters: الـ keywords الأطول الأول عشان "شبشب" يـ match قبل "ش".
+    """
+    if not raw_idea or category not in _SUBTYPE_KEYWORDS:
+        return None
+    blob = raw_idea.lower()
+    subtypes = _SUBTYPE_KEYWORDS[category]
+    # نرتب الـ subtypes بحيث أطول keyword الأول (longest-first) عشان مينطبقش
+    # subset غلط ("جاكيت" قبل "جاك"). بـ tuple of (sub, max_len) sort desc.
+    scored = []
+    for sub, keywords in subtypes.items():
+        max_kw_len = max(len(k) for k in keywords) if keywords else 0
+        scored.append((max_kw_len, sub, keywords))
+    scored.sort(reverse=True)
+    for _, sub, keywords in scored:
+        for kw in keywords:
+            if kw.lower() in blob:
+                return sub
+    return None
 
 
 def _classify_presentation_category(raw_idea: str, domain: str = '') -> str:
@@ -1217,11 +1450,24 @@ def _classify_presentation_category(raw_idea: str, domain: str = '') -> str:
     # Iterate categories in priority order — physical products beat design-element
     # categories ("ماج بشعار" → accessory, NOT logo, because the mug is the
     # primary product the logo will go ON).
-    for category in ('document', 'footwear', 'apparel', 'accessory',
-                     'packaging', 'vehicle', 'interior', 'signage', 'logo'):
-        for kw in _CATEGORY_KEYWORDS[category]:
-            kw_l = kw.lower()
-            if kw_l in blob:
+    # Order:
+    #   1. documents (most specific text — "فاتورة" wins over anything else)
+    #   2. specific product types (footwear/apparel/jewelry/cosmetics/food)
+    #   3. larger objects (furniture/electronics/appliance/vehicle)
+    #   4. spaces (architecture > interior)
+    #   5. wrappers/branding (packaging/accessory/signage/social_post/logo)
+    #   6. creative artifacts (character/illustration/industrial)
+    priority_order = (
+        'document',
+        'footwear', 'apparel', 'jewelry', 'cosmetics', 'food',
+        'furniture', 'electronics', 'appliance', 'vehicle',
+        'architecture', 'interior',
+        'packaging', 'accessory', 'social_post', 'signage', 'logo',
+        'character', 'illustration', 'industrial',
+    )
+    for category in priority_order:
+        for kw in _CATEGORY_KEYWORDS.get(category, ()):
+            if kw.lower() in blob:
                 return category
     return 'other'
 

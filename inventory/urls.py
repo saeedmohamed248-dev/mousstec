@@ -3,6 +3,8 @@ from django.views.decorators.cache import cache_page # 🚀 ابتكار: Edge R
 from django.views.decorators.csrf import csrf_exempt
 from . import views
 from . import views_lightning
+from . import views_tech
+from .api_obd import ReceiveOBDDataView
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -50,6 +52,23 @@ urlpatterns = [
 
     # 👨‍🔧 واجهة كشك الفنيين (Tablet UI) لضبط وقت المهام والإنتاجية
     path('mechanic-bay/', views.mechanic_kiosk_interface, name='mechanic_kiosk'),
+
+    # 🛠️ DMS Tier-1 — Tech Workspace (Pillar 3)
+    path('tech-workspace/', views_tech.tech_workspace, name='tech_workspace'),
+
+    # ▶️ RepairLog APIs (timer + flags + media)
+    path('api/repair-log/start/',                       views_tech.repair_log_start,             name='repair_log_start'),
+    path('api/repair-log/<int:log_id>/pause/',          views_tech.repair_log_pause,             name='repair_log_pause'),
+    path('api/repair-log/<int:log_id>/resume/',         views_tech.repair_log_resume,            name='repair_log_resume'),
+    path('api/repair-log/<int:log_id>/complete/',       views_tech.repair_log_complete,          name='repair_log_complete'),
+    path('api/repair-log/<int:log_id>/flag-extra-parts/', views_tech.repair_log_flag_extra_parts, name='repair_log_flag_extra_parts'),
+    path('api/repair-log/<int:log_id>/upload-media/',   views_tech.repair_log_upload_media,      name='repair_log_upload_media'),
+
+    # 📍 GPS Attendance (Pillar 1)
+    path('api/attendance/checkin/', views_tech.attendance_checkin_api, name='attendance_checkin'),
+
+    # 🚗 Live OBD ingest (Pillar 2)
+    path('api/obd/ingest/', ReceiveOBDDataView.as_view(), name='obd_ingest'),
 
     # =====================================================================
     # 🖨️ 2. محرك الطباعة، المشاركة، والتوثيق (Printing & Docs Engine)

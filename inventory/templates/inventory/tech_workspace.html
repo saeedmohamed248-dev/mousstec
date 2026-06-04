@@ -1,0 +1,300 @@
+{% extends 'inventory/_base_portal.html' %}
+{% load static %}
+{% block title %}ورشة الفنيين — Tech Workspace{% endblock %}
+
+{% block extra_head %}
+<style>
+  .timer-pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
+    50%      { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
+  }
+  .chip { display:inline-flex; align-items:center; gap:.25rem; padding:.15rem .5rem;
+          border-radius:9999px; font-size:.7rem; font-weight:700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl md:text-3xl font-black text-white">
+        <i class="fas fa-wrench text-emerald-400 ml-2"></i>
+        ورشة الفنيين
+      </h1>
+      <p class="text-sm text-slate-400 mt-1">
+        أهلاً {{ profile.user.get_full_name|default:profile.user.username }} —
+        <span class="text-emerald-300">{{ profile.get_role_display }}</span>
+        {% if profile.branch %} · {{ profile.branch.name }}{% endif %}
+      </p>
+    </div>
+
+    <!-- GPS Check-in / Check-out -->
+    <div class="flex items-center gap-2">
+      <div class="text-xs text-slate-400 text-left">
+        {% if last_checkin %}
+          آخر تسجيل:
+          <span class="text-slate-200 font-bold">{{ last_checkin.get_event_type_display }}</span>
+          <br>{{ last_checkin.occurred_at|date:"H:i — d/m" }}
+        {% else %}
+          لم يتم تسجيل حضور اليوم
+        {% endif %}
+      </div>
+      <button id="btn-checkin"
+        class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition">
+        <i class="fas fa-location-crosshairs ml-1"></i>تسجيل حضور
+      </button>
+      <button id="btn-checkout"
+        class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold transition">
+        <i class="fas fa-right-from-bracket ml-1"></i>انصراف
+      </button>
+    </div>
+  </div>
+
+  <!-- Stat strip -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">قيد التنفيذ</div>
+      <div class="text-2xl font-black text-amber-300 mt-1">{{ my_open_logs|length }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">اكتمل اليوم</div>
+      <div class="text-2xl font-black text-emerald-300 mt-1">{{ completed_today }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">بطاقات نشطة بالفرع</div>
+      <div class="text-2xl font-black text-indigo-300 mt-1">{{ job_cards|length }}</div>
+    </div>
+    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs text-slate-400">العمولات المُحتسبة</div>
+      <div class="text-2xl font-black text-purple-300 mt-1">{{ profile.commission_balance }}</div>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+
+    <!-- LEFT: my active timers -->
+    <div class="lg:col-span-2 space-y-4">
+      <h2 class="text-lg font-bold text-white mb-2">
+        <i class="fas fa-stopwatch text-amber-400 ml-2"></i>المهام الجارية
+      </h2>
+
+      {% if my_open_logs %}
+        {% for log in my_open_logs %}
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 {% if log.status == 'open' %}timer-pulse{% endif %}"
+             data-log-id="{{ log.id }}" data-status="{{ log.status }}"
+             data-started="{{ log.started_at|date:'c' }}"
+             data-paused="{{ log.paused_seconds|default:0 }}">
+          <div class="flex justify-between items-start gap-3 flex-wrap">
+            <div class="flex-1 min-w-0">
+              <div class="text-xs text-slate-400">
+                JOB #{{ log.job_card.id }} — {{ log.job_card.customer.name }}
+                {% if log.job_card.vehicle %}· {{ log.job_card.vehicle.chassis_number|default:'—' }}{% endif %}
+              </div>
+              <div class="text-lg font-black text-white mt-1">{{ log.task_title }}</div>
+              {% if log.tech_notes %}
+                <div class="text-xs text-slate-400 mt-1 line-clamp-2">{{ log.tech_notes }}</div>
+              {% endif %}
+              {% if log.needs_extra_parts %}
+                <span class="chip bg-rose-500/15 text-rose-300 mt-2">
+                  <i class="fas fa-exclamation-triangle"></i> قطع إضافية: {{ log.extra_parts_note|truncatechars:60 }}
+                </span>
+              {% endif %}
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-slate-400">المدة</div>
+              <div class="font-mono text-2xl font-black text-emerald-300 timer-display">--:--</div>
+              <div class="text-xs mt-1">
+                <span class="chip
+                  {% if log.status == 'open' %}bg-emerald-500/15 text-emerald-300
+                  {% elif log.status == 'paused' %}bg-amber-500/15 text-amber-300
+                  {% else %}bg-rose-500/15 text-rose-300{% endif %}">
+                  {{ log.get_status_display }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-3">
+            {% if log.status == 'open' %}
+              <button class="btn-pause px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">
+                <i class="fas fa-pause"></i> إيقاف مؤقت
+              </button>
+            {% elif log.status == 'paused' %}
+              <button class="btn-resume px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                <i class="fas fa-play"></i> استئناف
+              </button>
+            {% endif %}
+            <button class="btn-complete px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">
+              <i class="fas fa-check"></i> إنهاء
+            </button>
+            <button class="btn-flag px-3 py-1.5 rounded-lg bg-rose-700/40 hover:bg-rose-600/40 text-rose-200 text-xs font-bold border border-rose-700/50">
+              <i class="fas fa-flag"></i> {{ log.needs_extra_parts|yesno:"إلغاء طلب,طلب قطع إضافية" }}
+            </button>
+            <label class="btn-upload px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-600/60 text-slate-100 text-xs font-bold cursor-pointer">
+              <i class="fas fa-camera"></i> صورة قبل
+              <input type="file" accept="image/*" capture="environment" class="hidden" data-kind="before">
+            </label>
+            <label class="btn-upload px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-600/60 text-slate-100 text-xs font-bold cursor-pointer">
+              <i class="fas fa-camera"></i> صورة بعد
+              <input type="file" accept="image/*" capture="environment" class="hidden" data-kind="after">
+            </label>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="bg-slate-900/60 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
+          لا توجد مهام جارية. اختر بطاقة من القائمة لبدء العمل.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT: active job cards to claim -->
+    <div>
+      <h2 class="text-lg font-bold text-white mb-2">
+        <i class="fas fa-clipboard-list text-indigo-400 ml-2"></i>بطاقات نشطة
+      </h2>
+      <div class="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+        {% for jc in job_cards %}
+        <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3 hover:border-emerald-600/40 transition">
+          <div class="flex justify-between items-start gap-2">
+            <div class="text-xs text-slate-400">JOB #{{ jc.id }}</div>
+            <span class="chip bg-indigo-500/15 text-indigo-300">{{ jc.get_status_display }}</span>
+          </div>
+          <div class="text-sm font-bold text-white mt-1 truncate">{{ jc.customer.name }}</div>
+          <div class="text-xs text-slate-400 truncate">
+            {% if jc.vehicle %}{{ jc.vehicle.brand }} {{ jc.vehicle.model_name|default:'' }} ·
+              <span class="font-mono">{{ jc.vehicle.chassis_number|default:'—' }}</span>{% endif %}
+          </div>
+          {% if jc.notes %}<div class="text-xs text-slate-500 mt-1 line-clamp-2">{{ jc.notes }}</div>{% endif %}
+          <button class="btn-start mt-2 w-full px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                  data-job-id="{{ jc.id }}"
+                  data-job-title="{{ jc.customer.name|escapejs }}">
+            <i class="fas fa-play"></i> بدء مهمة جديدة
+          </button>
+        </div>
+        {% empty %}
+        <div class="text-slate-500 text-sm text-center py-6">لا توجد بطاقات نشطة.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const CSRF = document.querySelector('input[name=csrfmiddlewaretoken]')?.value || '';
+  const J = { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF };
+
+  async function api(url, opts = {}) {
+    const r = await fetch(url, { method: 'POST', headers: J, credentials: 'same-origin', ...opts });
+    return r.json().catch(() => ({ ok: false, error: 'bad_json' }));
+  }
+
+  // ---- Live timer rendering for every active card ------------------------
+  function fmt(secs) {
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  function tickAllTimers() {
+    document.querySelectorAll('[data-log-id]').forEach(card => {
+      const started = new Date(card.dataset.started).getTime();
+      const paused  = parseInt(card.dataset.paused || '0', 10);
+      const status  = card.dataset.status;
+      if (status === 'paused' || status === 'blocked' || status === 'done') return;
+      const secs = Math.max(Math.floor((Date.now() - started) / 1000) - paused, 0);
+      const el = card.querySelector('.timer-display');
+      if (el) el.textContent = fmt(secs);
+    });
+  }
+  setInterval(tickAllTimers, 1000); tickAllTimers();
+
+  // ---- Start a new RepairLog from a job card -----------------------------
+  document.querySelectorAll('.btn-start').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const title = prompt('ما هي المهمة؟ (مثال: تغيير ووتر بومب)');
+      if (!title) return;
+      const r = await api("{% url 'inventory:repair_log_start' %}", {
+        body: JSON.stringify({ job_card_id: btn.dataset.jobId, task_title: title }),
+      });
+      if (r.ok) location.reload();
+      else alert('فشل بدء المهمة: ' + (r.error || ''));
+    });
+  });
+
+  // ---- Per-card actions (pause / resume / complete / flag / upload) ------
+  document.querySelectorAll('[data-log-id]').forEach(card => {
+    const id = card.dataset.logId;
+
+    card.querySelector('.btn-pause')?.addEventListener('click', async () => {
+      const r = await api(`/system/api/repair-log/${id}/pause/`);
+      if (r.ok) location.reload(); else alert(r.error);
+    });
+    card.querySelector('.btn-resume')?.addEventListener('click', async () => {
+      const r = await api(`/system/api/repair-log/${id}/resume/`);
+      if (r.ok) location.reload(); else alert(r.error);
+    });
+    card.querySelector('.btn-complete')?.addEventListener('click', async () => {
+      const notes = prompt('ملاحظات ختامية (اختياري):') || '';
+      const r = await api(`/system/api/repair-log/${id}/complete/`, {
+        body: JSON.stringify({ tech_notes: notes }),
+      });
+      if (r.ok) location.reload(); else alert(r.error);
+    });
+    card.querySelector('.btn-flag')?.addEventListener('click', async () => {
+      const need = card.querySelector('.btn-flag').textContent.includes('طلب قطع');
+      const note = need ? (prompt('وصف القطع المطلوبة:') || '') : '';
+      if (need && !note) return;
+      const r = await api(`/system/api/repair-log/${id}/flag-extra-parts/`, {
+        body: JSON.stringify({ needs_extra_parts: need, extra_parts_note: note }),
+      });
+      if (r.ok) location.reload(); else alert(r.error);
+    });
+    card.querySelectorAll('input[type=file]').forEach(inp => {
+      inp.addEventListener('change', async (e) => {
+        const f = e.target.files?.[0]; if (!f) return;
+        const fd = new FormData();
+        fd.append('image', f);
+        fd.append('kind', inp.dataset.kind);
+        const r = await fetch(`/system/api/repair-log/${id}/upload-media/`, {
+          method: 'POST', body: fd, credentials: 'same-origin',
+          headers: { 'X-CSRFToken': CSRF },
+        }).then(x => x.json()).catch(() => ({ ok: false }));
+        if (r.ok) alert('✅ تم رفع الصورة');
+        else alert('فشل الرفع: ' + (r.error || ''));
+      });
+    });
+  });
+
+  // ---- GPS check-in / check-out ------------------------------------------
+  async function geoCheckin(eventType) {
+    if (!navigator.geolocation) return alert('المتصفح لا يدعم GPS');
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const body = JSON.stringify({
+        event_type: eventType,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+      });
+      const r = await api("{% url 'inventory:attendance_checkin' %}", { body });
+      if (r.ok) {
+        alert(`✅ تم تسجيل ${eventType === 'in' ? 'الحضور' : 'الانصراف'} الساعة ${new Date(r.occurred_at).toLocaleTimeString('ar-EG')}`);
+        location.reload();
+      } else {
+        alert('فشل التسجيل: ' + (r.error || ''));
+      }
+    }, (err) => {
+      alert('تعذر الحصول على الموقع: ' + err.message);
+    }, { enableHighAccuracy: true, timeout: 12000 });
+  }
+  document.getElementById('btn-checkin')?.addEventListener('click',  () => geoCheckin('in'));
+  document.getElementById('btn-checkout')?.addEventListener('click', () => geoCheckin('out'));
+
+})();
+</script>
+{% endblock %}

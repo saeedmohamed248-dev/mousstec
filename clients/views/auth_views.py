@@ -185,11 +185,17 @@ def register_new_tenant_saas(request):
 # =====================================================================
 @login_required(login_url='/secure-portal/login/')
 def smart_post_login_redirect(request):
-    """
-    يُوجِّه المستخدم بذكاء بعد تسجيل الدخول:
-    - السوبر أدمن → /superadmin/
-    - مستخدم Tenant → /system/dashboard/
-    - مستخدم على الـ Public Schema بدون صلاحيات → /login/
+    """Role-aware post-login routing for the unified DMS workspace flow.
+
+    Precedence:
+      1. Superuser on public schema → /superadmin/
+      2. Tenant (printing industry) → admin URL (unchanged)
+      3. Tenant + EmployeeProfile → role-based workspace via profile.default_workspace_url()
+         (admin/manager/sales/cashier/stock → /system/dashboard/
+          tech/engineer                     → /system/tech-workspace/
+          hr                                → /system/hr-workspace/)
+      4. Tenant without profile → /system/dashboard/ (legacy fallback)
+      5. Public schema, non-admin → /login/
     """
     tenant = getattr(request, 'tenant', None)
     schema = getattr(connection, 'schema_name', 'public')
@@ -198,10 +204,14 @@ def smart_post_login_redirect(request):
         return redirect('/superadmin/')
 
     if tenant and schema != 'public':
-        industry = getattr(tenant, 'industry', 'automotive')
-        if industry == 'printing':
+        if getattr(tenant, 'industry', 'automotive') == 'printing':
             admin_url = os.getenv('ADMIN_URL', 'secure-portal')
             return redirect(f'/{admin_url}/')
+
+        profile = getattr(request.user, 'employee_profile', None)
+        if profile is not None:
+            return redirect(profile.default_workspace_url())
+
         return redirect('/system/dashboard/')
 
     return redirect('/login/')
