@@ -149,6 +149,8 @@ def design_analyze(request):
         'raw_idea': raw_idea,
         'domain': result['domain'],
         'domain_ar': result.get('domain_ar', ''),
+        'presentation_category': result.get('presentation_category', ''),
+        'subtype': result.get('subtype', ''),
         'fields': result['fields'],
     })
 
@@ -178,6 +180,11 @@ def design_generate(request):
         presentation_category = client_category
     else:
         presentation_category = _classify_presentation_category(raw_idea, domain)
+
+    # 🎯 Subtype — forwarded from the analyze step (if client sent it) or
+    # derived inside compose_mega_prompt as a fallback. Critical for
+    # footwear/apparel/furniture/etc. where the recipe has subtype branches.
+    client_subtype = (body.get('subtype') or '').strip().lower()
 
     if audience not in _VALID_AUDIENCES:
         return JsonResponse({'success': False, 'error': 'invalid_audience'}, status=400)
@@ -230,7 +237,8 @@ def design_generate(request):
     try:
         mega = compose_mega_prompt(raw_idea, domain, clean_selections,
                                    reference_descriptions=ref_descriptions or None,
-                                   presentation_category=presentation_category)
+                                   presentation_category=presentation_category,
+                                   subtype=client_subtype or None)
     except Exception as e:
         logger.exception('[DESIGN GENERATE] mega compose crashed')
         return JsonResponse({'success': False, 'message': '⚠️ تعذر صياغة البرومبت.', 'error': str(e)}, status=200)

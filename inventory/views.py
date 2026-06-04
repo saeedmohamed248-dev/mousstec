@@ -202,18 +202,38 @@ def mechanic_kiosk_interface(request):
 @login_required(login_url='/secure-portal/')
 @tenant_required
 def print_invoice_a4(request, invoice_id):
-    invoice = get_object_or_404(
-        SaleInvoice.objects
-            .select_related('customer', 'vehicle', 'branch', 'maintenance_contract')
-            .prefetch_related('items__product', 'service_items__service'),
-        id=invoice_id,
-    )
+    """Pillar 4 — Cashier dual invoice.
+
+    ?mode=summary  (default) → simple parts + labor totals (customer copy)
+    ?mode=detailed           → full technical report: tech notes, OBD fault codes, photos
+    """
+    mode = (request.GET.get('mode') or 'summary').lower()
+    if mode not in {'summary', 'detailed'}:
+        mode = 'summary'
+
+    qs = (SaleInvoice.objects
+          .select_related('customer', 'vehicle', 'branch', 'maintenance_contract')
+          .prefetch_related('items__product', 'service_items__service'))
+
+    if mode == 'detailed':
+        qs = qs.prefetch_related(
+            'repair_logs__technician__user',
+            'repair_logs__media',
+            'diagnostic_reports__engineer__user',
+        )
+
+    invoice = get_object_or_404(qs, id=invoice_id)
+
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
         return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
-    return render(request, 'inventory/invoice_print_a4.html', {
+
+    template = ('inventory/invoice_print_detailed.html' if mode == 'detailed'
+                else 'inventory/invoice_print_a4.html')
+    return render(request, template, {
         'invoice': invoice,
         'print_date': timezone.now(),
+        'mode': mode,
     })
 
 

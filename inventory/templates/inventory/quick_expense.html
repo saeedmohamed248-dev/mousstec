@@ -28,10 +28,26 @@
 
   <div>
     <label class="block text-xs font-bold text-slate-300 mb-1">البند / التصنيف</label>
-    <select name="category_id" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none">
-      <option value="">— بدون تصنيف —</option>
-      {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    <select name="category_id" id="cat-select" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none">
+      <option value="" data-system-key="">— بدون تصنيف —</option>
+      {% for c in categories %}<option value="{{ c.id }}" data-system-key="{{ c.system_key }}">{{ c.name }}</option>{% endfor %}
     </select>
+  </div>
+
+  <!-- 👥 Dynamic Employee picker — surfaces when 'salaries' category is selected -->
+  <div id="emp-block" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
+    <label class="block text-xs font-bold text-amber-300 mb-1">
+      <i class="fas fa-user-tie ml-1"></i>الموظف المستلم للراتب *
+    </label>
+    <select name="employee_id" id="emp-select" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-amber-500/40 focus:border-amber-300 focus:outline-none">
+      <option value="">— اختر الموظف —</option>
+      {% for e in salary_employees %}
+        <option value="{{ e.id }}">
+          {{ e.user.get_full_name|default:e.user.username }} ({{ e.get_role_display }}){% if e.branch %} — {{ e.branch.name }}{% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <p class="text-xs text-amber-200/80 mt-1">سيُربط هذا المصروف بكشف حساب الموظف تلقائياً.</p>
   </div>
 
   <div>
@@ -50,6 +66,21 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URL = "{% url 'inventory:quick_expense_create' %}";
+
+// 👥 Toggle employee dropdown when 'salaries' category is selected
+const catSel = document.getElementById('cat-select');
+const empBlock = document.getElementById('emp-block');
+const empSel = document.getElementById('emp-select');
+function syncEmpVisibility() {
+  const opt = catSel.options[catSel.selectedIndex];
+  const isSalary = (opt && opt.dataset.systemKey === 'salaries');
+  empBlock.classList.toggle('hidden', !isSalary);
+  empSel.required = isSalary;
+  if (!isSalary) empSel.value = '';
+}
+catSel.addEventListener('change', syncEmpVisibility);
+syncEmpVisibility();
+
 document.getElementById('exp-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;

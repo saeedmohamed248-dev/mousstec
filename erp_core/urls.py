@@ -21,6 +21,7 @@ from erp_core.ai import copilot_views as copilot_views
 from erp_core.ai import design_views as design_views
 from clients import admin_god_mode as _god
 from erp_core.ai import diagnostic_views as diagnostic_views
+from inventory import views_feedback as _feedback
 
 # =====================================================================
 # 🏭 فلترة التطبيقات حسب قطاع المستأجر (Industry-Aware Admin)
@@ -474,6 +475,14 @@ urlpatterns = [
     
     # 🚀 النواة التشغيلية للورش (الكاشير، الفحص الذكي، الفواتير، وعقود الأساطيل)
     path('system/', include('inventory.urls')),
+
+    # ⭐ Pillar 4 — Public Customer Feedback (UUID-keyed, no login, tenant-scoped)
+    path('feedback/<uuid:public_token>/',
+         _feedback.customer_feedback_page,
+         name='customer_feedback_page'),
+    path('feedback/<uuid:public_token>/submit/',
+         _feedback.customer_feedback_submit,
+         name='customer_feedback_submit'),
 
     # 👥 الموارد البشرية (حضور/رواتب/سلف/تصميم)
     path('hr/', include('hr.urls')),

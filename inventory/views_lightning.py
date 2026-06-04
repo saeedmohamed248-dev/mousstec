@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
-    Branch, Customer, ExpenseCategory, FinancialTransaction,
+    Branch, Customer, EmployeeProfile, ExpenseCategory, FinancialTransaction,
     Inventory, InventoryMovement, Product,
     SaleInvoice, SaleInvoiceItem, SaleInvoiceServiceItem,
     ServiceCatalog, Treasury, Vehicle, VehicleInspection,
@@ -566,11 +566,20 @@ def quick_expense(request):
     treasury_qs = Treasury.objects.filter(is_active=True)
     if branch is not None:
         treasury_qs = treasury_qs.filter(branch=branch)
+
+    # Salary employees — surfaced when category.system_key == 'salaries'
+    emp_qs = (EmployeeProfile.objects
+              .select_related('user', 'branch')
+              .order_by('user__first_name', 'user__username'))
+    if branch is not None:
+        emp_qs = emp_qs.filter(Q(branch=branch) | Q(branch__isnull=True))
+
     return render(request, "inventory/quick_expense.html", {
         "branch": branch,
         "branches": Branch.objects.all() if branch is None else None,
         "treasuries": treasury_qs,
         "categories": ExpenseCategory.objects.all().order_by("name"),
+        "salary_employees": emp_qs,
     })
 
 
@@ -589,6 +598,7 @@ def quick_expense_create(request):
         return _json_response_safe({"error": "اختر الخزنة."}, status=400)
     description = (request.POST.get("description") or "").strip() or "مصروف يومي"
     category_id = request.POST.get("category_id") or None
+    employee_id = request.POST.get("employee_id") or None
 
     try:
         with transaction.atomic():
@@ -601,6 +611,20 @@ def quick_expense_create(request):
                     "error": f"رصيد الخزنة غير كافٍ (متاح: {treasury.balance})."
                 }, status=409)
             category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
+
+            # 👥 If category is 'salaries', require an employee link
+            employee = None
+            if category and category.system_key == 'salaries':
+                if not employee_id:
+                    return _json_response_safe({
+                        "error": "اختر الموظف المستلم للراتب."
+                    }, status=400)
+                employee = EmployeeProfile.objects.filter(id=employee_id).first()
+                if employee is None:
+                    return _json_response_safe({"error": "الموظف غير موجود."}, status=404)
+                # Stamp the description for ledger clarity
+                description = f"{description} — {employee.user.get_full_name() or employee.user.username}"
+
             treasury.balance = (treasury.balance or Decimal("0")) - amount
             treasury.save(update_fields=["balance"])
             tx = FinancialTransaction.objects.create(
@@ -609,6 +633,7 @@ def quick_expense_create(request):
                 amount=amount,
                 description=description,
                 category=category,
+                employee=employee,
             )
         return _json_response_safe({
             "ok": True,

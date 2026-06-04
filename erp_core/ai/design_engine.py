@@ -119,7 +119,8 @@ anything), you must:
 {
   "domain": "<short English label>",
   "domain_ar": "<Arabic translation>",
-  "presentation_category": "<ONE of: apparel | document | signage | logo | packaging | footwear | interior | vehicle | accessory | other>",
+  "presentation_category": "<ONE of: apparel | document | signage | logo | packaging | footwear | interior | vehicle | accessory | furniture | electronics | appliance | architecture | food | jewelry | cosmetics | industrial | social_post | character | illustration | other>",
+  "subtype": "<optional specific subtype within the category — e.g. for footwear: slipper|sandal|sneaker|boot|formal|heels; for apparel: tshirt|hoodie|polo|jersey|abaya|dress|pants|jacket; for furniture: table|chair|sofa|bed|storage; for electronics: laptop|phone|tablet|monitor|audio|camera|wearable|console; for food: dish|dessert|fastfood|beverage; for jewelry: ring|necklace|bracelet|earring; etc. Pick the most specific one. Leave empty string if unsure>",
   "fields": [
     {
       "key": "<snake_case_key>",
@@ -145,29 +146,53 @@ Rules:
 🎯 PRESENTATION CATEGORY — pick ONE (CRITICAL for downstream aesthetic):
 This determines what visual recipe FLUX will use. Choose strictly by what the
 user wants to PRODUCE, not what the design is "about":
-  • "document"  — invoice, receipt, business card, brochure, menu, certificate,
-                  letterhead, invitation, flyer, CV/resume, price list, form.
-                  Anything printed on paper that is primarily text/data.
-  • "apparel"   — t-shirt, hoodie, sweatshirt, polo, tank top, jersey, jacket.
-                  Wearable garments on torso.
-  • "footwear"  — sneakers, shoes, boots, sandals. Worn on feet.
-  • "accessory" — mugs, caps/hats, bags/totes, watches, jewelry, stickers.
-                  Wearable/usable items that are NOT garments or shoes.
-  • "logo"      — pure standalone brand mark / wordmark / emblem (no product).
-  • "signage"   — banner, billboard, roll-up, poster, large-format display.
-  • "packaging" — product box, pouch, label, wrapper, product packaging design.
-  • "interior"  — room design, interior space, architectural visualization.
-  • "vehicle"   — car wrap, vehicle livery, motorcycle design.
-  • "other"     — anything that doesn't fit above (rare; prefer the closest).
+  • "document"     — invoice, receipt, business card, brochure, menu, certificate,
+                     letterhead, invitation, flyer, CV/resume, price list, form.
+                     Anything printed on paper that is primarily text/data.
+  • "apparel"      — t-shirt, hoodie, sweatshirt, polo, tank top, jersey, jacket,
+                     abaya, dress. Wearable garments on torso.
+  • "footwear"     — sneakers, shoes, boots, sandals, SLIPPERS, heels. Worn on feet.
+                     IMPORTANT: differentiate via `subtype` (slipper/sneaker/boot/...).
+  • "accessory"    — mugs, caps/hats, bags/totes, watches, stickers.
+                     Wearable/usable items that are NOT garments or shoes.
+  • "jewelry"      — rings, necklaces, bracelets, earrings, pendants, fine jewelry.
+  • "cosmetics"    — lipstick, perfume, cream, skincare/makeup PRODUCTS (not the model wearing them).
+  • "logo"         — pure standalone brand mark / wordmark / emblem (no product).
+  • "signage"      — banner, billboard, roll-up, poster, large-format display, storefront sign.
+  • "social_post"  — Instagram/Facebook/TikTok square post or story. Mobile-first.
+  • "packaging"    — product box, pouch, label, wrapper, product packaging design.
+  • "furniture"    — table, chair, sofa, bed, wardrobe, shelf, desk. Single furniture piece (NOT a whole room).
+  • "electronics"  — laptop, phone, tablet, monitor, headphones, camera, smartwatch, console.
+  • "appliance"    — fridge, washing machine, microwave, oven, AC, vacuum cleaner.
+  • "vehicle"      — car, truck, motorcycle, bicycle. Side profile / 3D render of the vehicle itself.
+  • "architecture" — house, villa, building exterior, facade, mosque, school building. Whole structure from outside.
+  • "interior"     — room INSIDE a building (living room, kitchen, bedroom). Spatial composition.
+  • "food"         — dish, cake, drink, plated meal. Editorial food photography.
+  • "industrial"   — machine, equipment, factory tool. Technical / mechanical.
+  • "character"    — cartoon character, mascot, avatar, anime person.
+  • "illustration" — drawing, digital art, concept art, portrait painting.
+  • "other"        — anything that genuinely doesn't fit above (rare; prefer the closest).
 
 Examples:
-  "عاوز فاتورة لمحل قطع غيار" → "document"
-  "تيشرت قطن بشعار محل"          → "apparel"
-  "كوتشي رياضي بحبك"             → "footwear"
-  "ماج لشركة قهوة"               → "accessory"
-  "لوجو لمطعم"                   → "logo"
-  "بوستر إعلاني A3"               → "signage"
-  "علبة منتج 200جم"              → "packaging"
+  "عاوز فاتورة لمحل قطع غيار"     → "document"        subtype="invoice"
+  "تيشرت قطن بشعار محل"              → "apparel"         subtype="tshirt"
+  "شبشب أبيض للشاطئ"                 → "footwear"        subtype="slipper"   ⚠️ NOT sneaker
+  "كوتشي رياضي بحبك"                → "footwear"        subtype="sneaker"
+  "بوت كاجوال أسود"                  → "footwear"        subtype="boot"
+  "ماج لشركة قهوة"                  → "accessory"       subtype=""
+  "خاتم دبلة ذهب أصفر"               → "jewelry"         subtype="ring"
+  "لوجو لمطعم"                      → "logo"            subtype=""
+  "بوستر إعلاني A3"                  → "signage"         subtype="poster"
+  "بوست انستجرام لعرض جديد"          → "social_post"     subtype=""
+  "علبة منتج 200جم"                 → "packaging"       subtype=""
+  "طربيزة سفرة 6 كراسي خشب أوك"      → "furniture"       subtype="table"
+  "لاب توب ماك بوك برو 16 إنش"      → "electronics"     subtype="laptop"
+  "ثلاجة ستانلس ستيل ساميسونج"      → "appliance"       subtype="fridge"
+  "فيلا كلاسيك واجهة حجرية"          → "architecture"    subtype=""
+  "غرفة معيشة سكاندينافيا"           → "interior"        subtype=""
+  "بيتزا مارجريتا تصوير احترافي"     → "food"            subtype="fastfood"
+  "روج أحمر فاخر"                   → "cosmetics"       subtype=""
+  "شخصية كرتون لمطعم أطفال"          → "character"       subtype=""
 
 📏 DIMENSIONS DEFAULTS — NEVER ZERO, NEVER EMPTY (CRITICAL):
 For ANY field with type="dimensions", you MUST provide a "default" object with
@@ -273,26 +298,98 @@ NOT a photograph of a printed document on a desk.
     • Square invitation → 1024×1024
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👕 RECIPE: APPAREL (t-shirt / hoodie / sweatshirt / polo / tank / jersey)
+👕 RECIPE: APPAREL (SUBTYPE-AWARE — read subtype FIRST!)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ CRITICAL: differentiate by subtype. The base recipe is ghost-mannequin
+editorial product photography (sections 1, 9, 🅰️ below). But the SHAPE,
+CUT, and DETAILS differ by subtype:
+
+  • subtype="tshirt" → short-sleeve crew-neck OR v-neck cotton tee.
+    Standard chest print zone (28×32cm front, 30×36cm back).
+  • subtype="hoodie" → pullover hoodie with kangaroo pocket + drawstring hood.
+    Print zone is above the pocket (30×28cm). Drawstrings hang naturally.
+  • subtype="sweatshirt" → crewneck sweatshirt, no hood, heavier fleece interior.
+    Ribbed cuffs and hem. Print zone front-chest.
+  • subtype="polo" → collared polo with 2-3 button placket. Shorter sleeves
+    with ribbed cuff. Embroidery zone on left chest pocket area.
+  • subtype="tank" → sleeveless tank top with wide armholes. Print zone front.
+  • subtype="jersey" → athletic mesh fabric, V-neck or crew, number space on
+    back. Sports team aesthetic. Print: large number/name on back.
+  • subtype="jacket" → bomber or blazer or denim jacket. Show full silhouette
+    with sleeves slightly out. Embroidery on chest OR back panel.
+  • subtype="abaya" → flowing full-length modest robe, long sleeves, optional
+    embroidery on cuffs/neckline/hem. Show fabric drape and elegant length.
+    NOT a t-shirt. NOT chest-print — embellishment is integrated trim.
+  • subtype="dress" → woman's dress (depending on style: cocktail / maxi /
+    midi). Show silhouette + skirt drape.
+  • subtype="pants" → trousers/jeans/pants. Show full leg silhouette.
+
 Apply the full ghost-mannequin + editorial-studio + integrated-typography rules
 described in sections 1, 9, 🅰️ below (the existing apparel rule set). Section 9
-("APPAREL & PRODUCT MOCKUP RULES") is the canonical recipe.
+("APPAREL & PRODUCT MOCKUP RULES") is the canonical recipe — but adjust the
+GARMENT SHAPE to match the subtype above.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👟 RECIPE: FOOTWEAR (sneakers / shoes / boots / sandals)
+👟 RECIPE: FOOTWEAR (SUBTYPE-AWARE — read subtype FIRST!)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GOAL: hero product shot of the shoe alone — NO mannequin, NO foot, NO model.
-  • Single shoe (or matched pair) floating or lightly resting in 3/4 perspective
-    showing the side profile + toe box + outsole edge.
-  • Studio backdrop: seamless cream or soft pastel cyclorama OR neutral
-    concrete; NO fabric language, NO garment language, NO ghost-mannequin.
+⚠️ CRITICAL: footwear includes wildly different shoe types. NEVER default to
+"sneaker" if the brief says شبشب/slipper. Dispatch on `subtype`:
+
+  🩴 subtype="slipper" (شبشب / flip-flop / home shoe):
+    • A FLAT slipper or flip-flop with rubber/EVA sole and simple strap or
+      slip-on upper. NOT athletic, NOT laced, NOT high-top.
+    • Materials: soft rubber sole (matte), foam footbed, fabric/PVC strap.
+    • Context: beach sand, pool deck, OR clean home interior wood floor.
+    • Camera: 3/4 from above showing the footbed + strap pattern + sole edge.
+    • FORBIDDEN: laces, athletic mesh upper, basketball silhouette,
+      "Nike-style" forms, sneaker-tongue, swoosh shapes, sport branding.
+
+  🩴 subtype="sandal" (صندل / sandal):
+    • Open sandal with multiple straps (T-strap, criss-cross, gladiator) on
+      a structured sole. Could be casual or dressy.
+    • Materials: leather straps, woven straps, jute sole OR cork footbed.
+    • Camera: 3/4 perspective showing strap layout and footbed.
+    • FORBIDDEN: closed toe, athletic sole, laces.
+
+  👟 subtype="sneaker" (كوتشي / sneaker / trainer):
+    • Athletic sneaker silhouette — closed toe, laces, padded tongue,
+      cushioned midsole, rubber outsole tread.
+    • Materials: knit/mesh upper, leather panels, suede overlays, foam midsole.
+    • Camera: side profile + slight 3/4 to reveal toe box and outsole edge.
+    • FORBIDDEN: open toe, strap-only upper, flat sole.
+
+  🥾 subtype="boot" (بوت / boot):
+    • Ankle or mid-calf boot. Lace-up combat OR pull-on Chelsea OR work boot.
+    • Materials: thick full-grain leather, lugged rubber sole, optional zipper.
+    • Camera: side profile showing shaft height + heel + sole.
+
+  👞 subtype="formal" (كلاسيك / oxford / derby / loafer):
+    • Polished dress shoe — closed lacing (oxford) OR open lacing (derby) OR
+      slip-on (loafer/penny loafer). Sleek leather upper, thin leather sole.
+    • Materials: glossy or semi-matte polished leather (brown / black / oxblood).
+    • Camera: low 3/4 angle, glossy leather catching key light.
+
+  👠 subtype="heels" (كعب / high heels):
+    • Stiletto, block heel, or kitten heel pump. Pointed or rounded toe.
+    • Materials: patent leather, satin, suede; thin sole; sculpted heel.
+    • Camera: side profile emphasizing heel height and shoe arch.
+
+  Default (no subtype) → assume "sneaker" but ONLY if the brief actually
+  implies athletic/casual. If ambiguous, prefer the most visually neutral
+  option for that wording.
+
+UNIVERSAL FOOTWEAR RULES (apply on top of subtype):
+  • Single shoe (or matched pair) floating or lightly resting in 3/4 perspective.
+  • Studio backdrop: seamless cream / soft pastel cyclorama OR neutral concrete.
+  • NO ghost-mannequin, NO foot, NO model, NO leg.
   • Dramatic 45° softbox key + subtle floor shadow. Tack-sharp shoe focus.
-  • Material specificity: leather grain, suede nap, mesh weave, knit upper,
-    rubber outsole tread — describe what's visible.
+  • Material specificity matches the subtype — describe the exact texture
+    (leather grain, suede nap, mesh weave, rubber tread, EVA foam).
   • Text-on-shoe (if any) appears as a small zone on the lateral side panel
-    or tongue — use overlay later; describe the blank zone, not the letters.
-  • RECOMMENDED SIZE: 1024×1024 or 1536×1024 (side profile is wider).
+    OR tongue OR strap — use overlay later; describe the blank zone, not the
+    letters. For SLIPPERS specifically, the text zone is on the footbed
+    (insole) or the top of the strap, NOT a sneaker side panel.
+  • RECOMMENDED SIZE: 1024×1024 (square hero) or 1536×1024 (wide side profile).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎽 RECIPE: ACCESSORY (mug / cap / bag / sticker / tote / watch / jewelry)
@@ -346,11 +443,259 @@ GOAL: photorealistic interior space, architectural angle.
   • RECOMMENDED SIZE: 1536×1024 (architectural wide).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚗 RECIPE: VEHICLE (car wrap / vehicle livery)
+🚗 RECIPE: VEHICLE (SUBTYPE-AWARE: car / truck / motorcycle / bicycle)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GOAL: vehicle side profile with the wrap design applied.
-  • Studio backdrop or asphalt floor, side view showing the full livery.
-  • RECOMMENDED SIZE: 1536×1024.
+GOAL: vehicle hero shot — clean studio render OR architectural ground plane.
+  • subtype="car" → modern sedan/SUV/hatchback, 3/4 front OR side profile,
+    glossy paint with crisp reflections, studio cyclorama OR asphalt floor.
+  • subtype="truck" → utility truck or van, side profile emphasizing cargo area.
+  • subtype="motorcycle" → side profile showing frame, engine, fairing.
+  • subtype="bicycle" → side profile, clean white or wood-plank background.
+  • Color/livery from user's selections. Show realistic glass, headlights,
+    wheels. Soft floor reflection.
+  • NO driver, NO passenger, NO mannequin.
+  • RECOMMENDED SIZE: 1536×1024 (side profile is wider).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🪑 RECIPE: FURNITURE (SUBTYPE-AWARE: table / chair / sofa / bed / storage)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: a SINGLE furniture piece presented as a catalog hero shot.
+NOT a full room interior. NOT a flat-lay.
+
+  Subtype guidance:
+    • subtype="table" → 3/4 perspective showing top surface + legs + edge profile.
+      Materials: solid wood grain (oak/walnut/teak), marble, glass, lacquer.
+      Show realistic leg joinery and edge bevel.
+    • subtype="chair" → side or 3/4 view emphasizing seat-back curve, leg
+      taper, upholstery texture (fabric weave / leather grain). NO ghost-sitter.
+    • subtype="sofa" → straight-on or slight 3/4 showing seat cushions, arm
+      profile, leg base. Throw pillows in 2-3 complementary tones.
+    • subtype="bed" → front-on or 3/4 showing headboard, mattress edge,
+      bedding (1-2 pillows + neutral throw). Frame material visible.
+    • subtype="storage" (wardrobe/shelf/cabinet) → front-on showing doors,
+      handles, shelf grid. Subtle interior glimpse if doors open.
+
+  STAGING:
+    • Single piece centered on a neutral wood or concrete floor with a hint
+      of wall behind (warm cream / soft gray gradient).
+    • Soft daylight from side window OR studio softbox.
+    • Single subtle floor shadow grounding the piece.
+    • Optional 1-2 styling props at periphery (small plant, art book) —
+      slightly out of focus, NEVER cluttered.
+
+  MATERIAL REALISM (highest priority):
+    • Describe the exact wood grain pattern (rift-sawn oak, walnut burl,
+      teak, ash). Glass clarity. Marble veining. Metal finish (brushed
+      brass / matte black powder coat). Upholstery weave/grain.
+    • Visible joinery details: mortise-and-tenon, dovetail, mitered edges.
+
+  CAMERA: 35-50mm equivalent, slight 3/4 angle, eye-level OR slightly high.
+          f/4-f/8 for sharp product with shallow background.
+  COLOR GRADE: warm neutral, magazine catalog feel (West Elm / Hay / Muuto).
+  RECOMMENDED SIZE: 1024×1024 (compact pieces) or 1536×1024 (long pieces).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💻 RECIPE: ELECTRONICS (SUBTYPE-AWARE: laptop / phone / tablet / monitor /
+                         audio / camera / wearable / console)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: Apple-style product photography — sleek, sterile, premium tech feel.
+
+  Subtype guidance:
+    • subtype="laptop" → open at ~110° angle, 3/4 perspective showing keyboard
+      + screen + side profile thickness. Screen displays an abstract gradient
+      OR a clean abstract wallpaper (NO real UI, NO icons, NO text).
+    • subtype="phone" → vertical, 3/4 perspective showing front + side edge.
+      Screen shows an abstract wallpaper. Optional: floating with subtle shadow.
+    • subtype="tablet" → flat or slight angle. Screen abstract content.
+    • subtype="monitor" → front-on or 3/4, stand visible, screen abstract.
+    • subtype="audio" (headphones/earbuds) → 3/4 hero showing earcups +
+      headband OR earbud case open. Materials: matte plastic, brushed metal.
+    • subtype="camera" → side or 3/4 showing lens + body + dials. Visible
+      texture: rubberized grip + magnesium body.
+    • subtype="wearable" (smartwatch) → 3/4 with strap curving, watch face
+      showing abstract gradient (NO real clock UI).
+    • subtype="console" → controller or console body, 3/4 with cable hidden.
+
+  STAGING:
+    • Floating product OR resting on a sleek surface (concrete, glass,
+      polished wood, dark stone).
+    • Background: gradient gray-to-black OR pure off-white seamless cyclorama.
+    • Product hero takes 60-75% of frame.
+
+  LIGHTING:
+    • Two key softboxes (45° front-left + 45° front-right) creating bright
+      highlights along edges. Subtle rim light to separate from background.
+    • Slight reflection beneath product (premium glossy floor).
+
+  MATERIAL REALISM:
+    • Brushed aluminum, anodized finish, glossy glass back, matte plastic,
+      rubberized grip — name the exact finish.
+    • Crisp edge lines (chamfered edges catching highlight).
+
+  FORBIDDEN: real-world UI elements with text/icons, brand logos rendered
+  as actual letters, fake "Apple" or "Samsung" wordmarks, distorted devices.
+
+  CAMERA: 50-85mm equivalent, f/8-f/11 sharp throughout.
+  RECOMMENDED SIZE: 1024×1024 (square hero) or 1536×1024 (wide laptop/monitor).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔌 RECIPE: APPLIANCE (fridge / washer / oven / AC / vacuum)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: home appliance catalog shot — clean, technical, slightly aspirational.
+  • Front-facing or slight 3/4 angle. Doors closed (or one open showing
+    clean empty interior for fridge/oven).
+  • Background: neutral white kitchen wall OR seamless gray studio cyclorama.
+  • Materials: stainless steel brushed finish, matte black, gloss white —
+    describe the exact finish + the LED indicator panel if relevant.
+  • Soft daylight from camera-left + subtle floor shadow.
+  • NO people, NO food spillage, NO clutter on top.
+  • Display panels show abstract LED segments — NO real text/numbers.
+  • RECOMMENDED SIZE: 1024×1536 (most appliances are taller than wide).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏛️ RECIPE: ARCHITECTURE (house / villa / building EXTERIOR / facade)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: hero architectural shot of the WHOLE BUILDING from outside.
+  • 3/4 perspective from ground level OR slight elevated drone angle.
+  • Show: full facade + roof line + landscaping context (driveway, plants,
+    fence, sky).
+  • Time of day: golden hour OR clean blue-hour for dramatic feel.
+  • Materials per user selection: stone cladding, concrete + wood, brick,
+    stucco, glass curtain wall, marble — describe panel layout and texture.
+  • Sky: soft cloud gradient OR clean dusk blue.
+  • Optional: 1-2 distant figures for scale (silhouetted, NOT detailed faces).
+  • NO interior view (that's the "interior" recipe).
+  • RECOMMENDED SIZE: 1536×1024 (architectural wide).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🍽️ RECIPE: FOOD (dish / dessert / fast food / beverage)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: editorial food photography — magazine cover quality.
+
+  Subtype guidance:
+    • subtype="dish" → plated entree, 3/4 OR top-down 90°. Garnish, sauce
+      drips, steam wisps. Background: dark wood, slate, or linen.
+    • subtype="dessert" → close-up macro showing texture (cake crumbs, glaze
+      sheen, sprinkles). Vertical or 45° angle.
+    • subtype="fastfood" → hero stack (burger cross-section showing fillings,
+      pizza slice mid-pull with cheese strand). Bold, appetizing.
+    • subtype="beverage" → tall glass with visible condensation, ice cubes,
+      garnish. Backlit to reveal liquid color. Optional bar/cafe context.
+
+  STAGING:
+    • Single hero item OR small cluster (1 plate + side garnish + 1 drink).
+    • Realistic crumbs / sauce drips / scattered ingredients add authenticity.
+    • Props: linen napkin, vintage cutlery, wooden serving board.
+
+  LIGHTING:
+    • Natural-window daylight from one side OR warm tungsten for moody.
+    • Slight rim-light on liquids/glazes to make them glisten.
+    • Selective focus (f/2.8-f/4) — hero in tack focus, periphery soft.
+
+  COLOR GRADE: warm + slightly desaturated; appetizing but not over-saturated.
+  REFERENCE: Bon Appetit / Cereal Magazine / Kinfolk food editorial.
+  RECOMMENDED SIZE: 1024×1024 (square — Instagram-optimized).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 RECIPE: JEWELRY (SUBTYPE-AWARE: ring / necklace / bracelet / earring)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: ultra-premium jewelry macro photography — Cartier / Tiffany / Bvlgari
+catalog feel.
+
+  Subtype guidance:
+    • subtype="ring" → macro 3/4 showing band + setting + gemstone refraction.
+      Resting on velvet OR floating.
+    • subtype="necklace" → laid flat in a graceful curve on dark velvet OR
+      worn invisibly (ghost-neck — chain visible, no actual model).
+    • subtype="bracelet" → laid flat in S-curve OR worn on ghost wrist.
+    • subtype="earring" → pair shown floating OR on neutral display.
+
+  MATERIAL REALISM:
+    • Specify metal: 18k yellow gold / 18k white gold / rose gold /
+      platinum / sterling silver. Describe the gleam and surface finish
+      (mirror polish / brushed matte / hammered texture).
+    • Gemstone: specify cut (round brilliant, princess, emerald cut, oval,
+      pear), color, and clarity. Describe internal light refraction and
+      fire (rainbow facet sparkles).
+    • Surface micro-texture (engraving lines, milgrain border) if relevant.
+
+  LIGHTING:
+    • Diffused softbox + macro fill light to control metal hot-spots.
+    • Strategic specular highlights on metal edges and gemstone facets.
+    • Black or deep navy velvet background for contrast OR seamless white.
+
+  CAMERA: 100mm macro equivalent, f/8-f/11 for full sharpness, focus
+          stacking look. Slight 3/4 to reveal depth.
+  RECOMMENDED SIZE: 1024×1024 (square macro).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💄 RECIPE: COSMETICS (lipstick / cream / perfume / makeup product)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: luxury beauty product photography — Sephora hero shot quality.
+  • Single product centered, slight 3/4 angle, floating OR resting on a
+    polished surface (marble, satin, glass).
+  • Show the product packaging design clearly (cap, label area, bottle shape).
+  • If cap is off OR product is uncapped (lipstick bullet, cream texture),
+    show the rich product texture/color clearly.
+  • Background: brand-color gradient OR luxe textured surface (marble,
+    silk fabric, sand).
+  • Lighting: soft beauty light + edge highlights on glass/metal.
+  • Optional: 1 supporting prop (rose petals, scattered powder, swatch).
+  • Label area = blank zone (overlay handles brand name later).
+  • RECOMMENDED SIZE: 1024×1024 OR 1024×1536 (tall bottles).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📱 RECIPE: SOCIAL_POST (Instagram / Facebook / TikTok post)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: scroll-stopping social media post — mobile-first, vibrant, share-worthy.
+  • Bold composition optimized for small phone screens.
+  • Large central hero element (product, illustration, or text-on-color).
+  • Vibrant on-brand color block OR gradient background.
+  • Generous negative space at top/bottom for caption/CTA overlay.
+  • Style trends 2024-2026: glassmorphism, soft gradients, oversized type,
+    grain texture, soft drop shadows, retro chrome accents.
+  • Square format (1080×1080 conceptually) for feed posts; 9:16 for stories.
+  • If text is needed → leave clean zone for post-overlay (do NOT generate
+    real letters).
+  • RECOMMENDED SIZE: 1024×1024 (square) or 1024×1536 (story vertical).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎭 RECIPE: CHARACTER (mascot / avatar / cartoon character)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: original character illustration — Pixar-quality mascot OR flat vector.
+  • Full-body OR upper-body view of the character.
+  • Distinctive silhouette + expressive face.
+  • Clean white OR brand-color background.
+  • Style options: 3D Pixar-like, 2D flat vector, manga/anime, watercolor.
+  • If for a brand → incorporate brand colors prominently.
+  • NO real celebrity faces, NO copyrighted character likenesses.
+  • RECOMMENDED SIZE: 1024×1024 (square) or 1024×1536 (full-body portrait).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎨 RECIPE: ILLUSTRATION (digital art / drawing / concept art / portrait)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: standalone artwork — gallery-quality digital painting or vector art.
+  • Strong central composition with clear subject and atmosphere.
+  • Style per user selection: watercolor, oil painting, digital concept art,
+    flat vector, line art, manga, surrealist, art-nouveau.
+  • Rich color palette consistent with chosen style.
+  • Visible brush texture / paint strokes / vector clarity (style-dependent).
+  • NO text rendering inside artwork.
+  • RECOMMENDED SIZE: aspect ratio depends on composition (landscape / portrait / square).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🏭 RECIPE: INDUSTRIAL (machine / equipment / tool)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GOAL: technical product render — engineering catalog quality.
+  • 3/4 perspective showing operational surfaces + controls + base.
+  • Materials: industrial steel, anodized aluminum, powder-coated metal,
+    rubber gaskets, copper piping. Describe weld lines, bolt patterns,
+    control panels.
+  • Background: clean white seamless OR factory floor concrete.
+  • Strong technical lighting — multiple directional lights revealing form.
+  • NO operator, NO worker, NO action.
+  • Indicator panels show abstract LED states (NO real digits).
+  • RECOMMENDED SIZE: 1024×1024 or 1536×1024.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 The sections below (1-9, 🅰️, 🅱️) are the DETAILED GUIDANCE you draw from
@@ -676,6 +1021,7 @@ Return STRICT JSON only:
   "mega_prompt": "<single dense paragraph, 150-220 words, English>",
   "negative_prompt": "<comma-separated, specific>",
   "recommended_size": "<1024x1024 | 1024x1536 | 1536x1024>",
+  "subtype_used": "<echo back the subtype you applied — e.g. 'slipper' / 'tshirt' / 'table' — for debugging>",
   "print_placement": "<'front' | 'back'> (apparel only; 'front' for non-apparel)",
   "print_dimensions_cm": {"width": <positive number>, "height": <positive number>},
   "text_overlay": {
@@ -938,11 +1284,29 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
     else:
         presentation_category = derived_category
 
+    # 🎯 Subtype detection — first trust the LLM, then fall back to keyword
+    # classifier on the raw idea. The subtype tells compose_mega_prompt which
+    # branch of the recipe to apply (e.g. footwear → slipper vs sneaker).
+    llm_subtype = str(schema.get('subtype') or '').strip().lower()
+    derived_subtype = _classify_subtype(raw, presentation_category)
+    # Trust the keyword classifier whenever it gives a confident answer —
+    # the LLM tends to leave subtype empty or guess "sneaker" by default.
+    if derived_subtype:
+        subtype = derived_subtype
+        if llm_subtype and llm_subtype != derived_subtype:
+            logger.info(
+                f'[ANALYZE] LLM said subtype={llm_subtype} but keyword '
+                f'classifier said {derived_subtype} → using {derived_subtype}'
+            )
+    else:
+        subtype = llm_subtype
+
     return {
         'success': True,
         'domain': str(schema.get('domain') or 'General Design')[:80],
         'domain_ar': str(schema.get('domain_ar') or '')[:80],
         'presentation_category': presentation_category,
+        'subtype': subtype,
         'fields': cleaned,
     }
 
@@ -951,20 +1315,204 @@ def analyze_idea(raw_idea: str) -> dict[str, Any]:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────
 def _fallback_fields_for(domain: str) -> list[dict]:
-    """يرجع schema افتراضي لو الـ LLM فشل تماماً — يضمن للمستخدم فورم دايماً."""
+    """يرجع schema افتراضي لو الـ LLM فشل تماماً — يضمن للمستخدم فورم دايماً.
+
+    الـ fallback fields بـ key kana بـ category بدل ما تكون generic.
+    """
     d = (domain or '').lower()
-    # تيشرت / ملابس
-    if any(k in d for k in ('tshirt', 't-shirt', 'shirt', 'apparel', 'clothing', 'تيشرت', 'قميص', 'ملابس')):
+
+    # ── Footwear ─────────────────────────────────────────────────
+    if any(k in d for k in ('شبشب', 'صندل', 'كوتشي', 'حذاء', 'بوت',
+                            'shoe', 'sneaker', 'slipper', 'sandal', 'boot',
+                            'footwear')):
         return [
+            {'key': 'subtype', 'label': 'نوع الحذاء', 'type': 'select',
+             'options': ['شبشب / Slipper', 'صندل / Sandal', 'كوتشي / Sneaker',
+                         'بوت / Boot', 'كلاسيك / Formal', 'كعب / Heels'],
+             'default': 'كوتشي / Sneaker'},
+            {'key': 'main_color', 'label': 'اللون الأساسي', 'type': 'color',
+             'default': '#1a1a1a'},
+            {'key': 'material', 'label': 'الخامة', 'type': 'select',
+             'options': ['جلد طبيعي', 'جلد صناعي', 'قماش', 'مطاط',
+                         'شامواه', 'كانفاس'], 'default': 'جلد طبيعي'},
+            {'key': 'view', 'label': 'زاوية العرض', 'type': 'select',
+             'options': ['جانبي 3/4', 'أمامي', 'علوي', 'خلفي'],
+             'default': 'جانبي 3/4'},
+        ]
+
+    # ── Apparel ──────────────────────────────────────────────────
+    if any(k in d for k in ('tshirt', 't-shirt', 'shirt', 'apparel', 'clothing',
+                            'hoodie', 'تيشرت', 'قميص', 'ملابس', 'هودي',
+                            'عباية', 'فستان')):
+        return [
+            {'key': 'subtype', 'label': 'نوع القطعة', 'type': 'select',
+             'options': ['تيشرت', 'هودي', 'سويت شيرت', 'بولو', 'فانلة',
+                         'جاكيت', 'عباية', 'فستان'],
+             'default': 'تيشرت'},
             {'key': 'size', 'label': 'المقاس', 'type': 'select',
              'options': ['S', 'M', 'L', 'XL', 'XXL'], 'default': 'L'},
-            {'key': 'shirt_color', 'label': 'لون القميص', 'type': 'color', 'default': '#FFFFFF'},
-            {'key': 'print_color', 'label': 'لون الطباعة', 'type': 'color', 'default': '#000000'},
+            {'key': 'shirt_color', 'label': 'لون القطعة', 'type': 'color',
+             'default': '#FFFFFF'},
             {'key': 'style', 'label': 'الأسلوب', 'type': 'select',
-             'options': ['عصري بسيط', 'كلاسيكي', 'رياضي', 'فني / Artistic', 'Streetwear'],
-             'default': 'عصري بسيط'},
+             'options': ['عصري بسيط', 'كلاسيكي', 'رياضي', 'فاخر',
+                         'Streetwear'], 'default': 'عصري بسيط'},
         ]
-    # عام (default)
+
+    # ── Furniture ────────────────────────────────────────────────
+    if any(k in d for k in ('طربيزة', 'كرسي', 'كنبة', 'سرير', 'خزانة',
+                            'table', 'chair', 'sofa', 'bed', 'wardrobe',
+                            'furniture', 'desk')):
+        return [
+            {'key': 'subtype', 'label': 'نوع القطعة', 'type': 'select',
+             'options': ['طربيزة / Table', 'كرسي / Chair', 'كنبة / Sofa',
+                         'سرير / Bed', 'خزانة / Wardrobe', 'مكتب / Desk',
+                         'رف / Shelf'], 'default': 'طربيزة / Table'},
+            {'key': 'material', 'label': 'الخامة', 'type': 'select',
+             'options': ['خشب أوك طبيعي', 'خشب جوز', 'MDF لامع', 'معدن',
+                         'مزيج خشب ومعدن', 'رخام', 'زجاج'],
+             'default': 'خشب أوك طبيعي'},
+            {'key': 'style', 'label': 'الأسلوب', 'type': 'select',
+             'options': ['Modern Minimalist', 'Scandinavian', 'Industrial',
+                         'Mid-century', 'Classic', 'Luxury'],
+             'default': 'Modern Minimalist'},
+            {'key': 'main_color', 'label': 'اللون الأساسي', 'type': 'color',
+             'default': '#8B6F47'},
+            {'key': 'dimensions', 'label': 'الأبعاد', 'type': 'dimensions',
+             'unit': 'cm', 'axes': ['length', 'width', 'height'],
+             'default': '{"length":120,"width":60,"height":75}'},
+        ]
+
+    # ── Electronics ──────────────────────────────────────────────
+    if any(k in d for k in ('لاب توب', 'لابتوب', 'موبايل', 'تابلت', 'سماعات',
+                            'laptop', 'phone', 'tablet', 'headphones',
+                            'camera', 'electronics')):
+        return [
+            {'key': 'subtype', 'label': 'نوع المنتج', 'type': 'select',
+             'options': ['Laptop', 'Phone', 'Tablet', 'Monitor', 'Headphones',
+                         'Camera', 'Smartwatch'], 'default': 'Laptop'},
+            {'key': 'main_color', 'label': 'لون البودي', 'type': 'color',
+             'default': '#0a0a0a'},
+            {'key': 'finish', 'label': 'الفينيش', 'type': 'select',
+             'options': ['Matte Black', 'Space Gray', 'Silver',
+                         'Brushed Aluminum', 'Glossy White', 'Gold'],
+             'default': 'Space Gray'},
+            {'key': 'view', 'label': 'زاوية العرض', 'type': 'select',
+             'options': ['3/4 perspective', 'Front', 'Side', 'Top-down',
+                         'Floating angle'], 'default': '3/4 perspective'},
+        ]
+
+    # ── Architecture ─────────────────────────────────────────────
+    if any(k in d for k in ('بيت', 'فيلا', 'عمارة', 'مبنى', 'house', 'villa',
+                            'building', 'facade', 'architecture')):
+        return [
+            {'key': 'subtype', 'label': 'نوع المبنى', 'type': 'select',
+             'options': ['فيلا', 'بيت عائلي', 'عمارة سكنية', 'برج',
+                         'مبنى تجاري', 'فاساد محل'], 'default': 'فيلا'},
+            {'key': 'style', 'label': 'الطراز', 'type': 'select',
+             'options': ['Modern Contemporary', 'Mediterranean', 'Classic',
+                         'Islamic', 'Industrial', 'Minimalist'],
+             'default': 'Modern Contemporary'},
+            {'key': 'main_material', 'label': 'الخامة الرئيسية', 'type': 'select',
+             'options': ['Stone & glass', 'Concrete & wood', 'Brick',
+                         'Stucco', 'Marble cladding'], 'default': 'Stone & glass'},
+            {'key': 'main_color', 'label': 'اللون الأساسي', 'type': 'color',
+             'default': '#d4cab8'},
+        ]
+
+    # ── Food ─────────────────────────────────────────────────────
+    if any(k in d for k in ('طبق', 'وجبة', 'كيك', 'بيتزا', 'مشروب', 'قهوة',
+                            'dish', 'food', 'cake', 'pizza', 'drink',
+                            'coffee', 'dessert')):
+        return [
+            {'key': 'subtype', 'label': 'نوع الأكلة', 'type': 'select',
+             'options': ['طبق رئيسي', 'حلويات', 'فاست فود', 'مشروب',
+                         'مقبلات', 'سلطة'], 'default': 'طبق رئيسي'},
+            {'key': 'style', 'label': 'أسلوب التقديم', 'type': 'select',
+             'options': ['Fine dining', 'Rustic / Cozy', 'Street food',
+                         'Editorial magazine', 'Top-down flat-lay',
+                         'Close-up macro'], 'default': 'Editorial magazine'},
+            {'key': 'lighting', 'label': 'الإضاءة', 'type': 'select',
+             'options': ['Natural daylight', 'Warm studio', 'Dramatic dark',
+                         'Soft moody'], 'default': 'Natural daylight'},
+        ]
+
+    # ── Jewelry ──────────────────────────────────────────────────
+    if any(k in d for k in ('خاتم', 'سلسلة', 'إسوارة', 'حلق', 'مجوهرات',
+                            'ring', 'necklace', 'bracelet', 'earring',
+                            'jewelry', 'jewellery')):
+        return [
+            {'key': 'subtype', 'label': 'نوع المجوهرة', 'type': 'select',
+             'options': ['خاتم', 'سلسلة + بندانت', 'إسوارة', 'حلق', 'دبلة'],
+             'default': 'خاتم'},
+            {'key': 'metal', 'label': 'المعدن', 'type': 'select',
+             'options': ['ذهب أصفر 18 قيراط', 'ذهب أبيض', 'ذهب وردي',
+                         'فضة استرلينج', 'بلاتين'],
+             'default': 'ذهب أصفر 18 قيراط'},
+            {'key': 'gemstone', 'label': 'الحجر الكريم', 'type': 'select',
+             'options': ['ألماس', 'ياقوت', 'زمرد', 'سافير', 'بدون أحجار',
+                         'مرجان', 'لؤلؤ'], 'default': 'ألماس'},
+            {'key': 'style', 'label': 'الأسلوب', 'type': 'select',
+             'options': ['Classic', 'Modern minimalist', 'Vintage',
+                         'Statement bold', 'Delicate'], 'default': 'Classic'},
+        ]
+
+    # ── Cosmetics ────────────────────────────────────────────────
+    if any(k in d for k in ('روج', 'كريم', 'عطر', 'مكياج', 'lipstick',
+                            'cream', 'perfume', 'makeup', 'cosmetic')):
+        return [
+            {'key': 'subtype', 'label': 'نوع المنتج', 'type': 'select',
+             'options': ['روج', 'كريم بشرة', 'عطر', 'ماسكارا', 'فاونديشن',
+                         'باليت ظلال', 'سيروم'], 'default': 'كريم بشرة'},
+            {'key': 'brand_color', 'label': 'لون البراند', 'type': 'color',
+             'default': '#d4a373'},
+            {'key': 'aesthetic', 'label': 'الجمالية', 'type': 'select',
+             'options': ['Luxury (gold/black)', 'Clean minimalist',
+                         'Bold playful', 'Natural organic', 'Korean K-beauty'],
+             'default': 'Clean minimalist'},
+        ]
+
+    # ── Vehicle ──────────────────────────────────────────────────
+    if any(k in d for k in ('سيارة', 'موتوسيكل', 'عربية', 'car', 'vehicle',
+                            'motorcycle')):
+        return [
+            {'key': 'subtype', 'label': 'نوع المركبة', 'type': 'select',
+             'options': ['Sedan', 'SUV', 'Hatchback', 'Pickup truck',
+                         'Sports car', 'Motorcycle'], 'default': 'Sedan'},
+            {'key': 'main_color', 'label': 'اللون الأساسي', 'type': 'color',
+             'default': '#1a1a1a'},
+            {'key': 'view', 'label': 'زاوية العرض', 'type': 'select',
+             'options': ['Side profile', '3/4 front', '3/4 rear', 'Top-down',
+                         'Front face-on'], 'default': '3/4 front'},
+        ]
+
+    # ── Appliance ────────────────────────────────────────────────
+    if any(k in d for k in ('ثلاجة', 'غسالة', 'بوتاجاز', 'fridge', 'washer',
+                            'appliance', 'oven')):
+        return [
+            {'key': 'subtype', 'label': 'نوع الجهاز', 'type': 'select',
+             'options': ['Fridge', 'Washing machine', 'Microwave', 'Oven',
+                         'Dishwasher', 'AC unit'], 'default': 'Fridge'},
+            {'key': 'finish', 'label': 'الفينيش', 'type': 'select',
+             'options': ['Stainless steel', 'Matte black', 'White gloss',
+                         'Brushed silver'], 'default': 'Stainless steel'},
+        ]
+
+    # ── Social post / Signage / Logo ─────────────────────────────
+    if any(k in d for k in ('بوست', 'منشور', 'بنر', 'لوجو', 'بوستر',
+                            'post', 'banner', 'logo', 'poster', 'signage')):
+        return [
+            {'key': 'text_on_design', 'label': 'النص على التصميم',
+             'type': 'text', 'placeholder': 'اسم البراند أو الرسالة',
+             'default': ''},
+            {'key': 'brand_color', 'label': 'لون البراند', 'type': 'color',
+             'default': '#7c3aed'},
+            {'key': 'style', 'label': 'الأسلوب', 'type': 'select',
+             'options': ['Modern minimalist', 'Bold playful', 'Corporate',
+                         'Luxury elegant', 'Vintage retro'],
+             'default': 'Modern minimalist'},
+        ]
+
+    # ── عام (default) ────────────────────────────────────────────
     return [
         {'key': 'style', 'label': 'الأسلوب العام', 'type': 'select',
          'options': ['عصري بسيط', 'فاخر / Luxury', 'كلاسيكي', 'حيوي / Vibrant',
@@ -1498,11 +2046,16 @@ def compose_mega_prompt(
     selections: dict[str, str],
     reference_descriptions: list[str] | None = None,
     presentation_category: str | None = None,
+    subtype: str | None = None,
 ) -> dict[str, Any]:
     """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt.
 
     presentation_category: لو ما اتبعتش، نستنتجها من الـ keywords. بتـ control
     الـ recipe block في _MEGA_SYSTEM (document vs apparel vs logo vs ...).
+
+    subtype: نوع فرعي داخل الـ category (مثلاً footwear→slipper/sneaker/boot).
+    لو None → نستنتجها من الـ raw_idea + selections.values() عبر _classify_subtype.
+    دي بتـ guide الـ LLM يطبق الـ subtype-specific guidance بدل ما يـ generalize.
     """
     raw = (raw_idea or '').strip()
     if not raw:
@@ -1513,6 +2066,18 @@ def compose_mega_prompt(
     if category not in PRESENTATION_CATEGORIES:
         category = _classify_presentation_category(raw, domain)
 
+    # Resolve subtype — caller may pass explicit subtype (from selections.subtype
+    # dropdown), else we classify from raw_idea + selections values.
+    sub = (subtype or '').strip().lower() or None
+    if not sub:
+        # Build a blob that includes both the raw idea AND the user's selection
+        # values — sometimes the subtype is only in selections (e.g. user picked
+        # "شبشب / Slipper" from the dropdown).
+        sub_blob = raw + ' ' + ' '.join(
+            str(v) for v in (selections or {}).values() if v
+        )
+        sub = _classify_subtype(sub_blob, category)
+
     selection_lines = '\n'.join(
         f'- {k}: {v}' for k, v in (selections or {}).items() if v
     )
@@ -1522,12 +2087,19 @@ def compose_mega_prompt(
         for i, desc in enumerate(reference_descriptions, 1):
             refs += f'  [{i}] {desc}\n'
 
+    subtype_line = (
+        f'subtype: {sub}  ← REQUIRED: Apply the "subtype={sub}" branch within '
+        f'the {category.upper()} recipe. Do NOT default to a different subtype '
+        f'(e.g. if subtype=slipper, NEVER produce a sneaker).\n'
+    ) if sub else ''
+
     user_msg = (
         f'Raw idea: {raw}\n'
         f'Detected domain: {domain or "General"}\n'
         f'presentation_category: {category}  '
         f'← APPLY EXACTLY THE "{category.upper()}" RECIPE BLOCK FROM THE SYSTEM PROMPT. '
         f'Do NOT mix recipes; ignore guidance for other categories.\n'
+        f'{subtype_line}'
         f'User selections:\n{selection_lines or "(none)"}'
         + refs
     )
@@ -1720,6 +2292,61 @@ def compose_mega_prompt(
         default_w, default_h = 500.0, 400.0  # cm = 5m × 4m room
     elif category == 'vehicle':
         default_w, default_h = 450.0, 180.0  # car side profile
+    # ── New categories ───────────────────────────────────────────
+    elif category == 'furniture':
+        if sub == 'table':
+            default_w, default_h = 120.0, 75.0
+        elif sub == 'chair':
+            default_w, default_h = 50.0, 85.0
+        elif sub == 'sofa':
+            default_w, default_h = 220.0, 90.0
+        elif sub == 'bed':
+            default_w, default_h = 200.0, 160.0
+        elif sub == 'storage':
+            default_w, default_h = 120.0, 200.0
+        else:
+            default_w, default_h = 100.0, 100.0
+    elif category == 'electronics':
+        if sub == 'laptop':
+            default_w, default_h = 35.0, 24.0
+        elif sub == 'phone':
+            default_w, default_h = 7.5, 16.0
+        elif sub == 'tablet':
+            default_w, default_h = 25.0, 18.0
+        elif sub == 'monitor':
+            default_w, default_h = 60.0, 35.0
+        elif sub == 'audio':
+            default_w, default_h = 18.0, 20.0
+        elif sub == 'camera':
+            default_w, default_h = 14.0, 10.0
+        else:
+            default_w, default_h = 20.0, 15.0
+    elif category == 'appliance':
+        # Most appliances are tall
+        default_w, default_h = 60.0, 180.0
+    elif category == 'architecture':
+        default_w, default_h = 1500.0, 800.0  # cm: 15m × 8m facade
+    elif category == 'food':
+        default_w, default_h = 25.0, 25.0  # plated dish / glass diameter
+    elif category == 'jewelry':
+        if sub == 'ring':
+            default_w, default_h = 2.0, 2.5
+        elif sub == 'necklace':
+            default_w, default_h = 40.0, 5.0
+        elif sub == 'bracelet':
+            default_w, default_h = 18.0, 1.5
+        elif sub == 'earring':
+            default_w, default_h = 1.5, 3.0
+        else:
+            default_w, default_h = 5.0, 5.0
+    elif category == 'cosmetics':
+        default_w, default_h = 5.0, 12.0  # typical bottle / tube
+    elif category == 'industrial':
+        default_w, default_h = 100.0, 150.0
+    elif category == 'social_post':
+        default_w, default_h = 1080.0 / 37.8, 1080.0 / 37.8  # 1080px → ~28.6cm @96dpi
+    elif category in ('character', 'illustration'):
+        default_w, default_h = 25.0, 35.0
     else:
         default_w, default_h = 25.0, 25.0
 
@@ -1745,6 +2372,53 @@ def compose_mega_prompt(
                 r'(?i)\b' + _re_leak.escape(term) + r'\b', '', mega
             )
         mega = _re_leak.sub(r'\s{2,}', ' ', mega).strip(' ,.')
+
+    # 🛡️ FOOTWEAR subtype leakage — لو الـ subtype = slipper، شيل أي ذكر
+    # لـ sneaker/laces/athletic عشان الـ FLUX ميرجعش لـ default sneaker.
+    # ده الإصلاح الرئيسي لـ bug الـ "شبشب طلع كوتشي".
+    if category == 'footwear':
+        import re as _re_foot
+        if sub == 'slipper':
+            SLIPPER_LEAK = (
+                'sneaker', 'sneakers', 'athletic shoe', 'running shoe',
+                'laces', 'lace-up', 'high-top', 'basketball', 'trainer',
+                'Nike', 'swoosh', 'sport shoe', 'tennis shoe', 'jogger',
+            )
+            for term in SLIPPER_LEAK:
+                mega = _re_foot.sub(
+                    r'(?i)\b' + _re_foot.escape(term) + r'\b', '', mega
+                )
+        elif sub == 'sandal':
+            SANDAL_LEAK = (
+                'sneaker', 'sneakers', 'closed toe', 'laces', 'high-top',
+                'basketball', 'athletic',
+            )
+            for term in SANDAL_LEAK:
+                mega = _re_foot.sub(
+                    r'(?i)\b' + _re_foot.escape(term) + r'\b', '', mega
+                )
+        elif sub == 'boot':
+            BOOT_LEAK = ('sneaker', 'sneakers', 'flip-flop', 'slipper', 'sandal')
+            for term in BOOT_LEAK:
+                mega = _re_foot.sub(
+                    r'(?i)\b' + _re_foot.escape(term) + r'\b', '', mega
+                )
+        mega = _re_foot.sub(r'\s{2,}', ' ', mega).strip(' ,.')
+
+    # 🛡️ FURNITURE / ELECTRONICS leak — لو الـ category مش interior،
+    # شيل تسريبات room/space عشان مرجعش لو الواحد طلب طربيزة بس.
+    if category in ('furniture', 'electronics', 'appliance', 'jewelry',
+                    'cosmetics', 'food', 'industrial'):
+        import re as _re_obj
+        ROOM_LEAK = (
+            'living room', 'bedroom', 'kitchen interior', 'full room',
+            'architectural space', 'wide-angle room', 'room corner',
+        )
+        for term in ROOM_LEAK:
+            mega = _re_obj.sub(
+                r'(?i)' + _re_obj.escape(term), '', mega
+            )
+        mega = _re_obj.sub(r'\s{2,}', ' ', mega).strip(' ,.')
 
     # 🛡️ Document-specific cleanup — FLUX keeps adding editorial props
     # (pencil/marble/desk) even when told not to. Strip any leak terms.
@@ -1774,4 +2448,5 @@ def compose_mega_prompt(
         'text_overlay': text_overlay,
         'print_dimensions_cm': {'width': round(w_cm, 1), 'height': round(h_cm, 1)},
         'presentation_category': category,
+        'subtype': sub or '',
     }

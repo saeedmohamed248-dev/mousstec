@@ -17,7 +17,7 @@ from .models import (
     Inventory, PurchaseInvoice, PurchaseInvoiceItem,
     SaleInvoice, SaleInvoiceItem, StockTransfer,
     FinancialTransaction, Product, ScrapDismantlingJob,
-    SaleInvoiceServiceItem,
+    SaleInvoiceServiceItem, CustomerFeedback,
 )
 from .services.invoice_service import InvoiceService
 from .services.inventory_service import InventoryService
@@ -87,6 +87,14 @@ def execute_purchase_posting(sender, instance, **kwargs):
 def execute_sale_posting(sender, instance, **kwargs):
     if instance.status == 'posted' and not instance.is_applied:
         InvoiceService.execute_sale(instance)
+
+
+@receiver(post_save, sender=SaleInvoice)
+def create_customer_feedback_on_post(sender, instance, **kwargs):
+    """Pillar 4 — when an invoice transitions to 'posted', mint a public UUID
+    feedback record so the cashier can share the rating link with the customer."""
+    if instance.status == 'posted':
+        CustomerFeedback.objects.get_or_create(sale_invoice=instance)
 
 
 # =====================================================================
