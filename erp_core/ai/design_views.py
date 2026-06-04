@@ -349,9 +349,81 @@ def design_generate(request):
         except Exception:
             print_spec_pdf_url = f'/ai/design/{log_id}/print-spec.pdf'
 
+    # 💾 Auto-save to portfolio for customer audience → unified marketplace loop
+    # يولّد design_code فوراً عشان الـ refinement chat يقدر يفتح ويعدل التصميم
+    # من غير ما المستخدم يحتاج يدوس thumbs-up الأول.
+    design_code = None
+    design_id = None
+    if audience == 'customer' and customer and image_url:
+        try:
+            from clients.models import CustomerDesign
+            existing = CustomerDesign.objects.filter(
+                customer_id=customer.id, image_url=image_url[:600],
+            ).first()
+            if existing:
+                design_code = str(existing.design_code)
+                design_id = existing.id
+            else:
+                valid_sizes = dict(CustomerDesign.SIZE_PRESETS).keys()
+                size_preset = size if size in valid_sizes else 'auto'
+                title = (raw_idea or 'تصميم AI')[:60]
+                sel_lines = '\n'.join(f'• {k}: {v}' for k, v in (clean_selections or {}).items())
+                desc = (
+                    f'المجال: {domain}\n'
+                    f'الفكرة: {raw_idea}\n\n'
+                    f'الاختيارات:\n{sel_lines}'
+                )[:2000]
+                design = CustomerDesign.objects.create(
+                    customer_id=customer.id,
+                    is_free_trial=True,
+                    title=title,
+                    description=desc,
+                    category='other',
+                    raw_input=(raw_idea or '')[:2000],
+                    engineered_prompt=(mega_prompt or '')[:2000],
+                    negative_prompt=(negative or '')[:1000],
+                    image_url=image_url[:600],
+                    model_used=(img.get('model') or 'flux')[:50],
+                    size_preset=size_preset,
+                )
+                design_code = str(design.design_code)
+                design_id = design.id
+                # سجّل أول رسالتين في الـ chat history (user idea + assistant image)
+                try:
+                    from clients.models import DesignChatMessage
+                    DesignChatMessage.objects.create(
+                        design=design, role='user', content=raw_idea[:500], image_url=''
+                    )
+                    DesignChatMessage.objects.create(
+                        design=design, role='assistant',
+                        content=f'تم توليد التصميم: {title}',
+                        image_url=image_url[:600],
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning(f'[DESIGN GENERATE] auto-save to portfolio failed (non-fatal): {e}')
+
+    # 🧵 Structured product/print metadata — هيتعرض جنب الصورة في الـ UI
+    # نستنتجه من الـ domain + selections (مش هيرجع من الـ LLM بشكل ثابت).
+    text_overlay_info = mega.get('text_overlay') if isinstance(mega, dict) else None
+    is_apparel = any(k in (domain or '').lower() for k in (
+        'apparel', 'tshirt', 't-shirt', 'shirt', 'hoodie', 'sweatshirt', 'garment', 'clothing',
+    ))
+    structured_meta = {
+        'fabric': '100% Combed Cotton — Jersey Knit' if is_apparel else None,
+        'print_tech': 'DTG / Screen-Print (integrated ink absorption)' if is_apparel else None,
+        'placement': (mega.get('print_placement') if isinstance(mega, dict) else None) or ('front' if is_apparel else None),
+        'suggested_dimensions': size,
+        'text_overlay': bool(text_overlay_info),
+        'overlay_applied': overlay_applied,
+    }
+
     return JsonResponse({
         'success': True,
         'log_id': log_id,
+        'design_code': design_code,
+        'design_id': design_id,
         'audience': audience,
         'domain': domain,
         'raw_idea': raw_idea,
@@ -365,6 +437,7 @@ def design_generate(request):
         'print_spec_pdf_url': print_spec_pdf_url,
         'provider': img.get('provider'),
         'model': img.get('model'),
+        'structured_meta': structured_meta,
         'balance': credit_info.get('balance') if credit_info else None,
         'credit': credit_info,
     })
@@ -497,24 +570,61 @@ def design_print_spec_pdf(request, log_id: int):
             '</body></html>'
         )
 
-    # ── Gather data ──
+    # ── Gather data — defensive: unified schema may store text_overlay as
+    # either a flat string OR a nested {text, position, color} dict. كل
+    # extraction بـ try/except عشان أي شكل غير متوقع ميـ crash-ش الـ PDF.
     text = ''
     text_color = '#000000'
     text_position = 'center'
-    if isinstance(log.selections, dict):
-        for k, v in log.selections.items():
-            kl = (k or '').lower()
-            if any(t in kl for t in ('text_on_design', 'text', 'النص', 'كتابة')) and v and not text:
-                text = str(v)
-            if 'color' in kl and isinstance(v, str) and v.startswith('#'):
-                text_color = v
 
-    # Category — نـ derive من detected_domain أو من ('category', ...)
-    cat = (log.detected_domain or '').lower()
+    def _safe_str(val) -> str:
+        """يـ extract نص نظيف من أي قيمة. dict → field 'text'. list → join. غير كده → str()."""
+        if val is None:
+            return ''
+        if isinstance(val, str):
+            return val.strip()
+        if isinstance(val, dict):
+            return str(val.get('text') or val.get('content') or val.get('value') or '').strip()
+        if isinstance(val, (list, tuple)):
+            return ', '.join(_safe_str(x) for x in val if x).strip()
+        return str(val).strip()
+
+    selections = log.selections if isinstance(log.selections, dict) else {}
+    try:
+        for k, v in selections.items():
+            kl = (k or '').lower()
+            # text content (دعم النص الجديد + الـ keys القديمة)
+            if any(t in kl for t in ('text_on_design', 'text_overlay', 'text', 'النص', 'كتابة')) and not text:
+                extracted = _safe_str(v)
+                if extracted:
+                    text = extracted
+            # color — يدعم string مباشر أو nested {color: '#xxx'}
+            if 'color' in kl:
+                if isinstance(v, str) and v.startswith('#'):
+                    text_color = v
+                elif isinstance(v, dict):
+                    c = v.get('color') or v.get('hex')
+                    if isinstance(c, str) and c.startswith('#'):
+                        text_color = c
+            # placement / position — unified schema بيستخدم print_placement
+            if any(t in kl for t in ('placement', 'position', 'مكان', 'موضع')):
+                p = _safe_str(v).lower()
+                if p in ('front', 'back', 'chest', 'center', 'top', 'bottom'):
+                    text_position = p
+    except Exception as e:
+        logger.warning(f'[PDF] selections extraction error (non-fatal): {e}')
+
+    # print_placement من الـ mega prompt result (لو متخزن في selections مباشرة)
+    placement_direct = selections.get('print_placement') if selections else None
+    if isinstance(placement_direct, str) and placement_direct.lower() in ('front', 'back'):
+        text_position = placement_direct.lower()
+
+    # Category — نـ derive من detected_domain
+    cat = (log.detected_domain or '').lower().strip()
     if not cat or cat == 'universal_ai_design':
         cat = 'other'
 
-    # Customer info
+    # Customer info — كله behind try/except
     customer_name = '—'
     customer_phone = '—'
     if log.customer_id:
@@ -522,16 +632,22 @@ def design_print_spec_pdf(request, log_id: int):
             from clients.models import MarketplaceCustomer
             cust = MarketplaceCustomer.objects.filter(id=log.customer_id).first()
             if cust:
-                customer_name = cust.full_name or cust.phone or '—'
-                customer_phone = cust.phone or '—'
-        except Exception:
-            pass
+                customer_name = (getattr(cust, 'full_name', None) or getattr(cust, 'phone', None) or '—')
+                customer_phone = getattr(cust, 'phone', None) or '—'
+        except Exception as e:
+            logger.warning(f'[PDF] customer lookup failed (non-fatal): {e}')
 
-    # Design code (نـ link لـ CustomerDesign لو موجود)
+    # Design code — نـ link لـ CustomerDesign لو موجود. guard ضد image_url=None
     design_code = f'AIL-{log.id}'
-    cd = CustomerDesign.objects.filter(customer_id=log.customer_id, image_url=log.image_url).first() if log.customer_id else None
-    if cd:
-        design_code = str(cd.design_code)
+    if log.customer_id and log.image_url:
+        try:
+            cd = CustomerDesign.objects.filter(
+                customer_id=log.customer_id, image_url=log.image_url,
+            ).first()
+            if cd:
+                design_code = str(cd.design_code)
+        except Exception as e:
+            logger.warning(f'[PDF] design_code lookup failed (non-fatal): {e}')
 
     try:
         pdf_bytes = build_print_spec_pdf(

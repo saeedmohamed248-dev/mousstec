@@ -284,16 +284,22 @@ def generate_flux_image(
     size: str = '1024x1024',
     negative_prompt: str = '',
     provider: str | None = None,
+    block_schnell_fallback: bool = False,
 ) -> dict[str, Any]:
     """
     يولّد صورة عبر Flux.1 — يدعم Together AI (default) و Replicate.
+
+    block_schnell_fallback: لو True، يمنع استخدام FLUX.1-schnell كـ fallback.
+        مطلوب لـ unified marketplace عشان _MEGA_SYSTEM المعقد محتاج dev بالظبط
+        (invisible mannequin + studio lighting + integrated typography).
+        schnell بيكسر الإخراج ويرجع flat clip-art.
 
     Returns: {success, url|b64_json, provider, model, error?}
     """
     provider = (provider or getattr(settings, 'FLUX_MODEL_PROVIDER', 'together')).lower()
 
     if provider == 'together':
-        return _gen_via_together(prompt, size, negative_prompt)
+        return _gen_via_together(prompt, size, negative_prompt, block_schnell_fallback=block_schnell_fallback)
     elif provider == 'replicate':
         return _gen_via_replicate(prompt, size, negative_prompt)
     else:
@@ -309,16 +315,18 @@ def _parse_size(size: str) -> tuple[int, int]:
         return 1024, 1024
 
 
-def _gen_via_together(prompt: str, size: str, negative_prompt: str) -> dict[str, Any]:
+def _gen_via_together(prompt: str, size: str, negative_prompt: str, *, block_schnell_fallback: bool = False) -> dict[str, Any]:
     key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
     if not key:
         return {'success': False, 'error': 'together_key_missing'}
 
     primary_model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
     # 🛡️ Fallback chain: لو الـ primary رجع 400/403/404 (مش متاح للحساب)،
-    # نرجع تلقائياً لـ FLUX-schnell عشان المستخدم ياخد صورة دايماً
+    # نرجع تلقائياً لـ FLUX-schnell عشان المستخدم ياخد صورة دايماً.
+    # 🚫 block_schnell_fallback=True → marketplace flow الـ premium محتاج dev
+    # بالظبط، schnell بيكسر invisible mannequin + integrated typography.
     candidates = [primary_model]
-    if primary_model != 'black-forest-labs/FLUX.1-schnell':
+    if not block_schnell_fallback and primary_model != 'black-forest-labs/FLUX.1-schnell':
         candidates.append('black-forest-labs/FLUX.1-schnell')
 
     width, height = _parse_size(size)

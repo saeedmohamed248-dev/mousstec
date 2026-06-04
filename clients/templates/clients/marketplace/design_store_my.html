@@ -896,13 +896,39 @@ async function uaiGenerate() {
         if (d.balance) refreshCustBalance(d.balance);
         const img = d.image_url || ('data:image/png;base64,' + (d.image_b64 || ''));
         const logId = d.log_id || '';
+        const meta = d.structured_meta || {};
+
+        // 🧵 Metadata sidebar: Fabric / Print Tech / Placement / Dimensions
+        const metaRows = [];
+        if (meta.fabric)               metaRows.push(['🧵 الخامة', meta.fabric]);
+        if (meta.print_tech)           metaRows.push(['🖨️ تقنية الطباعة', meta.print_tech]);
+        if (meta.placement)            metaRows.push(['📍 موضع الطباعة', meta.placement === 'back' ? 'الضهر' : 'القدام']);
+        if (meta.suggested_dimensions) metaRows.push(['📐 المقاس المقترح', meta.suggested_dimensions]);
+        if (meta.overlay_applied)      metaRows.push(['🅰️ النص مدمج', 'تم — مطبوع بأسلوب DTG']);
+        const metaHtml = metaRows.length
+            ? '<div style="background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;padding:14px;">'
+              + '<p style="font-size:12px;font-weight:800;color:#c4b5fd;margin:0 0 10px;border-bottom:1px solid rgba(124,58,237,0.3);padding-bottom:8px;"><i class="fas fa-clipboard-list"></i> تفاصيل التصميم</p>'
+              + metaRows.map(r =>
+                  '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#cbd5e1;margin-bottom:7px;line-height:1.5;">'
+                  + '<span style="color:#94a3b8;font-weight:700;">' + _uaiEsc(r[0]) + '</span>'
+                  + '<span style="color:#e2e8f0;font-weight:800;text-align:left;">' + _uaiEsc(String(r[1])) + '</span>'
+                  + '</div>'
+              ).join('')
+              + '</div>'
+            : '';
 
         box.innerHTML =
-            '<img src="' + img + '" style="max-width:100%;border-radius:12px;border:2px solid #a78bfa;display:block;margin:0 auto 12px;">'
-            + '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'
-            +     '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.domain || 'design') + '</span>'
-            +     '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.model || 'flux') + '</span>'
+            '<div style="display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:12px;" id="uaiResultGrid">'
+            +   '<div>'
+            +     '<img src="' + img + '" style="width:100%;border-radius:12px;border:2px solid #a78bfa;display:block;">'
+            +     '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;">'
+            +       '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.domain || 'design') + '</span>'
+            +       '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.model || 'flux') + '</span>'
+            +     '</div>'
+            +   '</div>'
+            +   (metaHtml ? '<div>' + metaHtml + '</div>' : '')
             + '</div>'
+            + '<style>@media (min-width:760px){#uaiResultGrid{grid-template-columns:1.4fr 1fr !important;}}</style>'
             + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
             +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Mega Prompt</summary>'
             +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;direction:ltr;text-align:left;">' + _uaiEsc(d.mega_prompt) + '</p>'
@@ -920,6 +946,33 @@ async function uaiGenerate() {
             +     '<a href="' + img + '" download="ai-design.png" style="flex:1;min-width:130px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;"><i class="fas fa-download"></i> تحميل صورة</a>'
             +     '<button onclick="uaiGenerate()" style="flex:1;min-width:130px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
             + '</div>';
+
+        // 💬 Auto-activate refinement chat — يفتح الـ chat modal ويعرض الـ kickoff prompt
+        // عشان العميل يقدر يعدل التصميم فوراً (multi-agent interactive loop).
+        if (d.design_code) {
+            _uaiLastResult.portfolio_design_code = d.design_code;
+            setTimeout(() => {
+                try {
+                    openChat(d.design_code);
+                    setTimeout(() => {
+                        const msgBox = document.getElementById('chatMessages');
+                        if (msgBox && !msgBox.querySelector('.uai-kickoff')) {
+                            const kickoff = document.createElement('div');
+                            kickoff.className = 'chat-msg assistant uai-kickoff';
+                            kickoff.innerHTML =
+                                '<div style="font-weight:700;">جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!</div>'
+                                + '<div class="time">الآن</div>';
+                            msgBox.appendChild(kickoff);
+                            msgBox.scrollTop = msgBox.scrollHeight;
+                            const inp = document.getElementById('chatRefineInput');
+                            if (inp && !inp.disabled) inp.focus();
+                        }
+                    }, 700);
+                } catch (chatErr) {
+                    console.warn('[UAI] auto-chat open failed:', chatErr);
+                }
+            }, 400);
+        }
     } catch (e) {
         box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال</p>';
     } finally {

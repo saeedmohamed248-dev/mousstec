@@ -2010,6 +2010,7 @@ def design_store_generate(request):
             prompt=enhanced_desc[:1800],  # FLUX prompt limit
             size=canonical_size,
             negative_prompt=flux_negative,
+            block_schnell_fallback=True,  # marketplace: dev only — schnell breaks _MEGA_SYSTEM
         )
 
         if not flux_result.get('success'):
@@ -2337,6 +2338,7 @@ def design_store_regenerate(request, design_code):
             prompt=regen_prompt[:1800],
             size=sz,
             negative_prompt="low quality, blurry, watermark, distorted text, fake logo",
+            block_schnell_fallback=True,  # marketplace: dev only
         )
         if not flux_result.get('success'):
             err = flux_result.get('error', 'unknown')
@@ -2771,6 +2773,7 @@ def design_store_refine(request, design_code):
             prompt=refinement_prompt[:1800],
             size=sz,
             negative_prompt="low quality, blurry, watermark, distorted text, inconsistent style",
+            block_schnell_fallback=True,  # marketplace refine: dev only
         )
         if not flux_result.get('success'):
             err = flux_result.get('error', 'unknown')
