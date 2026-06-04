@@ -386,6 +386,14 @@ DESIGN_CHAT_LOCK_TIMEOUT_SECONDS = env.int('DESIGN_CHAT_LOCK_TIMEOUT_SECONDS', 6
 DESIGN_CHAT_MAX_TURNS = env.int('DESIGN_CHAT_MAX_TURNS', 30)
 DESIGN_CHAT_MAX_IMAGES = env.int('DESIGN_CHAT_MAX_IMAGES', 8)
 DESIGN_CHAT_IDLE_MINUTES = env.int('DESIGN_CHAT_IDLE_MINUTES', 60)
+# Resume banner window — how recently a session must have been touched
+# to be offered as "continue where you left off" on design_store_my.
+DESIGN_CHAT_RESUME_HOURS = env.int('DESIGN_CHAT_RESUME_HOURS', 24)
+# Cleanup thresholds — see clients.tasks.cleanup_stale_design_conversations.
+# Planning sessions never used (turn_count <= 1) get abandoned after this many
+# hours. All other non-terminal sessions are abandoned after the longer window.
+DESIGN_CHAT_ABANDON_EMPTY_HOURS = env.int('DESIGN_CHAT_ABANDON_EMPTY_HOURS', 48)
+DESIGN_CHAT_ABANDON_IDLE_DAYS = env.int('DESIGN_CHAT_ABANDON_IDLE_DAYS', 14)
 
 # 🛡️ HMAC secret for webhook signature verification
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')

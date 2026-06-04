@@ -422,6 +422,11 @@
                     <div class="meter-bar"><div class="meter-fill" id="images-fill" style="width:0%"></div></div>
                     <span class="meter-val" id="images-val">0 / 8</span>
                 </div>
+                <div class="meter-row" title="مجموع تكلفة هذه الجلسة بالكريديت">
+                    <span class="meter-label"><i class="fas fa-coins" style="color:var(--orange);"></i> رصيد</span>
+                    <div class="meter-bar"><div class="meter-fill" id="cost-fill" style="width:0%; background:linear-gradient(90deg,var(--orange),var(--pink));"></div></div>
+                    <span class="meter-val" id="cost-val">0.00</span>
+                </div>
             </div>
         </aside>
 
@@ -471,7 +476,7 @@
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const STORAGE_KEY = 'mp_design_chat_active';
         const API = '/marketplace/design-chat';
-        const LIMITS = { turns: 30, images: 8 };
+        const LIMITS = { turns: 30, images: 8, cost: 5.00 };  // soft cap for bar fill
 
         let state = {
             convCode: null,
@@ -479,6 +484,8 @@
             currentImageUrl: null,
             turnCount: 0,
             imageCount: 0,
+            totalCost: 0,
+            lastTurnCost: 0,
             canUndo: false,
             canFinalize: false,
             brandApplied: false,
@@ -551,6 +558,13 @@
             iFill.classList.toggle('warn', iPct >= 80);
             document.getElementById('turns-val').textContent = `${state.turnCount} / ${LIMITS.turns}`;
             document.getElementById('images-val').textContent = `${state.imageCount} / ${LIMITS.images}`;
+
+            const cPct = Math.min(100, (Number(state.totalCost) / LIMITS.cost) * 100);
+            const cFill = document.getElementById('cost-fill');
+            cFill.style.width = cPct + '%';
+            cFill.classList.toggle('warn', cPct >= 80);
+            const lastTxt = state.lastTurnCost > 0 ? ` (+${Number(state.lastTurnCost).toFixed(2)})` : '';
+            document.getElementById('cost-val').textContent = `${Number(state.totalCost).toFixed(2)}${lastTxt}`;
         }
         function renderActions() {
             document.getElementById('qa-undo').disabled = !state.canUndo || state.sending;
@@ -684,6 +698,8 @@
             state.brandApplied = data.brand_applied;
             state.turnCount = data.turn_count;
             state.imageCount = data.image_count;
+            state.totalCost = parseFloat(data.total_cost_credits || 0);
+            state.lastTurnCost = 0;
             state.canUndo = data.can_undo;
             state.canFinalize = data.can_finalize;
             if (data.current_design) {
@@ -754,6 +770,8 @@
                 state.stage = r.data.stage;
                 state.turnCount = r.data.turn_count;
                 state.imageCount = r.data.image_count;
+                state.totalCost = parseFloat(r.data.total_cost_credits || state.totalCost);
+                state.lastTurnCost = parseFloat(r.data.turn_cost_credits || 0);
                 state.canUndo = r.data.can_undo;
                 state.canFinalize = r.data.stage !== 'finalized' && r.data.image_count > 0;
                 if (r.data.image_url) {

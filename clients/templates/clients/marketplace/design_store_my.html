@@ -230,6 +230,38 @@
         </div>
     </div>
 
+    {% if active_conversation %}
+    <!-- 💬 Resume Conversation banner (Phase N.5) -->
+    <a href="/marketplace/design-chat/" style="
+        display:flex; align-items:center; gap:14px; margin-bottom:18px;
+        padding:14px 18px; border-radius:14px; text-decoration:none;
+        background:linear-gradient(135deg, rgba(245,158,11,0.12), rgba(236,72,153,0.08));
+        border:1px solid rgba(245,158,11,0.4);
+        transition:transform 0.15s, box-shadow 0.15s;
+    " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 18px rgba(245,158,11,0.25)';"
+       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+        <div style="font-size:1.6rem;">💬</div>
+        <div style="flex:1;color:#fff;">
+            <div style="font-weight:900; font-size:0.95rem;">
+                عندك محادثة تصميم شغّالة
+                <span style="font-size:0.72rem; padding:2px 8px; border-radius:10px;
+                             background:rgba(245,158,11,0.25); color:#fcd34d;
+                             margin-right:6px; font-weight:700;">
+                    {{ active_conversation.get_stage_display }}
+                </span>
+            </div>
+            <div style="font-size:0.78rem; color:#cbd5e1; margin-top:3px;">
+                {{ active_conversation.turn_count }} تيرنات
+                · {{ active_conversation.image_count }} صور
+                · آخر نشاط {{ active_conversation.updated_at|timesince }}
+            </div>
+        </div>
+        <div style="color:#fcd34d; font-weight:900; font-size:0.9rem;">
+            استكمال <i class="fas fa-arrow-left"></i>
+        </div>
+    </a>
+    {% endif %}
+
     <!-- ▣ Quick stats row -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px;">
         <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
@@ -307,7 +339,18 @@
     {% if designs %}
     <div class="designs-grid">
         {% for d in designs %}
-        <div class="design-card">
+        <div class="design-card" style="position:relative;">
+            {% if d.from_conversation %}
+            <span style="
+                position:absolute; top:8px; right:8px; z-index:2;
+                display:inline-flex; align-items:center; gap:4px;
+                padding:4px 10px; border-radius:12px; font-size:0.66rem; font-weight:800;
+                background:rgba(15,23,42,0.85); backdrop-filter:blur(8px);
+                border:1px solid rgba(139,92,246,0.5); color:#c4b5fd;
+            " title="هذا التصميم اتعمل من محادثة الذكاء الاصطناعي">
+                <i class="fas fa-comments"></i> من المحادثة
+            </span>
+            {% endif %}
             <img src="{{ d.image_url }}" alt="{{ d.title }}" loading="lazy">
             <div class="design-card-body">
                 <div class="design-title">{{ d.title|truncatechars:50 }}</div>

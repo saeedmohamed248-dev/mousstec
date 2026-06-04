@@ -1817,3 +1817,449 @@ class DesignChatPageRenderTests(_TenantDomainProvisionMixin, TestCase):
         c = _authed_client(customer)
         r = c.get('/marketplace/design-chat/')
         self.assertIn('dir="rtl"', r.content.decode('utf-8'))
+
+
+# ===========================================================================
+# N.5 — Resume banner / "from chat" badge / stale-prune service + command
+# ===========================================================================
+class GetActiveConversationTests(TestCase):
+    """The resume-banner lookup: most recent non-terminal conv within idle window."""
+
+    def test_returns_none_when_no_conversations(self):
+        from clients.services.design_chat import get_active_conversation
+        customer = _make_customer()
+        self.assertIsNone(get_active_conversation(customer))
+
+    def test_returns_none_when_customer_is_none(self):
+        from clients.services.design_chat import get_active_conversation
+        self.assertIsNone(get_active_conversation(None))
+
+    def test_returns_most_recent_active_conversation(self):
+        from clients.models import DesignConversation
+        from clients.services.design_chat import get_active_conversation
+        customer = _make_customer()
+        DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        latest = DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        result = get_active_conversation(customer)
+        self.assertEqual(result.pk, latest.pk)
+
+    def test_excludes_finalized_and_abandoned(self):
+        from clients.models import DesignConversation
+        from clients.services.design_chat import get_active_conversation
+        customer = _make_customer()
+        DesignConversation.objects.create(
+            customer=customer, stage='finalized',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversation.objects.create(
+            customer=customer, stage='abandoned',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        self.assertIsNone(get_active_conversation(customer))
+
+    def test_excludes_stale_conversations_beyond_idle_window(self):
+        """Idle > DESIGN_CHAT_IDLE_MINUTES → don't surface, even if not abandoned."""
+        from clients.models import DesignConversation
+        from clients.services.design_chat import get_active_conversation
+        from datetime import timedelta
+        customer = _make_customer()
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        # Bypass auto_now by direct UPDATE
+        DesignConversation.objects.filter(pk=conv.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=90),
+        )
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            self.assertIsNone(get_active_conversation(customer))
+
+    def test_scoped_to_customer(self):
+        from clients.models import DesignConversation
+        from clients.services.design_chat import get_active_conversation
+        c1 = _make_customer(phone='+201000000030')
+        c2 = _make_customer(phone='+201000000031')
+        DesignConversation.objects.create(
+            customer=c1, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        # c2 has no conversations — must not see c1's
+        self.assertIsNone(get_active_conversation(c2))
+
+
+class AnnotateDesignsFromChatTests(TestCase):
+    """The 'Generated via Chat' annotation: True iff any turn references the design."""
+
+    def test_design_with_no_turn_reference_is_false(self):
+        from clients.models import CustomerDesign
+        from clients.services.design_chat import annotate_designs_from_chat
+        customer = _make_customer()
+        d = CustomerDesign.objects.create(
+            customer=customer, title='Manual', description='', category='other',
+            image_url='https://x/d.jpg',
+        )
+        result = list(annotate_designs_from_chat(CustomerDesign.objects.filter(pk=d.pk)))
+        self.assertFalse(result[0].from_conversation)
+
+    def test_design_referenced_by_turn_is_true(self):
+        from clients.models import (
+            CustomerDesign, DesignConversation, DesignConversationTurn,
+        )
+        from clients.services.design_chat import annotate_designs_from_chat
+        customer = _make_customer()
+        d = CustomerDesign.objects.create(
+            customer=customer, title='Chat-made', description='', category='other',
+            image_url='https://x/d.jpg',
+        )
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='generated', intent='generate', design_snapshot=d,
+        )
+        result = list(annotate_designs_from_chat(CustomerDesign.objects.filter(pk=d.pk)))
+        self.assertTrue(result[0].from_conversation)
+
+    def test_mixed_queryset_annotates_correctly(self):
+        from clients.models import (
+            CustomerDesign, DesignConversation, DesignConversationTurn,
+        )
+        from clients.services.design_chat import annotate_designs_from_chat
+        customer = _make_customer()
+        manual = CustomerDesign.objects.create(
+            customer=customer, title='Manual', description='', category='other',
+            image_url='https://x/m.jpg',
+        )
+        chat = CustomerDesign.objects.create(
+            customer=customer, title='Chat', description='', category='other',
+            image_url='https://x/c.jpg',
+        )
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='', intent='generate', design_snapshot=chat,
+        )
+        result = {
+            d.pk: d.from_conversation
+            for d in annotate_designs_from_chat(
+                CustomerDesign.objects.filter(customer=customer)
+            )
+        }
+        self.assertFalse(result[manual.pk])
+        self.assertTrue(result[chat.pk])
+
+
+class PruneStaleConversationsTests(TestCase):
+    """The core prune logic — shared by management command and lazy cleanup."""
+
+    def _make_stale_conv(self, customer, stage='planning', minutes_old=120):
+        from clients.models import DesignConversation
+        from datetime import timedelta
+        conv = DesignConversation.objects.create(
+            customer=customer, stage=stage,
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversation.objects.filter(pk=conv.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=minutes_old),
+        )
+        return conv
+
+    def test_abandons_stale_planning_conversations(self):
+        from clients.models import DesignConversation
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        stale = self._make_stale_conv(customer)
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations()
+        self.assertEqual(result['abandoned'], 1)
+        stale.refresh_from_db()
+        self.assertEqual(stale.stage, 'abandoned')
+        self.assertIsNotNone(stale.abandoned_at)
+
+    def test_dry_run_does_not_mutate(self):
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        stale = self._make_stale_conv(customer)
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations(dry_run=True)
+        self.assertEqual(result['abandoned'], 0)
+        self.assertEqual(result['inspected'], 1)
+        self.assertTrue(result['dry_run'])
+        stale.refresh_from_db()
+        self.assertEqual(stale.stage, 'planning')  # unchanged
+
+    def test_skips_fresh_conversations(self):
+        from clients.models import DesignConversation
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        fresh = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations()
+        self.assertEqual(result['abandoned'], 0)
+        fresh.refresh_from_db()
+        self.assertEqual(fresh.stage, 'planning')
+
+    def test_skips_already_terminal_stages(self):
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        self._make_stale_conv(customer, stage='finalized')
+        self._make_stale_conv(customer, stage='abandoned')
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations()
+        self.assertEqual(result['abandoned'], 0)
+
+    def test_handles_generated_and_refining_stages(self):
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        self._make_stale_conv(customer, stage='generated')
+        self._make_stale_conv(customer, stage='refining')
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations()
+        self.assertEqual(result['abandoned'], 2)
+        self.assertEqual(result['by_stage']['generated'], 1)
+        self.assertEqual(result['by_stage']['refining'], 1)
+
+    def test_clears_lingering_locks_on_abandon(self):
+        from datetime import timedelta
+        from clients.models import DesignConversation
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        conv = self._make_stale_conv(customer)
+        DesignConversation.objects.filter(pk=conv.pk).update(
+            locked_until=timezone.now() + timedelta(hours=1),
+        )
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            prune_stale_conversations()
+        conv.refresh_from_db()
+        self.assertIsNone(conv.locked_until)
+
+    def test_idempotent_repeat_runs(self):
+        from clients.services.design_chat import prune_stale_conversations
+        customer = _make_customer()
+        self._make_stale_conv(customer)
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            r1 = prune_stale_conversations()
+            r2 = prune_stale_conversations()
+        self.assertEqual(r1['abandoned'], 1)
+        self.assertEqual(r2['abandoned'], 0)  # already abandoned
+
+    def test_scoped_to_customer(self):
+        from clients.services.design_chat import prune_stale_conversations
+        c1 = _make_customer(phone='+201000000040')
+        c2 = _make_customer(phone='+201000000041')
+        s1 = self._make_stale_conv(c1)
+        s2 = self._make_stale_conv(c2)
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            result = prune_stale_conversations(customer=c1)
+        self.assertEqual(result['abandoned'], 1)
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        self.assertEqual(s1.stage, 'abandoned')
+        self.assertEqual(s2.stage, 'planning')  # untouched
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase):
+    """End-to-end: design_store_my view passes active_conversation + annotated
+    designs to the template, and the template renders banner + badge."""
+
+    def test_no_active_conv_renders_no_banner(self):
+        customer = _make_customer()
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-store/my/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode('utf-8')
+        self.assertNotIn('عندك محادثة تصميم شغّالة', html)
+
+    def test_active_conv_renders_resume_banner(self):
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+            turn_count=4, image_count=2,
+        )
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-store/my/')
+        html = r.content.decode('utf-8')
+        self.assertIn('عندك محادثة تصميم شغّالة', html)
+        self.assertIn('/marketplace/design-chat/', html)
+        self.assertIn('4 تيرنات', html)
+        self.assertIn('2 صور', html)
+
+    @override_settings(DESIGN_CHAT_ENABLED=False)
+    def test_feature_flag_off_hides_banner_even_with_active_conv(self):
+        """Don't tempt users into a feature that's flag-disabled."""
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-store/my/')
+        html = r.content.decode('utf-8')
+        self.assertNotIn('عندك محادثة تصميم شغّالة', html)
+
+    def test_chat_generated_design_renders_badge(self):
+        from clients.models import (
+            CustomerDesign, DesignConversation, DesignConversationTurn,
+        )
+        customer = _make_customer()
+        d = CustomerDesign.objects.create(
+            customer=customer, title='Chat tee', description='', category='other',
+            image_url='https://cdn.test/d.jpg',
+        )
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='generated',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversationTurn.objects.create(
+            conversation=conv, turn_index=1, role='assistant',
+            content='made', intent='generate', design_snapshot=d,
+        )
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-store/my/')
+        html = r.content.decode('utf-8')
+        self.assertIn('من المحادثة', html)
+
+    def test_manual_design_does_not_render_chat_badge(self):
+        from clients.models import CustomerDesign
+        customer = _make_customer()
+        CustomerDesign.objects.create(
+            customer=customer, title='Manual tee', description='', category='other',
+            image_url='https://cdn.test/m.jpg',
+        )
+        c = _authed_client(customer)
+        r = c.get('/marketplace/design-store/my/')
+        html = r.content.decode('utf-8')
+        self.assertNotIn('من المحادثة', html)
+
+
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class LazyPruneOnStartTests(_TenantDomainProvisionMixin, TestCase):
+    """design_chat_start should abandon this customer's stale convs before
+    creating a new one — keeps the get_active_conversation read consistent."""
+
+    def test_start_abandons_stale_conv_for_same_customer(self):
+        from datetime import timedelta
+        from clients.models import DesignConversation
+        customer = _make_customer()
+        stale = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversation.objects.filter(pk=stale.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=120),
+        )
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            c = _authed_client(customer)
+            r = c.post(
+                '/marketplace/design-chat/start/',
+                data='{}', content_type='application/json',
+            )
+        self.assertEqual(r.status_code, 201)
+        stale.refresh_from_db()
+        self.assertEqual(stale.stage, 'abandoned')
+
+    def test_start_does_not_abandon_other_customers_stale_convs(self):
+        """Lazy prune is customer-scoped — never touches other rows."""
+        from datetime import timedelta
+        from clients.models import DesignConversation
+        c1 = _make_customer(phone='+201000000050')
+        c2 = _make_customer(phone='+201000000051')
+        other = DesignConversation.objects.create(
+            customer=c1, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversation.objects.filter(pk=other.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=120),
+        )
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            client = _authed_client(c2)
+            client.post(
+                '/marketplace/design-chat/start/',
+                data='{}', content_type='application/json',
+            )
+        other.refresh_from_db()
+        self.assertEqual(other.stage, 'planning')  # untouched
+
+
+class PruneManagementCommandTests(TestCase):
+    """The cron-callable: `python manage.py prune_stale_design_chats`."""
+
+    def _make_stale_conv(self, customer, minutes_old=120):
+        from datetime import timedelta
+        from clients.models import DesignConversation
+        conv = DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        DesignConversation.objects.filter(pk=conv.pk).update(
+            updated_at=timezone.now() - timedelta(minutes=minutes_old),
+        )
+        return conv
+
+    def test_command_abandons_stale_conversations(self):
+        from io import StringIO
+        from django.core.management import call_command
+        customer = _make_customer()
+        stale = self._make_stale_conv(customer)
+        out = StringIO()
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            call_command('prune_stale_design_chats', stdout=out)
+        self.assertIn('abandoned', out.getvalue().lower())
+        stale.refresh_from_db()
+        self.assertEqual(stale.stage, 'abandoned')
+
+    def test_command_dry_run_does_not_mutate(self):
+        from io import StringIO
+        from django.core.management import call_command
+        customer = _make_customer()
+        stale = self._make_stale_conv(customer)
+        out = StringIO()
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            call_command('prune_stale_design_chats', '--dry-run', stdout=out)
+        self.assertIn('dry-run', out.getvalue().lower())
+        stale.refresh_from_db()
+        self.assertEqual(stale.stage, 'planning')
+
+    def test_command_json_output_is_parseable(self):
+        from io import StringIO
+        import json as _json
+        from django.core.management import call_command
+        customer = _make_customer()
+        self._make_stale_conv(customer)
+        out = StringIO()
+        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
+            call_command('prune_stale_design_chats', '--json', stdout=out)
+        parsed = _json.loads(out.getvalue().strip())
+        self.assertIn('abandoned', parsed)
+        self.assertIn('by_stage', parsed)
+        self.assertEqual(parsed['abandoned'], 1)
+
+    def test_command_respects_idle_minutes_override(self):
+        from io import StringIO
+        from django.core.management import call_command
+        customer = _make_customer()
+        # 30 minutes old — would survive default 60min cutoff
+        stale30 = self._make_stale_conv(customer, minutes_old=30)
+        out = StringIO()
+        # Override: 20 minute cutoff makes the 30min conv stale
+        call_command('prune_stale_design_chats', '--idle-minutes', '20', stdout=out)
+        stale30.refresh_from_db()
+        self.assertEqual(stale30.stage, 'abandoned')

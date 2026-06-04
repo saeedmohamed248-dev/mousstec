@@ -353,6 +353,16 @@ def design_chat_start(request):
     except (json.JSONDecodeError, ValueError):
         pass
 
+    # 💬 Phase N.5 — lazy cleanup: abandon any of this customer's stale
+    # conversations before creating a new one. Belt-and-braces with the
+    # cron-based prune; this keeps the user's view of their own state
+    # consistent even if cron skipped.
+    try:
+        from clients.services.design_chat import prune_stale_conversations
+        prune_stale_conversations(customer=customer)
+    except Exception as e:
+        logger.warning(f'[DESIGN CHAT START] lazy prune failed (non-fatal): {e}')
+
     brand_snapshot = _snapshot_brand(customer)
     conv = DesignConversation.objects.create(
         customer=customer,
@@ -532,6 +542,7 @@ def _process_turn(request, conv, customer, user_message, explicit_intent):
                 conv.stage = 'refining'
         conv.save()
 
+    turn_cost = Decimal(str(intent_result['cost_usd'])) + Decimal(str(exec_result['image_cost']))
     return JsonResponse({
         'intent': intent,
         'raw_intent': intent_result['raw_intent'],
@@ -546,6 +557,8 @@ def _process_turn(request, conv, customer, user_message, explicit_intent):
         'turn_index': turn_index,
         'turn_count': conv.turn_count,
         'image_count': conv.image_count,
+        'turn_cost_credits': str(turn_cost),
+        'total_cost_credits': str(conv.total_cost_credits),
         'stage': conv.stage,
         'error': exec_result.get('error'),
         'can_undo': conv.turns.filter(

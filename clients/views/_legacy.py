@@ -1305,7 +1305,18 @@ def design_store_my_designs(request):
     purchases = customer.design_purchases.filter(
         status__in=['paid', 'exhausted']
     ).select_related('package').order_by('-created_at')
-    designs = list(customer.designs.order_by('-created_at')[:50])
+
+    # 💬 Phase N.5 — annotate with `from_conversation` so the template can
+    # render a "Generated via Chat" badge on cards that came from the
+    # Conversational Design Builder.
+    from clients.services.design_chat import (
+        annotate_designs_from_chat,
+        get_active_conversation,
+    )
+    designs = list(
+        annotate_designs_from_chat(customer.designs.order_by('-created_at'))[:50]
+    )
+
     active_purchase = next((p for p in purchases if p.is_usable), None)
     paid_remaining = sum(p.designs_remaining for p in purchases if p.is_usable)
     free_remaining = customer.free_designs_remaining
@@ -1313,6 +1324,12 @@ def design_store_my_designs(request):
     # إضافة معلومات إعادة التوليد لكل تصميم
     for d in designs:
         d.regen_left = max(d.regenerations_allowed - d.regenerations_used, 0)
+
+    # 💬 Resume Conversation banner — only if feature flag is on AND
+    # the customer has a non-terminal recent conversation.
+    active_conversation = None
+    if getattr(settings, 'DESIGN_CHAT_ENABLED', False):
+        active_conversation = get_active_conversation(customer)
 
     return render(request, 'clients/marketplace/design_store_my.html', {
         'customer': customer,
@@ -1322,6 +1339,7 @@ def design_store_my_designs(request):
         'total_remaining': paid_remaining + free_remaining,
         'free_remaining': free_remaining,
         'paid_remaining': paid_remaining,
+        'active_conversation': active_conversation,
     })
 
 
