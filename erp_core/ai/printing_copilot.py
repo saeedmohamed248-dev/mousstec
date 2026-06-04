@@ -48,6 +48,22 @@ _MODEL_STEPS = {
 _REPLICATE_BASE = 'https://api.replicate.com/v1'
 _REPLICATE_FLUX_MODEL = 'black-forest-labs/flux-schnell'
 
+# Ideogram — Best-in-class for TEXT RENDERING (especially Arabic/RTL).
+# Used as the engine of choice for documents, logos, signage, business cards,
+# and any design where readable in-image text is critical.
+_IDEOGRAM_URL_V3 = 'https://api.ideogram.ai/v1/ideogram-v3/generate'
+_IDEOGRAM_URL_V2 = 'https://api.ideogram.ai/generate'   # legacy v2 fallback
+
+# Ideogram aspect ratios — must match what the model expects.
+# We map our internal (1024x1024 / 1024x1536 / 1536x1024) to Ideogram's enum.
+_IDEOGRAM_ASPECT_MAP = {
+    '1024x1024': '1x1',
+    '1024x1536': '2x3',
+    '1536x1024': '3x2',
+    '1024x1792': '9x16',
+    '1792x1024': '16x9',
+}
+
 
 # =============================================================================
 # Stage 1 — Prompt Refiner (Arabic brief → Premium English Print Prompt)

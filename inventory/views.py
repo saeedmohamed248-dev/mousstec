@@ -162,6 +162,13 @@ def branch_dashboard(request):
         elif tenant.status == 'active' and getattr(tenant, 'subscription_end_date', None):
             sub_days_left = max(0, (tenant.subscription_end_date - today).days)
 
+    # 🛡️ Safely resolve role for the template — reverse OneToOne lookups raise
+    # RelatedObjectDoesNotExist which Django templates do NOT silence, so we must
+    # resolve it here in Python where hasattr() works correctly.
+    current_role = ''
+    if hasattr(request.user, 'employee_profile'):
+        current_role = request.user.employee_profile.role or ''
+
     return render(request, 'inventory/dashboard.html', {
         'stats': stats,
         'low_stock_items': low_stock[:10],
@@ -169,6 +176,8 @@ def branch_dashboard(request):
         'trial_days_left': trial_days_left,
         'sub_days_left': sub_days_left,
         'is_admin': is_admin,
+        'current_role': current_role,
+        'is_super_user': request.user.is_superuser,
     })
 
 

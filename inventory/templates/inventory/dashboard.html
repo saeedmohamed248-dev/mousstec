@@ -22,11 +22,13 @@
 
 {% block content %}
 {# ============================================================ #}
-{#  Role helpers — kept local so we don't depend on a context-processor.  #}
-{#  ENGINEERING_ROLES → Smart Diagnostics button visibility.              #}
+{#  Role helpers — `current_role` and `is_super_user` are resolved        #}
+{#  safely in the view (branch_dashboard) so we NEVER touch the reverse   #}
+{#  OneToOne `employee_profile` from the template. That accessor raises   #}
+{#  RelatedObjectDoesNotExist for users without a profile (e.g. the       #}
+{#  superuser), and Django templates do NOT silence that exception → 500. #}
 {# ============================================================ #}
-{% with profile=request.user.employee_profile %}
-{% with role=profile.role|default:"" is_super=request.user.is_superuser %}
+{% with role=current_role|default:"" is_super=is_super_user|default:False %}
 
 <main class="container mx-auto px-4 py-6 flex-1 space-y-6">
 
@@ -316,7 +318,7 @@
     </div>
 </div>
 
-{% endwith %}{% endwith %}
+{% endwith %}
 {% endblock %}
 
 {% block scripts %}

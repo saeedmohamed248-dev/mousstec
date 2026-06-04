@@ -1727,9 +1727,13 @@ _CATEGORY_KEYWORDS = {
     ),
     'apparel': (
         'تيشرت', 'تي شيرت', 'قميص', 'هودي', 'هودى', 'سويت شيرت', 'بلوزة',
-        'فانلة', 'ملابس', 'ملبس', 'قفطان', 'جاكيت',
+        'فانلة', 'ملابس', 'ملبس', 'قفطان', 'جاكيت', 'جاكت',
+        'عباية', 'عبايه', 'جلابية', 'فستان', 'بنطلون', 'بولو', 'تانك',
+        'يونيفورم', 'زي موحد',
         't-shirt', 'tshirt', 'shirt', 'hoodie', 'sweatshirt', 'jersey',
         'apparel', 'garment', 'clothing', 'tee', 'polo', 'jacket', 'tank top',
+        'abaya', 'kaftan', 'jalabiya', 'dress', 'gown', 'pants', 'trousers',
+        'uniform', 'workwear', 'scrubs',
     ),
     'footwear': (
         'كوتشي', 'جزمة', 'حذاء', 'صندل', 'شبشب', 'بوت',
