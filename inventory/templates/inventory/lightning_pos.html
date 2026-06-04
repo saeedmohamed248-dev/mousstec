@@ -1,0 +1,219 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>⚡ Lightning POS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#0f172a; }
+  .pulse-ring { box-shadow: 0 0 0 0 rgba(139,92,246,0.7); animation: ring 1.6s infinite; }
+  @keyframes ring { 70% { box-shadow: 0 0 0 14px rgba(139,92,246,0); } 100% { box-shadow: 0 0 0 0 rgba(139,92,246,0); } }
+</style>
+</head>
+<body class="text-slate-100 min-h-screen">
+{% csrf_token %}
+<div class="max-w-7xl mx-auto p-4 sm:p-6">
+
+  <header class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+      <span class="text-yellow-400"><i class="fas fa-bolt"></i></span>
+      Lightning POS
+      {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+    </h1>
+    <a href="{% url 'inventory:dashboard' %}" class="text-sm text-slate-400 hover:text-white"><i class="fas fa-home"></i> الرئيسية</a>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- LEFT: Search + Cart (2 cols) -->
+    <section class="lg:col-span-2 space-y-4">
+
+      <!-- Search bar -->
+      <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
+        <div class="relative">
+          <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+          <input id="search" autofocus type="text" placeholder="ابحث برقم القطعة (SKU) أو الباركود أو الاسم..."
+                 class="w-full bg-slate-900 text-white text-lg font-bold px-12 py-4 rounded-xl border-2 border-purple-500/40 focus:border-purple-400 focus:outline-none pulse-ring">
+        </div>
+        <div id="results" class="mt-3 max-h-72 overflow-y-auto space-y-2"></div>
+      </div>
+
+      <!-- Cart -->
+      <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
+        <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-shopping-cart"></i> السلة</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-slate-400 text-xs">
+              <tr class="border-b border-slate-700/50">
+                <th class="text-right py-2">SKU</th>
+                <th class="text-right py-2">القطعة</th>
+                <th class="text-center py-2">الكمية</th>
+                <th class="text-left py-2">السعر</th>
+                <th class="text-left py-2">الإجمالي</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cart-body">
+              <tr><td colspan="6" class="text-center py-8 text-slate-600">السلة فارغة — ابدأ بالبحث عن قطعة</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Customer + Checkout -->
+    <aside class="space-y-4">
+      <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
+        <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> العميل</h3>
+        <input id="cust-name" type="text" placeholder="اسم العميل (اختياري)"
+               class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
+        <input id="cust-phone" type="tel" placeholder="رقم الهاتف (اختياري)"
+               class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+        <p class="text-xs text-slate-500 mt-2">اتركهما فارغين للبيع كـ "عميل نقدي".</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-purple-900/40 to-emerald-900/30 rounded-2xl p-5 border border-purple-500/30">
+        <div class="flex justify-between text-slate-300 text-sm mb-1"><span>عدد القطع</span><span id="cart-count">0</span></div>
+        <div class="flex justify-between items-baseline mb-4">
+          <span class="text-slate-300 text-sm">الإجمالي</span>
+          <span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span>
+        </div>
+        <button id="checkout" class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+          <i class="fas fa-print"></i> اعتماد وطباعة
+        </button>
+        <p id="msg" class="text-xs text-center mt-3"></p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const URLS = {
+  search:   "{% url 'inventory:lightning_pos_search' %}",
+  checkout: "{% url 'inventory:lightning_pos_checkout' %}",
+};
+const cart = new Map();   // id → {id, sku, name, price, qty, stock}
+let searchTimer = null;
+
+const $ = (id) => document.getElementById(id);
+
+$('search').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => doSearch(e.target.value), 180);
+});
+$('search').addEventListener('keydown', (e) => {
+  // Enter on an exact SKU/barcode match → add first result instantly (barcode scanner UX)
+  if (e.key === 'Enter') {
+    const first = document.querySelector('#results [data-pid]');
+    if (first) { first.click(); $('search').select(); }
+  }
+});
+
+async function doSearch(q) {
+  if (q.trim().length < 2) { $('results').innerHTML = ''; return; }
+  const r = await fetch(URLS.search + '?q=' + encodeURIComponent(q));
+  const data = await r.json();
+  $('results').innerHTML = (data.results || []).map(p => `
+    <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40 transition"
+         onclick='addToCart(${JSON.stringify(p)})'>
+      <div>
+        <p class="font-bold text-white">${escapeHtml(p.name)}</p>
+        <p class="text-xs text-slate-400">${escapeHtml(p.sku)} · ${escapeHtml(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p>
+      </div>
+      <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
+    </div>
+  `).join('') || '<p class="text-xs text-slate-500 text-center py-4">لا توجد نتائج</p>';
+}
+
+function addToCart(p) {
+  if (p.stock <= 0) { flash('هذه القطعة بدون مخزون.', 'error'); return; }
+  const existing = cart.get(p.id);
+  if (existing) {
+    if (existing.qty + 1 > p.stock) { flash('وصلت الحد الأقصى للمخزون.', 'error'); return; }
+    existing.qty += 1;
+  } else {
+    cart.set(p.id, { ...p, qty: 1 });
+  }
+  renderCart();
+}
+
+function setQty(id, qty) {
+  const item = cart.get(id);
+  if (!item) return;
+  qty = Math.max(0, Math.min(qty, item.stock));
+  if (qty === 0) cart.delete(id);
+  else item.qty = qty;
+  renderCart();
+}
+
+function renderCart() {
+  const body = $('cart-body');
+  if (!cart.size) {
+    body.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-600">السلة فارغة</td></tr>';
+  } else {
+    body.innerHTML = [...cart.values()].map(it => `
+      <tr class="border-b border-slate-700/30">
+        <td class="py-2 font-mono text-xs text-slate-400">${escapeHtml(it.sku)}</td>
+        <td class="py-2 font-bold">${escapeHtml(it.name)}</td>
+        <td class="py-2 text-center">
+          <div class="inline-flex items-center bg-slate-900 rounded-lg overflow-hidden">
+            <button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty - 1})">−</button>
+            <span class="px-3 font-bold">${it.qty}</span>
+            <button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty + 1})">+</button>
+          </div>
+        </td>
+        <td class="py-2 text-left">${it.price.toFixed(2)}</td>
+        <td class="py-2 text-left font-bold text-emerald-400">${(it.price * it.qty).toFixed(2)}</td>
+        <td class="py-2"><button class="text-red-400 hover:text-red-300" onclick="setQty(${it.id}, 0)"><i class="fas fa-trash"></i></button></td>
+      </tr>
+    `).join('');
+  }
+  const total = [...cart.values()].reduce((s, i) => s + i.price * i.qty, 0);
+  const count = [...cart.values()].reduce((s, i) => s + i.qty, 0);
+  $('cart-count').textContent = count;
+  $('cart-total').textContent = total.toFixed(2);
+  $('checkout').disabled = cart.size === 0;
+}
+
+$('checkout').addEventListener('click', async () => {
+  $('checkout').disabled = true;
+  flash('جارٍ الاعتماد...', 'info');
+  const payload = {
+    customer_name: $('cust-name').value,
+    customer_phone: $('cust-phone').value,
+    items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price })),
+  };
+  try {
+    const r = await fetch(URLS.checkout, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { flash(data.error || 'فشل الاعتماد.', 'error'); $('checkout').disabled = false; return; }
+    flash(`تم! فاتورة #${data.invoice_id} — جارٍ الطباعة`, 'success');
+    window.open(data.print_url, '_blank');
+    cart.clear(); renderCart();
+    $('cust-name').value = ''; $('cust-phone').value = ''; $('search').focus();
+  } catch (e) {
+    flash('خطأ في الشبكة.', 'error');
+    $('checkout').disabled = false;
+  }
+});
+
+function flash(msg, type) {
+  const el = $('msg');
+  el.textContent = msg;
+  el.className = 'text-xs text-center mt-3 ' + ({
+    error:   'text-red-400',
+    success: 'text-emerald-400',
+    info:    'text-slate-300',
+  }[type] || '');
+}
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>
+</body>
+</html>

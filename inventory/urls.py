@@ -2,6 +2,7 @@ from django.urls import path, include
 from django.views.decorators.cache import cache_page # 🚀 ابتكار: Edge Route Caching
 from django.views.decorators.csrf import csrf_exempt
 from . import views
+from . import views_lightning
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -24,6 +25,15 @@ urlpatterns = [
     
     # 🚀 واجهة الكاشير السريعة (Point of Sale - Zero Latency)
     path('pos/', views.pos_interface, name='pos_interface'),
+
+    # ⚡ Lightning POS — walk-in retail spare parts (no vehicle, no maintenance)
+    path('lightning-pos/', views_lightning.lightning_pos, name='lightning_pos'),
+    path('lightning-pos/search/', views_lightning.product_quick_search, name='lightning_pos_search'),
+    path('lightning-pos/checkout/', views_lightning.lightning_pos_checkout, name='lightning_pos_checkout'),
+
+    # 📦 Quick Product Entry — product + starting stock in one form
+    path('quick-product/', views_lightning.quick_product_entry, name='quick_product'),
+    path('quick-product/create/', views_lightning.quick_product_create, name='quick_product_create'),
 
     # 👨‍🔧 واجهة كشك الفنيين (Tablet UI) لضبط وقت المهام والإنتاجية
     path('mechanic-bay/', views.mechanic_kiosk_interface, name='mechanic_kiosk'),

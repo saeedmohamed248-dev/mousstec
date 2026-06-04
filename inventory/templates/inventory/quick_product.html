@@ -1,0 +1,120 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>📦 إضافة قطعة سريعة</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#0f172a; }</style>
+</head>
+<body class="text-slate-100 min-h-screen">
+{% csrf_token %}
+<div class="max-w-3xl mx-auto p-4 sm:p-6">
+
+  <header class="flex items-center justify-between mb-5">
+    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+      <span class="text-amber-400"><i class="fas fa-boxes-stacked"></i></span>
+      إضافة قطعة سريعة
+      {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+    </h1>
+    <a href="{% url 'inventory:dashboard' %}" class="text-sm text-slate-400 hover:text-white"><i class="fas fa-home"></i> الرئيسية</a>
+  </header>
+
+  <form id="quick-form" class="bg-slate-800/60 backdrop-blur rounded-2xl p-6 border border-slate-700/50 space-y-5">
+
+    <!-- Core block -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">رقم القطعة (SKU) *</label>
+        <input name="part_number" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">اسم القطعة *</label>
+        <input name="name" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">الماركة</label>
+        <input name="brand" value="BMW" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">التوافق (موديل/شاسيه)</label>
+        <input name="car_model" placeholder="F30 / N52 / X5" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">سعر التكلفة</label>
+        <input name="purchase_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">سعر البيع *</label>
+        <input name="retail_price" type="number" step="0.01" min="0" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+    </div>
+
+    <!-- Stock block — the headline addition -->
+    <div class="bg-gradient-to-br from-emerald-900/30 to-amber-900/20 rounded-xl p-4 border border-emerald-500/30">
+      <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-warehouse"></i> المخزون الافتتاحي</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">كمية البداية</label>
+          <input name="starting_qty" type="number" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
+          <p class="text-xs text-slate-500 mt-1">تُسجَّل تلقائياً كحركة "تسوية جرد" في سجل المخزون.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">حد التنبيه (Reorder)</label>
+          <input name="min_stock_level" type="number" min="0" value="2" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+        </div>
+        {% if branches %}
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold text-slate-300 mb-1">الفرع</label>
+          <select name="branch_id" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+            {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
+      <i class="fas fa-bolt"></i> حفظ القطعة وتسجيل المخزون
+    </button>
+    <p id="msg" class="text-sm text-center"></p>
+  </form>
+</div>
+
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const URL_CREATE = "{% url 'inventory:quick_product_create' %}";
+
+document.getElementById('quick-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const msg = document.getElementById('msg');
+  msg.className = 'text-sm text-center text-slate-300';
+  msg.textContent = 'جارٍ الحفظ...';
+  try {
+    const r = await fetch(URL_CREATE, { method: 'POST', headers: {'X-CSRFToken': csrf}, body: new FormData(e.target) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      msg.className = 'text-sm text-center text-red-400';
+      msg.textContent = data.error || 'فشل الحفظ.';
+      btn.disabled = false;
+      return;
+    }
+    msg.className = 'text-sm text-center text-emerald-400 font-bold';
+    msg.textContent = `تم! قطعة #${data.product_id} (${data.sku}) · مخزون افتتاحي: ${data.stock}`;
+    e.target.reset();
+    e.target.querySelector('[name=brand]').value = 'BMW';
+    e.target.querySelector('[name=min_stock_level]').value = '2';
+    btn.disabled = false;
+    e.target.querySelector('[name=part_number]').focus();
+  } catch {
+    msg.className = 'text-sm text-center text-red-400';
+    msg.textContent = 'خطأ في الشبكة.';
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
