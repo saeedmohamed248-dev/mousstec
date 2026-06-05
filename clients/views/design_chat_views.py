@@ -100,6 +100,40 @@ def _release_lock(conv: DesignConversation) -> None:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Resume-banner lookup (Phase N.5).
+# ─────────────────────────────────────────────────────────────────────────
+# Used by design_store_my (and any other surface) to surface a
+# "continue where you left off" prompt. Returns None when:
+#   • the feature flag is off (so callers can be naive — no flag check),
+#   • the customer has no live conversation, or
+#   • the most recent live conv is older than DESIGN_CHAT_RESUME_HOURS (24h).
+#
+# 24h window is intentionally longer than the 60min idle-abandon window:
+# the prune job converts idle convs to 'abandoned' and they fall out of
+# this filter naturally. The 24h ceiling is a hard upper bound for cases
+# where the cron has been slow / off.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def find_resumable_conversation(customer):
+    if not bool(getattr(settings, 'DESIGN_CHAT_ENABLED', False)):
+        return None
+    if customer is None:
+        return None
+    resume_hours = int(getattr(settings, 'DESIGN_CHAT_RESUME_HOURS', 24))
+    cutoff = timezone.now() - timedelta(hours=resume_hours)
+    return (
+        DesignConversation.objects
+        .filter(
+            customer=customer,
+            stage__in=['planning', 'generated', 'refining'],
+            updated_at__gte=cutoff,
+        )
+        .select_related('current_design')
+        .order_by('-updated_at')
+        .first()
+    )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Brand snapshot — captured at conversation start.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 def _snapshot_brand(customer) -> dict:

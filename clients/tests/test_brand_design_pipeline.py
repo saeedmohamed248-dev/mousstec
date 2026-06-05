@@ -2095,7 +2095,7 @@ class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase
     def test_no_active_conv_renders_no_banner(self):
         customer = _make_customer()
         c = _authed_client(customer)
-        r = c.get('/marketplace/design-store/my/')
+        r = c.get('/marketplace/design-store/my-designs/')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode('utf-8')
         self.assertNotIn('عندك محادثة تصميم شغّالة', html)
@@ -2109,7 +2109,7 @@ class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase
             turn_count=4, image_count=2,
         )
         c = _authed_client(customer)
-        r = c.get('/marketplace/design-store/my/')
+        r = c.get('/marketplace/design-store/my-designs/')
         html = r.content.decode('utf-8')
         self.assertIn('عندك محادثة تصميم شغّالة', html)
         self.assertIn('/marketplace/design-chat/', html)
@@ -2126,7 +2126,7 @@ class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase
             accumulated_context={}, brand_profile_snapshot={},
         )
         c = _authed_client(customer)
-        r = c.get('/marketplace/design-store/my/')
+        r = c.get('/marketplace/design-store/my-designs/')
         html = r.content.decode('utf-8')
         self.assertNotIn('عندك محادثة تصميم شغّالة', html)
 
@@ -2148,7 +2148,7 @@ class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase
             content='made', intent='generate', design_snapshot=d,
         )
         c = _authed_client(customer)
-        r = c.get('/marketplace/design-store/my/')
+        r = c.get('/marketplace/design-store/my-designs/')
         html = r.content.decode('utf-8')
         self.assertIn('من المحادثة', html)
 
@@ -2160,7 +2160,7 @@ class ResumeBannerAndBadgeIntegrationTests(_TenantDomainProvisionMixin, TestCase
             image_url='https://cdn.test/m.jpg',
         )
         c = _authed_client(customer)
-        r = c.get('/marketplace/design-store/my/')
+        r = c.get('/marketplace/design-store/my-designs/')
         html = r.content.decode('utf-8')
         self.assertNotIn('من المحادثة', html)
 
