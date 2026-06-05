@@ -1387,11 +1387,15 @@ def ai_diagnostic_check(request):
 @require_POST
 def ai_prompt_engineer(request):
     """
-    🎨 AI Prompt Engineer Agent — Pure Function
-    Takes casual Arabic/English design description → returns cinematic FLUX/SDXL prompt.
-    Completely isolated from Copilot and Automotive sector.
-    """
+    🎨 AI Prompt Engineer Agent — migrated to Together AI (Phase N.6 follow-up).
 
+    Takes casual Arabic/English design description → returns cinematic
+    FLUX/Ideogram prompt + design_category + recommended_size.
+
+    Was on OpenAI gpt-4o-mini; now uses the same Together fallback chain as
+    compose_mega_prompt. Removes the last OpenAI dependency in the tenant
+    AI Studio entry points.
+    """
     tenant = _get_tenant()
     allowed, error = _check_ai_access(tenant, 'ai_generation')
     if not allowed:
@@ -1401,105 +1405,65 @@ def ai_prompt_engineer(request):
     if not raw_input:
         return JsonResponse({
             'status': 'error',
-            'error': 'يرجى كتابة وصف التصميم المطلوب.'
+            'error': 'يرجى كتابة وصف التصميم المطلوب.',
         }, status=400)
 
-    # 🚀 Use OpenAI GPT-4o-mini for prompt engineering — same provider as DALL-E
-    # Cheaper, faster, and more reliable than juggling two API providers.
-    openai_key = getattr(settings, 'OPENAI_API_KEY', None)
-    if not openai_key:
+    try:
+        from erp_core.ai.design_engine import _call_together_llm
+    except ImportError as e:
+        logger.error(f'[PROMPT ENGINEER] design_engine import failed: {e}')
         return JsonResponse({
             'status': 'error',
-            'error': 'مفتاح OpenAI API غير مُعد. تواصل مع مسؤول المنصة.'
+            'error': 'محرك الذكاء غير متاح حالياً. تواصل مع الإدارة.',
         }, status=500)
 
-    try:
-        import openai
-    except ImportError:
-        return JsonResponse({
-            'status': 'error',
-            'error': 'مكتبة openai غير مثبتة على السيرفر.'
-        }, status=500)
-
-    try:
-        client = openai.OpenAI(api_key=openai_key)
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # cheap + smart for prompt engineering
-            messages=[
-                {"role": "system", "content": _PROMPT_ENGINEER_SYSTEM},
-                {"role": "user", "content": raw_input},
-            ],
-            response_format={"type": "json_object"},  # guaranteed JSON output
-            temperature=0.4,
-            max_tokens=1200,
+    llm = _call_together_llm(_PROMPT_ENGINEER_SYSTEM, raw_input, temperature=0.4)
+    if not llm.get('success'):
+        err_code = llm.get('error', 'llm_failed')
+        # Map common Together failures to user-friendly Arabic messages.
+        friendly = {
+            'together_key_missing':       'مفتاح Together AI غير مُعد. تواصل مع مسؤول المنصة.',
+            'together_llm_http_429':      'تم تجاوز حدود محرك الذكاء. حاول بعد دقيقة.',
+            'together_llm_invalid_json':  'خطأ في تحليل رد المحرك. حاول صياغة الوصف بشكل مختلف.',
+        }.get(err_code, f'تعذرت صياغة البرومبت ({err_code}). حاول مرة أخرى.')
+        status = 429 if err_code == 'together_llm_http_429' else 502
+        logger.warning(
+            f'[PROMPT ENGINEER] llm failed: {err_code} — '
+            f'{(llm.get("detail") or "")[:200]}'
         )
+        return JsonResponse({'status': 'error', 'error': friendly}, status=status)
 
-        raw_response = response.choices[0].message.content
-        if not raw_response:
-            return JsonResponse({
-                'status': 'error',
-                'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'
-            }, status=500)
+    result = llm.get('data') or {}
 
-        # Parse JSON (response_format guarantees it, but handle edge cases)
-        try:
-            result = json.loads(raw_response)
-        except json.JSONDecodeError:
-            clean = re.sub(r'^```(?:json)?\s*', '', raw_response.strip())
-            clean = re.sub(r'\s*```$', '', clean)
-            try:
-                result = json.loads(clean)
-            except json.JSONDecodeError:
-                logger.error(f"[PROMPT ENGINEER] Invalid JSON from OpenAI: {raw_response[:200]}")
-                return JsonResponse({
-                    'status': 'error',
-                    'error': 'خطأ في تحليل رد المحرك. حاول صياغة الوصف بشكل مختلف.'
-                }, status=500)
+    # The system prompt may instruct the LLM to refuse out-of-scope requests
+    if result.get('status') == 'rejected':
+        return JsonResponse(result, status=400)
 
-        # Validate
-        if result.get('status') == 'rejected':
-            return JsonResponse(result, status=400)
-
-        if 'engineered_prompt' not in result:
-            return JsonResponse({
-                'status': 'error',
-                'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'
-            }, status=500)
-
-        # Defaults
-        result.setdefault('status', 'success')
-        result.setdefault('original_intent', raw_input)
-        result.setdefault('design_category', 'other')
-        result.setdefault('negative_prompt', 'blurry, low quality, distorted text, artifacts, watermark, cropped, jpeg artifacts, low resolution, pixelated')
-        result.setdefault('recommended_size', '1024x1024')
-        result.setdefault('recommended_quality', 'hd')
-
-        logger.info(f"🎨 [PROMPT ENGINEER OpenAI]: {tenant.name} — Category: {result['design_category']} by {request.user.username}")
-        return JsonResponse(result)
-
-    except openai.AuthenticationError:
+    if not result.get('engineered_prompt'):
         return JsonResponse({
             'status': 'error',
-            'error': 'مفتاح OpenAI غير صالح. تواصل مع مسؤول المنصة.'
-        }, status=500)
-    except openai.RateLimitError:
-        return JsonResponse({
-            'status': 'error',
-            'error': 'تم تجاوز حدود OpenAI. حاول بعد دقيقة.'
-        }, status=429)
-    except openai.APIError as e:
-        logger.error(f"🔴 [PROMPT ENGINEER OpenAI ERROR]: {tenant.name} — {e}")
-        return JsonResponse({
-            'status': 'error',
-            'error': f'خطأ في OpenAI: {str(e)[:200]}'
+            'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.',
         }, status=502)
-    except Exception as e:
-        logger.error(f"🔴 [PROMPT ENGINEER ERROR]: {tenant.name if tenant else 'N/A'} — {e}")
-        return JsonResponse({
-            'status': 'error',
-            'error': 'حدث خطأ غير متوقع. حاول مرة أخرى.'
-        }, status=500)
+
+    # Defensive defaults — keep response shape identical to the legacy
+    # OpenAI version so the frontend doesn't need any change.
+    result.setdefault('status', 'success')
+    result.setdefault('original_intent', raw_input)
+    result.setdefault('design_category', 'other')
+    result.setdefault(
+        'negative_prompt',
+        'blurry, low quality, distorted text, artifacts, watermark, '
+        'cropped, jpeg artifacts, low resolution, pixelated',
+    )
+    result.setdefault('recommended_size', '1024x1024')
+    result.setdefault('recommended_quality', 'hd')
+
+    logger.info(
+        f'🎨 [PROMPT ENGINEER]: {getattr(tenant, "name", "?")} — '
+        f'engine=together model={llm.get("model_used")} '
+        f'category={result["design_category"]} by {request.user.username}'
+    )
+    return JsonResponse(result)
 
 
 # =====================================================================

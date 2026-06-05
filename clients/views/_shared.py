@@ -32,7 +32,14 @@ def _is_platform_owner(user):
 
 
 def _marketplace_auth(request):
-    """Resolve the marketplace customer from the `mp_session` cookie."""
+    """Resolve the marketplace customer from the `mp_session` cookie.
+
+    🐛 [audit FIX]: كان بيـ raise ValidationError 500 لو الـ cookie مش UUID
+    صالح (cookie قديم/مكسور/manually-edited). دلوقتي بنتـ catch كل أنواع
+    الخطأ المتوقّعة (ValueError + ValidationError + DoesNotExist) ونرجع
+    None — اللي بيحوّل الـ user للـ login page بدل ما يشوف 500.
+    """
+    from django.core.exceptions import ValidationError
     token = request.COOKIES.get('mp_session')
     if not token:
         return None
@@ -40,7 +47,7 @@ def _marketplace_auth(request):
         return MarketplaceCustomer.objects.get(
             session_token=token, is_verified=True, is_blocked=False,
         )
-    except MarketplaceCustomer.DoesNotExist:
+    except (MarketplaceCustomer.DoesNotExist, ValueError, ValidationError):
         return None
 
 
