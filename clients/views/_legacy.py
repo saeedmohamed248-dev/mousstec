@@ -1309,10 +1309,8 @@ def design_store_my_designs(request):
     # 💬 Phase N.5 — annotate with `from_conversation` so the template can
     # render a "Generated via Chat" badge on cards that came from the
     # Conversational Design Builder.
-    from clients.services.design_chat import (
-        annotate_designs_from_chat,
-        get_active_conversation,
-    )
+    from clients.services.design_chat import annotate_designs_from_chat
+    from clients.views.design_chat_views import find_resumable_conversation
     designs = list(
         annotate_designs_from_chat(customer.designs.order_by('-created_at'))[:50]
     )
@@ -1325,11 +1323,10 @@ def design_store_my_designs(request):
     for d in designs:
         d.regen_left = max(d.regenerations_allowed - d.regenerations_used, 0)
 
-    # 💬 Resume Conversation banner — only if feature flag is on AND
-    # the customer has a non-terminal recent conversation.
-    active_conversation = None
-    if getattr(settings, 'DESIGN_CHAT_ENABLED', False):
-        active_conversation = get_active_conversation(customer)
+    # 💬 Resume Conversation banner — find_resumable_conversation() handles
+    # the feature-flag check internally (returns None when off) so we can
+    # call it unconditionally.
+    active_conversation = find_resumable_conversation(customer)
 
     return render(request, 'clients/marketplace/design_store_my.html', {
         'customer': customer,

@@ -496,3 +496,50 @@ def process_ai_bidding_award(self, bid_id: int):
     except Exception as exc:
         logger.error(f"🔴 [AI BIDDING AWARD] Retrying ({self.request.retries}/2)… {exc}")
         raise self.retry(exc=exc)
+
+
+# =====================================================================
+# 💬 4. تنظيف محادثات التصميم المهجورة (Stale Design-Chat Sweeper)
+# =====================================================================
+# Periodic — schedule via celery beat (e.g. every 15 min). Mass-UPDATEs
+# idle planning/generated/refining conversations to 'abandoned' so the
+# resume banner doesn't surface dead shells and the lock column stays
+# clean. The actual logic lives in clients.services.design_chat —
+# this wrapper exists only so beat can call it without importing Django
+# management commands.
+# =====================================================================
+@shared_task(name='clients.tasks.cleanup_stale_design_conversations')
+def cleanup_stale_design_conversations(idle_minutes: int | None = None):
+    """Sweep stale design-chat sessions → 'abandoned'.
+
+    Args:
+        idle_minutes: override settings.DESIGN_CHAT_IDLE_MINUTES if you want
+                      a different cutoff for this run (rarely useful — leave
+                      None for the default 60-minute window).
+
+    Returns the service's audit dict so beat logs / Flower see the counts:
+      {'inspected', 'abandoned', 'cutoff', 'dry_run', 'by_stage'}.
+
+    Safe under feature flag: if DESIGN_CHAT_ENABLED is False the query
+    still runs but finds nothing (table either empty or already swept).
+    No behavioural side effect — kept as a no-op rather than a hard skip
+    so re-enabling the flag doesn't leave a backlog to clear.
+    """
+    from django.conf import settings as _settings
+    from clients.services.design_chat import prune_stale_conversations
+
+    try:
+        result = prune_stale_conversations(
+            idle_minutes=idle_minutes,
+            dry_run=False,
+        )
+    except Exception as exc:
+        logger.error(f"🔴 [DESIGN CHAT SWEEP] failed: {exc}", exc_info=True)
+        return {'error': str(exc), 'abandoned': 0}
+
+    if result.get('abandoned'):
+        logger.info(
+            f"🧹 [DESIGN CHAT SWEEP] abandoned={result['abandoned']} "
+            f"by_stage={result['by_stage']} cutoff={result['cutoff']}"
+        )
+    return result

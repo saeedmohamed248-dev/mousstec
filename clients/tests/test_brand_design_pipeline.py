@@ -1822,21 +1822,37 @@ class DesignChatPageRenderTests(_TenantDomainProvisionMixin, TestCase):
 # ===========================================================================
 # N.5 — Resume banner / "from chat" badge / stale-prune service + command
 # ===========================================================================
-class GetActiveConversationTests(TestCase):
-    """The resume-banner lookup: most recent non-terminal conv within idle window."""
+@override_settings(DESIGN_CHAT_ENABLED=True)
+class FindResumableConversationTests(TestCase):
+    """The resume-banner lookup: most recent non-terminal conv within
+    DESIGN_CHAT_RESUME_HOURS. Lives in views module (presentation concern).
+    Note: 24h resume window is intentionally longer than the 60min idle
+    abandon window — surfaces conversations that haven't been auto-pruned yet."""
 
     def test_returns_none_when_no_conversations(self):
-        from clients.services.design_chat import get_active_conversation
+        from clients.views.design_chat_views import find_resumable_conversation
         customer = _make_customer()
-        self.assertIsNone(get_active_conversation(customer))
+        self.assertIsNone(find_resumable_conversation(customer))
 
     def test_returns_none_when_customer_is_none(self):
-        from clients.services.design_chat import get_active_conversation
-        self.assertIsNone(get_active_conversation(None))
+        from clients.views.design_chat_views import find_resumable_conversation
+        self.assertIsNone(find_resumable_conversation(None))
+
+    @override_settings(DESIGN_CHAT_ENABLED=False)
+    def test_returns_none_when_feature_flag_off(self):
+        """Canonical lookup honors the flag internally — caller can be naive."""
+        from clients.models import DesignConversation
+        from clients.views.design_chat_views import find_resumable_conversation
+        customer = _make_customer()
+        DesignConversation.objects.create(
+            customer=customer, stage='planning',
+            accumulated_context={}, brand_profile_snapshot={},
+        )
+        self.assertIsNone(find_resumable_conversation(customer))
 
     def test_returns_most_recent_active_conversation(self):
         from clients.models import DesignConversation
-        from clients.services.design_chat import get_active_conversation
+        from clients.views.design_chat_views import find_resumable_conversation
         customer = _make_customer()
         DesignConversation.objects.create(
             customer=customer, stage='planning',
@@ -1846,12 +1862,12 @@ class GetActiveConversationTests(TestCase):
             customer=customer, stage='generated',
             accumulated_context={}, brand_profile_snapshot={},
         )
-        result = get_active_conversation(customer)
+        result = find_resumable_conversation(customer)
         self.assertEqual(result.pk, latest.pk)
 
     def test_excludes_finalized_and_abandoned(self):
         from clients.models import DesignConversation
-        from clients.services.design_chat import get_active_conversation
+        from clients.views.design_chat_views import find_resumable_conversation
         customer = _make_customer()
         DesignConversation.objects.create(
             customer=customer, stage='finalized',
@@ -1861,28 +1877,27 @@ class GetActiveConversationTests(TestCase):
             customer=customer, stage='abandoned',
             accumulated_context={}, brand_profile_snapshot={},
         )
-        self.assertIsNone(get_active_conversation(customer))
+        self.assertIsNone(find_resumable_conversation(customer))
 
-    def test_excludes_stale_conversations_beyond_idle_window(self):
-        """Idle > DESIGN_CHAT_IDLE_MINUTES → don't surface, even if not abandoned."""
-        from clients.models import DesignConversation
-        from clients.services.design_chat import get_active_conversation
+    def test_excludes_conversations_beyond_resume_window(self):
+        """Idle > DESIGN_CHAT_RESUME_HOURS → don't surface."""
         from datetime import timedelta
+        from clients.models import DesignConversation
+        from clients.views.design_chat_views import find_resumable_conversation
         customer = _make_customer()
         conv = DesignConversation.objects.create(
             customer=customer, stage='planning',
             accumulated_context={}, brand_profile_snapshot={},
         )
-        # Bypass auto_now by direct UPDATE
         DesignConversation.objects.filter(pk=conv.pk).update(
-            updated_at=timezone.now() - timedelta(minutes=90),
+            updated_at=timezone.now() - timedelta(hours=48),
         )
-        with override_settings(DESIGN_CHAT_IDLE_MINUTES=60):
-            self.assertIsNone(get_active_conversation(customer))
+        with override_settings(DESIGN_CHAT_RESUME_HOURS=24):
+            self.assertIsNone(find_resumable_conversation(customer))
 
     def test_scoped_to_customer(self):
         from clients.models import DesignConversation
-        from clients.services.design_chat import get_active_conversation
+        from clients.views.design_chat_views import find_resumable_conversation
         c1 = _make_customer(phone='+201000000030')
         c2 = _make_customer(phone='+201000000031')
         DesignConversation.objects.create(
@@ -1890,7 +1905,7 @@ class GetActiveConversationTests(TestCase):
             accumulated_context={}, brand_profile_snapshot={},
         )
         # c2 has no conversations — must not see c1's
-        self.assertIsNone(get_active_conversation(c2))
+        self.assertIsNone(find_resumable_conversation(c2))
 
 
 class AnnotateDesignsFromChatTests(TestCase):

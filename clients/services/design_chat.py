@@ -3,9 +3,15 @@
 =====================================================================
 Shared business logic used by both views and the management command:
 
-  • get_active_conversation()       — resume-banner lookup
   • annotate_designs_from_chat()    — "from chat" badge annotation
   • prune_stale_conversations()     — stale planning/refining → abandoned
+
+The resume-banner lookup lives on the view side as
+`clients.views.design_chat_views.find_resumable_conversation` — it uses
+the longer DESIGN_CHAT_RESUME_HOURS window (24h) rather than the prune
+DESIGN_CHAT_IDLE_MINUTES window (60min), so it intentionally surfaces
+conversations that are still alive in DB but past the active-banner
+heartbeat. Kept there since it's purely a presentation-layer concern.
 
 Kept out of views so the management command can import the same logic
 without dragging the request/response layer.
@@ -24,32 +30,6 @@ logger = logging.getLogger('mouss_tec_core')
 
 # Stages eligible for stale-cleanup. 'finalized' and 'abandoned' are terminal.
 PRUNABLE_STAGES = ('planning', 'generated', 'refining')
-
-
-def get_active_conversation(customer):
-    """Return the most-recent non-terminal conversation for the customer,
-    or None. Used for the 'Resume Conversation' banner on the design store.
-
-    Excludes conversations idle beyond `DESIGN_CHAT_IDLE_MINUTES` — those
-    are presumed dead and shouldn't tempt the user back into a stale shell.
-    """
-    from clients.models import DesignConversation
-
-    if customer is None:
-        return None
-    idle_minutes = int(getattr(settings, 'DESIGN_CHAT_IDLE_MINUTES', 60))
-    cutoff = timezone.now() - timedelta(minutes=idle_minutes)
-    return (
-        DesignConversation.objects
-        .filter(
-            customer=customer,
-            stage__in=PRUNABLE_STAGES,
-            updated_at__gte=cutoff,
-        )
-        .select_related('current_design')
-        .order_by('-updated_at')
-        .first()
-    )
 
 
 def annotate_designs_from_chat(qs: QuerySet) -> QuerySet:
