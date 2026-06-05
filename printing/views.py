@@ -38,6 +38,12 @@ def _check_ai_access(tenant, action_type='ai_generation'):
     """
     Check if tenant has active AI subscription and remaining quota.
     Returns (allowed: bool, error_message: str or None)
+
+    🔧 Fix (post Phase N.6 smoke test): the previous version short-circuited
+    on `not sub.ai_addon`, which blocked tenants who had a super-admin
+    bonus grant but no paid addon — contradicting ai_studio_status which
+    honors bonuses. Now we delegate to AILimitTracker.can_use() which
+    correctly checks the bonus pool BEFORE the paid subscription.
     """
     if not tenant:
         return False, 'لا يمكن تحديد المستأجر.'
@@ -51,13 +57,19 @@ def _check_ai_access(tenant, action_type='ai_generation'):
     if not sub.is_active:
         return False, 'اشتراكك غير مفعّل حالياً. تواصل مع الإدارة لتجديد الاشتراك.'
 
-    if not sub.ai_addon:
-        return False, 'لم يتم تفعيل حزمة AI Studio على اشتراكك. تواصل مع الإدارة لإضافة حزمة AI.'
+    if AILimitTracker.can_use(tenant, action_type):
+        return True, None
 
-    if not AILimitTracker.can_use(tenant, action_type):
-        return False, 'تم استنفاد حصتك الشهرية من هذه الخدمة. يتم تجديد الحصة في بداية كل شهر.'
-
-    return True, None
+    # Denied — distinguish the two distinct failure modes for a useful message:
+    #   • no paid addon AND no bonus left → tell user to contact admin
+    #   • paid addon exists but quota exhausted → tell user to wait for renewal
+    bonus_remaining = AILimitTracker._get_bonus_remaining(tenant, action_type)
+    if not sub.ai_addon and bonus_remaining == 0:
+        return False, (
+            'لم يتم تفعيل حزمة AI Studio على اشتراكك ولا توجد هدايا متاحة. '
+            'تواصل مع الإدارة لإضافة حزمة AI أو منح هدية.'
+        )
+    return False, 'تم استنفاد حصتك الشهرية من هذه الخدمة. يتم تجديد الحصة في بداية كل شهر.'
 
 
 def _apply_watermark_to_url(image_url, watermark_text, tenant, request):
