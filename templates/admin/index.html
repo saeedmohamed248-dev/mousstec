@@ -1157,7 +1157,12 @@
     function openAIStudioModal() {
         // Check AI status first
         fetch('/printing/ai/status/').then(r => {
-            if (r.redirected || !r.ok) {
+            if (r.redirected) {
+                // Auth/routing redirected the request — show the destination
+                // so we can diagnose (was a real bug in Phase N.6 smoke test).
+                throw new Error('تم تحويل الطلب إلى ' + r.url + ' — تأكد من تسجيل الدخول');
+            }
+            if (!r.ok) {
                 throw new Error('HTTP ' + r.status);
             }
             return r.json();
@@ -1827,7 +1832,10 @@
 
     function openWatermarkModal() {
         fetch('/printing/ai/status/').then(r => {
-            if (r.redirected || !r.ok) throw new Error('HTTP ' + r.status);
+            if (r.redirected) {
+                throw new Error('تم تحويل الطلب إلى ' + r.url + ' — تأكد من تسجيل الدخول');
+            }
+            if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
         }).then(data => {
             if (!data.active) {

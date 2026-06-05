@@ -45,6 +45,25 @@ class IndustryPortalMiddleware:
         if path.startswith('/static/') or path.startswith('/media/'):
             return self.get_response(request)
 
+        # 🆕 الـ middleware ده مخصّص لتوجيه الـ landing pages للـ portal
+        # subdomains (auto./print.) — مش supposed يـ intercept الـ admin أو
+        # الـ tenant API calls.
+        # ─────────────────────────────────────────────────────────────────
+        # قبل الـ fix ده كان أي مسار غير معروف بيـ redirect لـ `/` (سطر 75)،
+        # واللي خلّى الـ fetch من dashboard على subdomain portal يرجع redirected
+        # response → الـ JS يـ throw "Error: HTTP 200" والـ AI Studio modal
+        # ميـ openش (Phase N.6 smoke-test bug).
+        _admin_url = getattr(settings, 'ADMIN_URL', _ADMIN_URL)
+        if (
+            path.startswith(f'/{_admin_url}/')   # Django admin (per-tenant)
+            or path.startswith('/superadmin/')   # Super admin
+            or path.startswith('/printing/')     # Printing tenant APIs (incl. /printing/ai/)
+            or path.startswith('/system/')       # Automotive tenant APIs
+            or path.startswith('/api/')          # REST APIs
+            or path.startswith('/marketplace/')  # Customer marketplace
+        ):
+            return self.get_response(request)
+
         protocol = 'https' if request.is_secure() else 'http'
         base = f'{protocol}://{_BASE_DOMAIN}'
 
