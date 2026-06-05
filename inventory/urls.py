@@ -17,6 +17,9 @@ urlpatterns = [
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
 
+    # 💸 Commission payout dashboard (DMS Backlog #5)
+    path('commissions/', views.commission_dashboard, name='commission_dashboard'),
+
     # 🚪 Tenant logout — يستخدم Django's LogoutView وبيرجع للـ tenant-aware
     # login بدل ما العميل يلاقي نفسه في Django admin login.
     # 🐛 [Issue follow-up]: الـ template كان عنده /secure-portal/logout/ اللي

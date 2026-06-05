@@ -23,6 +23,13 @@ class ERPTenantTestCase(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # 🐛 [test-coverage FIX]: Multiple test classes in the same process can
+        # leave the connection on a previous test's tenant schema. django_tenants
+        # refuses to create a tenant outside `public` schema, so we explicitly
+        # reset before creating ours. Without this, the 2nd ERPTenantTestCase
+        # class in a run fails with "Can't create tenant outside the public schema".
+        connection.set_schema_to_public()
+
         # Create tenant
         TenantModel = get_tenant_model()
         DomainModel = get_tenant_domain_model()

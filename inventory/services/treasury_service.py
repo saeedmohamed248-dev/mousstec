@@ -218,47 +218,120 @@ class TreasuryService:
     # ------------------------------------------------------------------
     # Technician Commission Payout — batch pay with atomic guard
     # ------------------------------------------------------------------
+    # Commission Payout — explicit treasury, branch-scoped, idempotent.
+    # ------------------------------------------------------------------
+    # 🐛 [Commission audit FIX 2026-06-05]: pay_commissions كان بياخد أول
+    # خزينة في الـ DB من غير ما يـ branch-scope، كان محدود role='tech' بس،
+    # ما كانش بيـ link الـ FinancialTransaction لـ employee FK، وما كانش
+    # عنده select_for_update فـ double-click ممكن يـ double-pay. النسخة دي
+    # تـ accept treasury صريح، تشتغل لكل الأدوار اللي بتاخد عمولة، وتـ lock
+    # الـ profile قبل ما تـ debit الـ balance.
     @staticmethod
-    def pay_commissions(queryset):
+    def pay_commissions(employee_profiles, treasury, paid_by_user=None, allowed_roles=None):
         """
-        Pay outstanding commissions for a queryset of User objects.
-        Returns (paid_count, total_paid, treasury_name) or raises if no active treasury.
-        Called from admin action: pay_tech_commissions.
+        Pay outstanding commissions for a queryset of EmployeeProfile objects.
+
+        Args:
+            employee_profiles: queryset / iterable of EmployeeProfile
+            treasury:          Treasury instance to debit (REQUIRED — no auto-pick)
+            paid_by_user:      User performing the payout (audit trail)
+            allowed_roles:     filter to these roles (default: all roles that
+                               accrue commission: tech, sales, cashier, manager)
+
+        Returns: {
+            'paid_count': N,
+            'total_paid': Decimal,
+            'treasury_name': str,
+            'breakdown': [{'employee_id', 'name', 'role', 'amount'}],
+        }
+
+        Raises ValidationError on:
+            - inactive/missing treasury
+            - empty queryset (no one selected)
+            - treasury balance after payout would go negative
         """
-        from inventory.models import Treasury, FinancialTransaction
+        from inventory.models import (
+            Treasury, FinancialTransaction, EmployeeProfile,
+        )
 
-        treasury = Treasury.objects.filter(is_active=True).first()
-        if not treasury:
-            raise ValidationError("لم يتم العثور على خزنة نشطة بالفرع لسحب المبالغ النقدية منها.")
+        if not treasury or not treasury.is_active:
+            raise ValidationError("الخزنة غير صالحة أو معطّلة.")
 
-        paid_count = 0
+        if allowed_roles is None:
+            allowed_roles = {'tech', 'sales', 'cashier', 'manager', 'admin'}
+        else:
+            allowed_roles = set(allowed_roles)
+
+        breakdown = []
         total_paid = Decimal('0.00')
 
         with transaction.atomic():
-            for user in queryset:
-                if hasattr(user, 'employee_profile') and user.employee_profile.role == 'tech':
-                    profile = user.employee_profile
-                    amount = profile.commission_balance
-                    if amount > 0:
-                        FinancialTransaction.objects.create(
-                            treasury=treasury,
-                            transaction_type='out',
-                            amount=amount,
-                            description=(
-                                f"صرف عمولات إنتاجية مستحقة للفني المعتمد: "
-                                f"{user.get_full_name() or user.username}"
-                            ),
-                        )
-                        profile.commission_balance = Decimal('0.00')
-                        profile.save(update_fields=['commission_balance'])
-                        paid_count += 1
-                        total_paid += amount
+            # Lock the treasury row so concurrent payouts can't race the balance check.
+            treasury_locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
+
+            for profile in employee_profiles:
+                # Re-fetch with row lock — prevents double-pay on double-click.
+                # 🐛 [test FIX]: PostgreSQL refuses FOR UPDATE on the nullable side of
+                # an outer join (user/branch FKs are nullable → select_related does
+                # LEFT JOIN). Lock only the EmployeeProfile row itself via of=('self',)
+                # then pull user/branch separately for the display name.
+                profile = (
+                    EmployeeProfile.objects.select_for_update(of=('self',))
+                    .get(pk=profile.pk)
+                )
+                # Hydrate related (no lock needed — read-only for description)
+                if profile.user_id:
+                    profile.user = type(profile).user.field.related_model.objects.filter(pk=profile.user_id).first()
+                if profile.role not in allowed_roles:
+                    continue
+                amount = profile.commission_balance
+                if amount <= Decimal('0.00'):
+                    continue
+
+                # Audit-linked transaction
+                user = profile.user
+                display_name = (
+                    (user.get_full_name() or user.username) if user else f'#{profile.pk}'
+                )
+                FinancialTransaction.objects.create(
+                    treasury=treasury_locked,
+                    transaction_type='out',
+                    amount=amount,
+                    description=(
+                        f"صرف عمولات مستحقة لـ «{display_name}» "
+                        f"(دور: {profile.get_role_display()})"
+                        + (f" — معتمد من {paid_by_user.username}" if paid_by_user else "")
+                    ),
+                    employee=profile,
+                )
+
+                profile.commission_balance = Decimal('0.00')
+                profile.save(update_fields=['commission_balance'])
+
+                breakdown.append({
+                    'employee_id': profile.pk,
+                    'name': display_name,
+                    'role': profile.role,
+                    'amount': amount,
+                })
+                total_paid += amount
+
+        if not breakdown:
+            raise ValidationError(
+                "لم يتم العثور على أي عمولة مستحقة في الموظفين المحددين."
+            )
 
         logger.info(
-            "[COMMISSIONS] Paid %s technicians, total %s EGP from treasury '%s'",
-            paid_count, total_paid, treasury.name,
+            "[COMMISSIONS] paid=%s total=%s EGP treasury=%s by=%s",
+            len(breakdown), total_paid, treasury.name,
+            paid_by_user.username if paid_by_user else '?',
         )
-        return paid_count, total_paid, treasury.name
+        return {
+            'paid_count': len(breakdown),
+            'total_paid': total_paid,
+            'treasury_name': treasury.name,
+            'breakdown': breakdown,
+        }
 
     # ------------------------------------------------------------------
     # Small Debt Reconciliation — write off micro-balances

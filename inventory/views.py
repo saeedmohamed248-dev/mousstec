@@ -2600,3 +2600,94 @@ def inventory_forecast_api(request):
             'medium': sum(1 for f in forecasts if f['urgency'] == 'medium'),
         },
     })
+
+
+# =====================================================================
+# 💸 Commission Payout — outstanding-balance dashboard + pay action
+# =====================================================================
+# DMS Backlog #5. Replaces the Django-admin bulk action with a proper
+# tenant-facing UI: list every employee with commission_balance > 0,
+# branch-scoped treasury picker, per-employee checkboxes, single POST
+# to settle. admin/manager only.
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
+def commission_dashboard(request):
+    """GET /system/commissions/ — list outstanding commission balances.
+    POST /system/commissions/ — settle selected employees from chosen treasury.
+    """
+    from .models import EmployeeProfile, Treasury
+    from .services.treasury_service import TreasuryService
+
+    branch = _get_branch_for_user(request.user)
+
+    treasuries = Treasury.objects.filter(is_active=True).select_related('branch')
+    if branch and not request.user.is_superuser:
+        treasuries = treasuries.filter(branch=branch)
+
+    if request.method == 'POST':
+        from django.contrib import messages
+        from django.core.exceptions import ValidationError
+        from django.shortcuts import redirect
+
+        treasury_id = request.POST.get('treasury_id', '').strip()
+        employee_ids = request.POST.getlist('employee_ids')
+
+        if not treasury_id or not employee_ids:
+            messages.error(request, '❌ اختر الخزنة والموظفين المراد صرف عمولاتهم.')
+            return redirect('inventory:commission_dashboard')
+
+        treasury = treasuries.filter(pk=treasury_id).first()
+        if not treasury:
+            messages.error(request, '❌ الخزنة المحددة غير صالحة أو خارج فرعك.')
+            return redirect('inventory:commission_dashboard')
+
+        # Scope profiles to branch (and to non-zero balance — service double-checks)
+        profiles = EmployeeProfile.objects.filter(pk__in=employee_ids)
+        if branch and not request.user.is_superuser:
+            profiles = profiles.filter(branch=branch)
+
+        try:
+            result = TreasuryService.pay_commissions(
+                profiles, treasury=treasury, paid_by_user=request.user,
+            )
+            messages.success(
+                request,
+                f"✅ صُرفت عمولات {result['paid_count']} موظف بإجمالي "
+                f"{result['total_paid']:,.2f} ج.م من خزنة «{result['treasury_name']}»."
+            )
+        except ValidationError as e:
+            messages.error(request, f"❌ {e.messages[0]}")
+        return redirect('inventory:commission_dashboard')
+
+    # GET — list outstanding balances
+    profiles_qs = (
+        EmployeeProfile.objects
+        .filter(commission_balance__gt=0)
+        .select_related('user', 'branch')
+        .order_by('-commission_balance')
+    )
+    if branch and not request.user.is_superuser:
+        profiles_qs = profiles_qs.filter(branch=branch)
+
+    rows = []
+    total_outstanding = 0
+    for p in profiles_qs:
+        rows.append({
+            'id': p.pk,
+            'name': (p.user.get_full_name() or p.user.username) if p.user else f'#{p.pk}',
+            'role': p.get_role_display(),
+            'role_code': p.role,
+            'branch': p.branch.name if p.branch_id else '—',
+            'balance': p.commission_balance,
+        })
+        total_outstanding += p.commission_balance
+
+    return render(request, 'inventory/commission_dashboard.html', {
+        'rows': rows,
+        'total_outstanding': total_outstanding,
+        'treasuries': treasuries,
+        'current_role': getattr(getattr(request.user, 'employee_profile', None), 'role', ''),
+        'is_super_user': request.user.is_superuser,
+    })

@@ -254,26 +254,37 @@ class CustomUserAdmin(BaseUserAdmin):
         return "-"
     get_commission.short_description = "عمولات متأخرة"
 
-    @admin.action(description='💸 صرف العمولات المستحقة للفنيين المحددين ذرياً (محرك الرواتب المحمي)')
+    @admin.action(description='💸 صرف العمولات المستحقة للفنيين المحددين (Admin shortcut — UI الكامل في /system/commissions/)')
     def pay_tech_commissions(self, request, queryset):
         from inventory.services.treasury_service import TreasuryService
+        from inventory.models import Treasury, EmployeeProfile
+
+        # Translate User queryset → EmployeeProfile queryset (new service signature)
+        profile_ids = [
+            u.employee_profile.pk for u in queryset
+            if hasattr(u, 'employee_profile')
+        ]
+        profiles = EmployeeProfile.objects.filter(pk__in=profile_ids)
+
+        # Admin fallback: pick first active treasury (the proper UI does branch-scoped picker).
+        treasury = Treasury.objects.filter(is_active=True).order_by('pk').first()
+        if not treasury:
+            self.message_user(request, "❌ لا توجد خزنة نشطة. أنشئ واحدة أولاً.", messages.ERROR)
+            return
+
         try:
-            paid_count, total_paid, treasury_name = TreasuryService.pay_commissions(queryset)
-            if paid_count > 0:
-                self.message_user(
-                    request,
-                    f"✅ تم تصفير وصرف عمولات لعدد {paid_count} فني ميكانيكي "
-                    f"بإجمالي {total_paid:,.2f} ج.م بنجاح من خزنة ({treasury_name}).",
-                    messages.SUCCESS,
-                )
-            else:
-                self.message_user(
-                    request,
-                    "⚠️ تنبيه: الفنيين المحددين ليس لديهم أي أرصدة عمولات معلقة للصرف.",
-                    messages.WARNING,
-                )
+            result = TreasuryService.pay_commissions(
+                profiles, treasury=treasury, paid_by_user=request.user,
+                allowed_roles={'tech'},  # preserve original action's tech-only scope
+            )
+            self.message_user(
+                request,
+                f"✅ صُرفت {result['paid_count']} عمولات بإجمالي "
+                f"{result['total_paid']:,.2f} ج.م من خزنة «{result['treasury_name']}».",
+                messages.SUCCESS,
+            )
         except ValidationError as e:
-            self.message_user(request, f"❌ فشل الصرف: {e.messages[0]}", messages.ERROR)
+            self.message_user(request, f"❌ {e.messages[0]}", messages.ERROR)
 
 
 # =====================================================================

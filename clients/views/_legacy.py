@@ -1493,11 +1493,9 @@ def design_store_generate(request):
         except (ValueError, TypeError):
             pass
 
-    # gpt-image-1 only supports: 1024x1024, 1024x1536, 1536x1024, auto
-    GPT_IMAGE_SIZE_MAP = {
-        '1024x1024': '1024x1024', '1024x1536': '1024x1536', '1536x1024': '1536x1024',
-        '1024x1792': '1024x1536', '1792x1024': '1536x1024', 'auto': 'auto',
-    }
+    # 🧹 [tech-debt cleanup 2026-06-05]: GPT_IMAGE_SIZE_MAP was dead code from
+    # the OpenAI era — defined but never read. Removed. FLUX/Ideogram accept
+    # the canonical_size value as-is, no per-model remapping needed.
 
     # Build dimension info string for the prompt
     dim_info = ''
@@ -2038,49 +2036,102 @@ def design_store_generate(request):
     if learned_suffix:
         enhanced_desc += learned_suffix
 
-    # 🎨 Generate via Together AI FLUX.1-schnell (was OpenAI gpt-image-1/dall-e — migrated 2026-06)
-    # Logo upload: FLUX schnell لا يدعم image-to-image مباشرة. لو فيه لوجو، نضيفه
-    # في الـ prompt كـ instruction ونحفظ الملف للـ post-processing لاحقاً، بدل ما
-    # نقفل feature كاملاً. الـ visual outcome مش هيدمج اللوجو الفعلي إنما هيخلي
-    # مكان واضح ليه — المستخدم بيقدر يستلم اللوجو منفصل ويدمجه بنفسه أو نعمل
-    # post-process بـ Pillow في PR لاحق.
+    # 🎨 Phase N.6+: marketplace package flow now uses the unified pipeline —
+    # Smart Router (FLUX/Ideogram) + brand profile injection + PIL logo
+    # composite + quality gate — same as Universal AI and tenant AI Studio.
+    # The legacy enhanced_desc (Master Prompt Engine v3) is the engineered
+    # prompt; we pass already_engineered=True to compose_mega_prompt so
+    # brand_context is still applied but the cinematic LLM rewrite is
+    # SKIPPED (M1 fast path) — no double LLM call, ~$0.002 saved per design.
     logo_file = request.FILES.get('logo') if (
         not using_free_trial and purchase and purchase.package.allows_logo_upload
     ) else None
     logo_was_uploaded = bool(logo_file)
+
+    # ── Brand context — surfaces the customer's saved CustomerBrandProfile ──
+    brand_context = None
+    brand_logo_source = None
+    try:
+        bp = getattr(customer, 'brand_profile', None)
+        if bp and bp.is_active:
+            brand_context = bp.as_brand_context()
+            if bp.auto_inject_logo and bp.has_logo:
+                brand_context['logo_described'] = True
+                brand_logo_source = bp.logo_image
+    except Exception as e:
+        logger.warning(f'[DESIGN STORE] brand profile lookup failed: {e}')
+
+    # If a per-request logo is uploaded but no brand profile, build a minimal
+    # brand_context so the LLM still leaves a reserved area for the composite.
     if logo_was_uploaded:
-        enhanced_desc += (
-            " IMPORTANT: Leave a clean, centered area with generous whitespace where a "
-            "company logo will be composited in post-processing. Do NOT generate any fake "
-            "logo or letterforms in that area — keep it visually empty so a real logo fits."
+        if brand_context is None:
+            brand_context = {
+                'brand_name': customer.full_name[:60] or 'Brand',
+            }
+        brand_context['logo_described'] = True
+
+    # ── Stage A: apply brand to engineered prompt (fast path — no LLM call) ──
+    try:
+        from erp_core.ai.design_engine import compose_mega_prompt
+        mega = compose_mega_prompt(
+            raw_idea=enhanced_desc,                  # legacy engineered prompt
+            domain=category if category != 'other' else '',
+            selections={},
+            brand_context=brand_context,
+            presentation_category=category if category != 'other' else None,
+            already_engineered=True,                 # M1 — skip double rewrite
         )
+    except Exception as e:
+        logger.exception('[DESIGN STORE] compose_mega_prompt crashed')
+        return JsonResponse({
+            'error': 'تعذرت صياغة البرومبت. حاول تعدّل الوصف.',
+        }, status=502)
+
+    if not mega.get('success'):
+        return JsonResponse({
+            'error': 'مقدرناش نصيغ البرومبت — جرب توضّح الوصف.',
+            'engine_error': mega.get('error', ''),
+        }, status=502)
+
+    final_prompt = mega['mega_prompt']
+    final_negative = mega.get('negative_prompt', '')
+    presentation_category = mega.get('presentation_category') or category
+    text_overlay = mega.get('text_overlay')
+    has_text = bool(text_overlay and text_overlay.get('text'))
+    enhanced_desc = final_prompt  # update for downstream storage (DesignPromptLog etc.)
 
     try:
-        from erp_core.ai.printing_copilot import generate_flux_image
-        flux_negative = (
-            "low quality, blurry, watermark, distorted text, fake logo, "
-            "duplicated elements, extra fingers, jpeg artifacts"
-        )
-        flux_result = generate_flux_image(
-            prompt=enhanced_desc[:1800],  # FLUX prompt limit
+        # ── Stage B: generate via Smart Router (FLUX for photo, Ideogram for text) ──
+        from erp_core.ai.printing_copilot import generate_design_image
+        img = generate_design_image(
+            prompt=final_prompt[:1800],
             size=canonical_size,
-            negative_prompt=flux_negative,
-            block_schnell_fallback=True,  # marketplace: dev only — schnell breaks _MEGA_SYSTEM
+            negative_prompt=final_negative or (
+                'low quality, blurry, watermark, distorted text, fake logo, '
+                'duplicated elements, extra fingers, jpeg artifacts'
+            ),
+            category=presentation_category,
+            has_text_content=has_text,
+            block_schnell_fallback=True,  # marketplace: dev tier only
         )
 
-        if not flux_result.get('success'):
-            err = flux_result.get('error', 'unknown')
-            logger.error(f"[DESIGN STORE] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
+        if not img.get('success'):
+            err = img.get('error', 'unknown')
+            logger.error(
+                f'[DESIGN STORE] image gen failed: {err} — '
+                f'{(img.get("detail") or "")[:200]}'
+            )
             return JsonResponse({
-                "error": "فشل توليد التصميم على Together AI. حاول تاني.",
-                "engine_error": err,
+                'error': 'فشل توليد التصميم. حاول تاني.',
+                'engine_error': err,
             }, status=502)
 
-        used_model = flux_result.get('model', 'flux-schnell')
-        image_url = flux_result.get('url')
-        b64 = flux_result.get('b64_json')
+        used_engine = img.get('engine', 'flux')
+        used_model = img.get('model') or used_engine
+        image_url = img.get('url')
+        b64 = img.get('b64_json')
 
-        # Persist whatever Together returned (url is short-lived, b64 is inline)
+        # ── Stage B.1: persist locally (Together URLs expire after ~1h) ──
         import uuid as _uuid
         from django.core.files.base import ContentFile
         from django.core.files.storage import default_storage
@@ -2088,7 +2139,7 @@ def design_store_generate(request):
         if b64:
             import base64 as _b64
             img_bytes = _b64.b64decode(b64)
-            filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
+            filename = f'ai_store/{customer.uid}/{_uuid.uuid4().hex}.png'
             saved_path = default_storage.save(filename, ContentFile(img_bytes))
             image_url = default_storage.url(saved_path)
             if image_url.startswith('/'):
@@ -2098,16 +2149,59 @@ def design_store_generate(request):
                 import requests as _req
                 r = _req.get(image_url, timeout=30)
                 if r.status_code == 200:
-                    filename = f"ai_store/{customer.uid}/{_uuid.uuid4().hex}.png"
+                    filename = f'ai_store/{customer.uid}/{_uuid.uuid4().hex}.png'
                     saved_path = default_storage.save(filename, ContentFile(r.content))
                     local = default_storage.url(saved_path)
                     if local.startswith('/'):
                         local = request.build_absolute_uri(local)
                     image_url = local
             except Exception as e:
-                logger.warning(f"[DESIGN STORE] Failed to persist FLUX url: {e}")
+                logger.warning(f'[DESIGN STORE] Failed to persist image url: {e}')
         else:
-            return JsonResponse({"error": "Together AI لم يُرجع صورة."}, status=502)
+            return JsonResponse({'error': 'محرك التوليد لم يُرجع صورة.'}, status=502)
+
+        # ── Stage C: composite brand/uploaded logo (FLUX only; Ideogram draws it) ──
+        logo_source = logo_file if logo_file else brand_logo_source
+        logo_composited = False
+        if logo_source and used_engine != 'ideogram':
+            try:
+                from erp_core.ai.logo_overlay import composite_logo_on_image_url
+                comp = composite_logo_on_image_url(
+                    image_url=image_url,
+                    logo_source=logo_source,
+                    category=presentation_category or '',
+                    text_overlay_position=(
+                        (text_overlay or {}).get('position') if has_text else None
+                    ),
+                )
+                if comp.get('success'):
+                    new_url = comp['url']
+                    if new_url and new_url.startswith('/'):
+                        new_url = request.build_absolute_uri(new_url)
+                    image_url = new_url
+                    logo_composited = True
+                elif not comp.get('skipped'):
+                    logger.warning(
+                        f'[DESIGN STORE] logo composite failed (non-fatal): '
+                        f'{comp.get("error")}'
+                    )
+            except Exception as e:
+                logger.warning(f'[DESIGN STORE] logo composite exception: {e}')
+
+        # ── Stage D: optional vision-based quality gate ──
+        quality_score = None
+        if bool(getattr(settings, 'DESIGN_QUALITY_GATE_ENABLED', True)):
+            try:
+                from erp_core.ai.design_engine import verify_design_quality
+                qr = verify_design_quality(
+                    image_url=image_url,
+                    raw_idea=description,
+                    category=presentation_category,
+                )
+                if qr.get('success'):
+                    quality_score = qr.get('score')
+            except Exception as e:
+                logger.warning(f'[DESIGN STORE] quality gate failed: {e}')
 
         # Create design record
         # Free trial: 0 regenerations. Paid: from package settings.
@@ -2197,12 +2291,19 @@ def design_store_generate(request):
             "can_download": not using_free_trial,
             "can_send_whatsapp": not using_free_trial,
             "download_urls": download_urls if not using_free_trial else {},
+            # 🆕 Additive fields (Phase N.6+ pipeline migration)
+            "engine_used": used_engine,
+            "presentation_category": presentation_category,
+            "brand_applied": (mega.get('brand_applied') or {}).get('applied', False),
+            "logo_composited": logo_composited,
+            "quality_score": quality_score,
         }
-        if logo_was_uploaded:
+        if logo_composited:
+            response_payload["logo_notice"] = "✅ تم دمج اللوجو في التصميم تلقائياً."
+        elif logo_was_uploaded:
             response_payload["logo_notice"] = (
-                "اللوجو اتحفظ مع التصميم، بس محرك FLUX الحالي ميقدرش يدمجه "
-                "تلقائياً في الصورة. التصميم سايب مكان فاضي يستوعب اللوجو — "
-                "نقدر ندمجه يدوي أو بـ post-processing عند التحميل."
+                "اللوجو اتحفظ بس مقدرناش ندمجه (صيغة غير مدعومة أو الـ category لا يقبل composite). "
+                "التصميم سايب مكان مناسب ليه — تقدر تدمجه يدوياً."
             )
         return JsonResponse(response_payload)
 

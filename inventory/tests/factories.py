@@ -128,3 +128,30 @@ def make_user(username='testuser', **kwargs):
     defaults = dict(username=username, password='testpass123')
     defaults.update(kwargs)
     return User.objects.create_user(**defaults)
+
+
+def make_employee(username='testemp', role='cashier', branch=None,
+                  commission_balance=None, **user_kwargs):
+    """Create User + configure its auto-created EmployeeProfile.
+
+    The signal `create_employee_profile` auto-creates a profile with role='cashier'
+    on User.save() inside any tenant schema. This helper just updates that profile
+    to the role/branch the test needs.
+
+    🐛 [test-coverage FIX]: After updating the profile we MUST re-fetch the user
+    with select_related('employee_profile'), otherwise the cached reverse-OneToOne
+    on the original user instance still holds the original (role='cashier') profile
+    — and any view that reads `request.user.employee_profile.role` sees stale data
+    → role gate denies a freshly-promoted manager → test fails with 403.
+    """
+    user = make_user(username=username, **user_kwargs)
+    profile = EmployeeProfile.objects.get(user=user)
+    profile.role = role
+    if branch is not None:
+        profile.branch = branch
+    if commission_balance is not None:
+        profile.commission_balance = Decimal(str(commission_balance))
+    profile.save()
+    # Refresh user with the now-updated profile pre-loaded into its cache.
+    user = User.objects.select_related('employee_profile').get(pk=user.pk)
+    return user, profile
