@@ -84,7 +84,7 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
 
 # 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
-# 25 MB — يدعم صور AI Studio الكبيرة من gpt-image-1 (base64 ~10-15 MB)
+# 25 MB — يدعم رفع base64 لصور AI Studio (FLUX.1-schnell عبر Together AI، ~10-15 MB).
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400   # 25 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 26214400   # 25 MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000     # AI Studio forms have many fields
@@ -326,8 +326,10 @@ ENABLE_AI_PREDICTIONS = env.bool('ENABLE_AI_PREDICTIONS', default=True)
 AI_MODEL_ENDPOINT = env.str('AI_MODEL_ENDPOINT', 'https://generativelanguage.googleapis.com/')
 AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 
-# 🤖 OpenAI API — AI Studio (Image Generation via DALL-E)
-OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
+# 🧹 [tech-debt cleanup 2026-06-05]: OPENAI_API_KEY حُذف.
+# الـ AI Studio انتقل بالكامل لـ FLUX.1-schnell عبر Together AI
+# (شوف TOGETHER_API_KEY أدناه + erp_core/ai/printing_copilot.generate_design_image).
+# لو لقيت OPENAI_API_KEY لسه في .env الـ production، اشيلها.
 
 # =====================================================================
 # 🧠 Cognitive Advisor Agent (Gemini Two-Stage Pipeline)
@@ -399,7 +401,8 @@ WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
 # 📱 OTP Delivery Configuration
 # Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'email' | 'console' (logs only)
 OTP_DELIVERY_PROVIDER = env.str('OTP_DELIVERY_PROVIDER', 'console')
-MARKETPLACE_DEBUG_OTP = env.bool('MARKETPLACE_DEBUG_OTP', default=DEBUG)  # Only show OTP in dev mode
+# 🧹 [tech-debt 2026-06-05]: MARKETPLACE_DEBUG_OTP removed — marketplace_verify_otp
+# returned 410 Gone for months. Re-add only when OTP path is reactivated.
 
 # Twilio
 TWILIO_ACCOUNT_SID = env.str('TWILIO_ACCOUNT_SID', '')
@@ -416,14 +419,11 @@ WHATSAPP_ACCESS_TOKEN = env.str('WHATSAPP_ACCESS_TOKEN', '')
 WHATSAPP_PHONE_NUMBER_ID = env.str('WHATSAPP_PHONE_NUMBER_ID', '')
 WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
 
-# =====================================================================
-# 🎛️ مفاتيح التحكم الديناميكية (SaaS Feature Flags Engine)
-# =====================================================================
-FEATURE_FLAGS = {
-    'BETA_AI_BLIND_BIDDING': env.bool('FLAG_AI_BIDDING', default=True),
-    'OCR_VISION_INVOICE': env.bool('FLAG_OCR_INVOICE', default=True),
-    'CRYPTO_PAYMENTS_BETA': env.bool('FLAG_CRYPTO_PAYMENTS', default=False),
-}
+# 🧹 [tech-debt 2026-06-05]: حذف FEATURE_FLAGS dict + الـ 3 env vars
+# (FLAG_AI_BIDDING, FLAG_OCR_INVOICE, FLAG_CRYPTO_PAYMENTS) — كانوا مُعلَنين
+# من غير ما حد يقرأهم في الكود (grep أكّد 0 references). لو حد محتاج
+# feature flag dynamic engine، نستخدم django-waffle أو يضيف flag مستقل
+# على طريقة DESIGN_CHAT_ENABLED.
 
 # =====================================================================
 # 🎨 إعدادات JAZZMIN (تخصيص هوية Mouss Tec الفاخرة للوحة التحكم)

@@ -6,9 +6,10 @@
 
 المرحلة 2 (Reasoning + Tools): Llama-3.3-70B عبر Together AI بيشوف الطلب،
                                يستدعي الـ Tools المناسبة من advisor_tools
-                               عبر OpenAI tool-calling format، ويصيغ الرد.
+                               عبر tool-calling spec (مطابق لـ OpenAI's shape
+                               اللي Together بيقبله — مش بنكلم OpenAI أصلاً).
 
-⚠️ كل النصوص والـ JSON تتم عبر Together AI حصراً (Llama-3.3) — لا Gemini.
+⚠️ كل النصوص والـ JSON تتم عبر Together AI حصراً (Llama-3.3) — لا Gemini ولا OpenAI.
 """
 from __future__ import annotations
 
@@ -46,9 +47,12 @@ def _is_enabled() -> bool:
     return bool(getattr(settings, 'ENABLE_AI_PREDICTIONS', True)) and bool(_api_key())
 
 
-# Translate Gemini-shaped function declarations into OpenAI tool-format.
-# (parameters are already JSON-Schema, so it's a thin wrapper.)
-def _openai_tools() -> list[dict]:
+# Translate Gemini-shaped function declarations into the {type:function,function:...}
+# tool-spec shape that Together AI's chat-completions endpoint expects.
+# (parameters are already JSON-Schema, so it's a thin wrapper. The name historically
+# said "openai" because Together's API mirrors the OpenAI tool-call spec — kept as
+# `_tool_declarations` post-cleanup to stop misleading readers into thinking we hit OpenAI.)
+def _tool_declarations() -> list[dict]:
     return [
         {
             'type': 'function',
@@ -155,7 +159,7 @@ def run_advisor_pipeline(
     # --- Stage 1 ---
     refined = refine_query(user_query, sector=sector)
 
-    # --- Stage 2: build OpenAI-format chat history ---
+    # --- Stage 2: build tool-calling chat history (OpenAI-compatible shape that Together accepts) ---
     messages: list[dict] = [
         {'role': 'system', 'content': _reasoning_system_prompt(sector)},
     ]
@@ -174,7 +178,7 @@ def run_advisor_pipeline(
         ),
     })
 
-    tools = _openai_tools()
+    tools = _tool_declarations()
     tool_calls_log: list[dict] = []
 
     for hop in range(_MAX_TOOL_HOPS):
@@ -223,7 +227,7 @@ def run_advisor_pipeline(
                 'tool_calls': tool_calls_log,
             }
 
-        # Append assistant turn (with tool_calls) — required by OpenAI format
+        # Append assistant turn (with tool_calls) — required by the tool-calling spec
         messages.append({
             'role': 'assistant',
             'content': message.get('content') or '',

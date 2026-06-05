@@ -1390,7 +1390,7 @@ def design_store_generate(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    # 🛡️ Rate limiting — 5 generations per minute per customer (protects OpenAI API costs)
+    # 🛡️ Rate limiting — 5 generations per minute per customer (protects Together AI / FLUX inference costs)
     gen_rate_key = f'design_gen_rate:{customer.pk}'
     gen_count = cache.get(gen_rate_key, 0)
     if gen_count >= 5:

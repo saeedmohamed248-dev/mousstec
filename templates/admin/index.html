@@ -1323,6 +1323,9 @@
         fd.append('add_watermark', addWatermark ? 'true' : 'false');
         fd.append('output_format', outputFormat);
         if (logoFile) fd.append('logo', logoFile);
+        // 🆕 M1 — لو الـ prompt جاي من ai_prompt_engineer، نطلب من الـ backend
+        // يـ skip الـ second compose_mega_prompt LLM call (يوفر ~$0.002/توليد).
+        if (_enrichedPromptData) fd.append('pre_engineered', '1');
         fd.append('csrfmiddlewaretoken', getCSRFToken());
 
         fetch('/printing/ai/generate/', { method: 'POST', body: fd })

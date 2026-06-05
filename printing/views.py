@@ -159,6 +159,9 @@ def ai_generate_design(request):
     negative_prompt = request.POST.get('negative_prompt', '')
     design_category = request.POST.get('design_category', 'other')
     add_watermark = request.POST.get('add_watermark') == 'true'
+    # 🆕 M1 — frontend sets pre_engineered=1 لو الـ prompt جاي من ai_prompt_engineer
+    # عشان نـ skip الـ compose_mega_prompt LLM call ونوفر ~$0.002/توليد.
+    pre_engineered = request.POST.get('pre_engineered') == '1'
     # one-shot logo upload (overrides the persistent tenant.logo for this request)
     logo_file = request.FILES.get('logo')
 
@@ -184,6 +187,7 @@ def ai_generate_design(request):
             selections={},
             brand_context=brand_context,
             presentation_category=design_category if design_category != 'other' else None,
+            already_engineered=pre_engineered,
         )
     except Exception as e:
         logger.exception(f'[AI STUDIO] mega compose crashed for {getattr(tenant, "name", "?")}')

@@ -330,6 +330,99 @@ class ComposeMegaPromptWithBrandTests(TestCase):
 
 
 # ===========================================================================
+# M1 — compose_mega_prompt fast path (already_engineered=True)
+# ===========================================================================
+class ComposeFastPathTests(TestCase):
+    """When ai_prompt_engineer already produced a cinematic prompt, the
+    second compose_mega_prompt LLM call is wasted. The fast path synthesizes
+    the mega dict without hitting Together."""
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_already_engineered_skips_llm_call(self, mock_llm):
+        result = compose_mega_prompt(
+            raw_idea='A cinematic flat-design logo, vector art, navy + gold palette.',
+            domain='logo',
+            selections={},
+            presentation_category='logo',
+            already_engineered=True,
+        )
+        self.assertTrue(result['success'])
+        # The whole point — no LLM call happened
+        mock_llm.assert_not_called()
+        self.assertTrue(result.get('engine_skipped'))
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_already_engineered_preserves_input_prompt(self, mock_llm):
+        engineered = 'A modern tshirt mockup, studio lighting, navy with red stripes.'
+        result = compose_mega_prompt(
+            raw_idea=engineered,
+            domain='apparel',
+            selections={},
+            presentation_category='apparel',
+            already_engineered=True,
+        )
+        # The mega_prompt is the input verbatim (truncated to 2700)
+        self.assertTrue(result['mega_prompt'].startswith(engineered[:50]))
+        self.assertEqual(result['presentation_category'], 'apparel')
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_already_engineered_with_brand_logo_appends_reservation_hint(self, mock_llm):
+        brand_ctx = {
+            'brand_name': 'موس تك',
+            'aesthetic': 'Modern Minimal',
+            'tone': 'Confident',
+            'logo_described': True,
+        }
+        result = compose_mega_prompt(
+            raw_idea='A flat-design tshirt mockup.',
+            domain='apparel',
+            selections={},
+            brand_context=brand_ctx,
+            presentation_category='apparel',
+            already_engineered=True,
+        )
+        # Brand logo cue must still flow into the prompt
+        self.assertIn('BRAND LOGO RESERVED', result['mega_prompt'])
+        # And brand_applied meta reflects it
+        self.assertTrue(result['brand_applied']['logo_described'])
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_already_engineered_classifies_category_when_omitted(self, mock_llm):
+        """If caller doesn't pass presentation_category, fast path classifies."""
+        result = compose_mega_prompt(
+            raw_idea='تيشرت رياضي أزرق',
+            domain='',
+            selections={},
+            already_engineered=True,
+        )
+        self.assertEqual(result['presentation_category'], 'apparel')
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_default_path_still_calls_llm(self, mock_llm):
+        """Regression guard — the flag defaults to False (preserves
+        existing behavior for all marketplace callers)."""
+        mock_llm.return_value = _fake_llm_response()
+        compose_mega_prompt(
+            raw_idea='تيشرت',
+            domain='apparel',
+            selections={},
+        )
+        mock_llm.assert_called_once()
+
+    @patch('erp_core.ai.design_engine._call_together_llm')
+    def test_empty_idea_still_errors_in_fast_path(self, mock_llm):
+        result = compose_mega_prompt(
+            raw_idea='   ',
+            domain='',
+            selections={},
+            already_engineered=True,
+        )
+        self.assertFalse(result['success'])
+        self.assertEqual(result['error'], 'empty_idea')
+        mock_llm.assert_not_called()
+
+
+# ===========================================================================
 # L4b — The combined journey: brand profile + smart router decision
 # ===========================================================================
 @override_settings(IDEOGRAM_API_KEY='test-key')

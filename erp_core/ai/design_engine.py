@@ -2350,6 +2350,7 @@ def compose_mega_prompt(
     presentation_category: str | None = None,
     subtype: str | None = None,
     brand_context: dict | None = None,
+    already_engineered: bool = False,
 ) -> dict[str, Any]:
     """يدمج الفكرة + الاختيارات + أوصاف الصور المرجعية في English mega prompt.
 
@@ -2359,6 +2360,11 @@ def compose_mega_prompt(
     subtype: نوع فرعي داخل الـ category (مثلاً footwear→slipper/sneaker/boot).
     لو None → نستنتجها من الـ raw_idea + selections.values() عبر _classify_subtype.
     دي بتـ guide الـ LLM يطبق الـ subtype-specific guidance بدل ما يـ generalize.
+
+    already_engineered: True لو الـ raw_idea جاي من ai_prompt_engineer بالفعل
+    (cinematic prompt). نـ skip الـ LLM rewrite ونـ synthesize الـ mega dict
+    مباشرة — يـ save ~$0.002/call. الـ brand profile لسه بيتطبق على الـ
+    selections + الـ logo cue يتـ append للـ prompt لو موجود. (Phase N.6 M1)
     """
     raw = (raw_idea or '').strip()
     if not raw:
@@ -2371,6 +2377,46 @@ def compose_mega_prompt(
         selections, reference_descriptions, brand_meta = apply_brand_profile(
             selections, brand_context, reference_descriptions,
         )
+
+    # ── 🆕 Fast path: pre-engineered prompt → skip the cinematic LLM rewrite ──
+    if already_engineered:
+        category = (presentation_category or '').strip().lower()
+        if category not in PRESENTATION_CATEGORIES:
+            category = _classify_presentation_category(raw, domain)
+
+        sub = (subtype or '').strip().lower() or None
+        if not sub:
+            sub_blob = raw + ' ' + ' '.join(
+                str(v) for v in (selections or {}).values() if v
+            )
+            sub = _classify_subtype(sub_blob, category)
+
+        # Append the brand logo reservation hint so FLUX leaves space for
+        # the composite step (same hint apply_brand_profile would have
+        # passed through reference_descriptions in the slow path).
+        mega = raw
+        if brand_context and brand_meta.get('logo_described'):
+            mega = (
+                mega.rstrip('.') + '. '
+                'BRAND LOGO RESERVED: leave a clean, well-positioned area '
+                'for the brand logo to be composited in post-processing '
+                '(~8-12% of canvas, natural placement for the category).'
+            )
+
+        return {
+            'success': True,
+            'mega_prompt': mega[:2700],
+            'negative_prompt': (
+                'low quality, blurry, distorted, watermark, jpeg artifacts, '
+                'low resolution, pixelated, cropped, lorem ipsum, garbled text'
+            ),
+            'recommended_size': '1024x1024',
+            'presentation_category': category,
+            'subtype': sub,
+            'text_overlay': None,
+            'brand_applied': brand_meta,
+            'engine_skipped': True,  # marker for analytics
+        }
 
     # Resolve category (server-side, deterministic)
     category = (presentation_category or '').strip().lower()
