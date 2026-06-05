@@ -99,6 +99,12 @@ def role_required(*allowed_roles):
     🛡️ RBAC Decorator — يمنع الوصول لغير الأدوار المسموح لها.
     Usage: @role_required('admin', 'manager')
     Superusers always pass.
+
+    🐛 [BUG FIX — Issue #1 dashboard quick-actions]:
+    Was returning JSON 403 for every denial. Browsers rendered that as raw
+    `{"error":"..."}` which looked exactly like a "you got logged out" screen.
+    Now: for HTML navigations we return a proper rendered 403 page; only
+    AJAX / API clients still get the JSON shape they expect.
     """
     def decorator(view_func):
         @wraps(view_func)
@@ -110,8 +116,25 @@ def role_required(*allowed_roles):
             except Exception:
                 role = None
             if role not in allowed_roles:
-                return _json_response_safe(
-                    {"error": "🔒 ليس لديك صلاحية للوصول لهذه الخدمة. تواصل مع المدير."},
+                wants_json = (
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    or 'application/json' in request.headers.get('Accept', '')
+                    or request.path.startswith('/api/')
+                )
+                if wants_json:
+                    return _json_response_safe(
+                        {"error": "🔒 ليس لديك صلاحية للوصول لهذه الخدمة. تواصل مع المدير."},
+                        status=403,
+                    )
+                # Browser nav → render an HTML page that keeps the user signed in
+                # and offers a way back to the dashboard (NOT a login screen).
+                from django.shortcuts import render
+                return render(
+                    request, 'inventory/forbidden.html',
+                    {
+                        'allowed_roles': allowed_roles,
+                        'current_role': role or '—',
+                    },
                     status=403,
                 )
             return view_func(request, *args, **kwargs)
@@ -123,7 +146,7 @@ def role_required(*allowed_roles):
 # 📊 1. لوحات التحكم ونقطة البيع وكشك الفنيين
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def branch_dashboard(request):
     is_admin = request.user.is_superuser or (
@@ -137,6 +160,11 @@ def branch_dashboard(request):
     today = raw['today']
     low_stock = raw['low_stock_qs']
 
+    # 🐛 [Issue #3 FIX]: نفس الـ source للخزينة المعروضة في /system/dashboard/
+    # و /secure-portal/ — يستخدم ReportingService.get_treasury_summary بحيث
+    # الفرع المرئي والمجموع لا يختلفان بين الواجهتين.
+    treasury = ReportingService.get_treasury_summary(request.user, branch)
+
     stats = {
         'total_sales_today': raw['total_sales_today'],
         'net_profit_today': (
@@ -145,6 +173,10 @@ def branch_dashboard(request):
         'total_expenses_today': (
             raw['total_expenses_today'] if is_admin else "🔒 صلاحية المدير فقط"
         ),
+        'total_treasury': (
+            treasury['total_treasury_balance'] if is_admin else "🔒 صلاحية المدير فقط"
+        ),
+        'treasury_count': treasury['treasury_count'],
         'invoices_count': raw['invoices_count'],
         'low_stock_count': raw['low_stock_count'],
     }
@@ -168,6 +200,7 @@ def branch_dashboard(request):
 
     return render(request, 'inventory/dashboard.html', {
         'stats': stats,
+        'treasuries_data': treasury['treasuries_data'] if is_admin else [],
         'low_stock_items': low_stock[:10],
         'tenant': tenant,
         'trial_days_left': trial_days_left,
@@ -182,20 +215,20 @@ def solutions_tour(request):
     return render(request, 'inventory/solutions.html')
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def b2b_marketplace(request):
     """واجهة سوق B2B التفاعلية مع بحث حي في السوق المركزي"""
     return render(request, 'inventory/b2b_marketplace.html')
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def pos_interface(request):
     return render(request, 'inventory/pos_fast.html')
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def mechanic_kiosk_interface(request):
     return render(request, 'inventory/mechanic_bay.html')
@@ -205,7 +238,7 @@ def mechanic_kiosk_interface(request):
 # 🖨️ 2. محركات الطباعة، المشاركة، والتوقيع الرقمي
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def print_invoice_a4(request, invoice_id):
     """Pillar 4 — Cashier dual invoice.
@@ -243,7 +276,7 @@ def print_invoice_a4(request, invoice_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def export_invoice_pdf(request, invoice_id):
     """
@@ -303,7 +336,7 @@ def export_invoice_pdf(request, invoice_id):
         }, status=500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def print_invoice_thermal(request, invoice_id):
     invoice = get_object_or_404(
@@ -318,7 +351,7 @@ def print_invoice_thermal(request, invoice_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def share_invoice_whatsapp(request, invoice_id):
     invoice = get_object_or_404(SaleInvoice, id=invoice_id)
@@ -334,7 +367,7 @@ def share_invoice_whatsapp(request, invoice_id):
     return redirect(f"https://wa.me/{invoice.customer.phone}?text={urllib.parse.quote(msg)}")
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def capture_digital_signature(request, invoice_id):
     if request.method != 'POST':
@@ -354,7 +387,7 @@ def capture_digital_signature(request, invoice_id):
 # 🚗 3. جواز السفر الرقمي للمركبات وعقود الأساطيل
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def vehicle_history(request, chassis_number):
     vehicle = get_object_or_404(
@@ -385,7 +418,7 @@ def vehicle_history(request, chassis_number):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def generate_vehicle_qr(request, chassis_number):
     if not qrcode:
@@ -406,7 +439,7 @@ def generate_vehicle_qr(request, chassis_number):
     )
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def fleet_contract_balance_api(request, contract_code):
     contract = get_object_or_404(
@@ -428,7 +461,7 @@ def fleet_contract_balance_api(request, contract_code):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def tech_shift_manager_api(request, action):
     if request.method != 'POST':
@@ -468,7 +501,7 @@ def tech_shift_manager_api(request, action):
 # 🌐 4. Webhooks الخارجية والمزامنة الإقليمية
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def api_documentation_view(request):
     return HttpResponse(
@@ -477,7 +510,7 @@ def api_documentation_view(request):
     )
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def graphql_gateway_view(request):
     return _json_response_safe({"data": {"message": "GraphQL Federation Gateway Active."}})
@@ -549,7 +582,7 @@ def regional_tax_forex_sync_webhook(request):
 # 🏎️ 5. الجرد، الباركود، والمزامنة اللحظية
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def barcode_lookup_api(request):
     code = request.GET.get('code', '').strip()
@@ -575,7 +608,7 @@ def barcode_lookup_api(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'stock')
 def mobile_cycle_count_api(request):
@@ -618,7 +651,7 @@ def mobile_cycle_count_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def offline_pos_sync_api(request):
     """
@@ -734,7 +767,7 @@ def offline_pos_sync_api(request):
         return _json_response_safe({"error": "فشل المزامنة وإدخال البيانات"}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def receive_diagnostic_report(request):
     if request.method != 'POST':
@@ -749,7 +782,7 @@ def receive_diagnostic_report(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def parts_cross_reference_api(request):
     part_number = request.GET.get('part_number', '').strip()
@@ -765,7 +798,7 @@ def parts_cross_reference_api(request):
 # 📊 6. التقارير غير المتزامنة
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def request_async_report_api(request):
@@ -841,7 +874,7 @@ def request_async_report_api(request):
         return _json_response_safe({"error": "حدث خطأ أثناء توليد التقرير"}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def download_async_report_api(request, task_id):
@@ -969,7 +1002,7 @@ def _query_auto_business_data(query):
     return ReportingService.query_business_data(query)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def ai_repair_estimator_api(request):
     """HTTP Adapter لوكيل التشخيص"""
@@ -1059,7 +1092,7 @@ def ai_repair_estimator_api(request):
     return _json_response_safe({"error": "Method not allowed"}, 405)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def ai_ocr_invoice_scanner_api(request):
     """HTTP Adapter لوكيل فواتير الموردين"""
@@ -1078,7 +1111,7 @@ def ai_ocr_invoice_scanner_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def ai_vehicle_docs_scanner_api(request):
     """HTTP Adapter لوكيل وثائق المركبات"""
@@ -1097,7 +1130,7 @@ def ai_vehicle_docs_scanner_api(request):
         return _json_response_safe({"error": "فشل قراءة المستند."}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def b2b_market_search_api(request):
     """HTTP Adapter لوكيل السوق المركزي"""
@@ -1113,7 +1146,7 @@ def b2b_market_search_api(request):
 # 🏎️ 8. عمليات الأعمال (Business Operations)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def return_core_charge_api(request, item_id):
     if request.method != 'POST':
@@ -1131,7 +1164,7 @@ def return_core_charge_api(request, item_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def create_blind_bid_api(request):
     if request.method != 'POST':
@@ -1152,7 +1185,7 @@ def create_blind_bid_api(request):
         return _json_response_safe({"error": str(e)}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def distribute_scrap_cost_api(request, job_id):
@@ -1178,7 +1211,7 @@ def distribute_scrap_cost_api(request, job_id):
 # 🧠 9. الأوركسترا المركزية متعدد الوكلاء (MAS Unified Pipeline)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def unified_ai_agent_orchestrator_api(request):
     """
@@ -1356,13 +1389,13 @@ def unified_ai_agent_orchestrator_api(request):
 # 🔌 10. مسارات الـ API Gateway الأخرى
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def legacy_system_sync_api(request):
     return _json_response_safe({"status": "success", "channel": "decentralized_legacy_sync_active"})
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def ai_competitor_recon_api(request):
     return _json_response_safe({"status": "success", "channel": "market_competitor_recon_active"})
@@ -1383,7 +1416,7 @@ def universal_webhook_multiplexer(request):
 # 📊 11. تقارير الأرباح والخسائر (Profit & Loss Reports)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def profit_loss_report_api(request):
@@ -1471,7 +1504,7 @@ def profit_loss_report_api(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def trial_balance_api(request):
@@ -1539,7 +1572,7 @@ def trial_balance_api(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def balance_sheet_api(request):
@@ -1607,7 +1640,7 @@ def balance_sheet_api(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def product_profitability_api(request):
@@ -1652,7 +1685,7 @@ def product_profitability_api(request):
 # 📥 12. نظام الاستيراد الآمن (Safe Import System)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def import_upload_api(request):
@@ -1748,7 +1781,7 @@ def import_upload_api(request):
         return _json_response_safe({"error": f"فشل قراءة الملف: {str(e)}"}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def import_preview_api(request, session_id):
     """معاينة جلسة الاستيراد — عرض التقارير والتعارضات"""
@@ -1767,7 +1800,7 @@ def import_preview_api(request, session_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def import_confirm_api(request, session_id):
@@ -1981,7 +2014,7 @@ def import_confirm_api(request, session_id):
         return _json_response_safe({"error": f"فشل الاستيراد: {str(e)}"}, 500)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def import_rollback_api(request, session_id):
@@ -2040,7 +2073,7 @@ def import_rollback_api(request, session_id):
 # 📄 12.5. تصفية المركبات حسب العميل (Vehicle-Customer Dynamic Filter)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def vehicles_by_customer_api(request, customer_id):
     """
@@ -2063,7 +2096,7 @@ def vehicles_by_customer_api(request, customer_id):
 # 📄 13. كشوف الحساب (Statement of Account)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def customer_statement_api(request, customer_id):
     """
@@ -2146,7 +2179,7 @@ def customer_statement_api(request, customer_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def vendor_statement_api(request, vendor_id):
     """كشف حساب مورد"""
@@ -2225,7 +2258,7 @@ def vendor_statement_api(request, vendor_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
@@ -2245,7 +2278,7 @@ def customer_statement_print(request, customer_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def vendor_statement_print(request, vendor_id):
     """طباعة كشف حساب المورد"""
@@ -2269,7 +2302,7 @@ def vendor_statement_print(request, vendor_id):
 # 📊 14. واجهات التحليلات المتقدمة (Analytics APIs)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def inventory_movement_log_api(request):
     """سجل حركات المخزون لمنتج محدد — يدعم ?product_id=X"""
@@ -2295,7 +2328,7 @@ def inventory_movement_log_api(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def account_ledger_api(request, account_id):
@@ -2322,7 +2355,7 @@ def account_ledger_api(request, account_id):
 # 🏦 Bank Reconciliation Views
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def bank_reconciliation_dashboard(request):
@@ -2340,7 +2373,7 @@ def bank_reconciliation_dashboard(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def bank_reconciliation_detail(request, statement_id):
@@ -2357,7 +2390,7 @@ def bank_reconciliation_detail(request, statement_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 @csrf_exempt
@@ -2392,7 +2425,7 @@ def bank_reconciliation_auto_match(request, statement_id):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 @csrf_exempt
@@ -2477,7 +2510,7 @@ def bank_statement_upload(request):
 # 📈 Inventory Forecasting (AI-driven demand prediction)
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'stock')
 def inventory_forecast_api(request):

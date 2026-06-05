@@ -481,7 +481,7 @@ def paymob_callback(request):
 # =====================================================================
 # 🧩 9. محرك شراء الإضافات بالتناسب الزمني (Pro-Rated Addon Engine)
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def manage_subscription(request):
     tenant = getattr(request, 'tenant', None)
     if not tenant or tenant.schema_name == 'public':
@@ -555,7 +555,7 @@ def manage_subscription(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def purchase_addon_api(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST Only"}, status=400)

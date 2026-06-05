@@ -119,21 +119,27 @@ def _apply_watermark_to_url(image_url, watermark_text, tenant, request):
 @require_POST
 def ai_generate_design(request):
     """
-    Generate an AI design using OpenAI DALL-E API.
-    Gated by subscription + AI quota.
+    🎨 Tenant-side AI design generation — migrated to Smart Router (Phase N.6).
+
+    Pipeline (unified with marketplace customer side):
+        compose_mega_prompt  → builds cinematic prompt + extracts category
+        generate_design_image → Smart Router (FLUX for photo, Ideogram for text)
+        composite_logo       → PIL paste of Client.logo (FLUX outputs only)
+        verify_design_quality → vision-based gate (optional)
+        _apply_watermark_to_url → legacy diagonal watermark (preserved)
+
+    Same POST body + same JSON response shape as the legacy OpenAI version —
+    the frontend is untouched. New fields appended to the response are
+    additive only (engine_used, brand_applied, logo_composited, quality_score).
+
+    Gated by subscription + AI quota (unchanged).
     """
     tenant = _get_tenant()
     allowed, error = _check_ai_access(tenant, 'ai_generation')
     if not allowed:
         return JsonResponse({'success': False, 'error': error}, status=403)
 
-    api_key = getattr(settings, 'OPENAI_API_KEY', '')
-    if not api_key:
-        return JsonResponse({
-            'success': False,
-            'error': 'مفتاح OpenAI API غير مُعد في النظام. تواصل مع مسؤول المنصة.'
-        }, status=500)
-
+    # ── Inputs ──────────────────────────────────────────────────
     prompt = request.POST.get('prompt', '').strip()
     size = request.POST.get('size', '1024x1024')
     quality = request.POST.get('quality', 'standard')
@@ -141,229 +147,238 @@ def ai_generate_design(request):
     negative_prompt = request.POST.get('negative_prompt', '')
     design_category = request.POST.get('design_category', 'other')
     add_watermark = request.POST.get('add_watermark') == 'true'
-
-    # 🆕 Logo support — user can upload their brand logo
+    # one-shot logo upload (overrides the persistent tenant.logo for this request)
     logo_file = request.FILES.get('logo')
 
     if not prompt:
         return JsonResponse({'success': False, 'error': 'يرجى كتابة وصف التصميم المطلوب.'}, status=400)
 
-    # Validate size — map to valid values per model
+    # 🛡️ Defensive size whitelist — Smart Router handles dimension parsing
     valid_sizes = ['1024x1024', '1024x1536', '1536x1024', '1024x1792', '1792x1024', 'auto']
     if size not in valid_sizes:
         size = '1024x1024'
+    if size == 'auto':
+        size = '1024x1024'
 
-    # gpt-image-1 size mapping (doesn't support 1024x1792/1792x1024)
-    GPT_IMAGE_SIZE_MAP = {
-        '1024x1024': '1024x1024',
-        '1024x1536': '1024x1536',
-        '1536x1024': '1536x1024',
-        '1024x1792': '1024x1536',  # closest supported portrait
-        '1792x1024': '1536x1024',  # closest supported landscape
-        'auto': 'auto',
-    }
+    # ── Build tenant brand_context (Phase N.6 minimal: logo + name + industry) ──
+    brand_context = _tenant_brand_context(tenant, request_logo_file=logo_file)
 
+    # ── Stage A: compose mega prompt (LLM-orchestrated) ─────────
     try:
-        import openai
-        client = openai.OpenAI(api_key=api_key)
-
-        # 🎨 Model fallback chain — OpenAI image models (2026)
-        # gpt-image-1 is the new flagship, dall-e-3 the previous flagship, dall-e-2 the legacy
-        image_models = ['gpt-image-1', 'dall-e-3', 'dall-e-2']
-        response = None
-        used_model = None
-        last_error = None
-
-        # If logo provided, prepare it for image-to-image (gpt-image-1 edit endpoint)
-        logo_bytes = None
-        if logo_file:
-            logo_bytes = logo_file.read()
-            # Augment the prompt to mention the logo
-            prompt = (
-                f"{prompt}\n\n"
-                f"IMPORTANT: Incorporate the provided company logo prominently and tastefully into the design. "
-                f"Keep the logo's original colors, shape, and proportions intact. Place it as the primary brand mark."
-            )
-
-        for model in image_models:
-            try:
-                # Map size per model
-                if model == 'gpt-image-1':
-                    model_size = GPT_IMAGE_SIZE_MAP.get(size, '1024x1024')
-                elif model == 'dall-e-2':
-                    model_size = '1024x1024'
-                else:
-                    model_size = size  # dall-e-3 supports 1024x1792/1792x1024
-                model_quality = quality
-                if model == 'dall-e-2':
-                    model_quality = 'standard'
-
-                # 🆕 Use the edit endpoint if we have a logo and the model supports it
-                # gpt-image-1 + dall-e-2 support edits; dall-e-3 does NOT
-                if logo_bytes and model in ('gpt-image-1', 'dall-e-2'):
-                    import io as _io
-                    logo_io = _io.BytesIO(logo_bytes)
-                    logo_io.name = 'logo.png'  # OpenAI SDK needs a name attr
-                    kwargs = {
-                        'model': model,
-                        'image': logo_io,
-                        'prompt': prompt,
-                        'size': model_size,
-                        'n': 1,
-                    }
-                    if model == 'gpt-image-1':
-                        kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
-                    response = client.images.edit(**kwargs)
-                else:
-                    # Plain text-to-image
-                    kwargs = {
-                        'model': model,
-                        'prompt': prompt,
-                        'size': model_size,
-                        'n': 1,
-                    }
-                    if model == 'dall-e-3':
-                        kwargs['quality'] = model_quality
-                    elif model == 'gpt-image-1':
-                        kwargs['quality'] = 'high' if model_quality == 'hd' else 'medium'
-                    response = client.images.generate(**kwargs)
-
-                used_model = model
-                if model != image_models[0]:
-                    logger.info(f"🎨 [AI STUDIO]: Succeeded using fallback model {model}")
-                break
-            except openai.BadRequestError as e:
-                err_str = str(e)
-                # Model not available or size/param issue — try next model
-                recoverable = ('does not exist', 'model_not_found', 'invalid_value',
-                               'Invalid size', 'invalid_size', 'not supported')
-                if any(k in err_str for k in recoverable):
-                    logger.warning(f"⚠️ [AI STUDIO]: Model {model} failed ({err_str[:120]}), trying next...")
-                    last_error = err_str
-                    continue
-                # Other 400 errors (bad prompt etc.) — fail fast
-                raise
-
-        if response is None:
-            return JsonResponse({
-                'success': False,
-                'error': f'لا يوجد موديل توليد صور متاح في حسابك. اطلب تفعيل DALL-E أو GPT-Image في حساب OpenAI. (آخر خطأ: {last_error[:200] if last_error else "unknown"})'
-            }, status=502)
-
-        # Parse response — gpt-image-1 returns base64, dall-e returns URL
-        first = response.data[0]
-        image_url = getattr(first, 'url', None)
-        revised_prompt = getattr(first, 'revised_prompt', prompt)
-
-        # gpt-image-1 returns b64_json — save to disk and return a normal URL
-        # This avoids HTTP 413 (Payload Too Large) when the frontend re-posts
-        # the data URL to other endpoints (WhatsApp share, etc.)
-        if not image_url:
-            b64 = getattr(first, 'b64_json', None)
-            if b64:
-                import base64, uuid as _uuid, os as _os
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
-
-                img_bytes = base64.b64decode(b64)
-                filename = f"ai_studio/{tenant.schema_name}/{_uuid.uuid4().hex}.png"
-                saved_path = default_storage.save(filename, ContentFile(img_bytes))
-                image_url = default_storage.url(saved_path)
-
-                # Make absolute URL so wa.me link is shareable
-                if image_url and image_url.startswith('/'):
-                    image_url = request.build_absolute_uri(image_url)
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'الموديل ولّد الصورة لكن بدون URL. حاول مرة أخرى.'
-                }, status=502)
-        else:
-            # dall-e returned a URL — also save it locally so we don't lose it
-            # when OpenAI's signed URL expires (1 hour TTL)
-            try:
-                import requests as _req
-                import uuid as _uuid
-                from django.core.files.base import ContentFile
-                from django.core.files.storage import default_storage
-
-                img_resp = _req.get(image_url, timeout=30)
-                if img_resp.status_code == 200:
-                    filename = f"ai_studio/{tenant.schema_name}/{_uuid.uuid4().hex}.png"
-                    saved_path = default_storage.save(filename, ContentFile(img_resp.content))
-                    local_url = default_storage.url(saved_path)
-                    if local_url and local_url.startswith('/'):
-                        local_url = request.build_absolute_uri(local_url)
-                    image_url = local_url
-            except Exception as e:
-                logger.warning(f"[AI STUDIO] Failed to persist DALL-E image locally: {e}")
-                # Keep the OpenAI URL — at least it works for the next hour
-
-        # 🆕 Apply watermark inline if requested
-        watermarked_url = ''
-        if add_watermark:
-            try:
-                watermarked_url = _apply_watermark_to_url(
-                    image_url, tenant.name if tenant else 'Mousstec', tenant, request,
-                )
-            except Exception as e:
-                logger.warning(f"[AI STUDIO] Watermark failed: {e}")
-
-        # Deduct quota
-        from clients.models import AILimitTracker, AIStudioSession
-        AILimitTracker.deduct(tenant, 'ai_generation', metadata={
-            'prompt': prompt[:200],
-            'size': size,
-            'quality': quality,
-            'model': used_model,
-            'logo_used': bool(logo_bytes),
-            'watermarked': add_watermark,
-            'user': request.user.username,
-        })
-
-        # 💾 Save full session for history
-        session = AIStudioSession.objects.create(
-            tenant=tenant,
-            user=request.user,
-            raw_input=raw_input_text[:2000],
-            engineered_prompt=prompt[:5000],
-            negative_prompt=negative_prompt[:1000],
-            design_category=design_category[:50],
-            logo_used=bool(logo_bytes),
-            image_url=image_url,
-            image_size=size,
-            image_quality=quality,
-            model_used=used_model or '',
-            watermarked=bool(watermarked_url),
-            watermarked_image_url=watermarked_url,
+        from erp_core.ai.design_engine import compose_mega_prompt
+        mega = compose_mega_prompt(
+            raw_idea=prompt,
+            domain=design_category if design_category != 'other' else '',
+            selections={},
+            brand_context=brand_context,
+            presentation_category=design_category if design_category != 'other' else None,
         )
-        if logo_file:
-            logo_file.seek(0)
-            session.logo_image = logo_file
-            session.save(update_fields=['logo_image'])
-
-        logger.info(f"🤖 [AI STUDIO]: {tenant.name} — Generated design via {used_model} by {request.user.username} (session #{session.pk})")
-
-        return JsonResponse({
-            'success': True,
-            'image_url': watermarked_url or image_url,
-            'original_url': image_url,
-            'watermarked_url': watermarked_url,
-            'revised_prompt': revised_prompt,
-            'model_used': used_model,
-            'session_id': session.pk,
-        })
-
-    except openai.RateLimitError:
-        return JsonResponse({'success': False, 'error': 'تم تجاوز حدود OpenAI API. حاول مرة أخرى بعد دقيقة.'}, status=429)
-    except openai.APIError as e:
-        logger.error(f"🔴 [AI STUDIO ERROR]: {tenant.name} — {e}")
-        return JsonResponse({'success': False, 'error': f'خطأ في OpenAI API: {str(e)}'}, status=500)
-    except ImportError:
-        return JsonResponse({'success': False, 'error': 'مكتبة openai غير مثبتة على السيرفر.'}, status=500)
     except Exception as e:
-        logger.error(f"🔴 [AI STUDIO ERROR]: {tenant.name} — {e}")
-        return JsonResponse({'success': False, 'error': 'حدث خطأ غير متوقع. حاول مرة أخرى.'}, status=500)
+        logger.exception(f'[AI STUDIO] mega compose crashed for {getattr(tenant, "name", "?")}')
+        return JsonResponse({
+            'success': False,
+            'error': f'تعذرت صياغة البرومبت: {str(e)[:200]}',
+        }, status=500)
+
+    if not mega.get('success'):
+        return JsonResponse({
+            'success': False,
+            'error': f'مقدرناش نصيغ البرومبت — جرب تعدل الوصف. (الخطأ: {mega.get("error", "")})',
+        }, status=502)
+
+    mega_prompt = mega['mega_prompt']
+    final_negative = (negative_prompt + ' ' + mega.get('negative_prompt', '')).strip()[:1200]
+    final_size = mega.get('recommended_size', size)
+    presentation_category = mega.get('presentation_category')
+    text_overlay = mega.get('text_overlay')
+    has_text = bool(text_overlay and text_overlay.get('text'))
+
+    # ── Stage B: generate image via Smart Router ────────────────
+    try:
+        from erp_core.ai.printing_copilot import generate_design_image
+        img = generate_design_image(
+            prompt=mega_prompt,
+            size=final_size,
+            negative_prompt=final_negative,
+            category=presentation_category,
+            has_text_content=has_text,
+        )
+    except Exception as e:
+        logger.exception(f'[AI STUDIO] image generation crashed for {getattr(tenant, "name", "?")}')
+        return JsonResponse({
+            'success': False,
+            'error': f'تعذر توليد الصورة: {str(e)[:200]}',
+        }, status=500)
+
+    if not img.get('success') or not img.get('url'):
+        err_code = img.get('error', 'unknown')
+        err_detail = (img.get('detail') or '')[:200]
+        logger.warning(f'[AI STUDIO] generation failed: {err_code} — {err_detail}')
+        # Map known error codes to friendly Arabic messages
+        friendly = {
+            'together_key_missing':  'مفتاح Together AI غير مُعد في النظام. تواصل مع مسؤول المنصة.',
+            'ideogram_key_missing':  'مفتاح Ideogram غير مُعد. النظام هيستخدم FLUX بديل.',
+        }.get(err_code, f'محرك التوليد رجع خطأ ({err_code}). برجاء المحاولة مرة أخرى.')
+        return JsonResponse({'success': False, 'error': friendly}, status=502)
+
+    image_url = img['url']
+    used_engine = img.get('engine', 'flux')
+    used_model = img.get('model') or used_engine
+
+    # ── Stage C: composite brand logo (FLUX only) ───────────────
+    # Ideogram already "draws" brand identity into the design itself — pasting
+    # on top would corrupt the renderer's intent. FLUX outputs get the real
+    # logo composited via PIL (same pipeline as marketplace).
+    logo_source = None
+    if logo_file:
+        logo_source = logo_file
+    elif tenant and getattr(tenant, 'logo', None) and tenant.logo:
+        logo_source = tenant.logo
+
+    logo_composited = False
+    if logo_source and used_engine != 'ideogram':
+        try:
+            from erp_core.ai.logo_overlay import composite_logo_on_image_url
+            comp = composite_logo_on_image_url(
+                image_url=image_url,
+                logo_source=logo_source,
+                category=presentation_category or '',
+                text_overlay_position=(
+                    (text_overlay or {}).get('position') if has_text else None
+                ),
+            )
+            if comp.get('success'):
+                new_url = comp['url']
+                if new_url and new_url.startswith('/'):
+                    new_url = request.build_absolute_uri(new_url)
+                image_url = new_url
+                logo_composited = True
+            elif not comp.get('skipped'):
+                logger.warning(
+                    f'[AI STUDIO] logo composite failed (non-fatal): {comp.get("error")}'
+                )
+        except Exception as e:
+            logger.warning(f'[AI STUDIO] logo composite exception (non-fatal): {e}')
+
+    # ── Stage D: optional quality gate (vision verification) ────
+    quality_score = None
+    if bool(getattr(settings, 'DESIGN_QUALITY_GATE_ENABLED', True)):
+        try:
+            from erp_core.ai.design_engine import verify_design_quality
+            qr = verify_design_quality(
+                image_url=image_url,
+                raw_idea=prompt,
+                category=presentation_category,
+                expected_text=(text_overlay or {}).get('text') if has_text else None,
+            )
+            if qr.get('success'):
+                quality_score = qr.get('score')
+        except Exception as e:
+            logger.warning(f'[AI STUDIO] quality gate failed (non-fatal): {e}')
+
+    # ── Stage E: legacy watermark (preserved verbatim) ──────────
+    watermarked_url = ''
+    if add_watermark:
+        try:
+            watermarked_url = _apply_watermark_to_url(
+                image_url, tenant.name if tenant else 'Mousstec', tenant, request,
+            )
+        except Exception as e:
+            logger.warning(f'[AI STUDIO] Watermark failed: {e}')
+
+    # ── Stage F: deduct quota + log session (preserved) ─────────
+    from clients.models import AILimitTracker, AIStudioSession
+    AILimitTracker.deduct(tenant, 'ai_generation', metadata={
+        'prompt': mega_prompt[:200],
+        'size': final_size,
+        'quality': quality,
+        'model': used_model,
+        'engine': used_engine,
+        'category': presentation_category,
+        'logo_used': bool(logo_source),
+        'logo_composited': logo_composited,
+        'watermarked': bool(watermarked_url),
+        'quality_score': quality_score,
+        'brand_applied': (mega.get('brand_applied') or {}).get('applied', False),
+        'user': request.user.username,
+    })
+
+    session = AIStudioSession.objects.create(
+        tenant=tenant,
+        user=request.user,
+        raw_input=raw_input_text[:2000],
+        engineered_prompt=mega_prompt[:5000],
+        negative_prompt=final_negative[:1000],
+        design_category=design_category[:50],
+        logo_used=bool(logo_source),
+        image_url=image_url,
+        image_size=final_size,
+        image_quality=quality,
+        model_used=(used_model or '')[:50],
+        watermarked=bool(watermarked_url),
+        watermarked_image_url=watermarked_url,
+    )
+    if logo_file:
+        logo_file.seek(0)
+        session.logo_image = logo_file
+        session.save(update_fields=['logo_image'])
+
+    logger.info(
+        f'🤖 [AI STUDIO]: {getattr(tenant, "name", "?")} — engine={used_engine} '
+        f'category={presentation_category} logo_composited={logo_composited} '
+        f'quality={quality_score} by {request.user.username} (session #{session.pk})'
+    )
+
+    return JsonResponse({
+        'success': True,
+        'image_url': watermarked_url or image_url,
+        'original_url': image_url,
+        'watermarked_url': watermarked_url,
+        'revised_prompt': mega_prompt,
+        'model_used': used_model,
+        # 🆕 Additive response fields (Phase N.6) — frontend ignores unknowns
+        'engine_used': used_engine,
+        'presentation_category': presentation_category,
+        'brand_applied': (mega.get('brand_applied') or {}).get('applied', False),
+        'logo_composited': logo_composited,
+        'quality_score': quality_score,
+        'session_id': session.pk,
+    })
+
+
+def _tenant_brand_context(tenant, *, request_logo_file=None):
+    """🎨 يبني brand_context dict بسيط للـ tenant من الـ Client fields الموجودة.
+
+    Phase N.6 — minimal brand profile: brand_name + industry + logo cue.
+    The full symmetric model (TenantBrandProfile mirroring CustomerBrandProfile)
+    is deferred to a future slice — this gets the tenant brand-aware
+    immediately without a migration.
+
+    Returns dict or None (no tenant → no brand context, classifier-side
+    treats it as 'guest' generation).
+    """
+    if not tenant or not getattr(tenant, 'name', None):
+        return None
+    ctx = {
+        'brand_name': tenant.name,
+    }
+    industry = getattr(tenant, 'industry', '') or ''
+    if industry:
+        ctx['industry'] = industry  # raw key — Smart Router doesn't care
+    # Logo cue — instructs the LLM to leave a reserved area; the actual paste
+    # happens in stage C via composite_logo_on_image_url.
+    has_logo = False
+    if request_logo_file:
+        has_logo = True  # composite reads from request.FILES later
+    elif getattr(tenant, 'logo', None) and tenant.logo:
+        try:
+            ctx['logo_url'] = tenant.logo.url
+            has_logo = True
+        except Exception:
+            pass
+    if has_logo:
+        ctx['logo_described'] = True
+    return ctx
 
 
 @csrf_exempt

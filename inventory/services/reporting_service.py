@@ -123,6 +123,39 @@ class ReportingService:
         }
 
     # ------------------------------------------------------------------
+    # Unified Treasury Summary — single source of truth for "إجمالي الخزينة".
+    # Used by both branch_dashboard and the secure-portal admin index so the
+    # two pages can never disagree on the safe/treasury balance.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def get_treasury_summary(user, branch=None):
+        from inventory.models import Treasury
+        from decimal import Decimal
+
+        treasury_qs = Treasury.objects.filter(is_active=True)
+        if branch and not getattr(user, 'is_superuser', False):
+            treasury_qs = treasury_qs.filter(branch=branch)
+
+        total_balance = Decimal('0')
+        treasuries_data = []
+        for t in treasury_qs.select_related('branch'):
+            treasuries_data.append({
+                'id': t.pk,
+                'name': t.name,
+                'type': t.get_type_display(),
+                'branch': t.branch.name if t.branch_id else '',
+                'balance': float(t.balance),
+                'is_negative': t.balance < 0,
+            })
+            total_balance += t.balance
+
+        return {
+            'total_treasury_balance': total_balance,
+            'treasuries_data': treasuries_data,
+            'treasury_count': len(treasuries_data),
+        }
+
+    # ------------------------------------------------------------------
     # Copilot Business Data Query Engine
     # ------------------------------------------------------------------
     @staticmethod

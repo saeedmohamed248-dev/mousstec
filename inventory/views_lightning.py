@@ -96,7 +96,7 @@ def _resolve_customer(name, phone):
 # 1. LIGHTNING POS
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def lightning_pos(request):
     branch = _get_branch_for_user(request.user)
@@ -110,7 +110,7 @@ def lightning_pos(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_GET
 def product_quick_search(request):
@@ -148,7 +148,7 @@ def product_quick_search(request):
     return _json_response_safe({"results": results})
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_POST
 def lightning_pos_checkout(request):
@@ -265,7 +265,7 @@ def lightning_pos_checkout(request):
 # 2. QUICK PRODUCT ENTRY
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def quick_product_entry(request):
     branch = _get_branch_for_user(request.user)
@@ -276,7 +276,7 @@ def quick_product_entry(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_POST
 def quick_product_create(request):
@@ -367,7 +367,7 @@ def quick_product_create(request):
 DVI_FIELDS = ("brakes_status", "engine_oil_status", "tires_status", "battery_status")
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def job_card_create(request):
     branch = _get_branch_for_user(request.user)
@@ -382,7 +382,7 @@ def job_card_create(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_GET
 def customer_search(request):
@@ -401,7 +401,7 @@ def customer_search(request):
     return _json_response_safe({"results": results})
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_POST
 def job_card_save(request):
@@ -559,7 +559,7 @@ def job_card_save(request):
 # 4. QUICK EXPENSE — daily out-of-pocket expense entry
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def quick_expense(request):
     branch = _get_branch_for_user(request.user)
@@ -583,7 +583,7 @@ def quick_expense(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_POST
 def quick_expense_create(request):
@@ -648,7 +648,7 @@ def quick_expense_create(request):
 # 5. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
 # =====================================================================
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def sale_invoice_list(request):
     branch = _get_branch_for_user(request.user)
@@ -685,7 +685,7 @@ def sale_invoice_list(request):
     })
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 def product_list(request):
     branch = _get_branch_for_user(request.user)

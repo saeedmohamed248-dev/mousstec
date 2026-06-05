@@ -255,7 +255,19 @@ def marketplace_printing(request):
 
 @csrf_exempt
 def marketplace_register(request):
-    """تسجيل عميل جديد في السوق — خطوة 1."""
+    """تسجيل عميل جديد في السوق — خطوة 1.
+
+    🐛 [Issue #4 FIX — car owner signup error]:
+    1. MarketplaceCustomer لازم يُكتب في schema='public' فقط (الجدول في
+       SHARED_APPS، مش موجود في الـ tenant schemas). الـ view ده ممكن
+       يتنادى من tenant subdomain فلازم نلف الـ ORM داخل schema_context.
+    2. كنا بنخفي الـ Exception الفعلي ونرجع رسالة عامة، فالعميل بيشوف
+       "فشل التسجيل" بدون تفاصيل. دلوقتي بنـ log الـ traceback الكامل
+       ونرجع كود مميز للعميل (duplicate_phone vs validation_error vs
+       internal_error) عشان الـ UI يقدر يوجّه الرسالة بدقة.
+    3. التحقق من الـ phone الموجود ينفّذ بعد الـ normalize عشان نفس
+       الرقم بأشكال مختلفة (+20 أو 01) ميـ duplicateـش.
+    """
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
@@ -288,6 +300,9 @@ def marketplace_register(request):
     if not password or len(password) < 6:
         return JsonResponse({"error": "كلمة المرور مطلوبة (٦ حروف على الأقل)"}, status=400)
 
+    if customer_type not in ('individual', 'company'):
+        return JsonResponse({"error": "نوع العميل غير صالح"}, status=400)
+
     if customer_type == 'company' and not company_name:
         return JsonResponse({"error": "اسم الشركة مطلوب"}, status=400)
 
@@ -297,45 +312,70 @@ def marketplace_register(request):
     # Normalize phone — Egyptian format: +20 + 10-digit mobile (starts with 1)
     cleaned_phone = phone
     if not phone.startswith('+'):
-        digits = phone.lstrip('0')
-        if len(digits) == 10 and digits.startswith('1'):
-            cleaned_phone = f'+20{digits}'  # 10-digit mobile → +20 prefix
-        elif len(digits) == 11 and digits.startswith('01'):
-            cleaned_phone = f'+2{digits}'   # 11-digit (with leading 0) → +2 prefix
+        digits = ''.join(c for c in phone if c.isdigit())  # strip dashes/spaces
+        digits_no_lead = digits.lstrip('0')
+        if len(digits_no_lead) == 10 and digits_no_lead.startswith('1'):
+            cleaned_phone = f'+20{digits_no_lead}'
         elif len(digits) == 12 and digits.startswith('201'):
-            cleaned_phone = f'+{digits}'    # already has country code
+            cleaned_phone = f'+{digits}'
         else:
-            cleaned_phone = phone           # keep as-is, validation will catch bad ones
+            cleaned_phone = phone  # keep as-is, fall through to validation
 
-    # Check existing — redirect to login
-    existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
-    if existing:
-        return JsonResponse({
-            "status": "existing",
-            "message": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
-            "is_existing": True,
-        }, status=409)
-
+    # ─────────────────────────────────────────────────────────────────────
+    # 🐛 [Issue #4 FIX]: المنطق كله لازم يشتغل على schema='public' لأن
+    # MarketplaceCustomer جدول مشترك (SHARED_APPS) — لو الـ request جاي من
+    # tenant subdomain (والـ search_path بيشمل tenant_schema قبل public)،
+    # ممكن يحصل لخبطة على القيود الـ unique أو على signals بتلمس tables
+    # في schema غلط. الـ schema_context بيضمن atomicity على public.
+    # ─────────────────────────────────────────────────────────────────────
     try:
-        customer = MarketplaceCustomer(
-            customer_type=customer_type,
-            full_name=full_name,
-            company_name=company_name,
-            phone=cleaned_phone,
-            email=email or None,
-            job_title=job_title,
-            sector=sector,
-            city=city,
-            is_verified=True,
-            last_login_at=timezone.now(),
-        )
-        customer.set_password(password)
-        customer.save()
-    except Exception as e:
-        logger.error(f"[MARKETPLACE] Failed to create customer: {e}")
-        return JsonResponse({"error": "فشل التسجيل. حاول مرة أخرى."}, status=500)
+        with schema_context('public'):
+            # تحقق من التكرار بعد الـ normalize
+            existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
+            if existing:
+                return JsonResponse({
+                    "status": "existing",
+                    "error": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
+                    "message": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
+                    "code": "duplicate_phone",
+                    "is_existing": True,
+                }, status=409)
 
-    logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered")
+            customer = MarketplaceCustomer(
+                customer_type=customer_type,
+                full_name=full_name,
+                company_name=company_name,
+                phone=cleaned_phone,
+                email=(email or None),
+                job_title=job_title,
+                sector=sector,
+                city=city,
+                is_verified=True,
+                last_login_at=timezone.now(),
+            )
+            customer.set_password(password)
+            customer.save()
+    except Exception as e:
+        # ⚠️ نـ log الـ traceback الكامل عشان نقدر نشخّص بدل ما نخمّن.
+        import traceback
+        logger.error(
+            "[MARKETPLACE REGISTER] failed for phone=%s sector=%s err=%s\n%s",
+            cleaned_phone[:6] + '***' if cleaned_phone else '', sector, e,
+            traceback.format_exc(),
+        )
+        err_msg = str(e).lower()
+        if 'unique' in err_msg or 'duplicate' in err_msg:
+            return JsonResponse({
+                "error": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
+                "code": "duplicate_phone",
+            }, status=409)
+        return JsonResponse({
+            "error": "فشل التسجيل. حاول مرة أخرى أو تواصل مع الدعم.",
+            "code": "internal_error",
+            "debug": str(e) if settings.DEBUG else None,
+        }, status=500)
+
+    logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered (sector={sector})")
     response = JsonResponse({
         "status": "verified",
         "message": "تم تسجيلك بنجاح!",
@@ -381,37 +421,37 @@ def marketplace_login(request):
     if not phone or not password:
         return JsonResponse({"error": "رقم الموبايل وكلمة المرور مطلوبان"}, status=400)
 
-    # Normalize Egyptian phone
+    # Normalize Egyptian phone — same logic as marketplace_register
     cleaned = phone
     if not phone.startswith('+'):
-        digits = phone.lstrip('0')
-        if len(digits) == 10 and digits.startswith('1'):
-            cleaned = f'+20{digits}'
-        elif len(digits) == 11 and digits.startswith('01'):
-            cleaned = f'+2{digits}'
+        digits = ''.join(c for c in phone if c.isdigit())
+        digits_no_lead = digits.lstrip('0')
+        if len(digits_no_lead) == 10 and digits_no_lead.startswith('1'):
+            cleaned = f'+20{digits_no_lead}'
         elif len(digits) == 12 and digits.startswith('201'):
             cleaned = f'+{digits}'
 
-    customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
-    if not customer:
-        return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
+    # 🐛 [Issue #4 FIX]: نفس سبب marketplace_register — لازم public schema.
+    with schema_context('public'):
+        customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
+        if not customer:
+            return JsonResponse({"error": "رقم غير مسجل. سجل حساب جديد."}, status=404)
 
-    if customer.is_blocked:
-        return JsonResponse({"error": "تم تعليق حسابك. تواصل مع الدعم."}, status=403)
+        if customer.is_blocked:
+            return JsonResponse({"error": "تم تعليق حسابك. تواصل مع الدعم."}, status=403)
 
-    # 🛡️ يدعم الحسابات القديمة (بدون باسورد) عبر مطابقة الاسم
-    if customer.has_usable_password():
-        if not customer.check_password(password):
-            logger.warning(f"[MARKETPLACE] Login failed — wrong password for {cleaned[:6]}***")
-            return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
-    else:
-        # حساب قديم بدون باسورد — أول دخول يضبط الباسورد المُرسَل
-        customer.set_password(password)
+        # 🛡️ يدعم الحسابات القديمة (بدون باسورد)
+        if customer.has_usable_password():
+            if not customer.check_password(password):
+                logger.warning(f"[MARKETPLACE] Login failed — wrong password for {cleaned[:6]}***")
+                return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
+        else:
+            customer.set_password(password)
 
-    customer.is_verified = True
-    customer.session_token = uuid.uuid4()
-    customer.last_login_at = timezone.now()
-    customer.save(update_fields=['is_verified', 'session_token', 'last_login_at', 'password_hash'])
+        customer.is_verified = True
+        customer.session_token = uuid.uuid4()
+        customer.last_login_at = timezone.now()
+        customer.save(update_fields=['is_verified', 'session_token', 'last_login_at', 'password_hash'])
     logger.info(f"[MARKETPLACE] Login OK: {cleaned[:6]}***")
     response = JsonResponse({
         "status": "verified",

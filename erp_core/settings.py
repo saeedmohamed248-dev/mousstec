@@ -6,6 +6,12 @@ from datetime import timedelta
 from celery.schedules import crontab 
 
 # 🚀 توجيه نظام الحماية المركزي للـ Dashboard الفخمة مباشرة لمنع الـ 404 عند الدخول
+# 🐛 [Issue #1/#2 FIX]: LOGIN_URL كان غير مضبوط، فكل view كان بيعمل
+# hardcode على `/secure-portal/` (Django admin). دي login_form بتطلب is_staff=True،
+# يعني الموظف العادي بيدخل username/password بشكل صحيح ثم يتعلق في نفس النموذج
+# لأنه مش staff — يبدو كأنه «logout قسري». الحل: ضبط LOGIN_URL على الـ
+# tenant-aware login المركزي اللي بيلاقي شركة العميل تلقائياً.
+LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/auth/redirect/'
 LOGOUT_REDIRECT_URL = '/'
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')

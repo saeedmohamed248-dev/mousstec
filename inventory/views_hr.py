@@ -18,7 +18,7 @@ from .models import AttendanceCheckIn, EmployeeProfile
 from .views import role_required, tenant_required
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('hr', 'admin', 'manager')
 def hr_workspace(request):

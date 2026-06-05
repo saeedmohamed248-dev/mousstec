@@ -1293,6 +1293,25 @@ original_index = admin.site.index
 def MoussTec_dashboard_index(request, extra_context=None):
     extra_context = extra_context or {}
 
+    # 🐛 [Issue #2 FIX]: Branch employees logging in via /secure-portal/login/
+    # used to land here (Django admin index). They're not superusers, so the
+    # admin view shows them an empty page or a "no permissions" notice — which
+    # looks like a logout.
+    # ─────────────────────────────────────────────────────────────────────────
+    # Rule: any authenticated non-superuser on a tenant schema gets routed to
+    # the branch dashboard (or the role-specific workspace via
+    # smart_post_login_redirect). Superusers and public-schema requests fall
+    # through to the original admin index.
+    if (
+        request.user.is_authenticated
+        and not request.user.is_superuser
+        and getattr(connection, 'schema_name', 'public') != 'public'
+    ):
+        from django.shortcuts import redirect
+        # Use the smart router so HR/tech/etc. land on their proper workspace
+        # rather than always /system/dashboard/.
+        return redirect('/auth/redirect/')
+
     if connection.schema_name == 'public':
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
         return original_index(request, extra_context)
@@ -1448,13 +1467,9 @@ def _automotive_dashboard(request, extra_context):
         except Exception:
             user_branch = None
 
-    treasury_qs = Treasury.objects.filter(is_active=True)
-    if user_branch:
-        treasury_qs = treasury_qs.filter(branch=user_branch)
-
     # 🔁 Unified KPI source — same logic as /system/dashboard/ branch_dashboard.
-    # Headline cards (total_sales_today / net_profit_today / total_expenses_today)
-    # must match the branch dashboard exactly, so we pull them from ReportingService.
+    # Headline cards (sales / profit / expenses / treasury) must match the
+    # branch dashboard EXACTLY, so we pull them from ReportingService.
     from inventory.services.reporting_service import ReportingService
     today_stats = ReportingService.get_today_dashboard_stats(request.user, user_branch)
     total_revenue = today_stats['total_sales_today']
@@ -1463,17 +1478,11 @@ def _automotive_dashboard(request, extra_context):
     low_stock_count = today_stats['low_stock_count']
     total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
 
-    treasuries_data = []
-    total_treasury_balance = Decimal('0')
-    if can_see_finance:
-        for t in treasury_qs:
-            treasuries_data.append({
-                'name': t.name,
-                'type': t.get_type_display(),
-                'balance': float(t.balance),
-                'is_negative': t.balance < 0,
-            })
-            total_treasury_balance += t.balance
+    # 🐛 [Issue #3 FIX]: نفس ReportingService بيدّي الـ treasury_summary
+    # عشان الـ admin والـ branch_dashboard ما يختلفوش في الإجمالي.
+    treasury_summary = ReportingService.get_treasury_summary(request.user, user_branch)
+    total_treasury_balance = treasury_summary['total_treasury_balance']
+    treasuries_data = treasury_summary['treasuries_data'] if can_see_finance else []
 
     open_orders = SaleInvoice.objects.exclude(status='posted')
     if user_branch:

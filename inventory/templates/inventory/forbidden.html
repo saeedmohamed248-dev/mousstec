@@ -1,0 +1,27 @@
+{% extends "inventory/_base_portal.html" %}
+{% block title %}صلاحية مرفوضة | Mouss Tec{% endblock %}
+{% block content %}
+<main class="container mx-auto px-4 py-12 flex-1 flex items-center justify-center">
+    <div class="max-w-md w-full bg-slate-900/70 border border-rose-500/30 rounded-2xl p-8 text-center space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center text-3xl">
+            <i class="fas fa-lock"></i>
+        </div>
+        <h1 class="text-xl font-black text-white">🔒 ليس لديك صلاحية للوصول</h1>
+        <p class="text-sm text-slate-400">
+            هذه الصفحة مخصصة لـ
+            <span class="text-amber-300 font-bold">{{ allowed_roles|join:" / " }}</span>.
+            دورك الحالي:
+            <span class="text-slate-200 font-bold">{{ current_role }}</span>.
+            تواصل مع المدير لتغيير صلاحياتك.
+        </p>
+        <div class="flex gap-3 justify-center pt-2">
+            <a href="/system/dashboard/" class="px-5 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 font-bold text-sm transition">
+                <i class="fas fa-arrow-right ml-1"></i>رجوع للوحة التحكم
+            </a>
+            <a href="javascript:history.back()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-sm transition">
+                <i class="fas fa-undo ml-1"></i>الصفحة السابقة
+            </a>
+        </div>
+    </div>
+</main>
+{% endblock %}

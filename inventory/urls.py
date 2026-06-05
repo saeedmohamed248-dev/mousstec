@@ -1,6 +1,7 @@
 from django.urls import path, include
 from django.views.decorators.cache import cache_page # 🚀 ابتكار: Edge Route Caching
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.views import LogoutView
 from . import views
 from . import views_lightning
 from . import views_tech
@@ -15,6 +16,12 @@ urlpatterns = [
     # 📊 1. واجهات المستخدم الرئيسية للفرع (Dashboards & Experiences)
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
+
+    # 🚪 Tenant logout — يستخدم Django's LogoutView وبيرجع للـ tenant-aware
+    # login بدل ما العميل يلاقي نفسه في Django admin login.
+    # 🐛 [Issue follow-up]: الـ template كان عنده /secure-portal/logout/ اللي
+    # بيرجع لـ /secure-portal/login/ — الموظف العادي (مش staff) ميقدرش يرجع.
+    path('logout/', LogoutView.as_view(next_page='/login/'), name='logout'),
 
     # 🏦 Bank Reconciliation UI
     path('bank-reconciliation/', views.bank_reconciliation_dashboard, name='bank_reconciliation'),

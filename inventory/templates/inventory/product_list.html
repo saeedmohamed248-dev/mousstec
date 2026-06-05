@@ -60,7 +60,9 @@
             <p class="text-xs text-slate-600 mt-1">حد التنبيه: {{ row.product.min_stock_level }}</p>
           </td>
           <td class="py-3 px-4 text-center">
-            <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="تعديل تفصيلي"><i class="fas fa-pen"></i></a>
+            {% if user.is_superuser %}
+            <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="تعديل تفصيلي (Admin)"><i class="fas fa-pen"></i></a>
+            {% endif %}
           </td>
         </tr>
         {% empty %}

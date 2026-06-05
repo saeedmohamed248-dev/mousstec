@@ -47,7 +47,7 @@ def _profile(request) -> EmployeeProfile | None:
 # Workspace page
 # ---------------------------------------------------------------------------
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 def tech_workspace(request):
@@ -87,7 +87,7 @@ def tech_workspace(request):
 # RepairLog APIs
 # ---------------------------------------------------------------------------
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -125,7 +125,7 @@ def repair_log_start(request):
     return _json_ok(log_id=log.id, started_at=log.started_at.isoformat())
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -139,7 +139,7 @@ def repair_log_pause(request, log_id: int):
     return _json_ok(status=log.status)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -156,7 +156,7 @@ def repair_log_resume(request, log_id: int):
     return _json_ok(status=log.status, paused_seconds=log.paused_seconds)
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -187,7 +187,7 @@ def repair_log_complete(request, log_id: int):
     )
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -211,7 +211,7 @@ def repair_log_flag_extra_parts(request, log_id: int):
     )
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @role_required('tech', 'engineer')
 @require_POST
@@ -235,7 +235,7 @@ def repair_log_upload_media(request, log_id: int):
 # GPS attendance — Pillar 1
 # ---------------------------------------------------------------------------
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 @tenant_required
 @require_POST
 def attendance_checkin_api(request):

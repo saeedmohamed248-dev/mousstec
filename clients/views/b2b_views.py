@@ -33,7 +33,7 @@ logger = logging.getLogger('mouss_tec_core')
 # =====================================================================
 # 🛒 محرك بحث سوق التجار (B2B Global Search API)
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def b2b_market_search_api(request):
     if connection.schema_name == 'public' and not request.user.is_superuser:
         return JsonResponse({"error": "غير مصرح"}, status=403)
@@ -59,7 +59,7 @@ def b2b_market_search_api(request):
 # =====================================================================
 # ⚖️ محرك المزادات العكسية والترسية الذكية (Dynamic Blind Bidding)
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def active_blind_bids_api(request):
     active_bids = (
         BlindBiddingRequest.objects
@@ -74,7 +74,7 @@ def active_blind_bids_api(request):
     return JsonResponse({"status": "success", "bids": data})
 
 
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def submit_bid_offer_api(request):
     """
     🚀 ابتكار الذكاء التنافسي: وزن الخوارزمية يتغير ديناميكياً بناءً على سرعة التوصيل وعمر المزاد.
@@ -158,7 +158,7 @@ def submit_bid_offer_api(request):
 # =====================================================================
 # 🛡️ محفظة الضامن المالي (Escrow Ledger)
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def my_escrow_wallet_api(request):
     if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
         return JsonResponse({"error": "متاح للمؤسسات فقط."}, status=403)
@@ -174,7 +174,7 @@ def my_escrow_wallet_api(request):
 # =====================================================================
 # 🌍 رادار التنبؤ (Advanced Market Demand AI Predictor)
 # =====================================================================
-@login_required(login_url='/secure-portal/')
+@login_required(login_url='/login/')
 def market_demand_predictor_api(request):
     """
     🚀 ابتكار: استبعاد القيم الشاذة (Outliers) لحساب متوسط الأسعار بدقة أعلى.
