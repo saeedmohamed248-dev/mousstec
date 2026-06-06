@@ -15,6 +15,10 @@ urlpatterns = [
     # HTML dashboard
     path('live/<str:vin>/', html_views.live_dashboard, name='live-dashboard'),
 
+    # 🤖 AI Diagnostics Room — Web-Bluetooth co-pilot workstation
+    path('room/', html_views.diagnostics_room, name='diagnostics-room'),
+    path('room/chat/', html_views.diagnostics_room_chat, name='diagnostics-room-chat'),
+
     # Device management (token-based OBD auth)
     path('devices/', html_views.device_list, name='device-list'),
     path('devices/register/', html_views.device_register, name='device-register'),

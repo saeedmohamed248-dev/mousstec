@@ -182,3 +182,86 @@ def upgrade_premium(request):
         'shop': getattr(tenant, 'schema_name', '') if tenant else '',
         'already_premium': already_premium,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🤖 AI Diagnostics Room (غرفة تشخيص الأعطال)
+# ─────────────────────────────────────────────────────────────────────
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_protect
+
+
+@login_required
+def diagnostics_room(request):
+    """Workstation page — connects to a Bluetooth ELM327 from the browser
+    and streams live data + DTCs to the AI co-pilot.
+
+    Unlike `live_dashboard` (which is bound to a specific VIN coming from
+    our hardened OBD ingest), this view is VIN-agnostic: the technician
+    might be diagnosing a walk-in car that isn't even in our DB yet.
+    """
+    if _on_public_schema():
+        return HttpResponse(
+            "متاحة فقط من نطاق الشركة (tenant).",
+            status=403, content_type='text/plain; charset=utf-8',
+        )
+
+    tenant = getattr(request, 'tenant', None)
+    allowed, reason = DiagnosticsQuotaService.can_access(
+        tenant=tenant, feature=FEATURE_LIVE_DATA,
+    )
+    if not allowed:
+        return render(request, 'smart_diagnostics/upgrade.html', {
+            'reason': reason, 'tenant': tenant,
+        }, status=402)
+
+    return render(request, 'smart_diagnostics/diagnostics_room.html', {
+        'tenant': tenant,
+        'tech_name': request.user.get_full_name() or request.user.username,
+    })
+
+
+@login_required
+@csrf_protect
+@require_POST
+def diagnostics_room_chat(request):
+    """JSON endpoint — receives the latest live-data snapshot, the DTC list,
+    and the chat history; returns the AI's next reply.
+
+    Body:
+        {
+          "history": [{"role":"user|assistant","text":"..."}, ...],
+          "user_message": "...",          # optional — empty on first turn
+          "snapshot": {"rpm": 820, "coolant_temp_c": 92, ...},
+          "dtcs": ["P0171", "P0300"],
+          "vehicle_hint": {"model":"BMW 330i","engine":"N20","year":2014}
+        }
+    """
+    if _on_public_schema():
+        return JsonResponse({"error": "tenant_required"}, status=403)
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "invalid_payload"}, status=400)
+
+    from erp_core.ai.diagnostic_room_ai import answer_room_turn
+
+    try:
+        result = answer_room_turn(
+            history=payload.get("history") or [],
+            user_message=(payload.get("user_message") or "").strip(),
+            snapshot=payload.get("snapshot") or {},
+            dtcs=payload.get("dtcs") or [],
+            vehicle_hint=payload.get("vehicle_hint") or {},
+            tenant=getattr(request, "tenant", None),
+            user=request.user,
+        )
+    except Exception as exc:
+        logger.exception("Diagnostics Room AI failed: %s", exc)
+        return JsonResponse({"error": "ai_unavailable"}, status=503)
+
+    return JsonResponse(result)

@@ -1,0 +1,493 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 غرفة تشخيص الأعطال — Mouss Tec</title>
+<meta name="csrf-token" content="{{ csrf_token }}">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Cairo', sans-serif;
+    background: radial-gradient(circle at top right, #0a1929 0%, #050b14 60%, #000 100%);
+    color: #e6f1ff; min-height: 100vh;
+}
+.topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 24px; background: rgba(10, 25, 41, 0.85);
+    backdrop-filter: blur(14px); border-bottom: 1px solid rgba(100,180,255,.12);
+    position: sticky; top: 0; z-index: 100;
+}
+.topbar .brand { font-weight: 900; font-size: 18px; display: flex; gap: 10px; align-items: center; }
+.topbar .brand i { color: #36d399; }
+.topbar .tech { color: #8fb3d9; font-size: 13px; }
+.pill {
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    display: inline-flex; gap: 6px; align-items: center;
+}
+.pill.idle  { background: #2c1a00; color: #f1a13a; border: 1px solid #f1a13a40; }
+.pill.live  { background: #0c3220; color: #36d399; border: 1px solid #36d39940; }
+.pill.error { background: #3a0c12; color: #ff5470; border: 1px solid #ff547040; }
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pill.live .dot { animation: pulse 1.4s infinite; }
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(1.4); }
+}
+
+.main {
+    display: grid; grid-template-columns: 360px 1fr 380px;
+    gap: 16px; padding: 18px; max-width: 1600px; margin: 0 auto;
+    min-height: calc(100vh - 70px);
+}
+@media (max-width: 1100px) { .main { grid-template-columns: 1fr; } }
+
+.card {
+    background: rgba(15, 32, 52, 0.7); border: 1px solid rgba(100,180,255,.1);
+    border-radius: 14px; padding: 18px; backdrop-filter: blur(8px);
+    display: flex; flex-direction: column;
+}
+.card-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; color: #8fb3d9;
+    margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* ── connect column ─────────────────────────────────────────── */
+.connect-actions { display: flex; flex-direction: column; gap: 10px; }
+.btn {
+    padding: 12px 16px; border: none; border-radius: 10px; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+.btn:active { transform: scale(0.98); }
+.btn.primary {
+    background: linear-gradient(135deg, #36d399 0%, #2bb589 100%); color: #050b14;
+}
+.btn.secondary {
+    background: rgba(100,180,255,.08); color: #8fb3d9;
+    border: 1px solid rgba(100,180,255,.15);
+}
+.btn.danger {
+    background: rgba(255,84,112,.1); color: #ff5470;
+    border: 1px solid #ff547040;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.dtc-list { list-style: none; margin-top: 12px; max-height: 220px; overflow-y: auto; }
+.dtc-list li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; background: rgba(255,84,112,.06);
+    border-left: 3px solid #ff5470; border-radius: 6px; margin-bottom: 6px;
+    font-family: monospace; font-size: 13px;
+}
+.dtc-list li.empty {
+    background: rgba(54,211,153,.06); border-left-color: #36d399;
+    color: #36d399; font-family: 'Cairo', sans-serif;
+}
+.dtc-code { font-weight: 700; color: #ff5470; }
+
+/* ── live gauges column ─────────────────────────────────────── */
+.gauges {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.gauge {
+    text-align: center; padding: 16px 10px;
+    background: rgba(8,18,32,0.6); border-radius: 10px;
+    border: 1px solid rgba(100,180,255,.05);
+}
+.gauge .label { font-size: 11px; color: #6c8fb3; letter-spacing: 0.5px; }
+.gauge .value {
+    font-size: 32px; font-weight: 900; margin-top: 6px; line-height: 1;
+    background: linear-gradient(135deg, #4dd0e1, #36d399);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.gauge .unit { font-size: 11px; color: #8fb3d9; margin-top: 2px; }
+.gauge.warn .value {
+    background: linear-gradient(135deg, #f1a13a, #ff5470);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.gauge.idle .value { background: none; -webkit-text-fill-color: #486581; color: #486581; }
+
+.log {
+    margin-top: 16px; max-height: 240px; overflow-y: auto;
+    font-family: monospace; font-size: 11px;
+    background: #050b14; padding: 12px; border-radius: 8px; color: #8fb3d9;
+}
+.log-row { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid #0a1929; }
+.log-row .ts { color: #486581; flex-shrink: 0; }
+.log-row.err { color: #ff5470; }
+
+/* ── AI chat column ─────────────────────────────────────────── */
+.chat {
+    display: flex; flex-direction: column; flex: 1; min-height: 600px;
+}
+.chat-stream {
+    flex: 1; overflow-y: auto; padding: 4px 4px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+.msg {
+    max-width: 90%; padding: 11px 14px; border-radius: 14px;
+    line-height: 1.65; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;
+}
+.msg.user {
+    align-self: flex-end; background: linear-gradient(135deg, #1a5fb4 0%, #1c71d8 100%);
+    color: #fff; border-bottom-right-radius: 4px;
+}
+.msg.bot {
+    align-self: flex-start; background: rgba(8,18,32,0.6);
+    color: #e6f1ff; border-bottom-left-radius: 4px;
+    border: 1px solid rgba(100,180,255,.1);
+}
+.msg.bot.thinking { color: #8fb3d9; font-style: italic; }
+.msg .timestamp { display: block; font-size: 10px; opacity: 0.55; margin-top: 4px; }
+
+.chat-input {
+    display: flex; gap: 8px; margin-top: 12px;
+    border-top: 1px solid rgba(100,180,255,.1); padding-top: 12px;
+}
+.chat-input textarea {
+    flex: 1; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid rgba(100,180,255,.15); background: #050b14;
+    color: #e6f1ff; font-family: inherit; font-size: 14px;
+    resize: none; min-height: 44px; max-height: 120px;
+}
+.chat-input textarea:focus { outline: none; border-color: #36d399; }
+
+.unsupported {
+    display: none; max-width: 720px; margin: 40px auto; padding: 28px;
+    background: linear-gradient(135deg, #3a0c12 0%, #5d1421 100%);
+    border: 1px solid #ff547040; border-radius: 14px; text-align: center;
+}
+.unsupported h2 { color: #ff5470; margin-bottom: 10px; }
+.unsupported p { color: #ffb8c2; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand"><i class="fa-solid fa-microchip"></i> غرفة تشخيص الأعطال</div>
+    <div class="tech">
+        <i class="fa-regular fa-user"></i> {{ tech_name }} ·
+        <span id="connStatus" class="pill idle"><span class="dot"></span> غير متصل</span>
+    </div>
+</div>
+
+<div id="unsupported" class="unsupported">
+    <h2><i class="fa-solid fa-triangle-exclamation"></i> المتصفح لا يدعم Web Bluetooth</h2>
+    <p>افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث، وبعدوسائط HTTPS فقط.<br>
+       Safari و Firefox لا يدعمان حالياً البلوتوث في المتصفح.</p>
+</div>
+
+<div id="main" class="main">
+
+    <!-- ── Connect / DTCs ── -->
+    <div class="card">
+        <div class="card-title"><i class="fa-solid fa-plug"></i> الاتصال بالـ OBD</div>
+        <div class="connect-actions">
+            <button id="btnConnect" class="btn primary">
+                <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز ELM327
+            </button>
+            <button id="btnReadDTC" class="btn secondary" disabled>
+                <i class="fa-solid fa-list-check"></i> اقرأ أكواد الأعطال (Mode 03)
+            </button>
+            <button id="btnClearDTC" class="btn danger" disabled>
+                <i class="fa-solid fa-trash"></i> امسح الأكواد (Mode 04)
+            </button>
+            <button id="btnDisconnect" class="btn secondary" disabled>
+                <i class="fa-solid fa-power-off"></i> افصل
+            </button>
+        </div>
+
+        <div class="card-title" style="margin-top: 20px;">
+            <i class="fa-solid fa-bug"></i> الأكواد المكتشفة
+            <span id="dtcCount" style="margin-right:auto; color:#ff5470;">0</span>
+        </div>
+        <ul id="dtcList" class="dtc-list">
+            <li class="empty">— لم يتم الفحص بعد —</li>
+        </ul>
+    </div>
+
+    <!-- ── Live Data ── -->
+    <div class="card">
+        <div class="card-title"><i class="fa-solid fa-wave-square"></i> البيانات الحية</div>
+        <div class="gauges">
+            <div class="gauge idle" data-key="rpm">
+                <div class="label">RPM</div><div class="value">—</div><div class="unit">rpm</div>
+            </div>
+            <div class="gauge idle" data-key="speed_kph">
+                <div class="label">السرعة</div><div class="value">—</div><div class="unit">km/h</div>
+            </div>
+            <div class="gauge idle" data-key="coolant_temp_c">
+                <div class="label">حرارة المياه</div><div class="value">—</div><div class="unit">°C</div>
+            </div>
+            <div class="gauge idle" data-key="engine_load">
+                <div class="label">حمل المحرك</div><div class="value">—</div><div class="unit">%</div>
+            </div>
+            <div class="gauge idle" data-key="throttle_pct">
+                <div class="label">دواسة البنزين</div><div class="value">—</div><div class="unit">%</div>
+            </div>
+            <div class="gauge idle" data-key="control_voltage">
+                <div class="label">جهد البطارية</div><div class="value">—</div><div class="unit">V</div>
+            </div>
+        </div>
+        <div class="card-title" style="margin-top: 18px;">
+            <i class="fa-solid fa-terminal"></i> سجل الاتصال
+        </div>
+        <div id="log" class="log"></div>
+    </div>
+
+    <!-- ── AI Chat ── -->
+    <div class="card chat">
+        <div class="card-title"><i class="fa-solid fa-robot"></i> المساعد الذكي للفني</div>
+        <div id="chatStream" class="chat-stream">
+            <div class="msg bot">
+                مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن الـ ELM327 وتقرأ الأكواد،
+                هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا.
+            </div>
+        </div>
+        <form id="chatForm" class="chat-input">
+            <textarea id="chatInput" placeholder="اسأل عن أي عطل أو قراءة... (Enter للإرسال، Shift+Enter لسطر جديد)"></textarea>
+            <button type="submit" class="btn primary" style="padding: 0 18px;">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}"></script>
+<script>
+(() => {
+    // ── Bluetooth support check ─────────────────────────────────
+    if (!('bluetooth' in navigator)) {
+        document.getElementById('main').style.display = 'none';
+        document.getElementById('unsupported').style.display = 'block';
+        return;
+    }
+
+    const obd = new OBDBluetooth();
+    const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const CHAT_URL = "{% url 'smart_diagnostics:diagnostics-room-chat' %}";
+
+    // ── DOM refs ────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+    const statusPill = $('connStatus');
+    const btnConnect = $('btnConnect');
+    const btnReadDTC = $('btnReadDTC');
+    const btnClearDTC = $('btnClearDTC');
+    const btnDisconnect = $('btnDisconnect');
+    const dtcList = $('dtcList');
+    const dtcCount = $('dtcCount');
+    const logEl = $('log');
+    const chatStream = $('chatStream');
+    const chatForm = $('chatForm');
+    const chatInput = $('chatInput');
+
+    // ── State ───────────────────────────────────────────────────
+    let lastSnapshot = {};
+    let lastDTCs = [];
+    let history = [];  // [{role:'user|assistant', text:'...'}]
+    let awaitingAI = false;
+
+    // ── Helpers ─────────────────────────────────────────────────
+    function setStatus(kind, text) {
+        statusPill.className = `pill ${kind}`;
+        statusPill.innerHTML = `<span class="dot"></span> ${text}`;
+    }
+    function log(line, isErr = false) {
+        const row = document.createElement('div');
+        row.className = 'log-row' + (isErr ? ' err' : '');
+        const ts = new Date().toLocaleTimeString('en-GB');
+        row.innerHTML = `<span class="ts">[${ts}]</span><span>${line}</span>`;
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+    function setButtons({ connected }) {
+        btnConnect.disabled = connected;
+        btnReadDTC.disabled = !connected;
+        btnClearDTC.disabled = !connected;
+        btnDisconnect.disabled = !connected;
+    }
+    function renderGauges(snapshot) {
+        document.querySelectorAll('.gauge').forEach(g => {
+            const key = g.dataset.key;
+            const valEl = g.querySelector('.value');
+            if (snapshot[key] === undefined) return;
+            const v = snapshot[key];
+            valEl.textContent = (typeof v === 'number') ? v.toFixed(1) : v;
+            g.classList.remove('idle');
+            // Warning zones (cheap heuristic; AI does the real diagnosis)
+            g.classList.toggle('warn',
+                (key === 'coolant_temp_c' && v > 105) ||
+                (key === 'rpm' && v > 6500) ||
+                (key === 'control_voltage' && (v < 12 || v > 15))
+            );
+        });
+    }
+    function renderDTCs(codes) {
+        dtcCount.textContent = codes.length;
+        dtcList.innerHTML = '';
+        if (codes.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'empty';
+            li.innerHTML = '<span><i class="fa-solid fa-check"></i> لا توجد أكواد أعطال</span>';
+            dtcList.appendChild(li);
+            return;
+        }
+        codes.forEach(c => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="dtc-code">${c}</span>` +
+                           `<span style="color:#8fb3d9; font-size:11px;">DTC</span>`;
+            dtcList.appendChild(li);
+        });
+    }
+    function pushMessage(role, text, opts = {}) {
+        const div = document.createElement('div');
+        div.className = `msg ${role === 'user' ? 'user' : 'bot'}` +
+                        (opts.thinking ? ' thinking' : '');
+        div.textContent = text;
+        const ts = document.createElement('span');
+        ts.className = 'timestamp';
+        ts.textContent = new Date().toLocaleTimeString('en-GB');
+        div.appendChild(ts);
+        chatStream.appendChild(div);
+        chatStream.scrollTop = chatStream.scrollHeight;
+        return div;
+    }
+
+    // ── AI chat round-trip ──────────────────────────────────────
+    async function askAI({ userMessage = '', autoTriggered = false } = {}) {
+        if (awaitingAI) return;
+        awaitingAI = true;
+        const thinkingNode = pushMessage('bot', '⏳ جاري التحليل…', { thinking: true });
+
+        try {
+            const resp = await fetch(CHAT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF,
+                },
+                body: JSON.stringify({
+                    user_message: userMessage,
+                    history: history,
+                    snapshot: lastSnapshot,
+                    dtcs: lastDTCs,
+                    vehicle_hint: {},
+                }),
+            });
+            const data = await resp.json();
+            thinkingNode.remove();
+
+            if (!resp.ok || !data.answer) {
+                pushMessage('bot', data.error
+                    ? `⚠️ خطأ: ${data.error}`
+                    : '⚠️ لم أتمكن من الرد، حاول مرة أخرى.');
+                return;
+            }
+            pushMessage('bot', data.answer);
+
+            if (userMessage) history.push({ role: 'user', text: userMessage });
+            else if (autoTriggered) history.push({
+                role: 'user',
+                text: '[تلقائي] تم استلام قراءات جديدة من السيارة.',
+            });
+            history.push({ role: 'assistant', text: data.answer });
+            // Cap to last 16 entries to keep payload small
+            if (history.length > 16) history = history.slice(-16);
+        } catch (err) {
+            thinkingNode.remove();
+            pushMessage('bot', `⚠️ تعذّر الوصول للخادم: ${err.message}`);
+        } finally {
+            awaitingAI = false;
+        }
+    }
+
+    // ── Wire OBD events ─────────────────────────────────────────
+    obd.addEventListener('connected', (e) => {
+        log(`Connected on service ${e.detail.service}`);
+        setStatus('live', 'متصل');
+    });
+    obd.addEventListener('initialized', (e) => {
+        log('ELM327 initialised (ATZ → ATSP0 OK)');
+    });
+    obd.addEventListener('live', (e) => {
+        lastSnapshot = e.detail;
+        renderGauges(e.detail);
+    });
+    obd.addEventListener('dtcs', (e) => {
+        lastDTCs = e.detail.codes;
+        renderDTCs(e.detail.codes);
+        log(`Mode 03 → ${e.detail.codes.length} DTC(s)`);
+        // Auto-trigger the AI when fresh DTCs land — this is the killer UX.
+        askAI({ autoTriggered: true });
+    });
+    obd.addEventListener('dtcs_cleared', () => {
+        lastDTCs = [];
+        renderDTCs([]);
+        log('Mode 04 → DTCs cleared');
+    });
+    obd.addEventListener('disconnected', () => {
+        log('Disconnected', true);
+        setStatus('idle', 'غير متصل');
+        setButtons({ connected: false });
+    });
+
+    // ── Button handlers ─────────────────────────────────────────
+    btnConnect.addEventListener('click', async () => {
+        try {
+            setStatus('idle', 'جاري الاقتران...');
+            const info = await obd.requestDevice();
+            log(`Picked device: ${info.name}`);
+            await obd.connect();
+            await obd.initialize();
+            setButtons({ connected: true });
+            obd.streamLiveData({ intervalMs: 800 });
+        } catch (err) {
+            log(`Connect failed: ${err.message}`, true);
+            setStatus('error', 'فشل الاتصال');
+        }
+    });
+    btnReadDTC.addEventListener('click', async () => {
+        try {
+            log('Requesting Mode 03 (stored DTCs)…');
+            await obd.readDTCs();
+        } catch (err) {
+            log(`DTC read failed: ${err.message}`, true);
+        }
+    });
+    btnClearDTC.addEventListener('click', async () => {
+        if (!confirm('سيتم مسح كل أكواد الأعطال من ECU. متأكد؟')) return;
+        try {
+            await obd.clearDTCs();
+        } catch (err) {
+            log(`Clear failed: ${err.message}`, true);
+        }
+    });
+    btnDisconnect.addEventListener('click', async () => {
+        await obd.disconnect();
+    });
+
+    // ── Chat input ──────────────────────────────────────────────
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text) return;
+        pushMessage('user', text);
+        chatInput.value = '';
+        askAI({ userMessage: text });
+    });
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.requestSubmit();
+        }
+    });
+})();
+</script>
+</body>
+</html>
