@@ -1214,6 +1214,134 @@ class RepairLogMedia(models.Model):
         verbose_name_plural = _("مرفقات سجلات الإصلاح")
 
 
+class RFQ(models.Model):
+    """Request-for-Quotation — fans out a part request to N vendors and
+    rolls up to a single PurchaseInvoice (draft) once a quote is accepted.
+
+    Why a dedicated model (not PurchaseInvoice draft):
+        - PurchaseInvoice is single-vendor (FK PROTECT) → can't represent
+          the "asking three suppliers in parallel" stage.
+        - We need to track which vendor was asked, when, what they quoted,
+          and ETA per vendor so the inventory manager can compare apples
+          to apples before placing the actual PO.
+    """
+    STATUS_OPEN     = 'open'
+    STATUS_QUOTED   = 'quoted'      # at least one vendor replied
+    STATUS_ORDERED  = 'ordered'     # a quote was accepted → PO created
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = (
+        (STATUS_OPEN,      _('مفتوح — في انتظار الردود')),
+        (STATUS_QUOTED,    _('تم استلام عروض')),
+        (STATUS_ORDERED,   _('تم تحويلها إلى أمر شراء')),
+        (STATUS_CANCELLED, _('ملغاة')),
+    )
+
+    job_card = models.ForeignKey(
+        'SaleInvoice', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='rfqs',
+        verbose_name=_("بطاقة الإصلاح المرتبطة"),
+    )
+    branch = models.ForeignKey(
+        Branch, on_delete=models.PROTECT, related_name='rfqs',
+        verbose_name=_("فرع الطلب"),
+    )
+    product = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='rfqs',
+        verbose_name=_("القطعة (إن وُجدت في الكاتالوج)"),
+        help_text=_("قد تكون فارغة لو الـ AI اقترح P/N مش موجود لدينا بعد."),
+    )
+
+    # When the AI suggests a P/N that's NOT in our catalogue, we still want
+    # to RFQ it — store the raw P/N + name from the suggestion.
+    part_number_requested = models.CharField(
+        max_length=120, verbose_name=_("رقم القطعة المطلوبة"),
+    )
+    part_name_requested = models.CharField(
+        max_length=200, blank=True, verbose_name=_("اسم القطعة المطلوبة"),
+    )
+    quantity = models.PositiveIntegerField(default=1, verbose_name=_("الكمية"))
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات للموردين"))
+
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default=STATUS_OPEN,
+    )
+
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='rfqs_requested',
+    )
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    accepted_quote = models.ForeignKey(
+        'RFQQuote', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='accepted_for',
+        verbose_name=_("العرض المُعتمد"),
+    )
+    purchase_invoice = models.ForeignKey(
+        PurchaseInvoice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='source_rfqs',
+        verbose_name=_("أمر الشراء الناتج"),
+    )
+
+    class Meta:
+        verbose_name = _("طلب تسعير (RFQ)")
+        verbose_name_plural = _("طلبات التسعير")
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['job_card', 'status']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"RFQ #{self.id} — {self.part_number_requested} ({self.quantity}x)"
+
+
+class RFQQuote(models.Model):
+    """Per-vendor row inside an RFQ. Created at fan-out time with `sent_at`,
+    the price + ETA fields filled in by the inventory manager when the
+    vendor replies."""
+    rfq = models.ForeignKey(
+        RFQ, on_delete=models.CASCADE, related_name='quotes',
+        verbose_name=_("الطلب الأصلي"),
+    )
+    vendor = models.ForeignKey(
+        Vendor, on_delete=models.PROTECT, related_name='rfq_quotes',
+        verbose_name=_("المورد"),
+    )
+    sent_at = models.DateTimeField(
+        default=timezone.now, verbose_name=_("وقت إرسال الطلب"),
+    )
+    # Filled in when the vendor replies (via WhatsApp, the manager pastes it)
+    quoted_price = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name=_("السعر المعروض"),
+    )
+    quoted_eta_days = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name=_("مدة التوريد (أيام)"),
+    )
+    quoted_at = models.DateTimeField(null=True, blank=True)
+    notes = models.CharField(
+        max_length=240, blank=True, verbose_name=_("ملاحظة المورد"),
+    )
+
+    class Meta:
+        verbose_name = _("عرض تسعير")
+        verbose_name_plural = _("عروض الموردين")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['rfq', 'vendor'], name='uniq_rfq_vendor',
+            ),
+        ]
+        ordering = ['sent_at']
+
+    def __str__(self):
+        return f"Quote — {self.vendor.name} on RFQ #{self.rfq_id}"
+
+    @property
+    def has_response(self) -> bool:
+        return self.quoted_price is not None
+
+
 class CustomerFeedback(models.Model):
     """Public UUID link sent to customer after invoice 'posted' for rating + signature."""
     sale_invoice = models.OneToOneField(

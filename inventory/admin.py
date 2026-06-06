@@ -2729,3 +2729,102 @@ class B2BListingRequestAdmin(SecureImportExportAdmin):
             reviewed_at=timezone.now(),
         )
         self.message_user(request, f"تم رفض {updated} طلب.", messages.WARNING)
+
+# ─────────────────────────────────────────────────────────────────────
+# 📩 RFQ Engine — finance & inventory audit trail
+# ─────────────────────────────────────────────────────────────────────
+from inventory.models import RFQ, RFQQuote
+
+
+class RFQQuoteInline(admin.TabularInline):
+    """Show all per-vendor quotes directly on the RFQ change-form."""
+    model = RFQQuote
+    extra = 0
+    fields = (
+        'vendor', 'sent_at', 'quoted_price', 'quoted_eta_days',
+        'quoted_at', 'notes',
+    )
+    readonly_fields = ('sent_at', 'quoted_at')
+    autocomplete_fields = ('vendor',)
+    can_delete = False
+    show_change_link = True
+
+
+@admin.register(RFQ)
+class RFQAdmin(SafeAdminLogMixin, admin.ModelAdmin):
+    """Read-mostly audit surface — the actual lifecycle is driven by the
+    RFQ engine service; admin only exposes a manual cancel action."""
+    list_display = (
+        'id', 'part_number_requested', 'part_name_requested', 'quantity',
+        'status', 'job_card', 'branch', 'created_at',
+        'vendor_count', 'has_winner',
+    )
+    list_filter = ('status', 'branch', 'created_at')
+    search_fields = (
+        'part_number_requested', 'part_name_requested',
+        'product__part_number', 'product__name',
+        'job_card__id',
+    )
+    autocomplete_fields = ('product', 'job_card', 'branch', 'requested_by')
+    readonly_fields = (
+        'created_at', 'accepted_quote', 'purchase_invoice',
+    )
+    inlines = [RFQQuoteInline]
+    list_select_related = ('branch', 'job_card', 'product')
+    ordering = ('-created_at',)
+    actions = ['action_cancel']
+
+    fieldsets = (
+        (_("الطلب"), {
+            'fields': (
+                'part_number_requested', 'part_name_requested', 'quantity',
+                'product', 'branch', 'job_card', 'requested_by',
+                'notes',
+            ),
+        }),
+        (_("الحالة والنتيجة"), {
+            'fields': ('status', 'accepted_quote', 'purchase_invoice',
+                       'created_at'),
+        }),
+    )
+
+    @admin.display(description=_("عدد الموردين"))
+    def vendor_count(self, obj):
+        return obj.quotes.count()
+
+    @admin.display(boolean=True, description=_("تم اختيار مورد؟"))
+    def has_winner(self, obj):
+        return obj.accepted_quote_id is not None
+
+    @admin.action(description=_("إلغاء طلبات التسعير المختارة"))
+    def action_cancel(self, request, queryset):
+        updated = queryset.exclude(
+            status__in=[RFQ.STATUS_ORDERED, RFQ.STATUS_CANCELLED],
+        ).update(status=RFQ.STATUS_CANCELLED)
+        self.message_user(
+            request,
+            f"تم إلغاء {updated} طلب تسعير.",
+            messages.WARNING,
+        )
+
+
+@admin.register(RFQQuote)
+class RFQQuoteAdmin(SafeAdminLogMixin, admin.ModelAdmin):
+    """Per-vendor quote rows — searchable for finance reconciliation."""
+    list_display = (
+        'id', 'rfq', 'vendor', 'quoted_price', 'quoted_eta_days',
+        'sent_at', 'quoted_at', 'has_response',
+    )
+    list_filter = ('quoted_at', 'vendor')
+    search_fields = (
+        'rfq__part_number_requested', 'vendor__name',
+        'rfq__product__part_number',
+    )
+    autocomplete_fields = ('rfq', 'vendor')
+    readonly_fields = ('sent_at',)
+    list_select_related = ('rfq', 'vendor')
+    ordering = ('-sent_at',)
+
+    @admin.display(boolean=True, description=_("ردّ المورد؟"))
+    def has_response(self, obj):
+        return obj.quoted_price is not None

@@ -147,6 +147,164 @@ body {
     text-align: center; color: #64748b; font-size: 12px; padding: 18px;
     background: rgba(15, 23, 42, 0.4); border-radius: 6px;
 }
+
+/* ── Suggested-parts cards ─────────────────────────────────────── */
+.sp-row {
+    display: grid; grid-template-columns: 1fr 130px 110px;
+    gap: 12px; align-items: center;
+    padding: 12px 14px; border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    margin-bottom: 8px;
+}
+.sp-row .sp-meta { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.sp-row .sp-name { font-weight: 700; color: #e2e8f0; font-size: 13px; }
+.sp-row .sp-pn {
+    font-family: monospace; color: #fbbf24; font-size: 11px;
+    margin-right: 8px;
+}
+.sp-row .dtc-tag {
+    display: inline-block; background: rgba(239,68,68,0.1); color: #fca5a5;
+    padding: 1px 6px; border-radius: 4px; font-family: monospace;
+    font-size: 10px; margin-left: 4px;
+}
+.sp-row .prob-bar {
+    height: 4px; background: rgba(148,163,184,0.15); border-radius: 2px;
+    margin-top: 6px; overflow: hidden;
+}
+.sp-row .prob-bar .fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #22c55e); }
+
+.stock-badge {
+    text-align: center; padding: 6px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 700;
+}
+.stock-badge.in-stock { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.stock-badge.out      { background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+.stock-badge.unknown  { background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2); }
+.stock-badge .branches {
+    display: block; font-size: 10px; font-weight: 400;
+    margin-top: 2px; opacity: 0.85;
+}
+
+.sp-add-btn {
+    padding: 8px 12px; border: none; border-radius: 6px;
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: #fff; font-family: inherit; font-weight: 700; font-size: 11px;
+    cursor: pointer; width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.sp-add-btn:hover { filter: brightness(1.1); }
+.sp-add-btn:disabled {
+    background: rgba(148,163,184,0.2); color: #64748b; cursor: not-allowed;
+}
+.sp-add-btn.added { background: rgba(34,197,94,0.2); color: #4ade80; cursor: default; }
+
+/* ── RFQ button + modal ────────────────────────────────────────── */
+.sp-rfq-btn {
+    padding: 8px 12px; border: none; border-radius: 6px;
+    background: linear-gradient(135deg, #25d366, #128c7e);
+    color: #fff; font-family: inherit; font-weight: 700; font-size: 11px;
+    cursor: pointer; width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.sp-rfq-btn:hover { filter: brightness(1.1); }
+.sp-rfq-btn.opened {
+    background: rgba(37, 211, 102, 0.2); color: #4ade80; cursor: default;
+}
+
+.modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); z-index: 1000;
+    align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(4px);
+}
+.modal-backdrop.visible { display: flex; }
+.modal-shell {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(37, 211, 102, 0.3); border-radius: 14px;
+    padding: 24px; max-width: 640px; width: 100%;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    color: #e2e8f0;
+}
+.modal-shell h3 {
+    font-size: 16px; font-weight: 900;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 6px;
+}
+.modal-shell h3 i { color: #25d366; }
+.modal-shell .sub {
+    font-size: 12px; color: #94a3b8; margin-bottom: 16px;
+    padding-bottom: 12px; border-bottom: 1px solid rgba(148,163,184,0.15);
+}
+
+.vendor-row {
+    display: grid; grid-template-columns: 1fr auto auto;
+    gap: 10px; align-items: center;
+    padding: 12px 14px; margin-bottom: 8px;
+    background: rgba(15, 23, 42, 0.6); border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+.vendor-row .v-name { font-weight: 700; font-size: 13px; color: #e2e8f0; }
+.vendor-row .v-phone { font-size: 11px; color: #94a3b8; font-family: monospace; }
+.vendor-row .v-status {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    background: rgba(148,163,184,0.15); color: #94a3b8;
+}
+.vendor-row .v-status.responded {
+    background: rgba(34,197,94,0.15); color: #4ade80;
+}
+.wa-btn {
+    padding: 7px 14px; border-radius: 6px; text-decoration: none;
+    background: #25d366; color: #fff; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.wa-btn:hover { background: #1ebe5b; }
+.wa-btn.disabled {
+    background: rgba(148,163,184,0.15); color: #64748b;
+    pointer-events: none;
+}
+.quote-form {
+    display: none; grid-column: 1 / -1; margin-top: 8px;
+    padding-top: 10px; border-top: 1px dashed rgba(148,163,184,0.15);
+    gap: 8px; align-items: end;
+}
+.quote-form.visible { display: grid; grid-template-columns: 1fr 80px auto auto; }
+.quote-form input {
+    padding: 7px 10px; background: rgba(15,23,42,0.8);
+    border: 1px solid rgba(148,163,184,0.2); border-radius: 6px;
+    color: #e2e8f0; font-family: inherit; font-size: 12px;
+}
+.quote-form button {
+    padding: 7px 12px; border: none; border-radius: 6px;
+    background: rgba(14,165,233,0.2); color: #7dd3fc;
+    font-family: inherit; font-weight: 700; font-size: 11px; cursor: pointer;
+}
+.quote-form button.accept {
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: #052e0a;
+}
+.toggle-quote-btn {
+    background: rgba(14,165,233,0.15); color: #7dd3fc;
+    border: 1px solid rgba(14,165,233,0.3);
+    padding: 6px 10px; border-radius: 6px; font-size: 10px;
+    font-family: inherit; cursor: pointer;
+}
+
+.modal-shell .close-btn {
+    display: block; margin: 16px auto 0;
+    padding: 10px 22px; background: rgba(148,163,184,0.1);
+    color: #cbd5e1; border: 1px solid rgba(148,163,184,0.2);
+    border-radius: 8px; font-family: inherit; font-weight: 700;
+    cursor: pointer;
+}
+.modal-shell .po-success {
+    background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(22,163,74,0.1));
+    border: 1px solid rgba(34,197,94,0.3); border-radius: 8px;
+    padding: 14px; margin-top: 10px; color: #4ade80;
+    font-size: 12px; line-height: 1.7;
+    display: none;
+}
+.modal-shell .po-success.visible { display: block; }
 </style>
 </head>
 <body>
@@ -173,6 +331,21 @@ body {
             </div>
         {% endfor %}
     {% endif %}
+
+    {# ═══ RFQ Modal ════════════════════════════════════════════════ #}
+    <div id="rfqModal" class="modal-backdrop">
+        <div class="modal-shell">
+            <h3><i class="fa-brands fa-whatsapp"></i> طلب تسعير من الموردين</h3>
+            <div class="sub">
+                القطعة: <strong id="rfqPartLabel">—</strong>
+                · الكمية: <strong id="rfqQtyLabel">1</strong>
+                · RFQ <strong>#<span id="rfqIdLabel">—</span></strong>
+            </div>
+            <div id="rfqVendorList"></div>
+            <div id="rfqPOSuccess" class="po-success"></div>
+            <button class="close-btn" id="rfqCloseBtn">إغلاق</button>
+        </div>
+    </div>
 
     <form method="post">
         {% csrf_token %}
@@ -251,6 +424,23 @@ body {
                         {% endif %}
                     </div>
                 {% endfor %}
+            </div>
+            {% endif %}
+
+            {# ═══ 🤖 AI-Suggested Parts (Live Stock) ═══════════════════ #}
+            {% if invoice.diagnostic_reports.all %}
+            <div class="card" style="border-color: rgba(14, 165, 233, 0.3); background: rgba(14, 165, 233, 0.05);">
+                <div class="card-title" style="color:#7dd3fc;display:flex;justify-content:space-between;align-items:center;">
+                    <span><i class="fa-solid fa-microchip"></i> قطع مقترحة من تحليل الـ DTCs</span>
+                    <button type="button" id="btnRefreshParts"
+                            style="background:rgba(14,165,233,0.15);color:#7dd3fc;border:1px solid rgba(14,165,233,0.3);padding:4px 12px;border-radius:6px;font-family:inherit;font-size:11px;cursor:pointer;">
+                        <i class="fa-solid fa-rotate"></i> تحديث
+                    </button>
+                </div>
+                <div id="suggestedPartsStatus" style="font-size:12px;color:#94a3b8;padding:14px 0;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> جاري استخراج القطع من تحليل الـ AI...
+                </div>
+                <div id="suggestedPartsList"></div>
             </div>
             {% endif %}
 
@@ -409,6 +599,354 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         row.classList.toggle('excluded', !cb.checked);
     });
 });
+
+// ─────────────────────────────────────────────────────────────
+// 🤖 AI-Suggested Parts (lazy-loaded; LLM cold-cache is multi-second)
+// ─────────────────────────────────────────────────────────────
+(function () {
+    const statusEl = document.getElementById('suggestedPartsStatus');
+    const listEl = document.getElementById('suggestedPartsList');
+    if (!statusEl || !listEl) return;   // No diagnostic reports → block hidden
+
+    const FETCH_URL = "{% url 'inventory:job_card_suggested_parts' invoice.id %}";
+    const ADD_URL = "{% url 'inventory:job_card_suggested_part_add' invoice.id %}";
+
+    // Read mt_csrf cookie value for the X-CSRFToken header on POSTs
+    function getCsrf() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+
+    function badgeFor(part) {
+        if (part.status === 'not_in_catalogue') {
+            return `<div class="stock-badge unknown">⚠️ غير موجود في الكاتالوج
+                <span class="branches">${part.p_n_display}</span></div>`;
+        }
+        if (part.total_stock <= 0) {
+            return `<div class="stock-badge out">❌ غير متوفر
+                <span class="branches">طلب توريد مطلوب</span></div>`;
+        }
+        const top = part.by_branch
+            .filter(b => b.qty > 0)
+            .sort((a, b) => b.qty - a.qty)
+            .slice(0, 2)
+            .map(b => `${b.branch_name}: ${b.qty}`).join(' · ');
+        return `<div class="stock-badge in-stock">✓ متوفر: ${part.total_stock}
+            <span class="branches">${top || ''}</span></div>`;
+    }
+
+    function rowFor(part) {
+        const dtcs = (part.dtcs_mentioning || [])
+            .map(d => `<span class="dtc-tag">${d}</span>`).join('');
+        const productId = part.product_id || '';
+        const price = part.retail_price
+            ? `${part.retail_price.toFixed(2)} ج.م`
+            : '—';
+
+        // Action button switches based on stock state:
+        //   in_stock        → "أضف للبطاقة"  (cyan)
+        //   out_of_stock /  → "اطلب من المورد" (green)
+        //   not_in_catalogue
+        let actionBtn;
+        if (part.status === 'in_stock') {
+            actionBtn = `<button type="button" class="sp-add-btn"
+                    data-product-id="${productId}">
+                <i class="fa-solid fa-plus"></i> أضف للبطاقة
+            </button>`;
+        } else {
+            actionBtn = `<button type="button" class="sp-rfq-btn"
+                    data-product-id="${productId}"
+                    data-part-number="${part.product_pn_db || part.p_n_display}"
+                    data-part-name="${(part.product_name_db || part.part_name || '').replace(/"/g, '&quot;')}">
+                <i class="fa-brands fa-whatsapp"></i> اطلب من المورد
+            </button>`;
+        }
+
+        return `
+        <div class="sp-row" data-product-id="${productId}">
+            <div>
+                <div class="sp-name">
+                    ${part.product_name_db || part.part_name || '—'}
+                    <span class="sp-pn">${part.product_pn_db || part.p_n_display}</span>
+                </div>
+                <div class="sp-meta">
+                    احتمالية: <strong>${part.probability}%</strong>
+                    · سعر البيع: <strong>${price}</strong>
+                    · من ${dtcs || '—'}
+                </div>
+                <div class="prob-bar"><div class="fill" style="width:${part.probability}%;"></div></div>
+            </div>
+            ${badgeFor(part)}
+            ${actionBtn}
+        </div>`;
+    }
+
+    function render(data) {
+        if (data.error) {
+            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:#fca5a5;"></i> ${data.error}`;
+            return;
+        }
+        if (!data.parts || data.parts.length === 0) {
+            statusEl.innerHTML = '<i class="fa-solid fa-info-circle"></i> الـ AI لم يقترح قطعاً عالية الاحتمالية لهذه الأكواد.';
+            listEl.innerHTML = '';
+            return;
+        }
+        statusEl.innerHTML = `<i class="fa-solid fa-check-circle" style="color:#4ade80;"></i> ${data.parts.length} قطعة مقترحة (مرتّبة حسب الاحتمالية)`;
+        listEl.innerHTML = data.parts.map(rowFor).join('');
+        listEl.querySelectorAll('.sp-add-btn').forEach(btn => {
+            btn.addEventListener('click', () => addPart(btn));
+        });
+        listEl.querySelectorAll('.sp-rfq-btn').forEach(btn => {
+            btn.addEventListener('click', () => startRFQ(btn));
+        });
+    }
+
+    async function load() {
+        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري استخراج القطع من تحليل الـ AI...';
+        listEl.innerHTML = '';
+        try {
+            const resp = await fetch(FETCH_URL);
+            const data = await resp.json();
+            render(data);
+        } catch (err) {
+            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> فشل الاتصال: ${err.message}`;
+        }
+    }
+
+    async function addPart(btn) {
+        const productId = btn.dataset.productId;
+        if (!productId) return;
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            const resp = await fetch(ADD_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrf(),
+                },
+                body: JSON.stringify({ product_id: parseInt(productId, 10), quantity: 1 }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                alert(data.error || 'فشل الإضافة');
+                return;
+            }
+            btn.className = 'sp-add-btn added';
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> أُضيفت (${data.quantity}×)`;
+            // Reload the page after a short delay so the parts table
+            // below shows the freshly-added line item + updated total.
+            setTimeout(() => window.location.reload(), 900);
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+            alert(`خطأ في الاتصال: ${err.message}`);
+        }
+    }
+
+    document.getElementById('btnRefreshParts').addEventListener('click', load);
+    load();   // Auto-trigger on page load
+
+    // ─────────────────────────────────────────────────────────────
+    // 📩 RFQ flow — fan out to suppliers via WhatsApp
+    // ─────────────────────────────────────────────────────────────
+    const RFQ_CREATE_URL = "{% url 'inventory:rfq_create' invoice.id %}";
+    const modal = document.getElementById('rfqModal');
+    const vendorListEl = document.getElementById('rfqVendorList');
+    const poSuccessEl = document.getElementById('rfqPOSuccess');
+
+    function rfqLogUrl(quoteId)    { return `/system/rfq/quote/${quoteId}/log/`; }
+    function rfqAcceptUrl(quoteId) { return `/system/rfq/quote/${quoteId}/accept/`; }
+
+    function openModal() {
+        modal.classList.add('visible');
+        poSuccessEl.classList.remove('visible');
+        poSuccessEl.innerHTML = '';
+    }
+    function closeModal() { modal.classList.remove('visible'); }
+    document.getElementById('rfqCloseBtn').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    function renderVendor(msg) {
+        const responded = msg.has_response;
+        const waBtn = msg.can_send
+            ? `<a class="wa-btn" href="${msg.wa_url}" target="_blank" rel="noopener">
+                  <i class="fa-brands fa-whatsapp"></i> أرسل
+               </a>`
+            : `<span class="wa-btn disabled" title="رقم الهاتف غير مسجل">
+                  <i class="fa-solid fa-phone-slash"></i> بدون رقم
+               </span>`;
+        const priceLabel = responded
+            ? `${msg.quoted_price} ج.م · ${msg.quoted_eta_days ?? '?'} يوم`
+            : '';
+        return `
+        <div class="vendor-row" data-quote-id="${msg.quote_id}">
+            <div>
+                <div class="v-name">${msg.vendor_name}</div>
+                <div class="v-phone">${msg.phone || '— لا يوجد رقم —'}</div>
+                ${responded ? `<div class="v-status responded">📝 ${priceLabel}</div>` : ''}
+            </div>
+            <div>${waBtn}</div>
+            <button type="button" class="toggle-quote-btn" data-quote-id="${msg.quote_id}">
+                ${responded ? 'عدّل العرض' : 'سجّل الرد'}
+            </button>
+            <div class="quote-form" data-quote-id="${msg.quote_id}">
+                <input type="number" class="q-price" placeholder="السعر (ج.م)"
+                       value="${msg.quoted_price || ''}" step="0.01" min="0.01">
+                <input type="number" class="q-eta" placeholder="أيام"
+                       value="${msg.quoted_eta_days || ''}" min="0" max="365">
+                <button type="button" class="save-quote" data-quote-id="${msg.quote_id}">
+                    💾 احفظ
+                </button>
+                <button type="button" class="accept" data-quote-id="${msg.quote_id}"
+                        ${responded ? '' : 'disabled'}
+                        title="تحويل إلى أمر شراء (Draft)">
+                    ✅ اعتمد + PO
+                </button>
+            </div>
+        </div>`;
+    }
+
+    function attachRowHandlers() {
+        vendorListEl.querySelectorAll('.toggle-quote-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                const qid = b.dataset.quoteId;
+                vendorListEl.querySelector(`.quote-form[data-quote-id="${qid}"]`)
+                    .classList.toggle('visible');
+            });
+        });
+        vendorListEl.querySelectorAll('.save-quote').forEach(b => {
+            b.addEventListener('click', () => saveQuote(b.dataset.quoteId));
+        });
+        vendorListEl.querySelectorAll('.accept').forEach(b => {
+            b.addEventListener('click', () => acceptQuote(b.dataset.quoteId));
+        });
+    }
+
+    async function startRFQ(btn) {
+        const partNumber = btn.dataset.partNumber;
+        const partName = btn.dataset.partName;
+        const productId = btn.dataset.productId
+            ? parseInt(btn.dataset.productId, 10) : null;
+        if (!partNumber) {
+            alert('رقم القطعة غير متاح.');
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        try {
+            const resp = await fetch(RFQ_CREATE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrf(),
+                },
+                body: JSON.stringify({
+                    part_number: partNumber,
+                    part_name: partName,
+                    product_id: productId,
+                    quantity: 1,
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                alert(data.error || 'فشل إنشاء الطلب');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> اطلب من المورد';
+                return;
+            }
+            // Populate modal
+            document.getElementById('rfqIdLabel').textContent = data.rfq_id;
+            document.getElementById('rfqPartLabel').textContent =
+                `${partName} (${partNumber})`;
+            document.getElementById('rfqQtyLabel').textContent = data.quantity;
+            if (!data.messages.length) {
+                vendorListEl.innerHTML =
+                    '<div class="empty">لا يوجد موردين مسجّلين بعد — أضف موردين من شاشة الشراء.</div>';
+            } else {
+                vendorListEl.innerHTML = data.messages.map(renderVendor).join('');
+                attachRowHandlers();
+            }
+            openModal();
+            btn.className = 'sp-rfq-btn opened';
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> RFQ #' + data.rfq_id;
+        } catch (err) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> اطلب من المورد';
+            alert(`خطأ في الاتصال: ${err.message}`);
+        }
+    }
+
+    async function saveQuote(quoteId) {
+        const row = vendorListEl.querySelector(`.quote-form[data-quote-id="${quoteId}"]`);
+        const price = row.querySelector('.q-price').value;
+        const eta = row.querySelector('.q-eta').value;
+        if (!price || parseFloat(price) <= 0) {
+            alert('أدخل سعراً صحيحاً.');
+            return;
+        }
+        try {
+            const resp = await fetch(rfqLogUrl(quoteId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrf(),
+                },
+                body: JSON.stringify({
+                    price: parseFloat(price),
+                    eta_days: eta ? parseInt(eta, 10) : null,
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                alert(data.error || 'فشل الحفظ');
+                return;
+            }
+            // Enable accept button + show status
+            const vrow = vendorListEl.querySelector(`.vendor-row[data-quote-id="${quoteId}"]`);
+            const acceptBtn = vrow.querySelector('button.accept');
+            acceptBtn.disabled = false;
+            let statusEl = vrow.querySelector('.v-status.responded');
+            if (!statusEl) {
+                statusEl = document.createElement('div');
+                statusEl.className = 'v-status responded';
+                vrow.querySelector('.v-phone').after(statusEl);
+            }
+            statusEl.textContent = `📝 ${data.price} ج.م · ${data.eta_days ?? '?'} يوم`;
+        } catch (err) {
+            alert(`خطأ: ${err.message}`);
+        }
+    }
+
+    async function acceptQuote(quoteId) {
+        if (!confirm('سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟')) return;
+        try {
+            const resp = await fetch(rfqAcceptUrl(quoteId), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrf() },
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                alert(data.error || 'فشل الاعتماد');
+                return;
+            }
+            poSuccessEl.innerHTML = `
+                <strong>✅ تم إنشاء أمر شراء Draft</strong><br>
+                المورد: <strong>${data.vendor_name}</strong> ·
+                الإجمالي: <strong>${data.total.toFixed(2)} ج.م</strong><br>
+                <small>PurchaseInvoice #${data.purchase_invoice_id} في حالة <em>${data.status}</em> — افتح شاشة المخزون لتسجيل الاستلام.</small>
+            `;
+            poSuccessEl.classList.add('visible');
+        } catch (err) {
+            alert(`خطأ: ${err.message}`);
+        }
+    }
+})();
 </script>
 </body>
 </html>

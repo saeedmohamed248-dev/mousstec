@@ -16,7 +16,7 @@ from django.db import connection, transaction, close_old_connections
 from django.core.cache import cache
 from django.conf import settings
 from django_tenants.utils import schema_context
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import json
 import urllib.parse
@@ -3054,4 +3054,301 @@ def job_card_review(request, invoice_id):
         'billable_total': parts_total + services_total,
         'excluded_total': excluded_total,
         'reviewer_name': request.user.get_full_name() or request.user.username,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔧 DTC → Suggested Parts (with live per-branch stock)
+# ─────────────────────────────────────────────────────────────────────
+import json as _json
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def job_card_suggested_parts(request, invoice_id):
+    """GET → JSON list of AI-suggested parts for the Job Card, with
+    live per-branch stock. Lazy-loaded by the Review UI because the
+    LLM round-trip is multi-second on a cold cache."""
+    invoice = get_object_or_404(
+        SaleInvoice.objects.prefetch_related('diagnostic_reports'),
+        id=invoice_id,
+    )
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    from smart_diagnostics.services.parts_resolver import (
+        resolve_parts_for_job_card,
+    )
+    try:
+        parts = resolve_parts_for_job_card(invoice)
+    except Exception as exc:
+        logger.exception("[suggested_parts] resolve failed: %s", exc)
+        return JsonResponse({
+            "parts": [],
+            "error": "تعذّر استخراج القطع المقترحة، حاول مرة أخرى.",
+        }, status=200)
+
+    return JsonResponse({
+        "invoice_id": invoice.id,
+        "parts": parts,
+        "count": len(parts),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt   # CSRF is enforced by the X-CSRFToken header check below
+def job_card_suggested_part_add(request, invoice_id):
+    """POST {product_id, quantity, unit_price?} → create a SaleInvoiceItem
+    on the Job Card. Used by the 'Add to Job Card' button next to each
+    suggested part. is_billable=True by default; accountant can untick
+    later from the review screen.
+
+    RBAC: sales / cashier / accountant / admin / manager / superuser."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+
+    # Lightweight CSRF: require a header carrying the cookie value.
+    cookie_token = request.META.get('CSRF_COOKIE') or request.COOKIES.get('mt_csrf')
+    sent_token = request.headers.get('X-CSRFToken', '')
+    if not cookie_token or not sent_token or cookie_token != sent_token:
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    try:
+        payload = _json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+
+    product_id = payload.get('product_id')
+    qty = int(payload.get('quantity') or 1)
+    if qty < 1 or qty > 99:
+        return JsonResponse({"error": "bad_quantity"}, status=400)
+    if not product_id:
+        return JsonResponse({"error": "product_required"}, status=400)
+
+    product = Product.objects.filter(id=product_id).first()
+    if product is None:
+        return JsonResponse({"error": "product_not_found"}, status=404)
+
+    unit_price = payload.get('unit_price')
+    try:
+        unit_price = Decimal(str(unit_price)) if unit_price is not None \
+                     else Decimal(str(product.retail_price or 0))
+    except (InvalidOperation, TypeError):
+        unit_price = Decimal(str(product.retail_price or 0))
+
+    with transaction.atomic():
+        # Idempotency: if the same product already sits on this Job Card,
+        # bump the quantity instead of duplicating the line.
+        existing = (SaleInvoiceItem.objects
+                    .filter(invoice=invoice, product=product)
+                    .first())
+        if existing:
+            existing.quantity = (existing.quantity or 0) + qty
+            existing.save(update_fields=['quantity'])
+            item = existing
+            action = 'incremented'
+        else:
+            item = SaleInvoiceItem.objects.create(
+                invoice=invoice,
+                product=product,
+                quantity=qty,
+                unit_price=unit_price,
+                is_billable=True,
+                billing_note='أُضيفت تلقائياً من اقتراح الـ AI',
+            )
+            action = 'created'
+
+    logger.info(
+        "[suggested_parts.add] tenant=%s user=%s invoice=%s product=%s "
+        "qty=%s action=%s",
+        getattr(getattr(request, 'tenant', None), 'schema_name', None),
+        request.user.username, invoice.id, product.id, qty, action,
+    )
+    return JsonResponse({
+        "ok": True,
+        "action": action,
+        "item_id": item.id,
+        "product_name": product.name,
+        "quantity": item.quantity,
+        "unit_price": float(unit_price),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 📩 RFQ Engine — multi-supplier fan-out for out-of-stock parts
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt   # X-CSRFToken header validated explicitly
+def rfq_create(request, invoice_id):
+    """POST {part_number, part_name?, product_id?, quantity?, vendor_ids?[]}
+    Creates an RFQ for the Job Card, returns the per-vendor wa.me links."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+
+    cookie_token = request.COOKIES.get('mt_csrf')
+    sent_token = request.headers.get('X-CSRFToken', '')
+    if not cookie_token or cookie_token != sent_token:
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return JsonResponse({"error": "forbidden"}, status=403)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager', 'stock'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    try:
+        payload = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+
+    pn = (payload.get('part_number') or '').strip().upper()
+    if not pn:
+        return JsonResponse({"error": "part_number_required"}, status=400)
+    part_name = (payload.get('part_name') or '').strip()
+    qty = int(payload.get('quantity') or 1)
+    product_id = payload.get('product_id')
+
+    product = Product.objects.filter(id=product_id).first() if product_id else None
+
+    vendor_ids = payload.get('vendor_ids') or []
+    from inventory.models import Vendor
+    vendors = list(Vendor.objects.filter(id__in=vendor_ids)) if vendor_ids else []
+
+    rfq_branch = invoice.branch or _get_branch_for_user(request.user)
+    if rfq_branch is None:
+        return JsonResponse({"error": "branch_required"}, status=400)
+
+    from smart_diagnostics.services.rfq_engine import (
+        create_rfq, build_whatsapp_messages,
+    )
+
+    try:
+        rfq = create_rfq(
+            branch=rfq_branch, product=product,
+            part_number_requested=pn, part_name_requested=part_name,
+            quantity=qty, job_card=invoice,
+            requested_by=request.user, vendors=vendors,
+            notes='',
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception as exc:
+        logger.exception("[rfq_create] failed: %s", exc)
+        return JsonResponse({"error": "rfq_create_failed"}, status=500)
+
+    tenant = getattr(request, 'tenant', None)
+    workshop_name = (
+        getattr(tenant, 'name', None)
+        or getattr(tenant, 'schema_name', None)
+        or ''
+    )
+    messages_payload = build_whatsapp_messages(rfq, workshop_name=workshop_name)
+    return JsonResponse({
+        "ok": True,
+        "rfq_id": rfq.id,
+        "status": rfq.status,
+        "part_number": rfq.part_number_requested,
+        "quantity": rfq.quantity,
+        "messages": messages_payload,
+    }, status=201)
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt
+def rfq_log_quote(request, quote_id):
+    """POST {price, eta_days?, notes?} — inventory manager pastes vendor reply."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    from inventory.models import RFQQuote
+    quote = get_object_or_404(RFQQuote.objects.select_related('rfq'), id=quote_id)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager', 'stock'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    try:
+        payload = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+
+    from smart_diagnostics.services.rfq_engine import log_quote_response
+    try:
+        log_quote_response(
+            quote,
+            price=payload.get('price'),
+            eta_days=payload.get('eta_days'),
+            notes=payload.get('notes') or '',
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({
+        "ok": True,
+        "quote_id": quote.id,
+        "rfq_status": quote.rfq.status,
+        "price": float(quote.quoted_price),
+        "eta_days": quote.quoted_eta_days,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt
+def rfq_accept_quote(request, quote_id):
+    """POST → promote this quote to a draft PurchaseInvoice."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    from inventory.models import RFQQuote
+    quote = get_object_or_404(
+        RFQQuote.objects.select_related('rfq', 'rfq__product', 'vendor'),
+        id=quote_id,
+    )
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'admin', 'manager', 'stock'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    from smart_diagnostics.services.rfq_engine import accept_quote
+    try:
+        po = accept_quote(quote)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception as exc:
+        logger.exception("[rfq_accept_quote] failed: %s", exc)
+        return JsonResponse({"error": "accept_failed"}, status=500)
+
+    return JsonResponse({
+        "ok": True,
+        "purchase_invoice_id": po.id,
+        "vendor_name": po.vendor.name,
+        "total": float(po.total_amount),
+        "status": po.status,
     })

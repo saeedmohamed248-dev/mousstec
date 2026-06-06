@@ -93,6 +93,13 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/ai-diagnostics/', views.ai_diag_print, name='ai_diag_print'),
     # 🧮 Accountant / Sales review of the Unified Job Card
     path('invoice/<int:invoice_id>/review/', views.job_card_review, name='job_card_review'),
+    # 🔧 DTC → Suggested Parts (live stock) — JSON APIs
+    path('invoice/<int:invoice_id>/suggested-parts/', views.job_card_suggested_parts, name='job_card_suggested_parts'),
+    path('invoice/<int:invoice_id>/suggested-parts/add/', views.job_card_suggested_part_add, name='job_card_suggested_part_add'),
+    # 📩 Multi-supplier RFQ engine
+    path('invoice/<int:invoice_id>/rfq/create/', views.rfq_create, name='rfq_create'),
+    path('rfq/quote/<int:quote_id>/log/', views.rfq_log_quote, name='rfq_log_quote'),
+    path('rfq/quote/<int:quote_id>/accept/', views.rfq_accept_quote, name='rfq_accept_quote'),
     path('invoice/<int:invoice_id>/ai-diagnostics/pdf/', views.ai_diag_pdf, name='ai_diag_pdf'),
     # Public signed link — works without login (used for WhatsApp share)
     path('ai-diagnostics/share/<str:token>/', views.ai_diag_share, name='ai_diag_share'),
