@@ -62,10 +62,21 @@ def _system_prompt() -> str:
         "  [الفحص 3 — Component / Advanced] لو 1 و 2 سليمين.\n"
         "  [قرار] لو طلع كذا → اعمل كذا.\n\n"
 
+        "👁️ Vision Capability (مهم): ساعات الفني هيرفعلك صورة (موصل، كابل، حساس، شاشة scanner، dashboard).\n"
+        "  • افحص الصورة بعين هندسية: اعدّ البنّات، حدد الألوان، شخّص حالة العزل/المعدن.\n"
+        "  • لو الصورة لموصل: قارن اللي شايفه بالـ pinout النظري للسيارة دي (من الـ VIN).\n"
+        "  • لو الصورة لكابل/سلك: قول للفني هل يصلح splice ولا لازم استبدال harness كامل، "
+        "    واذكر نوع الـ terminal (Bosch Junior Power, Tyco JPT, Yazaki...) لو ظاهر.\n"
+        "  • لو الصورة لقراءة scanner أو dash: اقرأ الأرقام بدقة وحلل الأنماط.\n"
+        "  • لو الصورة مش واضحة أو الزاوية مش كافية — اطلب صورة تانية بزاوية محددة "
+        "    ('ارفع صورة من فوق توضح صف البنّات').\n\n"
+
         "🚫 ممنوع: تكتب كود برمجة، تذكر أسعار قطع، تقول 'غيّر الجزء' بدون pin-test، "
-        "تخمن VIN غير موجود، تتجاهل القراءات الحية لو متاحة.\n"
-        "✅ مسموح: تقول 'مش متأكد من الـ pinout الدقيق لهذا الموديل تحديداً، استخدم "
-        "wiring diagram السيارة' لو فعلاً الموديل غامض — الصدق الفني أهم من التخمين."
+        "تخمن VIN غير موجود، تتجاهل القراءات الحية لو متاحة، "
+        "تتجاهل صورة مرفوعة لو الفني سأل عنها.\n"
+        "✅ مسموح: تقول 'الصورة مش واضحة، صور تاني من زاوية كذا' أو 'مش متأكد من الـ "
+        "pinout الدقيق لهذا الموديل تحديداً، استخدم wiring diagram السيارة' لو فعلاً "
+        "الموديل غامض — الصدق الفني أهم من التخمين."
     )
 
 
@@ -190,6 +201,32 @@ def _opening_turn(*, snapshot, dtcs) -> str:
     )
 
 
+_ACCEPTED_IMAGE_MIME = ("image/jpeg", "image/png", "image/webp")
+_MAX_IMAGE_B64_CHARS = 7_000_000  # ~5 MB raw — Gemini hard-caps around this
+
+
+def _validate_image_data_url(data_url: str | None) -> str | None:
+    """Return the data URL if it's a well-formed, accepted-MIME image; else None.
+
+    We reject silently rather than raising — the front-end already validated
+    once, and a bad payload should degrade to text-only chat rather than 500.
+    """
+    if not data_url or not isinstance(data_url, str):
+        return None
+    if not data_url.startswith("data:"):
+        return None
+    try:
+        header, b64 = data_url.split(",", 1)
+    except ValueError:
+        return None
+    mime = header.split(";")[0].removeprefix("data:").lower()
+    if mime not in _ACCEPTED_IMAGE_MIME:
+        return None
+    if len(b64) > _MAX_IMAGE_B64_CHARS:
+        return None
+    return data_url
+
+
 def answer_room_turn(
     *,
     history: list[dict],
@@ -198,6 +235,7 @@ def answer_room_turn(
     dtcs: list[str],
     vehicle_hint: dict[str, Any],
     vin: str | None = None,
+    image_data_url: str | None = None,
     tenant=None,
     user=None,
 ) -> dict[str, Any]:
@@ -227,10 +265,32 @@ def answer_room_turn(
     # The latest user turn gets the live context glued on, so the model
     # always sees fresh telemetry — even if the chat history is long.
     user_block = user_message or _opening_turn(snapshot=snapshot, dtcs=dtcs)
-    messages.append({
-        "role": "user",
-        "content": f"{context_block}\n\nسؤال الفني: {user_block}",
-    })
+    text_payload = f"{context_block}\n\nسؤال الفني: {user_block}"
+
+    # Vision branch: when a valid image is attached we build the
+    # OpenAI-style multimodal content list. `call_llm_layer` detects the
+    # image_url element and routes to Gemini Vision automatically.
+    safe_image = _validate_image_data_url(image_data_url)
+    if safe_image:
+        text_payload += (
+            "\n\n📷 الفني رفع صورة مع رسالته. حلّل الصورة بالتفصيل:\n"
+            "  - لو موصل/كونكتر: عدّ البنّات، حدد لون كل سلك، وقارنها بالـ pinout "
+            "    المتوقع للسيارة دي (استخدم الـ VIN).\n"
+            "  - لو كابل/سلك: شخّص حالته (محروق / مقطوع / متآكل / متشقق العزل).\n"
+            "  - لو حساس/جزء: حدد نوعه ووظيفته في السيارة دي.\n"
+            "  - لو شاشة عدادات أو scanner: اقرأ القيم بدقة من الصورة.\n"
+            "اربط ملاحظاتك البصرية بالـ DTCs والـ Live Data المتاحة، "
+            "وقول للفني الخطوة العملية التالية (repin / splice / replace)."
+        )
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": text_payload},
+                {"type": "image_url", "image_url": {"url": safe_image}},
+            ],
+        })
+    else:
+        messages.append({"role": "user", "content": text_payload})
 
     answer = call_llm_layer(messages, json_mode=False, max_retries=2)
     if not answer:

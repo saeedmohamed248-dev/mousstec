@@ -258,6 +258,7 @@ def diagnostics_room_chat(request):
             dtcs=payload.get("dtcs") or [],
             vehicle_hint=payload.get("vehicle_hint") or {},
             vin=(payload.get("vin") or None),
+            image_data_url=(payload.get("image") or None),
             tenant=getattr(request, "tenant", None),
             user=request.user,
         )

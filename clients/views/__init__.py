@@ -22,6 +22,26 @@ from .brand_profile_views import (  # noqa: F401
     brand_profile_page,
 )
 
+# 🛍️ Design Store endpoints — extracted from _legacy.py (Step 4). Same
+# explicit-import pattern as Brand Memory above, to dodge the Daphne wildcard
+# quirk that surfaced as a startup 502.
+from .design_store_views import (  # noqa: F401
+    design_store_home,
+    design_store_buy,
+    design_store_payment,
+    design_store_confirm_payment,
+    design_store_my_designs,
+    design_store_generate,
+    design_store_send_whatsapp,
+    design_store_download,
+    design_store_regenerate,
+    design_store_print_request,
+    design_store_send_to_marketplace,
+    design_store_watermark,
+    design_store_chat_history,
+    design_store_refine,
+)
+
 # 💬 Phase N — Conversational Design Builder endpoints (N.3)
 from .design_chat_views import (  # noqa: F401
     design_chat_start,

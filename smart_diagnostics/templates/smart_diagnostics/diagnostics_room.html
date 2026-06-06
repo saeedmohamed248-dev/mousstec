@@ -146,9 +146,12 @@ body {
 .msg.bot.thinking { color: #8fb3d9; font-style: italic; }
 .msg .timestamp { display: block; font-size: 10px; opacity: 0.55; margin-top: 4px; }
 
+.chat-input-wrap {
+    margin-top: 12px; border-top: 1px solid rgba(100,180,255,.1); padding-top: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+}
 .chat-input {
-    display: flex; gap: 8px; margin-top: 12px;
-    border-top: 1px solid rgba(100,180,255,.1); padding-top: 12px;
+    display: flex; gap: 8px;
 }
 .chat-input textarea {
     flex: 1; padding: 11px 14px; border-radius: 10px;
@@ -157,6 +160,39 @@ body {
     resize: none; min-height: 44px; max-height: 120px;
 }
 .chat-input textarea:focus { outline: none; border-color: #36d399; }
+.icon-btn {
+    width: 44px; height: 44px; flex-shrink: 0;
+    background: rgba(100,180,255,.08); color: #8fb3d9;
+    border: 1px solid rgba(100,180,255,.15); border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s, color 0.15s;
+}
+.icon-btn:hover { background: rgba(100,180,255,.15); color: #fff; }
+.icon-btn.attached { background: #0c3220; color: #36d399; border-color: #36d39940; }
+
+.preview-row {
+    display: none; align-items: center; gap: 10px; padding: 8px 12px;
+    background: rgba(8,18,32,0.7); border: 1px dashed rgba(100,180,255,.2);
+    border-radius: 10px; font-size: 12px; color: #8fb3d9;
+}
+.preview-row.visible { display: flex; }
+.preview-row img {
+    width: 50px; height: 50px; object-fit: cover; border-radius: 6px;
+    border: 1px solid rgba(100,180,255,.15);
+}
+.preview-row .file-info { flex: 1; }
+.preview-row .file-info .name { color: #e6f1ff; font-weight: 700; }
+.preview-row .file-info .size { font-size: 10px; opacity: 0.7; }
+.preview-row .remove-btn {
+    background: transparent; border: none; color: #ff5470; cursor: pointer;
+    font-size: 18px; padding: 4px 8px;
+}
+
+.msg img.attachment {
+    display: block; max-width: 100%; max-height: 280px;
+    border-radius: 10px; margin-bottom: 6px;
+    border: 1px solid rgba(100,180,255,.15);
+}
 
 .unsupported {
     display: none; max-width: 720px; margin: 40px auto; padding: 28px;
@@ -253,12 +289,31 @@ body {
                 هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا.
             </div>
         </div>
-        <form id="chatForm" class="chat-input">
-            <textarea id="chatInput" placeholder="اسأل عن أي عطل أو قراءة... (Enter للإرسال، Shift+Enter لسطر جديد)"></textarea>
-            <button type="submit" class="btn primary" style="padding: 0 18px;">
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
-        </form>
+        <div class="chat-input-wrap">
+            <div id="previewRow" class="preview-row">
+                <img id="previewImg" alt="معاينة">
+                <div class="file-info">
+                    <div class="name" id="previewName">image.jpg</div>
+                    <div class="size" id="previewSize">— KB</div>
+                </div>
+                <button type="button" class="remove-btn" id="btnRemoveAttachment"
+                        title="إزالة الصورة">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="chatForm" class="chat-input">
+                <button type="button" id="btnAttach" class="icon-btn"
+                        title="ارفع صورة (Camera / Upload)">
+                    <i class="fa-solid fa-camera"></i>
+                </button>
+                <input type="file" id="fileInput" accept="image/*" capture="environment"
+                       style="display:none;">
+                <textarea id="chatInput" placeholder="اسأل عن أي عطل أو قراءة، أو ارفق صورة للموصل/الكابل... (Enter للإرسال)"></textarea>
+                <button type="submit" class="btn primary" style="padding: 0 18px;">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -296,6 +351,10 @@ body {
     let lastVIN = null;
     let history = [];  // [{role:'user|assistant', text:'...'}]
     let awaitingAI = false;
+    let pendingAttachment = null;  // { dataUrl, mime, name, size }
+
+    const MAX_IMAGE_BYTES = 4 * 1024 * 1024;  // 4 MB before we resize
+    const RESIZE_LONG_EDGE = 1280;             // px — keeps Gemini happy + cheap
 
     // ── Helpers ─────────────────────────────────────────────────
     function setStatus(kind, text) {
@@ -353,7 +412,18 @@ body {
         const div = document.createElement('div');
         div.className = `msg ${role === 'user' ? 'user' : 'bot'}` +
                         (opts.thinking ? ' thinking' : '');
-        div.textContent = text;
+        if (opts.imageDataUrl) {
+            const img = document.createElement('img');
+            img.className = 'attachment';
+            img.src = opts.imageDataUrl;
+            img.alt = 'attachment';
+            div.appendChild(img);
+        }
+        if (text) {
+            const textNode = document.createElement('span');
+            textNode.textContent = text;
+            div.appendChild(textNode);
+        }
         const ts = document.createElement('span');
         ts.className = 'timestamp';
         ts.textContent = new Date().toLocaleTimeString('en-GB');
@@ -363,11 +433,58 @@ body {
         return div;
     }
 
+    // ── Image handling: resize to 1280px long edge, re-encode as JPEG ──
+    function resizeImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('فشل قراءة الملف.'));
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error('الملف ليس صورة صالحة.'));
+                img.onload = () => {
+                    const longEdge = Math.max(img.width, img.height);
+                    const scale = longEdge > RESIZE_LONG_EDGE
+                        ? RESIZE_LONG_EDGE / longEdge : 1;
+                    const w = Math.round(img.width * scale);
+                    const h = Math.round(img.height * scale);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    resolve(dataUrl);
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function setAttachment(att) {
+        pendingAttachment = att;
+        const row = $('previewRow');
+        if (!att) {
+            row.classList.remove('visible');
+            $('btnAttach').classList.remove('attached');
+            $('fileInput').value = '';
+            return;
+        }
+        $('previewImg').src = att.dataUrl;
+        $('previewName').textContent = att.name;
+        $('previewSize').textContent =
+            (att.size / 1024).toFixed(0) + ' KB · ' + att.mime;
+        row.classList.add('visible');
+        $('btnAttach').classList.add('attached');
+    }
+
     // ── AI chat round-trip ──────────────────────────────────────
-    async function askAI({ userMessage = '', autoTriggered = false } = {}) {
+    async function askAI({ userMessage = '', autoTriggered = false, attachment = null } = {}) {
         if (awaitingAI) return;
         awaitingAI = true;
-        const thinkingNode = pushMessage('bot', '⏳ جاري التحليل…', { thinking: true });
+        const thinkingNode = pushMessage(
+            'bot',
+            attachment ? '⏳ جاري تحليل الصورة…' : '⏳ جاري التحليل…',
+            { thinking: true },
+        );
 
         try {
             const resp = await fetch(CHAT_URL, {
@@ -383,6 +500,7 @@ body {
                     dtcs: lastDTCs,
                     vin: lastVIN,
                     vehicle_hint: {},
+                    image: attachment ? attachment.dataUrl : null,
                 }),
             });
             const data = await resp.json();
@@ -396,11 +514,14 @@ body {
             }
             pushMessage('bot', data.answer);
 
-            if (userMessage) history.push({ role: 'user', text: userMessage });
-            else if (autoTriggered) history.push({
-                role: 'user',
-                text: '[تلقائي] تم استلام قراءات جديدة من السيارة.',
-            });
+            // Stamp the history with a hint about the attachment so future
+            // turns can reference it without re-sending the bytes.
+            const userTurnText = userMessage
+                ? userMessage + (attachment ? ' [📷 صورة مرفقة]' : '')
+                : (autoTriggered
+                    ? '[تلقائي] تم استلام قراءات جديدة من السيارة.'
+                    : (attachment ? '[📷 صورة مرفقة بدون نص]' : ''));
+            if (userTurnText) history.push({ role: 'user', text: userTurnText });
             history.push({ role: 'assistant', text: data.answer });
             // Cap to last 16 entries to keep payload small
             if (history.length > 16) history = history.slice(-16);
@@ -492,15 +613,43 @@ body {
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const text = chatInput.value.trim();
-        if (!text) return;
-        pushMessage('user', text);
+        if (!text && !pendingAttachment) return;
+        pushMessage('user', text, {
+            imageDataUrl: pendingAttachment ? pendingAttachment.dataUrl : null,
+        });
         chatInput.value = '';
-        askAI({ userMessage: text });
+        const att = pendingAttachment;
+        setAttachment(null);
+        askAI({ userMessage: text, attachment: att });
     });
     chatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             chatForm.requestSubmit();
+        }
+    });
+
+    // ── Attachment handlers ─────────────────────────────────────
+    $('btnAttach').addEventListener('click', () => $('fileInput').click());
+    $('btnRemoveAttachment').addEventListener('click', () => setAttachment(null));
+    $('fileInput').addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            log(`الملف ليس صورة (${file.type})`, true);
+            return;
+        }
+        if (file.size > MAX_IMAGE_BYTES) {
+            log(`الصورة أكبر من ${MAX_IMAGE_BYTES / 1024 / 1024} MB — هتتعامل لكن بدقة أقل.`);
+        }
+        try {
+            const dataUrl = await resizeImage(file);
+            setAttachment({
+                dataUrl, mime: 'image/jpeg', name: file.name,
+                size: Math.round(dataUrl.length * 0.75),  // base64 → bytes approx
+            });
+        } catch (err) {
+            log(`فشل معالجة الصورة: ${err.message}`, true);
         }
     });
 })();
