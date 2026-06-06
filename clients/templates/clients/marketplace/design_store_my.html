@@ -583,13 +583,72 @@ async function sendWA(code = lastDesignCode) {
 }
 function sendWAFor(code) { sendWA(code); }
 
+// ──────────── ✨ Phase N.6+ — unified pipeline badges ────────────
+// Surfaces the rich metadata (engine_used / brand_applied / logo_composited /
+// quality_score) that design_store_generate/regenerate/refine now return.
+// Returns an HTML string of pill badges; empty string when no signals present.
+function renderPipelineBadges(d) {
+    if (!d) return '';
+    const pills = [];
+    const pill = (text, bg, tip) =>
+        `<span style="font-size:10px;background:${bg};color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;margin:2px 3px;display:inline-block;" title="${tip || ''}">${text}</span>`;
+
+    // 🎨 Brand identity applied (logo composite OR brand_applied flag)
+    if (d.logo_composited) {
+        pills.push(pill('✨ تم تطبيق هويتك البصرية', 'linear-gradient(135deg,#7c3aed,#ec4899)',
+            'تم دمج لوجو علامتك التجارية في التصميم تلقائياً'));
+    } else if (d.brand_applied) {
+        pills.push(pill('🎨 ألوان علامتك مطبّقة', '#7c3aed',
+            'تم استخدام لوحة ألوان علامتك التجارية في صياغة التصميم'));
+    }
+
+    // 🤖 Smart Router engine (FLUX vs Ideogram)
+    const eng = (d.engine_used || d.engine || '').toLowerCase();
+    if (eng === 'ideogram') {
+        pills.push(pill('🅰️ Ideogram — نص دقيق', '#0891b2',
+            'النصوص مرسومة داخل الصورة مباشرة بدقة عالية'));
+    } else if (eng === 'flux' || eng.startsWith('flux')) {
+        pills.push(pill('⚡ FLUX', '#059669',
+            'محرك توليد عالي الجودة للصور الفوتوغرافية والتصميمات'));
+    }
+
+    // 🏆 Quality gate score (0..1) — show only for confident scores
+    const q = typeof d.quality_score === 'number' ? d.quality_score : null;
+    if (q !== null && q >= 0) {
+        const pct = Math.round(q * 100);
+        const bg = pct >= 85 ? '#059669' : pct >= 70 ? '#0891b2' : '#f59e0b';
+        const label = pct >= 85 ? '🏆 جودة ممتازة' : pct >= 70 ? '✅ جودة جيدة' : '⚠️ جودة مقبولة';
+        pills.push(pill(`${label} (${pct}٪)`, bg, 'تقييم آلي من Quality Gate'));
+    }
+
+    return pills.length
+        ? `<div style="margin-top:8px;text-align:center;line-height:1.9;">${pills.join('')}</div>`
+        : '';
+}
+
 async function regenDesign(code) {
     if (!confirm('إعادة التوليد ستستخدم محاولة من المتاح في باقتك. متابعة؟')) return;
     toast('جاري إعادة التوليد...', 'success');
     const r = await fetch(`/marketplace/design-store/${code}/regenerate/`, {method:'POST'});
     const d = await r.json();
-    if (d.image_url) { toast('✅ تم!', 'success'); setTimeout(() => location.reload(), 1500); }
-    else toast(d.error || 'فشل', 'error');
+    if (!d.image_url) { toast(d.error || 'فشل', 'error'); return; }
+
+    // ✨ Show pipeline badges briefly before reload so the customer sees the value.
+    const badges = renderPipelineBadges(d);
+    if (badges) {
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML =
+            '<div style="background:#0f172a;border:1px solid #7c3aed;border-radius:18px;padding:20px;max-width:520px;width:100%;text-align:center;">'
+            +   '<img src="' + d.image_url + '" style="width:100%;border-radius:12px;border:2px solid #a78bfa;margin-bottom:12px;">'
+            +   '<div style="color:#a78bfa;font-weight:800;margin-bottom:6px;">✅ تم إعادة التوليد</div>'
+            +   badges
+            + '</div>';
+        document.body.appendChild(modal);
+    } else {
+        toast('✅ تم!', 'success');
+    }
+    setTimeout(() => location.reload(), 2200);
 }
 // regenLast/addWatermark/sendToMarketplace (no-arg wrappers based on lastDesignCode)
 // removed 2026-06 — gallery cards use *For(code) variants directly.
@@ -1370,9 +1429,12 @@ async function chatRefine() {
 
         const aiDiv = document.createElement('div');
         aiDiv.className = 'chat-msg assistant';
+        // ✨ Phase N.6+ — unified pipeline badges (brand/engine/quality)
+        const pipelineBadges = renderPipelineBadges(d);
         aiDiv.innerHTML = `
             <div>تم تعديل التصميم حسب طلبك ✅ (${placementLabel}) ${methodBadge}${intentBadge}</div>
             <img src="${d.image_url}" loading="lazy">
+            ${pipelineBadges}
             ${comparisonHtml}
             <div class="time">الآن — متبقي <b>${d.regenerations_left}</b> تعديل</div>`;
         box.appendChild(aiDiv);
