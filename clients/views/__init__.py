@@ -12,15 +12,15 @@ deleted.
 """
 from ._legacy import *  # noqa: F401,F403
 
-# Explicit re-exports for Phase 5 Brand Memory endpoints — the wildcard
-# above did not surface these names reliably under Daphne boot, causing
-# AttributeError in erp_core/urls.py and a 502.
-from ._legacy import (  # noqa: F401
+# 🎨 Phase 5 Brand Memory endpoints — moved out of _legacy.py into their own
+# module. Explicit imports here (not via wildcard) because Daphne boot was
+# observed to drop these names unreliably from `from ._legacy import *`,
+# causing AttributeError in erp_core/urls.py and a 502 at startup.
+from .brand_profile_views import (  # noqa: F401
     brand_profile_view,
     brand_profile_delete_logo,
     brand_profile_page,
 )
-from ._legacy import brand_profile_view, brand_profile_delete_logo, brand_profile_page
 
 # 💬 Phase N — Conversational Design Builder endpoints (N.3)
 from .design_chat_views import (  # noqa: F401

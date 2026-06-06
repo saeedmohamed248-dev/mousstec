@@ -173,6 +173,9 @@ body {
     <div class="brand"><i class="fa-solid fa-microchip"></i> غرفة تشخيص الأعطال</div>
     <div class="tech">
         <i class="fa-regular fa-user"></i> {{ tech_name }} ·
+        <span id="vinPill" class="pill idle" style="font-family:monospace; display:none;">
+            <i class="fa-solid fa-car"></i> <span id="vinText">VIN —</span>
+        </span>
         <span id="connStatus" class="pill idle"><span class="dot"></span> غير متصل</span>
     </div>
 </div>
@@ -290,6 +293,7 @@ body {
     // ── State ───────────────────────────────────────────────────
     let lastSnapshot = {};
     let lastDTCs = [];
+    let lastVIN = null;
     let history = [];  // [{role:'user|assistant', text:'...'}]
     let awaitingAI = false;
 
@@ -377,6 +381,7 @@ body {
                     history: history,
                     snapshot: lastSnapshot,
                     dtcs: lastDTCs,
+                    vin: lastVIN,
                     vehicle_hint: {},
                 }),
             });
@@ -415,6 +420,14 @@ body {
     obd.addEventListener('initialized', (e) => {
         log('ELM327 initialised (ATZ → ATSP0 OK)');
     });
+    obd.addEventListener('vin', (e) => {
+        lastVIN = e.detail.vin;
+        log(`VIN read: ${lastVIN}`);
+        const pill = $('vinPill');
+        $('vinText').textContent = lastVIN;
+        pill.style.display = 'inline-flex';
+        pill.className = 'pill live';
+    });
     obd.addEventListener('live', (e) => {
         lastSnapshot = e.detail;
         renderGauges(e.detail);
@@ -446,6 +459,9 @@ body {
             await obd.connect();
             await obd.initialize();
             setButtons({ connected: true });
+            // Mode 09 PID 02 — fire-and-forget; failures are non-fatal because
+            // pre-2008 vehicles often don't expose VIN over OBD-II.
+            obd.readVIN().catch(err => log(`VIN unavailable: ${err.message}`, true));
             obd.streamLiveData({ intervalMs: 800 });
         } catch (err) {
             log(`Connect failed: ${err.message}`, true);

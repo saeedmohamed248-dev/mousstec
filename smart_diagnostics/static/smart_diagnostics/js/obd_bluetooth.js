@@ -199,6 +199,40 @@ class OBDBluetooth extends EventTarget {
         return raw;
     }
 
+    // 7. Mode 09 PID 02 — vehicle VIN.
+    //    Response is multi-frame: ELM returns several lines like
+    //    "014\r0: 49 02 01 57 42 41\r1: 56 41 31 30 32 31 33\r2: 34 35 36 37 38 39 00 00"
+    //    We strip frame-index nibbles, find the 49 02 01 header, take the
+    //    17 ASCII bytes, drop NULs / 0x00 padding.
+    async readVIN() {
+        // ATSP0 + Mode09 sometimes needs a slightly longer timeout the first
+        // time the bus negotiates. 5s is conservative.
+        const raw = await this._sendCommand('0902', 5000);
+        const vin = this._parseVINResponse(raw);
+        if (vin) this._emit('vin', { vin });
+        return vin;
+    }
+
+    _parseVINResponse(raw) {
+        if (!raw || raw.includes('NO DATA') || raw.includes('?')) return null;
+        // Strip line numbering (e.g. "0:", "1:", "2:") and whitespace.
+        const stripped = raw
+            .replace(/\d+\s*:/g, '')
+            .replace(/\s+/g, '')
+            .toUpperCase();
+        const idx = stripped.indexOf('490201');
+        if (idx < 0) return null;
+        const body = stripped.slice(idx + 6);  // after "49 02 01"
+        let vin = '';
+        for (let i = 0; i + 2 <= body.length && vin.length < 17; i += 2) {
+            const b = parseInt(body.slice(i, i + 2), 16);
+            if (!Number.isFinite(b) || b === 0x00) continue;  // skip pad nulls
+            if (b < 0x20 || b > 0x7E) continue;               // non-printable
+            vin += String.fromCharCode(b);
+        }
+        return vin.length === 17 ? vin : null;
+    }
+
     async disconnect() {
         this.stopStream();
         if (this.device && this.device.gatt && this.device.gatt.connected) {
