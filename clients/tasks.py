@@ -543,3 +543,28 @@ def cleanup_stale_design_conversations(idle_minutes: int | None = None):
             f"by_stage={result['by_stage']} cutoff={result['cutoff']}"
         )
     return result
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔐 OBD device security — replay-protection nonce cleanup
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(name='clients.tasks.purge_obd_device_nonces')
+def purge_obd_device_nonces(retention_seconds: int = 900):
+    """Delete OBDDeviceNonce rows older than `retention_seconds`.
+
+    The nonce table only needs to remember entries inside the largest active
+    replay window (default 300s). We keep 3× that as a safety margin so a
+    misconfigured device with a wider window can't accidentally accept a
+    replay. Runs every 5 minutes via Celery Beat — see CELERY_BEAT_SCHEDULE.
+    """
+    from clients.obd_device_models import OBDDeviceNonce
+
+    try:
+        deleted = OBDDeviceNonce.purge_older_than(seconds=retention_seconds)
+    except Exception as exc:
+        logger.error(f"🔴 [OBD NONCE PURGE] failed: {exc}", exc_info=True)
+        return {'error': str(exc), 'deleted': 0}
+
+    if deleted:
+        logger.info(f"🧹 [OBD NONCE PURGE] deleted={deleted} "
+                    f"retention={retention_seconds}s")
+    return {'deleted': deleted, 'retention_seconds': retention_seconds}

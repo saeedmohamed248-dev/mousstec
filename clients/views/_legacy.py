@@ -1380,6 +1380,238 @@ def design_store_my_designs(request):
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# 🎨 Marketplace AI pipeline helpers (Phase N.6+ — C1/C2/C3 unification)
+# ───────────────────────────────────────────────────────────────────────────
+# Shared by design_store_generate / _regenerate / _refine so all three honor
+# the Brand Profile, Smart Router, logo composite, and Quality Gate.
+# ═══════════════════════════════════════════════════════════════════════════
+def _resolve_brand_context(customer, logo_file=None):
+    """Return ``(brand_context, brand_logo_source, logo_was_uploaded)`` for the
+    given marketplace customer + optional per-request logo upload.
+
+    Centralizes the CustomerBrandProfile lookup that C1/C2/C3 all need so we
+    can't accidentally diverge again (the original C2/C3 bug).
+    """
+    brand_context = None
+    brand_logo_source = None
+    logo_was_uploaded = bool(logo_file)
+    try:
+        bp = getattr(customer, 'brand_profile', None)
+        if bp and bp.is_active:
+            brand_context = bp.as_brand_context()
+            if bp.auto_inject_logo and bp.has_logo:
+                brand_context['logo_described'] = True
+                brand_logo_source = bp.logo_image
+    except Exception as e:
+        logger.warning(f'[MP PIPELINE] brand profile lookup failed: {e}')
+
+    if logo_was_uploaded:
+        if brand_context is None:
+            brand_context = {'brand_name': (customer.full_name or 'Brand')[:60]}
+        brand_context['logo_described'] = True
+    return brand_context, brand_logo_source, logo_was_uploaded
+
+
+def _persist_remote_image(request, customer, *, url=None, b64=None, prefix='ai_store'):
+    """Persist a (b64 or remote-URL) image to local storage and return the
+    absolute media URL. Together AI URLs expire in ~1h so this is mandatory.
+
+    Returns the URL string, or ``None`` if both inputs were empty/failed.
+    """
+    import base64 as _b64
+    import uuid as _uuid
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    img_bytes = None
+    if b64:
+        try:
+            img_bytes = _b64.b64decode(b64)
+        except Exception as e:
+            logger.warning(f'[MP PIPELINE] b64 decode failed: {e}')
+    elif url:
+        try:
+            import requests as _req
+            r = _req.get(url, timeout=30)
+            if r.status_code == 200:
+                img_bytes = r.content
+        except Exception as e:
+            logger.warning(f'[MP PIPELINE] remote fetch failed: {e}')
+            return url  # caller can still use the remote URL as last resort
+
+    if not img_bytes:
+        return url
+    filename = f'{prefix}/{customer.uid}/{_uuid.uuid4().hex}.png'
+    saved = default_storage.save(filename, ContentFile(img_bytes))
+    local = default_storage.url(saved)
+    if local.startswith('/'):
+        local = request.build_absolute_uri(local)
+    return local
+
+
+def _composite_brand_logo(
+    request, *, image_url, logo_source, used_engine, presentation_category,
+    text_overlay=None, prefix='ai_store',
+):
+    """Run logo composite (FLUX path only — Ideogram draws logos natively).
+
+    Returns ``(image_url, composited:bool)``. Non-fatal on failure.
+    """
+    if not logo_source or used_engine == 'ideogram':
+        return image_url, False
+    try:
+        from erp_core.ai.logo_overlay import composite_logo_on_image_url
+        has_text = bool(text_overlay and text_overlay.get('text'))
+        comp = composite_logo_on_image_url(
+            image_url=image_url,
+            logo_source=logo_source,
+            category=presentation_category or '',
+            text_overlay_position=(
+                text_overlay.get('position') if has_text else None
+            ),
+        )
+        if comp.get('success'):
+            new_url = comp['url']
+            if new_url and new_url.startswith('/'):
+                new_url = request.build_absolute_uri(new_url)
+            return new_url, True
+        if not comp.get('skipped'):
+            logger.warning(f'[MP PIPELINE] composite failed (non-fatal): {comp.get("error")}')
+    except Exception as e:
+        logger.warning(f'[MP PIPELINE] composite exception: {e}')
+    return image_url, False
+
+
+def _run_marketplace_image_pipeline(
+    request, customer, *,
+    engineered_prompt,
+    description,
+    category,
+    canonical_size,
+    logo_file=None,
+    block_schnell_fallback=True,
+    prefix='ai_store',
+):
+    """Unified Brand + Smart Router + Composite + Quality Gate pipeline.
+
+    Used by C1 (generate) and C2 (regenerate). Returns either:
+        ``{'ok': True, 'image_url', 'used_engine', 'used_model',
+            'presentation_category', 'text_overlay', 'quality_score',
+            'logo_composited', 'brand_applied', 'logo_was_uploaded',
+            'final_prompt'}``
+    or:
+        ``{'ok': False, 'status': int, 'error_payload': dict}``
+    """
+    brand_context, brand_logo_source, logo_was_uploaded = _resolve_brand_context(
+        customer, logo_file=logo_file,
+    )
+
+    # Stage A — compose (already_engineered=True ⇒ no double LLM rewrite)
+    try:
+        from erp_core.ai.design_engine import compose_mega_prompt
+        mega = compose_mega_prompt(
+            raw_idea=engineered_prompt,
+            domain=category if category != 'other' else '',
+            selections={},
+            brand_context=brand_context,
+            presentation_category=category if category != 'other' else None,
+            already_engineered=True,
+        )
+    except Exception:
+        logger.exception('[MP PIPELINE] compose_mega_prompt crashed')
+        return {'ok': False, 'status': 502, 'error_payload': {
+            'error': 'تعذرت صياغة البرومبت. حاول تعدّل الوصف.',
+        }}
+
+    if not mega.get('success'):
+        return {'ok': False, 'status': 502, 'error_payload': {
+            'error': 'مقدرناش نصيغ البرومبت — جرب توضّح الوصف.',
+            'engine_error': mega.get('error', ''),
+        }}
+
+    final_prompt = mega['mega_prompt']
+    final_negative = mega.get('negative_prompt', '')
+    presentation_category = mega.get('presentation_category') or category
+    text_overlay = mega.get('text_overlay')
+    has_text = bool(text_overlay and text_overlay.get('text'))
+
+    # Stage B — Smart Router (FLUX for photo, Ideogram for text/logo)
+    try:
+        from erp_core.ai.printing_copilot import generate_design_image
+        img = generate_design_image(
+            prompt=final_prompt[:1800],
+            size=canonical_size,
+            negative_prompt=final_negative or (
+                'low quality, blurry, watermark, distorted text, fake logo, '
+                'duplicated elements, extra fingers, jpeg artifacts'
+            ),
+            category=presentation_category,
+            has_text_content=has_text,
+            block_schnell_fallback=block_schnell_fallback,
+        )
+    except Exception:
+        logger.exception('[MP PIPELINE] generate_design_image crashed')
+        return {'ok': False, 'status': 502, 'error_payload': {
+            'error': 'فشل توليد التصميم. حاول تاني.',
+        }}
+
+    if not img.get('success'):
+        err = img.get('error', 'unknown')
+        logger.error(f'[MP PIPELINE] image gen failed: {err} — {(img.get("detail") or "")[:200]}')
+        return {'ok': False, 'status': 502, 'error_payload': {
+            'error': 'فشل توليد التصميم. حاول تاني.',
+            'engine_error': err,
+        }}
+
+    used_engine = img.get('engine', 'flux')
+    used_model = img.get('model') or used_engine
+
+    image_url = _persist_remote_image(
+        request, customer, url=img.get('url'), b64=img.get('b64_json'), prefix=prefix,
+    )
+    if not image_url:
+        return {'ok': False, 'status': 502, 'error_payload': {
+            'error': 'محرك التوليد لم يُرجع صورة.',
+        }}
+
+    # Stage C — composite brand/uploaded logo (FLUX only)
+    logo_source = logo_file if logo_file else brand_logo_source
+    image_url, logo_composited = _composite_brand_logo(
+        request, image_url=image_url, logo_source=logo_source,
+        used_engine=used_engine, presentation_category=presentation_category,
+        text_overlay=text_overlay, prefix=prefix,
+    )
+
+    # Stage D — optional quality gate
+    quality_score = None
+    if bool(getattr(settings, 'DESIGN_QUALITY_GATE_ENABLED', True)):
+        try:
+            from erp_core.ai.design_engine import verify_design_quality
+            qr = verify_design_quality(
+                image_url=image_url, raw_idea=description,
+                category=presentation_category,
+            )
+            if qr.get('success'):
+                quality_score = qr.get('score')
+        except Exception as e:
+            logger.warning(f'[MP PIPELINE] quality gate failed: {e}')
+
+    return {
+        'ok': True,
+        'image_url': image_url,
+        'used_engine': used_engine,
+        'used_model': used_model,
+        'presentation_category': presentation_category,
+        'text_overlay': text_overlay,
+        'quality_score': quality_score,
+        'logo_composited': logo_composited,
+        'brand_applied': (mega.get('brand_applied') or {}).get('applied', False),
+        'logo_was_uploaded': logo_was_uploaded,
+        'final_prompt': final_prompt,
+    }
+
+
 @csrf_exempt
 def design_store_generate(request):
     """🎨 توليد تصميم من الباقة."""
@@ -2479,92 +2711,61 @@ def design_store_regenerate(request, design_code):
     design.regenerations_used += 1
     design.save(update_fields=['regenerations_used'])
 
-    # 🎨 Regenerate via Together AI FLUX.1-schnell (migrated 2026-06)
+    # 🎨 Phase N.6+: regenerate now uses the SAME unified pipeline as
+    # design_store_generate — Brand Profile + Smart Router (FLUX/Ideogram) +
+    # PIL logo composite + quality gate. The original engineered_prompt is
+    # passed through compose_mega_prompt with already_engineered=True so the
+    # legacy prompt tuning is preserved (no double LLM rewrite).
     regen_prompt = design.engineered_prompt or design.description
     if not regen_prompt or len(regen_prompt) < 10:
         regen_prompt = f"Create a professional design: {design.title}. {design.description}"
 
+    SUPPORTED = {'1024x1024', '1024x1536', '1536x1024'}
+    sz = design.size_preset if design.size_preset in SUPPORTED else '1024x1024'
+
+    result = _run_marketplace_image_pipeline(
+        request, customer,
+        engineered_prompt=regen_prompt,
+        description=design.description or design.raw_input or '',
+        category=design.category or 'other',
+        canonical_size=sz,
+        prefix='ai_store',
+    )
+    if not result['ok']:
+        # Preserve regen-specific Arabic message while surfacing engine_error.
+        payload = dict(result['error_payload'])
+        payload.setdefault('error', 'فشل إعادة التوليد. حاول تاني.')
+        return JsonResponse(payload, status=result['status'])
+
+    new_url = result['image_url']
+    design.image_url = new_url
+    design.model_used = result['used_model'] or 'unknown'
+    design.save(update_fields=['image_url', 'model_used'])
+
+    # Chat history
     try:
-        from erp_core.ai.printing_copilot import generate_flux_image
-        # Map Together-supported FLUX sizes — any non-standard size falls back to 1024x1024
-        SUPPORTED = {'1024x1024', '1024x1536', '1536x1024'}
-        sz = design.size_preset if design.size_preset in SUPPORTED else '1024x1024'
-
-        flux_result = generate_flux_image(
-            prompt=regen_prompt[:1800],
-            size=sz,
-            negative_prompt="low quality, blurry, watermark, distorted text, fake logo",
-            block_schnell_fallback=True,  # marketplace: dev only
+        from clients.models import DesignChatMessage
+        DesignChatMessage.objects.create(
+            design=design, role='user',
+            content='إعادة توليد التصميم بنفس المواصفات',
         )
-        if not flux_result.get('success'):
-            err = flux_result.get('error', 'unknown')
-            logger.error(f"[REGEN] FLUX failed: {err} — {flux_result.get('detail', '')[:200]}")
-            return JsonResponse({
-                "error": "فشل إعادة التوليد على Together AI. حاول تاني.",
-                "engine_error": err,
-            }, status=502)
+        DesignChatMessage.objects.create(
+            design=design, role='assistant',
+            content='تم إعادة توليد التصميم', image_url=new_url,
+        )
+    except Exception:
+        pass
 
-        new_url = flux_result.get('url')
-        b64 = flux_result.get('b64_json')
-
-        # Persist Together-hosted URLs locally (short-lived)
-        import uuid as _uuid
-        from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
-
-        if b64:
-            import base64 as _b64
-            img_bytes = _b64.b64decode(b64)
-            filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
-            saved = default_storage.save(filename, ContentFile(img_bytes))
-            local_url = default_storage.url(saved)
-            if local_url.startswith('/'):
-                local_url = request.build_absolute_uri(local_url)
-            new_url = local_url
-        elif new_url:
-            try:
-                import requests as _req
-                r = _req.get(new_url, timeout=30)
-                if r.status_code == 200:
-                    filename = f"ai_store/{customer.uid}/regen_{_uuid.uuid4().hex}.png"
-                    saved = default_storage.save(filename, ContentFile(r.content))
-                    local_url = default_storage.url(saved)
-                    if local_url.startswith('/'):
-                        local_url = request.build_absolute_uri(local_url)
-                    new_url = local_url
-            except Exception as e:
-                logger.warning(f"[REGEN] Failed to persist FLUX url: {e}")
-
-        if not new_url:
-            return JsonResponse({"error": "لم يتم استلام صورة من Together AI"}, status=502)
-
-        design.image_url = new_url
-        design.model_used = flux_result.get('model', 'flux-schnell')
-        design.save(update_fields=['image_url', 'model_used'])
-
-        # Save chat history for regeneration
-        try:
-            from clients.models import DesignChatMessage
-            DesignChatMessage.objects.create(
-                design=design, role='user',
-                content='إعادة توليد التصميم بنفس المواصفات'
-            )
-            DesignChatMessage.objects.create(
-                design=design, role='assistant',
-                content='تم إعادة توليد التصميم',
-                image_url=new_url
-            )
-        except Exception:
-            pass
-
-        return JsonResponse({
-            "status": "success",
-            "image_url": new_url,
-            "regenerations_left": design.regenerations_allowed - design.regenerations_used,
-        })
-    except Exception as e:
-        logger.error(f"[REGEN] Failed: {e}")
-        return JsonResponse({"error": f"فشل إعادة التوليد: {str(e)[:100]}"}, status=500)
+    return JsonResponse({
+        "status": "success",
+        "image_url": new_url,
+        "regenerations_left": design.regenerations_allowed - design.regenerations_used,
+        # 🆕 Phase N.6+ parity with generate
+        "engine_used": result['used_engine'],
+        "brand_applied": result['brand_applied'],
+        "logo_composited": result['logo_composited'],
+        "quality_score": result['quality_score'],
+    })
 
 
 @csrf_exempt
@@ -2916,6 +3117,29 @@ def design_store_refine(request, design_code):
         f"{placement_instr}"
     )
 
+    # 🎨 Phase N.6+ — C3 fix: inject Brand Profile into the refinement prompt so
+    # the full-regenerate fallback path honors the customer's brand colors /
+    # aesthetic. already_engineered=True keeps the legacy prompt intact (no
+    # double LLM rewrite). Kontext i2i ignores the mega prompt itself, but the
+    # logo composite step below still runs for both methods.
+    brand_context, brand_logo_source, _ = _resolve_brand_context(customer)
+    brand_applied = False
+    try:
+        from erp_core.ai.design_engine import compose_mega_prompt
+        mega = compose_mega_prompt(
+            raw_idea=refinement_prompt,
+            domain=design.category if design.category != 'other' else '',
+            selections={},
+            brand_context=brand_context,
+            presentation_category=design.category if design.category != 'other' else None,
+            already_engineered=True,
+        )
+        if mega.get('success'):
+            refinement_prompt = mega['mega_prompt']
+            brand_applied = (mega.get('brand_applied') or {}).get('applied', False)
+    except Exception as e:
+        logger.warning(f'[REFINE] brand injection failed (non-fatal): {e}')
+
     # 🧠 Smart Refine: Kontext i2i لو الـ intent يدعمه، fallback لـ full regenerate.
     # ده بيخلي "غيّر اللون" يعدل الصورة فعلاً بدل ما يبني واحدة جديدة من الصفر.
     # الـ classifier يصنف الـ intent + يحدد لو الـ Kontext يقدر يتعامل معاه.
@@ -2979,36 +3203,11 @@ def design_store_refine(request, design_code):
             f'model={flux_result.get("model")} intent={intent_info["intent"]}'
         )
 
-        new_url = flux_result.get('url')
-        b64 = flux_result.get('b64_json')
-
-        import uuid as _uuid
-        from django.core.files.base import ContentFile
-        from django.core.files.storage import default_storage
-
-        if b64:
-            import base64 as _b64
-            img_bytes = _b64.b64decode(b64)
-            filename = f"ai_store/{customer.uid}/refine_{_uuid.uuid4().hex}.png"
-            saved = default_storage.save(filename, ContentFile(img_bytes))
-            local_url = default_storage.url(saved)
-            if local_url.startswith('/'):
-                local_url = request.build_absolute_uri(local_url)
-            new_url = local_url
-        elif new_url:
-            try:
-                import requests as _req
-                r = _req.get(new_url, timeout=30)
-                if r.status_code == 200:
-                    filename = f"ai_store/{customer.uid}/refine_{_uuid.uuid4().hex}.png"
-                    saved = default_storage.save(filename, ContentFile(r.content))
-                    local_url = default_storage.url(saved)
-                    if local_url.startswith('/'):
-                        local_url = request.build_absolute_uri(local_url)
-                    new_url = local_url
-            except Exception as e:
-                logger.warning(f"[REFINE] Failed to persist FLUX url: {e}")
-
+        new_url = _persist_remote_image(
+            request, customer,
+            url=flux_result.get('url'), b64=flux_result.get('b64_json'),
+            prefix='ai_store',
+        )
         if not new_url:
             return JsonResponse({"error": "لم يتم استلام صورة من Together AI"}, status=502)
 
@@ -3041,6 +3240,16 @@ def design_store_refine(request, design_code):
                     logger.info(f"[REFINE] Arabic overlay applied at position={extracted['position']}")
         except Exception as e:
             logger.warning(f"[REFINE] overlay step failed (non-fatal): {e}")
+
+        # 🎨 Phase N.6+ — C3 fix: composite the customer's brand logo on top
+        # of the refined image (FLUX/Kontext output — Ideogram is not used by
+        # refine, so we always attempt). Non-fatal on failure.
+        new_url, logo_composited = _composite_brand_logo(
+            request, image_url=new_url, logo_source=brand_logo_source,
+            used_engine=flux_result.get('engine', 'flux'),
+            presentation_category=design.category,
+            text_overlay=None, prefix='ai_store',
+        )
 
         # 💾 احفظ الصورة الأصلية قبل التعديل عشان العميل يقارن بعدين
         previous_image_url = design.image_url
@@ -3078,6 +3287,9 @@ def design_store_refine(request, design_code):
             "intent_confidence": intent_info['confidence'],
             "used_edit_api": refinement_method == 'kontext_i2i',
             "model": flux_result.get('model'),
+            # 🆕 Phase N.6+ parity with generate
+            "brand_applied": brand_applied,
+            "logo_composited": logo_composited,
         })
     except Exception as e:
         logger.error(f"[REFINE] Failed: {e}")

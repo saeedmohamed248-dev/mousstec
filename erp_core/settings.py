@@ -639,6 +639,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'clients.tasks.cleanup_stale_design_conversations',
         'schedule': crontab(minute='*/15'),  # كل 15 دقيقة
     },
+    # ── OBD security: purge expired replay-protection nonces ────────
+    'purge_obd_device_nonces': {
+        'task': 'clients.tasks.purge_obd_device_nonces',
+        'schedule': crontab(minute='*/5'),  # كل 5 دقائق
+        'kwargs': {'retention_seconds': 900},  # 3× the default 300s replay window
+    },
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',
