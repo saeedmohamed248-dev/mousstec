@@ -1,0 +1,97 @@
+{# Single RFQ card — used by rfq_management.html for both 'open' and 'quoted' lists.
+   Expects: rfq (with _sorted_quotes and _best_quote attached), variant in {open,quoted} #}
+<div class="rfq-card {{ variant }}">
+
+    <div class="rfq-head">
+        <div>
+            <div>
+                <span class="part">{{ rfq.part_name_requested|default:rfq.part_number_requested }}</span>
+                <span class="pn">{{ rfq.part_number_requested }}</span>
+            </div>
+            <div class="meta">
+                <span>RFQ <strong>#{{ rfq.id }}</strong></span>
+                <span>{{ rfq.created_at|date:"Y/m/d H:i" }}</span>
+                {% if rfq.requested_by %}<span>طلب: <strong>{{ rfq.requested_by.username }}</strong></span>{% endif %}
+                {% if rfq.branch %}<span>الفرع: <strong>{{ rfq.branch.name }}</strong></span>{% endif %}
+                {% if not rfq.product %}<span style="color:#fbbf24;"><i class="fa-solid fa-triangle-exclamation"></i> غير موجود في الكاتالوج</span>{% endif %}
+            </div>
+        </div>
+        <div class="badges">
+            <span class="qty-pill">كمية: {{ rfq.quantity }}</span>
+            {% if rfq.job_card %}
+                <a class="jc-link" href="{% url 'inventory:job_card_review' rfq.job_card.id %}" target="_blank">
+                    <i class="fa-solid fa-clipboard-list"></i> JC #{{ rfq.job_card.id }}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <table class="quote-table">
+        <thead>
+            <tr>
+                <th style="width: 30%;">المورد</th>
+                <th style="width: 22%;">السعر (ج.م)</th>
+                <th style="width: 14%;">أيام</th>
+                <th style="width: 34%;">إجراء</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in rfq.sorted_quotes %}
+                {% with responded=q.quoted_price %}
+                <tr class="{% if q.is_best %}best{% elif responded %}responded{% endif %}">
+                    <td>
+                        <div class="vendor-name">{{ q.vendor.name }}</div>
+                        {% if q.vendor.phone %}
+                            <span class="vendor-phone">{{ q.vendor.phone }}</span>
+                        {% else %}
+                            <span class="vendor-phone" style="color:#ef4444;">— لا يوجد رقم —</span>
+                        {% endif %}
+                    </td>
+
+                    {% if responded %}
+                        <td><span class="quoted-display">{{ q.quoted_price|floatformat:2 }}</span></td>
+                        <td>
+                            {% if q.quoted_eta_days is not None %}
+                                <span class="quoted-eta">{{ q.quoted_eta_days }} يوم</span>
+                            {% else %}
+                                <span class="quoted-eta">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                            <button type="button" class="btn accept accept-btn"
+                                    data-quote-id="{{ q.id }}"
+                                    {% if not rfq.product %}disabled title="القطعة مش في الكاتالوج — أضفها من شاشة المنتجات أولاً"{% endif %}>
+                                <i class="fa-solid fa-check"></i> اعتمد + PO
+                            </button>
+                            <span style="font-size:10px;color:#94a3b8;">
+                                {% if q.quoted_at %}سُجِّل {{ q.quoted_at|timesince }}{% endif %}
+                            </span>
+                        </td>
+                    {% else %}
+                        <td>
+                            <input type="number" class="q-price" placeholder="السعر" step="0.01" min="0.01">
+                        </td>
+                        <td>
+                            <input type="number" class="q-eta" placeholder="أيام" min="0" max="365">
+                        </td>
+                        <td style="display:flex;gap:6px;align-items:center;">
+                            <button type="button" class="btn save-quote-btn" data-quote-id="{{ q.id }}">
+                                <i class="fa-solid fa-floppy-disk"></i> احفظ
+                            </button>
+                            {% if q.vendor.phone %}
+                                {% with workshop=rfq.branch.name|urlencode pn=rfq.part_number_requested|urlencode partname=rfq.part_name_requested|urlencode %}
+                                <a class="btn wa" target="_blank" rel="noopener"
+                                   href="https://wa.me/?text={% if rfq.part_name_requested %}{{ partname }}%20{% endif %}({{ pn }})%20كمية%20{{ rfq.quantity }}"
+                                   title="إرسال WhatsApp مباشر">
+                                    <i class="fa-brands fa-whatsapp"></i>
+                                </a>
+                                {% endwith %}
+                            {% endif %}
+                        </td>
+                    {% endif %}
+                </tr>
+                {% endwith %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

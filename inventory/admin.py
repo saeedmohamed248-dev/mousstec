@@ -133,8 +133,11 @@ class BranchIsolationMixin:
 # 🏢 1. رادارات التحكم في باقات الـ SaaS (Quotas Enforcement)
 # =====================================================================
 @admin.register(Branch)
-class BranchAdmin(SecureImportExportAdmin): 
+class BranchAdmin(SecureImportExportAdmin):
     list_display = ('name', 'location', 'phone', 'is_active_badge')
+    # 🐛 admin.E040 fix — RFQAdmin.autocomplete_fields includes 'branch',
+    # which requires the target admin to declare search_fields.
+    search_fields = ('name', 'location', 'phone')
     
     def is_active_badge(self, obj):
         return format_html('<span style="color:#28a745; font-weight:bold;">✅ نشط وبث لايف</span>')

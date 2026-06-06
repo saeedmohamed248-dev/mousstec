@@ -100,6 +100,8 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/rfq/create/', views.rfq_create, name='rfq_create'),
     path('rfq/quote/<int:quote_id>/log/', views.rfq_log_quote, name='rfq_log_quote'),
     path('rfq/quote/<int:quote_id>/accept/', views.rfq_accept_quote, name='rfq_accept_quote'),
+    # 🗼 RFQ Control Tower — inventory manager macro view
+    path('inventory/rfq-management/', views.rfq_management, name='rfq_management'),
     path('invoice/<int:invoice_id>/ai-diagnostics/pdf/', views.ai_diag_pdf, name='ai_diag_pdf'),
     # Public signed link — works without login (used for WhatsApp share)
     path('ai-diagnostics/share/<str:token>/', views.ai_diag_share, name='ai_diag_share'),

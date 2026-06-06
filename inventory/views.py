@@ -3352,3 +3352,71 @@ def rfq_accept_quote(request, quote_id):
         "total": float(po.total_amount),
         "status": po.status,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🗼 Central RFQ Control Tower — Inventory Manager dashboard
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def rfq_management(request):
+    """Macro view of every open / quoted / ordered RFQ across the floor.
+
+    Built for the inventory manager who's managing 10-20 parallel
+    WhatsApp threads with suppliers. Inline-editable quote inputs +
+    side-by-side comparison reduce per-RFQ ops from a 3-click drill-down
+    to a single screen.
+
+    RBAC: stock / admin / manager / superuser only.
+    """
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'stock', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return HttpResponseForbidden(
+            "هذه الشاشة مخصّصة لمديري المخزون فقط."
+        )
+
+    from inventory.models import RFQ
+
+    # Branch-scope if the user is pinned to a branch
+    branch = _get_branch_for_user(request.user)
+    qs = RFQ.objects.select_related(
+        'job_card', 'branch', 'product', 'requested_by',
+        'accepted_quote__vendor', 'purchase_invoice',
+    ).prefetch_related('quotes__vendor')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+
+    # Buckets — order_by inside each so latest activity surfaces first
+    open_rfqs = list(qs.filter(status=RFQ.STATUS_OPEN).order_by('-created_at'))
+    quoted_rfqs = list(qs.filter(status=RFQ.STATUS_QUOTED).order_by('-created_at'))
+    ordered_rfqs = list(qs.filter(status=RFQ.STATUS_ORDERED)
+                          .order_by('-created_at')[:25])
+    cancelled_count = qs.filter(status=RFQ.STATUS_CANCELLED).count()
+
+    # Sort quotes within each RFQ: responded first (cheapest first), then unresponded
+    for rfq in open_rfqs + quoted_rfqs:
+        quotes = list(rfq.quotes.all())
+        responded = sorted(
+            (q for q in quotes if q.quoted_price is not None),
+            key=lambda q: (q.quoted_price or 0, q.quoted_eta_days or 9999),
+        )
+        unresponded = [q for q in quotes if q.quoted_price is None]
+        rfq.sorted_quotes = responded + unresponded
+        rfq.best_quote = responded[0] if responded else None
+        # Stamp `is_best` on each quote so the template can render the 🏆
+        # row without doing identity comparison (Django {% with %} can't).
+        for q in quotes:
+            q.is_best = (q is rfq.best_quote)
+
+    return render(request, 'inventory/rfq_management.html', {
+        'open_rfqs': open_rfqs,
+        'quoted_rfqs': quoted_rfqs,
+        'ordered_rfqs': ordered_rfqs,
+        'cancelled_count': cancelled_count,
+        'open_count': len(open_rfqs),
+        'quoted_count': len(quoted_rfqs),
+        'ordered_count': len(ordered_rfqs),
+        'reviewer_name': request.user.get_full_name() or request.user.username,
+        'branch': branch,
+    })

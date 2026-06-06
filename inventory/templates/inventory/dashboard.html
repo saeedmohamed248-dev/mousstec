@@ -312,6 +312,15 @@
             </a>
             {% endif %}
 
+            {# 🗼 RFQ Management — stock/admin/manager/superuser #}
+            {% if is_super or role == 'stock' or role == 'admin' or role == 'manager' %}
+            <a href="{% url 'inventory:rfq_management' %}" class="card-hover bg-gradient-to-b from-green-900/30 to-slate-900/60 border border-green-500/40 hover:border-green-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-green-500/20 text-green-200 px-1.5 py-0.5 rounded">RFQ</span>
+                <div class="w-12 h-12 rounded-xl bg-green-500/15 flex items-center justify-center text-green-300 text-xl"><i class="fa-brands fa-whatsapp"></i></div>
+                <span class="text-xs font-black text-green-200">📩 إدارة طلبات التسعير</span>
+            </a>
+            {% endif %}
+
             {# 🧮 Job Card review — sales/cashier/accountant/admin/manager
                (Entry-point goes to the invoice list, where they pick a JC) #}
             {% if is_super or role == 'sales' or role == 'cashier' or role == 'accountant' or role == 'admin' or role == 'manager' %}

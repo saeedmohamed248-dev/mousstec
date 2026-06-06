@@ -1,0 +1,390 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🗼 إدارة طلبات التسعير — Mouss Tec</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Cairo', sans-serif;
+    background: #0f172a; color: #e2e8f0;
+    min-height: 100vh; padding: 20px;
+}
+.shell { max-width: 1400px; margin: 0 auto; }
+
+.topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+}
+.topbar h1 {
+    font-size: 22px; font-weight: 900;
+    display: flex; align-items: center; gap: 12px;
+}
+.topbar .meta { color: #94a3b8; font-size: 13px; }
+
+/* ── KPI strip ─────────────────────────────────────────────────── */
+.kpi-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 22px;
+}
+@media (max-width: 768px) { .kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+.kpi {
+    padding: 16px 18px; border-radius: 12px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+}
+.kpi .label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: #94a3b8;
+}
+.kpi .value { font-size: 28px; font-weight: 900; line-height: 1; }
+.kpi.open    .value { color: #fbbf24; }
+.kpi.quoted  .value { color: #4ade80; }
+.kpi.ordered .value { color: #38bdf8; }
+.kpi.cancelled .value { color: #64748b; }
+
+/* ── Section cards ─────────────────────────────────────────────── */
+.section {
+    margin-bottom: 24px;
+}
+.section-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.section-head h2 { font-size: 16px; font-weight: 900; }
+.section-head .count {
+    background: rgba(148, 163, 184, 0.15); color: #cbd5e1;
+    padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+}
+.section-head.open h2 { color: #fbbf24; }
+.section-head.quoted h2 { color: #4ade80; }
+.section-head.ordered h2 { color: #38bdf8; }
+
+/* ── RFQ Card ─────────────────────────────────────────────────── */
+.rfq-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 10px; padding: 16px; margin-bottom: 12px;
+}
+.rfq-card.open    { border-right: 4px solid #fbbf24; }
+.rfq-card.quoted  { border-right: 4px solid #4ade80; }
+.rfq-card.ordered { border-right: 4px solid #38bdf8; }
+
+.rfq-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; flex-wrap: wrap; gap: 10px;
+}
+.rfq-head .part {
+    font-weight: 900; font-size: 15px; color: #e2e8f0;
+}
+.rfq-head .pn {
+    font-family: monospace; color: #fbbf24;
+    margin-right: 8px; font-size: 12px;
+}
+.rfq-head .meta {
+    font-size: 11px; color: #94a3b8;
+    display: flex; gap: 12px; flex-wrap: wrap;
+}
+.rfq-head .meta strong { color: #cbd5e1; }
+.rfq-head .badges {
+    display: flex; gap: 6px; flex-wrap: wrap;
+}
+.qty-pill {
+    background: rgba(14, 165, 233, 0.15); color: #7dd3fc;
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; font-family: monospace;
+}
+.jc-link {
+    background: rgba(148, 163, 184, 0.1); color: #cbd5e1;
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; text-decoration: none;
+}
+.jc-link:hover { background: rgba(148, 163, 184, 0.2); }
+
+/* ── Quotes table ─────────────────────────────────────────────── */
+.quote-table {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    font-size: 12px;
+}
+.quote-table th {
+    text-align: right; padding: 8px 10px; font-size: 10px;
+    color: #94a3b8; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.quote-table td {
+    padding: 10px; vertical-align: middle;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+}
+.quote-table .responded { background: rgba(34, 197, 94, 0.04); }
+.quote-table .best { background: rgba(34, 197, 94, 0.12); }
+.quote-table .best td:first-child::before {
+    content: '🏆 '; margin-left: 4px;
+}
+.quote-table .vendor-name {
+    font-weight: 700; color: #e2e8f0;
+}
+.quote-table .vendor-phone {
+    display: block; font-size: 10px; color: #94a3b8;
+    font-family: monospace;
+}
+.quote-table input {
+    width: 100%; padding: 6px 10px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 6px; color: #e2e8f0;
+    font-family: inherit; font-size: 12px;
+}
+.quote-table input:focus {
+    outline: none; border-color: #38bdf8;
+}
+.quote-table .quoted-display {
+    font-weight: 900; font-family: monospace; color: #fbbf24;
+}
+.quote-table .quoted-eta {
+    color: #cbd5e1; font-size: 11px;
+}
+
+/* ── Action buttons ─────────────────────────────────────────────── */
+.btn {
+    padding: 7px 12px; border: none; border-radius: 6px;
+    background: rgba(14, 165, 233, 0.2); color: #7dd3fc;
+    font-family: inherit; font-weight: 700; font-size: 11px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+}
+.btn:hover { filter: brightness(1.15); }
+.btn.accept {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #052e0a;
+}
+.btn.wa {
+    background: #25d366; color: #fff; text-decoration: none;
+}
+.btn.wa:hover { background: #1ebe5b; }
+.btn:disabled {
+    background: rgba(148, 163, 184, 0.15); color: #64748b; cursor: not-allowed;
+}
+
+/* ── Compact ordered/done row ─────────────────────────────────── */
+.done-row {
+    display: grid; grid-template-columns: 1fr 1fr 100px 110px;
+    align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 8px;
+    background: rgba(56, 189, 248, 0.04);
+    border: 1px solid rgba(56, 189, 248, 0.12);
+    margin-bottom: 6px; font-size: 12px;
+}
+.done-row .done-part { font-weight: 700; }
+.done-row .done-meta { color: #94a3b8; font-size: 11px; }
+.done-row .done-price { color: #fbbf24; font-weight: 900; font-family: monospace; }
+.done-row a {
+    background: rgba(56, 189, 248, 0.15); color: #38bdf8;
+    padding: 4px 10px; border-radius: 6px; text-decoration: none;
+    font-size: 11px; font-weight: 700;
+    text-align: center;
+}
+
+.empty {
+    text-align: center; color: #64748b; font-size: 13px;
+    padding: 28px 20px;
+    background: rgba(15, 23, 42, 0.4); border-radius: 8px;
+    border: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+.toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 200; padding: 12px 22px; border-radius: 10px;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+.toast.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #052e0a; }
+.toast.error   { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+    <div class="topbar">
+        <h1>🗼 برج التحكم — إدارة طلبات التسعير</h1>
+        <div class="meta">
+            مدير المخزون: {{ reviewer_name }}
+            {% if branch %} · الفرع: <strong>{{ branch.name }}</strong>{% endif %}
+        </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+        <div class="kpi open">
+            <div class="label">⏳ في انتظار الردود</div>
+            <div class="value">{{ open_count }}</div>
+        </div>
+        <div class="kpi quoted">
+            <div class="label">📝 تم استلام عروض</div>
+            <div class="value">{{ quoted_count }}</div>
+        </div>
+        <div class="kpi ordered">
+            <div class="label">✅ تم تحويلها لـ PO</div>
+            <div class="value">{{ ordered_count }}</div>
+        </div>
+        <div class="kpi cancelled">
+            <div class="label">🗑️ ملغاة</div>
+            <div class="value">{{ cancelled_count }}</div>
+        </div>
+    </div>
+
+    {# ─── Quoted RFQs — surfaced FIRST because they need an accept decision ─── #}
+    <div class="section">
+        <div class="section-head quoted">
+            <h2>📝 تم استلام عروض — جاهزة للاعتماد</h2>
+            <span class="count">{{ quoted_count }}</span>
+        </div>
+
+        {% for rfq in quoted_rfqs %}
+            {% include 'inventory/_rfq_card.html' with rfq=rfq variant='quoted' %}
+        {% empty %}
+            <div class="empty">لا توجد عروض بانتظار الاعتماد حالياً.</div>
+        {% endfor %}
+    </div>
+
+    {# ─── Open RFQs — still waiting for vendor responses ─── #}
+    <div class="section">
+        <div class="section-head open">
+            <h2>⏳ في انتظار الردود</h2>
+            <span class="count">{{ open_count }}</span>
+        </div>
+
+        {% for rfq in open_rfqs %}
+            {% include 'inventory/_rfq_card.html' with rfq=rfq variant='open' %}
+        {% empty %}
+            <div class="empty">لا توجد طلبات مفتوحة. أنشئ طلباً من شاشة مراجعة بطاقة العميل.</div>
+        {% endfor %}
+    </div>
+
+    {# ─── Ordered (compact list) ─── #}
+    {% if ordered_rfqs %}
+    <div class="section">
+        <div class="section-head ordered">
+            <h2>✅ تم تحويلها لأوامر شراء</h2>
+            <span class="count">{{ ordered_count }} (آخر 25)</span>
+        </div>
+        {% for rfq in ordered_rfqs %}
+            <div class="done-row">
+                <div>
+                    <div class="done-part">{{ rfq.part_name_requested|default:rfq.part_number_requested }}</div>
+                    <div class="done-meta">P/N: {{ rfq.part_number_requested }} · كمية: {{ rfq.quantity }}</div>
+                </div>
+                <div class="done-meta">
+                    {% if rfq.accepted_quote %}
+                        المورد: <strong style="color:#cbd5e1;">{{ rfq.accepted_quote.vendor.name }}</strong>
+                        · {{ rfq.created_at|date:"Y/m/d" }}
+                    {% endif %}
+                </div>
+                <div class="done-price">
+                    {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|floatformat:2 }} ج.م{% endif %}
+                </div>
+                {% if rfq.purchase_invoice %}
+                    <a href="/admin/inventory/purchaseinvoice/{{ rfq.purchase_invoice.id }}/change/" target="_blank">
+                        افتح PO #{{ rfq.purchase_invoice.id }}
+                    </a>
+                {% else %}
+                    <span style="color:#64748b;font-size:11px;text-align:center;">—</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(function () {
+    function getCsrf() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function showToast(msg, kind='success') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = `toast visible ${kind}`;
+        setTimeout(() => { el.className = `toast ${kind}`; }, 3200);
+    }
+
+    // ── Save quote (inline) ───────────────────────────────────
+    document.querySelectorAll('.save-quote-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const qid = btn.dataset.quoteId;
+            const row = btn.closest('tr');
+            const price = parseFloat(row.querySelector('.q-price').value || '0');
+            const etaRaw = row.querySelector('.q-eta').value;
+            if (!(price > 0)) { showToast('أدخل سعراً صحيحاً', 'error'); return; }
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const resp = await fetch(`/system/rfq/quote/${qid}/log/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrf(),
+                    },
+                    body: JSON.stringify({
+                        price: price,
+                        eta_days: etaRaw ? parseInt(etaRaw, 10) : null,
+                    }),
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                    showToast(data.error || 'فشل الحفظ', 'error');
+                    btn.disabled = false; btn.innerHTML = orig;
+                    return;
+                }
+                showToast('✓ تم حفظ العرض');
+                setTimeout(() => window.location.reload(), 700);
+            } catch (err) {
+                showToast(`خطأ: ${err.message}`, 'error');
+                btn.disabled = false; btn.innerHTML = orig;
+            }
+        });
+    });
+
+    // ── Accept quote → draft PO ─────────────────────────────
+    document.querySelectorAll('.accept-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const qid = btn.dataset.quoteId;
+            if (!confirm('سيتم إنشاء أمر شراء Draft لهذا المورد. متابعة؟')) return;
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const resp = await fetch(`/system/rfq/quote/${qid}/accept/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrf() },
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                    showToast(data.error || 'فشل الاعتماد', 'error');
+                    btn.disabled = false; btn.innerHTML = orig;
+                    return;
+                }
+                showToast(`✓ PO #${data.purchase_invoice_id} تم إنشاؤه (${data.total.toFixed(2)} ج.م)`);
+                setTimeout(() => window.location.reload(), 900);
+            } catch (err) {
+                showToast(`خطأ: ${err.message}`, 'error');
+                btn.disabled = false; btn.innerHTML = orig;
+            }
+        });
+    });
+})();
+</script>
+</body>
+</html>
