@@ -143,24 +143,56 @@
 <!-- 🚗 OBD DIAGNOSTIC REPORTS -->
 {% if invoice.diagnostic_reports.all %}
 <div class="section">
-    <div class="section-title">🚗 تقارير الفحص OBD</div>
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span>🤖 نتائج التشخيص الذكي (AI Findings)</span>
+        <a href="{% url 'inventory:ai_diag_print' invoice.id %}" target="_blank"
+           style="font-size:11px;background:#0ea5e9;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-weight:700;"
+           class="no-print">
+            🖨️ اطبع تقرير العميل
+        </a>
+    </div>
     {% for r in invoice.diagnostic_reports.all %}
-      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-          <strong>{{ r.get_scan_type_display }}</strong>
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;{% if r.source == 'diag_room' %}border-right:4px solid #8b5cf6;background:#faf5ff;{% endif %}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center;">
+          <div>
+            <strong>{{ r.get_scan_type_display }}</strong>
+            <span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:6px;
+                        {% if r.source == 'diag_room' %}background:#ede9fe;color:#6d28d9;{% else %}background:#dbeafe;color:#1d4ed8;{% endif %}">
+                {{ r.get_source_display }}
+            </span>
+          </div>
           <span style="font-size:11px;color:#64748b;">{{ r.scanned_at|date:"d/m/Y H:i" }} · شدة: {{ r.severity_score }}/100</span>
         </div>
-        {% if r.engineer %}<p style="font-size:11px;color:#475569;">👨‍🔬 المهندس: {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}</p>{% endif %}
+        {% if r.engineer %}<p style="font-size:11px;color:#475569;margin-top:4px;">👨‍🔬 المهندس: {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}</p>{% endif %}
+
+        {% if r.ai_summary %}
+          <div style="margin-top:10px;padding:10px 14px;background:#fff;border:1px solid #ddd6fe;border-right:3px solid #8b5cf6;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;color:#6d28d9;margin-bottom:6px;">📋 تحليل الذكاء الاصطناعي:</div>
+            <div style="font-size:12px;line-height:1.8;color:#1e293b;white-space:pre-wrap;">{{ r.ai_summary }}</div>
+          </div>
+        {% endif %}
 
         {% if r.fault_codes %}
-          <p style="font-size:11px;margin-top:6px;"><b>أكواد الأعطال (DTCs):</b></p>
+          <p style="font-size:11px;margin-top:8px;"><b>أكواد الأعطال (DTCs):</b></p>
           <div>
             {% for code in r.fault_codes %}<span class="dtc-chip">{{ code }}</span>{% endfor %}
           </div>
         {% endif %}
 
+        {% if r.photos.all %}
+          <p style="font-size:11px;margin-top:10px;"><b>📷 صور التشخيص ({{ r.photos.count }}):</b></p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-top:6px;">
+            {% for photo in r.photos.all %}
+              <a href="{{ photo.image.url }}" target="_blank" style="display:block;aspect-ratio:1;overflow:hidden;border-radius:6px;border:1px solid #e2e8f0;">
+                <img src="{{ photo.image.url }}" alt="diag photo"
+                     style="width:100%;height:100%;object-fit:cover;display:block;">
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+
         {% if r.live_data %}
-          <p style="font-size:11px;margin-top:8px;"><b>القراءات الحية:</b></p>
+          <p style="font-size:11px;margin-top:10px;"><b>القراءات الحية:</b></p>
           <div class="live-grid">
             {% for k, v in r.live_data.items %}
               <div><b>{{ k }}</b><br>{{ v }}</div>

@@ -1,0 +1,339 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تقرير التشخيص الذكي — {{ workshop_name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    font-family: 'Cairo', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    line-height: 1.65;
+}
+.page {
+    max-width: 820px; margin: 18px auto; padding: 36px;
+    background: #fff; border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* ── Header / Brand ─────────────────────────────────────────── */
+header.brand {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 18px; border-bottom: 2px solid #0ea5e9;
+    margin-bottom: 22px; flex-wrap: wrap; gap: 14px;
+}
+header.brand .left { display: flex; gap: 14px; align-items: center; }
+header.brand .logo-box {
+    width: 76px; height: 76px;
+    background: #f1f5f9; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+}
+header.brand .logo-box img {
+    width: 100%; height: 100%; object-fit: contain;
+}
+header.brand .logo-box .placeholder {
+    font-size: 26px; font-weight: 900; color: #94a3b8;
+}
+header.brand .workshop-name {
+    font-size: 20px; font-weight: 900; color: #0f172a;
+}
+header.brand .workshop-phone {
+    font-size: 12px; color: #64748b; margin-top: 2px;
+}
+header.brand .report-meta {
+    text-align: left; font-size: 12px; color: #475569;
+}
+header.brand .report-meta .title {
+    font-size: 16px; font-weight: 900; color: #0ea5e9;
+    display: block; margin-bottom: 4px;
+}
+header.brand .report-meta .badge {
+    display: inline-block; background: #ecfeff; color: #0e7490;
+    border: 1px solid #a5f3fc;
+    padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 700;
+    margin-top: 4px;
+}
+
+/* ── Customer + Vehicle card ─────────────────────────────────── */
+.info-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-bottom: 22px;
+}
+.info-card {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 14px;
+}
+.info-card .label {
+    font-size: 10px; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.info-card .value { font-size: 13px; color: #0f172a; }
+.info-card .value.mono { font-family: 'SF Mono', monospace; font-size: 12px; }
+.info-card .value strong { font-weight: 900; }
+
+/* ── Findings card ──────────────────────────────────────────── */
+.section-title {
+    font-size: 13px; font-weight: 900; color: #0ea5e9;
+    margin: 18px 0 10px;
+    display: flex; align-items: center; gap: 8px;
+    padding-bottom: 6px; border-bottom: 1px dashed #cbd5e1;
+}
+.finding {
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 16px; margin-bottom: 14px;
+    background: #fff;
+}
+.finding-head {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    align-items: center; margin-bottom: 10px;
+}
+.finding-head .type {
+    font-weight: 900; font-size: 14px; color: #0f172a;
+}
+.finding-head .scanned-at {
+    font-size: 11px; color: #64748b;
+}
+.finding-head .severity {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+}
+.severity.low  { background: #dcfce7; color: #15803d; }
+.severity.mid  { background: #fef3c7; color: #b45309; }
+.severity.high { background: #fee2e2; color: #b91c1c; }
+
+.ai-block {
+    background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+    border-right: 4px solid #8b5cf6;
+    padding: 14px 16px; border-radius: 8px;
+    margin: 10px 0;
+}
+.ai-block .ai-label {
+    font-size: 11px; font-weight: 900; color: #6d28d9;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.ai-block .ai-body {
+    font-size: 13px; color: #1e293b; white-space: pre-wrap;
+    line-height: 1.85;
+}
+
+.dtc-row {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+}
+.dtc-chip {
+    background: #fef2f2; color: #b91c1c; font-family: monospace;
+    padding: 4px 11px; border-radius: 6px;
+    border: 1px solid #fecaca; font-size: 11px; font-weight: 700;
+}
+
+.photo-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px; margin-top: 10px;
+}
+.photo-grid figure {
+    border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;
+    background: #f8fafc; aspect-ratio: 1; position: relative;
+}
+.photo-grid figure img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.photo-caption {
+    font-size: 10px; color: #64748b; margin-top: 4px; text-align: center;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.empty-state {
+    text-align: center; padding: 40px 20px;
+    color: #94a3b8; font-size: 13px;
+    background: #f8fafc; border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+}
+
+.disclaimer {
+    margin-top: 26px; padding: 12px 16px;
+    background: #fffbeb; border-right: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 11px; color: #78350f; line-height: 1.7;
+}
+
+footer.foot {
+    margin-top: 24px; padding-top: 14px;
+    border-top: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; color: #94a3b8; flex-wrap: wrap; gap: 8px;
+}
+
+/* ── Action bar (screen only) ────────────────────────────────── */
+.actions {
+    max-width: 820px; margin: 18px auto 0;
+    display: flex; gap: 10px; justify-content: flex-end;
+}
+.actions button {
+    padding: 10px 20px; border: none; border-radius: 8px;
+    background: #0ea5e9; color: #fff; font-family: inherit;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.actions button.ghost {
+    background: #fff; color: #475569; border: 1px solid #cbd5e1;
+}
+
+/* ── Print rules ─────────────────────────────────────────────── */
+@media print {
+    body { background: #fff; }
+    .actions, .no-print { display: none !important; }
+    .page {
+        box-shadow: none; border-radius: 0;
+        max-width: 100%; margin: 0; padding: 20mm;
+    }
+    .finding { break-inside: avoid; page-break-inside: avoid; }
+    .photo-grid figure { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Action bar (screen only) -->
+<div class="actions no-print">
+    <button onclick="window.print()">🖨️ اطبع التقرير</button>
+    <button class="ghost" onclick="window.close()">إغلاق</button>
+</div>
+
+<div class="page">
+
+    <!-- ── Header: tenant logo + name (sector-agnostic) ── -->
+    <header class="brand">
+        <div class="left">
+            <div class="logo-box">
+                {% if workshop_logo_url %}
+                    <img src="{{ workshop_logo_url }}" alt="{{ workshop_name }}">
+                {% else %}
+                    <span class="placeholder">{{ workshop_name|slice:":1"|upper }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <div class="workshop-name">{{ workshop_name }}</div>
+                {% if workshop_phone %}
+                    <div class="workshop-phone">📞 {{ workshop_phone }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="report-meta">
+            <span class="title">تقرير التشخيص الذكي</span>
+            <div>بطاقة الإصلاح: <strong>#{{ invoice.id }}</strong></div>
+            <div>تاريخ الإصدار: {{ print_date|date:"Y/m/d - H:i" }}</div>
+            <span class="badge">🤖 مدعوم بالذكاء الاصطناعي</span>
+        </div>
+    </header>
+
+    <!-- ── Customer + Vehicle ── -->
+    <div class="info-grid">
+        <div class="info-card">
+            <div class="label">👤 العميل</div>
+            <div class="value">
+                <strong>{{ invoice.customer.name|default:"—" }}</strong><br>
+                {% if invoice.customer.phone %}📞 {{ invoice.customer.phone }}{% endif %}
+            </div>
+        </div>
+        <div class="info-card">
+            <div class="label">🚗 المركبة</div>
+            <div class="value">
+                {% if invoice.vehicle %}
+                    <strong>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name }}</strong><br>
+                    <span class="mono">رقم اللوحة: {{ invoice.vehicle.car_plate|default:"—" }}</span><br>
+                    <span class="mono" style="font-size:10px;">VIN: {{ invoice.vehicle.chassis_number|default:"—" }}</span>
+                {% else %}
+                    — لا توجد بيانات مركبة —
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Findings ── -->
+    <div class="section-title">📋 ملخص نتائج الفحص</div>
+
+    {% if has_findings %}
+        {% for r in reports %}
+            <div class="finding">
+                <div class="finding-head">
+                    <div>
+                        <span class="type">{{ r.get_scan_type_display }}</span>
+                        {% if r.engineer %}
+                            <span style="font-size:11px;color:#64748b;margin-right:8px;">
+                                · فحص بإشراف: {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="scanned-at">{{ r.scanned_at|date:"Y/m/d - H:i" }}</span>
+                        {% if r.severity_score >= 70 %}
+                            <span class="severity high">شدة عالية {{ r.severity_score }}/100</span>
+                        {% elif r.severity_score >= 30 %}
+                            <span class="severity mid">شدة متوسطة {{ r.severity_score }}/100</span>
+                        {% else %}
+                            <span class="severity low">شدة منخفضة {{ r.severity_score }}/100</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if r.ai_summary %}
+                    <div class="ai-block">
+                        <div class="ai-label">🤖 التحليل والتوصية</div>
+                        <div class="ai-body">{{ r.ai_summary }}</div>
+                    </div>
+                {% endif %}
+
+                {% if r.fault_codes %}
+                    <div style="font-size:11px;font-weight:700;color:#475569;margin-top:10px;">
+                        🚨 أكواد الأعطال المكتشفة من ECU السيارة:
+                    </div>
+                    <div class="dtc-row">
+                        {% for code in r.fault_codes %}
+                            <span class="dtc-chip">{{ code }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if r.photos.all %}
+                    <div style="font-size:11px;font-weight:700;color:#475569;margin-top:14px;">
+                        📷 الصور الموثقة من الفحص:
+                    </div>
+                    <div class="photo-grid">
+                        {% for photo in r.photos.all %}
+                            <figure>
+                                <img src="{{ photo.image.url }}" alt="diagnostic photo">
+                            </figure>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <div class="disclaimer">
+            <strong>⚠️ ملاحظة:</strong>
+            هذا التقرير ناتج عن تحليل آلي بالذكاء الاصطناعي مبني على بيانات نظام ECU
+            وأكواد الأعطال المخزّنة في السيارة. يُستخدم كأداة استرشاد للفني المتخصص
+            ولا يغني عن الفحص الميداني والتحقق العملي قبل اتخاذ قرار الإصلاح النهائي.
+        </div>
+
+    {% else %}
+        <div class="empty-state">
+            لا توجد نتائج تشخيص ذكي محفوظة على بطاقة الإصلاح هذه بعد.<br>
+            <span style="font-size:11px;">شغّل جلسة في "غرفة التشخيص" ثم احفظها على بطاقة العميل.</span>
+        </div>
+    {% endif %}
+
+    <footer class="foot">
+        <span>تم إصدار التقرير بواسطة {{ workshop_name }}</span>
+        <span>{{ print_date|date:"Y/m/d H:i" }}</span>
+    </footer>
+
+</div>
+
+</body>
+</html>

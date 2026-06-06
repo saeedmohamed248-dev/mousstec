@@ -2691,3 +2691,63 @@ def commission_dashboard(request):
         'current_role': getattr(getattr(request.user, 'employee_profile', None), 'role', ''),
         'is_super_user': request.user.is_superuser,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🖨️ AI Diagnostic Report — customer-facing printable view
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def ai_diag_print(request, invoice_id):
+    """Clean, customer-facing printable summary of the AI diagnostic findings
+    attached to a Job Card. Service advisor opens this to justify the repair
+    quote to the customer at the counter.
+
+    Designed for both screen viewing and direct browser print (Ctrl+P) —
+    no nav, no admin chrome, brand-aware via tenant.logo / tenant.name.
+    The Mousstec parent brand is sector-agnostic; this view never injects
+    automotive marks beyond what the individual workshop chose to upload.
+    """
+    invoice = get_object_or_404(
+        SaleInvoice.objects
+            .select_related('customer', 'vehicle', 'branch')
+            .prefetch_related(
+                'diagnostic_reports__engineer__user',
+                'diagnostic_reports__photos',
+            ),
+        id=invoice_id,
+    )
+
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لعرض تقارير فروع أخرى.")
+
+    reports = list(invoice.diagnostic_reports.all().order_by('-scanned_at'))
+
+    # Tenant branding — soft fallbacks so the page never crashes if a tenant
+    # hasn't uploaded a logo yet.
+    tenant = getattr(request, 'tenant', None)
+    workshop_name = (
+        getattr(tenant, 'name', None)
+        or getattr(tenant, 'schema_name', None)
+        or 'ورشتك'
+    )
+    workshop_logo_url = ''
+    try:
+        if tenant and tenant.logo:
+            workshop_logo_url = tenant.logo.url
+    except (ValueError, AttributeError):
+        workshop_logo_url = ''
+    workshop_phone = getattr(tenant, 'phone', '') or ''
+
+    return render(request, 'inventory/ai_diag_print.html', {
+        'invoice': invoice,
+        'reports': reports,
+        'print_date': timezone.now(),
+        'workshop_name': workshop_name,
+        'workshop_logo_url': workshop_logo_url,
+        'workshop_phone': workshop_phone,
+        'has_findings': any(
+            (r.ai_summary or r.fault_codes or r.photos.exists()) for r in reports
+        ),
+    })

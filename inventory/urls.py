@@ -89,6 +89,8 @@ urlpatterns = [
     # =====================================================================
     path('invoice/<int:invoice_id>/print/a4/', views.print_invoice_a4, name='print_invoice_a4'),
     path('invoice/<int:invoice_id>/print/thermal/', views.print_invoice_thermal, name='print_invoice_thermal'),
+    # 🤖 AI diagnostic findings — customer-facing printable report
+    path('invoice/<int:invoice_id>/ai-diagnostics/', views.ai_diag_print, name='ai_diag_print'),
     path('invoice/<int:invoice_id>/export/pdf/', views.export_invoice_pdf, name='export_invoice_pdf'),
     
     # 🚀 مشاركة الفاتورة عبر WhatsApp API 
