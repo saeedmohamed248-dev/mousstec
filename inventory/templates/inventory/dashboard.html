@@ -312,6 +312,16 @@
             </a>
             {% endif %}
 
+            {# 🧮 Job Card review — sales/cashier/accountant/admin/manager
+               (Entry-point goes to the invoice list, where they pick a JC) #}
+            {% if is_super or role == 'sales' or role == 'cashier' or role == 'accountant' or role == 'admin' or role == 'manager' %}
+            <a href="{% url 'inventory:sale_invoice_list' %}?type=maintenance&status=ready" class="card-hover bg-gradient-to-b from-amber-900/30 to-slate-900/60 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded">REVIEW</span>
+                <div class="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-300 text-xl"><i class="fas fa-clipboard-check"></i></div>
+                <span class="text-xs font-black text-amber-200">🧮 مراجعة بطاقات العملاء</span>
+            </a>
+            {% endif %}
+
             {# 💰 Commission payout — admin/manager only #}
             {% if is_super or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:commission_dashboard' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">

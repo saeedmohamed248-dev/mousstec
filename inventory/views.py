@@ -2938,3 +2938,120 @@ def ai_diag_share(request, token):
     ctx = _render_ai_diag_context(request, invoice)
     ctx['public_share'] = True   # template hides internal action bar
     return render(request, 'inventory/ai_diag_print.html', ctx)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🧮 Accountant / Sales Review — Unified Job Card billing decision
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def job_card_review(request, invoice_id):
+    """One-screen review for accountant/sales:
+        • AI diagnostic findings (read-only, with photos)
+        • Tech repair logs + photos (read-only)
+        • Parts (SaleInvoiceItem) and Services (SaleInvoiceServiceItem)
+          each with an `is_billable` checkbox and a billing note input.
+
+    POST flow:
+        Form fields per row: `item_<id>_billable` (checkbox) +
+        `item_<id>_note` (text). Same for `svc_<id>_*`. We update only
+        the rows actually present in the POST so partial submissions
+        stay safe.
+    """
+    invoice = get_object_or_404(
+        SaleInvoice.objects
+            .select_related('customer', 'vehicle', 'branch')
+            .prefetch_related(
+                'items__product', 'items__salesperson__user',
+                'service_items__service', 'service_items__technician__user',
+                'repair_logs__technician__user', 'repair_logs__media',
+                'diagnostic_reports__engineer__user',
+                'diagnostic_reports__photos',
+            ),
+        id=invoice_id,
+    )
+
+    # RBAC — only sales/cashier/accountant/admin/manager/superuser.
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed_roles = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or
+            (profile and profile.role in allowed_roles)):
+        return HttpResponseForbidden(
+            "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+        )
+
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لمراجعة فواتير فروع أخرى.")
+
+    if request.method == 'POST':
+        updated_items = 0
+        updated_svcs = 0
+        with transaction.atomic():
+            for item in invoice.items.all():
+                key = f"item_{item.id}_billable"
+                note_key = f"item_{item.id}_note"
+                # Checkbox absence == unchecked
+                new_billable = key in request.POST
+                new_note = (request.POST.get(note_key) or '').strip()[:200]
+                if (item.is_billable != new_billable
+                        or item.billing_note != new_note):
+                    item.is_billable = new_billable
+                    item.billing_note = new_note
+                    item.save(update_fields=['is_billable', 'billing_note'])
+                    updated_items += 1
+
+            for svc in invoice.service_items.all():
+                key = f"svc_{svc.id}_billable"
+                note_key = f"svc_{svc.id}_note"
+                new_billable = key in request.POST
+                new_note = (request.POST.get(note_key) or '').strip()[:200]
+                if (svc.is_billable != new_billable
+                        or svc.billing_note != new_note):
+                    svc.is_billable = new_billable
+                    svc.billing_note = new_note
+                    svc.save(update_fields=['is_billable', 'billing_note'])
+                    updated_svcs += 1
+
+        logger.info(
+            "[Job Card Review] tenant=%s user=%s invoice=%s items=%s svcs=%s",
+            getattr(getattr(request, 'tenant', None), 'schema_name', None),
+            request.user.username, invoice.id, updated_items, updated_svcs,
+        )
+        from django.contrib import messages
+        messages.success(
+            request,
+            f"تم حفظ المراجعة — {updated_items} قطعة و {updated_svcs} خدمة."
+        )
+        return redirect('inventory:job_card_review', invoice_id=invoice.id)
+
+    # Compute customer-billable totals (what actually goes on the invoice)
+    from decimal import Decimal
+    parts_total = sum(
+        (Decimal(str(i.quantity or 0)) * Decimal(str(i.unit_price or 0))
+         for i in invoice.items.all() if i.is_billable),
+        Decimal('0.00'),
+    )
+    services_total = sum(
+        (Decimal(str(s.price or 0))
+         for s in invoice.service_items.all() if s.is_billable),
+        Decimal('0.00'),
+    )
+    excluded_total = sum(
+        (Decimal(str(i.quantity or 0)) * Decimal(str(i.unit_price or 0))
+         for i in invoice.items.all() if not i.is_billable),
+        Decimal('0.00'),
+    ) + sum(
+        (Decimal(str(s.price or 0))
+         for s in invoice.service_items.all() if not s.is_billable),
+        Decimal('0.00'),
+    )
+
+    return render(request, 'inventory/job_card_review.html', {
+        'invoice': invoice,
+        'parts_total': parts_total,
+        'services_total': services_total,
+        'billable_total': parts_total + services_total,
+        'excluded_total': excluded_total,
+        'reviewer_name': request.user.get_full_name() or request.user.username,
+    })
