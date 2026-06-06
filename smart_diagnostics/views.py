@@ -208,17 +208,40 @@ def diagnostics_room(request):
         )
 
     tenant = getattr(request, 'tenant', None)
-    allowed, reason = DiagnosticsQuotaService.can_access(
-        tenant=tenant, feature=FEATURE_LIVE_DATA,
-    )
-    if not allowed:
+    # 🐛 [Bug #1 FIX] Use the actual service method name (`check_feature`),
+    # not the non-existent `can_access`. Also wrap in try/except so a
+    # subscription-lookup failure renders the upgrade page instead of a 500.
+    try:
+        gate = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA)
+    except Exception as e:
+        logger.error(f"[diagnostics_room] entitlement check failed: {e}",
+                     exc_info=True)
+        gate = type('G', (), {
+            'allowed': False,
+            'reason': 'تعذّر التحقق من الباقة — حاول مرة أخرى.',
+        })()
+
+    if not gate.allowed:
         return render(request, 'smart_diagnostics/upgrade.html', {
-            'reason': reason, 'tenant': tenant,
+            'reason': getattr(gate, 'reason', 'الباقة غير مفعّلة'),
+            'tenant': tenant,
         }, status=402)
+
+    # 🐛 [Bug #1 FIX] Gracefully degrade when neither Together nor Gemini
+    # is configured — show the page in "offline AI" mode rather than
+    # crashing on first chat round-trip.
+    from django.conf import settings
+    ai_enabled = bool(
+        getattr(settings, 'ENABLE_AI_PREDICTIONS', False) and (
+            getattr(settings, 'TOGETHER_API_KEY', '')
+            or getattr(settings, 'GEMINI_API_KEY', '')
+        )
+    )
 
     return render(request, 'smart_diagnostics/diagnostics_room.html', {
         'tenant': tenant,
         'tech_name': request.user.get_full_name() or request.user.username,
+        'ai_enabled': ai_enabled,
     })
 
 

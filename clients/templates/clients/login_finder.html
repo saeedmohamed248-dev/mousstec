@@ -90,6 +90,11 @@
 
         <form method="post" class="space-y-4">
             {% csrf_token %}
+            {# 🐛 [Bug #2 FIX] Forward ?next= through the form so the
+               post-login redirect lands on the user's original target. #}
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% endif %}
             <div>
                 <label class="block text-xs font-black text-slate-400 mb-2">البريد الإلكتروني</label>
                 <input type="text" name="email" required autofocus

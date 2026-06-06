@@ -208,9 +208,16 @@ def smart_post_login_redirect(request):
             admin_url = os.getenv('ADMIN_URL', 'secure-portal')
             return redirect(f'/{admin_url}/')
 
-        profile = getattr(request.user, 'employee_profile', None)
-        if profile is not None:
-            return redirect(profile.default_workspace_url())
+        # 🐛 [Bug #3 FIX] Profile lookup must NEVER 500 the login flow.
+        # Wrap defensively — any failure falls through to /system/dashboard/.
+        try:
+            profile = getattr(request.user, 'employee_profile', None)
+            if profile is not None:
+                workspace = profile.default_workspace_url()
+                if isinstance(workspace, str) and workspace.startswith('/'):
+                    return redirect(workspace)
+        except Exception:
+            pass
 
         return redirect('/system/dashboard/')
 
@@ -299,10 +306,23 @@ def client_login_finder(request):
                 # ✅ توقيع توكن دخول مؤقت (120 ثانية) + redirect للـ subdomain
                 from django.core import signing
                 import time
+                # 🐛 [Bug #2 FIX] Preserve ?next=… across the cross-tenant
+                # login round-trip. Without this, every click on a tile from
+                # an expired session sends the user to /system/dashboard/
+                # instead of their intended target — felt like a "logout".
+                next_url = (
+                    request.POST.get('next')
+                    or request.GET.get('next')
+                    or ''
+                ).strip()
+                # Only honor safe same-host paths to block open-redirect abuse.
+                if not next_url.startswith('/') or next_url.startswith('//'):
+                    next_url = ''
                 token = signing.dumps({
                     'schema_name': tenant.schema_name,
                     'user_id': user_id,
                     'created': int(time.time()),
+                    'next': next_url,
                 }, salt='tenant-auto-login-token')
 
                 domain = Domain.objects.filter(tenant=tenant).first()
@@ -382,6 +402,12 @@ def tenant_auto_login(request):
         return redirect(f'/{ADMIN_URL}/login/')
 
     auth_login(request, user, backend='clients.backends.CaseInsensitiveEmailBackend')
+
+    # 🐛 [Bug #2 FIX] Honor the `next` URL the user originally clicked.
+    # Safe-path validation already happened at sign time, but defence in depth.
+    next_url = (data.get('next') or '').strip()
+    if next_url.startswith('/') and not next_url.startswith('//'):
+        return redirect(next_url)
 
     # توجيه ذكي: staff → admin، عادي → dashboard
     if user.is_staff or user.is_superuser:

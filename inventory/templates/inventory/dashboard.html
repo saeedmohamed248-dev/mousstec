@@ -246,15 +246,21 @@
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 
+            {# 🛒 POS — RBAC: cashier / sales / admin / manager only (NOT tech/engineer) #}
+            {% if is_super or role == 'cashier' or role == 'sales' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:lightning_pos' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-purple-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl"><i class="fas fa-bolt"></i></div>
                 <span class="text-xs font-black text-slate-300">🛒 نقطة بيع سريعة</span>
             </a>
+            {% endif %}
 
+            {# 📋 Job Card create — RBAC: sales / cashier / admin / manager (front-desk roles) #}
+            {% if is_super or role == 'sales' or role == 'cashier' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:job_card_create' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl"><i class="fas fa-clipboard-list"></i></div>
                 <span class="text-xs font-black text-slate-300">📋 أمر شغل جديد</span>
             </a>
+            {% endif %}
 
             {# 🛠️ Tech Workspace — visible to tech/engineer/manager/admin/superuser #}
             {% if is_super or role == 'tech' or role == 'engineer' or role == 'manager' or role == 'admin' %}
@@ -290,15 +296,21 @@
             </a>
             {% endif %}
 
+            {# 📦 Stock add — stock / admin / manager #}
+            {% if is_super or role == 'stock' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:quick_product' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-pink-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl"><i class="fas fa-boxes"></i></div>
                 <span class="text-xs font-black text-slate-300">إضافة قطعة</span>
             </a>
+            {% endif %}
 
+            {# 💸 Expense recording — accountant / admin / manager only #}
+            {% if is_super or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:quick_expense' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-rose-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 text-xl"><i class="fas fa-money-bill-trend-up"></i></div>
                 <span class="text-xs font-black text-slate-300">💸 تسجيل مصروف</span>
             </a>
+            {% endif %}
 
             {# 💰 Commission payout — admin/manager only #}
             {% if is_super or role == 'admin' or role == 'manager' %}

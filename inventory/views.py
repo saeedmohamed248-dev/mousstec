@@ -2757,16 +2757,66 @@ def _unsign_ai_diag_share(token, tenant_schema):
         return None
 
 
+def _make_share_qr_data_url(share_absolute_url):
+    """Build a tiny base64 PNG QR that points at the public share URL.
+    Returns '' on any failure so the template just hides the block.
+
+    Why data-URL: works seamlessly in (a) screen view, (b) printed paper,
+    (c) WeasyPrint PDF — no extra round-trip, no static-files plumbing,
+    no CDN dependency. The QR is regenerated on each render — cheap (~2ms
+    for a v2 QR at this density).
+    """
+    if not share_absolute_url or qrcode is None:
+        return ''
+    try:
+        import base64
+        from io import BytesIO
+
+        qr = qrcode.QRCode(
+            version=None,                                    # auto-fit
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=8,
+            border=2,
+        )
+        qr.add_data(share_absolute_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#0f172a", back_color="#ffffff")
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+    except Exception as exc:
+        logger.warning(f"[AI DIAG QR] generation failed: {exc}")
+        return ''
+
+
 def _render_ai_diag_context(request, invoice):
     """Shared context builder used by all 3 surfaces (print/PDF/share)."""
+    from django.urls import reverse
+
     reports = list(invoice.diagnostic_reports.all().order_by('-scanned_at'))
     tenant = getattr(request, 'tenant', None)
+
     workshop_logo_url = ''
     try:
         if tenant and tenant.logo:
             workshop_logo_url = request.build_absolute_uri(tenant.logo.url)
     except (ValueError, AttributeError):
         workshop_logo_url = ''
+
+    # Build the signed share URL + its QR data-URL up front so every surface
+    # (print / PDF / public share) gets the same artefact.
+    share_token = ''
+    share_absolute_url = ''
+    share_qr_data_url = ''
+    if tenant:
+        share_token = _sign_ai_diag_share(
+            invoice.id, getattr(tenant, 'schema_name', '') or '',
+        )
+        share_absolute_url = request.build_absolute_uri(
+            reverse('inventory:ai_diag_share', args=[share_token])
+        )
+        share_qr_data_url = _make_share_qr_data_url(share_absolute_url)
+
     return {
         'invoice': invoice,
         'reports': reports,
@@ -2781,10 +2831,9 @@ def _render_ai_diag_context(request, invoice):
         'has_findings': any(
             (r.ai_summary or r.fault_codes or r.photos.exists()) for r in reports
         ),
-        # Signed share metadata — read by the template to build wa.me link
-        'share_token': _sign_ai_diag_share(
-            invoice.id, getattr(tenant, 'schema_name', '') or '',
-        ) if tenant else '',
+        'share_token': share_token,
+        'share_absolute_url': share_absolute_url,
+        'share_qr_data_url': share_qr_data_url,
     }
 
 

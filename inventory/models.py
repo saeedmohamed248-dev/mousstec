@@ -490,6 +490,19 @@ class SaleInvoiceItem(models.Model):
         max_digits=10, decimal_places=2, default=0.00, editable=False,
         verbose_name=_("العمولة المُحتسبة"),
     )
+
+    # 🧮 Accountant Review — explicit billing decision
+    # When False, the line stays on the Job Card for audit/diagnosis evidence
+    # but is excluded from the customer-facing invoice totals.
+    is_billable = models.BooleanField(
+        default=True, verbose_name=_("يُدرج في فاتورة العميل"),
+        help_text=_("افصلها لو الجزء استُخدم للفحص فقط أو كان ضماناً."),
+    )
+    billing_note = models.CharField(
+        max_length=200, blank=True,
+        verbose_name=_("ملاحظة المحاسب"),
+        help_text=_("اختياري — تظهر للمراجعة الداخلية فقط."),
+    )
     
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
@@ -550,6 +563,15 @@ class SaleInvoiceServiceItem(models.Model):
     actual_hours = models.DecimalField(max_digits=4, decimal_places=1, default=1.0, verbose_name=_("ساعات العمل المُباعة"))
     start_time = models.DateTimeField(blank=True, null=True, verbose_name=_("بداية العمل الفعلي"))
     end_time = models.DateTimeField(blank=True, null=True, verbose_name=_("نهاية العمل الفعلي"))
+
+    # 🧮 Accountant Review — explicit billing decision (matches SaleInvoiceItem)
+    is_billable = models.BooleanField(
+        default=True, verbose_name=_("يُدرج في فاتورة العميل"),
+    )
+    billing_note = models.CharField(
+        max_length=200, blank=True,
+        verbose_name=_("ملاحظة المحاسب"),
+    )
 
     def save(self, *args, **kwargs):
         # Auto-fill price from service catalog if not provided
