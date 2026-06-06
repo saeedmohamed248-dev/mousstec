@@ -1,0 +1,481 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🪪 جواز السيارة الصحي — {{ vehicle.car_plate|default:vehicle.chassis_number }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Cairo', sans-serif;
+    background: linear-gradient(180deg, #0f172a 0%, #050b14 100%);
+    color: #e2e8f0; min-height: 100vh; padding: 20px;
+}
+.shell { max-width: 1280px; margin: 0 auto; }
+
+/* ── Hero / Passport header ─────────────────────────────────── */
+.hero {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 16px; padding: 28px;
+    margin-bottom: 22px; position: relative; overflow: hidden;
+}
+.hero::before {
+    content: ''; position: absolute; top: -40%; right: -10%; width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(99,102,241,0.25), transparent 70%);
+    border-radius: 50%;
+}
+.hero-grid {
+    display: grid; grid-template-columns: 1fr auto; gap: 24px;
+    position: relative; z-index: 1;
+}
+.hero h1 {
+    font-size: 26px; font-weight: 900; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+}
+.hero h1 i { color: #818cf8; }
+.hero .sub { color: #cbd5e1; font-size: 14px; margin-bottom: 16px; }
+.hero .vin {
+    display: inline-block; padding: 4px 12px; border-radius: 6px;
+    background: rgba(0,0,0,0.3); font-family: monospace; color: #fbbf24;
+    font-size: 12px; font-weight: 700;
+}
+.hero-stats {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+    margin-top: 20px;
+}
+.stat {
+    background: rgba(0,0,0,0.25); padding: 12px 16px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.stat .label { font-size: 10px; color: #94a3b8; text-transform: uppercase;
+               letter-spacing: 0.5px; }
+.stat .value { font-size: 22px; font-weight: 900; margin-top: 4px; color: #fff; }
+
+/* Health-score gauge — circular ring */
+.health-ring {
+    width: 140px; height: 140px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+}
+.health-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.health-ring .track  { stroke: rgba(255,255,255,0.1); }
+.health-ring .progress { transition: stroke-dashoffset 0.6s; }
+.health-ring .score-text {
+    position: absolute; text-align: center;
+    font-size: 28px; font-weight: 900; color: #fff;
+}
+.health-ring .score-text .pct { font-size: 14px; color: #94a3b8; }
+
+/* ── Layout grid ────────────────────────────────────────────── */
+.layout {
+    display: grid; grid-template-columns: 1fr 340px; gap: 18px;
+}
+@media (max-width: 1024px) { .layout { grid-template-columns: 1fr; } }
+
+.card {
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 14px; padding: 20px; margin-bottom: 18px;
+}
+.card-title {
+    font-size: 14px; font-weight: 900;
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.card-title .badge {
+    background: rgba(99, 102, 241, 0.2); color: #a5b4fc;
+    padding: 3px 12px; border-radius: 999px; font-size: 11px;
+}
+
+/* ── Predictive nudges ──────────────────────────────────────── */
+.nudge {
+    display: grid; grid-template-columns: 70px 1fr auto;
+    gap: 14px; align-items: center;
+    padding: 14px; margin-bottom: 10px; border-radius: 10px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+}
+.nudge .icon {
+    width: 50px; height: 50px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+}
+.nudge.overdue { border-right: 4px solid #ef4444; }
+.nudge.overdue .icon { background: rgba(239,68,68,0.15); color: #fca5a5; }
+.nudge.due { border-right: 4px solid #f59e0b; }
+.nudge.due .icon { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.nudge.upcoming { border-right: 4px solid #38bdf8; }
+.nudge.upcoming .icon { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+.nudge .name { font-weight: 700; font-size: 13px; color: #e2e8f0; }
+.nudge .reason { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.nudge .urgency-chip {
+    padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 900;
+}
+.nudge.overdue .urgency-chip  { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.nudge.due .urgency-chip      { background: rgba(245,158,11,0.2); color: #fbbf24; }
+.nudge.upcoming .urgency-chip { background: rgba(56,189,248,0.2); color: #7dd3fc; }
+
+/* ── Timeline ───────────────────────────────────────────────── */
+.timeline { position: relative; padding-right: 24px; }
+.timeline::before {
+    content: ''; position: absolute; top: 8px; bottom: 8px; right: 10px;
+    width: 2px; background: linear-gradient(180deg,
+        rgba(99,102,241,0.5), rgba(99,102,241,0.05));
+}
+.tl-item { position: relative; padding-bottom: 18px; }
+.tl-item::before {
+    content: ''; position: absolute; right: -19px; top: 16px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #6366f1; border: 3px solid #0f172a;
+    box-shadow: 0 0 0 1px rgba(99,102,241,0.5);
+}
+.tl-item.orphan_diag::before { background: #8b5cf6; }
+.tl-item.posted::before { background: #22c55e; }
+.tl-card {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 10px; padding: 14px;
+}
+.tl-card .head {
+    display: flex; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px; margin-bottom: 8px;
+}
+.tl-card .when {
+    color: #94a3b8; font-size: 12px; display: flex; align-items: center; gap: 6px;
+}
+.tl-card .when .day { font-weight: 900; color: #e2e8f0; font-size: 14px; }
+.tl-card .stat-chips {
+    display: flex; flex-wrap: wrap; gap: 6px;
+}
+.chip {
+    padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+}
+.chip.parts { background: rgba(168,85,247,0.15); color: #c4b5fd; }
+.chip.svc   { background: rgba(34,197,94,0.15); color: #86efac; }
+.chip.diag  { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+.chip.photo { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.chip.status {
+    padding: 3px 10px; border-radius: 6px; font-size: 10px;
+}
+.chip.status.posted    { background: rgba(34,197,94,0.15); color: #86efac; }
+.chip.status.in_progress { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.chip.status.ready     { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+.chip.status.quotation { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+.tl-card .summary {
+    font-size: 12px; color: #cbd5e1; line-height: 1.7;
+    margin-top: 8px; padding: 10px; border-radius: 6px;
+    background: rgba(139, 92, 246, 0.08);
+    border-right: 3px solid #8b5cf6;
+}
+.tl-card .total {
+    font-weight: 900; color: #fbbf24; font-family: monospace;
+    font-size: 16px;
+}
+.tl-card a.open-jc {
+    font-size: 11px; padding: 4px 12px; text-decoration: none;
+    background: rgba(99, 102, 241, 0.15); color: #a5b4fc;
+    border-radius: 6px; font-weight: 700;
+}
+.tl-card a.open-jc:hover { background: rgba(99, 102, 241, 0.3); }
+
+/* ── Sidebar widgets ────────────────────────────────────────── */
+.kv-list { font-size: 13px; }
+.kv-list .row {
+    display: flex; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+.kv-list .row:last-child { border-bottom: none; }
+.kv-list .row .key { color: #94a3b8; }
+.kv-list .row .val { color: #e2e8f0; font-weight: 700; }
+
+.dtc-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; margin-bottom: 6px;
+    background: rgba(239, 68, 68, 0.05);
+    border-right: 3px solid #ef4444; border-radius: 6px;
+    font-family: monospace; font-size: 12px;
+}
+.dtc-bar .count {
+    background: rgba(239,68,68,0.2); color: #fca5a5;
+    padding: 2px 10px; border-radius: 999px; font-weight: 700;
+}
+
+.part-row {
+    display: flex; justify-content: space-between;
+    padding: 7px 0; font-size: 12px; color: #cbd5e1;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+}
+.part-row .qty {
+    background: rgba(99,102,241,0.15); color: #a5b4fc;
+    padding: 1px 8px; border-radius: 6px; font-weight: 700;
+}
+
+.empty {
+    text-align: center; color: #64748b; font-size: 12px;
+    padding: 24px; background: rgba(15, 23, 42, 0.4);
+    border: 1px dashed rgba(148, 163, 184, 0.15); border-radius: 8px;
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+    {# ═══ HERO ═══════════════════════════════════════════════════ #}
+    {% with score=vehicle.ai_health_score %}
+    <div class="hero">
+        <div class="hero-grid">
+            <div>
+                <h1>
+                    <i class="fa-solid fa-passport"></i>
+                    {{ vehicle.brand }} {{ vehicle.model_name|default:'' }}
+                </h1>
+                <div class="sub">
+                    {% if vehicle.car_plate %}
+                        لوحة: <strong>{{ vehicle.car_plate }}</strong> ·
+                    {% endif %}
+                    المالك: <strong>{{ customer.name }}</strong>
+                    {% if customer.phone %} · 📞 {{ customer.phone }}{% endif %}
+                </div>
+                <span class="vin">VIN: {{ vehicle.chassis_number }}</span>
+
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="label">عدد الزيارات</div>
+                        <div class="value">{{ visit_count }}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">آخر قراءة عداد</div>
+                        <div class="value">
+                            {{ vehicle.last_mileage|default:'—' }}
+                            <span style="font-size:12px;color:#94a3b8;">كم</span>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">أول زيارة</div>
+                        <div class="value" style="font-size:14px;">
+                            {{ first_visit|date:"Y/m/d"|default:'—' }}
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">آخر زيارة</div>
+                        <div class="value" style="font-size:14px;">
+                            {{ last_visit|date:"Y/m/d"|default:'—' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="health-ring" data-score="{{ score }}">
+                <svg viewBox="0 0 100 100">
+                    <circle class="track" cx="50" cy="50" r="42" fill="none" stroke-width="8"/>
+                    <circle class="progress" cx="50" cy="50" r="42" fill="none" stroke-width="8"
+                            stroke-linecap="round"
+                            stroke="{% if score >= 75 %}#22c55e{% elif score >= 50 %}#fbbf24{% else %}#ef4444{% endif %}"
+                            stroke-dasharray="263.9"
+                            stroke-dashoffset="{{ score|add:-100|stringformat:'d'|slice:'1:' }}"/>
+                </svg>
+                <div class="score-text">
+                    {{ score }}<span class="pct">%</span>
+                    <div style="font-size:9px;color:#94a3b8;margin-top:4px;font-weight:700;">صحة السيارة</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+
+    <div class="layout">
+
+        {# ═══ LEFT: Nudges + Timeline ════════════════════════════ #}
+        <div>
+
+            {# Predictive nudges card #}
+            {% if nudges %}
+            <div class="card">
+                <div class="card-title">
+                    <span>🔮 تذكيرات الصيانة الذكية</span>
+                    <span class="badge">{{ nudges|length }} توصية</span>
+                </div>
+                {% for n in nudges %}
+                    <div class="nudge {{ n.urgency }}">
+                        <div class="icon">
+                            {% if n.urgency == 'overdue' %}⚠️
+                            {% elif n.urgency == 'due' %}⏰
+                            {% else %}📅{% endif %}
+                        </div>
+                        <div>
+                            <div class="name">{{ n.rule_name }}</div>
+                            <div class="reason">{{ n.reason }}</div>
+                        </div>
+                        <div class="urgency-chip">
+                            {% if n.urgency == 'overdue' %}متأخر
+                            {% elif n.urgency == 'due' %}مستحق
+                            {% else %}قريباً{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Timeline card #}
+            <div class="card">
+                <div class="card-title">
+                    <span>📜 الخط الزمني للسيارة</span>
+                    <span class="badge">{{ timeline|length }} حدث</span>
+                </div>
+
+                {% if timeline %}
+                <div class="timeline">
+                    {% for ev in timeline %}
+                        <div class="tl-item {{ ev.type }} {% if ev.invoice %}{{ ev.invoice.status }}{% endif %}">
+                            <div class="tl-card">
+
+                                {% if ev.type == 'visit' %}
+                                    <div class="head">
+                                        <div class="when">
+                                            <i class="fa-regular fa-calendar"></i>
+                                            <span class="day">{{ ev.date|date:"Y/m/d" }}</span>
+                                            <span>· {{ ev.date|time:"H:i" }}</span>
+                                            {% if ev.branch_name %}
+                                                · {{ ev.branch_name }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="stat-chips">
+                                            <span class="chip status {{ ev.invoice.status }}">{{ ev.invoice.get_status_display }}</span>
+                                            {% if ev.parts_count %}<span class="chip parts">📦 {{ ev.parts_count }} قطع</span>{% endif %}
+                                            {% if ev.services_count %}<span class="chip svc">🔧 {{ ev.services_count }} خدمات</span>{% endif %}
+                                            {% if ev.diag_count %}<span class="chip diag">🤖 {{ ev.diag_count }} تشخيص</span>{% endif %}
+                                            {% if ev.photos_count %}<span class="chip photo">📷 {{ ev.photos_count }} صور</span>{% endif %}
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                        <span style="font-size:12px;color:#94a3b8;">
+                                            بطاقة الإصلاح <strong style="color:#e2e8f0;">#{{ ev.invoice.id }}</strong>
+                                        </span>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <span class="total">{{ ev.total|floatformat:2 }} ج.م</span>
+                                            <a class="open-jc" href="{% url 'inventory:job_card_review' ev.invoice.id %}" target="_blank">
+                                                افتح البطاقة
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% if ev.ai_summary_excerpt %}
+                                        <div class="summary">
+                                            🤖 {{ ev.ai_summary_excerpt }}{% if ev.ai_summary_excerpt|length >= 240 %}…{% endif %}
+                                        </div>
+                                    {% endif %}
+
+                                {% elif ev.type == 'orphan_diag' %}
+                                    <div class="head">
+                                        <div class="when">
+                                            <i class="fa-solid fa-robot" style="color:#a78bfa;"></i>
+                                            <span class="day">{{ ev.date|date:"Y/m/d" }}</span>
+                                            <span>· {{ ev.date|time:"H:i" }}</span>
+                                        </div>
+                                        <div class="stat-chips">
+                                            <span class="chip status">جلسة تشخيص بدون بطاقة</span>
+                                            {% if ev.photos_count %}<span class="chip photo">📷 {{ ev.photos_count }}</span>{% endif %}
+                                        </div>
+                                    </div>
+                                    {% if ev.fault_codes %}
+                                        <div style="margin-top:6px;">
+                                            {% for c in ev.fault_codes %}
+                                                <span style="display:inline-block;font-family:monospace;background:rgba(239,68,68,0.1);color:#fca5a5;padding:2px 8px;border-radius:5px;font-size:11px;margin:2px;">{{ c }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if ev.ai_summary_excerpt %}
+                                        <div class="summary">🤖 {{ ev.ai_summary_excerpt }}</div>
+                                    {% endif %}
+                                {% endif %}
+
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty">لا يوجد سجل لهذه السيارة بعد.</div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        {# ═══ RIGHT: Aggregates sidebar ═══════════════════════════ #}
+        <div>
+            <div class="card">
+                <div class="card-title">
+                    <span>👤 المالك</span>
+                </div>
+                <div class="kv-list">
+                    <div class="row"><span class="key">الاسم</span><span class="val">{{ customer.name }}</span></div>
+                    <div class="row"><span class="key">الهاتف</span><span class="val">{{ customer.phone|default:'—' }}</span></div>
+                    <div class="row"><span class="key">نقاط الولاء</span><span class="val">{{ customer.loyalty_points|default:0 }}</span></div>
+                    {% if customer.is_b2b_company %}
+                        <div class="row"><span class="key">نوع الحساب</span><span class="val">شركة B2B</span></div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>🚨 أكثر الأكواد تكراراً</span>
+                    {% if top_dtcs %}<span class="badge">{{ top_dtcs|length }}</span>{% endif %}
+                </div>
+                {% for code, count in top_dtcs %}
+                    <div class="dtc-bar">
+                        <span>{{ code }}</span>
+                        <span class="count">{{ count }}×</span>
+                    </div>
+                {% empty %}
+                    <div class="empty">لم يتم رصد أي أكواد بعد.</div>
+                {% endfor %}
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>📦 القطع الأكثر استبدالاً</span>
+                    {% if top_parts %}<span class="badge">{{ top_parts|length }}</span>{% endif %}
+                </div>
+                {% for name, qty in top_parts %}
+                    <div class="part-row">
+                        <span>{{ name }}</span>
+                        <span class="qty">{{ qty }}×</span>
+                    </div>
+                {% empty %}
+                    <div class="empty">لا توجد قطع مسجّلة.</div>
+                {% endfor %}
+            </div>
+
+            {% if vehicle.predicted_failure_notes %}
+            <div class="card" style="border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05);">
+                <div class="card-title" style="color:#fca5a5;">
+                    <span>⚡ تنبؤات AI</span>
+                </div>
+                <div style="font-size:12px;line-height:1.8;color:#fecaca;white-space:pre-wrap;">{{ vehicle.predicted_failure_notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Animate the health ring on load
+document.addEventListener('DOMContentLoaded', () => {
+    const ring = document.querySelector('.health-ring');
+    if (!ring) return;
+    const score = parseInt(ring.dataset.score || '100', 10);
+    const circle = ring.querySelector('.progress');
+    const circumference = 263.9;       // 2π × r where r=42
+    const offset = circumference * (1 - score / 100);
+    // Restart from full and animate to the real offset
+    circle.style.strokeDashoffset = circumference;
+    requestAnimationFrame(() => {
+        circle.style.strokeDashoffset = offset;
+    });
+});
+</script>
+</body>
+</html>

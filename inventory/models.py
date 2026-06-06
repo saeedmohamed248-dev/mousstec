@@ -1342,6 +1342,171 @@ class RFQQuote(models.Model):
         return self.quoted_price is not None
 
 
+class ServiceReminderRule(models.Model):
+    """Workshop-tunable maintenance interval rule.
+
+    Each rule says: 'service X is due every N km OR M months'. The
+    predictive engine evaluates these against every vehicle's last-done
+    timestamps + mileage to decide who to nudge.
+
+    Defaults are seeded in a data migration so a fresh workshop has
+    working rules out of the box; the admin can then prune or tweak.
+    """
+    CATEGORY_OIL = 'engine_oil'
+    CATEGORY_BRAKE_PADS = 'brake_pads'
+    CATEGORY_SPARK = 'spark_plugs'
+    CATEGORY_COOLANT = 'coolant'
+    CATEGORY_TRANSMISSION = 'transmission_oil'
+    CATEGORY_TIMING = 'timing_belt'
+    CATEGORY_AIR_FILTER = 'air_filter'
+    CATEGORY_CABIN_FILTER = 'cabin_filter'
+    CATEGORY_BATTERY = 'battery'
+    CATEGORY_WIPERS = 'wipers'
+    CATEGORY_GENERAL = 'general'
+    CATEGORY_CHOICES = (
+        (CATEGORY_OIL,          _('زيت محرك')),
+        (CATEGORY_BRAKE_PADS,   _('فحمات فرامل')),
+        (CATEGORY_SPARK,        _('بوجيهات')),
+        (CATEGORY_COOLANT,      _('مياه تبريد')),
+        (CATEGORY_TRANSMISSION, _('زيت فتيس')),
+        (CATEGORY_TIMING,       _('سير الكاتينة / التيمنج')),
+        (CATEGORY_AIR_FILTER,   _('فلتر هواء')),
+        (CATEGORY_CABIN_FILTER, _('فلتر مكيف')),
+        (CATEGORY_BATTERY,      _('بطارية')),
+        (CATEGORY_WIPERS,       _('مساحات')),
+        (CATEGORY_GENERAL,      _('عام / صيانة دورية')),
+    )
+
+    SEVERITY_LOW = 'low'
+    SEVERITY_MEDIUM = 'medium'
+    SEVERITY_HIGH = 'high'
+    SEVERITY_CHOICES = (
+        (SEVERITY_LOW,    _('منخفضة')),
+        (SEVERITY_MEDIUM, _('متوسطة')),
+        (SEVERITY_HIGH,   _('عالية — تجنّب التأخير')),
+    )
+
+    name = models.CharField(max_length=120, verbose_name=_("اسم القاعدة"))
+    category = models.CharField(
+        max_length=24, choices=CATEGORY_CHOICES, default=CATEGORY_GENERAL,
+        verbose_name=_("نوع الصيانة"),
+    )
+    interval_km = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_("الفاصل الزمني (كم)"),
+        help_text=_("مثال: 10000 — اتركه فارغاً للقواعد الزمنية فقط."),
+    )
+    interval_months = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name=_("الفاصل الزمني (أشهر)"),
+        help_text=_("مثال: 6 — اتركه فارغاً للقواعد المعتمدة على الكيلومترات فقط."),
+    )
+    severity = models.CharField(
+        max_length=8, choices=SEVERITY_CHOICES, default=SEVERITY_MEDIUM,
+    )
+    applies_to_brands = models.JSONField(
+        default=list, blank=True, verbose_name=_("الماركات المنطبق عليها"),
+        help_text=_("فارغة = تنطبق على كل الماركات. مثال: ['BMW','MINI']"),
+    )
+    is_active = models.BooleanField(default=True)
+    whatsapp_template = models.TextField(
+        blank=True, verbose_name=_("نص رسالة WhatsApp"),
+        help_text=_("بمتغيرات: {customer}, {vehicle}, {rule}, {workshop}"),
+    )
+
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        verbose_name = _("قاعدة تذكير صيانة")
+        verbose_name_plural = _("قواعد التذكير الدوري")
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(interval_km__isnull=False) |
+                      models.Q(interval_months__isnull=False),
+                name='svc_rule_has_some_interval',
+            ),
+        ]
+        ordering = ['category', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_category_display()})"
+
+
+class ServiceNudge(models.Model):
+    """A specific (vehicle, rule) pair the predictive engine flagged as
+    overdue/due/upcoming. Persisted so the CRM can manage outreach state
+    (sent / dismissed / done) without re-deriving from scratch every load.
+    """
+    URGENCY_OVERDUE  = 'overdue'    # past the interval already
+    URGENCY_DUE      = 'due'        # at or within 14 days of the interval
+    URGENCY_UPCOMING = 'upcoming'   # 14-45 days away
+    URGENCY_CHOICES = (
+        (URGENCY_OVERDUE,  _('متأخر')),
+        (URGENCY_DUE,      _('مستحق الآن')),
+        (URGENCY_UPCOMING, _('قريباً')),
+    )
+
+    STATUS_PENDING   = 'pending'
+    STATUS_SENT      = 'sent'
+    STATUS_DISMISSED = 'dismissed'
+    STATUS_DONE      = 'done'       # service was performed → close the loop
+    STATUS_CHOICES = (
+        (STATUS_PENDING,   _('في الانتظار')),
+        (STATUS_SENT,      _('تم إرسال تذكير')),
+        (STATUS_DISMISSED, _('تم التجاهل')),
+        (STATUS_DONE,      _('تمت الصيانة')),
+    )
+
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.CASCADE, related_name='service_nudges',
+        verbose_name=_("المركبة"),
+    )
+    rule = models.ForeignKey(
+        ServiceReminderRule, on_delete=models.CASCADE,
+        related_name='nudges', verbose_name=_("القاعدة"),
+    )
+
+    last_done_at = models.DateTimeField(null=True, blank=True)
+    last_done_mileage = models.PositiveIntegerField(null=True, blank=True)
+    due_at = models.DateField(null=True, blank=True)
+    due_at_mileage = models.PositiveIntegerField(null=True, blank=True)
+    reason = models.CharField(max_length=240, blank=True)
+
+    urgency = models.CharField(
+        max_length=10, choices=URGENCY_CHOICES, default=URGENCY_UPCOMING,
+        db_index=True,
+    )
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING,
+        db_index=True,
+    )
+
+    sent_at = models.DateTimeField(null=True, blank=True)
+    sent_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='service_nudges_sent',
+    )
+
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    refreshed_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        verbose_name = _("تذكير صيانة")
+        verbose_name_plural = _("تذكيرات الصيانة (CRM)")
+        constraints = [
+            models.UniqueConstraint(
+                fields=['vehicle', 'rule'],
+                name='uniq_vehicle_rule_nudge',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['urgency', 'status']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+        ordering = ['urgency', 'due_at']
+
+    def __str__(self):
+        return f"Nudge: {self.vehicle} → {self.rule.name} ({self.urgency})"
+
+
 class CustomerFeedback(models.Model):
     """Public UUID link sent to customer after invoice 'posted' for rating + signature."""
     sale_invoice = models.OneToOneField(

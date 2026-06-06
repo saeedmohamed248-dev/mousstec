@@ -3420,3 +3420,121 @@ def rfq_management(request):
         'reviewer_name': request.user.get_full_name() or request.user.username,
         'branch': branch,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🪪 Vehicle Health Passport — full timeline + AI history per VIN
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def vehicle_health_passport(request, chassis_number):
+    """The single-source-of-truth view of a vehicle's life with us:
+    every visit, every DTC, every part replaced, every photo, every
+    diagnostic AI summary — laid out as a reverse-chronological timeline.
+
+    Built for two audiences:
+        • The advisor explaining to a customer why a repair is needed
+          ("look, your car has come in 4 times for the same code…").
+        • The customer themselves on the public share view (future step).
+
+    Anyone in the workshop can view; the share-link variant will be
+    public-token gated like the AI diagnostic report.
+    """
+    vehicle = get_object_or_404(
+        Vehicle.objects
+            .select_related('customer')
+            .prefetch_related(
+                'diagnostic_reports__engineer__user',
+                'diagnostic_reports__photos',
+                'service_nudges__rule',
+            ),
+        chassis_number=chassis_number.upper(),
+    )
+
+    # All Job Cards (posted = paid, others = open work)
+    job_cards = list(
+        SaleInvoice.objects
+        .filter(vehicle=vehicle, invoice_type='maintenance')
+        .select_related('branch')
+        .prefetch_related(
+            'items__product', 'service_items__service',
+            'diagnostic_reports', 'repair_logs',
+        )
+        .order_by('-date_created')
+    )
+
+    # All diagnostic reports — sorted newest first
+    diag_reports = list(
+        vehicle.diagnostic_reports.all().order_by('-scanned_at')
+    )
+
+    # Aggregate DTC frequency across the whole life of the vehicle
+    from collections import Counter
+    dtc_counter = Counter()
+    for r in diag_reports:
+        for code in (r.fault_codes or []):
+            dtc_counter[code.upper()] += 1
+    top_dtcs = dtc_counter.most_common(8)
+
+    # Aggregate parts ever installed
+    parts_counter = Counter()
+    for jc in job_cards:
+        for item in jc.items.all():
+            parts_counter[item.product.name] += item.quantity or 0
+    top_parts = parts_counter.most_common(6)
+
+    # Build a unified timeline: visits + diagnostic-only sessions
+    timeline = []
+    for jc in job_cards:
+        timeline.append({
+            'type': 'visit',
+            'date': jc.date_created,
+            'invoice': jc,
+            'total': jc.total_amount,
+            'status': jc.status,
+            'branch_name': jc.branch.name if jc.branch_id else '',
+            'parts_count': jc.items.count(),
+            'services_count': jc.service_items.count(),
+            'diag_count': jc.diagnostic_reports.count(),
+            'photos_count': sum(r.photos.count() for r in jc.diagnostic_reports.all()),
+            'ai_summary_excerpt': next(
+                (r.ai_summary[:240]
+                 for r in jc.diagnostic_reports.all()
+                 if r.ai_summary), ''),
+        })
+    # Orphan diagnostic reports (saved without a Job Card link)
+    for r in diag_reports:
+        if r.job_card_id is None:
+            timeline.append({
+                'type': 'orphan_diag',
+                'date': r.scanned_at,
+                'report': r,
+                'fault_codes': r.fault_codes,
+                'ai_summary_excerpt': (r.ai_summary or '')[:240],
+                'photos_count': r.photos.count(),
+            })
+
+    timeline.sort(key=lambda e: e['date'], reverse=True)
+
+    # Predictive nudges for this vehicle (computed live so they reflect
+    # the latest job-card timestamps; the daily Celery task does the
+    # heavy bulk-compute version)
+    nudges = []
+    try:
+        from inventory.predictive_engine import compute_nudges_for_vehicle
+        nudges = compute_nudges_for_vehicle(vehicle, persist=False)
+    except Exception:
+        nudges = []
+
+    return render(request, 'inventory/vehicle_health_passport.html', {
+        'vehicle': vehicle,
+        'customer': vehicle.customer,
+        'timeline': timeline,
+        'diag_reports': diag_reports,
+        'top_dtcs': top_dtcs,
+        'top_parts': top_parts,
+        'nudges': nudges,
+        'visit_count': len(job_cards),
+        'last_visit': job_cards[0].date_created if job_cards else None,
+        'first_visit': job_cards[-1].date_created if job_cards else None,
+    })
