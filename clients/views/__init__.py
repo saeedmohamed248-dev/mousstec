@@ -1,30 +1,65 @@
 """
 clients.views — package facade.
 
-Historically a single 4936-line module. Being split incrementally into
-focused submodules (auth, subscription, webhook, b2b, admin, ai,
-marketplace, design). During the migration this package re-exports every
-public name from the original module so that `urls.py` (which references
-`client_views.<name>`) keeps working unchanged.
+Historically a single 4,936-line module (``_legacy.py``). Now fully split
+into focused submodules. URLs reference ``client_views.<name>`` — this
+facade preserves that surface by explicitly re-exporting every public
+endpoint from its new home.
 
-Once every name has been moved to its dedicated submodule, `_legacy` is
-deleted.
+Explicit re-exports (not wildcard) because Daphne boot was observed to
+drop names unreliably from ``from ._submodule import *``, causing
+AttributeError in ``erp_core/urls.py`` and a 502 at startup.
+
+Submodule layout
+----------------
+- :mod:`._shared` — auth / OTP / notification helpers (internal use)
+- :mod:`._ai_pipeline` — Brand + Smart Router + Composite + Quality Gate
+- :mod:`.auth_views` — tenant signup, landing pages, login finders
+- :mod:`.subscription_views` — pricing, Paymob checkout, add-ons
+- :mod:`.admin_views` — super-admin dashboard, tenant grants, impersonation
+- :mod:`.b2b_views` — B2B marketplace, blind bidding, escrow
+- :mod:`.webhook_views` — universal webhook multiplexer
+- :mod:`.ai_assistant_views` — landing-page sales bot
+- :mod:`.marketplace_core_views` — customer marketplace + service requests
+- :mod:`.design_store_views` — AI design store (generate/regenerate/refine)
+- :mod:`.brand_profile_views` — Customer Brand Profile CRUD
+- :mod:`.design_chat_views` — Conversational design builder (Phase N)
 """
-from ._legacy import *  # noqa: F401,F403
-
-# 🎨 Phase 5 Brand Memory endpoints — moved out of _legacy.py into their own
-# module. Explicit imports here (not via wildcard) because Daphne boot was
-# observed to drop these names unreliably from `from ._legacy import *`,
-# causing AttributeError in erp_core/urls.py and a 502 at startup.
-from .brand_profile_views import (  # noqa: F401
-    brand_profile_view,
-    brand_profile_delete_logo,
-    brand_profile_page,
+# ───────────────────────────────────────────────────────────────────────────
+# 🤖 Landing-page AI assistant
+# ───────────────────────────────────────────────────────────────────────────
+from .ai_assistant_views import (  # noqa: F401
+    ai_assistant_api,
 )
 
-# 🛍️ Design Store endpoints — extracted from _legacy.py (Step 4). Same
-# explicit-import pattern as Brand Memory above, to dodge the Daphne wildcard
-# quirk that surfaced as a startup 502.
+# ───────────────────────────────────────────────────────────────────────────
+# 🛍️ Marketplace core — customer flows + service requests + merchant feed
+# ───────────────────────────────────────────────────────────────────────────
+from .marketplace_core_views import (  # noqa: F401
+    marketplace_home,
+    marketplace_automotive,
+    marketplace_printing,
+    marketplace_register,
+    marketplace_verify_otp,
+    marketplace_login,
+    marketplace_dashboard,
+    marketplace_create_request,
+    marketplace_request_detail,
+    marketplace_accept_offer,
+    marketplace_rate_offer,
+    marketplace_merchant_feed,
+    marketplace_submit_offer,
+    marketplace_logout,
+    marketplace_merchant_feed_count,
+    marketplace_merchant_create_request,
+    marketplace_admin_approve,
+    marketplace_admin_reject,
+    marketplace_edit_request,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 🎨 Design Store — AI generation pipeline (C1/C2/C3 unified)
+# ───────────────────────────────────────────────────────────────────────────
 from .design_store_views import (  # noqa: F401
     design_store_home,
     design_store_buy,
@@ -42,7 +77,18 @@ from .design_store_views import (  # noqa: F401
     design_store_refine,
 )
 
-# 💬 Phase N — Conversational Design Builder endpoints (N.3)
+# ───────────────────────────────────────────────────────────────────────────
+# 🎨 Brand Memory — Customer Brand Profile (Phase 5)
+# ───────────────────────────────────────────────────────────────────────────
+from .brand_profile_views import (  # noqa: F401
+    brand_profile_view,
+    brand_profile_delete_logo,
+    brand_profile_page,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 💬 Conversational Design Builder (Phase N)
+# ───────────────────────────────────────────────────────────────────────────
 from .design_chat_views import (  # noqa: F401
     design_chat_start,
     design_chat_message,
@@ -51,3 +97,56 @@ from .design_chat_views import (  # noqa: F401
     design_chat_state,
     design_chat_page,
 )
+
+# ───────────────────────────────────────────────────────────────────────────
+# 🔐 Tenant signup / login / landing pages
+# ───────────────────────────────────────────────────────────────────────────
+from .auth_views import (  # noqa: F401
+    register_new_tenant_saas,
+    smart_post_login_redirect,
+    client_login_finder,
+    tenant_auto_login,
+    mousstec_landing_page,
+    automotive_landing_page,
+    printing_landing_page,
+    account_recovery,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 💳 Subscriptions / billing / Paymob
+# ───────────────────────────────────────────────────────────────────────────
+from .subscription_views import (  # noqa: F401
+    saas_pricing_page,
+    paymob_checkout,
+    paymob_callback,
+    manage_subscription,
+    purchase_addon_api,
+    features_page,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 👑 Super-admin tools
+# ───────────────────────────────────────────────────────────────────────────
+from .admin_views import (  # noqa: F401
+    super_admin_dashboard,
+    super_admin_customer_detail,
+    super_admin_tenant_grants,
+    enter_tenant,
+    impersonate_login,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 🤝 B2B marketplace / blind bidding / escrow
+# ───────────────────────────────────────────────────────────────────────────
+from .b2b_views import (  # noqa: F401
+    b2b_market_search_api,
+    active_blind_bids_api,
+    submit_bid_offer_api,
+    my_escrow_wallet_api,
+    market_demand_predictor_api,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
+# 🪝 Webhooks
+# ───────────────────────────────────────────────────────────────────────────
+from .webhook_views import universal_webhook_multiplexer  # noqa: F401

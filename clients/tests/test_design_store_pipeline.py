@@ -35,7 +35,7 @@ from clients.models import (
     CustomerDesign,
     CustomerBrandProfile,
 )
-from clients.views import _legacy as legacy_views
+from clients.views import design_store_views as legacy_views
 
 
 # ---------------------------------------------------------------------------

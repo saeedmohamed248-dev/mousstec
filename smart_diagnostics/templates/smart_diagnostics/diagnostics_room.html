@@ -194,6 +194,68 @@ body {
     border: 1px solid rgba(100,180,255,.15);
 }
 
+/* ── Save-to-Job-Card modal ─────────────────────────────────── */
+.modal-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center; padding: 20px;
+}
+.modal-backdrop.visible { display: flex; }
+.modal {
+    background: linear-gradient(135deg, #0a1929 0%, #0f2034 100%);
+    border: 1px solid rgba(100,180,255,.2); border-radius: 16px;
+    padding: 24px; max-width: 560px; width: 100%;
+    max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal h3 {
+    color: #e6f1ff; font-size: 18px; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+}
+.modal h3 i { color: #36d399; }
+.modal .sub { color: #8fb3d9; font-size: 12px; margin-bottom: 18px; }
+.modal-section { margin-bottom: 16px; }
+.modal-section .label {
+    color: #8fb3d9; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px;
+}
+.modal-section .stat-row {
+    background: rgba(8,18,32,0.6); padding: 10px 14px; border-radius: 8px;
+    color: #e6f1ff; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.modal-section .stat-row span.chip {
+    background: rgba(54,211,153,.15); color: #36d399;
+    padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+}
+.modal select {
+    width: 100%; padding: 12px 14px; border-radius: 8px;
+    background: #050b14; color: #e6f1ff;
+    border: 1px solid rgba(100,180,255,.15);
+    font-family: inherit; font-size: 13px;
+}
+.modal select:focus { outline: none; border-color: #36d399; }
+.modal-actions {
+    display: flex; gap: 10px; margin-top: 20px;
+    border-top: 1px solid rgba(100,180,255,.1); padding-top: 16px;
+}
+.summary-preview {
+    background: rgba(8,18,32,0.6); border-left: 3px solid #36d399;
+    padding: 10px 14px; border-radius: 6px;
+    font-size: 12px; color: #e6f1ff; line-height: 1.7;
+    max-height: 140px; overflow-y: auto; white-space: pre-wrap;
+}
+.toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 300; padding: 14px 22px; border-radius: 10px;
+    font-weight: 700; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none; max-width: 90vw;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+.toast.success { background: linear-gradient(135deg, #36d399, #2bb589); color: #050b14; }
+.toast.error   { background: linear-gradient(135deg, #ff5470, #e63462); color: #fff; }
+
 .unsupported {
     display: none; max-width: 720px; margin: 40px auto; padding: 28px;
     background: linear-gradient(135deg, #3a0c12 0%, #5d1421 100%);
@@ -239,6 +301,10 @@ body {
             </button>
             <button id="btnDisconnect" class="btn secondary" disabled>
                 <i class="fa-solid fa-power-off"></i> افصل
+            </button>
+            <button id="btnSaveJobCard" class="btn primary" disabled
+                    title="احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها">
+                <i class="fa-solid fa-floppy-disk"></i> احفظ في بطاقة العميل
             </button>
         </div>
 
@@ -317,6 +383,67 @@ body {
     </div>
 </div>
 
+<!-- ── Save-to-Job-Card modal ── -->
+<div id="saveModal" class="modal-backdrop">
+    <div class="modal">
+        <h3><i class="fa-solid fa-floppy-disk"></i> احفظ التشخيص في بطاقة العميل</h3>
+        <div class="sub">مستشار الخدمة هيقدر يفتح بطاقة العميل ويوريه التحليل والصور علشان يبرر تكلفة الإصلاح.</div>
+
+        <div class="modal-section">
+            <div class="label">VIN السيارة</div>
+            <div class="stat-row">
+                <span id="modalVIN" style="font-family:monospace;">—</span>
+                <span class="chip" id="modalVINSource">من السيارة</span>
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">ملخص الحالة</div>
+            <div class="stat-row">
+                <span>الأكواد: <strong id="modalDTCCount">0</strong></span>
+                <span>القراءات الحية: <strong id="modalLiveCount">0</strong></span>
+                <span>الصور: <strong id="modalPhotoCount">0</strong></span>
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">بطاقة العميل</div>
+            <select id="modalJobCardSelect">
+                <option value="">— جاري التحميل... —</option>
+            </select>
+            <div class="sub" id="modalJobCardHint" style="margin-top:6px;">
+                هتظهر بطاقات الصيانة المفتوحة لنفس السيارة. لو مفيش، التقرير هيتحفظ بدون ربط (orphan).
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">نوع الفحص</div>
+            <select id="modalScanType">
+                <option value="pre_repair">فحص قبل الإصلاح</option>
+                <option value="ad_hoc" selected>فحص خارجي (Ad-hoc)</option>
+                <option value="post_repair">فحص بعد الإصلاح / تأكيد جودة</option>
+            </select>
+        </div>
+
+        <div class="modal-section">
+            <div class="label">آخر تحليل من الـ AI (سيُحفظ كملخص)</div>
+            <div id="modalAISummary" class="summary-preview">—</div>
+        </div>
+
+        <div class="modal-actions">
+            <button id="btnConfirmSave" class="btn primary" style="flex:1;">
+                <i class="fa-solid fa-check"></i> احفظ الآن
+            </button>
+            <button id="btnCancelSave" class="btn secondary">
+                إلغاء
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast" class="toast"></div>
+
 <script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}"></script>
 <script>
 (() => {
@@ -330,6 +457,8 @@ body {
     const obd = new OBDBluetooth();
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const CHAT_URL = "{% url 'smart_diagnostics:diagnostics-room-chat' %}";
+    const JOB_CARDS_URL = "{% url 'smart_diagnostics:diagnostics-room-job-cards' %}";
+    const SAVE_URL = "{% url 'smart_diagnostics:diagnostics-room-save' %}";
 
     // ── DOM refs ────────────────────────────────────────────────
     const $ = (id) => document.getElementById(id);
@@ -352,6 +481,8 @@ body {
     let history = [];  // [{role:'user|assistant', text:'...'}]
     let awaitingAI = false;
     let pendingAttachment = null;  // { dataUrl, mime, name, size }
+    let sessionPhotos = [];        // All attachments shown this session (data URLs)
+    let lastAIAnswer = '';         // Most recent AI reply — becomes ai_summary on save
 
     const MAX_IMAGE_BYTES = 4 * 1024 * 1024;  // 4 MB before we resize
     const RESIZE_LONG_EDGE = 1280;             // px — keeps Gemini happy + cheap
@@ -513,6 +644,8 @@ body {
                 return;
             }
             pushMessage('bot', data.answer);
+            lastAIAnswer = data.answer;
+            $('btnSaveJobCard').disabled = !lastAIAnswer;
 
             // Stamp the history with a hint about the attachment so future
             // turns can reference it without re-sending the bytes.
@@ -619,6 +752,7 @@ body {
         });
         chatInput.value = '';
         const att = pendingAttachment;
+        if (att) sessionPhotos.push(att.dataUrl);
         setAttachment(null);
         askAI({ userMessage: text, attachment: att });
     });
@@ -632,6 +766,113 @@ body {
     // ── Attachment handlers ─────────────────────────────────────
     $('btnAttach').addEventListener('click', () => $('fileInput').click());
     $('btnRemoveAttachment').addEventListener('click', () => setAttachment(null));
+    // ── Save to Job Card ────────────────────────────────────────
+    function showToast(msg, kind = 'success') {
+        const el = $('toast');
+        el.textContent = msg;
+        el.className = `toast visible ${kind}`;
+        setTimeout(() => { el.className = `toast ${kind}`; }, 3200);
+    }
+
+    async function openSaveModal() {
+        if (!lastVIN) {
+            showToast('لازم تقرأ الـ VIN من السيارة الأول.', 'error');
+            return;
+        }
+        if (!lastAIAnswer) {
+            showToast('شغّل تحليل AI واحد على الأقل قبل الحفظ.', 'error');
+            return;
+        }
+
+        $('modalVIN').textContent = lastVIN;
+        $('modalDTCCount').textContent = lastDTCs.length;
+        $('modalLiveCount').textContent = Object.keys(lastSnapshot).filter(
+            k => !k.startsWith('_')
+        ).length;
+        $('modalPhotoCount').textContent = sessionPhotos.length;
+        $('modalAISummary').textContent = lastAIAnswer;
+        $('saveModal').classList.add('visible');
+
+        const select = $('modalJobCardSelect');
+        select.innerHTML = '<option value="">— جاري التحميل... —</option>';
+        try {
+            const resp = await fetch(
+                JOB_CARDS_URL + '?vin=' + encodeURIComponent(lastVIN),
+            );
+            const data = await resp.json();
+            if (!data.job_cards || data.job_cards.length === 0) {
+                select.innerHTML = '<option value="">— مفيش بطاقة مفتوحة (هيتحفظ بدون ربط) —</option>';
+                $('modalJobCardHint').textContent =
+                    'مفيش بطاقة صيانة مفتوحة لنفس السيارة. التقرير هيتحفظ كـ orphan ومستشار الخدمة هيقدر يربطه يدوياً.';
+            } else {
+                select.innerHTML = '<option value="">— بدون ربط —</option>' +
+                    data.job_cards.map(jc =>
+                        `<option value="${jc.id}">${jc.label}</option>`
+                    ).join('');
+                // Default-select the first (most recent) active job card
+                select.selectedIndex = 1;
+                $('modalJobCardHint').textContent =
+                    `لقينا ${data.job_cards.length} بطاقة مفتوحة لهذه السيارة.`;
+            }
+        } catch (err) {
+            select.innerHTML = '<option value="">— تعذّر التحميل —</option>';
+        }
+    }
+
+    function closeSaveModal() {
+        $('saveModal').classList.remove('visible');
+    }
+
+    async function confirmSave() {
+        const btn = $('btnConfirmSave');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+        try {
+            const resp = await fetch(SAVE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF,
+                },
+                body: JSON.stringify({
+                    vin: lastVIN,
+                    job_card_id: $('modalJobCardSelect').value
+                        ? parseInt($('modalJobCardSelect').value, 10) : null,
+                    scan_type: $('modalScanType').value,
+                    dtcs: lastDTCs,
+                    snapshot: lastSnapshot,
+                    ai_summary: lastAIAnswer,
+                    photos: sessionPhotos,
+                }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                showToast(data.message || data.error || 'فشل الحفظ', 'error');
+                return;
+            }
+            closeSaveModal();
+            showToast(
+                `✓ تم الحفظ — تقرير #${data.report_id}` +
+                (data.job_card_id ? ` · بطاقة #${data.job_card_id}` : ' (orphan)') +
+                ` · ${data.photos_saved} صورة`,
+                'success',
+            );
+            log(`Saved report #${data.report_id} · photos=${data.photos_saved}/${sessionPhotos.length}`);
+        } catch (err) {
+            showToast(`تعذّر الوصول للخادم: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> احفظ الآن';
+        }
+    }
+
+    $('btnSaveJobCard').addEventListener('click', openSaveModal);
+    $('btnCancelSave').addEventListener('click', closeSaveModal);
+    $('btnConfirmSave').addEventListener('click', confirmSave);
+    $('saveModal').addEventListener('click', (e) => {
+        if (e.target.id === 'saveModal') closeSaveModal();
+    });
+
     $('fileInput').addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;

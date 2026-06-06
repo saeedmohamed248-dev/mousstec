@@ -1050,13 +1050,82 @@ class VehicleDiagnosticReport(models.Model):
 
     severity_score = models.IntegerField(default=0, verbose_name=_("درجة الخطورة (0-100)"))
 
+    # ── Source provenance + AI analysis (Diagnostics Room save flow) ──
+    SOURCE_MOBILE_INGEST = 'mobile_ingest'
+    SOURCE_DIAG_ROOM = 'diag_room'
+    SOURCE_CHOICES = (
+        (SOURCE_MOBILE_INGEST, _('OBD مباشر من الموبايل')),
+        (SOURCE_DIAG_ROOM,     _('غرفة تشخيص الأعطال (Web Bluetooth)')),
+    )
+    source = models.CharField(
+        max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MOBILE_INGEST,
+        verbose_name=_("مصدر التقرير"),
+    )
+    vin_snapshot = models.CharField(
+        max_length=17, blank=True, verbose_name=_("VIN المقروء من السيارة"),
+        help_text=_("VIN كما قرأه الـ ELM327 من السيارة — للتدقيق."),
+    )
+    ai_summary = models.TextField(
+        blank=True, verbose_name=_("ملخص تحليل الذكاء الاصطناعي"),
+        help_text=_("التحليل النهائي اللي هيشوفه مستشار الخدمة والعميل."),
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='diagnostic_reports_created',
+        verbose_name=_("أنشأه"),
+    )
+
     class Meta:
         verbose_name = _("تقرير OBD")
         verbose_name_plural = _("تقارير OBD التشخيصية")
-        indexes = [models.Index(fields=['vehicle', '-scanned_at'])]
+        indexes = [
+            models.Index(fields=['vehicle', '-scanned_at']),
+            models.Index(fields=['job_card', 'source']),
+        ]
 
     def __str__(self):
         return f"OBD #{self.id} — {self.vehicle} ({self.get_scan_type_display()})"
+
+
+def _diag_photo_upload_path(instance, filename):
+    """Group photos by report id + year/month so an advisor browsing a job
+    card doesn't hit a single 100k-file flat folder."""
+    from django.utils import timezone as _tz
+    now = _tz.now()
+    return (
+        f'diagnostics/{now:%Y/%m}/report_{instance.report_id or "new"}/'
+        f'{filename}'
+    )
+
+
+class VehicleDiagnosticPhoto(models.Model):
+    """Photo evidence attached to a VehicleDiagnosticReport.
+
+    Typical use: technician snaps a melted connector / cut harness in the
+    AI Diagnostics Room. We persist the bytes so the service advisor can
+    show the customer exactly what justified the labour line.
+    """
+    report = models.ForeignKey(
+        VehicleDiagnosticReport, on_delete=models.CASCADE,
+        related_name='photos', verbose_name=_("التقرير"),
+    )
+    image = models.ImageField(
+        upload_to=_diag_photo_upload_path, verbose_name=_("الصورة"),
+    )
+    caption = models.CharField(
+        max_length=240, blank=True, verbose_name=_("وصف مختصر"),
+    )
+    uploaded_at = models.DateTimeField(
+        default=timezone.now, db_index=True, verbose_name=_("وقت الرفع"),
+    )
+
+    class Meta:
+        verbose_name = _("صورة تشخيص")
+        verbose_name_plural = _("صور التشخيص")
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"Photo #{self.id} — report #{self.report_id}"
 
 
 class RepairLog(models.Model):

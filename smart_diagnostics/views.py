@@ -267,3 +267,90 @@ def diagnostics_room_chat(request):
         return JsonResponse({"error": "ai_unavailable"}, status=503)
 
     return JsonResponse(result)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 💾 Diagnostics Room — Save to Job Card
+# ─────────────────────────────────────────────────────────────────────
+@login_required
+def diagnostics_room_job_cards(request):
+    """GET ?vin=XYZ → JSON list of active job cards for the VIN.
+    Used by the 'Save to Job Card' modal."""
+    if _on_public_schema():
+        return JsonResponse({"error": "tenant_required"}, status=403)
+
+    vin = (request.GET.get('vin') or '').strip()
+    from smart_diagnostics.services.diag_room_persistence import (
+        list_active_job_cards_for_vin,
+    )
+    return JsonResponse({
+        "vin": vin,
+        "job_cards": list_active_job_cards_for_vin(vin),
+    })
+
+
+@login_required
+@csrf_protect
+@require_POST
+def diagnostics_room_save(request):
+    """POST JSON → persist the session as a VehicleDiagnosticReport
+    (+ photos, + optional job-card link).
+
+    Body:
+        {
+          "vin": "WBA...",                          # required
+          "job_card_id": 42 | null,                 # optional; auto-suggest if null
+          "dtcs": ["P0102", ...],
+          "snapshot": {"rpm": 820, ...},
+          "ai_summary": "النص اللي هيشوفه العميل...",
+          "photos": ["data:image/jpeg;base64,...", ...],
+          "scan_type": "pre_repair" | "ad_hoc" | "post_repair"
+        }
+    """
+    if _on_public_schema():
+        return JsonResponse({"error": "tenant_required"}, status=403)
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "invalid_payload"}, status=400)
+
+    # Best-effort: attach the technician's EmployeeProfile if the request
+    # user has one in this tenant.
+    engineer_profile = None
+    try:
+        from inventory.models import EmployeeProfile
+        engineer_profile = (EmployeeProfile.objects
+                            .filter(user=request.user,
+                                    role__in=['engineer', 'tech'])
+                            .first())
+    except Exception:
+        pass
+
+    from smart_diagnostics.services.diag_room_persistence import (
+        save_diagnostic_session, DiagnosticSaveError,
+    )
+
+    try:
+        result = save_diagnostic_session(
+            vin=payload.get("vin") or "",
+            dtcs=payload.get("dtcs") or [],
+            live_data=payload.get("snapshot") or {},
+            ai_summary=payload.get("ai_summary") or "",
+            photos=payload.get("photos") or [],
+            job_card_id=payload.get("job_card_id"),
+            scan_type=payload.get("scan_type") or 'ad_hoc',
+            engineer_profile=engineer_profile,
+            created_by_user=request.user,
+        )
+    except DiagnosticSaveError as exc:
+        return JsonResponse(
+            {"error": exc.code, "message": exc.message}, status=exc.status,
+        )
+    except Exception as exc:
+        logger.exception("Diagnostics Room save failed: %s", exc)
+        return JsonResponse({"error": "save_failed"}, status=500)
+
+    return JsonResponse({"ok": True, **result}, status=201)

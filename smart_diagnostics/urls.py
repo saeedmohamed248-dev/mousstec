@@ -18,6 +18,8 @@ urlpatterns = [
     # 🤖 AI Diagnostics Room — Web-Bluetooth co-pilot workstation
     path('room/', html_views.diagnostics_room, name='diagnostics-room'),
     path('room/chat/', html_views.diagnostics_room_chat, name='diagnostics-room-chat'),
+    path('room/job-cards/', html_views.diagnostics_room_job_cards, name='diagnostics-room-job-cards'),
+    path('room/save/', html_views.diagnostics_room_save, name='diagnostics-room-save'),
 
     # Device management (token-based OBD auth)
     path('devices/', html_views.device_list, name='device-list'),
