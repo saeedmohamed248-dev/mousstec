@@ -625,8 +625,6 @@ def quick_expense_create(request):
                 # Stamp the description for ledger clarity
                 description = f"{description} — {employee.user.get_full_name() or employee.user.username}"
 
-            treasury.balance = (treasury.balance or Decimal("0")) - amount
-            treasury.save(update_fields=["balance"])
             tx = FinancialTransaction.objects.create(
                 treasury=treasury,
                 transaction_type="out",
@@ -635,6 +633,7 @@ def quick_expense_create(request):
                 category=category,
                 employee=employee,
             )
+        treasury.refresh_from_db(fields=["balance"])
         return _json_response_safe({
             "ok": True,
             "transaction_id": tx.id,

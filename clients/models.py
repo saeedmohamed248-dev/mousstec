@@ -2776,3 +2776,8 @@ def seed_default_design_packages():
     ]
     for d in customer_packages + designer_packages:
         DesignPackage.objects.update_or_create(slug=d['slug'], defaults=d)
+
+# OBD device identity & secrets — defined in a separate module for clarity.
+# Imported here so Django registers them under the `clients` app.
+from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401
+
