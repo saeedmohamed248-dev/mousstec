@@ -181,6 +181,14 @@ footer.foot {
 .actions button.ghost {
     background: #fff; color: #475569; border: 1px solid #cbd5e1;
 }
+.actions button.whatsapp {
+    background: #25d366; color: #fff;
+}
+.actions button.whatsapp:hover { background: #1ebe5b; }
+.actions button:disabled {
+    opacity: 0.5; cursor: not-allowed; background: #cbd5e1; color: #fff;
+}
+.actions a { text-decoration: none; }
 
 /* ── Print rules ─────────────────────────────────────────────── */
 @media print {
@@ -198,11 +206,61 @@ footer.foot {
 </head>
 <body>
 
-<!-- Action bar (screen only) -->
+{% if not public_share %}
+<!-- Action bar (screen only; hidden in PDF + public share) -->
 <div class="actions no-print">
     <button onclick="window.print()">🖨️ اطبع التقرير</button>
+    <a href="{% url 'inventory:ai_diag_pdf' invoice.id %}"
+       style="text-decoration:none;">
+        <button>📄 تحميل PDF</button>
+    </a>
+    <button id="btnShareWA" class="whatsapp"
+            {% if not invoice.customer.phone or not share_token %}disabled{% endif %}>
+        💬 شارك واتساب
+    </button>
     <button class="ghost" onclick="window.close()">إغلاق</button>
 </div>
+
+<!-- WhatsApp share — script reads tenant/customer data straight from the
+     server-rendered template; no extra round-trip needed. -->
+<script>
+(function () {
+    const btn = document.getElementById('btnShareWA');
+    if (!btn) return;
+    if (btn.disabled) {
+        btn.title = '{% if not invoice.customer.phone %}رقم تليفون العميل غير مسجّل{% else %}الرابط غير متاح{% endif %}';
+        return;
+    }
+
+    const customerName = "{{ invoice.customer.name|default:'عميلنا العزيز'|escapejs }}";
+    const vehicleLabel = "{{ invoice.vehicle.brand|default:''|escapejs }} {{ invoice.vehicle.model_name|default:''|escapejs }}".trim() || "سيارتك";
+    const workshopName = "{{ workshop_name|escapejs }}";
+    const shareUrl = window.location.origin +
+        "{% url 'inventory:ai_diag_share' share_token %}";
+
+    // Normalise phone to international format for wa.me
+    let raw = "{{ invoice.customer.phone|escapejs }}".replace(/[\s\-\(\)]+/g, '');
+    if (raw.startsWith('00')) raw = raw.slice(2);
+    else if (raw.startsWith('0')) raw = '20' + raw.slice(1);   // EG default
+    else if (raw.startsWith('+')) raw = raw.slice(1);
+
+    const lines = [
+        `مرحباً ${customerName} 👋`,
+        ``,
+        `مرفق تقرير الفحص الذكي لـ *${vehicleLabel}* من مركز *${workshopName}*.`,
+        ``,
+        `يمكنك الاطلاع على التحليل الكامل، أكواد الأعطال، والصور الموثّقة من خلال الرابط التالي:`,
+        shareUrl,
+        ``,
+        `الرابط صالح لمدة 14 يوماً. لأي استفسار، نحن في الخدمة.`,
+    ];
+    const msg = encodeURIComponent(lines.join('\n'));
+    btn.addEventListener('click', () => {
+        window.open(`https://wa.me/${raw}?text=${msg}`, '_blank');
+    });
+})();
+</script>
+{% endif %}
 
 <div class="page">
 

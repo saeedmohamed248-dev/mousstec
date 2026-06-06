@@ -91,6 +91,9 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/print/thermal/', views.print_invoice_thermal, name='print_invoice_thermal'),
     # 🤖 AI diagnostic findings — customer-facing printable report
     path('invoice/<int:invoice_id>/ai-diagnostics/', views.ai_diag_print, name='ai_diag_print'),
+    path('invoice/<int:invoice_id>/ai-diagnostics/pdf/', views.ai_diag_pdf, name='ai_diag_pdf'),
+    # Public signed link — works without login (used for WhatsApp share)
+    path('ai-diagnostics/share/<str:token>/', views.ai_diag_share, name='ai_diag_share'),
     path('invoice/<int:invoice_id>/export/pdf/', views.export_invoice_pdf, name='export_invoice_pdf'),
     
     # 🚀 مشاركة الفاتورة عبر WhatsApp API 

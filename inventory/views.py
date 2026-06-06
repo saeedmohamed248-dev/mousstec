@@ -2722,32 +2722,170 @@ def ai_diag_print(request, invoice_id):
     if branch and invoice.branch != branch:
         return HttpResponseForbidden("لا تملك صلاحية لعرض تقارير فروع أخرى.")
 
-    reports = list(invoice.diagnostic_reports.all().order_by('-scanned_at'))
+    return render(request, 'inventory/ai_diag_print.html',
+                  _render_ai_diag_context(request, invoice))
 
-    # Tenant branding — soft fallbacks so the page never crashes if a tenant
-    # hasn't uploaded a logo yet.
+
+# ─────────────────────────────────────────────────────────────────────
+# 📄 AI Diagnostic Report — PDF + public share (WhatsApp-friendly)
+# ─────────────────────────────────────────────────────────────────────
+_AI_DIAG_SHARE_SALT = 'ai-diag-share-v1'
+_AI_DIAG_SHARE_MAX_AGE = 14 * 24 * 60 * 60   # 14 days
+
+
+def _sign_ai_diag_share(invoice_id, tenant_schema):
+    """Bind the token to BOTH invoice id and tenant schema so a token from
+    workshop A can't be replayed against workshop B's invoice with the same id."""
+    from django.core.signing import TimestampSigner
+    signer = TimestampSigner(salt=_AI_DIAG_SHARE_SALT)
+    return signer.sign(f"{tenant_schema}:{invoice_id}")
+
+
+def _unsign_ai_diag_share(token, tenant_schema):
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    signer = TimestampSigner(salt=_AI_DIAG_SHARE_SALT)
+    try:
+        raw = signer.unsign(token, max_age=_AI_DIAG_SHARE_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+    try:
+        schema, invoice_id = raw.split(':', 1)
+        if schema != tenant_schema:
+            return None
+        return int(invoice_id)
+    except (ValueError, TypeError):
+        return None
+
+
+def _render_ai_diag_context(request, invoice):
+    """Shared context builder used by all 3 surfaces (print/PDF/share)."""
+    reports = list(invoice.diagnostic_reports.all().order_by('-scanned_at'))
     tenant = getattr(request, 'tenant', None)
-    workshop_name = (
-        getattr(tenant, 'name', None)
-        or getattr(tenant, 'schema_name', None)
-        or 'ورشتك'
-    )
     workshop_logo_url = ''
     try:
         if tenant and tenant.logo:
-            workshop_logo_url = tenant.logo.url
+            workshop_logo_url = request.build_absolute_uri(tenant.logo.url)
     except (ValueError, AttributeError):
         workshop_logo_url = ''
-    workshop_phone = getattr(tenant, 'phone', '') or ''
-
-    return render(request, 'inventory/ai_diag_print.html', {
+    return {
         'invoice': invoice,
         'reports': reports,
         'print_date': timezone.now(),
-        'workshop_name': workshop_name,
+        'workshop_name': (
+            getattr(tenant, 'name', None)
+            or getattr(tenant, 'schema_name', None)
+            or 'ورشتك'
+        ),
         'workshop_logo_url': workshop_logo_url,
-        'workshop_phone': workshop_phone,
+        'workshop_phone': getattr(tenant, 'phone', '') or '',
         'has_findings': any(
             (r.ai_summary or r.fault_codes or r.photos.exists()) for r in reports
         ),
-    })
+        # Signed share metadata — read by the template to build wa.me link
+        'share_token': _sign_ai_diag_share(
+            invoice.id, getattr(tenant, 'schema_name', '') or '',
+        ) if tenant else '',
+    }
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def ai_diag_pdf(request, invoice_id):
+    """Render the AI diagnostic report as a downloadable PDF using WeasyPrint.
+
+    Reuses the exact `ai_diag_print.html` template — passing pdf_mode=True so
+    the action bar can be hidden via {% if not pdf_mode %} when present.
+    """
+    invoice = get_object_or_404(
+        SaleInvoice.objects
+            .select_related('customer', 'vehicle', 'branch')
+            .prefetch_related('diagnostic_reports__engineer__user',
+                              'diagnostic_reports__photos'),
+        id=invoice_id,
+    )
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لتصدير تقارير فروع أخرى.")
+
+    from django.template.loader import render_to_string
+    ctx = _render_ai_diag_context(request, invoice)
+    ctx['pdf_mode'] = True
+    html_string = render_to_string('inventory/ai_diag_print.html', ctx)
+
+    try:
+        from weasyprint import HTML, CSS
+        from weasyprint.text.fonts import FontConfiguration
+
+        font_config = FontConfiguration()
+        pdf_css = CSS(string='''
+            @page { size: A4; margin: 14mm; }
+            @font-face {
+                font-family: 'Cairo';
+                src: url('https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hOA-W1Y.ttf') format('truetype');
+            }
+            body { font-family: 'Cairo', sans-serif; direction: rtl; background: #fff; }
+            .actions, .no-print { display: none !important; }
+        ''', font_config=font_config)
+
+        pdf_bytes = HTML(
+            string=html_string,
+            base_url=request.build_absolute_uri('/'),
+        ).write_pdf(stylesheets=[pdf_css], font_config=font_config)
+
+        plate = ''
+        if invoice.vehicle and invoice.vehicle.car_plate:
+            # Strip whitespace for filename safety
+            plate = invoice.vehicle.car_plate.replace(' ', '_')
+        filename = (
+            f'ai-diag-{invoice.id}'
+            f'{"-" + plate if plate else ""}'
+            f'-{timezone.now():%Y%m%d}.pdf'
+        )
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    except ImportError:
+        logger.warning("[AI DIAG PDF] WeasyPrint not installed — HTML fallback")
+        return HttpResponse(
+            html_string + '<script>window.print();</script>',
+            content_type='text/html; charset=utf-8',
+        )
+    except Exception as e:
+        logger.error(f"[AI DIAG PDF] Failed for invoice #{invoice_id}: {e}",
+                     exc_info=True)
+        return HttpResponse(
+            f"فشل توليد PDF: {str(e)[:200]}", status=500,
+            content_type='text/plain; charset=utf-8',
+        )
+
+
+@csrf_exempt
+def ai_diag_share(request, token):
+    """Public, signed access to the AI diagnostic report — no login required.
+
+    Used by the WhatsApp share link. The token is HMAC-signed (Django
+    `TimestampSigner`) with a 14-day TTL and binds (tenant_schema, invoice_id),
+    so it can't be replayed across tenants and stops working after 2 weeks.
+    """
+    tenant = getattr(request, 'tenant', None)
+    tenant_schema = getattr(tenant, 'schema_name', '') or ''
+    invoice_id = _unsign_ai_diag_share(token, tenant_schema)
+    if invoice_id is None:
+        return HttpResponse(
+            "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً.",
+            status=410, content_type='text/html; charset=utf-8',
+        )
+
+    invoice = (SaleInvoice.objects
+               .select_related('customer', 'vehicle', 'branch')
+               .prefetch_related('diagnostic_reports__engineer__user',
+                                 'diagnostic_reports__photos')
+               .filter(id=invoice_id).first())
+    if invoice is None:
+        return HttpResponse("التقرير غير موجود.", status=404,
+                            content_type='text/html; charset=utf-8')
+
+    ctx = _render_ai_diag_context(request, invoice)
+    ctx['public_share'] = True   # template hides internal action bar
+    return render(request, 'inventory/ai_diag_print.html', ctx)
