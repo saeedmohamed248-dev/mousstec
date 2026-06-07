@@ -1,0 +1,68 @@
+{# Single ServiceNudge row — used by retention_crm.html for all 3 bands. #}
+<div class="nudge-card {{ urgency }}{% if nudge.status == 'sent' %} sent{% endif %}">
+
+    <div class="who">
+        <div>
+            <span class="name">{{ nudge.vehicle.customer.name|default:"عميل بدون اسم" }}</span>
+            {% if nudge.vehicle.customer.phone %}
+                <span class="phone">{{ nudge.vehicle.customer.phone }}</span>
+            {% else %}
+                <span class="phone" style="color:#ef4444;">— لا يوجد رقم —</span>
+            {% endif %}
+        </div>
+        <div class="vehicle">
+            {{ nudge.vehicle.brand }} {{ nudge.vehicle.model_name|default:'' }}
+            {% if nudge.vehicle.car_plate %}
+                — لوحة <strong>{{ nudge.vehicle.car_plate }}</strong>
+            {% endif %}
+            <span class="vin">{{ nudge.vehicle.chassis_number|slice:"-8:" }}</span>
+        </div>
+        <div class="reason">
+            <span class="rule-chip">🔧 {{ nudge.rule.name }}</span>
+            <span class="severity-chip {{ nudge.rule.severity }}">
+                {% if nudge.rule.severity == 'high' %}أولوية عالية
+                {% elif nudge.rule.severity == 'medium' %}أولوية متوسطة
+                {% else %}أولوية منخفضة{% endif %}
+            </span>
+            <span>· {{ nudge.reason }}</span>
+        </div>
+        {% if nudge.last_done_at or nudge.last_done_mileage %}
+            <div class="last-done">
+                📅 آخر صيانة:
+                {% if nudge.last_done_at %}{{ nudge.last_done_at|date:"Y/m/d" }}{% endif %}
+                {% if nudge.last_done_mileage %} · {{ nudge.last_done_mileage }} كم{% endif %}
+            </div>
+        {% endif %}
+        {% if nudge.status == 'sent' and nudge.sent_at %}
+            <div class="last-done">
+                <span class="sent-stamp">
+                    <i class="fa-solid fa-check-circle"></i>
+                    أُرسلت {{ nudge.sent_at|timesince }} بواسطة
+                    {% if nudge.sent_by %}{{ nudge.sent_by.username }}{% else %}—{% endif %}
+                </span>
+            </div>
+        {% endif %}
+    </div>
+
+    <a class="btn passport"
+       href="{% url 'inventory:vehicle_health_passport' nudge.vehicle.chassis_number %}"
+       target="_blank" title="افتح الجواز الصحي للمركبة">
+        <i class="fa-solid fa-passport"></i> الجواز
+    </a>
+
+    <div class="actions">
+        {% if nudge.vehicle.customer.phone %}
+            <button type="button" class="btn wa" data-nudge-id="{{ nudge.id }}">
+                <i class="fa-brands fa-whatsapp"></i> أرسل تذكير
+            </button>
+        {% else %}
+            <button type="button" class="btn wa" disabled title="لا يوجد رقم هاتف">
+                <i class="fa-solid fa-phone-slash"></i>
+            </button>
+        {% endif %}
+        <button type="button" class="btn dismiss" data-nudge-id="{{ nudge.id }}"
+                title="تجاهل لهذه الدورة">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+</div>

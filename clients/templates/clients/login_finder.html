@@ -90,8 +90,7 @@
 
         <form method="post" class="space-y-4">
             {% csrf_token %}
-            {# 🐛 [Bug #2 FIX] Forward ?next= through the form so the
-               post-login redirect lands on the user's original target. #}
+            {# 🐛 [Bug #2 FIX] Forward ?next= through the form so the post-login redirect lands on the user's original target. #}
             {% if request.GET.next %}
                 <input type="hidden" name="next" value="{{ request.GET.next }}">
             {% endif %}

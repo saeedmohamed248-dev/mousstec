@@ -3556,3 +3556,217 @@ def vehicle_health_passport(request, chassis_number):
         'last_visit': job_cards[0].date_created if job_cards else None,
         'first_visit': job_cards[-1].date_created if job_cards else None,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 💚 Retention & Campaigns — CRM Dashboard (Week 4 Phase 2)
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def retention_crm(request):
+    """Macro view of every customer with at least one due/overdue service.
+
+    The list is driven by `ServiceNudge` rows (populated by the daily
+    Celery sweep + recomputed live on Job Card posts). The advisor can
+    refresh, send a WhatsApp reminder, or dismiss/snooze each nudge.
+
+    RBAC: sales / cashier / accountant / admin / manager / superuser.
+    """
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return HttpResponseForbidden(
+            "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+        )
+
+    try:
+        from inventory.models import ServiceNudge
+
+        branch = _get_branch_for_user(request.user)
+
+        base_qs = (ServiceNudge.objects
+                   .select_related(
+                       'rule', 'vehicle', 'vehicle__customer',
+                       'sent_by',
+                   )
+                   .filter(status__in=[
+                       ServiceNudge.STATUS_PENDING,
+                       ServiceNudge.STATUS_SENT,
+                   ]))
+
+        # Branch-scope by the customer's most-recent job-card branch (cheap proxy)
+        # — skipped if the user is unscoped (admin/superuser without a branch pin).
+        # Customers with NO job cards still appear; they won't have a branch hint.
+
+        # Group by urgency
+        overdue = list(base_qs.filter(urgency=ServiceNudge.URGENCY_OVERDUE)
+                              .order_by('due_at'))
+        due = list(base_qs.filter(urgency=ServiceNudge.URGENCY_DUE)
+                          .order_by('due_at'))
+        upcoming = list(base_qs.filter(urgency=ServiceNudge.URGENCY_UPCOMING)
+                                .order_by('due_at')[:100])
+
+        # KPIs
+        kpi_total_actionable = len(overdue) + len(due)
+        kpi_sent_today = base_qs.filter(
+            status=ServiceNudge.STATUS_SENT,
+            sent_at__date=timezone.localdate(),
+        ).count()
+        kpi_unique_customers = base_qs.filter(
+            urgency__in=[ServiceNudge.URGENCY_OVERDUE, ServiceNudge.URGENCY_DUE],
+        ).values('vehicle__customer_id').distinct().count()
+
+    except Exception as exc:
+        logger.exception("[retention_crm] failed: %s", exc)
+        overdue = []
+        due = []
+        upcoming = []
+        kpi_total_actionable = 0
+        kpi_sent_today = 0
+        kpi_unique_customers = 0
+
+    return render(request, 'inventory/retention_crm.html', {
+        'overdue_nudges': overdue,
+        'due_nudges': due,
+        'upcoming_nudges': upcoming,
+        'kpi_total_actionable': kpi_total_actionable,
+        'kpi_sent_today': kpi_sent_today,
+        'kpi_unique_customers': kpi_unique_customers,
+        'reviewer_name': request.user.get_full_name() or request.user.username,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt
+def retention_send_whatsapp(request, nudge_id):
+    """POST → builds a wa.me URL from the rule's template, stamps
+    `ServiceNudge.status=sent`, returns the URL for the JS to open.
+
+    The advisor still has to click 'Send' inside WhatsApp Web/Mobile —
+    we don't have outbound API yet — but the audit trail of who sent
+    which reminder when is captured here."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    from inventory.models import ServiceNudge
+    nudge = get_object_or_404(
+        ServiceNudge.objects.select_related(
+            'rule', 'vehicle', 'vehicle__customer',
+        ),
+        id=nudge_id,
+    )
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    customer = nudge.vehicle.customer
+    if not customer.phone:
+        return JsonResponse({"error": "no_customer_phone"}, status=400)
+
+    # Build the personalised body from the rule's template
+    tenant = getattr(request, 'tenant', None)
+    workshop_name = (getattr(tenant, 'name', None)
+                     or getattr(tenant, 'schema_name', '')
+                     or 'مركزنا')
+
+    vehicle_label = ' '.join(filter(None, [
+        nudge.vehicle.brand, nudge.vehicle.model_name,
+        f"({nudge.vehicle.car_plate})" if nudge.vehicle.car_plate else '',
+    ]))
+
+    template = nudge.rule.whatsapp_template or (
+        "مرحباً {customer} 👋\n\n"
+        "حسب آخر زيارة، حان موعد *{rule}* لسيارة *{vehicle}*.\n"
+        "نسعد بحجز موعد لك في {workshop}."
+    )
+    body = template.format(
+        customer=customer.name or 'عميلنا الكريم',
+        vehicle=vehicle_label or 'سيارتك',
+        rule=nudge.rule.name,
+        workshop=workshop_name,
+    )
+
+    # Normalise phone (E.164 digits for wa.me)
+    import re as _re, urllib.parse
+    digits = _re.sub(r'[\s\-\(\)+]+', '', customer.phone)
+    if digits.startswith('00'):
+        digits = digits[2:]
+    elif digits.startswith('0'):
+        digits = '20' + digits[1:]    # EG default
+    wa_url = f"https://wa.me/{digits}?text={urllib.parse.quote(body)}"
+
+    # Stamp the audit trail BEFORE returning the URL (idempotent on re-send)
+    nudge.status = ServiceNudge.STATUS_SENT
+    nudge.sent_at = timezone.now()
+    nudge.sent_by = request.user
+    nudge.save(update_fields=['status', 'sent_at', 'sent_by'])
+
+    logger.info(
+        "[retention.send] tenant=%s user=%s nudge=%s customer=%s rule=%s",
+        getattr(tenant, 'schema_name', None), request.user.username,
+        nudge.id, customer.id, nudge.rule.name,
+    )
+    return JsonResponse({
+        "ok": True,
+        "wa_url": wa_url,
+        "message_preview": body,
+        "customer_name": customer.name,
+        "vehicle_label": vehicle_label,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt
+def retention_dismiss(request, nudge_id):
+    """POST → mark a nudge as dismissed (no outreach this cycle)."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    from inventory.models import ServiceNudge
+    nudge = get_object_or_404(ServiceNudge, id=nudge_id)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    nudge.status = ServiceNudge.STATUS_DISMISSED
+    nudge.save(update_fields=['status'])
+    return JsonResponse({"ok": True, "nudge_id": nudge.id})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def retention_refresh(request):
+    """POST → trigger an on-demand bulk recompute of all nudges for this
+    tenant. Admin/manager only — the daily Celery sweep handles the
+    routine case."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    try:
+        from inventory.predictive_engine import refresh_all_nudges
+        result = refresh_all_nudges(limit=2000)
+    except Exception as exc:
+        logger.exception("[retention.refresh] failed: %s", exc)
+        return JsonResponse({"error": "refresh_failed"}, status=500)
+
+    return JsonResponse({"ok": True, **result})

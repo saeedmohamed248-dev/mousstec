@@ -2831,3 +2831,48 @@ class RFQQuoteAdmin(SafeAdminLogMixin, admin.ModelAdmin):
     @admin.display(boolean=True, description=_("ردّ المورد؟"))
     def has_response(self, obj):
         return obj.quoted_price is not None
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔮 Predictive Maintenance — rules & nudges
+# ─────────────────────────────────────────────────────────────────────
+from inventory.models import ServiceReminderRule, ServiceNudge
+
+
+@admin.register(ServiceReminderRule)
+class ServiceReminderRuleAdmin(SafeAdminLogMixin, admin.ModelAdmin):
+    """Workshop-tunable maintenance intervals — admin can prune/add freely."""
+    list_display = (
+        'name', 'category', 'interval_km', 'interval_months',
+        'severity', 'is_active', 'brands_label',
+    )
+    list_filter = ('category', 'severity', 'is_active')
+    search_fields = ('name', 'category')
+    list_editable = ('is_active', 'severity')
+
+    @admin.display(description=_("الماركات"))
+    def brands_label(self, obj):
+        return ', '.join(obj.applies_to_brands) if obj.applies_to_brands else 'الكل'
+
+
+@admin.register(ServiceNudge)
+class ServiceNudgeAdmin(SafeAdminLogMixin, admin.ModelAdmin):
+    """Audit trail — most operations happen via the CRM dashboard but
+    the admin gives finance a queryable backstop."""
+    list_display = (
+        'id', 'vehicle', 'rule', 'urgency', 'status',
+        'due_at', 'last_done_at', 'sent_at', 'sent_by',
+    )
+    list_filter = ('urgency', 'status', 'rule__category')
+    search_fields = (
+        'vehicle__chassis_number', 'vehicle__car_plate',
+        'vehicle__customer__name', 'vehicle__customer__phone',
+        'rule__name',
+    )
+    # `Vehicle` is registered as a Customer inline (not a top-level admin),
+    # so we use raw_id_fields for it; `rule`/`sent_by` have search_fields.
+    raw_id_fields = ('vehicle',)
+    autocomplete_fields = ('rule', 'sent_by')
+    readonly_fields = ('created_at', 'refreshed_at')
+    list_select_related = ('vehicle', 'rule', 'sent_by')
+    ordering = ('urgency', 'due_at')

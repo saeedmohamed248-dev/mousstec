@@ -321,6 +321,16 @@
             </a>
             {% endif %}
 
+            {# 💚 Retention CRM — sales/cashier/accountant/admin/manager — predictive nudges #}
+            {% if is_super or role == 'sales' or role == 'cashier' or role == 'accountant' or role == 'admin' or role == 'manager' %}
+            <a href="{% url 'inventory:retention_crm' %}" class="card-hover bg-gradient-to-b from-pink-900/30 to-slate-900/60 border border-pink-500/40 hover:border-pink-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-pink-500/20 text-pink-200 px-1.5 py-0.5 rounded">CRM</span>
+                <span class="absolute top-1 right-1 text-[9px] font-black bg-emerald-500/20 text-emerald-200 px-1.5 py-0.5 rounded animate-pulse">NEW</span>
+                <div class="w-12 h-12 rounded-xl bg-pink-500/15 flex items-center justify-center text-pink-300 text-xl"><i class="fas fa-heart-pulse"></i></div>
+                <span class="text-xs font-black text-pink-200">💚 احتفاظ بالعملاء</span>
+            </a>
+            {% endif %}
+
             {# 🧮 Job Card review — sales/cashier/accountant/admin/manager — entry point to invoice list #}
             {% if is_super or role == 'sales' or role == 'cashier' or role == 'accountant' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:sale_invoice_list' %}?type=maintenance&status=ready" class="card-hover bg-gradient-to-b from-amber-900/30 to-slate-900/60 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">

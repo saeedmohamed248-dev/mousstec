@@ -385,3 +385,50 @@ def drain_dlq_and_retry(max_entries: int = 20):
     AgentHealthMonitor.heartbeat('dlq_retry_worker')
     logger.info(f"♻️ [DLQ WORKER] Cycle complete: processed={processed}, requeued={requeued}.")
     return f"DLQ: processed={processed}, requeued={requeued}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔮 Daily predictive-nudge sweep — populates ServiceNudge rows
+# ─────────────────────────────────────────────────────────────────────
+from celery import shared_task as _shared_task
+
+
+@_shared_task(name='inventory.tasks.refresh_service_nudges')
+def refresh_service_nudges(schema_name=None, limit=2000):
+    """Daily sweep — recomputes every vehicle's ServiceNudge rows so the
+    CRM Retention Dashboard has fresh data to surface.
+
+    Schedule via Beat (see erp_core/settings.py CELERY_BEAT_SCHEDULE).
+    """
+    import logging
+    log = logging.getLogger('mouss_tec_core')
+
+    from django_tenants.utils import schema_context, get_tenant_model
+    from inventory.predictive_engine import refresh_all_nudges
+
+    if schema_name:
+        targets = [schema_name]
+    else:
+        Tenant = get_tenant_model()
+        targets = list(
+            Tenant.objects.exclude(schema_name='public')
+                          .filter(status__in=['active', 'trial'])
+                          .values_list('schema_name', flat=True)
+        )
+
+    summary = {'tenants': 0, 'scanned': 0, 'nudged': 0, 'errors': 0}
+    for schema in targets:
+        try:
+            with schema_context(schema):
+                result = refresh_all_nudges(limit=limit)
+            summary['tenants'] += 1
+            summary['scanned'] += result.get('vehicles_scanned', 0)
+            summary['nudged'] += result.get('vehicles_nudged', 0)
+        except Exception as exc:
+            summary['errors'] += 1
+            log.exception(
+                "[refresh_service_nudges] schema=%s failed: %s", schema, exc,
+            )
+
+    log.info("🔮 [Service Nudges Sweep] %s", summary)
+    return summary

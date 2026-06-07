@@ -1,0 +1,427 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💚 الاحتفاظ بالعملاء — Retention CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Cairo', sans-serif;
+    background: linear-gradient(180deg, #0f172a 0%, #050b14 100%);
+    color: #e2e8f0; min-height: 100vh; padding: 20px;
+}
+.shell { max-width: 1400px; margin: 0 auto; }
+
+.topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+}
+.topbar h1 {
+    font-size: 22px; font-weight: 900;
+    display: flex; align-items: center; gap: 12px;
+}
+.topbar .meta { color: #94a3b8; font-size: 13px; }
+.refresh-btn {
+    background: rgba(56, 189, 248, 0.15); color: #7dd3fc;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 8px 16px; border-radius: 8px;
+    font-family: inherit; font-weight: 700; font-size: 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.refresh-btn:hover { filter: brightness(1.2); }
+.refresh-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* ── KPIs ────────────────────────────────────────────────────── */
+.kpi-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px; margin-bottom: 22px;
+}
+@media (max-width: 768px) { .kpi-strip { grid-template-columns: 1fr; } }
+.kpi {
+    padding: 18px 22px; border-radius: 14px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    position: relative; overflow: hidden;
+}
+.kpi::before {
+    content: ''; position: absolute; top: -50%; right: -10%;
+    width: 160px; height: 160px;
+    border-radius: 50%; opacity: 0.15;
+}
+.kpi.actionable::before { background: radial-gradient(circle, #ef4444, transparent 70%); }
+.kpi.sent::before { background: radial-gradient(circle, #22c55e, transparent 70%); }
+.kpi.customers::before { background: radial-gradient(circle, #8b5cf6, transparent 70%); }
+.kpi .label {
+    font-size: 11px; color: #94a3b8; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.kpi .value {
+    font-size: 36px; font-weight: 900; line-height: 1;
+}
+.kpi.actionable .value { color: #fca5a5; }
+.kpi.sent .value { color: #4ade80; }
+.kpi.customers .value { color: #c4b5fd; }
+.kpi .sub { font-size: 11px; color: #cbd5e1; margin-top: 6px; }
+
+/* ── Section bands ───────────────────────────────────────────── */
+.section { margin-bottom: 28px; }
+.section-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.section-head h2 { font-size: 17px; font-weight: 900; }
+.section-head .count {
+    background: rgba(148, 163, 184, 0.15); color: #cbd5e1;
+    padding: 2px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+}
+.section-head.overdue h2 { color: #fca5a5; }
+.section-head.due h2 { color: #fbbf24; }
+.section-head.upcoming h2 { color: #7dd3fc; }
+
+/* ── Nudge card ──────────────────────────────────────────────── */
+.nudge-card {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 12px; padding: 18px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 16px; align-items: center;
+}
+.nudge-card.overdue { border-right: 4px solid #ef4444; }
+.nudge-card.due { border-right: 4px solid #f59e0b; }
+.nudge-card.upcoming { border-right: 4px solid #38bdf8; }
+.nudge-card.sent {
+    opacity: 0.65;
+    background: rgba(34, 197, 94, 0.05);
+    border-color: rgba(34, 197, 94, 0.2);
+}
+.nudge-card .who .name {
+    font-size: 15px; font-weight: 900; color: #e2e8f0;
+}
+.nudge-card .who .phone {
+    font-family: monospace; color: #94a3b8; font-size: 12px;
+    margin-right: 10px;
+}
+.nudge-card .who .vehicle {
+    font-size: 13px; color: #cbd5e1; margin-top: 4px;
+}
+.nudge-card .who .vehicle .vin {
+    font-family: monospace; color: #fbbf24; font-size: 11px;
+    background: rgba(0,0,0,0.25); padding: 1px 6px;
+    border-radius: 4px; margin-right: 6px;
+}
+.nudge-card .reason {
+    margin-top: 8px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 12px; color: #94a3b8;
+}
+.rule-chip {
+    background: rgba(99, 102, 241, 0.15); color: #a5b4fc;
+    padding: 3px 10px; border-radius: 999px;
+    font-weight: 700; font-size: 11px;
+}
+.severity-chip {
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+}
+.severity-chip.high { background: rgba(239,68,68,0.18); color: #fca5a5; }
+.severity-chip.medium { background: rgba(245,158,11,0.18); color: #fbbf24; }
+.severity-chip.low { background: rgba(56,189,248,0.18); color: #7dd3fc; }
+
+.nudge-card .last-done {
+    color: #94a3b8; font-size: 11px; margin-top: 4px;
+}
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn {
+    padding: 9px 16px; border: none; border-radius: 8px;
+    font-family: inherit; font-weight: 700; font-size: 12px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    text-decoration: none;
+}
+.btn.wa { background: #25d366; color: #fff; }
+.btn.wa:hover { background: #1ebe5b; }
+.btn.passport {
+    background: rgba(99, 102, 241, 0.2); color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+.btn.dismiss {
+    background: rgba(148, 163, 184, 0.1); color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.sent-stamp {
+    color: #4ade80; font-size: 11px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+
+.empty {
+    text-align: center; color: #64748b; font-size: 13px;
+    padding: 36px 24px;
+    background: rgba(15, 23, 42, 0.4); border-radius: 10px;
+    border: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+/* ── Modal preview ─────────────────────────────────────────────── */
+.modal-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center; padding: 20px;
+}
+.modal-backdrop.visible { display: flex; }
+.modal {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(37, 211, 102, 0.3); border-radius: 14px;
+    padding: 24px; max-width: 540px; width: 100%;
+}
+.modal h3 {
+    font-size: 17px; display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+}
+.modal h3 i { color: #25d366; }
+.modal .preview-body {
+    background: rgba(0, 0, 0, 0.35); padding: 14px; border-radius: 8px;
+    font-size: 13px; line-height: 1.85; white-space: pre-wrap;
+    color: #e2e8f0; margin-bottom: 16px;
+    border-right: 3px solid #25d366;
+}
+.modal .modal-meta { font-size: 12px; color: #94a3b8; margin-bottom: 14px; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions a, .modal-actions button {
+    flex: 1; padding: 12px;
+    border-radius: 8px; font-family: inherit; font-weight: 900; font-size: 13px;
+    text-align: center; text-decoration: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: none; cursor: pointer;
+}
+.modal-actions .send {
+    background: linear-gradient(135deg, #25d366, #1ebe5b); color: #fff;
+}
+.modal-actions .cancel {
+    background: rgba(148, 163, 184, 0.1); color: #cbd5e1;
+}
+
+.toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    padding: 12px 22px; border-radius: 10px;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none; z-index: 300;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+.toast.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #052e0a; }
+.toast.error   { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+    <div class="topbar">
+        <h1>💚 الاحتفاظ بالعملاء — Retention CRM</h1>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <span class="meta">المسؤول: {{ reviewer_name }}</span>
+            <button class="refresh-btn" id="btnRefresh">
+                <i class="fa-solid fa-rotate"></i> أعد حساب التذكيرات
+            </button>
+        </div>
+    </div>
+
+    {# KPI strip #}
+    <div class="kpi-strip">
+        <div class="kpi actionable">
+            <div class="label">🚨 سيارات تحتاج تواصل الآن</div>
+            <div class="value">{{ kpi_total_actionable }}</div>
+            <div class="sub">متأخرة + مستحقة</div>
+        </div>
+        <div class="kpi customers">
+            <div class="label">👥 عملاء متفرّدون مستحقون</div>
+            <div class="value">{{ kpi_unique_customers }}</div>
+            <div class="sub">عميل واحد قد يملك أكثر من سيارة</div>
+        </div>
+        <div class="kpi sent">
+            <div class="label">📤 تذكيرات أُرسلت اليوم</div>
+            <div class="value">{{ kpi_sent_today }}</div>
+            <div class="sub">عبر WhatsApp</div>
+        </div>
+    </div>
+
+    {# Overdue band #}
+    <div class="section">
+        <div class="section-head overdue">
+            <h2>🔴 متأخر — تواصل عاجل</h2>
+            <span class="count">{{ overdue_nudges|length }}</span>
+        </div>
+        {% for n in overdue_nudges %}
+            {% include 'inventory/_nudge_card.html' with nudge=n urgency='overdue' %}
+        {% empty %}
+            <div class="empty">لا يوجد عملاء متأخرون 🎉</div>
+        {% endfor %}
+    </div>
+
+    {# Due band #}
+    <div class="section">
+        <div class="section-head due">
+            <h2>🟡 مستحق الآن — حدّد موعد</h2>
+            <span class="count">{{ due_nudges|length }}</span>
+        </div>
+        {% for n in due_nudges %}
+            {% include 'inventory/_nudge_card.html' with nudge=n urgency='due' %}
+        {% empty %}
+            <div class="empty">لا توجد صيانات مستحقة في الـ 14 يوم القادمة.</div>
+        {% endfor %}
+    </div>
+
+    {# Upcoming band — limited & collapsible feel #}
+    {% if upcoming_nudges %}
+    <div class="section">
+        <div class="section-head upcoming">
+            <h2>🔵 قريباً — بقي ≤ 45 يوم</h2>
+            <span class="count">{{ upcoming_nudges|length }} (آخر 100)</span>
+        </div>
+        {% for n in upcoming_nudges %}
+            {% include 'inventory/_nudge_card.html' with nudge=n urgency='upcoming' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+{# ─ WhatsApp preview modal ─ #}
+<div id="waModal" class="modal-backdrop">
+    <div class="modal">
+        <h3><i class="fa-brands fa-whatsapp"></i> معاينة الرسالة قبل الإرسال</h3>
+        <div class="modal-meta">
+            إلى: <strong id="modalCustomer">—</strong>
+            · <span id="modalVehicle">—</span>
+        </div>
+        <div class="preview-body" id="modalBody">—</div>
+        <div class="modal-actions">
+            <a id="modalSendLink" class="send" target="_blank" rel="noopener">
+                <i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل
+            </a>
+            <button class="cancel" id="modalCancel">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(function () {
+    function getCsrf() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function showToast(msg, kind = 'success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = `toast visible ${kind}`;
+        setTimeout(() => { t.className = `toast ${kind}`; }, 3000);
+    }
+
+    // ── Send WhatsApp (preview modal then open wa.me) ──
+    document.querySelectorAll('.btn.wa[data-nudge-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const nid = btn.dataset.nudgeId;
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const resp = await fetch(`/system/crm/nudge/${nid}/whatsapp/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrf() },
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                    showToast(data.error === 'no_customer_phone'
+                        ? 'لا يوجد رقم هاتف لهذا العميل'
+                        : (data.error || 'فشل التحضير'), 'error');
+                    btn.disabled = false; btn.innerHTML = orig;
+                    return;
+                }
+                // Show preview modal — advisor reviews before tapping send
+                document.getElementById('modalCustomer').textContent = data.customer_name;
+                document.getElementById('modalVehicle').textContent = data.vehicle_label;
+                document.getElementById('modalBody').textContent = data.message_preview;
+                document.getElementById('modalSendLink').href = data.wa_url;
+                document.getElementById('waModal').classList.add('visible');
+
+                // Mark the card as "sent" in the UI now (server already stamped)
+                const card = btn.closest('.nudge-card');
+                card.classList.add('sent');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> أُرسل';
+            } catch (err) {
+                showToast(`خطأ: ${err.message}`, 'error');
+                btn.disabled = false; btn.innerHTML = orig;
+            }
+        });
+    });
+    document.getElementById('modalCancel').addEventListener('click', () => {
+        document.getElementById('waModal').classList.remove('visible');
+    });
+    document.getElementById('waModal').addEventListener('click', (e) => {
+        if (e.target.id === 'waModal')
+            document.getElementById('waModal').classList.remove('visible');
+    });
+
+    // ── Dismiss ──
+    document.querySelectorAll('.btn.dismiss[data-nudge-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('سيتم تجاهل هذا التذكير لهذه الدورة. متابعة؟')) return;
+            const nid = btn.dataset.nudgeId;
+            try {
+                const resp = await fetch(`/system/crm/nudge/${nid}/dismiss/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrf() },
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                    showToast(data.error || 'فشل', 'error');
+                    return;
+                }
+                btn.closest('.nudge-card').style.display = 'none';
+                showToast('تم التجاهل');
+            } catch (err) {
+                showToast(`خطأ: ${err.message}`, 'error');
+            }
+        });
+    });
+
+    // ── On-demand bulk refresh ──
+    const refreshBtn = document.getElementById('btnRefresh');
+    refreshBtn.addEventListener('click', async () => {
+        if (!confirm('سيتم إعادة حساب كل التذكيرات للشركة. متابعة؟')) return;
+        refreshBtn.disabled = true;
+        const orig = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحساب...';
+        try {
+            const resp = await fetch('/system/crm/retention/refresh/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrf() },
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                showToast(data.error || 'فشل التحديث', 'error');
+                refreshBtn.disabled = false; refreshBtn.innerHTML = orig;
+                return;
+            }
+            showToast(
+                `✓ تم فحص ${data.vehicles_scanned} مركبة (${data.vehicles_nudged} لها تذكيرات)`,
+            );
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (err) {
+            showToast(`خطأ: ${err.message}`, 'error');
+            refreshBtn.disabled = false; refreshBtn.innerHTML = orig;
+        }
+    });
+})();
+</script>
+</body>
+</html>

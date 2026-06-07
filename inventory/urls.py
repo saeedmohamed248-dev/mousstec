@@ -104,6 +104,13 @@ urlpatterns = [
     path('inventory/rfq-management/', views.rfq_management, name='rfq_management'),
     # 🪪 Vehicle Health Passport — full lifetime timeline per VIN
     path('vehicle/<str:chassis_number>/passport/', views.vehicle_health_passport, name='vehicle_health_passport'),
+    # Alias matching the CRM URL convention the customer requested
+    path('crm/vehicle/<str:chassis_number>/', views.vehicle_health_passport, name='crm_vehicle_passport'),
+    # 💚 Retention & Campaigns CRM dashboard + actions
+    path('crm/retention/', views.retention_crm, name='retention_crm'),
+    path('crm/nudge/<int:nudge_id>/whatsapp/', views.retention_send_whatsapp, name='retention_send_whatsapp'),
+    path('crm/nudge/<int:nudge_id>/dismiss/', views.retention_dismiss, name='retention_dismiss'),
+    path('crm/retention/refresh/', views.retention_refresh, name='retention_refresh'),
     path('invoice/<int:invoice_id>/ai-diagnostics/pdf/', views.ai_diag_pdf, name='ai_diag_pdf'),
     # Public signed link — works without login (used for WhatsApp share)
     path('ai-diagnostics/share/<str:token>/', views.ai_diag_share, name='ai_diag_share'),

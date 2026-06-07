@@ -646,6 +646,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/5'),  # كل 5 دقائق
         'kwargs': {'retention_seconds': 900},  # 3× the default 300s replay window
     },
+    # ── Predictive Maintenance: daily nudge recompute per tenant ────
+    'refresh_service_nudges': {
+        'task': 'inventory.tasks.refresh_service_nudges',
+        'schedule': crontab(hour=4, minute=30),   # 4:30 AM daily — quiet window
+    },
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',
