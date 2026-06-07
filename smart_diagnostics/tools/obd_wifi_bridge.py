@@ -63,14 +63,24 @@ async def _pump_ws_to_tcp(ws, writer):
 
 
 async def _pump_tcp_to_ws(reader, ws):
-    while True:
-        chunk = await reader.read(256)
-        if not chunk:                       # TCP half-closed
-            return
+    try:
+        while True:
+            chunk = await reader.read(256)
+            if not chunk:                   # TCP half-closed by dongle
+                return
+            try:
+                await ws.send(chunk.decode("ascii", errors="ignore"))
+            except websockets.ConnectionClosed:
+                return
+    except (TimeoutError, OSError, ConnectionResetError) as exc:
+        # ELM327 Wi-Fi dongles drop idle TCP sockets after ~60-120s.
+        # Surface it gently and end the pump so the session closes cleanly
+        # instead of crashing the whole bridge.
+        log.info("TCP idle / closed by dongle (%s) — ending session", exc)
         try:
-            await ws.send(chunk.decode("ascii", errors="ignore"))
-        except websockets.ConnectionClosed:
-            return
+            await ws.send("BRIDGE_ERROR: dongle TCP idle/closed — reconnect\r>")
+        except Exception:
+            pass
 
 
 async def handle_session(ws, dongle_host, dongle_port):
