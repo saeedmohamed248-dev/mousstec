@@ -84,6 +84,10 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 def smart_root_router(request):
     """
     توجيه حركة المرور بذكاء بناءً على النطاق والسياق التشغيلي والصناعة.
+
+    سلوك النطاق العام (public): صفحة الهبوط التسويقية.
+    سلوك نطاق المستأجر (tenant): تطبيق داخلي بحت — يتم تجاوز صفحة الهبوط
+    تماماً وتوجيه الموظف مباشرة إلى لوحة التحكم أو شاشة تسجيل الدخول.
     """
     if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
         return client_views.mousstec_landing_page(request)
@@ -91,9 +95,13 @@ def smart_root_router(request):
     # المطابع → لوحة الأدمن مباشرة (لا يوجد لها dashboard مستقل)
     industry = getattr(request.tenant, 'industry', 'automotive')
     if industry == 'printing':
+        if not request.user.is_authenticated:
+            return redirect(f'/login/?next=/{ADMIN_URL}/')
         return redirect(f'/{ADMIN_URL}/')
 
-    # السيارات → Dashboard الفرع
+    # السيارات (وأي صناعة أخرى) → Dashboard مع فرض المصادقة
+    if not request.user.is_authenticated:
+        return redirect('/login/?next=/system/dashboard/')
     return redirect('/system/dashboard/')
 
 # =====================================================================
