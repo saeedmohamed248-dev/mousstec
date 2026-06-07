@@ -57,6 +57,22 @@ body {
 
 /* ── connect column ─────────────────────────────────────────── */
 .connect-actions { display: flex; flex-direction: column; gap: 10px; }
+.btn-link-fallback {
+    background: transparent;
+    border: none;
+    color: var(--muted, #8892a6);
+    font-size: 12px;
+    text-align: center;
+    padding: 4px 0 2px;
+    margin-top: -4px;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity .15s ease, color .15s ease;
+    align-self: center;
+}
+.btn-link-fallback:hover { opacity: 1; color: var(--accent, #4cc9f0); }
+.btn-link-fallback u { text-underline-offset: 3px; }
+.btn-link-fallback:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn {
     padding: 12px 16px; border: none; border-radius: 10px; cursor: pointer;
     font-family: inherit; font-weight: 700; font-size: 14px;
@@ -293,6 +309,12 @@ body {
             <button id="btnConnect" class="btn primary">
                 <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز ELM327
             </button>
+            <button id="btnConnectRelaxed" class="btn-link-fallback"
+                    title="استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية"
+                    aria-label="بحث شامل عن كل أجهزة البلوتوث">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                لا تظهر الفيشة؟ <u>بحث شامل عن كل الأجهزة</u>
+            </button>
             <button id="btnReadDTC" class="btn secondary" disabled>
                 <i class="fa-solid fa-list-check"></i> اقرأ أكواد الأعطال (Mode 03)
             </button>
@@ -464,6 +486,7 @@ body {
     const $ = (id) => document.getElementById(id);
     const statusPill = $('connStatus');
     const btnConnect = $('btnConnect');
+    const btnConnectRelaxed = $('btnConnectRelaxed');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -705,11 +728,19 @@ body {
     });
 
     // ── Button handlers ─────────────────────────────────────────
-    btnConnect.addEventListener('click', async () => {
+    // Shared connect flow. `relaxed: true` opens the Chrome picker with
+    // acceptAllDevices — used as a fallback when the strict picker hides
+    // a "ghost" dongle (e.g. IOS-Vlink clones that bury name + service UUID
+    // in the BLE scan response instead of the primary advertising packet).
+    async function runConnectFlow({ relaxed = false } = {}) {
+        btnConnect.disabled = true;
+        btnConnectRelaxed.disabled = true;
         try {
-            setStatus('idle', 'جاري الاقتران...');
-            const info = await obd.requestDevice();
-            log(`Picked device: ${info.name}`);
+            setStatus('idle', relaxed
+                ? 'بحث شامل... اختر أي جهاز يبدو أنه فيشة OBD'
+                : 'جاري الاقتران...');
+            const info = await obd.requestDevice({ relaxed });
+            log(`Picked device: ${info.name}${relaxed ? ' (relaxed mode)' : ''}`);
             await obd.connect();
             await obd.initialize();
             setButtons({ connected: true });
@@ -720,8 +751,12 @@ body {
         } catch (err) {
             log(`Connect failed: ${err.message}`, true);
             setStatus('error', 'فشل الاتصال');
+            btnConnect.disabled = false;
+            btnConnectRelaxed.disabled = false;
         }
-    });
+    }
+    btnConnect.addEventListener('click', () => runConnectFlow({ relaxed: false }));
+    btnConnectRelaxed.addEventListener('click', () => runConnectFlow({ relaxed: true }));
     btnReadDTC.addEventListener('click', async () => {
         try {
             log('Requesting Mode 03 (stored DTCs)…');
