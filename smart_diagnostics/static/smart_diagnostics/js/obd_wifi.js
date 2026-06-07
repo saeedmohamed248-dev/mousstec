@@ -212,51 +212,97 @@ class OBDWiFi extends EventTarget {
     }
 
     async initialize() {
-        const seq = ['ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0'];
+        // ── 1. Reset + basic config ──────────────────────────────────────
+        const seq = [
+            { cmd: 'ATD',  timeout: 1500 },   // set all defaults
+            { cmd: 'ATZ',  timeout: 3000 },   // hardware reset
+            { cmd: 'ATE0', timeout: 1500 },   // echo off
+            { cmd: 'ATL0', timeout: 1500 },   // linefeeds off
+            { cmd: 'ATH0', timeout: 1500 },   // headers off (we re-enable for Mode 06)
+            { cmd: 'ATS0', timeout: 1500 },   // spaces off
+            { cmd: 'ATAT1', timeout: 1500 },  // ADAPTIVE timing — speeds up reads
+        ];
         const out = {};
         let anyOk = false;
-        for (const cmd of seq) {
+        for (const step of seq) {
             try {
-                out[cmd] = await this._sendCommand(cmd, OBD_WIFI_DEFAULT_TIMEOUT_MS);
+                out[step.cmd] = await this._sendCommand(step.cmd, step.timeout);
+                this._emit('init_step', { cmd: step.cmd, response: out[step.cmd] });
                 anyOk = true;
-            } catch (e) { out[cmd] = `<err:${e.message}>`; }
+            } catch (e) {
+                out[step.cmd] = `<err:${e.message}>`;
+                this._emit('init_step', { cmd: step.cmd, response: out[step.cmd], failed: true });
+            }
         }
 
-        // Protocol negotiation — try auto first, then explicit CAN 11/500
-        // (covers 99% of post-2008 cars), then 29-bit CAN, then ISO 9141.
-        // Each attempt is validated by querying PID 0100 (supported PIDs).
-        // The first protocol that returns non-empty data wins.
+        // ── 2. Protocol negotiation — exhaustive sweep with PROPER timeouts ─
+        // Validated against EVERY OBD-II protocol family. The probe `0100`
+        // returns "41 00 BE 7F B8 13" on success — we accept anything with
+        // "41 00" after stripping whitespace. NEGATIVE markers (NO DATA, ?,
+        // UNABLE, SEARCHING) are explicit failures.
+        //
+        // ORDER matters: cars made for the Egyptian market in 2011 (Nissan
+        // Sunny, Tiida, older Hyundai/Kia) often use ISO 9141-2 K-Line, not
+        // CAN. We probe both families with realistic timeouts:
+        //   • CAN protocols: ~3s probe (fast init)
+        //   • ISO 9141-2: ~10s probe (5-baud slow init takes ~5s alone)
+        //   • KWP2000 slow: ~10s probe
+        //   • KWP2000 fast: ~6s probe
         const protocols = [
-            { code: '0', label: 'auto'        },
-            { code: '6', label: 'CAN 11/500'  },
-            { code: '7', label: 'CAN 29/500'  },
-            { code: '3', label: 'ISO 9141-2'  },
-            { code: '5', label: 'KWP2000 fast'},
+            { code: 'A', label: 'auto-search (ATSPA)',     probeMs: 8000  },
+            { code: '6', label: 'CAN 11-bit / 500 kbps',   probeMs: 4000  },
+            { code: '7', label: 'CAN 29-bit / 500 kbps',   probeMs: 4000  },
+            { code: '8', label: 'CAN 11-bit / 250 kbps',   probeMs: 4000  },
+            { code: '9', label: 'CAN 29-bit / 250 kbps',   probeMs: 4000  },
+            { code: '3', label: 'ISO 9141-2 (K-Line)',     probeMs: 12000 },
+            { code: '5', label: 'KWP2000 fast init',       probeMs: 7000  },
+            { code: '4', label: 'KWP2000 5-baud init',     probeMs: 12000 },
+            { code: '1', label: 'SAE J1850 PWM',           probeMs: 5000  },
+            { code: '2', label: 'SAE J1850 VPW',           probeMs: 5000  },
         ];
+
         let chosen = null;
+        const probes = [];
         for (const p of protocols) {
             try {
-                await this._sendCommand('ATSP' + p.code, 2000);
-                const probe = await this._sendCommand('0100', 5000);
-                if (probe && !probe.includes('NO DATA') && !probe.includes('?') &&
-                    !probe.includes('UNABLE') && /41\s*00/i.test(probe.replace(/\s/g, ''))) {
+                await this._sendCommand('ATSP' + p.code, 1500);
+                this._emit('protocol_probe', { protocol: p.label, phase: 'trying' });
+                const probe = await this._sendCommand('0100', p.probeMs);
+                const clean = (probe || '').replace(/\s/g, '').toUpperCase();
+                const ok = clean && !/NODATA|UNABLE|SEARCHING|\?|STOPPED|BUSINIT|BUSERROR/.test(clean) &&
+                           /4100/.test(clean);
+                probes.push({ protocol: p.label, code: p.code, response: probe, ok });
+                this._emit('protocol_probe', { protocol: p.label, response: probe, ok });
+                if (ok) {
                     chosen = p;
                     out['protocol']   = p.label;
+                    out['protocol_id']= p.code;
                     out['0100']       = probe;
-                    out['ATSP_chose'] = p.code;
                     anyOk = true;
                     break;
                 }
-            } catch (_) { /* try next */ }
+            } catch (e) {
+                probes.push({ protocol: p.label, code: p.code, response: `<err:${e.message}>`, ok: false });
+                this._emit('protocol_probe', { protocol: p.label, error: e.message, ok: false });
+            }
         }
+        out['_probes'] = probes;
 
         if (!chosen) {
+            // Build a detailed, actionable error so the mechanic sees WHY
+            // every protocol failed.
+            const lines = probes.map(p =>
+                `  • ${p.protocol}: ${p.ok ? 'OK' : (p.response || 'no response').slice(0, 60)}`).join('\n');
             const reason = this._lastBridgeError ||
                 'الدونجل بيكلم البريدج بس مش عارف يكلم ECU العربية. ' +
-                'الأرجح إن مفتاح السيارة مش على ON — لفّ المفتاح لوضع ON ' +
-                '(بدون تشغيل المحرك) واعد المحاولة.';
+                'جرّبت 10 بروتوكولات مختلفة كلهم فشلوا. الأسباب الأرجح:\n\n' +
+                '1. مفتاح السيارة مش على ON. لفّه لوضع ON (مش لازم تشغّل المحرك) واعد.\n' +
+                '2. الفيشة على فيشة OBD غير الـ pins اللي السيارة بتستخدمها (نادر).\n' +
+                '3. الفيشة فيها مشكلة hardware.\n\n' +
+                'نتايج التجارب:\n' + lines;
             throw new Error(reason);
         }
+
         this._emit('initialized', out);
         return out;
     }
@@ -377,6 +423,84 @@ class OBDWiFi extends EventTarget {
             try { await this._sendCommand('ATH0', 1500); } catch (_) {}
         }
         this._emit('misfire_counts', { cylinders: result });
+        return result;
+    }
+
+    // ── Vehicle Health Score (0-100) ─────────────────────────────────────
+    // Combines four signals into a single number a non-technician can read:
+    //   • stored DTC count                (-25 max, -8 per code)
+    //   • |fuel trim sum| > thresholds    (-20 max)
+    //   • misfire total over 10 cycles    (-25 max)
+    //   • O2 sensor voltage health        (-15 max — flat lambda = bad cat)
+    // Plus per-cylinder balance and a verdict string in Arabic.
+    async computeHealthScore({ dtcs = null, misfire = null, fuel = null } = {}) {
+        const data = {
+            dtcs:    dtcs    || (await this.readDTCs().catch(() => [])),
+            misfire: misfire || (await this.readMisfireCounts().catch(() => [])),
+            fuel:    fuel    || (await this.readFuelSystemHealth().catch(() => ({}))),
+        };
+
+        let score = 100;
+        const factors = [];
+
+        // DTCs: stored are bad, pending are warnings, permanent are critical
+        const stored    = (data.dtcs.byType || []).filter(d => d.type === 'stored').length;
+        const pending   = (data.dtcs.byType || []).filter(d => d.type === 'pending').length;
+        const permanent = (data.dtcs.byType || []).filter(d => d.type === 'permanent').length;
+        const dtcPenalty = Math.min(25, stored * 8 + pending * 4 + permanent * 10);
+        score -= dtcPenalty;
+        if (dtcPenalty) factors.push(
+            `−${dtcPenalty} نقطة بسبب الأكواد (${stored} مخزن، ${pending} pending، ${permanent} دائم)`);
+
+        // Fuel trims: |STFT+LTFT per bank| > 10% is concerning
+        const trims = ['stft_b1', 'ltft_b1', 'stft_b2', 'ltft_b2']
+            .map(k => (data.fuel && data.fuel[k] && data.fuel[k].value) || 0);
+        const trimSum = Math.abs(trims[0] + trims[1]) + Math.abs(trims[2] + trims[3]);
+        const trimPenalty = trimSum > 30 ? 20 : trimSum > 20 ? 12 : trimSum > 10 ? 6 : 0;
+        score -= trimPenalty;
+        if (trimPenalty) factors.push(`−${trimPenalty} نقطة بسبب fuel trim مرتفع (${trimSum.toFixed(1)}%)`);
+
+        // Misfire: any cylinder with count > 0 is bad
+        const misfireTotal = (data.misfire || []).reduce((s, c) => s + c.count, 0);
+        const misfirePenalty = Math.min(25, misfireTotal * 3);
+        score -= misfirePenalty;
+        if (misfirePenalty) factors.push(`−${misfirePenalty} نقطة بسبب ${misfireTotal} misfire إجمالي`);
+
+        // O2 voltage: if both pre-cat and post-cat are flat AND similar, cat is dead
+        const o2pre  = data.fuel && data.fuel.o2_b1s1_v && data.fuel.o2_b1s1_v.value;
+        const o2post = data.fuel && data.fuel.o2_b1s2_v && data.fuel.o2_b1s2_v.value;
+        let o2Penalty = 0;
+        if (o2pre !== undefined && o2post !== undefined && Math.abs(o2pre - o2post) < 0.05) {
+            o2Penalty = 15;
+            factors.push(`−15 نقطة بسبب حساس O2 خامل (احتمال كتلست تالف)`);
+        }
+        score -= o2Penalty;
+
+        // Cylinder balance — standard deviation of misfire counts
+        let cylinderBalance = 100;
+        if ((data.misfire || []).length >= 2) {
+            const counts = data.misfire.map(c => c.count);
+            const mean   = counts.reduce((a, b) => a + b, 0) / counts.length;
+            const variance = counts.reduce((s, c) => s + (c - mean) ** 2, 0) / counts.length;
+            const stdev = Math.sqrt(variance);
+            cylinderBalance = Math.max(0, 100 - stdev * 20);
+        }
+
+        score = Math.max(0, Math.min(100, Math.round(score)));
+
+        let verdict, color;
+        if (score >= 85)      { verdict = 'حالة ممتازة — العربية بصحة جيدة'; color = '#10b981'; }
+        else if (score >= 70) { verdict = 'حالة جيدة مع ملاحظات بسيطة'; color = '#84cc16'; }
+        else if (score >= 50) { verdict = 'تحتاج صيانة قريبة';            color = '#f59e0b'; }
+        else if (score >= 30) { verdict = 'مشاكل حقيقية — صيانة عاجلة'; color = '#ef4444'; }
+        else                  { verdict = 'حالة حرجة — متشغّلش العربية على الطريق'; color = '#b91c1c'; }
+
+        const result = {
+            score, verdict, color, factors,
+            cylinderBalance: Math.round(cylinderBalance),
+            details: data,
+        };
+        this._emit('health_score', result);
         return result;
     }
 

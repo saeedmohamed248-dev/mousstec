@@ -343,6 +343,31 @@ body {
                         title="فحص شامل لنظام الوقود: ضغط الطلمبة، معدل الحقن، حساس O2، نسبة الخلط (fuel trim)">
                     <i class="fa-solid fa-gas-pump"></i> صحة طلمبة البنزين ونظام الوقود
                 </button>
+                <button id="btnHealthScore" class="btn primary" disabled
+                        title="درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات (DTCs + misfire + fuel trims + O2) في رقم واحد">
+                    <i class="fa-solid fa-heart-pulse"></i> درجة صحة السيارة (0-100)
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Health score gauge ────────────────────────────────────── -->
+        <div id="healthPanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-heart-pulse"></i> درجة الصحة العامة</div>
+            <div id="healthGauge"
+                 style="display:flex; align-items:center; gap:18px; margin-top:10px;">
+                <div id="healthScoreCircle"
+                     style="width:96px; height:96px; border-radius:50%;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:36px; font-weight:900; color:#0f172a;
+                            box-shadow:0 6px 30px rgba(0,0,0,0.35);">
+                </div>
+                <div style="flex:1;">
+                    <div id="healthVerdict" style="font-size:15px; font-weight:700;"></div>
+                    <div id="healthBalance" style="font-size:12px; color:#94a3b8; margin-top:4px;"></div>
+                    <ul id="healthFactors"
+                        style="margin:8px 0 0 0; padding-inline-start:18px; font-size:12px;
+                               color:#cbd5e1; max-height:120px; overflow-y:auto;"></ul>
+                </div>
             </div>
         </div>
 
@@ -530,6 +555,7 @@ body {
     const btnConnectRelaxed = $('btnConnectRelaxed');
     const btnMisfire = $('btnMisfire');
     const btnFuelHealth = $('btnFuelHealth');
+    const btnHealthScore = $('btnHealthScore');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -571,8 +597,9 @@ body {
         btnReadDTC.disabled = !connected;
         btnClearDTC.disabled = !connected;
         btnDisconnect.disabled = !connected;
-        if (btnMisfire)    btnMisfire.disabled    = !connected;
-        if (btnFuelHealth) btnFuelHealth.disabled = !connected;
+        if (btnMisfire)     btnMisfire.disabled     = !connected;
+        if (btnFuelHealth)  btnFuelHealth.disabled  = !connected;
+        if (btnHealthScore) btnHealthScore.disabled = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -745,8 +772,26 @@ body {
             log(`Connected on ${where}`);
             setStatus('live', 'متصل');
         });
-        driver.addEventListener('initialized', () => {
-            log('ELM327 initialised (ATZ → ATSP0 OK)');
+        driver.addEventListener('init_step', (e) => {
+            const tag = e.detail.failed ? '❌' : '✓';
+            const resp = (e.detail.response || '').replace(/\s+/g, ' ').slice(0, 40);
+            log(`  ${tag} ${e.detail.cmd} → ${resp}`);
+        });
+        driver.addEventListener('protocol_probe', (e) => {
+            if (e.detail.phase === 'trying') {
+                log(`  → جاري تجربة: ${e.detail.protocol}`);
+                return;
+            }
+            if (e.detail.ok) {
+                log(`  ✅ بروتوكول نجح: ${e.detail.protocol}`);
+            } else {
+                const resp = (e.detail.response || e.detail.error || 'no reply').slice(0, 50);
+                log(`  ❌ فشل ${e.detail.protocol}: ${resp}`);
+            }
+        });
+        driver.addEventListener('initialized', (e) => {
+            const p = e.detail && e.detail.protocol ? ` على ${e.detail.protocol}` : '';
+            log(`ELM327 جاهز${p} — البيانات هتبدأ تظهر.`);
         });
         driver.addEventListener('vin', (e) => {
             lastVIN = e.detail.vin;
@@ -779,6 +824,10 @@ body {
         driver.addEventListener('fuel_health', (e) => {
             renderFuelHealth(e.detail);
             log(`Fuel system: ${e.detail._verdict}`);
+        });
+        driver.addEventListener('health_score', (e) => {
+            renderHealthScore(e.detail);
+            log(`Health score: ${e.detail.score}/100 — ${e.detail.verdict}`);
         });
         driver.addEventListener('disconnected', () => {
             log('Disconnected', true);
@@ -946,6 +995,22 @@ body {
         }
     });
 
+    if (btnHealthScore) btnHealthScore.addEventListener('click', async () => {
+        if (typeof obd.computeHealthScore !== 'function') {
+            log('Health score requires Wi-Fi driver. Reconnect via Wi-Fi.', true);
+            return;
+        }
+        try {
+            btnHealthScore.disabled = true;
+            log('Composing vehicle health score (DTCs + misfire + fuel + O2)…');
+            await obd.computeHealthScore();
+        } catch (e) {
+            log(`Health score failed: ${e.message}`, true);
+        } finally {
+            btnHealthScore.disabled = !obd.isConnected;
+        }
+    });
+
     // ── Renderers for the new advanced panels ───────────────────────────
     function renderMisfire(cyls) {
         const panel = $('misfirePanel');
@@ -978,6 +1043,35 @@ body {
             ? '✅ كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل.'
             : `⚠️ مجموع ${total} misfire — أعلى سلندر: <b>سلندر ${worst.cylinder}</b> (${worst.count} مرة). ` +
               'افحص شمعة، كويل، أو إنجكتر السلندر ده الأول.';
+    }
+
+    function renderHealthScore(h) {
+        const panel  = $('healthPanel');
+        const circle = $('healthScoreCircle');
+        const verdictEl = $('healthVerdict');
+        const balanceEl = $('healthBalance');
+        const ul        = $('healthFactors');
+        panel.style.display = 'block';
+        circle.style.background = `conic-gradient(${h.color} ${h.score}%, rgba(255,255,255,0.08) 0)`;
+        circle.innerHTML = `<div style="background:#0f172a; width:78px; height:78px;
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
+            color:${h.color}; font-size:30px; font-weight:900;">${h.score}</div>`;
+        verdictEl.textContent = h.verdict;
+        verdictEl.style.color = h.color;
+        balanceEl.textContent = `توازن السلندرات: ${h.cylinderBalance}/100`;
+        ul.innerHTML = '';
+        if (!h.factors.length) {
+            const li = document.createElement('li');
+            li.textContent = 'مفيش عوامل سلبية مكتشفة. كل القراءات طبيعية.';
+            li.style.color = '#86efac';
+            ul.appendChild(li);
+        } else {
+            for (const f of h.factors) {
+                const li = document.createElement('li');
+                li.textContent = f;
+                ul.appendChild(li);
+            }
+        }
     }
 
     function renderFuelHealth(snap) {
