@@ -71,6 +71,51 @@ const SERVICE_BLOCKLIST = new Set([
     '0000180f-0000-1000-8000-00805f9b34fb',   // Battery
 ]);
 
+// ── requestDevice() pairing filters ─────────────────────────────────────
+// We pass these as `filters: [...]` to navigator.bluetooth.requestDevice.
+// Chrome treats each entry as OR — a device matching ANY entry appears in
+// the picker, and EVERYTHING ELSE (TVs, headphones, watches, random MACs
+// in the auto-repair shop) is hidden. This is the strict-UX path.
+//
+// We deliberately combine TWO families of filters because real-world ELM327
+// clones split into two camps:
+//   1. Dongles that advertise their service UUID in the primary adv packet
+//      → caught by the `services:[...]` filters below.
+//   2. Dongles that hide the service UUID in the scan response and only
+//      put their NAME in the primary adv (very common on cheap clones)
+//      → caught by the `namePrefix:` filters below.
+const PAIRING_FILTERS = [
+    // ── 1. Service-UUID filters (most reliable when the dongle cooperates)
+    { services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] },   // HM-10 / TI CC254x
+    { services: ['0000fff0-0000-1000-8000-00805f9b34fb'] },   // Generic Chinese SPP-over-BLE
+    { services: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] },   // Nordic UART (Vgate iCar Pro BLE 4.0)
+    { services: ['0000fee0-0000-1000-8000-00805f9b34fb'] },   // Telit / Konnwei / ANCEL
+    { services: ['49535343-fe7d-4ae5-8fa9-9fafd205e455'] },   // Microchip RN487x
+
+    // ── 2. Name-prefix filters (covers every well-known ELM327 brand) ──
+    //    These names come from the BLE adv "Local Name" field. They match
+    //    case-sensitively as a prefix, so "OBD" matches "OBDII", "OBD-II",
+    //    "OBDBLE", "OBDLink CX", etc. in one shot.
+    { namePrefix: 'OBD' },          // OBDII, OBD-II, OBDBLE, OBDLink, OBDFusion…
+    { namePrefix: 'ELM' },          // ELM327, ELM-327
+    { namePrefix: 'V-LINK' },       // Vgate V-LINK
+    { namePrefix: 'VLINK' },        // Vgate VLINK
+    { namePrefix: 'Vgate' },        // Vgate iCar 2/Pro/BLE
+    { namePrefix: 'iCar' },         // iCar Pro BLE 4.0
+    { namePrefix: 'Konnwei' },      // KW902, KW903
+    { namePrefix: 'KW' },           // bare KW902 / KW903 name
+    { namePrefix: 'ANCEL' },        // ANCEL BD200
+    { namePrefix: 'Veepeak' },      // Veepeak BLE+
+    { namePrefix: 'VEEPEAK' },
+    { namePrefix: 'BlueDriver' },   // BlueDriver Pro
+    { namePrefix: 'Carista' },
+    { namePrefix: 'FIXD' },
+    { namePrefix: 'TONWON' },
+    { namePrefix: 'IOS-Vlink' },    // an alias seen on iCar clones
+    { namePrefix: 'BT05' },         // bare HM-10 clones
+    { namePrefix: 'JDY' },          // bare JDY-08 clones
+];
+
 // ── ELM327 protocol constants ───────────────────────────────────────────
 const PROMPT_BYTE = '>';
 const CR = '\r';
@@ -101,7 +146,9 @@ function humanizeBluetoothError(err) {
         return {
             title: 'Pairing cancelled',
             hint:  'You closed the Bluetooth picker before selecting a dongle. ' +
-                   'Click "Connect to OBD" again and pick the ELM327 device from the list.',
+                   'Click "Connect to OBD" again. If the picker is empty, your ' +
+                   'specific dongle model may not advertise a recognised name — ' +
+                   'click "Show all devices" to switch to relaxed pairing.',
             recoverable: true,
         };
     }
@@ -196,9 +243,12 @@ class OBDBluetooth extends EventTarget {
     }
 
     // ── Convenience one-shot — pair + connect + locate UART. ────────────
-    async pairAndConnect() {
+    // Pass `{ relaxed: true }` to fall back to acceptAllDevices in the rare
+    // case the user's specific dongle advertises neither a known name nor a
+    // known service UUID. Default is the strict filtered picker.
+    async pairAndConnect(opts = {}) {
         try {
-            await this.requestDevice();
+            await this.requestDevice(opts);
             await this.connect();
             return { name: this.device.name || 'OBD-II', id: this.device.id };
         } catch (err) {
@@ -209,7 +259,12 @@ class OBDBluetooth extends EventTarget {
     }
 
     // 1. Pairing — MUST be called from a user gesture (button click handler).
-    async requestDevice() {
+    //    By default uses STRICT filters so the Chrome picker only shows
+    //    known ELM327 dongles (hides TVs, headphones, watches, random MACs).
+    //    Pass `{ relaxed: true }` to fall back to acceptAllDevices for the
+    //    rare edge-case dongle that advertises neither a known name nor a
+    //    known service UUID.
+    async requestDevice({ relaxed = false } = {}) {
         if (!('bluetooth' in navigator)) {
             throw new Error('Web Bluetooth not supported in this browser.');
         }
@@ -221,16 +276,24 @@ class OBDBluetooth extends EventTarget {
         }
 
         this._emit('status', { phase: 'requesting',
-            message: 'Opening Bluetooth picker — choose your OBD-II dongle…' });
+            message: relaxed
+                ? 'Opening Bluetooth picker (relaxed mode — all devices visible)…'
+                : 'Opening Bluetooth picker — only ELM327 dongles will be listed…' });
 
-        // acceptAllDevices because ELM327 clones advertise inconsistent names
-        // ("OBDII", "OBD-II", "V-LINK", "Vgate iCar Pro", bare MAC). We then
-        // need optionalServices populated with EVERY UUID family we might
-        // talk to post-pairing, otherwise getPrimaryService() will reject.
-        this.device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: KNOWN_SERVICE_UUIDS,
-        });
+        // STRICT mode (default): each entry in `filters` is an OR clause —
+        // a device matching ANY entry appears, everything else is hidden.
+        // `optionalServices` MUST still be populated with the full UUID list
+        // so getPrimaryService() can reach UART services that weren't part
+        // of the filter clause that matched.
+        //
+        // RELAXED mode: opt-in fallback that mirrors the old behaviour
+        // (acceptAllDevices) — only use it when the strict picker truly
+        // shows nothing for a given dongle model.
+        const config = relaxed
+            ? { acceptAllDevices: true, optionalServices: KNOWN_SERVICE_UUIDS }
+            : { filters: PAIRING_FILTERS, optionalServices: KNOWN_SERVICE_UUIDS };
+
+        this.device = await navigator.bluetooth.requestDevice(config);
 
         this.device.addEventListener('gattserverdisconnected', () => {
             this._streaming = false;
@@ -528,4 +591,4 @@ class OBDBluetooth extends EventTarget {
 // Browser exports — picked up by the Diagnostics Room template.
 window.OBDBluetooth = OBDBluetooth;
 window.humanizeBluetoothError = humanizeBluetoothError;
-window.__OBD_TEST__ = { PIDS, KNOWN_SERVICE_UUIDS, SERVICE_BLOCKLIST };
+window.__OBD_TEST__ = { PIDS, KNOWN_SERVICE_UUIDS, SERVICE_BLOCKLIST, PAIRING_FILTERS };
