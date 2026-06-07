@@ -315,6 +315,10 @@ body {
                 <i class="fa-solid fa-magnifying-glass"></i>
                 لا تظهر الفيشة؟ <u>بحث شامل عن كل الأجهزة</u>
             </button>
+            <button id="btnConnectWiFi" class="btn secondary"
+                    title="للفيشات اللي بتشتغل Wi-Fi فقط — يحتاج تشغيل obd_wifi_bridge.py على اللاب">
+                <i class="fa-solid fa-wifi"></i> اتصل عبر Wi-Fi (الجسر المحلي)
+            </button>
             <button id="btnReadDTC" class="btn secondary" disabled>
                 <i class="fa-solid fa-list-check"></i> اقرأ أكواد الأعطال (Mode 03)
             </button>
@@ -466,7 +470,8 @@ body {
 <!-- ── Toast ── -->
 <div id="toast" class="toast"></div>
 
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=3-strict-filters"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=4-wifi-bridge"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=1-wifi-bridge"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -476,7 +481,10 @@ body {
         return;
     }
 
-    const obd = new OBDBluetooth();
+    // `obd` is mutable so the Wi-Fi button can swap it for an OBDWiFi instance
+    // when the dongle is Wi-Fi-only. All button handlers below capture `obd`
+    // by binding, so reassignment is picked up on the next click.
+    let obd = new OBDBluetooth();
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const CHAT_URL = "{% url 'smart_diagnostics:diagnostics-room-chat' %}";
     const JOB_CARDS_URL = "{% url 'smart_diagnostics:diagnostics-room-job-cards' %}";
@@ -689,43 +697,50 @@ body {
         }
     }
 
-    // ── Wire OBD events ─────────────────────────────────────────
-    obd.addEventListener('connected', (e) => {
-        log(`Connected on service ${e.detail.service}`);
-        setStatus('live', 'متصل');
-    });
-    obd.addEventListener('initialized', (e) => {
-        log('ELM327 initialised (ATZ → ATSP0 OK)');
-    });
-    obd.addEventListener('vin', (e) => {
-        lastVIN = e.detail.vin;
-        log(`VIN read: ${lastVIN}`);
-        const pill = $('vinPill');
-        $('vinText').textContent = lastVIN;
-        pill.style.display = 'inline-flex';
-        pill.className = 'pill live';
-    });
-    obd.addEventListener('live', (e) => {
-        lastSnapshot = e.detail;
-        renderGauges(e.detail);
-    });
-    obd.addEventListener('dtcs', (e) => {
-        lastDTCs = e.detail.codes;
-        renderDTCs(e.detail.codes);
-        log(`Mode 03 → ${e.detail.codes.length} DTC(s)`);
-        // Auto-trigger the AI when fresh DTCs land — this is the killer UX.
-        askAI({ autoTriggered: true });
-    });
-    obd.addEventListener('dtcs_cleared', () => {
-        lastDTCs = [];
-        renderDTCs([]);
-        log('Mode 04 → DTCs cleared');
-    });
-    obd.addEventListener('disconnected', () => {
-        log('Disconnected', true);
-        setStatus('idle', 'غير متصل');
-        setButtons({ connected: false });
-    });
+    // ── Wire OBD events (called once per driver instance) ───────────────
+    // Wraps the same listeners for either OBDBluetooth or OBDWiFi — both
+    // dispatch identical CustomEvents.
+    function wireDriverEvents(driver) {
+        driver.addEventListener('connected', (e) => {
+            const where = e.detail.transport === 'wifi'
+                ? `Wi-Fi bridge (${e.detail.url})`
+                : `service ${e.detail.service}`;
+            log(`Connected on ${where}`);
+            setStatus('live', 'متصل');
+        });
+        driver.addEventListener('initialized', () => {
+            log('ELM327 initialised (ATZ → ATSP0 OK)');
+        });
+        driver.addEventListener('vin', (e) => {
+            lastVIN = e.detail.vin;
+            log(`VIN read: ${lastVIN}`);
+            const pill = $('vinPill');
+            $('vinText').textContent = lastVIN;
+            pill.style.display = 'inline-flex';
+            pill.className = 'pill live';
+        });
+        driver.addEventListener('live', (e) => {
+            lastSnapshot = e.detail;
+            renderGauges(e.detail);
+        });
+        driver.addEventListener('dtcs', (e) => {
+            lastDTCs = e.detail.codes;
+            renderDTCs(e.detail.codes);
+            log(`Mode 03 → ${e.detail.codes.length} DTC(s)`);
+            askAI({ autoTriggered: true });
+        });
+        driver.addEventListener('dtcs_cleared', () => {
+            lastDTCs = [];
+            renderDTCs([]);
+            log('Mode 04 → DTCs cleared');
+        });
+        driver.addEventListener('disconnected', () => {
+            log('Disconnected', true);
+            setStatus('idle', 'غير متصل');
+            setButtons({ connected: false });
+        });
+    }
+    wireDriverEvents(obd);
 
     // ── Button handlers ─────────────────────────────────────────
     // Shared connect flow. `relaxed: true` opens the Chrome picker with
@@ -757,6 +772,41 @@ body {
     }
     btnConnect.addEventListener('click', () => runConnectFlow({ relaxed: false }));
     btnConnectRelaxed.addEventListener('click', () => runConnectFlow({ relaxed: true }));
+
+    // ── Wi-Fi connect flow ──────────────────────────────────────────────
+    // For ELM327 dongles that only expose the OBD stream over Wi-Fi (no BLE
+    // UART). Requires the mechanic to be on the dongle's Wi-Fi network AND
+    // to have `python obd_wifi_bridge.py` running on the laptop. The bridge
+    // exposes ws://127.0.0.1:8765 which we connect to via OBDWiFi.
+    const btnConnectWiFi = $('btnConnectWiFi');
+    btnConnectWiFi.addEventListener('click', async () => {
+        btnConnect.disabled = true;
+        btnConnectRelaxed.disabled = true;
+        btnConnectWiFi.disabled = true;
+        try {
+            if (typeof OBDWiFi !== 'function') {
+                throw new Error('OBDWiFi driver لم يُحمَّل — أعد تحميل الصفحة.');
+            }
+            // Cleanly drop any previous driver (BLE or stale WiFi).
+            try { await obd.disconnect(); } catch (_) {}
+
+            setStatus('idle', 'جاري الاتصال بالجسر المحلي...');
+            obd = new OBDWiFi();
+            wireDriverEvents(obd);
+
+            await obd.connect();                       // ws://127.0.0.1:8765
+            await obd.initialize();
+            setButtons({ connected: true });
+            obd.readVIN().catch(err => log(`VIN unavailable: ${err.message}`, true));
+            obd.streamLiveData({ intervalMs: 800 });
+        } catch (err) {
+            log(`Wi-Fi connect failed: ${err.message}`, true);
+            setStatus('error', 'فشل الاتصال بالجسر');
+            btnConnect.disabled = false;
+            btnConnectRelaxed.disabled = false;
+            btnConnectWiFi.disabled = false;
+        }
+    });
 
     // ── SILENT auto-reconnect on page load ──────────────────────────────
     // If the mechanic already paired this dongle once (even via relaxed
