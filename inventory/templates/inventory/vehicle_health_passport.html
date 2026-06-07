@@ -218,10 +218,106 @@ body {
     padding: 24px; background: rgba(15, 23, 42, 0.4);
     border: 1px dashed rgba(148, 163, 184, 0.15); border-radius: 8px;
 }
+
+/* ── Share button + modal (internal view only) ───────────────── */
+.actions-bar {
+    display: flex; gap: 10px; justify-content: flex-end;
+    margin-bottom: 14px;
+}
+.actions-bar a, .actions-bar button {
+    padding: 10px 18px; border-radius: 8px;
+    font-family: inherit; font-weight: 700; font-size: 13px;
+    cursor: pointer; text-decoration: none; border: none;
+    display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-share-wa {
+    background: linear-gradient(135deg, #25d366, #1ebe5b); color: #fff;
+}
+.btn-share-wa:hover { filter: brightness(1.1); }
+.btn-share-wa:disabled {
+    background: rgba(148, 163, 184, 0.15); color: #64748b; cursor: not-allowed;
+}
+
+.modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(4px);
+    z-index: 200; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-backdrop.visible { display: flex; }
+.modal {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(37, 211, 102, 0.3); border-radius: 14px;
+    padding: 24px; max-width: 580px; width: 100%;
+    max-height: 88vh; overflow-y: auto;
+}
+.modal h3 {
+    font-size: 17px; display: flex; align-items: center; gap: 10px;
+    margin-bottom: 6px;
+}
+.modal h3 i { color: #25d366; }
+.modal .sub {
+    font-size: 12px; color: #94a3b8;
+    padding-bottom: 12px; margin-bottom: 14px;
+    border-bottom: 1px solid rgba(148,163,184,0.15);
+}
+.modal .preview-body {
+    background: rgba(0, 0, 0, 0.35); padding: 14px; border-radius: 8px;
+    font-size: 12px; line-height: 1.85; white-space: pre-wrap;
+    color: #e2e8f0; border-right: 3px solid #25d366;
+    margin-bottom: 16px;
+}
+.modal .link-row {
+    display: flex; gap: 6px; margin-bottom: 14px;
+    background: rgba(0,0,0,0.3); padding: 10px;
+    border-radius: 6px; border: 1px solid rgba(148,163,184,0.1);
+}
+.modal .link-row input {
+    flex: 1; background: transparent; border: none;
+    color: #fbbf24; font-family: monospace; font-size: 11px;
+    outline: none;
+}
+.modal .link-row .copy-btn {
+    background: rgba(56, 189, 248, 0.15); color: #7dd3fc;
+    border: none; padding: 4px 10px; border-radius: 4px;
+    cursor: pointer; font-size: 11px; font-family: inherit;
+}
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions a, .modal-actions button {
+    flex: 1; padding: 12px; border-radius: 8px;
+    font-family: inherit; font-weight: 900; font-size: 13px;
+    text-align: center; text-decoration: none; border: none; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.modal-actions .send {
+    background: linear-gradient(135deg, #25d366, #1ebe5b); color: #fff;
+}
+.modal-actions .cancel {
+    background: rgba(148, 163, 184, 0.1); color: #cbd5e1;
+}
+.toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    padding: 12px 22px; border-radius: 10px;
+    font-weight: 700; font-size: 13px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    opacity: 0; transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none; z-index: 300;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+.toast.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #052e0a; }
+.toast.error   { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
 </style>
 </head>
 <body>
 <div class="shell">
+
+    {% if not public_share %}
+    {# Advisor-only share toolbar — suppressed on the public token view #}
+    <div class="actions-bar">
+        <button type="button" id="btnSharePassport" class="btn-share-wa">
+            <i class="fa-brands fa-whatsapp"></i> شارك الجواز مع العميل
+        </button>
+    </div>
+    {% endif %}
 
     {# ═══ HERO ═══════════════════════════════════════════════════ #}
     {% with score=vehicle.ai_health_score %}
@@ -460,6 +556,113 @@ body {
 
     </div>
 </div>
+
+{% if not public_share %}
+{# ── Share-link modal (internal view only) ── #}
+<div id="shareModal" class="modal-backdrop">
+    <div class="modal">
+        <h3><i class="fa-brands fa-whatsapp"></i> شارك الجواز الصحي للسيارة</h3>
+        <div class="sub">
+            إلى: <strong id="shareCustomer">—</strong>
+            · <span id="shareVehicle">—</span>
+        </div>
+
+        <div class="link-row">
+            <input type="text" id="shareUrlInput" readonly>
+            <button type="button" class="copy-btn" id="btnCopyLink">انسخ</button>
+        </div>
+
+        <div class="preview-body" id="sharePreview">—</div>
+
+        <div class="modal-actions">
+            <a id="shareWaLink" class="send" target="_blank" rel="noopener">
+                <i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل
+            </a>
+            <button type="button" class="cancel" id="btnCloseShare">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(function () {
+    function getCsrf() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function showToast(msg, kind='success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = `toast visible ${kind}`;
+        setTimeout(() => { t.className = `toast ${kind}`; }, 2800);
+    }
+    const SHARE_LINK_URL =
+        "{% url 'inventory:vehicle_passport_share_link' vehicle.chassis_number %}";
+
+    document.getElementById('btnSharePassport').addEventListener('click', async () => {
+        const btn = document.getElementById('btnSharePassport');
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحضير...';
+        try {
+            const resp = await fetch(SHARE_LINK_URL, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrf() },
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                showToast(data.error || 'فشل التحضير', 'error');
+                return;
+            }
+            document.getElementById('shareCustomer').textContent = data.customer_name;
+            document.getElementById('shareVehicle').textContent = data.vehicle_label;
+            document.getElementById('shareUrlInput').value = data.share_url;
+            document.getElementById('sharePreview').textContent = data.message_preview;
+            const waLink = document.getElementById('shareWaLink');
+            if (data.has_phone) {
+                waLink.href = data.wa_url;
+                waLink.style.pointerEvents = '';
+                waLink.style.opacity = '1';
+                waLink.innerHTML =
+                    '<i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل';
+            } else {
+                waLink.href = '#';
+                waLink.style.pointerEvents = 'none';
+                waLink.style.opacity = '0.5';
+                waLink.innerHTML =
+                    '<i class="fa-solid fa-phone-slash"></i> العميل بدون رقم — انسخ الرابط';
+            }
+            document.getElementById('shareModal').classList.add('visible');
+        } catch (err) {
+            showToast(`خطأ: ${err.message}`, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    });
+
+    document.getElementById('btnCloseShare').addEventListener('click', () => {
+        document.getElementById('shareModal').classList.remove('visible');
+    });
+    document.getElementById('shareModal').addEventListener('click', (e) => {
+        if (e.target.id === 'shareModal')
+            document.getElementById('shareModal').classList.remove('visible');
+    });
+    document.getElementById('btnCopyLink').addEventListener('click', () => {
+        const input = document.getElementById('shareUrlInput');
+        input.select();
+        try {
+            navigator.clipboard.writeText(input.value);
+            showToast('تم نسخ الرابط');
+        } catch (_) {
+            document.execCommand('copy');
+            showToast('تم نسخ الرابط');
+        }
+    });
+})();
+</script>
+{% endif %}
 
 <script>
 // Animate the health ring on load

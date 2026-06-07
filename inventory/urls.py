@@ -111,6 +111,11 @@ urlpatterns = [
     path('crm/nudge/<int:nudge_id>/whatsapp/', views.retention_send_whatsapp, name='retention_send_whatsapp'),
     path('crm/nudge/<int:nudge_id>/dismiss/', views.retention_dismiss, name='retention_dismiss'),
     path('crm/retention/refresh/', views.retention_refresh, name='retention_refresh'),
+    # 🔎 CRM vehicle search (autocomplete)
+    path('crm/search/', views.crm_vehicle_search, name='crm_vehicle_search'),
+    # 🪪 Public Vehicle Health Passport via signed token
+    path('passport/share/<str:token>/', views.vehicle_passport_share, name='vehicle_passport_share'),
+    path('vehicle/<str:chassis_number>/passport/share-link/', views.vehicle_passport_share_link, name='vehicle_passport_share_link'),
     path('invoice/<int:invoice_id>/ai-diagnostics/pdf/', views.ai_diag_pdf, name='ai_diag_pdf'),
     # Public signed link — works without login (used for WhatsApp share)
     path('ai-diagnostics/share/<str:token>/', views.ai_diag_share, name='ai_diag_share'),

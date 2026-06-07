@@ -34,6 +34,60 @@ body {
 .refresh-btn:hover { filter: brightness(1.2); }
 .refresh-btn:disabled { opacity: 0.5; cursor: wait; }
 
+/* ── Search ────────────────────────────────────────────────── */
+.search-wrap {
+    position: relative; min-width: 320px; flex: 1; max-width: 480px;
+}
+.search-wrap input {
+    width: 100%; padding: 10px 16px 10px 38px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px; color: #e2e8f0;
+    font-family: inherit; font-size: 13px;
+}
+.search-wrap input:focus {
+    outline: none; border-color: #38bdf8;
+    background: rgba(15, 23, 42, 0.95);
+}
+.search-wrap .icon {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8; font-size: 13px; pointer-events: none;
+}
+.search-results {
+    position: absolute; top: calc(100% + 6px); right: 0; left: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px;
+    max-height: 420px; overflow-y: auto; z-index: 50;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    display: none;
+}
+.search-results.visible { display: block; }
+.search-results .row {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 14px; text-decoration: none; color: #e2e8f0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    transition: background 0.12s;
+}
+.search-results .row:hover { background: rgba(56, 189, 248, 0.08); }
+.search-results .row .who {
+    font-weight: 700; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.search-results .row .who .phone {
+    font-size: 11px; color: #94a3b8; font-family: monospace;
+}
+.search-results .row .veh {
+    font-size: 12px; color: #cbd5e1;
+}
+.search-results .row .veh .vin {
+    font-family: monospace; color: #fbbf24; font-size: 10px;
+    background: rgba(0, 0, 0, 0.3); padding: 1px 6px; border-radius: 4px;
+    margin-right: 6px;
+}
+.search-results .empty-search {
+    padding: 16px; text-align: center; color: #64748b; font-size: 12px;
+}
+
 /* ── KPIs ────────────────────────────────────────────────────── */
 .kpi-strip {
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -225,6 +279,15 @@ body {
 
     <div class="topbar">
         <h1>💚 الاحتفاظ بالعملاء — Retention CRM</h1>
+
+        <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass icon"></i>
+            <input type="text" id="searchInput" autocomplete="off"
+                   placeholder="ابحث بالاسم، الهاتف، اللوحة، أو VIN..."
+                   aria-label="بحث">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
         <div style="display:flex;gap:10px;align-items:center;">
             <span class="meta">المسؤول: {{ reviewer_name }}</span>
             <button class="refresh-btn" id="btnRefresh">
@@ -392,6 +455,74 @@ body {
                 showToast(`خطأ: ${err.message}`, 'error');
             }
         });
+    });
+
+    // ── CRM vehicle search ──
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const SEARCH_URL = "{% url 'inventory:crm_vehicle_search' %}";
+    let searchDebounce = null;
+    let lastQuery = '';
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"]/g,
+            c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    function renderResults(data) {
+        if (!data.results || !data.results.length) {
+            searchResults.innerHTML =
+                '<div class="empty-search">لا توجد نتائج مطابقة.</div>';
+            searchResults.classList.add('visible');
+            return;
+        }
+        searchResults.innerHTML = data.results.map(r => `
+            <a class="row" href="${escapeHtml(r.passport_url)}" target="_blank">
+                <div class="who">
+                    <span>${escapeHtml(r.customer_name) || '— بدون اسم —'}</span>
+                    <span class="phone">${escapeHtml(r.customer_phone) || '—'}</span>
+                </div>
+                <div class="veh">
+                    ${escapeHtml(r.brand)} ${escapeHtml(r.model)}
+                    ${r.plate ? '· لوحة ' + escapeHtml(r.plate) : ''}
+                    <span class="vin">${escapeHtml(r.vin.slice(-8))}</span>
+                </div>
+            </a>
+        `).join('');
+        searchResults.classList.add('visible');
+    }
+
+    searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        clearTimeout(searchDebounce);
+        if (q.length < 2) {
+            searchResults.classList.remove('visible');
+            return;
+        }
+        if (q === lastQuery) return;
+        searchDebounce = setTimeout(async () => {
+            lastQuery = q;
+            try {
+                const resp = await fetch(
+                    SEARCH_URL + '?q=' + encodeURIComponent(q));
+                const data = await resp.json();
+                renderResults(data);
+            } catch (err) {
+                searchResults.innerHTML =
+                    '<div class="empty-search">خطأ في الاتصال.</div>';
+                searchResults.classList.add('visible');
+            }
+        }, 240);
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-wrap'))
+            searchResults.classList.remove('visible');
+    });
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            searchResults.classList.remove('visible');
+            searchInput.blur();
+        }
     });
 
     // ── On-demand bulk refresh ──

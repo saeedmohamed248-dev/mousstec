@@ -3770,3 +3770,250 @@ def retention_refresh(request):
         return JsonResponse({"error": "refresh_failed"}, status=500)
 
     return JsonResponse({"ok": True, **result})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔎 CRM Search — name / phone / VIN → Vehicle Health Passport
+# ─────────────────────────────────────────────────────────────────────
+@login_required(login_url='/login/')
+@tenant_required
+def crm_vehicle_search(request):
+    """GET ?q=<term> → JSON list of matching vehicles for the CRM
+    autocomplete. Searches Customer.name, Customer.phone, and
+    Vehicle.chassis_number + Vehicle.car_plate. Capped at 12 results.
+
+    RBAC: sales / cashier / accountant / admin / manager / superuser.
+    """
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    q = (request.GET.get('q') or '').strip()
+    if len(q) < 2:
+        return JsonResponse({"query": q, "results": []})
+
+    try:
+        from django.db.models import Q
+        qs = (
+            Vehicle.objects.select_related('customer').filter(
+                Q(customer__name__icontains=q) |
+                Q(customer__phone__icontains=q) |
+                Q(chassis_number__icontains=q.upper()) |
+                Q(car_plate__icontains=q)
+            )
+            .order_by('-id')[:12]
+        )
+        results = [{
+            "vin": v.chassis_number,
+            "plate": v.car_plate or '',
+            "brand": v.brand or '',
+            "model": v.model_name or '',
+            "customer_name": v.customer.name if v.customer_id else '',
+            "customer_phone": v.customer.phone if v.customer_id else '',
+            "passport_url": (
+                request.build_absolute_uri('/system/crm/vehicle/')
+                + v.chassis_number + '/'
+            ),
+        } for v in qs]
+    except Exception as exc:
+        logger.exception("[crm_vehicle_search] failed: %s", exc)
+        results = []
+
+    return JsonResponse({"query": q, "results": results, "count": len(results)})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🪪 Public Vehicle Health Passport — signed share for WhatsApp delivery
+# ─────────────────────────────────────────────────────────────────────
+_PASSPORT_SHARE_SALT = 'vehicle-passport-share-v1'
+_PASSPORT_SHARE_MAX_AGE = 30 * 24 * 60 * 60   # 30 days
+
+
+def _sign_passport_share(chassis_number, tenant_schema):
+    """Bind the token to BOTH chassis_number and tenant_schema so a token
+    from workshop A can't be replayed against workshop B's vehicle with
+    the same VIN — even though VINs are globally unique, a leaked token
+    must not cross schema boundaries."""
+    from django.core.signing import TimestampSigner
+    signer = TimestampSigner(salt=_PASSPORT_SHARE_SALT)
+    return signer.sign(f"{tenant_schema}:{chassis_number.upper()}")
+
+
+def _unsign_passport_share(token, tenant_schema):
+    from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+    signer = TimestampSigner(salt=_PASSPORT_SHARE_SALT)
+    try:
+        raw = signer.unsign(token, max_age=_PASSPORT_SHARE_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+    try:
+        schema, vin = raw.split(':', 1)
+        if schema != tenant_schema:
+            return None
+        return vin
+    except (ValueError, TypeError):
+        return None
+
+
+@csrf_exempt
+def vehicle_passport_share(request, token):
+    """Public, signed access to the Vehicle Health Passport — no login.
+
+    Reuses the existing `vehicle_health_passport` template but passes
+    `public_share=True` so internal-only elements (the share-WhatsApp
+    button, the link to the Job Card review) are suppressed.
+
+    Token lifetime: 30 days (longer than the Diagnostic share — passports
+    are slow-moving artefacts; a customer might come back to it weeks later).
+    """
+    tenant = getattr(request, 'tenant', None)
+    tenant_schema = getattr(tenant, 'schema_name', '') or ''
+    vin = _unsign_passport_share(token, tenant_schema)
+    if vin is None:
+        return HttpResponse(
+            "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً.",
+            status=410, content_type='text/html; charset=utf-8',
+        )
+
+    vehicle = (Vehicle.objects
+               .select_related('customer')
+               .prefetch_related(
+                   'diagnostic_reports__photos',
+                   'diagnostic_reports__engineer__user',
+               )
+               .filter(chassis_number=vin.upper()).first())
+    if vehicle is None:
+        return HttpResponse(
+            "السيارة غير موجودة.",
+            status=404, content_type='text/html; charset=utf-8',
+        )
+
+    # Reuse the SAME context shape as the internal view so the template
+    # is a single source of truth. We just don't compute the live nudges
+    # (engine writes are protected; reads are fine, but predictive
+    # surprises shouldn't surface to customers without advisor context).
+    from collections import Counter
+
+    job_cards = list(
+        SaleInvoice.objects
+        .filter(vehicle=vehicle, invoice_type='maintenance', status='posted')
+        .select_related('branch')
+        .prefetch_related('items__product', 'service_items__service',
+                          'diagnostic_reports')
+        .order_by('-date_created')
+    )
+    diag_reports = list(vehicle.diagnostic_reports.all().order_by('-scanned_at'))
+
+    dtc_counter = Counter()
+    for r in diag_reports:
+        for code in (r.fault_codes or []):
+            dtc_counter[code.upper()] += 1
+
+    parts_counter = Counter()
+    for jc in job_cards:
+        for item in jc.items.all():
+            parts_counter[item.product.name] += item.quantity or 0
+
+    timeline = []
+    for jc in job_cards:
+        timeline.append({
+            'type': 'visit',
+            'date': jc.date_created,
+            'invoice': jc,
+            'total': jc.total_amount,
+            'status': jc.status,
+            'branch_name': jc.branch.name if jc.branch_id else '',
+            'parts_count': jc.items.count(),
+            'services_count': jc.service_items.count(),
+            'diag_count': jc.diagnostic_reports.count(),
+            'photos_count': sum(r.photos.count() for r in jc.diagnostic_reports.all()),
+            'ai_summary_excerpt': next(
+                (r.ai_summary[:240] for r in jc.diagnostic_reports.all() if r.ai_summary),
+                '',
+            ),
+        })
+    timeline.sort(key=lambda e: e['date'], reverse=True)
+
+    return render(request, 'inventory/vehicle_health_passport.html', {
+        'vehicle': vehicle,
+        'customer': vehicle.customer,
+        'timeline': timeline,
+        'diag_reports': diag_reports,
+        'top_dtcs': dtc_counter.most_common(8),
+        'top_parts': parts_counter.most_common(6),
+        'nudges': [],   # never surface predictive nudges on the public view
+        'visit_count': len(job_cards),
+        'last_visit': job_cards[0].date_created if job_cards else None,
+        'first_visit': job_cards[-1].date_created if job_cards else None,
+        'public_share': True,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@csrf_exempt
+def vehicle_passport_share_link(request, chassis_number):
+    """POST → returns {share_url, wa_url, message_preview} so the
+    internal Passport's 'Share via WhatsApp' button can open WA with
+    the customer's phone and a pre-filled body."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+    cookie_token = request.COOKIES.get('mt_csrf')
+    if not cookie_token or cookie_token != request.headers.get('X-CSRFToken', ''):
+        return JsonResponse({"error": "csrf_failed"}, status=403)
+
+    profile = getattr(request.user, 'employee_profile', None)
+    allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
+    if not (request.user.is_superuser or (profile and profile.role in allowed)):
+        return JsonResponse({"error": "role_forbidden"}, status=403)
+
+    vehicle = get_object_or_404(
+        Vehicle.objects.select_related('customer'),
+        chassis_number=chassis_number.upper(),
+    )
+
+    tenant = getattr(request, 'tenant', None)
+    tenant_schema = getattr(tenant, 'schema_name', '') or ''
+    if not tenant_schema:
+        return JsonResponse({"error": "tenant_required"}, status=400)
+
+    token = _sign_passport_share(chassis_number, tenant_schema)
+    rel = reverse('inventory:vehicle_passport_share', args=[token])
+    share_url = request.build_absolute_uri(rel)
+
+    workshop_name = getattr(tenant, 'name', None) or tenant_schema
+    vehicle_label = ' '.join(filter(None, [
+        vehicle.brand, vehicle.model_name,
+        f"({vehicle.car_plate})" if vehicle.car_plate else '',
+    ])) or 'سيارتك'
+    customer_name = vehicle.customer.name if vehicle.customer_id else 'عميلنا الكريم'
+
+    body = (
+        f"مرحباً {customer_name} 👋\n\n"
+        f"إليك الجواز الصحي الكامل لـ *{vehicle_label}* من مركز *{workshop_name}*.\n"
+        f"يمكنك الاطلاع على كل الزيارات السابقة، الأعطال، والصور الموثّقة من الرابط:\n"
+        f"{share_url}\n\n"
+        f"الرابط فعّال لمدة 30 يوماً. نحن في خدمتك دائماً."
+    )
+
+    # Build wa.me link if the customer has a phone
+    wa_url = ''
+    if vehicle.customer_id and vehicle.customer.phone:
+        import re as _re, urllib.parse
+        digits = _re.sub(r'[\s\-\(\)+]+', '', vehicle.customer.phone)
+        if digits.startswith('00'):
+            digits = digits[2:]
+        elif digits.startswith('0'):
+            digits = '20' + digits[1:]
+        wa_url = f"https://wa.me/{digits}?text={urllib.parse.quote(body)}"
+
+    return JsonResponse({
+        "ok": True,
+        "share_url": share_url,
+        "wa_url": wa_url,
+        "has_phone": bool(wa_url),
+        "message_preview": body,
+        "customer_name": customer_name,
+        "vehicle_label": vehicle_label,
+    })
