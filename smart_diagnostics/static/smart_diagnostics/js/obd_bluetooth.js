@@ -587,9 +587,18 @@ class OBDBluetooth extends EventTarget {
     }
 
     // ── internal: command transport ──────────────────────────────────────
+    // Commands are serialized through a promise chain so the live-data
+    // stream cannot collide with a user-triggered Mode 03 / Mode 04 request.
     async _sendCommand(cmd, timeoutMs) {
+        const queued = (this._cmdChain || Promise.resolve())
+            .catch(() => {})
+            .then(() => this._sendCommandRaw(cmd, timeoutMs));
+        this._cmdChain = queued.catch(() => {});
+        return queued;
+    }
+
+    async _sendCommandRaw(cmd, timeoutMs) {
         if (!this.writeChar) throw new Error('Not connected.');
-        if (this._pending) throw new Error('Another command in flight.');
 
         const fullCmd = cmd + CR;
         const bytes = new TextEncoder().encode(fullCmd);

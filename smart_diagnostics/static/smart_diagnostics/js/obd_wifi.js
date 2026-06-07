@@ -163,9 +163,20 @@ class OBDWiFi extends EventTarget {
     }
 
     // ── ELM327 protocol — identical semantics to obd_bluetooth.js ───────
+    // Commands are serialized through a promise chain so the live-data
+    // stream cannot collide with a user-triggered Mode 03 / Mode 04 request.
+    // Each queued command waits for the previous one to settle (success OR
+    // failure) before sending bytes on the wire.
     async _sendCommand(cmd, timeoutMs) {
+        const queued = (this._cmdChain || Promise.resolve())
+            .catch(() => {})                    // shield from prior failure
+            .then(() => this._sendCommandRaw(cmd, timeoutMs));
+        this._cmdChain = queued.catch(() => {});
+        return queued;
+    }
+
+    async _sendCommandRaw(cmd, timeoutMs) {
         if (!this.isConnected) throw new Error('Bridge not connected.');
-        if (this._pending) throw new Error('Another command in flight.');
 
         const fullCmd = cmd + OBD_WIFI_CR;
         this._rxBuffer = '';
