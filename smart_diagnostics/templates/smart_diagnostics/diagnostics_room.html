@@ -470,8 +470,8 @@ body {
 <!-- ── Toast ── -->
 <div id="toast" class="toast"></div>
 
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=4-wifi-bridge"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=1-wifi-bridge"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=5-driver-swap-fix"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=2-driver-swap-fix"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -743,6 +743,16 @@ body {
     wireDriverEvents(obd);
 
     // ── Button handlers ─────────────────────────────────────────
+    // Ensure `obd` is an instance of the requested driver class. The Wi-Fi
+    // button can swap `obd` to OBDWiFi, so before any BLE flow runs we must
+    // restore an OBDBluetooth — otherwise `obd.requestDevice` does not exist.
+    async function ensureDriver(Cls) {
+        if (obd instanceof Cls) return;
+        try { await obd.disconnect(); } catch (_) {}
+        obd = new Cls();
+        wireDriverEvents(obd);
+    }
+
     // Shared connect flow. `relaxed: true` opens the Chrome picker with
     // acceptAllDevices — used as a fallback when the strict picker hides
     // a "ghost" dongle (e.g. IOS-Vlink clones that bury name + service UUID
@@ -751,6 +761,7 @@ body {
         btnConnect.disabled = true;
         btnConnectRelaxed.disabled = true;
         try {
+            await ensureDriver(OBDBluetooth);
             setStatus('idle', relaxed
                 ? 'بحث شامل... اختر أي جهاز يبدو أنه فيشة OBD'
                 : 'جاري الاقتران...');
@@ -787,12 +798,8 @@ body {
             if (typeof OBDWiFi !== 'function') {
                 throw new Error('OBDWiFi driver لم يُحمَّل — أعد تحميل الصفحة.');
             }
-            // Cleanly drop any previous driver (BLE or stale WiFi).
-            try { await obd.disconnect(); } catch (_) {}
-
             setStatus('idle', 'جاري الاتصال بالجسر المحلي...');
-            obd = new OBDWiFi();
-            wireDriverEvents(obd);
+            await ensureDriver(OBDWiFi);
 
             await obd.connect();                       // ws://127.0.0.1:8765
             await obd.initialize();
