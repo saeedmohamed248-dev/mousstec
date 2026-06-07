@@ -279,3 +279,62 @@ def execute_scrap_dismantling_yield(sender, instance, **kwargs):
     was_completed = getattr(instance, '_was_completed', None)
     if instance.is_completed and was_completed is False:
         InventoryService.execute_scrap_yield(instance)
+
+
+# =====================================================================
+# 🔮 Predictive Maintenance — instant nudge recompute after JC posts
+# =====================================================================
+@receiver(pre_save, sender=SaleInvoice)
+def _stamp_previous_status_for_nudge_hook(sender, instance, **kwargs):
+    """Capture the prior status so the post_save hook can detect a real
+    transition into 'posted' (not just a re-save of an already-posted JC).
+    Stamped as a transient attribute — never persisted to DB."""
+    if not instance.pk:
+        instance._previous_status = None
+        return
+    try:
+        previous = SaleInvoice.objects.only('status').get(pk=instance.pk)
+        instance._previous_status = previous.status
+    except SaleInvoice.DoesNotExist:
+        instance._previous_status = None
+
+
+@receiver(post_save, sender=SaleInvoice)
+def recompute_nudges_on_jc_post(sender, instance, created, **kwargs):
+    """When a maintenance Job Card flips to 'posted', the customer JUST
+    received that service. We MUST recompute their vehicle's nudges
+    immediately — otherwise the CRM dashboard could send an "oil change
+    overdue" reminder 10 minutes after the customer paid for one.
+
+    Edge cases handled:
+        • Re-saving an already-posted JC → no-op (status didn't transition)
+        • Non-maintenance JC (parts-only sale) → no-op
+        • JC without a vehicle → no-op
+        • Compute failure → logged but NEVER blocks the save (the JC must
+          post successfully even if the nudge engine is degraded)
+    """
+    if instance.status != 'posted':
+        return
+    if instance.invoice_type != 'maintenance':
+        return
+    if not instance.vehicle_id:
+        return
+
+    # Only fire on the actual transition into 'posted' — not on every
+    # subsequent save of an already-posted invoice.
+    previous = getattr(instance, '_previous_status', None)
+    if not created and previous == 'posted':
+        return
+
+    try:
+        from inventory.predictive_engine import compute_nudges_for_vehicle
+        compute_nudges_for_vehicle(instance.vehicle, persist=True)
+    except Exception as exc:
+        # Belt-and-braces: a buggy predictive engine must never block the
+        # invoice-post pipeline. Log and move on; the daily 4:30 AM sweep
+        # will repair the state.
+        import logging
+        logging.getLogger('mouss_tec_core').exception(
+            "[recompute_nudges_on_jc_post] JC #%s recompute failed: %s "
+            "(daily sweep will repair)", instance.id, exc,
+        )
