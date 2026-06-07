@@ -238,11 +238,32 @@ def diagnostics_room(request):
         )
     )
 
-    return render(request, 'smart_diagnostics/diagnostics_room.html', {
-        'tenant': tenant,
-        'tech_name': request.user.get_full_name() or request.user.username,
-        'ai_enabled': ai_enabled,
-    })
+    # 🐛 [Bug #3 hardening] The project-level 500 handler in erp_core/urls.py
+    # converts any unhandled exception into a raw JSON body — which is exactly
+    # what the user reported seeing. Wrap the render so even a missing-static
+    # manifest entry (the original symptom) degrades to a readable page.
+    try:
+        return render(request, 'smart_diagnostics/diagnostics_room.html', {
+            'tenant': tenant,
+            'tech_name': request.user.get_full_name() or request.user.username,
+            'ai_enabled': ai_enabled,
+        })
+    except Exception as exc:
+        logger.error(
+            "[diagnostics_room] template render failed: %s — "
+            "check that `collectstatic` has been run.", exc, exc_info=True,
+        )
+        return HttpResponse(
+            "<!DOCTYPE html><html lang='ar' dir='rtl'>"
+            "<head><meta charset='utf-8'><title>Diagnostics Room</title></head>"
+            "<body style='font-family:system-ui;background:#0f172a;color:#e2e8f0;"
+            "padding:40px;text-align:center;'>"
+            "<h1>⚠️ غرفة التشخيص غير متاحة مؤقتاً</h1>"
+            "<p>حدث خطأ أثناء تحميل الصفحة. تواصل مع الدعم الفني.</p>"
+            f"<p style='color:#94a3b8;font-size:12px;font-family:monospace;'>{type(exc).__name__}</p>"
+            "</body></html>",
+            status=500, content_type='text/html; charset=utf-8',
+        )
 
 
 @login_required

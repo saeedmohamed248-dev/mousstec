@@ -3376,38 +3376,56 @@ def rfq_management(request):
             "هذه الشاشة مخصّصة لمديري المخزون فقط."
         )
 
-    from inventory.models import RFQ
+    # 🐛 [Bug #1 fix] Wrap the entire query/sort/render in a try/except so any
+    # data-state issue (a half-migrated tenant, a deleted vendor still linked
+    # by a quote row, etc.) renders an empty-state instead of bubbling up to
+    # the project-level JSON 500 handler in erp_core/urls.py.
+    try:
+        from inventory.models import RFQ
 
-    # Branch-scope if the user is pinned to a branch
-    branch = _get_branch_for_user(request.user)
-    qs = RFQ.objects.select_related(
-        'job_card', 'branch', 'product', 'requested_by',
-        'accepted_quote__vendor', 'purchase_invoice',
-    ).prefetch_related('quotes__vendor')
-    if branch is not None:
-        qs = qs.filter(branch=branch)
+        branch = _get_branch_for_user(request.user)
+        qs = RFQ.objects.select_related(
+            'job_card', 'branch', 'product', 'requested_by',
+            'accepted_quote__vendor', 'purchase_invoice',
+        ).prefetch_related('quotes__vendor')
+        if branch is not None:
+            qs = qs.filter(branch=branch)
 
-    # Buckets — order_by inside each so latest activity surfaces first
-    open_rfqs = list(qs.filter(status=RFQ.STATUS_OPEN).order_by('-created_at'))
-    quoted_rfqs = list(qs.filter(status=RFQ.STATUS_QUOTED).order_by('-created_at'))
-    ordered_rfqs = list(qs.filter(status=RFQ.STATUS_ORDERED)
-                          .order_by('-created_at')[:25])
-    cancelled_count = qs.filter(status=RFQ.STATUS_CANCELLED).count()
+        open_rfqs = list(qs.filter(status=RFQ.STATUS_OPEN).order_by('-created_at'))
+        quoted_rfqs = list(qs.filter(status=RFQ.STATUS_QUOTED).order_by('-created_at'))
+        ordered_rfqs = list(qs.filter(status=RFQ.STATUS_ORDERED)
+                              .order_by('-created_at')[:25])
+        cancelled_count = qs.filter(status=RFQ.STATUS_CANCELLED).count()
 
-    # Sort quotes within each RFQ: responded first (cheapest first), then unresponded
-    for rfq in open_rfqs + quoted_rfqs:
-        quotes = list(rfq.quotes.all())
-        responded = sorted(
-            (q for q in quotes if q.quoted_price is not None),
-            key=lambda q: (q.quoted_price or 0, q.quoted_eta_days or 9999),
-        )
-        unresponded = [q for q in quotes if q.quoted_price is None]
-        rfq.sorted_quotes = responded + unresponded
-        rfq.best_quote = responded[0] if responded else None
-        # Stamp `is_best` on each quote so the template can render the 🏆
-        # row without doing identity comparison (Django {% with %} can't).
-        for q in quotes:
-            q.is_best = (q is rfq.best_quote)
+        # Sort quotes within each RFQ: responded (cheapest first), then unresponded.
+        for rfq in open_rfqs + quoted_rfqs:
+            quotes = list(rfq.quotes.all())
+            # Defensive: `quoted_price` is Decimal-or-None, `quoted_eta_days`
+            # is int-or-None — cast both before sort so a `None` from either
+            # never sneaks into a Decimal comparison.
+            responded = sorted(
+                (q for q in quotes if q.quoted_price is not None),
+                key=lambda q: (
+                    float(q.quoted_price) if q.quoted_price is not None else 0.0,
+                    int(q.quoted_eta_days) if q.quoted_eta_days is not None else 9999,
+                ),
+            )
+            unresponded = [q for q in quotes if q.quoted_price is None]
+            rfq.sorted_quotes = responded + unresponded
+            rfq.best_quote = responded[0] if responded else None
+            # Stamp `is_best` on EVERY quote (including unresponded) so the
+            # template never sees a missing attribute.
+            best_id = rfq.best_quote.id if rfq.best_quote else None
+            for q in quotes:
+                q.is_best = (q.id == best_id) if best_id else False
+
+    except Exception as exc:
+        logger.exception("[rfq_management] failed: %s", exc)
+        # Degrade to an empty board rather than 500
+        open_rfqs = []
+        quoted_rfqs = []
+        ordered_rfqs = []
+        cancelled_count = 0
 
     return render(request, 'inventory/rfq_management.html', {
         'open_rfqs': open_rfqs,
