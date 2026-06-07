@@ -549,11 +549,48 @@ class OBDBluetooth extends EventTarget {
         this._streamHandle = null;
     }
 
-    // 5. Mode 03 — read stored DTCs.
+    // 5. DTC read — pulls STORED (Mode 03) + PENDING (Mode 07) + PERMANENT
+    //    (Mode 0A) so we catch faults that haven't been confirmed yet, plus
+    //    permanent codes that survive a Mode 04 clear until the ECU verifies
+    //    the underlying defect is gone.
     async readDTCs() {
-        const raw = await this._sendCommand('03', 4000);
-        const codes = this._parseDTCResponse(raw);
-        this._emit('dtcs', { codes, raw });
+        const buckets = [
+            { mode: '03', tag: 'stored',    header: '43' },
+            { mode: '07', tag: 'pending',   header: '47' },
+            { mode: '0A', tag: 'permanent', header: '4A' },
+        ];
+        const all = [];
+        const raws = {};
+        for (const b of buckets) {
+            try {
+                const raw = await this._sendCommand(b.mode, 4000);
+                raws[b.mode] = raw;
+                const codes = this._parseDTCResponseWithHeader(raw, b.header);
+                for (const c of codes) all.push({ code: c, type: b.tag });
+            } catch (e) { raws[b.mode] = `<err:${e.message}>`; }
+        }
+        this._emit('dtcs', {
+            codes: all.map(x => x.code),
+            byType: all,
+            raw: raws,
+        });
+        return all;
+    }
+
+    _parseDTCResponseWithHeader(raw, header) {
+        if (!raw || raw.includes('NO DATA')) return [];
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        const idx = stripped.indexOf(header);
+        if (idx < 0) return [];
+        let cursor = stripped.slice(idx + 2);
+        if (cursor.length % 4 !== 0) cursor = cursor.slice(2);
+        const codes = [];
+        for (let i = 0; i + 4 <= cursor.length; i += 4) {
+            const hi = parseInt(cursor.slice(i, i + 2), 16);
+            const lo = parseInt(cursor.slice(i + 2, i + 4), 16);
+            if (hi === 0 && lo === 0) continue;
+            codes.push(this._decodeDTCNibbles(hi, lo));
+        }
         return codes;
     }
 
