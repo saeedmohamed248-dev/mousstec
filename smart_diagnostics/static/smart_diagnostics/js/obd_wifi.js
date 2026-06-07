@@ -49,6 +49,7 @@ class OBDWiFi extends EventTarget {
         this._streaming = false;
         this._streamHandle = null;
         this._opened = false;
+        this._lastBridgeError = null;     // last BRIDGE_ERROR reason from bridge
     }
 
     get isConnected() {
@@ -116,13 +117,15 @@ class OBDWiFi extends EventTarget {
     _onClose() {
         this._opened = false;
         this._streaming = false;
+        const reason = this._lastBridgeError ||
+            'انقطع الاتصال بالجسر — تأكد من اتصال اللاب بشبكة Wi-Fi الفيشة.';
         if (this._pending) {
             const { reject, timer } = this._pending;
             this._pending = null;
             clearTimeout(timer);
-            reject(new Error('انقطع الاتصال بالجسر.'));
+            reject(new Error(reason));
         }
-        this._emit('disconnected', { transport: 'wifi' });
+        this._emit('disconnected', { transport: 'wifi', reason });
     }
 
     _onMessage(ev) {
@@ -132,11 +135,13 @@ class OBDWiFi extends EventTarget {
 
         // Bridge can prepend an error frame on TCP-connect failure.
         if (txt.startsWith('BRIDGE_ERROR')) {
+            const reason = txt.replace(/[\r>]/g, '').trim();
+            this._lastBridgeError = reason;
             if (this._pending) {
                 const { reject, timer } = this._pending;
                 this._pending = null;
                 clearTimeout(timer);
-                reject(new Error(txt.replace(/[\r>]/g, '').trim()));
+                reject(new Error(reason));
             }
             return;
         }
@@ -181,12 +186,26 @@ class OBDWiFi extends EventTarget {
     async initialize() {
         const seq = ['ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0', 'ATSP0'];
         const out = {};
+        let anyOk = false;
         for (const cmd of seq) {
-            try { out[cmd] = await this._sendCommand(cmd, OBD_WIFI_DEFAULT_TIMEOUT_MS); }
-            catch (e) { out[cmd] = `<err:${e.message}>`; }
+            try {
+                out[cmd] = await this._sendCommand(cmd, OBD_WIFI_DEFAULT_TIMEOUT_MS);
+                anyOk = true;
+            } catch (e) { out[cmd] = `<err:${e.message}>`; }
         }
-        try { out['0100'] = await this._sendCommand('0100', 4000); }
-        catch (e) { out['0100'] = `<err:${e.message}>`; }
+        try {
+            out['0100'] = await this._sendCommand('0100', 4000);
+            anyOk = true;
+        } catch (e) { out['0100'] = `<err:${e.message}>`; }
+
+        // If every command errored the dongle/bridge is dead — surface the
+        // real reason so the UI doesn't print a misleading "init OK".
+        if (!anyOk) {
+            const reason = this._lastBridgeError ||
+                'مفيش رد من الفيشة. تأكد أن اللاب على شبكة Wi-Fi الفيشة، ' +
+                'وأن IP الدونجل صح (افتراضي 192.168.0.10:35000).';
+            throw new Error(reason);
+        }
         this._emit('initialized', out);
         return out;
     }
