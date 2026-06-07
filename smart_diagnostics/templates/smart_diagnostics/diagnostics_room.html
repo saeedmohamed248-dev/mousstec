@@ -332,6 +332,36 @@ body {
                     title="احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها">
                 <i class="fa-solid fa-floppy-disk"></i> احفظ في بطاقة العميل
             </button>
+
+            <!-- ── Advanced diagnostics ────────────────────────────────── -->
+            <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px; padding-top: 8px;">
+                <button id="btnMisfire" class="btn secondary" disabled
+                        title="يقرأ عدد مرات الإطفاء (misfire) لكل سلندر من آخر 10 دورات تشغيل (Mode 06)">
+                    <i class="fa-solid fa-fire"></i> قياس السلندرات (Misfire)
+                </button>
+                <button id="btnFuelHealth" class="btn secondary" disabled
+                        title="فحص شامل لنظام الوقود: ضغط الطلمبة، معدل الحقن، حساس O2، نسبة الخلط (fuel trim)">
+                    <i class="fa-solid fa-gas-pump"></i> صحة طلمبة البنزين ونظام الوقود
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Misfire per-cylinder bars ──────────────────────────────── -->
+        <div id="misfirePanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-fire"></i> Misfire لكل سلندر (آخر 10 دورات)</div>
+            <div id="misfireBars" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
+            <div id="misfireSummary" style="margin-top:10px; font-size:13px; color:#94a3b8;"></div>
+        </div>
+
+        <!-- ── Fuel pump health card ──────────────────────────────────── -->
+        <div id="fuelHealthPanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-gas-pump"></i> تشخيص نظام الوقود</div>
+            <div id="fuelHealthGrid"
+                 style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; font-size:13px;"></div>
+            <div id="fuelHealthVerdict"
+                 style="margin-top:10px; padding:10px; border-radius:8px;
+                        background:rgba(59,130,246,0.1); color:#93c5fd;
+                        border:1px solid rgba(59,130,246,0.3); font-size:13px;"></div>
         </div>
 
         <div class="card-title" style="margin-top: 20px;">
@@ -473,8 +503,8 @@ body {
 <!-- PWA update-toast handler — without this the Service Worker NEVER updates
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=8-pwa-update"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=6-pwa-update"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=9-misfire-fuel"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=7-misfire-fuel"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -498,6 +528,8 @@ body {
     const statusPill = $('connStatus');
     const btnConnect = $('btnConnect');
     const btnConnectRelaxed = $('btnConnectRelaxed');
+    const btnMisfire = $('btnMisfire');
+    const btnFuelHealth = $('btnFuelHealth');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -539,6 +571,8 @@ body {
         btnReadDTC.disabled = !connected;
         btnClearDTC.disabled = !connected;
         btnDisconnect.disabled = !connected;
+        if (btnMisfire)    btnMisfire.disabled    = !connected;
+        if (btnFuelHealth) btnFuelHealth.disabled = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -737,6 +771,15 @@ body {
             renderDTCs([]);
             log('Mode 04 → DTCs cleared');
         });
+        driver.addEventListener('misfire_counts', (e) => {
+            renderMisfire(e.detail.cylinders);
+            const total = e.detail.cylinders.reduce((s, c) => s + c.count, 0);
+            log(`Misfire scan → ${e.detail.cylinders.length} cyl, total=${total}`);
+        });
+        driver.addEventListener('fuel_health', (e) => {
+            renderFuelHealth(e.detail);
+            log(`Fuel system: ${e.detail._verdict}`);
+        });
         driver.addEventListener('disconnected', () => {
             log('Disconnected', true);
             setStatus('idle', 'غير متصل');
@@ -862,6 +905,113 @@ body {
     btnDisconnect.addEventListener('click', async () => {
         await obd.disconnect();
     });
+
+    // ── Advanced diagnostics handlers ───────────────────────────────────
+    if (btnMisfire) btnMisfire.addEventListener('click', async () => {
+        if (typeof obd.readMisfireCounts !== 'function') {
+            log('Misfire scan requires Wi-Fi driver (Mode 06). Reconnect via Wi-Fi.', true);
+            return;
+        }
+        try {
+            btnMisfire.disabled = true;
+            log('Scanning Mode 06 misfire counters (8 cylinders)…');
+            const cyls = await obd.readMisfireCounts({ cylinders: 8 });
+            if (!cyls.length) {
+                log('Mode 06 returned no per-cylinder data — moteur not supporting OBDMID A1-A8', true);
+                $('misfirePanel').style.display = 'block';
+                $('misfireSummary').textContent =
+                    'هذه السيارة لا تنشر عدّاد misfire قياسي (Mode 06 OBDMID $A1-$A8). ' +
+                    'استخدم سكان OEM المخصص لها للحصول على البيانات.';
+            }
+        } catch (e) {
+            log(`Misfire scan failed: ${e.message}`, true);
+        } finally {
+            btnMisfire.disabled = !obd.isConnected;
+        }
+    });
+
+    if (btnFuelHealth) btnFuelHealth.addEventListener('click', async () => {
+        if (typeof obd.readFuelSystemHealth !== 'function') {
+            log('Fuel-system snapshot requires Wi-Fi driver. Reconnect via Wi-Fi.', true);
+            return;
+        }
+        try {
+            btnFuelHealth.disabled = true;
+            log('Reading fuel-system snapshot (pressure + O2 + trims + rate)…');
+            await obd.readFuelSystemHealth();
+        } catch (e) {
+            log(`Fuel-system scan failed: ${e.message}`, true);
+        } finally {
+            btnFuelHealth.disabled = !obd.isConnected;
+        }
+    });
+
+    // ── Renderers for the new advanced panels ───────────────────────────
+    function renderMisfire(cyls) {
+        const panel = $('misfirePanel');
+        const bars  = $('misfireBars');
+        const sum   = $('misfireSummary');
+        panel.style.display = 'block';
+        bars.innerHTML = '';
+        if (!cyls.length) return;
+        const max = Math.max(1, ...cyls.map(c => c.count));
+        for (const c of cyls) {
+            const pct = (c.count / max) * 100;
+            const danger = c.count > 0;
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex; align-items:center; gap:10px; font-size:12px;';
+            row.innerHTML = `
+                <div style="width:60px; color:#94a3b8;">سلندر ${c.cylinder}</div>
+                <div style="flex:1; height:14px; background:rgba(255,255,255,0.06); border-radius:7px; overflow:hidden;">
+                    <div style="height:100%; width:${pct}%;
+                                background:${danger ? 'linear-gradient(90deg,#ef4444,#f97316)' : '#10b981'};
+                                transition:width .3s;"></div>
+                </div>
+                <div style="width:50px; text-align:end; font-weight:700;
+                            color:${danger ? '#fca5a5' : '#86efac'};">${c.count}</div>
+            `;
+            bars.appendChild(row);
+        }
+        const total = cyls.reduce((s, c) => s + c.count, 0);
+        const worst = cyls.reduce((a, b) => a.count >= b.count ? a : b);
+        sum.innerHTML = total === 0
+            ? '✅ كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل.'
+            : `⚠️ مجموع ${total} misfire — أعلى سلندر: <b>سلندر ${worst.cylinder}</b> (${worst.count} مرة). ` +
+              'افحص شمعة، كويل، أو إنجكتر السلندر ده الأول.';
+    }
+
+    function renderFuelHealth(snap) {
+        const panel = $('fuelHealthPanel');
+        const grid  = $('fuelHealthGrid');
+        const verdictEl = $('fuelHealthVerdict');
+        panel.style.display = 'block';
+        grid.innerHTML = '';
+        const labels = {
+            stft_b1: 'STFT Bank 1', stft_b2: 'STFT Bank 2',
+            ltft_b1: 'LTFT Bank 1', ltft_b2: 'LTFT Bank 2',
+            fuel_pressure_kpa: 'ضغط الوقود',
+            fuel_rail_rel_kpa: 'ضغط الريل (نسبي)',
+            fuel_rail_abs_kpa: 'ضغط الريل (مطلق)',
+            intake_manifold_kpa: 'ضغط المنفولد',
+            timing_advance_deg: 'توقيت الإشعال',
+            o2_b1s1_v: 'O2 B1S1', o2_b1s2_v: 'O2 B1S2',
+            fuel_rate_lh: 'معدل الحقن',
+            baro_kpa: 'الضغط الجوي',
+        };
+        for (const key of Object.keys(labels)) {
+            const v = snap[key];
+            if (!v) continue;
+            const cell = document.createElement('div');
+            cell.style.cssText = 'padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:8px;';
+            cell.innerHTML = `
+                <div style="color:#94a3b8; font-size:11px;">${labels[key]}</div>
+                <div style="color:#e2e8f0; font-weight:700; margin-top:2px;">
+                    ${v.value.toFixed(2)} <span style="color:#64748b; font-size:11px;">${v.unit}</span>
+                </div>`;
+            grid.appendChild(cell);
+        }
+        verdictEl.textContent = snap._verdict || 'لا توجد قراءات كافية للحكم.';
+    }
 
     // ── Chat input ──────────────────────────────────────────────
     chatForm.addEventListener('submit', (e) => {

@@ -26,18 +26,35 @@ const OBD_WIFI_DEFAULT_TIMEOUT_MS = 2500;
 // Mode 01 PIDs — kept in sync with obd_bluetooth.js intentionally.
 // (Small duplication beats import-order coupling between the two files.)
 const OBD_WIFI_PIDS = {
-    '04': { label: 'engine_load',     unit: '%',    parse: b => b[0] * 100 / 255 },
-    '05': { label: 'coolant_temp_c',  unit: '°C',   parse: b => b[0] - 40 },
-    '0C': { label: 'rpm',             unit: 'rpm',  parse: b => ((b[0] << 8) + b[1]) / 4 },
-    '0D': { label: 'speed_kph',       unit: 'km/h', parse: b => b[0] },
-    '0F': { label: 'intake_temp_c',   unit: '°C',   parse: b => b[0] - 40 },
-    '10': { label: 'maf_gs',          unit: 'g/s',  parse: b => ((b[0] << 8) + b[1]) / 100 },
-    '11': { label: 'throttle_pct',    unit: '%',    parse: b => b[0] * 100 / 255 },
-    '2F': { label: 'fuel_level_pct',  unit: '%',    parse: b => b[0] * 100 / 255 },
-    '42': { label: 'control_voltage', unit: 'V',    parse: b => ((b[0] << 8) + b[1]) / 1000 },
-    '5C': { label: 'oil_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
+    '04': { label: 'engine_load',         unit: '%',    parse: b => b[0] * 100 / 255 },
+    '05': { label: 'coolant_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
+    '06': { label: 'stft_b1',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '07': { label: 'ltft_b1',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '08': { label: 'stft_b2',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '09': { label: 'ltft_b2',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '0A': { label: 'fuel_pressure_kpa',   unit: 'kPa',  parse: b => b[0] * 3 },
+    '0B': { label: 'intake_manifold_kpa', unit: 'kPa',  parse: b => b[0] },
+    '0C': { label: 'rpm',                 unit: 'rpm',  parse: b => ((b[0] << 8) + b[1]) / 4 },
+    '0D': { label: 'speed_kph',           unit: 'km/h', parse: b => b[0] },
+    '0E': { label: 'timing_advance_deg',  unit: '°',    parse: b => (b[0] / 2) - 64 },
+    '0F': { label: 'intake_temp_c',       unit: '°C',   parse: b => b[0] - 40 },
+    '10': { label: 'maf_gs',              unit: 'g/s',  parse: b => ((b[0] << 8) + b[1]) / 100 },
+    '11': { label: 'throttle_pct',        unit: '%',    parse: b => b[0] * 100 / 255 },
+    '14': { label: 'o2_b1s1_v',           unit: 'V',    parse: b => b[0] / 200 },
+    '15': { label: 'o2_b1s2_v',           unit: 'V',    parse: b => b[0] / 200 },
+    '22': { label: 'fuel_rail_rel_kpa',   unit: 'kPa',  parse: b => ((b[0] << 8) + b[1]) * 0.079 },
+    '23': { label: 'fuel_rail_abs_kpa',   unit: 'kPa',  parse: b => ((b[0] << 8) + b[1]) * 10 },
+    '2F': { label: 'fuel_level_pct',      unit: '%',    parse: b => b[0] * 100 / 255 },
+    '33': { label: 'baro_kpa',            unit: 'kPa',  parse: b => b[0] },
+    '42': { label: 'control_voltage',     unit: 'V',    parse: b => ((b[0] << 8) + b[1]) / 1000 },
+    '46': { label: 'ambient_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
+    '5C': { label: 'oil_temp_c',          unit: '°C',   parse: b => b[0] - 40 },
+    '5E': { label: 'fuel_rate_lh',        unit: 'L/h',  parse: b => ((b[0] << 8) + b[1]) * 0.05 },
 };
-const OBD_WIFI_DEFAULT_POLL_PIDS = ['0C', '0D', '05', '11', '04', '42'];
+const OBD_WIFI_DEFAULT_POLL_PIDS = [
+    '0C', '0D', '05', '11', '04', '42',          // الأساسي (UI gauges الحالية)
+    '06', '07', '0E', '14', '0A', '5E',          // fuel trim + O2 + fuel pressure + fuel rate
+];
 
 class OBDWiFi extends EventTarget {
     constructor() {
@@ -195,7 +212,7 @@ class OBDWiFi extends EventTarget {
     }
 
     async initialize() {
-        const seq = ['ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0', 'ATSP0'];
+        const seq = ['ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0'];
         const out = {};
         let anyOk = false;
         for (const cmd of seq) {
@@ -204,17 +221,40 @@ class OBDWiFi extends EventTarget {
                 anyOk = true;
             } catch (e) { out[cmd] = `<err:${e.message}>`; }
         }
-        try {
-            out['0100'] = await this._sendCommand('0100', 4000);
-            anyOk = true;
-        } catch (e) { out['0100'] = `<err:${e.message}>`; }
 
-        // If every command errored the dongle/bridge is dead — surface the
-        // real reason so the UI doesn't print a misleading "init OK".
-        if (!anyOk) {
+        // Protocol negotiation — try auto first, then explicit CAN 11/500
+        // (covers 99% of post-2008 cars), then 29-bit CAN, then ISO 9141.
+        // Each attempt is validated by querying PID 0100 (supported PIDs).
+        // The first protocol that returns non-empty data wins.
+        const protocols = [
+            { code: '0', label: 'auto'        },
+            { code: '6', label: 'CAN 11/500'  },
+            { code: '7', label: 'CAN 29/500'  },
+            { code: '3', label: 'ISO 9141-2'  },
+            { code: '5', label: 'KWP2000 fast'},
+        ];
+        let chosen = null;
+        for (const p of protocols) {
+            try {
+                await this._sendCommand('ATSP' + p.code, 2000);
+                const probe = await this._sendCommand('0100', 5000);
+                if (probe && !probe.includes('NO DATA') && !probe.includes('?') &&
+                    !probe.includes('UNABLE') && /41\s*00/i.test(probe.replace(/\s/g, ''))) {
+                    chosen = p;
+                    out['protocol']   = p.label;
+                    out['0100']       = probe;
+                    out['ATSP_chose'] = p.code;
+                    anyOk = true;
+                    break;
+                }
+            } catch (_) { /* try next */ }
+        }
+
+        if (!chosen) {
             const reason = this._lastBridgeError ||
-                'مفيش رد من الفيشة. تأكد أن اللاب على شبكة Wi-Fi الفيشة، ' +
-                'وأن IP الدونجل صح (افتراضي 192.168.0.10:35000).';
+                'الدونجل بيكلم البريدج بس مش عارف يكلم ECU العربية. ' +
+                'الأرجح إن مفتاح السيارة مش على ON — لفّ المفتاح لوضع ON ' +
+                '(بدون تشغيل المحرك) واعد المحاولة.';
             throw new Error(reason);
         }
         this._emit('initialized', out);
@@ -305,6 +345,68 @@ class OBDWiFi extends EventTarget {
         const vin = this._parseVINResponse(raw);
         if (vin) this._emit('vin', { vin });
         return vin;
+    }
+
+    // Mode 06 — On-Board Monitoring Test Results.
+    // Generic SAE J1979 reserves OBDMID $A1..$A8 for cylinder 1..8 misfire
+    // counters (count over the last 10 driving cycles). The exact framing
+    // depends on transport (CAN ISO 15765-4 vs ISO 9141), so we ask the
+    // dongle to enable headers (ATH1) for this read only, then restore
+    // ATH0 afterwards. Returns: [{cylinder, count}].
+    async readMisfireCounts({ cylinders = 8 } = {}) {
+        const result = [];
+        try { await this._sendCommand('ATH1', 1500); } catch (_) {}
+        try {
+            for (let cyl = 1; cyl <= cylinders; cyl++) {
+                const tid = (0xA0 + cyl).toString(16).toUpperCase().padStart(2, '0');
+                let raw;
+                try { raw = await this._sendCommand('06' + tid, 3000); }
+                catch (_) { continue; }
+                if (!raw || raw.includes('NO DATA')) continue;
+                // Response format (CAN, single-frame, headers ON):
+                //   "7E8 06 46 A1 0B 24 00 28 00 32" → bytes after "46 A1":
+                //   [TID, UAS, hi(test), lo(test), hi(min), lo(min), hi(max), lo(max)]
+                // We only need the test value (current count).
+                const stripped = raw.replace(/\s+/g, '').toUpperCase();
+                const m = stripped.match(new RegExp('46' + tid + '([0-9A-F]{2})([0-9A-F]{4})'));
+                if (!m) continue;
+                const count = parseInt(m[2], 16);
+                result.push({ cylinder: cyl, count });
+            }
+        } finally {
+            try { await this._sendCommand('ATH0', 1500); } catch (_) {}
+        }
+        this._emit('misfire_counts', { cylinders: result });
+        return result;
+    }
+
+    // One-shot fuel-system snapshot the mechanic can read at a glance:
+    // fuel pressure, fuel rate, both O2 voltages, both bank fuel trims.
+    // Useful to decide between a weak fuel pump vs a clogged injector vs
+    // a failing lambda sensor when the engine is misfiring or running rich.
+    async readFuelSystemHealth() {
+        const pids = ['06', '07', '08', '09', '0A', '0B', '0E', '14', '15', '22', '23', '33', '5E'];
+        const snapshot = { _at: Date.now() };
+        for (const pid of pids) {
+            try {
+                const raw = await this._sendCommand('01' + pid, 2500);
+                const v = this._parsePIDResponse(pid, raw);
+                if (v !== null) {
+                    const def = OBD_WIFI_PIDS[pid];
+                    snapshot[def.label] = { value: v, unit: def.unit };
+                }
+            } catch (_) { /* tolerate single-PID misses */ }
+        }
+        // Quick verdict (مبدئي — لمساعدة الميكانيكي مش بديل عن الفحص اليدوي)
+        const trims = ['stft_b1', 'ltft_b1', 'stft_b2', 'ltft_b2']
+            .map(k => snapshot[k] && snapshot[k].value).filter(v => v !== undefined);
+        const totalTrim = trims.reduce((a, b) => a + b, 0);
+        let verdict = 'طبيعي';
+        if (totalTrim > 15)  verdict = 'العربية بتسحب بنزين زيادة (lean) — احتمال شفط هواء أو طلمبة ضعيفة';
+        if (totalTrim < -15) verdict = 'العربية بتحرق بنزين زيادة (rich) — احتمال إنجكتر مكهرب أو حساس O2 تعبان';
+        snapshot._verdict = verdict;
+        this._emit('fuel_health', snapshot);
+        return snapshot;
     }
 
     // ── parsers (identical semantics to BLE driver) ─────────────────────
