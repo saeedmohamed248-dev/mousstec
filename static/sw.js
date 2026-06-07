@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.1.6-command-queue';
+const SW_VERSION   = 'v4.1.7-sw-scheme-guard';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -68,6 +68,11 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return; // never intercept POST/PUT/DELETE
 
     const url = new URL(req.url);
+    // Never intercept non-http(s) schemes — chrome-extension://, devtools://,
+    // data:, blob: etc. Cache.put() throws on them and the unhandled rejection
+    // pollutes the console of every page using extensions.
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
     const isSameOrigin = url.origin === self.location.origin;
     const accept = req.headers.get('Accept') || '';
     const isHTML = req.mode === 'navigate' || accept.includes('text/html');
