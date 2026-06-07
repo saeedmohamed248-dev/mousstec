@@ -185,17 +185,19 @@ def register_new_tenant_saas(request):
 # =====================================================================
 @login_required(login_url='/secure-portal/login/')
 def smart_post_login_redirect(request):
-    """Role-aware post-login routing for the unified DMS workspace flow.
+    """Universal post-login landing for tenant users.
+
+    Per business requirement (Week 4 polish): EVERY tenant user — regardless
+    of role (admin, manager, sales, cashier, accountant, stock, tech, engineer,
+    hr) — lands on `/system/dashboard/` after login. The dashboard itself
+    surfaces only role-appropriate KPIs / tiles via strict template-level
+    `{% if %}` gates. This removes the previous role-based workspace splits.
 
     Precedence:
       1. Superuser on public schema → /superadmin/
-      2. Tenant (printing industry) → admin URL (unchanged)
-      3. Tenant + EmployeeProfile → role-based workspace via profile.default_workspace_url()
-         (admin/manager/sales/cashier/stock → /system/dashboard/
-          tech/engineer                     → /system/tech-workspace/
-          hr                                → /system/hr-workspace/)
-      4. Tenant without profile → /system/dashboard/ (legacy fallback)
-      5. Public schema, non-admin → /login/
+      2. Tenant (printing industry)  → admin URL (sector divergence preserved)
+      3. ANY tenant user (automotive) → /system/dashboard/
+      4. Public schema, non-admin     → /login/
     """
     tenant = getattr(request, 'tenant', None)
     schema = getattr(connection, 'schema_name', 'public')
@@ -204,21 +206,14 @@ def smart_post_login_redirect(request):
         return redirect('/superadmin/')
 
     if tenant and schema != 'public':
+        # Printing tenants live in a different sector entirely — keep them
+        # on their existing admin landing.
         if getattr(tenant, 'industry', 'automotive') == 'printing':
             admin_url = os.getenv('ADMIN_URL', 'secure-portal')
             return redirect(f'/{admin_url}/')
 
-        # 🐛 [Bug #3 FIX] Profile lookup must NEVER 500 the login flow.
-        # Wrap defensively — any failure falls through to /system/dashboard/.
-        try:
-            profile = getattr(request.user, 'employee_profile', None)
-            if profile is not None:
-                workspace = profile.default_workspace_url()
-                if isinstance(workspace, str) and workspace.startswith('/'):
-                    return redirect(workspace)
-        except Exception:
-            pass
-
+        # 🎯 [Unified Landing Policy] All automotive-tenant users land here.
+        # No more per-role workspace branching — the dashboard handles RBAC.
         return redirect('/system/dashboard/')
 
     return redirect('/login/')
