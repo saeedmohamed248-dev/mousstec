@@ -221,6 +221,35 @@ function withUserMessage(err) {
     return err;
 }
 
+// ── Persistence keys for silent auto-reconnect ──────────────────────────
+// After ANY successful pair we write the BLE device.id into localStorage.
+// On the next visit we call navigator.bluetooth.getDevices(), match against
+// the saved id, and reconnect WITHOUT showing a picker. This is the true
+// "click & connect" UX for ghost dongles that hide their name + service
+// UUIDs in the BLE scan response (e.g. IOS-Vlink ELM327 clones).
+const LS_REMEMBERED_DEVICES = 'mousstec_obd_known_device_ids';
+
+function _loadRememberedIds() {
+    try {
+        const raw = localStorage.getItem(LS_REMEMBERED_DEVICES);
+        return raw ? JSON.parse(raw) : [];
+    } catch (_) { return []; }
+}
+function _rememberDeviceId(id) {
+    if (!id) return;
+    const ids = _loadRememberedIds().filter(x => x !== id);
+    ids.unshift(id);                              // MRU
+    try { localStorage.setItem(LS_REMEMBERED_DEVICES, JSON.stringify(ids.slice(0, 5))); }
+    catch (_) {}
+}
+function _forgetDeviceId(id) {
+    if (!id) return;
+    try {
+        const ids = _loadRememberedIds().filter(x => x !== id);
+        localStorage.setItem(LS_REMEMBERED_DEVICES, JSON.stringify(ids));
+    } catch (_) {}
+}
+
 // ── Driver ──────────────────────────────────────────────────────────────
 class OBDBluetooth extends EventTarget {
     constructor() {
@@ -240,6 +269,85 @@ class OBDBluetooth extends EventTarget {
     get isConnected() {
         return !!(this.device && this.device.gatt && this.device.gatt.connected
                   && this.writeChar && this.notifyChar);
+    }
+
+    // ── SILENT auto-reconnect via navigator.bluetooth.getDevices() ──────
+    // After ANY successful pair, the browser remembers the device for our
+    // origin and exposes it via getDevices(). On subsequent visits we can
+    // reconnect WITHOUT showing a Bluetooth picker — the picker only opens
+    // the very first time per dongle. Returns the device info on success,
+    // or null when no remembered dongle is reachable.
+    //
+    // Requires:
+    //  • Chrome/Edge ≥ 85
+    //  • The "Use the new permissions backend for Web Bluetooth" flag
+    //    (default-on since Chrome 92)
+    //  • At least one prior successful pair from this origin
+    async tryAutoReconnect({ timeoutMs = 6000 } = {}) {
+        if (!('bluetooth' in navigator) || typeof navigator.bluetooth.getDevices !== 'function') {
+            return null;        // browser too old or feature off
+        }
+
+        let known;
+        try { known = await navigator.bluetooth.getDevices(); }
+        catch (_) { return null; }
+        if (!known || !known.length) return null;
+
+        // Prefer the most recently used remembered ID; fall back to first known.
+        const remembered = _loadRememberedIds();
+        const ordered = [
+            ...remembered.map(id => known.find(d => d.id === id)).filter(Boolean),
+            ...known.filter(d => !remembered.includes(d.id)),
+        ];
+
+        for (const candidate of ordered) {
+            try {
+                this._emit('status', { phase: 'auto-reconnect',
+                    message: `إعادة اتصال صامت بـ ${candidate.name || 'الفيشة المحفوظة'}…` });
+
+                this.device = candidate;
+                this.device.addEventListener('gattserverdisconnected', () => {
+                    this._streaming = false;
+                    this.writeChar = null;
+                    this.notifyChar = null;
+                    this._emit('disconnected', { name: candidate.name });
+                });
+
+                // Race the connect attempt against a watchdog — getDevices()
+                // returns adapters that may be physically out of range.
+                await Promise.race([
+                    this.connect(),
+                    new Promise((_, rej) => setTimeout(
+                        () => rej(new Error('auto-reconnect timeout')), timeoutMs)),
+                ]);
+
+                _rememberDeviceId(candidate.id);
+                this._emit('auto_reconnected', {
+                    name: candidate.name, id: candidate.id,
+                });
+                return { name: candidate.name || 'OBD-II', id: candidate.id };
+            } catch (_) {
+                // try the next remembered device — dongle may be unplugged
+                this.device = null;
+                this.writeChar = null;
+                this.notifyChar = null;
+            }
+        }
+        return null;
+    }
+
+    // List dongles the browser remembers for this origin (without connecting).
+    async listRememberedDevices() {
+        if (!('bluetooth' in navigator) || !navigator.bluetooth.getDevices) return [];
+        try {
+            const ds = await navigator.bluetooth.getDevices();
+            return ds.map(d => ({ id: d.id, name: d.name || 'OBD-II' }));
+        } catch (_) { return []; }
+    }
+
+    // Drop the saved MRU id for this device — used when user clicks "Forget".
+    forgetCurrentDevice() {
+        if (this.device) _forgetDeviceId(this.device.id);
     }
 
     // ── Convenience one-shot — pair + connect + locate UART. ────────────
@@ -344,11 +452,16 @@ class OBDBluetooth extends EventTarget {
             'characteristicvaluechanged', this._onNotify.bind(this),
         );
 
+        // Remember this dongle so subsequent visits skip the picker.
+        if (this.device && this.device.id) _rememberDeviceId(this.device.id);
+
         this._emit('connected', {
             service:   this.service.uuid,
             writeChar: this.writeChar.uuid,
             notifyChar: this.notifyChar.uuid,
             writeWithoutResponse: this._writeWithoutResponse,
+            deviceId:  this.device && this.device.id,
+            deviceName: this.device && (this.device.name || 'OBD-II'),
         });
 
         return { service: this.service.uuid };
@@ -591,4 +704,7 @@ class OBDBluetooth extends EventTarget {
 // Browser exports — picked up by the Diagnostics Room template.
 window.OBDBluetooth = OBDBluetooth;
 window.humanizeBluetoothError = humanizeBluetoothError;
-window.__OBD_TEST__ = { PIDS, KNOWN_SERVICE_UUIDS, SERVICE_BLOCKLIST, PAIRING_FILTERS };
+window.__OBD_TEST__ = {
+    PIDS, KNOWN_SERVICE_UUIDS, SERVICE_BLOCKLIST, PAIRING_FILTERS,
+    LS_REMEMBERED_DEVICES, _loadRememberedIds, _rememberDeviceId, _forgetDeviceId,
+};

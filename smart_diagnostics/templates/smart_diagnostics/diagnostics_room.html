@@ -757,6 +757,32 @@ body {
     }
     btnConnect.addEventListener('click', () => runConnectFlow({ relaxed: false }));
     btnConnectRelaxed.addEventListener('click', () => runConnectFlow({ relaxed: true }));
+
+    // ── SILENT auto-reconnect on page load ──────────────────────────────
+    // If the mechanic already paired this dongle once (even via relaxed
+    // mode), Chrome remembers it for our origin and the driver can
+    // reconnect WITHOUT showing any picker. This is the real "click &
+    // connect" UX — after the very first successful pair, every future
+    // visit lands straight in a connected state with zero clutter.
+    (async function attemptSilentReconnect() {
+        if (typeof obd.tryAutoReconnect !== 'function') return;
+        try {
+            setStatus('idle', 'محاولة استعادة اتصال صامت...');
+            const info = await obd.tryAutoReconnect();
+            if (!info) {
+                setStatus('idle', 'غير متصل');
+                return;
+            }
+            log(`Silent reconnect OK: ${info.name}`);
+            await obd.initialize();
+            setButtons({ connected: true });
+            obd.readVIN().catch(err => log(`VIN unavailable: ${err.message}`, true));
+            obd.streamLiveData({ intervalMs: 800 });
+        } catch (err) {
+            log(`Silent reconnect skipped: ${err.message}`, true);
+            setStatus('idle', 'غير متصل');
+        }
+    })();
     btnReadDTC.addEventListener('click', async () => {
         try {
             log('Requesting Mode 03 (stored DTCs)…');
