@@ -332,29 +332,102 @@ def marketplace_dashboard(request):
             'label': 'سوق السيارات',
             'icon': 'fa-car',
             'color': '#f59e0b',
+            'color_2': '#ef4444',
             'switch_url': '/marketplace/automotive/',
             'title_placeholder': 'مثال: محتاج تغيير زيت BMW 320i',
             'desc_placeholder': 'اشرح بالتفصيل: نوع العربية، السنة، الموديل، المشكلة...',
             'images_label': 'أريد صور القطع / الخدمات مع العروض',
+            'greeting': 'محتاج إيه لعربيتك النهاردة؟',
+            'quick_categories': [
+                {'icon': 'fa-oil-can',       'label': 'تغيير زيت',  'q': 'محتاج تغيير زيت'},
+                {'icon': 'fa-stethoscope',   'label': 'فحص شامل',   'q': 'محتاج فحص كهرباء وميكانيكا'},
+                {'icon': 'fa-cogs',          'label': 'قطع غيار',   'q': 'محتاج قطعة غيار:'},
+                {'icon': 'fa-bolt',          'label': 'كهرباء',     'q': 'مشكلة كهرباء في'},
+                {'icon': 'fa-car-burst',     'label': 'بدي وفرش',    'q': 'إصلاح بدي / فرش'},
+                {'icon': 'fa-circle-notch',  'label': 'إطارات',     'q': 'تغيير إطارات / بنشر'},
+            ],
+            'tips': [
+                'حدد سنة الموديل والـ VIN لو معاك — التجار بيدوا سعر أدق.',
+                'فعّل "أريد صور" عشان تشوف القطعة قبل ما تشتري.',
+                'الميزانية القصوى مخفية عن التجار — بتفلتر العروض بس.',
+            ],
         },
         'printing': {
             'label': 'سوق الطباعة والتصميم',
             'icon': 'fa-palette',
             'color': '#ec4899',
+            'color_2': '#8b5cf6',
             'switch_url': '/marketplace/printing/',
             'title_placeholder': 'مثال: محتاج لوجو لمطعم بيتزا',
             'desc_placeholder': 'اشرح بالتفصيل: الألوان، الستايل، المقاسات، الكمية...',
             'images_label': 'أريد تصميمات / صور مع العروض',
+            'greeting': 'إيه اللي هنبدع فيه النهاردة؟',
+            'quick_categories': [
+                {'icon': 'fa-pen-nib',     'label': 'لوجو',         'q': 'محتاج تصميم لوجو لـ'},
+                {'icon': 'fa-image',       'label': 'فلاير/بوستر',   'q': 'محتاج فلاير أو بوستر لـ'},
+                {'icon': 'fa-id-card',     'label': 'كروت شخصية',    'q': 'محتاج كروت شخصية'},
+                {'icon': 'fa-shirt',       'label': 'تيشرت/مج',     'q': 'محتاج طباعة تيشرت / مج'},
+                {'icon': 'fa-flag',        'label': 'بنرات/يفط',     'q': 'محتاج بنر / يفطة'},
+                {'icon': 'fa-share-nodes', 'label': 'سوشيال ميديا', 'q': 'محتاج تصميمات سوشيال ميديا لـ'},
+            ],
+            'tips': [
+                'لو عندك ألوان أو لوجو موجود — ارفعهم في الـ Brand Profile مرة وعمرها يستخدمهم AI.',
+                'متجر تصاميم AI بيوفر تصميم في ثواني — جربه قبل ما تطلب من مصمم.',
+                'حدد المقاسات والكمية في التفاصيل عشان السعر يبقى دقيق.',
+            ],
         },
     }.get(customer.sector, {
-        'label': 'السوق',
-        'icon': 'fa-store',
-        'color': '#10b981',
+        'label': 'السوق', 'icon': 'fa-store', 'color': '#10b981', 'color_2': '#059669',
         'switch_url': '/marketplace/',
-        'title_placeholder': 'عنوان الطلب',
-        'desc_placeholder': 'تفاصيل الطلب...',
-        'images_label': 'أريد صور مع العروض',
+        'title_placeholder': 'عنوان الطلب', 'desc_placeholder': 'تفاصيل الطلب...',
+        'images_label': 'أريد صور مع العروض', 'greeting': 'محتاج إيه؟',
+        'quick_categories': [], 'tips': [],
     })
+
+    # Sidebar enrichment per sector
+    side_widgets = {}
+    if customer.sector == 'printing':
+        free_remaining = customer.free_designs_remaining
+        paid_remaining = sum(p.designs_remaining for p in
+                             customer.design_purchases.filter(status='paid')
+                             if p.is_usable)
+        side_widgets['credits'] = {
+            'free': free_remaining,
+            'paid': paid_remaining,
+            'total': free_remaining + paid_remaining,
+        }
+        side_widgets['recent_designs'] = list(
+            customer.designs.order_by('-created_at')[:6]
+        )
+
+    # Smart next action — sector-aware nudge based on data
+    next_action = None
+    if requests_qs.filter(status='open', offers_count=0).exists():
+        cnt = requests_qs.filter(status='open', offers_count=0).count()
+        next_action = {
+            'icon': 'fa-lightbulb',
+            'title': f'عندك {cnt} طلب مفتوح بدون عروض',
+            'desc': 'جرب تعدّل العنوان أو تضيف صور — الطلبات المفصّلة بتجيب عروض أكتر.',
+            'action_url': '#requests',
+            'action_label': 'مراجعة طلباتي',
+        }
+    elif requests_qs.filter(status='accepted', accepted_offer__isnull=False).exists():
+        accepted = requests_qs.filter(status='accepted').first()
+        next_action = {
+            'icon': 'fa-handshake',
+            'title': 'فيه طلب وافقت على عرضه — تواصل مع التاجر',
+            'desc': accepted.title,
+            'action_url': f'/marketplace/request/{accepted.request_code}/',
+            'action_label': 'عرض التفاصيل',
+        }
+    elif not requests_qs.exists():
+        next_action = {
+            'icon': 'fa-rocket',
+            'title': 'ابدأ أول طلب لك',
+            'desc': 'دور على أفضل عرض من ٤٢٠+ تاجر في القطاع — مجاناً.',
+            'action_url': '#new-request',
+            'action_label': 'اعمل طلب الآن',
+        }
 
     context = {
         'customer': customer,
@@ -367,6 +440,8 @@ def marketplace_dashboard(request):
             'completed': requests_qs.filter(status='completed').count(),
         },
         'sector_ui': sector_ui,
+        'side_widgets': side_widgets,
+        'next_action': next_action,
     }
     return render(request, 'clients/marketplace/dashboard.html', context)
 

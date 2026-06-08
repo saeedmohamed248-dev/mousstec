@@ -3,200 +3,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحتي | سوق Mouss Tec</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <title>لوحتي | {{ sector_ui.label }} — Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
-        :root { --bg: #0f172a; --card: rgba(30,41,59,0.7); --accent: #8b5cf6; --accent2: #ec4899; --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --text: #f8fafc; --muted: #94a3b8; }
-        body { font-family:'Cairo',sans-serif; background:linear-gradient(135deg,var(--bg),#1e1e38); color:var(--text); min-height:100vh; margin:0; }
-        .topbar { background:var(--card); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; }
-        .topbar h2 { font-size:1.2rem; font-weight:900; margin:0; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-        .topbar .user-info { color:var(--muted); font-size:0.9rem; }
-        .topbar a { color:var(--accent); text-decoration:none; font-weight:700; margin-right:16px; }
-        .container-fluid { max-width:1200px; padding:24px; }
+        :root {
+            --bg: #0b1020;
+            --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72);
+            --card-solid: #1a223d;
+            --line: rgba(255,255,255,0.08);
+            --accent: {{ sector_ui.color }};
+            --accent2: {{ sector_ui.color_2 }};
+            --success: #10b981;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(1200px 600px at 90% -10%, rgba({{ sector_ui.color|cut:'#' }},0.0) 0%, transparent 70%),
+                        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text);
+            min-height: 100vh;
+            margin: 0;
+            padding-bottom: 90px;
+        }
 
-        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:28px; }
-        .stat-card { background:var(--card); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:20px; text-align:center; }
-        .stat-card .num { font-size:2rem; font-weight:900; color:var(--accent); }
-        .stat-card .label { color:var(--muted); font-size:0.85rem; margin-top:4px; }
+        /* ============ TOPBAR ============ */
+        .topbar {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(11,16,32,0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--line);
+            padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .brand { display:flex; align-items:center; gap:10px; font-weight:900; font-size:1.05rem; }
+        .brand .logo {
+            width:34px; height:34px; border-radius:10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display:flex; align-items:center; justify-content:center; color:#fff; font-size:1rem;
+            box-shadow: 0 6px 20px {{ sector_ui.color }}55;
+        }
+        .brand .name { background: linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+        .topbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .sector-pill {
+            background: {{ sector_ui.color }}1c; color: var(--accent);
+            padding: 6px 14px; border-radius: 999px; font-size: 0.78rem; font-weight: 800;
+            border: 1px solid {{ sector_ui.color }}55;
+        }
+        .user-chip { color: var(--soft); font-size: 0.88rem; display:flex; gap:6px; align-items:center; }
+        .icon-btn {
+            width: 38px; height: 38px; border-radius: 10px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+            color: var(--soft); display:flex; align-items:center; justify-content:center;
+            text-decoration:none; transition: 0.2s;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.08); color:#fff; }
 
-        .section-title { font-size:1.3rem; font-weight:900; margin:24px 0 16px; display:flex; align-items:center; gap:10px; }
-        .section-title i { color:var(--accent); }
+        /* ============ LAYOUT ============ */
+        .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 20px; }
 
-        .card-glass { background:var(--card); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:24px; margin-bottom:16px; transition:border-color 0.3s; }
-        .card-glass:hover { border-color:var(--accent); }
+        /* ============ HERO ============ */
+        .hero {
+            background: linear-gradient(135deg, {{ sector_ui.color }}22, {{ sector_ui.color_2 }}1a);
+            border: 1px solid {{ sector_ui.color }}40;
+            border-radius: 22px; padding: 26px 26px 22px;
+            margin-bottom: 22px; position:relative; overflow:hidden;
+        }
+        .hero::after {
+            content:''; position:absolute; top:-40px; left:-40px; width:240px; height:240px;
+            background: radial-gradient(closest-side, {{ sector_ui.color }}66, transparent 70%); opacity:0.45;
+        }
+        .hero h1 { font-size: 1.55rem; font-weight: 900; margin: 0 0 4px; position:relative; }
+        .hero p { color: var(--soft); margin: 0 0 16px; position:relative; }
+        .quick-chips { display: flex; gap: 10px; flex-wrap: wrap; position:relative; }
+        .quick-chip {
+            display:flex; align-items:center; gap:8px;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+            padding: 10px 14px; border-radius: 12px; color: var(--text);
+            font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: 0.2s;
+        }
+        .quick-chip:hover { background: var(--accent); border-color: var(--accent); color:#fff; transform: translateY(-2px); }
+        .quick-chip i { color: var(--accent); }
+        .quick-chip:hover i { color:#fff; }
 
-        .badge-status { padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:700; }
-        .badge-open { background:rgba(16,185,129,0.15); color:#6ee7b7; }
-        .badge-reviewing { background:rgba(245,158,11,0.15); color:#fcd34d; }
-        .badge-accepted { background:rgba(139,92,246,0.15); color:#c4b5fd; }
-        .badge-completed { background:rgba(59,130,246,0.15); color:#93c5fd; }
-        .badge-expired { background:rgba(239,68,68,0.15); color:#fca5a5; }
-        .badge-cancelled { background:rgba(100,116,139,0.15); color:#94a3b8; }
+        /* ============ KPI STRIP ============ */
+        .kpi-strip {
+            display: grid; gap: 12px; margin-bottom: 22px;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        }
+        .kpi {
+            background: var(--card); backdrop-filter: blur(10px);
+            border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+            display:flex; align-items:center; gap:14px; transition: 0.2s;
+        }
+        .kpi:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .kpi-icon {
+            width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+            display:flex; align-items:center; justify-content:center; font-size: 1.15rem;
+        }
+        .kpi-num { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+        .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
 
-        .btn-glow { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff; font-weight:700; padding:12px 28px; border-radius:12px; cursor:pointer; transition:all 0.3s; font-size:0.95rem; }
-        .btn-glow:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(139,92,246,0.4); color:#fff; }
-        .btn-outline { background:transparent; border:1px solid rgba(255,255,255,0.15); color:var(--text); font-weight:600; padding:10px 20px; border-radius:12px; cursor:pointer; transition:all 0.3s; }
-        .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+        /* ============ SMART CARD ============ */
+        .smart-card {
+            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.10));
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 18px; padding: 18px 20px; margin-bottom: 22px;
+            display: flex; gap: 16px; align-items: center;
+        }
+        .smart-icon {
+            width: 50px; height: 50px; border-radius: 14px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display:flex; align-items:center; justify-content:center; flex-shrink: 0;
+            font-size: 1.3rem; color:#fff;
+        }
+        .smart-body { flex: 1; }
+        .smart-title { font-weight: 800; margin-bottom: 2px; }
+        .smart-desc { color: var(--soft); font-size: 0.88rem; }
+        .smart-cta {
+            background: #fff; color: #1e293b; padding: 9px 18px; border-radius: 10px;
+            font-weight: 800; text-decoration: none; font-size: 0.85rem; white-space: nowrap;
+        }
 
-        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); display:none; z-index:1000; align-items:center; justify-content:center; }
+        /* ============ MAIN GRID ============ */
+        .main-grid {
+            display: grid; gap: 22px;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        }
+        @media(max-width: 980px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .section-head {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom: 14px; gap: 12px;
+        }
+        .section-head h3 {
+            font-size: 1.05rem; font-weight: 900; margin: 0;
+            display:flex; align-items:center; gap:8px;
+        }
+        .section-head h3 i { color: var(--accent); }
+
+        /* ============ REQUEST CARD ============ */
+        .req-card {
+            background: var(--card); backdrop-filter: blur(10px);
+            border: 1px solid var(--line); border-radius: 16px;
+            padding: 18px; margin-bottom: 12px; transition: 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .req-card:hover { border-color: var(--accent); }
+        .req-card .req-top { display:flex; justify-content:space-between; gap:10px; }
+        .req-title { font-weight: 800; font-size: 1rem; margin: 0 0 4px; }
+        .req-desc { color: var(--muted); font-size: 0.88rem; margin: 0 0 10px; line-height: 1.55; }
+        .req-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .req-actions { display:flex; flex-direction:column; gap: 6px; align-items:flex-end; }
+        .req-date { color: var(--muted); font-size: 0.8rem; }
+
+        .badge {
+            padding: 4px 11px; border-radius: 999px; font-size: 0.76rem; font-weight: 700;
+            display:inline-flex; align-items:center; gap: 5px;
+        }
+        .b-open { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+        .b-pending_approval { background: rgba(245,158,11,0.15); color: #fcd34d; }
+        .b-reviewing { background: rgba(168,85,247,0.15); color: #c4b5fd; }
+        .b-accepted { background: rgba(139,92,246,0.18); color: #c4b5fd; }
+        .b-completed { background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .b-expired { background: rgba(100,116,139,0.18); color: #cbd5e1; }
+        .b-rejected_by_admin { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .b-cancelled { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+        .b-urgent { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .b-soon { background: rgba(245,158,11,0.15); color: #fcd34d; }
+        .b-normal { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+
+        .b-offers { background: {{ sector_ui.color }}1f; color: var(--accent); font-weight: 800; }
+
+        .req-btn {
+            background: transparent; border: 1px solid var(--line); color: var(--soft);
+            padding: 7px 12px; border-radius: 9px; font-size: 0.82rem; font-weight: 700;
+            text-decoration: none; cursor: pointer; transition: 0.2s; white-space: nowrap;
+        }
+        .req-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .req-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* ============ SIDEBAR ============ */
+        .side-card {
+            background: var(--card); backdrop-filter: blur(10px);
+            border: 1px solid var(--line); border-radius: 16px; padding: 18px;
+            margin-bottom: 16px;
+        }
+        .side-card h4 {
+            font-size: 0.95rem; font-weight: 900; margin: 0 0 14px;
+            display:flex; align-items:center; gap:8px;
+        }
+        .side-card h4 i { color: var(--accent); }
+
+        .credit-row { display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+        .credit-row:last-child { border-bottom: 0; }
+        .credit-row .num { font-weight: 900; color: var(--accent); }
+
+        .design-thumbs { display:grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .design-thumb {
+            aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+            display:flex; align-items:center; justify-content:center; color: var(--muted);
+            text-decoration: none; transition: 0.2s; position: relative;
+        }
+        .design-thumb:hover { border-color: var(--accent); transform: scale(1.04); }
+        .design-thumb img { width:100%; height:100%; object-fit: cover; }
+
+        .side-link {
+            display:flex; align-items:center; gap:10px; padding: 12px;
+            background: rgba(255,255,255,0.03); border-radius: 12px;
+            color: var(--text); text-decoration:none; font-weight: 700; font-size: 0.9rem;
+            margin-bottom: 8px; transition: 0.2s;
+        }
+        .side-link:hover { background: var(--accent); color:#fff; transform: translateX(-4px); }
+        .side-link i.lead { color: var(--accent); width: 24px; text-align:center; font-size: 1rem; }
+        .side-link:hover i.lead { color: #fff; }
+        .side-link i.tail { margin-right:auto; color: var(--muted); }
+
+        .tip-row { padding: 10px 0; border-bottom: 1px dashed var(--line); font-size: 0.85rem; color: var(--soft); display:flex; gap:8px; }
+        .tip-row:last-child { border-bottom: 0; }
+        .tip-row i { color: var(--warn); margin-top: 3px; }
+
+        /* ============ EMPTY ============ */
+        .empty {
+            text-align:center; padding: 50px 20px;
+            background: var(--card); border: 1px dashed var(--line); border-radius: 18px;
+        }
+        .empty i { font-size: 2.6rem; color: var(--accent); opacity: 0.45; margin-bottom: 10px; }
+        .empty h4 { font-weight: 800; }
+        .empty p { color: var(--muted); }
+
+        /* ============ FAB ============ */
+        .fab {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff; padding: 14px 26px; border-radius: 999px;
+            font-weight: 800; font-size: 0.95rem; border: 0; cursor: pointer;
+            box-shadow: 0 10px 30px {{ sector_ui.color }}55, 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 45; display: flex; align-items: center; gap: 8px;
+        }
+        .fab:hover { transform: translateX(-50%) translateY(-2px); }
+
+        /* ============ MODAL ============ */
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); display:none; z-index:1000; align-items:center; justify-content:center; padding: 20px; }
         .modal-overlay.show { display:flex; }
-        .modal-box { background:#1e293b; border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:32px; width:95%; max-width:600px; max-height:90vh; overflow-y:auto; position:relative; }
-        .modal-box h3 { font-weight:900; margin-bottom:20px; }
-        .modal-close { position:absolute; top:16px; left:16px; background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; }
+        .modal-box { background: var(--card-solid); border:1px solid var(--line); border-radius:20px; padding:28px; width:100%; max-width:600px; max-height:90vh; overflow-y:auto; position:relative; }
+        .modal-box h3 { font-weight:900; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+        .modal-close { position:absolute; top:14px; left:14px; background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; }
+        .form-label { font-weight: 700; color:#cbd5e1; font-size:0.88rem; margin-bottom: 6px; }
+        .form-control, .form-select { background:rgba(11,16,32,0.6); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:11px 14px; }
+        .form-control:focus, .form-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px {{ sector_ui.color }}33; background:rgba(11,16,32,0.85); color: var(--text); }
+        .btn-primary-grad {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: 0; color: #fff; font-weight: 800; padding: 12px 24px;
+            border-radius: 12px; cursor: pointer; transition: 0.2s; font-size: 0.95rem;
+        }
+        .btn-primary-grad:hover { transform: translateY(-2px); box-shadow: 0 8px 24px {{ sector_ui.color }}55; }
 
-        .form-label { font-weight:700; color:#cbd5e1; font-size:0.9rem; }
-        .form-control,.form-select { background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.1); color:#f8fafc; border-radius:12px; padding:12px 16px; }
-        .form-control:focus,.form-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(139,92,246,0.2); background:rgba(15,23,42,0.8); color:#f8fafc; }
-
-        .offers-count { display:inline-flex; align-items:center; gap:6px; background:rgba(139,92,246,0.15); color:var(--accent); padding:4px 12px; border-radius:20px; font-size:0.85rem; font-weight:700; }
-
-        .urgency-normal { color: var(--success); }
-        .urgency-soon { color: var(--warn); }
-        .urgency-urgent { color: var(--danger); }
-
-        .toggle-switch { display:flex; gap:8px; align-items:center; }
+        .toggle-switch { display:flex; gap:10px; align-items:center; }
         .toggle-switch input[type="checkbox"] { width:44px; height:24px; appearance:none; background:rgba(255,255,255,0.1); border-radius:12px; cursor:pointer; position:relative; transition:0.3s; }
         .toggle-switch input[type="checkbox"]:checked { background:var(--accent); }
         .toggle-switch input[type="checkbox"]::before { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:3px; right:3px; transition:0.3s; }
         .toggle-switch input[type="checkbox"]:checked::before { right:calc(100% - 21px); }
 
-        .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
-        .empty-state i { font-size:3rem; margin-bottom:12px; color:rgba(139,92,246,0.3); }
-
-        .alert-toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:14px 24px; border-radius:14px; font-weight:700; display:none; }
-        .alert-toast.success { background:rgba(16,185,129,0.9); color:#fff; }
-        .alert-toast.error { background:rgba(239,68,68,0.9); color:#fff; }
-        .alert-toast.show { display:block; animation:slideIn 0.3s; }
-        @keyframes slideIn { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
-        .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:13px 22px; border-radius:14px; font-weight:700; display:none; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .toast.success { background:#10b981; color:#fff; }
+        .toast.error { background:#ef4444; color:#fff; }
+        .toast.show { display:block; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { opacity:0; transform:translateX(-50%) translateY(-15px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
-        @media(max-width:576px) { .container-fluid { padding:12px; } .modal-box { padding:20px; } }
+        @media(max-width:576px) {
+            .wrap { padding: 14px; }
+            .hero { padding: 20px 18px; }
+            .hero h1 { font-size: 1.25rem; }
+            .topbar { padding: 10px 14px; }
+            .user-chip { display: none; }
+        }
     </style>
 </head>
 <body>
 
+<!-- ============ TOPBAR ============ -->
 <div class="topbar">
-    <h2><i class="fas {{ sector_ui.icon }}" style="color:{{ sector_ui.color }};"></i> {{ sector_ui.label }} | Mouss Tec</h2>
-    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        <span style="background:{{ sector_ui.color }}1a; color:{{ sector_ui.color }}; padding:5px 12px; border-radius:999px; font-size:0.78rem; font-weight:800; border:1px solid {{ sector_ui.color }}55;">
-            <i class="fas {{ sector_ui.icon }}"></i> {{ sector_ui.label }}
-        </span>
-        <span class="user-info"><i class="fas fa-user-circle"></i> {{ customer.full_name }}</span>
-        <a href="/marketplace/logout/"><i class="fas fa-sign-out-alt"></i> خروج</a>
+    <div class="brand">
+        <div class="logo"><i class="fas {{ sector_ui.icon }}"></i></div>
+        <div class="name">{{ sector_ui.label }}</div>
     </div>
-</div>
-
-<div id="toast" class="alert-toast"></div>
-
-<div class="container-fluid">
-
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="num">{{ stats.total }}</div>
-            <div class="label">إجمالي الطلبات</div>
-        </div>
-        {% if stats.pending_approval > 0 %}
-        <div class="stat-card">
-            <div class="num" style="color:#f59e0b">{{ stats.pending_approval }}</div>
-            <div class="label">⏳ في انتظار الموافقة</div>
-        </div>
+    <div class="topbar-right">
+        <span class="sector-pill"><i class="fas {{ sector_ui.icon }}"></i> {{ sector_ui.label }}</span>
+        <span class="user-chip"><i class="fas fa-user-circle"></i> {{ customer.full_name }}</span>
+        {% if customer.sector == 'printing' %}
+        <a href="/marketplace/brand-profile/" class="icon-btn" title="هويتي البصرية"><i class="fas fa-id-badge"></i></a>
         {% endif %}
-        <div class="stat-card">
-            <div class="num" style="color:var(--success)">{{ stats.open }}</div>
-            <div class="label">مفتوحة</div>
-        </div>
-        <div class="stat-card">
-            <div class="num" style="color:var(--accent)">{{ stats.accepted }}</div>
-            <div class="label">تم القبول</div>
-        </div>
-        <div class="stat-card">
-            <div class="num" style="color:#60a5fa">{{ stats.completed }}</div>
-            <div class="label">مكتملة</div>
-        </div>
+        <a href="/marketplace/logout/" class="icon-btn" title="خروج"><i class="fas fa-sign-out-alt"></i></a>
     </div>
-
-    {% if customer.sector == 'printing' %}
-    <!-- 🎨 AI Designs Store callout — printing sector only -->
-    <a href="/marketplace/design-store/" style="display:block; margin-bottom:24px; background:linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15)); border:1px solid rgba(236,72,153,0.3); border-radius:16px; padding:20px; text-decoration:none; color:inherit; transition:all 0.3s;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
-            <div style="display:flex; gap:16px; align-items:center;">
-                <span style="font-size:2.5rem;">🎨</span>
-                <div>
-                    <div style="font-weight:900; color:#fff;">متجر تصاميم AI الفوري</div>
-                    <div style="font-size:0.85rem; color:#cbd5e1; margin-top:4px;">تصميمات AI احترافية — لوجو، فلاير، تيشرت في ثواني بجودة عالية</div>
-                </div>
-            </div>
-            <span style="background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem;">دخول المتجر <i class="fas fa-arrow-left"></i></span>
-        </div>
-    </a>
-    {% endif %}
-
-    <!-- New Request Button -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="section-title mb-0"><i class="fas fa-list-check"></i> طلباتي</h3>
-        <button class="btn-glow" onclick="openNewRequest()">
-            <i class="fas fa-plus"></i> طلب جديد
-        </button>
-    </div>
-
-    <!-- Requests List -->
-    {% if requests %}
-    {% for req in requests %}
-    <div class="card-glass">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-                <h5 style="font-weight:700; margin-bottom:4px;">{{ req.title }}</h5>
-                <p style="color:var(--muted); font-size:0.9rem; margin-bottom:8px;">{{ req.description|truncatechars:120 }}</p>
-                <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <span class="badge-status badge-{{ req.status }}">
-                        {% if req.status == 'pending_approval' %}⏳ في انتظار الموافقة{% elif req.status == 'open' %}مفتوح{% elif req.status == 'reviewing' %}قيد المراجعة{% elif req.status == 'accepted' %}تم القبول{% elif req.status == 'completed' %}مكتمل{% elif req.status == 'expired' %}منتهي{% elif req.status == 'rejected_by_admin' %}❌ مرفوض{% else %}ملغي{% endif %}
-                    </span>
-                    <span class="urgency-{{ req.urgency }}">
-                        {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> عاجل{% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> قريب{% else %}<i class="fas fa-calendar"></i> عادي{% endif %}
-                    </span>
-                    <span class="offers-count"><i class="fas fa-gavel"></i> {{ req.offers_count }} عرض</span>
-                </div>
-            </div>
-            <div class="text-end">
-                <small style="color:var(--muted);">{{ req.created_at|date:"d/m/Y" }}</small>
-                <br>
-                {% if req.status == 'pending_approval' or req.status == 'open' %}
-                <button class="btn-outline mt-2 d-inline-block" style="font-size:0.85rem; padding:8px 16px; cursor:pointer;" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')">
-                    <i class="fas fa-edit"></i> تعديل
-                </button>
-                {% endif %}
-                {% if req.offers_count > 0 %}
-                <a href="/marketplace/request/{{ req.request_code }}/" class="btn-outline mt-2 d-inline-block" style="font-size:0.85rem; padding:8px 16px;">
-                    <i class="fas fa-eye"></i> عرض العروض
-                </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-    {% else %}
-    <div class="empty-state">
-        <i class="fas fa-inbox"></i>
-        <h4>لا يوجد طلبات بعد</h4>
-        <p>اضغط "طلب جديد" وابدأ استلم عروض من أفضل التجار!</p>
-    </div>
-    {% endif %}
 </div>
 
-<!-- New Request Modal -->
+<div id="toast" class="toast"></div>
+
+<div class="wrap">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+        <h1>أهلاً، {{ customer.full_name|truncatechars:30 }} 👋</h1>
+        <p>{{ sector_ui.greeting }} اختار من الفئات أو اعمل طلب مخصص.</p>
+        <div class="quick-chips">
+            {% for cat in sector_ui.quick_categories %}
+            <button class="quick-chip" onclick="openNewRequest('{{ cat.q|escapejs }}')">
+                <i class="fas {{ cat.icon }}"></i> {{ cat.label }}
+            </button>
+            {% endfor %}
+            <button class="quick-chip" onclick="openNewRequest('')" style="background:var(--accent); border-color:var(--accent); color:#fff;">
+                <i class="fas fa-pen"></i> طلب مخصص
+            </button>
+        </div>
+    </section>
+
+    <!-- ============ KPI STRIP ============ -->
+    <div class="kpi-strip">
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-list-check"></i></div>
+            <div><div class="kpi-num">{{ stats.total }}</div><div class="kpi-label">إجمالي الطلبات</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-dot"></i></div>
+            <div><div class="kpi-num">{{ stats.open }}</div><div class="kpi-label">مفتوح / يستلم عروض</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
+            <div><div class="kpi-num">{{ stats.pending_approval }}</div><div class="kpi-label">في انتظار الموافقة</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba({{ sector_ui.color|cut:'#' }},0.18); color:var(--accent);"><i class="fas fa-handshake"></i></div>
+            <div><div class="kpi-num">{{ stats.accepted }}</div><div class="kpi-label">تم القبول</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(59,130,246,0.18); color:#93c5fd;"><i class="fas fa-check-double"></i></div>
+            <div><div class="kpi-num">{{ stats.completed }}</div><div class="kpi-label">مكتملة</div></div>
+        </div>
+    </div>
+
+    <!-- ============ SMART CARD ============ -->
+    {% if next_action %}
+    <div class="smart-card">
+        <div class="smart-icon"><i class="fas {{ next_action.icon }}"></i></div>
+        <div class="smart-body">
+            <div class="smart-title">{{ next_action.title }}</div>
+            <div class="smart-desc">{{ next_action.desc }}</div>
+        </div>
+        {% if next_action.action_url == '#new-request' %}
+        <button class="smart-cta" onclick="openNewRequest('')">{{ next_action.action_label }}</button>
+        {% else %}
+        <a class="smart-cta" href="{{ next_action.action_url }}">{{ next_action.action_label }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ============ MAIN GRID ============ -->
+    <div class="main-grid">
+
+        <!-- MAIN: REQUESTS -->
+        <div id="requests">
+            <div class="section-head">
+                <h3><i class="fas fa-list-check"></i> طلباتي</h3>
+                <button class="req-btn primary" onclick="openNewRequest('')"><i class="fas fa-plus"></i> طلب جديد</button>
+            </div>
+            {% if requests %}
+                {% for req in requests %}
+                <div class="req-card">
+                    <div class="req-top">
+                        <div style="flex:1; min-width:0;">
+                            <h5 class="req-title">{{ req.title }}</h5>
+                            <p class="req-desc">{{ req.description|truncatechars:140 }}</p>
+                            <div class="req-meta">
+                                <span class="badge b-{{ req.status }}">
+                                    {% if req.status == 'pending_approval' %}<i class="fas fa-hourglass-half"></i> في انتظار الموافقة
+                                    {% elif req.status == 'open' %}<i class="fas fa-circle-dot"></i> مفتوح
+                                    {% elif req.status == 'reviewing' %}<i class="fas fa-eye"></i> قيد المراجعة
+                                    {% elif req.status == 'accepted' %}<i class="fas fa-handshake"></i> تم القبول
+                                    {% elif req.status == 'completed' %}<i class="fas fa-check-double"></i> مكتمل
+                                    {% elif req.status == 'expired' %}<i class="fas fa-clock"></i> منتهي
+                                    {% elif req.status == 'rejected_by_admin' %}<i class="fas fa-circle-xmark"></i> مرفوض
+                                    {% else %}<i class="fas fa-ban"></i> ملغي{% endif %}
+                                </span>
+                                <span class="badge b-{{ req.urgency }}">
+                                    {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> عاجل
+                                    {% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> قريب
+                                    {% else %}<i class="fas fa-calendar"></i> عادي{% endif %}
+                                </span>
+                                <span class="badge b-offers"><i class="fas fa-gavel"></i> {{ req.offers_count }} عرض</span>
+                            </div>
+                        </div>
+                        <div class="req-actions">
+                            <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
+                            {% if req.status == 'pending_approval' or req.status == 'open' %}
+                            <button class="req-btn" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')"><i class="fas fa-edit"></i> تعديل</button>
+                            {% endif %}
+                            {% if req.offers_count > 0 %}
+                            <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> العروض</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty">
+                    <i class="fas fa-inbox"></i>
+                    <h4>لا يوجد طلبات بعد</h4>
+                    <p>اعمل أول طلب وخلي التجار يتنافسوا عليك!</p>
+                    <button class="btn-primary-grad" style="margin-top:10px;" onclick="openNewRequest('')"><i class="fas fa-plus"></i> ابدأ الآن</button>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- SIDEBAR -->
+        <aside>
+            {% if customer.sector == 'printing' and side_widgets.credits %}
+            <div class="side-card">
+                <h4><i class="fas fa-coins"></i> رصيد تصاميمي</h4>
+                <div class="credit-row"><span>رصيد مجاني</span><span class="num">{{ side_widgets.credits.free }}</span></div>
+                <div class="credit-row"><span>رصيد مدفوع</span><span class="num">{{ side_widgets.credits.paid }}</span></div>
+                <div class="credit-row" style="padding-top:10px;"><span style="font-weight:800;">الإجمالي</span><span class="num" style="font-size:1.2rem;">{{ side_widgets.credits.total }}</span></div>
+                <a href="/marketplace/design-store/" class="side-link" style="margin-top:12px;">
+                    <i class="fas fa-cart-shopping lead"></i> شراء رصيد <i class="fas fa-arrow-left tail"></i>
+                </a>
+            </div>
+            {% endif %}
+
+            {% if customer.sector == 'printing' and side_widgets.recent_designs %}
+            <div class="side-card">
+                <h4><i class="fas fa-images"></i> آخر تصاميمي</h4>
+                <div class="design-thumbs">
+                    {% for d in side_widgets.recent_designs %}
+                    <a class="design-thumb" href="/marketplace/design-store/my-designs/" title="{{ d.prompt|truncatechars:60 }}">
+                        {% if d.image_url %}<img src="{{ d.image_url }}" alt="">{% else %}<i class="fas fa-image"></i>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+                <a href="/marketplace/design-store/my-designs/" class="side-link" style="margin-top:12px;">
+                    <i class="fas fa-folder-open lead"></i> كل تصاميمي <i class="fas fa-arrow-left tail"></i>
+                </a>
+            </div>
+            {% endif %}
+
+            <div class="side-card">
+                <h4><i class="fas fa-bolt"></i> روابط سريعة</h4>
+                {% if customer.sector == 'printing' %}
+                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> متجر تصاميم AI <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-chat/" class="side-link"><i class="fas fa-comments lead"></i> دردشة تصميم <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/brand-profile/" class="side-link"><i class="fas fa-id-badge lead"></i> هويتي البصرية <i class="fas fa-arrow-left tail"></i></a>
+                {% else %}
+                <a href="#new-request" onclick="openNewRequest(''); return false;" class="side-link"><i class="fas fa-plus lead"></i> طلب جديد <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — افتح بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
+                {% endif %}
+            </div>
+
+            {% if sector_ui.tips %}
+            <div class="side-card">
+                <h4><i class="fas fa-lightbulb"></i> نصائح تساعدك تاخد سعر أحسن</h4>
+                {% for tip in sector_ui.tips %}
+                <div class="tip-row"><i class="fas fa-circle-info"></i> <span>{{ tip }}</span></div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+
+<!-- ============ FAB ============ -->
+<button class="fab" onclick="openNewRequest('')"><i class="fas fa-plus"></i> طلب جديد</button>
+
+<!-- ============ NEW REQUEST MODAL ============ -->
 <div class="modal-overlay" id="newRequestModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-plus-circle" style="color:var(--accent)"></i> طلب خدمة جديد</h3>
-
+        <h3><i class="fas {{ sector_ui.icon }}" style="color:var(--accent);"></i> طلب خدمة جديد</h3>
         <form id="requestForm" enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label">عنوان الطلب *</label>
-                <input type="text" class="form-control" name="title" placeholder="{{ sector_ui.title_placeholder }}" required>
+                <input type="text" class="form-control" name="title" id="newTitle" placeholder="{{ sector_ui.title_placeholder }}" required>
             </div>
             <div class="mb-3">
                 <label class="form-label">التفاصيل *</label>
@@ -216,35 +511,30 @@
                     <input type="number" class="form-control" name="max_budget" placeholder="مخفي عن التجار" dir="ltr">
                 </div>
             </div>
-
             <div class="mb-3">
                 <div class="toggle-switch">
                     <input type="checkbox" id="wantsImages" name="wants_images">
-                    <label for="wantsImages" class="form-label mb-0" style="cursor:pointer;">
-                        {{ sector_ui.images_label }}
-                    </label>
+                    <label for="wantsImages" class="form-label mb-0" style="cursor:pointer;">{{ sector_ui.images_label }}</label>
                 </div>
                 <small style="color:var(--muted);">لو فعّلت — التجار ملزمين يرفقوا صور مع عروضهم</small>
             </div>
-
             <div class="mb-3">
                 <label class="form-label">صور مرجعية (اختياري)</label>
                 <input type="file" class="form-control" name="attachment_1" accept="image/*">
                 <input type="file" class="form-control mt-2" name="attachment_2" accept="image/*">
             </div>
-
-            <button type="submit" class="btn-glow w-100" id="submitReqBtn">
+            <button type="submit" class="btn-primary-grad w-100" id="submitReqBtn">
                 <i class="fas fa-paper-plane"></i> انشر الطلب
             </button>
         </form>
     </div>
 </div>
 
-<!-- Edit Request Modal -->
+<!-- ============ EDIT MODAL ============ -->
 <div class="modal-overlay" id="editRequestModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-edit" style="color:var(--accent)"></i> تعديل الطلب</h3>
+        <h3><i class="fas fa-edit" style="color:var(--accent);"></i> تعديل الطلب</h3>
         <form id="editForm" enctype="multipart/form-data">
             <input type="hidden" id="editRequestCode" name="request_code">
             <div class="mb-3">
@@ -268,8 +558,8 @@
                 <input type="file" class="form-control" name="attachment_1" accept="image/*">
                 <input type="file" class="form-control mt-2" name="attachment_2" accept="image/*">
             </div>
-            <p style="color:var(--warn); font-size:0.85rem;"><i class="fas fa-info-circle"></i> لو الطلب كان مفتوح سابقاً، التعديل هيعيده للمراجعة من الإدارة.</p>
-            <button type="submit" class="btn-glow w-100" id="editReqBtn">
+            <p style="color:var(--warn); font-size:0.85rem;"><i class="fas fa-info-circle"></i> لو الطلب كان مفتوح، التعديل هيعيده لمراجعة الإدارة.</p>
+            <button type="submit" class="btn-primary-grad w-100" id="editReqBtn">
                 <i class="fas fa-save"></i> حفظ التعديلات
             </button>
         </form>
@@ -277,37 +567,40 @@
 </div>
 
 <script>
-function openNewRequest() { document.getElementById('newRequestModal').classList.add('show'); }
+function openNewRequest(prefill) {
+    document.getElementById('newRequestModal').classList.add('show');
+    if (prefill) {
+        const t = document.getElementById('newTitle');
+        t.value = prefill;
+        setTimeout(() => { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }, 80);
+    }
+}
 function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 function toast(msg, type) {
     const t = document.getElementById('toast');
-    t.textContent = msg; t.className = `alert-toast ${type} show`;
+    t.textContent = msg; t.className = `toast ${type} show`;
     setTimeout(() => t.classList.remove('show'), 3500);
 }
 
 document.getElementById('requestForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitReqBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> جاري النشر...';
-
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري النشر...';
     const fd = new FormData(this);
     fd.set('wants_images', document.getElementById('wantsImages').checked ? 'true' : 'false');
-
     try {
         const res = await fetch('/marketplace/request/create/', { method: 'POST', body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');
         toast(data.message, 'success');
         closeModal();
-        setTimeout(() => location.reload(), 1200);
+        setTimeout(() => location.reload(), 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> انشر الطلب';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> انشر الطلب';
     }
 });
 
@@ -322,24 +615,20 @@ function openEditModal(code, title, desc, urgency) {
 document.getElementById('editForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('editReqBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
-
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
     const code = document.getElementById('editRequestCode').value;
     const fd = new FormData(this);
-
     try {
         const res = await fetch(`/marketplace/request/${code}/edit/`, { method: 'POST', body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');
         toast(data.message, 'success');
         closeModal();
-        setTimeout(() => location.reload(), 1200);
+        setTimeout(() => location.reload(), 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
     }
 });
 </script>
