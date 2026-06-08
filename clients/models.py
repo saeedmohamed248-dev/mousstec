@@ -2777,6 +2777,343 @@ def seed_default_design_packages():
     for d in customer_packages + designer_packages:
         DesignPackage.objects.update_or_create(slug=d['slug'], defaults=d)
 
+# =====================================================================
+# 🔔 إشعارات وهدايا الأدمن لعملاء السوق (Admin → Customer Notifications)
+# =====================================================================
+
+class CustomerNotification(models.Model):
+    """
+    إشعار يرسله السوبر أدمن لعميل في السوق (هدية، عرض، تنبيه...).
+    يظهر للعميل في جرس الإشعارات داخل داش بورد السوق.
+    """
+    LEVEL_CHOICES = (
+        ('info',    _('معلومة')),
+        ('success', _('نجاح / هدية')),
+        ('warning', _('تنبيه')),
+        ('danger',  _('تحذير')),
+    )
+
+    customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.CASCADE,
+        related_name='notifications', verbose_name=_("العميل"),
+    )
+    title = models.CharField(max_length=200, verbose_name=_("العنوان"))
+    body = models.TextField(verbose_name=_("النص"))
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='info')
+    icon = models.CharField(max_length=50, blank=True, default='fa-bell',
+                            help_text=_("Font Awesome class, e.g. fa-gift"))
+    action_url = models.CharField(max_length=300, blank=True,
+                                  help_text=_("رابط اختياري للعميل ينقر عليه"))
+    action_label = models.CharField(max_length=80, blank=True)
+
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='sent_customer_notifications',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("إشعار عميل")
+        verbose_name_plural = _("🔔 إشعارات العملاء")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.level}] → {self.customer_id}: {self.title[:60]}"
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
+
+    def mark_read(self):
+        if not self.read_at:
+            self.read_at = timezone.now()
+            self.save(update_fields=['read_at'])
+
+
+# =====================================================================
+# 🚗 P2P سوق قطع غيار السيارات (Peer-to-Peer Parts Marketplace)
+#    البائع (عميل أو شركة) يعرض قطعة، المشتري يدفع، الفلوس Escrow
+#    حتى تنتهي فترة الضمان (1-90 يوم) ثم تحرَّر للبائع. عمولة المنصة:
+#    8% للعملاء (أفراد) و 4% للشركات (Tenants). الشحن في الإرجاع
+#    على المنصة من العمولة.
+# =====================================================================
+
+def _validate_warranty_days(value):
+    from django.core.exceptions import ValidationError
+    if value < 1 or value > 90:
+        raise ValidationError(_("فترة الضمان يجب أن تكون بين 1 و 90 يوم"))
+
+
+class PartCarMake(models.Model):
+    """ماركة سيارة — للفلترة في سوق قطع الغيار."""
+    name = models.CharField(max_length=80, unique=True, verbose_name=_("الماركة"))
+    slug = models.SlugField(max_length=80, unique=True, db_index=True)
+    logo = models.ImageField(upload_to='parts/makes/', blank=True, null=True)
+    sort_order = models.IntegerField(default=100)
+    is_active = models.BooleanField(default=True)
+    listings_count = models.IntegerField(default=0, help_text=_("Cached count of active listings"))
+
+    class Meta:
+        verbose_name = _("ماركة سيارة")
+        verbose_name_plural = _("🏷️ ماركات السيارات")
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class PartListing(models.Model):
+    """قطعة غيار معروضة للبيع P2P. البائع إما عميل سوق أو شركة (Tenant)."""
+
+    CONDITION_CHOICES = (
+        ('new',             _('جديد بالضمانة')),
+        ('used_excellent',  _('مستعمل — ممتاز')),
+        ('used_good',       _('مستعمل — جيد')),
+        ('used_fair',       _('مستعمل — مقبول')),
+        ('refurbished',     _('مجدد')),
+    )
+    STATUS_CHOICES = (
+        ('draft',    _('مسودة')),
+        ('active',   _('نشط')),
+        ('reserved', _('محجوز')),  # دفع جارٍ
+        ('sold',     _('تم البيع')),
+        ('removed',  _('محذوف')),
+    )
+
+    listing_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    # Seller (exactly one of these must be set)
+    seller_customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_listings',
+        verbose_name=_("البائع (عميل سوق)"),
+    )
+    seller_tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_listings',
+        verbose_name=_("البائع (شركة)"),
+    )
+
+    title = models.CharField(max_length=200, verbose_name=_("اسم القطعة"))
+    description = models.TextField(verbose_name=_("الوصف"),
+        help_text=_("اوصف القطعة بالتفصيل: الحالة، أي عيوب، رقم القطعة الأصلي، إلخ"))
+    car_make = models.ForeignKey(PartCarMake, on_delete=models.PROTECT,
+                                 related_name='listings', verbose_name=_("ماركة السيارة"))
+    car_model = models.CharField(max_length=100, blank=True, verbose_name=_("الموديل"),
+                                 help_text=_("مثال: 320i, X5, Cooper S"))
+    car_year_from = models.IntegerField(null=True, blank=True, verbose_name=_("من سنة"))
+    car_year_to   = models.IntegerField(null=True, blank=True, verbose_name=_("إلى سنة"))
+    part_number = models.CharField(max_length=120, blank=True,
+                                   verbose_name=_("رقم القطعة الأصلي (OEM)"))
+    condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='used_good')
+
+    price_egp = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("السعر (ج.م)"))
+    warranty_days = models.IntegerField(
+        default=3, validators=[_validate_warranty_days],
+        verbose_name=_("فترة الضمان (يوم)"),
+        help_text=_("بعد التسليم — كلما طالت الفترة زادت ثقة المشتري (الحد الأقصى 90 يوم)"),
+    )
+
+    city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة"))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    views_count = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    sold_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("قطعة غيار معروضة")
+        verbose_name_plural = _("🛒 سوق قطع الغيار")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'car_make']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                name='partlisting_one_seller',
+                check=(
+                    models.Q(seller_customer__isnull=False, seller_tenant__isnull=True) |
+                    models.Q(seller_customer__isnull=True,  seller_tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.title} — {self.car_make.name}"
+
+    @property
+    def seller_label(self):
+        if self.seller_tenant_id:
+            return self.seller_tenant.name
+        if self.seller_customer_id:
+            return self.seller_customer.company_name or self.seller_customer.full_name
+        return '—'
+
+    @property
+    def seller_is_company(self):
+        return self.seller_tenant_id is not None
+
+    @property
+    def commission_pct(self):
+        """8% للأفراد، 4% للشركات."""
+        return Decimal('4.00') if self.seller_is_company else Decimal('8.00')
+
+    @property
+    def commission_amount(self):
+        return (self.price_egp * self.commission_pct / Decimal('100')).quantize(Decimal('0.01'))
+
+    @property
+    def seller_payout(self):
+        return (self.price_egp - self.commission_amount).quantize(Decimal('0.01'))
+
+    @property
+    def primary_photo_url(self):
+        photo = self.photos.filter(is_primary=True).first() or self.photos.first()
+        if photo and photo.image:
+            return photo.image.url
+        return ''
+
+
+class PartListingPhoto(models.Model):
+    """صور لكل قطعة. حد أدنى 3 موصى به ليبان كل تفصيلة."""
+    listing = models.ForeignKey(PartListing, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='parts/listings/%Y/%m/')
+    caption = models.CharField(max_length=200, blank=True)
+    is_primary = models.BooleanField(default=False)
+    sort_order = models.IntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-is_primary', 'sort_order', 'uploaded_at']
+
+    def __str__(self):
+        return f"Photo of {self.listing_id}"
+
+
+class PartOrder(models.Model):
+    """
+    أمر شراء قطعة. الفلوس escrow حتى ينتهي وقت الضمان.
+
+    دورة الحياة:
+      pending_payment → (Paymob) → paid_held → (تسليم) → warranty_window → released
+      أو في أي وقت → refunded / disputed
+    """
+    STATUS_CHOICES = (
+        ('pending_payment',  _('بانتظار الدفع')),
+        ('paid_held',        _('مدفوع — في الـ Escrow')),
+        ('shipped',          _('في الشحن')),
+        ('delivered',        _('تم التسليم — في فترة الضمان')),
+        ('released',         _('تم الإفراج — أُرسلت للبائع')),
+        ('refund_requested', _('طلب إرجاع')),
+        ('refunded',         _('تم الإرجاع للمشتري')),
+        ('disputed',         _('نزاع — قيد المراجعة')),
+        ('cancelled',        _('ملغي')),
+    )
+
+    order_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    listing = models.ForeignKey(PartListing, on_delete=models.PROTECT, related_name='orders')
+
+    # Buyer (exactly one)
+    buyer_customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_orders',
+    )
+    buyer_tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_orders',
+    )
+
+    # Frozen amounts (snapshot at order time)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    seller_payout = models.DecimalField(max_digits=12, decimal_places=2)
+    warranty_days = models.IntegerField()
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_payment', db_index=True)
+
+    # Shipping info captured at checkout
+    shipping_name = models.CharField(max_length=120, blank=True)
+    shipping_phone = models.CharField(max_length=30, blank=True)
+    shipping_address = models.TextField(blank=True)
+    shipping_city = models.CharField(max_length=80, blank=True)
+
+    # Paymob
+    paymob_order_id = models.CharField(max_length=100, blank=True, db_index=True)
+    paymob_txn_id   = models.CharField(max_length=100, blank=True, db_index=True)
+
+    # Timeline
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    warranty_ends_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
+
+    # Notes / dispute
+    refund_reason = models.TextField(blank=True)
+    admin_notes = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = _("طلب شراء قطعة")
+        verbose_name_plural = _("📦 طلبات شراء قطع الغيار")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', 'warranty_ends_at'])]
+        constraints = [
+            models.CheckConstraint(
+                name='partorder_one_buyer',
+                check=(
+                    models.Q(buyer_customer__isnull=False, buyer_tenant__isnull=True) |
+                    models.Q(buyer_customer__isnull=True,  buyer_tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"Order {self.order_code} — {self.listing.title[:40]}"
+
+    @property
+    def buyer_label(self):
+        if self.buyer_tenant_id:
+            return self.buyer_tenant.name
+        if self.buyer_customer_id:
+            return self.buyer_customer.company_name or self.buyer_customer.full_name
+        return '—'
+
+    def mark_delivered(self):
+        """يستدعى لما المشتري يأكد الاستلام — يبدأ عدّاد الضمان."""
+        if self.status not in ('paid_held', 'shipped'):
+            return False
+        now = timezone.now()
+        self.status = 'delivered'
+        self.delivered_at = now
+        self.warranty_ends_at = now + timedelta(days=self.warranty_days)
+        self.save(update_fields=['status', 'delivered_at', 'warranty_ends_at'])
+        return True
+
+    def release_to_seller(self, by_user=None):
+        """يحرّر الفلوس للبائع — يستدعى تلقائياً بعد انتهاء فترة الضمان."""
+        if self.status not in ('delivered',):
+            return False
+        if self.warranty_ends_at and timezone.now() < self.warranty_ends_at:
+            return False
+        self.status = 'released'
+        self.released_at = timezone.now()
+        self.save(update_fields=['status', 'released_at'])
+        # Notify seller
+        if self.listing.seller_customer_id:
+            CustomerNotification.objects.create(
+                customer=self.listing.seller_customer,
+                title='💰 تم تحويل أموالك',
+                body=f'فترة الضمان انتهت لطلب «{self.listing.title}». المبلغ {self.seller_payout} ج.م في طريقه لحسابك.',
+                level='success', icon='fa-money-bill-wave',
+            )
+        return True
+
+
 # OBD device identity & secrets — defined in a separate module for clarity.
 # Imported here so Django registers them under the `clients` app.
 from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401

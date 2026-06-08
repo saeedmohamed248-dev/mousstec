@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير الأرباح والخسائر — {{ month_name }} {{ year }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1020; --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6;
+            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
+
+        .topbar { background: rgba(11,16,32,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);
+            padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap; }
+        .topbar h2 { font-size: 1.1rem; font-weight: 900; margin: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem; cursor: pointer; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { background: rgba(255,255,255,0.08); }
+
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
+
+        /* Period selector */
+        .period-bar { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-bottom: 18px;
+            display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .period-bar .title { font-size: 1.1rem; font-weight: 900; display:flex; gap:8px; align-items:center; }
+        .period-bar .title i { color: var(--accent); }
+        .period-bar form { display: flex; gap: 8px; align-items: center; }
+        .period-bar select { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 12px; font-family: inherit; font-weight: 700; }
+
+        /* Headline cards */
+        .head-grid { display: grid; gap: 14px; margin-bottom: 18px;
+            grid-template-columns: 1fr 1fr 1.4fr; }
+        @media(max-width:840px) { .head-grid { grid-template-columns: 1fr; } }
+        .head-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+        .head-card .lbl { color: var(--muted); font-size: 0.86rem; font-weight: 700; }
+        .head-card .val { font-size: 1.8rem; font-weight: 900; margin-top: 6px; line-height: 1.1; }
+        .head-card.income { background: linear-gradient(135deg, rgba(16,185,129,0.16), rgba(5,150,105,0.10)); border-color: rgba(16,185,129,0.35); }
+        .head-card.income .val { color: #6ee7b7; }
+        .head-card.expense { background: linear-gradient(135deg, rgba(239,68,68,0.16), rgba(220,38,38,0.10)); border-color: rgba(239,68,68,0.35); }
+        .head-card.expense .val { color: #fca5a5; }
+        .head-card.net { background: linear-gradient(135deg, rgba(139,92,246,0.16), rgba(236,72,153,0.12)); border-color: rgba(139,92,246,0.4); position: relative; overflow: hidden; }
+        .head-card.net .val { font-size: 2.3rem; }
+        .head-card.net.profit .val { color: #c4b5fd; }
+        .head-card.net.loss .val { color: #fca5a5; }
+        .head-card .meta { color: var(--soft); font-size: 0.82rem; margin-top: 6px; }
+        .head-card .margin-pill { display:inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 800; background: rgba(255,255,255,0.06); border: 1px solid var(--line); }
+
+        /* Section card */
+        .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-bottom: 18px; }
+        .section h3 { font-size: 1.1rem; font-weight: 900; margin: 0 0 16px; display:flex; align-items:center; gap: 8px; }
+        .section h3 i { color: var(--accent); }
+
+        /* Categories */
+        .cat-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
+        .cat-row:last-child { border-bottom: 0; }
+        .cat-row .label { font-weight: 800; min-width: 180px; }
+        .cat-row .bar { flex: 1; background: rgba(255,255,255,0.04); border-radius: 10px; height: 10px; overflow: hidden; }
+        .cat-row .bar-fill { height: 100%; border-radius: 10px; }
+        .cat-row .pct { font-weight: 800; min-width: 60px; text-align: left; color: var(--soft); }
+        .cat-row .amount { font-weight: 900; min-width: 130px; text-align: left; color: #fca5a5; }
+
+        /* Trend chart (CSS bars) */
+        .trend { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; align-items: end; min-height: 200px; padding: 12px 0; }
+        .trend .col { display:flex; flex-direction:column; align-items:center; gap:4px; min-height: 100%; }
+        .trend .bars { display:flex; gap:3px; align-items:end; height: 160px; }
+        .trend .bar { width: 14px; border-radius: 4px 4px 0 0; min-height: 2px; }
+        .trend .bar.income { background: linear-gradient(180deg, #10b981, #059669); }
+        .trend .bar.expense { background: linear-gradient(180deg, #ef4444, #dc2626); }
+        .trend .label { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+        .trend .net { font-weight: 800; font-size: 0.82rem; }
+        .trend-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 0.82rem; color: var(--soft); }
+        .trend-legend span::before { content:''; display:inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+        .trend-legend .li-i::before { background: #10b981; }
+        .trend-legend .li-e::before { background: #ef4444; }
+
+        /* Orders summary */
+        .ord-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+        .ord-tile { background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+        .ord-tile .lbl { color: var(--muted); font-size: 0.78rem; }
+        .ord-tile .val { font-weight: 900; font-size: 1.25rem; margin-top: 4px; }
+
+        .empty { text-align: center; color: var(--muted); padding: 30px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h2><i class="fas fa-chart-line"></i> تقرير الأرباح والخسائر</h2>
+    <a href="/secure-portal/" class="btn"><i class="fas fa-arrow-right"></i> الأدمن</a>
+</div>
+
+<div class="wrap">
+
+    <!-- Period selector -->
+    <div class="period-bar">
+        <div class="title"><i class="fas fa-calendar"></i> الفترة: {{ month_name }} {{ year }}</div>
+        <form method="get">
+            <select name="month">
+                {% for i, name in "1,يناير;2,فبراير;3,مارس;4,إبريل;5,مايو;6,يونيو;7,يوليو;8,أغسطس;9,سبتمبر;10,أكتوبر;11,نوفمبر;12,ديسمبر"|safe|cut:" " %}{% endfor %}
+                <option value="1" {% if month == 1 %}selected{% endif %}>يناير</option>
+                <option value="2" {% if month == 2 %}selected{% endif %}>فبراير</option>
+                <option value="3" {% if month == 3 %}selected{% endif %}>مارس</option>
+                <option value="4" {% if month == 4 %}selected{% endif %}>إبريل</option>
+                <option value="5" {% if month == 5 %}selected{% endif %}>مايو</option>
+                <option value="6" {% if month == 6 %}selected{% endif %}>يونيو</option>
+                <option value="7" {% if month == 7 %}selected{% endif %}>يوليو</option>
+                <option value="8" {% if month == 8 %}selected{% endif %}>أغسطس</option>
+                <option value="9" {% if month == 9 %}selected{% endif %}>سبتمبر</option>
+                <option value="10" {% if month == 10 %}selected{% endif %}>أكتوبر</option>
+                <option value="11" {% if month == 11 %}selected{% endif %}>نوفمبر</option>
+                <option value="12" {% if month == 12 %}selected{% endif %}>ديسمبر</option>
+            </select>
+            <select name="year">
+                {% for y in "2024 2025 2026 2027 2028"|split %}{% endfor %}
+                <option value="2024" {% if year == 2024 %}selected{% endif %}>2024</option>
+                <option value="2025" {% if year == 2025 %}selected{% endif %}>2025</option>
+                <option value="2026" {% if year == 2026 %}selected{% endif %}>2026</option>
+                <option value="2027" {% if year == 2027 %}selected{% endif %}>2027</option>
+                <option value="2028" {% if year == 2028 %}selected{% endif %}>2028</option>
+            </select>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:0;"><i class="fas fa-filter"></i> عرض</button>
+        </form>
+    </div>
+
+    <!-- Headline -->
+    <div class="head-grid">
+        <div class="head-card income">
+            <div class="lbl"><i class="fas fa-arrow-down"></i> الإيرادات</div>
+            <div class="val">{{ total_income|floatformat:2 }} ج.م</div>
+            <div class="meta">{{ in_count }} حركة</div>
+        </div>
+        <div class="head-card expense">
+            <div class="lbl"><i class="fas fa-arrow-up"></i> المصروفات</div>
+            <div class="val">{{ total_expense|floatformat:2 }} ج.م</div>
+            <div class="meta">{{ out_count }} حركة</div>
+        </div>
+        <div class="head-card net {% if is_profit %}profit{% else %}loss{% endif %}">
+            <div class="lbl">{% if is_profit %}<i class="fas fa-circle-check"></i> صافي الربح{% else %}<i class="fas fa-circle-xmark"></i> صافي الخسارة{% endif %}</div>
+            <div class="val">{{ net_profit|floatformat:2 }} ج.م</div>
+            <div class="margin-pill">هامش الربح: {{ profit_margin|floatformat:1 }}%</div>
+        </div>
+    </div>
+
+    <!-- Trend (6-month) -->
+    <div class="section">
+        <h3><i class="fas fa-chart-column"></i> اتجاه آخر 6 شهور</h3>
+        <div class="trend">
+            {% with max_val=trend|length %}
+            {% endwith %}
+            {% for t in trend %}
+            <div class="col">
+                <div class="net" style="color:{% if t.net >= 0 %}#6ee7b7{% else %}#fca5a5{% endif %};">
+                    {{ t.net|floatformat:0 }}
+                </div>
+                <div class="bars">
+                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="إيرادات: {{ t.income|floatformat:0 }} ج.م"></div>
+                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="مصروفات: {{ t.expense|floatformat:0 }} ج.م"></div>
+                </div>
+                <div class="label">{{ t.label }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="trend-legend">
+            <span class="li-i">إيرادات</span>
+            <span class="li-e">مصروفات</span>
+        </div>
+    </div>
+
+    <!-- Expense categories -->
+    <div class="section">
+        <h3><i class="fas fa-tag"></i> توزيع المصروفات حسب التصنيف</h3>
+        {% for cat in expense_cats %}
+        <div class="cat-row">
+            <div class="label">{{ cat.name }}</div>
+            <div class="bar"><div class="bar-fill" style="width: {{ cat.percent|floatformat:0 }}%; background: {{ cat.color }};"></div></div>
+            <div class="pct">{{ cat.percent|floatformat:1 }}%</div>
+            <div class="amount">{{ cat.total|floatformat:2 }} ج.م</div>
+        </div>
+        {% empty %}
+        <div class="empty">لا توجد مصروفات في هذا الشهر</div>
+        {% endfor %}
+    </div>
+
+    <!-- Orders -->
+    <div class="section">
+        <h3><i class="fas fa-file-invoice"></i> فواتير الشهر</h3>
+        <div class="ord-grid">
+            <div class="ord-tile">
+                <div class="lbl">عدد الفواتير</div>
+                <div class="val" style="color:#c4b5fd;">{{ orders_count }}</div>
+            </div>
+            <div class="ord-tile">
+                <div class="lbl">إجمالي قيمة الفواتير</div>
+                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|floatformat:2 }} ج.م</div>
+            </div>
+            <div class="ord-tile">
+                <div class="lbl">المحصّل</div>
+                <div class="val" style="color:#6ee7b7;">{{ orders_paid|floatformat:2 }} ج.م</div>
+            </div>
+            <div class="ord-tile">
+                <div class="lbl">المتبقي على العملاء</div>
+                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|floatformat:2 }} ج.م</div>
+            </div>
+        </div>
+    </div>
+
+    <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin-top:20px;">
+        تقرير صادر من Mouss Tec • {% now "d/m/Y H:i" %}
+    </p>
+</div>
+
+</body>
+</html>

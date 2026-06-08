@@ -370,7 +370,14 @@ urlpatterns = [
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
     path('superadmin/customer/<int:customer_id>/detail/', client_views.super_admin_customer_detail, name='super_admin_customer_detail'),
+    path('superadmin/customer/<int:customer_id>/delete/', client_views.super_admin_customer_delete, name='super_admin_customer_delete'),
+    path('superadmin/customer/<int:customer_id>/gift/',   client_views.super_admin_customer_gift,   name='super_admin_customer_gift'),
+    path('superadmin/customer/<int:customer_id>/notify/', client_views.super_admin_customer_notify, name='super_admin_customer_notify'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
+
+    # 🔔 Marketplace customer notifications (customer-facing)
+    path('marketplace/notifications/',                       client_views.customer_notifications_list, name='customer_notifications_list'),
+    path('marketplace/notifications/<int:notification_id>/read/', client_views.customer_notification_read, name='customer_notification_read'),
 
     # 🎛️ Phase 5: SaaS Control Center — Plan/Entitlement management + Revenue
     path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),

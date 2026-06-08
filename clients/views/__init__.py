@@ -130,9 +130,14 @@ from .subscription_views import (  # noqa: F401
 from .admin_views import (  # noqa: F401
     super_admin_dashboard,
     super_admin_customer_detail,
+    super_admin_customer_delete,
+    super_admin_customer_gift,
+    super_admin_customer_notify,
     super_admin_tenant_grants,
     enter_tenant,
     impersonate_login,
+    customer_notifications_list,
+    customer_notification_read,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

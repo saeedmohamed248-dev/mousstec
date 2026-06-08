@@ -10,6 +10,7 @@ from .models import (
     PrintBranch, PrintCustomer, MachineProfile, Designer,
     DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial,
     PrintTreasury, PrintTransaction, ProductType, StaffPermission,
+    PriceQuotation, QuotationLine,
 )
 
 
@@ -392,3 +393,71 @@ class StaffPermissionAdmin(PrintSecureAdmin):
             'fields': ('can_use_ai_studio', 'can_view_reports'),
         }),
     )
+
+
+# =====================================================================
+# 💰 عروض الأسعار (Quotations) Admin
+# =====================================================================
+
+class QuotationLineInline(admin.TabularInline):
+    model = QuotationLine
+    fields = ('description', 'quantity', 'unit_price', 'line_total', 'sort_order')
+    readonly_fields = ('line_total',)
+    extra = 1
+
+
+@admin.register(PriceQuotation)
+class PriceQuotationAdmin(PrintSecureAdmin):
+    list_display = ('quote_number', 'title', 'customer_col', 'total_col', 'status_badge', 'valid_until', 'share_link', 'created_at')
+    list_filter = ('status', 'created_at', 'valid_until')
+    search_fields = ('quote_number', 'title', 'customer_name', 'customer__name', 'customer_phone')
+    readonly_fields = ('quote_number', 'share_token', 'subtotal', 'total', 'sent_at', 'responded_at', 'converted_order')
+    inlines = [QuotationLineInline]
+    fieldsets = (
+        ('بيانات العميل', {
+            'fields': ('customer', 'customer_name', 'customer_phone', 'customer_whatsapp')
+        }),
+        ('محتوى العرض', {
+            'fields': ('title', 'notes', 'discount', 'tax_percent')
+        }),
+        ('الحالة والصلاحية', {
+            'fields': ('status', 'valid_until', 'sent_at', 'responded_at', 'converted_order')
+        }),
+        ('المراجع', {
+            'classes': ('collapse',),
+            'fields': ('quote_number', 'share_token', 'subtotal', 'total', 'created_by')
+        }),
+    )
+
+    def customer_col(self, obj):
+        return obj.customer_display
+    customer_col.short_description = "العميل"
+
+    def total_col(self, obj):
+        return format_html('<b style="color:#ec4899; font-size:1rem;">{} ج.م</b>', f'{obj.total:,.2f}')
+    total_col.short_description = "الإجمالي"
+
+    def status_badge(self, obj):
+        colors = {
+            'draft': '#94a3b8', 'sent': '#f59e0b', 'accepted': '#10b981',
+            'rejected': '#ef4444', 'expired': '#64748b', 'converted': '#8b5cf6',
+        }
+        c = colors.get(obj.status, '#94a3b8')
+        return format_html(
+            '<span style="background:{}; color:#fff; padding:3px 10px; border-radius:999px; '
+            'font-size:0.78rem; font-weight:700;">{}</span>',
+            c, obj.get_status_display())
+    status_badge.short_description = "الحالة"
+
+    def share_link(self, obj):
+        return format_html(
+            '<a href="/printing/quotation/view/{}/" target="_blank" '
+            'style="background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; '
+            'padding:4px 12px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.78rem;">'
+            '🔗 فتح للعميل</a>', obj.share_token)
+    share_link.short_description = "رابط العميل"
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk and not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

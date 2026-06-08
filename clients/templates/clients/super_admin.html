@@ -1034,11 +1034,15 @@
                             <th class="px-3 py-2 text-center">💰 صرف (ج.م)</th>
                             <th class="px-3 py-2 text-right">آخر نشاط</th>
                             <th class="px-3 py-2 text-center">الحالة</th>
+                            <th class="px-3 py-2 text-center">⚡ إجراءات</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
                         {% for c in marketplace_customers %}
-                        <tr class="hover:bg-slate-800/40 transition cursor-pointer" onclick="showCustomerDetail({{ c.pk }})">
+                        <tr class="hover:bg-slate-800/40 transition"
+                            data-customer-id="{{ c.pk }}"
+                            data-customer-name="{{ c.company_name|default:c.full_name|escape }}"
+                            data-customer-phone="{{ c.phone }}">
                             <td class="px-3 py-3 text-white font-bold">
                                 {{ c.company_name|default:c.full_name }}
                                 {% if c.company_name %}<br><small class="text-slate-500 font-normal">{{ c.full_name }}</small>{% endif %}
@@ -1065,9 +1069,31 @@
                                 <span class="bg-amber-500/15 text-amber-400 px-2 py-1 rounded text-[10px] font-bold">⏳ غير موثق</span>
                                 {% endif %}
                             </td>
+                            <td class="px-3 py-3 text-center whitespace-nowrap">
+                                <button type="button" onclick="event.stopPropagation(); showCustomerDetail({{ c.pk }})"
+                                    title="عرض التفاصيل"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/40 hover:bg-slate-600 text-slate-300 hover:text-white transition">
+                                    <i class="fas fa-eye text-xs"></i>
+                                </button>
+                                <button type="button" onclick="event.stopPropagation(); openCustomerGift({{ c.pk }}, '{{ c.full_name|escapejs }}')"
+                                    title="منح هدية تصاميم مجانية"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-white transition">
+                                    <i class="fas fa-gift text-xs"></i>
+                                </button>
+                                <button type="button" onclick="event.stopPropagation(); openCustomerNotify({{ c.pk }}, '{{ c.full_name|escapejs }}')"
+                                    title="إرسال إشعار للعميل"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/15 hover:bg-blue-500 text-blue-400 hover:text-white transition">
+                                    <i class="fas fa-bell text-xs"></i>
+                                </button>
+                                <button type="button" onclick="event.stopPropagation(); openCustomerDelete({{ c.pk }}, '{{ c.full_name|escapejs }}', '{{ c.phone }}')"
+                                    title="حذف العميل نهائياً"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white transition">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="9" class="px-3 py-8 text-center text-slate-500">لا يوجد عملاء بعد.</td></tr>
+                        <tr><td colspan="10" class="px-3 py-8 text-center text-slate-500">لا يوجد عملاء بعد.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -1841,5 +1867,188 @@ async function rejectMarketplaceReq(id, btn) {
     }
 }
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- 🛍️ MARKETPLACE-CUSTOMER ADMIN MODALS (Gift / Notify / Delete)            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- 🎁 Gift designs to a marketplace customer -->
+<div id="customer-gift-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-xl font-black text-white"><i class="fas fa-gift text-emerald-400 ml-2"></i> هدية تصاميم مجانية</h3>
+            <button onclick="closeCustomerGift()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <p class="text-xs text-slate-400 mb-4">إرسال هدية إلى: <span id="customer-gift-name" class="text-emerald-300 font-bold"></span></p>
+        <form id="customer-gift-form" onsubmit="submitCustomerGift(event)">
+            {% csrf_token %}
+            <label class="block text-xs font-bold text-slate-300 mb-2">عدد التصاميم</label>
+            <input type="number" name="designs" min="1" max="500" value="5" required
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-emerald-500 outline-none">
+            <label class="block text-xs font-bold text-slate-300 mb-2">السبب / الرسالة (اختياري)</label>
+            <textarea name="reason" rows="3" placeholder="هدية ترحيب من إدارة المنصة"
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-emerald-500 outline-none"></textarea>
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl transition">
+                <i class="fas fa-paper-plane ml-1"></i> إرسال الهدية
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 🔔 Notify a marketplace customer -->
+<div id="customer-notify-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-blue-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-xl font-black text-white"><i class="fas fa-bell text-blue-400 ml-2"></i> إرسال إشعار</h3>
+            <button onclick="closeCustomerNotify()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <p class="text-xs text-slate-400 mb-4">المرسل إليه: <span id="customer-notify-name" class="text-blue-300 font-bold"></span></p>
+        <form id="customer-notify-form" onsubmit="submitCustomerNotify(event)">
+            {% csrf_token %}
+            <label class="block text-xs font-bold text-slate-300 mb-2">العنوان</label>
+            <input type="text" name="title" maxlength="200" required placeholder="مثال: عرض خاص لك"
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-blue-500 outline-none">
+            <label class="block text-xs font-bold text-slate-300 mb-2">النص</label>
+            <textarea name="body" rows="4" required placeholder="اكتب رسالتك للعميل..."
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-blue-500 outline-none"></textarea>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">المستوى</label>
+                    <select name="level" class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-3 text-white focus:border-blue-500 outline-none">
+                        <option value="info">معلومة</option>
+                        <option value="success">نجاح / هدية</option>
+                        <option value="warning">تنبيه</option>
+                        <option value="danger">تحذير</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">أيقونة (FA)</label>
+                    <input type="text" name="icon" value="fa-bell" placeholder="fa-bell"
+                        class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-3 text-white focus:border-blue-500 outline-none">
+                </div>
+            </div>
+            <label class="block text-xs font-bold text-slate-300 mb-2">رابط زر (اختياري)</label>
+            <input type="text" name="action_url" placeholder="/marketplace/design-store/"
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-3 focus:border-blue-500 outline-none">
+            <input type="text" name="action_label" placeholder="نص الزر (مثال: تصفّح الآن)"
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-blue-500 outline-none">
+            <button type="submit" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-3 rounded-xl transition">
+                <i class="fas fa-paper-plane ml-1"></i> إرسال الإشعار
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 🗑️ Delete a marketplace customer -->
+<div id="customer-delete-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-red-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="text-xl font-black text-red-400"><i class="fas fa-triangle-exclamation ml-2"></i> حذف عميل نهائياً</h3>
+            <button onclick="closeCustomerDelete()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-5 text-xs text-red-200 leading-relaxed">
+            ⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم حذف:<br>
+            – بيانات العميل + جميع الطلبات + التصاميم + المشتريات + الإشعارات.<br>
+            للتأكيد، اكتب رقم موبايل العميل: <span class="font-bold text-red-300" id="customer-delete-phone-hint"></span>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">العميل: <span id="customer-delete-name" class="text-red-300 font-bold"></span></p>
+        <form id="customer-delete-form" onsubmit="submitCustomerDelete(event)">
+            {% csrf_token %}
+            <input type="text" name="confirm_phone" placeholder="رقم الموبايل للتأكيد" required dir="ltr"
+                class="w-full bg-slate-800/60 border border-red-500/40 rounded-xl px-4 py-3 text-white mb-5 focus:border-red-500 outline-none text-center font-bold">
+            <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition">
+                <i class="fas fa-trash-alt ml-1"></i> حذف نهائي
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+// ── Marketplace-customer action helpers ────────────────────────────────
+let _activeCustomerId = null;
+function _getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+function _openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove('hidden'); m.classList.add('flex');
+}
+function _closeModal(id) {
+    const m = document.getElementById(id);
+    m.classList.add('hidden'); m.classList.remove('flex');
+}
+
+function openCustomerGift(id, name) {
+    _activeCustomerId = id;
+    document.getElementById('customer-gift-name').textContent = name;
+    document.getElementById('customer-gift-form').reset();
+    _openModal('customer-gift-modal');
+}
+function closeCustomerGift() { _closeModal('customer-gift-modal'); }
+
+async function submitCustomerGift(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = await fetch(`/superadmin/customer/${_activeCustomerId}/gift/`, {
+        method: 'POST', body: fd,
+        headers: { 'X-CSRFToken': _getCsrf() },
+        credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل إرسال الهدية'); return; }
+    alert(d.message || 'تم.');
+    closeCustomerGift();
+}
+
+function openCustomerNotify(id, name) {
+    _activeCustomerId = id;
+    document.getElementById('customer-notify-name').textContent = name;
+    document.getElementById('customer-notify-form').reset();
+    _openModal('customer-notify-modal');
+}
+function closeCustomerNotify() { _closeModal('customer-notify-modal'); }
+
+async function submitCustomerNotify(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const r = await fetch(`/superadmin/customer/${_activeCustomerId}/notify/`, {
+        method: 'POST', body: fd,
+        headers: { 'X-CSRFToken': _getCsrf() },
+        credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل إرسال الإشعار'); return; }
+    alert(d.message || 'تم.');
+    closeCustomerNotify();
+}
+
+function openCustomerDelete(id, name, phone) {
+    _activeCustomerId = id;
+    document.getElementById('customer-delete-name').textContent = name;
+    document.getElementById('customer-delete-phone-hint').textContent = phone;
+    document.getElementById('customer-delete-form').reset();
+    _openModal('customer-delete-modal');
+}
+function closeCustomerDelete() { _closeModal('customer-delete-modal'); }
+
+async function submitCustomerDelete(e) {
+    e.preventDefault();
+    if (!confirm('تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟')) return;
+    const fd = new FormData(e.target);
+    const r = await fetch(`/superadmin/customer/${_activeCustomerId}/delete/`, {
+        method: 'POST', body: fd,
+        headers: { 'X-CSRFToken': _getCsrf() },
+        credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل الحذف'); return; }
+    alert(d.message || 'تم الحذف.');
+    closeCustomerDelete();
+    const row = document.querySelector(`tr[data-customer-id="${_activeCustomerId}"]`);
+    if (row) row.remove();
+}
+</script>
+
 </body>
 </html>

@@ -32,4 +32,13 @@ urlpatterns = [
 
     # 📒 Customer Statement (كشف حساب العميل)
     path('customer/<int:customer_id>/statement/', views.customer_statement, name='customer_statement'),
+
+    # 📈 P&L Report (تقرير الأرباح والخسائر)
+    path('reports/profit-loss/', views.profit_loss_report, name='profit_loss_report'),
+
+    # 💰 Price Quotations (عروض الأسعار)
+    path('quotation/create/', views.quotation_create, name='quotation_create'),
+    path('quotation/view/<uuid:share_token>/', views.quotation_public_view, name='quotation_public_view'),
+    path('quotation/view/<uuid:share_token>/respond/', views.quotation_respond, name='quotation_respond'),
+    path('quotation/<int:quote_id>/convert/', views.quotation_convert_to_order, name='quotation_convert'),
 ]

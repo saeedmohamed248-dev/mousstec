@@ -66,6 +66,53 @@
         }
         .icon-btn:hover { background: rgba(255,255,255,0.08); color:#fff; }
 
+        /* ============ NOTIFICATIONS ============ */
+        .notif-badge {
+            position: absolute; top:-4px; right:-4px; background:#ef4444; color:#fff;
+            font-size: 0.62rem; font-weight: 900; min-width: 18px; height: 18px;
+            border-radius: 9px; display: flex; align-items: center; justify-content: center;
+            padding: 0 5px; border: 2px solid var(--bg);
+        }
+        .notif-panel {
+            position: absolute; top: 48px; left: 0; width: 340px; max-width: 90vw;
+            max-height: 70vh; overflow-y: auto;
+            background: var(--card-solid); border: 1px solid var(--line);
+            border-radius: 16px; box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+            display: none; z-index: 200;
+        }
+        .notif-panel.open { display: block; }
+        .notif-head {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px; border-bottom: 1px solid var(--line);
+            position: sticky; top: 0; background: var(--card-solid); z-index: 2;
+        }
+        .notif-list { padding: 6px; }
+        .notif-item {
+            display: flex; gap: 10px; padding: 12px; border-radius: 10px;
+            margin-bottom: 4px; cursor: pointer; transition: 0.15s;
+            border: 1px solid transparent;
+        }
+        .notif-item:hover { background: rgba(255,255,255,0.04); border-color: var(--line); }
+        .notif-item.unread { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.25); }
+        .notif-icon {
+            flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.95rem;
+        }
+        .notif-icon.info    { background: rgba(59,130,246,0.18); color:#93c5fd; }
+        .notif-icon.success { background: rgba(16,185,129,0.18); color:#6ee7b7; }
+        .notif-icon.warning { background: rgba(245,158,11,0.18); color:#fcd34d; }
+        .notif-icon.danger  { background: rgba(239,68,68,0.18); color:#fca5a5; }
+        .notif-body { flex: 1; min-width: 0; }
+        .notif-title { font-weight: 800; font-size: 0.86rem; margin-bottom: 2px; }
+        .notif-text  { font-size: 0.78rem; color: var(--soft); line-height: 1.45; }
+        .notif-time  { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+        .notif-cta {
+            display: inline-block; margin-top: 6px; padding: 4px 10px;
+            background: var(--accent); color:#0b1020; border-radius: 8px;
+            font-size: 0.72rem; font-weight: 800; text-decoration: none;
+        }
+
         /* ============ LAYOUT ============ */
         .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 20px; }
 
@@ -305,6 +352,24 @@
     <div class="topbar-right">
         <span class="sector-pill"><i class="fas {{ sector_ui.icon }}"></i> {{ sector_ui.label }}</span>
         <span class="user-chip"><i class="fas fa-user-circle"></i> {{ customer.full_name }}</span>
+
+        <!-- 🔔 Notification bell -->
+        <div class="notif-wrap" style="position:relative;">
+            <button id="notifBtn" class="icon-btn" title="الإشعارات" onclick="toggleNotifs()">
+                <i class="fas fa-bell"></i>
+                <span id="notifBadge" class="notif-badge" style="display:none;">0</span>
+            </button>
+            <div id="notifPanel" class="notif-panel">
+                <div class="notif-head">
+                    <strong><i class="fas fa-bell"></i> الإشعارات</strong>
+                    <button onclick="toggleNotifs()" style="background:none;border:0;color:var(--muted);cursor:pointer;"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="notifList" class="notif-list">
+                    <div style="padding:18px;text-align:center;color:var(--muted);font-size:0.85rem;">جاري التحميل...</div>
+                </div>
+            </div>
+        </div>
+
         {% if customer.sector == 'printing' %}
         <a href="/marketplace/brand-profile/" class="icon-btn" title="هويتي البصرية"><i class="fas fa-id-badge"></i></a>
         {% endif %}
@@ -616,6 +681,69 @@ function openEditModal(code, title, desc, urgency) {
     document.getElementById('editUrgency').value = urgency;
     document.getElementById('editRequestModal').classList.add('show');
 }
+
+// ─────────────────────────────────────────────────────────────
+// 🔔 NOTIFICATION BELL — polls /marketplace/notifications/
+// ─────────────────────────────────────────────────────────────
+let _notifLoaded = false;
+async function loadNotifs() {
+    try {
+        const r = await fetch('/marketplace/notifications/', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const badge = document.getElementById('notifBadge');
+        const list  = document.getElementById('notifList');
+        if (data.unread > 0) {
+            badge.textContent = data.unread > 99 ? '99+' : data.unread;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+        if (!data.items.length) {
+            list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;"><i class="fas fa-bell-slash" style="font-size:1.6rem;opacity:0.4;display:block;margin-bottom:8px;"></i>لا توجد إشعارات بعد</div>';
+            return;
+        }
+        list.innerHTML = data.items.map(n => `
+            <div class="notif-item ${n.is_read ? '' : 'unread'}" data-nid="${n.id}" onclick="readNotif(${n.id})">
+                <div class="notif-icon ${n.level}"><i class="fas ${n.icon}"></i></div>
+                <div class="notif-body">
+                    <div class="notif-title">${escapeHtml(n.title)}</div>
+                    <div class="notif-text">${escapeHtml(n.body)}</div>
+                    ${n.action_url ? `<a class="notif-cta" href="${n.action_url}">${escapeHtml(n.action_label || 'فتح')}</a>` : ''}
+                    <div class="notif-time">${timeAgo(n.created_at)}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) { /* silent */ }
+}
+function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function timeAgo(iso) {
+    const d = new Date(iso); const diff = (Date.now() - d.getTime())/1000;
+    if (diff < 60) return 'الآن';
+    if (diff < 3600) return Math.floor(diff/60) + ' د';
+    if (diff < 86400) return Math.floor(diff/3600) + ' س';
+    return Math.floor(diff/86400) + ' ي';
+}
+async function readNotif(id) {
+    try {
+        await fetch(`/marketplace/notifications/${id}/read/`, { method: 'POST', credentials: 'same-origin',
+            headers: { 'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || '' } });
+    } catch (e) {}
+    const el = document.querySelector(`.notif-item[data-nid="${id}"]`);
+    if (el) el.classList.remove('unread');
+    loadNotifs();
+}
+function toggleNotifs() {
+    const p = document.getElementById('notifPanel');
+    p.classList.toggle('open');
+    if (p.classList.contains('open') && !_notifLoaded) { _notifLoaded = true; loadNotifs(); }
+}
+document.addEventListener('click', e => {
+    const wrap = document.querySelector('.notif-wrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
+});
+loadNotifs(); // initial badge
+setInterval(loadNotifs, 60000); // refresh every 60s
 
 document.getElementById('editForm').addEventListener('submit', async function(e) {
     e.preventDefault();

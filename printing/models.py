@@ -610,3 +610,154 @@ class StaffPermission(models.Model):
 
     def __str__(self):
         return f"صلاحيات: {self.user.get_full_name() or self.user.username}"
+
+
+# =====================================================================
+# 💰 8. عروض الأسعار (Price Quotations)
+# =====================================================================
+
+class PriceQuotation(models.Model):
+    """عرض سعر يرسله المصمم/الموظف للعميل قبل تأكيد الطلب.
+
+    Workflow:
+    1. الموظف ينشئ عرض → يضيف بنود → يحدد المدة
+    2. ينسخ رابط المشاركة العمومي ويرسله للعميل (واتساب/إيميل)
+    3. العميل يفتح الرابط → يشوف العرض بشكل احترافي → يقبل أو يرفض
+    4. لو قبل → ممكن يتحوّل تلقائياً لـ PrintOrder
+    """
+    STATUS_CHOICES = (
+        ('draft',     _('مسودة')),
+        ('sent',      _('تم الإرسال — في انتظار الرد')),
+        ('accepted',  _('مقبول')),
+        ('rejected',  _('مرفوض')),
+        ('expired',   _('منتهي الصلاحية')),
+        ('converted', _('تحوّل لطلب')),
+    )
+
+    # ─ رقم وعميل ─
+    quote_number = models.CharField(max_length=30, unique=True, blank=True,
+        verbose_name=_("رقم العرض"), help_text=_("يُولّد تلقائياً"))
+    customer = models.ForeignKey(PrintCustomer, on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name=_("العميل المسجل"),
+        help_text=_("اختياري — لو العميل مش مسجل، اكتب اسمه وتليفونه يدوياً"))
+    customer_name = models.CharField(max_length=150, blank=True,
+        verbose_name=_("اسم العميل (لو غير مسجل)"))
+    customer_phone = models.CharField(max_length=20, blank=True,
+        verbose_name=_("تليفون العميل"))
+    customer_whatsapp = models.CharField(max_length=20, blank=True,
+        verbose_name=_("واتساب العميل"))
+
+    # ─ المحتوى ─
+    title = models.CharField(max_length=200, verbose_name=_("عنوان العرض"),
+        help_text=_("مثال: تصميم لوجو + 500 كرت شخصي"))
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات / شروط"))
+
+    # ─ الأرقام ─
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'),
+        verbose_name=_("المجموع الفرعي"))
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))], verbose_name=_("الخصم"))
+    tax_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0')), MaxValueValidator(Decimal('100'))],
+        verbose_name=_("نسبة الضريبة %"))
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'),
+        verbose_name=_("الإجمالي النهائي"))
+
+    # ─ الحالة والصلاحية ─
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='draft',
+        verbose_name=_("الحالة"))
+    valid_until = models.DateField(null=True, blank=True,
+        verbose_name=_("صالح حتى"), help_text=_("افتراضي: 7 أيام من تاريخ الإنشاء"))
+
+    # ─ رابط المشاركة العمومي ─
+    share_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False,
+        verbose_name=_("توكن المشاركة"))
+
+    # ─ التتبع ─
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='quotations_created', verbose_name=_("بواسطة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الإرسال"))
+    responded_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ رد العميل"))
+    converted_order = models.ForeignKey(PrintOrder, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='source_quotations',
+        verbose_name=_("الطلب الناتج"))
+
+    class Meta:
+        verbose_name = _("عرض سعر")
+        verbose_name_plural = _("عروض الأسعار")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"عرض #{self.quote_number} — {self.customer_display}"
+
+    @property
+    def customer_display(self):
+        return self.customer.name if self.customer else (self.customer_name or 'بدون اسم')
+
+    @property
+    def is_expired(self):
+        if not self.valid_until:
+            return False
+        return timezone.now().date() > self.valid_until
+
+    @property
+    def tax_amount(self):
+        return ((self.subtotal - self.discount) * self.tax_percent) / Decimal('100')
+
+    def recalc_totals(self, save=True):
+        """يحسب subtotal من البنود + يحدّث total."""
+        lines_sum = sum((l.line_total for l in self.lines.all()), Decimal('0'))
+        self.subtotal = lines_sum
+        after_discount = lines_sum - self.discount
+        if after_discount < 0:
+            after_discount = Decimal('0')
+        self.total = after_discount + ((after_discount * self.tax_percent) / Decimal('100'))
+        if save:
+            self.save(update_fields=['subtotal', 'total'])
+
+    def save(self, *args, **kwargs):
+        if not self.quote_number:
+            today = timezone.now().strftime('%y%m%d')
+            prefix = f'QT-{today}-'
+            last = (PriceQuotation.objects
+                    .filter(quote_number__startswith=prefix)
+                    .order_by('-quote_number').first())
+            seq = 1
+            if last and last.quote_number:
+                try:
+                    seq = int(last.quote_number.split('-')[-1]) + 1
+                except (ValueError, IndexError):
+                    seq = 1
+            self.quote_number = f'{prefix}{seq:03d}'
+        if not self.valid_until:
+            from datetime import timedelta as _td
+            self.valid_until = timezone.now().date() + _td(days=7)
+        super().save(*args, **kwargs)
+
+
+class QuotationLine(models.Model):
+    """بند داخل عرض السعر — وصف + كمية + سعر وحدة."""
+    quotation = models.ForeignKey(PriceQuotation, on_delete=models.CASCADE,
+        related_name='lines', verbose_name=_("العرض"))
+    description = models.CharField(max_length=300, verbose_name=_("الوصف"),
+        help_text=_("مثال: تصميم لوجو احترافي بـ 3 خيارات"))
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.01'))], verbose_name=_("الكمية"))
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))], verbose_name=_("سعر الوحدة"))
+    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'),
+        verbose_name=_("الإجمالي"))
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name=_("الترتيب"))
+
+    class Meta:
+        verbose_name = _("بند عرض")
+        verbose_name_plural = _("بنود العرض")
+        ordering = ['sort_order', 'id']
+
+    def save(self, *args, **kwargs):
+        self.line_total = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+        # Trigger parent recalc
+        if self.quotation_id:
+            self.quotation.recalc_totals()

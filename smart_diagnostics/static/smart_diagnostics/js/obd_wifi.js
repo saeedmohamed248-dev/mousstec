@@ -287,8 +287,15 @@ class OBDWiFi extends EventTarget {
                 this._emit('protocol_probe', { protocol: p.label, phase: 'trying' });
                 const probe = await this._sendCommand('0100', p.probeMs);
                 const clean = (probe || '').replace(/\s/g, '').toUpperCase();
-                const ok = clean && !/NODATA|UNABLE|SEARCHING|\?|STOPPED|BUSINIT|BUSERROR/.test(clean) &&
-                           /4100/.test(clean);
+                // SUCCESS = ECU returned a valid Mode 01 PID 0100 response.
+                // Pattern: "41 00 XX XX XX XX" (header + 4 bytes of bitmask).
+                // Some ELM revisions prefix slow-protocol responses with
+                // "BUS INIT: OK" — that prefix is NOISE we strip, not a
+                // failure. Real failures are explicit error words.
+                const stripped = clean.replace(/^.*BUSINIT:OK/, '');
+                const explicitFail = /NODATA|UNABLETOCONNECT|SEARCHING\.\.\.|STOPPED|BUSERROR|BUSINIT:ERROR|CANERROR|DATAERROR/
+                    .test(stripped) && !/4100[0-9A-F]{2,}/.test(stripped);
+                const ok = !explicitFail && /4100[0-9A-F]{2,}/.test(stripped);
                 probes.push({ protocol: p.label, code: p.code, response: probe, ok });
                 this._emit('protocol_probe', { protocol: p.label, response: probe, ok });
                 if (ok) {
