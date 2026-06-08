@@ -39,6 +39,13 @@ const OBD_WIFI_PIDS = {
     '0E': { label: 'timing_advance_deg',  unit: '°',    parse: b => (b[0] / 2) - 64 },
     '0F': { label: 'intake_temp_c',       unit: '°C',   parse: b => b[0] - 40 },
     '10': { label: 'maf_gs',              unit: 'g/s',  parse: b => ((b[0] << 8) + b[1]) / 100 },
+    '06': { label: 'stft_b1',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '07': { label: 'ltft_b1',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '08': { label: 'stft_b2',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '09': { label: 'ltft_b2',             unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '0A': { label: 'fuel_pressure_kpa',   unit: 'kPa',  parse: b => b[0] * 3 },
+    '0B': { label: 'map_kpa',             unit: 'kPa',  parse: b => b[0] },
+    '0E': { label: 'timing_advance_deg',  unit: '°',    parse: b => (b[0] / 2) - 64 },
     '11': { label: 'throttle_pct',        unit: '%',    parse: b => b[0] * 100 / 255 },
     '14': { label: 'o2_b1s1_v',           unit: 'V',    parse: b => b[0] / 200 },
     '15': { label: 'o2_b1s2_v',           unit: 'V',    parse: b => b[0] / 200 },
@@ -51,10 +58,21 @@ const OBD_WIFI_PIDS = {
     '5C': { label: 'oil_temp_c',          unit: '°C',   parse: b => b[0] - 40 },
     '5E': { label: 'fuel_rate_lh',        unit: 'L/h',  parse: b => ((b[0] << 8) + b[1]) * 0.05 },
 };
+// Fast loop — only the 6 PIDs the gauges actually render. Polling more
+// PIDs on a slow K-Line bus (Nissan/Hyundai 2011) takes 4+ seconds per
+// cycle and makes the gauges feel laggy.
 const OBD_WIFI_DEFAULT_POLL_PIDS = [
-    '0C', '0D', '05', '11', '04', '42',          // الأساسي (UI gauges الحالية)
-    '06', '07', '0E', '14', '0A', '5E',          // fuel trim + O2 + fuel pressure + fuel rate
+    '0C',   // rpm
+    '0D',   // speed_kph
+    '05',   // coolant_temp_c
+    '11',   // throttle_pct
+    '04',   // engine_load
+    '42',   // control_voltage (battery)
 ];
+
+// Slow loop — fuel-system PIDs polled every few seconds for the fuel
+// health card. Not in the fast gauges path.
+const OBD_WIFI_SLOW_PIDS = ['06', '07', '0E', '14', '0A', '5E'];
 
 class OBDWiFi extends EventTarget {
     constructor() {
@@ -307,21 +325,37 @@ class OBDWiFi extends EventTarget {
         return out;
     }
 
-    async streamLiveData({ pids = OBD_WIFI_DEFAULT_POLL_PIDS, intervalMs = 800 } = {}) {
+    async streamLiveData({ pids = OBD_WIFI_DEFAULT_POLL_PIDS, intervalMs = 600 } = {}) {
         if (this._streaming) return;
         this._streaming = true;
+
+        // Only poll PIDs we actually have parsers for — protects against
+        // typos in the caller and trims wasted bus time on slow K-Line.
+        const valid = pids.filter(p => OBD_WIFI_PIDS[p]);
 
         const tick = async () => {
             if (!this._streaming || !this.isConnected) return;
             const snapshot = { _at: Date.now() };
-            for (const pid of pids) {
+            for (const pid of valid) {
                 try {
-                    const raw = await this._sendCommand(`01${pid}`, OBD_WIFI_DEFAULT_TIMEOUT_MS);
+                    let raw = await this._sendCommand(`01${pid}`, OBD_WIFI_DEFAULT_TIMEOUT_MS);
+                    // The first response after protocol negotiation is often
+                    // NO DATA — retry once before giving up.
+                    if (raw && /NO\s*DATA/i.test(raw)) {
+                        raw = await this._sendCommand(`01${pid}`, OBD_WIFI_DEFAULT_TIMEOUT_MS)
+                            .catch(() => raw);
+                    }
                     const parsed = this._parsePIDResponse(pid, raw);
-                    if (parsed !== null) snapshot[OBD_WIFI_PIDS[pid].label] = parsed;
+                    if (parsed !== null && Number.isFinite(parsed)) {
+                        snapshot[OBD_WIFI_PIDS[pid].label] = parsed;
+                    }
                 } catch (_) { /* tolerate single-PID dropouts */ }
             }
-            this._emit('live', snapshot);
+            // Only emit when we got at least one value — empty snapshots
+            // make the gauges flash to idle and back.
+            if (Object.keys(snapshot).length > 1) {
+                this._emit('live', snapshot);
+            }
             this._streamHandle = setTimeout(tick, intervalMs);
         };
         tick();
