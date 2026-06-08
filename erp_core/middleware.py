@@ -100,7 +100,13 @@ _AUTOMOTIVE_BLOCKED = re.compile(
 )
 
 _PRINTING_BLOCKED = re.compile(
-    r'^(/system/(?!health/)|/' + re.escape(_ADMIN_URL) + r'/inventory/|/api/v1/b2b/)'
+    r'^(/system/(?!health/)'
+    r'|/' + re.escape(_ADMIN_URL) + r'/inventory/'
+    r'|/' + re.escape(_ADMIN_URL) + r'/smart_diagnostics/'
+    r'|/' + re.escape(_ADMIN_URL) + r'/diagnostics_catalog/'
+    r'|/api/v1/b2b/'
+    r'|/api/diagnostics/'
+    r')'
 )
 
 _INDUSTRY_EXEMPT = re.compile(

@@ -44,10 +44,27 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         return app_list
     industry = getattr(tenant, 'industry', 'automotive')
     if industry == 'printing':
-        hidden = {'inventory'}
+        # شركات الطباعة: إخفاء كل ما يتعلق بالسيارات/التشخيص (سيرفس،
+        # تيليماتيكس، أجهزة OBD، كتالوج الأعطال، الإضافات التشخيصية).
+        hidden_apps = {'inventory', 'smart_diagnostics', 'diagnostics_catalog'}
+        # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only.
+        hidden_models = {'diagnosticsaddon', 'obddevice', 'obddevicenonce'}
     else:
-        hidden = {'printing'}
-    return [app for app in app_list if app.get('app_label') not in hidden]
+        hidden_apps = {'printing'}
+        hidden_models = set()
+
+    filtered = []
+    for app in app_list:
+        if app.get('app_label') in hidden_apps:
+            continue
+        models = [m for m in app.get('models', [])
+                  if m.get('object_name', '').lower() not in hidden_models]
+        if not models:
+            continue
+        new_app = dict(app)
+        new_app['models'] = models
+        filtered.append(new_app)
+    return filtered
 
 admin.AdminSite.get_app_list = _industry_filtered_get_app_list
 
