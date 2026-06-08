@@ -44,13 +44,18 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         return app_list
     industry = getattr(tenant, 'industry', 'automotive')
     if industry == 'printing':
-        # شركات الطباعة: إخفاء كل ما يتعلق بالسيارات/التشخيص (سيرفس،
-        # تيليماتيكس، أجهزة OBD، كتالوج الأعطال، الإضافات التشخيصية).
-        hidden_apps = {'inventory', 'smart_diagnostics', 'diagnostics_catalog'}
-        # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only.
-        hidden_models = {'diagnosticsaddon', 'obddevice', 'obddevicenonce'}
+        # شركات الطباعة: إخفاء كل ما يتعلق بالسيارات/التشخيص + أدوات الـ admin
+        # العامة اللي مش بتفيد المستخدم النهائي (Messenger Bot internals، Auth raw).
+        hidden_apps = {
+            'inventory', 'smart_diagnostics', 'diagnostics_catalog',
+            'messenger_bot',  # Conversation logs + System updates internals
+        }
+        # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only أو إدارية.
+        hidden_models = {
+            'diagnosticsaddon', 'obddevice', 'obddevicenonce',
+        }
     else:
-        hidden_apps = {'printing'}
+        hidden_apps = {'printing', 'messenger_bot'}
         hidden_models = set()
 
     filtered = []

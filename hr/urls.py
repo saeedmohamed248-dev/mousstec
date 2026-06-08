@@ -41,4 +41,7 @@ urlpatterns = [
     # --- AI Subscription Admin APIs ---
     path('api/ai-sub/admin-activate/', views.api_admin_ai_activate, name='api_admin_ai_activate'),
     path('api/ai-sub/admin-cancel/', views.api_admin_ai_cancel, name='api_admin_ai_cancel'),
+
+    # --- Quick Treasury Transaction (Designer dashboard quick actions) ---
+    path('api/treasury/quick-transaction/', views.api_quick_treasury_transaction, name='api_quick_treasury_transaction'),
 ]

@@ -210,6 +210,23 @@ def smart_post_login_redirect(request):
         # on their existing admin landing.
         if getattr(tenant, 'industry', 'automotive') == 'printing':
             admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+            # 🆕 Role-based fast landing — if the user is a Designer
+            # (has an Employee + Designer profile or HR Employee w/ designer
+            # role), route them straight to /hr/designer/ for the fast
+            # dashboard instead of the heavy admin index.
+            try:
+                from hr.models import Employee
+                emp = Employee.objects.filter(user=request.user, is_active=True).first()
+                if emp is not None and not request.user.is_superuser:
+                    # المصمم → اللوحة السريعة
+                    if emp.department == 'design':
+                        return redirect('/hr/designer/')
+                    # HR Manager / موارد بشرية → الـ admin (عشان يقدر يدير الموظفين)
+                    # الباقي (printing/sales/accounting) → الـ admin برضه
+                    # (مستقبلاً ممكن نعمل لوحات لكل قسم)
+            except Exception:
+                # Don't break login if HR module is unavailable — fall through
+                pass
             return redirect(f'/{admin_url}/')
 
         # 🎯 [Unified Landing Policy] All automotive-tenant users land here.

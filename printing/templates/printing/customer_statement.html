@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كشف حساب {{ customer.name }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1020; --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6;
+            --success: #10b981; --warn: #f59e0b; --danger: #ef4444;
+            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); margin: 0; min-height: 100vh; }
+        .topbar { background: rgba(11,16,32,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);
+            padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50; }
+        .topbar h2 { font-size: 1.1rem; font-weight: 900; margin: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .topbar-actions { display: flex; gap: 10px; }
+        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem; cursor: pointer; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn:hover { background: rgba(255,255,255,0.08); }
+        .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; color: #fff; }
+        .btn.outline { background: transparent; }
+
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 22px; }
+
+        /* Customer card */
+        .cust-card { background: linear-gradient(135deg, rgba(236,72,153,0.14), rgba(139,92,246,0.12));
+            border: 1px solid rgba(236,72,153,0.3); border-radius: 18px; padding: 22px; margin-bottom: 18px; }
+        .cust-card h1 { font-size: 1.4rem; font-weight: 900; margin: 0 0 4px; }
+        .cust-card .meta { color: var(--soft); font-size: 0.92rem; display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+        .cust-card .meta span i { color: var(--accent); margin-left: 6px; }
+
+        .summary-grid { display: grid; gap: 12px; margin-bottom: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+        .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+            display: flex; gap: 12px; align-items: center; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-num { font-size: 1.3rem; font-weight: 900; line-height: 1; }
+        .stat-label { font-size: 0.76rem; color: var(--muted); margin-top: 3px; }
+
+        /* Highlight balance card */
+        .balance-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-bottom: 18px;
+            display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; }
+        .balance-card .totals { display: flex; gap: 24px; flex-wrap: wrap; }
+        .balance-card .totals .item .label { color: var(--muted); font-size: 0.82rem; }
+        .balance-card .totals .item .value { font-size: 1.35rem; font-weight: 900; }
+        .balance-card .final { text-align: left; }
+        .balance-card .final .label { color: var(--muted); font-size: 0.82rem; }
+        .balance-card .final .value { font-size: 1.8rem; font-weight: 900; }
+        .balance-card .final.due .value { color: var(--danger); }
+        .balance-card .final.paid .value { color: var(--success); }
+        .balance-card .final.balanced .value { color: var(--soft); }
+
+        /* Filter bar */
+        .filter-bar { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 18px;
+            display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .filter-bar label { font-size: 0.82rem; color: var(--soft); font-weight: 700; }
+        .filter-bar input[type="date"] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 7px 10px; font-family: inherit; }
+
+        /* Statement table */
+        .table-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 14px; text-align: right; font-size: 0.88rem; }
+        thead { background: rgba(255,255,255,0.04); }
+        th { font-weight: 800; color: var(--soft); border-bottom: 1px solid var(--line); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        tbody tr { border-bottom: 1px solid var(--line); transition: 0.15s; }
+        tbody tr:hover { background: rgba(255,255,255,0.025); }
+        tbody tr:last-child { border-bottom: 0; }
+        td.num { font-weight: 800; font-family: 'Cairo'; white-space: nowrap; }
+        td.num.debit { color: #fca5a5; }
+        td.num.credit { color: #6ee7b7; }
+        td.num.balance { color: var(--accent); }
+        .type-pill { padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
+        .pill-invoice { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .pill-payment { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+        .ref-link { color: var(--accent); text-decoration: none; font-weight: 800; }
+        .ref-link:hover { text-decoration: underline; }
+
+        .empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+        .empty i { font-size: 2.5rem; opacity: 0.4; margin-bottom: 10px; color: var(--accent); }
+
+        /* Print mode */
+        @media print {
+            body { background: #fff; color: #1e293b; }
+            .topbar, .filter-bar, .no-print { display: none !important; }
+            .cust-card, .balance-card, .stat, .table-wrap { background: #fff !important; color: #1e293b; border-color: #e2e8f0; }
+            th { color: #475569; }
+            td { color: #1e293b; }
+            .cust-card h1, .balance-card .final .value, .stat-num { color: #1e293b; }
+            td.num.debit { color: #b91c1c; }
+            td.num.credit { color: #047857; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar no-print">
+    <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب — {{ customer.name }}</h2>
+    <div class="topbar-actions">
+        <a href="/secure-portal/printing/printcustomer/{{ customer.pk }}/change/" class="btn outline"><i class="fas fa-arrow-right"></i> رجوع</a>
+        <a href="?print=1" target="_blank" class="btn"><i class="fas fa-print"></i> طباعة PDF</a>
+        <button onclick="copyShareLink()" class="btn primary"><i class="fas fa-share"></i> رابط مشاركة</button>
+    </div>
+</div>
+
+<div class="wrap">
+
+    <!-- Customer info -->
+    <div class="cust-card">
+        <h1>{{ customer.name }} {% if customer.company %}<span style="color:var(--muted); font-size:1rem; font-weight:700;">— {{ customer.company }}</span>{% endif %}</h1>
+        <div class="meta">
+            {% if customer.phone %}<span><i class="fas fa-phone"></i> {{ customer.phone }}</span>{% endif %}
+            {% if customer.whatsapp %}<span><i class="fab fa-whatsapp"></i> {{ customer.whatsapp }}</span>{% endif %}
+            {% if customer.email %}<span><i class="fas fa-envelope"></i> {{ customer.email }}</span>{% endif %}
+            <span><i class="fas fa-calendar"></i> عميل منذ {{ customer.created_at|date:"d/m/Y" }}</span>
+        </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="summary-grid">
+        <div class="stat">
+            <div class="stat-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-file-invoice"></i></div>
+            <div><div class="stat-num">{{ summary.total_orders }}</div><div class="stat-label">إجمالي الفواتير</div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
+            <div><div class="stat-num">{{ summary.open_orders }}</div><div class="stat-label">فواتير مفتوحة</div></div>
+        </div>
+        <div class="stat">
+            <div class="stat-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-check"></i></div>
+            <div><div class="stat-num">{{ summary.delivered_orders }}</div><div class="stat-label">تم التسليم</div></div>
+        </div>
+    </div>
+
+    <!-- Big balance summary -->
+    <div class="balance-card">
+        <div class="totals">
+            <div class="item">
+                <div class="label">إجمالي الفواتير</div>
+                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} ج.م</div>
+            </div>
+            <div class="item">
+                <div class="label">إجمالي المدفوعات</div>
+                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} ج.م</div>
+            </div>
+        </div>
+        <div class="final {% if final_balance > 0 %}due{% elif final_balance < 0 %}paid{% else %}balanced{% endif %}">
+            <div class="label">
+                {% if final_balance > 0 %}<i class="fas fa-arrow-up"></i> مستحق للمطبعة{% elif final_balance < 0 %}<i class="fas fa-arrow-down"></i> مستحق للعميل{% else %}<i class="fas fa-circle-check"></i> الحساب متطابق{% endif %}
+            </div>
+            <div class="value">{{ final_balance|floatformat:2 }} ج.م</div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <form class="filter-bar no-print" method="get">
+        <label>من تاريخ <input type="date" name="from" value="{{ date_from }}"></label>
+        <label>إلى تاريخ <input type="date" name="to" value="{{ date_to }}"></label>
+        <button type="submit" class="btn primary"><i class="fas fa-filter"></i> فلترة</button>
+        {% if date_from or date_to %}<a href="?" class="btn"><i class="fas fa-xmark"></i> مسح</a>{% endif %}
+    </form>
+
+    <!-- Statement table -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>النوع</th>
+                    <th>المرجع</th>
+                    <th>الوصف</th>
+                    <th style="text-align:left;">مدين (له)</th>
+                    <th style="text-align:left;">دائن (دفع)</th>
+                    <th style="text-align:left;">الرصيد</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in events %}
+                <tr>
+                    <td>{{ ev.date|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if ev.type == 'invoice' %}
+                            <span class="type-pill pill-invoice"><i class="fas fa-file-invoice"></i> فاتورة</span>
+                        {% else %}
+                            <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> دفعة</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ev.type == 'invoice' %}
+                            <a class="ref-link" href="/secure-portal/printing/printorder/{{ ev.obj_id }}/change/">{{ ev.ref }}</a>
+                        {% else %}
+                            <a class="ref-link" href="/secure-portal/printing/printtransaction/{{ ev.obj_id }}/change/">{{ ev.ref }}</a>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--soft);">{{ ev.description|truncatechars:80 }}</td>
+                    <td class="num debit" style="text-align:left;">{% if ev.debit %}{{ ev.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td class="num credit" style="text-align:left;">{% if ev.credit %}{{ ev.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td class="num balance" style="text-align:left;">{{ ev.balance|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="empty"><i class="fas fa-inbox"></i><div>لا توجد حركات في الفترة المحددة</div></td></tr>
+                {% endfor %}
+            </tbody>
+            {% if events %}
+            <tfoot style="background:rgba(255,255,255,0.03);">
+                <tr style="font-weight:900;">
+                    <td colspan="4" style="text-align:left;">الإجمالي</td>
+                    <td class="num debit" style="text-align:left;">{{ total_invoiced|floatformat:2 }}</td>
+                    <td class="num credit" style="text-align:left;">{{ total_paid|floatformat:2 }}</td>
+                    <td class="num balance" style="text-align:left;">{{ final_balance|floatformat:2 }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin-top:30px;">
+        كشف حساب صادر من Mouss Tec • {{ customer.name }} • {% now "d/m/Y H:i" %}
+    </p>
+</div>
+
+<script>
+function copyShareLink() {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+        alert('تم نسخ رابط كشف الحساب — يمكن إرساله للعميل');
+    });
+}
+{% if print_mode %}window.addEventListener('load', () => setTimeout(() => window.print(), 400));{% endif %}
+</script>
+</body>
+</html>

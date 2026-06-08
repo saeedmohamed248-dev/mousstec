@@ -1609,3 +1609,97 @@ def ai_session_attach(request, session_id):
         'invoice_id': order.pk,
         'attached': attached,
     })
+
+
+
+# =====================================================================
+# 📒 8. كشف حساب العميل (Customer Statement)
+# =====================================================================
+
+@login_required
+def customer_statement(request, customer_id):
+    """كشف حساب شامل للعميل: كل الفواتير + المدفوعات + الرصيد الجاري.
+
+    ✓ كل PrintOrder (الفواتير الصادرة للعميل) → debit
+    ✓ كل PrintTransaction.transaction_type='in' المربوط بطلباته → credit
+    ✓ running balance بعد كل حركة + إجماليات
+
+    يدعم: ?from=YYYY-MM-DD&to=YYYY-MM-DD للفلترة
+          ?print=1 للنسخة المخصصة للطباعة
+    """
+    from printing.models import PrintCustomer, PrintOrder, PrintTransaction
+
+    customer = get_object_or_404(PrintCustomer, pk=customer_id)
+
+    # فلترة بالتاريخ
+    date_from = request.GET.get('from', '').strip()
+    date_to = request.GET.get('to', '').strip()
+
+    orders_qs = PrintOrder.objects.filter(customer=customer)
+    payments_qs = PrintTransaction.objects.filter(
+        order__customer=customer, transaction_type='in',
+    )
+
+    if date_from:
+        orders_qs = orders_qs.filter(date_created__date__gte=date_from)
+        payments_qs = payments_qs.filter(date__date__gte=date_from)
+    if date_to:
+        orders_qs = orders_qs.filter(date_created__date__lte=date_to)
+        payments_qs = payments_qs.filter(date__date__lte=date_to)
+
+    # دمج الفواتير + المدفوعات في timeline واحد مرتب بالتاريخ
+    events = []
+    for o in orders_qs.select_related('branch'):
+        events.append({
+            'date': o.date_created,
+            'type': 'invoice',
+            'ref': o.order_number,
+            'description': f'فاتورة #{o.order_number}' + (f' — {o.notes[:60]}' if o.notes else ''),
+            'debit': o.net_total,   # عليه (مدين)
+            'credit': Decimal('0'),
+            'status': o.get_status_display(),
+            'obj_id': o.pk,
+        })
+    for p in payments_qs.select_related('treasury', 'order'):
+        events.append({
+            'date': p.date,
+            'type': 'payment',
+            'ref': f'#{p.pk}',
+            'description': p.description or f'دفعة على فاتورة #{p.order.order_number if p.order else ""}',
+            'debit': Decimal('0'),
+            'credit': p.amount,    # دفع (دائن)
+            'status': p.treasury.name if p.treasury else '',
+            'obj_id': p.pk,
+        })
+
+    events.sort(key=lambda e: e['date'])
+
+    running = Decimal('0')
+    for ev in events:
+        running += ev['debit'] - ev['credit']
+        ev['balance'] = running
+
+    # إجماليات
+    total_invoiced = sum((e['debit'] for e in events), Decimal('0'))
+    total_paid = sum((e['credit'] for e in events), Decimal('0'))
+    final_balance = total_invoiced - total_paid
+
+    # كل الطلبات للملخص العلوي (بدون فلترة)
+    all_orders = PrintOrder.objects.filter(customer=customer)
+    summary = {
+        'total_orders': all_orders.count(),
+        'open_orders': all_orders.exclude(status__in=['delivered', 'cancelled']).count(),
+        'delivered_orders': all_orders.filter(status='delivered').count(),
+    }
+
+    return render(request, 'printing/customer_statement.html', {
+        'customer': customer,
+        'events': events,
+        'total_invoiced': total_invoiced,
+        'total_paid': total_paid,
+        'final_balance': final_balance,
+        'summary': summary,
+        'date_from': date_from,
+        'date_to': date_to,
+        'print_mode': request.GET.get('print') == '1',
+    })

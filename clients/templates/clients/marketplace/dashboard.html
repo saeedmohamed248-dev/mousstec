@@ -27,7 +27,7 @@
         * { box-sizing: border-box; }
         body {
             font-family: 'Cairo', sans-serif;
-            background: radial-gradient(1200px 600px at 90% -10%, rgba({{ sector_ui.color|cut:'#' }},0.0) 0%, transparent 70%),
+            background: radial-gradient(1200px 600px at 90% -10%, {{ sector_ui.color }}22 0%, transparent 70%),
                         linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
             color: var(--text);
             min-height: 100vh;
@@ -89,9 +89,12 @@
             padding: 10px 14px; border-radius: 12px; color: var(--text);
             font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: 0.2s;
         }
-        .quick-chip:hover { background: var(--accent); border-color: var(--accent); color:#fff; transform: translateY(-2px); }
+        .quick-chip:hover { background: var(--accent); border-color: var(--accent); color:#0b1020; transform: translateY(-2px); }
         .quick-chip i { color: var(--accent); }
-        .quick-chip:hover i { color:#fff; }
+        .quick-chip:hover i { color:#0b1020; }
+        .quick-chip--cta { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color:#0b1020; font-weight:900; }
+        .quick-chip--cta i { color:#0b1020; }
+        .quick-chip--cta:hover { color:#0b1020; filter: brightness(1.08); }
 
         /* ============ KPI STRIP ============ */
         .kpi-strip {
@@ -323,7 +326,7 @@
                 <i class="fas {{ cat.icon }}"></i> {{ cat.label }}
             </button>
             {% endfor %}
-            <button class="quick-chip" onclick="openNewRequest('')" style="background:var(--accent); border-color:var(--accent); color:#fff;">
+            <button class="quick-chip quick-chip--cta" onclick="openNewRequest('')">
                 <i class="fas fa-pen"></i> طلب مخصص
             </button>
         </div>
@@ -462,9 +465,11 @@
                 <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> متجر تصاميم AI <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/design-chat/" class="side-link"><i class="fas fa-comments lead"></i> دردشة تصميم <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/brand-profile/" class="side-link"><i class="fas fa-id-badge lead"></i> هويتي البصرية <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/my-designs/" class="side-link"><i class="fas fa-folder-open lead"></i> كل تصاميمي <i class="fas fa-arrow-left tail"></i></a>
                 {% else %}
-                <a href="#new-request" onclick="openNewRequest(''); return false;" class="side-link"><i class="fas fa-plus lead"></i> طلب جديد <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — افتح بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> التصميم الذكي (AI) <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/parts/" class="side-link"><i class="fas fa-cogs lead"></i> سوق قطع الغيار <i class="fas fa-arrow-left tail"></i></a>
                 {% endif %}
             </div>
 

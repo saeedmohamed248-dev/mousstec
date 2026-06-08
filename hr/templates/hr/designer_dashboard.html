@@ -1,356 +1,597 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة المصمم | Mouss Tec</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>لوحة المصمم | {{ employee.full_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
-        .plan-card { transition: all .2s; }
-        .plan-card.selected { border-color: rgba(99,102,241,.6); background: rgba(99,102,241,.08); }
-        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
-        .live-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
-        .progress-fill { transition: width .6s ease; }
+        :root {
+            --bg: #0b1020; --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72); --card-solid: #1a223d;
+            --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6; --accent3: #f97316;
+            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(1200px 600px at 90% -10%, rgba(236,72,153,0.08), transparent 70%),
+                        radial-gradient(900px 500px at 10% 110%, rgba(139,92,246,0.08), transparent 70%),
+                        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); min-height: 100vh; margin: 0; padding-bottom: 100px;
+        }
+        .topbar {
+            position: sticky; top: 0; z-index: 50;
+            background: rgba(11,16,32,0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--line); padding: 12px 22px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .brand { display:flex; align-items:center; gap:10px; font-weight:900; font-size:1.05rem; }
+        .brand .logo { width:36px; height:36px; border-radius:11px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display:flex; align-items:center; justify-content:center; color:#fff;
+            box-shadow: 0 6px 20px rgba(236,72,153,0.4); }
+        .brand .name { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+        .topbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .topbar-pill { background: rgba(236,72,153,0.15); color: var(--accent);
+            padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 800;
+            border: 1px solid rgba(236,72,153,0.4); }
+        .icon-btn { width: 38px; height: 38px; border-radius: 10px;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+            color: var(--soft); display:flex; align-items:center; justify-content:center;
+            text-decoration:none; transition: 0.2s; }
+        .icon-btn:hover { background: rgba(255,255,255,0.08); color:#fff; }
+
+        .wrap { max-width: 1320px; margin: 0 auto; padding: 22px; }
+
+        .hero {
+            background: linear-gradient(135deg, rgba(236,72,153,0.22), rgba(139,92,246,0.18) 50%, rgba(249,115,22,0.14));
+            border: 1px solid rgba(236,72,153,0.35);
+            border-radius: 22px; padding: 26px; margin-bottom: 22px;
+            position: relative; overflow: hidden;
+        }
+        .hero::after { content:''; position:absolute; top:-40px; left:-40px; width:240px; height:240px;
+            background: radial-gradient(closest-side, rgba(236,72,153,0.45), transparent 70%); opacity: 0.5; }
+        .hero h1 { font-size: 1.55rem; font-weight: 900; margin: 0 0 4px; position: relative; }
+        .hero .sub { color: var(--soft); margin: 0 0 18px; position: relative; }
+        .quick-chips { display: flex; gap: 10px; flex-wrap: wrap; position: relative; }
+        .quick-chip { display: flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+            padding: 11px 16px; border-radius: 12px; color: var(--text);
+            font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: 0.2s; text-decoration: none; }
+        .quick-chip:hover { transform: translateY(-2px); }
+        .quick-chip.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; color: #fff; box-shadow: 0 6px 18px rgba(236,72,153,0.4); }
+        .quick-chip.green { background: linear-gradient(135deg, #10b981, #059669); border: 0; color: #fff; }
+        .quick-chip.orange { background: linear-gradient(135deg, #f97316, #ea580c); border: 0; color: #fff; }
+        .quick-chip.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); border: 0; color: #fff; }
+        .quick-chip.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); border: 0; color: #fff; }
+
+        .kpi-strip { display: grid; gap: 12px; margin-bottom: 22px;
+            grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
+        .kpi { background: var(--card); backdrop-filter: blur(10px);
+            border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+            display:flex; align-items:center; gap:14px; transition: 0.2s; }
+        .kpi:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .kpi-icon { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+            display:flex; align-items:center; justify-content:center; font-size: 1.15rem; }
+        .kpi-num { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+        .kpi-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+        .att-card { background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.10));
+            border: 1px solid rgba(16,185,129,0.3); border-radius: 18px; padding: 16px 18px; margin-bottom: 22px;
+            display: flex; gap: 14px; align-items: center; }
+        .att-card.warn { background: linear-gradient(135deg, rgba(245,158,11,0.14), rgba(239,68,68,0.10)); border-color: rgba(245,158,11,0.35); }
+        .att-icon { width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(135deg, #10b981, #059669); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink: 0; }
+        .att-card.warn .att-icon { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+        .att-body { flex: 1; }
+        .att-title { font-weight: 800; }
+        .att-desc { color: var(--soft); font-size: 0.88rem; }
+        .att-cta { background: #fff; color: #1e293b; padding: 9px 16px; border-radius: 10px; font-weight: 800; text-decoration: none; font-size: 0.85rem; white-space: nowrap; }
+
+        .main-grid { display: grid; gap: 22px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+        @media(max-width: 980px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .section-head { display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px; gap: 12px; }
+        .section-head h3 { font-size: 1.05rem; font-weight: 900; margin: 0; display:flex; align-items:center; gap:8px; }
+        .section-head h3 i { color: var(--accent); }
+        .section-head a { color: var(--accent); font-size: 0.85rem; font-weight: 700; text-decoration: none; }
+
+        .design-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .design-tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+            overflow: hidden; transition: 0.2s; text-decoration: none; color: var(--text);
+            display: flex; flex-direction: column; }
+        .design-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .design-tile .thumb { aspect-ratio: 4/3; background: rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; color: var(--muted); font-size: 1.6rem; }
+        .design-tile .thumb img { width:100%; height:100%; object-fit: cover; }
+        .design-tile .meta { padding: 10px 12px; }
+        .design-tile .title { font-weight: 800; font-size: 0.88rem; margin: 0 0 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .design-tile .status { font-size: 0.74rem; padding: 2px 8px; border-radius: 999px; display: inline-block; font-weight: 700; }
+        .s-approved { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+        .s-pending { background: rgba(245,158,11,0.18); color: #fcd34d; }
+        .s-rejected { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .s-revision_requested { background: rgba(168,85,247,0.18); color: #c4b5fd; }
+
+        .row-list { display: flex; flex-direction: column; gap: 8px; }
+        .row-item { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+            padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+        .row-item:hover { border-color: var(--accent); }
+        .row-item .left { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
+        .icon-circle { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .icon-circle.in { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+        .icon-circle.out { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .icon-circle.order { background: rgba(59,130,246,0.18); color: #93c5fd; }
+        .row-item .info { min-width: 0; }
+        .row-item .info .t { font-weight: 800; font-size: 0.88rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .row-item .info .s { color: var(--muted); font-size: 0.78rem; }
+        .row-item .amount { font-weight: 900; font-size: 0.95rem; white-space: nowrap; }
+        .row-item .amount.in { color: var(--success); }
+        .row-item .amount.out { color: var(--danger); }
+
+        .side-card { background: var(--card); backdrop-filter: blur(10px);
+            border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; }
+        .side-card h4 { font-size: 0.95rem; font-weight: 900; margin: 0 0 12px; display:flex; align-items:center; gap:8px; }
+        .side-card h4 i { color: var(--accent); }
+        .side-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            background: rgba(255,255,255,0.03); border-radius: 10px;
+            color: var(--text); text-decoration: none; font-weight: 700; font-size: 0.88rem;
+            margin-bottom: 6px; transition: 0.2s; }
+        .side-link:hover { background: var(--accent); color:#fff; transform: translateX(-4px); }
+        .side-link i.lead { color: var(--accent); width: 24px; text-align:center; }
+        .side-link:hover i.lead { color: #fff; }
+        .side-link i.tail { margin-right: auto; color: var(--muted); }
+        .side-link .badge-num { background: var(--danger); color: #fff; padding: 1px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 800; }
+
+        .ai-status-card { background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(236,72,153,0.14));
+            border: 1px solid rgba(139,92,246,0.3); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+        .ai-status-card .status-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+        .ai-status-card .status-value { font-weight: 900; font-size: 1.05rem; }
+        .ai-status-card .status-value.active { color: #6ee7b7; }
+        .ai-status-card .status-value.inactive { color: #fca5a5; }
+
+        .empty { text-align:center; padding: 36px 16px; background: var(--card); border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); }
+        .empty i { font-size: 2.2rem; color: var(--accent); opacity: 0.4; margin-bottom: 8px; }
+
+        .fab { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff; padding: 14px 26px; border-radius: 999px;
+            font-weight: 800; font-size: 0.95rem; border: 0; cursor: pointer;
+            box-shadow: 0 10px 30px rgba(236,72,153,0.45);
+            z-index: 45; display: flex; align-items: center; gap: 8px; }
+        .fab:hover { transform: translateX(-50%) translateY(-2px); }
+
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); display:none; z-index:1000; align-items:center; justify-content:center; padding: 20px; }
+        .modal-overlay.show { display:flex; }
+        .modal-box { background: var(--card-solid); border:1px solid var(--line); border-radius:20px; padding:28px; width:100%; max-width:580px; max-height:90vh; overflow-y:auto; position:relative; }
+        .modal-box h3 { font-weight:900; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+        .modal-close { position:absolute; top:14px; left:14px; background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; }
+        .form-label { font-weight: 700; color:#cbd5e1; font-size:0.88rem; margin-bottom: 6px; display: block; }
+        .form-control, .form-select { background:rgba(11,16,32,0.6); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:11px 14px; width: 100%; }
+        .form-control:focus, .form-select:focus { border-color:var(--accent); outline: 0; box-shadow:0 0 0 3px rgba(236,72,153,0.2); }
+        .btn-primary-grad { background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: 0; color: #fff; font-weight: 800; padding: 12px 24px;
+            border-radius: 12px; cursor: pointer; transition: 0.2s; font-size: 0.95rem; width: 100%; }
+        .btn-primary-grad:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(236,72,153,0.4); }
+
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:2000; padding:13px 22px; border-radius:14px; font-weight:700; display:none; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .toast.success { background:#10b981; color:#fff; }
+        .toast.error { background:#ef4444; color:#fff; }
+        .toast.show { display:block; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { opacity:0; transform:translateX(-50%) translateY(-15px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+        .spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        @media(max-width: 576px) {
+            .wrap { padding: 14px; }
+            .hero { padding: 20px 18px; }
+            .hero h1 { font-size: 1.2rem; }
+            .topbar { padding: 10px 14px; }
+            .quick-chip { padding: 9px 12px; font-size: 0.82rem; }
+        }
     </style>
 </head>
-<body class="text-slate-200 min-h-screen">
+<body>
 
-<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-indigo-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+<div class="topbar">
+    <div class="brand">
+        <div class="logo"><i class="fas fa-palette"></i></div>
+        <div class="name">لوحة المصمم</div>
+    </div>
+    <div class="topbar-right">
+        <span class="topbar-pill"><i class="fas fa-id-badge"></i> {{ employee.full_name|truncatechars:25 }}</span>
+        <a href="/hr/attendance/" class="icon-btn" title="بصمة الوجه"><i class="fas fa-camera"></i></a>
+        <a href="/secure-portal/" class="icon-btn" title="لوحة الأدمن"><i class="fas fa-gauge-high"></i></a>
+        <a href="/logout/" class="icon-btn" title="خروج"><i class="fas fa-sign-out-alt"></i></a>
+    </div>
+</div>
 
-<!-- Navbar -->
-<nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
-    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="bg-gradient-to-tr from-pink-600 to-indigo-600 p-2 rounded-xl">
-                <i class="fas fa-palette text-white"></i>
-            </div>
-            <span class="font-black bg-gradient-to-r from-pink-400 to-indigo-400 bg-clip-text text-transparent text-lg">MOUSS TEC</span>
-            <span class="text-xs bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded-md font-bold">DESIGNER</span>
-        </div>
-        <div class="flex items-center gap-3">
-            <span class="text-xs text-slate-400"><i class="fas fa-user-circle ml-1"></i>{{ employee.user.get_full_name|default:employee.user.username }}</span>
-            <a href="/secure-portal/" class="text-xs font-bold text-slate-400 hover:text-indigo-400 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-                <i class="fas fa-lock ml-1"></i>لوحة التحكم
+<div id="toast" class="toast"></div>
+
+<div class="wrap">
+
+    <section class="hero">
+        <h1>أهلاً، {{ employee.full_name|truncatechars:35 }} 🎨</h1>
+        <p class="sub">إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:</p>
+        <div class="quick-chips">
+            <button class="quick-chip primary" onclick="openModal('newDesignModal')">
+                <i class="fas fa-plus"></i> رفع تصميم جديد
+            </button>
+            <button class="quick-chip green" onclick="openModal('newOrderModal')">
+                <i class="fas fa-file-invoice"></i> فاتورة طباعة
+            </button>
+            <button class="quick-chip orange" onclick="openModal('newExpenseModal')">
+                <i class="fas fa-receipt"></i> مصروف جديد
+            </button>
+            <button class="quick-chip blue" onclick="openModal('newIncomeModal')">
+                <i class="fas fa-coins"></i> تحصيل / إيراد
+            </button>
+            <button class="quick-chip purple" onclick="openModal('advanceModal')">
+                <i class="fas fa-hand-holding-dollar"></i> طلب سلفة
+            </button>
+            <a class="quick-chip" href="/secure-portal/printing/printorder/">
+                <i class="fas fa-list-check"></i> كل الطلبات
             </a>
         </div>
-    </div>
-</nav>
+    </section>
 
-<main class="container mx-auto px-4 py-6 space-y-6 max-w-6xl">
-
-    <!-- ✅ رسائل النجاح/الخطأ -->
-    {% if messages %}
-    <div class="space-y-2">
-        {% for msg in messages %}
-        <div class="rounded-2xl px-5 py-3 text-sm font-bold border
-            {% if msg.tags == 'success' %}bg-emerald-500/10 border-emerald-500/20 text-emerald-400
-            {% elif msg.tags == 'error' %}bg-red-500/10 border-red-500/20 text-red-400
-            {% else %}bg-indigo-500/10 border-indigo-500/20 text-indigo-400{% endif %}">
-            {{ msg }}
+    {% if today_attendance and today_attendance.clock_in %}
+    <div class="att-card">
+        <div class="att-icon"><i class="fas fa-check"></i></div>
+        <div class="att-body">
+            <div class="att-title">سجلت حضور اليوم ✅</div>
+            <div class="att-desc">
+                دخول: {{ today_attendance.clock_in|time:"H:i" }}
+                {% if today_attendance.face_verified %} • بصمة الوجه موثقة 🛡️{% endif %}
+                {% if today_attendance.clock_out %} • خروج: {{ today_attendance.clock_out|time:"H:i" }}{% endif %}
+            </div>
         </div>
-        {% endfor %}
+        {% if not today_attendance.clock_out %}
+        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> انصراف</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="att-card warn">
+        <div class="att-icon"><i class="fas fa-camera"></i></div>
+        <div class="att-body">
+            <div class="att-title">لسه ما سجلتش حضور اليوم</div>
+            <div class="att-desc">دخّل بصمة وجهك في ثانية — مهم للمرتب والـ KPIs.</div>
+        </div>
+        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> سجل بصمة</a>
     </div>
     {% endif %}
 
-    <!-- Header -->
-    <div class="flex items-center gap-4">
-        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-indigo-500/20 flex items-center justify-center text-2xl border border-pink-500/30">
-            🎨
+    <div class="kpi-strip">
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(236,72,153,0.18); color:var(--accent);"><i class="fas fa-bolt"></i></div>
+            <div><div class="kpi-num">{{ stats.today }}</div><div class="kpi-label">تصاميم اليوم</div></div>
         </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-calendar-days"></i></div>
+            <div><div class="kpi-num">{{ stats.month }}</div><div class="kpi-label">هذا الشهر</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-check"></i></div>
+            <div><div class="kpi-num">{{ stats.approved }}</div><div class="kpi-label">معتمد</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
+            <div><div class="kpi-num">{{ stats.pending }}</div><div class="kpi-label">قيد المراجعة</div></div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(59,130,246,0.18); color:#93c5fd;"><i class="fas fa-robot"></i></div>
+            <div><div class="kpi-num">{{ stats.ai_generated }}</div><div class="kpi-label">منشأ بـ AI</div></div>
+        </div>
+    </div>
+
+    <div class="main-grid">
         <div>
-            <h1 class="text-2xl font-black text-white">لوحة المصمم</h1>
-            <p class="text-slate-400 text-sm">{{ employee.get_department_display }} · {{ employee.job_title|default:"مصمم" }}</p>
-        </div>
-    </div>
-
-    <!-- ═══════════════════ AI Subscription Status ═══════════════════ -->
-    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-robot text-indigo-400 text-lg"></i>
-                <span class="font-black text-white text-lg">اشتراك الذكاء الاصطناعي</span>
+            <div class="section-head">
+                <h3><i class="fas fa-images"></i> آخر تصاميمي</h3>
+                <a href="/secure-portal/hr/designsubmission/">عرض الكل <i class="fas fa-arrow-left"></i></a>
             </div>
-            {% if ai_sub and ai_sub.status == 'active' %}
-            <span class="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>نشط
-            </span>
-            {% elif ai_sub and ai_sub.status == 'expired' %}
-            <span class="text-xs text-red-400 font-bold bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg">
-                <i class="fas fa-clock ml-1"></i>منتهي
-            </span>
+            {% if recent_designs %}
+            <div class="design-grid" style="margin-bottom: 26px;">
+                {% for d in recent_designs %}
+                <a class="design-tile" href="/secure-portal/hr/designsubmission/{{ d.pk }}/change/">
+                    <div class="thumb">
+                        {% if d.preview_image %}<img src="{{ d.preview_image.url }}" alt="">{% else %}<i class="fas fa-image"></i>{% endif %}
+                    </div>
+                    <div class="meta">
+                        <div class="title">{{ d.title }}</div>
+                        <span class="status s-{{ d.status }}">{{ d.get_status_display }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
             {% else %}
-            <span class="text-xs text-slate-500 font-bold bg-slate-700 border border-slate-600 px-3 py-1.5 rounded-lg">
-                غير مفعّل
-            </span>
-            {% endif %}
-        </div>
-
-        {% if ai_sub and ai_sub.status == 'active' %}
-        <!-- Active Subscription Details -->
-        <div class="p-6 space-y-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
-                    <p class="text-xl font-black text-indigo-400">{{ ai_sub.get_plan_display|truncatechars:15 }}</p>
-                    <p class="text-[10px] text-slate-500 font-bold mt-1">الباقة</p>
-                </div>
-                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
-                    <p class="text-xl font-black {% if ai_sub.days_remaining <= 5 %}text-red-400{% else %}text-emerald-400{% endif %}">{{ ai_sub.days_remaining }}</p>
-                    <p class="text-[10px] text-slate-500 font-bold mt-1">يوم متبقي</p>
-                </div>
-                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
-                    <p class="text-xl font-black text-cyan-400">{{ ai_sub.ai_generations_used }}</p>
-                    <p class="text-[10px] text-slate-500 font-bold mt-1">تصميم AI مستخدم</p>
-                </div>
-                <div class="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700">
-                    <p class="text-xl font-black text-amber-400">{% if ai_sub.ai_generations_limit == 0 %}∞{% else %}{{ ai_sub.ai_generations_limit }}{% endif %}</p>
-                    <p class="text-[10px] text-slate-500 font-bold mt-1">الحد الأقصى</p>
-                </div>
-            </div>
-
-            {% if ai_sub.ai_generations_limit > 0 %}
-            <!-- Usage Progress Bar -->
-            <div>
-                <div class="flex items-center justify-between text-xs mb-1">
-                    <span class="text-slate-400">الاستخدام</span>
-                    <span class="font-bold {% if ai_sub.usage_percentage >= 80 %}text-red-400{% else %}text-indigo-400{% endif %}">{{ ai_sub.usage_percentage }}%</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2.5">
-                    <div class="h-2.5 rounded-full progress-fill
-                        {% if ai_sub.usage_percentage >= 80 %}bg-gradient-to-r from-red-500 to-orange-500
-                        {% elif ai_sub.usage_percentage >= 50 %}bg-gradient-to-r from-amber-500 to-yellow-500
-                        {% else %}bg-gradient-to-r from-indigo-500 to-purple-500{% endif %}"
-                        style="width: {{ ai_sub.usage_percentage }}%"></div>
-                </div>
+            <div class="empty" style="margin-bottom: 26px;">
+                <i class="fas fa-images"></i>
+                <div>لسه ما رفعتش تصاميم — ابدأ من زر "رفع تصميم جديد"</div>
             </div>
             {% endif %}
 
-            <div class="flex items-center justify-between text-xs text-slate-500">
-                <span>ينتهي في: <strong class="text-slate-300">{{ ai_sub.end_date }}</strong></span>
-                <span>طريقة الدفع: <strong class="text-slate-300">{{ ai_sub.get_payment_method_display }}</strong>
-                    {% if ai_sub.card_last_four %} (****{{ ai_sub.card_last_four }}){% endif %}
-                </span>
+            {% if my_recent_orders %}
+            <div class="section-head">
+                <h3><i class="fas fa-file-invoice"></i> آخر فواتيري</h3>
+                <a href="/secure-portal/printing/printorder/">عرض الكل <i class="fas fa-arrow-left"></i></a>
+            </div>
+            <div class="row-list" style="margin-bottom: 26px;">
+                {% for o in my_recent_orders %}
+                <a class="row-item" href="/secure-portal/printing/printorder/{{ o.pk }}/change/">
+                    <div class="left">
+                        <div class="icon-circle order"><i class="fas fa-file-invoice"></i></div>
+                        <div class="info">
+                            <div class="t">#{{ o.pk }} — {{ o.customer.name|default:'بدون عميل' }}</div>
+                            <div class="s">{{ o.created_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+                    <div class="amount">{{ o.total_amount|default:0|floatformat:0 }} ج.م</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if recent_transactions %}
+            <div class="section-head">
+                <h3><i class="fas fa-coins"></i> آخر حركاتي المالية</h3>
+                <a href="/secure-portal/printing/printtransaction/">عرض الكل <i class="fas fa-arrow-left"></i></a>
+            </div>
+            <div class="row-list">
+                {% for t in recent_transactions %}
+                <div class="row-item">
+                    <div class="left">
+                        <div class="icon-circle {{ t.transaction_type }}">
+                            <i class="fas fa-arrow-{% if t.transaction_type == 'in' %}down{% else %}up{% endif %}"></i>
+                        </div>
+                        <div class="info">
+                            <div class="t">{{ t.description|default:'حركة' }}</div>
+                            <div class="s">{{ t.treasury.name }} • {{ t.date|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+                    <div class="amount {{ t.transaction_type }}">
+                        {% if t.transaction_type == 'in' %}+{% else %}−{% endif %}{{ t.amount|floatformat:0 }} ج.م
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <aside>
+            <div class="ai-status-card">
+                <div class="status-label">اشتراك AI الحالي</div>
+                {% if ai_sub and ai_sub.is_active %}
+                <div class="status-value active">{{ ai_sub.get_plan_display }} ✓</div>
+                <div style="font-size:0.82rem; color:var(--muted); margin-top:4px;">ينتهي: {{ ai_sub.end_date|date:"d/m/Y" }}</div>
+                <div style="font-size:0.82rem; margin-top:6px;">المستخدم: {{ ai_sub.designs_used }}/{{ ai_sub.monthly_limit }}</div>
+                {% else %}
+                <div class="status-value inactive">غير مشترك</div>
+                <a href="/secure-portal/hr/aidesignsubscription/add/" style="display:inline-block; margin-top:8px; background:#fff; color:#1e293b; padding:6px 14px; border-radius:8px; font-weight:800; text-decoration:none; font-size:0.82rem;">اشترك الآن</a>
+                {% endif %}
             </div>
 
-            <!-- Cancel Button -->
-            <div class="flex gap-2">
-                <button type="button" onclick="document.getElementById('renew-section').classList.toggle('hidden')"
-                    class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm hover:from-indigo-500 hover:to-purple-500 transition">
-                    <i class="fas fa-sync-alt ml-1"></i>تجديد / ترقية
-                </button>
-                <form method="post" class="inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="cancel_ai">
-                    <input type="hidden" name="subscription_id" value="{{ ai_sub.pk }}">
-                    <button type="submit" onclick="return confirm('هل أنت متأكد من إلغاء اشتراك AI؟')"
-                        class="py-2.5 px-4 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 font-bold text-sm hover:bg-red-500/20 transition">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </form>
+            <div class="side-card">
+                <h4><i class="fas fa-bolt"></i> روابط سريعة</h4>
+                <a href="/hr/attendance/" class="side-link"><i class="fas fa-camera lead"></i> بصمة الوجه <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/printing/printcustomer/" class="side-link"><i class="fas fa-users lead"></i> العملاء <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/printing/printmaterial/" class="side-link"><i class="fas fa-boxes-stacked lead"></i> الخامات <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/printing/ai/history/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> AI Studio <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/hr/leaverequest/" class="side-link">
+                    <i class="fas fa-plane-departure lead"></i> طلبات إجازاتي
+                    {% if pending_leaves %}<span class="badge-num">{{ pending_leaves }}</span>{% endif %}
+                    <i class="fas fa-arrow-left tail"></i>
+                </a>
+                <a href="/secure-portal/hr/advance/" class="side-link">
+                    <i class="fas fa-hand-holding-dollar lead"></i> سلفي
+                    {% if pending_advances %}<span class="badge-num">{{ pending_advances }}</span>{% endif %}
+                    <i class="fas fa-arrow-left tail"></i>
+                </a>
             </div>
-        </div>
-        {% else %}
-        <!-- No active subscription -->
-        <div class="p-6 text-center">
-            <div class="text-5xl mb-4">🤖</div>
-            <h3 class="text-lg font-black text-white mb-2">فعّل اشتراك AI وابدأ التصميم بالذكاء الاصطناعي!</h3>
-            <p class="text-sm text-slate-400 mb-4">اختر باقتك وادفع بالفيزا — يتم التفعيل فوراً وتلقائياً.</p>
-        </div>
-        {% endif %}
 
-        <!-- Subscription Activation / Renewal Form -->
-        <div id="renew-section" class="{% if ai_sub and ai_sub.status == 'active' %}hidden{% endif %} border-t border-slate-800 p-6 space-y-5">
-            <h3 class="font-black text-white"><i class="fas fa-bolt text-amber-400 ml-2"></i>اختر باقة AI</h3>
-
-            <form method="post" id="ai-sub-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="activate_ai">
-                <input type="hidden" name="plan" id="ai-plan-input" value="basic">
-                <input type="hidden" name="payment_method" id="ai-payment-input" value="visa">
-                <input type="hidden" name="card_token" value="simulated">
-
-                <!-- Plan Selection -->
-                <div class="grid sm:grid-cols-3 gap-3 mb-5">
-                    <div class="plan-card selected cursor-pointer bg-slate-800/60 border-2 border-indigo-500/40 rounded-2xl p-4 text-center" data-plan="basic" data-price="99">
-                        <div class="text-3xl mb-2">⚡</div>
-                        <h4 class="font-black text-white">أساسي</h4>
-                        <p class="text-2xl font-black text-indigo-400 mt-1">99 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
-                        <p class="text-xs text-slate-500 mt-2">50 تصميم AI شهرياً</p>
-                    </div>
-                    <div class="plan-card cursor-pointer bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-4 text-center" data-plan="pro" data-price="249">
-                        <div class="text-3xl mb-2">🚀</div>
-                        <h4 class="font-black text-white">احترافي</h4>
-                        <p class="text-2xl font-black text-purple-400 mt-1">249 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
-                        <p class="text-xs text-slate-500 mt-2">200 تصميم AI شهرياً</p>
-                        <span class="inline-block mt-2 text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-lg">الأكثر شيوعاً</span>
-                    </div>
-                    <div class="plan-card cursor-pointer bg-slate-800/60 border-2 border-slate-700 rounded-2xl p-4 text-center" data-plan="unlimited" data-price="499">
-                        <div class="text-3xl mb-2">♾️</div>
-                        <h4 class="font-black text-white">غير محدود</h4>
-                        <p class="text-2xl font-black text-amber-400 mt-1">499 <span class="text-sm text-slate-500">ج.م/شهر</span></p>
-                        <p class="text-xs text-slate-500 mt-2">تصاميم لا نهائية</p>
-                    </div>
+            <div class="side-card">
+                <h4><i class="fas fa-lightbulb"></i> نصايح</h4>
+                <div style="font-size:0.86rem; color:var(--soft); line-height:1.7;">
+                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">📷 ارفع صورة معاينة دائماً — بتساعد المراجع يعتمد أسرع.</div>
+                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">🤖 لو تصميمك بـ AI، اختار "AI-assisted" لو عدّلت يدوي.</div>
+                    <div style="padding:6px 0;">⏰ سجّل حضور قبل ٩ صباحاً عشان تتجنب خصم تأخير.</div>
                 </div>
-
-                <!-- Payment Method -->
-                <div class="mb-5">
-                    <label class="text-xs font-bold text-slate-400 block mb-2">طريقة الدفع</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="payment_radio" value="visa" checked class="hidden peer">
-                            <div class="peer-checked:border-indigo-500/60 peer-checked:bg-indigo-500/10 bg-slate-800/60 border-2 border-slate-700 rounded-xl p-3 text-center transition">
-                                <i class="fab fa-cc-visa text-2xl text-blue-400 mb-1"></i>
-                                <p class="text-xs font-bold text-white">فيزا / ماستركارد</p>
-                                <p class="text-[10px] text-slate-500">تفعيل فوري تلقائي</p>
-                            </div>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="payment_radio" value="wallet" class="hidden peer">
-                            <div class="peer-checked:border-indigo-500/60 peer-checked:bg-indigo-500/10 bg-slate-800/60 border-2 border-slate-700 rounded-xl p-3 text-center transition">
-                                <i class="fas fa-wallet text-2xl text-emerald-400 mb-1"></i>
-                                <p class="text-xs font-bold text-white">رصيد الشركة</p>
-                                <p class="text-[10px] text-slate-500">خصم من المحفظة</p>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Card Details (Visa only) -->
-                <div id="card-details-section" class="mb-5 bg-slate-800/40 rounded-xl p-4 border border-slate-700 space-y-3">
-                    <p class="text-xs font-bold text-slate-400"><i class="fas fa-lock ml-1 text-emerald-400"></i>بيانات البطاقة (مؤمنة بتشفير SSL)</p>
-                    <input type="text" name="card_last_four" placeholder="آخر 4 أرقام من البطاقة" maxlength="4"
-                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
-                    <p class="text-[10px] text-slate-600">⚠️ في بيئة الإنتاج: يتم ربط بوابة دفع Paymob/Stripe لمعالجة البطاقة بأمان.</p>
-                </div>
-
-                <!-- Summary -->
-                <div class="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-500/20 rounded-xl px-5 py-3 mb-5">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-slate-400">الإجمالي</span>
-                        <span class="text-2xl font-black text-indigo-400" id="ai-total-price">99 ج.م</span>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-1" id="ai-plan-detail">باقة أساسي × شهر واحد</p>
-                </div>
-
-                <!-- Submit -->
-                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm hover:from-indigo-500 hover:to-purple-500 transition shadow-lg shadow-indigo-600/20">
-                    <i class="fas fa-rocket ml-2"></i>فعّل اشتراك AI الآن
-                </button>
-            </form>
-        </div>
+            </div>
+        </aside>
     </div>
+</div>
 
-    <!-- ═══════════════════ Design Stats ═══════════════════ -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-black text-white">{{ stats.total }}</p>
-            <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي التصاميم</p>
-        </div>
-        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-black text-emerald-400">{{ stats.approved }}</p>
-            <p class="text-[10px] text-slate-500 font-bold mt-1">معتمد</p>
-        </div>
-        <div class="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-black text-amber-400">{{ stats.pending }}</p>
-            <p class="text-[10px] text-slate-500 font-bold mt-1">قيد المراجعة</p>
-        </div>
-        <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-black text-red-400">{{ stats.rejected }}</p>
-            <p class="text-[10px] text-slate-500 font-bold mt-1">مرفوض</p>
-        </div>
-        <div class="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
-            <p class="text-2xl font-black text-indigo-400">{{ stats.ai_generated }}</p>
-            <p class="text-[10px] text-slate-500 font-bold mt-1">🤖 AI</p>
-        </div>
+<button class="fab" onclick="openModal('newDesignModal')"><i class="fas fa-plus"></i> رفع تصميم</button>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="newDesignModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-palette" style="color:var(--accent);"></i> رفع تصميم جديد</h3>
+        <form id="designForm" enctype="multipart/form-data">
+            <div class="mb-3"><label class="form-label">عنوان التصميم *</label>
+                <input type="text" class="form-control" name="title" required placeholder="مثال: بوستر افتتاح فرع"></div>
+            <div class="mb-3"><label class="form-label">الوصف</label>
+                <textarea class="form-control" name="description" rows="2"></textarea></div>
+            <div class="mb-3"><label class="form-label">نوع التنفيذ</label>
+                <select class="form-select" name="execution_type">
+                    <option value="manual">⌨️ يدوي بالكامل</option>
+                    <option value="ai_assisted">🧠 مساعد بـ AI</option>
+                    <option value="ai_generated">🤖 مُنشأ بالكامل بـ AI</option>
+                </select></div>
+            <div class="mb-3"><label class="form-label">ملف التصميم *</label>
+                <input type="file" class="form-control" name="design_file" required></div>
+            <div class="mb-3"><label class="form-label">صورة معاينة (اختياري)</label>
+                <input type="file" class="form-control" name="preview_image" accept="image/*"></div>
+            <button type="submit" class="btn-primary-grad" id="designBtn"><i class="fas fa-cloud-arrow-up"></i> رفع التصميم</button>
+        </form>
     </div>
+</div>
 
-    <!-- ═══════════════════ Recent Designs ═══════════════════ -->
-    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-        <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
-            <i class="fas fa-images text-pink-400"></i>
-            <span class="font-bold text-sm text-white">آخر التصاميم</span>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-slate-800 bg-slate-800/30">
-                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">#</th>
-                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">العنوان</th>
-                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">النوع</th>
-                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">الحالة</th>
-                        <th class="text-right px-4 py-2.5 text-xs text-slate-500">التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-800/60">
-                    {% for d in recent_designs %}
-                    <tr class="hover:bg-slate-800/20 transition">
-                        <td class="px-4 py-3 text-xs text-slate-600">{{ forloop.counter }}</td>
-                        <td class="px-4 py-3 font-bold text-white">{{ d.title|truncatechars:40 }}</td>
-                        <td class="px-4 py-3">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-lg
-                                {% if d.execution_type == 'ai_generated' %}bg-indigo-500/15 text-indigo-400 border border-indigo-500/20
-                                {% elif d.execution_type == 'ai_assisted' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
-                                {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
-                                {{ d.get_execution_type_display|truncatechars:20 }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            <span class="text-xs font-bold px-2 py-0.5 rounded-lg
-                                {% if d.status == 'approved' %}bg-emerald-500/15 text-emerald-400 border border-emerald-500/20
-                                {% elif d.status == 'pending' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
-                                {% elif d.status == 'rejected' %}bg-red-500/15 text-red-400 border border-red-500/20
-                                {% else %}bg-blue-500/15 text-blue-400 border border-blue-500/20{% endif %}">
-                                {{ d.get_status_display }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-xs text-slate-500">{{ d.created_at|timesince }} مضت</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center py-10 text-slate-600 font-bold">
-                            <i class="fas fa-palette text-2xl block mb-2 text-slate-700"></i>
-                            لم ترفع أي تصاميم بعد. ابدأ من واجهة رفع التصاميم!
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div class="modal-overlay" id="newExpenseModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-receipt" style="color:var(--accent3);"></i> تسجيل مصروف</h3>
+        <form id="expenseForm">
+            <div class="mb-3"><label class="form-label">الخزينة *</label>
+                <select class="form-select" name="treasury" required>
+                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} ج.م)</option>{% endfor %}
+                </select></div>
+            <div class="mb-3"><label class="form-label">المبلغ (ج.م) *</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" name="amount" required dir="ltr"></div>
+            <div class="mb-3"><label class="form-label">الوصف *</label>
+                <input type="text" class="form-control" name="description" required placeholder="مثال: شراء ورق A4، فاتورة كهرباء..."></div>
+            <button type="submit" class="btn-primary-grad" id="expenseBtn" style="background:linear-gradient(135deg, #f97316, #ea580c);"><i class="fas fa-arrow-up"></i> تسجيل المصروف</button>
+        </form>
     </div>
+</div>
 
-</main>
+<div class="modal-overlay" id="newIncomeModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-coins" style="color:#10b981;"></i> تسجيل تحصيل / إيراد</h3>
+        <form id="incomeForm">
+            <div class="mb-3"><label class="form-label">الخزينة *</label>
+                <select class="form-select" name="treasury" required>
+                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} ج.م)</option>{% endfor %}
+                </select></div>
+            <div class="mb-3"><label class="form-label">المبلغ (ج.م) *</label>
+                <input type="number" step="0.01" min="0.01" class="form-control" name="amount" required dir="ltr"></div>
+            <div class="mb-3"><label class="form-label">الوصف *</label>
+                <input type="text" class="form-control" name="description" required placeholder="مثال: تحصيل فاتورة #123، دفعة عميل..."></div>
+            <button type="submit" class="btn-primary-grad" id="incomeBtn" style="background:linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-arrow-down"></i> تسجيل الإيراد</button>
+        </form>
+    </div>
+</div>
 
-<footer class="text-center py-4 text-slate-700 text-xs mt-4">
-    © 2026 Mouss Tec — Designer Studio
-</footer>
+<div class="modal-overlay" id="newOrderModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-file-invoice" style="color:#3b82f6;"></i> فاتورة طباعة جديدة</h3>
+        <p style="color:var(--soft);">فاتورة طباعة فيها تفاصيل كتير (عميل، ماكينات، خامات...). هنوديك لصفحة الإنشاء الشاملة.</p>
+        <a href="/secure-portal/printing/printorder/add/" class="btn-primary-grad" style="display:block; text-align:center; text-decoration:none; background:linear-gradient(135deg, #3b82f6, #2563eb);"><i class="fas fa-arrow-left"></i> فتح صفحة فاتورة جديدة</a>
+    </div>
+</div>
+
+<div class="modal-overlay" id="advanceModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fas fa-hand-holding-dollar" style="color:#8b5cf6;"></i> طلب سلفة</h3>
+        <form id="advanceForm">
+            <div class="mb-3"><label class="form-label">المبلغ المطلوب (ج.م) *</label>
+                <input type="number" step="0.01" min="1" class="form-control" name="amount" required dir="ltr"></div>
+            <div class="mb-3"><label class="form-label">السبب *</label>
+                <textarea class="form-control" name="reason" rows="3" required placeholder="اشرح سبب طلب السلفة..."></textarea></div>
+            <div class="mb-3"><label class="form-label">عدد أقساط الخصم</label>
+                <select class="form-select" name="installments">
+                    <option value="1">دفعة واحدة</option>
+                    <option value="2">قسطين</option>
+                    <option value="3" selected>3 أقساط</option>
+                    <option value="6">6 أقساط</option>
+                </select></div>
+            <button type="submit" class="btn-primary-grad" id="advanceBtn" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed);"><i class="fas fa-paper-plane"></i> إرسال الطلب</button>
+        </form>
+    </div>
+</div>
 
 <script>
-// ── Plan Selection ──
-const PLAN_LABELS = {basic: 'أساسي', pro: 'احترافي', unlimited: 'غير محدود'};
-document.querySelectorAll('.plan-card').forEach(card => {
-    card.addEventListener('click', function() {
-        document.querySelectorAll('.plan-card').forEach(c => {
-            c.classList.remove('selected');
-            c.style.borderColor = '';
-        });
-        this.classList.add('selected');
-        const plan = this.dataset.plan;
-        const price = this.dataset.price;
-        document.getElementById('ai-plan-input').value = plan;
-        document.getElementById('ai-total-price').textContent = price + ' ج.م';
-        document.getElementById('ai-plan-detail').textContent = 'باقة ' + PLAN_LABELS[plan] + ' × شهر واحد';
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show')); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function getCsrf() {
+    const m = document.cookie.match(/(?:^|; )(mt_csrf|csrftoken)=([^;]+)/);
+    return m ? m[2] : '';
+}
+
+async function postJSON(url, body) {
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify(body),
+        credentials: 'same-origin',
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'خطأ غير متوقع');
+    return data;
+}
+
+async function postForm(url, formEl) {
+    const fd = new FormData(formEl);
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() },
+        body: fd,
+        credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'خطأ غير متوقع');
+    return data;
+}
+
+document.getElementById('designForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('designBtn');
+    btn.disabled = true; const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> جاري الرفع...';
+    try {
+        const data = await postForm('/hr/api/design/submit/', e.target);
+        toast(data.message || 'تم رفع التصميم بنجاح', 'success');
+        closeModal();
+        setTimeout(() => location.reload(), 1100);
+    } catch (err) { toast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = oldHtml; }
 });
 
-// ── Payment Method Toggle ──
-document.querySelectorAll('input[name="payment_radio"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        document.getElementById('ai-payment-input').value = this.value;
-        const cardSection = document.getElementById('card-details-section');
-        cardSection.style.display = this.value === 'visa' ? 'block' : 'none';
-    });
+async function submitTransaction(formId, btnId, txnType) {
+    const form = document.getElementById(formId);
+    const btn = document.getElementById(btnId);
+    btn.disabled = true; const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+    try {
+        const fd = new FormData(form);
+        const data = await postJSON('/hr/api/treasury/quick-transaction/', {
+            treasury_id: parseInt(fd.get('treasury')),
+            amount: parseFloat(fd.get('amount')),
+            description: fd.get('description'),
+            transaction_type: txnType,
+        });
+        toast(data.message || 'تم تسجيل الحركة', 'success');
+        closeModal();
+        setTimeout(() => location.reload(), 1100);
+    } catch (err) { toast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = oldHtml; }
+}
+document.getElementById('expenseForm').addEventListener('submit', e => { e.preventDefault(); submitTransaction('expenseForm', 'expenseBtn', 'out'); });
+document.getElementById('incomeForm').addEventListener('submit', e => { e.preventDefault(); submitTransaction('incomeForm', 'incomeBtn', 'in'); });
+
+document.getElementById('advanceForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('advanceBtn');
+    btn.disabled = true; const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> جاري الإرسال...';
+    try {
+        const fd = new FormData(e.target);
+        const data = await postJSON('/hr/api/advance/request/', {
+            amount: parseFloat(fd.get('amount')),
+            reason: fd.get('reason'),
+            installments: parseInt(fd.get('installments')),
+        });
+        toast(data.message || 'تم إرسال طلب السلفة', 'success');
+        closeModal();
+        setTimeout(() => location.reload(), 1100);
+    } catch (err) { toast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = oldHtml; }
 });
 </script>
 </body>

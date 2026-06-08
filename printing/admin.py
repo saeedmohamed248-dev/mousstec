@@ -54,7 +54,7 @@ class PrintBranchAdmin(PrintSecureAdmin):
 
 @admin.register(PrintCustomer)
 class PrintCustomerAdmin(PrintSecureAdmin):
-    list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count')
+    list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count', 'statement_link')
     search_fields = ('name', 'company', 'phone')
     list_filter = ('created_at',)
 
@@ -62,6 +62,14 @@ class PrintCustomerAdmin(PrintSecureAdmin):
         count = obj.printorder_set.count()
         return format_html('<b>{}</b>', count)
     orders_count.short_description = "عدد الطلبات"
+
+    def statement_link(self, obj):
+        return format_html(
+            '<a href="/printing/customer/{}/statement/" target="_blank" '
+            'style="background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; '
+            'padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.82rem;">'
+            '📒 كشف حساب</a>', obj.pk)
+    statement_link.short_description = "كشف حساب"
 
 
 # =====================================================================

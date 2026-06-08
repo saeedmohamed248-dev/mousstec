@@ -744,17 +744,56 @@ def designer_dashboard(request):
 
     recent_designs = DesignSubmission.objects.filter(
         designer=employee,
-    ).order_by('-created_at')[:10]
+    ).order_by('-created_at')[:8]
 
-    # إحصائيات
+    # إحصائيات شاملة
+    from django.db.models import Sum, Avg
     all_designs = DesignSubmission.objects.filter(designer=employee)
+    today = timezone.now().date()
+    this_month = (today.year, today.month)
+
+    today_designs = all_designs.filter(created_at__date=today).count()
+    month_designs = all_designs.filter(
+        created_at__year=this_month[0], created_at__month=this_month[1],
+    ).count()
+
     stats = {
         'total': all_designs.count(),
+        'today': today_designs,
+        'month': month_designs,
         'approved': all_designs.filter(status='approved').count(),
         'pending': all_designs.filter(status='pending').count(),
         'rejected': all_designs.filter(status='rejected').count(),
         'ai_generated': all_designs.filter(execution_type__in=['ai_generated', 'ai_assisted']).count(),
     }
+
+    # حالة الحضور اليوم
+    from hr.models import AttendanceRecord, Advance, LeaveRequest
+    today_attendance = AttendanceRecord.objects.filter(
+        employee=employee, date=today,
+    ).first()
+
+    # السلف والإجازات المعلقة
+    pending_advances = Advance.objects.filter(employee=employee, status='pending').count()
+    pending_leaves = LeaveRequest.objects.filter(employee=employee, status='pending').count()
+
+    # حركات مالية للمصمم (لو عنده صلاحية) — آخر مصروفات/فواتير
+    recent_transactions = []
+    treasuries = []
+    try:
+        from printing.models import PrintTransaction, PrintTreasury, PrintOrder
+        recent_transactions = list(
+            PrintTransaction.objects.filter(created_by=request.user)
+                                    .select_related('treasury')
+                                    .order_by('-date')[:5]
+        )
+        treasuries = list(PrintTreasury.objects.filter(is_active=True))
+        my_recent_orders = list(
+            PrintOrder.objects.filter(created_by=request.user)
+                              .order_by('-created_at')[:5]
+        )
+    except Exception:
+        my_recent_orders = []
 
     # أسعار الباقات للعرض
     plan_prices = AIDesignSubscription.PLAN_PRICES
@@ -767,6 +806,12 @@ def designer_dashboard(request):
         'stats': stats,
         'plan_prices': plan_prices,
         'plan_limits': plan_limits,
+        'today_attendance': today_attendance,
+        'pending_advances': pending_advances,
+        'pending_leaves': pending_leaves,
+        'recent_transactions': recent_transactions,
+        'treasuries': treasuries,
+        'my_recent_orders': my_recent_orders,
     })
 
 
@@ -882,3 +927,81 @@ def api_admin_ai_cancel(request):
         })
     except Exception as e:
         return _json_response({"error": str(e)}, 400)
+
+
+# =====================================================================
+# 8. Quick Treasury Transaction (Designer dashboard quick actions)
+# =====================================================================
+
+@login_required(login_url='/secure-portal/')
+@require_POST
+def api_quick_treasury_transaction(request):
+    """POST /hr/api/treasury/quick-transaction/
+
+    Body: { "treasury_id": 1, "amount": 250.50, "description": "...",
+            "transaction_type": "in" | "out" }
+
+    تسجيل سريع لمصروف/إيراد من داش بورد المصمم. بيتحقق من صلاحية الموظف
+    (can_manage_treasury أو superuser) قبل ما يسجّل الحركة.
+    """
+    try:
+        from printing.models import PrintTreasury, PrintTransaction, StaffPermission
+    except Exception:
+        return _json_response({"error": "وحدة المالية غير متاحة."}, 400)
+
+    # صلاحية: superuser أو staff_permission.can_manage_treasury
+    user = request.user
+    if not user.is_superuser:
+        try:
+            perm = StaffPermission.objects.get(user=user)
+            if not perm.can_manage_treasury:
+                return _json_response({"error": "ليس لديك صلاحية إدارة الخزينة."}, 403)
+        except StaffPermission.DoesNotExist:
+            return _json_response({"error": "ليس لديك صلاحية إدارة الخزينة."}, 403)
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return _json_response({"error": "بيانات غير صالحة."}, 400)
+
+    treasury_id = data.get('treasury_id')
+    amount_raw = data.get('amount')
+    description = (data.get('description') or '').strip()
+    txn_type = data.get('transaction_type')
+
+    if not treasury_id or amount_raw is None or not description or txn_type not in ('in', 'out'):
+        return _json_response({"error": "كل الحقول مطلوبة."}, 400)
+
+    try:
+        amount = Decimal(str(amount_raw))
+        if amount <= 0:
+            raise ValueError
+    except (ValueError, ArithmeticError, TypeError):
+        return _json_response({"error": "مبلغ غير صالح."}, 400)
+
+    try:
+        treasury = PrintTreasury.objects.get(pk=int(treasury_id), is_active=True)
+    except PrintTreasury.DoesNotExist:
+        return _json_response({"error": "الخزينة غير موجودة."}, 404)
+
+    try:
+        txn = PrintTransaction.objects.create(
+            treasury=treasury,
+            transaction_type=txn_type,
+            amount=amount,
+            description=description[:300],
+            created_by=user,
+        )
+    except ValueError as e:
+        # رصيد الخزنة لا يكفي (raised من PrintTransaction.save)
+        return _json_response({"error": str(e)}, 400)
+    except Exception as e:
+        logger.error(f"[QUICK TXN] failed for user={user.id}: {e}")
+        return _json_response({"error": "فشل تسجيل الحركة."}, 500)
+
+    icon = "🟢 إيراد" if txn_type == 'in' else "🔴 مصروف"
+    return _json_response({
+        "success": True,
+        "message": f"تم تسجيل {icon} بقيمة {amount:,.2f} ج.م.",
+        "transaction_id": txn.pk,
+    })

@@ -29,4 +29,7 @@ urlpatterns = [
     # 🏷️ Product Type Autocomplete & Report
     path('api/product-types/', views.product_type_autocomplete, name='product_type_autocomplete'),
     path('api/product-types/report/', views.product_type_report, name='product_type_report'),
+
+    # 📒 Customer Statement (كشف حساب العميل)
+    path('customer/<int:customer_id>/statement/', views.customer_statement, name='customer_statement'),
 ]
