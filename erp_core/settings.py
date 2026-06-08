@@ -119,6 +119,11 @@ SHARED_APPS = (
     # 🧬 Smart Diagnostics — Shared catalog (DTC codes, VIN decode cache, API cost rates)
     # نواة معرفة عامة بين كل الـ tenants عشان نـ amortize الـ external API cost
     'diagnostics_catalog',
+
+    # 💬 Messenger Bot — Facebook webhook + Gemini RAG. SHARED because Meta calls
+    # the public domain, not any tenant subdomain; the bot's knowledge base
+    # (SystemUpdate / ConversationLog) is global, not per-tenant.
+    'messenger_bot',
 )
 
 TENANT_APPS = (
@@ -340,6 +345,17 @@ AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 GEMINI_API_KEY = env.str('GEMINI_API_KEY', '') or AI_VISION_API_KEY
 GEMINI_REFINER_MODEL = env.str('GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
 GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
+
+# =====================================================================
+# 💬 Mousstec Messenger Bot (Facebook Page → Gemini RAG)
+# =====================================================================
+MESSENGER_VERIFY_TOKEN = env.str('MESSENGER_VERIFY_TOKEN', 'mousstec_secure_bot_token_2026')
+FB_PAGE_ACCESS_TOKEN = env.str('FB_PAGE_ACCESS_TOKEN', '')
+MESSENGER_GEMINI_MODEL = env.str('MESSENGER_GEMINI_MODEL', '') or None
+MESSENGER_VECTOR_STORE_PATH = env.str(
+    'MESSENGER_VECTOR_STORE_PATH',
+    str(BASE_DIR / 'media' / 'messenger_bot' / 'kb.pkl'),
+)
 
 # =====================================================================
 # 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)

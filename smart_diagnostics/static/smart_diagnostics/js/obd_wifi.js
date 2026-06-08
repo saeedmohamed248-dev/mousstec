@@ -420,6 +420,153 @@ class OBDWiFi extends EventTarget {
         return raw;
     }
 
+    // ── Freeze Frame (Mode 02) ──────────────────────────────────────────
+    // The ECU stores a snapshot of running conditions at the EXACT instant
+    // a confirmed DTC was set. This is THE most valuable diagnostic tool in
+    // ISTA/Xentry — knowing whether the engine was cold/hot, idle/highway,
+    // open/closed loop tells the mechanic where to look. We read the same
+    // PIDs as Mode 01 but prefixed with `02` and frame index `00`.
+    async readFreezeFrame() {
+        // Most useful PIDs at the moment a DTC was set:
+        const ff_pids = ['02', '03', '04', '05', '0C', '0D', '0E', '0F',
+                         '10', '11', '14', '1C', '21'];
+        const out = { _at: Date.now(), frame: 0 };
+        for (const pid of ff_pids) {
+            try {
+                const raw = await this._sendCommand(`02${pid}00`, 3000);
+                if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) continue;
+                // Mode 02 response header: "42<PID><frame><bytes>"
+                const stripped = raw.replace(/\s+/g, '').toUpperCase();
+                const headerIdx = stripped.indexOf('42' + pid);
+                if (headerIdx < 0) continue;
+                const body = stripped.slice(headerIdx + 4 + 2);   // skip 42PID + frame nibble
+                const bytes = [];
+                for (let i = 0; i < body.length; i += 2) {
+                    const b = parseInt(body.slice(i, i + 2), 16);
+                    if (!Number.isFinite(b)) break;
+                    bytes.push(b);
+                }
+                // PID 02 in Mode 02 = the DTC that triggered the freeze
+                if (pid === '02' && bytes.length >= 2) {
+                    out.trigger_dtc = this._decodeDTCNibbles(bytes[0], bytes[1]);
+                    continue;
+                }
+                const def = OBD_WIFI_PIDS[pid];
+                if (def) {
+                    try {
+                        const parsed = def.parse(bytes);
+                        if (Number.isFinite(parsed)) out[def.label] = parsed;
+                    } catch (_) {}
+                }
+            } catch (_) { /* per-PID failure non-fatal */ }
+        }
+        this._emit('freeze_frame', out);
+        return out;
+    }
+
+    // ── Readiness Monitors + I/M Readiness (Mode 01 PID 01) ─────────────
+    // 4 bytes that encode: MIL state, DTC count, AND 11 self-test bits.
+    // EU/Egypt vehicle inspection looks at these — all "Complete" = pass.
+    async readReadinessMonitors() {
+        const raw = await this._sendCommand('0101', 3000);
+        if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) {
+            throw new Error('الـ ECU مردش على Mode 01 PID 01.');
+        }
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        const idx = stripped.indexOf('4101');
+        if (idx < 0) throw new Error('رد غير صالح من الـ ECU.');
+        const body = stripped.slice(idx + 4);
+        const A = parseInt(body.slice(0, 2), 16);
+        const B = parseInt(body.slice(2, 4), 16);
+        const C = parseInt(body.slice(4, 6), 16);
+        const D = parseInt(body.slice(6, 8), 16);
+
+        const mil = !!(A & 0x80);                        // Check Engine on?
+        const dtcCount = A & 0x7F;
+        const isDiesel = !!(B & 0x08);
+
+        // "supported" bit = ECU has this monitor; "complete" bit = test passed.
+        // For each monitor we get { supported, complete }. complete = ready.
+        const continuous = {
+            misfire:        { supported: !!(B & 0x01), complete: !(B & 0x10) },
+            fuel_system:    { supported: !!(B & 0x02), complete: !(B & 0x20) },
+            components:     { supported: !!(B & 0x04), complete: !(B & 0x40) },
+        };
+
+        const onceper_gas = {
+            catalyst:           { supported: !!(C & 0x01), complete: !(D & 0x01) },
+            heated_catalyst:    { supported: !!(C & 0x02), complete: !(D & 0x02) },
+            evap_system:        { supported: !!(C & 0x04), complete: !(D & 0x04) },
+            secondary_air:      { supported: !!(C & 0x08), complete: !(D & 0x08) },
+            ac_refrigerant:     { supported: !!(C & 0x10), complete: !(D & 0x10) },
+            o2_sensor:          { supported: !!(C & 0x20), complete: !(D & 0x20) },
+            o2_sensor_heater:   { supported: !!(C & 0x40), complete: !(D & 0x40) },
+            egr_system:         { supported: !!(C & 0x80), complete: !(D & 0x80) },
+        };
+
+        const onceper_diesel = {
+            nmhc_catalyst:      { supported: !!(C & 0x01), complete: !(D & 0x01) },
+            nox_aftertreatment: { supported: !!(C & 0x02), complete: !(D & 0x02) },
+            boost_pressure:     { supported: !!(C & 0x08), complete: !(D & 0x08) },
+            exhaust_gas_sensor: { supported: !!(C & 0x20), complete: !(D & 0x20) },
+            pm_filter:          { supported: !!(C & 0x40), complete: !(D & 0x40) },
+            egr_vvt:            { supported: !!(C & 0x80), complete: !(D & 0x80) },
+        };
+
+        const monitors = { ...continuous, ...(isDiesel ? onceper_diesel : onceper_gas) };
+        // IM readiness verdict: all SUPPORTED monitors must be COMPLETE.
+        const incomplete = Object.entries(monitors)
+            .filter(([_, m]) => m.supported && !m.complete)
+            .map(([k]) => k);
+        const imReady = incomplete.length === 0;
+
+        const result = { mil, dtcCount, isDiesel, monitors, incomplete, imReady, raw };
+        this._emit('readiness', result);
+        return result;
+    }
+
+    // ── Mode 09 — ECU identification (CalID, CVN, ECU name) ─────────────
+    // Goes BEYOND VIN. CalID = the calibration version, CVN = checksum of
+    // the calibration software, ECU name = manufacturer ECU identifier.
+    // ISTA shows these on the Vehicle Information screen.
+    async readVehicleInfo() {
+        const out = {};
+        // VIN we already do separately; also fetch the other Mode 09 PIDs.
+        const calls = [
+            { pid: '04', label: 'cal_id',   ascii: true,  expect: '49' },
+            { pid: '06', label: 'cvn',      ascii: false, expect: '49' },
+            { pid: '0A', label: 'ecu_name', ascii: true,  expect: '49' },
+            { pid: '08', label: 'ipt',      ascii: false, expect: '49' },
+        ];
+        for (const c of calls) {
+            try {
+                const raw = await this._sendCommand(`09${c.pid}`, 5000);
+                if (!raw || /NO\s*DATA|\?/i.test(raw)) continue;
+                const stripped = raw
+                    .replace(/\d+\s*:/g, '')
+                    .replace(/\s+/g, '')
+                    .toUpperCase();
+                const idx = stripped.indexOf(c.expect + c.pid.toUpperCase());
+                if (idx < 0) continue;
+                // The next byte is usually a "message count" — skip it.
+                const body = stripped.slice(idx + 4 + 2);
+                if (c.ascii) {
+                    let s = '';
+                    for (let i = 0; i + 2 <= body.length; i += 2) {
+                        const b = parseInt(body.slice(i, i + 2), 16);
+                        if (b >= 0x20 && b <= 0x7E) s += String.fromCharCode(b);
+                    }
+                    out[c.label] = s.trim() || null;
+                } else {
+                    // Hex representation for CVN/IPT counters
+                    out[c.label] = body.match(/.{1,2}/g)?.join(' ').trim() || null;
+                }
+            } catch (_) { /* per-PID failure non-fatal */ }
+        }
+        this._emit('vehicle_info', out);
+        return out;
+    }
+
     async readVIN() {
         const raw = await this._sendCommand('0902', 5000);
         const vin = this._parseVINResponse(raw);

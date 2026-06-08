@@ -284,7 +284,20 @@ body {
 <body>
 
 <div class="topbar">
-    <div class="brand"><i class="fa-solid fa-microchip"></i> غرفة تشخيص الأعطال</div>
+    <div class="brand">
+        <a href="/system/dashboard/" class="back-btn"
+           title="الرجوع للداش بورد"
+           style="color:#94a3b8; text-decoration:none; padding:6px 10px;
+                  border-radius:8px; margin-inline-end:8px;
+                  background:rgba(255,255,255,0.04);
+                  transition:background .15s, color .15s;"
+           onmouseover="this.style.background='rgba(139,92,246,0.15)';this.style.color='#a78bfa'"
+           onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='#94a3b8'">
+            <i class="fa-solid fa-arrow-right"></i>
+            <span style="font-size:13px;">الداش بورد</span>
+        </a>
+        <i class="fa-solid fa-microchip"></i> غرفة تشخيص الأعطال
+    </div>
     <div class="tech">
         <i class="fa-regular fa-user"></i> {{ tech_name }} ·
         <span id="vinPill" class="pill idle" style="font-family:monospace; display:none;">
@@ -347,7 +360,42 @@ body {
                         title="درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات (DTCs + misfire + fuel trims + O2) في رقم واحد">
                     <i class="fa-solid fa-heart-pulse"></i> درجة صحة السيارة (0-100)
                 </button>
+                <button id="btnFreezeFrame" class="btn secondary" disabled
+                        title="لقطة كاملة لظروف العربية لحظة وقوع العطل (RPM، حرارة، حمل) — أهم أداة تشخيص في ISTA">
+                    <i class="fa-solid fa-camera-retro"></i> Freeze Frame (لقطة العطل)
+                </button>
+                <button id="btnReadiness" class="btn secondary" disabled
+                        title="حالة 11 self-test في الـ ECU + هل السيارة جاهزة لاختبار التلوث">
+                    <i class="fa-solid fa-list-check"></i> Readiness Monitors (I/M)
+                </button>
+                <button id="btnVehicleInfo" class="btn secondary" disabled
+                        title="معلومات الـ ECU: الاسم، الكاليبراشن، CVN، عداد الأداء (Mode 09)">
+                    <i class="fa-solid fa-microchip"></i> معلومات الـ ECU (Mode 09)
+                </button>
+                <button id="btnSaveSnapshot" class="btn secondary" disabled
+                        title="احفظ القراءات الحالية في الـ history بتاع المتصفح">
+                    <i class="fa-solid fa-bookmark"></i> احفظ قراءة لحظية
+                </button>
             </div>
+        </div>
+
+        <!-- Mode 09 ECU info -->
+        <div id="vehicleInfoPanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-microchip"></i> معلومات الـ ECU</div>
+            <div id="vehicleInfoBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+        </div>
+
+        <!-- Freeze Frame -->
+        <div id="freezeFramePanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-camera-retro"></i> لقطة لحظة العطل</div>
+            <div id="freezeFrameBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+        </div>
+
+        <!-- Readiness -->
+        <div id="readinessPanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-list-check"></i> Readiness Monitors</div>
+            <div id="readinessVerdict" style="font-size:14px; font-weight:700; margin:6px 0 10px;"></div>
+            <ul id="readinessList" style="font-size:12px; color:#cbd5e1; list-style:none; padding:0; margin:0;"></ul>
         </div>
 
         <!-- ── Health score gauge ────────────────────────────────────── -->
@@ -528,8 +576,8 @@ body {
 <!-- PWA update-toast handler — without this the Service Worker NEVER updates
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=11-livedata-fix"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=9-livedata-fix"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=12-ista-features"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=10-ista-features"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -556,6 +604,10 @@ body {
     const btnMisfire = $('btnMisfire');
     const btnFuelHealth = $('btnFuelHealth');
     const btnHealthScore = $('btnHealthScore');
+    const btnFreezeFrame = $('btnFreezeFrame');
+    const btnReadiness   = $('btnReadiness');
+    const btnVehicleInfo = $('btnVehicleInfo');
+    const btnSaveSnapshot = $('btnSaveSnapshot');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -599,7 +651,11 @@ body {
         btnDisconnect.disabled = !connected;
         if (btnMisfire)     btnMisfire.disabled     = !connected;
         if (btnFuelHealth)  btnFuelHealth.disabled  = !connected;
-        if (btnHealthScore) btnHealthScore.disabled = !connected;
+        if (btnHealthScore)  btnHealthScore.disabled  = !connected;
+        if (btnFreezeFrame)  btnFreezeFrame.disabled  = !connected;
+        if (btnReadiness)    btnReadiness.disabled    = !connected;
+        if (btnVehicleInfo)  btnVehicleInfo.disabled  = !connected;
+        if (btnSaveSnapshot) btnSaveSnapshot.disabled = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -829,6 +885,21 @@ body {
             renderHealthScore(e.detail);
             log(`Health score: ${e.detail.score}/100 — ${e.detail.verdict}`);
         });
+        driver.addEventListener('freeze_frame', (e) => {
+            renderFreezeFrame(e.detail);
+            log('Freeze Frame: ' + (e.detail.trigger_dtc
+                ? `Triggered by ${e.detail.trigger_dtc}`
+                : 'لا توجد لقطة محفوظة (مفيش DTC مؤكد).'));
+        });
+        driver.addEventListener('readiness', (e) => {
+            renderReadiness(e.detail);
+            log(`Readiness: ${e.detail.imReady ? 'I/M جاهزة ✅' :
+                `${e.detail.incomplete.length} monitor ناقص ❌`}`);
+        });
+        driver.addEventListener('vehicle_info', (e) => {
+            renderVehicleInfo(e.detail);
+            log(`Vehicle Info: ${e.detail.ecu_name || '?'} / CalID: ${e.detail.cal_id || '?'}`);
+        });
         driver.addEventListener('disconnected', () => {
             log('Disconnected', true);
             setStatus('idle', 'غير متصل');
@@ -1011,6 +1082,66 @@ body {
         }
     });
 
+    if (btnFreezeFrame) btnFreezeFrame.addEventListener('click', async () => {
+        if (typeof obd.readFreezeFrame !== 'function') {
+            log('Freeze Frame requires Wi-Fi driver.', true); return;
+        }
+        try {
+            btnFreezeFrame.disabled = true;
+            log('Reading Freeze Frame (Mode 02)…');
+            await obd.readFreezeFrame();
+        } catch (e) { log(`Freeze Frame failed: ${e.message}`, true); }
+        finally    { btnFreezeFrame.disabled = !obd.isConnected; }
+    });
+
+    if (btnReadiness) btnReadiness.addEventListener('click', async () => {
+        if (typeof obd.readReadinessMonitors !== 'function') {
+            log('Readiness requires Wi-Fi driver.', true); return;
+        }
+        try {
+            btnReadiness.disabled = true;
+            log('Reading readiness monitors (Mode 01 PID 01)…');
+            await obd.readReadinessMonitors();
+        } catch (e) { log(`Readiness failed: ${e.message}`, true); }
+        finally     { btnReadiness.disabled = !obd.isConnected; }
+    });
+
+    if (btnVehicleInfo) btnVehicleInfo.addEventListener('click', async () => {
+        if (typeof obd.readVehicleInfo !== 'function') {
+            log('Vehicle Info requires Wi-Fi driver.', true); return;
+        }
+        try {
+            btnVehicleInfo.disabled = true;
+            log('Reading ECU vehicle info (Mode 09)…');
+            await obd.readVehicleInfo();
+        } catch (e) { log(`Vehicle Info failed: ${e.message}`, true); }
+        finally     { btnVehicleInfo.disabled = !obd.isConnected; }
+    });
+
+    // Session recorder — persist snapshots so the mechanic can review later.
+    const SESSION_KEY = 'mousstec_diag_snapshots';
+    function loadSnapshots() {
+        try { return JSON.parse(localStorage.getItem(SESSION_KEY) || '[]'); }
+        catch { return []; }
+    }
+    function saveSnapshot(payload) {
+        const all = loadSnapshots();
+        all.unshift(payload);
+        try { localStorage.setItem(SESSION_KEY, JSON.stringify(all.slice(0, 50))); }
+        catch (_) { /* quota exceeded */ }
+    }
+    if (btnSaveSnapshot) btnSaveSnapshot.addEventListener('click', () => {
+        const snap = {
+            at:      new Date().toISOString(),
+            vin:     lastVIN || null,
+            gauges:  { ...lastSnapshot },
+            dtcs:    lastDTCs,
+            tech:    '{{ tech_name }}',
+        };
+        saveSnapshot(snap);
+        log(`📌 لقطة محفوظة (إجمالي: ${loadSnapshots().length} لقطة)`);
+    });
+
     // ── Renderers for the new advanced panels ───────────────────────────
     function renderMisfire(cyls) {
         const panel = $('misfirePanel');
@@ -1043,6 +1174,117 @@ body {
             ? '✅ كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل.'
             : `⚠️ مجموع ${total} misfire — أعلى سلندر: <b>سلندر ${worst.cylinder}</b> (${worst.count} مرة). ` +
               'افحص شمعة، كويل، أو إنجكتر السلندر ده الأول.';
+    }
+
+    // Map English snapshot keys → Arabic labels for human display.
+    const PID_LABELS_AR = {
+        rpm: 'دورة المحرك', speed_kph: 'السرعة', coolant_temp_c: 'حرارة المياه',
+        engine_load: 'حمل المحرك', throttle_pct: 'دواسة البنزين',
+        control_voltage: 'جهد البطارية', intake_temp_c: 'حرارة الهواء',
+        timing_advance_deg: 'تقدّم الإشعال', maf_gs: 'تدفق الهواء',
+        oil_temp_c: 'حرارة الزيت', fuel_level_pct: 'مستوى البنزين',
+        fuel_pressure_kpa: 'ضغط البنزين', map_kpa: 'ضغط المان',
+    };
+    const PID_UNITS = {
+        rpm: 'rpm', speed_kph: 'كم/س', coolant_temp_c: '°م',
+        engine_load: '%', throttle_pct: '%', control_voltage: 'فولت',
+        intake_temp_c: '°م', timing_advance_deg: '°', maf_gs: 'جم/ث',
+        oil_temp_c: '°م', fuel_level_pct: '%', fuel_pressure_kpa: 'kPa',
+        map_kpa: 'kPa',
+    };
+
+    function renderFreezeFrame(ff) {
+        const panel = $('freezeFramePanel');
+        const body  = $('freezeFrameBody');
+        panel.style.display = 'block';
+        const keys = Object.keys(ff).filter(k => k !== '_at' && k !== 'frame');
+        if (!keys.length) {
+            body.innerHTML = '<em style="color:#94a3b8;">' +
+                'لا توجد لقطة محفوظة. الـ Freeze Frame بيتسجّل فقط لما يحصل DTC مؤكد.</em>';
+            return;
+        }
+        let html = '';
+        if (ff.trigger_dtc) {
+            html += `<div style="background:rgba(239,68,68,0.15); padding:8px 12px;
+                     border-radius:8px; margin-bottom:10px; color:#fca5a5;">
+                <i class="fa-solid fa-bug"></i>
+                هذه اللقطة اتسجّلت لحظة عطل: <strong>${ff.trigger_dtc}</strong></div>`;
+        }
+        html += '<table style="width:100%; border-collapse:collapse;">';
+        for (const k of keys) {
+            if (k === 'trigger_dtc') continue;
+            const label = PID_LABELS_AR[k] || k;
+            const unit  = PID_UNITS[k] || '';
+            const val   = typeof ff[k] === 'number' ? ff[k].toFixed(1) : ff[k];
+            html += `<tr><td style="padding:4px 8px; color:#94a3b8;">${label}</td>
+                     <td style="padding:4px 8px; text-align:end; font-weight:700; color:#67e8f9;">${val} <small>${unit}</small></td></tr>`;
+        }
+        html += '</table>';
+        body.innerHTML = html;
+    }
+
+    function renderReadiness(r) {
+        const panel = $('readinessPanel');
+        const verdict = $('readinessVerdict');
+        const list = $('readinessList');
+        panel.style.display = 'block';
+
+        verdict.innerHTML = r.imReady
+            ? `<span style="color:#10b981;">✅ السيارة جاهزة للفحص (I/M Ready) — ${r.isDiesel ? 'ديزل' : 'بنزين'}</span>`
+            : `<span style="color:#ef4444;">❌ السيارة <u>غير جاهزة</u> لاختبار التلوث — ${r.incomplete.length} منظومة لم تكتمل ذاتية الفحص</span>`;
+
+        if (r.mil) {
+            verdict.innerHTML += ` <span style="color:#f59e0b;">⚠ لمبة Check Engine مولّعة (${r.dtcCount} عطل مخزن)</span>`;
+        }
+
+        const labels = {
+            misfire: 'كشف Misfire (الإشعال)', fuel_system: 'نظام الوقود',
+            components: 'المكونات الشاملة', catalyst: 'الكتلست',
+            heated_catalyst: 'كتلست مُسخَّن', evap_system: 'تهرّب الوقود (EVAP)',
+            secondary_air: 'الهواء الثانوي', ac_refrigerant: 'فريون التكييف',
+            o2_sensor: 'حسّاس الأكسجين', o2_sensor_heater: 'سخّان حسّاس الأكسجين',
+            egr_system: 'EGR', nmhc_catalyst: 'NMHC Catalyst',
+            nox_aftertreatment: 'NOx Aftertreatment', boost_pressure: 'ضغط التيربو',
+            exhaust_gas_sensor: 'حسّاس العادم', pm_filter: 'مرشّح PM (DPF)',
+            egr_vvt: 'EGR / VVT',
+        };
+        list.innerHTML = '';
+        for (const [key, m] of Object.entries(r.monitors)) {
+            const li = document.createElement('li');
+            li.style.cssText = 'padding:6px 12px; margin:3px 0; border-radius:6px; ' +
+                'display:flex; justify-content:space-between;';
+            let status, color, bg;
+            if (!m.supported) { status = 'غير مدعوم'; color = '#64748b'; bg = 'rgba(100,116,139,0.08)'; }
+            else if (m.complete) { status = '✓ مكتمل'; color = '#10b981'; bg = 'rgba(16,185,129,0.10)'; }
+            else { status = '✗ لم يكتمل'; color = '#ef4444'; bg = 'rgba(239,68,68,0.10)'; }
+            li.style.background = bg;
+            li.innerHTML = `<span>${labels[key] || key}</span>
+                            <span style="color:${color}; font-weight:700;">${status}</span>`;
+            list.appendChild(li);
+        }
+    }
+
+    function renderVehicleInfo(info) {
+        const panel = $('vehicleInfoPanel');
+        const body  = $('vehicleInfoBody');
+        panel.style.display = 'block';
+        const rows = [
+            ['اسم الـ ECU',     info.ecu_name],
+            ['كاليبراشن (CalID)', info.cal_id],
+            ['CVN (checksum الكاليبراشن)', info.cvn],
+            ['عدّاد الأداء (IPT)', info.ipt],
+        ];
+        const visible = rows.filter(([_, v]) => v);
+        if (!visible.length) {
+            body.innerHTML = '<em style="color:#94a3b8;">' +
+                'الـ ECU مردش بمعلومات Mode 09 — بعض السيارات مش بتدعمه أو محتاج ignition ON.</em>';
+            return;
+        }
+        body.innerHTML = '<table style="width:100%; border-collapse:collapse;">' +
+            visible.map(([k, v]) =>
+                `<tr><td style="padding:4px 8px; color:#94a3b8;">${k}</td>
+                 <td style="padding:4px 8px; text-align:end; font-family:monospace; color:#67e8f9;">${v}</td></tr>`
+            ).join('') + '</table>';
     }
 
     function renderHealthScore(h) {

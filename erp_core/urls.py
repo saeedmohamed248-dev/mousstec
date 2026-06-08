@@ -413,6 +413,9 @@ urlpatterns = [
     # 🚀 ابتكار: استقبال إشعارات بوابات الدفع اللحظية وحقنها في الـ Escrow Ledger أوتوماتيكياً
     path('api/webhooks/fintech/universal/', client_views.universal_webhook_multiplexer, name='fintech_webhook_multiplexer'),
 
+    # 💬 Mousstec Facebook Messenger bot (Meta verification + inbound messages)
+    path('api/webhooks/', include('messenger_bot.urls', namespace='messenger_bot')),
+
     # ==============================================================
     # 🤝 4. بوابة واجهات برمجة سوق Mouss Tec المركزي (B2B API Gateway)
     # ==============================================================
