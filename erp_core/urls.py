@@ -379,6 +379,18 @@ urlpatterns = [
     path('marketplace/notifications/',                       client_views.customer_notifications_list, name='customer_notifications_list'),
     path('marketplace/notifications/<int:notification_id>/read/', client_views.customer_notification_read, name='customer_notification_read'),
 
+    # 🚗 P2P Car-Parts Marketplace
+    path('marketplace/parts/',                                client_views.parts_feed,             name='parts_feed'),
+    path('marketplace/parts/sell/',                           client_views.parts_create,           name='parts_create'),
+    path('marketplace/parts/orders/',                         client_views.parts_my_orders,        name='parts_my_orders'),
+    path('marketplace/parts/sales/',                          client_views.parts_my_sales,         name='parts_my_sales'),
+    path('marketplace/parts/paymob-callback/',                client_views.parts_paymob_callback,  name='parts_paymob_callback'),
+    path('marketplace/parts/<uuid:listing_code>/',            client_views.parts_detail,           name='parts_detail'),
+    path('marketplace/parts/<uuid:listing_code>/checkout/',   client_views.parts_checkout,         name='parts_checkout'),
+    path('marketplace/parts/order/<uuid:order_code>/shipped/',  client_views.parts_mark_shipped,      name='parts_mark_shipped'),
+    path('marketplace/parts/order/<uuid:order_code>/delivered/', client_views.parts_confirm_delivery, name='parts_confirm_delivery'),
+    path('marketplace/parts/order/<uuid:order_code>/refund/',    client_views.parts_request_refund,    name='parts_request_refund'),
+
     # 🎛️ Phase 5: SaaS Control Center — Plan/Entitlement management + Revenue
     path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),
     path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),

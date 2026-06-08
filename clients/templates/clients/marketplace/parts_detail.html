@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ listing.title }} | سوق قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#f59e0b; --accent2:#ef4444; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh; padding-bottom:60px;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; }
+        .back { color:var(--soft); text-decoration:none; font-weight:700; }
+        .back:hover { color:var(--accent); }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 22px 20px; }
+
+        .grid { display: grid; gap: 22px; grid-template-columns: minmax(0,1fr) 360px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .gallery { background: var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+        .main-img { aspect-ratio: 4/3; background:#1a223d; display:flex; align-items:center; justify-content:center; }
+        .main-img img { width:100%; height:100%; object-fit:contain; cursor:zoom-in; }
+        .main-img .no-img { font-size:3rem; color:var(--muted); }
+        .thumbs { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 10px; }
+        .thumb { aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer;
+                 border:2px solid transparent; transition:0.15s; }
+        .thumb.active, .thumb:hover { border-color: var(--accent); }
+        .thumb img { width:100%; height:100%; object-fit:cover; }
+
+        .info { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; }
+        h1 { margin:0 0 6px; font-size:1.4rem; font-weight:900; }
+        .meta-row { color: var(--muted); margin-bottom: 16px; font-size:0.88rem; }
+        .price { font-size: 2rem; font-weight: 900; color: var(--accent); margin: 8px 0 16px; }
+
+        .spec { display:flex; justify-content:space-between; padding:10px 0;
+                border-bottom: 1px dashed var(--line); font-size: 0.88rem; }
+        .spec:last-child { border-bottom: 0; }
+        .spec .lbl { color: var(--muted); }
+        .spec .val { font-weight: 700; }
+
+        .desc-section { margin-top: 22px; background:var(--card); border:1px solid var(--line);
+                        border-radius:18px; padding:22px; }
+        .desc-section h3 { margin-top:0; }
+        .desc-text { color: var(--soft); line-height: 1.7; white-space: pre-wrap; }
+
+        .trust { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+                 border: 1px solid rgba(16,185,129,0.3); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+        .trust h4 { margin: 0 0 6px; color: #6ee7b7; font-size: 0.95rem; }
+        .trust ul { margin: 0; padding-right: 18px; font-size: 0.82rem; color: var(--soft); line-height: 1.7; }
+
+        .buy-btn { width:100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+                   border:0; color:#0b1020; padding: 14px; border-radius: 14px; font-size: 1rem;
+                   font-weight: 900; cursor: pointer; transition: 0.2s; }
+        .buy-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(245,158,11,0.4); }
+        .buy-btn:disabled { background: #475569; cursor: not-allowed; transform:none; box-shadow:none; }
+
+        /* Modal */
+        .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(6px);
+                    display:none; align-items:center; justify-content:center; z-index:200; padding:20px; }
+        .modal-bg.open { display:flex; }
+        .modal { background: #1a223d; border:1px solid var(--line); border-radius:20px;
+                 padding:26px; max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-top:0; }
+        .modal input, .modal textarea { width:100%; background: rgba(11,16,32,0.6); border:1px solid var(--line);
+                                          color: var(--text); padding: 11px 14px; border-radius: 11px;
+                                          margin-bottom: 12px; font-family: inherit; font-size: 0.92rem; }
+        .modal input:focus, .modal textarea:focus { border-color: var(--accent); outline: none; }
+        .modal label { display:block; font-weight:700; margin-bottom: 5px; font-size: 0.85rem; color: var(--soft); }
+        .summary-row { display:flex; justify-content:space-between; padding: 8px 0;
+                       border-bottom:1px solid var(--line); font-size: 0.88rem; }
+        .summary-row.total { font-weight: 900; font-size: 1.05rem; color: var(--accent); border-bottom: 0; padding-top: 12px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
+                 padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
+        .toast.show { display: block; }
+        .toast.success { background: #10b981; color:#fff; }
+        .toast.error { background: #ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a href="/marketplace/parts/{% if listing.car_make.slug %}?make={{ listing.car_make.slug }}{% endif %}" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
+    <a href="/marketplace/" class="back"><i class="fas fa-home"></i></a>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="wrap">
+    <div class="grid">
+        <div class="gallery">
+            <div class="main-img">
+                {% if photos %}
+                <img id="mainImg" src="{{ photos.0.image.url }}" alt="{{ listing.title }}">
+                {% else %}
+                <div class="no-img"><i class="fas fa-image"></i></div>
+                {% endif %}
+            </div>
+            {% if photos|length > 1 %}
+            <div class="thumbs">
+                {% for p in photos %}
+                <div class="thumb {% if forloop.first %}active{% endif %}" onclick="selectImg(this, '{{ p.image.url }}')">
+                    <img src="{{ p.image.url }}" alt="">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="info">
+            <h1>{{ listing.title }}</h1>
+            <div class="meta-row">
+                <i class="fas fa-car"></i> {{ listing.car_make.name }}{% if listing.car_model %} — {{ listing.car_model }}{% endif %}
+                {% if listing.car_year_from %} · {{ listing.car_year_from }}{% if listing.car_year_to %}–{{ listing.car_year_to }}{% endif %}{% endif %}
+            </div>
+            <div class="price">{{ listing.price_egp|floatformat:0 }} ج.م</div>
+
+            <div class="spec"><span class="lbl">الحالة</span><span class="val">{{ listing.get_condition_display }}</span></div>
+            <div class="spec"><span class="lbl">فترة الضمان</span><span class="val" style="color:#6ee7b7;"><i class="fas fa-shield-halved"></i> {{ listing.warranty_days }} يوم</span></div>
+            {% if listing.part_number %}
+            <div class="spec"><span class="lbl">رقم OEM</span><span class="val" dir="ltr">{{ listing.part_number }}</span></div>
+            {% endif %}
+            {% if listing.city %}
+            <div class="spec"><span class="lbl">المدينة</span><span class="val">{{ listing.city }}</span></div>
+            {% endif %}
+            <div class="spec"><span class="lbl">البائع</span><span class="val">{{ listing.seller_label }}{% if listing.seller_is_company %} <span style="background:rgba(59,130,246,0.2); color:#93c5fd; font-size:0.7rem; padding:2px 6px; border-radius:6px;">شركة</span>{% endif %}</span></div>
+
+            <div class="trust" style="margin-top:20px;">
+                <h4><i class="fas fa-shield-halved"></i> حمايتنا لك</h4>
+                <ul>
+                    <li>الفلوس في الـ <strong>Escrow</strong> — مش هتروح للبائع إلا بعد ما تستلم وتتأكد.</li>
+                    <li>ضمان {{ listing.warranty_days }} يوم بعد التسليم — لو فيها مشكلة ترجعها.</li>
+                    <li>الشحن في الإرجاع <strong>على المنصة</strong>.</li>
+                    <li>صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور.</li>
+                </ul>
+            </div>
+
+            {% if is_owner %}
+            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض</button>
+            {% elif listing.status != 'active' %}
+            <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة لم تعد متاحة</button>
+            {% elif customer %}
+            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} ج.م</button>
+            {% else %}
+            <a href="/marketplace/login/?next=/marketplace/parts/{{ listing.listing_code }}/" class="buy-btn" style="display:block; text-align:center; text-decoration:none;">
+                <i class="fas fa-sign-in-alt"></i> سجل دخول للشراء
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="desc-section">
+        <h3><i class="fas fa-file-lines"></i> الوصف الكامل</h3>
+        <div class="desc-text">{{ listing.description }}</div>
+    </div>
+</div>
+
+<!-- Buy Modal -->
+<div id="buyModal" class="modal-bg">
+    <div class="modal">
+        <h3><i class="fas fa-shopping-cart" style="color:var(--accent);"></i> إتمام الشراء</h3>
+        <form id="buyForm">
+            {% csrf_token %}
+            <label>الاسم الكامل للاستلام</label>
+            <input type="text" name="shipping_name" value="{{ customer.full_name }}" required>
+            <label>رقم الموبايل</label>
+            <input type="tel" name="shipping_phone" value="{{ customer.phone }}" required dir="ltr">
+            <label>المدينة</label>
+            <input type="text" name="shipping_city" value="{{ customer.city }}" placeholder="القاهرة، الإسكندرية..." required>
+            <label>العنوان بالتفصيل</label>
+            <textarea name="shipping_address" rows="2" placeholder="الشارع، المنطقة، علامة مميزة..." required minlength="10"></textarea>
+
+            <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:12px; padding:12px; margin: 8px 0 16px;">
+                <div class="summary-row"><span>سعر القطعة</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
+                <div class="summary-row"><span>الشحن</span><span style="color:#6ee7b7;">حسب البائع</span></div>
+                <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
+            </div>
+
+            <button type="submit" class="buy-btn" id="payBtn"><i class="fas fa-lock"></i> ادفع الآن (Paymob)</button>
+            <button type="button" onclick="closeBuyModal()" style="width:100%; background:transparent; border:1px solid var(--line); color:var(--muted); padding:10px; border-radius:11px; margin-top:8px; font-weight:700; cursor:pointer;">إلغاء</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function selectImg(el, src) {
+    document.getElementById('mainImg').src = src;
+    document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+function openBuyModal() { document.getElementById('buyModal').classList.add('open'); }
+function closeBuyModal() { document.getElementById('buyModal').classList.remove('open'); }
+
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+const form = document.getElementById('buyForm');
+if (form) form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('payBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
+    const fd = new FormData(this);
+    try {
+        const r = await fetch('/marketplace/parts/{{ listing.listing_code }}/checkout/', {
+            method: 'POST', body: fd, credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        toast('جارٍ التحويل لبوابة الدفع...', 'success');
+        setTimeout(() => { window.location.href = d.iframe_url; }, 800);
+    } catch (err) {
+        toast(err.message, 'error');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> ادفع الآن (Paymob)';
+    }
+});
+</script>
+
+</body>
+</html>

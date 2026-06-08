@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اعرض قطعة | سوق قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#f59e0b; --accent2:#ef4444; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+               color: var(--text); padding-bottom: 60px; }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; }
+        .back { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 760px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.55rem; font-weight: 900; }
+        .subtitle { color: var(--muted); margin-bottom: 22px; }
+
+        .form-card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; margin-bottom:16px; }
+        label { display:block; font-weight:700; font-size: 0.88rem; color: var(--soft); margin-bottom: 6px; }
+        input, select, textarea {
+            width:100%; background: rgba(11,16,32,0.6); border: 1px solid var(--line);
+            color: var(--text); padding: 12px 14px; border-radius: 12px; font-family: inherit;
+            font-size: 0.94rem; outline: none; margin-bottom: 14px;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        @media (max-width: 580px) { .row { grid-template-columns: 1fr; } }
+        .hint { font-size: 0.78rem; color: var(--muted); margin-top: -8px; margin-bottom: 14px; }
+        .warranty-note { background: rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3);
+                         border-radius: 12px; padding: 10px 14px; font-size: 0.82rem; color: #6ee7b7; margin-bottom:14px; }
+
+        .photo-area { border: 2px dashed var(--line); border-radius: 14px; padding: 24px; text-align: center;
+                      cursor: pointer; transition: 0.2s; background: rgba(255,255,255,0.02); }
+        .photo-area:hover { border-color: var(--accent); background: rgba(245,158,11,0.04); }
+        .photo-area i { font-size: 2.4rem; color: var(--accent); opacity: 0.7; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                        gap: 8px; margin-top: 14px; }
+        .preview-thumb { aspect-ratio:1; border-radius:10px; overflow:hidden; position: relative; border: 1px solid var(--line); }
+        .preview-thumb img { width:100%; height:100%; object-fit:cover; }
+        .preview-thumb .badge-primary { position: absolute; top: 4px; right: 4px; background: var(--accent);
+                                         color:#0b1020; padding: 2px 6px; border-radius: 6px; font-size: 0.65rem; font-weight: 900; }
+
+        .commission-card { background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.08));
+                           border: 1px solid rgba(59,130,246,0.3); border-radius: 14px; padding: 16px;
+                           margin-bottom: 16px; font-size: 0.88rem; }
+        .commission-card strong { color: #93c5fd; }
+        .commission-row { display: flex; justify-content: space-between; padding: 6px 0;
+                          border-bottom: 1px dashed rgba(255,255,255,0.06); }
+        .commission-row:last-child { border-bottom: 0; font-weight: 800; padding-top: 10px; }
+
+        .submit-btn { width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+                      border: 0; color: #0b1020; padding: 14px; border-radius: 14px;
+                      font-size: 1rem; font-weight: 900; cursor: pointer; transition: 0.2s; }
+        .submit-btn:hover { transform: translateY(-2px); }
+        .submit-btn:disabled { background:#475569; cursor: not-allowed; transform: none; }
+
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
+                 padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
+        .toast.show { display: block; }
+        .toast.success { background: #10b981; color:#fff; }
+        .toast.error { background: #ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a href="/marketplace/parts/" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
+    <span style="font-weight:900;">📷 اعرض قطعة للبيع</span>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div class="wrap">
+    <h1>اعرض قطعة غيار للبيع</h1>
+    <p class="subtitle">صور بالتفصيل من كل الزوايا — كلما زادت الصور والتفاصيل، زادت ثقة المشتري.</p>
+
+    <form id="listingForm" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-card">
+            <label>اسم القطعة *</label>
+            <input type="text" name="title" required maxlength="200" placeholder="مثال: طرمبة بنزين BMW 320i 2014">
+
+            <div class="row">
+                <div>
+                    <label>ماركة السيارة *</label>
+                    <select name="car_make" id="carMakeSelect" required>
+                        <option value="">اختر الماركة...</option>
+                        {% for m in makes %}
+                        <option value="{{ m.pk }}">{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>الموديل</label>
+                    <input type="text" name="car_model" maxlength="100" placeholder="مثال: 320i / X5 / Cooper">
+                </div>
+            </div>
+
+            <div class="row">
+                <div>
+                    <label>من سنة</label>
+                    <input type="number" name="car_year_from" min="1980" max="2030" placeholder="2014">
+                </div>
+                <div>
+                    <label>إلى سنة</label>
+                    <input type="number" name="car_year_to" min="1980" max="2030" placeholder="2018">
+                </div>
+            </div>
+
+            <label>رقم القطعة الأصلي (OEM)</label>
+            <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+
+            <label>الحالة *</label>
+            <select name="condition" required>
+                {% for val, lbl in condition_choices %}
+                <option value="{{ val }}" {% if val == 'used_good' %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+
+            <label>الوصف الكامل *</label>
+            <textarea name="description" rows="5" required minlength="20" placeholder="اوصف القطعة بالتفصيل: تاريخ التركيب، أي أعطال أو خدوش، السبب الذي تبيعها لأجله، أي قطع إضافية معها..."></textarea>
+        </div>
+
+        <div class="form-card">
+            <label>صور القطعة * (3 صور على الأقل — الأولى هتكون الرئيسية)</label>
+            <div class="photo-area" onclick="document.getElementById('photosInput').click()">
+                <i class="fas fa-camera-retro"></i>
+                <p style="margin: 10px 0 4px; font-weight:800;">اضغط هنا لرفع الصور</p>
+                <p style="color: var(--muted); font-size: 0.82rem; margin: 0;">صوّر من كل الزوايا: أمام، خلف، جنب، الأرقام، أي خدوش</p>
+            </div>
+            <input type="file" id="photosInput" name="photos" multiple accept="image/*" style="display:none;" onchange="previewPhotos(this)">
+            <div id="preview" class="preview-grid"></div>
+            <p class="hint">⚠️ لو القطعة فيها مشكلة بعد البيع وما صوّرتش التفصيلة دي، المشتري ممكن يرجعها.</p>
+        </div>
+
+        <div class="form-card">
+            <div class="row">
+                <div>
+                    <label>السعر (ج.م) *</label>
+                    <input type="number" name="price_egp" id="priceInput" required min="1" step="0.01" placeholder="2500" oninput="updateCommission()">
+                </div>
+                <div>
+                    <label>فترة الضمان (يوم) *</label>
+                    <input type="number" name="warranty_days" id="warrantyInput" required min="1" max="90" value="7" oninput="updateWarrantyNote()">
+                </div>
+            </div>
+            <div id="warrantyNote" class="warranty-note">
+                <i class="fas fa-info-circle"></i> ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك.
+            </div>
+
+            <label>المدينة</label>
+            <input type="text" name="city" value="{{ customer.city }}" maxlength="100" placeholder="القاهرة، الإسكندرية...">
+        </div>
+
+        <div class="commission-card">
+            <strong><i class="fas fa-calculator"></i> ملخص العمولة:</strong>
+            <div class="commission-row"><span>السعر المعروض</span><span id="sumPrice">— ج.م</span></div>
+            <div class="commission-row"><span>عمولة المنصة (8% للأفراد)</span><span id="sumCommission" style="color:#fca5a5;">— ج.م</span></div>
+            <div class="commission-row"><span>👈 صافي مكسبك</span><span id="sumPayout" style="color:#6ee7b7;">— ج.م</span></div>
+            <p style="margin: 10px 0 0; font-size: 0.78rem; color: var(--muted);">الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان.</p>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+            <i class="fas fa-upload"></i> انشر القطعة في السوق
+        </button>
+    </form>
+</div>
+
+<script>
+let _selectedFiles = [];
+function previewPhotos(input) {
+    _selectedFiles = Array.from(input.files);
+    const grid = document.getElementById('preview');
+    grid.innerHTML = '';
+    _selectedFiles.slice(0, 10).forEach((f, i) => {
+        const url = URL.createObjectURL(f);
+        const div = document.createElement('div');
+        div.className = 'preview-thumb';
+        div.innerHTML = `<img src="${url}">${i === 0 ? '<span class="badge-primary">رئيسية</span>' : ''}`;
+        grid.appendChild(div);
+    });
+}
+
+function updateCommission() {
+    const p = parseFloat(document.getElementById('priceInput').value || 0);
+    document.getElementById('sumPrice').textContent = p.toFixed(0) + ' ج.م';
+    const c = p * 0.08; // 8% individual seller
+    document.getElementById('sumCommission').textContent = c.toFixed(0) + ' ج.م';
+    document.getElementById('sumPayout').textContent = (p - c).toFixed(0) + ' ج.م';
+}
+
+function updateWarrantyNote() {
+    const d = parseInt(document.getElementById('warrantyInput').value || 0);
+    const note = document.getElementById('warrantyNote');
+    let msg, color;
+    if (d <= 3) { msg = '⚡ ضمان قصير — هتستلم فلوسك بسرعة، بس المشتري ممكن يتردد.'; color = 'rgba(245,158,11,0.1)'; }
+    else if (d <= 14) { msg = '✅ ضمان متوازن — يرفع ثقة المشتري ومش هتنتظر كتير.'; color = 'rgba(16,185,129,0.1)'; }
+    else if (d <= 30) { msg = '🛡️ ضمان طويل — هيجذب المشترين الجادين، فلوسك هتتأخر شوية.'; color = 'rgba(59,130,246,0.1)'; }
+    else { msg = '🏆 ضمان مميز — أعلى ثقة. هتبيع أسرع وبسعر أعلى.'; color = 'rgba(139,92,246,0.1)'; }
+    note.style.background = color;
+    note.innerHTML = '<i class="fas fa-info-circle"></i> ' + msg;
+}
+updateWarrantyNote();
+
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 4500);
+}
+
+document.getElementById('listingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    if (_selectedFiles.length < 3) { toast('لازم 3 صور على الأقل', 'error'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
+    const fd = new FormData(this);
+    try {
+        const r = await fetch('/marketplace/parts/sell/', { method: 'POST', body: fd, credentials: 'same-origin' });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        toast(d.message, 'success');
+        setTimeout(() => { window.location.href = d.detail_url; }, 1100);
+    } catch (err) {
+        toast(err.message, 'error');
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> انشر القطعة في السوق';
+    }
+});
+</script>
+
+</body>
+</html>

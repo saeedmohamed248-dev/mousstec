@@ -141,6 +141,22 @@ from .admin_views import (  # noqa: F401
 )
 
 # ───────────────────────────────────────────────────────────────────────────
+# 🚗 P2P Car-Parts Marketplace
+# ───────────────────────────────────────────────────────────────────────────
+from .parts_marketplace_views import (  # noqa: F401
+    parts_feed,
+    parts_detail,
+    parts_create,
+    parts_checkout,
+    parts_paymob_callback,
+    parts_my_orders,
+    parts_my_sales,
+    parts_mark_shipped,
+    parts_confirm_delivery,
+    parts_request_refund,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
 # 🤝 B2B marketplace / blind bidding / escrow
 # ───────────────────────────────────────────────────────────────────────────
 from .b2b_views import (  # noqa: F401
