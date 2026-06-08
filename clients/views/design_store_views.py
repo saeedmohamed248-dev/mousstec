@@ -47,6 +47,30 @@ from ._shared import (
 logger = logging.getLogger('mouss_tec_core')
 
 
+def _enforce_printing_sector(request, customer, *, json_response=False):
+    """Block automotive-sector customers from entering the design store.
+
+    The design store is part of the printing market only — automotive
+    customers shouldn't see it from their dashboard, and even if they
+    arrive via a hand-crafted URL, this gate sends them back with a
+    clear message instead of letting the sector boundary leak.
+    """
+    if customer is None or customer.sector == 'printing':
+        return None
+    msg = "متجر التصميمات متاح لعملاء سوق الطباعة والتصميم فقط."
+    if json_response:
+        return JsonResponse({
+            "error": msg,
+            "code": "wrong_sector",
+            "redirect": "/marketplace/dashboard/",
+        }, status=403)
+    try:
+        messages.warning(request, msg)
+    except Exception:
+        pass
+    return redirect('/marketplace/dashboard/')
+
+
 # ───────────────────────────────────────────────────────────────────────────
 # Endpoint implementations (preserved verbatim from _legacy.py)
 # ───────────────────────────────────────────────────────────────────────────
@@ -57,12 +81,16 @@ def design_store_home(request):
     مش الـ DB القديمة (cust_2/4/8 العتيقة). الفلسفة:
     الـ catalog هو single source of truth، والـ DB بتسجّل المشتريات فقط.
     """
+    customer = _marketplace_auth(request)
+    gate = _enforce_printing_sector(request, customer)
+    if gate is not None:
+        return gate
+
     customer_packages = _build_customer_topup_cards()
     designer_packages = DesignPackage.objects.filter(
         is_active=True, target_audience='designer',
     ).order_by('sort_order', 'designs_count')
 
-    customer = _marketplace_auth(request)
     user_balance = 0
     free_remaining = 0
     if customer:
@@ -88,6 +116,9 @@ def design_store_buy(request, package_slug):
     customer = _marketplace_auth(request)
     if not customer:
         return JsonResponse({"error": "يجب تسجيل الدخول أولاً", "redirect": "/marketplace/"}, status=401)
+    gate = _enforce_printing_sector(request, customer, json_response=True)
+    if gate is not None:
+        return gate
 
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
@@ -301,6 +332,9 @@ def design_store_my_designs(request):
     customer = _marketplace_auth(request)
     if not customer:
         return redirect('/marketplace/')
+    gate = _enforce_printing_sector(request, customer)
+    if gate is not None:
+        return gate
 
     purchases = customer.design_purchases.filter(
         status__in=['paid', 'exhausted']
@@ -362,6 +396,9 @@ def design_store_generate(request):
     customer = _marketplace_auth(request)
     if not customer:
         return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+    gate = _enforce_printing_sector(request, customer, json_response=True)
+    if gate is not None:
+        return gate
 
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)

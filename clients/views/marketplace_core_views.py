@@ -63,19 +63,43 @@ def marketplace_home(request):
 
 
 def marketplace_automotive(request):
-    """صفحة دخول/تسجيل سوق السيارات."""
+    """صفحة دخول/تسجيل سوق السيارات.
+
+    لو العميل مسجّل بالفعل في القطاع التاني (طباعة)، نعرض الصفحة مع
+    notice بدل ما نوديه dashboard صامت — عشان يعرف إنه في سوق تاني وعنده
+    خيار يكمل عمل أكاونت ثاني أو يرجع لوحته.
+    """
     customer = _marketplace_auth(request)
-    if customer:
+    if customer and customer.sector == 'automotive':
         return redirect('/marketplace/dashboard/')
-    return render(request, 'clients/marketplace/automotive.html', {'sector': 'automotive'})
+    context = {'sector': 'automotive'}
+    if customer and customer.sector != 'automotive':
+        context['cross_sector_notice'] = (
+            "أنت مسجّل حالياً في سوق الطباعة والتصميم. "
+            "للدخول لسوق السيارات سجّل حساب جديد، أو ارجع للوحتك."
+        )
+        context['existing_customer_sector'] = customer.sector
+    return render(request, 'clients/marketplace/automotive.html', context)
 
 
 def marketplace_printing(request):
-    """صفحة دخول/تسجيل سوق الطباعة والتصميم."""
+    """صفحة دخول/تسجيل سوق الطباعة والتصميم.
+
+    لو العميل مسجّل بالفعل في قطاع السيارات، نعرض الصفحة مع notice بدل
+    redirect صامت — Issue #4: العميل اللي في سوق سيارات كان بيتحوّل
+    للوحة من غير ما يفهم إنه دخل سوق تاني.
+    """
     customer = _marketplace_auth(request)
-    if customer:
+    if customer and customer.sector == 'printing':
         return redirect('/marketplace/dashboard/')
-    return render(request, 'clients/marketplace/printing.html', {'sector': 'printing'})
+    context = {'sector': 'printing'}
+    if customer and customer.sector != 'printing':
+        context['cross_sector_notice'] = (
+            "أنت مسجّل حالياً في سوق السيارات. "
+            "للدخول لسوق الطباعة والتصميم سجّل حساب جديد، أو ارجع للوحتك."
+        )
+        context['existing_customer_sector'] = customer.sector
+    return render(request, 'clients/marketplace/printing.html', context)
 
 
 @csrf_exempt
@@ -303,6 +327,35 @@ def marketplace_dashboard(request):
     for req in requests_qs.filter(status='open'):
         req.auto_expire()
 
+    sector_ui = {
+        'automotive': {
+            'label': 'سوق السيارات',
+            'icon': 'fa-car',
+            'color': '#f59e0b',
+            'switch_url': '/marketplace/automotive/',
+            'title_placeholder': 'مثال: محتاج تغيير زيت BMW 320i',
+            'desc_placeholder': 'اشرح بالتفصيل: نوع العربية، السنة، الموديل، المشكلة...',
+            'images_label': 'أريد صور القطع / الخدمات مع العروض',
+        },
+        'printing': {
+            'label': 'سوق الطباعة والتصميم',
+            'icon': 'fa-palette',
+            'color': '#ec4899',
+            'switch_url': '/marketplace/printing/',
+            'title_placeholder': 'مثال: محتاج لوجو لمطعم بيتزا',
+            'desc_placeholder': 'اشرح بالتفصيل: الألوان، الستايل، المقاسات، الكمية...',
+            'images_label': 'أريد تصميمات / صور مع العروض',
+        },
+    }.get(customer.sector, {
+        'label': 'السوق',
+        'icon': 'fa-store',
+        'color': '#10b981',
+        'switch_url': '/marketplace/',
+        'title_placeholder': 'عنوان الطلب',
+        'desc_placeholder': 'تفاصيل الطلب...',
+        'images_label': 'أريد صور مع العروض',
+    })
+
     context = {
         'customer': customer,
         'requests': requests_qs[:20],
@@ -313,6 +366,7 @@ def marketplace_dashboard(request):
             'accepted': requests_qs.filter(status='accepted').count(),
             'completed': requests_qs.filter(status='completed').count(),
         },
+        'sector_ui': sector_ui,
     }
     return render(request, 'clients/marketplace/dashboard.html', context)
 

@@ -79,8 +79,11 @@
 <body>
 
 <div class="topbar">
-    <h2><i class="fas fa-store"></i> سوق Mouss Tec</h2>
-    <div>
+    <h2><i class="fas {{ sector_ui.icon }}" style="color:{{ sector_ui.color }};"></i> {{ sector_ui.label }} | Mouss Tec</h2>
+    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <span style="background:{{ sector_ui.color }}1a; color:{{ sector_ui.color }}; padding:5px 12px; border-radius:999px; font-size:0.78rem; font-weight:800; border:1px solid {{ sector_ui.color }}55;">
+            <i class="fas {{ sector_ui.icon }}"></i> {{ sector_ui.label }}
+        </span>
         <span class="user-info"><i class="fas fa-user-circle"></i> {{ customer.full_name }}</span>
         <a href="/marketplace/logout/"><i class="fas fa-sign-out-alt"></i> خروج</a>
     </div>
@@ -116,7 +119,8 @@
         </div>
     </div>
 
-    <!-- 🎨 AI Designs Store callout -->
+    {% if customer.sector == 'printing' %}
+    <!-- 🎨 AI Designs Store callout — printing sector only -->
     <a href="/marketplace/design-store/" style="display:block; margin-bottom:24px; background:linear-gradient(135deg,rgba(236,72,153,0.15),rgba(139,92,246,0.15)); border:1px solid rgba(236,72,153,0.3); border-radius:16px; padding:20px; text-decoration:none; color:inherit; transition:all 0.3s;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
             <div style="display:flex; gap:16px; align-items:center;">
@@ -129,6 +133,7 @@
             <span style="background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; padding:8px 18px; border-radius:10px; font-weight:700; font-size:0.85rem;">دخول المتجر <i class="fas fa-arrow-left"></i></span>
         </div>
     </a>
+    {% endif %}
 
     <!-- New Request Button -->
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -191,11 +196,11 @@
         <form id="requestForm" enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label">عنوان الطلب *</label>
-                <input type="text" class="form-control" name="title" placeholder="مثال: محتاج تغيير زيت BMW 320i" required>
+                <input type="text" class="form-control" name="title" placeholder="{{ sector_ui.title_placeholder }}" required>
             </div>
             <div class="mb-3">
                 <label class="form-label">التفاصيل *</label>
-                <textarea class="form-control" name="description" rows="4" placeholder="اشرح بالتفصيل اللي محتاجه — النوع، الحجم، الكمية، أي تفاصيل مهمة..." required></textarea>
+                <textarea class="form-control" name="description" rows="4" placeholder="{{ sector_ui.desc_placeholder }}" required></textarea>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -216,11 +221,7 @@
                 <div class="toggle-switch">
                     <input type="checkbox" id="wantsImages" name="wants_images">
                     <label for="wantsImages" class="form-label mb-0" style="cursor:pointer;">
-                        {% if customer.sector == 'printing' %}
-                        أريد تصميمات / صور مع العروض
-                        {% else %}
-                        أريد صور القطع / الخدمات مع العروض
-                        {% endif %}
+                        {{ sector_ui.images_label }}
                     </label>
                 </div>
                 <small style="color:var(--muted);">لو فعّلت — التجار ملزمين يرفقوا صور مع عروضهم</small>

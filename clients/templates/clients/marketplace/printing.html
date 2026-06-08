@@ -198,6 +198,13 @@
     <a href="/marketplace/" class="switch"><i class="fas fa-exchange-alt"></i> تغيير القطاع</a>
 </div>
 
+{% if cross_sector_notice %}
+<div style="max-width:900px; margin:18px auto 0; padding:14px 18px; background:rgba(236,72,153,0.12); border:1px solid rgba(236,72,153,0.4); border-radius:12px; color:#fbcfe8; text-align:center;">
+    <i class="fas fa-circle-info"></i> {{ cross_sector_notice }}
+    <a href="/marketplace/dashboard/" style="margin-right:12px; color:#fff; text-decoration:underline; font-weight:700;">عودة للوحتي</a>
+</div>
+{% endif %}
+
 <!-- Hero -->
 <section class="hero">
     <div class="badge-sector"><i class="fas fa-wand-magic-sparkles"></i> تصميم • طباعة • هوية بصرية</div>

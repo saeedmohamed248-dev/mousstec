@@ -169,6 +169,13 @@
     <a href="/marketplace/" class="switch"><i class="fas fa-exchange-alt"></i> تغيير القطاع</a>
 </div>
 
+{% if cross_sector_notice %}
+<div style="max-width:900px; margin:18px auto 0; padding:14px 18px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); border-radius:12px; color:#fde68a; text-align:center;">
+    <i class="fas fa-circle-info"></i> {{ cross_sector_notice }}
+    <a href="/marketplace/dashboard/" style="margin-right:12px; color:#fff; text-decoration:underline; font-weight:700;">عودة للوحتي</a>
+</div>
+{% endif %}
+
 <!-- Hero -->
 <section class="hero">
     <div class="badge-sector"><i class="fas fa-tools"></i> سيارات • صيانة • قطع غيار</div>
