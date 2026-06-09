@@ -376,7 +376,17 @@ body {
                         title="احفظ القراءات الحالية في الـ history بتاع المتصفح">
                     <i class="fa-solid fa-bookmark"></i> احفظ قراءة لحظية
                 </button>
+                <button id="btnSensorSweep" class="btn primary" disabled
+                        title="فحص شامل للحسّاسات: MAF (إيرماس)، O2، الكتلست، ثبات الـ Idle، TPS، البطارية. مقارن بأرقام مرجعية زي برامج Carista/Torque/OBD11">
+                    <i class="fa-solid fa-wave-square"></i> فحص شامل للحسّاسات
+                </button>
             </div>
+        </div>
+
+        <!-- Sensor Sweep results -->
+        <div id="sensorSweepPanel" style="display:none; margin-top:18px;">
+            <div class="card-title"><i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل</div>
+            <div id="sensorSweepBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Mode 09 ECU info -->
@@ -576,8 +586,8 @@ body {
 <!-- PWA update-toast handler — without this the Service Worker NEVER updates
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=14-mode09-multiframe"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=12-mode09-multiframe"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=13-sensor-sweep"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -608,6 +618,7 @@ body {
     const btnReadiness   = $('btnReadiness');
     const btnVehicleInfo = $('btnVehicleInfo');
     const btnSaveSnapshot = $('btnSaveSnapshot');
+    const btnSensorSweep  = $('btnSensorSweep');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -656,6 +667,7 @@ body {
         if (btnReadiness)    btnReadiness.disabled    = !connected;
         if (btnVehicleInfo)  btnVehicleInfo.disabled  = !connected;
         if (btnSaveSnapshot) btnSaveSnapshot.disabled = !connected;
+        if (btnSensorSweep)  btnSensorSweep.disabled  = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -900,6 +912,15 @@ body {
             renderVehicleInfo(e.detail);
             log(`Vehicle Info: ${e.detail.ecu_name || '?'} / CalID: ${e.detail.cal_id || '?'}`);
         });
+        // Accumulate sensor_health events into a buffer the sweep handler consumes.
+        driver.addEventListener('sensor_health', (e) => {
+            window.__sensorBuffer = window.__sensorBuffer || {};
+            window.__sensorBuffer[e.detail.sensor] = e.detail;
+        });
+        driver.addEventListener('sensor_sweep', (e) => {
+            window.__sensorBuffer = window.__sensorBuffer || {};
+            window.__sensorBuffer.idleTpsBattery = e.detail;
+        });
         driver.addEventListener('disconnected', () => {
             log('Disconnected', true);
             setStatus('idle', 'غير متصل');
@@ -1130,6 +1151,38 @@ body {
         try { localStorage.setItem(SESSION_KEY, JSON.stringify(all.slice(0, 50))); }
         catch (_) { /* quota exceeded */ }
     }
+    // ── Sensor Health Sweep — competitor-parity scan ────────────────────
+    // Runs MAF, O2+catalyst, and idle/TPS/battery measurements one by one
+    // and renders a unified panel. Takes ~40-50 seconds total because the
+    // O2 sampling is 12s and idle sampling is 20s.
+    if (btnSensorSweep) btnSensorSweep.addEventListener('click', async () => {
+        if (typeof obd.measureMAFHealth !== 'function') {
+            log('Sensor sweep requires Wi-Fi driver.', true); return;
+        }
+        try {
+            btnSensorSweep.disabled = true;
+            window.__sensorBuffer = {};
+            $('sensorSweepPanel').style.display = 'block';
+            $('sensorSweepBody').innerHTML =
+                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                'جاري الفحص الشامل (~45 ثانية): MAF → O2/Catalyst → Idle/TPS/Battery</div>';
+
+            log('Sensor sweep 1/3: MAF (إيرماس) — sampling 5 readings…');
+            await obd.measureMAFHealth({ displacement: 2.0 });
+            log('Sensor sweep 2/3: O2 + Catalyst — sampling 12s…');
+            await obd.measureO2AndCatalyst();
+            log('Sensor sweep 3/3: Idle + TPS + Battery — sampling 20s…');
+            await obd.measureIdleTpsBattery();
+
+            renderSensorSweep(window.__sensorBuffer);
+            log('✅ Sensor sweep complete.');
+        } catch (e) {
+            log(`Sensor sweep failed: ${e.message}`, true);
+        } finally {
+            btnSensorSweep.disabled = !obd.isConnected;
+        }
+    });
+
     if (btnSaveSnapshot) btnSaveSnapshot.addEventListener('click', () => {
         const snap = {
             at:      new Date().toISOString(),
@@ -1285,6 +1338,84 @@ body {
                 `<tr><td style="padding:4px 8px; color:#94a3b8;">${k}</td>
                  <td style="padding:4px 8px; text-align:end; font-family:monospace; color:#67e8f9;">${v}</td></tr>`
             ).join('') + '</table>';
+    }
+
+    function renderSensorSweep(buf) {
+        const body = $('sensorSweepBody');
+        const sec = (title, color, html) =>
+            `<div style="margin:14px 0; padding:12px 14px; border-radius:10px;
+                 background:rgba(255,255,255,0.03);
+                 border-inline-start:4px solid ${color};">
+                <div style="font-weight:700; color:${color}; margin-bottom:8px;">${title}</div>
+                ${html}
+             </div>`;
+        const row = (k, v) =>
+            `<div style="display:flex; justify-content:space-between; padding:3px 0;
+                  color:#cbd5e1;"><span>${k}</span><span style="font-family:monospace;">${v}</span></div>`;
+
+        let html = '';
+
+        // MAF
+        const maf = buf.maf;
+        if (maf) {
+            if (!maf.supported) {
+                html += sec('🌬️ إيرماس MAF', '#64748b',
+                    `<div style="color:#94a3b8;">${maf.reason}</div>`);
+            } else {
+                html += sec(`🌬️ إيرماس MAF — ${maf.verdict}`, maf.color,
+                    row('قراءة فعلية', `${maf.actual_gs} g/s`) +
+                    row('قراءة نظرية متوقعة', `${maf.expected_gs} g/s`) +
+                    row('النسبة (الـ ratio)', `${maf.ratio} (المثالي 1.00)`)
+                );
+            }
+        }
+
+        // O2 + Catalyst
+        const o2 = buf.o2;
+        if (o2) {
+            if (!o2.supported) {
+                html += sec('💨 حسّاسات O2 + الكتلست', '#64748b',
+                    `<div style="color:#94a3b8;">${o2.reason}</div>`);
+            } else {
+                html += sec(`💨 حسّاس O2 الأمامي — ${o2.o2_verdict}`, o2.o2_color,
+                    row('معدّل التذبذب', `${o2.upstream.hz} Hz (${o2.sample_count.pre} عينة)`) +
+                    row('أقل جهد', `${o2.upstream.min.toFixed(2)} V`) +
+                    row('أعلى جهد', `${o2.upstream.max.toFixed(2)} V`)
+                );
+                html += sec(`🛡️ الكتلست — ${o2.cat_verdict}`, o2.cat_color,
+                    row('الكفاءة', `${o2.catalyst_efficiency_pct} %`) +
+                    row('تذبذب أمامي', `${o2.upstream.hz} Hz`) +
+                    row('تذبذب خلفي', `${o2.downstream.hz} Hz (لازم أقل بكتير)`)
+                );
+            }
+        }
+
+        // Idle / TPS / Battery
+        const its = buf.idleTpsBattery;
+        if (its) {
+            if (its.idle && its.idle.supported) {
+                html += sec(`🔄 ثبات الـ Idle — ${its.idle.verdict}`, its.idle.color,
+                    row('متوسط RPM', `${its.idle.mean_rpm} rpm`) +
+                    row('الانحراف المعياري', `±${its.idle.stdev_rpm} rpm`)
+                );
+            }
+            if (its.tps && its.tps.supported) {
+                html += sec(`🎚️ TPS (دواسة البنزين) — ${its.tps.verdict}`, its.tps.color,
+                    row('TPS المطلق (PID 11)', `${its.tps.absolute_pct} %`) +
+                    row('TPS النسبي (PID 45)', `${its.tps.relative_pct} %`) +
+                    row('الفرق', `${its.tps.delta_pct} %`)
+                );
+            }
+            if (its.battery && its.battery.supported) {
+                html += sec(`🔋 البطارية / الدينمو — ${its.battery.verdict}`, its.battery.color,
+                    row('متوسط الجهد', `${its.battery.mean_v} V`) +
+                    row('استقرار الجهد', `±${its.battery.stdev_v} V`)
+                );
+            }
+        }
+
+        if (!html) html = '<div style="color:#94a3b8;">مفيش بيانات — تأكد إن العربية شغّالة وكرّر.</div>';
+        body.innerHTML = html;
     }
 
     function renderHealthScore(h) {

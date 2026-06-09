@@ -624,6 +624,252 @@ class OBDWiFi extends EventTarget {
         return result;
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // SENSOR HEALTH DIAGNOSTICS — competitor parity (Carista / Torque / OBD11)
+    // ════════════════════════════════════════════════════════════════════
+    //
+    // Each method samples standardised OBD-II PIDs over time, computes the
+    // signal vs an expected/theoretical baseline, and returns a verdict the
+    // mechanic can act on. Engine displacement (in litres) is needed for
+    // MAF math — defaults to 2.0L which covers most 4-cyl sedans. Pass
+    // { displacement: 3.0 } for V6s, { displacement: 4.4 } for E60 V8, etc.
+
+    // ── MAF Sensor Health ───────────────────────────────────────────────
+    // Computes expected MAF (g/s) from the speed-density formula:
+    //   m_dot = (RPM/2) × (MAP × disp_L / (R × T)) × VE × air_density
+    // Simplified for OBD-II:
+    //   expected = (RPM × MAP × disp_L × VE) / (120 × R × T_K)
+    // For a typical engine at idle ~3-5 g/s, at WOT ~30-80 g/s depending
+    // on displacement. If actual is < 70% of expected → MAF dirty/failing.
+    async measureMAFHealth({ displacement = 2.0, samples = 5 } = {}) {
+        const readings = [];
+        for (let i = 0; i < samples; i++) {
+            const snap = {};
+            for (const pid of ['0C', '0B', '05', '0F', '10', '04', '11']) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 2000);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) {
+                        snap[OBD_WIFI_PIDS[pid].label] = v;
+                    }
+                } catch (_) {}
+            }
+            if (snap.rpm && snap.map_kpa && snap.maf_gs !== undefined) {
+                readings.push(snap);
+            }
+            await new Promise(r => setTimeout(r, 250));
+        }
+
+        if (!readings.length) {
+            const r = { supported: false,
+                reason: 'الـ ECU مردش بـ MAF / MAP. هذه السيارة على الأرجح Speed-Density (مفيش MAF فيزيائي).' };
+            this._emit('sensor_health', { sensor: 'maf', ...r });
+            return r;
+        }
+
+        // Use the median sample to avoid spikes.
+        readings.sort((a, b) => a.rpm - b.rpm);
+        const m = readings[Math.floor(readings.length / 2)];
+        const T_K = (m.intake_temp_c ?? 25) + 273.15;
+        const VE = 0.85;                          // typical volumetric efficiency
+        const R  = 0.287;                          // specific gas constant kJ/kg·K
+        const expected = (m.rpm * m.map_kpa * displacement * VE) / (120 * R * T_K);
+        const actual = m.maf_gs;
+        const ratio = actual / expected;          // 1.0 = ideal
+
+        let verdict, color, severity;
+        if (ratio >= 0.85 && ratio <= 1.20) {
+            verdict = 'سليم — قراءة MAF متطابقة مع النظري'; color = '#10b981'; severity = 'ok';
+        } else if (ratio >= 0.70 && ratio < 0.85) {
+            verdict = 'MAF متسخ — نظّفه بـ MAF cleaner'; color = '#f59e0b'; severity = 'warn';
+        } else if (ratio < 0.70) {
+            verdict = 'MAF تالف أو شفط هواء كبير — يحتاج تغيير أو فحص الـ intake'; color = '#ef4444'; severity = 'critical';
+        } else {
+            verdict = 'MAF يقرأ أعلى من المتوقع — احتمال شورت أو مشكلة في الـ wiring'; color = '#ef4444'; severity = 'critical';
+        }
+
+        const result = {
+            sensor: 'maf', supported: true,
+            actual_gs: +actual.toFixed(2),
+            expected_gs: +expected.toFixed(2),
+            ratio: +ratio.toFixed(2),
+            verdict, color, severity,
+            sample: m,
+        };
+        this._emit('sensor_health', result);
+        return result;
+    }
+
+    // ── O2 + Catalyst Efficiency ────────────────────────────────────────
+    // Samples upstream (B1S1) and downstream (B1S2) O2 voltages over ~12s.
+    // Healthy upstream: oscillates rapidly 0.1V ↔ 0.9V (>= 1 Hz at idle).
+    // Healthy downstream after good cat: nearly flat ~0.6-0.7V.
+    // Failing cat: downstream mimics upstream (both oscillate).
+    async measureO2AndCatalyst({ durationMs = 12000, intervalMs = 250 } = {}) {
+        const start = Date.now();
+        const pre = [], post = [];
+        while (Date.now() - start < durationMs) {
+            const ts = Date.now() - start;
+            try {
+                const r1 = await this._sendCommand('0114', 1500);
+                const v1 = this._parsePIDResponse('14', r1);
+                if (v1 !== null && Number.isFinite(v1)) pre.push({ t: ts, v: v1 });
+            } catch (_) {}
+            try {
+                const r2 = await this._sendCommand('0115', 1500);
+                const v2 = this._parsePIDResponse('15', r2);
+                if (v2 !== null && Number.isFinite(v2)) post.push({ t: ts, v: v2 });
+            } catch (_) {}
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        if (!pre.length || !post.length) {
+            const r = { supported: false,
+                reason: 'حساسات O2 (PID 14/15) لم تستجب. ربما السيارة wide-band فقط (PID 24-2B)؛ غير مدعوم حالياً.' };
+            this._emit('sensor_health', { sensor: 'o2', ...r });
+            return r;
+        }
+
+        // Count crossings of 0.45V — that's how many switches between rich/lean.
+        const countCrossings = (arr) => {
+            let c = 0;
+            for (let i = 1; i < arr.length; i++) {
+                if ((arr[i - 1].v < 0.45) !== (arr[i].v < 0.45)) c++;
+            }
+            return c;
+        };
+        const crossPre  = countCrossings(pre);
+        const crossPost = countCrossings(post);
+        const durSec    = durationMs / 1000;
+        const hzPre     = crossPre  / (durSec * 2);    // crossings/2 = full cycles
+        const hzPost    = crossPost / (durSec * 2);
+
+        const range = (arr) => {
+            const vs = arr.map(p => p.v);
+            return { min: Math.min(...vs), max: Math.max(...vs), avg: vs.reduce((a, b) => a + b, 0) / vs.length };
+        };
+        const preR  = range(pre);
+        const postR = range(post);
+
+        // Catalyst efficiency: ratio of downstream activity to upstream.
+        // Healthy = post Hz << pre Hz (cat dampens oscillation).
+        // Dead    = post Hz ≈ pre Hz (cat passes through).
+        const catRatio = hzPre > 0 ? hzPost / hzPre : 1;
+        const catEfficiency = Math.max(0, Math.min(100, Math.round((1 - catRatio) * 100)));
+
+        let o2Verdict, o2Color, o2Sev;
+        if (hzPre >= 0.8) {
+            o2Verdict = 'حساس O2 الأمامي سليم — تذبذب سريع طبيعي'; o2Color = '#10b981'; o2Sev = 'ok';
+        } else if (hzPre >= 0.3) {
+            o2Verdict = 'حساس O2 الأمامي بطيء — احتمال متهالك'; o2Color = '#f59e0b'; o2Sev = 'warn';
+        } else {
+            o2Verdict = 'حساس O2 الأمامي خامل أو معطل'; o2Color = '#ef4444'; o2Sev = 'critical';
+        }
+
+        let catVerdict, catColor, catSev;
+        if (catEfficiency >= 75) {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — سليم`; catColor = '#10b981'; catSev = 'ok';
+        } else if (catEfficiency >= 50) {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — متآكل، راقبه`; catColor = '#f59e0b'; catSev = 'warn';
+        } else {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — تالف، احتمال P0420 قريباً`; catColor = '#ef4444'; catSev = 'critical';
+        }
+
+        const result = {
+            sensor: 'o2', supported: true,
+            upstream:   { hz: +hzPre.toFixed(2),  ...preR },
+            downstream: { hz: +hzPost.toFixed(2), ...postR },
+            catalyst_efficiency_pct: catEfficiency,
+            o2_verdict: o2Verdict, o2_color: o2Color, o2_severity: o2Sev,
+            cat_verdict: catVerdict, cat_color: catColor, cat_severity: catSev,
+            sample_count: { pre: pre.length, post: post.length },
+        };
+        this._emit('sensor_health', result);
+        return result;
+    }
+
+    // ── Idle Stability + TPS Sanity + Battery State ────────────────────
+    // Samples RPM over 20s — std deviation > 80 rpm at idle = rough idle
+    // (vacuum leak, weak coil, dirty injector, EGR stuck open).
+    // Also reads PID 0x11 (absolute TP) vs PID 0x45 (relative TP) — if they
+    // diverge > 8%, the TPS module is out of sync (needs adaptation reset).
+    // Battery: PID 0x42 classified by zone.
+    async measureIdleTpsBattery({ durationMs = 20000, intervalMs = 400 } = {}) {
+        const start = Date.now();
+        const rpms = [], tpsAbs = [], tpsRel = [], batt = [];
+        while (Date.now() - start < durationMs) {
+            for (const [pid, bucket] of [['0C', rpms], ['11', tpsAbs], ['45', tpsRel], ['42', batt]]) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1500);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) bucket.push(v);
+                } catch (_) {}
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        // Idle stability
+        let idle = { supported: false };
+        if (rpms.length >= 5) {
+            const mean = rpms.reduce((a, b) => a + b, 0) / rpms.length;
+            const variance = rpms.reduce((s, v) => s + (v - mean) ** 2, 0) / rpms.length;
+            const stdev = Math.sqrt(variance);
+            let v, c, sev;
+            if (mean < 1100) {
+                if (stdev < 40)      { v = `Idle مستقر جداً (±${stdev.toFixed(0)} rpm)`;          c = '#10b981'; sev = 'ok'; }
+                else if (stdev < 80) { v = `Idle مستقر (±${stdev.toFixed(0)} rpm)`;                c = '#84cc16'; sev = 'ok'; }
+                else if (stdev < 150){ v = `Idle متذبذب (±${stdev.toFixed(0)} rpm) — راقب`;       c = '#f59e0b'; sev = 'warn'; }
+                else                  { v = `Idle مهتز بشدة (±${stdev.toFixed(0)} rpm) — شفط هواء/إشعال`; c = '#ef4444'; sev = 'critical'; }
+            } else {
+                v = 'السيارة مش على Idle — أعد القياس والمحرك ساكن';
+                c = '#94a3b8'; sev = 'unknown';
+            }
+            idle = { supported: true, mean_rpm: +mean.toFixed(0), stdev_rpm: +stdev.toFixed(1),
+                     verdict: v, color: c, severity: sev };
+        }
+
+        // TPS sync check
+        let tps = { supported: false };
+        if (tpsAbs.length && tpsRel.length) {
+            const a = tpsAbs.reduce((s, v) => s + v, 0) / tpsAbs.length;
+            const b = tpsRel.reduce((s, v) => s + v, 0) / tpsRel.length;
+            const delta = Math.abs(a - b);
+            let v, c, sev;
+            if (delta < 4)       { v = `TPS متزامن (فرق ${delta.toFixed(1)}%)`;           c = '#10b981'; sev = 'ok'; }
+            else if (delta < 8)  { v = `TPS بانحراف بسيط (${delta.toFixed(1)}%)`;          c = '#f59e0b'; sev = 'warn'; }
+            else                  { v = `TPS غير متزامن (${delta.toFixed(1)}%) — يحتاج adaptation reset`; c = '#ef4444'; sev = 'critical'; }
+            tps = { supported: true, absolute_pct: +a.toFixed(1), relative_pct: +b.toFixed(1),
+                    delta_pct: +delta.toFixed(1), verdict: v, color: c, severity: sev };
+        }
+
+        // Battery state
+        let battery = { supported: false };
+        if (batt.length) {
+            const mean = batt.reduce((s, v) => s + v, 0) / batt.length;
+            const stdev = Math.sqrt(batt.reduce((s, v) => s + (v - mean) ** 2, 0) / batt.length);
+            let v, c, sev;
+            // Engine running → expect 13.8-14.6V (alternator charging)
+            // Engine off    → expect 12.4-12.7V
+            if (mean >= 13.8 && mean <= 14.8) {
+                v = `الدينمو شغّال — جهد ${mean.toFixed(2)}V (سليم)`; c = '#10b981'; sev = 'ok';
+            } else if (mean >= 13.0 && mean < 13.8) {
+                v = `جهد منخفض ${mean.toFixed(2)}V — احتمال الدينمو ضعيف`; c = '#f59e0b'; sev = 'warn';
+            } else if (mean >= 12.3 && mean < 13.0) {
+                v = `المحرك مطفي — البطارية ${mean.toFixed(2)}V (مقبول)`; c = '#84cc16'; sev = 'ok';
+            } else if (mean < 12.3) {
+                v = `بطارية ضعيفة (${mean.toFixed(2)}V) — تحتاج شحن أو تغيير`; c = '#ef4444'; sev = 'critical';
+            } else if (mean > 14.8) {
+                v = `جهد عالي خطر (${mean.toFixed(2)}V) — منظم الدينمو تالف`; c = '#ef4444'; sev = 'critical';
+            }
+            battery = { supported: true, mean_v: +mean.toFixed(2), stdev_v: +stdev.toFixed(2),
+                        verdict: v, color: c, severity: sev };
+        }
+
+        const result = { idle, tps, battery, samples: { rpm: rpms.length, batt: batt.length } };
+        this._emit('sensor_sweep', result);
+        return result;
+    }
+
     // ── Vehicle Health Score (0-100) ─────────────────────────────────────
     // Combines four signals into a single number a non-technician can read:
     //   • stored DTC count                (-25 max, -8 per code)
