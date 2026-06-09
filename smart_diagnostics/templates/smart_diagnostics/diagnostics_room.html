@@ -725,7 +725,7 @@ body {
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
 <script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=16-bmw-ecu-headers"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=17-misfire-cascade"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
@@ -1207,30 +1207,27 @@ body {
 
     // ── Advanced diagnostics handlers ───────────────────────────────────
     if (btnMisfire) btnMisfire.addEventListener('click', async () => {
-        if (typeof obd.readMisfireCounts !== 'function') {
-            log('Misfire scan requires Wi-Fi driver (Mode 06). Reconnect via Wi-Fi.', true);
+        if (typeof obd.detectMisfire !== 'function') {
+            log('Misfire detection requires Wi-Fi driver.', true);
             return;
         }
         try {
             btnMisfire.disabled = true;
-            log('Scanning Mode 06 misfire counters (8 cylinders)…');
-            const cyls = await obd.readMisfireCounts({ cylinders: 8 });
-            if (!cyls.length) {
-                log('Mode 06 OBDMID A1-A8 غير متاح — هنستخدم Manufacturer DIDs بدالها', true);
-                $('misfirePanel').style.display = 'block';
-                $('misfireSummary').innerHTML =
-                    '<div style="padding:12px 16px; background:rgba(59,130,246,0.08);' +
-                    'border-inline-start:3px solid #3b82f6; border-radius:8px;' +
-                    'color:#cbd5e1;">' +
-                    '<div style="font-weight:700; margin-bottom:4px;">' +
-                    'ℹ بيانات السلندرات الفردية غير متاحة في هذه السيارة</div>' +
-                    '<div style="font-size:12px; color:#94a3b8;">' +
-                    'الـ ECU بيدعم continuous misfire detection بس مش per-cylinder breakdown. ' +
-                    'جرّب زرار <strong>"قراءات خاصة بالماركة"</strong> — كتير من سيارات BMW و Mercedes ' +
-                    'بتنشر misfire counters في DIDs خاصة بيها.</div></div>';
-            }
+            $('misfirePanel').style.display = 'block';
+            $('misfireSummary').innerHTML =
+                '<div style="color:#94a3b8;">' +
+                '<i class="fa-solid fa-spinner fa-spin"></i> ' +
+                'جاري المحاولة بترتيب: Mode 06 → DIDs خاصة بالماركة → تحليل تذبذب RPM' +
+                '</div>';
+            log('Misfire cascade: Mode 06 → Mode 22 → RPM variance…');
+            const r = await obd.detectMisfire({ vin: lastVIN, cylinders: 8 });
+            window.__misfireDiagnosisLast = r;
+            renderMisfireDiagnosis(r);
+            log(`Misfire: method=${r.method} · total=${r.total ?? 0}`);
         } catch (e) {
-            log(`Misfire scan failed: ${e.message}`, true);
+            log(`Misfire detection failed: ${e.message}`, true);
+            $('misfireSummary').innerHTML =
+                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
         } finally {
             btnMisfire.disabled = !obd.isConnected;
         }
@@ -1577,6 +1574,121 @@ body {
             card('🌬️ AFR — نسبة خليط الوقود (Wideband O2)', afrSub) +
             card('♻️ EGR — صمام إعادة دوران العادم', egrSub) +
             card('💨 EVAP — نظام أبخرة الوقود', evapSub);
+    }
+
+    // ── Misfire (3-tier cascade renderer) ──────────────────────────────
+    function renderMisfireDiagnosis(r) {
+        const bars = $('misfireBars');
+        const summary = $('misfireSummary');
+
+        const methodColor = r.method === 'mode06' ? '#10b981'
+            : (r.method && r.method.startsWith('mode22')) ? '#67e8f9'
+            : '#f59e0b';
+        const methodIcon  = r.method === 'mode06' ? '🎯'
+            : (r.method && r.method.startsWith('mode22')) ? '🔧' : '📊';
+        const confidence  = r.confidence === 'high' ? 'دقة عالية' : 'دقة تقديرية';
+
+        // ── Method badge ────────────────────────────────────────────────
+        let badgeHtml = `
+            <div style="display:inline-flex; align-items:center; gap:8px;
+                        padding:6px 12px; border-radius:20px;
+                        background:${methodColor}22;
+                        border:1px solid ${methodColor}55;
+                        color:${methodColor}; font-size:12px; font-weight:700;
+                        margin-bottom:12px;">
+                <span style="font-size:14px;">${methodIcon}</span>
+                ${r.method_label_ar || r.method} · ${confidence}
+            </div>
+        `;
+
+        // ── Per-cylinder bars ───────────────────────────────────────────
+        bars.innerHTML = '';
+        const cyls = r.cylinders || [];
+        if (!cyls.length || (r.supported === false)) {
+            summary.innerHTML = badgeHtml +
+                `<div style="padding:14px; background:rgba(245,158,11,0.08);
+                             border-inline-start:3px solid #f59e0b;
+                             border-radius:8px; color:#fcd34d; font-size:13px;">
+                    ⚠ ${r.reason || 'مفيش بيانات misfire — لا Mode 06 ولا DIDs خاصة ولا تذبذب واضح.'}
+                </div>`;
+            return;
+        }
+
+        const max = Math.max(1, ...cyls.map(c => c.count || 0));
+        for (const c of cyls) {
+            const pct = (c.count / max) * 100;
+            const cylColor = c.count === 0 ? '#10b981'
+                : c.count < 10 ? '#f59e0b' : '#ef4444';
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex; align-items:center; gap:10px;';
+            row.innerHTML = `
+                <div style="min-width:60px; font-size:12px; color:#94a3b8;
+                            font-weight:600;">سلندر ${c.cylinder}</div>
+                <div style="flex:1; height:22px; background:rgba(15,23,42,0.6);
+                            border-radius:8px; overflow:hidden;">
+                    <div style="height:100%; width:${Math.max(pct, 4)}%;
+                                background:${cylColor};
+                                transition:width 0.4s ease;
+                                display:flex; align-items:center;
+                                justify-content:flex-end; padding:0 8px;
+                                font-size:11px; color:#fff; font-weight:700;">
+                        ${c.count}
+                    </div>
+                </div>
+            `;
+            bars.appendChild(row);
+        }
+
+        // ── Summary verdict ─────────────────────────────────────────────
+        const worst = cyls.reduce((w, c) => c.count > w.count ? c : w, cyls[0]);
+        const total = r.total ?? cyls.reduce((s, c) => s + c.count, 0);
+
+        let verdictHtml;
+        if (r.verdict) {
+            // computed (RPM variance) supplies its own verdict
+            verdictHtml = `
+                <div style="padding:12px 14px; border-radius:8px;
+                            border-inline-start:3px solid ${r.color || '#64748b'};
+                            background:rgba(15,23,42,0.5);
+                            color:#e2e8f0; font-size:13px; line-height:1.7;">
+                    ${r.verdict}
+                    ${r.note ? `<div style="margin-top:6px; font-size:11px;
+                                            color:#94a3b8; font-style:italic;">
+                                ${r.note}</div>` : ''}
+                    ${r.stdev_rpm !== undefined ? `
+                        <div style="margin-top:8px; font-size:11px;
+                                    color:#64748b; font-family:monospace;">
+                            σ=${r.stdev_rpm} rpm · μ=${r.mean_rpm} rpm ·
+                            ${r.drops_count} drop
+                        </div>` : ''}
+                </div>`;
+        } else if (total === 0) {
+            verdictHtml = `
+                <div style="padding:12px 14px; border-radius:8px;
+                            background:rgba(16,185,129,0.08);
+                            border-inline-start:3px solid #10b981;
+                            color:#86efac; font-size:13px;">
+                    ✅ مفيش أي misfire — كل السلندرات سليمة (الإجمالي 0)
+                </div>`;
+        } else {
+            const status = worst.count >= 10 ? 'critical' : 'warn';
+            const color = status === 'critical' ? '#ef4444' : '#f59e0b';
+            const msg = status === 'critical'
+                ? `❌ سلندر ${worst.count} في سلندر #${worst.cylinder} — افحص الـ coil و البوجي و البخاخ`
+                : `⚠ ${worst.count} misfire في سلندر #${worst.cylinder} — راقب البوجي والـ coil`;
+            verdictHtml = `
+                <div style="padding:12px 14px; border-radius:8px;
+                            background:${color}1a;
+                            border-inline-start:3px solid ${color};
+                            color:${color}; font-size:13px; font-weight:600;">
+                    ${msg}
+                    <div style="margin-top:6px; font-size:11px; color:#94a3b8;">
+                        الإجمالي عبر السلندرات: ${total}
+                    </div>
+                </div>`;
+        }
+
+        summary.innerHTML = badgeHtml + verdictHtml;
     }
 
     if (btnSaveSnapshot) btnSaveSnapshot.addEventListener('click', () => {
@@ -2163,6 +2275,7 @@ body {
                     ? window.__healthScoreLast : null,
                 manufacturer_dids: window.__manufacturerDIDsLast || null,
                 emissions_health: window.__emissionsHealthLast || null,
+                misfire_diagnosis: window.__misfireDiagnosisLast || null,
                 ai_summary: lastAIAnswer || '',
             };
             const result = await DiagOfflineQueue.send(ATTACH_URL, payload, {

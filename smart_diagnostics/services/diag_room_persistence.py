@@ -310,6 +310,7 @@ def attach_diagnostic_to_invoice(
     readiness: dict | None = None,
     manufacturer_dids: dict | None = None,
     emissions_health: dict | None = None,
+    misfire_diagnosis: dict | None = None,
     ai_summary: str = "",
     job_card_id: int | None = None,
     created_by_user=None,
@@ -436,6 +437,7 @@ def attach_diagnostic_to_invoice(
             'readiness': readiness or {},
             'manufacturer_dids': manufacturer_dids or {},
             'emissions_health': emissions_health or {},
+            'misfire_diagnosis': misfire_diagnosis or {},
         }
         inspection, _ = VehicleInspection.objects.update_or_create(
             invoice=invoice,
@@ -474,6 +476,7 @@ def attach_diagnostic_to_invoice(
                        'readiness': readiness or {},
                        'manufacturer_dids': manufacturer_dids or {},
                        'emissions_health': emissions_health or {},
+                       'misfire_diagnosis': misfire_diagnosis or {},
                        'health_score': health_score},
             ai_summary=ai_summary or
                        f"تشخيص تلقائي — {len(norm_dtcs)} عطل، درجة الصحة {health_score or '?'}/100",
