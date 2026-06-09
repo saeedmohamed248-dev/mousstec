@@ -1,13 +1,52 @@
 """Tenant-side HTML views for the Live Diagnostics dashboard."""
 import logging
+import re
 import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.db import connection
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+
+
+# ── Idempotency helper ─────────────────────────────────────────────────
+# Caches successful responses keyed by (tenant, user, endpoint, key) for 24h
+# so retries from the offline queue do not double-write.
+_IDEM_KEY_RE = re.compile(r'^[A-Za-z0-9_-]{8,64}$')
+_IDEM_TTL_SECONDS = 60 * 60 * 24
+
+
+def _idem_cache_key(request, endpoint: str, key: str) -> str:
+    schema = getattr(connection, 'schema_name', 'public')
+    uid = getattr(request.user, 'id', 0) or 0
+    return f"diag_idem:{schema}:{uid}:{endpoint}:{key}"
+
+
+def _check_idempotency(request, endpoint: str, payload: dict):
+    """Return cached JsonResponse if this key was already processed, else None."""
+    key = payload.get('idempotency_key')
+    if not key or not isinstance(key, str) or not _IDEM_KEY_RE.match(key):
+        return None
+    cached = cache.get(_idem_cache_key(request, endpoint, key))
+    if cached is None:
+        return None
+    return JsonResponse(
+        {"ok": True, "replayed": True, **cached},
+        status=200,
+    )
+
+
+def _store_idempotency(request, endpoint: str, payload: dict, result: dict):
+    key = payload.get('idempotency_key') if isinstance(payload, dict) else None
+    if not key or not _IDEM_KEY_RE.match(key):
+        return
+    try:
+        cache.set(_idem_cache_key(request, endpoint, key), result, _IDEM_TTL_SECONDS)
+    except Exception as e:
+        logger.warning("[idempotency] cache.set failed: %s", e)
 
 from smart_diagnostics.models import DiagnosticDevice
 from smart_diagnostics.services.quota import (
@@ -361,6 +400,10 @@ def diagnostics_room_save(request):
     if not isinstance(payload, dict):
         return JsonResponse({"error": "invalid_payload"}, status=400)
 
+    replay = _check_idempotency(request, 'room_save', payload)
+    if replay is not None:
+        return replay
+
     # Best-effort: attach the technician's EmployeeProfile if the request
     # user has one in this tenant.
     engineer_profile = None
@@ -397,4 +440,71 @@ def diagnostics_room_save(request):
         logger.exception("Diagnostics Room save failed: %s", exc)
         return JsonResponse({"error": "save_failed"}, status=500)
 
+    _store_idempotency(request, 'room_save', payload, result)
+    return JsonResponse({"ok": True, **result}, status=201)
+
+
+@login_required
+@csrf_protect
+@require_POST
+def diagnostics_room_attach_to_invoice(request):
+    """POST JSON → propose diagnostic findings as billable items on a Job Card.
+
+    Creates a SaleInvoice (or uses an existing one) and adds one
+    SaleInvoiceServiceItem per DTC plus one for the sensor sweep. All items
+    start with is_billable=False — the accountant later approves the ones
+    the customer agrees to pay for.
+
+    Body:
+        {
+          "vin": "WBA...",                                # required
+          "job_card_id": 42 | null,                       # optional
+          "dtcs": ["P0301", ...],
+          "sensor_sweep": {...},
+          "freeze_frame": {...},
+          "readiness": {...},
+          "health_score": 67,
+          "ai_summary": "النص اللي هيشوفه العميل..."
+        }
+    """
+    if _on_public_schema():
+        return JsonResponse({"error": "tenant_required"}, status=403)
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "invalid_payload"}, status=400)
+
+    replay = _check_idempotency(request, 'room_attach', payload)
+    if replay is not None:
+        return replay
+
+    from smart_diagnostics.services.diag_room_persistence import (
+        attach_diagnostic_to_invoice, DiagnosticSaveError,
+    )
+
+    try:
+        result = attach_diagnostic_to_invoice(
+            vin=payload.get("vin") or "",
+            dtcs=payload.get("dtcs") or [],
+            sensor_sweep=payload.get("sensor_sweep") or None,
+            freeze_frame=payload.get("freeze_frame") or None,
+            readiness=payload.get("readiness") or None,
+            health_score=payload.get("health_score"),
+            manufacturer_dids=payload.get("manufacturer_dids") or None,
+            ai_summary=payload.get("ai_summary") or "",
+            job_card_id=payload.get("job_card_id"),
+            created_by_user=request.user,
+        )
+    except DiagnosticSaveError as exc:
+        return JsonResponse(
+            {"error": exc.code, "message": exc.message}, status=exc.status,
+        )
+    except Exception as exc:
+        logger.exception("Attach-to-invoice failed: %s", exc)
+        return JsonResponse({"error": "attach_failed"}, status=500)
+
+    _store_idempotency(request, 'room_attach', payload, result)
     return JsonResponse({"ok": True, **result}, status=201)

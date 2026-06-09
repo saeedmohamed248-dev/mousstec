@@ -301,6 +301,32 @@ class PrintOrder(models.Model):
     def remaining(self):
         return self.net_total - self.paid_amount
 
+    @property
+    def total_cost(self):
+        """مجموع تكلفة كل المهام (ماكينة + حبر + مصمم).
+        للمهام المكتملة بنستخدم actual_cost (snapshot)، وللباقي full_cost الحي."""
+        total = Decimal('0')
+        for job in self.jobs.all():
+            if job.is_complete and job.actual_cost:
+                total += job.actual_cost + job.designer_cost
+            else:
+                total += job.full_cost
+        return total
+
+    @property
+    def gross_profit(self):
+        return self.net_total - self.total_cost
+
+    @property
+    def profit_margin_percent(self):
+        if not self.net_total:
+            return Decimal('0')
+        return (self.gross_profit / self.net_total) * Decimal('100')
+
+    @property
+    def is_profitable(self):
+        return self.gross_profit > 0
+
     def save(self, *args, **kwargs):
         if not self.order_number:
             from django.db.models import Max
@@ -394,21 +420,45 @@ class PrintJob(models.Model):
         return f"{self.description[:50]} — {self.order.order_number}"
 
     @property
-    def calculated_cost(self):
-        """التكلفة الفعلية الحية = تشغيل الماكينة + أحبار"""
+    def machine_cost(self):
         if not self.machine:
             return Decimal('0')
-        machine_cost = self.machine.hourly_operating_cost * self.actual_time_hours
-        ink_cost = self.machine.calculate_ink_cost(
+        return self.machine.hourly_operating_cost * self.actual_time_hours
+
+    @property
+    def ink_cost(self):
+        if not self.machine:
+            return Decimal('0')
+        return self.machine.calculate_ink_cost(
             self.ink_cyan_ml, self.ink_magenta_ml,
             self.ink_yellow_ml, self.ink_black_ml
         )
-        return machine_cost + ink_cost
+
+    @property
+    def designer_cost(self):
+        if not self.designer or not self.actual_time_hours:
+            return Decimal('0')
+        return self.designer.hourly_rate * self.actual_time_hours
+
+    @property
+    def calculated_cost(self):
+        """التكلفة الفعلية الحية = تشغيل الماكينة + أحبار"""
+        return self.machine_cost + self.ink_cost
+
+    @property
+    def full_cost(self):
+        """التكلفة الكاملة = ماكينة + حبر + أجر المصمم"""
+        return self.machine_cost + self.ink_cost + self.designer_cost
 
     @property
     def profit(self):
         """الربح الحي = السعر - التكلفة الفعلية"""
         return self.total_price - self.calculated_cost
+
+    @property
+    def full_profit(self):
+        """صافي الربح بعد خصم أجر المصمم"""
+        return self.total_price - self.full_cost
 
     def save(self, *args, **kwargs):
         # B4: دائماً أعد حساب total_price عند وجود unit_price

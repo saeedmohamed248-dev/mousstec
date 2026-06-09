@@ -1042,9 +1042,305 @@ class OBDWiFi extends EventTarget {
         return vin.length === 17 ? vin : null;
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // ── Mode 22 — Read Data By Identifier (UDS / manufacturer DIDs) ─────
+    // ════════════════════════════════════════════════════════════════════
+    // Standard OBD-II (Mode 01) exposes ~150 PIDs that every car must
+    // support. Each OEM exposes thousands more via Mode 22 (UDS ISO 14229
+    // service 0x22) — oil quality, DPF soot mass, cam phaser angle, trans
+    // fluid temp, adaptation tables, etc. These are the SAME values that
+    // Carista / OBD11 / VagCom read; they're not secret, just per-brand.
+    //
+    // Request:   "22 HH LL"          (DID = 2 bytes hex, e.g. 4204 = BMW oil temp)
+    // Response:  "62 HH LL DD DD..." (62 = 22+0x40, DID echoed, then data)
+    // Negative:  "7F 22 NN"          (NN = NRC; we silently skip these)
+
+    /**
+     * Read one Mode 22 DID. Returns parsed value or null.
+     * @param {string} did      — 4-hex string "4204"
+     * @param {function(bytes):number|string|object} parser
+     * @param {object} opts
+     *    .ecuHeader   — optional "ATSH XXXXXXXX" to target a specific ECU
+     *    .timeoutMs   — default 2500
+     */
+    async readDID(did, parser, { ecuHeader = null, timeoutMs = 2500 } = {}) {
+        const hex = String(did).replace(/\s+/g, '').toUpperCase();
+        if (!/^[0-9A-F]{4}$/.test(hex)) {
+            throw new Error(`Invalid DID format: ${did} (must be 4 hex chars)`);
+        }
+        // Optionally pin to a specific ECU (BMW DME = 12, Mercedes EZS = 7E0, etc.)
+        if (ecuHeader) {
+            try { await this._sendCommand('ATSH' + ecuHeader, 800); } catch (_) {}
+        }
+        let raw;
+        try {
+            raw = await this._sendCommand('22' + hex, timeoutMs);
+        } catch (e) {
+            return null;
+        }
+        if (!raw) return null;
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        // Negative Response Code → DID not supported on this ECU.
+        if (stripped.indexOf('7F22') >= 0) return null;
+        if (/NO\s*DATA|UNABLE|\?|STOPPED/i.test(raw)) return null;
+        // Locate the positive response header "62" + DID.
+        const header = '62' + hex;
+        const idx = stripped.indexOf(header);
+        if (idx < 0) return null;
+        const body = stripped.slice(idx + header.length);
+        const bytes = [];
+        for (let i = 0; i + 2 <= body.length; i += 2) {
+            const b = parseInt(body.slice(i, i + 2), 16);
+            if (!Number.isFinite(b)) break;
+            bytes.push(b);
+        }
+        if (!bytes.length) return null;
+        try {
+            const v = parser(bytes);
+            return (v === undefined || v === null ||
+                    (typeof v === 'number' && !Number.isFinite(v)))
+                ? null : v;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    /**
+     * Sweep all known DIDs for the detected manufacturer.
+     * Emits `manufacturer_dids` event with the result.
+     * @param {string|null} vin — used to auto-detect WMI. If null, uses lastVIN/UI hint.
+     */
+    async scanManufacturerDIDs(vin = null) {
+        const brand = detectManufacturerFromVIN(vin) || 'generic';
+        const lib = MANUFACTURER_DIDS[brand] || [];
+
+        const result = {
+            _at: Date.now(),
+            manufacturer: brand,
+            vin: vin || null,
+            items: [],
+            supported_count: 0,
+            unsupported_count: 0,
+        };
+
+        if (!lib.length) {
+            result.note = 'مفيش DIDs مسجّلة للماركة دي حالياً.';
+            this._emit('manufacturer_dids', result);
+            return result;
+        }
+
+        // Try to enable headers off + auto-format (UDS typically wants ATH0).
+        try { await this._sendCommand('ATH0', 800); } catch (_) {}
+
+        for (const def of lib) {
+            try {
+                const value = await this.readDID(def.did, def.parse, {
+                    ecuHeader: def.ecuHeader || null,
+                });
+                if (value === null) {
+                    result.unsupported_count += 1;
+                    continue;
+                }
+                result.items.push({
+                    did:    def.did,
+                    label:  def.label,
+                    label_ar: def.label_ar || def.label,
+                    unit:   def.unit || '',
+                    value,
+                    health: def.health ? def.health(value) : null,
+                });
+                result.supported_count += 1;
+            } catch (_) {
+                result.unsupported_count += 1;
+            }
+            // Brief pause — many ECUs throttle rapid UDS bursts.
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        this._emit('manufacturer_dids', result);
+        return result;
+    }
+
     _emit(type, detail) {
         this.dispatchEvent(new CustomEvent(type, { detail }));
     }
+}
+
+// ─── Manufacturer detection from VIN (WMI = first 3 chars) ──────────────
+function detectManufacturerFromVIN(vin) {
+    if (!vin || typeof vin !== 'string' || vin.length < 3) return null;
+    const wmi = vin.slice(0, 3).toUpperCase();
+    const wmi2 = vin.slice(0, 2).toUpperCase();
+    // Common WMIs (not exhaustive — covers ~95% of Egyptian market).
+    const map = {
+        // BMW (Germany + Spartanburg + Mexico)
+        WBA:'bmw', WBS:'bmw', WBY:'bmw', WBX:'bmw',
+        '4US':'bmw', '5UX':'bmw', '5YM':'bmw', '5UM':'bmw',
+        // Mercedes
+        WDB:'mercedes', WDC:'mercedes', WDD:'mercedes', WDF:'mercedes',
+        '4JG':'mercedes', '55S':'mercedes',
+        // VW
+        WVW:'vag', WV1:'vag', WV2:'vag', '3VW':'vag', '1VW':'vag',
+        // Audi
+        WAU:'vag', WA1:'vag', TRU:'vag',
+        // Toyota / Lexus
+        JT2:'toyota', JT3:'toyota', JT4:'toyota', JT6:'toyota', JTJ:'toyota',
+        '4T1':'toyota', '4T3':'toyota', '5TD':'toyota', '5TF':'toyota',
+        '2T1':'toyota', JTH:'toyota',
+        // Hyundai
+        KMH:'hyundai', '5NM':'hyundai', KM8:'hyundai', '5NP':'hyundai',
+        // Kia
+        KNA:'kia', KND:'kia', '5XX':'kia', KNH:'kia',
+        // Ford
+        '1FA':'ford', '1FB':'ford', '1FC':'ford', '1FD':'ford', '1FT':'ford',
+        '2FA':'ford', '3FA':'ford',
+        // GM / Chevrolet
+        '1G1':'gm', '1G6':'gm', '2G1':'gm', '3G1':'gm', KL1:'gm', KL8:'gm',
+    };
+    return map[wmi] || ({ JT:'toyota', '4T':'toyota', '5T':'toyota',
+                         KM:'hyundai', KN:'kia',
+                         '1G':'gm', '2G':'gm',
+                         '1F':'ford', '2F':'ford' })[wmi2] || null;
+}
+
+// ─── Manufacturer DID library ───────────────────────────────────────────
+// Each entry: { did, label, label_ar, unit, parse(bytes), health?, ecuHeader? }
+//   parse() returns a number/string/null
+//   health() returns 'good' | 'warn' | 'bad' | null
+//
+// These DIDs are publicly documented (BimmerCode, VCDS wiki, OBDeleven KB,
+// Toyota Techstream PIDs list). They are READ-ONLY — no actuation/coding.
+const MANUFACTURER_DIDS = {
+    // ── BMW (DME = Digital Motor Electronics, header 12) ────────────────
+    bmw: [
+        { did: '4204', label: 'Oil temperature', label_ar: 'حرارة الزيت',
+          unit: '°C',
+          parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) / 100) - 50 : null,
+          health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
+        { did: '4936', label: 'Oil level remaining', label_ar: 'مستوى الزيت',
+          unit: 'mm',
+          parse: b => b.length >= 1 ? b[0] : null,
+          health: v => v < 5 ? 'bad' : (v < 10 ? 'warn' : 'good') },
+        { did: '4911', label: 'Battery voltage', label_ar: 'فولت البطارية',
+          unit: 'V',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null,
+          health: v => v < 11.8 ? 'bad' : (v < 12.4 ? 'warn' : 'good') },
+        { did: '4914', label: 'Battery SoC', label_ar: 'شحن البطارية',
+          unit: '%',
+          parse: b => b.length >= 1 ? b[0] : null,
+          health: v => v < 40 ? 'bad' : (v < 65 ? 'warn' : 'good') },
+        { did: 'DD01', label: 'Fuel composition (ethanol)',
+          label_ar: 'نسبة الإيثانول في الوقود', unit: '%',
+          parse: b => b.length >= 1 ? b[0] : null },
+    ],
+
+    // ── Mercedes (powertrain CAN, header 7E0) ───────────────────────────
+    mercedes: [
+        { did: '4F00', label: 'Engine oil level', label_ar: 'مستوى الزيت',
+          unit: 'mm',
+          parse: b => b.length >= 1 ? b[0] : null,
+          health: v => v < 5 ? 'bad' : (v < 10 ? 'warn' : 'good') },
+        { did: '4F01', label: 'Oil temperature', label_ar: 'حرارة الزيت',
+          unit: '°C',
+          parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) / 10) - 40 : null,
+          health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
+        { did: 'F18A', label: 'ECU serial number', label_ar: 'رقم الـ ECU',
+          unit: '',
+          parse: b => b.map(x => x >= 0x20 && x <= 0x7E ? String.fromCharCode(x) : '').join('') },
+    ],
+
+    // ── VAG (VW / Audi / Skoda / Seat — KWP2000 + UDS) ──────────────────
+    vag: [
+        { did: '1011', label: 'Engine oil temp', label_ar: 'حرارة الزيت',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
+        { did: '02A1', label: 'DPF soot mass', label_ar: 'كتلة السخام في الـ DPF',
+          unit: 'g',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null,
+          health: v => v > 24 ? 'bad' : (v > 18 ? 'warn' : 'good') },
+        { did: '02A2', label: 'DPF distance since regen',
+          label_ar: 'كم منذ آخر تنظيف DPF', unit: 'km',
+          parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null,
+          health: v => v > 1000 ? 'warn' : 'good' },
+        { did: '22F1', label: 'Adblue level', label_ar: 'مستوى الـ AdBlue',
+          unit: '%',
+          parse: b => b.length >= 1 ? b[0] : null,
+          health: v => v < 10 ? 'bad' : (v < 25 ? 'warn' : 'good') },
+    ],
+
+    // ── Toyota / Lexus (CAN, header 7E0, also uses Mode 21 historically) ─
+    toyota: [
+        { did: '0140', label: 'A/T fluid temperature', label_ar: 'حرارة زيت الجير',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 110 ? 'bad' : (v > 95 ? 'warn' : 'good') },
+        { did: '0142', label: 'A/T input speed', label_ar: 'سرعة دخل الجير',
+          unit: 'rpm',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 4 : null },
+        { did: '014C', label: 'Hybrid battery SoC', label_ar: 'شحن بطارية الهايبرد',
+          unit: '%',
+          parse: b => b.length >= 1 ? b[0] / 2 : null,
+          health: v => v < 30 ? 'bad' : (v < 50 ? 'warn' : 'good') },
+    ],
+
+    // ── Hyundai / Kia ───────────────────────────────────────────────────
+    hyundai: [
+        { did: '0101', label: 'Engine oil temperature', label_ar: 'حرارة الزيت',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
+        { did: '0110', label: 'Battery voltage', label_ar: 'فولت البطارية',
+          unit: 'V',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null,
+          health: v => v < 11.8 ? 'bad' : (v < 12.4 ? 'warn' : 'good') },
+    ],
+    kia: [
+        { did: '0101', label: 'Engine oil temperature', label_ar: 'حرارة الزيت',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
+        { did: '0110', label: 'Battery voltage', label_ar: 'فولت البطارية',
+          unit: 'V',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null,
+          health: v => v < 11.8 ? 'bad' : (v < 12.4 ? 'warn' : 'good') },
+    ],
+
+    // ── Ford (UDS, mostly post-2008) ────────────────────────────────────
+    ford: [
+        { did: '110E', label: 'Trans fluid temperature', label_ar: 'حرارة زيت الجير',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 110 ? 'bad' : (v > 95 ? 'warn' : 'good') },
+        { did: '1505', label: 'Battery voltage', label_ar: 'فولت البطارية',
+          unit: 'V',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null,
+          health: v => v < 11.8 ? 'bad' : (v < 12.4 ? 'warn' : 'good') },
+    ],
+
+    // ── GM (UDS) ────────────────────────────────────────────────────────
+    gm: [
+        { did: '125A', label: 'Trans fluid temperature', label_ar: 'حرارة زيت الجير',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 40 : null,
+          health: v => v > 110 ? 'bad' : (v > 95 ? 'warn' : 'good') },
+    ],
+
+    // ── Generic (try OBD-II standard DIDs that some ECUs expose via 22) ─
+    generic: [
+        { did: 'F190', label: 'VIN (UDS DID)', label_ar: 'VIN عبر UDS',
+          unit: '',
+          parse: b => b.map(x => x >= 0x20 && x <= 0x7E ? String.fromCharCode(x) : '').join('') },
+        { did: 'F195', label: 'ECU SW version', label_ar: 'نسخة برنامج الـ ECU',
+          unit: '',
+          parse: b => b.map(x => x >= 0x20 && x <= 0x7E ? String.fromCharCode(x) : '').join('') },
+    ],
+};
+
+// Expose for unit tests / external introspection.
+if (typeof window !== 'undefined') {
+    window.__MANUFACTURER_DIDS = MANUFACTURER_DIDS;
+    window.__detectManufacturerFromVIN = detectManufacturerFromVIN;
 }
 
 window.OBDWiFi = OBDWiFi;

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحليل ربحية الطلب #{{ order.order_number }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1020; --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6;
+            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background:
+                radial-gradient(800px 400px at 90% -10%, rgba(236,72,153,0.10), transparent 60%),
+                radial-gradient(700px 400px at -10% 110%, rgba(139,92,246,0.10), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px;
+        }
+
+        .topbar {
+            background: rgba(11,16,32,0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--line);
+            padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;
+            gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap;
+        }
+        .topbar h2 {
+            font-size: 1.1rem; font-weight: 900; margin: 0;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar .meta-chip {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+            padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; color: var(--soft);
+        }
+        .btn {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
+            cursor: pointer; text-decoration: none; transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: rgba(255,255,255,0.08); }
+
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
+
+        /* Headline cards */
+        .head-grid {
+            display: grid; gap: 14px; margin-bottom: 18px;
+            grid-template-columns: 1fr 1fr 1.4fr;
+        }
+        @media(max-width:840px) { .head-grid { grid-template-columns: 1fr; } }
+        .head-card {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 18px; padding: 20px; backdrop-filter: blur(10px);
+        }
+        .head-card .lbl { color: var(--muted); font-size: 0.86rem; font-weight: 700; display:flex; align-items:center; gap:6px; }
+        .head-card .val { font-size: 1.8rem; font-weight: 900; margin-top: 6px; line-height: 1.1; }
+        .head-card .sub { color: var(--soft); font-size: 0.82rem; margin-top: 6px; }
+        .head-card.revenue { background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(37,99,235,0.10)); border-color: rgba(59,130,246,0.35); }
+        .head-card.revenue .val { color: #93c5fd; }
+        .head-card.cost { background: linear-gradient(135deg, rgba(245,158,11,0.16), rgba(217,119,6,0.10)); border-color: rgba(245,158,11,0.35); }
+        .head-card.cost .val { color: #fcd34d; }
+        .head-card.net { background: linear-gradient(135deg, rgba(139,92,246,0.16), rgba(236,72,153,0.12)); border-color: rgba(139,92,246,0.4); position: relative; overflow: hidden; }
+        .head-card.net .val { font-size: 2.3rem; }
+        .head-card.net.profit .val { color: #6ee7b7; }
+        .head-card.net.loss .val { color: #fca5a5; }
+        .head-card .margin-pill {
+            display:inline-block; margin-top: 10px; padding: 5px 14px;
+            border-radius: 999px; font-size: 0.86rem; font-weight: 800;
+            background: rgba(255,255,255,0.08); border: 1px solid var(--line);
+        }
+
+        /* Section */
+        .section {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 18px; padding: 22px; margin-bottom: 18px;
+            backdrop-filter: blur(10px);
+        }
+        .section h3 { font-size: 1.05rem; font-weight: 900; margin: 0 0 16px; display:flex; align-items:center; gap: 8px; }
+        .section h3 i { color: var(--accent); }
+
+        /* Breakdown bars */
+        .bd-row { margin-bottom: 14px; }
+        .bd-row:last-child { margin-bottom: 0; }
+        .bd-row .top { display:flex; justify-content:space-between; margin-bottom: 6px; font-size: 0.88rem; font-weight: 700; }
+        .bd-row .top .pct { color: var(--muted); }
+        .bd-bar { background: rgba(255,255,255,0.04); border-radius: 999px; height: 10px; overflow: hidden; }
+        .bd-bar .fill { height: 100%; border-radius: 999px; transition: width 0.4s; }
+
+        /* Jobs table */
+        table.jobs { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        table.jobs th, table.jobs td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+        table.jobs th {
+            background: rgba(255,255,255,0.03); color: var(--muted);
+            font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px;
+            position: sticky; top: 0;
+        }
+        table.jobs tbody tr:hover { background: rgba(255,255,255,0.02); }
+        table.jobs tfoot td {
+            font-weight: 900; background: rgba(139,92,246,0.08);
+            border-top: 2px solid rgba(139,92,246,0.3);
+        }
+        .num { font-variant-numeric: tabular-nums; }
+        .text-success { color: #6ee7b7; }
+        .text-danger { color: #fca5a5; }
+        .text-muted { color: var(--muted); }
+
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .info-cell { padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid var(--line); }
+        .info-cell .k { color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+        .info-cell .v { color: var(--text); font-size: 0.95rem; font-weight: 700; margin-top: 4px; }
+
+        .empty {
+            text-align: center; padding: 40px 20px; color: var(--muted);
+        }
+        .empty i { font-size: 2.5rem; opacity: 0.4; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <h2><i class="fas fa-chart-line"></i> تحليل ربحية الطلب #{{ order.order_number }}</h2>
+        <span class="meta-chip">{{ order.customer.name }}</span>
+        <span class="meta-chip">{{ order.get_status_display }}</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+        <a href="/secure-portal/printing/printorder/{{ order.pk }}/change/" class="btn">
+            <i class="fas fa-pen"></i> تعديل الطلب
+        </a>
+        <a href="/secure-portal/printing/printorder/" class="btn">
+            <i class="fas fa-arrow-right"></i> رجوع
+        </a>
+    </div>
+</div>
+
+<div class="wrap">
+
+    <!-- 1. Headline cards -->
+    <div class="head-grid">
+        <div class="head-card revenue">
+            <div class="lbl"><i class="fas fa-coins"></i> الإيرادات</div>
+            <div class="val num">{{ net_total|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="sub">إجمالي {{ order.total_amount|floatformat:2 }} − خصم {{ discount|floatformat:2 }}</div>
+        </div>
+
+        <div class="head-card cost">
+            <div class="lbl"><i class="fas fa-receipt"></i> إجمالي التكلفة</div>
+            <div class="val num">{{ total_cost|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="sub">ماكينة + حبر + أجر المصمم</div>
+        </div>
+
+        <div class="head-card net {% if is_profitable %}profit{% else %}loss{% endif %}">
+            <div class="lbl">
+                <i class="fas fa-{% if is_profitable %}arrow-trend-up{% else %}arrow-trend-down{% endif %}"></i>
+                {% if is_profitable %}صافي الربح{% else %}الخسارة{% endif %}
+            </div>
+            <div class="val num">{{ gross_profit|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="margin-pill">
+                هامش الربح: <strong>{{ margin|floatformat:1 }}%</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Cost breakdown -->
+    {% if cost_breakdown %}
+    <div class="section">
+        <h3><i class="fas fa-chart-pie"></i> توزيع التكلفة</h3>
+        {% for c in cost_breakdown %}
+        <div class="bd-row">
+            <div class="top">
+                <span>{{ c.label }} — <span class="num">{{ c.value|floatformat:2 }}</span> ج.م</span>
+                <span class="pct num">{{ c.percent|floatformat:1 }}%</span>
+            </div>
+            <div class="bd-bar">
+                <div class="fill" style="width: {{ c.percent|floatformat:1 }}%; background: {{ c.color }};"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 3. Per-job table -->
+    <div class="section">
+        <h3><i class="fas fa-list-check"></i> تفاصيل المهام ({{ job_rows|length }})</h3>
+        {% if job_rows %}
+        <div style="overflow-x:auto;">
+            <table class="jobs">
+                <thead>
+                    <tr>
+                        <th>المهمة</th>
+                        <th>الماكينة</th>
+                        <th>المصمم</th>
+                        <th>ساعات</th>
+                        <th class="num">تشغيل</th>
+                        <th class="num">حبر</th>
+                        <th class="num">أجر مصمم</th>
+                        <th class="num">إجمالي تكلفة</th>
+                        <th class="num">السعر</th>
+                        <th class="num">الربح</th>
+                        <th class="num">هامش</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in job_rows %}
+                    <tr>
+                        <td>
+                            <div style="font-weight:700;">{{ r.job.description|truncatechars:40 }}</div>
+                            {% if r.job.is_complete %}
+                                <span style="font-size:0.7rem; color: var(--success); font-weight:700;">✓ مكتملة</span>
+                            {% else %}
+                                <span style="font-size:0.7rem; color: var(--muted); font-weight:700;">قيد التنفيذ</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.job.machine.name|default:"—" }}</td>
+                        <td>{{ r.job.designer|default:"—" }}</td>
+                        <td class="num">{{ r.job.actual_time_hours|floatformat:1 }}</td>
+                        <td class="num text-muted">{{ r.machine_cost|floatformat:2 }}</td>
+                        <td class="num text-muted">{{ r.ink_cost|floatformat:2 }}</td>
+                        <td class="num text-muted">{{ r.designer_cost|floatformat:2 }}</td>
+                        <td class="num" style="font-weight:700; color: #fcd34d;">{{ r.full_cost|floatformat:2 }}</td>
+                        <td class="num" style="font-weight:700; color: #93c5fd;">{{ r.revenue|floatformat:2 }}</td>
+                        <td class="num {% if r.profit >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-weight:800;">
+                            {{ r.profit|floatformat:2 }}
+                        </td>
+                        <td class="num {% if r.margin_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ r.margin_percent|floatformat:1 }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4">الإجمالي</td>
+                        <td class="num">{{ sum_machine|floatformat:2 }}</td>
+                        <td class="num">{{ sum_ink|floatformat:2 }}</td>
+                        <td class="num">{{ sum_designer|floatformat:2 }}</td>
+                        <td class="num" style="color: #fcd34d;">{{ total_cost|floatformat:2 }}</td>
+                        <td class="num" style="color: #93c5fd;">{{ net_total|floatformat:2 }}</td>
+                        <td class="num {% if gross_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ gross_profit|floatformat:2 }}
+                        </td>
+                        <td class="num {% if margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ margin|floatformat:1 }}%
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">
+            <i class="fas fa-inbox"></i>
+            <div>لا توجد مهام في هذا الطلب بعد.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 4. Order info -->
+    <div class="section">
+        <h3><i class="fas fa-circle-info"></i> بيانات الطلب</h3>
+        <div class="info-grid">
+            <div class="info-cell"><div class="k">رقم الطلب</div><div class="v">#{{ order.order_number }}</div></div>
+            <div class="info-cell"><div class="k">العميل</div><div class="v">{{ order.customer.name }}</div></div>
+            <div class="info-cell"><div class="k">الفرع</div><div class="v">{{ order.branch.name|default:"—" }}</div></div>
+            <div class="info-cell"><div class="k">الحالة</div><div class="v">{{ order.get_status_display }}</div></div>
+            <div class="info-cell"><div class="k">تاريخ الإنشاء</div><div class="v">{{ order.date_created|date:"Y-m-d" }}</div></div>
+            <div class="info-cell"><div class="k">موعد التسليم</div><div class="v">{{ order.date_due|date:"Y-m-d"|default:"—" }}</div></div>
+            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|floatformat:2 }} ج.م</div></div>
+            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|floatformat:2 }} ج.م</div></div>
+        </div>
+        {% if total_cost == 0 %}
+        <div style="margin-top:14px; padding:12px 16px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; color: #fcd34d; font-size:0.86rem;">
+            <i class="fas fa-triangle-exclamation"></i>
+            <strong>تنبيه:</strong> لم يتم تسجيل أي تكاليف (ساعات تشغيل أو حبر) للمهام بعد. الأرباح المعروضة تساوي الإيرادات بالكامل.
+            افتح المهام وأضف <em>وقت التنفيذ الفعلي</em> + <em>الماكينة</em> + <em>المصمم</em> للحصول على تحليل دقيق.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+</body>
+</html>

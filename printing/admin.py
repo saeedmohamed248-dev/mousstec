@@ -194,7 +194,7 @@ class PrintJobInline(admin.TabularInline):
 
 @admin.register(PrintOrder)
 class PrintOrderAdmin(PrintSecureAdmin):
-    list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'has_files_badge', 'date_created')
+    list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'profit_badge', 'has_files_badge', 'date_created')
     list_filter = ('status', 'branch', 'date_created')
     search_fields = ('order_number', 'customer__name')
     list_select_related = ('customer', 'branch')
@@ -246,6 +246,27 @@ class PrintOrderAdmin(PrintSecureAdmin):
         color = '#ef4444' if r > 0 else '#10b981'
         return format_html('<span style="color:{};font-weight:bold;">{}</span> ج.م', color, f"{float(r):,.2f}")
     remaining_display.short_description = "المتبقي"
+
+    def profit_badge(self, obj):
+        profit = obj.gross_profit
+        margin = obj.profit_margin_percent
+        if profit > 0:
+            bg = 'linear-gradient(135deg,#10b981,#059669)'
+            icon = '📈'
+        elif profit < 0:
+            bg = 'linear-gradient(135deg,#ef4444,#dc2626)'
+            icon = '📉'
+        else:
+            bg = 'linear-gradient(135deg,#94a3b8,#64748b)'
+            icon = '⚖️'
+        return format_html(
+            '<a href="/printing/order/{}/profit/" target="_blank" '
+            'style="background:{}; color:#fff; padding:4px 10px; border-radius:10px; '
+            'text-decoration:none; font-weight:700; font-size:0.78rem; display:inline-block;" '
+            'title="افتح تحليل الربحية">{} {} ج.م ({}%)</a>',
+            obj.pk, bg, icon, f"{float(profit):,.0f}", f"{float(margin):.1f}",
+        )
+    profit_badge.short_description = "الربح"
 
 
 @admin.register(PrintJob)

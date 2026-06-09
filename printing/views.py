@@ -1706,6 +1706,93 @@ def customer_statement(request, customer_id):
 
 
 # =====================================================================
+# 📊 Order Profit Detail — تحليل ربح/خسارة الطلب
+# =====================================================================
+
+@login_required
+def order_profit_detail(request, order_id):
+    """تحليل تكلفة وربحية طلب الطباعة على مستوى المهام.
+
+    لكل PrintJob: machine_cost + ink_cost + designer_cost = full_cost
+    على مستوى الطلب: revenue (net_total) − total_cost = gross_profit
+    """
+    from printing.models import PrintOrder, StaffPermission
+
+    # صلاحية: staff أو can_view_profits
+    if not request.user.is_staff:
+        try:
+            if not request.user.print_permissions.can_view_profits:
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+        except StaffPermission.DoesNotExist:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+
+    order = get_object_or_404(
+        PrintOrder.objects.select_related('customer', 'branch'),
+        pk=order_id,
+    )
+
+    job_rows = []
+    sum_machine = sum_ink = sum_designer = sum_revenue = Decimal('0')
+    for job in order.jobs.select_related('machine', 'designer', 'designer__user', 'product_type').all():
+        mc = job.machine_cost
+        ic = job.ink_cost
+        dc = job.designer_cost
+        fc = mc + ic + dc
+        rev = job.total_price
+        job_rows.append({
+            'job': job,
+            'machine_cost': mc,
+            'ink_cost': ic,
+            'designer_cost': dc,
+            'full_cost': fc,
+            'revenue': rev,
+            'profit': rev - fc,
+            'margin_percent': ((rev - fc) / rev * Decimal('100')) if rev else Decimal('0'),
+        })
+        sum_machine += mc
+        sum_ink += ic
+        sum_designer += dc
+        sum_revenue += rev
+
+    total_cost = sum_machine + sum_ink + sum_designer
+    net_total = order.net_total
+    gross_profit = net_total - total_cost
+    margin = (gross_profit / net_total * Decimal('100')) if net_total else Decimal('0')
+
+    # نسب التكلفة
+    cost_breakdown = []
+    if total_cost > 0:
+        for label, value, color in [
+            ('تشغيل الماكينات', sum_machine, '#f59e0b'),
+            ('الأحبار', sum_ink, '#06b6d4'),
+            ('أجور المصممين', sum_designer, '#ec4899'),
+        ]:
+            cost_breakdown.append({
+                'label': label,
+                'value': value,
+                'color': color,
+                'percent': (value / total_cost * Decimal('100')) if total_cost else Decimal('0'),
+            })
+
+    return render(request, 'printing/order_profit_detail.html', {
+        'order': order,
+        'job_rows': job_rows,
+        'sum_machine': sum_machine,
+        'sum_ink': sum_ink,
+        'sum_designer': sum_designer,
+        'total_cost': total_cost,
+        'net_total': net_total,
+        'discount': order.discount,
+        'gross_profit': gross_profit,
+        'margin': margin,
+        'is_profitable': gross_profit > 0,
+        'cost_breakdown': cost_breakdown,
+    })
+
+
+# =====================================================================
 # 💰 9. عروض الأسعار (Quotations)
 # =====================================================================
 

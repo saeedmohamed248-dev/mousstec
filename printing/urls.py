@@ -36,6 +36,9 @@ urlpatterns = [
     # 📈 P&L Report (تقرير الأرباح والخسائر)
     path('reports/profit-loss/', views.profit_loss_report, name='profit_loss_report'),
 
+    # 📊 Order Profit Detail (تحليل ربحية الطلب)
+    path('order/<int:order_id>/profit/', views.order_profit_detail, name='order_profit_detail'),
+
     # 💰 Price Quotations (عروض الأسعار)
     path('quotation/create/', views.quotation_create, name='quotation_create'),
     path('quotation/view/<uuid:share_token>/', views.quotation_public_view, name='quotation_public_view'),

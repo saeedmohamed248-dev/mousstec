@@ -73,6 +73,27 @@ body {
 .btn-link-fallback:hover { opacity: 1; color: var(--accent, #4cc9f0); }
 .btn-link-fallback u { text-underline-offset: 3px; }
 .btn-link-fallback:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Attach-to-invoice modal ─────────────────────────────────── */
+.attach-modal {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+}
+.attach-modal-bg {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+}
+.attach-modal-body {
+    position: relative;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    padding: 22px 24px;
+    width: min(520px, 92vw);
+    max-height: 85vh; overflow-y: auto;
+    color: #e2e8f0; direction: rtl;
+}
 .btn {
     padding: 12px 16px; border: none; border-radius: 10px; cursor: pointer;
     font-family: inherit; font-weight: 700; font-size: 14px;
@@ -304,6 +325,12 @@ body {
             <i class="fa-solid fa-car"></i> <span id="vinText">VIN —</span>
         </span>
         <span id="connStatus" class="pill idle"><span class="dot"></span> غير متصل</span>
+        <span id="queueBadge" class="pill idle"
+              style="display:none; background:#3b2f0f; color:#fbbf24; border-color:#facc1540;"
+              title="عدد التشخيصات المحفوظة محلياً في انتظار رجوع النت">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span id="queueCount">0</span> في الانتظار
+        </span>
     </div>
 </div>
 
@@ -380,6 +407,93 @@ body {
                         title="فحص شامل للحسّاسات: MAF (إيرماس)، O2، الكتلست، ثبات الـ Idle، TPS، البطارية. مقارن بأرقام مرجعية زي برامج Carista/Torque/OBD11">
                     <i class="fa-solid fa-wave-square"></i> فحص شامل للحسّاسات
                 </button>
+                <button id="btnManufacturerDIDs" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#0891b2,#0e7490);"
+                        title="قراءات خاصة بالشركة المصنّعة (Mode 22): حرارة الزيت، مستوى الزيت، DPF، AdBlue، حرارة الجير — اللي بتقراه برامج Carista/OBD11/VCDS">
+                    <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
+                </button>
+                <button id="btnAttachInvoice" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#8b5cf6,#6366f1);"
+                        title="أرسل الـ DTCs + Sensor Sweep كبنود مقترحة في فاتورة العميل. المحاسب هو اللي يقرر تتحاسب فعلاً ولا لأ">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> أرسل التشخيص للفاتورة
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Attach-to-Invoice modal ─────────────────────────────────── -->
+        <div id="attachModal" class="attach-modal" style="display:none;">
+            <div class="attach-modal-bg" onclick="document.getElementById('attachModal').style.display='none'"></div>
+            <div class="attach-modal-body">
+                <div class="card-title" style="border-bottom:1px solid #1e293b; padding-bottom:10px;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> أرسل التشخيص للفاتورة
+                </div>
+
+                <div id="attachStep_select" style="padding:14px 0;">
+                    <div style="color:#cbd5e1; font-size:13px; line-height:1.8;">
+                        <div>السيارة:
+                            <strong id="attachVin" style="font-family:monospace; color:#67e8f9;"></strong>
+                        </div>
+                        <div id="attachCustomerLabel" style="margin-top:4px; color:#94a3b8;"></div>
+
+                        <div id="attachJobCardSection" style="margin-top:14px;">
+                            <label style="display:block; margin-bottom:6px; font-weight:700;">
+                                وجهة التشخيص:
+                            </label>
+                            <select id="attachJobCardSel"
+                                    style="width:100%; padding:8px 10px; background:#0f172a;
+                                           border:1px solid #1e293b; color:#e2e8f0;
+                                           border-radius:6px; font-family:inherit;">
+                                <option value="">— إنشاء فاتورة (Job Card) جديدة —</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-top:14px; background:rgba(139,92,246,0.08);
+                                    padding:10px 14px; border-radius:8px;
+                                    border-inline-start:3px solid #8b5cf6;">
+                            <div style="font-weight:700; margin-bottom:6px;">📋 اللي هيتنقل:</div>
+                            <ul id="attachSummary"
+                                style="margin:0; padding-inline-start:18px; font-size:12px; color:#cbd5e1;">
+                            </ul>
+                        </div>
+
+                        <div style="margin-top:12px; font-size:12px; color:#fbbf24;">
+                            ⚠ كل البنود هتتحفظ <strong>مش بتتحاسب تلقائياً</strong>.
+                            المحاسب هو اللي يقرر اللي يدخل الفاتورة النهائية.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="attachStep_loading" style="display:none; padding:30px; text-align:center; color:#94a3b8;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i>
+                    <div style="margin-top:10px;">جاري الإرسال...</div>
+                </div>
+
+                <div id="attachStep_success" style="display:none; padding:14px 0;">
+                    <div style="text-align:center; font-size:46px; color:#10b981;">✅</div>
+                    <div style="text-align:center; font-size:15px; font-weight:700; margin-top:8px;">
+                        تم إرسال التشخيص بنجاح
+                    </div>
+                    <div id="attachSuccessDetail"
+                         style="margin-top:10px; font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+                </div>
+
+                <div id="attachStep_error" style="display:none; padding:14px 0;">
+                    <div style="text-align:center; font-size:46px;">❌</div>
+                    <div id="attachErrorMsg"
+                         style="margin-top:8px; text-align:center; color:#fca5a5; font-weight:700;"></div>
+                </div>
+
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;
+                            padding-top:12px; border-top:1px solid #1e293b;">
+                    <button id="attachCancelBtn" class="btn secondary"
+                            onclick="document.getElementById('attachModal').style.display='none'">
+                        إغلاق
+                    </button>
+                    <button id="attachConfirmBtn" class="btn primary"
+                            style="background:linear-gradient(135deg,#8b5cf6,#6366f1);">
+                        <i class="fa-solid fa-paper-plane"></i> أرسل للفاتورة
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -387,6 +501,17 @@ body {
         <div id="sensorSweepPanel" style="display:none; margin-top:18px;">
             <div class="card-title"><i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل</div>
             <div id="sensorSweepBody" style="font-size:13px; line-height:1.8;"></div>
+        </div>
+
+        <!-- Manufacturer DIDs (Mode 22) -->
+        <div id="manufacturerDIDsPanel" style="display:none; margin-top:18px;">
+            <div class="card-title">
+                <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
+                <span id="manufacturerBadge"
+                      style="margin-inline-start:8px; font-size:11px;
+                             color:#67e8f9; font-weight:600;"></span>
+            </div>
+            <div id="manufacturerDIDsBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Mode 09 ECU info -->
@@ -587,7 +712,8 @@ body {
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
 <script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=13-sensor-sweep"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=14-mode22-dids"></script>
+<script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
     // ── Bluetooth support check ─────────────────────────────────
@@ -605,6 +731,7 @@ body {
     const CHAT_URL = "{% url 'smart_diagnostics:diagnostics-room-chat' %}";
     const JOB_CARDS_URL = "{% url 'smart_diagnostics:diagnostics-room-job-cards' %}";
     const SAVE_URL = "{% url 'smart_diagnostics:diagnostics-room-save' %}";
+    const ATTACH_URL = "{% url 'smart_diagnostics:diagnostics-room-attach-invoice' %}";
 
     // ── DOM refs ────────────────────────────────────────────────
     const $ = (id) => document.getElementById(id);
@@ -619,6 +746,8 @@ body {
     const btnVehicleInfo = $('btnVehicleInfo');
     const btnSaveSnapshot = $('btnSaveSnapshot');
     const btnSensorSweep  = $('btnSensorSweep');
+    const btnAttachInvoice = $('btnAttachInvoice');
+    const btnManufacturerDIDs = $('btnManufacturerDIDs');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -668,6 +797,8 @@ body {
         if (btnVehicleInfo)  btnVehicleInfo.disabled  = !connected;
         if (btnSaveSnapshot) btnSaveSnapshot.disabled = !connected;
         if (btnSensorSweep)  btnSensorSweep.disabled  = !connected;
+        if (btnAttachInvoice) btnAttachInvoice.disabled = !connected;
+        if (btnManufacturerDIDs) btnManufacturerDIDs.disabled = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -895,16 +1026,20 @@ body {
         });
         driver.addEventListener('health_score', (e) => {
             renderHealthScore(e.detail);
+            window.__healthScoreLast = (e.detail && typeof e.detail.score === 'number')
+                ? e.detail.score : null;
             log(`Health score: ${e.detail.score}/100 — ${e.detail.verdict}`);
         });
         driver.addEventListener('freeze_frame', (e) => {
             renderFreezeFrame(e.detail);
+            window.__freezeFrameLast = e.detail || null;
             log('Freeze Frame: ' + (e.detail.trigger_dtc
                 ? `Triggered by ${e.detail.trigger_dtc}`
                 : 'لا توجد لقطة محفوظة (مفيش DTC مؤكد).'));
         });
         driver.addEventListener('readiness', (e) => {
             renderReadiness(e.detail);
+            window.__readinessLast = e.detail || null;
             log(`Readiness: ${e.detail.imReady ? 'I/M جاهزة ✅' :
                 `${e.detail.incomplete.length} monitor ناقص ❌`}`);
         });
@@ -1182,6 +1317,107 @@ body {
             btnSensorSweep.disabled = !obd.isConnected;
         }
     });
+
+    // ── Mode 22 — Manufacturer DIDs sweep ──────────────────────────────
+    if (btnManufacturerDIDs) btnManufacturerDIDs.addEventListener('click', async () => {
+        if (typeof obd.scanManufacturerDIDs !== 'function') {
+            log('Manufacturer DIDs require Wi-Fi driver.', true); return;
+        }
+        try {
+            btnManufacturerDIDs.disabled = true;
+            $('manufacturerDIDsPanel').style.display = 'block';
+            $('manufacturerDIDsBody').innerHTML =
+                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                'جاري قراءة الـ DIDs الخاصة بالماركة...</div>';
+            log('Mode 22 sweep: querying manufacturer DIDs…');
+            const result = await obd.scanManufacturerDIDs(lastVIN);
+            window.__manufacturerDIDsLast = result;
+            renderManufacturerDIDs(result);
+            log(`Mode 22: ${result.supported_count} مدعوم · ${result.unsupported_count} مش مدعوم (${result.manufacturer})`);
+        } catch (e) {
+            log(`Manufacturer DIDs failed: ${e.message}`, true);
+            $('manufacturerDIDsBody').innerHTML =
+                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+        } finally {
+            btnManufacturerDIDs.disabled = !obd.isConnected;
+        }
+    });
+
+    function renderManufacturerDIDs(r) {
+        const body  = $('manufacturerDIDsBody');
+        const badge = $('manufacturerBadge');
+        const brandLabel = ({
+            bmw: 'BMW', mercedes: 'Mercedes-Benz', vag: 'VW / Audi / Skoda',
+            toyota: 'Toyota / Lexus', hyundai: 'Hyundai', kia: 'Kia',
+            ford: 'Ford', gm: 'GM / Chevrolet', generic: 'عام (UDS)',
+        })[r.manufacturer] || r.manufacturer || '—';
+        badge.textContent = brandLabel;
+
+        if (r.note) {
+            body.innerHTML = `<div style="color:#fbbf24; padding:8px 0;">⚠ ${r.note}</div>` +
+                '<div style="color:#94a3b8; font-size:12px;">' +
+                'الـ Mode 22 بيحتاج تعريف خاص لكل شركة. لو السيارة دي بتدعمه ' +
+                'ابعتلنا الـ VIN عشان نضيف الـ DIDs بتاعتها.</div>';
+            return;
+        }
+        if (!r.items.length) {
+            body.innerHTML = '<div style="color:#fbbf24; padding:8px 0;">' +
+                '❌ الـ ECU مردش على أي DID من الـ ' + (MANUFACTURER_LIB_SIZE(r.manufacturer)) +
+                ' المسجّلة.<br>' +
+                '<span style="font-size:12px; color:#94a3b8;">' +
+                'ممكن السيارة قديمة (قبل UDS) أو الـ ECU بيحتاج security access.</span></div>';
+            return;
+        }
+
+        const colorOf = (h) => h === 'good' ? '#10b981'
+                            : h === 'warn' ? '#f59e0b'
+                            : h === 'bad'  ? '#ef4444' : '#64748b';
+        const iconOf  = (h) => h === 'good' ? '✓'
+                            : h === 'warn' ? '⚠'
+                            : h === 'bad'  ? '✗' : '·';
+
+        const rows = r.items.map(it => {
+            const c = colorOf(it.health);
+            const val = (typeof it.value === 'number')
+                ? (Math.round(it.value * 100) / 100) : String(it.value);
+            return `
+                <div style="display:flex; justify-content:space-between;
+                            align-items:center; padding:8px 12px;
+                            border-inline-start:3px solid ${c};
+                            background:rgba(15,23,42,0.5);
+                            border-radius:6px; margin-bottom:6px;">
+                    <div>
+                        <div style="font-weight:700; color:#e2e8f0;">${it.label_ar}</div>
+                        <div style="font-size:11px; color:#64748b; font-family:monospace;">
+                            DID ${it.did} · ${it.label}
+                        </div>
+                    </div>
+                    <div style="text-align:end; min-width:90px;">
+                        <div style="font-size:18px; font-weight:700; color:${c};">
+                            ${val}<span style="font-size:12px; color:#94a3b8;"> ${it.unit}</span>
+                        </div>
+                        <div style="font-size:11px; color:${c};">${iconOf(it.health)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        body.innerHTML = `
+            <div style="display:flex; gap:14px; margin-bottom:10px;
+                        font-size:12px; color:#94a3b8;">
+                <span>✓ ${r.supported_count} مدعوم</span>
+                <span>· ${r.unsupported_count} غير مدعوم</span>
+            </div>
+            ${rows}
+        `;
+    }
+
+    function MANUFACTURER_LIB_SIZE(brand) {
+        try {
+            return (window.__MANUFACTURER_DIDS &&
+                    window.__MANUFACTURER_DIDS[brand] || []).length;
+        } catch (_) { return 0; }
+    }
 
     if (btnSaveSnapshot) btnSaveSnapshot.addEventListener('click', () => {
         const snap = {
@@ -1566,28 +1802,34 @@ body {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
         try {
-            const resp = await fetch(SAVE_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF,
-                },
-                body: JSON.stringify({
-                    vin: lastVIN,
-                    job_card_id: $('modalJobCardSelect').value
-                        ? parseInt($('modalJobCardSelect').value, 10) : null,
-                    scan_type: $('modalScanType').value,
-                    dtcs: lastDTCs,
-                    snapshot: lastSnapshot,
-                    ai_summary: lastAIAnswer,
-                    photos: sessionPhotos,
-                }),
+            const payload = {
+                vin: lastVIN,
+                job_card_id: $('modalJobCardSelect').value
+                    ? parseInt($('modalJobCardSelect').value, 10) : null,
+                scan_type: $('modalScanType').value,
+                dtcs: lastDTCs,
+                snapshot: lastSnapshot,
+                ai_summary: lastAIAnswer,
+                photos: sessionPhotos,
+            };
+            const result = await DiagOfflineQueue.send(SAVE_URL, payload, {
+                csrf: CSRF, label: 'save',
             });
-            const data = await resp.json();
-            if (!resp.ok || !data.ok) {
-                showToast(data.message || data.error || 'فشل الحفظ', 'error');
+            if (result.queued) {
+                closeSaveModal();
+                showToast(
+                    '📦 محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع',
+                    'success',
+                );
+                log(`Save queued offline (key=${result.idempotency_key.slice(0,8)})`);
                 return;
             }
+            if (!result.ok) {
+                const e = result.error || {};
+                showToast(e.message || e.error || 'فشل الحفظ', 'error');
+                return;
+            }
+            const data = result.data;
             closeSaveModal();
             showToast(
                 `✓ تم الحفظ — تقرير #${data.report_id}` +
@@ -1597,7 +1839,7 @@ body {
             );
             log(`Saved report #${data.report_id} · photos=${data.photos_saved}/${sessionPhotos.length}`);
         } catch (err) {
-            showToast(`تعذّر الوصول للخادم: ${err.message}`, 'error');
+            showToast(`تعذّر الحفظ: ${err.message}`, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-check"></i> احفظ الآن';
@@ -1610,6 +1852,156 @@ body {
     $('saveModal').addEventListener('click', (e) => {
         if (e.target.id === 'saveModal') closeSaveModal();
     });
+
+    // ── Attach-to-Invoice flow ─────────────────────────────────────
+    function attachShowStep(name) {
+        ['select', 'loading', 'success', 'error'].forEach(s => {
+            const el = $('attachStep_' + s);
+            if (el) el.style.display = (s === name) ? 'block' : 'none';
+        });
+        const confirmBtn = $('attachConfirmBtn');
+        if (confirmBtn) confirmBtn.style.display =
+            (name === 'select') ? 'inline-flex' : 'none';
+    }
+
+    async function openAttachModal() {
+        if (!lastVIN) {
+            showToast('لازم تقرأ الـ VIN من السيارة الأول.', 'error');
+            return;
+        }
+        attachShowStep('select');
+        $('attachVin').textContent = lastVIN;
+        $('attachCustomerLabel').textContent = '';
+
+        // Build summary list
+        const sweep = window.__sensorBuffer || null;
+        const hasSweep = sweep && Object.keys(sweep).length > 0;
+        const summary = $('attachSummary');
+        const lines = [];
+        lines.push(`<li>${lastDTCs.length} كود عطل (DTC)</li>`);
+        if (hasSweep) lines.push('<li>نتيجة فحص الحسّاسات الشامل</li>');
+        const freezeOK = !!window.__freezeFrameLast;
+        if (freezeOK) lines.push('<li>قراءة Freeze Frame</li>');
+        const readyOK = !!window.__readinessLast;
+        if (readyOK) lines.push('<li>حالة Readiness Monitors</li>');
+        const hs = window.__healthScoreLast;
+        if (typeof hs === 'number') lines.push(`<li>درجة الصحة: ${hs}/100</li>`);
+        summary.innerHTML = lines.join('');
+
+        // Load existing maintenance Job Cards for this VIN
+        const sel = $('attachJobCardSel');
+        sel.innerHTML = '<option value="">— جاري التحميل... —</option>';
+        try {
+            const resp = await fetch(
+                JOB_CARDS_URL + '?vin=' + encodeURIComponent(lastVIN),
+            );
+            const data = await resp.json();
+            let opts = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
+            if (data.job_cards && data.job_cards.length) {
+                opts += data.job_cards.map(jc =>
+                    `<option value="${jc.id}">${jc.label}</option>`
+                ).join('');
+            }
+            sel.innerHTML = opts;
+        } catch (err) {
+            sel.innerHTML = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
+        }
+
+        $('attachModal').style.display = 'block';
+    }
+
+    async function confirmAttach() {
+        const btn = $('attachConfirmBtn');
+        btn.disabled = true;
+        attachShowStep('loading');
+        try {
+            const payload = {
+                vin: lastVIN,
+                job_card_id: $('attachJobCardSel').value
+                    ? parseInt($('attachJobCardSel').value, 10) : null,
+                dtcs: lastDTCs,
+                sensor_sweep: window.__sensorBuffer || null,
+                freeze_frame: window.__freezeFrameLast || null,
+                readiness:    window.__readinessLast || null,
+                health_score: (typeof window.__healthScoreLast === 'number')
+                    ? window.__healthScoreLast : null,
+                manufacturer_dids: window.__manufacturerDIDsLast || null,
+                ai_summary: lastAIAnswer || '',
+            };
+            const result = await DiagOfflineQueue.send(ATTACH_URL, payload, {
+                csrf: CSRF, label: 'attach',
+            });
+            if (result.queued) {
+                $('attachSuccessDetail').innerHTML =
+                    '📦 محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع.' +
+                    '<br><span style="color:#94a3b8; font-size:12px;">' +
+                    `Key: ${result.idempotency_key.slice(0, 8)}…</span>`;
+                attachShowStep('success');
+                log(`Attach queued offline (key=${result.idempotency_key.slice(0,8)})`);
+                return;
+            }
+            if (!result.ok) {
+                const e = result.error || {};
+                $('attachErrorMsg').textContent =
+                    e.message || e.error || 'فشل الإرسال';
+                attachShowStep('error');
+                return;
+            }
+            const data = result.data;
+            $('attachSuccessDetail').innerHTML =
+                `فاتورة #${data.invoice_id} · ${data.items_created} بند مقترح` +
+                (data.report_id ? ` · تقرير #${data.report_id}` : '') +
+                `<br><a href="${data.invoice_admin_url}" target="_blank" ` +
+                `style="color:#67e8f9; text-decoration:underline;">` +
+                `افتح الفاتورة في صفحة المحاسب ↗</a>`;
+            attachShowStep('success');
+            log(`Attached to invoice #${data.invoice_id} · items=${data.items_created}`);
+        } catch (err) {
+            $('attachErrorMsg').textContent = `تعذّر الإرسال: ${err.message}`;
+            attachShowStep('error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    if (btnAttachInvoice) {
+        btnAttachInvoice.addEventListener('click', openAttachModal);
+    }
+    const _attachConfirm = $('attachConfirmBtn');
+    if (_attachConfirm) _attachConfirm.addEventListener('click', confirmAttach);
+
+    // ── Offline-queue badge ─────────────────────────────────────────────
+    // The badge lights up whenever there are pending diagnostic uploads
+    // (network was down at submission time). Clicking it forces a flush.
+    (function wireQueueBadge() {
+        if (typeof DiagOfflineQueue === 'undefined') return;
+        const badge = $('queueBadge');
+        const countEl = $('queueCount');
+        if (!badge || !countEl) return;
+        DiagOfflineQueue.onChange((n) => {
+            countEl.textContent = n;
+            badge.style.display = n > 0 ? 'inline-flex' : 'none';
+        });
+        badge.style.cursor = 'pointer';
+        badge.addEventListener('click', async () => {
+            if (navigator.onLine === false) {
+                showToast('لسه مفيش نت — هيبعت تلقائياً لما يرجع', 'error');
+                return;
+            }
+            const r = await DiagOfflineQueue.flush();
+            if (r && r.sent) {
+                showToast(`✓ تم إرسال ${r.sent} تشخيص محفوظ`, 'success');
+                log(`Queue flush: sent=${r.sent} dropped=${r.dropped || 0} kept=${r.kept || 0}`);
+            }
+        });
+        // When the browser regains connectivity, surface that to the user.
+        window.addEventListener('online', () => {
+            log('🌐 رجع الإنترنت — جاري إرسال الطابور المحلي…');
+        });
+        window.addEventListener('offline', () => {
+            log('⚠ النت اتقطع — التشخيصات هتتخزن محلياً.', true);
+        });
+    })();
 
     $('fileInput').addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
