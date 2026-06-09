@@ -1351,6 +1351,7 @@ class OBDWiFi extends EventTarget {
     async scanManufacturerDIDs(vin = null) {
         const brand = detectManufacturerFromVIN(vin) || 'generic';
         const lib = MANUFACTURER_DIDS[brand] || [];
+        const setup = MANUFACTURER_SETUP[brand] || {};
 
         const result = {
             _at: Date.now(),
@@ -1359,6 +1360,7 @@ class OBDWiFi extends EventTarget {
             items: [],
             supported_count: 0,
             unsupported_count: 0,
+            ecus_probed: [],
         };
 
         if (!lib.length) {
@@ -1367,34 +1369,50 @@ class OBDWiFi extends EventTarget {
             return result;
         }
 
-        // Try to enable headers off + auto-format (UDS typically wants ATH0).
+        // Most OEMs need ECU pinning to talk to powertrain modules. We loop
+        // over the brand's known ECU header/response combinations and try
+        // every DID against each ECU until we get a hit.
+        const ecuList = setup.ecus || [{ name: 'default', header: null, cra: null }];
         try { await this._sendCommand('ATH0', 800); } catch (_) {}
 
-        for (const def of lib) {
-            try {
-                const value = await this.readDID(def.did, def.parse, {
-                    ecuHeader: def.ecuHeader || null,
-                });
-                if (value === null) {
-                    result.unsupported_count += 1;
-                    continue;
-                }
-                result.items.push({
-                    did:    def.did,
-                    label:  def.label,
-                    label_ar: def.label_ar || def.label,
-                    unit:   def.unit || '',
-                    value,
-                    health: def.health ? def.health(value) : null,
-                });
-                result.supported_count += 1;
-            } catch (_) {
-                result.unsupported_count += 1;
+        const tried = new Set();   // dedupe across ECUs by DID
+        for (const ecu of ecuList) {
+            // Apply ECU framing (BMW-style: ATSH 6F1 + ATCRA 612).
+            if (ecu.header) {
+                try { await this._sendCommand('ATSH' + ecu.header, 800); } catch (_) {}
             }
-            // Brief pause — many ECUs throttle rapid UDS bursts.
-            await new Promise(r => setTimeout(r, 50));
+            if (ecu.cra) {
+                try { await this._sendCommand('ATCRA' + ecu.cra, 800); } catch (_) {}
+            }
+            const ecuHit = [];
+            for (const def of lib) {
+                if (tried.has(def.did)) continue;
+                try {
+                    const value = await this.readDID(def.did, def.parse,
+                        { ecuHeader: null, timeoutMs: 2000 });
+                    if (value === null) continue;
+                    result.items.push({
+                        did:    def.did,
+                        label:  def.label,
+                        label_ar: def.label_ar || def.label,
+                        unit:   def.unit || '',
+                        value,
+                        ecu:    ecu.name,
+                        health: def.health ? def.health(value) : null,
+                    });
+                    result.supported_count += 1;
+                    tried.add(def.did);
+                    ecuHit.push(def.did);
+                } catch (_) { /* per-DID failure non-fatal */ }
+                await new Promise(r => setTimeout(r, 40));
+            }
+            result.ecus_probed.push({ name: ecu.name, hits: ecuHit.length });
         }
 
+        // Clear ECU pinning so subsequent commands fall back to auto.
+        try { await this._sendCommand('ATCRA', 600); } catch (_) {}
+
+        result.unsupported_count = lib.length - result.supported_count;
         this._emit('manufacturer_dids', result);
         return result;
     }
@@ -1441,6 +1459,50 @@ function detectManufacturerFromVIN(vin) {
                          '1F':'ford', '2F':'ford' })[wmi2] || null;
 }
 
+// ─── Per-brand UDS framing (ECU headers + response addresses) ───────────
+// Most OEMs reserve specific 11-bit / 29-bit IDs for diagnostic addressing.
+// Without the correct ATSH + ATCRA pair the ECU silently ignores Mode 22
+// frames — exactly the "ECU مردش على أي DID" symptom.
+const MANUFACTURER_SETUP = {
+    bmw: {
+        // BMW Diagnostic CAN-bus convention: tester=0x6F1, ECU+0x600 = reply.
+        // DME (engine)        request 6F1 → reply 612 (target byte 12)
+        // EGS (transmission)  request 6F1 → reply 618 (target byte 18)
+        // FRM (front module)  request 6F1 → reply 640
+        // KOMBI (cluster)     request 6F1 → reply 660
+        // Each request prepends the target byte: e.g. "12 03 22 42 04".
+        // The ELM327 wraps in ISO-TP for us. We just need ATSH + ATCRA.
+        ecus: [
+            { name: 'DME',   header: '6F1', cra: '612' },
+            { name: 'EGS',   header: '6F1', cra: '618' },
+            { name: 'KOMBI', header: '6F1', cra: '660' },
+        ],
+    },
+    mercedes: {
+        // 7E0 = OBD-II physical request, 7E8 = response.
+        ecus: [{ name: 'ME', header: '7E0', cra: '7E8' }],
+    },
+    vag: {
+        // VW/Audi UDS: 7E0/7E8 for engine, 7E1/7E9 for trans.
+        ecus: [
+            { name: 'ENGINE', header: '7E0', cra: '7E8' },
+            { name: 'TRANS',  header: '7E1', cra: '7E9' },
+        ],
+    },
+    toyota: {
+        ecus: [
+            { name: 'ENGINE', header: '7E0', cra: '7E8' },
+            { name: 'TRANS',  header: '7E1', cra: '7E9' },
+            { name: 'HYBRID', header: '7E2', cra: '7EA' },
+        ],
+    },
+    hyundai: { ecus: [{ name: 'ENGINE', header: '7E0', cra: '7E8' }] },
+    kia:     { ecus: [{ name: 'ENGINE', header: '7E0', cra: '7E8' }] },
+    ford:    { ecus: [{ name: 'PCM',    header: '7E0', cra: '7E8' }] },
+    gm:      { ecus: [{ name: 'PCM',    header: '7E0', cra: '7E8' }] },
+    generic: { ecus: [{ name: 'default', header: null, cra: null }] },
+};
+
 // ─── Manufacturer DID library ───────────────────────────────────────────
 // Each entry: { did, label, label_ar, unit, parse(bytes), health?, ecuHeader? }
 //   parse() returns a number/string/null
@@ -1449,27 +1511,68 @@ function detectManufacturerFromVIN(vin) {
 // These DIDs are publicly documented (BimmerCode, VCDS wiki, OBDeleven KB,
 // Toyota Techstream PIDs list). They are READ-ONLY — no actuation/coding.
 const MANUFACTURER_DIDS = {
-    // ── BMW (DME = Digital Motor Electronics, header 12) ────────────────
+    // ── BMW (E/F/G series, DME + EGS + KOMBI) ───────────────────────────
+    // DIDs sourced from BimmerCode public KB + ISTA workshop manual.
+    // Read-only — no actuation. Health thresholds tuned for petrol N-series.
     bmw: [
-        { did: '4204', label: 'Oil temperature', label_ar: 'حرارة الزيت',
+        // Engine — temperatures & oil
+        { did: '4204', label: 'Engine oil temperature', label_ar: '🛢️ حرارة الزيت',
           unit: '°C',
           parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) / 100) - 50 : null,
           health: v => v > 130 ? 'bad' : (v > 115 ? 'warn' : 'good') },
-        { did: '4936', label: 'Oil level remaining', label_ar: 'مستوى الزيت',
+        { did: '4936', label: 'Engine oil level', label_ar: '🛢️ مستوى الزيت',
           unit: 'mm',
           parse: b => b.length >= 1 ? b[0] : null,
           health: v => v < 5 ? 'bad' : (v < 10 ? 'warn' : 'good') },
-        { did: '4911', label: 'Battery voltage', label_ar: 'فولت البطارية',
+        { did: '4214', label: 'Coolant temperature', label_ar: '🌡️ حرارة الماء',
+          unit: '°C',
+          parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) / 100) - 50 : null,
+          health: v => v > 110 ? 'bad' : (v > 100 ? 'warn' : 'good') },
+        { did: '4264', label: 'Fuel pressure (HPFP)', label_ar: '⛽ ضغط البنزين العالي',
+          unit: 'bar',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 10 : null,
+          health: v => (v > 50 && v < 200) ? 'good' : 'warn' },
+
+        // Battery & charging
+        { did: '4911', label: 'Battery voltage', label_ar: '🔋 فولت البطارية',
           unit: 'V',
           parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null,
           health: v => v < 11.8 ? 'bad' : (v < 12.4 ? 'warn' : 'good') },
-        { did: '4914', label: 'Battery SoC', label_ar: 'شحن البطارية',
+        { did: '4914', label: 'Battery SoC', label_ar: '🔋 شحن البطارية',
           unit: '%',
           parse: b => b.length >= 1 ? b[0] : null,
           health: v => v < 40 ? 'bad' : (v < 65 ? 'warn' : 'good') },
-        { did: 'DD01', label: 'Fuel composition (ethanol)',
-          label_ar: 'نسبة الإيثانول في الوقود', unit: '%',
+        { did: '4915', label: 'Battery SoH', label_ar: '🔋 صحة البطارية',
+          unit: '%',
+          parse: b => b.length >= 1 ? b[0] : null,
+          health: v => v < 60 ? 'bad' : (v < 80 ? 'warn' : 'good') },
+
+        // Mixture & emissions
+        { did: 'DD01', label: 'Ethanol content', label_ar: '⛽ نسبة الإيثانول',
+          unit: '%',
           parse: b => b.length >= 1 ? b[0] : null },
+        { did: '405A', label: 'MAF actual', label_ar: '🌬️ إيرماس فعلي',
+          unit: 'kg/h',
+          parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 10 : null },
+
+        // Transmission (EGS — accessed via ECU 18)
+        { did: '4F4A', label: 'ATF temperature', label_ar: '⚙️ حرارة زيت الجير',
+          unit: '°C',
+          parse: b => b.length >= 1 ? b[0] - 50 : null,
+          health: v => v > 110 ? 'bad' : (v > 95 ? 'warn' : 'good') },
+        { did: '4F4B', label: 'Trans input speed', label_ar: '⚙️ سرعة دخل الجير',
+          unit: 'rpm',
+          parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+
+        // Cluster (KOMBI — via ECU 60)
+        { did: '5050', label: 'Mileage', label_ar: '🛣️ العدّاد',
+          unit: 'km',
+          parse: b => b.length >= 4
+              ? (b[0] << 24) + (b[1] << 16) + (b[2] << 8) + b[3] : null },
+        { did: '5072', label: 'Service distance', label_ar: '🔧 المتبقي للصيانة',
+          unit: 'km',
+          parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null,
+          health: v => v < 1000 ? 'warn' : 'good' },
     ],
 
     // ── Mercedes (powertrain CAN, header 7E0) ───────────────────────────

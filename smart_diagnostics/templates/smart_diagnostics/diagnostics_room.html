@@ -725,7 +725,7 @@ body {
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
 <script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=15-emissions"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=16-bmw-ecu-headers"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
@@ -1008,7 +1008,15 @@ body {
             log(`ELM327 جاهز${p} — البيانات هتبدأ تظهر.`);
         });
         driver.addEventListener('vin', (e) => {
-            lastVIN = e.detail.vin;
+            const v = (e.detail && e.detail.vin || '').toString().trim().toUpperCase();
+            // Reject anything that isn't a valid 17-char SAE J853 VIN.
+            // The driver already filters, but a corrupted bus can slip a
+            // shorter string through — never assign that to lastVIN.
+            if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) {
+                log(`⚠ VIN غير صالح اتجاهل: "${v}" (${v.length} حرف)`, true);
+                return;
+            }
+            lastVIN = v;
             log(`VIN read: ${lastVIN}`);
             const pill = $('vinPill');
             $('vinText').textContent = lastVIN;
@@ -1208,11 +1216,18 @@ body {
             log('Scanning Mode 06 misfire counters (8 cylinders)…');
             const cyls = await obd.readMisfireCounts({ cylinders: 8 });
             if (!cyls.length) {
-                log('Mode 06 returned no per-cylinder data — moteur not supporting OBDMID A1-A8', true);
+                log('Mode 06 OBDMID A1-A8 غير متاح — هنستخدم Manufacturer DIDs بدالها', true);
                 $('misfirePanel').style.display = 'block';
-                $('misfireSummary').textContent =
-                    'هذه السيارة لا تنشر عدّاد misfire قياسي (Mode 06 OBDMID $A1-$A8). ' +
-                    'استخدم سكان OEM المخصص لها للحصول على البيانات.';
+                $('misfireSummary').innerHTML =
+                    '<div style="padding:12px 16px; background:rgba(59,130,246,0.08);' +
+                    'border-inline-start:3px solid #3b82f6; border-radius:8px;' +
+                    'color:#cbd5e1;">' +
+                    '<div style="font-weight:700; margin-bottom:4px;">' +
+                    'ℹ بيانات السلندرات الفردية غير متاحة في هذه السيارة</div>' +
+                    '<div style="font-size:12px; color:#94a3b8;">' +
+                    'الـ ECU بيدعم continuous misfire detection بس مش per-cylinder breakdown. ' +
+                    'جرّب زرار <strong>"قراءات خاصة بالماركة"</strong> — كتير من سيارات BMW و Mercedes ' +
+                    'بتنشر misfire counters في DIDs خاصة بيها.</div></div>';
             }
         } catch (e) {
             log(`Misfire scan failed: ${e.message}`, true);
@@ -1369,61 +1384,92 @@ body {
         badge.textContent = brandLabel;
 
         if (r.note) {
-            body.innerHTML = `<div style="color:#fbbf24; padding:8px 0;">⚠ ${r.note}</div>` +
-                '<div style="color:#94a3b8; font-size:12px;">' +
-                'الـ Mode 22 بيحتاج تعريف خاص لكل شركة. لو السيارة دي بتدعمه ' +
-                'ابعتلنا الـ VIN عشان نضيف الـ DIDs بتاعتها.</div>';
+            body.innerHTML = `
+                <div style="padding:18px; text-align:center;
+                            background:rgba(251,191,36,0.08);
+                            border:1px dashed rgba(251,191,36,0.3);
+                            border-radius:12px;">
+                    <div style="font-size:32px; margin-bottom:8px;">📋</div>
+                    <div style="color:#fcd34d; font-weight:700; margin-bottom:6px;">${r.note}</div>
+                    <div style="color:#94a3b8; font-size:12px;">
+                        ابعتلنا الـ VIN لنضيف dictionary خاص بالماركة دي.
+                    </div>
+                </div>`;
             return;
         }
         if (!r.items.length) {
-            body.innerHTML = '<div style="color:#fbbf24; padding:8px 0;">' +
-                '❌ الـ ECU مردش على أي DID من الـ ' + (MANUFACTURER_LIB_SIZE(r.manufacturer)) +
-                ' المسجّلة.<br>' +
-                '<span style="font-size:12px; color:#94a3b8;">' +
-                'ممكن السيارة قديمة (قبل UDS) أو الـ ECU بيحتاج security access.</span></div>';
+            const ecuList = (r.ecus_probed || []).map(e =>
+                `<code style="font-size:10px; color:#64748b;">${e.name}</code>`).join(' · ');
+            body.innerHTML = `
+                <div style="padding:20px; text-align:center;
+                            background:rgba(239,68,68,0.05);
+                            border:1px dashed rgba(239,68,68,0.25);
+                            border-radius:12px;">
+                    <div style="font-size:32px; margin-bottom:8px;">🔒</div>
+                    <div style="color:#fca5a5; font-weight:700; margin-bottom:8px;">
+                        الـ ECU مردش على أي DID
+                    </div>
+                    <div style="color:#94a3b8; font-size:12px; line-height:1.8;">
+                        جربنا ${MANUFACTURER_LIB_SIZE(r.manufacturer)} DID على الـ ECUs:
+                        ${ecuList || '<code>default</code>'}<br>
+                        ممكن السيارة قبل UDS، أو الـ ECU محتاج
+                        <strong>Security Access</strong> (Seed/Key).
+                    </div>
+                </div>`;
             return;
         }
 
         const colorOf = (h) => h === 'good' ? '#10b981'
                             : h === 'warn' ? '#f59e0b'
-                            : h === 'bad'  ? '#ef4444' : '#64748b';
-        const iconOf  = (h) => h === 'good' ? '✓'
-                            : h === 'warn' ? '⚠'
-                            : h === 'bad'  ? '✗' : '·';
+                            : h === 'bad'  ? '#ef4444' : '#3b82f6';
+        const bgOf    = (h) => h === 'good' ? 'rgba(16,185,129,0.08)'
+                            : h === 'warn' ? 'rgba(245,158,11,0.08)'
+                            : h === 'bad'  ? 'rgba(239,68,68,0.08)'
+                            : 'rgba(59,130,246,0.06)';
 
-        const rows = r.items.map(it => {
+        // Carista-style: 2-column responsive grid of metric cards.
+        const cards = r.items.map(it => {
             const c = colorOf(it.health);
+            const bg = bgOf(it.health);
             const val = (typeof it.value === 'number')
-                ? (Math.round(it.value * 100) / 100) : String(it.value);
+                ? (Math.abs(it.value) >= 1000
+                    ? it.value.toLocaleString('en-US')
+                    : Math.round(it.value * 100) / 100)
+                : String(it.value).slice(0, 24);
             return `
-                <div style="display:flex; justify-content:space-between;
-                            align-items:center; padding:8px 12px;
-                            border-inline-start:3px solid ${c};
-                            background:rgba(15,23,42,0.5);
-                            border-radius:6px; margin-bottom:6px;">
-                    <div>
-                        <div style="font-weight:700; color:#e2e8f0;">${it.label_ar}</div>
-                        <div style="font-size:11px; color:#64748b; font-family:monospace;">
-                            DID ${it.did} · ${it.label}
-                        </div>
+                <div style="background:${bg}; border-radius:14px;
+                            padding:14px 16px; border:1px solid ${c}33;
+                            display:flex; flex-direction:column; gap:6px;
+                            min-height:90px; justify-content:space-between;">
+                    <div style="font-size:12px; color:#94a3b8; font-weight:600;">
+                        ${it.label_ar}
                     </div>
-                    <div style="text-align:end; min-width:90px;">
-                        <div style="font-size:18px; font-weight:700; color:${c};">
-                            ${val}<span style="font-size:12px; color:#94a3b8;"> ${it.unit}</span>
-                        </div>
-                        <div style="font-size:11px; color:${c};">${iconOf(it.health)}</div>
+                    <div style="display:flex; align-items:baseline; gap:6px;">
+                        <span style="font-size:24px; font-weight:800; color:${c};
+                                     letter-spacing:-0.5px;">${val}</span>
+                        <span style="font-size:12px; color:#94a3b8;">${it.unit}</span>
+                    </div>
+                    <div style="font-size:10px; color:#475569;
+                                font-family:monospace; display:flex;
+                                justify-content:space-between;">
+                        <span>${it.ecu || ''}</span>
+                        <span>DID ${it.did}</span>
                     </div>
                 </div>
             `;
         }).join('');
 
         body.innerHTML = `
-            <div style="display:flex; gap:14px; margin-bottom:10px;
-                        font-size:12px; color:#94a3b8;">
-                <span>✓ ${r.supported_count} مدعوم</span>
-                <span>· ${r.unsupported_count} غير مدعوم</span>
+            <div style="display:flex; gap:14px; margin-bottom:12px;
+                        font-size:12px;">
+                <span style="color:#10b981;">✓ ${r.supported_count} قراءة مدعومة</span>
+                <span style="color:#64748b;">· ${r.unsupported_count} غير مدعوم</span>
             </div>
-            ${rows}
+            <div style="display:grid;
+                        grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+                        gap:10px;">
+                ${cards}
+            </div>
         `;
     }
 
@@ -1632,38 +1678,103 @@ body {
         const list = $('readinessList');
         panel.style.display = 'block';
 
-        verdict.innerHTML = r.imReady
-            ? `<span style="color:#10b981;">✅ السيارة جاهزة للفحص (I/M Ready) — ${r.isDiesel ? 'ديزل' : 'بنزين'}</span>`
-            : `<span style="color:#ef4444;">❌ السيارة <u>غير جاهزة</u> لاختبار التلوث — ${r.incomplete.length} منظومة لم تكتمل ذاتية الفحص</span>`;
+        const labels = {
+            misfire: '🔥 الإشعال (Misfire)', fuel_system: '⛽ نظام الوقود',
+            components: '🧩 المكونات الشاملة', catalyst: '🟢 الكتلست',
+            heated_catalyst: '♨️ كتلست مُسخَّن', evap_system: '💨 تهرّب الوقود (EVAP)',
+            secondary_air: '🌬️ الهواء الثانوي', ac_refrigerant: '❄️ فريون التكييف',
+            o2_sensor: '🟡 حسّاس الأكسجين', o2_sensor_heater: '🔥 سخّان حسّاس الأكسجين',
+            egr_system: '♻️ EGR', nmhc_catalyst: 'NMHC Catalyst',
+            nox_aftertreatment: 'NOx Aftertreatment', boost_pressure: '🌀 ضغط التيربو',
+            exhaust_gas_sensor: 'حسّاس العادم', pm_filter: '🧽 مرشّح DPF',
+            egr_vvt: '♻️ EGR / VVT',
+        };
 
-        if (r.mil) {
-            verdict.innerHTML += ` <span style="color:#f59e0b;">⚠ لمبة Check Engine مولّعة (${r.dtcCount} عطل مخزن)</span>`;
+        const supported = Object.entries(r.monitors).filter(([_, m]) => m.supported);
+        const complete  = supported.filter(([_, m]) => m.complete).length;
+        const total     = supported.length;
+        const fuel      = r.isDiesel ? 'ديزل' : 'بنزين';
+
+        // ── Modern verdict header (Carista-style) ────────────────────────
+        const ratio = total > 0 ? complete / total : 1;
+        const bgColor = r.imReady ? 'linear-gradient(135deg,#065f46,#047857)'
+                                  : 'linear-gradient(135deg,#7c2d12,#b91c1c)';
+        const iconBig = r.imReady ? '✅' : '⚠️';
+        const headline = r.imReady
+            ? 'السيارة جاهزة للفحص'
+            : `السيارة غير جاهزة — ${r.incomplete.length} منظومة محتاجة قيادة`;
+        const subline = r.imReady
+            ? `${complete} من ${total} منظومة مكتملة · ${fuel}`
+            : `${complete}/${total} مكتمل · شغّل المحرك واسوق ~15 كم`;
+
+        verdict.innerHTML = `
+            <div style="background:${bgColor}; border-radius:12px;
+                        padding:16px 20px; color:#fff;
+                        display:flex; align-items:center; gap:14px;">
+                <div style="font-size:32px;">${iconBig}</div>
+                <div style="flex:1;">
+                    <div style="font-size:16px; font-weight:700;">${headline}</div>
+                    <div style="font-size:12px; opacity:0.85; margin-top:2px;">${subline}</div>
+                </div>
+                <div style="text-align:end;">
+                    <div style="font-size:24px; font-weight:700;">${complete}/${total}</div>
+                </div>
+            </div>
+            ${r.mil ? `
+                <div style="margin-top:10px; padding:10px 14px;
+                            background:rgba(251,191,36,0.1);
+                            border-inline-start:3px solid #fbbf24;
+                            border-radius:8px; font-size:13px; color:#fcd34d;">
+                    ⚠ لمبة Check Engine مولّعة (${r.dtcCount} عطل مخزن)
+                </div>` : ''}
+        `;
+
+        // ── Monitor list — only SUPPORTED ones, ranked by status ─────────
+        list.innerHTML = '';
+        list.style.cssText = 'list-style:none; padding:0; margin:12px 0 0 0;';
+
+        if (!supported.length) {
+            list.innerHTML = `
+                <li style="padding:14px; text-align:center; color:#94a3b8;
+                           background:rgba(15,23,42,0.4); border-radius:8px;">
+                    الـ ECU بيدعم مراقبة continuous بس — ده طبيعي في سيارات بعض الماركات.
+                </li>`;
+            return;
         }
 
-        const labels = {
-            misfire: 'كشف Misfire (الإشعال)', fuel_system: 'نظام الوقود',
-            components: 'المكونات الشاملة', catalyst: 'الكتلست',
-            heated_catalyst: 'كتلست مُسخَّن', evap_system: 'تهرّب الوقود (EVAP)',
-            secondary_air: 'الهواء الثانوي', ac_refrigerant: 'فريون التكييف',
-            o2_sensor: 'حسّاس الأكسجين', o2_sensor_heater: 'سخّان حسّاس الأكسجين',
-            egr_system: 'EGR', nmhc_catalyst: 'NMHC Catalyst',
-            nox_aftertreatment: 'NOx Aftertreatment', boost_pressure: 'ضغط التيربو',
-            exhaust_gas_sensor: 'حسّاس العادم', pm_filter: 'مرشّح PM (DPF)',
-            egr_vvt: 'EGR / VVT',
-        };
-        list.innerHTML = '';
-        for (const [key, m] of Object.entries(r.monitors)) {
+        // Sort: incomplete first (action items), then complete.
+        const ordered = [...supported].sort(([,a], [,b]) =>
+            (a.complete ? 1 : 0) - (b.complete ? 1 : 0));
+
+        for (const [key, m] of ordered) {
             const li = document.createElement('li');
-            li.style.cssText = 'padding:6px 12px; margin:3px 0; border-radius:6px; ' +
-                'display:flex; justify-content:space-between;';
-            let status, color, bg;
-            if (!m.supported) { status = 'غير مدعوم'; color = '#64748b'; bg = 'rgba(100,116,139,0.08)'; }
-            else if (m.complete) { status = '✓ مكتمل'; color = '#10b981'; bg = 'rgba(16,185,129,0.10)'; }
-            else { status = '✗ لم يكتمل'; color = '#ef4444'; bg = 'rgba(239,68,68,0.10)'; }
-            li.style.background = bg;
-            li.innerHTML = `<span>${labels[key] || key}</span>
-                            <span style="color:${color}; font-weight:700;">${status}</span>`;
+            const c = m.complete ? '#10b981' : '#ef4444';
+            const bg = m.complete ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.10)';
+            const icon = m.complete ? '✓' : '✗';
+            const txt = m.complete ? 'مكتمل' : 'لم يكتمل';
+            li.style.cssText =
+                `padding:10px 14px; margin:6px 0; border-radius:10px;
+                 display:flex; justify-content:space-between; align-items:center;
+                 background:${bg}; border-inline-start:3px solid ${c};`;
+            li.innerHTML = `
+                <span style="font-size:13px; color:#e2e8f0;">${labels[key] || key}</span>
+                <span style="display:flex; align-items:center; gap:8px;
+                             color:${c}; font-weight:700; font-size:13px;">
+                    ${txt}
+                    <span style="font-size:16px;">${icon}</span>
+                </span>`;
             list.appendChild(li);
+        }
+
+        // Show the "unsupported" tally as a quiet footer, not noise rows.
+        const unsupp = Object.entries(r.monitors).length - supported.length;
+        if (unsupp > 0) {
+            const foot = document.createElement('li');
+            foot.style.cssText =
+                'padding:8px 14px; margin-top:8px; text-align:center;' +
+                'color:#64748b; font-size:11px; font-style:italic;';
+            foot.textContent = `+ ${unsupp} منظومة مش متاحة في ECU السيارة دي (ده طبيعي)`;
+            list.appendChild(foot);
         }
     }
 
@@ -1978,9 +2089,20 @@ body {
             (name === 'select') ? 'inline-flex' : 'none';
     }
 
+    // SAE J853: VIN is exactly 17 characters, alphanumeric except I/O/Q.
+    const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/;
+    function isValidVIN(v) { return typeof v === 'string' && VIN_RE.test(v); }
+
     async function openAttachModal() {
-        if (!lastVIN) {
-            showToast('لازم تقرأ الـ VIN من السيارة الأول.', 'error');
+        // Strict: VIN must be 17 valid chars. Bad ELM reads or stale state
+        // can leave lastVIN as a partial/garbage string (e.g. "28453") and
+        // the backend would reject with a confusing "not found" message.
+        if (!isValidVIN(lastVIN)) {
+            const cur = lastVIN ? `الـ VIN الحالي: "${lastVIN}" (${lastVIN.length} حرف).` : '';
+            showToast(
+                `الـ VIN مش صالح. لازم 17 حرف. ${cur} اضغط "اقرأ معلومات الـ ECU" تاني.`,
+                'error', 6000,
+            );
             return;
         }
         attachShowStep('select');
