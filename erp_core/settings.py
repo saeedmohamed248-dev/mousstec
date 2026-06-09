@@ -662,6 +662,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/5'),  # كل 5 دقائق
         'kwargs': {'retention_seconds': 900},  # 3× the default 300s replay window
     },
+    # ── Parts Marketplace: release escrow after warranty expires ────
+    'release_expired_parts_escrow': {
+        'task': 'clients.tasks.release_expired_parts_escrow',
+        'schedule': crontab(minute=30),  # كل ساعة على دقيقة 30
+    },
     # ── Predictive Maintenance: daily nudge recompute per tenant ────
     'refresh_service_nudges': {
         'task': 'inventory.tasks.refresh_service_nudges',

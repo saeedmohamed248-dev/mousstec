@@ -538,40 +538,50 @@ class OBDWiFi extends EventTarget {
     // ISTA shows these on the Vehicle Information screen.
     async readVehicleInfo() {
         const out = {};
-        // VIN we already do separately; also fetch the other Mode 09 PIDs.
         const calls = [
-            { pid: '04', label: 'cal_id',   ascii: true,  expect: '49' },
-            { pid: '06', label: 'cvn',      ascii: false, expect: '49' },
-            { pid: '0A', label: 'ecu_name', ascii: true,  expect: '49' },
-            { pid: '08', label: 'ipt',      ascii: false, expect: '49' },
+            { pid: '04', label: 'cal_id',   ascii: true  },
+            { pid: '06', label: 'cvn',      ascii: false },
+            { pid: '0A', label: 'ecu_name', ascii: true  },
+            { pid: '08', label: 'ipt',      ascii: false },
         ];
         for (const c of calls) {
             try {
                 const raw = await this._sendCommand(`09${c.pid}`, 5000);
                 if (!raw || /NO\s*DATA|\?/i.test(raw)) continue;
-                const stripped = raw
-                    .replace(/\d+\s*:/g, '')
-                    .replace(/\s+/g, '')
-                    .toUpperCase();
-                const idx = stripped.indexOf(c.expect + c.pid.toUpperCase());
-                if (idx < 0) continue;
-                // The next byte is usually a "message count" — skip it.
-                const body = stripped.slice(idx + 4 + 2);
+                const data = this._extractMode09Payload(raw, c.pid.toUpperCase());
+                if (!data) continue;
                 if (c.ascii) {
                     let s = '';
-                    for (let i = 0; i + 2 <= body.length; i += 2) {
-                        const b = parseInt(body.slice(i, i + 2), 16);
+                    for (let i = 0; i + 2 <= data.length; i += 2) {
+                        const b = parseInt(data.slice(i, i + 2), 16);
                         if (b >= 0x20 && b <= 0x7E) s += String.fromCharCode(b);
                     }
                     out[c.label] = s.trim() || null;
                 } else {
-                    // Hex representation for CVN/IPT counters
-                    out[c.label] = body.match(/.{1,2}/g)?.join(' ').trim() || null;
+                    out[c.label] = data.match(/.{1,2}/g)?.join(' ').trim() || null;
                 }
             } catch (_) { /* per-PID failure non-fatal */ }
         }
         this._emit('vehicle_info', out);
         return out;
+    }
+
+    // Multi-frame Mode 09 responses on KWP2000/CAN repeat the "49 <PID> NN"
+    // header at the start of EVERY frame. The ELM327 concatenates them and
+    // strips the ISO-TP/KWP framing, but the application-layer headers
+    // remain in the byte stream. We strip them ALL, not just the first one,
+    // otherwise 0x49 bytes leak into ASCII output as 'I' characters
+    // (the bug the user spotted on the BMW E60 VIN/CalID).
+    _extractMode09Payload(raw, pidHex) {
+        const stripped = raw
+            .replace(/\d+\s*:/g, '')        // strip "0:" line numbers
+            .replace(/\s+/g, '')             // strip whitespace
+            .toUpperCase();
+        const header = '49' + pidHex;       // e.g. "4902" for VIN, "4906" for CVN
+        if (stripped.indexOf(header) < 0) return null;
+        // Strip every "49 PID NN" header (4 hex of "49PID" + 2 hex of message-count nibble).
+        const headerRegex = new RegExp(header + '[0-9A-F]{2}', 'g');
+        return stripped.replace(headerRegex, '');
     }
 
     async readVIN() {
@@ -767,13 +777,15 @@ class OBDWiFi extends EventTarget {
 
     _parseVINResponse(raw) {
         if (!raw || raw.includes('NO DATA') || raw.includes('?')) return null;
+        // Strip line numbering ("0:", "1:") + whitespace + ALL Mode 09 PID 02
+        // frame headers ("4902XX"). Without stripping every header, the 0x49
+        // bytes from subsequent frames pollute the VIN as 'I' characters.
         const stripped = raw
             .replace(/\d+\s*:/g, '')
             .replace(/\s+/g, '')
             .toUpperCase();
-        const idx = stripped.indexOf('490201');
-        if (idx < 0) return null;
-        const body = stripped.slice(idx + 6);
+        if (stripped.indexOf('4902') < 0) return null;
+        const body = stripped.replace(/4902[0-9A-F]{2}/g, '');
         let vin = '';
         for (let i = 0; i + 2 <= body.length && vin.length < 17; i += 2) {
             const b = parseInt(body.slice(i, i + 2), 16);

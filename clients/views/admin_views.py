@@ -38,6 +38,8 @@ from clients.models import (
     Domain,
     EscrowLedger,
     MarketplaceCustomer,
+    PartListing,
+    PartOrder,
     PlatformEvent,
     ServiceRequest,
     TenderOffer,
@@ -495,6 +497,21 @@ def super_admin_dashboard(request):
     _epoch = datetime(1970, 1, 1, tzinfo=_tz.utc)
     tenant_activity.sort(key=lambda x: x['last_visit_at'] or _epoch, reverse=True)
 
+    # --- 🚗 P2P Parts Marketplace — refund requests + recent orders ---
+    from clients.models import PartOrder
+    pending_refund_orders = list(
+        PartOrder.objects.filter(status='refund_requested')
+        .select_related('listing', 'listing__car_make', 'buyer_customer',
+                        'listing__seller_customer', 'listing__seller_tenant')
+        .order_by('-created_at')[:30]
+    )
+    parts_orders_summary = {
+        'total':           PartOrder.objects.count(),
+        'in_escrow':       PartOrder.objects.filter(status__in=['paid_held', 'shipped', 'delivered']).count(),
+        'refund_pending':  PartOrder.objects.filter(status='refund_requested').count(),
+        'released_total':  PartOrder.objects.filter(status='released').count(),
+    }
+
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
@@ -523,6 +540,8 @@ def super_admin_dashboard(request):
         'marketplace_customers': marketplace_customers,
         'customers_summary': customers_summary,
         'tenant_activity': tenant_activity,
+        'pending_refund_orders': pending_refund_orders,
+        'parts_orders_summary': parts_orders_summary,
     })
 
 
@@ -924,4 +943,111 @@ def customer_notification_read(request, notification_id):
         return JsonResponse({'error': 'not_found'}, status=404)
     n.mark_read()
     return JsonResponse({'ok': True})
+
+
+# =====================================================================
+# 🚗 Admin: Parts marketplace dispute / refund resolution
+# =====================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_parts_refund_approve(request, order_code):
+    """
+    ✅ Approve a buyer's refund request — refunds the buyer (escrow → buyer).
+    POST: admin_note (optional).
+    """
+    guard = _require_superadmin(request)
+    if guard:
+        return guard
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    order = get_object_or_404(PartOrder, order_code=order_code)
+    if order.status != 'refund_requested':
+        return JsonResponse({'error': f'الحالة الحالية لا تسمح ({order.get_status_display()}).'}, status=400)
+
+    note = (request.POST.get('admin_note') or '').strip()
+
+    with transaction.atomic():
+        order.status = 'refunded'
+        order.refunded_at = timezone.now()
+        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND APPROVED] {note}'
+        order.save(update_fields=['status', 'refunded_at', 'admin_notes'])
+
+        # Notify buyer
+        if order.buyer_customer_id:
+            CustomerNotification.objects.create(
+                customer=order.buyer_customer,
+                title='✅ تم قبول طلب الإرجاع',
+                body=f'هنرجع لك مبلغ {order.amount_paid} ج.م خلال 3-5 أيام عمل. الشحن على المنصة.',
+                level='success', icon='fa-rotate-left',
+            )
+        # Notify seller
+        if order.listing.seller_customer_id:
+            CustomerNotification.objects.create(
+                customer=order.listing.seller_customer,
+                title='⚠️ تم قبول طلب الإرجاع',
+                body=f'الإدارة وافقت على إرجاع «{order.listing.title}». التواصل مع المشتري لاسترداد القطعة. الشحن علينا.',
+                level='warning', icon='fa-rotate-left',
+            )
+
+        PlatformEvent.objects.create(
+            event_type='other', tenant_schema='public', tenant_name='parts_market',
+            user_name=request.user.username,
+            description=f"✅ موافقة إرجاع طلب {order.order_code} — {order.amount_paid} ج.م إلى المشتري",
+        )
+
+    return JsonResponse({'ok': True, 'message': 'تم قبول الإرجاع وإشعار الطرفين.'})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_parts_refund_reject(request, order_code):
+    """
+    ❌ Reject the refund request → releases funds to seller (admin decided
+    the part is as described). POST: admin_note (required, ≥ 10 chars).
+    """
+    guard = _require_superadmin(request)
+    if guard:
+        return guard
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    order = get_object_or_404(PartOrder, order_code=order_code)
+    if order.status != 'refund_requested':
+        return JsonResponse({'error': f'الحالة الحالية لا تسمح ({order.get_status_display()}).'}, status=400)
+
+    note = (request.POST.get('admin_note') or '').strip()
+    if len(note) < 10:
+        return JsonResponse({'error': 'لازم تكتب سبب الرفض بالتفصيل (10 حروف على الأقل).'}, status=400)
+
+    with transaction.atomic():
+        order.status = 'released'
+        order.released_at = timezone.now()
+        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND REJECTED] {note}'
+        order.save(update_fields=['status', 'released_at', 'admin_notes'])
+
+        # Notify both parties
+        if order.buyer_customer_id:
+            CustomerNotification.objects.create(
+                customer=order.buyer_customer,
+                title='❌ تم رفض طلب الإرجاع',
+                body=f'الإدارة قررت أن «{order.listing.title}» مطابق للوصف. السبب: {note[:150]}',
+                level='danger', icon='fa-circle-xmark',
+            )
+        if order.listing.seller_customer_id:
+            CustomerNotification.objects.create(
+                customer=order.listing.seller_customer,
+                title='💰 تم تحرير أموالك',
+                body=f'الإدارة رفضت طلب الإرجاع. المبلغ {order.seller_payout} ج.م في طريقه لحسابك.',
+                level='success', icon='fa-money-bill-wave',
+            )
+
+        PlatformEvent.objects.create(
+            event_type='other', tenant_schema='public', tenant_name='parts_market',
+            user_name=request.user.username,
+            description=f"❌ رفض إرجاع طلب {order.order_code} — تحرير {order.seller_payout} ج.م للبائع",
+        )
+
+    return JsonResponse({'ok': True, 'message': 'تم رفض الإرجاع وتحرير أموال البائع.'})
 

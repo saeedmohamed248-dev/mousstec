@@ -729,9 +729,10 @@ class OBDBluetooth extends EventTarget {
             .replace(/\d+\s*:/g, '')
             .replace(/\s+/g, '')
             .toUpperCase();
-        const idx = stripped.indexOf('490201');
-        if (idx < 0) return null;
-        const body = stripped.slice(idx + 6);
+        if (stripped.indexOf('4902') < 0) return null;
+        // Strip ALL frame headers — multi-frame KWP responses repeat
+        // "4902XX" between data segments, leaking 0x49 ('I') into the VIN.
+        const body = stripped.replace(/4902[0-9A-F]{2}/g, '');
         let vin = '';
         for (let i = 0; i + 2 <= body.length && vin.length < 17; i += 2) {
             const b = parseInt(body.slice(i, i + 2), 16);

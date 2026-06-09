@@ -391,6 +391,10 @@ urlpatterns = [
     path('marketplace/parts/order/<uuid:order_code>/delivered/', client_views.parts_confirm_delivery, name='parts_confirm_delivery'),
     path('marketplace/parts/order/<uuid:order_code>/refund/',    client_views.parts_request_refund,    name='parts_request_refund'),
 
+    # 🚗 Admin dispute resolution
+    path('superadmin/parts/order/<uuid:order_code>/refund/approve/', client_views.super_admin_parts_refund_approve, name='super_admin_parts_refund_approve'),
+    path('superadmin/parts/order/<uuid:order_code>/refund/reject/',  client_views.super_admin_parts_refund_reject,  name='super_admin_parts_refund_reject'),
+
     # 🎛️ Phase 5: SaaS Control Center — Plan/Entitlement management + Revenue
     path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),
     path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),

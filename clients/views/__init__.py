@@ -138,6 +138,8 @@ from .admin_views import (  # noqa: F401
     impersonate_login,
     customer_notifications_list,
     customer_notification_read,
+    super_admin_parts_refund_approve,
+    super_admin_parts_refund_reject,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

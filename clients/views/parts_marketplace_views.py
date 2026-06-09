@@ -11,6 +11,9 @@ Return shipping: always paid by the platform out of commission.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import os
 import uuid
@@ -334,21 +337,123 @@ def parts_checkout(request, listing_code):
     return JsonResponse({'ok': True, 'iframe_url': iframe_url, 'order_code': str(order.order_code)})
 
 
+def _verify_paymob_hmac(request, body_data: dict) -> tuple[bool, str]:
+    """
+    🛡️ Verify Paymob HMAC-SHA512 signature.
+
+    Returns (is_valid, reason). When PAYMOB_HMAC_SECRET is unset, logs a
+    warning and accepts the callback (dev-mode). In production the env var
+    MUST be set or all callbacks are rejected — see PAYMOB_REQUIRE_HMAC.
+    """
+    secret = os.getenv('PAYMOB_HMAC_SECRET', '')
+    received = request.GET.get('hmac', '') or body_data.get('hmac', '')
+    require_hmac = os.getenv('PAYMOB_REQUIRE_HMAC', '').lower() in ('1', 'true', 'yes')
+
+    if not secret:
+        if require_hmac:
+            logger.critical("🚨 [PAYMOB-PARTS] PAYMOB_HMAC_SECRET not set but PAYMOB_REQUIRE_HMAC=1 — rejecting")
+            return False, 'hmac_secret_missing'
+        logger.warning("⚠️ [PAYMOB-PARTS] PAYMOB_HMAC_SECRET unset — HMAC skipped (dev mode)")
+        return True, 'skipped'
+
+    if not received:
+        logger.critical("🚨 [PAYMOB-PARTS] No hmac in callback — rejecting")
+        return False, 'no_hmac_param'
+
+    # The 20 fields in alphabetical order per Paymob's spec
+    obj = body_data.get('obj', {}) if isinstance(body_data.get('obj'), dict) else {}
+    if obj:
+        source_data = obj.get('source_data', {}) if isinstance(obj.get('source_data'), dict) else {}
+        order_obj = obj.get('order', {}) if isinstance(obj.get('order'), dict) else {}
+        fields = [
+            str(obj.get('amount_cents', '')),
+            str(obj.get('created_at', '')),
+            str(obj.get('currency', '')),
+            str(obj.get('error_occured', '')),
+            str(obj.get('has_parent_transaction', '')),
+            str(obj.get('id', '')),
+            str(obj.get('integration_id', '')),
+            str(obj.get('is_3d_secure', '')),
+            str(obj.get('is_auth', '')),
+            str(obj.get('is_capture', '')),
+            str(obj.get('is_refunded', '')),
+            str(obj.get('is_standalone_payment', '')),
+            str(obj.get('is_voided', '')),
+            str(order_obj.get('id', '')),
+            str(obj.get('owner', '')),
+            str(obj.get('pending', '')),
+            str(source_data.get('pan', '')),
+            str(source_data.get('sub_type', '')),
+            str(source_data.get('type', '')),
+            str(obj.get('success', '')),
+        ]
+    else:
+        d = body_data
+        fields = [
+            str(d.get('amount_cents', '')),
+            str(d.get('created_at', '')),
+            str(d.get('currency', '')),
+            str(d.get('error_occured', '')),
+            str(d.get('has_parent_transaction', '')),
+            str(d.get('id', '')),
+            str(d.get('integration_id', '')),
+            str(d.get('is_3d_secure', '')),
+            str(d.get('is_auth', '')),
+            str(d.get('is_capture', '')),
+            str(d.get('is_refunded', '')),
+            str(d.get('is_standalone_payment', '')),
+            str(d.get('is_voided', '')),
+            str(d.get('order', '')),
+            str(d.get('owner', '')),
+            str(d.get('pending', '')),
+            str(d.get('source_data.pan', d.get('source_data_pan', ''))),
+            str(d.get('source_data.sub_type', d.get('source_data_sub_type', ''))),
+            str(d.get('source_data.type', d.get('source_data_type', ''))),
+            str(d.get('success', '')),
+        ]
+    computed = hmac.new(
+        secret.encode('utf-8'),
+        ''.join(fields).encode('utf-8'),
+        hashlib.sha512,
+    ).hexdigest()
+    if hmac.compare_digest(computed, received):
+        return True, 'ok'
+    logger.critical(
+        "🚨 [PAYMOB-PARTS] HMAC MISMATCH — IP=%s, possible forgery",
+        request.META.get('REMOTE_ADDR', '?'),
+    )
+    return False, 'mismatch'
+
+
 @csrf_exempt
 def parts_paymob_callback(request):
     """
     Paymob server-to-server callback. On a successful txn → flip the order
-    to paid_held (escrow). HMAC verification is required in production.
+    to paid_held (escrow). Verifies HMAC-SHA512 signature.
     """
     if request.method not in ('GET', 'POST'):
         return JsonResponse({'error': 'method not allowed'}, status=405)
 
-    # Paymob sends transaction details — extract order id + success flag
-    data = request.POST if request.method == 'POST' else request.GET
+    # Build a unified data dict from POST body (JSON or form) or GET query
+    if request.method == 'POST':
+        if request.body:
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = request.POST.dict()
+        else:
+            data = request.POST.dict()
+    else:
+        data = request.GET.dict()
+
+    # 🛡️ HMAC verification — rejected callbacks return 403 without side effects
+    ok, reason = _verify_paymob_hmac(request, data)
+    if not ok:
+        return JsonResponse({'ok': False, 'error': 'hmac_failed', 'reason': reason}, status=403)
+
     obj = data.get('obj') or {}
     if isinstance(obj, str):
         try:
-            import json
             obj = json.loads(obj)
         except Exception:
             obj = {}

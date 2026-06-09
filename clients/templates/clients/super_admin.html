@@ -93,6 +93,9 @@
         <button data-tab="customers" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
             <i class="fas fa-users ml-1"></i>عملاء السوق ({{ customers_summary.total|default:0 }})
         </button>
+        <button data-tab="parts-disputes" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_refund_orders %}border-orange-500/40 text-orange-400{% endif %}">
+            🚗 إرجاع قطع الغيار{% if pending_refund_orders %} <span class="bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded-full mr-1">{{ pending_refund_orders|length }}</span>{% endif %}
+        </button>
         <button data-tab="tenant-activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
             <i class="fas fa-chart-line ml-1"></i>نشاط الشركات
         </button>
@@ -1104,6 +1107,92 @@
     <!-- ═══════════════════════════════════════════════════ -->
     <!--     TAB: نشاط الشركات (Tenants Activity)             -->
     <!-- ═══════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!--     TAB: 🚗 طلبات إرجاع قطع الغيار (Refund Disputes)  -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div class="tab-content hidden" data-tab-content="parts-disputes">
+        <!-- KPI Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-white">{{ parts_orders_summary.total|default:0 }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي الطلبات</p>
+            </div>
+            <div class="bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-blue-400">{{ parts_orders_summary.in_escrow|default:0 }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">🔒 في الـ Escrow</p>
+            </div>
+            <div class="bg-slate-900/60 border border-orange-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-orange-400">{{ parts_orders_summary.refund_pending|default:0 }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">⚠️ طلبات إرجاع</p>
+            </div>
+            <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
+                <p class="text-2xl font-black text-emerald-400">{{ parts_orders_summary.released_total|default:0 }}</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">✅ تم تحريرها</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/60 border border-orange-500/20 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
+                <i class="fas fa-triangle-exclamation text-orange-400"></i>
+                <span class="font-bold text-sm text-white">طلبات إرجاع تنتظر قرار الإدارة</span>
+            </div>
+            {% if pending_refund_orders %}
+            <div class="divide-y divide-slate-800/60">
+                {% for o in pending_refund_orders %}
+                <div class="p-5" id="refund-{{ o.order_code }}">
+                    <div class="grid grid-cols-1 lg:grid-cols-[80px_1fr_auto] gap-4 items-start">
+                        <div class="w-20 h-20 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0">
+                            {% if o.listing.primary_photo_url %}
+                            <img src="{{ o.listing.primary_photo_url }}" class="w-full h-full object-cover" alt="">
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-slate-500"><i class="fas fa-cog"></i></div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h4 class="font-black text-white text-sm mb-1">{{ o.listing.title }}</h4>
+                            <div class="text-xs text-slate-400 mb-2">
+                                <span class="bg-orange-500/15 text-orange-300 px-2 py-0.5 rounded font-bold">⚠️ {{ o.get_status_display }}</span>
+                                · {{ o.listing.car_make.name }}
+                                · {{ o.amount_paid|floatformat:0 }} ج.م
+                                · ضمان {{ o.warranty_days }} يوم
+                            </div>
+                            <div class="text-xs text-slate-300 mb-1">
+                                <strong class="text-blue-300">المشتري:</strong> {{ o.buyer_customer.full_name|default:o.buyer_tenant.name }} ({{ o.buyer_customer.phone|default:'—' }})
+                            </div>
+                            <div class="text-xs text-slate-300 mb-2">
+                                <strong class="text-emerald-300">البائع:</strong> {{ o.listing.seller_label }}
+                                {% if o.listing.seller_is_company %}<span class="bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded text-[10px]">شركة (عمولة 4%)</span>{% else %}<span class="bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded text-[10px]">فرد (عمولة 8%)</span>{% endif %}
+                            </div>
+                            <div class="bg-orange-500/5 border border-orange-500/20 rounded-lg p-3 mt-3">
+                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:</div>
+                                <div class="text-xs text-slate-200 whitespace-pre-wrap">{{ o.refund_reason }}</div>
+                            </div>
+                            <div class="mt-2 flex gap-3 text-[10px] text-slate-500">
+                                <span>طُلب الإرجاع: {{ o.created_at|timesince }} مضت</span>
+                                <a href="/marketplace/parts/{{ o.listing.listing_code }}/" target="_blank" class="text-blue-400 hover:text-blue-300"><i class="fas fa-external-link-alt"></i> عرض القطعة</a>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2 min-w-[140px]">
+                            <button onclick="approveRefund('{{ o.order_code }}')" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                                <i class="fas fa-check"></i> قبول الإرجاع
+                            </button>
+                            <button onclick="rejectRefund('{{ o.order_code }}')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                                <i class="fas fa-times"></i> رفض وتحرير للبائع
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-10 text-center text-slate-500">
+                <i class="fas fa-check-circle text-3xl text-emerald-500/30 mb-3"></i>
+                <p>لا توجد طلبات إرجاع قيد الانتظار 👌</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="tab-content hidden" data-tab-content="tenant-activity">
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
@@ -2031,6 +2120,40 @@ function openCustomerDelete(id, name, phone) {
     _openModal('customer-delete-modal');
 }
 function closeCustomerDelete() { _closeModal('customer-delete-modal'); }
+
+// ── Parts marketplace refund-dispute handlers ──────────────────────────
+async function approveRefund(orderCode) {
+    const note = prompt('ملاحظة الإدارة (اختياري):') || '';
+    if (!confirm('سيتم استرداد المبلغ كاملاً للمشتري والشحن على المنصة. متابعة؟')) return;
+    const fd = new FormData(); fd.append('admin_note', note);
+    const r = await fetch(`/superadmin/parts/order/${orderCode}/refund/approve/`, {
+        method: 'POST', body: fd,
+        headers: { 'X-CSRFToken': _getCsrf() },
+        credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل العملية'); return; }
+    alert(d.message || 'تم.');
+    const card = document.getElementById('refund-' + orderCode);
+    if (card) card.remove();
+}
+
+async function rejectRefund(orderCode) {
+    const note = prompt('اكتب سبب رفض الإرجاع (10 حروف على الأقل):');
+    if (!note || note.trim().length < 10) { alert('السبب قصير جداً.'); return; }
+    if (!confirm('سيتم تحرير المبلغ للبائع. متابعة؟')) return;
+    const fd = new FormData(); fd.append('admin_note', note);
+    const r = await fetch(`/superadmin/parts/order/${orderCode}/refund/reject/`, {
+        method: 'POST', body: fd,
+        headers: { 'X-CSRFToken': _getCsrf() },
+        credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل العملية'); return; }
+    alert(d.message || 'تم.');
+    const card = document.getElementById('refund-' + orderCode);
+    if (card) card.remove();
+}
 
 async function submitCustomerDelete(e) {
     e.preventDefault();

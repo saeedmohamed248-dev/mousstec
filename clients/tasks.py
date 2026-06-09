@@ -568,3 +568,25 @@ def purge_obd_device_nonces(retention_seconds: int = 900):
         logger.info(f"🧹 [OBD NONCE PURGE] deleted={deleted} "
                     f"retention={retention_seconds}s")
     return {'deleted': deleted, 'retention_seconds': retention_seconds}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🚗 P2P Parts Marketplace — auto-release escrow after warranty expires
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(name='clients.tasks.release_expired_parts_escrow')
+def release_expired_parts_escrow():
+    """Release escrow for delivered part orders whose warranty has expired.
+
+    Iterates ``PartOrder`` rows with ``status='delivered'`` and
+    ``warranty_ends_at`` in the past, moves them to ``released`` and notifies
+    the seller. Runs hourly via Celery Beat — see CELERY_BEAT_SCHEDULE.
+    """
+    try:
+        from clients.views.parts_marketplace_views import auto_release_expired_warranties
+        n = auto_release_expired_warranties()
+    except Exception as exc:
+        logger.error(f"🔴 [PARTS ESCROW RELEASE] failed: {exc}", exc_info=True)
+        return {'error': str(exc), 'released': 0}
+    if n:
+        logger.info(f"💰 [PARTS ESCROW RELEASE] released={n} orders")
+    return {'released': n}
