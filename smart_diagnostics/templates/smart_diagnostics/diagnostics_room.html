@@ -412,6 +412,11 @@ body {
                         title="قراءات خاصة بالشركة المصنّعة (Mode 22): حرارة الزيت، مستوى الزيت، DPF، AdBlue، حرارة الجير — اللي بتقراه برامج Carista/OBD11/VCDS">
                     <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
                 </button>
+                <button id="btnEmissionsHealth" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#16a34a,#15803d);"
+                        title="فحص AFR Wideband + صمام EGR + نظام EVAP — أسباب الأعطال P0171/P0172/P0401/P0455 الشائعة">
+                    <i class="fa-solid fa-smog"></i> فحص الانبعاثات (AFR/EGR/EVAP)
+                </button>
                 <button id="btnAttachInvoice" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#8b5cf6,#6366f1);"
                         title="أرسل الـ DTCs + Sensor Sweep كبنود مقترحة في فاتورة العميل. المحاسب هو اللي يقرر تتحاسب فعلاً ولا لأ">
@@ -512,6 +517,14 @@ body {
                              color:#67e8f9; font-weight:600;"></span>
             </div>
             <div id="manufacturerDIDsBody" style="font-size:13px; line-height:1.8;"></div>
+        </div>
+
+        <!-- Emissions Health (AFR + EGR + EVAP) -->
+        <div id="emissionsPanel" style="display:none; margin-top:18px;">
+            <div class="card-title">
+                <i class="fa-solid fa-smog"></i> فحص نظام الانبعاثات
+            </div>
+            <div id="emissionsBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Mode 09 ECU info -->
@@ -712,7 +725,7 @@ body {
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
 <script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=14-mode22-dids"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=15-emissions"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
@@ -748,6 +761,7 @@ body {
     const btnSensorSweep  = $('btnSensorSweep');
     const btnAttachInvoice = $('btnAttachInvoice');
     const btnManufacturerDIDs = $('btnManufacturerDIDs');
+    const btnEmissionsHealth  = $('btnEmissionsHealth');
     const btnReadDTC = $('btnReadDTC');
     const btnClearDTC = $('btnClearDTC');
     const btnDisconnect = $('btnDisconnect');
@@ -799,6 +813,7 @@ body {
         if (btnSensorSweep)  btnSensorSweep.disabled  = !connected;
         if (btnAttachInvoice) btnAttachInvoice.disabled = !connected;
         if (btnManufacturerDIDs) btnManufacturerDIDs.disabled = !connected;
+        if (btnEmissionsHealth)  btnEmissionsHealth.disabled  = !connected;
     }
     function renderGauges(snapshot) {
         document.querySelectorAll('.gauge').forEach(g => {
@@ -1419,6 +1434,105 @@ body {
         } catch (_) { return 0; }
     }
 
+    // ── Emissions Health (AFR + EGR + EVAP) ────────────────────────────
+    if (btnEmissionsHealth) btnEmissionsHealth.addEventListener('click', async () => {
+        if (typeof obd.measureEmissionsHealth !== 'function') {
+            log('Emissions health requires Wi-Fi driver.', true); return;
+        }
+        try {
+            btnEmissionsHealth.disabled = true;
+            $('emissionsPanel').style.display = 'block';
+            $('emissionsBody').innerHTML =
+                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                'جاري فحص نظام الانبعاثات (~6 ثوان): AFR → EGR → EVAP</div>';
+            log('Emissions sweep: AFR (wideband λ) + EGR + EVAP…');
+            const r = await obd.measureEmissionsHealth();
+            window.__emissionsHealthLast = r;
+            renderEmissionsHealth(r);
+            log(`Emissions: AFR=${r.afr.supported ? '✓' : '✗'} · ` +
+                `EGR=${r.egr.supported ? '✓' : '✗'} · ` +
+                `EVAP=${r.evap.supported ? '✓' : '✗'}`);
+        } catch (e) {
+            log(`Emissions sweep failed: ${e.message}`, true);
+            $('emissionsBody').innerHTML =
+                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+        } finally {
+            btnEmissionsHealth.disabled = !obd.isConnected;
+        }
+    });
+
+    function renderEmissionsHealth(r) {
+        const body = $('emissionsBody');
+        const card = (title, sub) => `
+            <div style="background:rgba(15,23,42,0.5); border-radius:8px;
+                        padding:12px 14px; margin-bottom:10px;
+                        border-inline-start:3px solid ${sub.color || '#64748b'};">
+                <div style="display:flex; justify-content:space-between;
+                            align-items:flex-start; gap:14px;">
+                    <div>
+                        <div style="font-weight:700; color:#e2e8f0; margin-bottom:4px;">
+                            ${title}
+                        </div>
+                        <div style="font-size:12px; color:#cbd5e1; line-height:1.6;">
+                            ${sub.verdict || sub.reason || '—'}
+                        </div>
+                        ${sub.details || ''}
+                    </div>
+                    <div style="font-size:18px; color:${sub.color || '#64748b'};
+                                font-weight:700; white-space:nowrap;">
+                        ${sub.headline || ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const afrSub = r.afr.supported
+            ? {
+                color: r.afr.color, verdict: r.afr.verdict,
+                headline: r.afr.wideband
+                    ? `λ ${r.afr.mean_lambda} · AFR ${r.afr.mean_afr}`
+                    : (r.afr.mean_voltage ? `${r.afr.mean_voltage} V` : ''),
+                details: r.afr.banks ? `
+                    <div style="margin-top:8px; font-size:11px; color:#64748b;
+                                font-family:monospace;">
+                        ${Object.entries(r.afr.banks).map(([k,v]) =>
+                            `${k}: λ=${v.lambda} (${v.samples} عينة)`).join(' · ')}
+                    </div>` : '',
+            } : { color: '#64748b', verdict: r.afr.reason || 'غير مدعوم' };
+
+        const egrSub = r.egr.supported
+            ? {
+                color: r.egr.color, verdict: r.egr.verdict,
+                headline: r.egr.error_avg_pct !== null
+                    ? `خطأ ${r.egr.error_avg_pct}%` : '',
+                details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
+                                      font-family:monospace;">
+                    مطلوب: ${r.egr.commanded_avg_pct ?? '—'}% ·
+                    خطأ: ${r.egr.error_avg_pct ?? '—'}%
+                </div>`,
+            } : { color: '#64748b', verdict: r.egr.reason || 'غير مدعوم' };
+
+        const evapSub = r.evap.supported
+            ? {
+                color: r.evap.color, verdict: r.evap.verdict,
+                headline: r.evap.vapor_press_pa !== null
+                    ? `${r.evap.vapor_press_pa} Pa`
+                    : (r.evap.purge_cmd_pct !== null
+                        ? `Purge ${r.evap.purge_cmd_pct}%` : ''),
+                details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
+                                      font-family:monospace;">
+                    Purge: ${r.evap.purge_cmd_pct ?? '—'}% ·
+                    أبخرة: ${r.evap.vapor_press_pa ?? '—'} Pa ·
+                    Abs: ${r.evap.abs_vapor_kpa ?? '—'} kPa
+                </div>`,
+            } : { color: '#64748b', verdict: r.evap.reason || 'غير مدعوم' };
+
+        body.innerHTML =
+            card('🌬️ AFR — نسبة خليط الوقود (Wideband O2)', afrSub) +
+            card('♻️ EGR — صمام إعادة دوران العادم', egrSub) +
+            card('💨 EVAP — نظام أبخرة الوقود', evapSub);
+    }
+
     if (btnSaveSnapshot) btnSaveSnapshot.addEventListener('click', () => {
         const snap = {
             at:      new Date().toISOString(),
@@ -1926,6 +2040,7 @@ body {
                 health_score: (typeof window.__healthScoreLast === 'number')
                     ? window.__healthScoreLast : null,
                 manufacturer_dids: window.__manufacturerDIDsLast || null,
+                emissions_health: window.__emissionsHealthLast || null,
                 ai_summary: lastAIAnswer || '',
             };
             const result = await DiagOfflineQueue.send(ATTACH_URL, payload, {

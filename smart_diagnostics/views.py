@@ -494,6 +494,7 @@ def diagnostics_room_attach_to_invoice(request):
             readiness=payload.get("readiness") or None,
             health_score=payload.get("health_score"),
             manufacturer_dids=payload.get("manufacturer_dids") or None,
+            emissions_health=payload.get("emissions_health") or None,
             ai_summary=payload.get("ai_summary") or "",
             job_card_id=payload.get("job_card_id"),
             created_by_user=request.user,

@@ -57,6 +57,45 @@ const OBD_WIFI_PIDS = {
     '46': { label: 'ambient_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
     '5C': { label: 'oil_temp_c',          unit: '°C',   parse: b => b[0] - 40 },
     '5E': { label: 'fuel_rate_lh',        unit: 'L/h',  parse: b => ((b[0] << 8) + b[1]) * 0.05 },
+
+    // ── Wideband O2 sensors (Equivalence Ratio + Voltage) — PIDs 24-2B ──
+    // ER = lambda. Stoich = 1.0. Lean > 1.0, rich < 1.0.
+    // AFR_gasoline = ER * 14.7. Formula per SAE J1979.
+    '24': { label: 'o2s1_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '25': { label: 'o2s2_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '26': { label: 'o2s3_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '27': { label: 'o2s4_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+
+    // EGR system
+    '2C': { label: 'egr_commanded_pct', unit: '%',
+        parse: b => b.length >= 1 ? b[0] * 100 / 255 : null },
+    '2D': { label: 'egr_error_pct',     unit: '%',
+        parse: b => b.length >= 1 ? (b[0] - 128) * 100 / 128 : null },
+
+    // EVAP system
+    '2E': { label: 'evap_purge_cmd_pct', unit: '%',
+        parse: b => b.length >= 1 ? b[0] * 100 / 255 : null },
+    '32': { label: 'evap_vapor_press_pa', unit: 'Pa',
+        // Signed 16-bit, 0.25 Pa/bit. ECU may return positive or negative.
+        parse: b => {
+            if (b.length < 2) return null;
+            const raw = (b[0] << 8) + b[1];
+            const signed = raw >= 0x8000 ? raw - 0x10000 : raw;
+            return signed * 0.25;
+        }},
+    '53': { label: 'evap_abs_vapor_kpa', unit: 'kPa',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.005 : null },
+    '54': { label: 'evap_vapor_press_kpa', unit: 'kPa',
+        parse: b => {
+            if (b.length < 2) return null;
+            const raw = (b[0] << 8) + b[1];
+            const signed = raw >= 0x8000 ? raw - 0x10000 : raw;
+            return signed * 1.0;
+        }},
 };
 // Fast loop — only the 6 PIDs the gauges actually render. Polling more
 // PIDs on a slow K-Line bus (Nissan/Hyundai 2011) takes 4+ seconds per
@@ -867,6 +906,205 @@ class OBDWiFi extends EventTarget {
 
         const result = { idle, tps, battery, samples: { rpm: rpms.length, batt: batt.length } };
         this._emit('sensor_sweep', result);
+        return result;
+    }
+
+    // ── Emissions Health: AFR (wideband O2) + EGR + EVAP ────────────────
+    // Three of the most expensive diagnoses in any workshop:
+    //   • AFR drift     → wrong fuel mixture (rich/lean) → cat damage + DTC P017X
+    //   • EGR stuck     → P0401/P0402/P0404 → emissions fail + reduced power
+    //   • EVAP leak     → P0442/P0455/P0456 → emissions fail (canister/purge)
+    //
+    // We avoid the 12-second O2 oscillation sweep here (that's covered in
+    // measureO2AndCatalyst). Instead this is a focused snapshot of EMISSIONS
+    // sub-systems — runs in ~6 seconds.
+    async measureEmissionsHealth({ samples = 8, intervalMs = 600 } = {}) {
+        // PIDs we'll probe. Skip silently on unsupported.
+        const afrPids   = ['24', '25', '26', '27'];     // wideband λ on banks 1-4
+        const fallbackO2 = ['14', '15'];                // narrowband fallback
+        const egrPids   = ['2C', '2D'];
+        const evapPids  = ['2E', '32', '53', '54'];
+
+        const lam = {}, egr = { cmd: [], err: [] }, evap = {};
+        const narrow_fallback = { b1s1: [], b1s2: [] };
+
+        for (let i = 0; i < samples; i++) {
+            // AFR — try wideband first
+            for (const pid of afrPids) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1200);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && v > 0.3 && v < 2.0) {
+                        (lam[pid] = lam[pid] || []).push(v);
+                    }
+                } catch (_) {}
+            }
+            // EGR commanded + error
+            for (const pid of egrPids) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1200);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) {
+                        (pid === '2C' ? egr.cmd : egr.err).push(v);
+                    }
+                } catch (_) {}
+            }
+            // EVAP — snapshot once (don't average pressure waveforms here)
+            if (i === Math.floor(samples / 2)) {
+                for (const pid of evapPids) {
+                    try {
+                        const raw = await this._sendCommand(`01${pid}`, 1500);
+                        const v = this._parsePIDResponse(pid, raw);
+                        if (v !== null && Number.isFinite(v)) {
+                            evap[OBD_WIFI_PIDS[pid].label] = v;
+                        }
+                    } catch (_) {}
+                }
+            }
+            // Narrowband fallback if no wideband seen yet
+            if (!Object.keys(lam).length) {
+                for (const pid of fallbackO2) {
+                    try {
+                        const raw = await this._sendCommand(`01${pid}`, 1200);
+                        const v = this._parsePIDResponse(pid, raw);
+                        if (v !== null) {
+                            (pid === '14' ? narrow_fallback.b1s1 : narrow_fallback.b1s2).push(v);
+                        }
+                    } catch (_) {}
+                }
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        // ── AFR verdict ─────────────────────────────────────────────────
+        let afr = { supported: false };
+        const usedWideband = Object.keys(lam).length > 0;
+        if (usedWideband) {
+            const banks = {};
+            for (const [pid, arr] of Object.entries(lam)) {
+                if (!arr.length) continue;
+                const mean = arr.reduce((s,x) => s+x, 0) / arr.length;
+                const lambdaToAfr = mean * 14.7;
+                banks[`o2s${parseInt(pid,16) - 0x23}`] = {
+                    lambda: +mean.toFixed(3),
+                    afr: +lambdaToAfr.toFixed(2),
+                    samples: arr.length,
+                };
+            }
+            const lambdas = Object.values(banks).map(x => x.lambda);
+            const avg = lambdas.reduce((s,x) => s+x, 0) / lambdas.length;
+            let verdict, color, severity;
+            if (avg >= 0.97 && avg <= 1.03) {
+                verdict = `خليط سليم (λ=${avg.toFixed(2)} · AFR=${(avg*14.7).toFixed(1)})`;
+                color = '#10b981'; severity = 'ok';
+            } else if (avg < 0.85) {
+                verdict = `خليط غني جداً (λ=${avg.toFixed(2)}) — احتمال بخاخ مفتوح أو حساس MAP/MAF`;
+                color = '#ef4444'; severity = 'critical';
+            } else if (avg < 0.97) {
+                verdict = `خليط غني (λ=${avg.toFixed(2)}) — راجع فلتر هواء و LTFT`;
+                color = '#f59e0b'; severity = 'warn';
+            } else if (avg > 1.15) {
+                verdict = `خليط فقير جداً (λ=${avg.toFixed(2)}) — شفط هواء أو ضعف بنزين`;
+                color = '#ef4444'; severity = 'critical';
+            } else {
+                verdict = `خليط فقير (λ=${avg.toFixed(2)}) — راجع شفط الهواء`;
+                color = '#f59e0b'; severity = 'warn';
+            }
+            afr = { supported: true, wideband: true, mean_lambda: +avg.toFixed(3),
+                    mean_afr: +(avg * 14.7).toFixed(2), banks, verdict, color, severity };
+        } else if (narrow_fallback.b1s1.length) {
+            const avg = narrow_fallback.b1s1.reduce((s,x) => s+x, 0)
+                      / narrow_fallback.b1s1.length;
+            afr = {
+                supported: true, wideband: false, mean_voltage: +avg.toFixed(3),
+                verdict: 'الـ ECU narrowband فقط — استخدم "فحص الحسّاسات الشامل" لتقييم تذبذب الـ O2',
+                color: '#64748b', severity: 'info',
+            };
+        } else {
+            afr = { supported: false,
+                    reason: 'الـ ECU مردش على PIDs الـ O2 (لا wideband ولا narrowband).' };
+        }
+
+        // ── EGR verdict ─────────────────────────────────────────────────
+        let egrResult = { supported: false };
+        if (egr.cmd.length || egr.err.length) {
+            const cmdAvg = egr.cmd.length
+                ? egr.cmd.reduce((s,x) => s+x, 0) / egr.cmd.length : null;
+            const errAvg = egr.err.length
+                ? egr.err.reduce((s,x) => s+x, 0) / egr.err.length : null;
+            let verdict, color, severity;
+            if (errAvg !== null && Math.abs(errAvg) > 25) {
+                verdict = `صمام EGR متعطل — الفرق بين المطلوب والفعلي ${errAvg.toFixed(1)}%`;
+                color = '#ef4444'; severity = 'critical';
+            } else if (errAvg !== null && Math.abs(errAvg) > 10) {
+                verdict = `صمام EGR محتاج تنظيف — فرق ${errAvg.toFixed(1)}%`;
+                color = '#f59e0b'; severity = 'warn';
+            } else if (cmdAvg !== null) {
+                verdict = `EGR سليم (المطلوب ${cmdAvg.toFixed(1)}%، الخطأ ${(errAvg||0).toFixed(1)}%)`;
+                color = '#10b981'; severity = 'ok';
+            } else {
+                verdict = 'EGR يقرأ لكن مفيش بيانات خطأ — تأكد على RPM متوسط';
+                color = '#64748b'; severity = 'info';
+            }
+            egrResult = {
+                supported: true,
+                commanded_avg_pct: cmdAvg !== null ? +cmdAvg.toFixed(1) : null,
+                error_avg_pct: errAvg !== null ? +errAvg.toFixed(1) : null,
+                verdict, color, severity,
+            };
+        } else {
+            egrResult = { supported: false,
+                          reason: 'مفيش EGR في السيارة دي أو الـ ECU مش بيدعم PIDs 2C/2D.' };
+        }
+
+        // ── EVAP verdict ────────────────────────────────────────────────
+        let evapResult = { supported: false };
+        if (Object.keys(evap).length) {
+            const purge = evap.evap_purge_cmd_pct;
+            const vapPa = evap.evap_vapor_press_pa;
+            const vapKpa = evap.evap_vapor_press_kpa;
+            const absKpa = evap.evap_abs_vapor_kpa;
+            let verdict, color, severity;
+            // Rule: a healthy sealed system holds 100-1500 Pa vacuum at idle.
+            // A leak shows ~0 Pa. An overpressure shows a stuck purge valve.
+            if (vapPa !== undefined) {
+                const absV = Math.abs(vapPa);
+                if (absV < 50) {
+                    verdict = `تسريب EVAP محتمل — ضغط الأبخرة قريب من الصفر (${vapPa.toFixed(0)} Pa)`;
+                    color = '#f59e0b'; severity = 'warn';
+                } else if (absV > 5000) {
+                    verdict = `ضغط EVAP عالي جداً (${vapPa.toFixed(0)} Pa) — صمام purge عالق`;
+                    color = '#ef4444'; severity = 'critical';
+                } else {
+                    verdict = `EVAP سليم — ضغط أبخرة ${vapPa.toFixed(0)} Pa`;
+                    color = '#10b981'; severity = 'ok';
+                }
+            } else if (purge !== undefined) {
+                verdict = `Purge مرتفع ${purge.toFixed(1)}% — لو معاها DTC EVAP افحص الكانستر`;
+                color = '#64748b'; severity = 'info';
+            } else {
+                verdict = 'قراءة EVAP موجودة لكن ناقصة (مفيش vapor pressure)';
+                color = '#64748b'; severity = 'info';
+            }
+            evapResult = {
+                supported: true,
+                purge_cmd_pct: purge !== undefined ? +purge.toFixed(1) : null,
+                vapor_press_pa: vapPa !== undefined ? +vapPa.toFixed(0) : null,
+                vapor_press_kpa: vapKpa !== undefined ? +vapKpa.toFixed(2) : null,
+                abs_vapor_kpa: absKpa !== undefined ? +absKpa.toFixed(2) : null,
+                verdict, color, severity,
+            };
+        } else {
+            evapResult = { supported: false,
+                           reason: 'مفيش بيانات EVAP — السيارة قديمة أو غير مدعومة.' };
+        }
+
+        const result = { afr, egr: egrResult, evap: evapResult,
+                         _at: Date.now(),
+                         samples: { afr: Object.values(lam).flat().length,
+                                    egr: egr.cmd.length + egr.err.length,
+                                    evap: Object.keys(evap).length } };
+        this._emit('emissions_health', result);
         return result;
     }
 
