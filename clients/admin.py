@@ -16,7 +16,37 @@ from .models import (
     TenantSubscription, AILimitTracker, AIPromptLearningLog,
     Feature, PlanRevision, PlatformInvoice, DesignPackage,
     DiagnosticsAddon, StaffRole, SystemErrorLog,
+    SupportTicket, ChatSession, ChatMessage,
 )
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ('id', 'subject', 'name', 'tenant', 'priority', 'status', 'created_at', 'email_delivered')
+    list_filter = ('status', 'priority', 'source', 'email_delivered', 'is_deleted')
+    search_fields = ('name', 'email', 'subject', 'message')
+    readonly_fields = ('ip_address', 'user_agent', 'email_delivered', 'email_error', 'created_at', 'updated_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ('sender', 'body', 'created_at')
+
+
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'visitor_name', 'tenant', 'status', 'agent', 'started_at', 'last_activity_at')
+    list_filter = ('status',)
+    search_fields = ('visitor_name', 'visitor_email', 'ip_address')
+    inlines = [ChatMessageInline]
+    readonly_fields = ('visitor_session_key', 'ip_address', 'started_at', 'last_activity_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
 
 
 # ─── 🔐 StaffRole admin ───

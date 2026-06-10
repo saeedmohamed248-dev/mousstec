@@ -16,6 +16,7 @@ import logging
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
 from clients.views import support_views as support_views
+from clients.views import chat_views as chat_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -416,6 +417,16 @@ urlpatterns = [
     path('support/submit/', support_views.submit_help_form, name='support_submit'),
     path('superadmin/support/', support_views.support_inbox, name='saas_support_inbox'),
     path('superadmin/support/<int:ticket_id>/', support_views.support_ticket_detail, name='saas_support_ticket_detail'),
+
+    # 💬 Live Chat (public endpoints + admin inbox)
+    path('chat/status/',                  chat_views.chat_status,         name='chat_status'),
+    path('chat/open/',                    chat_views.chat_open,           name='chat_open'),
+    path('chat/<int:session_id>/messages/', chat_views.chat_messages,     name='chat_messages'),
+    path('chat/<int:session_id>/send/',   chat_views.chat_send,           name='chat_send'),
+    path('chat/<int:session_id>/close/',  chat_views.chat_close,          name='chat_close'),
+    path('superadmin/chat/',              chat_views.chat_inbox,          name='saas_chat_inbox'),
+    path('superadmin/chat/<int:session_id>/', chat_views.chat_session_detail, name='saas_chat_session_detail'),
+    path('superadmin/chat/<int:session_id>/close/', chat_views.chat_admin_close, name='saas_chat_admin_close'),
 
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),

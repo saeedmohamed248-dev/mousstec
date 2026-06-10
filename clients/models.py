@@ -3347,6 +3347,63 @@ class SupportTicket(SoftDeleteMixin, models.Model):
         return f"#{self.id} {self.subject[:40]} ({self.get_status_display()})"
 
 
+# =====================================================================
+# 💬 Live Chat — جلسات الدعم الحي + Business Hours routing
+# =====================================================================
+class ChatSession(models.Model):
+    STATUS_CHOICES = (
+        ('waiting', _('بانتظار رد')),
+        ('active',  _('جارية')),
+        ('closed',  _('مغلقة')),
+    )
+    tenant = models.ForeignKey(
+        Client, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='chat_sessions',
+    )
+    visitor_name = models.CharField(max_length=120, blank=True, default='')
+    visitor_email = models.EmailField(blank=True, default='')
+    visitor_session_key = models.CharField(max_length=64, db_index=True, blank=True, default='')
+    agent = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='handled_chats',
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='waiting', db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_activity_at = models.DateTimeField(auto_now=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("جلسة شات")
+        verbose_name_plural = _("جلسات الشات")
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f"Chat #{self.id} — {self.visitor_name or 'ضيف'} ({self.get_status_display()})"
+
+    @property
+    def unread_count(self):
+        return self.messages.filter(sender='visitor', is_read=False).count()
+
+
+class ChatMessage(models.Model):
+    SENDER_CHOICES = (
+        ('visitor', _('زائر')),
+        ('agent',   _('موظف دعم')),
+        ('bot',     _('بوت تلقائي')),
+        ('system',  _('نظام')),
+    )
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name='messages')
+    sender = models.CharField(max_length=10, choices=SENDER_CHOICES)
+    body = models.TextField()
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at']
+        indexes = [models.Index(fields=['session', 'created_at'])]
+
+
 # OBD device identity & secrets — defined in a separate module for clarity.
 # Imported here so Django registers them under the `clients` app.
 from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401

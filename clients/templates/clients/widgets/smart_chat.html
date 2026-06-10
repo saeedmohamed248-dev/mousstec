@@ -1,0 +1,189 @@
+{# 💬 Smart Chat Widget — يجمع بين الشات الحي والفورم حسب أوقات العمل #}
+<div id="mt-chat-widget" style="position:fixed; bottom:20px; left:20px; z-index:9999; font-family:'Cairo',sans-serif;">
+    <button id="mt-chat-toggle" style="background:linear-gradient(135deg,#3b82f6,#7c3aed); color:#fff; border:none; border-radius:50px; padding:14px 22px; cursor:pointer; box-shadow:0 8px 20px rgba(59,130,246,.5); font-weight:700; font-size:14px;">
+        💬 محتاج مساعدة؟
+    </button>
+
+    <div id="mt-chat-panel" style="display:none; position:absolute; bottom:60px; left:0; width:360px; background:#0f172a; color:#e2e8f0; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,.5); border:1px solid #334155; overflow:hidden;">
+        <!-- Header -->
+        <div style="background:#1e293b; padding:14px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
+            <div>
+                <strong id="mt-chat-title" style="color:#60a5fa;">💬 الدعم الفني</strong>
+                <div id="mt-chat-subtitle" style="color:#94a3b8; font-size:11px;">جاري التحقق من التوفر...</div>
+            </div>
+            <span id="mt-chat-close" style="cursor:pointer; color:#94a3b8;">✕</span>
+        </div>
+
+        <!-- Body — يتغير حسب المود -->
+        <div id="mt-chat-body" style="padding:14px; max-height:420px; overflow-y:auto;">
+            <div style="text-align:center; color:#94a3b8;">⏳</div>
+        </div>
+
+        <!-- Composer (للشات الحي) -->
+        <form id="mt-chat-composer" style="display:none; padding:10px; border-top:1px solid #334155; gap:6px;">
+            <textarea name="body" rows="2" placeholder="اكتب رسالتك..." required style="width:100%; padding:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit; resize:none;"></textarea>
+            <button type="submit" style="width:100%; background:#3b82f6; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:700; font-family:inherit; margin-top:6px;">📤 إرسال</button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function(){
+    const $btn = document.getElementById('mt-chat-toggle');
+    const $panel = document.getElementById('mt-chat-panel');
+    const $close = document.getElementById('mt-chat-close');
+    const $body = document.getElementById('mt-chat-body');
+    const $composer = document.getElementById('mt-chat-composer');
+    const $subtitle = document.getElementById('mt-chat-subtitle');
+
+    let sessionId = null;
+    let lastMsgId = 0;
+    let pollTimer = null;
+
+    function csrf() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? m[1] : '';
+    }
+
+    $btn.onclick = async () => {
+        if ($panel.style.display === 'none' || !$panel.style.display) {
+            $panel.style.display = 'block';
+            await openChat();
+        } else {
+            $panel.style.display = 'none';
+        }
+    };
+    $close.onclick = () => { $panel.style.display = 'none'; clearInterval(pollTimer); };
+
+    async function openChat() {
+        // أول حاجة: نسأل الـ status عشان نعرف داخل/خارج أوقات العمل
+        const status = await (await fetch('/chat/status/')).json();
+        $subtitle.textContent = status.is_open
+            ? `🟢 متاحون الآن — ${status.cairo_time}`
+            : `🔴 مغلق — ${status.cairo_time} (يفتح ${status.work_start} - ${status.work_end})`;
+
+        if (!status.is_open) {
+            renderOfflineForm(status.offline_message);
+            return;
+        }
+        renderNameForm();
+    }
+
+    function renderNameForm() {
+        $composer.style.display = 'none';
+        $body.innerHTML = `
+            <p style="color:#94a3b8; font-size:13px;">شاركنا اسمك عشان نخدمك بشكل أفضل:</p>
+            <form id="mt-name-form">
+                <input type="text" name="name" placeholder="اسمك" required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+                <input type="email" name="email" placeholder="بريدك (اختياري)" style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+                <button type="submit" style="width:100%; background:#3b82f6; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:700; font-family:inherit;">ابدأ المحادثة 💬</button>
+            </form>
+        `;
+        document.getElementById('mt-name-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const r = await fetch('/chat/open/', {
+                method:'POST',
+                body: new FormData(e.target),
+                headers:{'X-CSRFToken': csrf()},
+                credentials:'same-origin',
+            });
+            const j = await r.json();
+            if (j.mode === 'live') {
+                sessionId = j.session_id;
+                renderChatUI();
+                pollTimer = setInterval(pollMessages, j.poll_interval_ms || 4000);
+            } else if (j.mode === 'offline') {
+                renderOfflineForm(j.message);
+            }
+        };
+    }
+
+    function renderOfflineForm(message) {
+        $composer.style.display = 'none';
+        $body.innerHTML = `
+            <div style="background:#1e293b; padding:12px; border-radius:8px; margin-bottom:12px; font-size:13px; white-space:pre-wrap;">${message}</div>
+            <form id="mt-offline-form">
+                <input type="text" name="name" placeholder="اسمك" required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+                <input type="email" name="email" placeholder="بريدك" required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+                <input type="text" name="subject" placeholder="الموضوع" style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+                <textarea name="message" rows="3" placeholder="رسالتك..." required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
+                <input type="hidden" name="source" value="chat_offline">
+                <button type="submit" style="width:100%; background:#7c3aed; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:700; font-family:inherit;">📤 إرسال</button>
+                <div id="mt-offline-status" style="margin-top:10px; font-size:12px; text-align:center;"></div>
+            </form>
+        `;
+        document.getElementById('mt-offline-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const $st = document.getElementById('mt-offline-status');
+            $st.textContent = 'جاري الإرسال...'; $st.style.color = '#94a3b8';
+            const r = await fetch('/support/submit/', {
+                method:'POST', body:new FormData(e.target),
+                headers:{'X-CSRFToken': csrf()}, credentials:'same-origin',
+            });
+            const j = await r.json();
+            $st.textContent = j.ok ? (j.message || '✅ تم') : (j.error || '❌ فشل');
+            $st.style.color = j.ok ? '#22c55e' : '#ef4444';
+            if (j.ok) e.target.reset();
+        };
+    }
+
+    function renderChatUI() {
+        $body.innerHTML = `<div id="mt-msgs" style="display:flex; flex-direction:column; gap:8px;"></div>`;
+        $composer.style.display = 'block';
+        pollMessages();
+    }
+
+    function appendMsg(m) {
+        const $msgs = document.getElementById('mt-msgs');
+        if (!$msgs) return;
+        const isVisitor = m.sender === 'visitor';
+        const isBot = m.sender === 'bot';
+        const align = isVisitor ? 'flex-end' : 'flex-start';
+        const bg = isVisitor ? '#3b82f6' : (isBot ? '#7c3aed' : '#334155');
+        $msgs.insertAdjacentHTML('beforeend', `
+            <div style="display:flex; justify-content:${align};">
+                <div style="background:${bg}; color:#fff; padding:8px 12px; border-radius:12px; max-width:80%; font-size:13px;">
+                    ${escapeHtml(m.body)}
+                    <div style="font-size:9px; opacity:.7; margin-top:3px;">${m.created_at}</div>
+                </div>
+            </div>
+        `);
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function escapeHtml(s) {
+        return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    }
+
+    async function pollMessages() {
+        if (!sessionId) return;
+        try {
+            const r = await fetch(`/chat/${sessionId}/messages/?after=${lastMsgId}`);
+            const j = await r.json();
+            (j.messages || []).forEach(m => {
+                if (m.id > lastMsgId) lastMsgId = m.id;
+                appendMsg(m);
+            });
+            if (j.status === 'closed') {
+                clearInterval(pollTimer);
+                $composer.style.display = 'none';
+                $body.insertAdjacentHTML('beforeend', '<div style="text-align:center; color:#94a3b8; margin-top:10px;">🔒 انتهت الجلسة</div>');
+            }
+        } catch (e) { /* silent */ }
+    }
+
+    $composer.onsubmit = async (e) => {
+        e.preventDefault();
+        const ta = $composer.querySelector('textarea');
+        const body = ta.value.trim();
+        if (!body) return;
+        ta.value = '';
+        const fd = new FormData(); fd.append('body', body);
+        await fetch(`/chat/${sessionId}/send/`, {
+            method:'POST', body:fd,
+            headers:{'X-CSRFToken': csrf()}, credentials:'same-origin',
+        });
+        await pollMessages();
+    };
+})();
+</script>
