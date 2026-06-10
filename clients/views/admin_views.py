@@ -21,7 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db import connection, models, transaction
-from django.db.models import Count, F, Sum
+from django.db.models import Avg, Count, F, Sum, Q
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -512,6 +512,20 @@ def super_admin_dashboard(request):
         'released_total':  PartOrder.objects.filter(status='released').count(),
     }
 
+    # --- 🛡️ PartListings — pending moderation queue ---
+    pending_parts_listings = list(
+        PartListing.objects.filter(
+            is_deleted=False, moderation_status='pending_approval'
+        ).select_related('car_make', 'seller_customer', 'seller_tenant')
+        .order_by('-created_at')[:30]
+    )
+    parts_listings_summary = {
+        'pending':   PartListing.objects.filter(is_deleted=False, moderation_status='pending_approval').count(),
+        'approved':  PartListing.objects.filter(is_deleted=False, moderation_status='approved').count(),
+        'rejected':  PartListing.objects.filter(is_deleted=False, moderation_status='rejected').count(),
+        'suspended': PartListing.objects.filter(is_deleted=False, moderation_status='suspended').count(),
+    }
+
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
@@ -542,6 +556,8 @@ def super_admin_dashboard(request):
         'tenant_activity': tenant_activity,
         'pending_refund_orders': pending_refund_orders,
         'parts_orders_summary': parts_orders_summary,
+        'pending_parts_listings': pending_parts_listings,
+        'parts_listings_summary': parts_listings_summary,
     })
 
 

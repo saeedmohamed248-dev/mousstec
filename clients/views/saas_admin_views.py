@@ -782,8 +782,16 @@ def parts_moderation_reject(request, listing_id):
     listing = get_object_or_404(
         PartListing.objects.filter(is_deleted=False), pk=listing_id,
     )
-    reason = (request.POST.get('reason') or '').strip()
+    import json as _json
+    try:
+        body = _json.loads(request.body)
+        reason = (body.get('reason') or '').strip()
+    except Exception:
+        reason = (request.POST.get('reason') or '').strip()
     listing.reject(by_user=request.user, reason=reason)
+    if request.headers.get('Content-Type', '').startswith('application/json') or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({'message': f"تم رفض القطعة «{listing.title[:40]}»."})
     messages.success(request, f"تم رفض القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_moderation_queue')
 
