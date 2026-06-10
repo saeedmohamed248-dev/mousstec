@@ -1,0 +1,308 @@
+{% extends "inventory/_base_portal.html" %}
+{% load static %}
+
+{% block title %}🎁 إهداء تشخيص الأعطال | {{ tenant.name|default:"Mouss Tec" }}{% endblock %}
+
+{% block content %}
+<main class="container mx-auto px-4 py-6 flex-1 max-w-3xl">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:dashboard' %}" class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition">
+      <i class="fas fa-arrow-right text-sm"></i>
+    </a>
+    <div>
+      <h1 class="text-xl font-black text-white">🎁 إهداء / تجديد تشخيص الأعطال</h1>
+      <p class="text-xs text-slate-500">أرسل باقة تشخيص لعميلك — يستخدمها على موبايله فوراً</p>
+    </div>
+  </div>
+
+  <!-- Success banner (hidden by default) -->
+  <div id="successBanner" class="hidden mb-5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-start gap-3">
+    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-xl flex-shrink-0">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <div>
+      <p class="font-black text-emerald-200 text-sm" id="successMsg"></p>
+      <p class="text-xs text-emerald-300/70 mt-0.5">العميل هيلاقي اشتراكه محدّث فور ما يفتح التطبيق</p>
+    </div>
+  </div>
+
+  <div class="space-y-5">
+
+    <!-- STEP 1: Customer Search -->
+    <div class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-5">
+      <h2 class="text-sm font-black text-slate-300 mb-4 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-black">١</span>
+        ابحث عن العميل بالهاتف
+      </h2>
+
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <i class="fas fa-phone absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+          <input id="phoneInput" type="tel" dir="ltr" placeholder="01xxxxxxxxx"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pr-9 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition"
+            value="{{ phone_q }}" oninput="onPhoneInput(this.value)" onkeydown="if(event.key==='Enter'){lookupCustomer()}" />
+        </div>
+        <button onclick="lookupCustomer()" id="lookupBtn"
+          class="bg-blue-600 hover:bg-blue-500 text-white font-black px-5 py-3 rounded-xl transition flex items-center gap-2">
+          <i class="fas fa-search"></i> بحث
+        </button>
+      </div>
+
+      <!-- Customer Card -->
+      <div id="customerCard" class="mt-4 {% if not found_customer %}hidden{% endif %}">
+        <div id="customerNotFound" class="hidden bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-sm text-red-300">
+          <i class="fas fa-circle-xmark ml-1"></i>
+          العميل غير موجود — تأكد من الرقم أو اطلب منه التسجيل على <a href="/marketplace/automotive/" class="underline" target="_blank">سوق السيارات</a>
+        </div>
+        <div id="customerFound" class="{% if not found_customer %}hidden{% endif %} bg-slate-800/60 border border-slate-600/50 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500/30 to-purple-500/30 border border-slate-600 flex items-center justify-center text-xl">👤</div>
+            <div>
+              <p class="font-black text-white" id="customerName">{% if found_customer %}{{ found_customer.full_name }}{% endif %}</p>
+              <p class="text-xs text-slate-400" id="customerPhone">{% if found_customer %}{{ found_customer.phone }}{% endif %}</p>
+            </div>
+          </div>
+          <div id="subBadge" class="text-right">
+            {% if found_sub %}
+              {% if found_sub.is_active %}
+                <span class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-black">
+                  <i class="fas fa-check-circle ml-1"></i>{{ found_sub.get_tier_display }} — {{ found_sub.days_remaining }} يوم
+                </span>
+              {% else %}
+                <span class="bg-red-500/15 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-xl text-xs font-black">
+                  <i class="fas fa-clock ml-1"></i>منتهي — {{ found_sub.get_tier_display }}
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="bg-slate-700/50 text-slate-400 border border-slate-600 px-3 py-1.5 rounded-xl text-xs font-black">
+                <i class="fas fa-minus-circle ml-1"></i>لا يوجد اشتراك
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Choose Tier -->
+    <div class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-5">
+      <h2 class="text-sm font-black text-slate-300 mb-4 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-purple-500 text-white text-xs flex items-center justify-center font-black">٢</span>
+        اختر الباقة
+      </h2>
+      <div class="grid grid-cols-3 gap-3">
+        {% for tier in tiers %}
+        <label class="cursor-pointer">
+          <input type="radio" name="tier" value="{{ tier.key }}" class="sr-only peer" {% if tier.key == 'pro' %}checked{% endif %}>
+          <div class="peer-checked:border-[{{ tier.color }}] peer-checked:bg-[{{ tier.color }}]/10 border-2 border-slate-700 rounded-2xl p-4 text-center transition hover:border-slate-500"
+               style="--tw-ring-color:{{ tier.color }}">
+            <i class="fas {{ tier.icon }} text-2xl mb-2" style="color:{{ tier.color }}"></i>
+            <p class="font-black text-white text-sm">{{ tier.label }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">{{ tier.price }} ج/شهر</p>
+            {% if tier.scans %}
+              <p class="text-[10px] text-slate-500 mt-1">{{ tier.scans }} سكان/شهر</p>
+            {% else %}
+              <p class="text-[10px] text-slate-500 mt-1">غير محدود</p>
+            {% endif %}
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- STEP 3: Duration -->
+    <div class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-5">
+      <h2 class="text-sm font-black text-slate-300 mb-4 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-amber-500 text-white text-xs flex items-center justify-center font-black">٣</span>
+        المدة
+      </h2>
+      <div class="grid grid-cols-4 gap-3">
+        {% for d in durations %}
+        <label class="cursor-pointer">
+          <input type="radio" name="months" value="{{ d.months }}" class="sr-only peer" {% if d.months == 1 %}checked{% endif %}>
+          <div class="peer-checked:border-amber-400 peer-checked:bg-amber-500/10 border-2 border-slate-700 rounded-2xl p-3 text-center transition hover:border-slate-500">
+            <p class="font-black text-white text-sm">{{ d.label }}</p>
+            {% if d.discount > 0 %}
+              <p class="text-[10px] font-black text-emerald-400 mt-1">خصم {{ d.discount }}%</p>
+            {% else %}
+              <p class="text-[10px] text-slate-500 mt-1">بدون خصم</p>
+            {% endif %}
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      <!-- Price Preview -->
+      <div id="pricePreview" class="mt-4 bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 flex justify-between items-center text-sm">
+        <span class="text-slate-400">الإجمالي المقدّر</span>
+        <span id="priceVal" class="font-black text-white text-lg">— ج</span>
+      </div>
+    </div>
+
+    <!-- STEP 4: Note -->
+    <div class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-5">
+      <h2 class="text-sm font-black text-slate-300 mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-slate-500 text-white text-xs flex items-center justify-center font-black">٤</span>
+        رسالة مرفقة <span class="text-slate-600 font-normal">(اختياري)</span>
+      </h2>
+      <textarea id="noteInput" rows="2" maxlength="200" placeholder="مثال: هدية من ورشتنا — تشخيص عربيتك مجاناً لمدة شهر 🎁"
+        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition resize-none text-sm"></textarea>
+    </div>
+
+    <!-- Send Button -->
+    <button id="sendBtn" onclick="sendGift()" disabled
+      class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black py-4 rounded-2xl text-base transition flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20">
+      <i class="fas fa-gift text-xl"></i>
+      <span id="sendBtnText">ابحث عن العميل أولاً</span>
+    </button>
+
+  </div>
+</main>
+
+{% block scripts %}
+<script>
+const PRICES = { basic: 99, pro: 199, empire: 399 };
+const DISCOUNTS = { 1: 0, 3: 10, 6: 15, 12: 20 };
+
+let customerFound = false;
+
+function onPhoneInput(val) {
+  document.getElementById('customerFound').classList.add('hidden');
+  document.getElementById('customerNotFound').classList.add('hidden');
+  customerFound = false;
+  updateSendBtn();
+}
+
+function updateSendBtn() {
+  const btn = document.getElementById('sendBtn');
+  const txt = document.getElementById('sendBtnText');
+  if (customerFound) {
+    btn.disabled = false;
+    txt.textContent = 'أرسل الهدية / جدّد الاشتراك';
+  } else {
+    btn.disabled = true;
+    txt.textContent = 'ابحث عن العميل أولاً';
+  }
+}
+
+function updatePrice() {
+  const tier   = document.querySelector('input[name="tier"]:checked')?.value || 'pro';
+  const months = parseInt(document.querySelector('input[name="months"]:checked')?.value || 1);
+  const base   = PRICES[tier] || 0;
+  const disc   = DISCOUNTS[months] || 0;
+  const total  = Math.round(base * months * (1 - disc / 100));
+  document.getElementById('priceVal').textContent = total.toLocaleString('ar-EG') + ' ج';
+}
+
+document.querySelectorAll('input[name="tier"], input[name="months"]').forEach(el => {
+  el.addEventListener('change', updatePrice);
+});
+updatePrice();
+
+async function lookupCustomer() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (phone.length < 8) return;
+  const btn = document.getElementById('lookupBtn');
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`{% url 'inventory:gift_diagnostics_lookup' %}?phone=${encodeURIComponent(phone)}`);
+    const data = await res.json();
+    document.getElementById('customerCard').classList.remove('hidden');
+
+    if (data.found) {
+      customerFound = true;
+      document.getElementById('customerFound').classList.remove('hidden');
+      document.getElementById('customerNotFound').classList.add('hidden');
+      document.getElementById('customerName').textContent = data.name;
+      document.getElementById('customerPhone').textContent = data.phone;
+
+      let badgeHtml = '';
+      if (data.is_active) {
+        badgeHtml = `<span class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs font-black"><i class="fas fa-check-circle ml-1"></i>${data.tier_display} — ${data.days_remaining} يوم</span>`;
+      } else if (data.tier !== 'none') {
+        badgeHtml = `<span class="bg-red-500/15 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-xl text-xs font-black"><i class="fas fa-clock ml-1"></i>منتهي — ${data.tier_display}</span>`;
+      } else {
+        badgeHtml = `<span class="bg-slate-700/50 text-slate-400 border border-slate-600 px-3 py-1.5 rounded-xl text-xs font-black"><i class="fas fa-minus-circle ml-1"></i>لا يوجد اشتراك</span>`;
+      }
+      document.getElementById('subBadge').innerHTML = badgeHtml;
+    } else {
+      customerFound = false;
+      document.getElementById('customerFound').classList.add('hidden');
+      document.getElementById('customerNotFound').classList.remove('hidden');
+    }
+  } catch (e) {
+    customerFound = false;
+    document.getElementById('customerNotFound').classList.remove('hidden');
+    document.getElementById('customerFound').classList.add('hidden');
+  } finally {
+    btn.innerHTML = '<i class="fas fa-search"></i> بحث';
+    btn.disabled = false;
+    updateSendBtn();
+  }
+}
+
+async function sendGift() {
+  if (!customerFound) return;
+  const phone  = document.getElementById('phoneInput').value.trim();
+  const tier   = document.querySelector('input[name="tier"]:checked')?.value;
+  const months = document.querySelector('input[name="months"]:checked')?.value;
+  const note   = document.getElementById('noteInput').value.trim();
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i><span>جاري التفعيل...</span>';
+
+  const csrf = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)');
+  const csrfToken = csrf ? decodeURIComponent(csrf[2]) : (
+    document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+  );
+
+  try {
+    const fd = new FormData();
+    fd.append('phone', phone);
+    fd.append('tier', tier);
+    fd.append('months', months);
+    fd.append('note', note);
+    fd.append('csrfmiddlewaretoken', csrfToken);
+
+    const res = await fetch('{% url "inventory:gift_diagnostics" %}', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (data.ok) {
+      document.getElementById('successMsg').textContent = data.message;
+      document.getElementById('successBanner').classList.remove('hidden');
+      document.getElementById('successBanner').scrollIntoView({ behavior: 'smooth' });
+      // Reset form
+      customerFound = false;
+      document.getElementById('phoneInput').value = '';
+      document.getElementById('noteInput').value = '';
+      document.getElementById('customerCard').classList.add('hidden');
+      updatePrice();
+    } else {
+      alert('⚠️ ' + (data.error || 'حدث خطأ — حاول مرة أخرى'));
+    }
+  } catch (e) {
+    alert('⚠️ فشل الاتصال — تأكد من الإنترنت وحاول مرة أخرى');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-gift text-xl"></i><span>أرسل الهدية / جدّد الاشتراك</span>';
+    updateSendBtn();
+  }
+}
+
+// Auto-lookup if phone_q preset from GET
+{% if phone_q %}
+window.addEventListener('DOMContentLoaded', () => {
+  {% if found_customer %}
+    customerFound = true;
+    updateSendBtn();
+  {% else %}
+    lookupCustomer();
+  {% endif %}
+});
+{% endif %}
+</script>
+{% endblock %}
+{% endblock %}

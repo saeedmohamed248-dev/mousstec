@@ -4023,3 +4023,136 @@ def vehicle_passport_share_link(request, chassis_number):
         "customer_name": customer_name,
         "vehicle_label": vehicle_label,
     })
+
+
+# =====================================================================
+# 🎁 Gift & Renew Diagnostics Subscription
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'cashier', 'sales')
+def gift_diagnostics(request):
+    """صفحة إهداء / تجديد اشتراك التشخيص لعميل.
+
+    GET  → عرض الصفحة مع بحث بالهاتف
+    POST → تفعيل الباقة للعميل المحدد
+    """
+    from clients.models import MarketplaceCustomer, CustomerDiagnosticsSubscription
+    from django_tenants.utils import schema_context as _sc
+
+    TIERS = [
+        {'key': 'basic',  'label': 'Basic',  'price': 99,  'scans': 30,  'color': '#3b82f6', 'icon': 'fa-circle'},
+        {'key': 'pro',    'label': 'Pro',    'price': 199, 'scans': 100, 'color': '#8b5cf6', 'icon': 'fa-star'},
+        {'key': 'empire', 'label': 'Empire', 'price': 399, 'scans': None,'color': '#f59e0b', 'icon': 'fa-crown'},
+    ]
+    DURATIONS = [
+        {'months': 1, 'label': 'شهر',      'discount': 0},
+        {'months': 3, 'label': '3 أشهر',   'discount': 10},
+        {'months': 6, 'label': '6 أشهر',   'discount': 15},
+        {'months': 12,'label': 'سنة كاملة','discount': 20},
+    ]
+
+    if request.method == 'GET':
+        # Phone lookup
+        phone_q = request.GET.get('phone', '').strip()
+        found_customer = None
+        found_sub = None
+        if phone_q:
+            cleaned = re.sub(r'[\s\-\(\)]+', '', phone_q)
+            with _sc('public'):
+                found_customer = MarketplaceCustomer.objects.filter(
+                    phone__endswith=cleaned[-9:], sector='automotive'
+                ).first()
+                if found_customer:
+                    found_sub = CustomerDiagnosticsSubscription.objects.filter(
+                        customer=found_customer
+                    ).first()
+
+        return render(request, 'inventory/gift_diagnostics.html', {
+            'tiers': TIERS,
+            'durations': DURATIONS,
+            'phone_q': phone_q,
+            'found_customer': found_customer,
+            'found_sub': found_sub,
+            'tenant': getattr(request, 'tenant', None),
+        })
+
+    # POST — activate
+    phone     = re.sub(r'[\s\-\(\)]+', '', request.POST.get('phone', '').strip())
+    tier      = request.POST.get('tier', '').strip()
+    months    = int(request.POST.get('months', 1))
+    note      = request.POST.get('note', '').strip()[:200]
+
+    if tier not in ('basic', 'pro', 'empire'):
+        return JsonResponse({'ok': False, 'error': 'باقة غير صالحة'}, status=400)
+    if months not in (1, 3, 6, 12):
+        return JsonResponse({'ok': False, 'error': 'مدة غير صالحة'}, status=400)
+    if len(phone) < 8:
+        return JsonResponse({'ok': False, 'error': 'رقم هاتف غير صالح'}, status=400)
+
+    with _sc('public'):
+        customer = MarketplaceCustomer.objects.filter(
+            phone__endswith=phone[-9:], sector='automotive'
+        ).first()
+        if not customer:
+            return JsonResponse({'ok': False, 'error': 'العميل غير موجود — تأكد من الرقم أو اطلب منه التسجيل أولاً'}, status=404)
+
+        sub, _ = CustomerDiagnosticsSubscription.objects.get_or_create(
+            customer=customer,
+            defaults={
+                'tier': 'trial',
+                'trial_ends_at': timezone.now(),
+            },
+        )
+        # Apply upgrade for each month
+        for _ in range(months):
+            sub.upgrade(tier, payment_ref=f'gift-by-{request.user.pk}-{uuid.uuid4().hex[:8]}')
+
+    import logging as _log
+    _log.getLogger('mouss_tec_core').info(
+        "[GIFT DIAG] tenant=%s user=%s gifted %s×%s months to customer=%s note=%s",
+        getattr(getattr(request, 'tenant', None), 'name', '?'),
+        request.user.username, months, tier, customer.pk, note,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'customer_name': customer.full_name,
+        'tier': tier,
+        'months': months,
+        'paid_until': sub.paid_until.strftime('%Y-%m-%d') if sub.paid_until else '',
+        'message': f"✅ تم تفعيل باقة {tier.title()} لـ {months} شهر لـ {customer.full_name} بنجاح!",
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'cashier', 'sales')
+def gift_diagnostics_lookup(request):
+    """AJAX — ابحث عن عميل بالهاتف وأرجع بيانات اشتراكه."""
+    from clients.models import MarketplaceCustomer, CustomerDiagnosticsSubscription
+    from django_tenants.utils import schema_context as _sc
+
+    phone = re.sub(r'[\s\-\(\)]+', '', request.GET.get('phone', '').strip())
+    if len(phone) < 8:
+        return JsonResponse({'found': False})
+
+    with _sc('public'):
+        customer = MarketplaceCustomer.objects.filter(
+            phone__endswith=phone[-9:], sector='automotive'
+        ).first()
+        if not customer:
+            return JsonResponse({'found': False})
+
+        sub = CustomerDiagnosticsSubscription.objects.filter(customer=customer).first()
+
+    return JsonResponse({
+        'found': True,
+        'name': customer.full_name,
+        'phone': customer.phone,
+        'tier': sub.tier if sub else 'none',
+        'tier_display': sub.get_tier_display() if sub else 'لا يوجد اشتراك',
+        'is_active': sub.is_active() if sub else False,
+        'days_remaining': sub.days_remaining() if sub else 0,
+        'paid_until': sub.paid_until.strftime('%d/%m/%Y') if (sub and sub.paid_until) else None,
+    })

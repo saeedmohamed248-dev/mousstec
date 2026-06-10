@@ -259,4 +259,10 @@ urlpatterns = [
     # =====================================================================
     path('statement/customer/<int:customer_id>/print/', views.customer_statement_print, name='customer_statement_print'),
     path('statement/vendor/<int:vendor_id>/print/', views.vendor_statement_print, name='vendor_statement_print'),
+
+    # =====================================================================
+    # 🎁 هدية / تجديد اشتراك التشخيص
+    # =====================================================================
+    path('gift-diagnostics/', views.gift_diagnostics, name='gift_diagnostics'),
+    path('gift-diagnostics/lookup/', views.gift_diagnostics_lookup, name='gift_diagnostics_lookup'),
 ]
