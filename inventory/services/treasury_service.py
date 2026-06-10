@@ -9,7 +9,7 @@ Responsibilities:
 """
 
 import logging
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings as django_settings
 from django.db import transaction
 from django.db.models import F
@@ -77,7 +77,7 @@ class TreasuryService:
         from inventory.models import Treasury, FinancialTransaction
 
         instance = sale_invoice_item
-        refund_amount = Decimal(str(instance.quantity)) * Decimal(str(instance.core_charge_applied))
+        refund_amount = (Decimal(str(instance.quantity)) * Decimal(str(instance.core_charge_applied))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
         if refund_amount <= 0 or not instance.invoice.customer:
             return

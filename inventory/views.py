@@ -1451,9 +1451,15 @@ def profit_loss_report_api(request):
         sales_qs = sales_qs.filter(branch=branch)
         purchases_qs = purchases_qs.filter(branch=branch)
 
-    total_revenue = sales_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0')
-    total_cost = sales_qs.aggregate(Sum('total_cost'))['total_cost__sum'] or Decimal('0')
-    gross_profit = total_revenue - total_cost
+    agg = sales_qs.aggregate(
+        rev=Sum('total_amount'),
+        cost=Sum('total_cost'),
+        profit=Sum('net_profit'),
+    )
+    total_revenue = agg['rev'] or Decimal('0')
+    total_cost = agg['cost'] or Decimal('0')
+    # gross_profit = sum of net_profit (already = revenue_excl_tax - cogs, tax excluded)
+    gross_profit = agg['profit'] or Decimal('0')
 
     # المصروفات العمومية
     expenses_qs = FinancialTransaction.objects.filter(
@@ -1489,7 +1495,7 @@ def profit_loss_report_api(request):
             "gross_profit": float(gross_profit),
             "total_operating_expenses": float(total_expenses),
             "net_profit": float(net_profit),
-            "profit_margin_percent": round(float(net_profit / total_revenue * 100), 2) if total_revenue > 0 else 0,
+            "profit_margin_percent": round(float(net_profit / gross_profit * 100), 2) if gross_profit > 0 else 0,
         },
         "revenue_by_type": [
             {"type": r['invoice_type'], "revenue": float(r['total']), "profit": float(r['profit'] or 0)}

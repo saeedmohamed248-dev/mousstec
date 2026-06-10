@@ -436,6 +436,9 @@ urlpatterns = [
     path('superadmin/obd-access/<int:tenant_id>/grant/',      saas_admin_views.obd_access_grant,  name='saas_obd_access_grant'),
     path('superadmin/obd-access/<int:tenant_id>/revoke/',     saas_admin_views.obd_access_revoke, name='saas_obd_access_revoke'),
 
+    # 🛍️ Marketplace requests — full management (all statuses, search, actions)
+    path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),
+
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),
     path('superadmin/support/', support_views.support_inbox, name='saas_support_inbox'),

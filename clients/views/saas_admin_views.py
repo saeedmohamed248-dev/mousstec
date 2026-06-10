@@ -852,3 +852,100 @@ def dispute_resolve(request, ticket_id):
         return redirect('saas_disputes_queue')
     messages.success(request, f"تم تنفيذ '{action}' على التذكرة.")
     return redirect('saas_disputes_queue')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🛍️ Marketplace Requests — full management (all statuses)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def marketplace_requests_list(request):
+    """قائمة كل طلبات السوق مع فلتر بالحالة + بحث."""
+    from clients.models import ServiceRequest
+    from django.http import JsonResponse
+    import json
+
+    status_filter = request.GET.get('status', '')
+    sector_filter = request.GET.get('sector', '')
+    q = request.GET.get('q', '').strip()
+
+    qs = ServiceRequest.objects.select_related('customer').order_by('-created_at')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if sector_filter:
+        qs = qs.filter(sector=sector_filter)
+    if q:
+        qs = qs.filter(
+            Q(title__icontains=q) | Q(customer__full_name__icontains=q) | Q(customer__phone__icontains=q)
+        )
+
+    # Handle AJAX status-change
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+        action = data.get('action')
+        req_id = data.get('id')
+        if not req_id:
+            return JsonResponse({'error': 'id مطلوب'}, status=400)
+        svc = get_object_or_404(ServiceRequest, pk=req_id)
+        from datetime import timedelta as td
+        from django.utils import timezone as tz
+
+        if action == 'approve':
+            svc.status = 'open'
+            svc.is_approved = True
+            expiry_map = {'urgent': 1, 'soon': 3, 'normal': 7}
+            days = expiry_map.get(svc.urgency, 7)
+            svc.expires_at = tz.now() + td(days=days)
+            svc.save(update_fields=['status', 'is_approved', 'expires_at'])
+            return JsonResponse({'status': 'ok', 'message': 'تم الموافقة ونشره للتجار.'})
+        elif action == 'reject':
+            svc.status = 'rejected_by_admin'
+            svc.admin_notes = data.get('reason', '')
+            svc.save(update_fields=['status', 'admin_notes'])
+            return JsonResponse({'status': 'ok', 'message': 'تم رفض الطلب.'})
+        elif action == 'close':
+            svc.status = 'closed'
+            svc.save(update_fields=['status'])
+            return JsonResponse({'status': 'ok', 'message': 'تم إغلاق الطلب.'})
+        elif action == 'reopen':
+            svc.status = 'pending_approval'
+            svc.save(update_fields=['status'])
+            return JsonResponse({'status': 'ok', 'message': 'تم إعادة فتح الطلب للمراجعة.'})
+        elif action == 'set_open':
+            svc.status = 'open'
+            svc.is_approved = True
+            svc.save(update_fields=['status', 'is_approved'])
+            return JsonResponse({'status': 'ok', 'message': 'تم تفعيل الطلب مباشرة.'})
+        else:
+            return JsonResponse({'error': 'إجراء غير معروف'}, status=400)
+
+    counts = {
+        'all': ServiceRequest.objects.count(),
+        'pending_approval': ServiceRequest.objects.filter(status='pending_approval').count(),
+        'open': ServiceRequest.objects.filter(status='open').count(),
+        'accepted': ServiceRequest.objects.filter(status='accepted').count(),
+        'completed': ServiceRequest.objects.filter(status='completed').count(),
+        'rejected': ServiceRequest.objects.filter(status='rejected_by_admin').count(),
+        'closed': ServiceRequest.objects.filter(status='closed').count(),
+        'expired': ServiceRequest.objects.filter(status='expired').count(),
+    }
+
+    return render(request, 'clients/saas_admin/marketplace_requests.html', {
+        'requests': qs[:200],
+        'counts': counts,
+        'status_filter': status_filter,
+        'sector_filter': sector_filter,
+        'q': q,
+        'status_choices': [
+            ('', 'كل الطلبات'),
+            ('pending_approval', 'في انتظار الموافقة'),
+            ('open', 'مفتوح للتجار'),
+            ('accepted', 'تم قبول عرض'),
+            ('completed', 'مكتمل'),
+            ('rejected_by_admin', 'مرفوض'),
+            ('closed', 'مغلق'),
+            ('expired', 'منتهي الصلاحية'),
+        ],
+    })

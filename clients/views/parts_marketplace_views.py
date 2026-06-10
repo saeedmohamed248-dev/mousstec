@@ -382,13 +382,14 @@ def _verify_paymob_hmac(request, body_data: dict) -> tuple[bool, str]:
     """
     secret = os.getenv('PAYMOB_HMAC_SECRET', '')
     received = request.GET.get('hmac', '') or body_data.get('hmac', '')
-    require_hmac = os.getenv('PAYMOB_REQUIRE_HMAC', '').lower() in ('1', 'true', 'yes')
+    # Default: require HMAC unless explicitly disabled AND we're not in production
+    allow_skip = os.getenv('PAYMOB_REQUIRE_HMAC', '').lower() not in ('1', 'true', 'yes') and os.getenv('DJANGO_ENV', 'production') not in ('production', 'prod')
 
     if not secret:
-        if require_hmac:
-            logger.critical("🚨 [PAYMOB-PARTS] PAYMOB_HMAC_SECRET not set but PAYMOB_REQUIRE_HMAC=1 — rejecting")
+        if not allow_skip:
+            logger.critical("🚨 [PAYMOB-PARTS] PAYMOB_HMAC_SECRET not set — rejecting callback for security")
             return False, 'hmac_secret_missing'
-        logger.warning("⚠️ [PAYMOB-PARTS] PAYMOB_HMAC_SECRET unset — HMAC skipped (dev mode)")
+        logger.warning("⚠️ [PAYMOB-PARTS] PAYMOB_HMAC_SECRET unset — HMAC skipped (dev mode only)")
         return True, 'skipped'
 
     if not received:

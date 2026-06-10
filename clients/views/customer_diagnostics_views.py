@@ -172,10 +172,55 @@ def diagnostics_scan(request):
         customer.pk, sub.tier, sub.scans_used, sub.TIER_QUOTAS.get(sub.tier),
     )
 
+    # ── Translate DTC codes via the shared catalog ─────────────────────
+    # The catalog lives in `diagnostics_catalog` and is seeded with 96+
+    # OBD2 generic codes + Arabic descriptions + severity.
+    raw_codes = [str(c).upper().strip() for c in payload.get('dtc_codes', []) if c]
+    raw_codes = list(dict.fromkeys(raw_codes))[:20]  # dedupe + cap.
+    diagnoses = []
+    if raw_codes:
+        try:
+            from diagnostics_catalog.models import DTCDefinition
+            defs = {d.code: d for d in DTCDefinition.objects.filter(code__in=raw_codes)}
+        except Exception as e:
+            logger.warning("[CUSTOMER DIAG] catalog lookup failed: %s", e)
+            defs = {}
+        severity_label = {
+            'low':      ('منخفض',  '#10b981'),
+            'medium':   ('متوسط',  '#f59e0b'),
+            'high':     ('مرتفع',  '#ef4444'),
+            'critical': ('حرج',    '#dc2626'),
+        }
+        for code in raw_codes:
+            d = defs.get(code)
+            if d:
+                sev_ar, sev_color = severity_label.get(d.severity, ('متوسط', '#f59e0b'))
+                diagnoses.append({
+                    'code': code,
+                    'known': True,
+                    'system': d.get_system_display(),
+                    'short': d.short_description,
+                    'full': d.full_description or '',
+                    'severity': d.severity,
+                    'severity_label': sev_ar,
+                    'severity_color': sev_color,
+                    'guided_steps': d.guided_steps or [],
+                    'likely_parts': d.likely_oem_parts or [],
+                })
+            else:
+                diagnoses.append({
+                    'code': code,
+                    'known': False,
+                    'short': 'كود غير موجود في القاعدة المعرفية بعد — يحتاج تحليل يدوي.',
+                    'severity': 'medium',
+                    'severity_label': 'غير معروف',
+                    'severity_color': '#64748b',
+                })
+
     return JsonResponse({
         "status": "ok",
         "vin": (payload.get('vin') or '').upper()[:17],
-        "dtc_codes": payload.get('dtc_codes', []),
+        "diagnoses": diagnoses,
         "quota_remaining": sub.quota_remaining(),
         "tier": sub.tier,
     })

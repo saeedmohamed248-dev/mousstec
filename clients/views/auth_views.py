@@ -547,7 +547,7 @@ def account_recovery(request):
                 'tenant_name': tenant.name,
                 'tenant_schema': tenant.schema_name,
                 'masked_email': masked_email if email_sent else '',
-                'otp_hint': otp_code if (not email_sent and settings.DEBUG) else '',
+                'otp_hint': '',
                 'email_sent': email_sent,
             }
             return render(request, 'clients/account_recovery.html', context)

@@ -452,14 +452,16 @@ class SaleInvoice(models.Model):
         services_total_price = services_agg['t_srv'] or Decimal('0.00')
 
         subtotal = items_total_price + services_total_price + calculated_core_charge + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
-        tax_amount = (subtotal * Decimal(str(self.tax_percentage or 0))) / Decimal('100.00')
+        from decimal import ROUND_HALF_UP
+        tax_amount = ((subtotal * Decimal(str(self.tax_percentage or 0))) / Decimal('100.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         
         self.total_amount = subtotal + tax_amount
         self.total_cost = items_total_cost
         self.total_core_charge = calculated_core_charge
-        # Net profit: revenue minus cost, minus tax (tax is paid to government, not profit)
+        # Net profit: revenue minus cost. Tax is excluded from both sides
+        # (collected from customer, passed to gov — never counted as income or expense).
         gross_margin = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
-        self.net_profit = gross_margin - tax_amount
+        self.net_profit = gross_margin
 
         if self.paid_amount == Decimal('0.00') and self.status == 'posted' and not self.maintenance_contract:
             self.paid_amount = self.total_amount

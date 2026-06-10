@@ -114,15 +114,50 @@
 
     <div class="grid-2">
 
-        <!-- Scan panel -->
+        <!-- Scan panel — Bluetooth-first, manual fallback -->
         <div class="panel">
-            <h3><i class="fas fa-magnifying-glass-chart" style="color:var(--accent);"></i> سكان جديد</h3>
-            <p class="muted" style="font-size:0.9rem; margin-bottom:12px;">أدخل رقم الشاسيه (VIN) أو كود العطل (مثل P0301) لتشخيص فوري.</p>
-            <input id="vinInput" class="scan-input mb-2" placeholder="VIN — 17 حرف" maxlength="17" dir="ltr">
-            <input id="dtcInput" class="scan-input" placeholder="كود عطل (اختياري) — P0301" dir="ltr">
-            <button id="scanBtn" class="btn-cta" style="width:100%; margin-top:14px;" onclick="runScan()">
-                <i class="fas fa-bolt"></i> ابدأ التشخيص
-            </button>
+            <h3><i class="fas fa-bluetooth-b" style="color:var(--accent);"></i> اتصل بفيشة العربية</h3>
+
+            <!-- Bluetooth status -->
+            <div id="btStatus" style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; font-size:0.92rem;">
+                <div id="btUnsupported" style="display:none; color:#fca5a5;">
+                    <i class="fas fa-triangle-exclamation"></i> متصفحك مش بيدعم Web Bluetooth. استخدم <b>Chrome</b> أو <b>Edge</b> على الموبايل/الكمبيوتر — Safari لسه ما بيدعمش.
+                </div>
+                <div id="btIdle">
+                    <i class="fas fa-circle-info" style="color:var(--accent);"></i>
+                    اضغط زر "اتصل" وشغّل البلوتوث في الموبايل، واختر جهاز ELM327 / OBD2.
+                </div>
+                <div id="btConnecting" style="display:none; color:#fcd34d;">
+                    <i class="fas fa-spinner fa-spin"></i> <span id="btConnectMsg">جاري الاتصال...</span>
+                </div>
+                <div id="btConnected" style="display:none; color:#6ee7b7;">
+                    <i class="fas fa-check-circle"></i> متصل بـ <b id="btDeviceName">—</b>
+                </div>
+                <div id="btError" style="display:none; color:#fca5a5;"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+                <button id="btConnectBtn" class="btn-cta" style="flex:1; min-width:180px;" onclick="btConnect()">
+                    <i class="fas fa-link"></i> اتصل بالفيشة
+                </button>
+                <button id="btReadBtn" class="btn-cta" style="flex:1; min-width:180px; display:none;" onclick="btReadDTCs()">
+                    <i class="fas fa-magnifying-glass-chart"></i> اقرأ الأعطال
+                </button>
+            </div>
+
+            <details style="margin-top:6px;">
+                <summary style="cursor:pointer; color:var(--muted); font-size:0.88rem;">
+                    <i class="fas fa-keyboard"></i> أو ادخل الكود يدوياً
+                </summary>
+                <div style="margin-top:10px;">
+                    <input id="vinInput" class="scan-input mb-2" placeholder="VIN — 17 حرف (اختياري)" maxlength="17" dir="ltr">
+                    <input id="dtcInput" class="scan-input" placeholder="كود عطل مثل P0301 (افصلهم بفاصلة لأكتر من كود)" dir="ltr">
+                    <button class="btn-cta" style="width:100%; margin-top:10px;" onclick="manualScan()">
+                        <i class="fas fa-bolt"></i> شخّص بالكود
+                    </button>
+                </div>
+            </details>
+
             <div id="scanResult"></div>
         </div>
 
@@ -164,34 +199,178 @@
 
 </div>
 
+<!-- 🔌 Same ELM327 Bluetooth driver used by the workshop diagnostics room.
+     Single source of truth: pairing filters, GATT discovery, DTC parsing
+     (Modes 03/07/0A) all live here so customer + workshop behave identically. -->
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=customer-1"></script>
+
 <script>
-async function runScan() {
-    const btn = document.getElementById('scanBtn');
-    const out = document.getElementById('scanResult');
+// ── Bluetooth state ───────────────────────────────────────────────────
+let obd = null;
+let obdConnected = false;
+
+function btSetState(state, msg = '') {
+    ['btUnsupported','btIdle','btConnecting','btConnected','btError']
+        .forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById(state).style.display = 'block';
+    if (state === 'btConnecting') document.getElementById('btConnectMsg').textContent = msg || 'جاري الاتصال...';
+    if (state === 'btError')      document.getElementById('btError').innerHTML =
+        `<i class="fas fa-circle-xmark"></i> ${msg}`;
+}
+
+// Browser support check on load
+window.addEventListener('DOMContentLoaded', () => {
+    if (!('bluetooth' in navigator)) {
+        btSetState('btUnsupported');
+        document.getElementById('btConnectBtn').disabled = true;
+        document.getElementById('btConnectBtn').style.opacity = 0.5;
+    }
+});
+
+async function btConnect() {
+    if (!('bluetooth' in navigator)) { btSetState('btUnsupported'); return; }
+    const btn = document.getElementById('btConnectBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال...';
+    btSetState('btConnecting', 'اختار جهازك من قائمة البلوتوث...');
+    try {
+        if (!obd) obd = new OBDBluetooth();
+        const info = await obd.requestDevice({ relaxed: false });
+        btSetState('btConnecting', 'متصل بالجهاز، جاري تهيئة OBD2...');
+        await obd.connect();
+        obdConnected = true;
+        document.getElementById('btDeviceName').textContent = info?.name || 'OBD2 Adapter';
+        btSetState('btConnected');
+        document.getElementById('btConnectBtn').style.display = 'none';
+        document.getElementById('btReadBtn').style.display = 'inline-block';
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : 'فشل الاتصال';
+        // User cancelled the chooser → don't show as an error.
+        if (/cancel|user/i.test(msg)) {
+            btSetState('btIdle');
+        } else {
+            btSetState('btError', msg);
+        }
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-link"></i> اتصل بالفيشة';
+    }
+}
+
+async function btReadDTCs() {
+    if (!obdConnected) { btSetState('btError', 'لازم تتصل بالفيشة الأول.'); return; }
+    const btn = document.getElementById('btReadBtn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري قراءة الأكواد...';
+    try {
+        const result = await obd.readDTCs();
+        // result shape: { stored: [...], pending: [...], permanent: [...] }
+        const all = [
+            ...(result.stored || []),
+            ...(result.pending || []),
+            ...(result.permanent || []),
+        ];
+        if (all.length === 0) {
+            renderResult({
+                status: 'ok',
+                diagnoses: [],
+                _empty: true,
+            });
+            return;
+        }
+        await postScan({ vin: '', dtc_codes: all });
+    } catch (e) {
+        renderError(e.message || 'فشل قراءة الأكواد');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-magnifying-glass-chart"></i> اقرأ الأعطال';
+    }
+}
+
+async function manualScan() {
     const vin = document.getElementById('vinInput').value.trim();
-    const dtc = document.getElementById('dtcInput').value.trim();
-    if (!vin && !dtc) { out.className = 'err'; out.textContent = 'أدخل VIN أو كود عطل على الأقل.'; return; }
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التشخيص...';
-    out.className = ''; out.textContent = '';
+    const dtcRaw = document.getElementById('dtcInput').value.trim();
+    if (!vin && !dtcRaw) { renderError('أدخل VIN أو كود عطل على الأقل.'); return; }
+    const codes = dtcRaw ? dtcRaw.split(/[,\s]+/).filter(Boolean) : [];
+    await postScan({ vin, dtc_codes: codes });
+}
+
+async function postScan(payload) {
     try {
         const res = await fetch('/marketplace/diagnostics/scan/', {
             method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ vin, dtc_codes: dtc ? [dtc] : [] }),
+            body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (res.status === 402) {
-            out.className = 'err';
-            out.innerHTML = `${data.reason} <a href="${data.upgrade_url}" style="color:#f59e0b;">رقّي الباقة</a>`;
+            renderError(`${data.reason} — <a href="${data.upgrade_url}" style="color:#f59e0b;">رقّي الباقة</a>`);
             return;
         }
-        if (!res.ok) throw new Error(data.error || 'خطأ');
-        out.className = 'ok';
-        out.innerHTML = `<i class="fas fa-check-circle"></i> تم السكان. متبقي ${data.quota_remaining} سكان. جاري التحليل...`;
+        if (!res.ok) throw new Error(data.error || 'خطأ في السكان');
+        renderResult(data);
     } catch (e) {
-        out.className = 'err'; out.textContent = e.message;
-    } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> ابدأ التشخيص';
+        renderError(e.message);
     }
+}
+
+function severityIcon(sev) {
+    return { low:'fa-circle-check', medium:'fa-triangle-exclamation',
+             high:'fa-circle-exclamation', critical:'fa-skull-crossbones' }[sev] || 'fa-info-circle';
+}
+
+function renderResult(data) {
+    const out = document.getElementById('scanResult');
+    let html = `<div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);">`;
+    html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-weight:900;"><i class="fas fa-check-circle" style="color:var(--success);"></i> تم السكان</div>
+        <div style="color:var(--muted); font-size:0.85rem;">متبقي ${data.quota_remaining} سكان</div>
+    </div>`;
+
+    if (data._empty || !data.diagnoses || data.diagnoses.length === 0) {
+        html += `<div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:16px; border-radius:12px; text-align:center;">
+            <i class="fas fa-check-double" style="color:var(--success); font-size:1.6rem;"></i>
+            <h4 style="margin:8px 0 4px;">عربيتك سليمة!</h4>
+            <p style="color:var(--muted); margin:0; font-size:0.88rem;">مفيش أي كود عطل مخزّن. الـ ECU نظيف.</p>
+        </div>`;
+    } else {
+        html += `<div style="margin-bottom:10px; color:var(--muted); font-size:0.85rem;">${data.diagnoses.length} عطل تم كشفه:</div>`;
+        for (const d of data.diagnoses) {
+            html += `<div style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-right:4px solid ${d.severity_color}; border-radius:12px; padding:14px 16px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                    <div style="font-family:monospace; font-weight:900; font-size:1.05rem; color:${d.severity_color};">
+                        <i class="fas ${severityIcon(d.severity)}"></i> ${d.code}
+                    </div>
+                    <span style="background:${d.severity_color}22; color:${d.severity_color}; padding:3px 10px; border-radius:999px; font-size:0.78rem; font-weight:800;">${d.severity_label}</span>
+                </div>
+                <div style="font-weight:800; margin-bottom:4px;">${d.short || ''}</div>
+                ${d.full ? `<div style="color:var(--muted); font-size:0.88rem; line-height:1.6;">${d.full}</div>` : ''}
+                ${d.guided_steps && d.guided_steps.length ? `
+                    <details style="margin-top:10px;">
+                        <summary style="cursor:pointer; color:var(--accent); font-size:0.88rem; font-weight:700;">
+                            <i class="fas fa-list-check"></i> خطوات الفحص (${d.guided_steps.length})
+                        </summary>
+                        <ol style="margin:8px 0 0 0; padding-right:18px; color:var(--muted); font-size:0.88rem; line-height:1.8;">
+                            ${d.guided_steps.map(s => `<li>${s.title || s.action || ''}</li>`).join('')}
+                        </ol>
+                    </details>` : ''}
+                ${!d.known ? `<div style="margin-top:8px; font-size:0.85rem;">
+                    <a href="/marketplace/?q=${encodeURIComponent('تشخيص ' + d.code)}" style="color:var(--accent);">
+                        <i class="fas fa-handshake"></i> اطلب عرض من ميكانيكي قريب
+                    </a></div>` : ''}
+            </div>`;
+        }
+        html += `<div style="margin-top:14px; padding:14px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:12px;">
+            <i class="fas fa-lightbulb" style="color:var(--accent);"></i>
+            <b>محتاج فني؟</b> اعمل طلب على السوق والميكانيكية هيتنافسوا على عرضك.
+            <a href="/marketplace/dashboard/" style="color:var(--accent); font-weight:800; margin-right:6px;">اطلب الآن →</a>
+        </div>`;
+    }
+    html += `</div>`;
+    out.innerHTML = html;
+    out.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function renderError(msg) {
+    document.getElementById('scanResult').innerHTML =
+        `<div style="margin-top:14px; color:#fca5a5; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); padding:12px 14px; border-radius:12px;">
+            <i class="fas fa-circle-xmark"></i> ${msg}
+        </div>`;
 }
 </script>
 </body>

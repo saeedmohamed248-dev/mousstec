@@ -9,7 +9,7 @@ All business logic lives in inventory/services/*.py
 """
 
 import logging
-from django.db import connection
+from django.db import connection, models
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 
@@ -44,6 +44,28 @@ def update_sale_invoice_total(sender, instance, **kwargs):
     if hasattr(instance, 'invoice') and instance.invoice:
         if not getattr(instance.invoice, '_skip_update_total', False):
             instance.invoice.update_total()
+
+
+@receiver(post_save, sender=SaleInvoiceItem)
+def accrue_salesperson_commission(sender, instance, created, **kwargs):
+    """Calculate and credit commission to the salesperson on item save."""
+    from decimal import Decimal, ROUND_HALF_UP
+    if not instance.salesperson_id:
+        return
+    profit = (Decimal(str(instance.unit_price)) - Decimal(str(instance.cost_at_sale))) * Decimal(str(instance.quantity))
+    if profit <= 0:
+        return
+    rate = Decimal(str(instance.salesperson.commission_rate_pct or 0))
+    if rate <= 0:
+        return
+    commission = (profit * rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if commission <= 0:
+        return
+    SaleInvoiceItem.objects.filter(pk=instance.pk).update(commission_accrued=commission)
+    from inventory.models import EmployeeProfile
+    EmployeeProfile.objects.filter(pk=instance.salesperson_id).update(
+        commission_balance=models.F('commission_balance') + commission
+    )
 
 
 @receiver(post_save, sender=SaleInvoiceServiceItem)

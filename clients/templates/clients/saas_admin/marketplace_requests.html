@@ -1,0 +1,222 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات السوق | Super Admin — Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; direction: rtl; }
+        .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.75rem; font-weight:800; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<div class="max-w-7xl mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="/superadmin/" class="text-slate-400 hover:text-white text-sm font-bold mb-1 inline-flex items-center gap-2">
+                <i class="fas fa-arrow-right"></i> لوحة السوبر أدمن
+            </a>
+            <h1 class="text-2xl font-black text-white mt-1">
+                <i class="fas fa-store text-green-400 ml-2"></i> إدارة طلبات السوق
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">مراجعة وإدارة كل طلبات العملاء في السوق المفتوح</p>
+        </div>
+    </div>
+
+    <!-- Summary Counts -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        {% for s, label in status_choices %}
+        <a href="?status={{ s }}&sector={{ sector_filter }}&q={{ q }}"
+           class="rounded-xl border p-3 text-center hover:border-green-500/40 transition
+                  {% if status_filter == s %}bg-green-500/15 border-green-500/40{% else %}bg-slate-900/60 border-slate-800{% endif %}">
+            <div class="text-xl font-black text-white">
+                {% if s == '' %}{{ counts.all }}
+                {% elif s == 'pending_approval' %}{{ counts.pending_approval }}
+                {% elif s == 'open' %}{{ counts.open }}
+                {% elif s == 'accepted' %}{{ counts.accepted }}
+                {% elif s == 'completed' %}{{ counts.completed }}
+                {% elif s == 'rejected_by_admin' %}{{ counts.rejected }}
+                {% elif s == 'closed' %}{{ counts.closed }}
+                {% elif s == 'expired' %}{{ counts.expired }}
+                {% endif %}
+            </div>
+            <div class="text-xs text-slate-400 mt-1">{{ label }}</div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Search + Filters -->
+    <form method="get" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 mb-6 flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[200px]">
+            <label class="text-xs text-slate-400 font-bold block mb-1">بحث</label>
+            <input type="text" name="q" value="{{ q }}"
+                   placeholder="اسم العميل / رقم الهاتف / عنوان الطلب"
+                   class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green-500">
+        </div>
+        <div>
+            <label class="text-xs text-slate-400 font-bold block mb-1">القطاع</label>
+            <select name="sector" class="bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none">
+                <option value="">الكل</option>
+                <option value="automotive" {% if sector_filter == 'automotive' %}selected{% endif %}>سيارات</option>
+                <option value="printing" {% if sector_filter == 'printing' %}selected{% endif %}>طباعة وتصميم</option>
+            </select>
+        </div>
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <button type="submit" class="bg-green-500 hover:bg-green-400 text-black font-black px-6 py-2.5 rounded-xl text-sm transition">
+            <i class="fas fa-search ml-1"></i> بحث
+        </button>
+        {% if q or sector_filter %}
+        <a href="?status={{ status_filter }}" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
+            <i class="fas fa-times ml-1"></i> مسح
+        </a>
+        {% endif %}
+    </form>
+
+    <!-- Requests Table -->
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+            <span class="font-bold text-sm text-white">{{ requests|length }} طلب</span>
+        </div>
+
+        {% if not requests %}
+        <div class="px-5 py-16 text-center text-slate-600 font-bold">
+            <i class="fas fa-inbox text-4xl mb-3 block"></i>
+            لا توجد طلبات بهذه المعايير.
+        </div>
+        {% else %}
+        <div class="divide-y divide-slate-800/60">
+            {% for r in requests %}
+            <div class="px-5 py-4 hover:bg-slate-800/30 transition" id="req-{{ r.pk }}">
+                <div class="flex items-start gap-4">
+                    <!-- Status icon -->
+                    <div class="mt-1 w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0
+                        {% if r.status == 'pending_approval' %}bg-amber-500/15 text-amber-400
+                        {% elif r.status == 'open' %}bg-green-500/15 text-green-400
+                        {% elif r.status == 'accepted' %}bg-blue-500/15 text-blue-400
+                        {% elif r.status == 'completed' %}bg-emerald-500/15 text-emerald-400
+                        {% elif r.status == 'rejected_by_admin' %}bg-red-500/15 text-red-400
+                        {% else %}bg-slate-700/40 text-slate-400{% endif %}">
+                        {% if r.status == 'pending_approval' %}<i class="fas fa-clock text-sm"></i>
+                        {% elif r.status == 'open' %}<i class="fas fa-bullhorn text-sm"></i>
+                        {% elif r.status == 'accepted' %}<i class="fas fa-handshake text-sm"></i>
+                        {% elif r.status == 'completed' %}<i class="fas fa-check-double text-sm"></i>
+                        {% elif r.status == 'rejected_by_admin' %}<i class="fas fa-ban text-sm"></i>
+                        {% else %}<i class="fas fa-archive text-sm"></i>{% endif %}
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                            <span class="font-black text-white text-sm">{{ r.title|truncatechars:80 }}</span>
+                            <span class="status-badge
+                                {% if r.status == 'pending_approval' %}bg-amber-500/20 text-amber-300 border border-amber-500/30
+                                {% elif r.status == 'open' %}bg-green-500/20 text-green-300 border border-green-500/30
+                                {% elif r.status == 'accepted' %}bg-blue-500/20 text-blue-300 border border-blue-500/30
+                                {% elif r.status == 'completed' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/30
+                                {% elif r.status == 'rejected_by_admin' %}bg-red-500/20 text-red-300 border border-red-500/30
+                                {% else %}bg-slate-700/50 text-slate-400 border border-slate-700{% endif %}">
+                                {{ r.get_status_display }}
+                            </span>
+                            <span class="text-[10px] bg-slate-800/60 text-slate-400 px-2 py-0.5 rounded-lg border border-slate-700">
+                                {% if r.sector == 'automotive' %}<i class="fas fa-car ml-1"></i>سيارات{% else %}<i class="fas fa-palette ml-1"></i>طباعة{% endif %}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-2 leading-relaxed">{{ r.description|truncatechars:160 }}</p>
+                        <div class="flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+                            <span><i class="fas fa-user ml-1"></i>{{ r.customer.full_name }}</span>
+                            <span><i class="fas fa-phone ml-1"></i>{{ r.customer.phone }}</span>
+                            <span><i class="fas fa-bolt ml-1"></i>{{ r.get_urgency_display }}</span>
+                            <span><i class="fas fa-clock ml-1"></i>{{ r.created_at|timesince }} مضت</span>
+                            {% if r.max_budget %}<span class="text-amber-400"><i class="fas fa-coins ml-1"></i>{{ r.max_budget }} ج</span>{% endif %}
+                            {% if r.offers_count > 0 %}<span class="text-blue-400"><i class="fas fa-tags ml-1"></i>{{ r.offers_count }} عرض</span>{% endif %}
+                        </div>
+                        {% if r.admin_notes %}
+                        <div class="mt-2 text-[11px] text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                            <i class="fas fa-note-sticky ml-1"></i>ملاحظة الإدارة: {{ r.admin_notes }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                        {% if r.status == 'pending_approval' %}
+                        <button onclick="adminAction({{ r.pk }}, 'approve', this)"
+                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer whitespace-nowrap">
+                            <i class="fas fa-check ml-1"></i>موافقة
+                        </button>
+                        <button onclick="adminAction({{ r.pk }}, 'reject', this)"
+                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer whitespace-nowrap">
+                            <i class="fas fa-times ml-1"></i>رفض
+                        </button>
+                        {% elif r.status == 'open' %}
+                        <button onclick="adminAction({{ r.pk }}, 'close', this)"
+                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition cursor-pointer whitespace-nowrap">
+                            <i class="fas fa-archive ml-1"></i>إغلاق
+                        </button>
+                        {% elif r.status == 'rejected_by_admin' or r.status == 'closed' or r.status == 'expired' %}
+                        <button onclick="adminAction({{ r.pk }}, 'reopen', this)"
+                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer whitespace-nowrap">
+                            <i class="fas fa-rotate-right ml-1"></i>إعادة فتح
+                        </button>
+                        <button onclick="adminAction({{ r.pk }}, 'set_open', this)"
+                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition cursor-pointer whitespace-nowrap">
+                            <i class="fas fa-bullhorn ml-1"></i>نشر مباشر
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% csrf_token %}
+<script>
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+async function adminAction(id, action, btn) {
+    const labels = {
+        approve: 'هل تريد الموافقة على هذا الطلب ونشره للتجار؟',
+        reject: null,
+        close: 'هل تريد إغلاق هذا الطلب؟',
+        reopen: 'هل تريد إعادة فتح الطلب للمراجعة؟',
+        set_open: 'هل تريد نشر الطلب للتجار مباشرة؟',
+    };
+    let reason = '';
+    if (action === 'reject') {
+        reason = prompt('سبب الرفض (اختياري):');
+        if (reason === null) return;
+    } else {
+        if (!confirm(labels[action])) return;
+    }
+    btn.disabled = true;
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const res = await fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/json'},
+            body: JSON.stringify({action, id, reason}),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        alert(data.message);
+        location.reload();
+    } catch (e) {
+        alert('خطأ: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
+}
+</script>
+</body>
+</html>
