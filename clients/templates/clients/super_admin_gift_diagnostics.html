@@ -15,134 +15,213 @@
   .dur-btn.selected { background: rgba(99,102,241,.25); border-color: #6366f1; color: #a5b4fc; }
   .step { display: none; }
   .step.active { display: block; }
+  .company-row:hover { background: rgba(99,102,241,.08); }
 </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4 md:p-6">
 
-<div class="max-w-2xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
   <!-- Header -->
-  <div class="flex items-center gap-3 mb-6">
+  <div class="flex items-center gap-3 mb-5">
     <a href="/superadmin/" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>الرجوع للوحة</a>
     <span class="text-slate-600">|</span>
     <h1 class="text-xl font-black text-amber-300"><i class="fas fa-gift ml-2"></i>هدية / تجديد اشتراك تشخيص الأعطال</h1>
   </div>
 
-  <!-- Success Banner -->
+  <!-- Success / Error Banners -->
   <div id="success-banner" class="hidden mb-4 p-4 rounded-2xl bg-emerald-900/40 border border-emerald-500/40 text-emerald-200 text-center font-bold"></div>
-  <div id="error-banner" class="hidden mb-4 p-4 rounded-2xl bg-red-900/40 border border-red-500/40 text-red-200 text-center font-bold"></div>
+  <div id="error-banner"   class="hidden mb-4 p-4 rounded-2xl bg-red-900/40 border border-red-500/40 text-red-200 text-center font-bold"></div>
 
-  <!-- Step 1: Phone Search -->
-  <div class="step active" id="step-1">
-    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-6">
-      <h2 class="text-lg font-bold text-white mb-4"><span class="text-amber-400 ml-2">①</span>ابحث بالهاتف</h2>
-      <div class="flex gap-3">
-        <input id="phone-input" type="tel" placeholder="01xxxxxxxxx"
-          class="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
-          oninput="clearLookup()">
-        <button onclick="lookupPhone()" class="px-5 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition">
-          <i class="fas fa-search ml-1"></i>بحث
-        </button>
+  <!-- Two-column layout -->
+  <div class="grid lg:grid-cols-[1fr_380px] gap-5">
+
+    <!-- LEFT: Companies list -->
+    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl overflow-hidden">
+      <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
+        <i class="fas fa-building text-indigo-400"></i>
+        <span class="font-bold text-white">الشركات المسجلة</span>
+        <span class="text-xs text-slate-500 mr-auto">{{ companies|length }} شركة</span>
+        <input id="company-search" type="text" placeholder="ابحث باسم الشركة…"
+          oninput="filterCompanies(this.value)"
+          class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-44">
       </div>
-      <div id="lookup-result" class="mt-4 hidden p-4 rounded-xl bg-slate-800 border border-slate-700">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg"><i class="fas fa-user"></i></div>
-          <div>
-            <div id="cust-name" class="font-bold text-white"></div>
-            <div id="cust-sub" class="text-xs text-slate-400 mt-0.5"></div>
+
+      <div class="overflow-y-auto" style="max-height:calc(100vh - 220px)">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-500 text-xs border-b border-slate-800">
+              <th class="px-4 py-2 text-right font-semibold">الشركة</th>
+              <th class="px-3 py-2 text-center font-semibold">القطاع</th>
+              <th class="px-3 py-2 text-center font-semibold">الباقة</th>
+              <th class="px-3 py-2 text-center font-semibold">OBD</th>
+              <th class="px-3 py-2 text-center font-semibold">دخول</th>
+            </tr>
+          </thead>
+          <tbody id="companies-tbody">
+            {% for c in companies %}
+            <tr class="company-row border-b border-slate-800/50 transition" data-name="{{ c.name|lower }}">
+              <td class="px-4 py-3">
+                <div class="font-semibold text-white">{{ c.name }}</div>
+                <div class="text-xs text-slate-500">{{ c.schema_name }}</div>
+              </td>
+              <td class="px-3 py-3 text-center">
+                {% if c.industry == 'automotive' %}
+                  <span class="text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded">🚗 سيارات</span>
+                {% elif c.industry == 'printing' %}
+                  <span class="text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded">🖨️ طباعة</span>
+                {% else %}
+                  <span class="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">{{ c.industry }}</span>
+                {% endif %}
+              </td>
+              <td class="px-3 py-3 text-center">
+                <span class="text-xs font-bold
+                  {% if c.plan == 'empire' %}text-amber-300
+                  {% elif c.plan == 'pro' %}text-purple-300
+                  {% else %}text-slate-400{% endif %}">
+                  {{ c.plan|upper }}
+                </span>
+              </td>
+              <td class="px-3 py-3 text-center">
+                {% if c.obd_valid %}
+                  <span class="inline-flex items-center gap-1 text-xs bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded">
+                    <i class="fas fa-circle-check"></i>
+                    {% if c.obd_access_expiry %}
+                      <span class="text-slate-400">{{ c.obd_access_expiry|date:"d/m/y" }}</span>
+                    {% else %}
+                      دائم
+                    {% endif %}
+                  </span>
+                {% else %}
+                  <span class="text-xs text-slate-600"><i class="fas fa-circle-xmark"></i> لا</span>
+                {% endif %}
+              </td>
+              <td class="px-3 py-3 text-center">
+                <a href="/superadmin/enter/{{ c.schema_name }}/"
+                   class="text-xs px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-300 rounded transition">
+                  <i class="fas fa-arrow-left"></i>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: Gift Wizard -->
+    <div>
+      <!-- Step 1: Phone Search -->
+      <div class="step active" id="step-1">
+        <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
+          <h2 class="text-base font-bold text-white mb-4"><span class="text-amber-400 ml-2">①</span>ابحث بالهاتف</h2>
+          <div class="flex gap-2">
+            <input id="phone-input" type="tel" placeholder="01xxxxxxxxx"
+              class="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm"
+              oninput="clearLookup()" onkeydown="if(event.key==='Enter') lookupPhone()">
+            <button onclick="lookupPhone()" class="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition text-sm">
+              <i class="fas fa-search"></i>
+            </button>
           </div>
-          <button onclick="goStep(2)" class="mr-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition">
-            اختر الباقة <i class="fas fa-arrow-left mr-1"></i>
+          <div id="lookup-result" class="mt-3 hidden p-3 rounded-xl bg-slate-800 border border-slate-700">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-300"><i class="fas fa-user text-sm"></i></div>
+              <div class="flex-1 min-w-0">
+                <div id="cust-name" class="font-bold text-white text-sm truncate"></div>
+                <div id="cust-sub"  class="text-xs text-slate-400 mt-0.5"></div>
+              </div>
+            </div>
+            <button onclick="goStep(2)" class="w-full mt-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition">
+              اختر الباقة <i class="fas fa-arrow-left mr-1"></i>
+            </button>
+          </div>
+          <div id="lookup-notfound" class="mt-3 hidden p-3 rounded-xl bg-red-900/30 border border-red-500/30 text-red-300 text-xs text-center">
+            <i class="fas fa-circle-xmark ml-1"></i>لم يتم العثور على عميل بهذا الرقم
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Tier Selection -->
+      <div class="step" id="step-2">
+        <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">②</span>اختر الباقة</h2>
+            <button onclick="goStep(1)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            {% for t in tiers %}
+            <div class="tier-card p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center"
+                 style="--tier-color:{{ t.color }}"
+                 onclick="selectTier('{{ t.key }}', '{{ t.label }}', {{ t.price }}, this)">
+              <div class="text-xl mb-1.5" style="color:{{ t.color }}"><i class="fas {{ t.icon }}"></i></div>
+              <div class="font-black text-white text-sm">{{ t.label }}</div>
+              <div class="text-xs text-slate-400 mt-0.5">
+                {% if t.scans %}{{ t.scans }} فحص{% else %}غير محدود{% endif %}
+              </div>
+              <div class="text-sm font-bold mt-1.5" style="color:{{ t.color }}">{{ t.price }} ج</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Duration -->
+      <div class="step" id="step-3">
+        <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">③</span>المدة</h2>
+            <button onclick="goStep(2)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            {% for d in durations %}
+            <button class="dur-btn p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center relative"
+                    onclick="selectDuration({{ d.months }}, '{{ d.label }}', {{ d.discount }}, this)">
+              {% if d.discount %}
+              <span class="absolute top-1 left-1 text-[8px] font-black bg-emerald-500/20 text-emerald-300 px-1 py-0.5 rounded">{{ d.discount }}%</span>
+              {% endif %}
+              <div class="font-bold text-white text-sm">{{ d.label }}</div>
+            </button>
+            {% endfor %}
+          </div>
+          <div id="price-preview" class="hidden mt-3 p-3 rounded-xl bg-indigo-900/20 border border-indigo-500/30 text-center">
+            <div class="text-xs text-slate-400 mb-0.5">الإجمالي</div>
+            <div id="price-value" class="text-2xl font-black text-indigo-300"></div>
+          </div>
+          <button onclick="goStep(4)" id="to-step4" class="hidden w-full mt-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition text-sm">
+            التالي <i class="fas fa-arrow-left mr-1"></i>
           </button>
         </div>
       </div>
-      <div id="lookup-notfound" class="mt-4 hidden p-3 rounded-xl bg-red-900/30 border border-red-500/30 text-red-300 text-sm text-center">
-        <i class="fas fa-circle-xmark ml-1"></i>لم يتم العثور على عميل بهذا الرقم
-      </div>
-    </div>
-  </div>
 
-  <!-- Step 2: Tier Selection -->
-  <div class="step" id="step-2">
-    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white"><span class="text-amber-400 ml-2">②</span>اختر الباقة</h2>
-        <button onclick="goStep(1)" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
-      </div>
-      <div class="grid grid-cols-3 gap-3">
-        {% for t in tiers %}
-        <div class="tier-card p-4 rounded-2xl border border-slate-700 bg-slate-800/50 text-center"
-             style="--tier-color:{{ t.color }}"
-             onclick="selectTier('{{ t.key }}', '{{ t.label }}', {{ t.price }}, this)">
-          <div class="text-2xl mb-2" style="color:{{ t.color }}"><i class="fas {{ t.icon }}"></i></div>
-          <div class="font-black text-white">{{ t.label }}</div>
-          <div class="text-xs text-slate-400 mt-1">
-            {% if t.scans %}{{ t.scans }} فحص/شهر{% else %}فحص غير محدود{% endif %}
+      <!-- Step 4: Confirm -->
+      <div class="step" id="step-4">
+        <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">④</span>تأكيد</h2>
+            <button onclick="goStep(3)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
           </div>
-          <div class="text-sm font-bold mt-2" style="color:{{ t.color }}">{{ t.price }} ج/شهر</div>
+          <div class="bg-slate-800 rounded-xl p-3 mb-3 text-sm space-y-2">
+            <div class="flex justify-between"><span class="text-slate-400">العميل</span><span id="sum-name" class="text-white font-bold"></span></div>
+            <div class="flex justify-between"><span class="text-slate-400">الباقة</span><span id="sum-tier" class="text-white font-bold"></span></div>
+            <div class="flex justify-between"><span class="text-slate-400">المدة</span><span id="sum-dur"  class="text-white font-bold"></span></div>
+            <div class="flex justify-between border-t border-slate-700 pt-2 mt-1">
+              <span class="text-slate-400">الإجمالي</span>
+              <span id="sum-price" class="text-indigo-300 font-black"></span>
+            </div>
+          </div>
+          <textarea id="note-input" placeholder="ملاحظة للعميل (اختياري)…"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none mb-3 text-sm" rows="2"></textarea>
+          <button onclick="submitGift()" id="submit-btn"
+            class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white font-black rounded-xl transition">
+            <i class="fas fa-gift ml-2"></i>تفعيل الهدية
+          </button>
         </div>
-        {% endfor %}
       </div>
-    </div>
-  </div>
+    </div><!-- end right col -->
 
-  <!-- Step 3: Duration -->
-  <div class="step" id="step-3">
-    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white"><span class="text-amber-400 ml-2">③</span>اختر المدة</h2>
-        <button onclick="goStep(2)" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        {% for d in durations %}
-        <button class="dur-btn p-4 rounded-xl border border-slate-700 bg-slate-800/50 text-center relative"
-                onclick="selectDuration({{ d.months }}, '{{ d.label }}', {{ d.discount }}, this)">
-          {% if d.discount %}
-          <span class="absolute top-1 left-1 text-[9px] font-black bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">خصم {{ d.discount }}%</span>
-          {% endif %}
-          <div class="font-bold text-white">{{ d.label }}</div>
-        </button>
-        {% endfor %}
-      </div>
-
-      <!-- Price Preview -->
-      <div id="price-preview" class="hidden mt-4 p-4 rounded-xl bg-indigo-900/20 border border-indigo-500/30 text-center">
-        <div class="text-sm text-slate-400 mb-1">الإجمالي</div>
-        <div id="price-value" class="text-3xl font-black text-indigo-300"></div>
-      </div>
-
-      <button onclick="goStep(4)" id="to-step4" class="hidden w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition">
-        التالي <i class="fas fa-arrow-left mr-1"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- Step 4: Note + Confirm -->
-  <div class="step" id="step-4">
-    <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white"><span class="text-amber-400 ml-2">④</span>تأكيد وإرسال</h2>
-        <button onclick="goStep(3)" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
-      </div>
-
-      <!-- Summary -->
-      <div class="bg-slate-800 rounded-xl p-4 mb-4 text-sm space-y-2">
-        <div class="flex justify-between"><span class="text-slate-400">العميل</span><span id="sum-name" class="text-white font-bold"></span></div>
-        <div class="flex justify-between"><span class="text-slate-400">الباقة</span><span id="sum-tier" class="text-white font-bold"></span></div>
-        <div class="flex justify-between"><span class="text-slate-400">المدة</span><span id="sum-dur" class="text-white font-bold"></span></div>
-        <div class="flex justify-between border-t border-slate-700 pt-2 mt-2"><span class="text-slate-400">الإجمالي</span><span id="sum-price" class="text-indigo-300 font-black text-base"></span></div>
-      </div>
-
-      <textarea id="note-input" placeholder="ملاحظة للعميل (اختياري)…"
-        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none mb-4" rows="3"></textarea>
-
-      <button onclick="submitGift()" id="submit-btn"
-        class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white font-black text-lg rounded-xl transition">
-        <i class="fas fa-gift ml-2"></i>تفعيل الهدية
-      </button>
-    </div>
-  </div>
-
+  </div><!-- end grid -->
 </div>
 
 <script>
@@ -185,8 +264,8 @@ async function lookupPhone() {
   selectedCustomerName = data.name;
   document.getElementById('cust-name').textContent = data.name + ' · ' + data.phone;
   let subText = data.is_active
-    ? `✅ مشترك — ${data.tier_display} · متبقي ${data.days_remaining} يوم (حتى ${data.paid_until})`
-    : `⭕ غير مشترك حالياً`;
+    ? `✅ ${data.tier_display} — متبقي ${data.days_remaining} يوم (حتى ${data.paid_until})`
+    : `⭕ غير مشترك`;
   document.getElementById('cust-sub').textContent = subText;
   document.getElementById('lookup-result').classList.remove('hidden');
 }
@@ -195,7 +274,7 @@ function selectTier(key, label, price, el) {
   document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   selectedTier = key; selectedTierLabel = label; selectedTierPrice = price;
-  setTimeout(() => goStep(3), 250);
+  setTimeout(() => goStep(3), 200);
 }
 
 function selectDuration(months, label, discount, el) {
@@ -230,18 +309,29 @@ async function submitGift() {
 
   if (data.ok) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-1').classList.add('active');
+    document.getElementById('phone-input').value = '';
+    clearLookup();
     const banner = document.getElementById('success-banner');
     banner.innerHTML = `<i class="fas fa-circle-check ml-2"></i>${data.message}`;
     banner.classList.remove('hidden');
     window.scrollTo({top: 0, behavior: 'smooth'});
-    // Reset
     selectedPhone = selectedCustomerName = selectedTier = selectedTierLabel = '';
     selectedTierPrice = selectedMonths = selectedDiscount = 0;
+    setTimeout(() => banner.classList.add('hidden'), 6000);
   } else {
     const banner = document.getElementById('error-banner');
     banner.innerHTML = `<i class="fas fa-circle-xmark ml-2"></i>${data.error || 'حدث خطأ'}`;
     banner.classList.remove('hidden');
+    setTimeout(() => banner.classList.add('hidden'), 5000);
   }
+}
+
+function filterCompanies(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('#companies-tbody tr[data-name]').forEach(row => {
+    row.style.display = (!q || row.dataset.name.includes(q)) ? '' : 'none';
+  });
 }
 </script>
 </body>

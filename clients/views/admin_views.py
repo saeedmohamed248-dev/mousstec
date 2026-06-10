@@ -1191,7 +1191,20 @@ def super_admin_gift_diagnostics(request):
         })
 
     # ── GET: render page ─────────────────────────────────────────────────────
+    now = timezone.now()
+    companies = Client.objects.filter(is_deleted=False).order_by('name').values(
+        'id', 'name', 'schema_name', 'industry', 'plan',
+        'has_obd_access', 'obd_access_expiry', 'subscription_end_date',
+    )
+    companies_list = []
+    for c in companies:
+        obd_valid = c['has_obd_access'] and (
+            c['obd_access_expiry'] is None or c['obd_access_expiry'] > now
+        )
+        companies_list.append({**c, 'obd_valid': obd_valid})
+
     return render(request, 'clients/super_admin_gift_diagnostics.html', {
         'tiers': TIERS,
         'durations': DURATIONS,
+        'companies': companies_list,
     })
