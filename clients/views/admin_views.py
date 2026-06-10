@@ -1208,3 +1208,58 @@ def super_admin_gift_diagnostics(request):
         'durations': DURATIONS,
         'companies': companies_list,
     })
+
+
+# ============================================================================
+# 🎁 Superadmin — Quick OBD Grant (AJAX) for gift-diagnostics page
+# ============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_obd_quick_grant(request, tenant_id):
+    """
+    AJAX POST — grant OBD access to a tenant directly from the gift page.
+    POST body: duration = 1d | 1w | 1m | 3m | 6m | 1y | lifetime
+    Returns JSON {ok, message, new_expiry}
+    """
+    from datetime import timedelta
+
+    _DURATIONS = {
+        '1d':       (timedelta(days=1),   'يوم واحد'),
+        '1w':       (timedelta(days=7),   'أسبوع'),
+        '1m':       (timedelta(days=30),  'شهر'),
+        '3m':       (timedelta(days=90),  '3 أشهر'),
+        '6m':       (timedelta(days=180), '6 أشهر'),
+        '1y':       (timedelta(days=365), 'سنة'),
+        'lifetime': (None,                'مدى الحياة'),
+    }
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+
+    tenant = get_object_or_404(Client, pk=tenant_id)
+    key = (request.POST.get('duration') or '').strip()
+    if key not in _DURATIONS:
+        return JsonResponse({'ok': False, 'error': 'مدة غير صحيحة'}, status=400)
+
+    delta, label = _DURATIONS[key]
+    tenant.grant_obd_access(delta, by_user=request.user)
+
+    new_expiry = None
+    if tenant.obd_access_expiry:
+        new_expiry = tenant.obd_access_expiry.strftime('%Y-%m-%d')
+
+    PlatformEvent.objects.create(
+        event_type='other', tenant_schema='public', tenant_name=tenant.schema_name,
+        user_name=request.user.username,
+        description=f"🎁 منح OBD لـ «{tenant.name}» لمدة {label} بواسطة {request.user.username}",
+    )
+
+    logger.warning("OBD quick-grant tenant=%s duration=%s by=%s", tenant.schema_name, key, request.user.username)
+
+    return JsonResponse({
+        'ok': True,
+        'message': f'✅ تم منح وصول OBD لـ «{tenant.name}» ({label})',
+        'new_expiry': new_expiry or 'مدى الحياة',
+        'tenant_id': tenant_id,
+    })

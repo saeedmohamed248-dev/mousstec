@@ -55,12 +55,13 @@
               <th class="px-3 py-2 text-center font-semibold">القطاع</th>
               <th class="px-3 py-2 text-center font-semibold">الباقة</th>
               <th class="px-3 py-2 text-center font-semibold">OBD</th>
+              <th class="px-3 py-2 text-center font-semibold">🎁 هدية OBD</th>
               <th class="px-3 py-2 text-center font-semibold">دخول</th>
             </tr>
           </thead>
           <tbody id="companies-tbody">
             {% for c in companies %}
-            <tr class="company-row border-b border-slate-800/50 transition" data-name="{{ c.name|lower }}">
+            <tr class="company-row border-b border-slate-800/50 transition" data-name="{{ c.name|lower }}" id="row-{{ c.id }}">
               <td class="px-4 py-3">
                 <div class="font-semibold text-white">{{ c.name }}</div>
                 <div class="text-xs text-slate-500">{{ c.schema_name }}</div>
@@ -82,19 +83,23 @@
                   {{ c.plan|upper }}
                 </span>
               </td>
-              <td class="px-3 py-3 text-center">
+              <td class="px-3 py-3 text-center" id="obd-cell-{{ c.id }}">
                 {% if c.obd_valid %}
                   <span class="inline-flex items-center gap-1 text-xs bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded">
                     <i class="fas fa-circle-check"></i>
                     {% if c.obd_access_expiry %}
                       <span class="text-slate-400">{{ c.obd_access_expiry|date:"d/m/y" }}</span>
-                    {% else %}
-                      دائم
-                    {% endif %}
+                    {% else %}دائم{% endif %}
                   </span>
                 {% else %}
                   <span class="text-xs text-slate-600"><i class="fas fa-circle-xmark"></i> لا</span>
                 {% endif %}
+              </td>
+              <td class="px-3 py-3 text-center">
+                <button onclick="openGiftModal({{ c.id }}, '{{ c.name|escapejs }}')"
+                  class="text-xs px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 rounded-lg transition font-bold">
+                  <i class="fas fa-gift ml-1"></i>منح
+                </button>
               </td>
               <td class="px-3 py-3 text-center">
                 <a href="/superadmin/enter/{{ c.schema_name }}/"
@@ -106,7 +111,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
+            <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -226,6 +231,36 @@
   </div><!-- end grid -->
 </div>
 
+<!-- OBD Gift Modal -->
+<div id="obd-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
+  <div class="bg-slate-900 border border-amber-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg"><i class="fas fa-gift"></i></div>
+      <div>
+        <div class="font-black text-white text-sm">هدية OBD / تشخيص الأعطال</div>
+        <div id="obd-modal-name" class="text-xs text-amber-300 mt-0.5"></div>
+      </div>
+      <button onclick="closeGiftModal()" class="mr-auto text-slate-500 hover:text-white text-lg"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-4">اختر المدة — لو عنده اشتراك حالي هيتمدد من نهايته:</p>
+
+    <div class="grid grid-cols-3 gap-2 mb-3">
+      <button onclick="grantObd('1d')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">يوم</button>
+      <button onclick="grantObd('1w')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">أسبوع</button>
+      <button onclick="grantObd('1m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">شهر</button>
+      <button onclick="grantObd('3m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">3 أشهر</button>
+      <button onclick="grantObd('6m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">6 أشهر</button>
+      <button onclick="grantObd('1y')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">سنة</button>
+    </div>
+    <button onclick="grantObd('lifetime')" class="w-full py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-sm font-black transition">
+      <i class="fas fa-infinity ml-1"></i>مدى الحياة
+    </button>
+
+    <div id="obd-modal-result" class="hidden mt-3 p-3 rounded-xl text-xs text-center font-bold"></div>
+  </div>
+</div>
+
 <script>
 let selectedPhone = '', selectedCustomerName = '', selectedTier = '', selectedTierLabel = '', selectedTierPrice = 0;
 let selectedMonths = 0, selectedDurLabel = '', selectedDiscount = 0;
@@ -335,6 +370,62 @@ function filterCompanies(q) {
     row.style.display = (!q || row.dataset.name.includes(q)) ? '' : 'none';
   });
 }
+
+// OBD Gift Modal
+let obdTenantId = null, obdTenantName = '';
+
+function openGiftModal(tid, name) {
+  obdTenantId = tid;
+  obdTenantName = name;
+  document.getElementById('obd-modal-name').textContent = name;
+  document.getElementById('obd-modal-result').classList.add('hidden');
+  document.getElementById('obd-modal').classList.remove('hidden');
+}
+
+function closeGiftModal() {
+  document.getElementById('obd-modal').classList.add('hidden');
+  obdTenantId = null;
+}
+
+async function grantObd(duration) {
+  if (!obdTenantId) return;
+  const btns = document.querySelectorAll('.obd-dur-btn');
+  btns.forEach(b => { b.disabled = true; b.classList.add('opacity-50'); });
+
+  const form = new FormData();
+  form.append('duration', duration);
+
+  const res = await fetch(`/superadmin/tenant/${obdTenantId}/obd-grant/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    body: form,
+  });
+  const data = await res.json();
+
+  btns.forEach(b => { b.disabled = false; b.classList.remove('opacity-50'); });
+
+  const resultEl = document.getElementById('obd-modal-result');
+  if (data.ok) {
+    resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-emerald-900/40 border border-emerald-500/40 text-emerald-200';
+    resultEl.textContent = data.message + (data.new_expiry ? ` — حتى ${data.new_expiry}` : '');
+    resultEl.classList.remove('hidden');
+    // Update OBD cell in table
+    const cell = document.getElementById(`obd-cell-${obdTenantId}`);
+    if (cell) {
+      cell.innerHTML = `<span class="inline-flex items-center gap-1 text-xs bg-emerald-500/15 text-emerald-300 px-2 py-0.5 rounded"><i class="fas fa-circle-check"></i><span class="text-slate-400">${data.new_expiry}</span></span>`;
+    }
+    setTimeout(closeGiftModal, 2500);
+  } else {
+    resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
+    resultEl.textContent = data.error || 'حدث خطأ';
+    resultEl.classList.remove('hidden');
+  }
+}
+
+// Close modal on backdrop click
+document.getElementById('obd-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeGiftModal();
+});
 </script>
 </body>
 </html>
