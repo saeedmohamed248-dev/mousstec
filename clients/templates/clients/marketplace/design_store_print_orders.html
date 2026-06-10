@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖨️ طلباتي للطباعة | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#f8fafc; min-height:100vh; padding-bottom:60px; }
+        .topbar { background:rgba(15,23,42,0.85); backdrop-filter:blur(12px); padding:14px 24px;
+                  display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+                  border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:100; }
+        .brand { font-weight:900; background:linear-gradient(135deg,#f97316,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-size:1.05rem; }
+        .topbar a { color:#94a3b8; text-decoration:none; padding:6px 14px; border-radius:8px; font-size:0.85rem; }
+        .topbar a:hover { color:#ec4899; background:rgba(236,72,153,0.08); }
+
+        .container-x { max-width:1100px; margin:30px auto; padding:0 20px; }
+
+        .hero { text-align:center; padding:8px 0 24px; }
+        .hero h1 { font-size:1.6rem; font-weight:900; margin-bottom:6px; }
+        .hero p { color:#94a3b8; font-size:0.92rem; max-width:560px; margin:0 auto; line-height:1.6; }
+
+        .summary-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                       gap:12px; margin-bottom:24px; }
+        .sum-card { background:rgba(30,41,59,0.6); border:1px solid rgba(255,255,255,0.06);
+                    border-radius:14px; padding:16px; text-align:center; }
+        .sum-card .n { font-size:1.7rem; font-weight:900; }
+        .sum-card .l { font-size:0.76rem; color:#94a3b8; font-weight:700; margin-top:2px; }
+        .sum-card.total .n { color:#ec4899; }
+        .sum-card.active .n { color:#f59e0b; }
+        .sum-card.delivered .n { color:#10b981; }
+        .sum-card.cancelled .n { color:#64748b; }
+
+        /* Order cards */
+        .order-list { display:flex; flex-direction:column; gap:14px; }
+        .order-card { background:rgba(30,41,59,0.6); border:1px solid rgba(255,255,255,0.07);
+                      border-radius:16px; padding:18px; display:grid;
+                      grid-template-columns:120px 1fr; gap:16px; align-items:flex-start; }
+        .order-thumb { width:120px; height:120px; border-radius:12px; overflow:hidden;
+                       background:#1e293b; display:flex; align-items:center; justify-content:center; }
+        .order-thumb img { width:100%; height:100%; object-fit:cover; }
+        .order-thumb .placeholder { color:#475569; font-size:2rem; }
+        .order-body { display:flex; flex-direction:column; gap:8px; min-width:0; }
+        .order-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .order-title { font-size:1rem; font-weight:900; color:#f1f5f9; }
+        .order-code { background:#0f172a; color:#c4b5fd; padding:3px 10px; border-radius:8px;
+                      font-family:monospace; font-size:0.72rem; font-weight:700; }
+        .order-meta { color:#94a3b8; font-size:0.8rem; line-height:1.7; }
+        .order-meta strong { color:#cbd5e1; }
+        .order-quote { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3);
+                       padding:8px 12px; border-radius:10px; color:#6ee7b7; font-weight:800;
+                       font-size:0.85rem; display:inline-flex; align-items:center; gap:6px; }
+
+        /* Status timeline */
+        .timeline { display:flex; align-items:center; gap:4px; margin-top:6px; flex-wrap:nowrap;
+                    overflow-x:auto; padding-bottom:4px; }
+        .timeline::-webkit-scrollbar { height:4px; }
+        .timeline::-webkit-scrollbar-thumb { background:#334155; border-radius:2px; }
+        .step { display:flex; flex-direction:column; align-items:center; min-width:62px; flex-shrink:0; }
+        .step .dot { width:24px; height:24px; border-radius:50%; background:#1e293b;
+                     border:2px solid #334155; display:flex; align-items:center; justify-content:center;
+                     font-size:0.7rem; color:#64748b; transition:all 0.3s; }
+        .step.done .dot { background:linear-gradient(135deg,#10b981,#059669); border-color:#10b981; color:#fff; }
+        .step.current .dot { background:linear-gradient(135deg,#f59e0b,#f97316); border-color:#f97316;
+                             color:#fff; box-shadow:0 0 0 4px rgba(249,115,22,0.2); animation:pulse 2s infinite; }
+        .step .label { font-size:0.66rem; color:#64748b; margin-top:4px; font-weight:700;
+                       text-align:center; max-width:62px; }
+        .step.done .label, .step.current .label { color:#cbd5e1; }
+        .step-line { flex:0 0 18px; height:2px; background:#334155; margin-top:11px; align-self:flex-start; }
+        .step-line.done { background:#10b981; }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow:0 0 0 4px rgba(249,115,22,0.2); }
+            50% { box-shadow:0 0 0 8px rgba(249,115,22,0.05); }
+        }
+
+        .status-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 12px;
+                       border-radius:10px; font-size:0.78rem; font-weight:800; }
+        .status-pending { background:rgba(245,158,11,0.15); color:#fbbf24; }
+        .status-quoted { background:rgba(6,182,212,0.15); color:#22d3ee; }
+        .status-marketplace { background:rgba(139,92,246,0.15); color:#c4b5fd; }
+        .status-accepted { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+        .status-in_production { background:rgba(249,115,22,0.18); color:#fb923c; }
+        .status-shipped { background:rgba(59,130,246,0.15); color:#93c5fd; }
+        .status-delivered { background:rgba(16,185,129,0.2); color:#10b981; }
+        .status-cancelled { background:rgba(100,116,139,0.2); color:#94a3b8; }
+
+        .order-actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+        .btn { padding:7px 14px; border-radius:10px; font-family:inherit; font-weight:800;
+               font-size:0.78rem; cursor:pointer; border:none; text-decoration:none;
+               display:inline-flex; align-items:center; gap:5px; transition:all 0.2s; }
+        .btn-primary { background:linear-gradient(135deg,#ec4899,#8b5cf6); color:#fff; }
+        .btn-secondary { background:rgba(99,102,241,0.15); color:#a5b4fc; border:1px solid rgba(99,102,241,0.3); }
+        .btn-warning { background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); }
+        .btn:hover { transform:translateY(-1px); }
+
+        .empty { text-align:center; padding:60px 20px; background:rgba(30,41,59,0.3);
+                 border:1px dashed rgba(255,255,255,0.1); border-radius:18px; }
+        .empty i { font-size:3.5rem; color:#475569; margin-bottom:14px; }
+        .empty h3 { font-weight:900; margin-bottom:8px; }
+        .empty p { color:#94a3b8; margin-bottom:18px; font-size:0.9rem; }
+
+        @media (max-width:600px) {
+            .order-card { grid-template-columns:1fr; }
+            .order-thumb { width:100%; height:180px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand">🖨️ طلباتي للطباعة</div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
+        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> المتجر</a>
+        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+    </div>
+</div>
+
+<div class="container-x">
+
+    <div class="hero">
+        <h1>تابع طلبات الطباعة من البداية للتسليم</h1>
+        <p>كل طلب بعتته للمطبعة هتلاقيه هنا — بحالته الحالية، السعر المقترح، ومتى يتوقع تسليمه.</p>
+    </div>
+
+    <!-- Summary chips -->
+    <div class="summary-row">
+        <div class="sum-card total"><div class="n">{{ summary.total }}</div><div class="l">إجمالي الطلبات</div></div>
+        <div class="sum-card active"><div class="n">{{ summary.active }}</div><div class="l">طلبات نشطة</div></div>
+        <div class="sum-card delivered"><div class="n">{{ summary.delivered }}</div><div class="l">تم التسليم</div></div>
+        <div class="sum-card cancelled"><div class="n">{{ summary.cancelled }}</div><div class="l">ملغاة</div></div>
+    </div>
+
+    {% if orders %}
+    <div class="order-list">
+        {% for o in orders %}
+        <div class="order-card">
+            <div class="order-thumb">
+                {% if o.design and o.design.image_url %}
+                    <img src="{{ o.design.image_url }}" alt="design" loading="lazy">
+                {% else %}
+                    <i class="fas fa-image placeholder"></i>
+                {% endif %}
+            </div>
+            <div class="order-body">
+                <div class="order-head">
+                    <span class="order-title">{{ o.get_product_type_display }}</span>
+                    <span class="order-code">{{ o.request_code|stringformat:"s"|slice:":8" }}</span>
+                    <span class="status-chip status-{{ o.status }}">
+                        {% if o.status == 'pending' %}<i class="fas fa-clock"></i>
+                        {% elif o.status == 'quoted' %}<i class="fas fa-tag"></i>
+                        {% elif o.status == 'marketplace' %}<i class="fas fa-store"></i>
+                        {% elif o.status == 'accepted' %}<i class="fas fa-check"></i>
+                        {% elif o.status == 'in_production' %}<i class="fas fa-print"></i>
+                        {% elif o.status == 'shipped' %}<i class="fas fa-truck"></i>
+                        {% elif o.status == 'delivered' %}<i class="fas fa-check-double"></i>
+                        {% else %}<i class="fas fa-ban"></i>{% endif %}
+                        {{ o.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="order-meta">
+                    <strong>كمية:</strong> {{ o.quantity }}
+                    {% if o.paper_type %} · <strong>خامة:</strong> {{ o.paper_type }}{% endif %}
+                    {% if o.finishing %} · <strong>تشطيب:</strong> {{ o.finishing }}{% endif %}
+                    <br>
+                    <strong>تاريخ الطلب:</strong> {{ o.created_at|date:"d/m/Y H:i" }}
+                    {% if o.delivery_address %} · <strong>التوصيل:</strong> {{ o.delivery_address|truncatechars:50 }}{% endif %}
+                </div>
+
+                {% if o.quoted_price %}
+                <div class="order-quote">
+                    <i class="fas fa-coins"></i> سعر مقترح: <strong>{{ o.quoted_price|floatformat:0 }} ج.م</strong>
+                </div>
+                {% endif %}
+
+                {% if not o.is_cancelled %}
+                <div class="timeline" title="مسار الطلب">
+                    {% with s=o.status_step %}
+                    <div class="step {% if s >= 1 %}{% if s == 1 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">1</div><div class="label">انتظار</div>
+                    </div>
+                    <div class="step-line {% if s > 1 %}done{% endif %}"></div>
+                    <div class="step {% if s >= 2 %}{% if s == 2 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">2</div><div class="label">عرض سعر</div>
+                    </div>
+                    <div class="step-line {% if s > 2 %}done{% endif %}"></div>
+                    <div class="step {% if s >= 3 %}{% if s == 3 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">3</div><div class="label">قبول</div>
+                    </div>
+                    <div class="step-line {% if s > 3 %}done{% endif %}"></div>
+                    <div class="step {% if s >= 4 %}{% if s == 4 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">4</div><div class="label">قيد الطباعة</div>
+                    </div>
+                    <div class="step-line {% if s > 4 %}done{% endif %}"></div>
+                    <div class="step {% if s >= 5 %}{% if s == 5 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">5</div><div class="label">شحن</div>
+                    </div>
+                    <div class="step-line {% if s > 5 %}done{% endif %}"></div>
+                    <div class="step {% if s >= 6 %}{% if s == 6 %}current{% else %}done{% endif %}{% endif %}">
+                        <div class="dot">6</div><div class="label">تسليم</div>
+                    </div>
+                    {% endwith %}
+                </div>
+                {% endif %}
+
+                <div class="order-actions">
+                    {% if o.print_spec_pdf %}
+                    <a class="btn btn-secondary" href="{{ o.print_spec_pdf.url }}" target="_blank">
+                        <i class="fas fa-file-pdf"></i> PDF المواصفات
+                    </a>
+                    {% endif %}
+                    {% if o.design %}
+                    <a class="btn btn-secondary" href="/marketplace/design-store/{{ o.design.design_code }}/download/png/" target="_blank">
+                        <i class="fas fa-image"></i> التصميم
+                    </a>
+                    {% endif %}
+                    {% if o.delivery_phone %}
+                    <a class="btn btn-warning" href="https://wa.me/2{{ o.delivery_phone }}" target="_blank">
+                        <i class="fab fa-whatsapp"></i> واتساب
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        <i class="fas fa-print"></i>
+        <h3>مفيش طلبات طباعة لسه</h3>
+        <p>اعمل تصميم في الـ AI Studio وابعته للمطبعة، وهتقدر تتابعه هنا خطوة بخطوة.</p>
+        <a href="/marketplace/design-store/my-designs/" class="btn btn-primary">
+            <i class="fas fa-wand-magic-sparkles"></i> ابدأ تصميم جديد
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,198 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص عربيتي | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <style>
+        :root { --bg:#0a1320; --bg2:#1a2332; --card:rgba(26,35,50,0.78); --accent:#f59e0b; --accent2:#ef4444; --success:#10b981; --danger:#ef4444; --text:#f8fafc; --muted:#94a3b8; --line:rgba(255,255,255,0.08); }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; background:linear-gradient(135deg,var(--bg),var(--bg2)); color:var(--text); min-height:100vh; margin:0; }
+        .topbar { background:rgba(10,19,32,0.85); backdrop-filter:blur(12px); border-bottom:1px solid rgba(245,158,11,0.15); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; }
+        .brand { font-weight:900; color:var(--accent); }
+        .topbar a { color:var(--muted); text-decoration:none; font-size:0.9rem; }
+        .topbar a:hover { color:var(--accent); }
+        .wrap { max-width:1100px; margin:0 auto; padding:30px 20px 80px; }
+        .hero-card { background:var(--card); backdrop-filter:blur(16px); border:1px solid rgba(245,158,11,0.25); border-radius:22px; padding:32px; margin-bottom:28px; position:relative; overflow:hidden; }
+        .hero-card::before { content:''; position:absolute; top:-40px; left:-40px; width:240px; height:240px; background:radial-gradient(circle,rgba(245,158,11,0.35) 0%,transparent 70%); }
+        .hero-card > * { position:relative; }
+        .tier-badge { display:inline-block; padding:6px 16px; border-radius:999px; font-weight:800; font-size:0.85rem; margin-bottom:12px; }
+        .tier-trial { background:rgba(245,158,11,0.18); color:var(--accent); border:1px solid rgba(245,158,11,0.4); }
+        .tier-paid { background:rgba(16,185,129,0.18); color:var(--success); border:1px solid rgba(16,185,129,0.4); }
+        .tier-expired { background:rgba(239,68,68,0.18); color:var(--danger); border:1px solid rgba(239,68,68,0.4); }
+        h1 { font-size:1.8rem; font-weight:900; margin:0 0 6px; }
+        .muted { color:var(--muted); }
+        .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-top:24px; }
+        .metric { background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:14px; padding:18px; }
+        .metric .n { font-size:1.8rem; font-weight:900; color:var(--accent); }
+        .metric .l { color:var(--muted); font-size:0.85rem; }
+        .progress-bar-wrap { height:8px; background:rgba(255,255,255,0.06); border-radius:8px; overflow:hidden; margin-top:8px; }
+        .progress-bar { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:8px; transition:width 0.5s; }
+        .btn-cta { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff; font-weight:900; padding:14px 28px; border-radius:14px; text-decoration:none; display:inline-block; margin-top:16px; transition:0.3s; }
+        .btn-cta:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(245,158,11,0.4); color:#fff; }
+        .btn-secondary-glass { background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text); padding:12px 22px; border-radius:12px; text-decoration:none; display:inline-block; font-weight:700; margin-right:8px; }
+        .btn-secondary-glass:hover { background:rgba(255,255,255,0.1); color:var(--text); }
+        .grid-2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; }
+        .panel { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; }
+        .panel h3 { font-size:1.1rem; font-weight:800; margin:0 0 14px; display:flex; align-items:center; gap:8px; }
+        .feature-list { list-style:none; padding:0; margin:0; }
+        .feature-list li { padding:10px 0; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; font-size:0.92rem; }
+        .feature-list li:last-child { border-bottom:none; }
+        .feature-list li i.unlocked { color:var(--success); }
+        .feature-list li i.locked { color:var(--muted); }
+        .feature-list li.locked-row { opacity:0.55; }
+        .scan-input { background:rgba(10,19,32,0.6); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:12px 16px; width:100%; font-family:monospace; letter-spacing:2px; }
+        .scan-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,158,11,0.2); }
+        #scanResult { margin-top:14px; font-size:0.92rem; min-height:20px; }
+        #scanResult.ok { color:var(--success); }
+        #scanResult.err { color:var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="brand"><i class="fas fa-stethoscope"></i> تشخيص ذكي | Mouss Tec</div>
+    <div>
+        <a href="/marketplace/dashboard/"><i class="fas fa-home"></i> لوحتي</a>
+    </div>
+</div>
+
+<div class="wrap">
+
+    {% if request.GET.upgraded %}
+    <div style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#6ee7b7; padding:14px 18px; border-radius:12px; margin-bottom:20px;">
+        <i class="fas fa-check-circle"></i> تم تفعيل الباقة بنجاح. خليك مرتاح وشخّص براحتك.
+    </div>
+    {% endif %}
+
+    <!-- Hero status card -->
+    <div class="hero-card">
+        {% if sub.tier == 'trial' and is_active %}
+            <span class="tier-badge tier-trial"><i class="fas fa-gift"></i> تجربة مجانية</span>
+        {% elif is_active %}
+            <span class="tier-badge tier-paid"><i class="fas fa-crown"></i> {{ sub.get_tier_display }}</span>
+        {% else %}
+            <span class="tier-badge tier-expired"><i class="fas fa-circle-exclamation"></i> الاشتراك انتهى</span>
+        {% endif %}
+
+        <h1>أهلاً، {{ customer.full_name|truncatechars:30 }}</h1>
+        <p class="muted">شخّص أعطال عربيتك بنفسك — استلم تحليل AI ودليل خطوة-بخطوة لكل كود عطل.</p>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="n">{{ days_remaining }}</div>
+                <div class="l">يوم متبقي</div>
+            </div>
+            <div class="metric">
+                <div class="n">{{ quota_remaining }}/{{ quota_total }}</div>
+                <div class="l">سكانات متاحة</div>
+                <div class="progress-bar-wrap">
+                    {% widthratio sub.scans_used quota_total 100 as used_pct %}
+                    <div class="progress-bar" style="width:{{ used_pct|default:0 }}%;"></div>
+                </div>
+            </div>
+            <div class="metric">
+                <div class="n">{{ sub.lifetime_scans }}</div>
+                <div class="l">إجمالي السكانات</div>
+            </div>
+        </div>
+
+        {% if not is_active %}
+            <a href="/marketplace/diagnostics/pricing/" class="btn-cta">
+                <i class="fas fa-rocket"></i> جدّد اشتراكك من ٩٩ ج/شهر
+            </a>
+        {% elif sub.tier == 'trial' %}
+            <a href="/marketplace/diagnostics/pricing/" class="btn-cta">
+                <i class="fas fa-crown"></i> رقّي لباقة مدفوعة
+            </a>
+            <a href="/marketplace/dashboard/" class="btn-secondary-glass">عودة للوحتي</a>
+        {% endif %}
+    </div>
+
+    <div class="grid-2">
+
+        <!-- Scan panel -->
+        <div class="panel">
+            <h3><i class="fas fa-magnifying-glass-chart" style="color:var(--accent);"></i> سكان جديد</h3>
+            <p class="muted" style="font-size:0.9rem; margin-bottom:12px;">أدخل رقم الشاسيه (VIN) أو كود العطل (مثل P0301) لتشخيص فوري.</p>
+            <input id="vinInput" class="scan-input mb-2" placeholder="VIN — 17 حرف" maxlength="17" dir="ltr">
+            <input id="dtcInput" class="scan-input" placeholder="كود عطل (اختياري) — P0301" dir="ltr">
+            <button id="scanBtn" class="btn-cta" style="width:100%; margin-top:14px;" onclick="runScan()">
+                <i class="fas fa-bolt"></i> ابدأ التشخيص
+            </button>
+            <div id="scanResult"></div>
+        </div>
+
+        <!-- Features panel -->
+        <div class="panel">
+            <h3><i class="fas fa-list-check" style="color:var(--accent);"></i> مميزات باقتك</h3>
+            <ul class="feature-list">
+                {% with all_features="ai_diagnosis,vehicle_history,live_data,pdf_reports,tech_chat,priority_support,multi_vehicle,parts_rewards" %}
+                {% for f in all_features|slice:":0" %}{% endfor %}
+                {% endwith %}
+                <li class="{% if 'ai_diagnosis' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'ai_diagnosis' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    تشخيص بالذكاء الاصطناعي
+                </li>
+                <li class="{% if 'vehicle_history' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'vehicle_history' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    تاريخ سيارتك الكامل
+                </li>
+                <li class="{% if 'live_data' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'live_data' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    بث مباشر للـ OBD (RPM، حرارة، بطارية)
+                </li>
+                <li class="{% if 'pdf_reports' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'pdf_reports' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    تقارير PDF مفصّلة
+                </li>
+                <li class="{% if 'tech_chat' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'tech_chat' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    شات مباشر مع فني خبير
+                </li>
+                <li class="{% if 'multi_vehicle' not in features %}locked-row{% endif %}">
+                    <i class="fas fa-{% if 'multi_vehicle' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
+                    أكتر من سيارة على نفس الحساب
+                </li>
+            </ul>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+async function runScan() {
+    const btn = document.getElementById('scanBtn');
+    const out = document.getElementById('scanResult');
+    const vin = document.getElementById('vinInput').value.trim();
+    const dtc = document.getElementById('dtcInput').value.trim();
+    if (!vin && !dtc) { out.className = 'err'; out.textContent = 'أدخل VIN أو كود عطل على الأقل.'; return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التشخيص...';
+    out.className = ''; out.textContent = '';
+    try {
+        const res = await fetch('/marketplace/diagnostics/scan/', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ vin, dtc_codes: dtc ? [dtc] : [] }),
+        });
+        const data = await res.json();
+        if (res.status === 402) {
+            out.className = 'err';
+            out.innerHTML = `${data.reason} <a href="${data.upgrade_url}" style="color:#f59e0b;">رقّي الباقة</a>`;
+            return;
+        }
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        out.className = 'ok';
+        out.innerHTML = `<i class="fas fa-check-circle"></i> تم السكان. متبقي ${data.quota_remaining} سكان. جاري التحليل...`;
+    } catch (e) {
+        out.className = 'err'; out.textContent = e.message;
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-bolt"></i> ابدأ التشخيص';
+    }
+}
+</script>
+</body>
+</html>

@@ -552,12 +552,20 @@ urlpatterns = [
     path('marketplace/admin/approve/<int:request_id>/', client_views.marketplace_admin_approve, name='marketplace_admin_approve'),
     path('marketplace/admin/reject/<int:request_id>/', client_views.marketplace_admin_reject, name='marketplace_admin_reject'),
 
+    # 💎 Customer-tier diagnostics — 7-day free trial → 3 paid tiers
+    path('marketplace/diagnostics/',                        client_views.diagnostics_landing,         name='customer_diagnostics_landing'),
+    path('marketplace/diagnostics/pricing/',                client_views.diagnostics_pricing,         name='customer_diagnostics_pricing'),
+    path('marketplace/diagnostics/upgrade/<str:tier>/',     client_views.diagnostics_upgrade,         name='customer_diagnostics_upgrade'),
+    path('marketplace/diagnostics/scan/',                   client_views.diagnostics_scan,            name='customer_diagnostics_scan'),
+    path('marketplace/diagnostics/paymob-callback/',        client_views.diagnostics_paymob_callback, name='customer_diagnostics_paymob_callback'),
+
     # 🎨 AI Designs Store (instant generation marketplace)
     path('marketplace/design-store/', client_views.design_store_home, name='design_store_home'),
     path('marketplace/design-store/buy/<slug:package_slug>/', client_views.design_store_buy, name='design_store_buy'),
     path('marketplace/design-store/payment/<uuid:purchase_code>/', client_views.design_store_payment, name='design_store_payment'),
     path('marketplace/design-store/confirm-payment/<int:purchase_id>/', client_views.design_store_confirm_payment, name='design_store_confirm_payment'),
     path('marketplace/design-store/my-designs/', client_views.design_store_my_designs, name='design_store_my_designs'),
+    path('marketplace/design-store/print-orders/', client_views.design_store_my_print_orders, name='design_store_my_print_orders'),
     path('marketplace/design-store/generate/', client_views.design_store_generate, name='design_store_generate'),
     path('marketplace/design-store/<uuid:design_code>/whatsapp/', client_views.design_store_send_whatsapp, name='design_store_whatsapp'),
     path('marketplace/design-store/<uuid:design_code>/regenerate/', client_views.design_store_regenerate, name='design_store_regenerate'),

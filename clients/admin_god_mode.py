@@ -307,7 +307,7 @@ def admin_impersonate_customer(request, customer_id: int):
     request.session['impersonator_admin_username'] = request.user.username
     request.session['impersonating_customer_name'] = customer.full_name or customer.phone
 
-    response = redirect('/marketplace/design-store/my/')
+    response = redirect('/marketplace/design-store/my-designs/')
     response.set_cookie(
         'mp_session', str(customer.session_token),
         max_age=60 * 60 * 2,  # ساعتين أقصاها

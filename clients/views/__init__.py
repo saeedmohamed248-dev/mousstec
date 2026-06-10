@@ -33,6 +33,17 @@ from .ai_assistant_views import (  # noqa: F401
 )
 
 # ───────────────────────────────────────────────────────────────────────────
+# 💎 Customer-tier diagnostics (separate from workshop diag room)
+# ───────────────────────────────────────────────────────────────────────────
+from .customer_diagnostics_views import (  # noqa: F401
+    diagnostics_landing,
+    diagnostics_pricing,
+    diagnostics_upgrade,
+    diagnostics_scan,
+    diagnostics_paymob_callback,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
 # 🛍️ Marketplace core — customer flows + service requests + merchant feed
 # ───────────────────────────────────────────────────────────────────────────
 from .marketplace_core_views import (  # noqa: F401
@@ -66,6 +77,7 @@ from .design_store_views import (  # noqa: F401
     design_store_payment,
     design_store_confirm_payment,
     design_store_my_designs,
+    design_store_my_print_orders,
     design_store_generate,
     design_store_send_whatsapp,
     design_store_download,

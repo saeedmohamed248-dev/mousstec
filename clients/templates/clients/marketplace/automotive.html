@@ -284,18 +284,23 @@
             </button>
         </div>
 
-        <!-- OTP -->
-        <div class="otp-section" id="otpSection">
-            <div class="text-center mb-3">
-                <i class="fas fa-sms" style="font-size:2.5rem; color: var(--success);"></i>
-                <h4 class="mt-2">أدخل كود التحقق</h4>
-                <p style="color: var(--muted);">تم الإرسال للرقم <span id="otpPhoneDisplay" style="color:var(--accent); font-weight:700;"></span></p>
-            </div>
-            <input type="text" class="form-control otp-input mb-4" id="otpCode" maxlength="6" placeholder="------" dir="ltr">
-            <button class="btn-primary-glow" id="verifyBtn" onclick="verifyOTP()">
-                <i class="fas fa-check-circle"></i> تحقق وادخل
-            </button>
+    </div>
+</div>
+
+<!-- 💎 Diagnostics promo strip — drives car owners to the new trial -->
+<div style="max-width:900px; margin:20px auto 60px; padding:0 20px;">
+    <div style="background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(239,68,68,0.08)); border:1px solid rgba(245,158,11,0.35); border-radius:18px; padding:24px; display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+        <div style="flex:0 0 auto; width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(245,158,11,0.35);">
+            <i class="fas fa-stethoscope" style="font-size:1.8rem; color:#0a1320;"></i>
         </div>
+        <div style="flex:1; min-width:240px;">
+            <div style="font-size:0.78rem; font-weight:800; color:var(--accent); letter-spacing:1px; margin-bottom:4px;">جديد ✨</div>
+            <h3 style="margin:0 0 6px; font-size:1.25rem; font-weight:900;">شخّص عطل عربيتك بنفسك — مجاناً لمدة ٧ أيام</h3>
+            <p style="margin:0; color:var(--muted); font-size:0.92rem;">ربط بلوتوث مع جهاز OBD2، تشخيص بالذكاء الاصطناعي، تاريخ صحي للسيارة، وخطط فحص خطوة-بخطوة. اشترك بعد التجربة من ٩٩ ج/شهر.</p>
+        </div>
+        <a href="/marketplace/diagnostics/pricing/" style="flex:0 0 auto; background:#0a1320; color:var(--accent); padding:12px 24px; border-radius:12px; font-weight:800; text-decoration:none; border:1px solid var(--accent);">
+            <i class="fas fa-arrow-left"></i> اعرف أكتر
+        </a>
     </div>
 </div>
 
@@ -306,14 +311,12 @@
 <script>
 let customerType = 'individual';
 const sector = 'automotive';
-let otpPhone = '';
 
 function switchTab(tab, ev) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     ev.target.classList.add('active');
     document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
     document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('otpSection').classList.remove('show');
     hideAlert();
 }
 
@@ -359,9 +362,7 @@ async function register() {
             setTimeout(() => window.location.href = data.redirect, 800);
             return;
         }
-        otpPhone = data.phone;
-        showOTP();
-        showAlert(data.message, 'success');
+        showAlert(data.message || 'تم التسجيل', 'success');
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {
@@ -387,43 +388,12 @@ async function loginSend() {
             setTimeout(() => window.location.href = data.redirect, 800);
             return;
         }
-        otpPhone = data.phone;
-        showOTP();
-        showAlert(data.message, 'success');
+        showAlert(data.message || 'تم الدخول', 'success');
     } catch (e) {
         showAlert(e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال كود الدخول';
-    }
-}
-
-function showOTP() {
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('otpSection').classList.add('show');
-    document.getElementById('otpPhoneDisplay').textContent = otpPhone;
-    document.getElementById('otpCode').focus();
-}
-
-async function verifyOTP() {
-    const btn = document.getElementById('verifyBtn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري التحقق...';
-    hideAlert();
-
-    try {
-        const res = await fetch('/marketplace/verify-otp/', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ phone: otpPhone, otp: document.getElementById('otpCode').value.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
-        showAlert(data.message, 'success');
-        setTimeout(() => window.location.href = data.redirect, 800);
-    } catch (e) {
-        showAlert(e.message, 'error');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check-circle"></i> تحقق وادخل';
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> دخول';
     }
 }
 </script>

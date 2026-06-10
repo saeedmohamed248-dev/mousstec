@@ -499,6 +499,10 @@
             const v = `; ${document.cookie}`.split(`; ${name}=`);
             return v.length === 2 ? v.pop().split(';').shift() : '';
         }
+        // السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf' (مش csrftoken).
+        function getCsrfCookie() {
+            return getCookie('mt_csrf') || getCookie('csrftoken');
+        }
         function showToast(msg, type='info', ms=3500) {
             const t = document.getElementById('toast');
             t.textContent = msg; t.className = `toast ${type} show`;
@@ -526,7 +530,7 @@
         async function api(path, opts = {}) {
             const res = await fetch(`${API}${path}`, {
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
                 ...opts,
             });
             const data = await res.json().catch(() => ({}));
@@ -826,7 +830,7 @@
                 localStorage.removeItem(STORAGE_KEY);
                 showToast('✅ تم الاعتماد — هنرجعك لتصاميمك', 'success', 2000);
                 setTimeout(() => {
-                    window.location = '/marketplace/design-store/my/';
+                    window.location = '/marketplace/design-store/my-designs/';
                 }, 1500);
             } else {
                 showToast(r.data.error || 'فشل الاعتماد', 'error');

@@ -204,6 +204,17 @@ def marketplace_register(request):
             )
             customer.set_password(password)
             customer.save()
+            # 🎁 Auto-grant 7-day diagnostics trial for car owners only.
+            # Printing customers don't need OBD scans.
+            if sector == 'automotive':
+                try:
+                    from clients.models import CustomerDiagnosticsSubscription
+                    CustomerDiagnosticsSubscription.grant_trial(customer)
+                except Exception as trial_err:
+                    logger.warning(
+                        "[MARKETPLACE] trial grant failed for %s: %s",
+                        cleaned_phone[:6] + '***', trial_err,
+                    )
     except Exception as e:
         # ⚠️ نـ log الـ traceback الكامل عشان نقدر نشخّص بدل ما نخمّن.
         import traceback

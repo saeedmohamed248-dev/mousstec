@@ -492,9 +492,12 @@ document.getElementById('buyModal').addEventListener('click', e => {
     if (e.target.id === 'buyModal') closeBuy();
 });
 
-// CSRF helper
+// CSRF helper — السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf'
+// (الـ CSRFCookieCleanupMiddleware بيحذف csrftoken القديم تلقائياً).
 function _getCookieCsrf() {
-    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    let m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+    if (m) return m[1];
+    m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return m ? m[1] : '';
 }
 

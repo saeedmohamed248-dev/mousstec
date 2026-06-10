@@ -74,6 +74,7 @@ def _enforce_printing_sector(request, customer, *, json_response=False):
 # ───────────────────────────────────────────────────────────────────────────
 # Endpoint implementations (preserved verbatim from _legacy.py)
 # ───────────────────────────────────────────────────────────────────────────
+@ensure_csrf_cookie
 def design_store_home(request):
     """🛍️ صفحة المتجر — يعرض الباقات (عملاء + مصممين).
 
@@ -319,6 +320,55 @@ def design_store_confirm_payment(request, purchase_id):
             return JsonResponse({"status": "success", "message": "تم رفض الطلب"})
 
     return JsonResponse({"error": "POST only"}, status=405)
+
+
+def design_store_my_print_orders(request):
+    """🖨️ صفحة "طلباتي للطباعة" — العميل بيتابع حالة كل طلب طباعة بعتته
+    للمطبعة (pending → quoted → in_production → shipped → delivered).
+
+    قبل ده العميل كان بيـ submit طلب طباعة عبر "send-to-print" ومش بيشوف
+    حالته بعد كده — ده sealing للـ feedback loop وميزة أساسية موجودة في
+    أي platform طباعة عالمية (Printful, VistaPrint, Gelato).
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/?next=/marketplace/design-store/print-orders/')
+    gate = _enforce_printing_sector(request, customer)
+    if gate is not None:
+        return gate
+
+    from clients.models import DesignPrintRequest
+    orders = (
+        DesignPrintRequest.objects
+        .filter(customer=customer)
+        .select_related('design')
+        .order_by('-created_at')[:100]
+    )
+
+    # 📊 Status timeline order — للـ template يرسم progress bar
+    status_order = ['pending', 'quoted', 'accepted', 'in_production', 'shipped', 'delivered']
+    for o in orders:
+        try:
+            o.status_step = status_order.index(o.status) + 1 if o.status in status_order else 0
+        except ValueError:
+            o.status_step = 0
+        o.status_total = len(status_order)
+        o.is_cancelled = o.status == 'cancelled'
+        o.is_active = o.status in {'pending', 'quoted', 'accepted', 'in_production', 'shipped'}
+
+    # 📈 Quick counters للـ summary chips
+    summary = {
+        'total': len(orders),
+        'active': sum(1 for o in orders if o.is_active),
+        'delivered': sum(1 for o in orders if o.status == 'delivered'),
+        'cancelled': sum(1 for o in orders if o.is_cancelled),
+    }
+
+    return render(request, 'clients/marketplace/design_store_print_orders.html', {
+        'customer': customer,
+        'orders': orders,
+        'summary': summary,
+    })
 
 
 @ensure_csrf_cookie
