@@ -1,0 +1,118 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل أخطاء النظام — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#fca5a5; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #ef4444; }
+        .stat.warn { border-color:#f59e0b; }
+        .stat.ok   { border-color:#22c55e; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
+        .stat .label { color:#94a3b8; font-size:12px; }
+        .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .tab { padding:8px 14px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #334155; }
+        .tab.active { background:#dc2626; color:#fff; border-color:#fca5a5; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px; text-align:right; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
+        th { background:#0f172a; color:#fca5a5; font-weight:900; }
+        tr:hover { background:#293548; }
+        .lvl { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
+        .lvl.critical { background:#dc2626; color:#fff; }
+        .lvl.error    { background:#f59e0b; color:#0f172a; }
+        .lvl.warning  { background:#0ea5e9; color:#fff; }
+        .code { font-family:monospace; font-size:11px; color:#a78bfa; }
+        details summary { cursor:pointer; color:#60a5fa; font-size:12px; }
+        details pre { background:#0f172a; padding:10px; border-radius:6px; overflow:auto; max-height:240px; font-size:11px; color:#fbcfe8; }
+        .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; }
+        .btn-ok { background:#22c55e; color:#fff; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
+        .auto-refresh { color:#94a3b8; font-size:12px; }
+    </style>
+    <meta http-equiv="refresh" content="30">
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / سجل الأخطاء</div>
+    <h1>🚨 مركز رصد أخطاء النظام</h1>
+    <p class="sub">كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً. <span class="auto-refresh">🔄 تحديث تلقائي كل 30 ثانية</span></p>
+
+    {% if messages %}
+        {% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}
+    {% endif %}
+
+    <div class="stats">
+        <div class="stat"><h2>{{ count_critical }}</h2><div class="label">🔥 أخطاء حرجة مفتوحة (500)</div></div>
+        <div class="stat warn"><h2>{{ count_open }}</h2><div class="label">📋 إجمالي مفتوح</div></div>
+    </div>
+
+    <div class="filters">
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">مفتوحة</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">محلولة</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">الكل</a>
+        <span style="margin-right:auto;"></span>
+        <a class="tab {% if level == 'critical' %}active{% endif %}" href="?show={{ show }}&level=critical">🔥 حرج</a>
+        <a class="tab {% if level == 'error' %}active{% endif %}" href="?show={{ show }}&level=error">⚠️ خطأ</a>
+        <a class="tab {% if level == 'warning' %}active{% endif %}" href="?show={{ show }}&level=warning">ℹ️ تحذير</a>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>الوقت</th>
+            <th>المستوى</th>
+            <th>المستأجر</th>
+            <th>المسار</th>
+            <th>الكود</th>
+            <th>الاستثناء</th>
+            <th>التفاصيل</th>
+            <th>إجراء</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in errors %}
+        <tr>
+            <td>{{ e.created_at|date:"m-d H:i:s" }}</td>
+            <td><span class="lvl {{ e.level }}">{{ e.get_level_display }}</span></td>
+            <td>
+                <strong>{{ e.tenant_name|default:"—" }}</strong><br>
+                <span class="code">{{ e.tenant_schema|default:"public" }}</span>
+            </td>
+            <td><span class="code">{{ e.method }} {{ e.path|truncatechars:60 }}</span></td>
+            <td><strong>{{ e.status_code }}</strong></td>
+            <td>
+                <span class="code">{{ e.exception_class|default:"—" }}</span>
+                {% if e.username %}<br><small>👤 {{ e.username }}</small>{% endif %}
+            </td>
+            <td>
+                {% if e.message %}<details><summary>الرسالة</summary><pre>{{ e.message }}</pre></details>{% endif %}
+                {% if e.traceback %}<details><summary>Traceback</summary><pre>{{ e.traceback }}</pre></details>{% endif %}
+            </td>
+            <td>
+                {% if e.is_resolved %}
+                    <span style="color:#22c55e;">✅ محلول</span><br>
+                    <small>{{ e.resolved_by }}</small>
+                {% else %}
+                    <form method="post" action="{% url 'saas_system_error_resolve' e.id %}">{% csrf_token %}
+                        <button class="btn btn-ok" type="submit">✓ تم الحل</button>
+                    </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">🎉 لا توجد أخطاء — النظام يعمل بسلاسة!</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

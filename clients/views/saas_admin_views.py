@@ -26,7 +26,7 @@ from django.utils import timezone
 
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
-    TenantSubscription, Feature,
+    TenantSubscription, Feature, SystemErrorLog,
 )
 
 logger = logging.getLogger('mouss_tec_core')
@@ -388,3 +388,118 @@ def diagnostics_spend_dashboard(request):
         cache.set(CACHE_KEY, ctx, CACHE_TTL)
 
     return render(request, 'clients/saas_admin/diag_spend.html', ctx)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🏢 Tenants Management — Soft Delete / Restore / Force Delete
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def tenants_list(request):
+    """قائمة كل المستأجرين — مع تبويب للأحياء والمحذوفين."""
+    show = request.GET.get('show', 'alive')   # alive | deleted | all
+    qs = Client.all_objects.exclude(schema_name='public')
+    if show == 'alive':
+        qs = qs.filter(is_deleted=False)
+    elif show == 'deleted':
+        qs = qs.filter(is_deleted=True)
+    qs = qs.order_by('-created_on')
+
+    return render(request, 'clients/saas_admin/tenants_list.html', {
+        'tenants': qs,
+        'show': show,
+        'count_alive': Client.all_objects.exclude(schema_name='public').filter(is_deleted=False).count(),
+        'count_deleted': Client.all_objects.exclude(schema_name='public').filter(is_deleted=True).count(),
+    })
+
+
+@saas_admin_required
+def tenant_soft_delete(request, tenant_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
+    if tenant.schema_name == 'public':
+        return HttpResponseForbidden("Cannot delete public schema.")
+    reason = request.POST.get('reason', '').strip()[:255]
+    tenant.soft_delete(user=request.user, reason=reason)
+    logger.warning("Tenant SOFT-DELETED id=%s name=%s by=%s reason=%s",
+                   tenant.id, tenant.name, request.user.username, reason)
+    messages.success(request, f"تم إخفاء المستأجر «{tenant.name}» (Soft Delete). البيانات التاريخية محفوظة.")
+    return redirect('saas_tenants_list')
+
+
+@saas_admin_required
+def tenant_restore(request, tenant_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
+    tenant.restore()
+    logger.warning("Tenant RESTORED id=%s name=%s by=%s", tenant.id, tenant.name, request.user.username)
+    messages.success(request, f"تم استعادة «{tenant.name}». الحالة الآن: «معلق» — فعّله يدوياً.")
+    return redirect('saas_tenants_list')
+
+
+@saas_admin_required
+def tenant_force_delete(request, tenant_id):
+    """
+    💀 خطر: حذف فعلي. متاح فقط لـ is_superuser (god mode).
+    يتطلب تأكيد بـ POST + كتابة اسم المستأجر.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
+    if tenant.schema_name == 'public':
+        return HttpResponseForbidden("Cannot delete public schema.")
+    confirm = request.POST.get('confirm_name', '').strip()
+    if confirm != tenant.name:
+        messages.error(request, "اسم التأكيد لا يطابق. لم يتم الحذف.")
+        return redirect('saas_tenants_list')
+    name = tenant.name
+    logger.critical("Tenant FORCE-DELETED id=%s name=%s by=%s", tenant.id, name, request.user.username)
+    tenant.force_delete(user=request.user)
+    messages.warning(request, f"تم الحذف النهائي لـ «{name}» من قاعدة البيانات.")
+    return redirect('saas_tenants_list')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🚨 System Error Log Viewer
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def system_errors_list(request):
+    qs = SystemErrorLog.objects.all()
+    show = request.GET.get('show', 'open')  # open | resolved | all
+    if show == 'open':
+        qs = qs.filter(is_resolved=False)
+    elif show == 'resolved':
+        qs = qs.filter(is_resolved=True)
+
+    level = request.GET.get('level')
+    if level in ('warning', 'error', 'critical'):
+        qs = qs.filter(level=level)
+
+    tenant_schema = request.GET.get('tenant')
+    if tenant_schema:
+        qs = qs.filter(tenant_schema=tenant_schema)
+
+    qs = qs.order_by('-created_at')[:200]
+
+    return render(request, 'clients/saas_admin/system_errors.html', {
+        'errors': qs,
+        'show': show,
+        'level': level,
+        'tenant_schema': tenant_schema,
+        'count_open': SystemErrorLog.objects.filter(is_resolved=False).count(),
+        'count_critical': SystemErrorLog.objects.filter(is_resolved=False, level='critical').count(),
+    })
+
+
+@saas_admin_required
+def system_error_resolve(request, error_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    err = get_object_or_404(SystemErrorLog, pk=error_id)
+    err.is_resolved = True
+    err.resolved_by = request.user
+    err.resolved_at = timezone.now()
+    err.save(update_fields=['is_resolved', 'resolved_by', 'resolved_at'])
+    messages.success(request, "تم تعليم الخطأ كمحلول.")
+    return redirect('saas_system_errors')

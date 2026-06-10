@@ -38,6 +38,9 @@ urlpatterns = [
     # --- Designer Dashboard (HTML) ---
     path('designer/', views.designer_dashboard, name='designer_dashboard'),
 
+    # --- HR Manager Dashboard (HTML) ---
+    path('manager/', views.hr_manager_dashboard, name='hr_manager_dashboard'),
+
     # --- AI Subscription Admin APIs ---
     path('api/ai-sub/admin-activate/', views.api_admin_ai_activate, name='api_admin_ai_activate'),
     path('api/ai-sub/admin-cancel/', views.api_admin_ai_cancel, name='api_admin_ai_cancel'),

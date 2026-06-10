@@ -221,8 +221,10 @@ def smart_post_login_redirect(request):
                     # المصمم → اللوحة السريعة
                     if emp.department == 'design':
                         return redirect('/hr/designer/')
-                    # HR Manager / موارد بشرية → الـ admin (عشان يقدر يدير الموظفين)
-                    # الباقي (printing/sales/accounting) → الـ admin برضه
+                    # HR Manager أو قسم HR → لوحة المدير
+                    if emp.is_hr_manager or emp.department == 'hr':
+                        return redirect('/hr/manager/')
+                    # الباقي (printing/sales/accounting) → الـ admin
                     # (مستقبلاً ممكن نعمل لوحات لكل قسم)
             except Exception:
                 # Don't break login if HR module is unavailable — fall through

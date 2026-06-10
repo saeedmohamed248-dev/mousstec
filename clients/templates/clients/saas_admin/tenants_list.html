@@ -1,0 +1,151 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المستأجرين — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .tabs { display:flex; gap:8px; margin-bottom:18px; }
+        .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
+        .tab.active { background:#7c3aed; color:#fff; border-color:#a78bfa; }
+        .badge { display:inline-block; background:#0ea5e9; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-right:6px; }
+        .badge.danger { background:#ef4444; }
+        .badge.warn { background:#f59e0b; }
+        .badge.ok { background:#22c55e; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:14px; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; }
+        tr:hover { background:#293548; }
+        .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; text-decoration:none; display:inline-block; margin:2px; }
+        .btn-warn { background:#f59e0b; color:#0f172a; }
+        .btn-ok { background:#22c55e; color:#fff; }
+        .btn-danger { background:#ef4444; color:#fff; }
+        .messages { margin-bottom:16px; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
+        .alert.success { background:#15803d; color:#fff; }
+        .alert.warning { background:#f59e0b; color:#0f172a; }
+        .alert.error { background:#ef4444; color:#fff; }
+        .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:99; }
+        .modal { background:#1e293b; max-width:480px; margin:80px auto; padding:24px; border-radius:12px; border:2px solid #ef4444; }
+        .modal h3 { color:#fca5a5; margin-top:0; }
+        .modal input, .modal textarea { width:100%; padding:8px; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:6px; margin-top:6px; }
+        .danger-zone { color:#fca5a5; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / إدارة المستأجرين</div>
+    <h1>🏢 إدارة المستأجرين (Tenants)</h1>
+    <p class="sub">حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force Delete مقيد بالـ Super Owner.</p>
+
+    {% if messages %}<div class="messages">
+        {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
+    </div>{% endif %}
+
+    <div class="tabs">
+        <a class="tab {% if show == 'alive' %}active{% endif %}" href="?show=alive">✅ نشطة <span class="badge ok">{{ count_alive }}</span></a>
+        <a class="tab {% if show == 'deleted' %}active{% endif %}" href="?show=deleted">🗑️ محذوفة <span class="badge danger">{{ count_deleted }}</span></a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">📜 الكل</a>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>الشركة</th>
+            <th>المالك</th>
+            <th>القطاع</th>
+            <th>الباقة</th>
+            <th>الحالة</th>
+            <th>تاريخ الإنشاء</th>
+            <th>إجراءات</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for t in tenants %}
+            <tr>
+                <td><strong>{{ t.name }}</strong><br><small style="color:#94a3b8;">{{ t.schema_name }}</small></td>
+                <td>{{ t.owner_name }}<br><small style="color:#94a3b8;">{{ t.phone }}</small></td>
+                <td>{{ t.get_industry_display }}</td>
+                <td>{{ t.get_plan_display }}</td>
+                <td>
+                    {% if t.is_deleted %}
+                        <span class="badge danger">محذوف</span><br>
+                        <small>{{ t.deleted_at|date:"Y-m-d H:i" }}<br>{{ t.deletion_reason|default:"بدون سبب" }}</small>
+                    {% else %}
+                        <span class="badge {% if t.status == 'active' %}ok{% elif t.status == 'suspended' %}warn{% else %}danger{% endif %}">{{ t.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ t.created_on|date:"Y-m-d" }}</td>
+                <td>
+                    {% if t.is_deleted %}
+                        <form method="post" action="{% url 'saas_tenant_restore' t.id %}" style="display:inline;">{% csrf_token %}
+                            <button class="btn btn-ok" type="submit">♻️ استعادة</button>
+                        </form>
+                        <button class="btn btn-danger" onclick="openForce({{ t.id }}, '{{ t.name|escapejs }}')">💀 Force Delete</button>
+                    {% else %}
+                        <button class="btn btn-warn" onclick="openSoft({{ t.id }}, '{{ t.name|escapejs }}')">🗑️ حذف آمن</button>
+                    {% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">لا توجد مستأجرين في هذا التصنيف.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Soft Delete Modal -->
+<div class="modal-bg" id="softModal">
+    <div class="modal" style="border-color:#f59e0b;">
+        <h3 style="color:#fbbf24;">🗑️ حذف آمن (Soft Delete)</h3>
+        <p>سيتم إخفاء «<strong id="softName"></strong>» من جميع القوائم. الفواتير والمدفوعات والـ schema تفضل سليمة.</p>
+        <form method="post" id="softForm">{% csrf_token %}
+            <label>سبب الحذف (اختياري):</label>
+            <textarea name="reason" rows="2" placeholder="مثلاً: العميل ألغى الاشتراك"></textarea>
+            <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+                <button type="button" class="btn" style="background:#475569; color:#fff;" onclick="closeModal('softModal')">إلغاء</button>
+                <button type="submit" class="btn btn-warn">تأكيد الحذف الآمن</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Force Delete Modal -->
+<div class="modal-bg" id="forceModal">
+    <div class="modal">
+        <h3>💀 حذف نهائي (Force Delete)</h3>
+        <p class="danger-zone">⚠️ <strong>تحذير:</strong> هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم الشركة بالضبط للتأكيد:</p>
+        <p>الاسم المطلوب: <code id="forceNameRef" style="color:#fca5a5;"></code></p>
+        <form method="post" id="forceForm">{% csrf_token %}
+            <input type="text" name="confirm_name" placeholder="اكتب اسم الشركة بالحرف" required>
+            <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+                <button type="button" class="btn" style="background:#475569; color:#fff;" onclick="closeModal('forceModal')">إلغاء</button>
+                <button type="submit" class="btn btn-danger">احذف نهائياً</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openSoft(id, name) {
+    document.getElementById('softName').textContent = name;
+    document.getElementById('softForm').action = `/superadmin/tenants/${id}/soft-delete/`;
+    document.getElementById('softModal').style.display = 'block';
+}
+function openForce(id, name) {
+    document.getElementById('forceNameRef').textContent = name;
+    document.getElementById('forceForm').action = `/superadmin/tenants/${id}/force-delete/`;
+    document.getElementById('forceModal').style.display = 'block';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+</script>
+</body>
+</html>

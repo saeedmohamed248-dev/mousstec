@@ -179,6 +179,7 @@ MIDDLEWARE = [
     'hr.middleware.AttendanceGateMiddleware',             # 🚪 إجبار tech/engineer على تسجيل الحضور قبل الدخول للورشة
     'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner
     'erp_core.middleware.VisitorTrackingMiddleware',       # 5. تتبع الزوار للسوبر أدمن
+    'clients.middleware_error_tracker.ErrorTrackingMiddleware',  # 🚨 6. مركز رصد الأخطاء (يكتب في public schema)
 ]
 
 AUTHENTICATION_BACKENDS = [

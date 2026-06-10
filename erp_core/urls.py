@@ -401,6 +401,16 @@ urlpatterns = [
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),
 
+    # 🏢 Tenants management (Soft Delete / Restore / Force Delete)
+    path('superadmin/tenants/', saas_admin_views.tenants_list, name='saas_tenants_list'),
+    path('superadmin/tenants/<int:tenant_id>/soft-delete/', saas_admin_views.tenant_soft_delete, name='saas_tenant_soft_delete'),
+    path('superadmin/tenants/<int:tenant_id>/restore/',     saas_admin_views.tenant_restore,     name='saas_tenant_restore'),
+    path('superadmin/tenants/<int:tenant_id>/force-delete/',saas_admin_views.tenant_force_delete,name='saas_tenant_force_delete'),
+
+    # 🚨 System Error Log (live)
+    path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),
+    path('superadmin/errors/<int:error_id>/resolve/', saas_admin_views.system_error_resolve, name='saas_system_error_resolve'),
+
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),
 

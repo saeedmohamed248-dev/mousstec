@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة الموارد البشرية | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1020; --bg2: #131a2e;
+            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #06b6d4; --accent2: #6366f1;
+            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
+            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background:
+                radial-gradient(800px 400px at 90% -10%, rgba(6,182,212,0.10), transparent 60%),
+                radial-gradient(700px 400px at -10% 110%, rgba(99,102,241,0.10), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 100px;
+        }
+
+        .topbar {
+            background: rgba(11,16,32,0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--line);
+            padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;
+            gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap;
+        }
+        .topbar h2 {
+            font-size: 1.05rem; font-weight: 900; margin: 0;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
+            cursor: pointer; text-decoration: none; transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: rgba(255,255,255,0.08); }
+        .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #fff; }
+
+        .wrap { max-width: 1280px; margin: 0 auto; padding: 22px; }
+
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, rgba(6,182,212,0.10), rgba(99,102,241,0.08));
+            border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px;
+            margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center; gap: 16px; flex-wrap: wrap;
+        }
+        .hero h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 6px; }
+        .hero p { color: var(--soft); margin: 0; font-size: 0.92rem; }
+
+        /* Quick chips */
+        .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+        .chip {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 0.84rem;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
+        }
+        .chip:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+        .chip.success { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); color: #6ee7b7; }
+        .chip.warn { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+        .chip.danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+        .chip.info { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.35); color: #93c5fd; }
+        .chip.purple { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: #c4b5fd; }
+        .chip .num-badge {
+            background: rgba(0,0,0,0.3); padding: 1px 8px; border-radius: 999px;
+            font-size: 0.74rem; font-weight: 800;
+        }
+
+        /* KPI grid */
+        .kpi-grid {
+            display: grid; gap: 12px; margin: 18px 0;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+        .kpi {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 16px; padding: 16px; backdrop-filter: blur(10px);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .kpi .icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .kpi .num { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+        .kpi .lbl { font-size: 0.78rem; color: var(--muted); font-weight: 700; margin-top: 4px; }
+
+        .icon-blue { background: rgba(59,130,246,0.15); color: #93c5fd; }
+        .icon-green { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+        .icon-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
+        .icon-red { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .icon-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+        .icon-cyan { background: rgba(6,182,212,0.15); color: #67e8f9; }
+
+        /* Layout grid */
+        .grid {
+            display: grid; gap: 16px; grid-template-columns: 1.4fr 1fr;
+        }
+        @media(max-width:980px) { .grid { grid-template-columns: 1fr; } }
+
+        .section {
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 18px; padding: 18px; backdrop-filter: blur(10px);
+            margin-bottom: 16px;
+        }
+        .section h3 {
+            font-size: 1rem; font-weight: 900; margin: 0 0 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section h3 i { color: var(--accent); }
+        .section h3 .count-pill {
+            background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 999px;
+            font-size: 0.74rem; color: var(--muted); margin-right: auto;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex; gap: 6px; margin-bottom: 14px;
+            border-bottom: 1px solid var(--line); padding-bottom: 4px;
+        }
+        .tab {
+            background: transparent; border: none; color: var(--muted);
+            padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.84rem;
+            cursor: pointer; transition: 0.15s; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .tab.active { background: rgba(6,182,212,0.15); color: #67e8f9; }
+        .tab .pill { background: rgba(0,0,0,0.3); padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Row list */
+        .row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 10px; transition: 0.15s;
+            border: 1px solid transparent;
+        }
+        .row:hover { background: rgba(255,255,255,0.03); border-color: var(--line); }
+        .row + .row { margin-top: 4px; }
+        .avatar {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(99,102,241,0.3));
+            color: #fff; font-weight: 800; font-size: 0.86rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .row .info { flex: 1; min-width: 0; }
+        .row .info .name { font-weight: 700; font-size: 0.92rem; }
+        .row .info .meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+        .row .right { text-align: left; }
+        .badge {
+            display: inline-block; padding: 3px 10px; border-radius: 999px;
+            font-size: 0.74rem; font-weight: 800;
+        }
+        .badge.green { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+        .badge.amber { background: rgba(245,158,11,0.18); color: #fcd34d; }
+        .badge.red { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .badge.muted { background: rgba(148,163,184,0.18); color: #cbd5e1; }
+        .badge.blue { background: rgba(59,130,246,0.18); color: #93c5fd; }
+        .badge.purple { background: rgba(139,92,246,0.18); color: #c4b5fd; }
+
+        /* Trend bars */
+        .trend { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding: 10px 4px; }
+        .trend .day {
+            flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+        }
+        .trend .bar {
+            width: 100%; max-width: 32px;
+            background: linear-gradient(180deg, var(--accent), var(--accent2));
+            border-radius: 6px 6px 0 0; min-height: 4px; transition: 0.3s;
+        }
+        .trend .label { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+        .trend .val { font-size: 0.72rem; color: var(--text); font-weight: 800; }
+
+        /* Empty */
+        .empty {
+            text-align: center; padding: 26px 16px; color: var(--muted); font-size: 0.88rem;
+        }
+        .empty i { font-size: 2rem; opacity: 0.4; margin-bottom: 8px; display: block; }
+
+        /* Dept list */
+        .dept-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-radius: 8px; transition: 0.15s;
+        }
+        .dept-row + .dept-row { margin-top: 2px; }
+        .dept-row:hover { background: rgba(255,255,255,0.03); }
+        .dept-bar {
+            flex: 1; max-width: 180px; height: 6px; background: rgba(255,255,255,0.05);
+            border-radius: 999px; margin: 0 12px; overflow: hidden;
+        }
+        .dept-bar .fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 999px; }
+
+        /* FAB */
+        .fab {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff; padding: 12px 24px; border-radius: 999px;
+            font-weight: 800; text-decoration: none; box-shadow: 0 8px 30px rgba(6,182,212,0.4);
+            display: inline-flex; align-items: center; gap: 8px; z-index: 100;
+        }
+        .fab:hover { transform: translateX(-50%) translateY(-2px); }
+
+        a.plain { color: inherit; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <h2><i class="fas fa-users-gear"></i> لوحة الموارد البشرية</h2>
+    <div style="display:flex; gap:8px; align-items:center;">
+        {% if me %}
+        <span style="color: var(--muted); font-size:0.84rem;">
+            مرحباً، <b style="color:var(--text)">{{ me.user.get_full_name|default:me.user.username }}</b>
+        </span>
+        {% endif %}
+        <a href="/secure-portal/" class="btn"><i class="fas fa-cog"></i> لوحة الإدارة</a>
+    </div>
+</div>
+
+<div class="wrap">
+
+    <!-- Hero -->
+    <div class="hero">
+        <div>
+            <h1>أهلاً 👋 — يومك سعيد</h1>
+            <p>كل اللي عايز تعرفه عن فريقك النهاردة: حضور، طلبات معلقة، وتنبيهات.</p>
+        </div>
+        <div class="chips">
+            <a href="/secure-portal/hr/employee/" class="chip info"><i class="fas fa-id-card"></i> كل الموظفين</a>
+            <a href="/secure-portal/hr/attendancerecord/" class="chip success"><i class="fas fa-fingerprint"></i> سجل الحضور</a>
+            {% if stats.pending_advances %}
+            <a href="#advances" class="chip amber"><i class="fas fa-hand-holding-dollar"></i> سلف معلقة <span class="num-badge">{{ stats.pending_advances }}</span></a>
+            {% endif %}
+            {% if stats.pending_leaves %}
+            <a href="#leaves" class="chip purple"><i class="fas fa-plane-departure"></i> إجازات معلقة <span class="num-badge">{{ stats.pending_leaves }}</span></a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+        <div class="kpi">
+            <div class="icon icon-blue"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="num">{{ stats.total_active }}</div>
+                <div class="lbl">إجمالي الموظفين</div>
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="icon icon-green"><i class="fas fa-circle-check"></i></div>
+            <div>
+                <div class="num">{{ stats.present_today }}</div>
+                <div class="lbl">حاضرون اليوم</div>
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="icon icon-amber"><i class="fas fa-clock"></i></div>
+            <div>
+                <div class="num">{{ stats.late_today }}</div>
+                <div class="lbl">متأخرون</div>
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="icon icon-red"><i class="fas fa-circle-xmark"></i></div>
+            <div>
+                <div class="num">{{ stats.absent_today|add:stats.not_checked_in }}</div>
+                <div class="lbl">غائبون / لم يحضروا</div>
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="icon icon-cyan"><i class="fas fa-fingerprint"></i></div>
+            <div>
+                <div class="num">{{ stats.face_verified_today }}</div>
+                <div class="lbl">موثق بصمة وجه</div>
+            </div>
+        </div>
+        <div class="kpi">
+            <div class="icon icon-purple"><i class="fas fa-percent"></i></div>
+            <div>
+                <div class="num">{{ stats.attendance_rate|floatformat:0 }}%</div>
+                <div class="lbl">نسبة الحضور</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts strip -->
+    {% if stats.alerts_no_supervisor or stats.pending_advances or stats.pending_leaves %}
+    <div class="section" style="background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(239,68,68,0.06)); border-color: rgba(245,158,11,0.3);">
+        <h3 style="color: #fcd34d;"><i class="fas fa-bell" style="color:#fcd34d;"></i> تنبيهات تحتاج تدخّل</h3>
+        <div class="chips">
+            {% if stats.pending_advances %}
+            <a href="#advances" class="chip amber"><i class="fas fa-hand-holding-dollar"></i> {{ stats.pending_advances }} طلب سلفة في انتظار الموافقة</a>
+            {% endif %}
+            {% if stats.pending_leaves %}
+            <a href="#leaves" class="chip purple"><i class="fas fa-plane"></i> {{ stats.pending_leaves }} طلب إجازة معلق</a>
+            {% endif %}
+            {% if stats.alerts_no_supervisor %}
+            <a href="#no-supervisor" class="chip danger"><i class="fas fa-user-slash"></i> {{ stats.alerts_no_supervisor }} موظف بدون مدير مباشر</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid">
+
+        <!-- LEFT COLUMN -->
+        <div>
+
+            <!-- Attendance tabs -->
+            <div class="section">
+                <h3>
+                    <i class="fas fa-calendar-day"></i> حضور اليوم
+                    <span class="count-pill">{{ today|date:"l، d F Y" }}</span>
+                </h3>
+                <div class="tabs">
+                    <button class="tab active" data-tab="not-in">
+                        <i class="fas fa-user-clock"></i> لم يحضروا <span class="pill">{{ not_checked_in|length }}</span>
+                    </button>
+                    <button class="tab" data-tab="present">
+                        <i class="fas fa-check"></i> حاضرون <span class="pill">{{ present_list|length }}</span>
+                    </button>
+                    <button class="tab" data-tab="late">
+                        <i class="fas fa-clock"></i> متأخرون <span class="pill">{{ late_list|length }}</span>
+                    </button>
+                    <button class="tab" data-tab="absent">
+                        <i class="fas fa-xmark"></i> غائبون <span class="pill">{{ absent_list|length }}</span>
+                    </button>
+                </div>
+
+                <div class="tab-content active" id="tab-not-in">
+                    {% for emp in not_checked_in %}
+                    <div class="row">
+                        <div class="avatar">{{ emp.user.first_name|slice:":1"|default:emp.user.username|slice:":1"|upper }}</div>
+                        <div class="info">
+                            <div class="name">{{ emp.user.get_full_name|default:emp.user.username }}</div>
+                            <div class="meta">{{ emp.employee_id }} — {{ emp.get_department_display }}{% if emp.job_title %} • {{ emp.job_title }}{% endif %}</div>
+                        </div>
+                        <div class="right"><span class="badge muted">لم يسجل</span></div>
+                    </div>
+                    {% empty %}
+                    <div class="empty"><i class="fas fa-check-double"></i>كل الموظفين سجلوا حضور النهاردة 🎉</div>
+                    {% endfor %}
+                </div>
+
+                <div class="tab-content" id="tab-present">
+                    {% for r in present_list %}
+                    <div class="row">
+                        <div class="avatar">{{ r.employee.user.first_name|slice:":1"|default:r.employee.user.username|slice:":1"|upper }}</div>
+                        <div class="info">
+                            <div class="name">{{ r.employee.user.get_full_name|default:r.employee.user.username }}</div>
+                            <div class="meta">
+                                {{ r.employee.get_department_display }} • حضر {{ r.clock_in|time:"H:i" }}
+                                {% if r.face_verified %} • <i class="fas fa-fingerprint" style="color:#67e8f9;" title="بصمة وجه موثقة"></i>{% endif %}
+                            </div>
+                        </div>
+                        <div class="right"><span class="badge green">حاضر</span></div>
+                    </div>
+                    {% empty %}
+                    <div class="empty"><i class="fas fa-user-clock"></i>لا أحد حضر بعد.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="tab-content" id="tab-late">
+                    {% for r in late_list %}
+                    <div class="row">
+                        <div class="avatar">{{ r.employee.user.first_name|slice:":1"|default:r.employee.user.username|slice:":1"|upper }}</div>
+                        <div class="info">
+                            <div class="name">{{ r.employee.user.get_full_name|default:r.employee.user.username }}</div>
+                            <div class="meta">
+                                {{ r.employee.get_department_display }} • حضر {{ r.clock_in|time:"H:i" }}
+                                {% if r.late_minutes %} • متأخر {{ r.late_minutes }} دقيقة{% endif %}
+                            </div>
+                        </div>
+                        <div class="right"><span class="badge amber">متأخر</span></div>
+                    </div>
+                    {% empty %}
+                    <div class="empty"><i class="fas fa-thumbs-up"></i>محدش متأخر النهاردة.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="tab-content" id="tab-absent">
+                    {% for r in absent_list %}
+                    <div class="row">
+                        <div class="avatar">{{ r.employee.user.first_name|slice:":1"|default:r.employee.user.username|slice:":1"|upper }}</div>
+                        <div class="info">
+                            <div class="name">{{ r.employee.user.get_full_name|default:r.employee.user.username }}</div>
+                            <div class="meta">{{ r.employee.employee_id }} — {{ r.employee.get_department_display }}</div>
+                        </div>
+                        <div class="right"><span class="badge red">غائب</span></div>
+                    </div>
+                    {% empty %}
+                    <div class="empty"><i class="fas fa-circle-check"></i>مفيش غياب مسجل.</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Pending Advances -->
+            <div class="section" id="advances">
+                <h3>
+                    <i class="fas fa-hand-holding-dollar"></i> طلبات السلف المعلقة
+                    <span class="count-pill">{{ pending_advances|length }}</span>
+                </h3>
+                {% for adv in pending_advances %}
+                <a href="/secure-portal/hr/advance/{{ adv.pk }}/change/" class="row plain">
+                    <div class="avatar" style="background: linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.3));">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="info">
+                        <div class="name">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</div>
+                        <div class="meta">
+                            <b style="color:#fcd34d;">{{ adv.amount|floatformat:2 }} ج.م</b>
+                            • {{ adv.installments_count }} قسط
+                            • {{ adv.requested_at|date:"d/m/Y" }}
+                            {% if adv.reason %} • {{ adv.reason|truncatechars:30 }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="right">
+                        <span class="badge amber">مراجعة</span>
+                    </div>
+                </a>
+                {% empty %}
+                <div class="empty"><i class="fas fa-check-circle"></i>مفيش طلبات سلف معلقة.</div>
+                {% endfor %}
+            </div>
+
+            <!-- Pending Leaves -->
+            <div class="section" id="leaves">
+                <h3>
+                    <i class="fas fa-plane-departure"></i> طلبات الإجازات المعلقة
+                    <span class="count-pill">{{ pending_leaves|length }}</span>
+                </h3>
+                {% for lv in pending_leaves %}
+                <a href="/secure-portal/hr/leaverequest/{{ lv.pk }}/change/" class="row plain">
+                    <div class="avatar" style="background: linear-gradient(135deg, rgba(139,92,246,0.4), rgba(124,58,237,0.3));">
+                        <i class="fas fa-plane"></i>
+                    </div>
+                    <div class="info">
+                        <div class="name">{{ lv.employee.user.get_full_name|default:lv.employee.user.username }}</div>
+                        <div class="meta">
+                            <b>{{ lv.get_leave_type_display }}</b>
+                            • {{ lv.from_date|date:"d/m" }} → {{ lv.to_date|date:"d/m" }}
+                            • {{ lv.total_days }} يوم
+                            {% if lv.reason %} • {{ lv.reason|truncatechars:30 }}{% endif %}
+                        </div>
+                    </div>
+                    <div class="right"><span class="badge purple">مراجعة</span></div>
+                </a>
+                {% empty %}
+                <div class="empty"><i class="fas fa-check-circle"></i>مفيش طلبات إجازات معلقة.</div>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        <!-- RIGHT SIDEBAR -->
+        <div>
+
+            <!-- 7-day trend -->
+            <div class="section">
+                <h3><i class="fas fa-chart-line"></i> حضور آخر 7 أيام</h3>
+                <div class="trend">
+                    {% for d in week_trend %}
+                    <div class="day">
+                        <span class="val">{{ d.count }}</span>
+                        <div class="bar" style="height: {{ d.percent|floatformat:0 }}%; min-height: 4px;"></div>
+                        <span class="label">{{ d.label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- By department -->
+            <div class="section">
+                <h3><i class="fas fa-sitemap"></i> توزيع الأقسام</h3>
+                {% for name, count in by_department_list %}
+                <div class="dept-row">
+                    <span style="font-weight:700; font-size:0.88rem;">{{ name }}</span>
+                    <div class="dept-bar">
+                        <div class="fill" style="width: {% widthratio count stats.total_active 100 %}%;"></div>
+                    </div>
+                    <b style="color:var(--accent); font-size:0.92rem;">{{ count }}</b>
+                </div>
+                {% empty %}
+                <div class="empty">لا توجد أقسام.</div>
+                {% endfor %}
+            </div>
+
+            <!-- Month stats -->
+            <div class="section">
+                <h3><i class="fas fa-calendar"></i> هذا الشهر</h3>
+                <div class="dept-row">
+                    <span style="color:var(--muted);">إجمالي السلف المطلوبة</span>
+                    <b style="color:#fcd34d;">{{ stats.month_advances_total|floatformat:2 }} ج.م</b>
+                </div>
+                <div class="dept-row">
+                    <span style="color:var(--muted);">إجازات تمت الموافقة</span>
+                    <b style="color:#c4b5fd;">{{ stats.month_approved_leaves }}</b>
+                </div>
+            </div>
+
+            <!-- Employees without supervisor -->
+            {% if employees_no_supervisor %}
+            <div class="section" id="no-supervisor" style="background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(220,38,38,0.04)); border-color: rgba(239,68,68,0.3);">
+                <h3 style="color:#fca5a5;"><i class="fas fa-user-slash" style="color:#fca5a5;"></i> موظفون بدون مدير مباشر</h3>
+                {% for emp in employees_no_supervisor %}
+                <a href="/secure-portal/hr/employee/{{ emp.pk }}/change/" class="row plain">
+                    <div class="avatar" style="background: linear-gradient(135deg, rgba(239,68,68,0.4), rgba(220,38,38,0.3));">
+                        {{ emp.user.first_name|slice:":1"|default:emp.user.username|slice:":1"|upper }}
+                    </div>
+                    <div class="info">
+                        <div class="name">{{ emp.user.get_full_name|default:emp.user.username }}</div>
+                        <div class="meta">{{ emp.get_department_display }}{% if emp.job_title %} • {{ emp.job_title }}{% endif %}</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Quick links -->
+            <div class="section">
+                <h3><i class="fas fa-link"></i> روابط سريعة</h3>
+                <div class="chips" style="flex-direction:column; align-items:stretch;">
+                    <a href="/secure-portal/hr/employee/add/" class="chip info"><i class="fas fa-user-plus"></i> إضافة موظف جديد</a>
+                    <a href="/secure-portal/hr/payrollrun/" class="chip success"><i class="fas fa-money-check-dollar"></i> الرواتب</a>
+                    <a href="/secure-portal/hr/workshift/" class="chip purple"><i class="fas fa-business-time"></i> الورديات</a>
+                    <a href="/secure-portal/hr/hrsettings/" class="chip"><i class="fas fa-sliders"></i> إعدادات HR</a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<a href="/secure-portal/hr/employee/add/" class="fab">
+    <i class="fas fa-user-plus"></i> موظف جديد
+</a>
+
+<script>
+    // Tabs
+    document.querySelectorAll('.tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.tab;
+            btn.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            const section = btn.closest('.section');
+            section.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const content = section.querySelector('#tab-' + target);
+            if (content) content.classList.add('active');
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models, transaction
 from django_tenants.models import TenantMixin, DomainMixin
+from clients.soft_delete import SoftDeleteMixin
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -21,7 +22,7 @@ def default_trial_end():
 # =====================================================================
 # 🏢 1. جدول المستأجرين (شركات Mouss Tec Ecosystem)
 # =====================================================================
-class Client(TenantMixin):
+class Client(SoftDeleteMixin, TenantMixin):
     ADDON_PRICE_PER_MONTH = Decimal('125.00')
     PLAN_BASE_PRICES = {
         # سيارات
@@ -171,6 +172,19 @@ class Client(TenantMixin):
         # limits بتـ enforce في TenantSubscription.save(). الـ Client.plan
         # CharField متروك كـ legacy display field لحد Phase 5.
         super().save(*args, **kwargs)
+
+    # 🛡️ ربط الـ Soft Delete بـ is_active عشان عملية الحذف الوهمي
+    #    تقفل الـ login تلقائياً من غير ما نلمس FK Foreign keys.
+    def soft_delete(self, user=None, reason=''):
+        self.is_active = False
+        self.status = 'cancelled'
+        super().soft_delete(user=user, reason=reason)
+
+    def restore(self):
+        self.is_active = True
+        if self.status == 'cancelled':
+            self.status = 'suspended'  # يحتاج تفعيل يدوي
+        super().restore()
 
 # =====================================================================
 # 🌐 2. جدول النطاقات
@@ -3112,6 +3126,49 @@ class PartOrder(models.Model):
                 level='success', icon='fa-money-bill-wave',
             )
         return True
+
+
+# =====================================================================
+# 🚨 SystemErrorLog — مركز رصد الأخطاء عبر كل المستأجرين (Super Admin)
+# =====================================================================
+class SystemErrorLog(models.Model):
+    LEVEL_CHOICES = (
+        ('warning', _('تحذير')),
+        ('error', _('خطأ')),
+        ('critical', _('حرج')),
+    )
+    tenant_schema = models.CharField(max_length=63, db_index=True, blank=True, default='')
+    tenant_name = models.CharField(max_length=100, blank=True, default='')
+    user_id = models.IntegerField(null=True, blank=True)
+    username = models.CharField(max_length=150, blank=True, default='')
+    path = models.CharField(max_length=500)
+    method = models.CharField(max_length=10)
+    status_code = models.IntegerField(db_index=True)
+    exception_class = models.CharField(max_length=200, blank=True, default='')
+    message = models.TextField(blank=True, default='')
+    traceback = models.TextField(blank=True, default='')
+    request_data = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='error')
+    is_resolved = models.BooleanField(default=False, db_index=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("سجل خطأ نظام")
+        verbose_name_plural = _("سجلات أخطاء النظام")
+        indexes = [
+            models.Index(fields=['-created_at', 'is_resolved']),
+            models.Index(fields=['tenant_schema', '-created_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.status_code}] {self.exception_class or self.path} @ {self.tenant_schema or 'public'}"
 
 
 # OBD device identity & secrets — defined in a separate module for clarity.
