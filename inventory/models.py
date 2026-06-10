@@ -824,15 +824,24 @@ class BankStatementLine(models.Model):
             date__date__lte=self.transaction_date + _td(days=3),
         ).exclude(bank_lines__is_matched=True)
 
-        # Best match: same date + amount = 100% confidence
-        exact = candidates.filter(date__date=self.transaction_date).first()
-        if exact:
-            self.matched_transaction = exact
+        # Best match: same date + amount = 100% confidence (only if unique)
+        exact_qs = candidates.filter(date__date=self.transaction_date)
+        exact_count = exact_qs.count()
+        if exact_count == 1:
+            self.matched_transaction = exact_qs.first()
             self.match_confidence = Decimal('100.00')
             self.is_matched = True
             self.matched_at = timezone.now()
             self.save(update_fields=['matched_transaction', 'match_confidence', 'is_matched', 'matched_at'])
             return 100
+        elif exact_count > 1:
+            # Multiple candidates — flag for manual review at 50% confidence
+            self.matched_transaction = exact_qs.first()
+            self.match_confidence = Decimal('50.00')
+            self.is_matched = False
+            self.matched_at = timezone.now()
+            self.save(update_fields=['matched_transaction', 'match_confidence', 'is_matched', 'matched_at'])
+            return 50
 
         # Near match: same amount within ±3 days = 80%
         near = candidates.first()

@@ -323,16 +323,16 @@ class BlindBiddingRequest(models.Model):
             raise ValidationError("يجب تحديد سعر الترسية النهائي لخصم الضمان.")
         
         with transaction.atomic():
-            self.status = 'escrow_held'
-            self.save(update_fields=['status'])
-            
+            # Create ledger entry FIRST — if it fails, status stays unchanged
             EscrowLedger.objects.create(
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='hold',
                 amount=self.winning_price,
-                description=f"🔒 تجميد مالي مؤقت لثمن قطعة {self.part_number} بالمزاد العكسي #{self.id}"
+                description=f"تجميد مالي مؤقت لثمن قطعة {self.part_number} بالمزاد العكسي #{self.id}"
             )
+            self.status = 'escrow_held'
+            self.save(update_fields=['status'])
 
     def trigger_release_to_seller(self):
         if self.status != 'shipped':

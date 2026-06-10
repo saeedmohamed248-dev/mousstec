@@ -241,12 +241,14 @@ class InvoiceService:
                         setattr(instance.vehicle, key, val)
                     instance.vehicle.save(update_fields=list(vehicle_updates.keys()))
 
-            # --- 4. Loyalty points ---
+            # --- 4. Loyalty points — only for billable revenue, not free/warranty work ---
             if (instance.total_amount > 0
-                    and hasattr(instance, 'is_return') and not instance.is_return):
+                    and hasattr(instance, 'is_return') and not instance.is_return
+                    and instance.items.filter(is_billable=True).exists()):
                 points_earned = int(instance.total_amount / Decimal('100.0'))
-                instance.customer.loyalty_points = F('loyalty_points') + points_earned
-                instance.customer.save(update_fields=['loyalty_points'])
+                if points_earned > 0:
+                    instance.customer.loyalty_points = F('loyalty_points') + points_earned
+                    instance.customer.save(update_fields=['loyalty_points'])
 
             # --- 5. Technician commissions (skip for returns) ---
             if is_return:
@@ -255,20 +257,55 @@ class InvoiceService:
                 pass  # Fall through to commission logic below
             for service_item in (instance.service_items.select_related('technician', 'service').all() if not is_return else []):
                 if service_item.technician and service_item.service.tech_commission_percent > 0:
+                    from decimal import ROUND_HALF_UP
                     base_commission = (
-                        service_item.price * service_item.service.tech_commission_percent
-                    ) / Decimal('100.00')
+                        (service_item.price * service_item.service.tech_commission_percent)
+                        / Decimal('100.00')
+                    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
                     # Time-saving performance bonus (+10%)
                     if (service_item.actual_hours > 0
                             and service_item.service.estimated_hours > 0
                             and service_item.actual_hours < service_item.service.estimated_hours):
-                        base_commission *= Decimal('1.10')
+                        base_commission = (base_commission * Decimal('1.10')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
                     service_item.technician.commission_balance = (
                         F('commission_balance') + base_commission
                     )
                     service_item.technician.save(update_fields=['commission_balance'])
+
+                    # Double-entry: Debit commission expense / Credit commission payable
+                    try:
+                        from inventory.services.treasury_service import TreasuryService
+                        from inventory.models import ChartOfAccount, AccountingEntry
+                        commission_expense = TreasuryService._get_or_create_account(
+                            '5200', 'عمولات الفنيين', 'expense'
+                        )
+                        commission_payable = TreasuryService._get_or_create_account(
+                            '2100', 'عمولات مستحقة للموظفين', 'liability'
+                        )
+                        ref = f"COMM-INV{instance.pk}-EMP{service_item.technician.pk}"
+                        AccountingEntry.objects.bulk_create([
+                            AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
+                                account=commission_expense,
+                                debit=base_commission,
+                                credit=Decimal('0'),
+                                sale_invoice=instance,
+                            ),
+                            AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة مستحقة لـ {service_item.technician}",
+                                account=commission_payable,
+                                debit=Decimal('0'),
+                                credit=base_commission,
+                                sale_invoice=instance,
+                            ),
+                        ])
+                    except Exception as _ce:
+                        import logging as _l
+                        _l.getLogger('mouss_tec_core').warning("[COMMISSION] ledger entry failed: %s", _ce)
 
             # --- 6. Inventory deduction ---
             product_qty_map = defaultdict(int)

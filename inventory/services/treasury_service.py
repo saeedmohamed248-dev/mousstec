@@ -265,6 +265,17 @@ class TreasuryService:
         breakdown = []
         total_paid = Decimal('0.00')
 
+        # Pre-flight: estimate total to pay and guard against certain overdraft
+        estimated_total = sum(
+            p.commission_balance for p in employee_profiles
+            if p.commission_balance > Decimal('0') and p.role in allowed_roles
+        )
+        if estimated_total > treasury.balance:
+            raise ValidationError(
+                f"إجمالي العمولات المستحقة ({estimated_total:.2f} ج) يتجاوز رصيد الخزينة ({treasury.balance:.2f} ج). "
+                "يرجى إعادة تعبئة الخزينة أو اختيار موظفين أقل."
+            )
+
         with transaction.atomic():
             # Lock the treasury row so concurrent payouts can't race the balance check.
             treasury_locked = Treasury.objects.select_for_update().get(pk=treasury.pk)

@@ -1495,7 +1495,7 @@ def profit_loss_report_api(request):
             "gross_profit": float(gross_profit),
             "total_operating_expenses": float(total_expenses),
             "net_profit": float(net_profit),
-            "profit_margin_percent": round(float(net_profit / gross_profit * 100), 2) if gross_profit > 0 else 0,
+            "profit_margin_percent": round(float(net_profit / max(gross_profit, Decimal('0.01')) * 100), 2) if gross_profit > 0 else 0,
         },
         "revenue_by_type": [
             {"type": r['invoice_type'], "revenue": float(r['total']), "profit": float(r['profit'] or 0)}

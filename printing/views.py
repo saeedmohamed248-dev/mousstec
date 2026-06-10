@@ -1749,7 +1749,7 @@ def order_profit_detail(request, order_id):
             'full_cost': fc,
             'revenue': rev,
             'profit': rev - fc,
-            'margin_percent': ((rev - fc) / rev * Decimal('100')) if rev else Decimal('0'),
+            'margin_percent': round((rev - fc) / max(rev, Decimal('0.01')) * Decimal('100'), 2) if rev > 0 else Decimal('0'),
         })
         sum_machine += mc
         sum_ink += ic
@@ -1759,7 +1759,7 @@ def order_profit_detail(request, order_id):
     total_cost = sum_machine + sum_ink + sum_designer
     net_total = order.net_total
     gross_profit = net_total - total_cost
-    margin = (gross_profit / net_total * Decimal('100')) if net_total else Decimal('0')
+    margin = round(gross_profit / max(net_total, Decimal('0.01')) * Decimal('100'), 2) if net_total > 0 else Decimal('0')
 
     # نسب التكلفة
     cost_breakdown = []
