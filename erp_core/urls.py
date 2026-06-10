@@ -15,6 +15,7 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from clients.views import support_views as support_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -410,6 +411,11 @@ urlpatterns = [
     # 🚨 System Error Log (live)
     path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),
     path('superadmin/errors/<int:error_id>/resolve/', saas_admin_views.system_error_resolve, name='saas_system_error_resolve'),
+
+    # 📨 Support tickets
+    path('support/submit/', support_views.submit_help_form, name='support_submit'),
+    path('superadmin/support/', support_views.support_inbox, name='saas_support_inbox'),
+    path('superadmin/support/<int:ticket_id>/', support_views.support_ticket_detail, name='saas_support_ticket_detail'),
 
     # 🔐 Impersonation login (tenant-side, receives token from super admin)
     path('impersonate-login/', client_views.impersonate_login, name='impersonate_login'),

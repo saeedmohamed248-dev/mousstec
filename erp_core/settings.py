@@ -326,6 +326,9 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
 
+# 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
+SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
+
 TECDOC_API_KEY = env('TECDOC_API_KEY', default='')
 ALLDATA_ENDPOINT = env('ALLDATA_ENDPOINT', default='')
 

@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صندوق الدعم — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#86efac; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #22c55e; }
+        .stat.urgent { border-color:#ef4444; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
+        .stat .label { color:#94a3b8; font-size:12px; }
+        .tabs { display:flex; gap:8px; margin-bottom:18px; }
+        .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
+        .tab.active { background:#16a34a; color:#fff; border-color:#86efac; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th { background:#0f172a; color:#86efac; font-weight:900; }
+        tr:hover { background:#293548; cursor:pointer; }
+        .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
+        .b-open { background:#0ea5e9; color:#fff; }
+        .b-progress { background:#f59e0b; color:#0f172a; }
+        .b-closed { background:#64748b; color:#fff; }
+        .b-waiting { background:#a78bfa; color:#fff; }
+        .pri-urgent { background:#dc2626; color:#fff; }
+        .pri-high { background:#f59e0b; color:#0f172a; }
+        .pri-medium { background:#64748b; color:#fff; }
+        .pri-low { background:#334155; color:#cbd5e1; }
+        .mail-mark { color:#22c55e; }
+        .mail-fail { color:#ef4444; }
+    </style>
+    <meta http-equiv="refresh" content="60">
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / صندوق الدعم</div>
+    <h1>📨 صندوق تذاكر الدعم</h1>
+    <p class="sub">كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها على بريدك المسجل سراً.</p>
+
+    <div class="stats">
+        <div class="stat urgent"><h2>{{ count_urgent }}</h2><div class="label">🚨 تذاكر عاجلة مفتوحة</div></div>
+        <div class="stat"><h2>{{ count_open }}</h2><div class="label">📋 إجمالي مفتوح</div></div>
+    </div>
+
+    <div class="tabs">
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">مفتوحة</a>
+        <a class="tab {% if show == 'closed' %}active{% endif %}" href="?show=closed">مغلقة</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">الكل</a>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>الوقت</th>
+            <th>المرسل</th>
+            <th>المستأجر</th>
+            <th>الموضوع</th>
+            <th>المصدر</th>
+            <th>الأولوية</th>
+            <th>الحالة</th>
+            <th>📧</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for t in tickets %}
+        <tr onclick="window.location='{% url 'saas_support_ticket_detail' t.id %}'">
+            <td>#{{ t.id }}</td>
+            <td>{{ t.created_at|date:"m-d H:i" }}</td>
+            <td><strong>{{ t.name }}</strong><br><small style="color:#94a3b8;">{{ t.email }}</small></td>
+            <td>{{ t.tenant.name|default:"—" }}</td>
+            <td>{{ t.subject|truncatechars:50 }}</td>
+            <td><small>{{ t.get_source_display }}</small></td>
+            <td><span class="badge pri-{{ t.priority }}">{{ t.get_priority_display }}</span></td>
+            <td><span class="badge b-{{ t.status|cut:'_' }}">{{ t.get_status_display }}</span></td>
+            <td>
+                {% if t.email_delivered %}<span class="mail-mark" title="تم الإرسال">✓</span>
+                {% elif t.email_error %}<span class="mail-fail" title="{{ t.email_error }}">✗</span>
+                {% else %}<small>...</small>{% endif %}
+            </td>
+        </tr>
+        {% empty %}
+            <tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">📭 لا توجد تذاكر في هذا التصنيف</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

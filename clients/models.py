@@ -3172,6 +3172,70 @@ class SystemErrorLog(models.Model):
 
 
 # =====================================================================
+# 📨 SupportTicket — تذاكر الدعم الفني (Help Form + Chat offline)
+# =====================================================================
+class SupportTicket(SoftDeleteMixin, models.Model):
+    STATUS_CHOICES = (
+        ('open',        _('مفتوحة')),
+        ('in_progress', _('جاري الحل')),
+        ('waiting',     _('بانتظار العميل')),
+        ('closed',      _('مغلقة')),
+    )
+    PRIORITY_CHOICES = (
+        ('low',    _('عادية')),
+        ('medium', _('متوسطة')),
+        ('high',   _('عاجلة')),
+        ('urgent', _('حرجة')),
+    )
+    SOURCE_CHOICES = (
+        ('form',         _('نموذج المساعدة')),
+        ('chat_offline', _('شات خارج أوقات العمل')),
+        ('email',        _('بريد إلكتروني')),
+        ('phone',        _('هاتف')),
+    )
+
+    tenant = models.ForeignKey(
+        Client, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='support_tickets', verbose_name=_("المستأجر"),
+    )
+    name = models.CharField(max_length=120, verbose_name=_("الاسم"))
+    email = models.EmailField(verbose_name=_("البريد الإلكتروني"))
+    phone = models.CharField(max_length=30, blank=True, default='', verbose_name=_("الهاتف"))
+    subject = models.CharField(max_length=200, verbose_name=_("الموضوع"))
+    message = models.TextField(verbose_name=_("الرسالة"))
+
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open', db_index=True)
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='form')
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='assigned_tickets', verbose_name=_("مُسنَدة إلى"),
+    )
+    internal_notes = models.TextField(blank=True, default='', help_text=_("ملاحظات داخلية لا تُعرض للعميل"))
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True, default='')
+    email_sent_ok = models.BooleanField(default=False, help_text=_("هل وصل الإيميل لصندوق الدعم؟"))
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("تذكرة دعم")
+        verbose_name_plural = _("تذاكر الدعم")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at', 'status']),
+            models.Index(fields=['status', 'priority']),
+        ]
+
+    def __str__(self):
+        return f"#{self.id} {self.subject} ({self.get_status_display()})"
+
+
+# =====================================================================
 # 🔐 StaffRole — Enterprise RBAC للوحة الـ Super Admin
 # =====================================================================
 class StaffRole(models.Model):
@@ -3218,6 +3282,69 @@ class StaffRole(models.Model):
 
     def can_view(self, widget_name):
         return widget_name in self.visible_widgets
+
+
+# =====================================================================
+# 📨 SupportTicket — تذاكر دعم العملاء (Help Form + Chat Offline)
+# =====================================================================
+class SupportTicket(SoftDeleteMixin, models.Model):
+    STATUS_CHOICES = (
+        ('open',        _('مفتوحة')),
+        ('in_progress', _('جاري الحل')),
+        ('waiting',     _('بانتظار رد العميل')),
+        ('closed',      _('مغلقة')),
+    )
+    PRIORITY_CHOICES = (
+        ('low',    _('عادية')),
+        ('medium', _('متوسطة')),
+        ('high',   _('عاجلة')),
+        ('urgent', _('طارئة')),
+    )
+    SOURCE_CHOICES = (
+        ('form',         _('فورم اتصل بنا')),
+        ('chat_offline', _('شات خارج أوقات العمل')),
+        ('email',        _('بريد إلكتروني')),
+        ('phone',        _('مكالمة هاتفية')),
+    )
+
+    tenant = models.ForeignKey(
+        Client, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='support_tickets', verbose_name=_("المستأجر"),
+    )
+    name = models.CharField(max_length=120, verbose_name=_("اسم المرسل"))
+    email = models.EmailField(verbose_name=_("البريد الإلكتروني"))
+    phone = models.CharField(max_length=30, blank=True, default='', verbose_name=_("الهاتف"))
+    subject = models.CharField(max_length=200, verbose_name=_("الموضوع"))
+    message = models.TextField(verbose_name=_("الرسالة"))
+
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open', db_index=True)
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='form')
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='assigned_tickets',
+    )
+    admin_notes = models.TextField(blank=True, default='', verbose_name=_("ملاحظات داخلية"))
+
+    email_delivered = models.BooleanField(default=False)
+    email_error = models.CharField(max_length=255, blank=True, default='')
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("تذكرة دعم")
+        verbose_name_plural = _("تذاكر الدعم")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', '-created_at'])]
+
+    def __str__(self):
+        return f"#{self.id} {self.subject[:40]} ({self.get_status_display()})"
 
 
 # OBD device identity & secrets — defined in a separate module for clarity.

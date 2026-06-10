@@ -1,0 +1,61 @@
+{# 📨 Help Form Widget — قابل للتضمين في أي صفحة بـ {% include 'clients/widgets/help_form.html' %} #}
+<div id="mt-help-widget" style="position:fixed; bottom:20px; left:20px; z-index:9999; font-family:'Cairo',sans-serif;">
+    <button id="mt-help-toggle" style="background:linear-gradient(135deg,#7c3aed,#a78bfa); color:#fff; border:none; border-radius:50px; padding:14px 22px; cursor:pointer; box-shadow:0 8px 20px rgba(124,58,237,.5); font-weight:700; font-size:14px;">
+        💬 محتاج مساعدة؟
+    </button>
+    <div id="mt-help-panel" style="display:none; position:absolute; bottom:60px; left:0; width:340px; background:#0f172a; color:#e2e8f0; border-radius:14px; padding:20px; box-shadow:0 20px 40px rgba(0,0,0,.5); border:1px solid #334155;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <strong style="color:#a78bfa;">📨 تواصل مع الدعم</strong>
+            <span id="mt-help-close" style="cursor:pointer; color:#94a3b8;">✕</span>
+        </div>
+        <form id="mt-help-form">
+            <input type="text" name="name" placeholder="اسمك" required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+            <input type="email" name="email" placeholder="بريدك الإلكتروني" required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+            <input type="text" name="subject" placeholder="الموضوع" style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit;">
+            <textarea name="message" rows="4" placeholder="رسالتك..." required style="width:100%; padding:8px; margin-bottom:8px; background:#1e293b; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
+            <input type="hidden" name="source" value="form">
+            <button type="submit" style="width:100%; background:#7c3aed; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer; font-weight:700; font-family:inherit;">📤 إرسال</button>
+            <div id="mt-help-status" style="margin-top:10px; font-size:12px; text-align:center;"></div>
+        </form>
+    </div>
+</div>
+<script>
+(function(){
+    const btn = document.getElementById('mt-help-toggle');
+    const panel = document.getElementById('mt-help-panel');
+    const closeBtn = document.getElementById('mt-help-close');
+    const form = document.getElementById('mt-help-form');
+    const status = document.getElementById('mt-help-status');
+    btn.onclick = () => panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    closeBtn.onclick = () => panel.style.display = 'none';
+    function csrfToken() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? m[1] : '';
+    }
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        status.textContent = 'جاري الإرسال...'; status.style.color = '#94a3b8';
+        try {
+            const r = await fetch('/support/submit/', {
+                method:'POST',
+                body:new FormData(form),
+                headers:{'X-CSRFToken': csrfToken()},
+                credentials:'same-origin',
+            });
+            const j = await r.json();
+            if (j.ok) {
+                status.textContent = j.message || '✅ تم الإرسال';
+                status.style.color = '#22c55e';
+                form.reset();
+                setTimeout(() => { panel.style.display = 'none'; status.textContent=''; }, 3000);
+            } else {
+                status.textContent = j.error || '❌ فشل الإرسال';
+                status.style.color = '#ef4444';
+            }
+        } catch (err) {
+            status.textContent = '❌ خطأ في الاتصال';
+            status.style.color = '#ef4444';
+        }
+    };
+})();
+</script>
