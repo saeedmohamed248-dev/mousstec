@@ -67,6 +67,49 @@
         </div>
     </div>
 
+    {# ═══════════════════ 🚀 Quick Actions — Enterprise Tools ═══════════════════ #}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <a href="/superadmin/tenants/" class="group flex items-center gap-3 p-4 rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 hover:from-violet-500/20 hover:to-fuchsia-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-violet-500/20 flex items-center justify-center text-violet-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">إدارة المستأجرين</div>
+                <div class="text-slate-400 text-xs">حذف آمن • استعادة • Force Delete</div>
+            </div>
+        </a>
+
+        <a href="/superadmin/errors/" class="group flex items-center gap-3 p-4 rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-orange-500/5 hover:from-red-500/20 hover:to-orange-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-red-500/20 flex items-center justify-center text-red-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">سجل أخطاء النظام</div>
+                <div class="text-slate-400 text-xs">رصد لحظي لكل 4xx/5xx</div>
+            </div>
+        </a>
+
+        <a href="/superadmin/plans/" class="group flex items-center gap-3 p-4 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-cyan-500/5 hover:from-sky-500/20 hover:to-cyan-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-gem"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">الباقات والاشتراكات</div>
+                <div class="text-slate-400 text-xs">تسعير • مزايا • تحرير</div>
+            </div>
+        </a>
+
+        <a href="/superadmin/revenue/" class="group flex items-center gap-3 p-4 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:from-emerald-500/20 hover:to-teal-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">الإيرادات</div>
+                <div class="text-slate-400 text-xs">MRR • نمو • تحصيل</div>
+            </div>
+        </a>
+    </div>
+
     <!-- ═══════════════════ Tab Navigation ═══════════════════ -->
     <div class="flex gap-2 overflow-x-auto pb-1" id="tab-nav">
         <button data-tab="overview" class="tab-btn active text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap">

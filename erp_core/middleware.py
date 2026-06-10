@@ -405,19 +405,24 @@ class VisitorTrackingMiddleware:
             user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
 
             from clients.models import VisitorLog
-            VisitorLog.objects.using('default').create(
-                ip_address=ip,
-                path=path[:500],
-                method=request.method,
-                status_code=response.status_code,
-                user=user,
-                tenant_schema=schema,
-                user_agent=ua[:1000],
-                referer=(request.META.get('HTTP_REFERER', '') or '')[:1000],
-                device_type=device,
-                response_time_ms=elapsed_ms,
-            )
+            from django_tenants.utils import schema_context
+            # 🛡️ VisitorLog موجود في public schema فقط (clients app في SHARED_APPS).
+            # لازم نكتب فيه عبر schema_context عشان طلبات الـ tenants تنجح.
+            with schema_context('public'):
+                VisitorLog.objects.create(
+                    ip_address=ip,
+                    path=path[:500],
+                    method=request.method,
+                    status_code=response.status_code,
+                    user=user,
+                    tenant_schema=schema,
+                    user_agent=ua[:1000],
+                    referer=(request.META.get('HTTP_REFERER', '') or '')[:1000],
+                    device_type=device,
+                    response_time_ms=elapsed_ms,
+                )
         except Exception:
-            pass  # Non-blocking — لا نسمح لخطأ التتبع بتعطيل الطلب
+            import logging
+            logging.getLogger(__name__).exception("VisitorTracking failed")
 
         return response
