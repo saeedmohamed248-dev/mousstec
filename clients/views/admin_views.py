@@ -368,7 +368,7 @@ def super_admin_dashboard(request):
             'recent': recent_visitors,
         }
     except Exception:
-        pass
+        logger.exception("super_admin_dashboard: visitor_stats computation failed")
 
     # --- Platform Events (Activity Feed) ---
     recent_events = []
@@ -378,7 +378,7 @@ def super_admin_dashboard(request):
             .values('timestamp', 'event_type', 'tenant_name', 'user_name', 'description')
         )
     except Exception:
-        pass
+        logger.exception("super_admin_dashboard: recent_events fetch failed")
 
     # --- Tenant Deep Details (per tenant) ---
     from clients.models import TenantSubscription, AIAddonPackage
@@ -389,7 +389,7 @@ def super_admin_dashboard(request):
             with schema_context(t.schema_name):
                 users_count = User.objects.count()
         except Exception:
-            pass
+            logger.warning("super_admin_dashboard: failed to count users in schema %s", t.schema_name, exc_info=True)
 
         # جلب حالة AI addon
         ai_addon_name = ''
