@@ -125,14 +125,58 @@ const DEFAULT_TIMEOUT_MS = 2500;
 const PIDS = {
     '04': { label: 'engine_load',     unit: '%',    parse: b => b[0] * 100 / 255 },
     '05': { label: 'coolant_temp_c',  unit: '°C',   parse: b => b[0] - 40 },
+    '06': { label: 'stft_b1',         unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '07': { label: 'ltft_b1',         unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '08': { label: 'stft_b2',         unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '09': { label: 'ltft_b2',         unit: '%',    parse: b => (b[0] - 128) * 100 / 128 },
+    '0A': { label: 'fuel_pressure_kpa',unit: 'kPa', parse: b => b[0] * 3 },
+    '0B': { label: 'map_kpa',         unit: 'kPa',  parse: b => b[0] },
     '0C': { label: 'rpm',             unit: 'rpm',  parse: b => ((b[0] << 8) + b[1]) / 4 },
     '0D': { label: 'speed_kph',       unit: 'km/h', parse: b => b[0] },
+    '0E': { label: 'timing_advance_deg', unit: '°', parse: b => (b[0] / 2) - 64 },
     '0F': { label: 'intake_temp_c',   unit: '°C',   parse: b => b[0] - 40 },
     '10': { label: 'maf_gs',          unit: 'g/s',  parse: b => ((b[0] << 8) + b[1]) / 100 },
     '11': { label: 'throttle_pct',    unit: '%',    parse: b => b[0] * 100 / 255 },
+    '14': { label: 'o2_b1s1_v',       unit: 'V',    parse: b => b[0] / 200 },
+    '15': { label: 'o2_b1s2_v',       unit: 'V',    parse: b => b[0] / 200 },
+    // Wideband O2 (Equivalence Ratio = Lambda)
+    '24': { label: 'o2s1_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '25': { label: 'o2s2_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '26': { label: 'o2s3_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '27': { label: 'o2s4_lambda', unit: 'λ',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 2 / 65535 : null },
+    '2C': { label: 'egr_commanded_pct', unit: '%',
+        parse: b => b.length >= 1 ? b[0] * 100 / 255 : null },
+    '2D': { label: 'egr_error_pct',     unit: '%',
+        parse: b => b.length >= 1 ? (b[0] - 128) * 100 / 128 : null },
+    '2E': { label: 'evap_purge_cmd_pct', unit: '%',
+        parse: b => b.length >= 1 ? b[0] * 100 / 255 : null },
     '2F': { label: 'fuel_level_pct',  unit: '%',    parse: b => b[0] * 100 / 255 },
+    '32': { label: 'evap_vapor_press_pa', unit: 'Pa',
+        parse: b => {
+            if (b.length < 2) return null;
+            const raw = (b[0] << 8) + b[1];
+            const signed = raw >= 0x8000 ? raw - 0x10000 : raw;
+            return signed * 0.25;
+        }},
+    '33': { label: 'baro_kpa',        unit: 'kPa',  parse: b => b[0] },
     '42': { label: 'control_voltage', unit: 'V',    parse: b => ((b[0] << 8) + b[1]) / 1000 },
+    '45': { label: 'rel_throttle_pct', unit: '%',   parse: b => b[0] * 100 / 255 },
+    '46': { label: 'ambient_temp_c',  unit: '°C',   parse: b => b[0] - 40 },
+    '53': { label: 'evap_abs_vapor_kpa', unit: 'kPa',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.005 : null },
+    '54': { label: 'evap_vapor_press_kpa', unit: 'kPa',
+        parse: b => {
+            if (b.length < 2) return null;
+            const raw = (b[0] << 8) + b[1];
+            const signed = raw >= 0x8000 ? raw - 0x10000 : raw;
+            return signed * 1.0;
+        }},
     '5C': { label: 'oil_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
+    '5E': { label: 'fuel_rate_lh',    unit: 'L/h',  parse: b => ((b[0] << 8) + b[1]) * 0.05 },
 };
 const DEFAULT_POLL_PIDS = ['0C', '0D', '05', '11', '04', '42'];
 
@@ -741,6 +785,1037 @@ class OBDBluetooth extends EventTarget {
             vin += String.fromCharCode(b);
         }
         return vin.length === 17 ? vin : null;
+    }
+
+    async readFreezeFrame() {
+        // Most useful PIDs at the moment a DTC was set:
+        const ff_pids = ['02', '03', '04', '05', '0C', '0D', '0E', '0F',
+                         '10', '11', '14', '1C', '21'];
+        const out = { _at: Date.now(), frame: 0 };
+        for (const pid of ff_pids) {
+            try {
+                const raw = await this._sendCommand(`02${pid}00`, 3000);
+                if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) continue;
+                // Mode 02 response header: "42<PID><frame><bytes>"
+                const stripped = raw.replace(/\s+/g, '').toUpperCase();
+                const headerIdx = stripped.indexOf('42' + pid);
+                if (headerIdx < 0) continue;
+                const body = stripped.slice(headerIdx + 4 + 2);   // skip 42PID + frame nibble
+                const bytes = [];
+                for (let i = 0; i < body.length; i += 2) {
+                    const b = parseInt(body.slice(i, i + 2), 16);
+                    if (!Number.isFinite(b)) break;
+                    bytes.push(b);
+                }
+                // PID 02 in Mode 02 = the DTC that triggered the freeze
+                if (pid === '02' && bytes.length >= 2) {
+                    out.trigger_dtc = this._decodeDTCNibbles(bytes[0], bytes[1]);
+                    continue;
+                }
+                const def = PIDS[pid];
+                if (def) {
+                    try {
+                        const parsed = def.parse(bytes);
+                        if (Number.isFinite(parsed)) out[def.label] = parsed;
+                    } catch (_) {}
+                }
+            } catch (_) { /* per-PID failure non-fatal */ }
+        }
+        this._emit('freeze_frame', out);
+        return out;
+    }
+
+    async readReadinessMonitors() {
+        const raw = await this._sendCommand('0101', 3000);
+        if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) {
+            throw new Error('الـ ECU مردش على Mode 01 PID 01.');
+        }
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        const idx = stripped.indexOf('4101');
+        if (idx < 0) throw new Error('رد غير صالح من الـ ECU.');
+        const body = stripped.slice(idx + 4);
+        const A = parseInt(body.slice(0, 2), 16);
+        const B = parseInt(body.slice(2, 4), 16);
+        const C = parseInt(body.slice(4, 6), 16);
+        const D = parseInt(body.slice(6, 8), 16);
+
+        const mil = !!(A & 0x80);                        // Check Engine on?
+        const dtcCount = A & 0x7F;
+        const isDiesel = !!(B & 0x08);
+
+        // "supported" bit = ECU has this monitor; "complete" bit = test passed.
+        // For each monitor we get { supported, complete }. complete = ready.
+        const continuous = {
+            misfire:        { supported: !!(B & 0x01), complete: !(B & 0x10) },
+            fuel_system:    { supported: !!(B & 0x02), complete: !(B & 0x20) },
+            components:     { supported: !!(B & 0x04), complete: !(B & 0x40) },
+        };
+
+        const onceper_gas = {
+            catalyst:           { supported: !!(C & 0x01), complete: !(D & 0x01) },
+            heated_catalyst:    { supported: !!(C & 0x02), complete: !(D & 0x02) },
+            evap_system:        { supported: !!(C & 0x04), complete: !(D & 0x04) },
+            secondary_air:      { supported: !!(C & 0x08), complete: !(D & 0x08) },
+            ac_refrigerant:     { supported: !!(C & 0x10), complete: !(D & 0x10) },
+            o2_sensor:          { supported: !!(C & 0x20), complete: !(D & 0x20) },
+            o2_sensor_heater:   { supported: !!(C & 0x40), complete: !(D & 0x40) },
+            egr_system:         { supported: !!(C & 0x80), complete: !(D & 0x80) },
+        };
+
+        const onceper_diesel = {
+            nmhc_catalyst:      { supported: !!(C & 0x01), complete: !(D & 0x01) },
+            nox_aftertreatment: { supported: !!(C & 0x02), complete: !(D & 0x02) },
+            boost_pressure:     { supported: !!(C & 0x08), complete: !(D & 0x08) },
+            exhaust_gas_sensor: { supported: !!(C & 0x20), complete: !(D & 0x20) },
+            pm_filter:          { supported: !!(C & 0x40), complete: !(D & 0x40) },
+            egr_vvt:            { supported: !!(C & 0x80), complete: !(D & 0x80) },
+        };
+
+        const monitors = { ...continuous, ...(isDiesel ? onceper_diesel : onceper_gas) };
+        // IM readiness verdict: all SUPPORTED monitors must be COMPLETE.
+        const incomplete = Object.entries(monitors)
+            .filter(([_, m]) => m.supported && !m.complete)
+            .map(([k]) => k);
+        const imReady = incomplete.length === 0;
+
+        const result = { mil, dtcCount, isDiesel, monitors, incomplete, imReady, raw };
+        this._emit('readiness', result);
+        return result;
+    }
+
+    async readVehicleInfo() {
+        const out = {};
+        const calls = [
+            { pid: '04', label: 'cal_id',   ascii: true  },
+            { pid: '06', label: 'cvn',      ascii: false },
+            { pid: '0A', label: 'ecu_name', ascii: true  },
+            { pid: '08', label: 'ipt',      ascii: false },
+        ];
+        for (const c of calls) {
+            try {
+                const raw = await this._sendCommand(`09${c.pid}`, 5000);
+                if (!raw || /NO\s*DATA|\?/i.test(raw)) continue;
+                const data = this._extractMode09Payload(raw, c.pid.toUpperCase());
+                if (!data) continue;
+                if (c.ascii) {
+                    let s = '';
+                    for (let i = 0; i + 2 <= data.length; i += 2) {
+                        const b = parseInt(data.slice(i, i + 2), 16);
+                        if (b >= 0x20 && b <= 0x7E) s += String.fromCharCode(b);
+                    }
+                    out[c.label] = s.trim() || null;
+                } else {
+                    out[c.label] = data.match(/.{1,2}/g)?.join(' ').trim() || null;
+                }
+            } catch (_) { /* per-PID failure non-fatal */ }
+        }
+        this._emit('vehicle_info', out);
+        return out;
+    }
+
+    _extractMode09Payload(raw, pidHex) {
+        const stripped = raw
+            .replace(/\d+\s*:/g, '')        // strip "0:" line numbers
+            .replace(/\s+/g, '')             // strip whitespace
+            .toUpperCase();
+        const header = '49' + pidHex;       // e.g. "4902" for VIN, "4906" for CVN
+        if (stripped.indexOf(header) < 0) return null;
+        // Strip every "49 PID NN" header (4 hex of "49PID" + 2 hex of message-count nibble).
+        const headerRegex = new RegExp(header + '[0-9A-F]{2}', 'g');
+        return stripped.replace(headerRegex, '');
+    }
+
+    async readMisfireCounts({ cylinders = 8 } = {}) {
+        const result = [];
+        try { await this._sendCommand('ATH1', 1500); } catch (_) {}
+        try {
+            for (let cyl = 1; cyl <= cylinders; cyl++) {
+                const tid = (0xA0 + cyl).toString(16).toUpperCase().padStart(2, '0');
+                let raw;
+                try { raw = await this._sendCommand('06' + tid, 3000); }
+                catch (_) { continue; }
+                if (!raw || raw.includes('NO DATA')) continue;
+                // Response format (CAN, single-frame, headers ON):
+                //   "7E8 06 46 A1 0B 24 00 28 00 32" → bytes after "46 A1":
+                //   [TID, UAS, hi(test), lo(test), hi(min), lo(min), hi(max), lo(max)]
+                // We only need the test value (current count).
+                const stripped = raw.replace(/\s+/g, '').toUpperCase();
+                const m = stripped.match(new RegExp('46' + tid + '([0-9A-F]{2})([0-9A-F]{4})'));
+                if (!m) continue;
+                const count = parseInt(m[2], 16);
+                result.push({ cylinder: cyl, count });
+            }
+        } finally {
+            try { await this._sendCommand('ATH0', 1500); } catch (_) {}
+        }
+        this._emit('misfire_counts', { cylinders: result });
+        return result;
+    }
+
+    async readFuelSystemHealth() {
+        const pids = ['06', '07', '08', '09', '0A', '0B', '0E', '14', '15', '22', '23', '33', '5E'];
+        const snapshot = { _at: Date.now() };
+        for (const pid of pids) {
+            try {
+                const raw = await this._sendCommand('01' + pid, 2500);
+                const v = this._parsePIDResponse(pid, raw);
+                if (v !== null) {
+                    const def = PIDS[pid];
+                    snapshot[def.label] = { value: v, unit: def.unit };
+                }
+            } catch (_) { /* tolerate single-PID misses */ }
+        }
+        // Quick verdict — require at least 2 valid trim values, AND use the
+        // SUM-OF-BANK-AVERAGES (not raw sum) so a 2-bank engine isn't unfairly
+        // doubled. Previously a single noisy spike on STFT could flip the
+        // verdict between calls — now we only commit if the signal is real.
+        const tB1 = ['stft_b1', 'ltft_b1']
+            .map(k => snapshot[k] && snapshot[k].value)
+            .filter(v => Number.isFinite(v));
+        const tB2 = ['stft_b2', 'ltft_b2']
+            .map(k => snapshot[k] && snapshot[k].value)
+            .filter(v => Number.isFinite(v));
+        const totalReadings = tB1.length + tB2.length;
+
+        let verdict = 'طبيعي', verdict_severity = 'ok';
+        if (totalReadings < 2) {
+            // Not enough data — be honest, don't fabricate a verdict.
+            verdict = 'بيانات نظام الوقود غير كافية للحكم — جرّب الفحص تاني والمحرك في idle ثابت';
+            verdict_severity = 'unknown';
+        } else {
+            const avgB1 = tB1.length ? tB1.reduce((a,b) => a+b, 0) / tB1.length : 0;
+            const avgB2 = tB2.length ? tB2.reduce((a,b) => a+b, 0) / tB2.length : 0;
+            // Sum-of-bank-averages: a balanced engine should be near zero.
+            const combined = (avgB1 + avgB2);
+            if (combined > 18) {
+                verdict = 'العربية بتسحب بنزين زيادة (lean) — احتمال شفط هواء أو طلمبة ضعيفة';
+                verdict_severity = 'warn';
+            } else if (combined < -18) {
+                verdict = 'العربية بتحرق بنزين زيادة (rich) — احتمال إنجكتر مكهرب أو حساس O2 تعبان';
+                verdict_severity = 'warn';
+            }
+            snapshot._trim_combined = +combined.toFixed(1);
+            snapshot._trim_b1_avg = +avgB1.toFixed(1);
+            snapshot._trim_b2_avg = +avgB2.toFixed(1);
+        }
+        snapshot._verdict = verdict;
+        snapshot._verdict_severity = verdict_severity;
+        snapshot._readings_count = totalReadings;
+        this._emit('fuel_health', snapshot);
+        return snapshot;
+    }
+
+    async computeHealthScore({ dtcs = null, misfire = null, fuel = null } = {}) {
+        const data = {
+            dtcs:    dtcs    || (await this.readDTCs().catch(() => [])),
+            misfire: misfire || (await this.readMisfireCounts().catch(() => [])),
+            fuel:    fuel    || (await this.readFuelSystemHealth().catch(() => ({}))),
+        };
+
+        let score = 100;
+        const factors = [];
+
+        // DTCs: stored are bad, pending are warnings, permanent are critical
+        const stored    = (data.dtcs.byType || []).filter(d => d.type === 'stored').length;
+        const pending   = (data.dtcs.byType || []).filter(d => d.type === 'pending').length;
+        const permanent = (data.dtcs.byType || []).filter(d => d.type === 'permanent').length;
+        const dtcPenalty = Math.min(25, stored * 8 + pending * 4 + permanent * 10);
+        score -= dtcPenalty;
+        if (dtcPenalty) factors.push(
+            `−${dtcPenalty} نقطة بسبب الأكواد (${stored} مخزن، ${pending} pending، ${permanent} دائم)`);
+
+        // Fuel trims: |STFT+LTFT per bank| > 10% is concerning
+        const trims = ['stft_b1', 'ltft_b1', 'stft_b2', 'ltft_b2']
+            .map(k => (data.fuel && data.fuel[k] && data.fuel[k].value) || 0);
+        const trimSum = Math.abs(trims[0] + trims[1]) + Math.abs(trims[2] + trims[3]);
+        const trimPenalty = trimSum > 30 ? 20 : trimSum > 20 ? 12 : trimSum > 10 ? 6 : 0;
+        score -= trimPenalty;
+        if (trimPenalty) factors.push(`−${trimPenalty} نقطة بسبب fuel trim مرتفع (${trimSum.toFixed(1)}%)`);
+
+        // Misfire: any cylinder with count > 0 is bad
+        const misfireTotal = (data.misfire || []).reduce((s, c) => s + c.count, 0);
+        const misfirePenalty = Math.min(25, misfireTotal * 3);
+        score -= misfirePenalty;
+        if (misfirePenalty) factors.push(`−${misfirePenalty} نقطة بسبب ${misfireTotal} misfire إجمالي`);
+
+        // O2 voltage: if both pre-cat and post-cat are flat AND similar, cat is dead
+        const o2pre  = data.fuel && data.fuel.o2_b1s1_v && data.fuel.o2_b1s1_v.value;
+        const o2post = data.fuel && data.fuel.o2_b1s2_v && data.fuel.o2_b1s2_v.value;
+        let o2Penalty = 0;
+        if (o2pre !== undefined && o2post !== undefined && Math.abs(o2pre - o2post) < 0.05) {
+            o2Penalty = 15;
+            factors.push(`−15 نقطة بسبب حساس O2 خامل (احتمال كتلست تالف)`);
+        }
+        score -= o2Penalty;
+
+        // Cylinder balance — standard deviation of misfire counts
+        let cylinderBalance = 100;
+        if ((data.misfire || []).length >= 2) {
+            const counts = data.misfire.map(c => c.count);
+            const mean   = counts.reduce((a, b) => a + b, 0) / counts.length;
+            const variance = counts.reduce((s, c) => s + (c - mean) ** 2, 0) / counts.length;
+            const stdev = Math.sqrt(variance);
+            cylinderBalance = Math.max(0, 100 - stdev * 20);
+        }
+
+        score = Math.max(0, Math.min(100, Math.round(score)));
+
+        let verdict, color;
+        if (score >= 85)      { verdict = 'حالة ممتازة — العربية بصحة جيدة'; color = '#10b981'; }
+        else if (score >= 70) { verdict = 'حالة جيدة مع ملاحظات بسيطة'; color = '#84cc16'; }
+        else if (score >= 50) { verdict = 'تحتاج صيانة قريبة';            color = '#f59e0b'; }
+        else if (score >= 30) { verdict = 'مشاكل حقيقية — صيانة عاجلة'; color = '#ef4444'; }
+        else                  { verdict = 'حالة حرجة — متشغّلش العربية على الطريق'; color = '#b91c1c'; }
+
+        const result = {
+            score, verdict, color, factors,
+            cylinderBalance: Math.round(cylinderBalance),
+            details: data,
+        };
+        this._emit('health_score', result);
+        return result;
+    }
+
+    async measureMAFHealth({ displacement = 2.0, samples = 5 } = {}) {
+        const readings = [];
+        for (let i = 0; i < samples; i++) {
+            const snap = {};
+            for (const pid of ['0C', '0B', '05', '0F', '10', '04', '11']) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 2000);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) {
+                        snap[PIDS[pid].label] = v;
+                    }
+                } catch (_) {}
+            }
+            if (snap.rpm && snap.map_kpa && snap.maf_gs !== undefined) {
+                readings.push(snap);
+            }
+            await new Promise(r => setTimeout(r, 250));
+        }
+
+        if (!readings.length) {
+            const r = { supported: false,
+                reason: 'الـ ECU مردش بـ MAF / MAP. هذه السيارة على الأرجح Speed-Density (مفيش MAF فيزيائي).' };
+            this._emit('sensor_health', { sensor: 'maf', ...r });
+            return r;
+        }
+
+        // Use the median sample to avoid spikes.
+        readings.sort((a, b) => a.rpm - b.rpm);
+        const m = readings[Math.floor(readings.length / 2)];
+        const T_K = (m.intake_temp_c ?? 25) + 273.15;
+        const VE = 0.85;                          // typical volumetric efficiency
+        const R  = 0.287;                          // specific gas constant kJ/kg·K
+        const expected = (m.rpm * m.map_kpa * displacement * VE) / (120 * R * T_K);
+        const actual = m.maf_gs;
+        const ratio = actual / expected;          // 1.0 = ideal
+
+        let verdict, color, severity;
+        if (ratio >= 0.85 && ratio <= 1.20) {
+            verdict = 'سليم — قراءة MAF متطابقة مع النظري'; color = '#10b981'; severity = 'ok';
+        } else if (ratio >= 0.70 && ratio < 0.85) {
+            verdict = 'MAF متسخ — نظّفه بـ MAF cleaner'; color = '#f59e0b'; severity = 'warn';
+        } else if (ratio < 0.70) {
+            verdict = 'MAF تالف أو شفط هواء كبير — يحتاج تغيير أو فحص الـ intake'; color = '#ef4444'; severity = 'critical';
+        } else {
+            verdict = 'MAF يقرأ أعلى من المتوقع — احتمال شورت أو مشكلة في الـ wiring'; color = '#ef4444'; severity = 'critical';
+        }
+
+        const result = {
+            sensor: 'maf', supported: true,
+            actual_gs: +actual.toFixed(2),
+            expected_gs: +expected.toFixed(2),
+            ratio: +ratio.toFixed(2),
+            verdict, color, severity,
+            sample: m,
+        };
+        this._emit('sensor_health', result);
+        return result;
+    }
+
+    async measureO2AndCatalyst({ durationMs = 12000, intervalMs = 250 } = {}) {
+        const start = Date.now();
+        const pre = [], post = [];
+        while (Date.now() - start < durationMs) {
+            const ts = Date.now() - start;
+            try {
+                const r1 = await this._sendCommand('0114', 1500);
+                const v1 = this._parsePIDResponse('14', r1);
+                if (v1 !== null && Number.isFinite(v1)) pre.push({ t: ts, v: v1 });
+            } catch (_) {}
+            try {
+                const r2 = await this._sendCommand('0115', 1500);
+                const v2 = this._parsePIDResponse('15', r2);
+                if (v2 !== null && Number.isFinite(v2)) post.push({ t: ts, v: v2 });
+            } catch (_) {}
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        if (!pre.length || !post.length) {
+            const r = { supported: false,
+                reason: 'حساسات O2 (PID 14/15) لم تستجب. ربما السيارة wide-band فقط (PID 24-2B)؛ غير مدعوم حالياً.' };
+            this._emit('sensor_health', { sensor: 'o2', ...r });
+            return r;
+        }
+
+        // Count crossings of 0.45V — that's how many switches between rich/lean.
+        const countCrossings = (arr) => {
+            let c = 0;
+            for (let i = 1; i < arr.length; i++) {
+                if ((arr[i - 1].v < 0.45) !== (arr[i].v < 0.45)) c++;
+            }
+            return c;
+        };
+        const crossPre  = countCrossings(pre);
+        const crossPost = countCrossings(post);
+        const durSec    = durationMs / 1000;
+        const hzPre     = crossPre  / (durSec * 2);    // crossings/2 = full cycles
+        const hzPost    = crossPost / (durSec * 2);
+
+        const range = (arr) => {
+            const vs = arr.map(p => p.v);
+            return { min: Math.min(...vs), max: Math.max(...vs), avg: vs.reduce((a, b) => a + b, 0) / vs.length };
+        };
+        const preR  = range(pre);
+        const postR = range(post);
+
+        // Catalyst efficiency: ratio of downstream activity to upstream.
+        // Healthy = post Hz << pre Hz (cat dampens oscillation).
+        // Dead    = post Hz ≈ pre Hz (cat passes through).
+        const catRatio = hzPre > 0 ? hzPost / hzPre : 1;
+        const catEfficiency = Math.max(0, Math.min(100, Math.round((1 - catRatio) * 100)));
+
+        let o2Verdict, o2Color, o2Sev;
+        if (hzPre >= 0.8) {
+            o2Verdict = 'حساس O2 الأمامي سليم — تذبذب سريع طبيعي'; o2Color = '#10b981'; o2Sev = 'ok';
+        } else if (hzPre >= 0.3) {
+            o2Verdict = 'حساس O2 الأمامي بطيء — احتمال متهالك'; o2Color = '#f59e0b'; o2Sev = 'warn';
+        } else {
+            o2Verdict = 'حساس O2 الأمامي خامل أو معطل'; o2Color = '#ef4444'; o2Sev = 'critical';
+        }
+
+        let catVerdict, catColor, catSev;
+        if (catEfficiency >= 75) {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — سليم`; catColor = '#10b981'; catSev = 'ok';
+        } else if (catEfficiency >= 50) {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — متآكل، راقبه`; catColor = '#f59e0b'; catSev = 'warn';
+        } else {
+            catVerdict = `كتلست بكفاءة ${catEfficiency}% — تالف، احتمال P0420 قريباً`; catColor = '#ef4444'; catSev = 'critical';
+        }
+
+        const result = {
+            sensor: 'o2', supported: true,
+            upstream:   { hz: +hzPre.toFixed(2),  ...preR },
+            downstream: { hz: +hzPost.toFixed(2), ...postR },
+            catalyst_efficiency_pct: catEfficiency,
+            o2_verdict: o2Verdict, o2_color: o2Color, o2_severity: o2Sev,
+            cat_verdict: catVerdict, cat_color: catColor, cat_severity: catSev,
+            sample_count: { pre: pre.length, post: post.length },
+        };
+        this._emit('sensor_health', result);
+        return result;
+    }
+
+    async measureIdleTpsBattery({ durationMs = 20000, intervalMs = 400 } = {}) {
+        const start = Date.now();
+        const rpms = [], tpsAbs = [], tpsRel = [], batt = [];
+        while (Date.now() - start < durationMs) {
+            for (const [pid, bucket] of [['0C', rpms], ['11', tpsAbs], ['45', tpsRel], ['42', batt]]) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1500);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) bucket.push(v);
+                } catch (_) {}
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        // Idle stability
+        let idle = { supported: false };
+        if (rpms.length >= 5) {
+            const mean = rpms.reduce((a, b) => a + b, 0) / rpms.length;
+            const variance = rpms.reduce((s, v) => s + (v - mean) ** 2, 0) / rpms.length;
+            const stdev = Math.sqrt(variance);
+            let v, c, sev;
+            if (mean < 1100) {
+                if (stdev < 40)      { v = `Idle مستقر جداً (±${stdev.toFixed(0)} rpm)`;          c = '#10b981'; sev = 'ok'; }
+                else if (stdev < 80) { v = `Idle مستقر (±${stdev.toFixed(0)} rpm)`;                c = '#84cc16'; sev = 'ok'; }
+                else if (stdev < 150){ v = `Idle متذبذب (±${stdev.toFixed(0)} rpm) — راقب`;       c = '#f59e0b'; sev = 'warn'; }
+                else                  { v = `Idle مهتز بشدة (±${stdev.toFixed(0)} rpm) — شفط هواء/إشعال`; c = '#ef4444'; sev = 'critical'; }
+            } else {
+                v = 'السيارة مش على Idle — أعد القياس والمحرك ساكن';
+                c = '#94a3b8'; sev = 'unknown';
+            }
+            idle = { supported: true, mean_rpm: +mean.toFixed(0), stdev_rpm: +stdev.toFixed(1),
+                     verdict: v, color: c, severity: sev };
+        }
+
+        // TPS sync check
+        let tps = { supported: false };
+        if (tpsAbs.length && tpsRel.length) {
+            const a = tpsAbs.reduce((s, v) => s + v, 0) / tpsAbs.length;
+            const b = tpsRel.reduce((s, v) => s + v, 0) / tpsRel.length;
+            const delta = Math.abs(a - b);
+            let v, c, sev;
+            if (delta < 4)       { v = `TPS متزامن (فرق ${delta.toFixed(1)}%)`;           c = '#10b981'; sev = 'ok'; }
+            else if (delta < 8)  { v = `TPS بانحراف بسيط (${delta.toFixed(1)}%)`;          c = '#f59e0b'; sev = 'warn'; }
+            else                  { v = `TPS غير متزامن (${delta.toFixed(1)}%) — يحتاج adaptation reset`; c = '#ef4444'; sev = 'critical'; }
+            tps = { supported: true, absolute_pct: +a.toFixed(1), relative_pct: +b.toFixed(1),
+                    delta_pct: +delta.toFixed(1), verdict: v, color: c, severity: sev };
+        }
+
+        // Battery state
+        let battery = { supported: false };
+        if (batt.length) {
+            const mean = batt.reduce((s, v) => s + v, 0) / batt.length;
+            const stdev = Math.sqrt(batt.reduce((s, v) => s + (v - mean) ** 2, 0) / batt.length);
+            let v, c, sev;
+            // Engine running → expect 13.8-14.6V (alternator charging)
+            // Engine off    → expect 12.4-12.7V
+            if (mean >= 13.8 && mean <= 14.8) {
+                v = `الدينمو شغّال — جهد ${mean.toFixed(2)}V (سليم)`; c = '#10b981'; sev = 'ok';
+            } else if (mean >= 13.0 && mean < 13.8) {
+                v = `جهد منخفض ${mean.toFixed(2)}V — احتمال الدينمو ضعيف`; c = '#f59e0b'; sev = 'warn';
+            } else if (mean >= 12.3 && mean < 13.0) {
+                v = `المحرك مطفي — البطارية ${mean.toFixed(2)}V (مقبول)`; c = '#84cc16'; sev = 'ok';
+            } else if (mean < 12.3) {
+                v = `بطارية ضعيفة (${mean.toFixed(2)}V) — تحتاج شحن أو تغيير`; c = '#ef4444'; sev = 'critical';
+            } else if (mean > 14.8) {
+                v = `جهد عالي خطر (${mean.toFixed(2)}V) — منظم الدينمو تالف`; c = '#ef4444'; sev = 'critical';
+            }
+            battery = { supported: true, mean_v: +mean.toFixed(2), stdev_v: +stdev.toFixed(2),
+                        verdict: v, color: c, severity: sev };
+        }
+
+        const result = { idle, tps, battery, samples: { rpm: rpms.length, batt: batt.length } };
+        this._emit('sensor_sweep', result);
+        return result;
+    }
+
+    async probeCapabilities() {
+        const cap = {
+            _at: Date.now(),
+            modes: {},
+            pid_support_mask: null,
+            recommendation: null,
+        };
+
+        // Mode 01 PID 00 returns a 32-bit bitmask of supported PIDs 01-20.
+        // If this fails, the bus is barely talking — flag the adapter.
+        try {
+            const raw = await this._sendCommand('0100', 2500);
+            const stripped = (raw || '').replace(/\s+/g, '').toUpperCase();
+            const m = stripped.match(/4100([0-9A-F]{8})/);
+            if (m) {
+                cap.modes.mode01 = true;
+                cap.pid_support_mask = m[1];
+                // Bit 0x20 of byte 4 = PID 0x20 supported → there's an extended set
+                cap.has_extended_pids = (parseInt(m[1].slice(6, 8), 16) & 0x01) !== 0;
+            } else {
+                cap.modes.mode01 = false;
+            }
+        } catch (_) { cap.modes.mode01 = false; }
+
+        // Mode 03 — stored DTCs. Even with no codes, a CAN ECU echoes "43 00"
+        try {
+            const raw = await this._sendCommand('03', 2000);
+            cap.modes.mode03 =
+                !!raw && !/NO\s*DATA|UNABLE|\?|STOPPED/i.test(raw)
+                && raw.replace(/\s+/g, '').toUpperCase().indexOf('43') >= 0;
+        } catch (_) { cap.modes.mode03 = false; }
+
+        // Mode 06 OBDMID $A1 (cyl 1 misfire) — proves per-cylinder is available
+        try { await this._sendCommand('ATH1', 800); } catch (_) {}
+        try {
+            const raw = await this._sendCommand('06A1', 2500);
+            cap.modes.mode06_misfire =
+                !!raw && raw.replace(/\s+/g, '').toUpperCase().indexOf('46A1') >= 0;
+        } catch (_) { cap.modes.mode06_misfire = false; }
+        try { await this._sendCommand('ATH0', 800); } catch (_) {}
+
+        // Mode 09 PID 02 — VIN. Required for any vehicle linking.
+        try {
+            const raw = await this._sendCommand('0902', 3500);
+            cap.modes.mode09 = !!raw && raw.replace(/\s+/g, '').toUpperCase().indexOf('4902') >= 0;
+        } catch (_) { cap.modes.mode09 = false; }
+
+        // Mode 22 — UDS. Probe with the OBD-II VIN DID 0xF190 (universally
+        // supported by post-2008 UDS-capable ECUs).
+        try {
+            const raw = await this._sendCommand('22F190', 2500);
+            const s = (raw || '').replace(/\s+/g, '').toUpperCase();
+            cap.modes.mode22 = s.indexOf('62F190') >= 0 ||
+                               (s.indexOf('7F22') < 0 && !/NO\s*DATA/i.test(raw));
+        } catch (_) { cap.modes.mode22 = false; }
+
+        // ── Decision tree: what reports can we produce? ─────────────────
+        const reports = [];
+        if (cap.modes.mode01) reports.push({ key: 'live_data', label_ar: 'القراءات الحية (سرعة، RPM، حرارة)', supported: true });
+        if (cap.modes.mode03) reports.push({ key: 'dtcs', label_ar: 'قراءة أكواد الأعطال', supported: true });
+        if (cap.modes.mode09) reports.push({ key: 'vin', label_ar: 'قراءة VIN ومعلومات الـ ECU', supported: true });
+        reports.push({ key: 'misfire_per_cylinder', label_ar: 'Misfire لكل سلندر',
+            supported: cap.modes.mode06_misfire || cap.modes.mode22,
+            note: !cap.modes.mode06_misfire && !cap.modes.mode22
+                ? 'هنستخدم تحليل تذبذب RPM (تقديري) كبديل' : null });
+        reports.push({ key: 'manufacturer_dids', label_ar: 'قراءات خاصة بالماركة (Mode 22)',
+            supported: !!cap.modes.mode22,
+            note: !cap.modes.mode22 ? 'سيارة قديمة قبل UDS أو الـ ECU محتاج adapter أحدث' : null });
+        reports.push({ key: 'emissions', label_ar: 'فحص الانبعاثات (AFR/EGR/EVAP)',
+            supported: !!cap.modes.mode01, note: null });
+        cap.reports = reports;
+
+        // Adapter recommendation logic
+        const supportedReports = reports.filter(r => r.supported).length;
+        if (supportedReports >= 5) {
+            cap.recommendation = { level: 'excellent',
+                msg: 'الـ adapter ممتاز — كل التقارير الشاملة متاحة.' };
+        } else if (supportedReports >= 3) {
+            cap.recommendation = { level: 'good',
+                msg: 'الـ adapter شغّال لكن مش بيدعم Mode 22. للـ BMW/Mercedes يُفضل ELM327 v2.2 أو أعلى.' };
+        } else if (supportedReports >= 1) {
+            cap.recommendation = { level: 'limited',
+                msg: 'الـ adapter محدود — جرّب dongle ELM327 v2.2+ للحصول على تقارير كاملة.' };
+        } else {
+            cap.recommendation = { level: 'broken',
+                msg: 'الـ adapter مش بيرد — تأكد إنه متركّب صح والـ ignition ON.' };
+        }
+
+        this._emit('capabilities', cap);
+        return cap;
+    }
+
+    async readDID(did, parser, { ecuHeader = null, timeoutMs = 2500 } = {}) {
+        const hex = String(did).replace(/\s+/g, '').toUpperCase();
+        if (!/^[0-9A-F]{4}$/.test(hex)) {
+            throw new Error(`Invalid DID format: ${did} (must be 4 hex chars)`);
+        }
+        // Optionally pin to a specific ECU (BMW DME = 12, Mercedes EZS = 7E0, etc.)
+        if (ecuHeader) {
+            try { await this._sendCommand('ATSH' + ecuHeader, 800); } catch (_) {}
+        }
+        let raw;
+        try {
+            raw = await this._sendCommand('22' + hex, timeoutMs);
+        } catch (e) {
+            return null;
+        }
+        if (!raw) return null;
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        // Negative Response Code → DID not supported on this ECU.
+        if (stripped.indexOf('7F22') >= 0) return null;
+        if (/NO\s*DATA|UNABLE|\?|STOPPED/i.test(raw)) return null;
+        // Locate the positive response header "62" + DID.
+        const header = '62' + hex;
+        const idx = stripped.indexOf(header);
+        if (idx < 0) return null;
+        const body = stripped.slice(idx + header.length);
+        const bytes = [];
+        for (let i = 0; i + 2 <= body.length; i += 2) {
+            const b = parseInt(body.slice(i, i + 2), 16);
+            if (!Number.isFinite(b)) break;
+            bytes.push(b);
+        }
+        if (!bytes.length) return null;
+        try {
+            const v = parser(bytes);
+            return (v === undefined || v === null ||
+                    (typeof v === 'number' && !Number.isFinite(v)))
+                ? null : v;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    async scanManufacturerDIDs(vin = null) {
+        const brand = (window.__detectManufacturerFromVIN || (() => null))(vin) || 'generic';
+        const lib = (window.__MANUFACTURER_DIDS || {})[brand] || [];
+        const setup = (window.__MANUFACTURER_SETUP || {})[brand] || {};
+
+        const result = {
+            _at: Date.now(),
+            manufacturer: brand,
+            vin: vin || null,
+            items: [],
+            supported_count: 0,
+            unsupported_count: 0,
+            ecus_probed: [],
+        };
+
+        if (!lib.length) {
+            result.note = 'مفيش DIDs مسجّلة للماركة دي حالياً.';
+            this._emit('manufacturer_dids', result);
+            return result;
+        }
+
+        // Most OEMs need ECU pinning to talk to powertrain modules. We loop
+        // over the brand's known ECU header/response combinations and try
+        // every DID against each ECU until we get a hit.
+        const ecuList = setup.ecus || [{ name: 'default', header: null, cra: null }];
+        try { await this._sendCommand('ATH0', 800); } catch (_) {}
+
+        const tried = new Set();   // dedupe across ECUs by DID
+        for (const ecu of ecuList) {
+            // Apply ECU framing (BMW-style: ATSH 6F1 + ATCRA 612).
+            if (ecu.header) {
+                try { await this._sendCommand('ATSH' + ecu.header, 800); } catch (_) {}
+            }
+            if (ecu.cra) {
+                try { await this._sendCommand('ATCRA' + ecu.cra, 800); } catch (_) {}
+            }
+            const ecuHit = [];
+            for (const def of lib) {
+                if (tried.has(def.did)) continue;
+                try {
+                    const value = await this.readDID(def.did, def.parse,
+                        { ecuHeader: null, timeoutMs: 2000 });
+                    if (value === null) continue;
+                    result.items.push({
+                        did:    def.did,
+                        label:  def.label,
+                        label_ar: def.label_ar || def.label,
+                        unit:   def.unit || '',
+                        value,
+                        ecu:    ecu.name,
+                        health: def.health ? def.health(value) : null,
+                    });
+                    result.supported_count += 1;
+                    tried.add(def.did);
+                    ecuHit.push(def.did);
+                } catch (_) { /* per-DID failure non-fatal */ }
+                await new Promise(r => setTimeout(r, 40));
+            }
+            result.ecus_probed.push({ name: ecu.name, hits: ecuHit.length });
+        }
+
+        // Clear ECU pinning so subsequent commands fall back to auto.
+        try { await this._sendCommand('ATCRA', 600); } catch (_) {}
+
+        result.unsupported_count = lib.length - result.supported_count;
+        this._emit('manufacturer_dids', result);
+        return result;
+    }
+
+    async detectMisfire({ vin = null, cylinders = 4 } = {}) {
+        // ── Tier 1: Mode 06 standard ────────────────────────────────────
+        try {
+            const std = await this.readMisfireCounts({ cylinders });
+            if (std && std.length) {
+                const out = {
+                    method: 'mode06',
+                    method_label_ar: 'القياس القياسي (Mode 06)',
+                    confidence: 'high',
+                    cylinders: std,
+                    total: std.reduce((s, c) => s + c.count, 0),
+                };
+                this._emit('misfire_diagnosis', out);
+                return out;
+            }
+        } catch (_) {}
+
+        // ── Tier 2: Manufacturer DIDs (Mode 22) ─────────────────────────
+        const brand = (window.__detectManufacturerFromVIN || (() => null))(vin);
+        const misfireDIDs = (window.__MISFIRE_DIDS || {})[brand] || [];
+        if (misfireDIDs.length) {
+            const setup = (window.__MANUFACTURER_SETUP || {})[brand] || {};
+            const ecuList = setup.ecus || [{ name: 'default', header: null, cra: null }];
+            try { await this._sendCommand('ATH0', 600); } catch (_) {}
+
+            const found = [];
+            outer: for (const ecu of ecuList) {
+                if (ecu.header) {
+                    try { await this._sendCommand('ATSH' + ecu.header, 600); } catch (_) {}
+                }
+                if (ecu.cra) {
+                    try { await this._sendCommand('ATCRA' + ecu.cra, 600); } catch (_) {}
+                }
+                for (const md of misfireDIDs) {
+                    const v = await this.readDID(md.did, md.parse, { timeoutMs: 1800 });
+                    if (v !== null && Number.isFinite(v)) {
+                        found.push({ cylinder: md.cyl, count: v });
+                    }
+                }
+                // Stop after we got at least one cylinder hit on this ECU.
+                if (found.length) break outer;
+            }
+            try { await this._sendCommand('ATCRA', 500); } catch (_) {}
+
+            if (found.length) {
+                const out = {
+                    method: 'mode22_' + brand,
+                    method_label_ar: `Mode 22 — DIDs خاصة بـ ${brand.toUpperCase()}`,
+                    confidence: 'high',
+                    cylinders: found,
+                    total: found.reduce((s, c) => s + c.count, 0),
+                };
+                this._emit('misfire_diagnosis', out);
+                return out;
+            }
+        }
+
+        // ── Tier 3: RPM variance analysis at idle ───────────────────────
+        const computed = await this._computeMisfireFromRPMVariance({ cylinders });
+        const out = { method: 'computed', confidence: 'medium',
+                      method_label_ar: 'تحليل تذبذب RPM (تقديري)',
+                      ...computed };
+        this._emit('misfire_diagnosis', out);
+        return out;
+    }
+
+    async _computeMisfireFromRPMVariance({ cylinders = 4, durationMs = 20000,
+                                          intervalMs = 100 } = {}) {
+        const samples = [];                 // [{ t, rpm }]
+        const start = Date.now();
+        while (Date.now() - start < durationMs) {
+            const t = Date.now() - start;
+            try {
+                const raw = await this._sendCommand('010C', 800);
+                const rpm = this._parsePIDResponse('0C', raw);
+                if (rpm !== null && rpm > 400 && rpm < 2000) {
+                    samples.push({ t, rpm });
+                }
+            } catch (_) {}
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        if (samples.length < 30) {
+            return { supported: false, cylinders: [],
+                     reason: 'مفيش عيّنات كفاية لتحليل التذبذب (شغّل المحرك في idle ثابت).' };
+        }
+
+        // Statistics
+        const rpms = samples.map(s => s.rpm);
+        const mean = rpms.reduce((s, x) => s + x, 0) / rpms.length;
+        const variance = rpms.reduce((s, x) => s + (x - mean) ** 2, 0) / rpms.length;
+        const stdev = Math.sqrt(variance);
+
+        // Count sudden drops > 80 RPM below mean (likely misfire events).
+        let drops = 0;
+        for (let i = 1; i < rpms.length; i++) {
+            if (rpms[i] < mean - 80 && rpms[i - 1] >= mean - 30) drops++;
+        }
+
+        // We can't pinpoint which cylinder without a CKP signal — distribute
+        // the suspicion evenly. If stdev is low (<25), declare all clear.
+        const perCyl = stdev < 25 ? 0 : Math.round(drops / cylinders);
+        const cyls = [];
+        for (let c = 1; c <= cylinders; c++) {
+            cyls.push({ cylinder: c, count: perCyl, suspected: perCyl > 0 });
+        }
+
+        let verdict, color, severity;
+        if (stdev < 25) {
+            verdict = `Idle ثابت (σ=${stdev.toFixed(1)} rpm) — مفيش misfire واضح`;
+            color = '#10b981'; severity = 'ok';
+        } else if (stdev < 60) {
+            verdict = `تذبذب طفيف (σ=${stdev.toFixed(1)} rpm) — احتمال شفط هواء أو مشكلة وقود بسيطة`;
+            color = '#f59e0b'; severity = 'warn';
+        } else {
+            verdict = `تذبذب شديد (σ=${stdev.toFixed(1)} rpm، ${drops} drop) — مشكلة إشعال أكيدة`;
+            color = '#ef4444'; severity = 'critical';
+        }
+
+        return {
+            supported: true,
+            cylinders: cyls,
+            total: drops,
+            mean_rpm: +mean.toFixed(0),
+            stdev_rpm: +stdev.toFixed(1),
+            drops_count: drops,
+            verdict, color, severity,
+            note: 'تقدير من تحليل التذبذب — مش بيحدد السلندر بالظبط زي Mode 06',
+        };
+    }
+
+    async measureEmissionsHealth({ samples = 8, intervalMs = 600 } = {}) {
+        // PIDs we'll probe. Skip silently on unsupported.
+        const afrPids   = ['24', '25', '26', '27'];     // wideband λ on banks 1-4
+        const fallbackO2 = ['14', '15'];                // narrowband fallback
+        const egrPids   = ['2C', '2D'];
+        const evapPids  = ['2E', '32', '53', '54'];
+
+        const lam = {}, egr = { cmd: [], err: [] }, evap = {};
+        const narrow_fallback = { b1s1: [], b1s2: [] };
+
+        for (let i = 0; i < samples; i++) {
+            // AFR — try wideband first
+            for (const pid of afrPids) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1200);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && v > 0.3 && v < 2.0) {
+                        (lam[pid] = lam[pid] || []).push(v);
+                    }
+                } catch (_) {}
+            }
+            // EGR commanded + error
+            for (const pid of egrPids) {
+                try {
+                    const raw = await this._sendCommand(`01${pid}`, 1200);
+                    const v = this._parsePIDResponse(pid, raw);
+                    if (v !== null && Number.isFinite(v)) {
+                        (pid === '2C' ? egr.cmd : egr.err).push(v);
+                    }
+                } catch (_) {}
+            }
+            // EVAP — snapshot once (don't average pressure waveforms here)
+            if (i === Math.floor(samples / 2)) {
+                for (const pid of evapPids) {
+                    try {
+                        const raw = await this._sendCommand(`01${pid}`, 1500);
+                        const v = this._parsePIDResponse(pid, raw);
+                        if (v !== null && Number.isFinite(v)) {
+                            evap[PIDS[pid].label] = v;
+                        }
+                    } catch (_) {}
+                }
+            }
+            // Narrowband fallback if no wideband seen yet
+            if (!Object.keys(lam).length) {
+                for (const pid of fallbackO2) {
+                    try {
+                        const raw = await this._sendCommand(`01${pid}`, 1200);
+                        const v = this._parsePIDResponse(pid, raw);
+                        if (v !== null) {
+                            (pid === '14' ? narrow_fallback.b1s1 : narrow_fallback.b1s2).push(v);
+                        }
+                    } catch (_) {}
+                }
+            }
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+
+        // ── AFR verdict ─────────────────────────────────────────────────
+        let afr = { supported: false };
+        const usedWideband = Object.keys(lam).length > 0;
+        if (usedWideband) {
+            const banks = {};
+            for (const [pid, arr] of Object.entries(lam)) {
+                if (!arr.length) continue;
+                const mean = arr.reduce((s,x) => s+x, 0) / arr.length;
+                const lambdaToAfr = mean * 14.7;
+                banks[`o2s${parseInt(pid,16) - 0x23}`] = {
+                    lambda: +mean.toFixed(3),
+                    afr: +lambdaToAfr.toFixed(2),
+                    samples: arr.length,
+                };
+            }
+            const lambdas = Object.values(banks).map(x => x.lambda);
+            const avg = lambdas.reduce((s,x) => s+x, 0) / lambdas.length;
+            let verdict, color, severity;
+            if (avg >= 0.97 && avg <= 1.03) {
+                verdict = `خليط سليم (λ=${avg.toFixed(2)} · AFR=${(avg*14.7).toFixed(1)})`;
+                color = '#10b981'; severity = 'ok';
+            } else if (avg < 0.85) {
+                verdict = `خليط غني جداً (λ=${avg.toFixed(2)}) — احتمال بخاخ مفتوح أو حساس MAP/MAF`;
+                color = '#ef4444'; severity = 'critical';
+            } else if (avg < 0.97) {
+                verdict = `خليط غني (λ=${avg.toFixed(2)}) — راجع فلتر هواء و LTFT`;
+                color = '#f59e0b'; severity = 'warn';
+            } else if (avg > 1.15) {
+                verdict = `خليط فقير جداً (λ=${avg.toFixed(2)}) — شفط هواء أو ضعف بنزين`;
+                color = '#ef4444'; severity = 'critical';
+            } else {
+                verdict = `خليط فقير (λ=${avg.toFixed(2)}) — راجع شفط الهواء`;
+                color = '#f59e0b'; severity = 'warn';
+            }
+            afr = { supported: true, wideband: true, mean_lambda: +avg.toFixed(3),
+                    mean_afr: +(avg * 14.7).toFixed(2), banks, verdict, color, severity };
+        } else if (narrow_fallback.b1s1.length) {
+            const avg = narrow_fallback.b1s1.reduce((s,x) => s+x, 0)
+                      / narrow_fallback.b1s1.length;
+            afr = {
+                supported: true, wideband: false, mean_voltage: +avg.toFixed(3),
+                verdict: 'الـ ECU narrowband فقط — استخدم "فحص الحسّاسات الشامل" لتقييم تذبذب الـ O2',
+                color: '#64748b', severity: 'info',
+            };
+        } else {
+            afr = { supported: false,
+                    reason: 'الـ ECU مردش على PIDs الـ O2 (لا wideband ولا narrowband).' };
+        }
+
+        // ── EGR verdict ─────────────────────────────────────────────────
+        let egrResult = { supported: false };
+        if (egr.cmd.length || egr.err.length) {
+            const cmdAvg = egr.cmd.length
+                ? egr.cmd.reduce((s,x) => s+x, 0) / egr.cmd.length : null;
+            const errAvg = egr.err.length
+                ? egr.err.reduce((s,x) => s+x, 0) / egr.err.length : null;
+            let verdict, color, severity;
+            if (errAvg !== null && Math.abs(errAvg) > 25) {
+                verdict = `صمام EGR متعطل — الفرق بين المطلوب والفعلي ${errAvg.toFixed(1)}%`;
+                color = '#ef4444'; severity = 'critical';
+            } else if (errAvg !== null && Math.abs(errAvg) > 10) {
+                verdict = `صمام EGR محتاج تنظيف — فرق ${errAvg.toFixed(1)}%`;
+                color = '#f59e0b'; severity = 'warn';
+            } else if (cmdAvg !== null) {
+                verdict = `EGR سليم (المطلوب ${cmdAvg.toFixed(1)}%، الخطأ ${(errAvg||0).toFixed(1)}%)`;
+                color = '#10b981'; severity = 'ok';
+            } else {
+                verdict = 'EGR يقرأ لكن مفيش بيانات خطأ — تأكد على RPM متوسط';
+                color = '#64748b'; severity = 'info';
+            }
+            egrResult = {
+                supported: true,
+                commanded_avg_pct: cmdAvg !== null ? +cmdAvg.toFixed(1) : null,
+                error_avg_pct: errAvg !== null ? +errAvg.toFixed(1) : null,
+                verdict, color, severity,
+            };
+        } else {
+            egrResult = { supported: false,
+                          reason: 'مفيش EGR في السيارة دي أو الـ ECU مش بيدعم PIDs 2C/2D.' };
+        }
+
+        // ── EVAP verdict ────────────────────────────────────────────────
+        let evapResult = { supported: false };
+        if (Object.keys(evap).length) {
+            const purge = evap.evap_purge_cmd_pct;
+            const vapPa = evap.evap_vapor_press_pa;
+            const vapKpa = evap.evap_vapor_press_kpa;
+            const absKpa = evap.evap_abs_vapor_kpa;
+            let verdict, color, severity;
+            // Rule: a healthy sealed system holds 100-1500 Pa vacuum at idle.
+            // A leak shows ~0 Pa. An overpressure shows a stuck purge valve.
+            if (vapPa !== undefined) {
+                const absV = Math.abs(vapPa);
+                if (absV < 50) {
+                    verdict = `تسريب EVAP محتمل — ضغط الأبخرة قريب من الصفر (${vapPa.toFixed(0)} Pa)`;
+                    color = '#f59e0b'; severity = 'warn';
+                } else if (absV > 5000) {
+                    verdict = `ضغط EVAP عالي جداً (${vapPa.toFixed(0)} Pa) — صمام purge عالق`;
+                    color = '#ef4444'; severity = 'critical';
+                } else {
+                    verdict = `EVAP سليم — ضغط أبخرة ${vapPa.toFixed(0)} Pa`;
+                    color = '#10b981'; severity = 'ok';
+                }
+            } else if (purge !== undefined) {
+                verdict = `Purge مرتفع ${purge.toFixed(1)}% — لو معاها DTC EVAP افحص الكانستر`;
+                color = '#64748b'; severity = 'info';
+            } else {
+                verdict = 'قراءة EVAP موجودة لكن ناقصة (مفيش vapor pressure)';
+                color = '#64748b'; severity = 'info';
+            }
+            evapResult = {
+                supported: true,
+                purge_cmd_pct: purge !== undefined ? +purge.toFixed(1) : null,
+                vapor_press_pa: vapPa !== undefined ? +vapPa.toFixed(0) : null,
+                vapor_press_kpa: vapKpa !== undefined ? +vapKpa.toFixed(2) : null,
+                abs_vapor_kpa: absKpa !== undefined ? +absKpa.toFixed(2) : null,
+                verdict, color, severity,
+            };
+        } else {
+            evapResult = { supported: false,
+                           reason: 'مفيش بيانات EVAP — السيارة قديمة أو غير مدعومة.' };
+        }
+
+        const result = { afr, egr: egrResult, evap: evapResult,
+                         _at: Date.now(),
+                         samples: { afr: Object.values(lam).flat().length,
+                                    egr: egr.cmd.length + egr.err.length,
+                                    evap: Object.keys(evap).length } };
+        this._emit('emissions_health', result);
+        return result;
     }
 
     _emit(type, detail) {

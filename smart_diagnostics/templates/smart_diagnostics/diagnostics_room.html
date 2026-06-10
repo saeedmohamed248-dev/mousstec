@@ -57,6 +57,50 @@ body {
 
 /* ── connect column ─────────────────────────────────────────── */
 .connect-actions { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Grouped action buttons (clean sidebar hierarchy) ─────── */
+.action-group {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+.action-group-title {
+    font-size: 11px; font-weight: 700; color: #6c8fb3;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 7px;
+    opacity: 0.85;
+}
+.action-group-title i { font-size: 10px; opacity: 0.7; }
+.action-group-final {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px dashed rgba(139, 92, 246, 0.3);
+}
+.action-group .btn { padding: 10px 14px; font-size: 13px; }
+
+/* ── Result card — consistent visual shell for every report ─ */
+.result-card {
+    background: linear-gradient(135deg, rgba(15, 32, 52, 0.55), rgba(8, 18, 32, 0.65));
+    border: 1px solid rgba(100, 180, 255, 0.08);
+    border-radius: 14px;
+    margin-top: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.result-card:hover { border-color: rgba(100, 180, 255, 0.18); }
+.result-card .card-title {
+    margin: 0; padding: 14px 18px;
+    background: linear-gradient(180deg, rgba(15, 32, 52, 0.6), transparent);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    cursor: pointer; user-select: none;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.result-card .card-title::after {
+    content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+    font-size: 11px; opacity: 0.4; transition: transform 0.2s;
+}
+.result-card.collapsed .card-title::after { transform: rotate(-90deg); }
+.result-card.collapsed > *:not(.card-title) { display: none; }
+.result-card > *:not(.card-title) { padding: 14px 18px; }
 .btn-link-fallback {
     background: transparent;
     border: none;
@@ -346,81 +390,101 @@ body {
     <div class="card">
         <div class="card-title"><i class="fa-solid fa-plug"></i> الاتصال بالـ OBD</div>
         <div class="connect-actions">
-            <button id="btnConnect" class="btn primary">
+            <button type="button" id="btnConnect" class="btn primary">
                 <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز ELM327
             </button>
-            <button id="btnConnectRelaxed" class="btn-link-fallback"
+            <button type="button" id="btnConnectRelaxed" class="btn-link-fallback"
                     title="استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية"
                     aria-label="بحث شامل عن كل أجهزة البلوتوث">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 لا تظهر الفيشة؟ <u>بحث شامل عن كل الأجهزة</u>
             </button>
-            <button id="btnConnectWiFi" class="btn secondary"
+            <button type="button" id="btnConnectWiFi" class="btn secondary"
                     title="للفيشات اللي بتشتغل Wi-Fi فقط — يحتاج تشغيل obd_wifi_bridge.py على اللاب">
                 <i class="fa-solid fa-wifi"></i> اتصل عبر Wi-Fi (الجسر المحلي)
             </button>
-            <button id="btnReadDTC" class="btn secondary" disabled>
+            <button type="button" id="btnReadDTC" class="btn secondary" disabled>
                 <i class="fa-solid fa-list-check"></i> اقرأ أكواد الأعطال (Mode 03)
             </button>
-            <button id="btnClearDTC" class="btn danger" disabled>
+            <button type="button" id="btnClearDTC" class="btn danger" disabled>
                 <i class="fa-solid fa-trash"></i> امسح الأكواد (Mode 04)
             </button>
-            <button id="btnDisconnect" class="btn secondary" disabled>
+            <button type="button" id="btnDisconnect" class="btn secondary" disabled>
                 <i class="fa-solid fa-power-off"></i> افصل
             </button>
-            <button id="btnSaveJobCard" class="btn primary" disabled
+            <button type="button" id="btnSaveJobCard" class="btn primary" disabled
                     title="احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها">
                 <i class="fa-solid fa-floppy-disk"></i> احفظ في بطاقة العميل
             </button>
 
-            <!-- ── Advanced diagnostics ────────────────────────────────── -->
-            <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px; padding-top: 8px;">
-                <button id="btnMisfire" class="btn secondary" disabled
-                        title="يقرأ عدد مرات الإطفاء (misfire) لكل سلندر من آخر 10 دورات تشغيل (Mode 06)">
-                    <i class="fa-solid fa-fire"></i> قياس السلندرات (Misfire)
+            <!-- ── Advanced diagnostics (grouped for clarity) ─────────── -->
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-bolt"></i> تشخيصات سريعة
+                </div>
+                <button type="button" id="btnHealthScore" class="btn primary" disabled
+                        title="درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات في رقم واحد">
+                    <i class="fa-solid fa-heart-pulse"></i> درجة صحة السيارة
                 </button>
-                <button id="btnFuelHealth" class="btn secondary" disabled
-                        title="فحص شامل لنظام الوقود: ضغط الطلمبة، معدل الحقن، حساس O2، نسبة الخلط (fuel trim)">
-                    <i class="fa-solid fa-gas-pump"></i> صحة طلمبة البنزين ونظام الوقود
+                <button type="button" id="btnMisfire" class="btn secondary" disabled
+                        title="Mode 06 → Mode 22 → RPM variance cascade">
+                    <i class="fa-solid fa-fire"></i> قياس Misfire للسلندرات
                 </button>
-                <button id="btnHealthScore" class="btn primary" disabled
-                        title="درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات (DTCs + misfire + fuel trims + O2) في رقم واحد">
-                    <i class="fa-solid fa-heart-pulse"></i> درجة صحة السيارة (0-100)
+                <button type="button" id="btnFuelHealth" class="btn secondary" disabled
+                        title="فحص ضغط الطلمبة، fuel trim، حساس O2">
+                    <i class="fa-solid fa-gas-pump"></i> صحة نظام الوقود
                 </button>
-                <button id="btnFreezeFrame" class="btn secondary" disabled
-                        title="لقطة كاملة لظروف العربية لحظة وقوع العطل (RPM، حرارة، حمل) — أهم أداة تشخيص في ISTA">
-                    <i class="fa-solid fa-camera-retro"></i> Freeze Frame (لقطة العطل)
+            </div>
+
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-microscope"></i> فحوصات متقدمة
+                </div>
+                <button type="button" id="btnSensorSweep" class="btn primary" disabled
+                        title="MAF + O2 + كتلست + idle + TPS + بطارية (~45s)">
+                    <i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل
                 </button>
-                <button id="btnReadiness" class="btn secondary" disabled
-                        title="حالة 11 self-test في الـ ECU + هل السيارة جاهزة لاختبار التلوث">
-                    <i class="fa-solid fa-list-check"></i> Readiness Monitors (I/M)
+                <button type="button" id="btnEmissionsHealth" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#16a34a,#15803d);"
+                        title="AFR Wideband + EGR + EVAP">
+                    <i class="fa-solid fa-smog"></i> فحص الانبعاثات
                 </button>
-                <button id="btnVehicleInfo" class="btn secondary" disabled
-                        title="معلومات الـ ECU: الاسم، الكاليبراشن، CVN، عداد الأداء (Mode 09)">
-                    <i class="fa-solid fa-microchip"></i> معلومات الـ ECU (Mode 09)
-                </button>
-                <button id="btnSaveSnapshot" class="btn secondary" disabled
-                        title="احفظ القراءات الحالية في الـ history بتاع المتصفح">
-                    <i class="fa-solid fa-bookmark"></i> احفظ قراءة لحظية
-                </button>
-                <button id="btnSensorSweep" class="btn primary" disabled
-                        title="فحص شامل للحسّاسات: MAF (إيرماس)، O2، الكتلست، ثبات الـ Idle، TPS، البطارية. مقارن بأرقام مرجعية زي برامج Carista/Torque/OBD11">
-                    <i class="fa-solid fa-wave-square"></i> فحص شامل للحسّاسات
-                </button>
-                <button id="btnManufacturerDIDs" class="btn primary" disabled
+                <button type="button" id="btnManufacturerDIDs" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#0891b2,#0e7490);"
-                        title="قراءات خاصة بالشركة المصنّعة (Mode 22): حرارة الزيت، مستوى الزيت، DPF، AdBlue، حرارة الجير — اللي بتقراه برامج Carista/OBD11/VCDS">
+                        title="Mode 22 DIDs — BMW/Mercedes/Toyota/VAG/Ford">
                     <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
                 </button>
-                <button id="btnEmissionsHealth" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#16a34a,#15803d);"
-                        title="فحص AFR Wideband + صمام EGR + نظام EVAP — أسباب الأعطال P0171/P0172/P0401/P0455 الشائعة">
-                    <i class="fa-solid fa-smog"></i> فحص الانبعاثات (AFR/EGR/EVAP)
+            </div>
+
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-clipboard-list"></i> تقارير ومعلومات
+                </div>
+                <button type="button" id="btnFreezeFrame" class="btn secondary" disabled
+                        title="لقطة ظروف العطل من ECU">
+                    <i class="fa-solid fa-camera-retro"></i> Freeze Frame
                 </button>
-                <button id="btnAttachInvoice" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#8b5cf6,#6366f1);"
-                        title="أرسل الـ DTCs + Sensor Sweep كبنود مقترحة في فاتورة العميل. المحاسب هو اللي يقرر تتحاسب فعلاً ولا لأ">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> أرسل التشخيص للفاتورة
+                <button type="button" id="btnReadiness" class="btn secondary" disabled
+                        title="حالة self-test في الـ ECU">
+                    <i class="fa-solid fa-list-check"></i> Readiness Monitors
+                </button>
+                <button type="button" id="btnVehicleInfo" class="btn secondary" disabled
+                        title="معلومات الـ ECU (Mode 09)">
+                    <i class="fa-solid fa-info-circle"></i> معلومات الـ ECU
+                </button>
+                <button type="button" id="btnSaveSnapshot" class="btn secondary" disabled
+                        title="احفظ القراءات في المتصفح">
+                    <i class="fa-solid fa-bookmark"></i> احفظ لقطة محلية
+                </button>
+            </div>
+
+            <div class="action-group action-group-final">
+                <button type="button" id="btnAttachInvoice" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#8b5cf6,#6366f1);
+                               box-shadow:0 4px 14px rgba(139,92,246,0.35);"
+                        title="ابعت كل اللي اتشخّص لفاتورة العميل">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    أرسل التشخيص للفاتورة
                 </button>
             </div>
         </div>
@@ -490,11 +554,11 @@ body {
 
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;
                             padding-top:12px; border-top:1px solid #1e293b;">
-                    <button id="attachCancelBtn" class="btn secondary"
+                    <button type="button" id="attachCancelBtn" class="btn secondary"
                             onclick="document.getElementById('attachModal').style.display='none'">
                         إغلاق
                     </button>
-                    <button id="attachConfirmBtn" class="btn primary"
+                    <button type="button" id="attachConfirmBtn" class="btn primary"
                             style="background:linear-gradient(135deg,#8b5cf6,#6366f1);">
                         <i class="fa-solid fa-paper-plane"></i> أرسل للفاتورة
                     </button>
@@ -503,13 +567,13 @@ body {
         </div>
 
         <!-- Sensor Sweep results -->
-        <div id="sensorSweepPanel" style="display:none; margin-top:18px;">
+        <div id="sensorSweepPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل</div>
             <div id="sensorSweepBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Manufacturer DIDs (Mode 22) -->
-        <div id="manufacturerDIDsPanel" style="display:none; margin-top:18px;">
+        <div id="manufacturerDIDsPanel" class="result-card" style="display:none;">
             <div class="card-title">
                 <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
                 <span id="manufacturerBadge"
@@ -520,7 +584,7 @@ body {
         </div>
 
         <!-- Emissions Health (AFR + EGR + EVAP) -->
-        <div id="emissionsPanel" style="display:none; margin-top:18px;">
+        <div id="emissionsPanel" class="result-card" style="display:none;">
             <div class="card-title">
                 <i class="fa-solid fa-smog"></i> فحص نظام الانبعاثات
             </div>
@@ -528,26 +592,38 @@ body {
         </div>
 
         <!-- Mode 09 ECU info -->
-        <div id="vehicleInfoPanel" style="display:none; margin-top:18px;">
+        <div id="vehicleInfoPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-microchip"></i> معلومات الـ ECU</div>
             <div id="vehicleInfoBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
         </div>
 
         <!-- Freeze Frame -->
-        <div id="freezeFramePanel" style="display:none; margin-top:18px;">
+        <div id="freezeFramePanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-camera-retro"></i> لقطة لحظة العطل</div>
             <div id="freezeFrameBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
         </div>
 
+        <!-- Adapter & ECU capabilities (shown immediately after first connect) -->
+        <div id="capabilitiesPanel" class="result-card" style="display:none;">
+            <div class="card-title">
+                <i class="fa-solid fa-circle-info"></i> قدرات الـ adapter وفيشة السيارة
+                <span id="capabilityBadge"
+                      style="margin-inline-start:8px; font-size:11px;
+                             padding:2px 10px; border-radius:10px;
+                             font-weight:600;"></span>
+            </div>
+            <div id="capabilitiesBody" style="font-size:13px; line-height:1.8;"></div>
+        </div>
+
         <!-- Readiness -->
-        <div id="readinessPanel" style="display:none; margin-top:18px;">
+        <div id="readinessPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-list-check"></i> Readiness Monitors</div>
             <div id="readinessVerdict" style="font-size:14px; font-weight:700; margin:6px 0 10px;"></div>
             <ul id="readinessList" style="font-size:12px; color:#cbd5e1; list-style:none; padding:0; margin:0;"></ul>
         </div>
 
         <!-- ── Health score gauge ────────────────────────────────────── -->
-        <div id="healthPanel" style="display:none; margin-top:18px;">
+        <div id="healthPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-heart-pulse"></i> درجة الصحة العامة</div>
             <div id="healthGauge"
                  style="display:flex; align-items:center; gap:18px; margin-top:10px;">
@@ -568,14 +644,14 @@ body {
         </div>
 
         <!-- ── Misfire per-cylinder bars ──────────────────────────────── -->
-        <div id="misfirePanel" style="display:none; margin-top:18px;">
+        <div id="misfirePanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-fire"></i> Misfire لكل سلندر (آخر 10 دورات)</div>
             <div id="misfireBars" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
             <div id="misfireSummary" style="margin-top:10px; font-size:13px; color:#94a3b8;"></div>
         </div>
 
         <!-- ── Fuel pump health card ──────────────────────────────────── -->
-        <div id="fuelHealthPanel" style="display:none; margin-top:18px;">
+        <div id="fuelHealthPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-gas-pump"></i> تشخيص نظام الوقود</div>
             <div id="fuelHealthGrid"
                  style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; font-size:13px;"></div>
@@ -708,10 +784,10 @@ body {
         </div>
 
         <div class="modal-actions">
-            <button id="btnConfirmSave" class="btn primary" style="flex:1;">
+            <button type="button" id="btnConfirmSave" class="btn primary" style="flex:1;">
                 <i class="fa-solid fa-check"></i> احفظ الآن
             </button>
-            <button id="btnCancelSave" class="btn secondary">
+            <button type="button" id="btnCancelSave" class="btn secondary">
                 إلغاء
             </button>
         </div>
@@ -724,8 +800,11 @@ body {
 <!-- PWA update-toast handler — without this the Service Worker NEVER updates
      on the diagnostics room and clients stay stuck on old JS forever. -->
 <script src="{% static 'js/pwa-init.js' %}" defer></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=15-sensor-sweep"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=17-misfire-cascade"></script>
+<!-- WiFi MUST load first — it exposes the shared brand library
+     (MANUFACTURER_DIDS / MISFIRE_DIDS / detectManufacturerFromVIN)
+     that the Bluetooth driver also consumes at runtime. -->
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=18-capabilities-probe"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=16-capabilities-probe"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
@@ -917,6 +996,55 @@ body {
     }
 
     // ── AI chat round-trip ──────────────────────────────────────
+    // ── AI chat with offline-queue resume ─────────────────────────────
+    // If the network drops mid-question the prompt + all context is held
+    // locally; an 'online' listener auto-re-asks once connectivity returns
+    // so the technician sees the answer appear without having to retype.
+    const __pendingAIQueue = [];
+
+    function _queueAIQuestion(payload, thinkingNode) {
+        // Replace the spinner with a queued indicator that the user can read
+        // in the chat itself, then store the payload for replay.
+        if (thinkingNode) {
+            thinkingNode.innerHTML =
+                '📦 تم حفظ السؤال — هيرد البوت أوتوماتيكي لما الإنترنت يرجع.';
+            thinkingNode.style.opacity = '0.85';
+        }
+        __pendingAIQueue.push(payload);
+        log('AI question queued — will retry when online.', true);
+    }
+
+    async function _flushAIQueue() {
+        if (!__pendingAIQueue.length) return;
+        log(`🤖 رجع الإنترنت — جاري إرسال ${__pendingAIQueue.length} سؤال محفوظ…`);
+        while (__pendingAIQueue.length) {
+            const payload = __pendingAIQueue.shift();
+            try {
+                const resp = await fetch(CHAT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json',
+                               'X-CSRFToken': CSRF },
+                    body: JSON.stringify(payload.body),
+                });
+                const data = await resp.json();
+                if (resp.ok && data.answer) {
+                    pushMessage('bot', '📨 (رد متأخر) ' + data.answer);
+                    lastAIAnswer = data.answer;
+                    $('btnSaveJobCard').disabled = !lastAIAnswer;
+                } else {
+                    pushMessage('bot', '⚠️ السؤال المحفوظ رد بـ خطأ: ' +
+                        (data.error || 'unknown'));
+                }
+            } catch (e) {
+                // Network still flaky — re-queue this one and stop.
+                __pendingAIQueue.unshift(payload);
+                log('AI queue flush hit network error — will retry later', true);
+                break;
+            }
+        }
+    }
+    window.addEventListener('online', () => { _flushAIQueue(); });
+
     async function askAI({ userMessage = '', autoTriggered = false, attachment = null } = {}) {
         if (awaitingAI) return;
         awaitingAI = true;
@@ -926,6 +1054,24 @@ body {
             { thinking: true },
         );
 
+        const body = {
+            user_message: userMessage,
+            history: history,
+            snapshot: lastSnapshot,
+            dtcs: lastDTCs,
+            vin: lastVIN,
+            vehicle_hint: {},
+            image: attachment ? attachment.dataUrl : null,
+        };
+
+        // Pre-flight: if offline, queue immediately — don't waste 30s on a
+        // doomed fetch that the user is staring at.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            _queueAIQuestion({ body }, thinkingNode);
+            awaitingAI = false;
+            return;
+        }
+
         try {
             const resp = await fetch(CHAT_URL, {
                 method: 'POST',
@@ -933,15 +1079,7 @@ body {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': CSRF,
                 },
-                body: JSON.stringify({
-                    user_message: userMessage,
-                    history: history,
-                    snapshot: lastSnapshot,
-                    dtcs: lastDTCs,
-                    vin: lastVIN,
-                    vehicle_hint: {},
-                    image: attachment ? attachment.dataUrl : null,
-                }),
+                body: JSON.stringify(body),
             });
             const data = await resp.json();
             thinkingNode.remove();
@@ -968,8 +1106,9 @@ body {
             // Cap to last 16 entries to keep payload small
             if (history.length > 16) history = history.slice(-16);
         } catch (err) {
-            thinkingNode.remove();
-            pushMessage('bot', `⚠️ تعذّر الوصول للخادم: ${err.message}`);
+            // Network error mid-request → treat exactly like pre-flight
+            // offline: queue and surface the placeholder bubble.
+            _queueAIQuestion({ body }, thinkingNode);
         } finally {
             awaitingAI = false;
         }
@@ -1006,6 +1145,15 @@ body {
         driver.addEventListener('initialized', (e) => {
             const p = e.detail && e.detail.protocol ? ` على ${e.detail.protocol}` : '';
             log(`ELM327 جاهز${p} — البيانات هتبدأ تظهر.`);
+            // Auto-probe capabilities so the technician knows up-front what
+            // this adapter+ECU combo will and won't support.
+            if (typeof driver.probeCapabilities === 'function') {
+                log('جاري فحص قدرات الـ adapter والـ ECU…');
+                driver.probeCapabilities().catch(() => {});
+            }
+        });
+        driver.addEventListener('capabilities', (e) => {
+            renderCapabilities(e.detail);
         });
         driver.addEventListener('vin', (e) => {
             const v = (e.detail && e.detail.vin || '').toString().trim().toUpperCase();
@@ -1574,6 +1722,104 @@ body {
             card('🌬️ AFR — نسبة خليط الوقود (Wideband O2)', afrSub) +
             card('♻️ EGR — صمام إعادة دوران العادم', egrSub) +
             card('💨 EVAP — نظام أبخرة الوقود', evapSub);
+    }
+
+    // ── Adapter capabilities renderer (shown on connect) ───────────────
+    function renderCapabilities(cap) {
+        const panel = $('capabilitiesPanel');
+        const body  = $('capabilitiesBody');
+        const badge = $('capabilityBadge');
+        panel.style.display = 'block';
+        window.__capabilitiesLast = cap;
+
+        const rec = cap.recommendation || {};
+        const colorOf = ({
+            excellent: '#10b981', good: '#3b82f6',
+            limited:   '#f59e0b', broken: '#ef4444',
+        })[rec.level] || '#64748b';
+        const labelOf = ({
+            excellent: 'ممتاز', good: 'جيد',
+            limited:   'محدود', broken: 'مش شغّال',
+        })[rec.level] || '—';
+        badge.textContent = labelOf;
+        badge.style.background = colorOf + '22';
+        badge.style.color = colorOf;
+        badge.style.border = '1px solid ' + colorOf + '55';
+
+        // ── Modes row (raw protocol support) ────────────────────────────
+        const modes = [
+            { key: 'mode01', label: 'Mode 01 — القراءات الحية' },
+            { key: 'mode03', label: 'Mode 03 — أكواد الأعطال' },
+            { key: 'mode06_misfire', label: 'Mode 06 — Misfire لكل سلندر' },
+            { key: 'mode09', label: 'Mode 09 — VIN ومعلومات ECU' },
+            { key: 'mode22', label: 'Mode 22 — قراءات الماركة' },
+        ];
+        const modeRows = modes.map(m => {
+            const ok = !!cap.modes[m.key];
+            const c = ok ? '#10b981' : '#64748b';
+            const icon = ok ? '✓' : '—';
+            return `
+                <div style="display:flex; justify-content:space-between;
+                            align-items:center; padding:8px 12px;
+                            background:${ok ? 'rgba(16,185,129,0.06)' : 'rgba(100,116,139,0.05)'};
+                            border-radius:8px; margin-bottom:4px;
+                            border-inline-start:3px solid ${c};">
+                    <span style="font-size:12px; color:#cbd5e1;">${m.label}</span>
+                    <span style="color:${c}; font-weight:700; font-size:13px;">${icon}</span>
+                </div>`;
+        }).join('');
+
+        // ── Reports row (what the tech will be able to do) ──────────────
+        const reportRows = (cap.reports || []).map(r => {
+            const c = r.supported ? '#10b981' : (r.note ? '#f59e0b' : '#64748b');
+            const icon = r.supported ? '✅' : (r.note ? '⚠️' : '❌');
+            return `
+                <div style="padding:10px 14px;
+                            background:rgba(15,23,42,0.5);
+                            border-radius:8px; margin-bottom:6px;
+                            border-inline-start:3px solid ${c};">
+                    <div style="display:flex; justify-content:space-between;
+                                align-items:center;">
+                        <span style="font-size:13px; color:#e2e8f0; font-weight:600;">
+                            ${icon} ${r.label_ar}
+                        </span>
+                    </div>
+                    ${r.note ? `
+                        <div style="font-size:11px; color:#fcd34d;
+                                    margin-top:4px;">${r.note}</div>` : ''}
+                </div>`;
+        }).join('');
+
+        body.innerHTML = `
+            <div style="background:${colorOf}1a;
+                        border:1px solid ${colorOf}44;
+                        border-radius:12px; padding:14px 18px;
+                        margin-bottom:14px;">
+                <div style="font-weight:700; color:${colorOf}; font-size:14px;">
+                    ${rec.msg || ''}
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr;
+                        gap:14px; margin-top:8px;">
+                <div>
+                    <div style="font-size:11px; font-weight:700;
+                                color:#64748b; margin-bottom:6px;
+                                text-transform:uppercase;">
+                        البروتوكولات
+                    </div>
+                    ${modeRows}
+                </div>
+                <div>
+                    <div style="font-size:11px; font-weight:700;
+                                color:#64748b; margin-bottom:6px;
+                                text-transform:uppercase;">
+                        التقارير المتاحة
+                    </div>
+                    ${reportRows}
+                </div>
+            </div>
+        `;
     }
 
     // ── Misfire (3-tier cascade renderer) ──────────────────────────────
@@ -2350,6 +2596,41 @@ body {
         });
         window.addEventListener('offline', () => {
             log('⚠ النت اتقطع — التشخيصات هتتخزن محلياً.', true);
+        });
+    })();
+
+    // ── Collapse/expand result cards by clicking the title ─────────────
+    // Result panels stack up fast as the tech runs more tests. Each card
+    // toggles via its title bar (.card-title) so the page stays scannable.
+    // Newly populated cards auto-scroll into view and start expanded.
+    (function wireCardCollapse() {
+        document.querySelectorAll('.result-card').forEach(card => {
+            const title = card.querySelector('.card-title');
+            if (!title) return;
+            title.addEventListener('click', (e) => {
+                // Don't toggle if the click hit an interactive child (badge etc).
+                if (e.target !== title && e.target.tagName === 'BUTTON') return;
+                card.classList.toggle('collapsed');
+            });
+        });
+        // MutationObserver: when a hidden panel becomes visible (display:none → block),
+        // scroll it into view so the tech sees the new result without having to hunt.
+        const obs = new MutationObserver((mutations) => {
+            for (const mu of mutations) {
+                if (mu.attributeName !== 'style') continue;
+                const el = mu.target;
+                if (!el.classList || !el.classList.contains('result-card')) continue;
+                const style = el.getAttribute('style') || '';
+                if (style.indexOf('display:none') < 0 && style.indexOf('display: none') < 0) {
+                    el.classList.remove('collapsed');
+                    requestAnimationFrame(() => {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    });
+                }
+            }
+        });
+        document.querySelectorAll('.result-card').forEach(c => {
+            obs.observe(c, { attributes: true, attributeFilter: ['style'] });
         });
     })();
 

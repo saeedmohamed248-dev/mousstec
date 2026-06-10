@@ -664,6 +664,109 @@ class OBDWiFi extends EventTarget {
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // ── Adapter & ECU capability probe ──────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════
+    // Runs once on connect to tell the technician up-front:
+    //   • Which OBD modes the ECU answers
+    //   • Whether the bus supports Mode 22 (manufacturer DIDs)
+    //   • Whether per-cylinder misfire is going to work
+    //   • A recommended adapter if their current one is too limited
+    //
+    // No measurement requests — only existence checks. Total time ~3s.
+
+    async probeCapabilities() {
+        const cap = {
+            _at: Date.now(),
+            modes: {},
+            pid_support_mask: null,
+            recommendation: null,
+        };
+
+        // Mode 01 PID 00 returns a 32-bit bitmask of supported PIDs 01-20.
+        // If this fails, the bus is barely talking — flag the adapter.
+        try {
+            const raw = await this._sendCommand('0100', 2500);
+            const stripped = (raw || '').replace(/\s+/g, '').toUpperCase();
+            const m = stripped.match(/4100([0-9A-F]{8})/);
+            if (m) {
+                cap.modes.mode01 = true;
+                cap.pid_support_mask = m[1];
+                // Bit 0x20 of byte 4 = PID 0x20 supported → there's an extended set
+                cap.has_extended_pids = (parseInt(m[1].slice(6, 8), 16) & 0x01) !== 0;
+            } else {
+                cap.modes.mode01 = false;
+            }
+        } catch (_) { cap.modes.mode01 = false; }
+
+        // Mode 03 — stored DTCs. Even with no codes, a CAN ECU echoes "43 00"
+        try {
+            const raw = await this._sendCommand('03', 2000);
+            cap.modes.mode03 =
+                !!raw && !/NO\s*DATA|UNABLE|\?|STOPPED/i.test(raw)
+                && raw.replace(/\s+/g, '').toUpperCase().indexOf('43') >= 0;
+        } catch (_) { cap.modes.mode03 = false; }
+
+        // Mode 06 OBDMID $A1 (cyl 1 misfire) — proves per-cylinder is available
+        try { await this._sendCommand('ATH1', 800); } catch (_) {}
+        try {
+            const raw = await this._sendCommand('06A1', 2500);
+            cap.modes.mode06_misfire =
+                !!raw && raw.replace(/\s+/g, '').toUpperCase().indexOf('46A1') >= 0;
+        } catch (_) { cap.modes.mode06_misfire = false; }
+        try { await this._sendCommand('ATH0', 800); } catch (_) {}
+
+        // Mode 09 PID 02 — VIN. Required for any vehicle linking.
+        try {
+            const raw = await this._sendCommand('0902', 3500);
+            cap.modes.mode09 = !!raw && raw.replace(/\s+/g, '').toUpperCase().indexOf('4902') >= 0;
+        } catch (_) { cap.modes.mode09 = false; }
+
+        // Mode 22 — UDS. Probe with the OBD-II VIN DID 0xF190 (universally
+        // supported by post-2008 UDS-capable ECUs).
+        try {
+            const raw = await this._sendCommand('22F190', 2500);
+            const s = (raw || '').replace(/\s+/g, '').toUpperCase();
+            cap.modes.mode22 = s.indexOf('62F190') >= 0 ||
+                               (s.indexOf('7F22') < 0 && !/NO\s*DATA/i.test(raw));
+        } catch (_) { cap.modes.mode22 = false; }
+
+        // ── Decision tree: what reports can we produce? ─────────────────
+        const reports = [];
+        if (cap.modes.mode01) reports.push({ key: 'live_data', label_ar: 'القراءات الحية (سرعة، RPM، حرارة)', supported: true });
+        if (cap.modes.mode03) reports.push({ key: 'dtcs', label_ar: 'قراءة أكواد الأعطال', supported: true });
+        if (cap.modes.mode09) reports.push({ key: 'vin', label_ar: 'قراءة VIN ومعلومات الـ ECU', supported: true });
+        reports.push({ key: 'misfire_per_cylinder', label_ar: 'Misfire لكل سلندر',
+            supported: cap.modes.mode06_misfire || cap.modes.mode22,
+            note: !cap.modes.mode06_misfire && !cap.modes.mode22
+                ? 'هنستخدم تحليل تذبذب RPM (تقديري) كبديل' : null });
+        reports.push({ key: 'manufacturer_dids', label_ar: 'قراءات خاصة بالماركة (Mode 22)',
+            supported: !!cap.modes.mode22,
+            note: !cap.modes.mode22 ? 'سيارة قديمة قبل UDS أو الـ ECU محتاج adapter أحدث' : null });
+        reports.push({ key: 'emissions', label_ar: 'فحص الانبعاثات (AFR/EGR/EVAP)',
+            supported: !!cap.modes.mode01, note: null });
+        cap.reports = reports;
+
+        // Adapter recommendation logic
+        const supportedReports = reports.filter(r => r.supported).length;
+        if (supportedReports >= 5) {
+            cap.recommendation = { level: 'excellent',
+                msg: 'الـ adapter ممتاز — كل التقارير الشاملة متاحة.' };
+        } else if (supportedReports >= 3) {
+            cap.recommendation = { level: 'good',
+                msg: 'الـ adapter شغّال لكن مش بيدعم Mode 22. للـ BMW/Mercedes يُفضل ELM327 v2.2 أو أعلى.' };
+        } else if (supportedReports >= 1) {
+            cap.recommendation = { level: 'limited',
+                msg: 'الـ adapter محدود — جرّب dongle ELM327 v2.2+ للحصول على تقارير كاملة.' };
+        } else {
+            cap.recommendation = { level: 'broken',
+                msg: 'الـ adapter مش بيرد — تأكد إنه متركّب صح والـ ignition ON.' };
+        }
+
+        this._emit('capabilities', cap);
+        return cap;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // ── Cascading Misfire Detection (3-tier fallback) ───────────────────
     // ════════════════════════════════════════════════════════════════════
     // Standard Mode 06 OBDMID $A1-$A8 covers ~50% of cars on the road.
@@ -1350,14 +1453,42 @@ class OBDWiFi extends EventTarget {
                 }
             } catch (_) { /* tolerate single-PID misses */ }
         }
-        // Quick verdict (مبدئي — لمساعدة الميكانيكي مش بديل عن الفحص اليدوي)
-        const trims = ['stft_b1', 'ltft_b1', 'stft_b2', 'ltft_b2']
-            .map(k => snapshot[k] && snapshot[k].value).filter(v => v !== undefined);
-        const totalTrim = trims.reduce((a, b) => a + b, 0);
-        let verdict = 'طبيعي';
-        if (totalTrim > 15)  verdict = 'العربية بتسحب بنزين زيادة (lean) — احتمال شفط هواء أو طلمبة ضعيفة';
-        if (totalTrim < -15) verdict = 'العربية بتحرق بنزين زيادة (rich) — احتمال إنجكتر مكهرب أو حساس O2 تعبان';
+        // Quick verdict — require at least 2 valid trim values, AND use the
+        // SUM-OF-BANK-AVERAGES (not raw sum) so a 2-bank engine isn't unfairly
+        // doubled. Previously a single noisy spike on STFT could flip the
+        // verdict between calls — now we only commit if the signal is real.
+        const tB1 = ['stft_b1', 'ltft_b1']
+            .map(k => snapshot[k] && snapshot[k].value)
+            .filter(v => Number.isFinite(v));
+        const tB2 = ['stft_b2', 'ltft_b2']
+            .map(k => snapshot[k] && snapshot[k].value)
+            .filter(v => Number.isFinite(v));
+        const totalReadings = tB1.length + tB2.length;
+
+        let verdict = 'طبيعي', verdict_severity = 'ok';
+        if (totalReadings < 2) {
+            // Not enough data — be honest, don't fabricate a verdict.
+            verdict = 'بيانات نظام الوقود غير كافية للحكم — جرّب الفحص تاني والمحرك في idle ثابت';
+            verdict_severity = 'unknown';
+        } else {
+            const avgB1 = tB1.length ? tB1.reduce((a,b) => a+b, 0) / tB1.length : 0;
+            const avgB2 = tB2.length ? tB2.reduce((a,b) => a+b, 0) / tB2.length : 0;
+            // Sum-of-bank-averages: a balanced engine should be near zero.
+            const combined = (avgB1 + avgB2);
+            if (combined > 18) {
+                verdict = 'العربية بتسحب بنزين زيادة (lean) — احتمال شفط هواء أو طلمبة ضعيفة';
+                verdict_severity = 'warn';
+            } else if (combined < -18) {
+                verdict = 'العربية بتحرق بنزين زيادة (rich) — احتمال إنجكتر مكهرب أو حساس O2 تعبان';
+                verdict_severity = 'warn';
+            }
+            snapshot._trim_combined = +combined.toFixed(1);
+            snapshot._trim_b1_avg = +avgB1.toFixed(1);
+            snapshot._trim_b2_avg = +avgB2.toFixed(1);
+        }
         snapshot._verdict = verdict;
+        snapshot._verdict_severity = verdict_severity;
+        snapshot._readings_count = totalReadings;
         this._emit('fuel_health', snapshot);
         return snapshot;
     }
