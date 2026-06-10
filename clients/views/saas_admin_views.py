@@ -27,6 +27,7 @@ from django.utils import timezone
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
     TenantSubscription, Feature, SystemErrorLog,
+    PartListing,
 )
 from clients.permissions import get_user_widgets, widget_required
 
@@ -513,3 +514,52 @@ def system_error_resolve(request, error_id):
     err.save(update_fields=['is_resolved', 'resolved_by', 'resolved_at'])
     messages.success(request, "تم تعليم الخطأ كمحلول.")
     return redirect('saas_system_errors')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🛡️ Part Listings — moderation queue (admin approves before going live)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def parts_moderation_queue(request):
+    """قائمة كل قطع الغيار اللي بتنتظر مراجعة الإدارة."""
+    show = request.GET.get('show', 'pending')  # pending | rejected | all
+    qs = PartListing.objects.filter(is_deleted=False).select_related(
+        'car_make', 'seller_customer', 'seller_tenant',
+    ).order_by('-created_at')
+    if show == 'pending':
+        qs = qs.filter(moderation_status='pending_approval')
+    elif show == 'rejected':
+        qs = qs.filter(moderation_status='rejected')
+    # `all` → no extra filter
+    return render(request, 'clients/saas_admin/parts_moderation_queue.html', {
+        'listings': qs[:200],
+        'show': show,
+        'count_pending': PartListing.objects.filter(
+            is_deleted=False, moderation_status='pending_approval',
+        ).count(),
+    })
+
+
+@saas_admin_required
+def parts_moderation_approve(request, listing_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    listing = get_object_or_404(
+        PartListing.objects.filter(is_deleted=False), pk=listing_id,
+    )
+    listing.approve(by_user=request.user)
+    messages.success(request, f"تم اعتماد القطعة «{listing.title[:40]}».")
+    return redirect('saas_parts_moderation_queue')
+
+
+@saas_admin_required
+def parts_moderation_reject(request, listing_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    listing = get_object_or_404(
+        PartListing.objects.filter(is_deleted=False), pk=listing_id,
+    )
+    reason = (request.POST.get('reason') or '').strip()
+    listing.reject(by_user=request.user, reason=reason)
+    messages.success(request, f"تم رفض القطعة «{listing.title[:40]}».")
+    return redirect('saas_parts_moderation_queue')

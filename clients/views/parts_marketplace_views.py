@@ -58,7 +58,9 @@ def parts_feed(request):
     condition = request.GET.get('condition', '').strip()
     sort = request.GET.get('sort', 'new')
 
-    listings = PartListing.objects.filter(status='active').select_related('car_make')
+    listings = PartListing.objects.filter(
+        status='active', moderation_status='approved', is_deleted=False,
+    ).select_related('car_make')
 
     selected_make = None
     if selected_make_slug:
@@ -100,8 +102,17 @@ def parts_detail(request, listing_code):
                             .prefetch_related('photos'),
         listing_code=listing_code,
     )
+    if listing.is_deleted:
+        return HttpResponseForbidden('This listing is unavailable.')
     if listing.status not in ('active', 'reserved', 'sold'):
         return HttpResponseForbidden('This listing is unavailable.')
+    # Hide pending/rejected listings from the public detail page —
+    # only the seller themselves may preview their own pending listing.
+    if listing.moderation_status != 'approved':
+        customer = _marketplace_auth(request)
+        is_owner = bool(customer and listing.seller_customer_id == customer.pk)
+        if not is_owner:
+            return HttpResponseForbidden('This listing is awaiting admin approval.')
 
     # Count view
     PartListing.objects.filter(pk=listing.pk).update(views_count=listing.views_count + 1)
@@ -154,6 +165,8 @@ def parts_create(request):
                 year_from = request.POST.get('car_year_from') or None
                 year_to   = request.POST.get('car_year_to') or None
 
+                # Listings stay in `draft` + `pending_approval` until a
+                # Super Admin reviews them; approval flips status→active.
                 listing = PartListing.objects.create(
                     seller_customer=customer,
                     title=(request.POST.get('title') or '').strip()[:200],
@@ -167,7 +180,8 @@ def parts_create(request):
                     price_egp=price,
                     warranty_days=warranty,
                     city=(request.POST.get('city') or customer.city or '').strip()[:100],
-                    status='active',
+                    status='draft',
+                    moderation_status='pending_approval',
                 )
                 for idx, photo in enumerate(photos[:10]):  # cap at 10 photos
                     PartListingPhoto.objects.create(
@@ -183,9 +197,10 @@ def parts_create(request):
                 )
             return JsonResponse({
                 'ok': True,
-                'message': 'تم نشر القطعة بنجاح.',
+                'message': 'تم استلام القطعة وهي الآن في انتظار موافقة الإدارة قبل النشر.',
                 'listing_code': str(listing.listing_code),
                 'detail_url': f'/marketplace/parts/{listing.listing_code}/',
+                'moderation_status': 'pending_approval',
             })
         except Exception as exc:
             logger.exception("[PARTS] Failed to create listing: %s", exc)

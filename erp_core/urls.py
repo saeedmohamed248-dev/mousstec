@@ -413,6 +413,11 @@ urlpatterns = [
     path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),
     path('superadmin/errors/<int:error_id>/resolve/', saas_admin_views.system_error_resolve, name='saas_system_error_resolve'),
 
+    # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
+    path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),
+    path('superadmin/parts/moderation/<int:listing_id>/approve/', saas_admin_views.parts_moderation_approve, name='saas_parts_moderation_approve'),
+    path('superadmin/parts/moderation/<int:listing_id>/reject/',  saas_admin_views.parts_moderation_reject,  name='saas_parts_moderation_reject'),
+
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),
     path('superadmin/support/', support_views.support_inbox, name='saas_support_inbox'),

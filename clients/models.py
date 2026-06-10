@@ -1482,7 +1482,7 @@ class PlatformEvent(models.Model):
 # 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace & Blind Tenders)
 # =====================================================================
 
-class MarketplaceCustomer(models.Model):
+class MarketplaceCustomer(SoftDeleteMixin, models.Model):
     """
     عميل نهائي في سوق المناقصات — فرد أو شركة يبحث عن خدمات/منتجات.
     مستقل تماماً عن نظام المستأجرين (Tenants).
@@ -2877,7 +2877,7 @@ class PartCarMake(models.Model):
         return self.name
 
 
-class PartListing(models.Model):
+class PartListing(SoftDeleteMixin, models.Model):
     """قطعة غيار معروضة للبيع P2P. البائع إما عميل سوق أو شركة (Tenant)."""
 
     CONDITION_CHOICES = (
@@ -2893,6 +2893,15 @@ class PartListing(models.Model):
         ('reserved', _('محجوز')),  # دفع جارٍ
         ('sold',     _('تم البيع')),
         ('removed',  _('محذوف')),
+    )
+    # Admin moderation gate — orthogonal to lifecycle `status`.
+    # New listings start `pending_approval` and stay hidden from the public
+    # feed until a Super Admin approves them. Rejected listings are kept
+    # for audit but never resurface publicly.
+    MODERATION_CHOICES = (
+        ('pending_approval', _('بانتظار موافقة الإدارة')),
+        ('approved',         _('معتمد')),
+        ('rejected',         _('مرفوض')),
     )
 
     listing_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
@@ -2931,6 +2940,18 @@ class PartListing(models.Model):
 
     city = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة"))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    moderation_status = models.CharField(
+        max_length=20, choices=MODERATION_CHOICES,
+        default='pending_approval', db_index=True,
+        verbose_name=_("حالة المراجعة"),
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True)
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+        verbose_name=_("راجَعَها"),
+    )
+    rejection_reason = models.CharField(max_length=255, blank=True, default='')
     views_count = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -2944,6 +2965,7 @@ class PartListing(models.Model):
         indexes = [
             models.Index(fields=['status', 'car_make']),
             models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['moderation_status', '-created_at']),
         ]
         constraints = [
             models.CheckConstraint(
@@ -2990,6 +3012,40 @@ class PartListing(models.Model):
             return photo.image.url
         return ''
 
+    @property
+    def is_publicly_visible(self):
+        return (
+            not self.is_deleted
+            and self.status == 'active'
+            and self.moderation_status == 'approved'
+        )
+
+    def approve(self, by_user):
+        if self.moderation_status == 'approved':
+            return False
+        self.moderation_status = 'approved'
+        self.moderated_at = timezone.now()
+        self.moderated_by = by_user if (by_user and by_user.is_authenticated) else None
+        self.rejection_reason = ''
+        # Lift seller draft to active so the listing actually surfaces.
+        if self.status == 'draft':
+            self.status = 'active'
+        self.save(update_fields=[
+            'moderation_status', 'moderated_at', 'moderated_by',
+            'rejection_reason', 'status',
+        ])
+        return True
+
+    def reject(self, by_user, reason=''):
+        self.moderation_status = 'rejected'
+        self.moderated_at = timezone.now()
+        self.moderated_by = by_user if (by_user and by_user.is_authenticated) else None
+        self.rejection_reason = (reason or '')[:255]
+        self.save(update_fields=[
+            'moderation_status', 'moderated_at', 'moderated_by', 'rejection_reason',
+        ])
+        return True
+
 
 class PartListingPhoto(models.Model):
     """صور لكل قطعة. حد أدنى 3 موصى به ليبان كل تفصيلة."""
@@ -3007,7 +3063,7 @@ class PartListingPhoto(models.Model):
         return f"Photo of {self.listing_id}"
 
 
-class PartOrder(models.Model):
+class PartOrder(SoftDeleteMixin, models.Model):
     """
     أمر شراء قطعة. الفلوس escrow حتى ينتهي وقت الضمان.
 
@@ -3169,70 +3225,6 @@ class SystemErrorLog(models.Model):
 
     def __str__(self):
         return f"[{self.status_code}] {self.exception_class or self.path} @ {self.tenant_schema or 'public'}"
-
-
-# =====================================================================
-# 📨 SupportTicket — تذاكر الدعم الفني (Help Form + Chat offline)
-# =====================================================================
-class SupportTicket(SoftDeleteMixin, models.Model):
-    STATUS_CHOICES = (
-        ('open',        _('مفتوحة')),
-        ('in_progress', _('جاري الحل')),
-        ('waiting',     _('بانتظار العميل')),
-        ('closed',      _('مغلقة')),
-    )
-    PRIORITY_CHOICES = (
-        ('low',    _('عادية')),
-        ('medium', _('متوسطة')),
-        ('high',   _('عاجلة')),
-        ('urgent', _('حرجة')),
-    )
-    SOURCE_CHOICES = (
-        ('form',         _('نموذج المساعدة')),
-        ('chat_offline', _('شات خارج أوقات العمل')),
-        ('email',        _('بريد إلكتروني')),
-        ('phone',        _('هاتف')),
-    )
-
-    tenant = models.ForeignKey(
-        Client, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name='support_tickets', verbose_name=_("المستأجر"),
-    )
-    name = models.CharField(max_length=120, verbose_name=_("الاسم"))
-    email = models.EmailField(verbose_name=_("البريد الإلكتروني"))
-    phone = models.CharField(max_length=30, blank=True, default='', verbose_name=_("الهاتف"))
-    subject = models.CharField(max_length=200, verbose_name=_("الموضوع"))
-    message = models.TextField(verbose_name=_("الرسالة"))
-
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open', db_index=True)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='form')
-
-    assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
-        related_name='assigned_tickets', verbose_name=_("مُسنَدة إلى"),
-    )
-    internal_notes = models.TextField(blank=True, default='', help_text=_("ملاحظات داخلية لا تُعرض للعميل"))
-
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.CharField(max_length=500, blank=True, default='')
-    email_sent_ok = models.BooleanField(default=False, help_text=_("هل وصل الإيميل لصندوق الدعم؟"))
-
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = _("تذكرة دعم")
-        verbose_name_plural = _("تذاكر الدعم")
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['-created_at', 'status']),
-            models.Index(fields=['status', 'priority']),
-        ]
-
-    def __str__(self):
-        return f"#{self.id} {self.subject} ({self.get_status_display()})"
 
 
 # =====================================================================
