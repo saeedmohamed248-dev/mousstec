@@ -64,10 +64,12 @@ class SoftDeleteMixin(models.Model):
     )
     deletion_reason = models.CharField(max_length=255, blank=True, default='')
 
-    # الـ managers اختياريين — كل model يقرر يضيفهم أو لا.
-    # في Client، بنحتفظ بـ objects الافتراضي (لـ django-tenants) ونضيف alive_objects.
-    alive_objects = SoftDeleteManager()
-    all_objects = AllObjectsManager()
+    # ⚠️ مهم: لازم نعرّف `objects` صراحةً هنا — لأن Django لما يلاقي
+    # custom manager في abstract parent، بيشيل الـ default auto-`objects`.
+    # ده هيكسر django-tenants اللي بيستخدم Client.objects.get(schema_name=...).
+    objects = models.Manager()                # default — لكل البيانات (تشمل المحذوفين)
+    alive_objects = SoftDeleteManager()       # الأحياء فقط
+    all_objects = AllObjectsManager()         # alias صريح
 
     class Meta:
         abstract = True
