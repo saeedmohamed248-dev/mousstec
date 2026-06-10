@@ -28,6 +28,7 @@ from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
     TenantSubscription, Feature, SystemErrorLog,
 )
+from clients.permissions import get_user_widgets, widget_required
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -36,11 +37,12 @@ logger = logging.getLogger('mouss_tec_core')
 # 🛡️ Security gate — public schema + superuser only
 # ─────────────────────────────────────────────────────────────────────
 def _saas_admin_required(user):
-    return (
-        user.is_authenticated
-        and user.is_superuser
-        and connection.schema_name == 'public'
-    )
+    """يسمح بالـ superuser أو أي موظف عنده StaffRole في public schema."""
+    if not (user.is_authenticated and connection.schema_name == 'public'):
+        return False
+    if user.is_superuser:
+        return True
+    return hasattr(user, 'staff_role')
 
 saas_admin_required = user_passes_test(_saas_admin_required, login_url='/secure-portal/login/')
 
@@ -394,6 +396,7 @@ def diagnostics_spend_dashboard(request):
 # 🏢 Tenants Management — Soft Delete / Restore / Force Delete
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def tenants_list(request):
     """قائمة كل المستأجرين — مع تبويب للأحياء والمحذوفين."""
     show = request.GET.get('show', 'alive')   # alive | deleted | all
@@ -441,11 +444,17 @@ def tenant_restore(request, tenant_id):
 @saas_admin_required
 def tenant_force_delete(request, tenant_id):
     """
-    💀 خطر: حذف فعلي. متاح فقط لـ is_superuser (god mode).
+    💀 خطر: حذف فعلي. متاح لـ is_superuser فقط (أو staff_role.can_force_delete=True).
     يتطلب تأكيد بـ POST + كتابة اسم المستأجر.
     """
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
+    # 🛡️ Force-Delete gate صارم: superuser فقط أو موظف معطى can_force_delete=True
+    u = request.user
+    role_obj = getattr(u, 'staff_role', None)
+    can_force = u.is_superuser or (role_obj and role_obj.can_force_delete)
+    if not can_force:
+        return HttpResponseForbidden("Force Delete restricted to ultimate owner.")
     tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
     if tenant.schema_name == 'public':
         return HttpResponseForbidden("Cannot delete public schema.")
@@ -464,6 +473,7 @@ def tenant_force_delete(request, tenant_id):
 # 🚨 System Error Log Viewer
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('errors')
 def system_errors_list(request):
     qs = SystemErrorLog.objects.all()
     show = request.GET.get('show', 'open')  # open | resolved | all

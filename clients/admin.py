@@ -15,8 +15,42 @@ from .models import (
     BidOffer, EscrowLedger, Plan, AIAddonPackage,
     TenantSubscription, AILimitTracker, AIPromptLearningLog,
     Feature, PlanRevision, PlatformInvoice, DesignPackage,
-    DiagnosticsAddon,
+    DiagnosticsAddon, StaffRole, SystemErrorLog,
 )
+
+
+# ─── 🔐 StaffRole admin ───
+@admin.register(StaffRole)
+class StaffRoleAdmin(admin.ModelAdmin):
+    list_display = ('user', 'role', 'can_force_delete', 'updated_at')
+    list_filter = ('role', 'can_force_delete')
+    search_fields = ('user__username', 'user__email', 'notes')
+    autocomplete_fields = ('user',)
+    fieldsets = (
+        (None, {'fields': ('user', 'role', 'notes')}),
+        ('صلاحيات خطرة', {
+            'fields': ('can_force_delete',),
+            'description': '⚠️ Force Delete يحذف بيانات المستأجر نهائياً. متاح للمالك الأعلى فقط.',
+        }),
+    )
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+# ─── 🚨 SystemErrorLog admin (read-only) ───
+@admin.register(SystemErrorLog)
+class SystemErrorLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'level', 'status_code', 'tenant_name', 'path', 'exception_class', 'is_resolved')
+    list_filter = ('level', 'is_resolved', 'status_code', 'tenant_schema')
+    search_fields = ('path', 'exception_class', 'message', 'username')
+    readonly_fields = [f.name for f in SystemErrorLog._meta.fields]
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request): return False
+    def has_change_permission(self, request, obj=None): return False
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
 
 import logging
 logger = logging.getLogger('mouss_tec_core')

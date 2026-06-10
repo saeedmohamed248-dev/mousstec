@@ -3171,6 +3171,55 @@ class SystemErrorLog(models.Model):
         return f"[{self.status_code}] {self.exception_class or self.path} @ {self.tenant_schema or 'public'}"
 
 
+# =====================================================================
+# 🔐 StaffRole — Enterprise RBAC للوحة الـ Super Admin
+# =====================================================================
+class StaffRole(models.Model):
+    """
+    يعرّف صلاحيات موظفي الـ Super Admin (مش موظفين الـ tenants).
+    is_superuser=True يتجاوز كل القيود (god mode).
+    """
+    ROLE_CHOICES = (
+        ('god',         _('المالك الأعلى')),
+        ('tech_admin',  _('مدير تقني')),
+        ('support',     _('موظف دعم')),
+        ('sales',       _('مبيعات')),
+        ('finance',     _('محاسبة ومالية')),
+    )
+    # خريطة الصلاحيات: أي widgets يقدر يشوفها كل دور
+    ROLE_WIDGETS = {
+        'god':        {'revenue', 'tenants', 'tickets', 'chat', 'errors', 'plans', 'escrow', 'b2b', 'visitors'},
+        'tech_admin': {'tenants', 'tickets', 'chat', 'errors', 'plans', 'visitors'},
+        'support':    {'tickets', 'chat'},
+        'sales':      {'revenue', 'tenants', 'plans', 'visitors'},
+        'finance':    {'revenue', 'escrow', 'plans'},
+    }
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='staff_role', verbose_name=_("المستخدم"),
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, verbose_name=_("الدور"))
+    can_force_delete = models.BooleanField(default=False, verbose_name=_("صلاحية الحذف النهائي؟"))
+    notes = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("دور موظف")
+        verbose_name_plural = _("أدوار موظفي الإدارة")
+
+    def __str__(self):
+        return f"{self.user.username} — {self.get_role_display()}"
+
+    @property
+    def visible_widgets(self):
+        return self.ROLE_WIDGETS.get(self.role, set())
+
+    def can_view(self, widget_name):
+        return widget_name in self.visible_widgets
+
+
 # OBD device identity & secrets — defined in a separate module for clarity.
 # Imported here so Django registers them under the `clients` app.
 from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401
