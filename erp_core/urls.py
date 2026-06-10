@@ -376,6 +376,7 @@ urlpatterns = [
     path('superadmin/customer/<int:customer_id>/gift/',   client_views.super_admin_customer_gift,   name='super_admin_customer_gift'),
     path('superadmin/customer/<int:customer_id>/notify/', client_views.super_admin_customer_notify, name='super_admin_customer_notify'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
+    path('superadmin/gift-diagnostics/', client_views.super_admin_gift_diagnostics, name='super_admin_gift_diagnostics'),
 
     # 🔔 Marketplace customer notifications (customer-facing)
     path('marketplace/notifications/',                       client_views.customer_notifications_list, name='customer_notifications_list'),

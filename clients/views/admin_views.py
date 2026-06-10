@@ -1067,3 +1067,131 @@ def super_admin_parts_refund_reject(request, order_code):
 
     return JsonResponse({'ok': True, 'message': 'تم رفض الإرجاع وتحرير أموال البائع.'})
 
+
+
+# ============================================================================
+# 🎁 Superadmin — Gift / Renew Diagnostics Subscription
+# ============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_gift_diagnostics(request):
+    """
+    GET  → render the gift-diagnostics wizard (phone lookup + tier/duration picker).
+    POST → activate or renew a CustomerDiagnosticsSubscription.
+    AJAX GET ?phone=… → return customer + subscription status JSON.
+    """
+    from clients.models import CustomerDiagnosticsSubscription
+    from dateutil.relativedelta import relativedelta
+
+    TIERS = [
+        {'key': 'basic',  'label': 'Basic',  'price': 99,  'scans': 30,  'color': '#3b82f6', 'icon': 'fa-circle'},
+        {'key': 'pro',    'label': 'Pro',    'price': 199, 'scans': 100, 'color': '#8b5cf6', 'icon': 'fa-star'},
+        {'key': 'empire', 'label': 'Empire', 'price': 399, 'scans': None,'color': '#f59e0b', 'icon': 'fa-crown'},
+    ]
+    DURATIONS = [
+        {'months': 1,  'label': 'شهر',       'discount': 0},
+        {'months': 3,  'label': '3 أشهر',    'discount': 10},
+        {'months': 6,  'label': '6 أشهر',    'discount': 15},
+        {'months': 12, 'label': 'سنة كاملة', 'discount': 20},
+    ]
+
+    # ── AJAX lookup ──────────────────────────────────────────────────────────
+    if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        phone = (request.GET.get('phone') or '').strip()
+        if not phone:
+            return JsonResponse({'found': False, 'error': 'أدخل رقم الهاتف'})
+        with schema_context('public'):
+            customer = MarketplaceCustomer.objects.filter(phone=phone).first()
+            if not customer:
+                return JsonResponse({'found': False})
+            sub = CustomerDiagnosticsSubscription.objects.filter(customer=customer).order_by('-paid_until').first()
+            now = timezone.now()
+            return JsonResponse({
+                'found': True,
+                'name': customer.full_name,
+                'phone': customer.phone,
+                'customer_id': customer.pk,
+                'tier': sub.tier if sub else None,
+                'tier_display': sub.get_tier_display() if sub else 'لا يوجد',
+                'is_active': bool(sub and sub.paid_until and sub.paid_until > now),
+                'days_remaining': max((sub.paid_until - now).days, 0) if (sub and sub.paid_until and sub.paid_until > now) else 0,
+                'paid_until': sub.paid_until.strftime('%Y-%m-%d') if (sub and sub.paid_until) else None,
+            })
+
+    # ── POST: activate/renew ─────────────────────────────────────────────────
+    if request.method == 'POST':
+        phone     = (request.POST.get('phone') or '').strip()
+        tier      = (request.POST.get('tier') or '').strip()
+        months    = int(request.POST.get('months') or 1)
+        note      = (request.POST.get('note') or '').strip()
+
+        valid_tiers    = {t['key'] for t in TIERS}
+        valid_months   = {d['months'] for d in DURATIONS}
+        discount_map   = {d['months']: d['discount'] for d in DURATIONS}
+        price_map      = {t['key']: t['price'] for t in TIERS}
+
+        if tier not in valid_tiers or months not in valid_months:
+            return JsonResponse({'ok': False, 'error': 'بيانات غير صحيحة'}, status=400)
+
+        with schema_context('public'):
+            customer = MarketplaceCustomer.objects.filter(phone=phone).first()
+            if not customer:
+                return JsonResponse({'ok': False, 'error': 'العميل غير موجود'}, status=404)
+
+            now        = timezone.now()
+            discount   = discount_map[months]
+            unit_price = Decimal(str(price_map[tier]))
+            total      = (unit_price * months * (Decimal('100') - Decimal(str(discount))) / Decimal('100')).quantize(Decimal('0.01'))
+
+            sub = CustomerDiagnosticsSubscription.objects.filter(customer=customer).order_by('-paid_until').first()
+            base = max(sub.paid_until, now) if (sub and sub.paid_until and sub.paid_until > now) else now
+
+            new_expiry = base + relativedelta(months=months)
+
+            if sub and sub.tier == tier:
+                sub.paid_until = new_expiry
+                sub.save(update_fields=['paid_until'])
+            else:
+                sub, _ = CustomerDiagnosticsSubscription.objects.update_or_create(
+                    customer=customer,
+                    defaults={'tier': tier, 'paid_until': new_expiry},
+                )
+
+            # In-app notification to the customer
+            CustomerNotification.objects.create(
+                customer=customer,
+                title=f'🎁 هدية اشتراك تشخيص {sub.get_tier_display()}',
+                body=(
+                    note or
+                    f'تم تفعيل باقة {sub.get_tier_display()} لمدة '
+                    f'{"شهر" if months == 1 else f"{months} أشهر"} '
+                    f'(تنتهي {new_expiry.strftime("%Y-%m-%d")}) — بعناية إدارة Mouss Tec.'
+                ),
+                level='success',
+                icon='fa-gift',
+                action_url='/diagnostic/shop/',
+                action_label='ابدأ التشخيص',
+                sent_by=request.user,
+            )
+
+            PlatformEvent.objects.create(
+                event_type='other', tenant_schema='public', tenant_name='marketplace',
+                user_name=request.user.username,
+                description=(
+                    f"🎁 هدية اشتراك تشخيص «{sub.get_tier_display()}» × {months} شهر "
+                    f"لعميل «{customer.full_name}» ({customer.phone}) — قيمة {total} ج.م"
+                ),
+            )
+
+        return JsonResponse({
+            'ok': True,
+            'message': f'تم تفعيل باقة {sub.get_tier_display()} للعميل «{customer.full_name}» حتى {new_expiry.strftime("%Y-%m-%d")}.',
+            'paid_until': new_expiry.strftime('%Y-%m-%d'),
+        })
+
+    # ── GET: render page ─────────────────────────────────────────────────────
+    return render(request, 'clients/super_admin_gift_diagnostics.html', {
+        'tiers': TIERS,
+        'durations': DURATIONS,
+    })

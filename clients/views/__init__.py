@@ -152,6 +152,7 @@ from .admin_views import (  # noqa: F401
     customer_notification_read,
     super_admin_parts_refund_approve,
     super_admin_parts_refund_reject,
+    super_admin_gift_diagnostics,
 )
 
 # ───────────────────────────────────────────────────────────────────────────
