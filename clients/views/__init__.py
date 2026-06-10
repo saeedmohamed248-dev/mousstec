@@ -156,6 +156,9 @@ from .parts_marketplace_views import (  # noqa: F401
     parts_mark_shipped,
     parts_confirm_delivery,
     parts_request_refund,
+    parts_wanted_create,
+    parts_wanted_seller_feed,
+    parts_open_dispute,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,162 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مركز النزاعات — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1500px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#f472b6; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #f472b6; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
+        .stat .label { color:#94a3b8; font-size:12px; }
+        .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .tab { padding:8px 14px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #334155; }
+        .tab.active { background:#ec4899; color:#fff; border-color:#f472b6; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
+        .alert.err { background:#dc2626; }
+        .ticket { background:#1e293b; border-radius:12px; padding:18px; margin-bottom:14px; border-right:4px solid #ec4899; }
+        .ticket-head { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:10px; }
+        .ticket-code { font-family:monospace; font-size:11px; color:#94a3b8; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; }
+        .b-open         { background:#fbbf24; color:#0f172a; }
+        .b-under_review { background:#0ea5e9; color:#fff; }
+        .b-resolved_refund  { background:#22c55e; color:#fff; }
+        .b-resolved_release { background:#a78bfa; color:#fff; }
+        .b-resolved_split   { background:#facc15; color:#0f172a; }
+        .b-cancelled    { background:#64748b; color:#fff; }
+        .opener { font-size:12px; color:#a78bfa; }
+        .meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; font-size:13px; margin-bottom:12px; color:#cbd5e1; }
+        .meta strong { color:#fff; }
+        .desc { background:#0f172a; padding:10px 12px; border-radius:8px; color:#e2e8f0; font-size:13px; white-space:pre-wrap; margin-bottom:12px; }
+        .actions { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+        .actions form { display:flex; gap:6px; align-items:center; background:#0f172a; padding:8px 10px; border-radius:8px; }
+        .actions label { font-size:11px; color:#64748b; }
+        .actions input[type=text], .actions input[type=number], .actions select {
+            padding:5px 8px; border-radius:6px; border:1px solid #334155;
+            background:#1e293b; color:#e2e8f0; font-family:'Cairo',sans-serif; font-size:12px;
+        }
+        .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; }
+        .btn-refund  { background:#22c55e; color:#fff; }
+        .btn-release { background:#a78bfa; color:#fff; }
+        .btn-split   { background:#facc15; color:#0f172a; }
+        .btn-cancel  { background:#64748b; color:#fff; }
+        .empty { text-align:center; padding:60px; color:#64748b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / مركز النزاعات</div>
+    <h1>⚖️ مركز فضّ النزاعات</h1>
+    <p class="sub">المبلغ مجمّد في الـ Escrow لحين قرارك. اختر "رد للمشتري"، "تحرير للبائع"، أو "تسوية جزئية".</p>
+
+    {% if messages %}
+        {% for m in messages %}
+            <div class="alert {% if m.tags == 'error' %}err{% endif %}">{{ m }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="stats">
+        <div class="stat"><h2>{{ count_open }}</h2><div class="label">⏳ نزاعات مفتوحة</div></div>
+    </div>
+
+    <div class="filters">
+        <a class="tab {% if show == 'open' %}active{% endif %}"     href="?show=open">⏳ مفتوحة</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">✅ محلولة</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📋 الكل</a>
+    </div>
+
+    {% if tickets %}
+        {% for t in tickets %}
+        <div class="ticket">
+            <div class="ticket-head">
+                <div>
+                    <span class="badge b-{{ t.status }}">{{ t.get_status_display }}</span>
+                    <span class="opener"> فتحه: {{ t.get_opened_by_role_display }} —
+                        {% if t.opened_by_customer %}
+                            {{ t.opened_by_customer.full_name }}
+                        {% elif t.opened_by_tenant %}
+                            {{ t.opened_by_tenant.name }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="ticket-code">#{{ t.ticket_code }}</div>
+            </div>
+
+            <div class="meta">
+                <div><label>الطلب:</label> <strong>{{ t.order.order_code }}</strong></div>
+                <div><label>المبلغ:</label> <strong>{{ t.order.amount_paid }} ج.م</strong></div>
+                <div><label>الفئة:</label> <strong>{{ t.get_category_display }}</strong></div>
+                <div><label>حالة الطلب وقت الفتح:</label> <strong>{{ t.order_status_at_open|default:"—" }}</strong></div>
+                <div><label>القطعة:</label> <strong>{{ t.order.listing.title|truncatechars:40 }}</strong></div>
+                <div><label>تاريخ الفتح:</label> <strong>{{ t.opened_at|date:"Y-m-d H:i" }}</strong></div>
+            </div>
+
+            <div class="desc">{{ t.description }}</div>
+
+            {% if t.status == 'open' or t.status == 'under_review' %}
+            <div class="actions">
+                <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="refund">
+                    <label>سبب الإرجاع:</label>
+                    <select name="return_reason">
+                        <option value="defective">معيبة</option>
+                        <option value="incorrect">مختلفة</option>
+                        <option value="not_as_described">غير مطابق</option>
+                        <option value="never_arrived">لم تصل</option>
+                        <option value="buyer_remorse">تراجع المشتري</option>
+                    </select>
+                    <input type="text" name="notes" placeholder="ملاحظات" maxlength="500">
+                    <button class="btn btn-refund" type="submit"><i class="fa fa-undo"></i> رد للمشتري</button>
+                </form>
+
+                <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="release">
+                    <input type="text" name="notes" placeholder="ملاحظات" maxlength="500">
+                    <button class="btn btn-release" type="submit"><i class="fa fa-check"></i> تحرير للبائع</button>
+                </form>
+
+                <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="split">
+                    <label>مبلغ الإرجاع:</label>
+                    <input type="number" name="refund_amount" step="0.01" min="0.01" max="{{ t.order.amount_paid }}" required>
+                    <select name="return_reason">
+                        <option value="not_as_described">غير مطابق</option>
+                        <option value="defective">معيبة</option>
+                    </select>
+                    <button class="btn btn-split" type="submit"><i class="fa fa-scale-balanced"></i> تسوية جزئية</button>
+                </form>
+
+                <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel">
+                    <button class="btn btn-cancel" type="submit"><i class="fa fa-times"></i> إلغاء</button>
+                </form>
+            </div>
+            {% elif t.resolution_notes %}
+                <div class="desc" style="border-right:3px solid #22c55e">
+                    <strong>قرار الإدارة:</strong> {{ t.resolution_notes }}
+                    {% if t.resolved_at %}<br><small>تم في: {{ t.resolved_at|date:"Y-m-d H:i" }}</small>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty">
+            <i class="fa fa-peace" style="font-size:48px;color:#22c55e"></i>
+            <p>لا توجد نزاعات في هذه القائمة.</p>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

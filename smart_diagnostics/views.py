@@ -247,6 +247,17 @@ def diagnostics_room(request):
         )
 
     tenant = getattr(request, 'tenant', None)
+
+    # 🔒 Phase 3 #3 — paid add-on gate (separate from plan entitlement).
+    # SuperAdmin can grant `Client.has_obd_access` directly. If the tenant
+    # never bought the add-on (or it expired), short-circuit to upgrade.
+    if tenant is not None and not getattr(tenant, 'obd_access_is_valid', False):
+        return render(request, 'smart_diagnostics/upgrade.html', {
+            'reason': 'هذه الخدمة إضافة مدفوعة. تواصل مع الإدارة لتفعيل الوصول.',
+            'tenant': tenant,
+            'gate': 'obd_addon',
+        }, status=402)
+
     # 🐛 [Bug #1 FIX] Use the actual service method name (`check_feature`),
     # not the non-existent `can_access`. Also wrap in try/except so a
     # subscription-lookup failure renders the upgrade page instead of a 500.

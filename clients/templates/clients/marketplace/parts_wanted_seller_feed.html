@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات المشترين | سوق قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#22c55e; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+               color: var(--text); padding-bottom: 60px; }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; }
+        .back { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.55rem; font-weight: 900; margin:0 0 6px; }
+        .subtitle { color: var(--muted); margin-bottom: 18px; }
+        .filter-card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+                       padding:16px; margin-bottom:18px; }
+        .filter-grid { display:grid; grid-template-columns: 2fr 1.5fr 1fr 1fr auto; gap:10px; align-items:end; }
+        @media (max-width: 720px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
+        label { font-size: 0.78rem; color: var(--muted); display:block; margin-bottom: 4px; font-weight:700; }
+        input, select {
+            width:100%; background: rgba(11,16,32,0.6); border: 1px solid var(--line);
+            color: var(--text); padding: 10px 12px; border-radius: 10px; font-family: inherit;
+            font-size: 0.9rem; outline: none;
+        }
+        input:focus, select:focus { border-color: var(--accent); }
+        .btn { padding:10px 16px; background:var(--accent); color:#0b1020; border:none;
+               border-radius:10px; font-weight:900; font-size:0.9rem; cursor:pointer; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:14px; }
+        .req { background:var(--card); border:1px solid var(--line); border-radius:14px;
+               padding:16px; border-right:4px solid var(--accent); }
+        .req h3 { margin:0 0 8px; font-size:1.05rem; }
+        .car-info { color:#a78bfa; font-size:0.85rem; font-weight:700; margin-bottom:8px; }
+        .engine { display:inline-block; background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.4);
+                  color:#c4b5fd; padding:2px 8px; border-radius:99px; font-size:0.75rem; font-weight:700; margin-inline-start:6px; }
+        .meta-row { display:flex; gap:14px; flex-wrap:wrap; font-size:0.82rem; color:var(--soft); margin:8px 0 12px; }
+        .desc { color:var(--soft); font-size:0.86rem; margin-bottom:10px; max-height:60px; overflow:hidden; }
+        .budget { color:#22c55e; font-weight:900; font-size:0.95rem; }
+        .expires { color:#fbbf24; font-size:0.78rem; }
+        .empty { text-align:center; padding:60px; color:var(--muted); }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> رجوع للسوق</a>
+    <div style="color:var(--accent);font-weight:900">🛒 طلبات المشترين</div>
+</div>
+
+<div class="wrap">
+    <h1>طلبات المشترين الحالية</h1>
+    <p class="subtitle">قطع غيار مطلوبة الآن — افلتر بمواصفات السيارة اللي عندك مخزون لها.</p>
+
+    <form class="filter-card" method="get">
+        <div class="filter-grid">
+            <div>
+                <label>الماركة</label>
+                <select name="make">
+                    <option value="">— الكل —</option>
+                    {% for m in makes %}
+                        <option value="{{ m.slug }}" {% if filters.make_slug == m.slug %}selected{% endif %}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>الموديل</label>
+                <input type="text" name="model" value="{{ filters.model }}" placeholder="F30, X5, Civic">
+            </div>
+            <div>
+                <label>السنة</label>
+                <input type="number" name="year" value="{{ filters.year }}" min="1950" max="2030" placeholder="2015">
+            </div>
+            <div>
+                <label>كود الموتور</label>
+                <input type="text" name="engine_code" value="{{ filters.engine_code }}" placeholder="N13">
+            </div>
+            <div>
+                <button class="btn" type="submit"><i class="fa fa-filter"></i> فلتر</button>
+            </div>
+        </div>
+    </form>
+
+    {% if requests %}
+        <div class="grid">
+            {% for r in requests %}
+                <div class="req">
+                    <h3>{{ r.part_name }}</h3>
+                    <div class="car-info">
+                        🚗 {{ r.car_make.name }} {{ r.car_model }} {{ r.car_year }}
+                        {% if r.engine_code %}<span class="engine">{{ r.engine_code }}</span>{% endif %}
+                    </div>
+                    {% if r.part_number_oem %}
+                        <div style="font-family:monospace;font-size:0.78rem;color:var(--muted);margin-bottom:8px">
+                            OEM: {{ r.part_number_oem }}
+                        </div>
+                    {% endif %}
+                    {% if r.description %}<div class="desc">{{ r.description|truncatechars:120 }}</div>{% endif %}
+                    <div class="meta-row">
+                        {% if r.max_budget_egp %}
+                            <span>💰 ميزانية: <span class="budget">{{ r.max_budget_egp }} ج.م</span></span>
+                        {% endif %}
+                        <span class="expires">⏰ ينتهي {{ r.expires_at|date:"Y-m-d" }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <i class="fa fa-search" style="font-size:48px;color:var(--muted);opacity:0.4"></i>
+            <p>مفيش طلبات مطابقة للفلتر دلوقتي.</p>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

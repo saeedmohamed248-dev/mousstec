@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#67e8f9; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+        .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
+        .tab.active { background:#0891b2; color:#fff; border-color:#67e8f9; }
+        .badge { display:inline-block; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-right:6px; font-weight:700; }
+        .badge.lifetime { background:#8b5cf6; }
+        .badge.active   { background:#22c55e; }
+        .badge.expired  { background:#ef4444; }
+        .badge.inactive { background:#64748b; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th { background:#0f172a; color:#67e8f9; font-weight:900; }
+        tr:hover { background:#293548; }
+        .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:11px; text-decoration:none; display:inline-block; margin:1px; }
+        .btn-1d { background:#facc15; color:#0f172a; }
+        .btn-1w { background:#84cc16; color:#fff; }
+        .btn-1m { background:#22c55e; color:#fff; }
+        .btn-3m { background:#06b6d4; color:#fff; }
+        .btn-6m { background:#3b82f6; color:#fff; }
+        .btn-1y { background:#8b5cf6; color:#fff; }
+        .btn-lifetime { background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; }
+        .btn-revoke { background:#ef4444; color:#fff; }
+        .actions form { display:inline; }
+        .messages { margin-bottom:16px; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
+        .alert.success { background:#15803d; color:#fff; }
+        .alert.warning { background:#f59e0b; color:#0f172a; }
+        .alert.error { background:#ef4444; color:#fff; }
+        .legend { font-size:11px; color:#94a3b8; margin-top:8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / وصول غرفة التشخيص</div>
+    <h1>🔧 وصول غرفة التشخيص (OBD)</h1>
+    <p class="sub">هذه الميزة <b>إضافة مدفوعة</b> منفصلة عن الباقة الأساسية. امنح/اسحب الوصول لكل مستأجر بضغطة زر.</p>
+
+    {% if messages %}<div class="messages">
+        {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
+    </div>{% endif %}
+
+    <div class="tabs">
+        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📜 الكل</a>
+        <a class="tab {% if show == 'active' %}active{% endif %}"   href="?show=active">✅ نشط</a>
+        <a class="tab {% if show == 'expiring' %}active{% endif %}" href="?show=expiring">⏳ ينتهي خلال أسبوع</a>
+        <a class="tab {% if show == 'inactive' %}active{% endif %}" href="?show=inactive">🚫 غير نشط</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>المستأجر</th>
+                <th>القطاع</th>
+                <th>الحالة</th>
+                <th>تاريخ الانتهاء</th>
+                <th>مَنح وصول</th>
+                <th>إجراء</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+            <tr>
+                <td><b>{{ r.client.name }}</b><br><span style="color:#94a3b8;font-size:11px;">{{ r.client.schema_name }}</span></td>
+                <td>{{ r.client.get_industry_display }}</td>
+                <td>
+                    {% if r.state == 'lifetime' %}<span class="badge lifetime">♾️ مدى الحياة</span>
+                    {% elif r.state == 'active' %}<span class="badge active">✅ نشط</span>
+                    {% elif r.state == 'expired' %}<span class="badge expired">⏰ منتهي</span>
+                    {% else %}<span class="badge inactive">🚫 غير مفعّل</span>{% endif %}
+                </td>
+                <td>{% if r.client.obd_access_expiry %}{{ r.client.obd_access_expiry|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+                <td class="actions">
+                    {% for key, label in durations %}{% endfor %}
+                    <form method="post" action="{% url 'saas_obd_access_grant' tenant_id=r.client.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-1d" name="duration" value="1d">+1 يوم</button>
+                        <button class="btn btn-1w" name="duration" value="1w">+1 أسبوع</button>
+                        <button class="btn btn-1m" name="duration" value="1m">+1 شهر</button>
+                        <button class="btn btn-3m" name="duration" value="3m">+3 شهور</button>
+                        <button class="btn btn-6m" name="duration" value="6m">+6 شهور</button>
+                        <button class="btn btn-1y" name="duration" value="1y">+1 سنة</button>
+                        <button class="btn btn-lifetime" name="duration" value="lifetime" onclick="return confirm('منح وصول مدى الحياة لـ {{ r.client.name|escapejs }}؟')">♾️ مدى الحياة</button>
+                    </form>
+                </td>
+                <td>
+                    {% if r.client.has_obd_access %}
+                    <form method="post" action="{% url 'saas_obd_access_revoke' tenant_id=r.client.id %}" onsubmit="return confirm('تأكيد سحب الوصول من {{ r.client.name|escapejs }}؟')">
+                        {% csrf_token %}
+                        <button class="btn btn-revoke">🚫 سحب</button>
+                    </form>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">لا يوجد مستأجرون في هذا الفلتر.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p class="legend">⏰ تحديث الوقت الحالي: {{ now|date:"Y-m-d H:i" }} · أزرار المنح تضيف للمدة المتبقية (Stacking).</p>
+</div>
+</body>
+</html>

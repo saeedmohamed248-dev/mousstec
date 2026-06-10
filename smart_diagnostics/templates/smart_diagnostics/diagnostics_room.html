@@ -384,6 +384,55 @@ body {
        Safari و Firefox لا يدعمان حالياً البلوتوث في المتصفح.</p>
 </div>
 
+<!-- 📡 OBD Wi-Fi offline-mode banner (Phase 3 #2). Shown when the browser
+     reports offline (navigator.onLine === false) — typically because the
+     technician joined the dongle's Wi-Fi which has no internet.
+     Hidden in CSS by default; JS toggles it. -->
+<div id="offlineBanner" role="status" aria-live="polite" style="
+    display:none; max-width:1300px; margin:12px auto 0; padding:12px 16px;
+    background:linear-gradient(90deg,#1e40af 0%,#0891b2 100%);
+    color:#e0f2fe; border:1px solid #38bdf8; border-radius:12px;
+    font-size:13px; font-weight:700; box-shadow:0 4px 18px rgba(56,189,248,.25);">
+    <i class="fa-solid fa-wifi"></i>
+    متصل بشبكة جهاز OBD (وضع عدم الاتصال) —
+    <span style="font-weight:400;">الفحوصات محفوظة بأمان على جهازك وستُرفع آلياً للسيرفر بمجرد رجوع الإنترنت.</span>
+    <span id="offlineQueueCount" style="margin-inline-start:8px;
+        background:rgba(255,255,255,0.18); padding:2px 8px; border-radius:99px;
+        font-family:monospace;">0 في الانتظار</span>
+</div>
+
+<!-- 💡 Pre-Scan Tips modal (Phase 3 #2). Recommends high-end OBD2 adapters
+     so technicians unlock Mode 22 / misfire / multi-frame data. -->
+<div id="preScanTipsModal" role="dialog" aria-modal="true" style="
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72);
+    z-index:9000; align-items:center; justify-content:center;">
+    <div style="background:#1e293b; max-width:640px; width:92%;
+                border:1px solid #475569; border-radius:16px; padding:28px;
+                color:#e2e8f0; max-height:88vh; overflow:auto;">
+        <h3 style="margin:0 0 14px; color:#fbbf24; font-weight:900;">
+            <i class="fa-solid fa-lightbulb"></i> نصائح قبل الفحص
+        </h3>
+        <ul style="padding-inline-start:20px; line-height:1.9; font-size:14px; color:#cbd5e1;">
+            <li>شغّل المحرك (Engine ON) قبل الاتصال — بعض الأكواد لا تظهر إلا والمحرك يعمل.</li>
+            <li>تأكد أن البطارية فوق <b>12.4V</b>، الجهد المنخفض يسبب قراءات خاطئة.</li>
+            <li>للحصول على بيانات <b>Mode 22</b> و <b>Misfire Counters</b> و <b>Multi-frame</b>،
+                يُنصح بشدة باستخدام محوّل OBD2 من الفئة العالية:
+                <ul style="margin-top:6px; color:#67e8f9;">
+                    <li>🥇 <b>vLinker MC+</b> — Bluetooth/Wi-Fi، يدعم كل البروتوكولات الحديثة.</li>
+                    <li>🥇 <b>OBDLink MX+</b> — أسرع وأكثر استقراراً، الأفضل للورش المحترفة.</li>
+                    <li>🥈 <b>Vgate iCar Pro BLE 4.0</b> — خيار اقتصادي يدعم BLE بشكل جيد.</li>
+                </ul>
+                المحوّلات الرخيصة (ELM327 الصينية) كثيراً ما تفشل في الأوامر المتقدمة.
+            </li>
+            <li>أوقف جميع الأحمال الكهربائية الكبيرة (مكيف/سخّان) لقراءة دقيقة للحمل والوقود.</li>
+        </ul>
+        <button type="button" id="btnClosePreScanTips" style="
+            margin-top:16px; padding:10px 24px; background:#22c55e; color:#fff;
+            border:none; border-radius:8px; font-weight:700; cursor:pointer;
+            font-family:inherit;">فهمت، ابدأ الفحص</button>
+    </div>
+</div>
+
 <div id="main" class="main">
 
     <!-- ── Connect / DTCs ── -->
@@ -391,7 +440,11 @@ body {
         <div class="card-title"><i class="fa-solid fa-plug"></i> الاتصال بالـ OBD</div>
         <div class="connect-actions">
             <button type="button" id="btnConnect" class="btn primary">
-                <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز ELM327
+                <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز OBD2
+            </button>
+            <button type="button" id="btnPreScanTips" class="btn-link-fallback"
+                    title="نصائح قبل الفحص + الأجهزة الموصى بها لفتح أقصى الإمكانيات">
+                <i class="fa-solid fa-lightbulb"></i> نصائح قبل الفحص
             </button>
             <button type="button" id="btnConnectRelaxed" class="btn-link-fallback"
                     title="استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية"
@@ -704,7 +757,7 @@ body {
         <div class="card-title"><i class="fa-solid fa-robot"></i> المساعد الذكي للفني</div>
         <div id="chatStream" class="chat-stream">
             <div class="msg bot">
-                مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن الـ ELM327 وتقرأ الأكواد،
+                مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن جهاز OBD2 وتقرأ الأكواد،
                 هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا.
             </div>
         </div>
@@ -1144,7 +1197,7 @@ body {
         });
         driver.addEventListener('initialized', (e) => {
             const p = e.detail && e.detail.protocol ? ` على ${e.detail.protocol}` : '';
-            log(`ELM327 جاهز${p} — البيانات هتبدأ تظهر.`);
+            log(`جهاز OBD2 جاهز${p} — البيانات هتبدأ تظهر.`);
             // Auto-probe capabilities so the technician knows up-front what
             // this adapter+ECU combo will and won't support.
             if (typeof driver.probeCapabilities === 'function') {
@@ -2654,6 +2707,52 @@ body {
             log(`فشل معالجة الصورة: ${err.message}`, true);
         }
     });
+})();
+</script>
+
+<!-- 📡 Phase 3 #2 — offline-mode banner + Pre-Scan Tips wiring -->
+<script>
+(function () {
+    'use strict';
+    // ── Pre-Scan Tips modal ──
+    const tipsModal = document.getElementById('preScanTipsModal');
+    const btnOpen   = document.getElementById('btnPreScanTips');
+    const btnClose  = document.getElementById('btnClosePreScanTips');
+    function openTips()  { if (tipsModal) tipsModal.style.display = 'flex'; }
+    function closeTips() { if (tipsModal) tipsModal.style.display = 'none'; }
+    if (btnOpen)  btnOpen.addEventListener('click', openTips);
+    if (btnClose) btnClose.addEventListener('click', closeTips);
+    if (tipsModal) tipsModal.addEventListener('click', (e) => {
+        if (e.target === tipsModal) closeTips();
+    });
+    // Auto-open the very first time a tenant uses the room (helps adoption).
+    try {
+        if (!localStorage.getItem('diag_prescan_tips_seen')) {
+            setTimeout(openTips, 600);
+            localStorage.setItem('diag_prescan_tips_seen', '1');
+        }
+    } catch (_e) { /* private mode — ignore */ }
+
+    // ── Offline-mode banner ──
+    const banner   = document.getElementById('offlineBanner');
+    const qCounter = document.getElementById('offlineQueueCount');
+    function renderBanner() {
+        if (!banner) return;
+        const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+        banner.style.display = offline ? 'block' : 'none';
+    }
+    function renderQueue(n) {
+        if (qCounter) qCounter.textContent = `${n || 0} في الانتظار`;
+    }
+    window.addEventListener('online',  renderBanner);
+    window.addEventListener('offline', renderBanner);
+    renderBanner();
+
+    // Live queue size from DiagOfflineQueue (PWA module).
+    if (window.DiagOfflineQueue && typeof window.DiagOfflineQueue.onChange === 'function') {
+        window.DiagOfflineQueue.onChange(renderQueue);
+        window.DiagOfflineQueue.pendingCount().then(renderQueue).catch(() => {});
+    }
 })();
 </script>
 </body>

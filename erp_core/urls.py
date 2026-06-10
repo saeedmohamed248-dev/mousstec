@@ -384,6 +384,9 @@ urlpatterns = [
     # 🚗 P2P Car-Parts Marketplace
     path('marketplace/parts/',                                client_views.parts_feed,             name='parts_feed'),
     path('marketplace/parts/sell/',                           client_views.parts_create,           name='parts_create'),
+    path('marketplace/parts/wanted/new/',                     client_views.parts_wanted_create,    name='parts_wanted_create'),
+    path('marketplace/parts/wanted/sellers/',                 client_views.parts_wanted_seller_feed, name='parts_wanted_seller_feed'),
+    path('marketplace/parts/order/<uuid:order_code>/dispute/', client_views.parts_open_dispute,    name='parts_open_dispute'),
     path('marketplace/parts/orders/',                         client_views.parts_my_orders,        name='parts_my_orders'),
     path('marketplace/parts/sales/',                          client_views.parts_my_sales,         name='parts_my_sales'),
     path('marketplace/parts/paymob-callback/',                client_views.parts_paymob_callback,  name='parts_paymob_callback'),
@@ -417,6 +420,21 @@ urlpatterns = [
     path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),
     path('superadmin/parts/moderation/<int:listing_id>/approve/', saas_admin_views.parts_moderation_approve, name='saas_parts_moderation_approve'),
     path('superadmin/parts/moderation/<int:listing_id>/reject/',  saas_admin_views.parts_moderation_reject,  name='saas_parts_moderation_reject'),
+
+    # ⚖️ Dispute centre
+    path('superadmin/disputes/', saas_admin_views.disputes_queue, name='saas_disputes_queue'),
+    path('superadmin/disputes/<int:ticket_id>/resolve/', saas_admin_views.dispute_resolve, name='saas_dispute_resolve'),
+
+    # 🛒 Parts marketplace — live/active listings control (Phase 3 #1)
+    path('superadmin/parts/active/', saas_admin_views.parts_active_listings, name='saas_parts_active_listings'),
+    path('superadmin/parts/active/<int:listing_id>/edit/',    saas_admin_views.parts_listing_edit,        name='saas_parts_listing_edit'),
+    path('superadmin/parts/active/<int:listing_id>/suspend/', saas_admin_views.parts_listing_suspend,     name='saas_parts_listing_suspend'),
+    path('superadmin/parts/active/<int:listing_id>/delete/',  saas_admin_views.parts_listing_soft_delete, name='saas_parts_listing_soft_delete'),
+
+    # 🔧 OBD / Diagnostics-Room paid add-on (Phase 3 #3)
+    path('superadmin/obd-access/',                            saas_admin_views.obd_access_list,   name='saas_obd_access_list'),
+    path('superadmin/obd-access/<int:tenant_id>/grant/',      saas_admin_views.obd_access_grant,  name='saas_obd_access_grant'),
+    path('superadmin/obd-access/<int:tenant_id>/revoke/',     saas_admin_views.obd_access_revoke, name='saas_obd_access_revoke'),
 
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),

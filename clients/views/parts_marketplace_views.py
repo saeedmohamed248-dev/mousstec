@@ -120,11 +120,31 @@ def parts_detail(request, listing_code):
     customer = _marketplace_auth(request)
     is_owner = bool(customer and listing.seller_customer_id == customer.pk)
 
+    # Masked seller view by default. Reveal only if the viewer has an
+    # escrow-funded order on this listing OR is the seller themselves.
+    from clients.services.trust import contact_view
+    from clients.models import PartOrder
+    reveal_order = None
+    if customer and listing.seller_customer_id and not is_owner:
+        reveal_order = (
+            PartOrder.objects.filter(
+                listing=listing,
+                buyer_customer=customer,
+                status__in=['paid_held', 'shipped', 'delivered', 'released',
+                            'refund_requested', 'refunded', 'disputed'],
+            )
+            .order_by('-created_at').first()
+        )
+    seller_contact = contact_view(
+        listing.seller_customer, viewer=customer, order=reveal_order,
+    ) if listing.seller_customer_id else None
+
     return render(request, 'clients/marketplace/parts_detail.html', {
         'listing': listing,
         'photos': list(listing.photos.all()),
         'customer': customer,
         'is_owner': is_owner,
+        'seller_contact': seller_contact,
     })
 
 
@@ -649,6 +669,146 @@ def parts_request_refund(request, order_code):
         description=f"⚠️ طلب إرجاع للطلب {order.order_code}: {reason[:80]}",
     )
     return JsonResponse({'ok': True, 'message': 'تم تسجيل طلب الإرجاع. هنتواصل معك قريباً.'})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 4b. WANTED REQUESTS — buyer posts what they need, sellers filter by fitment
+# ─────────────────────────────────────────────────────────────────────
+
+def parts_wanted_create(request):
+    """Buyer posts a 'Part Wanted' request."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/login/')
+    if customer.sector != 'automotive':
+        return JsonResponse({'error': 'هذا الطلب مخصص لقطاع السيارات.'}, status=403)
+
+    from clients.models import PartWantedRequest, PartCarMake as _Make
+
+    if request.method != 'POST':
+        return render(request, 'clients/marketplace/parts_wanted_create.html', {
+            'customer': customer,
+            'makes': _Make.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        })
+
+    try:
+        make_id = int(request.POST.get('car_make') or 0)
+        make = get_object_or_404(_Make, pk=make_id, is_active=True)
+        year = int(request.POST.get('car_year') or 0)
+        if year < 1950 or year > timezone.now().year + 1:
+            return JsonResponse({'error': 'سنة الصنع غير منطقية.'}, status=400)
+        model = (request.POST.get('car_model') or '').strip()
+        if not model:
+            return JsonResponse({'error': 'الموديل مطلوب — مثال: F30, X5, Civic.'}, status=400)
+        name = (request.POST.get('part_name') or '').strip()
+        if not name:
+            return JsonResponse({'error': 'اسم القطعة مطلوب.'}, status=400)
+
+        budget = request.POST.get('max_budget_egp')
+        budget_dec = Decimal(budget) if budget else None
+
+        req = PartWantedRequest.objects.create(
+            buyer_customer=customer,
+            car_make=make,
+            car_model=model[:100],
+            car_year=year,
+            engine_code=(request.POST.get('engine_code') or '').strip()[:30],
+            part_name=name[:200],
+            part_number_oem=(request.POST.get('part_number_oem') or '').strip()[:120],
+            description=(request.POST.get('description') or '').strip(),
+            max_budget_egp=budget_dec,
+        )
+        return JsonResponse({
+            'ok': True,
+            'message': 'تم نشر الطلب. هتوصلك عروض البائعين قريباً.',
+            'request_code': str(req.request_code),
+        })
+    except Exception as exc:
+        logger.exception("[WANTED] Failed to create request: %s", exc)
+        return JsonResponse({'error': f'فشل النشر: {exc}'}, status=500)
+
+
+def parts_wanted_seller_feed(request):
+    """
+    Seller-facing feed of open wanted requests, filterable by make/model/year/engine.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/login/')
+    if customer.sector != 'automotive':
+        return JsonResponse({'error': 'هذا السوق مخصص لقطاع السيارات.'}, status=403)
+
+    from clients.models import PartCarMake as _Make
+    from clients.services.fitment import open_wanted_requests
+
+    make_slug = (request.GET.get('make') or '').strip().lower()
+    model     = (request.GET.get('model') or '').strip()
+    year_str  = (request.GET.get('year') or '').strip()
+    engine    = (request.GET.get('engine_code') or '').strip()
+
+    make = _Make.objects.filter(slug=make_slug, is_active=True).first() if make_slug else None
+    try:
+        year = int(year_str) if year_str else None
+    except ValueError:
+        year = None
+
+    requests_qs = open_wanted_requests(
+        make=make, model=model or None, year=year, engine_code=engine or None,
+    )[:100]
+
+    return render(request, 'clients/marketplace/parts_wanted_seller_feed.html', {
+        'customer': customer,
+        'requests': requests_qs,
+        'makes': _Make.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        'filters': {
+            'make_slug': make_slug, 'model': model,
+            'year': year_str, 'engine_code': engine,
+        },
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 4c. DISPUTES — buyer or seller opens a ticket within the 3-day window
+# ─────────────────────────────────────────────────────────────────────
+
+def parts_open_dispute(request, order_code):
+    """Buyer or seller opens a dispute on their own order."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({'error': 'يجب تسجيل الدخول.'}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    from clients.models import PartOrder, DisputeTicket
+    from clients.services.disputes import open_dispute
+    from django.core.exceptions import ValidationError as DjVE, PermissionDenied
+
+    order = get_object_or_404(PartOrder, order_code=order_code)
+    # Decide role automatically based on which side this customer is on.
+    if order.buyer_customer_id == customer.pk:
+        role = 'buyer'
+    elif order.listing.seller_customer_id == customer.pk:
+        role = 'seller'
+    else:
+        return JsonResponse({'error': 'هذا الطلب ليس لك.'}, status=403)
+
+    try:
+        ticket = open_dispute(
+            order=order, opener=customer, opener_role=role,
+            category=(request.POST.get('category') or '').strip(),
+            description=(request.POST.get('description') or '').strip(),
+        )
+    except PermissionDenied as exc:
+        return JsonResponse({'error': str(exc)}, status=403)
+    except DjVE as exc:
+        return JsonResponse({'error': '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc)}, status=400)
+
+    return JsonResponse({
+        'ok': True,
+        'ticket_code': str(ticket.ticket_code),
+        'status': ticket.status,
+        'message': 'تم فتح النزاع. المبلغ مجمّد لحين قرار الإدارة.',
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────

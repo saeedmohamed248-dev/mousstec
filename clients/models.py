@@ -117,8 +117,21 @@ class Client(SoftDeleteMixin, TenantMixin):
     created_on = models.DateField(auto_now_add=True)
     is_active = models.BooleanField(default=True, verbose_name=_("الاشتراك فعال؟"))
 
-    auto_create_schema = True 
-    auto_drop_schema = False 
+    # 🔧 OBD / Diagnostics-Room paid add-on — gated independently from the main Plan.
+    #   has_obd_access=True  + obd_access_expiry=None   ⇒ lifetime
+    #   has_obd_access=True  + future expiry            ⇒ timed grant
+    #   has_obd_access=False                            ⇒ no access
+    has_obd_access = models.BooleanField(
+        default=False, verbose_name=_("الوصول لغرفة التشخيص (OBD)"),
+    )
+    obd_access_expiry = models.DateTimeField(
+        blank=True, null=True,
+        verbose_name=_("انتهاء صلاحية وصول OBD"),
+        help_text=_("اتركها فارغة للوصول مدى الحياة."),
+    )
+
+    auto_create_schema = True
+    auto_drop_schema = False
 
     class Meta:
         verbose_name = _("شركة / مركز (عميل SaaS)")
@@ -185,6 +198,43 @@ class Client(SoftDeleteMixin, TenantMixin):
         if self.status == 'cancelled':
             self.status = 'suspended'  # يحتاج تفعيل يدوي
         super().restore()
+
+    # ─── 🔧 OBD subscription helpers ───────────────────────────────────
+    @property
+    def obd_access_is_valid(self) -> bool:
+        """True iff this tenant currently has live OBD/Diagnostics access."""
+        if not self.has_obd_access:
+            return False
+        if self.obd_access_expiry is None:
+            return True  # lifetime
+        return timezone.now() < self.obd_access_expiry
+
+    @property
+    def obd_access_is_lifetime(self) -> bool:
+        return self.has_obd_access and self.obd_access_expiry is None
+
+    def grant_obd_access(self, duration=None, *, by_user=None):
+        """Grant or extend OBD access.
+
+        `duration` is a `datetime.timedelta` to add to *the later of*
+        `now()` and the current `obd_access_expiry` (so stacking +1m on
+        +1m gives 2 months). `duration=None` means lifetime.
+        """
+        from django.utils import timezone as _tz
+        self.has_obd_access = True
+        if duration is None:
+            self.obd_access_expiry = None
+        else:
+            base = self.obd_access_expiry if (
+                self.obd_access_expiry and self.obd_access_expiry > _tz.now()
+            ) else _tz.now()
+            self.obd_access_expiry = base + duration
+        self.save(update_fields=['has_obd_access', 'obd_access_expiry'])
+
+    def revoke_obd_access(self, *, by_user=None):
+        self.has_obd_access = False
+        self.obd_access_expiry = None
+        self.save(update_fields=['has_obd_access', 'obd_access_expiry'])
 
 # =====================================================================
 # 🌐 2. جدول النطاقات
@@ -1604,6 +1654,139 @@ class MarketplaceCustomer(SoftDeleteMixin, models.Model):
         super().save(*args, **kwargs)
 
 
+# =====================================================================
+# 🛡️ UserVerification — KYC engine (Identity + Business documents)
+# Inspired by eBay ID Verify, Amazon Seller Verification, Etsy KYC.
+# =====================================================================
+def _verification_upload_path(instance, filename):
+    """Store verification documents under per-customer folders, keyed by UUID
+    so filenames are non-guessable. Never expose these paths to the public."""
+    return f'verifications/{instance.customer.uid}/{uuid.uuid4().hex}_{filename}'
+
+
+class UserVerification(models.Model):
+    """
+    Holds KYC documents for a MarketplaceCustomer. One-to-one with the
+    customer. The cached ``trust_score`` (0–100) is recomputed every save.
+
+    Tiering — matches global marketplace standards:
+      * NEW     (0)   : phone unverified, anonymous risk
+      * BASIC   (20)  : phone OTP verified
+      * EMAIL   (40)  : + email confirmed
+      * ID      (70)  : + government ID approved
+      * BUSINESS(100) : + commercial / workshop license approved
+    """
+    STATUS_CHOICES = (
+        ('not_submitted', _('لم يُقدَّم')),
+        ('pending',       _('قيد المراجعة')),
+        ('approved',      _('معتمد')),
+        ('rejected',      _('مرفوض')),
+    )
+    ID_TYPE_CHOICES = (
+        ('national_id', _('بطاقة رقم قومي')),
+        ('passport',    _('جواز سفر')),
+    )
+    TIER_CHOICES = (
+        ('new',      _('جديد')),
+        ('basic',    _('أساسي')),
+        ('email',    _('موثّق بالبريد')),
+        ('id',       _('هوية موثّقة')),
+        ('business', _('عمل موثّق')),
+    )
+
+    customer = models.OneToOneField(
+        'MarketplaceCustomer', on_delete=models.CASCADE,
+        related_name='verification',
+    )
+
+    # — Government ID —
+    id_type = models.CharField(max_length=20, choices=ID_TYPE_CHOICES, default='national_id')
+    id_number_last4 = models.CharField(max_length=4, blank=True, default='',
+        help_text=_("نخزّن آخر 4 أرقام فقط — التطابق الكامل يتم وقت المراجعة"))
+    id_document_front = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    id_document_back  = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    id_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='not_submitted', db_index=True)
+    id_submitted_at = models.DateTimeField(null=True, blank=True)
+    id_reviewed_at = models.DateTimeField(null=True, blank=True)
+    id_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    id_rejection_reason = models.CharField(max_length=255, blank=True, default='')
+
+    # — Selfie / liveness (optional, boosts trust but not gating) —
+    selfie_image = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    selfie_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='not_submitted')
+
+    # — Workshop / mechanic license (automotive sellers) —
+    workshop_license_number_last4 = models.CharField(max_length=8, blank=True, default='')
+    workshop_license_image = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    workshop_license_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='not_submitted')
+
+    # — Business / commercial registration —
+    business_registration_image = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    business_registration_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='not_submitted')
+    tax_card_image = models.ImageField(upload_to=_verification_upload_path, null=True, blank=True)
+    tax_card_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='not_submitted')
+
+    # — Cached score / tier (recomputed on save) —
+    trust_score = models.IntegerField(default=0, db_index=True,
+        help_text=_("0–100. يُحسب تلقائياً من حالة المستندات."))
+    trust_tier = models.CharField(max_length=10, choices=TIER_CHOICES, default='new', db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("توثيق هوية مستخدم")
+        verbose_name_plural = _("🛡️ توثيقات الهوية (KYC)")
+
+    def __str__(self):
+        return f"{self.customer} — {self.trust_score}% ({self.get_trust_tier_display()})"
+
+    # ─── Score calculation ───
+    def compute_score(self) -> tuple[int, str]:
+        """
+        Returns (score, tier). Pure function of current field state — no DB
+        writes. Tier breakpoints match global-marketplace conventions so the
+        UI badge mapping stays predictable.
+        """
+        score = 0
+        tier = 'new'
+        c = self.customer
+        if c and c.is_verified:                         # phone OTP
+            score = 20; tier = 'basic'
+        if c and c.email:                                # email present
+            # Email "verified" is implied by presence here — wire to a real
+            # confirmation flow later if needed.
+            score = max(score, 40); tier = 'email'
+        if self.id_status == 'approved':
+            score = max(score, 70); tier = 'id'
+        if (self.business_registration_status == 'approved'
+                or self.workshop_license_status == 'approved'):
+            score = 100; tier = 'business'
+        # Selfie is a +5 boost but capped to 100.
+        if self.selfie_status == 'approved' and score < 100:
+            score = min(score + 5, 99)  # leaves 100 reserved for business tier
+        return score, tier
+
+    def recompute(self, save=True):
+        score, tier = self.compute_score()
+        self.trust_score = score
+        self.trust_tier = tier
+        if save:
+            super().save(update_fields=['trust_score', 'trust_tier', 'updated_at'])
+        return score
+
+    def save(self, *args, **kwargs):
+        # Always keep cached score in sync. Done before super().save() so the
+        # written row already has the correct trust_score.
+        score, tier = self.compute_score()
+        self.trust_score = score
+        self.trust_tier = tier
+        super().save(*args, **kwargs)
+
+
 class ServiceRequest(models.Model):
     """
     طلب خدمة / منتج من عميل — المناقصة الأساسية.
@@ -2902,6 +3085,7 @@ class PartListing(SoftDeleteMixin, models.Model):
         ('pending_approval', _('بانتظار موافقة الإدارة')),
         ('approved',         _('معتمد')),
         ('rejected',         _('مرفوض')),
+        ('suspended',        _('معلق بواسطة الإدارة')),
     )
 
     listing_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
@@ -2923,11 +3107,15 @@ class PartListing(SoftDeleteMixin, models.Model):
         help_text=_("اوصف القطعة بالتفصيل: الحالة، أي عيوب، رقم القطعة الأصلي، إلخ"))
     car_make = models.ForeignKey(PartCarMake, on_delete=models.PROTECT,
                                  related_name='listings', verbose_name=_("ماركة السيارة"))
-    car_model = models.CharField(max_length=100, blank=True, verbose_name=_("الموديل"),
-                                 help_text=_("مثال: 320i, X5, Cooper S"))
+    car_model = models.CharField(max_length=100, blank=True, db_index=True,
+                                 verbose_name=_("الموديل"),
+                                 help_text=_("مثال: 320i, X5, Cooper S, F30"))
     car_year_from = models.IntegerField(null=True, blank=True, verbose_name=_("من سنة"))
     car_year_to   = models.IntegerField(null=True, blank=True, verbose_name=_("إلى سنة"))
-    part_number = models.CharField(max_length=120, blank=True,
+    engine_code = models.CharField(max_length=30, blank=True, db_index=True,
+                                   verbose_name=_("كود الموتور"),
+                                   help_text=_("مثال: N13, N20, M54, K20A — حساس جداً لمطابقة قطع غيار محرك."))
+    part_number = models.CharField(max_length=120, blank=True, db_index=True,
                                    verbose_name=_("رقم القطعة الأصلي (OEM)"))
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='used_good')
 
@@ -3127,6 +3315,32 @@ class PartOrder(SoftDeleteMixin, models.Model):
     refund_reason = models.TextField(blank=True)
     admin_notes = models.TextField(blank=True)
 
+    # ── Return shipping liability ──────────────────────────────────
+    # Policy: platform never pays return shipping. Buyer pays on remorse,
+    # seller pays when the part is defective / incorrect / never arrived /
+    # not as described. The mapping lives in clients/services/escrow.py;
+    # this column is the *decision* recorded at the time the return was
+    # initiated. NULL until a return is actually opened.
+    RETURN_REASON_CHOICES = (
+        ('buyer_remorse',    _('تراجع المشتري')),
+        ('wrong_size_or_fit',_('مقاس / تركيب خطأ من المشتري')),
+        ('defective',        _('القطعة معيبة')),
+        ('incorrect',        _('القطعة مختلفة عن المعروض')),
+        ('not_as_described', _('غير مطابق للوصف / الصور')),
+        ('never_arrived',    _('لم تصل')),
+    )
+    RETURN_PAYER_CHOICES = (
+        ('buyer',  _('المشتري')),
+        ('seller', _('البائع')),
+        # 'platform' is intentionally NOT a choice — see DB check constraint.
+    )
+    return_reason = models.CharField(
+        max_length=25, choices=RETURN_REASON_CHOICES, blank=True, default='',
+    )
+    return_shipping_payer = models.CharField(
+        max_length=10, choices=RETURN_PAYER_CHOICES, blank=True, default='',
+    )
+
     class Meta:
         verbose_name = _("طلب شراء قطعة")
         verbose_name_plural = _("📦 طلبات شراء قطع الغيار")
@@ -3139,6 +3353,11 @@ class PartOrder(SoftDeleteMixin, models.Model):
                     models.Q(buyer_customer__isnull=False, buyer_tenant__isnull=True) |
                     models.Q(buyer_customer__isnull=True,  buyer_tenant__isnull=False)
                 ),
+            ),
+            # 🛡️ Legal: platform must never appear as the return-shipping payer.
+            models.CheckConstraint(
+                name='partorder_return_payer_never_platform',
+                check=models.Q(return_shipping_payer__in=['', 'buyer', 'seller']),
             ),
         ]
 
@@ -3182,6 +3401,409 @@ class PartOrder(SoftDeleteMixin, models.Model):
                 level='success', icon='fa-money-bill-wave',
             )
         return True
+
+
+# =====================================================================
+# 🆘 PartWantedRequest — buyer's "I need this part" post.
+# Sellers browse a feed of these filtered by exact car spec.
+# Mirrors eBay Motors / RockAuto fitment-matching: required year +
+# make + model + engine code is the strong filter.
+# =====================================================================
+class PartWantedRequest(SoftDeleteMixin, models.Model):
+    STATUS_CHOICES = (
+        ('open',       _('مفتوح — بانتظار عروض')),
+        ('matched',    _('تم قبول عرض')),
+        ('fulfilled',  _('تم الشراء')),
+        ('cancelled',  _('ملغي بواسطة المشتري')),
+        ('expired',    _('منتهي الصلاحية')),
+    )
+
+    request_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+
+    # Buyer (exactly one)
+    buyer_customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_wanted_requests',
+    )
+    buyer_tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='part_wanted_requests',
+    )
+
+    # ── Vehicle metadata (the strict-matching filter) ──
+    car_make = models.ForeignKey(PartCarMake, on_delete=models.PROTECT,
+                                 related_name='wanted_requests',
+                                 verbose_name=_("الماركة"))
+    car_model = models.CharField(max_length=100, db_index=True,
+                                 verbose_name=_("الموديل"),
+                                 help_text=_("مثال: F30, X5, Civic — مطلوب."))
+    car_year = models.IntegerField(db_index=True, verbose_name=_("سنة الصنع"),
+                                   help_text=_("سنة واحدة محددة (مطلوبة)."))
+    engine_code = models.CharField(max_length=30, blank=True, db_index=True,
+                                   verbose_name=_("كود الموتور"),
+                                   help_text=_("N13, N20, etc. اتركه فارغاً لو القطعة هيكلية أو مش متعلقة بالمحرك."))
+
+    # ── Part details ──
+    part_name = models.CharField(max_length=200, verbose_name=_("اسم القطعة"))
+    part_number_oem = models.CharField(max_length=120, blank=True, db_index=True,
+                                       verbose_name=_("رقم OEM (اختياري)"))
+    description = models.TextField(blank=True, verbose_name=_("ملاحظات إضافية"))
+    max_budget_egp = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+        verbose_name=_("الميزانية القصوى (ج.م) — اختياري"),
+    )
+
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES,
+                              default='open', db_index=True)
+
+    created_at  = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at  = models.DateTimeField(db_index=True,
+        help_text=_("الطلب يختفي تلقائياً بعد 14 يوم."))
+    fulfilled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("طلب قطعة (Wanted)")
+        verbose_name_plural = _("🆘 طلبات القطع")
+        ordering = ['-created_at']
+        indexes = [
+            # The seller-feed query: open + (make, model, year) — fast.
+            models.Index(fields=['status', 'car_make', 'car_model', 'car_year']),
+            models.Index(fields=['status', 'engine_code']),
+            models.Index(fields=['status', 'expires_at']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                name='partwanted_one_buyer',
+                check=(
+                    models.Q(buyer_customer__isnull=False, buyer_tenant__isnull=True) |
+                    models.Q(buyer_customer__isnull=True,  buyer_tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"Wanted: {self.part_name} — {self.car_make.name} {self.car_model} {self.car_year}"
+
+    def save(self, *args, **kwargs):
+        # Default 14-day expiry if not explicitly set.
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=14)
+        # Normalize engine_code casing — N13 not n13/N13/n-13.
+        if self.engine_code:
+            self.engine_code = self.engine_code.upper().strip()
+        super().save(*args, **kwargs)
+
+    @property
+    def is_visible_to_sellers(self):
+        return (
+            not self.is_deleted
+            and self.status == 'open'
+            and self.expires_at > timezone.now()
+        )
+
+
+class PartWantedOffer(models.Model):
+    """A seller's offer in response to a PartWantedRequest."""
+    STATUS_CHOICES = (
+        ('pending',  _('مرسل — بانتظار رد المشتري')),
+        ('accepted', _('قبله المشتري')),
+        ('rejected', _('رفضه المشتري')),
+        ('withdrawn',_('سحبه البائع')),
+    )
+
+    request = models.ForeignKey(
+        PartWantedRequest, on_delete=models.CASCADE, related_name='offers',
+    )
+    seller_customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='wanted_offers_made',
+    )
+    seller_tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='wanted_offers_made',
+    )
+    # If the seller already has a listing matching this request,
+    # point at it so the buyer can click through.
+    linked_listing = models.ForeignKey(
+        'PartListing', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='wanted_offers',
+    )
+
+    price_egp = models.DecimalField(max_digits=12, decimal_places=2)
+    condition = models.CharField(max_length=20, choices=PartListing.CONDITION_CHOICES, default='used_good')
+    notes = models.TextField(blank=True, max_length=500)
+    warranty_days = models.IntegerField(default=3, validators=[_validate_warranty_days])
+
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("عرض على طلب قطعة")
+        verbose_name_plural = _("عروض على طلبات القطع")
+        ordering = ['price_egp', '-created_at']
+        constraints = [
+            models.CheckConstraint(
+                name='partwantedoffer_one_seller',
+                check=(
+                    models.Q(seller_customer__isnull=False, seller_tenant__isnull=True) |
+                    models.Q(seller_customer__isnull=True,  seller_tenant__isnull=False)
+                ),
+            ),
+            # One offer per (request, seller). Two conditional constraints
+            # because Postgres treats NULL ≠ NULL, so a single fields=[...]
+            # UniqueConstraint with a nullable seller_* column won't fire.
+            models.UniqueConstraint(
+                name='partwantedoffer_one_per_customer_seller',
+                fields=['request', 'seller_customer'],
+                condition=models.Q(seller_customer__isnull=False),
+            ),
+            models.UniqueConstraint(
+                name='partwantedoffer_one_per_tenant_seller',
+                fields=['request', 'seller_tenant'],
+                condition=models.Q(seller_tenant__isnull=False),
+            ),
+        ]
+
+    def __str__(self):
+        return f"Offer {self.price_egp} EGP on {self.request_id}"
+
+
+# =====================================================================
+# 💰 EscrowHold — financial custody record for P2P part orders
+# =====================================================================
+class EscrowHold(models.Model):
+    """
+    One-to-one with PartOrder. Represents the buyer's payment held by the
+    platform until ownership + warranty period close. Separating money
+    custody from order lifecycle keeps the financial audit trail clean
+    and matches how regulated marketplaces (eBay Managed Payments,
+    Amazon A-to-z) structure their books.
+
+    Lifecycle:
+        held → released_to_seller          (warranty expired, seller paid)
+        held → refunded_to_buyer           (full refund granted)
+        held → split                       (partial refund, rest to seller)
+    """
+    STATUS_CHOICES = (
+        ('held',                _('محجوز')),
+        ('released_to_seller',  _('تم التحويل للبائع')),
+        ('refunded_to_buyer',   _('تم الرد للمشتري')),
+        ('split',               _('مقسوم — جزئي')),
+    )
+
+    order = models.OneToOneField(
+        'PartOrder', on_delete=models.PROTECT, related_name='escrow_hold',
+        verbose_name=_("الطلب"),
+    )
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES,
+                              default='held', db_index=True)
+
+    # Frozen amounts — set at creation, never edited.
+    held_amount = models.DecimalField(max_digits=12, decimal_places=2,
+        help_text=_("إجمالي المبلغ المحجوز عند الدفع."))
+    seller_payout_amount = models.DecimalField(max_digits=12, decimal_places=2,
+        default=Decimal('0.00'))
+    buyer_refund_amount = models.DecimalField(max_digits=12, decimal_places=2,
+        default=Decimal('0.00'))
+    platform_commission_amount = models.DecimalField(max_digits=12, decimal_places=2,
+        default=Decimal('0.00'))
+
+    # Audit
+    held_at     = models.DateTimeField(auto_now_add=True, db_index=True)
+    settled_at  = models.DateTimeField(null=True, blank=True)
+    settled_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    settlement_reason = models.CharField(max_length=255, blank=True, default='')
+
+    # Disclaimer acceptance (which version did the buyer agree to at checkout?)
+    accepted_disclaimer = models.ForeignKey(
+        'PlatformLiabilityDisclaimer', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='holds',
+    )
+
+    class Meta:
+        verbose_name = _("حجز ضمان (Escrow Hold)")
+        verbose_name_plural = _("💰 حجوزات الضمان")
+        ordering = ['-held_at']
+        constraints = [
+            # Money preservation: payout + refund + commission ≤ held_amount
+            # (equality on settled states; held state may have all three = 0)
+            models.CheckConstraint(
+                name='escrowhold_amounts_nonnegative',
+                check=(
+                    models.Q(held_amount__gte=0)
+                    & models.Q(seller_payout_amount__gte=0)
+                    & models.Q(buyer_refund_amount__gte=0)
+                    & models.Q(platform_commission_amount__gte=0)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"EscrowHold[{self.order.order_code}] {self.status} — {self.held_amount} EGP"
+
+
+# =====================================================================
+# 📜 PlatformLiabilityDisclaimer — versioned legal text the buyer must
+#    accept at checkout. The platform's exposure is contractually zero.
+# =====================================================================
+class PlatformLiabilityDisclaimer(models.Model):
+    """
+    Versioned. The active row (is_active=True with the highest version)
+    is the one displayed at checkout. Previous versions stay queryable
+    so we know which exact text each historic buyer agreed to.
+    """
+    version = models.CharField(max_length=20, unique=True, db_index=True,
+        help_text=_("e.g. v1.0, v1.1, v2.0"))
+    title_ar = models.CharField(max_length=200,
+        default=_("إخلاء مسؤولية المنصة"))
+    body_ar = models.TextField(
+        help_text=_("النص القانوني الكامل بالعربية."))
+    body_en = models.TextField(blank=True, default='',
+        help_text=_("Optional English mirror for international buyers."))
+    is_active = models.BooleanField(default=True, db_index=True,
+        help_text=_("هل هذه النسخة المعروضة حالياً للمشترين الجدد؟"))
+    effective_from = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("إخلاء مسؤولية")
+        verbose_name_plural = _("📜 وثائق إخلاء المسؤولية")
+        ordering = ['-effective_from']
+
+    def __str__(self):
+        return f"Disclaimer {self.version} ({'active' if self.is_active else 'archived'})"
+
+    @classmethod
+    def current(cls):
+        """The disclaimer to show new buyers right now. None if no row exists yet."""
+        return cls.objects.filter(is_active=True).order_by('-effective_from').first()
+
+
+# =====================================================================
+# ⚖️ DisputeTicket — buyer/seller claim within 3-day inspection window
+# =====================================================================
+class DisputeTicket(SoftDeleteMixin, models.Model):
+    """
+    Either side of a PartOrder can open a dispute within
+    ``DISPUTE_WINDOW_DAYS`` of delivery (or anytime before delivery for
+    'never_arrived' claims). Opening flips the order status to 'disputed',
+    which causes the existing auto-release routine to skip it — escrow
+    funds are frozen until an admin resolves the case.
+
+    Resolution dispatches to clients.services.escrow:
+      * resolved_refund   → refund_to_buyer
+      * resolved_release  → release_to_seller (order temporarily restored to delivered)
+      * resolved_split    → split_settlement
+      * cancelled         → no-op (claim retracted by opener)
+    """
+    DISPUTE_WINDOW_DAYS = 3  # global standard inspection window
+
+    OPENER_CHOICES = (
+        ('buyer',  _('المشتري')),
+        ('seller', _('البائع')),
+    )
+    CATEGORY_CHOICES = (
+        ('item_not_received',     _('لم تصل القطعة')),
+        ('item_not_as_described', _('غير مطابقة للوصف')),
+        ('damaged_on_arrival',    _('وصلت تالفة')),
+        ('wrong_item',            _('قطعة مختلفة')),
+        ('counterfeit',           _('غير أصلية / تقليد')),
+        ('buyer_misuse',          _('سوء استخدام من المشتري')),
+        ('payment_issue',         _('مشكلة في الدفع')),
+        ('other',                 _('أخرى')),
+    )
+    STATUS_CHOICES = (
+        ('open',              _('مفتوحة')),
+        ('under_review',      _('قيد المراجعة')),
+        ('resolved_refund',   _('محلولة — رد للمشتري')),
+        ('resolved_release',  _('محلولة — تحرير للبائع')),
+        ('resolved_split',    _('محلولة — تسوية جزئية')),
+        ('cancelled',         _('ملغاة من مقدّمها')),
+    )
+
+    ticket_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    order = models.ForeignKey('PartOrder', on_delete=models.PROTECT, related_name='disputes')
+
+    opened_by_role = models.CharField(max_length=10, choices=OPENER_CHOICES)
+    opened_by_customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='disputes_opened',
+    )
+    opened_by_tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='disputes_opened',
+    )
+
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    description = models.TextField(verbose_name=_("التفاصيل"))
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                              default='open', db_index=True)
+    # Snapshot of the order status when the dispute was opened — helpful
+    # for audit when the resolution path later flips things around.
+    order_status_at_open = models.CharField(max_length=20, blank=True, default='')
+
+    resolution_notes = models.TextField(blank=True, default='')
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+
+    opened_at   = models.DateTimeField(auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("تذكرة نزاع")
+        verbose_name_plural = _("⚖️ تذاكر النزاعات")
+        ordering = ['-opened_at']
+        indexes = [
+            models.Index(fields=['status', '-opened_at']),
+            models.Index(fields=['order', 'status']),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                name='dispute_one_opener',
+                check=(
+                    models.Q(opened_by_customer__isnull=False, opened_by_tenant__isnull=True) |
+                    models.Q(opened_by_customer__isnull=True,  opened_by_tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"Dispute {self.ticket_code} on order {self.order.order_code} ({self.status})"
+
+    @classmethod
+    def is_within_window(cls, order) -> bool:
+        """
+        Buyer/seller may open a dispute iff:
+          * order was delivered AND now - delivered_at ≤ 3 days, OR
+          * order is paid_held / shipped (item not received scenarios), OR
+          * order is already disputed (additional context).
+        Released / refunded orders are closed for dispute.
+        """
+        if order.status in ('released', 'refunded', 'cancelled'):
+            return False
+        if order.status in ('paid_held', 'shipped', 'disputed'):
+            return True
+        if order.status == 'delivered' and order.delivered_at:
+            return timezone.now() - order.delivered_at <= timedelta(days=cls.DISPUTE_WINDOW_DAYS)
+        return False
+
+
+class DisputeEvidence(models.Model):
+    """Photos / screenshots attached to a dispute. Image-only at v1."""
+    ticket = models.ForeignKey(DisputeTicket, on_delete=models.CASCADE, related_name='evidence')
+    image = models.ImageField(upload_to='disputes/%Y/%m/')
+    caption = models.CharField(max_length=200, blank=True, default='')
+    uploaded_by_role = models.CharField(max_length=10, choices=DisputeTicket.OPENER_CHOICES, blank=True, default='')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
 
 
 # =====================================================================

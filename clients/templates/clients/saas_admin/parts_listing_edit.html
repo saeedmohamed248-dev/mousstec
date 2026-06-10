@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تعديل قطعة — {{ listing.title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:780px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#86efac; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        form { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:24px; }
+        label { display:block; margin:14px 0 6px; font-weight:700; color:#cbd5e1; }
+        input, textarea, select { width:100%; padding:10px; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:6px; font-family:inherit; box-sizing:border-box; }
+        textarea { min-height:90px; }
+        .btn { padding:12px 24px; border:none; border-radius:8px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:18px; }
+        .btn-save { background:#22c55e; color:#fff; }
+        .btn-cancel { background:#475569; color:#fff; text-decoration:none; display:inline-block; }
+        .messages { margin-bottom:16px; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
+        .alert.success { background:#15803d; color:#fff; }
+        .alert.warning { background:#f59e0b; color:#0f172a; }
+        .alert.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / <a href="{% url 'saas_parts_active_listings' %}">المعروضات النشطة</a> / تعديل</div>
+    <h1>✏️ تعديل المعروضة #{{ listing.id }}</h1>
+    <p class="sub">تعديل إداري يتجاوز ملكية البائع — يُستخدم لتصحيح المخالفات أو الأخطاء الواضحة.</p>
+
+    {% if messages %}<div class="messages">
+        {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
+    </div>{% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label>اسم القطعة</label>
+        <input type="text" name="title" value="{{ listing.title }}" maxlength="200" required>
+
+        <label>رقم القطعة (OEM)</label>
+        <input type="text" name="part_number" value="{{ listing.part_number }}" maxlength="120">
+
+        <label>السعر (ج.م)</label>
+        <input type="number" step="0.01" min="0" name="price_egp" value="{{ listing.price_egp }}" required>
+
+        <label>فترة الضمان (يوم)</label>
+        <input type="number" min="0" max="90" name="warranty_days" value="{{ listing.warranty_days }}">
+
+        <label>الحالة</label>
+        <select name="condition">
+            {% for code, label in listing.CONDITION_CHOICES %}
+                <option value="{{ code }}" {% if listing.condition == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <label>المدينة</label>
+        <input type="text" name="city" value="{{ listing.city }}" maxlength="100">
+
+        <label>الوصف</label>
+        <textarea name="description">{{ listing.description }}</textarea>
+
+        <button type="submit" class="btn btn-save"><i class="fas fa-save"></i> حفظ التعديلات</button>
+        <a class="btn btn-cancel" href="{% url 'saas_parts_active_listings' %}">إلغاء</a>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,131 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مراجعة قطع الغيار — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#fbbf24; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #fbbf24; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
+        .stat .label { color:#94a3b8; font-size:12px; }
+        .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .tab { padding:8px 14px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #334155; }
+        .tab.active { background:#f59e0b; color:#0f172a; border-color:#fbbf24; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px; text-align:right; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
+        th { background:#0f172a; color:#fbbf24; font-weight:900; }
+        tr:hover { background:#293548; }
+        .thumb { width:64px; height:64px; object-fit:cover; border-radius:8px; background:#334155; }
+        .price { color:#22c55e; font-weight:900; }
+        .seller { color:#a78bfa; font-size:12px; }
+        .mod { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
+        .mod.pending_approval { background:#fbbf24; color:#0f172a; }
+        .mod.approved         { background:#22c55e; color:#fff; }
+        .mod.rejected         { background:#ef4444; color:#fff; }
+        form.act { display:inline; margin:0; }
+        .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; margin-inline-start:4px; }
+        .btn-ok { background:#22c55e; color:#fff; }
+        .btn-no { background:#ef4444; color:#fff; }
+        .btn-view { background:#334155; color:#cbd5e1; text-decoration:none; display:inline-block; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
+        .reason { width:160px; padding:5px 8px; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-family:'Cairo',sans-serif; font-size:12px; }
+        .empty { text-align:center; padding:40px; color:#64748b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / مراجعة قطع الغيار</div>
+    <h1>🛡️ بوابة مراجعة قطع الغيار</h1>
+    <p class="sub">كل قطعة جديدة من السوق تظهر هنا قبل ما تتنشر للعامة. اعتمدها أو ارفضها.</p>
+
+    {% if messages %}
+        {% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}
+    {% endif %}
+
+    <div class="stats">
+        <div class="stat"><h2>{{ count_pending }}</h2><div class="label">⏳ بانتظار المراجعة</div></div>
+    </div>
+
+    <div class="filters">
+        <a class="tab {% if show == 'pending' %}active{% endif %}"  href="?show=pending">⏳ بانتظار المراجعة</a>
+        <a class="tab {% if show == 'rejected' %}active{% endif %}" href="?show=rejected">❌ مرفوضة</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📋 الكل</a>
+    </div>
+
+    {% if listings %}
+    <table>
+        <thead>
+            <tr>
+                <th>صورة</th>
+                <th>القطعة</th>
+                <th>السيارة</th>
+                <th>السعر</th>
+                <th>البائع</th>
+                <th>الحالة</th>
+                <th>تاريخ الإضافة</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for l in listings %}
+            <tr>
+                <td>
+                    {% if l.primary_photo_url %}
+                        <img class="thumb" src="{{ l.primary_photo_url }}" alt="">
+                    {% else %}
+                        <div class="thumb"></div>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>{{ l.title }}</strong><br>
+                    <small style="color:#64748b">{{ l.description|truncatechars:80 }}</small>
+                </td>
+                <td>
+                    {{ l.car_make.name }}<br>
+                    <small class="seller">{{ l.car_model }} {% if l.car_year_from %}({{ l.car_year_from }}{% if l.car_year_to %}-{{ l.car_year_to }}{% endif %}){% endif %}</small>
+                </td>
+                <td class="price">{{ l.price_egp }} ج.م</td>
+                <td>
+                    {{ l.seller_label }}<br>
+                    <small class="seller">{% if l.seller_is_company %}شركة{% else %}فرد{% endif %}</small>
+                </td>
+                <td><span class="mod {{ l.moderation_status }}">{{ l.get_moderation_status_display }}</span></td>
+                <td><small>{{ l.created_at|date:"Y-m-d H:i" }}</small></td>
+                <td>
+                    <a class="btn btn-view" href="/marketplace/parts/{{ l.listing_code }}/" target="_blank"><i class="fa fa-eye"></i></a>
+                    {% if l.moderation_status != 'approved' %}
+                    <form class="act" method="post" action="{% url 'saas_parts_moderation_approve' l.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-ok" type="submit"><i class="fa fa-check"></i> اعتماد</button>
+                    </form>
+                    {% endif %}
+                    {% if l.moderation_status != 'rejected' %}
+                    <form class="act" method="post" action="{% url 'saas_parts_moderation_reject' l.id %}">
+                        {% csrf_token %}
+                        <input class="reason" type="text" name="reason" placeholder="سبب الرفض (اختياري)" maxlength="255">
+                        <button class="btn btn-no" type="submit"><i class="fa fa-times"></i> رفض</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <div class="empty">
+            <i class="fa fa-check-circle" style="font-size:48px;color:#22c55e"></i>
+            <p>لا توجد قطع في هذه القائمة الآن.</p>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

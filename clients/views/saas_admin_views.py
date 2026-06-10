@@ -18,7 +18,8 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import user_passes_test
 from django.db import connection, transaction
-from django.db.models import Sum, Count
+from django.db import models
+from django.db.models import Sum, Count, Q
 from django.http import HttpResponseForbidden, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -27,7 +28,7 @@ from django.utils import timezone
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
     TenantSubscription, Feature, SystemErrorLog,
-    PartListing,
+    PartListing, DisputeTicket,
 )
 from clients.permissions import get_user_widgets, widget_required
 
@@ -552,6 +553,228 @@ def parts_moderation_approve(request, listing_id):
     return redirect('saas_parts_moderation_queue')
 
 
+# ─────────────────────────────────────────────────────────────────────
+# 🛡️ Part Listings — Active/Live marketplace control (Phase 3 #1)
+#   Lists every approved & non-deleted listing with row actions:
+#     • Edit  (admin override)
+#     • Suspend (approved → suspended)
+#     • Soft Delete (is_deleted=True)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def parts_active_listings(request):
+    """Live marketplace — every listing currently visible to buyers."""
+    q = (request.GET.get('q') or '').strip()
+    qs = (
+        PartListing.objects.filter(
+            is_deleted=False, moderation_status='approved',
+        )
+        .select_related('car_make', 'seller_customer', 'seller_tenant')
+        .order_by('-created_at')
+    )
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(title__icontains=q)
+            | Q(part_number__icontains=q)
+            | Q(seller_tenant__name__icontains=q)
+        )
+
+    total_active = PartListing.objects.filter(
+        is_deleted=False, moderation_status='approved',
+    ).count()
+    total_suspended = PartListing.objects.filter(
+        is_deleted=False, moderation_status='suspended',
+    ).count()
+    return render(request, 'clients/saas_admin/parts_active_listings.html', {
+        'listings': qs[:300],
+        'q': q,
+        'total_active': total_active,
+        'total_suspended': total_suspended,
+    })
+
+
+@saas_admin_required
+def parts_listing_suspend(request, listing_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    listing = get_object_or_404(
+        PartListing.objects.filter(is_deleted=False), pk=listing_id,
+    )
+    reason = (request.POST.get('reason') or '').strip()[:240]
+    listing.moderation_status = 'suspended'
+    listing.moderated_by = request.user
+    listing.moderated_at = timezone.now()
+    if hasattr(listing, 'rejection_reason'):
+        listing.rejection_reason = reason or 'Suspended by admin'
+    listing.save(update_fields=[
+        'moderation_status', 'moderated_by', 'moderated_at', 'rejection_reason',
+    ])
+    logger.warning(
+        "PartListing SUSPENDED id=%s by=%s reason=%s",
+        listing.id, request.user.username, reason,
+    )
+    messages.success(request, f"تم تعليق القطعة «{listing.title[:40]}».")
+    return redirect('saas_parts_active_listings')
+
+
+@saas_admin_required
+def parts_listing_soft_delete(request, listing_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    listing = get_object_or_404(
+        PartListing.objects.filter(is_deleted=False), pk=listing_id,
+    )
+    if hasattr(listing, 'soft_delete'):
+        listing.soft_delete(user=request.user, reason='Admin removed via active-listings table')
+    else:
+        listing.is_deleted = True
+        listing.save(update_fields=['is_deleted'])
+    logger.warning("PartListing SOFT-DELETED id=%s by=%s", listing.id, request.user.username)
+    messages.success(request, f"تم حذف القطعة «{listing.title[:40]}».")
+    return redirect('saas_parts_active_listings')
+
+
+@saas_admin_required
+def parts_listing_edit(request, listing_id):
+    """Admin-side edit form for a single listing — covers the critical fields
+    most often abused (title/price/qty/description). Heavier brand/model edits
+    still go through the regular seller workflow."""
+    listing = get_object_or_404(
+        PartListing.objects.filter(is_deleted=False), pk=listing_id,
+    )
+    EDITABLE_FIELDS = ('title', 'part_number', 'price_egp', 'warranty_days', 'description', 'condition', 'city')
+
+    if request.method == 'POST':
+        for f in EDITABLE_FIELDS:
+            if f in request.POST and hasattr(listing, f):
+                raw = request.POST.get(f, '').strip()
+                if f == 'price_egp':
+                    try:
+                        setattr(listing, f, Decimal(raw))
+                    except (InvalidOperation, ValueError):
+                        messages.error(request, f"🛑 قيمة السعر غير صالحة: {raw}")
+                        return redirect('saas_parts_listing_edit', listing_id=listing.id)
+                elif f == 'warranty_days':
+                    try:
+                        setattr(listing, f, int(raw))
+                    except ValueError:
+                        messages.error(request, f"🛑 فترة الضمان غير صالحة: {raw}")
+                        return redirect('saas_parts_listing_edit', listing_id=listing.id)
+                else:
+                    setattr(listing, f, raw)
+        try:
+            listing.full_clean()
+            listing.save()
+            messages.success(request, "تم حفظ التعديلات.")
+            return redirect('saas_parts_active_listings')
+        except Exception as e:
+            messages.error(request, f"🛑 خطأ في الحفظ: {e}")
+            return redirect('saas_parts_listing_edit', listing_id=listing.id)
+
+    return render(request, 'clients/saas_admin/parts_listing_edit.html', {
+        'listing': listing,
+        'editable_fields': EDITABLE_FIELDS,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🔧 OBD / Diagnostics-Room paid add-on — grant UI (Phase 3 #3)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def obd_access_list(request):
+    """List tenants and their OBD-access state, with quick filters."""
+    show = request.GET.get('show', 'all')  # all | active | inactive | expiring
+    qs = Client.objects.exclude(schema_name='public').filter(is_deleted=False)
+    now = timezone.now()
+    if show == 'active':
+        qs = qs.filter(has_obd_access=True).filter(
+            models.Q(obd_access_expiry__isnull=True)
+            | models.Q(obd_access_expiry__gt=now)
+        )
+    elif show == 'inactive':
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(has_obd_access=False)
+            | Q(obd_access_expiry__lte=now, obd_access_expiry__isnull=False)
+        )
+    elif show == 'expiring':
+        soon = now + timedelta(days=7)
+        qs = qs.filter(
+            has_obd_access=True,
+            obd_access_expiry__gt=now,
+            obd_access_expiry__lte=soon,
+        )
+    qs = qs.order_by('-has_obd_access', 'obd_access_expiry', 'name')
+
+    rows = []
+    for c in qs[:300]:
+        if c.has_obd_access and c.obd_access_expiry is None:
+            state = 'lifetime'
+        elif c.obd_access_is_valid:
+            state = 'active'
+        elif c.has_obd_access and c.obd_access_expiry and c.obd_access_expiry <= now:
+            state = 'expired'
+        else:
+            state = 'inactive'
+        rows.append({'client': c, 'state': state})
+
+    return render(request, 'clients/saas_admin/obd_access_list.html', {
+        'rows': rows,
+        'show': show,
+        'now': now,
+    })
+
+
+_OBD_DURATIONS = {
+    '1d':  timedelta(days=1),
+    '1w':  timedelta(days=7),
+    '1m':  timedelta(days=30),
+    '3m':  timedelta(days=90),
+    '6m':  timedelta(days=180),
+    '1y':  timedelta(days=365),
+    'lifetime': None,
+}
+
+
+@saas_admin_required
+def obd_access_grant(request, tenant_id):
+    """Grant or extend OBD access. Quick-duration via POST['duration']."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    tenant = get_object_or_404(
+        Client.objects.exclude(schema_name='public'), pk=tenant_id,
+    )
+    key = (request.POST.get('duration') or '').strip()
+    if key not in _OBD_DURATIONS:
+        messages.error(request, f"🛑 المدة غير معروفة: {key}")
+        return redirect('saas_obd_access_list')
+    delta = _OBD_DURATIONS[key]
+    tenant.grant_obd_access(delta, by_user=request.user)
+    label = 'مدى الحياة' if delta is None else key
+    logger.warning(
+        "OBD access GRANTED tenant=%s duration=%s by=%s",
+        tenant.schema_name, label, request.user.username,
+    )
+    messages.success(request, f"✅ تم منح وصول OBD لـ «{tenant.name}» ({label}).")
+    return redirect('saas_obd_access_list')
+
+
+@saas_admin_required
+def obd_access_revoke(request, tenant_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    tenant = get_object_or_404(
+        Client.objects.exclude(schema_name='public'), pk=tenant_id,
+    )
+    tenant.revoke_obd_access(by_user=request.user)
+    logger.warning(
+        "OBD access REVOKED tenant=%s by=%s",
+        tenant.schema_name, request.user.username,
+    )
+    messages.success(request, f"تم سحب وصول OBD من «{tenant.name}».")
+    return redirect('saas_obd_access_list')
+
+
 @saas_admin_required
 def parts_moderation_reject(request, listing_id):
     if request.method != 'POST':
@@ -563,3 +786,69 @@ def parts_moderation_reject(request, listing_id):
     listing.reject(by_user=request.user, reason=reason)
     messages.success(request, f"تم رفض القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_moderation_queue')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ⚖️ Dispute resolution centre
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def disputes_queue(request):
+    """All open / under-review dispute tickets."""
+    show = request.GET.get('show', 'open')
+    qs = DisputeTicket.objects.filter(is_deleted=False).select_related(
+        'order', 'order__listing', 'opened_by_customer', 'opened_by_tenant',
+    ).order_by('-opened_at')
+    if show == 'open':
+        qs = qs.filter(status__in=['open', 'under_review'])
+    elif show == 'resolved':
+        qs = qs.filter(status__in=['resolved_refund', 'resolved_release', 'resolved_split'])
+    return render(request, 'clients/saas_admin/disputes_queue.html', {
+        'tickets': qs[:200],
+        'show': show,
+        'count_open': DisputeTicket.objects.filter(
+            is_deleted=False, status__in=['open', 'under_review'],
+        ).count(),
+    })
+
+
+@saas_admin_required
+def dispute_resolve(request, ticket_id):
+    """POST endpoint — action ∈ {refund, release, split, cancel}."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    ticket = get_object_or_404(
+        DisputeTicket.objects.filter(is_deleted=False).select_related('order'),
+        pk=ticket_id,
+    )
+    action = (request.POST.get('action') or '').strip()
+    notes = (request.POST.get('notes') or '').strip()
+    from clients.services import disputes as dispute_svc
+    from django.core.exceptions import ValidationError as DjVE
+    try:
+        if action == 'refund':
+            reason = (request.POST.get('return_reason') or 'defective').strip()
+            dispute_svc.resolve_with_refund(
+                ticket, return_reason=reason, by_user=request.user, notes=notes,
+            )
+        elif action == 'release':
+            dispute_svc.resolve_with_release(
+                ticket, by_user=request.user, notes=notes,
+            )
+        elif action == 'split':
+            from decimal import Decimal as _D
+            amt = _D(request.POST.get('refund_amount') or '0')
+            reason = (request.POST.get('return_reason') or 'not_as_described').strip()
+            dispute_svc.resolve_with_split(
+                ticket, refund_amount=amt, return_reason=reason,
+                by_user=request.user, notes=notes,
+            )
+        elif action == 'cancel':
+            dispute_svc.cancel_dispute(ticket, by_role=ticket.opened_by_role, notes=notes)
+        else:
+            messages.error(request, f"إجراء غير معروف: {action}")
+            return redirect('saas_disputes_queue')
+    except DjVE as exc:
+        messages.error(request, '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc))
+        return redirect('saas_disputes_queue')
+    messages.success(request, f"تم تنفيذ '{action}' على التذكرة.")
+    return redirect('saas_disputes_queue')

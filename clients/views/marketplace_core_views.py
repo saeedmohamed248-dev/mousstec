@@ -288,6 +288,11 @@ def marketplace_login(request):
 
         if customer.is_blocked:
             return JsonResponse({"error": "تم تعليق حسابك. تواصل مع الدعم."}, status=403)
+        # 🛡️ Soft-deleted accounts cannot log in — they don't exist from the
+        # user's point of view, but their FKs are preserved for audit.
+        if getattr(customer, 'is_deleted', False):
+            logger.warning(f"[MARKETPLACE] Blocked login on deleted account: {cleaned[:6]}***")
+            return JsonResponse({"error": "هذا الحساب غير موجود."}, status=404)
 
         # 🛡️ يدعم الحسابات القديمة (بدون باسورد)
         if customer.has_usable_password():

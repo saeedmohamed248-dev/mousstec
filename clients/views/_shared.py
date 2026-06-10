@@ -45,7 +45,8 @@ def _marketplace_auth(request):
         return None
     try:
         return MarketplaceCustomer.objects.get(
-            session_token=token, is_verified=True, is_blocked=False,
+            session_token=token,
+            is_verified=True, is_blocked=False, is_deleted=False,
         )
     except (MarketplaceCustomer.DoesNotExist, ValueError, ValidationError):
         return None

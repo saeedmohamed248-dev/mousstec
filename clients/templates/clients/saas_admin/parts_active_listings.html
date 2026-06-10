@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>السوق المفتوح — المعروضات النشطة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#86efac; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+        .stats { display:flex; gap:12px; margin-bottom:18px; }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px 18px; }
+        .stat .n { font-size:22px; font-weight:900; }
+        .stat.ok .n { color:#22c55e; }
+        .stat.warn .n { color:#f59e0b; }
+        form.search { margin-bottom:16px; display:flex; gap:8px; }
+        form.search input { flex:1; padding:10px 14px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:8px; font-family:inherit; }
+        form.search button { padding:10px 20px; background:#22c55e; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th { background:#0f172a; color:#86efac; font-weight:900; }
+        tr:hover { background:#293548; }
+        .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:11px; text-decoration:none; display:inline-block; margin:1px; }
+        .btn-edit { background:#3b82f6; color:#fff; }
+        .btn-suspend { background:#f59e0b; color:#0f172a; }
+        .btn-delete { background:#ef4444; color:#fff; }
+        .actions form { display:inline; }
+        .messages { margin-bottom:16px; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
+        .alert.success { background:#15803d; color:#fff; }
+        .alert.warning { background:#f59e0b; color:#0f172a; }
+        .alert.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / السوق المفتوح / المعروضات النشطة</div>
+    <h1>🛒 المعروضات النشطة على السوق</h1>
+    <p class="sub">كل المعروضات المعتمدة والمرئية للمشترين الآن. الـ Suspend يخفيها فوراً من الصفحات العامة بدون حذف.</p>
+
+    {% if messages %}<div class="messages">
+        {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
+    </div>{% endif %}
+
+    <div class="stats">
+        <div class="stat ok"><div class="n">{{ total_active }}</div><div>نشطة</div></div>
+        <div class="stat warn"><div class="n">{{ total_suspended }}</div><div>معلقة</div></div>
+    </div>
+
+    <form class="search" method="get">
+        <input type="text" name="q" placeholder="🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع..." value="{{ q }}">
+        <button type="submit">بحث</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>القطعة</th>
+                <th>الماركة/الموديل</th>
+                <th>البائع</th>
+                <th>السعر</th>
+                <th>الحالة</th>
+                <th>تاريخ النشر</th>
+                <th>الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for l in listings %}
+            <tr>
+                <td>
+                    <b>{{ l.title|truncatechars:50 }}</b><br>
+                    <span style="color:#94a3b8;font-size:11px;">{{ l.part_number|default:"—" }}</span>
+                </td>
+                <td>{{ l.car_make.name|default:"—" }} {{ l.car_model }}</td>
+                <td>
+                    {% if l.seller_tenant %}🏢 {{ l.seller_tenant.name }}
+                    {% elif l.seller_customer %}👤 {{ l.seller_customer.full_name|default:l.seller_customer.phone }}
+                    {% else %}—{% endif %}
+                </td>
+                <td><b>{{ l.price_egp }}</b> ج.م</td>
+                <td>{{ l.get_condition_display|default:l.condition }}</td>
+                <td>{{ l.created_at|date:"Y-m-d" }}</td>
+                <td class="actions">
+                    <a class="btn btn-edit" href="{% url 'saas_parts_listing_edit' listing_id=l.id %}"><i class="fas fa-pen"></i> تعديل</a>
+                    <form method="post" action="{% url 'saas_parts_listing_suspend' listing_id=l.id %}" onsubmit="return confirm('تعليق المعروضة «{{ l.title|escapejs }}»؟ ستُخفى فوراً من المشترين.')">
+                        {% csrf_token %}
+                        <input type="hidden" name="reason" value="Admin suspension via active-listings table">
+                        <button class="btn btn-suspend"><i class="fas fa-pause"></i> تعليق</button>
+                    </form>
+                    <form method="post" action="{% url 'saas_parts_listing_soft_delete' listing_id=l.id %}" onsubmit="return confirm('حذف المعروضة «{{ l.title|escapejs }}»؟ (Soft Delete — يمكن استعادتها لاحقاً)')">
+                        {% csrf_token %}
+                        <button class="btn btn-delete"><i class="fas fa-trash"></i> حذف</button>
+                    </form>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">لا توجد معروضات نشطة بهذا الفلتر.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

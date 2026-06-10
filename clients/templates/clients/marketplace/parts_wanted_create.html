@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اطلب قطعة | سوق قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#3b82f6; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+               color: var(--text); padding-bottom: 60px; }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; }
+        .back { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 760px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.55rem; font-weight: 900; }
+        .subtitle { color: var(--muted); margin-bottom: 22px; }
+        .form-card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; margin-bottom:16px; }
+        label { display:block; font-weight:700; font-size: 0.88rem; color: var(--soft); margin-bottom: 6px; }
+        input, select, textarea {
+            width:100%; background: rgba(11,16,32,0.6); border: 1px solid var(--line);
+            color: var(--text); padding: 12px 14px; border-radius: 12px; font-family: inherit;
+            font-size: 0.94rem; outline: none; margin-bottom: 14px;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .row3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px; }
+        @media (max-width: 580px) { .row, .row3 { grid-template-columns: 1fr; } }
+        .hint { font-size: 0.78rem; color: var(--muted); margin-top: -8px; margin-bottom: 14px; }
+        .submit-btn { width:100%; padding:14px; background:var(--accent); color:#fff; border:none;
+                      border-radius:12px; font-weight:900; font-size:1rem; cursor:pointer; }
+        .submit-btn:hover { background:#2563eb; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:14px; }
+        .alert-err { background:rgba(220,38,38,0.15); color:#fca5a5; border:1px solid rgba(220,38,38,0.4); }
+        .alert-ok  { background:rgba(34,197,94,0.15); color:#86efac; border:1px solid rgba(34,197,94,0.4); }
+        .legal { font-size:0.78rem; color:var(--muted); margin-top:18px; line-height:1.6; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> رجوع للسوق</a>
+    <div style="color:var(--accent);font-weight:900">🆘 اطلب قطعة</div>
+</div>
+
+<div class="wrap">
+    <h1>اطلب قطعة غيار</h1>
+    <p class="subtitle">اكتب مواصفات سيارتك بدقة عشان البائعين يقدروا يطابقوها — هتوصلك عروض خلال 14 يوم.</p>
+
+    <div id="alert" style="display:none"></div>
+
+    <form id="wantedForm" class="form-card">
+        {% csrf_token %}
+        <div class="row">
+            <div>
+                <label>الماركة *</label>
+                <select name="car_make" required>
+                    <option value="">— اختر الماركة —</option>
+                    {% for m in makes %}
+                        <option value="{{ m.id }}">{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>الموديل / Chassis *</label>
+                <input type="text" name="car_model" required maxlength="100" placeholder="مثال: F30, X5, Civic">
+            </div>
+        </div>
+
+        <div class="row3">
+            <div>
+                <label>سنة الصنع *</label>
+                <input type="number" name="car_year" required min="1950" max="2030" placeholder="2015">
+            </div>
+            <div>
+                <label>كود الموتور</label>
+                <input type="text" name="engine_code" maxlength="30" placeholder="N13, N20, K20A">
+            </div>
+            <div>
+                <label>الميزانية القصوى (ج.م)</label>
+                <input type="number" name="max_budget_egp" step="0.01" min="0" placeholder="اختياري">
+            </div>
+        </div>
+
+        <label>اسم القطعة المطلوبة *</label>
+        <input type="text" name="part_name" required maxlength="200" placeholder="مثال: قشاط الموتور / فرامل أمامية">
+
+        <label>رقم OEM (اختياري)</label>
+        <input type="text" name="part_number_oem" maxlength="120" placeholder="مثال: 13627837459">
+        <div class="hint">لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100%.</div>
+
+        <label>ملاحظات إضافية</label>
+        <textarea name="description" rows="4" placeholder="أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)"></textarea>
+
+        <button type="submit" class="submit-btn"><i class="fa fa-paper-plane"></i> انشر الطلب</button>
+
+        <p class="legal">
+            بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين
+            وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow.
+        </p>
+    </form>
+</div>
+
+<script>
+document.getElementById('wantedForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const alertBox = document.getElementById('alert');
+    alertBox.style.display = 'none';
+    const data = new FormData(e.target);
+    try {
+        const r = await fetch('/marketplace/parts/wanted/new/', {
+            method: 'POST',
+            body: data,
+            headers: {'X-CSRFToken': data.get('csrfmiddlewaretoken')},
+            credentials: 'same-origin',
+        });
+        const j = await r.json();
+        if (j.ok) {
+            alertBox.className = 'alert alert-ok';
+            alertBox.textContent = j.message || 'تم النشر.';
+            alertBox.style.display = 'block';
+            setTimeout(() => { window.location.href = '/marketplace/parts/'; }, 1800);
+        } else {
+            alertBox.className = 'alert alert-err';
+            alertBox.textContent = j.error || 'فشل النشر.';
+            alertBox.style.display = 'block';
+        }
+    } catch (err) {
+        alertBox.className = 'alert alert-err';
+        alertBox.textContent = 'خطأ في الاتصال: ' + err.message;
+        alertBox.style.display = 'block';
+    }
+});
+</script>
+</body>
+</html>
