@@ -438,11 +438,22 @@ def diagnostics_chat_reset(request):
 @csrf_exempt
 def diagnostics_paymob_callback(request):
     """Server-to-server payment confirmation. Paymob posts here; we activate
-    the subscription based on metadata."""
+    the subscription based on metadata.
+
+    🛡️ HMAC verification is mandatory in production — see
+    clients.services.paymob.verify_paymob_hmac for the fail-closed contract.
+    Without this check, anyone with a customer_pk could grant themselves a
+    paid diagnostics subscription by POSTing a forged success payload.
+    """
     try:
         data = json.loads(request.body or '{}')
     except json.JSONDecodeError:
         return JsonResponse({"error": "invalid_json"}, status=400)
+
+    from clients.services.paymob import verify_paymob_hmac
+    ok, reason = verify_paymob_hmac(request, body_data=data)
+    if not ok:
+        return JsonResponse({"error": "hmac_failed", "reason": reason}, status=403)
 
     obj = data.get('obj', {})
     if not obj.get('success'):

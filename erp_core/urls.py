@@ -378,6 +378,20 @@ urlpatterns = [
     path('payment/success/', client_views.payment_success, name='payment_success'),
     path('payment/failed/',  client_views.payment_failed,  name='payment_failed'),
 
+    # 💵 Manual Vodafone Cash / InstaPay — unified flow
+    path('payment/manual/upload/<uuid:receipt_code>/',
+         client_views.manual_payment_upload, name='manual_payment_upload'),
+    path('payment/manual/subscription/start/',
+         client_views.manual_pay_subscription_start, name='manual_pay_subscription_start'),
+    path('payment/manual/parts/<uuid:listing_code>/start/',
+         client_views.manual_pay_parts_start, name='manual_pay_parts_start'),
+    path('payment/manual/design/<slug:package_slug>/start/',
+         client_views.manual_pay_design_start, name='manual_pay_design_start'),
+    path('payment/manual/diagnostics/<str:tier>/start/',
+         client_views.manual_pay_diagnostics_start, name='manual_pay_diagnostics_start'),
+    path('payment/manual/admin/review/<uuid:receipt_code>/',
+         client_views.admin_review_receipt, name='admin_review_receipt'),
+
     # 🧩 إدارة الاشتراك وشراء الإضافات (Pro-Rated Addon Engine)
     path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),
     path('api/v1/subscription/addon/', client_views.purchase_addon_api, name='api_purchase_addon'),

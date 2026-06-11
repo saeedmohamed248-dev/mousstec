@@ -1,5 +1,6 @@
 """
-Paymob payment gateway service — single source of truth for iframe creation.
+Paymob payment gateway service — single source of truth for iframe creation
+AND callback HMAC verification.
 
 All Paymob integrations (SaaS subscriptions, Design Store, Parts Marketplace,
 Customer Diagnostics) call into ``create_iframe_url`` here so the auth → order
@@ -7,9 +8,15 @@ Customer Diagnostics) call into ``create_iframe_url`` here so the auth → order
 
 Returned iframe URL is short-lived (Paymob's payment_token expires in 1h).
 Callers should redirect immediately — never persist the URL.
+
+For inbound payment-confirmation callbacks every view MUST call
+``verify_paymob_hmac(request)`` before trusting any ``success`` field.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import os
 import uuid
@@ -20,6 +27,159 @@ from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger('mouss_tec_core')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# HMAC verification — single fail-closed implementation
+# ─────────────────────────────────────────────────────────────────────
+
+# Paymob's documented HMAC field order (alphabetical by key name).
+# Both GET (transaction-processed) and POST (transaction-processed-callback)
+# concatenate these same fields in this order, then HMAC-SHA512 with the
+# integration's HMAC secret.
+_PAYMOB_HMAC_FIELDS = (
+    'amount_cents', 'created_at', 'currency', 'error_occured',
+    'has_parent_transaction', 'id', 'integration_id',
+    'is_3d_secure', 'is_auth', 'is_capture', 'is_refunded',
+    'is_standalone_payment', 'is_voided',
+    'order_id', 'owner', 'pending',
+    'source_data_pan', 'source_data_sub_type', 'source_data_type',
+    'success',
+)
+
+
+def _is_production() -> bool:
+    """True unless explicitly running in a non-production environment.
+    Defaults to production so HMAC enforcement is strict by default."""
+    env_marker = os.getenv('DJANGO_ENV', '').lower()
+    if env_marker in ('production', 'prod', ''):
+        return True
+    return False
+
+
+def _extract_paymob_fields(body_data: dict, get_params: dict) -> dict:
+    """Normalize the Paymob payload to a flat dict keyed by HMAC field names.
+
+    Handles both shapes:
+      • POST  → ``{'obj': {...nested...}}`` with ``obj.order.id`` and
+                ``obj.source_data.{pan,sub_type,type}``.
+      • GET   → flat query params with ``order``, ``source_data.pan`` etc.
+    """
+    obj = body_data.get('obj') if isinstance(body_data.get('obj'), dict) else {}
+    if obj:
+        order_obj = obj.get('order') if isinstance(obj.get('order'), dict) else {}
+        source_data = obj.get('source_data') if isinstance(obj.get('source_data'), dict) else {}
+        return {
+            'amount_cents':          obj.get('amount_cents', ''),
+            'created_at':            obj.get('created_at', ''),
+            'currency':              obj.get('currency', ''),
+            'error_occured':         obj.get('error_occured', ''),
+            'has_parent_transaction': obj.get('has_parent_transaction', ''),
+            'id':                    obj.get('id', ''),
+            'integration_id':        obj.get('integration_id', ''),
+            'is_3d_secure':          obj.get('is_3d_secure', ''),
+            'is_auth':               obj.get('is_auth', ''),
+            'is_capture':            obj.get('is_capture', ''),
+            'is_refunded':           obj.get('is_refunded', ''),
+            'is_standalone_payment': obj.get('is_standalone_payment', ''),
+            'is_voided':             obj.get('is_voided', ''),
+            'order_id':              order_obj.get('id', ''),
+            'owner':                 obj.get('owner', ''),
+            'pending':               obj.get('pending', ''),
+            'source_data_pan':       source_data.get('pan', ''),
+            'source_data_sub_type':  source_data.get('sub_type', ''),
+            'source_data_type':      source_data.get('type', ''),
+            'success':               obj.get('success', ''),
+        }
+    # GET-style flat params
+    src = get_params or body_data
+    return {
+        'amount_cents':          src.get('amount_cents', ''),
+        'created_at':            src.get('created_at', ''),
+        'currency':              src.get('currency', ''),
+        'error_occured':         src.get('error_occured', ''),
+        'has_parent_transaction': src.get('has_parent_transaction', ''),
+        'id':                    src.get('id', ''),
+        'integration_id':        src.get('integration_id', ''),
+        'is_3d_secure':          src.get('is_3d_secure', ''),
+        'is_auth':               src.get('is_auth', ''),
+        'is_capture':            src.get('is_capture', ''),
+        'is_refunded':           src.get('is_refunded', ''),
+        'is_standalone_payment': src.get('is_standalone_payment', ''),
+        'is_voided':             src.get('is_voided', ''),
+        'order_id':              src.get('order', ''),
+        'owner':                 src.get('owner', ''),
+        'pending':               src.get('pending', ''),
+        'source_data_pan':       src.get('source_data.pan', src.get('source_data_pan', '')),
+        'source_data_sub_type':  src.get('source_data.sub_type', src.get('source_data_sub_type', '')),
+        'source_data_type':      src.get('source_data.type', src.get('source_data_type', '')),
+        'success':               src.get('success', ''),
+    }
+
+
+def verify_paymob_hmac(request, body_data: Optional[dict] = None) -> tuple[bool, str]:
+    """🛡️ Verify Paymob callback HMAC. Fail-closed by default.
+
+    Behavior matrix:
+        secret unset  + production  → REJECT (logs CRITICAL).
+        secret unset  + non-prod    → ACCEPT (logs WARNING, dev-only path).
+        secret set    + no hmac     → REJECT.
+        secret set    + hmac wrong  → REJECT (logs CRITICAL — forgery attempt).
+        secret set    + hmac match  → ACCEPT.
+
+    To override the dev-mode skip, set env ``PAYMOB_REQUIRE_HMAC=1`` —
+    then unset secret rejects in every environment.
+
+    Returns ``(ok, reason)``. ``reason`` is a short machine-readable token
+    suitable for redirect query-string or JSON error responses.
+    """
+    secret = (
+        getattr(settings, 'PAYMOB_HMAC_SECRET', '')
+        or os.getenv('PAYMOB_HMAC_SECRET', '')
+    )
+    body_data = body_data if body_data is not None else {}
+    if not body_data and request.method != 'GET' and request.body:
+        try:
+            body_data = json.loads(request.body)
+        except (ValueError, TypeError):
+            body_data = {}
+    received = request.GET.get('hmac', '') or body_data.get('hmac', '')
+
+    if not secret:
+        force_required = os.getenv('PAYMOB_REQUIRE_HMAC', '').lower() in ('1', 'true', 'yes')
+        if _is_production() or force_required:
+            logger.critical(
+                "🚨 [PAYMOB HMAC] PAYMOB_HMAC_SECRET not configured in "
+                "%s — rejecting callback for security",
+                'production' if _is_production() else 'enforced-mode',
+            )
+            return False, 'hmac_secret_missing'
+        logger.warning(
+            "⚠️ [PAYMOB HMAC] PAYMOB_HMAC_SECRET unset — accepting callback "
+            "(non-production dev mode). DO NOT deploy this way."
+        )
+        return True, 'dev_skip'
+
+    if not received:
+        logger.critical("🚨 [PAYMOB HMAC] No hmac param in callback — rejected")
+        return False, 'no_hmac_param'
+
+    fields = _extract_paymob_fields(body_data, request.GET.dict() if request.method == 'GET' else {})
+    concatenated = ''.join(str(fields[k]) for k in _PAYMOB_HMAC_FIELDS)
+    computed = hmac.new(
+        secret.encode('utf-8'),
+        concatenated.encode('utf-8'),
+        hashlib.sha512,
+    ).hexdigest()
+
+    if not hmac.compare_digest(computed, received):
+        logger.critical(
+            "🚨 [PAYMOB HMAC MISMATCH] IP=%s — possible payment-forgery attempt",
+            request.META.get('REMOTE_ADDR', '?'),
+        )
+        return False, 'hmac_mismatch'
+
+    return True, 'ok'
 
 
 def _resolve_credentials() -> tuple[str, str, str]:

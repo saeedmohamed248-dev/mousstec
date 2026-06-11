@@ -226,15 +226,17 @@
                     <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 text-lg"><i class="fas fa-mobile-alt"></i></div>
                     <div>
                         <h4 class="text-sm font-black text-white">فودافون كاش</h4>
-                        <p class="text-xs text-slate-500">حوّل المبلغ وارسل ايصال الدفع</p>
+                        <p class="text-xs text-slate-500">حوّل وارفع سكرين شوت — تفعيل فوري بعد المراجعة</p>
                     </div>
                 </div>
                 <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
-                    <p class="text-xs text-slate-500 mb-1">حوّل على الرقم:</p>
-                    <p class="text-xl font-black text-red-400 tracking-wider" id="vodafoneNumber">{{ pricing.vodafone_cash }}</p>
-                    <button onclick="copyVodafone()" class="mt-2 text-xs text-slate-500 hover:text-red-400 transition"><i class="fas fa-copy ml-1"></i> نسخ الرقم</button>
+                    <p class="text-xs text-slate-500 mb-1">رقم التحويل:</p>
+                    <p class="text-xl font-black text-red-400 tracking-wider" dir="ltr" id="vodafoneNumber">01094850763</p>
                 </div>
-                <p class="text-[11px] text-slate-500 text-center">بعد التحويل ارسل صورة الايصال على واتساب نفس الرقم لتفعيل اشتراكك فوراً</p>
+                <button onclick="payWithVodafone()"
+                        class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-red-500/20">
+                    <i class="fas fa-mobile-screen-button ml-1"></i> ادفع بفودافون كاش — ارفع الإيصال
+                </button>
             </div>
 
             <!-- Visa / Paymob -->
@@ -361,6 +363,25 @@ function payWithPaymob() {
         + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
+        + '<input type="hidden" name="shop" value="' + shop + '">';
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function payWithVodafone() {
+    var shop = '{{ shop|escapejs }}';
+    if (!shop) {
+        alert('لازم تسجّل المتجر الأول قبل الاشتراك بفودافون كاش.');
+        return;
+    }
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/payment/manual/subscription/start/';
+    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCSRF() + '">'
+        + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
+        + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
+        + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
+        + '<input type="hidden" name="payment_method" value="vodafone_cash">'
         + '<input type="hidden" name="shop" value="' + shop + '">';
     document.body.appendChild(form);
     form.submit();

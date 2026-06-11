@@ -155,6 +155,9 @@
         <button data-tab="activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
             <i class="fas fa-stream ml-1"></i>سجل الأحداث
         </button>
+        <button data-tab="manual-receipts" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_manual_receipts %}border-red-500/40 text-red-400{% endif %}">
+            <i class="fas fa-mobile-screen-button ml-1"></i>إيصالات فودافون كاش{% if pending_manual_receipts %} ({{ pending_manual_receipts|length }}){% endif %}
+        </button>
         <button data-tab="design-purchases" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_design_purchases %}border-amber-500/40 text-amber-400{% endif %}">
             <i class="fas fa-paint-brush ml-1"></i>طلبات شراء التصاميم{% if pending_design_purchases %} ({{ pending_design_purchases|length }}){% endif %}
         </button>
@@ -929,6 +932,103 @@
         </div>
 
     </div><!-- /tab-design-purchases -->
+
+    <!-- ═══════ TAB: 💵 إيصالات الدفع اليدوي (Vodafone / InstaPay) ═══════ -->
+    <div class="tab-content hidden" data-tab-content="manual-receipts">
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2 bg-red-500/5">
+                <i class="fas fa-mobile-screen-button text-red-400"></i>
+                <span class="font-bold text-sm text-white">إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة</span>
+                {% if pending_manual_receipts %}
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 mr-auto">
+                    {{ pending_manual_receipts|length }} إيصال جديد
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="divide-y divide-slate-800/60">
+                {% for mr in pending_manual_receipts %}
+                <div id="mr-row-{{ mr.pk }}" class="px-5 py-4 hover:bg-slate-800/30 transition">
+                    <div class="flex items-start gap-4">
+                        <!-- Screenshot thumbnail -->
+                        <div class="flex-shrink-0">
+                            {% if mr.receipt_image %}
+                            <a href="{{ mr.receipt_image.url }}" target="_blank" title="فتح الصورة بحجم كامل">
+                                <img src="{{ mr.receipt_image.url }}"
+                                     class="w-24 h-24 object-cover rounded-xl border-2 border-slate-700 hover:border-emerald-400 transition cursor-zoom-in">
+                            </a>
+                            {% else %}
+                            <div class="w-24 h-24 rounded-xl bg-slate-800/60 border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-600">
+                                <i class="fas fa-image text-2xl"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Details -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-2">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg
+                                    {% if mr.purchase_type == 'subscription' %}bg-indigo-500/15 text-indigo-400 border border-indigo-500/30
+                                    {% elif mr.purchase_type == 'parts' %}bg-blue-500/15 text-blue-400 border border-blue-500/30
+                                    {% elif mr.purchase_type == 'design' %}bg-pink-500/15 text-pink-400 border border-pink-500/30
+                                    {% elif mr.purchase_type == 'diagnostics' %}bg-amber-500/15 text-amber-400 border border-amber-500/30
+                                    {% else %}bg-slate-500/15 text-slate-400 border border-slate-500/30{% endif %}">
+                                    {{ mr.get_purchase_type_display }}
+                                </span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30">
+                                    <i class="fas fa-mobile-alt ml-1"></i>{{ mr.get_payment_method_display }}
+                                </span>
+                                <span class="text-[11px] text-white font-black mr-auto">
+                                    {{ mr.amount|floatformat:2 }} ج.م
+                                </span>
+                            </div>
+
+                            <p class="text-white font-bold text-sm mb-1">
+                                {{ mr.display_label }}
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-400">
+                                <div><i class="fas fa-phone text-emerald-400 ml-1"></i> من رقم: <span class="text-white font-mono">{{ mr.sender_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-hashtag text-purple-400 ml-1"></i> Ref: <span class="text-white font-mono">{{ mr.txn_reference|default:"—" }}</span></div>
+                                <div><i class="fas fa-user text-blue-400 ml-1"></i> اتصال: <span class="text-white">{{ mr.contact_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-clock text-amber-400 ml-1"></i> {{ mr.created_at|timesince }} مضت</div>
+                            </div>
+
+                            {% if mr.notes %}
+                            <div class="mt-2 text-[11px] text-slate-300 bg-slate-800/60 rounded-lg p-2">
+                                <i class="fas fa-comment text-amber-400 ml-1"></i>
+                                <span class="font-bold">ملاحظة العميل:</span> {{ mr.notes|truncatechars:200 }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex flex-col gap-2 flex-shrink-0">
+                            <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'confirm')"
+                                    {% if not mr.receipt_image or not mr.txn_reference %}disabled{% endif %}
+                                    class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="{% if not mr.receipt_image %}العميل لم يرفع صورة بعد{% else %}تأكيد الدفع وتفعيل الخدمة{% endif %}">
+                                <i class="fas fa-check ml-1"></i>تأكيد وتفعيل
+                            </button>
+                            <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'reject')"
+                                    class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
+                                <i class="fas fa-times ml-1"></i>رفض
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="px-5 py-12 text-center text-slate-600 font-bold">
+                    <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
+                    لا توجد إيصالات دفع يدوي في الانتظار.
+                    <p class="text-xs text-slate-500 font-normal mt-2">
+                        الإيصالات بتظهر هنا لما العملاء يرفعوا سكرين شوت تحويل فودافون كاش أو إنستاباي.
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div><!-- /tab-manual-receipts -->
 
     <!-- ═══════ TAB: طلبات طباعة التصاميم ═══════ -->
     <div class="tab-content hidden" data-tab-content="print-requests">
@@ -2089,6 +2189,57 @@ function closeCustomerDetail() {
 </div>
 
 <script>
+// 💵 مراجعة إيصالات الدفع اليدوي (Vodafone/InstaPay)
+async function reviewReceipt(receiptCode, action) {
+    const label = action === 'confirm' ? 'تأكيد الإيصال وتفعيل الخدمة' : 'رفض الإيصال';
+    const promptMsg = action === 'reject' ? 'سبب الرفض (اختياري):' : '';
+    let notes = '';
+    if (action === 'reject') {
+        notes = prompt(promptMsg) || '';
+    } else {
+        if (!confirm(`هل أنت متأكد من ${label}؟`)) return;
+    }
+
+    try {
+        const fd = new FormData();
+        fd.append('action', action);
+        fd.append('notes', notes);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        fd.append('csrfmiddlewaretoken', csrfToken);
+
+        const r = await fetch(`/payment/manual/admin/review/${receiptCode}/`, {
+            method: 'POST', body: fd, credentials: 'same-origin',
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || 'خطأ');
+
+        // Update row visually
+        const row = document.querySelector(`#mr-row-${receiptCode}`) ||
+                    document.querySelectorAll('[id^="mr-row-"]').values().find(el => el.outerHTML.includes(receiptCode));
+        // simpler: find by data attribute walk
+        document.querySelectorAll('[id^="mr-row-"]').forEach(el => {
+            if (el.querySelector(`[onclick*="${receiptCode}"]`)) {
+                if (action === 'confirm') {
+                    el.style.background = 'rgba(16,185,129,0.08)';
+                    el.querySelectorAll('button').forEach(b => b.remove());
+                    const status = document.createElement('div');
+                    status.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-2xl"></i><p class="text-emerald-400 font-bold text-xs mt-1">تم التأكيد</p>';
+                    status.style.cssText = 'text-align:center;';
+                    el.querySelector('.flex.flex-col')?.appendChild(status);
+                } else {
+                    el.style.opacity = '0.5';
+                    el.style.background = 'rgba(239,68,68,0.04)';
+                    el.querySelectorAll('button').forEach(b => b.remove());
+                }
+            }
+        });
+
+        alert(d.message || 'تم بنجاح');
+    } catch (e) {
+        alert('فشل: ' + (e.message || 'خطأ غير متوقع'));
+    }
+}
+
 async function confirmDesignPurchase(purchaseId, action) {
     const label = action === 'confirm' ? 'تأكيد الدفع وتفعيل الباقة' : 'رفض الطلب';
     if (!confirm(`هل أنت متأكد من ${label}؟`)) return;

@@ -157,6 +157,18 @@ from .subscription_views import (  # noqa: F401
 )
 
 # ───────────────────────────────────────────────────────────────────────────
+# 💵 Manual payment (Vodafone Cash / InstaPay) — unified receipt upload
+# ───────────────────────────────────────────────────────────────────────────
+from .manual_payment_views import (  # noqa: F401
+    manual_payment_upload,
+    manual_pay_subscription_start,
+    manual_pay_parts_start,
+    manual_pay_design_start,
+    manual_pay_diagnostics_start,
+    admin_review_receipt,
+)
+
+# ───────────────────────────────────────────────────────────────────────────
 # 👑 Super-admin tools
 # ───────────────────────────────────────────────────────────────────────────
 from .admin_views import (  # noqa: F401

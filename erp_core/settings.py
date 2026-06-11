@@ -79,9 +79,12 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) في بيئة الإنتاج
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000  
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+    # 🔒 إجبار HTTPS — الـ reverse proxy/load-balancer لازم يحوّل HTTP→HTTPS،
+    # وDjango بيتحقّق من header HTTP_X_FORWARDED_PROTO المضبوط فوق.
+    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
 
 # 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
 # 25 MB — يدعم رفع base64 لصور AI Studio (FLUX.1-schnell عبر Together AI، ~10-15 MB).
@@ -416,8 +419,11 @@ DESIGN_CHAT_MAX_TURNS = env.int('DESIGN_CHAT_MAX_TURNS', 30)
 DESIGN_CHAT_MAX_IMAGES = env.int('DESIGN_CHAT_MAX_IMAGES', 8)
 DESIGN_CHAT_IDLE_MINUTES = env.int('DESIGN_CHAT_IDLE_MINUTES', 60)
 
-# 🛡️ HMAC secret for webhook signature verification
+# 🛡️ HMAC secret for webhook signature verification.
+# universal_webhook_multiplexer يستخدم WEBHOOK_HMAC_SECRET أساسياً ويـ fall back
+# على PAYMOB_HMAC_SECRET لو الإعداد الموجود حالياً للـ Paymob فقط.
 WEBHOOK_HMAC_SECRET = env.str('WEBHOOK_HMAC_SECRET', '')
+PAYMOB_HMAC_SECRET = env.str('PAYMOB_HMAC_SECRET', '')
 
 # 📱 OTP Delivery Configuration
 # Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'email' | 'console' (logs only)

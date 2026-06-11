@@ -436,6 +436,12 @@ def super_admin_dashboard(request):
         status__in=['pending', 'awaiting_confirm']
     ).select_related('customer', 'package').order_by('-created_at')[:20]
 
+    # --- 💵 إيصالات الدفع اليدوي (فودافون/إنستاباي) ---
+    from clients.models import ManualPaymentReceipt
+    pending_manual_receipts = ManualPaymentReceipt.objects.filter(
+        status='pending'
+    ).select_related('customer', 'tenant').order_by('-created_at')[:50]
+
     # --- طلبات طباعة التصاميم ---
     from clients.models import DesignPrintRequest
     pending_print_requests = DesignPrintRequest.objects.filter(
@@ -549,6 +555,7 @@ def super_admin_dashboard(request):
         'period_months_json': period_months_json,
         'ai_addons': ai_addons,
         'pending_design_purchases': pending_design_purchases,
+        'pending_manual_receipts': pending_manual_receipts,
         'pending_print_requests': pending_print_requests,
         'pending_marketplace_requests': pending_marketplace_requests,
         'marketplace_customers': marketplace_customers,
