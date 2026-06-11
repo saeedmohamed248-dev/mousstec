@@ -1,9 +1,15 @@
 from django.urls import path
+from inventory.views import branch_dashboard
 from . import views
 
 app_name = 'printing'
 
 urlpatterns = [
+    # 📊 Quick-access dashboard (نفس لوحة /system/dashboard/ بتاع السيارات،
+    # عشان شركات الطباعة يكون عندها نفس الـ UX السريع للوصول للأرقام
+    # المحورية بدل ما تعدّي على /secure-portal/ الثقيل)
+    path('dashboard/', branch_dashboard, name='dashboard'),
+
     # 🤖 AI Studio API endpoints
     path('ai/generate/', views.ai_generate_design, name='ai_generate'),
     path('ai/watermark/', views.ai_smart_watermark, name='ai_watermark'),
