@@ -1,0 +1,150 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>المستشار الذكي | Mouss Tec</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --bg:#0a1320; --bg2:#1a2332; --card:rgba(26,35,50,0.78);
+  --accent:{% if sector == 'printing' %}#a855f7{% else %}#f59e0b{% endif %};
+  --accent2:{% if sector == 'printing' %}#ec4899{% else %}#ef4444{% endif %};
+  --success:#10b981; --text:#f8fafc; --muted:#94a3b8;
+  --line:rgba(255,255,255,0.08);
+}
+* { box-sizing:border-box; }
+body { font-family:'Cairo',sans-serif; background:linear-gradient(135deg,var(--bg),var(--bg2)); color:var(--text); min-height:100vh; margin:0; }
+.topbar { background:rgba(10,19,32,0.85); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); padding:14px 24px; display:flex; justify-content:space-between; align-items:center; }
+.brand { font-weight:900; color:var(--accent); }
+.topbar a { color:var(--muted); text-decoration:none; font-size:0.9rem; }
+.topbar a:hover { color:var(--accent); }
+.wrap { max-width:900px; margin:0 auto; padding:30px 20px 80px; }
+.hero { background:var(--card); backdrop-filter:blur(16px); border:1px solid rgba(168,85,247,0.25); border-radius:22px; padding:28px; margin-bottom:24px; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; top:-40px; left:-40px; width:240px; height:240px; background:radial-gradient(circle,rgba(168,85,247,0.3) 0%,transparent 70%); }
+.hero > * { position:relative; }
+h1 { font-size:1.8rem; font-weight:900; margin:0 0 6px; }
+.muted { color:var(--muted); }
+.chat-window { background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:14px; padding:18px; max-height:480px; min-height:260px; overflow-y:auto; margin-bottom:14px; }
+.msg { padding:11px 15px; border-radius:14px; margin-bottom:11px; max-width:88%; line-height:1.75; white-space:pre-wrap; }
+.msg.user { background:linear-gradient(135deg,rgba(168,85,247,0.18),rgba(236,72,153,0.12)); border:1px solid rgba(168,85,247,0.3); margin-right:auto; margin-left:0; }
+.msg.bot  { background:rgba(255,255,255,0.04); border:1px solid var(--line); margin-left:auto; margin-right:0; }
+.composer { display:flex; gap:10px; align-items:stretch; }
+textarea { flex:1; min-height:60px; max-height:160px; padding:12px; background:rgba(10,19,32,0.7); border:1px solid var(--line); border-radius:12px; color:var(--text); font-family:'Cairo',sans-serif; font-size:0.95rem; resize:vertical; }
+.btn-cta { background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; color:#fff; font-weight:900; padding:12px 22px; border-radius:12px; cursor:pointer; }
+.btn-cta:hover { transform:translateY(-2px); box-shadow:0 10px 30px rgba(168,85,247,0.4); }
+.btn-secondary { background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text); padding:8px 14px; border-radius:10px; font-weight:700; cursor:pointer; font-size:0.85rem; }
+.btn-secondary:hover { background:rgba(255,255,255,0.1); }
+.typing span { display:inline-block; width:6px; height:6px; margin:0 2px; background:var(--muted); border-radius:50%; animation:blink 1.4s infinite both; }
+.typing span:nth-child(2){ animation-delay:0.2s; } .typing span:nth-child(3){ animation-delay:0.4s; }
+@keyframes blink { 0%,80%,100%{opacity:0.3;} 40%{opacity:1;} }
+.suggestions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.suggestion { background:rgba(255,255,255,0.05); border:1px solid var(--line); color:var(--muted); padding:6px 12px; border-radius:999px; font-size:0.82rem; cursor:pointer; }
+.suggestion:hover { background:rgba(168,85,247,0.12); color:var(--text); border-color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><i class="fas fa-brain"></i> المستشار الذكي | Mouss Tec</div>
+  <a href="/marketplace/dashboard/"><i class="fas fa-arrow-left"></i> عودة للوحتي</a>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>{{ sector_emoji }} مستشار {{ sector_label }}</h1>
+    <div class="muted">
+      {% if sector == 'printing' %}
+        هاكلمك في برانديك، اقترحلك تصاميم، وأقول لك أنسب باقة من design store حسب استخدامك.
+      {% else %}
+        هاكلمك في صيانة عربيتك، اشتراك التشخيص، وهفكرك بمواعيد الفحص.
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="chat-window" id="advChatWindow">
+    <div class="msg bot">
+      <i class="fas fa-brain" style="color:var(--accent);"></i>
+      أهلاً {{ customer.full_name }}! اسألني عن أي حاجة تخص
+      {% if sector == 'printing' %}برانديك أو تصاميمك{% else %}عربيتك أو اشتراك التشخيص{% endif %}.
+    </div>
+  </div>
+
+  <div class="composer">
+    <textarea id="advChatInput" placeholder="اكتب سؤالك..." onkeydown="if(event.key==='Enter' && (event.ctrlKey||event.metaKey)) sendAdv()"></textarea>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button onclick="sendAdv()" id="advSendBtn" class="btn-cta"><i class="fas fa-paper-plane"></i> ابعت</button>
+      <button onclick="resetAdv()" class="btn-secondary"><i class="fas fa-rotate-left"></i> امسح</button>
+    </div>
+  </div>
+
+  <div class="suggestions">
+    {% if sector == 'printing' %}
+      <div class="suggestion" onclick="useSugg(this)">إيه أنسب باقة ليّا؟</div>
+      <div class="suggestion" onclick="useSugg(this)">برانديي متسق ولا لأ؟</div>
+      <div class="suggestion" onclick="useSugg(this)">اقترح فكرة تصميم اللي بعده</div>
+    {% else %}
+      <div class="suggestion" onclick="useSugg(this)">باقتي مكفياني ولا أرقي؟</div>
+      <div class="suggestion" onclick="useSugg(this)">إمتى أعمل فحص جاي؟</div>
+      <div class="suggestion" onclick="useSugg(this)">شرحلي الفرق بين Pro و Empire</div>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:8px; font-size:0.78rem; color:var(--muted);">
+    💡 اضغط <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> للإرسال
+  </div>
+</div>
+
+<script>
+function useSugg(el) {
+  const ta = document.getElementById('advChatInput');
+  ta.value = el.textContent.trim();
+  ta.focus();
+}
+function appendMsg(role, text) {
+  const win = document.getElementById('advChatWindow');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  const icon = role === 'user' ? '<i class="fas fa-user"></i> ' : '<i class="fas fa-brain" style="color:var(--accent);"></i> ';
+  div.innerHTML = icon + (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  win.appendChild(div);
+  win.scrollTop = win.scrollHeight;
+  return div;
+}
+async function sendAdv() {
+  const input = document.getElementById('advChatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  const btn = document.getElementById('advSendBtn');
+  btn.disabled = true;
+  const oldHTML = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  appendMsg('user', msg);
+  input.value = '';
+  const typing = appendMsg('bot', '');
+  typing.innerHTML = '<i class="fas fa-brain" style="color:var(--accent);"></i> <span class="typing"><span></span><span></span><span></span></span>';
+  try {
+    const res = await fetch('/marketplace/advisor/chat/', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    const data = await res.json();
+    typing.remove();
+    appendMsg('bot', data.reply || data.message || '⚠️ تعذر الحصول على رد.');
+  } catch (e) {
+    typing.remove();
+    appendMsg('bot', '⚠️ مشكلة اتصال — حاول مرة تانية.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = oldHTML;
+  }
+}
+async function resetAdv() {
+  if (!confirm('تأكد من مسح المحادثة؟')) return;
+  try { await fetch('/marketplace/advisor/reset/', { method: 'POST' }); } catch (e) {}
+  document.getElementById('advChatWindow').innerHTML =
+    '<div class="msg bot"><i class="fas fa-brain" style="color:var(--accent);"></i> أهلاً! اسألني تاني.</div>';
+}
+</script>
+</body>
+</html>

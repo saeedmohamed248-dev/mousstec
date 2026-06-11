@@ -133,12 +133,13 @@ def overlay_text_on_image_url(
         logger.warning('[TEXT OVERLAY] no Arabic-capable font found — download Cairo-Bold.ttf to static/fonts/')
         return {'success': False, 'error': 'no_arabic_font'}
 
-    # ── 1) تحميل الصورة ──
+    # ── 1) تحميل الصورة (SSRF-safe) ──
     try:
-        resp = requests.get(image_url, timeout=30)
-        if resp.status_code != 200:
-            return {'success': False, 'error': f'image_download_http_{resp.status_code}'}
-        img = Image.open(io.BytesIO(resp.content)).convert('RGBA')
+        from erp_core.ai._safety import safe_fetch_image
+        data = safe_fetch_image(image_url, timeout=30)
+        if data is None:
+            return {'success': False, 'error': 'image_download_blocked_or_failed'}
+        img = Image.open(io.BytesIO(data)).convert('RGBA')
     except Exception as e:
         logger.exception('[TEXT OVERLAY] image load failed')
         return {'success': False, 'error': f'image_load: {e}'}

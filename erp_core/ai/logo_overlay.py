@@ -180,11 +180,20 @@ def _load_logo_pil(logo_source: Union[str, Any]) -> Optional[Any]:
             return None
         try:
             if s.startswith(('http://', 'https://')):
-                resp = requests.get(s, timeout=20)
-                if resp.status_code != 200:
-                    logger.warning(f'[LOGO COMPOSITE] HTTP {resp.status_code} fetching logo')
+                from erp_core.ai._safety import safe_fetch_image
+                # tenant logos may live on the project's own MEDIA host, allow it too
+                extra = set()
+                try:
+                    from urllib.parse import urlparse as _up
+                    site = getattr(settings, 'SITE_DOMAIN', '') or getattr(settings, 'PUBLIC_HOST', '')
+                    if site:
+                        extra.add(_up(site).hostname or site)
+                except Exception:
+                    pass
+                data = safe_fetch_image(s, timeout=20, extra_allowed_hosts=extra or None)
+                if data is None:
                     return None
-                return _bytes_to_pil(resp.content, hint_name=s)
+                return _bytes_to_pil(data, hint_name=s)
             # Relative storage URL — try default_storage. Strip /media/ prefix
             # if present (default_storage paths are relative to MEDIA_ROOT).
             media_url = getattr(settings, 'MEDIA_URL', '/media/')
@@ -279,12 +288,13 @@ def composite_logo_on_image_url(
     if width_ratio_override is not None:
         width_ratio = max(0.03, min(0.30, float(width_ratio_override)))
 
-    # ── 1) Load canvas ──────────────────────────────────────────
+    # ── 1) Load canvas (SSRF-safe) ──────────────────────────────
     try:
-        resp = requests.get(image_url, timeout=30)
-        if resp.status_code != 200:
-            return {'success': False, 'error': f'canvas_http_{resp.status_code}'}
-        canvas = Image.open(io.BytesIO(resp.content)).convert('RGBA')
+        from erp_core.ai._safety import safe_fetch_image
+        data = safe_fetch_image(image_url, timeout=30)
+        if data is None:
+            return {'success': False, 'error': 'canvas_blocked_or_failed'}
+        canvas = Image.open(io.BytesIO(data)).convert('RGBA')
     except Exception as e:
         logger.exception('[LOGO COMPOSITE] canvas load failed')
         return {'success': False, 'error': f'canvas_load: {e}'}

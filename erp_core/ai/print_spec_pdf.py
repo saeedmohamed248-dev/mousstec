@@ -192,11 +192,12 @@ def build_print_spec_pdf(
 
     if image_url:
         try:
-            # Download image
-            resp = requests.get(image_url, timeout=20)
-            if resp.status_code == 200:
+            # Download image (SSRF-safe)
+            from erp_core.ai._safety import safe_fetch_image
+            data = safe_fetch_image(image_url, timeout=20)
+            if data is not None:
                 from reportlab.lib.utils import ImageReader
-                img_reader = ImageReader(io.BytesIO(resp.content))
+                img_reader = ImageReader(io.BytesIO(data))
                 # Fit في 80mm × 80mm preserving aspect
                 iw, ih = img_reader.getSize()
                 aspect = iw / ih if ih else 1.0
@@ -213,7 +214,7 @@ def build_print_spec_pdf(
                 y -= (target_h + 8*mm)
             else:
                 c.setFont('Helvetica-Oblique', 9)
-                c.drawString(22*mm, y - 8*mm, f'(image unavailable: HTTP {resp.status_code})')
+                c.drawString(22*mm, y - 8*mm, '(image unavailable)')
                 y -= 14*mm
         except Exception as e:
             logger.warning(f'[PDF] image embed failed: {e}')

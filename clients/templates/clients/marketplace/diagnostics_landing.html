@@ -58,6 +58,178 @@
     <div>
         <a href="/marketplace/dashboard/"><i class="fas fa-home"></i> لوحتي</a>
     </div>
+
+    <!-- ════ 🤖 AI Diagnostic Chat (tier-gated) ════ -->
+    <div class="panel" style="margin-top:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+            <h3 style="margin:0;"><i class="fas fa-robot" style="color:var(--accent);"></i> مساعد التشخيص الذكي</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span class="tier-badge {% if sub.tier == 'empire' %}tier-paid{% elif sub.tier == 'pro' %}tier-paid{% elif sub.tier == 'trial' %}tier-trial{% else %}tier-trial{% endif %}" style="margin:0;">
+                    باقة {{ sub.get_tier_display|default:'Trial' }}
+                </span>
+                <button onclick="resetDiagChat()" class="btn-secondary-glass" style="padding:6px 14px; font-size:0.85rem;">
+                    <i class="fas fa-rotate-left"></i> امسح
+                </button>
+            </div>
+        </div>
+
+        {% if sub.tier == 'trial' or sub.tier == 'basic' %}
+        <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:0.88rem;">
+            <i class="fas fa-info-circle" style="color:var(--accent);"></i>
+            باقتك الحالية تدعم <b>وصف الأعراض فقط</b>. للأكواد + قراءة الصور + الـ Live Data — رقّي لباقة <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Pro</a> أو <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Empire</a>.
+        </div>
+        {% endif %}
+
+        <div id="diagChatWindow" style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:12px; padding:16px; max-height:420px; min-height:200px; overflow-y:auto; margin-bottom:14px;">
+            <div class="diag-msg diag-bot">
+                <i class="fas fa-robot" style="color:var(--accent);"></i>
+                أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك.
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:stretch; flex-wrap:wrap;">
+            <textarea id="diagChatInput" placeholder="مثال: العربية بتصدر صوت طقطقة من المحرك لما أبدأ تشغيل صبحاً..."
+                style="flex:1; min-width:240px; min-height:60px; max-height:140px; padding:12px; background:rgba(10,19,32,0.7); border:1px solid var(--line); border-radius:10px; color:var(--text); font-family:'Cairo',sans-serif; font-size:0.95rem; resize:vertical;"
+                onkeydown="if(event.key==='Enter' && (event.ctrlKey||event.metaKey)) sendDiagChat()"></textarea>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                {% if sub.tier == 'pro' or sub.tier == 'empire' %}
+                <label class="btn-secondary-glass" style="margin:0; cursor:pointer; padding:8px 14px; font-size:0.85rem;" title="ارفع صورة">
+                    <i class="fas fa-camera"></i>
+                    <input type="file" id="diagChatImage" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewDiagImage(this)">
+                </label>
+                {% endif %}
+                <button onclick="sendDiagChat()" id="diagChatSendBtn" class="btn-cta" style="padding:12px 20px; margin:0;">
+                    <i class="fas fa-paper-plane"></i> ابعت
+                </button>
+            </div>
+        </div>
+        <div id="diagChatImagePreview" style="margin-top:8px; display:none;">
+            <img id="diagChatImagePreviewImg" style="max-width:140px; max-height:100px; border-radius:8px; border:1px solid var(--line);">
+            <button onclick="clearDiagImage()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.85rem;">
+                <i class="fas fa-times-circle"></i> إزالة
+            </button>
+        </div>
+        <div style="margin-top:6px; font-size:0.78rem; color:var(--muted);">
+            💡 اضغط <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> للإرسال
+        </div>
+    </div>
+
+    <style>
+        .diag-msg { padding:10px 14px; border-radius:12px; margin-bottom:10px; max-width:88%; line-height:1.7; white-space:pre-wrap; }
+        .diag-msg.diag-user { background:linear-gradient(135deg, rgba(245,158,11,0.18), rgba(239,68,68,0.12)); border:1px solid rgba(245,158,11,0.3); margin-right:auto; margin-left:0; }
+        .diag-msg.diag-bot  { background:rgba(255,255,255,0.04); border:1px solid var(--line); margin-left:auto; margin-right:0; }
+        .diag-msg img { max-width:200px; border-radius:8px; margin-top:6px; display:block; }
+        .diag-typing { display:inline-block; }
+        .diag-typing span { display:inline-block; width:6px; height:6px; margin:0 2px; background:var(--muted); border-radius:50%; animation: diagBlink 1.4s infinite both; }
+        .diag-typing span:nth-child(2){ animation-delay:0.2s; }
+        .diag-typing span:nth-child(3){ animation-delay:0.4s; }
+        @keyframes diagBlink { 0%,80%,100%{opacity:0.3;} 40%{opacity:1;} }
+    </style>
+
+    <script>
+        let _diagPendingImage = null;
+
+        function previewDiagImage(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('الصورة كبيرة جداً (الحد الأقصى 5 ميجا).');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = e => {
+                _diagPendingImage = e.target.result;
+                document.getElementById('diagChatImagePreviewImg').src = e.target.result;
+                document.getElementById('diagChatImagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearDiagImage() {
+            _diagPendingImage = null;
+            const inp = document.getElementById('diagChatImage');
+            if (inp) inp.value = '';
+            document.getElementById('diagChatImagePreview').style.display = 'none';
+        }
+
+        function appendDiagMsg(role, text, imgDataUrl) {
+            const win = document.getElementById('diagChatWindow');
+            const div = document.createElement('div');
+            div.className = 'diag-msg ' + (role === 'user' ? 'diag-user' : 'diag-bot');
+            const icon = role === 'user' ? '<i class="fas fa-user"></i> ' : '<i class="fas fa-robot" style="color:var(--accent);"></i> ';
+            div.innerHTML = icon + (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            if (imgDataUrl) {
+                const img = document.createElement('img');
+                img.src = imgDataUrl;
+                div.appendChild(img);
+            }
+            win.appendChild(div);
+            win.scrollTop = win.scrollHeight;
+            return div;
+        }
+
+        async function sendDiagChat() {
+            const input = document.getElementById('diagChatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            const btn = document.getElementById('diagChatSendBtn');
+            btn.disabled = true;
+            const oldHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            appendDiagMsg('user', msg, _diagPendingImage);
+            const sentImage = _diagPendingImage;
+            input.value = '';
+            clearDiagImage();
+
+            // typing indicator
+            const typing = appendDiagMsg('bot', '');
+            typing.innerHTML = '<i class="fas fa-robot" style="color:var(--accent);"></i> <span class="diag-typing"><span></span><span></span><span></span></span>';
+
+            try {
+                // Pull DTCs from any previous scan, if visible on the page
+                const dtcInput = document.getElementById('dtcInput');
+                const vinInput = document.getElementById('vinInput');
+                const payload = { message: msg };
+                if (sentImage) payload.image_data_url = sentImage;
+                if (dtcInput && dtcInput.value.trim()) {
+                    payload.dtc_codes = dtcInput.value.split(',').map(s => s.trim()).filter(Boolean);
+                }
+                if (vinInput && vinInput.value.trim()) payload.vin = vinInput.value.trim();
+
+                const res = await fetch('/marketplace/diagnostics/chat/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                typing.remove();
+                if (data.reply) {
+                    appendDiagMsg('bot', data.reply);
+                } else if (data.message) {
+                    appendDiagMsg('bot', '⚠️ ' + data.message + (data.upgrade_url ? ' (انقر هنا للترقية: ' + data.upgrade_url + ')' : ''));
+                } else {
+                    appendDiagMsg('bot', '⚠️ تعذر الحصول على رد. حاول مرة تانية.');
+                }
+            } catch (e) {
+                typing.remove();
+                appendDiagMsg('bot', '⚠️ مشكلة اتصال — راجع الإنترنت وحاول تاني.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHTML;
+            }
+        }
+
+        async function resetDiagChat() {
+            if (!confirm('تأكد من مسح المحادثة؟')) return;
+            try {
+                await fetch('/marketplace/diagnostics/chat/reset/', { method: 'POST' });
+            } catch (e) {}
+            const win = document.getElementById('diagChatWindow');
+            win.innerHTML = '<div class="diag-msg diag-bot"><i class="fas fa-robot" style="color:var(--accent);"></i> أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك.</div>';
+        }
+    </script>
 </div>
 
 <div class="wrap">

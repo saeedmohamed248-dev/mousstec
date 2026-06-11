@@ -6,6 +6,8 @@ import re
 from django.conf import settings
 from django.core.cache import caches
 
+from erp_core.ai._safety import safe_log_text
+
 logger = logging.getLogger('mouss_tec_core')
 
 # =====================================================================
@@ -67,7 +69,7 @@ def _call_together_text(messages, json_mode, max_retries):
                 try:
                     raw_content = response.json()['choices'][0]['message']['content']
                 except (KeyError, IndexError, ValueError) as e:
-                    logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Together response: {response.text[:300]} — {e}")
+                    logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Together response: {safe_log_text(response.text, 300)} — {e}")
                     return None
                 if json_mode:
                     raw_content = _strip_json_fences(raw_content)
@@ -79,7 +81,7 @@ def _call_together_text(messages, json_mode, max_retries):
                 last_error = 'together_429'
                 continue
 
-            logger.error(f"🔴 [COGNITIVE AGENT] Together {model} HTTP {response.status_code}: {response.text[:300]}")
+            logger.error(f"🔴 [COGNITIVE AGENT] Together {model} HTTP {response.status_code}: {safe_log_text(response.text, 300)}")
             last_error = f'together_{response.status_code}'
             break
 
@@ -158,10 +160,10 @@ def _call_gemini_vision(messages, json_mode, max_retries):
                     last_error = 'vision_429'
                     continue
                 if response.status_code in (400, 403, 404):
-                    logger.warning(f"⚠️ [COGNITIVE AGENT]: Vision model {model} unavailable ({response.status_code}): {response.text[:200]}")
+                    logger.warning(f"⚠️ [COGNITIVE AGENT]: Vision model {model} unavailable ({response.status_code}): {safe_log_text(response.text, 200)}")
                     last_error = f'{model}_{response.status_code}'
                     break
-                logger.error(f"🔴 [COGNITIVE AGENT ERROR] Vision {model} {response.status_code}: {response.text[:300]}")
+                logger.error(f"🔴 [COGNITIVE AGENT ERROR] Vision {model} {response.status_code}: {safe_log_text(response.text, 300)}")
                 last_error = f'{model}_{response.status_code}'
                 break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:

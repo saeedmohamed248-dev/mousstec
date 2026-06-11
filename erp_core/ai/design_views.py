@@ -460,6 +460,7 @@ def design_generate(request):
     # Ideogram بيرسم النص بدقة أعلى من أي PIL overlay، فلا داعي نـ double-render.
     overlay_applied = False
     overlay_skipped_reason = ''
+    overlay_warning = ''  # 🆕 surfaced to UI when text was requested but couldn't be drawn
     if active_engine == 'ideogram' and text_overlay_info:
         overlay_skipped_reason = 'ideogram_rendered_in_image'
         # نـ mark النص كـ "applied" عشان الـ UI يعرض metadata صحيح
@@ -485,9 +486,19 @@ def design_generate(request):
                 overlay_applied = True
                 logger.info(f'[DESIGN GENERATE] text overlay applied → {image_url}')
             else:
-                logger.warning(f'[DESIGN GENERATE] overlay failed (non-fatal): {overlay_result.get("error")}')
+                err = overlay_result.get('error', 'unknown')
+                logger.warning(f'[DESIGN GENERATE] overlay failed (non-fatal): {err}')
+                # 🆕 surface a user-friendly warning so UI doesn't silently lie
+                _overlay_msgs = {
+                    'no_arabic_font': 'تعذرت كتابة النص العربي (مفيش font متاح على السيرفر).',
+                    'pillow_missing': 'مكتبة Pillow غير متاحة على السيرفر.',
+                    'empty_text': '',
+                    'no_image_url': '',
+                }
+                overlay_warning = _overlay_msgs.get(err, f'تعذر إضافة النص على التصميم ({err}).')
         except Exception as e:
             logger.warning(f'[DESIGN GENERATE] overlay exception (non-fatal): {e}')
+            overlay_warning = 'تعذر إضافة النص على التصميم (خطأ تقني).'
 
     # ═══════════════════════════════════════════════════════════════════
     # 🎨 BRAND LOGO COMPOSITING (PIL) — paste the customer's saved logo
@@ -863,6 +874,7 @@ def design_generate(request):
         'image_b64': img.get('b64_json'),
         'size': size,
         'text_overlay_applied': overlay_applied,
+        'text_overlay_warning': overlay_warning or None,
         'print_spec_pdf_url': print_spec_pdf_url,
         'provider': img.get('provider'),
         'model': img.get('model'),

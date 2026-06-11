@@ -226,6 +226,217 @@ def diagnostics_scan(request):
     })
 
 
+# =====================================================================
+# 🤖 AI Diagnostic Chat — tier-gated copilot for the car owner
+# =====================================================================
+# Tier matrix (mirrors CustomerDiagnosticsSubscription.TIER_FEATURES):
+#   trial / basic → symptom triage only (no DTC reasoning, no vision,
+#                   no live data, no pin-level guidance).
+#   pro           → + DTC decode + repair-plan guidance + image vision.
+#                   No live OBD telemetry stream, no pin voltages.
+#   empire        → full master-tech mode (live data, pin voltages, scope).
+#
+# Session conversation lives in request.session to stay stateless on the
+# server. Cap at 8 turns to keep token cost predictable.
+_CHAT_SESSION_KEY = 'customer_diag_chat_v1'
+_CHAT_MAX_HISTORY = 8
+_CHAT_RATE_PER_MIN = 12
+_CHAT_RATE_PER_HOUR = 200
+
+
+def _tier_system_prompt(tier: str) -> str:
+    """Tier-aware system prompt — narrower scope for cheaper tiers."""
+    base = (
+        "أنت 'مساعد تشخيص العربيات' لـ Mouss Tec — بتكلم صاحب العربية "
+        "نفسه (مش فني ورشة). اشرح بلغة بسيطة، وقت ما تحتاج تقني — "
+        "وضح المصطلح. ركز على: هل المشكلة طارئة؟ أنصحه يكمل قيادة "
+        "ولا يدخل ورشة فوراً؟ متوسط تكلفة الإصلاح بمصر تقريباً.\n\n"
+    )
+    if tier in ('trial', 'basic'):
+        return base + (
+            "🔒 صلاحياتك في الباقة الحالية: تحليل أعراض فقط (صوت غريب، رائحة، "
+            "لمبة على التابلوه، استهلاك بنزين عالي...). \n"
+            "❌ ممنوع: تفاصيل أكواد DTC، قراءات live data، voltages، صور.\n"
+            "لو العميل طلب حاجة من دي، قوله: 'الميزة دي متاحة في باقة Pro/Empire — "
+            "اعمل ترقية من /marketplace/diagnostics/pricing/'.\n"
+            "هدفك: تنصحه هل يروح ورشة دلوقتي ولا يستنى، وإيه الأولوية."
+        )
+    if tier == 'pro':
+        return base + (
+            "🟦 صلاحيات Pro: تحليل الأعراض + تفسير أكواد OBD-II بصياغة بسيطة + "
+            "نصيحة بخطة إصلاح من الأرخص للأغلى + قراءة صور (لمبة dashboard، "
+            "محرك، صورة من scanner). \n"
+            "❌ ممنوع: قراءات live telemetry (rpm/coolant) في الوقت الحقيقي، "
+            "voltages بِنّة بِنّة، pin-level testing — دي للـ Empire / فنيين.\n"
+            "هدفك: تشرح للعميل الكود، الإصلاح المتوقع، التكلفة التقريبية، "
+            "والأسئلة اللي يسألها للورشة قبل ما تبدأ تصلح."
+        )
+    # empire — full unlocked
+    return base + (
+        "💎 صلاحيات Empire (مفتوحة بالكامل): زي خبير الفنيين — DTCs + Live Data "
+        "+ صور + pin voltages + scope hints. لو ظهرت قراءات live في السياق "
+        "اللي جاي، استخدمها. لكن خلي اللغة قابلة للفهم — العميل مش بالضرورة فني."
+    )
+
+
+def _serialize_subscription(sub) -> dict:
+    return {
+        'tier': sub.tier,
+        'tier_label': dict(sub.TIER_CHOICES).get(sub.tier, sub.tier),
+        'is_active': sub.is_active(),
+        'quota_remaining': sub.quota_remaining(),
+        'features': sub.TIER_FEATURES.get(sub.tier, []),
+    }
+
+
+@csrf_exempt
+def diagnostics_chat(request):
+    """POST {message, image_data_url?, dtc_codes?, snapshot?} → AI reply.
+
+    Tier-gated:
+      • trial/basic → text only, no image, no DTC/snapshot context.
+      • pro         → + image + DTC reasoning, no live snapshot.
+      • empire      → full context (image + DTC + live snapshot).
+    """
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    customer, sub = _sub_for(request)
+    if not customer:
+        return JsonResponse({"error": "auth_required"}, status=401)
+
+    if not sub.is_active():
+        return JsonResponse({
+            "error": "subscription_inactive",
+            "message": "اشتراكك في التشخيص منتهي. جدّد للاستمرار.",
+            "upgrade_url": "/marketplace/diagnostics/pricing/",
+        }, status=402)
+
+    # 🛡️ Rate limit per customer (chat is much chattier than scans)
+    from erp_core.ai._safety import check_ai_rate_limit
+    ok, msg = check_ai_rate_limit(
+        f'cust_diag_chat:{customer.pk}',
+        per_minute=_CHAT_RATE_PER_MIN,
+        per_hour=_CHAT_RATE_PER_HOUR,
+    )
+    if not ok:
+        return JsonResponse({"error": "rate_limited", "message": msg}, status=429)
+
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+
+    user_message = (payload.get('message') or '').strip()
+    if not user_message:
+        return JsonResponse({
+            "reply": "اكتب سؤالك أو وصف المشكلة في العربية وأنا هساعدك.",
+            "subscription": _serialize_subscription(sub),
+        })
+    if len(user_message) > 1500:
+        return JsonResponse({"error": "message_too_long",
+                             "message": "اختصر السؤال (1500 حرف كحد أقصى)."}, status=400)
+
+    # Tier-based feature gating
+    has_dtc = sub.has_feature('vehicle_history') or sub.tier in ('pro', 'empire')
+    has_vision = sub.tier in ('pro', 'empire')
+    has_live = sub.has_feature('live_data')
+
+    dtcs = []
+    if has_dtc:
+        dtcs = [str(c).upper().strip() for c in (payload.get('dtc_codes') or []) if c][:10]
+
+    image_data_url = payload.get('image_data_url') if has_vision else None
+    snapshot = payload.get('snapshot') if has_live else {}
+    vin = (payload.get('vin') or '').upper().strip()[:17] or None
+
+    # Conversation history in session
+    session = request.session
+    history = list(session.get(_CHAT_SESSION_KEY, []))
+    history.append({'role': 'user', 'text': user_message})
+    history = history[-(_CHAT_MAX_HISTORY * 2):]  # *2 since each turn has user+assistant
+
+    try:
+        from erp_core.ai.diagnostic_room_ai import answer_room_turn
+        # Inject our tier-aware system prompt by temporarily wrapping it.
+        # `answer_room_turn` builds its own messages list — we instead call
+        # call_llm_layer directly here to keep the tier prompt as the system.
+        from inventory.ai_services import call_llm_layer
+        from erp_core.ai.diagnostic_room_ai import (
+            _build_context_block,
+            _validate_image_data_url,
+        )
+
+        context_block = _build_context_block(
+            snapshot=snapshot or {}, dtcs=dtcs or [],
+            vehicle_hint={}, vin=vin,
+        )
+        messages = [{'role': 'system', 'content': _tier_system_prompt(sub.tier)}]
+        # Replay last few turns
+        for turn in history[:-1][-_CHAT_MAX_HISTORY:]:
+            role = 'user' if turn.get('role') == 'user' else 'assistant'
+            text = str(turn.get('text', '')).strip()
+            if text:
+                messages.append({'role': role, 'content': text})
+
+        text_payload = (
+            f"{context_block}\n\nسؤال العميل: {user_message}"
+            if (has_dtc or has_live) else
+            f"سؤال العميل: {user_message}"
+        )
+        safe_image = _validate_image_data_url(image_data_url) if has_vision else None
+        if safe_image:
+            messages.append({
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': text_payload + '\n\n📷 العميل رفع صورة، حللها واربطها بسؤاله.'},
+                    {'type': 'image_url', 'image_url': {'url': safe_image}},
+                ],
+            })
+        else:
+            messages.append({'role': 'user', 'content': text_payload})
+
+        answer = call_llm_layer(messages, json_mode=False, max_retries=2)
+    except Exception as e:
+        logger.exception("[CUSTOMER DIAG CHAT] pipeline failed")
+        return JsonResponse({
+            "error": "ai_unavailable",
+            "message": "المساعد مش متاح حالياً، جرب تاني خلال لحظات.",
+        }, status=503)
+
+    if not answer:
+        return JsonResponse({
+            "error": "ai_empty",
+            "message": "المساعد مش متاح حالياً، جرب تاني خلال لحظات.",
+        }, status=503)
+
+    answer = answer.strip()
+    history.append({'role': 'assistant', 'text': answer})
+    session[_CHAT_SESSION_KEY] = history[-(_CHAT_MAX_HISTORY * 2):]
+    session.modified = True
+
+    return JsonResponse({
+        "reply": answer,
+        "subscription": _serialize_subscription(sub),
+        "context_used": {
+            'dtcs': len(dtcs),
+            'vision': bool(safe_image) if has_vision else False,
+            'live_snapshot': bool(snapshot) if has_live else False,
+            'vin_decoded': bool(vin),
+        },
+    })
+
+
+@csrf_exempt
+def diagnostics_chat_reset(request):
+    """Clear conversation history without affecting subscription."""
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+    request.session.pop(_CHAT_SESSION_KEY, None)
+    request.session.modified = True
+    return JsonResponse({"status": "ok"})
+
+
 @csrf_exempt
 def diagnostics_paymob_callback(request):
     """Server-to-server payment confirmation. Paymob posts here; we activate

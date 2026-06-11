@@ -13,6 +13,7 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST, require_GET
 
 from .advisor_agent import run_advisor_pipeline
+from ._safety import check_ai_rate_limit
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -80,6 +81,13 @@ def advisor_chat_api(request):
             'error': 'query_too_long',
             'answer': 'السؤال طويل جداً — اختصره شوية.',
         }, status=400)
+
+    # 🛡️ Rate limit per tenant+user (multi-tool calls are expensive)
+    schema = getattr(connection, 'schema_name', 'public')
+    rl_key = f'advisor_chat:{schema}:{request.user.id}'
+    ok, msg = check_ai_rate_limit(rl_key, per_minute=15, per_hour=250)
+    if not ok:
+        return JsonResponse({'success': False, 'error': 'rate_limited', 'answer': msg}, status=429)
 
     # تحميل تاريخ المحادثة من الـ session
     session_key = f'{_SESSION_KEY}_{sector}'

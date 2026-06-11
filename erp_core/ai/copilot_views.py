@@ -19,6 +19,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from .printing_copilot import run_copilot_pipeline
+from ._safety import check_ai_rate_limit
 from .credits import (
     get_tenant_balance, get_customer_balance,
     consume_tenant_credit, consume_customer_credit,
@@ -74,6 +75,13 @@ def copilot_generate(request):
         category = 'other'
     if audience not in _ALLOWED_AUDIENCES:
         audience = 'merchant'
+
+    # ── 🛡️ Rate limit (per tenant + user) ──
+    schema = getattr(connection, 'schema_name', 'public')
+    rl_key = f'copilot_gen:{schema}:{request.user.id}'
+    ok, msg = check_ai_rate_limit(rl_key, per_minute=8, per_hour=120)
+    if not ok:
+        return JsonResponse({'success': False, 'error': 'rate_limited', 'message': msg}, status=429)
 
     # ── 💳 Credit pre-check (قبل ما نصرف API call) ──
     tenant = _resolve_tenant_for_request(request, audience)

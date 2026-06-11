@@ -40,7 +40,16 @@ from .customer_diagnostics_views import (  # noqa: F401
     diagnostics_pricing,
     diagnostics_upgrade,
     diagnostics_scan,
+    diagnostics_chat,
+    diagnostics_chat_reset,
     diagnostics_paymob_callback,
+)
+
+# 🧠 Customer-side sector-aware advisor
+from .customer_advisor_views import (  # noqa: F401
+    advisor_chat as customer_advisor_chat,
+    advisor_reset as customer_advisor_reset,
+    advisor_page as customer_advisor_page,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

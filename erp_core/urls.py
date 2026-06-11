@@ -562,6 +562,13 @@ urlpatterns = [
     path('marketplace/diagnostics/pricing/',                client_views.diagnostics_pricing,         name='customer_diagnostics_pricing'),
     path('marketplace/diagnostics/upgrade/<str:tier>/',     client_views.diagnostics_upgrade,         name='customer_diagnostics_upgrade'),
     path('marketplace/diagnostics/scan/',                   client_views.diagnostics_scan,            name='customer_diagnostics_scan'),
+    path('marketplace/diagnostics/chat/',                   client_views.diagnostics_chat,            name='customer_diagnostics_chat'),
+    path('marketplace/diagnostics/chat/reset/',             client_views.diagnostics_chat_reset,      name='customer_diagnostics_chat_reset'),
+
+    # 🧠 Customer Advisor (sector-aware: brand for printing, vehicle for automotive)
+    path('marketplace/advisor/',                            client_views.customer_advisor_page,       name='customer_advisor_page'),
+    path('marketplace/advisor/chat/',                       client_views.customer_advisor_chat,       name='customer_advisor_chat'),
+    path('marketplace/advisor/reset/',                      client_views.customer_advisor_reset,      name='customer_advisor_reset'),
     path('marketplace/diagnostics/paymob-callback/',        client_views.diagnostics_paymob_callback, name='customer_diagnostics_paymob_callback'),
 
     # 🎨 AI Designs Store (instant generation marketplace)
