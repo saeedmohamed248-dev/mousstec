@@ -506,8 +506,13 @@ def design_store_my_designs(request):
     # Conversational Design Builder.
     from clients.services.design_chat import annotate_designs_from_chat
     from clients.views.design_chat_views import find_resumable_conversation
+    # Hide rows the storage-audit flagged as unrecoverable (provider URL
+    # expired before we could persist locally). They still exist in the DB
+    # for forensics; just shouldn't appear in the customer's gallery.
     designs = list(
-        annotate_designs_from_chat(customer.designs.order_by('-created_at'))[:50]
+        annotate_designs_from_chat(
+            customer.designs.exclude(title__startswith='[BROKEN] ').order_by('-created_at')
+        )[:50]
     )
 
     active_purchase = next((p for p in purchases if p.is_usable), None)
