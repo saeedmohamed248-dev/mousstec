@@ -206,11 +206,48 @@ def persist_and_create_design(
 
     Raises RuntimeError if persistence fails — caller MUST handle this and
     avoid billing the customer for a generation we can't store.
+
+    Resilience: on persistence failure, falls back to creating the row with
+    the still-valid (for ~1h) provider URL and enqueues a Celery retry. The
+    customer sees the image; the async worker recovers it before expiry.
     """
-    persisted = persist_image_with_variants(
-        request, customer,
-        provider_image_url=provider_image_url, prefix=prefix,
-    )
+    # Hard precondition — empty URL is a programmer bug, not a transient
+    # failure. Don't quietly fall back to creating a row with no image.
+    if not provider_image_url:
+        raise RuntimeError('empty_provider_url')
+
+    try:
+        persisted = persist_image_with_variants(
+            request, customer,
+            provider_image_url=provider_image_url, prefix=prefix,
+        )
+    except RuntimeError as exc:
+        # Sync persist failed (provider timeout, disk full, S3 hiccup…).
+        # Don't punish the customer — create the row with the provider URL
+        # and let the async retry path recover it before the URL expires.
+        logger.warning(
+            f'[DESIGN PERSIST] sync path failed ({exc}); '
+            f'falling back to async retry for customer={customer.pk}'
+        )
+        design = CustomerDesign.objects.create(
+            customer=customer,
+            purchase=purchase,
+            is_free_trial=is_free_trial,
+            title=(title or 'Design')[:200],
+            description=(description or '')[:1000],
+            category=category,
+            raw_input=raw_input,
+            engineered_prompt=engineered_prompt,
+            negative_prompt=negative_prompt,
+            image_url=provider_image_url[:600],
+            # image_persisted_at left NULL — that's the signal that this row
+            # is on a provider URL and needs the async task to recover it.
+            model_used=engine,
+            regenerations_allowed=regenerations_allowed,
+            **extra_fields,
+        )
+        _enqueue_async_persist(design.pk)
+        return design
 
     return CustomerDesign.objects.create(
         customer=customer,
@@ -231,3 +268,14 @@ def persist_and_create_design(
         regenerations_allowed=regenerations_allowed,
         **extra_fields,
     )
+
+
+def _enqueue_async_persist(design_pk: int) -> None:
+    """Best-effort async retry enqueue. Swallow broker errors so the caller
+    can still return successfully — the daily audit task will catch this
+    row even if Celery is currently unavailable."""
+    try:
+        from clients.tasks import persist_design_image_async
+        persist_design_image_async.apply_async(args=[design_pk], countdown=30)
+    except Exception as e:
+        logger.error(f'[DESIGN PERSIST] async enqueue failed for #{design_pk}: {e}')

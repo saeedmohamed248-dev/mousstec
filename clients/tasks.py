@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
@@ -590,3 +592,101 @@ def release_expired_parts_escrow():
     if n:
         logger.info(f"💰 [PARTS ESCROW RELEASE] released={n} orders")
     return {'released': n}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎨 Design persistence — async fallback when inline persist fails
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(
+    bind=True, max_retries=5,
+    default_retry_delay=60,           # 1m, then 2m, 4m, 8m, 16m via autoretry
+    name='clients.tasks.persist_design_image_async',
+)
+def persist_design_image_async(self, design_pk: int):
+    """Async fallback: re-persist a CustomerDesign whose inline persist failed.
+
+    The synchronous path in design_chat_views catches a RuntimeError and
+    enqueues this task with the original (still-temporarily-valid) provider
+    URL stored on the row. We download, generate WebP variants, and update
+    the row in place.
+
+    Idempotent: if `image_persisted_at` is already set, returns early — beat
+    schedulers and manual reruns won't double-persist.
+    """
+    from clients.models import CustomerDesign
+    from clients.services.design_persistence import persist_image_with_variants
+
+    try:
+        design = CustomerDesign.objects.get(pk=design_pk)
+    except CustomerDesign.DoesNotExist:
+        logger.warning(f"[ASYNC PERSIST] design #{design_pk} vanished — nothing to do")
+        return {'status': 'gone'}
+
+    if design.image_persisted_at:
+        return {'status': 'already_persisted'}
+
+    try:
+        result = persist_image_with_variants(
+            request=None,
+            customer=design.customer,
+            provider_image_url=design.image_url,
+            prefix='design_chat',
+        )
+    except RuntimeError as exc:
+        # Provider URL probably expired between sync-failure and this task
+        # firing. Retry with backoff; Celery surfaces final failure to DLQ.
+        logger.warning(f"[ASYNC PERSIST] #{design_pk} fetch failed: {exc}")
+        raise self.retry(exc=exc)
+
+    design.image_url = result['image_url'][:600]
+    design.image_thumb_url = (result['thumb_url'] or '')[:600]
+    design.image_preview_url = (result['preview_url'] or '')[:600]
+    design.image_persisted_at = timezone.now()
+    if result['size_bytes'] is not None:
+        design.image_size_bytes = result['size_bytes']
+    design.save(update_fields=[
+        'image_url', 'image_thumb_url', 'image_preview_url',
+        'image_persisted_at', 'image_size_bytes',
+    ])
+    logger.info(f"[ASYNC PERSIST] #{design_pk} recovered via async retry")
+    return {'status': 'persisted', 'design_pk': design_pk}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🧹 Design storage — daily self-healing audit
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(name='clients.tasks.audit_design_storage_daily')
+def audit_design_storage_daily():
+    """Run the storage audit as a periodic safety net.
+
+    Catches anything the sync + async paths missed: ephemeral URLs that
+    slipped through (e.g. Celery worker was down), or variant backfills
+    for legacy rows. Idempotent — already-persisted rows are skipped by
+    the underlying service.
+
+    Bounded by `limit=200` per job so a backlog can't melt the worker.
+    Returns the call's audit counts for beat logs / Flower visibility.
+    """
+    from io import StringIO
+    from django.core.management import call_command
+
+    out = {'repair': '', 'backfill': '', 'error': None}
+    try:
+        buf = StringIO()
+        call_command(
+            'audit_design_storage', repair=True, flag_broken=True,
+            limit=200, stdout=buf,
+        )
+        out['repair'] = buf.getvalue()[-500:]
+
+        buf = StringIO()
+        call_command(
+            'audit_design_storage', backfill_variants=True,
+            limit=200, stdout=buf,
+        )
+        out['backfill'] = buf.getvalue()[-500:]
+    except Exception as exc:
+        logger.error(f"🔴 [DESIGN STORAGE AUDIT] failed: {exc}", exc_info=True)
+        out['error'] = str(exc)
+
+    return out

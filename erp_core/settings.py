@@ -650,6 +650,9 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.async_remove_b2b_marketplace_product':{'queue': 'b2b_sync'},
     # ── DLQ / maintenance queue ──────────────────────────────────────
     'inventory.tasks.drain_dlq_and_retry':              {'queue': 'default'},
+    # ── Design storage — async persistence + nightly audit ───────────
+    'clients.tasks.persist_design_image_async':         {'queue': 'heavy_ai_tasks'},
+    'clients.tasks.audit_design_storage_daily':         {'queue': 'heavy_ai_tasks'},
 }
 
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
@@ -697,6 +700,13 @@ CELERY_BEAT_SCHEDULE = {
     'release_expired_parts_escrow': {
         'task': 'clients.tasks.release_expired_parts_escrow',
         'schedule': crontab(minute=30),  # كل ساعة على دقيقة 30
+    },
+    # ── Design storage: self-healing audit (re-fetch ephemerals + ──
+    # backfill missing WebP variants). Off-peak so the heavy_ai_tasks
+    # worker isn't competing with user-facing generations.
+    'audit_design_storage_daily': {
+        'task': 'clients.tasks.audit_design_storage_daily',
+        'schedule': crontab(hour=3, minute=15),  # 3:15 AM daily
     },
     # ── Predictive Maintenance: daily nudge recompute per tenant ────
     'refresh_service_nudges': {
