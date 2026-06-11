@@ -79,7 +79,12 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) في بيئة الإنتاج
 import sys as _sys
-_IS_RUNNING_TESTS = 'test' in _sys.argv or 'pytest' in _sys.argv[0]
+# يتفعّل بس لو الـ subcommand الفعلي هو `test` (مش لو في flag value مكتوب
+# فيه كلمة test) — أو الـ binary نفسه pytest.
+_IS_RUNNING_TESTS = (
+    (len(_sys.argv) > 1 and _sys.argv[1] == 'test')
+    or 'pytest' in _sys.argv[0]
+)
 
 if not DEBUG and not _IS_RUNNING_TESTS:
     SECURE_HSTS_SECONDS = 31536000
