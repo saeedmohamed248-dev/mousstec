@@ -626,13 +626,31 @@ def copilot_topup_purchase(request):
                 payment_method=payment_method,
                 status='pending',
             )
+
+            # 💳 Build the actual checkout URL based on payment method.
+            # Paymob: generate the iframe URL on the spot (short-lived token).
+            # Manual methods (vodafone_cash/instapay): direct to manual upload page.
+            if payment_method == 'paymob':
+                from clients.views.design_store_views import create_paymob_iframe_for_purchase
+                iframe_url, err = create_paymob_iframe_for_purchase(request, purchase, customer)
+                if err:
+                    return JsonResponse({
+                        'success': False,
+                        'message': err,
+                        'error': 'paymob_init_failed',
+                    }, status=502)
+                checkout_url = iframe_url
+            else:
+                # Manual transfer flow → upload receipt page
+                checkout_url = f'/marketplace/design-store/payment/{purchase.purchase_code}/'
+
             return JsonResponse({
                 'success': True,
                 'purchase_code': str(purchase.purchase_code),
                 'designs': pkg['designs'],
                 'price_egp': float(pkg['price']),
                 'message': 'تم تجهيز طلب الشراء. كمل الدفع لتفعيل الرصيد.',
-                'checkout_url': f'/payment/paymob/checkout/?purchase_id={purchase.id}',
+                'checkout_url': checkout_url,
             })
     except Exception as e:
         logger.exception('[COPILOT TOPUP] purchase failed')

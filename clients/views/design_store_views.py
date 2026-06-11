@@ -73,6 +73,116 @@ def _enforce_printing_sector(request, customer, *, json_response=False):
 
 
 # ───────────────────────────────────────────────────────────────────────────
+# 🛠️ Shared helper — create Paymob iframe URL for a DesignPurchase
+# Used by both `design_store_buy` and `copilot_topup_purchase` so the
+# checkout flow is identical regardless of entry point.
+# ───────────────────────────────────────────────────────────────────────────
+def create_paymob_iframe_for_purchase(request, purchase, customer):
+    """
+    Build a Paymob iframe URL for the given DesignPurchase.
+
+    Returns (iframe_url, error_message). On success error_message is None.
+    On failure iframe_url is None.
+    """
+    import requests as http_requests
+
+    paymob_api_key        = getattr(settings, 'PAYMOB_API_KEY', '')
+    paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '')
+    paymob_iframe_id      = getattr(settings, 'PAYMOB_IFRAME_ID', '')
+
+    if not paymob_api_key:
+        return None, "الدفع بالبطاقة غير متاح حالياً"
+    try:
+        integration_id_int = int(paymob_integration_id)
+    except (TypeError, ValueError):
+        return None, "إعدادات بوابة الدفع غير صحيحة"
+    if not paymob_iframe_id:
+        return None, "إعدادات بوابة الدفع غير مكتملة"
+
+    amount_cents = int(float(purchase.price_paid) * 100)
+    merchant_order_id = f'design_{purchase.pk}_{uuid.uuid4().hex[:8]}'
+    pkg_name = getattr(purchase.package, 'name_ar', None) or 'باقة تصميمات'
+
+    try:
+        # Step 1: Auth
+        auth_res = http_requests.post(
+            'https://accept.paymob.com/api/auth/tokens',
+            json={'api_key': paymob_api_key}, timeout=15,
+        )
+        if auth_res.status_code not in (200, 201):
+            logger.error("[PAYMOB/DESIGN-HELPER] Auth failed: %s — %s", auth_res.status_code, auth_res.text[:200])
+            return None, "فشل المصادقة مع بوابة الدفع"
+        auth_token = auth_res.json().get('token')
+        if not auth_token:
+            return None, "بوابة الدفع لم ترسل رمز المصادقة"
+
+        # Step 2: Create order
+        order_res = http_requests.post(
+            'https://accept.paymob.com/api/ecommerce/orders',
+            json={
+                'auth_token': auth_token, 'delivery_needed': 'false',
+                'amount_cents': amount_cents, 'currency': 'EGP',
+                'items': [{'name': f'باقة {pkg_name}', 'amount_cents': amount_cents, 'quantity': '1'}],
+                'merchant_order_id': merchant_order_id,
+            },
+            timeout=15,
+        )
+        if order_res.status_code not in (200, 201):
+            logger.error("[PAYMOB/DESIGN-HELPER] Order failed: %s — %s", order_res.status_code, order_res.text[:200])
+            return None, "فشل إنشاء طلب الدفع"
+        order_id = order_res.json().get('id')
+        if not order_id:
+            return None, "بوابة الدفع لم ترسل رقم الطلب"
+
+        # Step 3: Payment key
+        billing = {
+            'first_name': (customer.full_name or 'Customer').split()[0][:50] or 'Customer',
+            'last_name': 'Design',
+            'email': customer.email or 'customer@mousstec.com',
+            'phone_number': customer.phone.lstrip('+') if customer.phone else '01000000000',
+            'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
+            'shipping_method': 'NA', 'postal_code': 'NA', 'city': 'Cairo',
+            'country': 'EG', 'state': 'Cairo',
+        }
+        key_res = http_requests.post(
+            'https://accept.paymob.com/api/acceptance/payment_keys',
+            json={
+                'auth_token': auth_token, 'amount_cents': amount_cents,
+                'expiration': 3600, 'order_id': order_id,
+                'billing_data': billing, 'currency': 'EGP',
+                'integration_id': integration_id_int,
+                'lock_order_when_paid': 'true',
+            },
+            timeout=15,
+        )
+        if key_res.status_code not in (200, 201):
+            logger.error("[PAYMOB/DESIGN-HELPER] Payment key failed: %s — %s", key_res.status_code, key_res.text[:200])
+            return None, "فشل إصدار رمز الدفع"
+        payment_token = key_res.json().get('token')
+        if not payment_token:
+            return None, "بوابة الدفع لم ترسل رمز الدفع"
+
+        # Save purchase reference in cache so the global paymob_callback can route it
+        cache.set(f'paymob_design_{order_id}', {
+            'purchase_id': purchase.pk,
+            'customer_id': customer.pk,
+        }, timeout=7200)
+
+        iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{paymob_iframe_id}?payment_token={payment_token}'
+        return iframe_url, None
+
+    except http_requests.Timeout:
+        logger.error("[PAYMOB/DESIGN-HELPER] Timeout")
+        return None, "بوابة الدفع لا تستجيب"
+    except http_requests.RequestException as exc:
+        logger.error("[PAYMOB/DESIGN-HELPER] Network error: %s", exc)
+        return None, "خطأ في الاتصال ببوابة الدفع"
+    except Exception as exc:
+        logger.exception("[PAYMOB/DESIGN-HELPER] Unexpected: %s", exc)
+        return None, f"خطأ غير متوقع: {type(exc).__name__}"
+
+
+# ───────────────────────────────────────────────────────────────────────────
 # Endpoint implementations (preserved verbatim from _legacy.py)
 # ───────────────────────────────────────────────────────────────────────────
 @ensure_csrf_cookie
