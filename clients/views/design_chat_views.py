@@ -189,6 +189,7 @@ def _exec_chat(conv: DesignConversation, user_message: str) -> dict[str, Any]:
 
 
 def _exec_generate(
+    request,
     conv: DesignConversation,
     customer,
     user_message: str,
@@ -197,6 +198,7 @@ def _exec_generate(
     from erp_core.ai.design_engine import compose_mega_prompt
     from erp_core.ai.printing_copilot import generate_design_image
     from erp_core.ai.logo_overlay import composite_logo_on_image_url
+    from clients.services.design_persistence import persist_and_create_design
 
     ctx = conv.accumulated_context or {}
     raw_idea = ctx.get('raw_idea') or user_message
@@ -251,24 +253,37 @@ def _exec_generate(
         if comp.get('success'):
             image_url = comp['url']
 
-    # Persist as CustomerDesign — this is the source of truth for the image
-    design = CustomerDesign.objects.create(
-        customer=customer,
-        title=raw_idea[:200] or 'Conversational design',
-        description=user_message[:1000],
-        category='other',
-        raw_input=user_message,
-        engineered_prompt=mega['mega_prompt'],
-        negative_prompt=mega.get('negative_prompt', ''),
-        image_url=image_url,
-        model_used=engine,
-        is_free_trial=False,
-    )
+    # 🛡️ Persist to default_storage BEFORE writing the DB row — provider
+    # URLs (Together/FLUX) expire in ~1h, so the canonical URL must point at
+    # our own storage. See clients/services/design_persistence.py.
+    try:
+        design = persist_and_create_design(
+            request=request,
+            customer=customer,
+            provider_image_url=image_url,
+            title=raw_idea or 'Conversational design',
+            description=user_message,
+            raw_input=user_message,
+            engineered_prompt=mega['mega_prompt'],
+            negative_prompt=mega.get('negative_prompt', ''),
+            engine=engine,
+            category='other',
+            is_free_trial=False,
+            prefix='design_chat',
+        )
+    except RuntimeError as e:
+        return {
+            'reply': 'تم التوليد لكن فشل الحفظ — جرب تاني.',
+            'suggested_next': None,
+            'image_url': None, 'design_id': None,
+            'engine_used': engine, 'image_cost': 0.0,
+            'error': str(e),
+        }
 
     return {
         'reply': 'تم التوليد ✅ — لو حابب تعدّل، اكتب التعديل (مثال: "خليه أزرق").',
         'suggested_next': 'جرب تعديل بسيط أو اضغط Finalize لو عجبك.',
-        'image_url': image_url,
+        'image_url': design.image_url,
         'design_id': design.pk,
         'engine_used': engine,
         'image_cost': _estimate_image_cost(engine),
@@ -277,6 +292,7 @@ def _exec_generate(
 
 
 def _exec_refine(
+    request,
     conv: DesignConversation,
     customer,
     user_message: str,
@@ -285,11 +301,12 @@ def _exec_refine(
     """Image-to-image refine via FLUX-Kontext on the current_design."""
     from erp_core.ai.printing_copilot import _gen_via_flux_kontext
     from erp_core.ai.logo_overlay import composite_logo_on_image_url
+    from clients.services.design_persistence import persist_and_create_design
 
     if conv.current_design is None or not conv.current_design.image_url:
         # Shouldn't happen — classifier downgrades refine→generate when
         # has_current_design=False — but be defensive.
-        return _exec_generate(conv, customer, user_message)
+        return _exec_generate(request, conv, customer, user_message)
 
     # Build a concise English edit instruction from extracted_changes + raw msg.
     edit_parts = []
@@ -336,23 +353,35 @@ def _exec_refine(
         if comp.get('success'):
             image_url = comp['url']
 
-    # NEW CustomerDesign row — prior survives in turn snapshots for undo.
-    design = CustomerDesign.objects.create(
-        customer=customer,
-        title=conv.current_design.title,
-        description=f'Refined: {user_message[:500]}',
-        category=conv.current_design.category,
-        raw_input=user_message,
-        engineered_prompt=edit_instruction,
-        image_url=image_url,
-        model_used='kontext',
-        is_free_trial=False,
-    )
+    # 🛡️ Persist to default_storage BEFORE writing the DB row — Kontext URLs
+    # are also ephemeral. Prior design survives in turn snapshots for undo.
+    try:
+        design = persist_and_create_design(
+            request=request,
+            customer=customer,
+            provider_image_url=image_url,
+            title=conv.current_design.title,
+            description=f'Refined: {user_message[:500]}',
+            raw_input=user_message,
+            engineered_prompt=edit_instruction,
+            engine='kontext',
+            category=conv.current_design.category,
+            is_free_trial=False,
+            prefix='design_chat',
+        )
+    except RuntimeError as e:
+        return {
+            'reply': 'تم التعديل لكن فشل الحفظ — جرب تاني.',
+            'suggested_next': None,
+            'image_url': None, 'design_id': None,
+            'engine_used': 'kontext', 'image_cost': 0.0,
+            'error': str(e),
+        }
 
     return {
         'reply': 'تم التعديل ✅',
         'suggested_next': 'استمر في التعديل أو اضغط Finalize.',
-        'image_url': image_url,
+        'image_url': design.image_url,
         'design_id': design.pk,
         'engine_used': 'kontext',
         'image_cost': _estimate_image_cost('kontext'),
@@ -562,9 +591,9 @@ def _process_turn(request, conv, customer, user_message, explicit_intent):
     if intent == 'chat':
         exec_result = _exec_chat(conv, user_message)
     elif intent == 'generate':
-        exec_result = _exec_generate(conv, customer, user_message)
+        exec_result = _exec_generate(request, conv, customer, user_message)
     elif intent == 'refine':
-        exec_result = _exec_refine(conv, customer, user_message, extracted)
+        exec_result = _exec_refine(request, conv, customer, user_message, extracted)
     else:
         # Defensive — classify_chat_intent should never return anything else
         exec_result = _exec_chat(conv, user_message)

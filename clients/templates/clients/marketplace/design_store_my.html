@@ -352,7 +352,9 @@
                 <i class="fas fa-comments"></i> من المحادثة
             </span>
             {% endif %}
-            <img src="{{ d.image_url }}" alt="{{ d.title }}" loading="lazy">
+            <img src="{{ d.image_thumb_url|default:d.image_url }}"
+                 alt="{{ d.title }}"
+                 loading="lazy" decoding="async">
             <div class="design-card-body">
                 <div class="design-title">{{ d.title|truncatechars:50 }}</div>
                 <div class="design-meta">

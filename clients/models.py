@@ -2190,8 +2190,20 @@ class CustomerDesign(models.Model):
     engineered_prompt = models.TextField(blank=True)
     negative_prompt = models.TextField(blank=True)
 
-    # Result
+    # Result — image_url is the canonical original (PNG/JPG). The two
+    # *_url variants are WebP thumbnails generated at persist-time for
+    # faster gallery rendering (industry-standard: serve a 200×200 in the
+    # grid instead of a 2MB full-res). All three live in default_storage.
     image_url = models.URLField(max_length=600, blank=True)
+    image_thumb_url = models.URLField(max_length=600, blank=True,
+        verbose_name=_("صورة مصغّرة (200px WebP)"))
+    image_preview_url = models.URLField(max_length=600, blank=True,
+        verbose_name=_("معاينة (512px WebP)"))
+    image_persisted_at = models.DateTimeField(null=True, blank=True,
+        verbose_name=_("تاريخ الحفظ المحلي"),
+        help_text=_("None = صورة قديمة قبل الـ persistence pipeline"))
+    image_size_bytes = models.IntegerField(null=True, blank=True,
+        verbose_name=_("حجم الصورة الأصلية (bytes)"))
     model_used = models.CharField(max_length=50, blank=True)
 
     # Regenerations
