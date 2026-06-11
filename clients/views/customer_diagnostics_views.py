@@ -111,31 +111,29 @@ def diagnostics_upgrade(request, tier: str):
             })
         return redirect('/marketplace/diagnostics/?upgraded=1')
 
-    # Paymob path — defer to the existing parts_checkout integration shape.
-    # We surface only the iframe URL; the actual integration_id and billing
-    # data is the same shape used elsewhere in this codebase.
+    # Paymob path — use the unified service so HMAC + iframe lifecycle stay
+    # consistent with parts marketplace, design store, and SaaS subscriptions.
     price = CustomerDiagnosticsSubscription.TIER_PRICES_EGP[tier]
-    # Lazy import to avoid bootstrapping payment libs on every request.
-    try:
-        from clients.services.paymob import create_iframe_url  # type: ignore
-    except Exception:
-        create_iframe_url = None
-
-    if create_iframe_url is None:
-        return JsonResponse({
-            "error": "payment_unavailable",
-            "message": "بوابة الدفع غير متاحة حالياً. تواصل مع الدعم.",
-        }, status=503)
+    from clients.services.paymob import create_iframe_url
 
     callback_url = request.build_absolute_uri('/marketplace/diagnostics/paymob-callback/')
-    iframe_url = create_iframe_url(
-        amount_egp=price,
-        customer_phone=customer.phone,
-        customer_name=customer.full_name,
-        order_ref=f"diag-{customer.pk}-{tier}-{uuid.uuid4().hex[:8]}",
-        callback_url=callback_url,
-        metadata={'customer_pk': customer.pk, 'tier': tier},
-    )
+    try:
+        iframe_url = create_iframe_url(
+            amount_egp=price,
+            customer_phone=customer.phone,
+            customer_name=customer.full_name,
+            customer_email=customer.email,
+            order_ref=f"diag-{customer.pk}-{tier}",
+            callback_url=callback_url,
+            item_name=f'Mouss Tec Diagnostics {tier.upper()}',
+            metadata={'customer_pk': customer.pk, 'tier': tier},
+            cache_key_prefix='paymob_diag',
+        )
+    except RuntimeError as exc:
+        logger.error("[CUSTOMER DIAG] paymob iframe failed: %s", exc)
+        if request.method == 'POST':
+            return JsonResponse({"error": "payment_unavailable", "message": str(exc)}, status=502)
+        return redirect(f'/payment/failed/?reason=timeout&shop=&msg={str(exc)[:80]}')
     return redirect(iframe_url)
 
 
