@@ -408,7 +408,7 @@ DESIGN_QUALITY_GATE_ENABLED = env.bool('DESIGN_QUALITY_GATE_ENABLED', default=Tr
 # 💬 Conversational Design Builder (Phase N) — feature flag + limits.
 # الـ flag = False افتراضياً عشان نـ deploy الكود بدون ما نـ expose الـ UI.
 # لو الـ flag = False → الـ endpoints بترجع 404 (مش 503) عشان مفيش signal للـ probing.
-DESIGN_CHAT_ENABLED = env.bool('DESIGN_CHAT_ENABLED', default=False)
+DESIGN_CHAT_ENABLED = env.bool('DESIGN_CHAT_ENABLED', default=True)
 # Advisory lock duration per turn — يمنع double-tap race على نفس المحادثة.
 DESIGN_CHAT_LOCK_TIMEOUT_SECONDS = env.int('DESIGN_CHAT_LOCK_TIMEOUT_SECONDS', 60)
 # Per-conversation hard limits — يحمي balance من runaway sessions.
