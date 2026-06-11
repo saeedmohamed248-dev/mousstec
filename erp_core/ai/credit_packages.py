@@ -8,21 +8,23 @@ from typing import Optional
 
 
 # 💳 شحن العملاء (في الماركت بليس)
+# تسعير: 3 ج/تصميم (تكلفة 2.5 ج + هامش 20%)
 CUSTOMER_TOPUPS = [
-    {'slug': 'cust_50',  'designs': 50,  'price': Decimal('25.00'),  'name': '50 تصميم',  'badge': 'مبتدئ'},
-    {'slug': 'cust_100', 'designs': 100, 'price': Decimal('35.00'),  'name': '100 تصميم', 'badge': '🔥 الأكثر مبيعاً'},
-    {'slug': 'cust_500', 'designs': 500, 'price': Decimal('150.00'), 'name': '500 تصميم', 'badge': '💎 أوفر'},
+    {'slug': 'cust_20',  'designs': 20, 'price': Decimal('60.00'),  'name': '20 تصميم',  'badge': 'مبتدئ'},
+    {'slug': 'cust_40',  'designs': 40, 'price': Decimal('120.00'), 'name': '40 تصميم',  'badge': '🔥 الأكثر مبيعاً'},
+    {'slug': 'cust_80',  'designs': 80, 'price': Decimal('240.00'), 'name': '80 تصميم',  'badge': '💎 أوفر'},
 ]
 
 # 💳 شحن الشركات (داخل لوحة التحكم)
 TENANT_TOPUPS = [
-    {'slug': 'tnt_1000', 'designs': 1000, 'price': Decimal('250.00'), 'name': '1000 تصميم', 'badge': 'مناسب'},
-    {'slug': 'tnt_2500', 'designs': 2500, 'price': Decimal('500.00'), 'name': '2500 تصميم', 'badge': '🔥 الأكثر مبيعاً'},
-    {'slug': 'tnt_5000', 'designs': 5000, 'price': Decimal('900.00'), 'name': '5000 تصميم', 'badge': '💎 أوفر'},
+    {'slug': 'tnt_40',  'designs': 40,  'price': Decimal('120.00'), 'name': '40 تصميم',  'badge': 'مناسب'},
+    {'slug': 'tnt_120', 'designs': 120, 'price': Decimal('360.00'), 'name': '120 تصميم', 'badge': '🔥 الأكثر مبيعاً'},
+    {'slug': 'tnt_200', 'designs': 200, 'price': Decimal('600.00'), 'name': '200 تصميم', 'badge': '💎 أوفر'},
 ]
 
-# 🎁 هدية التسجيل (لكل من العميل والشركة)
-SIGNUP_BONUS_DESIGNS = 10
+# 🎁 هدية التسجيل
+SIGNUP_BONUS_DESIGNS_CUSTOMER = 1
+SIGNUP_BONUS_DESIGNS_TENANT = 3
 
 
 def get_topup_by_slug(slug: str, audience: str) -> dict | None:

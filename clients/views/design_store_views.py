@@ -564,12 +564,41 @@ def design_store_generate(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    # 🛡️ Rate limiting — 5 generations per minute per customer (protects Together AI / FLUX inference costs)
+    # 🛡️ [Anti-abuse 2026-06-11]: ثلاث طبقات حماية للـ FLUX quota:
+    # 1. per-customer minute: 3/min (كان 5)
+    # 2. per-customer hour: 30/hour (جديد)
+    # 3. global daily kill-switch: لو وصلنا للحد العام، نوقف كل التوليد
+    from django.conf import settings as _s
+    daily_cap = int(getattr(_s, 'DAILY_GLOBAL_IMAGE_CAP', 0))
+    if daily_cap > 0:
+        from datetime import date
+        global_key = f'design_gen_global:{date.today().isoformat()}'
+        global_count = cache.get(global_key, 0)
+        if global_count >= daily_cap:
+            return JsonResponse({
+                "error": "النظام في صيانة مؤقتة. حاول بعد قليل.",
+                "code": "daily_global_cap_reached",
+            }, status=503)
+
+    # نفحص كل الـ caps الأول، وبعدين نـ increment الكل سوا — عشان لو
+    # الـ hour cap اتقفل، الـ minute counter ميتزدش ظلم.
+    hour_key = f'design_gen_hour:{customer.pk}'
+    hour_count = cache.get(hour_key, 0)
+    if hour_count >= 30:
+        return JsonResponse({
+            "error": "وصلت للحد المسموح في الساعة (30 توليد). جرّب بعد شوية.",
+            "code": "hourly_limit_reached",
+        }, status=429)
+
     gen_rate_key = f'design_gen_rate:{customer.pk}'
     gen_count = cache.get(gen_rate_key, 0)
-    if gen_count >= 5:
+    if gen_count >= 3:
         return JsonResponse({"error": "أنت ترسل طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+
     cache.set(gen_rate_key, gen_count + 1, 60)
+    cache.set(hour_key, hour_count + 1, 3600)
+    if daily_cap > 0:
+        cache.set(global_key, global_count + 1, 86400)
 
     # Check free trial designs first, then paid packages
     using_free_trial = False

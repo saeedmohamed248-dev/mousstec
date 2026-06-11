@@ -1637,10 +1637,11 @@ class MarketplaceCustomer(SoftDeleteMixin, models.Model):
             self.refresh_from_db()
 
     def save(self, *args, **kwargs):
-        # Auto-assign free trial on first save (new registration)
-        if not self.pk and self.free_designs_total == 0:
-            # كل عميل جديد له تصميم واحد مجاني فقط
-            self.free_designs_total = 1
+        # 🛡️ [Anti-abuse 2026-06-11]: التصميم المجاني التلقائي اتشال.
+        # كان أي حد يقدر يـ script signup بأرقام عشوائية ويحرق provider
+        # quota (FLUX ~$0.05/صورة). الـ super admin يقدر يديها يدوياً
+        # من super_admin_customer_gift (POST بـ designs=N) لما يحب
+        # يـ promote عميل موثوق — الـ URL: /superadmin/customer/<id>/gift/.
 
         # Normalize Egyptian phone numbers — consistent +20 prefix
         if self.phone and not self.phone.startswith('+'):
@@ -3926,6 +3927,7 @@ class SupportTicket(SoftDeleteMixin, models.Model):
     SOURCE_CHOICES = (
         ('form',         _('فورم اتصل بنا')),
         ('chat_offline', _('شات خارج أوقات العمل')),
+        ('ai_chatbot',   _('المساعد الذكي')),
         ('email',        _('بريد إلكتروني')),
         ('phone',        _('مكالمة هاتفية')),
     )

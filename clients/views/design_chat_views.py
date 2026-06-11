@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.http import Http404, JsonResponse
 from django.utils import timezone
@@ -368,6 +369,12 @@ def _estimate_image_cost(engine: str) -> float:
     }.get(engine, 0.0)
 
 
+def _daily_image_key(customer_pk: int) -> str:
+    """Cache key for per-customer daily image counter (UTC day)."""
+    today = timezone.now().date().isoformat()
+    return f'design_chat_daily_images:{customer_pk}:{today}'
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Endpoint 1 — Start a new conversation
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -396,6 +403,21 @@ def design_chat_start(request):
         prune_stale_conversations(customer=customer)
     except Exception as e:
         logger.warning(f'[DESIGN CHAT START] lazy prune failed (non-fatal): {e}')
+
+    # 🛡️ [Anti-abuse 2026-06-11]: قبل ما نفتح محادثة جديدة، نتأكد إن
+    # العميل مش بيـ farm محادثات. سقف 3 محادثات نشطة (planning/refining)
+    # في نفس الوقت — منع scenario اللي العميل يفتح 50 محادثة ويستنزف
+    # 8 صور Kontext في كل واحدة (= ~$12 خسارة).
+    max_active = int(getattr(settings, 'DESIGN_CHAT_MAX_ACTIVE_PER_CUSTOMER', 3))
+    active_count = DesignConversation.objects.filter(
+        customer=customer, stage__in=['planning', 'refining']
+    ).count()
+    if active_count >= max_active:
+        return JsonResponse({
+            'error': 'too_many_active_conversations',
+            'message': f'عندك {active_count} محادثات مفتوحة بالفعل. اقفل واحدة قبل ما تفتح جديدة.',
+            'max_active': max_active,
+        }, status=429)
 
     brand_snapshot = _snapshot_brand(customer)
     conv = DesignConversation.objects.create(
@@ -452,6 +474,22 @@ def design_chat_message(request, conversation_code):
     if not user_message:
         return JsonResponse({'error': 'empty_message'}, status=400)
     explicit_intent = (body.get('intent') or '').strip().lower() or None
+
+    # 🛡️ [Anti-abuse 2026-06-11]: سقف يومي للصور لكل عميل عبر كل
+    # المحادثات. counter في الـ cache بمفتاح يومي — يـ increment بس
+    # لما الـ image فعلاً اتولّدت (شوف `_daily_image_key` تحت).
+    # ملحوظة: السقف يتفحص هنا حتى لو الـ turn الحالي مش هيولّد صورة
+    # (planning/refining)، عشان نقفل الـ farming بدري؛ لو عميل وصل
+    # الحد فـ مش هيقدر يكمل المحادثة لحد بكرة (أو يشتري باقة).
+    daily_cap = int(getattr(settings, 'DESIGN_CHAT_DAILY_IMAGE_CAP', 10))
+    today_images = cache.get(_daily_image_key(customer.pk), 0)
+    if today_images >= daily_cap:
+        return JsonResponse({
+            'error': 'daily_image_cap_reached',
+            'message': f'وصلت للحد اليومي ({daily_cap} صورة). جرّب بكرة أو اشترِ باقة.',
+            'today_images': today_images,
+            'daily_cap': daily_cap,
+        }, status=429)
 
     # ── Pre-flight: limits + lock ───────────────────────────────
     allowed, reason = conv.can_send_another_turn()
@@ -575,6 +613,14 @@ def _process_turn(request, conv, customer, user_message, explicit_intent):
             elif intent == 'refine':
                 conv.stage = 'refining'
         conv.save()
+
+    # 🛡️ [Anti-abuse 2026-06-11]: bump daily image counter بعد ما الـ DB commit
+    # نجح — counter دقيق عبر كل المحادثات. TTL = 25 ساعة عشان يغطي day rollover.
+    if new_design is not None:
+        try:
+            cache.incr(_daily_image_key(customer.pk))
+        except ValueError:
+            cache.set(_daily_image_key(customer.pk), 1, 60 * 60 * 25)
 
     turn_cost = Decimal(str(intent_result['cost_usd'])) + Decimal(str(exec_result['image_cost']))
     return JsonResponse({

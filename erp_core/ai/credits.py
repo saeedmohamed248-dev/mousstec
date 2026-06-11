@@ -23,7 +23,7 @@ from django.db import connection, transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .credit_packages import SIGNUP_BONUS_DESIGNS
+from .credit_packages import SIGNUP_BONUS_DESIGNS_CUSTOMER, SIGNUP_BONUS_DESIGNS_TENANT
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -232,25 +232,23 @@ def consume_customer_credit(customer, metadata: dict | None = None) -> dict[str,
 # 🎁 SIGNUP BONUS
 # =============================================================================
 def grant_signup_bonus_customer(customer) -> bool:
-    """يدي عميل جديد 10 تصاميم مجانية. Idempotent — مش بيكرر."""
+    """يدي عميل جديد تصميم مجاني واحد. Idempotent — مش بيكرر."""
     from clients.models import MarketplaceCustomer
 
-    # Idempotent: لو already granted, ما نكررش
-    if (customer.free_designs_total or 0) >= SIGNUP_BONUS_DESIGNS:
+    if (customer.free_designs_total or 0) >= SIGNUP_BONUS_DESIGNS_CUSTOMER:
         return False
     MarketplaceCustomer.objects.filter(pk=customer.pk).update(
-        free_designs_total=SIGNUP_BONUS_DESIGNS,
+        free_designs_total=SIGNUP_BONUS_DESIGNS_CUSTOMER,
     )
     customer.refresh_from_db(fields=['free_designs_total'])
-    logger.info(f'[SIGNUP BONUS] Customer {customer.pk} granted {SIGNUP_BONUS_DESIGNS} designs')
+    logger.info(f'[SIGNUP BONUS] Customer {customer.pk} granted {SIGNUP_BONUS_DESIGNS_CUSTOMER} designs')
     return True
 
 
 def grant_signup_bonus_tenant(tenant) -> bool:
-    """يدي شركة جديدة 10 تصاميم مجانية كـ AIBonusGrant. Idempotent."""
+    """يدي شركة جديدة 3 تصاميم مجانية كـ AIBonusGrant. Idempotent."""
     from clients.models import AIBonusGrant
 
-    # Idempotent: لو فيه already grant بنفس الـ reason ما نكررش
     existing = AIBonusGrant.objects.filter(
         tenant=tenant, reason='signup_bonus', is_active=True,
     ).exists()
@@ -259,12 +257,12 @@ def grant_signup_bonus_tenant(tenant) -> bool:
 
     AIBonusGrant.objects.create(
         tenant=tenant,
-        granted_designs=SIGNUP_BONUS_DESIGNS,
+        granted_designs=SIGNUP_BONUS_DESIGNS_TENANT,
         consumed_designs=0,
         reason='signup_bonus',
         is_active=True,
     )
-    logger.info(f'[SIGNUP BONUS] Tenant {tenant.schema_name} granted {SIGNUP_BONUS_DESIGNS} designs')
+    logger.info(f'[SIGNUP BONUS] Tenant {tenant.schema_name} granted {SIGNUP_BONUS_DESIGNS_TENANT} designs')
     return True
 
 

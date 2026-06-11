@@ -189,6 +189,7 @@
 
     <!-- Help form pane -->
     <form id="ai-help-pane" onsubmit="submitAiHelp(event)">
+        {% csrf_token %}
         <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px;font-size:12px;color:#c4b5fd;direction:rtl;">
             <b>📨 فورم المساعدة</b><br>
             ابعتلنا مشكلتك أو استفسارك وفريق الدعم هيرد عليك في أقرب وقت.
@@ -307,6 +308,10 @@ function switchAiTab(tab) {
 }
 
 function aiCsrfToken() {
+    // ١) من الـ {% csrf_token %} المرسوم جوه الفورم (الأضمن)
+    const input = document.querySelector('#ai-help-pane input[name=csrfmiddlewaretoken]');
+    if (input && input.value) return input.value;
+    // ٢) fallback: من الكوكي
     const m = document.cookie.match(/(?:^|;\s*)(?:mt_csrf|csrftoken)=([^;]+)/);
     return m ? m[1] : '';
 }

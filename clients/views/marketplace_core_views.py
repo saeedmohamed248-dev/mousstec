@@ -120,13 +120,28 @@ def marketplace_register(request):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    # 🛡️ Rate limiting — 3 registrations per minute per IP (prevent spam)
+    # 🛡️ [Anti-abuse 2026-06-11]: حماية مزدوجة ضد signup farming.
+    # كان 3/دقيقة فقط — سهل التحايل بـ proxies. دلوقتي:
+    #   - 3/دقيقة (سلوك الـ burst الطبيعي)
+    #   - 15/ساعة (يمنع scripting طويل المدى من نفس IP)
+    # ملاحظة: 15 مش 5 — في مصر CGNAT و WiFi مقاهي بتخلي عيلة أو
+    # مكتب صغير يبانوا من نفس IP. 15 يكفي للسلوك العائلي و يقفل الـ bots.
+    # الـ hour check قبل الـ minute عشان لو وصل الساعة، الـ minute counter
+    # ميتزدش ظلم على اللي محصلش له تسجيل.
     client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+
+    reg_hour_key = f'otp_reg_hour:{client_ip}'
+    reg_hour_count = cache.get(reg_hour_key, 0)
+    if reg_hour_count >= 15:
+        return JsonResponse({"error": "تجاوزت الحد المسموح من التسجيلات. جرّب لاحقاً."}, status=429)
+
     reg_rate_key = f'otp_reg_rate:{client_ip}'
     reg_count = cache.get(reg_rate_key, 0)
     if reg_count >= 3:
         return JsonResponse({"error": "طلبات كثيرة. انتظر دقيقة ثم حاول مرة أخرى."}, status=429)
+
     cache.set(reg_rate_key, reg_count + 1, 60)
+    cache.set(reg_hour_key, reg_hour_count + 1, 3600)
 
     try:
         data = json.loads(request.body)

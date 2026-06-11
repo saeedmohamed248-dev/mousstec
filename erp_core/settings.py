@@ -78,12 +78,17 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # 🚀 تأمين مالي من درجة البنوك (Bank-Grade HSTS) في بيئة الإنتاج
-if not DEBUG:
+import sys as _sys
+_IS_RUNNING_TESTS = 'test' in _sys.argv or 'pytest' in _sys.argv[0]
+
+if not DEBUG and not _IS_RUNNING_TESTS:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     # 🔒 إجبار HTTPS — الـ reverse proxy/load-balancer لازم يحوّل HTTP→HTTPS،
     # وDjango بيتحقّق من header HTTP_X_FORWARDED_PROTO المضبوط فوق.
+    # ملاحظة: يتعطل أثناء `manage.py test` عشان الـ Django test client
+    # بيستخدم HTTP plain ويتوهق في 301 redirect.
     SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
 
 # 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
@@ -418,6 +423,17 @@ DESIGN_CHAT_LOCK_TIMEOUT_SECONDS = env.int('DESIGN_CHAT_LOCK_TIMEOUT_SECONDS', 6
 DESIGN_CHAT_MAX_TURNS = env.int('DESIGN_CHAT_MAX_TURNS', 30)
 DESIGN_CHAT_MAX_IMAGES = env.int('DESIGN_CHAT_MAX_IMAGES', 8)
 DESIGN_CHAT_IDLE_MINUTES = env.int('DESIGN_CHAT_IDLE_MINUTES', 60)
+# 🛡️ [Anti-abuse 2026-06-11]: حدود لمنع farming الـ design-chat.
+# عميل بدون باقة كان يقدر يفتح 50 محادثة × 8 صور = 400 صورة Kontext مجانية
+# (~$12 خسارة على provider quota). دلوقتي:
+#   - max 3 محادثات نشطة في نفس الوقت
+#   - max 10 صور/يوم لكل عميل عبر كل المحادثات
+DESIGN_CHAT_MAX_ACTIVE_PER_CUSTOMER = env.int('DESIGN_CHAT_MAX_ACTIVE_PER_CUSTOMER', 3)
+DESIGN_CHAT_DAILY_IMAGE_CAP = env.int('DESIGN_CHAT_DAILY_IMAGE_CAP', 10)
+
+# 🛡️ Daily kill-switch لكل توليد design-store. لو 0 = معطّل.
+# للحماية الطارئة لو حصل abuse غير متوقع؛ شغّله بـ env var وقت الأزمات.
+DAILY_GLOBAL_IMAGE_CAP = env.int('DAILY_GLOBAL_IMAGE_CAP', 0)
 
 # 🛡️ HMAC secret for webhook signature verification.
 # universal_webhook_multiplexer يستخدم WEBHOOK_HMAC_SECRET أساسياً ويـ fall back
