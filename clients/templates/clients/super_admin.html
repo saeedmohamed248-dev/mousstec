@@ -906,10 +906,11 @@
                             {% else %}bg-amber-500/10 text-amber-400 border border-amber-500/20{% endif %}">
                             {{ dp.get_status_display }}
                         </span>
-                        {% if dp.status == 'awaiting_confirm' %}
+                        {% if dp.status == 'pending' or dp.status == 'awaiting_confirm' %}
                         <button onclick="confirmDesignPurchase({{ dp.pk }}, 'confirm')"
-                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
-                            <i class="fas fa-check ml-1"></i>تأكيد
+                            class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
+                            title="{% if dp.status == 'pending' %}تفعيل يدوي — للحالات اللي العميل دفع لكن الـ callback ما اشتغلش{% else %}تأكيد الدفع وتفعيل الباقة{% endif %}">
+                            <i class="fas fa-check ml-1"></i>{% if dp.status == 'pending' %}تفعيل يدوي{% else %}تأكيد{% endif %}
                         </button>
                         <button onclick="confirmDesignPurchase({{ dp.pk }}, 'reject')"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
