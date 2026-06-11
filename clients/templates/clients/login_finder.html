@@ -88,6 +88,21 @@
         </div>
         {% endif %}
 
+        {% if verification_required %}
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-4 mb-5">
+            <div class="text-amber-300 text-xs font-black mb-2">
+                <i class="fas fa-envelope-circle-check ml-1"></i>إيميلك لسه مش متفعّل
+            </div>
+            <form method="post" action="/account/verify-email/resend/" class="flex gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="email" value="{{ verify_email }}">
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-2 rounded-lg text-xs transition">
+                    <i class="fas fa-paper-plane ml-1"></i>ابعت لي رابط التأكيد تاني
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
         <form method="post" class="space-y-4">
             {% csrf_token %}
             {# 🐛 [Bug #2 FIX] Forward ?next= through the form so the post-login redirect lands on the user's original target. #}

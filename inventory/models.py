@@ -18,10 +18,39 @@ logger = logging.getLogger('mouss_tec_core')
 # 🏢 1. الإعدادات الأساسية (فروع ومنتجات وموظفين)
 # =====================================================================
 class Branch(models.Model):
-    name = models.CharField(max_length=100, verbose_name=_("اسم الفرع")) 
+    name = models.CharField(max_length=100, verbose_name=_("اسم الفرع"))
     location = models.CharField(max_length=255, blank=True, verbose_name=_("الموقع"))
     phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم تليفون الفرع"))
     def __str__(self): return self.name
+
+
+# =====================================================================
+# 🔐 Two-Factor Authentication (TOTP — Google Authenticator/Authy)
+# =====================================================================
+class UserMFA(models.Model):
+    """
+    سجل MFA لكل مستخدم — TOTP secret + backup codes.
+
+    لما المستخدم يفعّل 2FA من صفحة Security Settings، بنخزّن الـ secret
+    (base32) و 10 backup codes (hashed). أثناء الـ login، بعد ما الـ password
+    يـ pass، النظام بيـ challenge بكود من الـ authenticator app.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='mfa', verbose_name=_("المستخدم"))
+    secret = models.CharField(max_length=64, verbose_name=_("TOTP Secret (base32)"))
+    is_enabled = models.BooleanField(default=False, verbose_name=_("مفعّل؟"))
+    # JSON list of hashed backup codes — recovery codes for lost devices
+    backup_codes = models.JSONField(default=list, blank=True, verbose_name=_("أكواد الاسترجاع"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("مصادقة ثنائية")
+        verbose_name_plural = _("المصادقة الثنائية")
+
+    def __str__(self):
+        status = "✅" if self.is_enabled else "⏸️"
+        return f"{status} MFA — {self.user.username}"
 
 class EmployeeProfile(models.Model):
     ROLE_CHOICES = (

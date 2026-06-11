@@ -131,6 +131,15 @@ from .auth_views import (  # noqa: F401
     automotive_landing_page,
     printing_landing_page,
     account_recovery,
+    change_password,
+    verify_email,
+    resend_verification,
+)
+
+from .mfa_views import (  # noqa: F401
+    mfa_setup,
+    mfa_disable,
+    mfa_challenge,
 )
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -143,6 +152,8 @@ from .subscription_views import (  # noqa: F401
     manage_subscription,
     purchase_addon_api,
     features_page,
+    payment_success,
+    payment_failed,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

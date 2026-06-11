@@ -64,6 +64,7 @@ python-crontab==3.3.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 qrcode==8.2
+pyotp==2.9.0
 redis==7.0.1
 requests==2.32.5
 s3transfer==0.16.1

@@ -218,10 +218,15 @@ def paymob_checkout(request):
             messages.error(request, "بوابة الدفع لم ترسل رقم الطلب.")
             return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
-        # Step 3: Payment key
+        # Step 3: Payment key — use real tenant contact data when available
+        tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
+        billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
+        billing_name_parts = billing_name.split(maxsplit=1)
         billing = {
-            'first_name': shop or 'Customer', 'last_name': 'MoussTec',
-            'email': 'customer@mousstec.com', 'phone_number': '01000000000',
+            'first_name': billing_name_parts[0][:50] or 'Customer',
+            'last_name': billing_name_parts[1][:50] if len(billing_name_parts) > 1 else 'MoussTec',
+            'email': (tenant_obj.email or 'customer@mousstec.com') if tenant_obj else 'customer@mousstec.com',
+            'phone_number': (tenant_obj.phone.lstrip('+') if tenant_obj and tenant_obj.phone else '01000000000'),
             'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
             'shipping_method': 'NA', 'postal_code': 'NA', 'city': 'Cairo',
             'country': 'EG', 'state': 'Cairo',
@@ -349,7 +354,7 @@ def paymob_callback(request):
 
         if not hmac.compare_digest(computed_hmac, received_hmac):
             logger.critical(f"🚨 [PAYMOB HMAC MISMATCH] IP: {request.META.get('REMOTE_ADDR')} — Possible payment forgery attempt!")
-            return redirect(reverse('saas_pricing') + '?payment=failed&reason=signature')
+            return redirect(reverse('payment_failed') + '?reason=signature')
     else:
         logger.warning("⚠️ [PAYMOB] PAYMOB_HMAC_SECRET not configured — HMAC verification skipped!")
 
@@ -394,19 +399,19 @@ def paymob_callback(request):
                 ).exists():
                     logger.info(f"⚠️ [PAYMOB] Duplicate callback for order {order_id} — already processed; returning success")
                     cache.delete(f'paymob_order_{order_id}')
-                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
+                    return redirect(reverse('payment_success') + f'?shop={shop}&plan={plan}&period={billing_period}')
 
                 # Resolve الـ legacy plan string → Plan FK
                 target_slug = resolve_plan_slug(plan)
                 if not target_slug:
                     logger.error(f"🔴 [PAYMOB] Unknown legacy plan '{plan}' for shop '{shop}' — cannot resolve to Plan.slug")
-                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=failed&reason=plan_unknown')
+                    return redirect(reverse('payment_failed') + f'?shop={shop}&reason=plan_unknown')
 
                 try:
                     plan_obj = Plan.objects.get(slug=target_slug)
                 except Plan.DoesNotExist:
                     logger.error(f"🔴 [PAYMOB] Plan slug '{target_slug}' not found in DB — run seed migration 0011")
-                    return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=failed&reason=plan_missing')
+                    return redirect(reverse('payment_failed') + f'?shop={shop}&reason=plan_missing')
 
                 try:
                     with transaction.atomic():
@@ -473,9 +478,9 @@ def paymob_callback(request):
                 except Exception as e:
                     logger.exception(f"🔴 Paymob callback failed for {shop} order={order_id}: {e}")
 
-            return redirect(reverse('saas_pricing') + f'?shop={shop}&payment=success')
+            return redirect(reverse('payment_success') + f'?shop={shop}&plan={plan}&period={billing_period}')
 
-    return redirect(reverse('saas_pricing') + '?payment=failed')
+    return redirect(reverse('payment_failed') + '?reason=payment_declined')
 
 
 # =====================================================================
@@ -607,6 +612,63 @@ def purchase_addon_api(request):
         logger.error("[ADDON] purchase_addon_api error: %s", e)
         return JsonResponse({"error": "حدث خطأ أثناء شراء الإضافة. حاول مرة أخرى."}, status=500)
 
+
+
+# =====================================================================
+# ✅ صفحات نتيجة الدفع (Payment Result Pages)
+# =====================================================================
+def payment_success(request):
+    """
+    صفحة نجاح الدفع — تُعرض بعد اكتمال أي عملية دفع ناجحة.
+    تدعم: اشتراك SaaS، Design Store، Parts Marketplace.
+    """
+    shop         = request.GET.get('shop', '')
+    plan         = request.GET.get('plan', '')
+    period       = request.GET.get('period', 'monthly')
+    order_code   = request.GET.get('order', '')
+    context_type = request.GET.get('type', 'subscription')  # subscription | design | parts
+
+    period_labels = {
+        'monthly': 'شهري', 'quarterly': 'ربع سنوي',
+        'semi_annual': 'نصف سنوي', 'annual': 'سنوي',
+    }
+
+    tenant = None
+    if shop:
+        tenant = Client.objects.filter(schema_name=shop).only('name', 'subscription_end_date', 'plan').first()
+
+    return render(request, 'clients/payment_success.html', {
+        'shop': shop,
+        'plan': plan,
+        'period_label': period_labels.get(period, period),
+        'order_code': order_code,
+        'context_type': context_type,
+        'tenant': tenant,
+    })
+
+
+def payment_failed(request):
+    """
+    صفحة فشل الدفع — مع سبب واضح وخيارات المحاولة من جديد.
+    """
+    reason = request.GET.get('reason', 'unknown')
+    shop   = request.GET.get('shop', '')
+
+    reason_messages = {
+        'payment_declined':   'تم رفض عملية الدفع من البنك أو بوابة الدفع.',
+        'signature':          'فشل التحقق من توقيع العملية — قد تكون العملية مزورة.',
+        'plan_unknown':       'الباقة المختارة غير معروفة. تواصل مع الدعم.',
+        'plan_missing':       'الباقة غير موجودة في النظام. تواصل مع الدعم.',
+        'timeout':            'انتهت مهلة الاتصال ببوابة الدفع. حاول مرة أخرى.',
+        'unknown':            'حدث خطأ غير متوقع. حاول مرة أخرى أو تواصل مع الدعم.',
+    }
+
+    return render(request, 'clients/payment_failed.html', {
+        'reason': reason,
+        'reason_message': reason_messages.get(reason, reason_messages['unknown']),
+        'shop': shop,
+        'retry_url': reverse('saas_pricing') + (f'?shop={shop}' if shop else ''),
+    })
 
 
 # =====================================================================

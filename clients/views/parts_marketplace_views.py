@@ -38,6 +38,7 @@ from clients.models import (
     PartOrder,
     PlatformEvent,
 )
+from clients.services import escrow as escrow_svc
 from clients.views._shared import _marketplace_auth
 
 logger = logging.getLogger('mouss_tec_core')
@@ -522,6 +523,13 @@ def parts_paymob_callback(request):
             PartListing.objects.filter(pk=order.listing_id).update(
                 status='sold', sold_at=timezone.now(),
             )
+            # 💰 Create escrow hold — financial ledger record MUST be created here.
+            # The escrow service is the single source of truth for fund custody.
+            try:
+                escrow_svc.place_hold(order)
+                logger.info("[PARTS] Escrow hold placed for order %s — amount=%s EGP", order.order_code, order.amount_paid)
+            except Exception as exc:
+                logger.exception("[PARTS] CRITICAL: place_hold failed for order %s: %s", order.order_code, exc)
             # Notify seller
             if order.listing.seller_customer_id:
                 CustomerNotification.objects.create(

@@ -119,24 +119,20 @@
             <input type="hidden" name="tenant_schema" value="{{ tenant_schema }}">
             <input type="hidden" name="reset_token" value="{{ reset_token }}">
 
-            <div>
-                <label class="block text-xs font-black text-slate-400 mb-2">اختر المستخدم</label>
-                <select name="user_id" required
-                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition">
-                    {% for u in users %}
-                    <option value="{{ u.id }}">
-                        {{ u.full_name }}{% if u.is_superuser %} (مدير عام){% endif %} — @{{ u.username }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <div class="bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
+                <div class="text-[11px] text-slate-500 mb-1">سيتم تغيير كلمة سر:</div>
+                <div class="text-sm font-black text-emerald-300">
+                    <i class="fas fa-user-shield ml-1"></i>{{ target_username }}
+                </div>
             </div>
 
             <div>
                 <label class="block text-xs font-black text-slate-400 mb-2">كلمة السر الجديدة</label>
-                <input type="password" name="new_password" required minlength="6"
-                    placeholder="6 أحرف على الأقل"
+                <input type="password" name="new_password" id="id_recovery_password" required minlength="8"
+                    placeholder="8 أحرف على الأقل — حروف وأرقام"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition"
                     dir="ltr">
+                {% include 'clients/_password_strength.html' with target_id="id_recovery_password" %}
             </div>
 
             <div>

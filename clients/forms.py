@@ -113,12 +113,18 @@ class TenantSignupForm(forms.Form):
         return phone_clean
 
     def clean_password(self):
-        """درع حماية أولي لكلمة المرور"""
-        password = self.cleaned_data.get('password')
-        # 🚀 [FIX BY QA]: رفض كلمات المرور الرقمية فقط بغض النظر عن الطول
-        # الشرط القديم (isdigit() and len < 8) كان ميتاً لأن min_length=8 يمنعها أصلاً
-        if password and password.isdigit():
-            raise ValidationError("🚫 كلمة المرور ضعيفة جداً. يرجى دمج حروف وأرقام ورموز.")
+        """درع حماية كلمة السر — يستخدم Django validators الموحّدة.
+
+        🚀 بدل ما نـ duplicate قواعد الـ password في 3 أماكن (signup, recovery,
+        change), نستخدم AUTH_PASSWORD_VALIDATORS اللي معرّفة في settings —
+        يفحص common passwords, similarity, numeric-only, min_length.
+        """
+        from django.contrib.auth.password_validation import validate_password
+        password = self.cleaned_data.get('password') or ''
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            raise ValidationError(' • '.join(e.messages))
         return password
 
     def clean_subdomain(self):

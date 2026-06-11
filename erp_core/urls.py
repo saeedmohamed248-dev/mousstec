@@ -289,6 +289,18 @@ urlpatterns = [
     # 🔑 استرجاع كلمة السر والحساب (Password Recovery)
     path('account/recovery/', client_views.account_recovery, name='account_recovery'),
 
+    # 🔐 تغيير كلمة السر للمستخدم المسجل دخوله (works on tenant + public)
+    path('account/change-password/', client_views.change_password, name='change_password'),
+
+    # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
+    path('account/verify-email/', client_views.verify_email, name='verify_email'),
+    path('account/verify-email/resend/', client_views.resend_verification, name='resend_verification'),
+
+    # 🔐 Two-Factor Authentication (TOTP)
+    path('account/mfa/', client_views.mfa_setup, name='mfa_setup'),
+    path('account/mfa/disable/', client_views.mfa_disable, name='mfa_disable'),
+    path('account/mfa/challenge/', client_views.mfa_challenge, name='mfa_challenge'),
+
     # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
     path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
 
@@ -363,6 +375,8 @@ urlpatterns = [
     # 💳 بوابة الدفع عبر Paymob (Visa/Mastercard)
     path('payment/paymob/checkout/', client_views.paymob_checkout, name='paymob_checkout'),
     path('payment/paymob/callback/', client_views.paymob_callback, name='paymob_callback'),
+    path('payment/success/', client_views.payment_success, name='payment_success'),
+    path('payment/failed/',  client_views.payment_failed,  name='payment_failed'),
 
     # 🧩 إدارة الاشتراك وشراء الإضافات (Pro-Rated Addon Engine)
     path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),

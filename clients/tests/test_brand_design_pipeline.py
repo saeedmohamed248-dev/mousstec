@@ -525,7 +525,8 @@ class LogoCompositingTests(TestCase):
         return buf.getvalue()
 
     def _mock_requests_get(self, image_bytes):
-        """Patch context for `requests.get` returning our test image."""
+        """Legacy helper retained for tests that still mock requests.get directly.
+        Wraps bytes in a MagicMock(status_code=200, content=bytes)."""
         from unittest.mock import MagicMock
         m = MagicMock()
         m.status_code = 200
@@ -566,14 +567,14 @@ class LogoCompositingTests(TestCase):
         self.assertFalse(r['success'])
         self.assertEqual(r['error'], 'no_logo_source')
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_apparel_composite_succeeds_and_returns_chest_placement(self, mock_get):
         """End-to-end: an apparel image gets a logo composited on left chest."""
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         # Two HTTP calls happen: one for canvas (image_url), one for logo
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes((1024, 1024))),
-            self._mock_requests_get(self._logo_png_bytes((300, 300))),
+            self._solid_jpeg_bytes((1024, 1024)),
+            self._logo_png_bytes((300, 300)),
         ]
         result = composite_logo_on_image_url(
             image_url='https://example.com/tshirt.jpg',
@@ -585,12 +586,12 @@ class LogoCompositingTests(TestCase):
         self.assertAlmostEqual(result['width_ratio'], 0.10, places=2)
         self.assertIn('.jpg', result['url'])
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_footwear_routes_to_side_panel(self, mock_get):
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes()),
-            self._mock_requests_get(self._logo_png_bytes()),
+            self._solid_jpeg_bytes(),
+            self._logo_png_bytes(),
         ]
         result = composite_logo_on_image_url(
             image_url='https://x/sneaker.jpg',
@@ -600,12 +601,12 @@ class LogoCompositingTests(TestCase):
         self.assertTrue(result['success'])
         self.assertEqual(result['placement'], 'side_panel')
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_unknown_category_uses_default_placement(self, mock_get):
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes()),
-            self._mock_requests_get(self._logo_png_bytes()),
+            self._solid_jpeg_bytes(),
+            self._logo_png_bytes(),
         ]
         result = composite_logo_on_image_url(
             image_url='https://x/a.jpg',
@@ -615,13 +616,13 @@ class LogoCompositingTests(TestCase):
         self.assertTrue(result['success'])
         self.assertEqual(result['placement'], 'bottom_right')
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_text_overlay_at_chest_pushes_logo_away(self, mock_get):
         """If text is on the chest, logo must NOT overlap it."""
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes((1024, 1024))),
-            self._mock_requests_get(self._logo_png_bytes((300, 300))),
+            self._solid_jpeg_bytes((1024, 1024)),
+            self._logo_png_bytes((300, 300)),
         ]
         result = composite_logo_on_image_url(
             image_url='https://x/tshirt.jpg',
@@ -634,13 +635,13 @@ class LogoCompositingTests(TestCase):
         # (means it had to MOVE the logo away from the original chest position)
         self.assertFalse(result['avoided_text'])
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_text_overlay_at_bottom_keeps_logo_at_default(self, mock_get):
         """Apparel default is chest_left — text at bottom does NOT collide."""
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes((1024, 1024))),
-            self._mock_requests_get(self._logo_png_bytes((300, 300))),
+            self._solid_jpeg_bytes((1024, 1024)),
+            self._logo_png_bytes((300, 300)),
         ]
         result = composite_logo_on_image_url(
             image_url='https://x/tshirt.jpg',
@@ -651,26 +652,25 @@ class LogoCompositingTests(TestCase):
         self.assertTrue(result['success'])
         self.assertTrue(result['avoided_text'])
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_canvas_http_failure_is_clean(self, mock_get):
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
-        from unittest.mock import MagicMock
-        bad = MagicMock(status_code=404, content=b'')
-        mock_get.return_value = bad
+        # safe_fetch_image returns None on any failure (404, blocked host, etc.)
+        mock_get.return_value = None
         result = composite_logo_on_image_url(
             image_url='https://x/missing.jpg',
             logo_source='https://x/l.png',
             category='apparel',
         )
         self.assertFalse(result['success'])
-        self.assertIn('canvas_http_404', result['error'])
+        self.assertEqual(result['error'], 'canvas_blocked_or_failed')
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_width_ratio_override_is_clamped(self, mock_get):
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes()),
-            self._mock_requests_get(self._logo_png_bytes()),
+            self._solid_jpeg_bytes(),
+            self._logo_png_bytes(),
         ]
         # Try to set absurdly large width — must clamp to 0.30
         result = composite_logo_on_image_url(
@@ -682,12 +682,12 @@ class LogoCompositingTests(TestCase):
         self.assertTrue(result['success'])
         self.assertEqual(result['width_ratio'], 0.30)
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_position_override_respected(self, mock_get):
         from erp_core.ai.logo_overlay import composite_logo_on_image_url
         mock_get.side_effect = [
-            self._mock_requests_get(self._solid_jpeg_bytes()),
-            self._mock_requests_get(self._logo_png_bytes()),
+            self._solid_jpeg_bytes(),
+            self._logo_png_bytes(),
         ]
         result = composite_logo_on_image_url(
             image_url='https://x/a.jpg',
@@ -764,7 +764,7 @@ class SVGLogoSupportTests(TestCase):
         img = _bytes_to_pil(self._MINIMAL_SVG, hint_name='brand.svg')
         self.assertIsNone(img)
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     def test_svg_logo_composites_end_to_end_on_apparel(self, mock_get):
         """Full pipeline: SVG logo URL → CairoSVG → PIL → composite onto apparel."""
         try:
@@ -782,10 +782,8 @@ class SVGLogoSupportTests(TestCase):
         canvas_buf = io.BytesIO()
         Image.new('RGB', (1024, 1024), (220, 220, 220)).save(canvas_buf, 'JPEG')
 
-        from unittest.mock import MagicMock
-        canvas_resp = MagicMock(status_code=200, content=canvas_buf.getvalue())
-        svg_resp = MagicMock(status_code=200, content=self._MINIMAL_SVG)
-        mock_get.side_effect = [canvas_resp, svg_resp]
+        # safe_fetch_image returns bytes directly
+        mock_get.side_effect = [canvas_buf.getvalue(), self._MINIMAL_SVG]
 
         result = composite_logo_on_image_url(
             image_url='https://example.com/tshirt.jpg',
@@ -795,7 +793,7 @@ class SVGLogoSupportTests(TestCase):
         self.assertTrue(result['success'], msg=result)
         self.assertEqual(result['placement'], 'chest_left')
 
-    @patch('erp_core.ai.logo_overlay.requests.get')
+    @patch('erp_core.ai._safety.safe_fetch_image')
     @patch('erp_core.ai.logo_overlay._svg_to_png_bytes')
     def test_svg_composite_fails_gracefully_without_cairosvg(self, mock_svg2png, mock_get):
         """No cairosvg → SVG path returns clean error, no exception."""
@@ -805,11 +803,8 @@ class SVGLogoSupportTests(TestCase):
         canvas_buf = io.BytesIO()
         Image.new('RGB', (800, 800), (200, 200, 200)).save(canvas_buf, 'JPEG')
 
-        from unittest.mock import MagicMock
-        mock_get.side_effect = [
-            MagicMock(status_code=200, content=canvas_buf.getvalue()),
-            MagicMock(status_code=200, content=self._MINIMAL_SVG),
-        ]
+        # safe_fetch_image returns bytes directly
+        mock_get.side_effect = [canvas_buf.getvalue(), self._MINIMAL_SVG]
         mock_svg2png.return_value = None  # simulate missing cairosvg
 
         result = composite_logo_on_image_url(

@@ -3392,6 +3392,15 @@ class PartOrder(SoftDeleteMixin, models.Model):
         self.status = 'released'
         self.released_at = timezone.now()
         self.save(update_fields=['status', 'released_at'])
+        # Update escrow ledger — the financial record must reflect the release.
+        try:
+            from clients.services import escrow as escrow_svc
+            escrow_svc.release_to_seller(self, by_user=by_user, reason='warranty period elapsed')
+        except Exception:
+            import logging
+            logging.getLogger('mouss_tec_core').exception(
+                "[ESCROW] release_to_seller failed for order %s", self.order_code
+            )
         # Notify seller
         if self.listing.seller_customer_id:
             CustomerNotification.objects.create(

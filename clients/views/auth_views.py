@@ -25,6 +25,40 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 
 
 # =====================================================================
+# 🛡️ Auth security helpers (rate-limit, throttle, client IP)
+# =====================================================================
+def _client_ip(request) -> str:
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def _throttle(key: str, limit: int, window: int) -> tuple[bool, int]:
+    """Cache-backed sliding-window throttle.
+
+    Returns (blocked, retry_after_seconds). Uses `cache.add` + `incr` so it
+    is atomic across workers on Redis/Memcached. Falls back to a coarse
+    counter if the backend doesn't support incr.
+    """
+    try:
+        added = cache.add(key, 1, timeout=window)
+        if added:
+            return False, 0
+        try:
+            count = cache.incr(key)
+        except ValueError:
+            cache.set(key, 1, timeout=window)
+            return False, 0
+        if count > limit:
+            return True, window
+        return False, 0
+    except Exception:
+        # Never let cache backend take down the login flow.
+        return False, 0
+
+
+# =====================================================================
 # 🏢 محرك التخليق الآلي للمؤسسات المعزولة (Automated Onboarding Engine)
 # =====================================================================
 def register_new_tenant_saas(request):
@@ -32,6 +66,14 @@ def register_new_tenant_saas(request):
     محرك التأسيس السحابي (SaaS Onboarding Engine) مزود بنواة ضخ البيانات الذكية (Smart Seeding).
     """
     if request.method == 'POST':
+        # 🛡️ IP throttle: 5 signups / hour / IP — يمنع بناء tenants عشوائية.
+        ip = _client_ip(request)
+        blocked, _ = _throttle(f"signup_ip:{ip}", limit=5, window=3600)
+        if blocked:
+            form = TenantSignupForm(request.POST)
+            form.add_error(None, "🚫 محاولات تسجيل كثيرة من نفس الجهاز. حاول بعد ساعة.")
+            return render(request, 'clients/signup_register.html', {'form': form})
+
         form = TenantSignupForm(request.POST)
         if form.is_valid():
             data = form.cleaned_data
@@ -63,11 +105,15 @@ def register_new_tenant_saas(request):
                             industry=industry,
                             business_type=business_type,
                             plan=default_plan,
-                            is_active=True,
+                            # 🔒 Email-verification gate: لازم العميل يأكد إيميله
+                            # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
+                            is_active=False,
                         )
 
                         with schema_context(schema_name):
-                            name_parts = data['full_name'].split(' ', 1)
+                            # 🐛 [FIX]: full_name قد يجي فاضي بعد strip — نمنع IndexError.
+                            full_name_safe = (data.get('full_name') or company_name).strip()
+                            name_parts = full_name_safe.split(' ', 1) if full_name_safe else [company_name]
                             admin_user, created = User.objects.get_or_create(
                                 username=data['email'],
                                 defaults={
@@ -137,33 +183,47 @@ def register_new_tenant_saas(request):
                 url_safe_final = schema_name.replace('_', '-')
                 base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
 
-                # 🚪 توكن دخول تلقائي فوري — المستخدم لسه عامل signup ودخل
-                # كلمة سره. ما يحتاجش يكتبها تاني. زي Odoo: signup → onboarding
-                # → داخل النظام في خطوة واحدة (Auto-Login Handoff).
+                # 🔒 Email verification gate:
+                # نـ generate signed token (max-age 48h) و نبعت لينك تأكيد للإيميل.
+                # لما يضغط، الـ tenant بيتفعّل (is_active=True) ويعمل auto-login.
                 from django.core import signing
                 import time
-                try:
-                    auto_token = signing.dumps({
-                        'schema_name': schema_name,
-                        'user_id': admin_user.id,
-                        'created': int(time.time()),
-                    }, salt='tenant-auto-login-token')
-                    target_url = (
-                        f"https://{url_safe_final}.{base_domain}"
-                        f"/auto-login/?token={auto_token}"
-                    )
-                except Exception:
-                    # Fallback: لو فشلت التوقيع، redirect لصفحة الـ login العادية
-                    target_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
+                verify_token = signing.dumps({
+                    'schema_name': schema_name,
+                    'user_id': admin_user.id,
+                    'email': data['email'],
+                    'created': int(time.time()),
+                }, salt='tenant-email-verify')
 
-                # display_url: للعرض كنص (نظيف بدون توكن)
-                # target_url: للزر/redirect (مع توكن دخول تلقائي)
+                # Build verify URL on the public domain
+                public_host = request.get_host()
+                verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
+
+                # Send email — fail-silently (we still show the user the link page)
+                try:
+                    from django.core.mail import send_mail
+                    send_mail(
+                        subject='✉️ أكّد بريدك الإلكتروني | Mouss Tec',
+                        message=(
+                            f"أهلاً {data['full_name']}،\n\n"
+                            f"اضغط الرابط لتفعيل حساب {company_name}:\n\n"
+                            f"{verify_url}\n\n"
+                            f"الرابط صالح لمدة 48 ساعة.\n\nMouss Tec"
+                        ),
+                        from_email=None,
+                        recipient_list=[data['email']],
+                        fail_silently=True,
+                    )
+                except Exception as e:
+                    logger.warning(f"[SIGNUP] verification email failed: {e}")
+
                 display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': target_url,
+                    'target_url': verify_url,
                     'display_url': display_url,
                     'admin_email': data['email'],
+                    'verification_pending': True,
                 })
             else:
                 form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
@@ -242,7 +302,26 @@ def _find_user_across_tenants(identifier: str):
     """
     يدوّر على كل tenant active/trial ويلاقي User بنفس الإيميل (أو username).
     بيرجع dict {'tenant': Client, 'user_id': int} أو None.
+
+    🚀 تحسين: نتذكر الـ mapping (email → tenant) في الكاش لمدة 12 ساعة
+    عشان نوقف الـ O(N tenants) loop في كل محاولة دخول. الكاش يبقى صالح
+    طول ما الـ user مش متنقل بين tenants — وهو نادر جداً.
     """
+    cache_key = f"login_lookup:{identifier}"
+    cached = cache.get(cache_key)
+    if cached:
+        try:
+            t = Client.objects.filter(
+                schema_name=cached['schema_name'], status__in=['active', 'trial']
+            ).only('id', 'schema_name', 'name', 'status').first()
+            if t:
+                with schema_context(t.schema_name):
+                    if User.objects.filter(pk=cached['user_id'], is_active=True).exists():
+                        return {'tenant': t, 'user_id': cached['user_id']}
+        except Exception:
+            pass
+        cache.delete(cache_key)
+
     tenants = (
         Client.objects.exclude(schema_name='public')
         .filter(status__in=['active', 'trial'])
@@ -256,9 +335,9 @@ def _find_user_across_tenants(identifier: str):
                     or User.objects.filter(username__iexact=identifier, is_active=True).first()
                 )
                 if u:
+                    cache.set(cache_key, {'schema_name': t.schema_name, 'user_id': u.id}, timeout=43200)
                     return {'tenant': t, 'user_id': u.id}
         except Exception:
-            # schema قد يكون فيه مشكلة migrations — تجاهل وكمّل البحث
             continue
     return None
 
@@ -288,10 +367,23 @@ def client_login_finder(request):
     error = None
     if request.method == 'POST':
         identifier = request.POST.get('email', '').strip().lower()
-        password = request.POST.get('password', '').strip()
+        # 🐛 [FIX]: ما نـ strip() الـ password — لو فيه مسافة في الآخر مقصودة
+        # هنكسر الدخول. Django check_password بيقارن byte-by-byte.
+        password = request.POST.get('password', '')
 
         if not identifier:
             return render(request, 'clients/login_finder.html', {'error': 'أدخل البريد أو رقم الموبايل'})
+
+        # 🛡️ Rate-limit: 10 محاولات / 5 دقايق لكل IP + 5 لكل email
+        # يحمي من brute-force على الـ universal login.
+        ip = _client_ip(request)
+        ip_blocked, _ = _throttle(f"login_ip:{ip}", limit=10, window=300)
+        email_blocked, _ = _throttle(f"login_email:{identifier}", limit=5, window=300)
+        if ip_blocked or email_blocked:
+            return render(request, 'clients/login_finder.html', {
+                'error': '🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك.',
+                'last_email': identifier,
+            })
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # المسار الأساسي (Odoo-style): email + password → دخول تلقائي
@@ -315,6 +407,36 @@ def client_login_finder(request):
                     return render(request, 'clients/login_finder.html', {
                         'error': 'كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.',
                         'last_email': identifier,
+                    })
+
+                # 🔐 MFA challenge — لو المستخدم مفعّل 2FA، نوجّهه للـ challenge
+                # قبل ما نديله auto-login token. السيكرت مش بيخرج من schema الـ tenant.
+                mfa_required = False
+                try:
+                    with schema_context(tenant.schema_name):
+                        from inventory.models import UserMFA
+                        mfa_required = UserMFA.objects.filter(
+                            user_id=user_id, is_enabled=True
+                        ).exists()
+                except Exception:
+                    mfa_required = False
+
+                if mfa_required:
+                    next_url_raw = (request.POST.get('next') or request.GET.get('next') or '').strip()
+                    if not next_url_raw.startswith('/') or next_url_raw.startswith('//'):
+                        next_url_raw = ''
+                    from clients.views.mfa_views import issue_mfa_challenge
+                    chal_token = issue_mfa_challenge(tenant, user_id, next_url_raw)
+                    return redirect(f'/account/mfa/challenge/?token={chal_token}')
+
+                # 🔒 Email-verification gate — يمنع دخول tenants لم تُؤكَّد
+                # بعد. نعرض زرّ resend بدل ما نسيب المستخدم تايه.
+                if not tenant.is_active:
+                    return render(request, 'clients/login_finder.html', {
+                        'error': 'إيميلك لسه مش متفعّل. ابعت الرابط من جديد.',
+                        'last_email': identifier,
+                        'verification_required': True,
+                        'verify_email': identifier,
                     })
 
                 # ✅ توقيع توكن دخول مؤقت (120 ثانية) + redirect للـ subdomain
@@ -493,6 +615,13 @@ def account_recovery(request):
                 context['error'] = 'أدخل رقم الموبايل أو البريد الإلكتروني'
                 return render(request, 'clients/account_recovery.html', context)
 
+            # 🛡️ Rate-limit OTP send: 3 طلبات / 10 دقايق / IP + 3 / tenant.
+            ip = _client_ip(request)
+            ip_blocked, _ = _throttle(f"recovery_ip:{ip}", limit=3, window=600)
+            if ip_blocked:
+                context['error'] = '🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق.'
+                return render(request, 'clients/account_recovery.html', context)
+
             tenant = None
             matched_user = None
 
@@ -511,9 +640,36 @@ def account_recovery(request):
                 context['error'] = 'لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.'
                 return render(request, 'clients/account_recovery.html', context)
 
-            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            # 🛡️ Resend cooldown: لو فيه OTP فعّال للـ tenant خلال آخر 60ث،
+            # ما نـ regenerate-ش (يمنع flood للإيميل + خداع OTP enumeration).
             cache_key = f"recovery_otp_{tenant.schema_name}"
-            cache.set(cache_key, otp_code, timeout=600)
+            existing_otp = cache.get(cache_key)
+            if existing_otp:
+                otp_code = existing_otp
+            else:
+                otp_code = f"{secrets.randbelow(900000) + 100000}"
+                cache.set(cache_key, otp_code, timeout=600)
+                # reset attempt counter for new OTP
+                cache.delete(f"recovery_otp_attempts_{tenant.schema_name}")
+
+            # 🚀 Auto-resolve المستخدم الفعلي (owner أولاً ثم superuser ثم أول
+            # نشط) — بدل ما نعرض list of users في صفحة الـ reset (privacy leak).
+            matched_user = None
+            try:
+                with schema_context(tenant.schema_name):
+                    matched_user = (
+                        User.objects.filter(email__iexact=tenant.email, is_active=True).first()
+                        or User.objects.filter(email__iexact=query, is_active=True).first()
+                        or User.objects.filter(is_superuser=True, is_active=True).order_by('id').first()
+                        or User.objects.filter(is_active=True).order_by('id').first()
+                    )
+            except Exception:
+                matched_user = None
+            if matched_user:
+                cache.set(
+                    f"recovery_target_user_{tenant.schema_name}",
+                    matched_user.id, timeout=900,
+                )
 
             recovery_email = tenant.email
             if not recovery_email and matched_user:
@@ -563,42 +719,69 @@ def account_recovery(request):
                 context['error'] = 'خطأ في البيانات. حاول مرة أخرى.'
                 return render(request, 'clients/account_recovery.html', context)
 
+            # 🛡️ Attempt counter — 5 محاولات max لكل OTP، بعدها نـ invalidate.
+            attempts_key = f"recovery_otp_attempts_{schema_name}"
+            attempts = cache.get(attempts_key, 0)
+            if attempts >= 5:
+                cache.delete(cache_key)
+                cache.delete(attempts_key)
+                context = {
+                    'step': 'search',
+                    'error': '🚫 محاولات تحقق كثيرة. اطلب كود جديد.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
+
             if not correct_otp or otp_input != correct_otp:
+                cache.set(attempts_key, attempts + 1, timeout=600)
                 context = {
                     'step': 'verify',
                     'tenant_name': tenant.name,
                     'tenant_schema': schema_name,
-                    'error': 'كود التحقق خاطئ أو منتهي الصلاحية. حاول مرة أخرى.',
+                    'error': f'كود التحقق خاطئ. متبقي {4 - attempts} محاولات.',
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
             reset_token = secrets.token_urlsafe(32)
             cache.set(f"recovery_reset_{schema_name}", reset_token, timeout=600)
             cache.delete(cache_key)
+            cache.delete(attempts_key)
 
-            users_list = []
-            with schema_context(schema_name):
-                for u in User.objects.filter(is_active=True).order_by('-is_superuser', 'username'):
-                    users_list.append({
-                        'id': u.id,
-                        'username': u.username,
-                        'full_name': u.get_full_name() or u.username,
-                        'is_superuser': u.is_superuser,
-                    })
+            # 🔒 Privacy: ما نـ expose قائمة المستخدمين. نـ resolve المستخدم
+            # المحدّد من خطوة الـ search (auto-pick: owner/superuser/أول نشط).
+            target_user_id = cache.get(f"recovery_target_user_{schema_name}")
+            target_username = ''
+            if target_user_id:
+                try:
+                    with schema_context(schema_name):
+                        u = User.objects.get(pk=target_user_id, is_active=True)
+                        target_username = u.get_full_name() or u.username
+                except Exception:
+                    target_user_id = None
+
+            if not target_user_id:
+                context = {
+                    'step': 'search',
+                    'error': 'تعذّر تحديد الحساب. ابدأ من جديد.',
+                }
+                return render(request, 'clients/account_recovery.html', context)
 
             context = {
                 'step': 'reset',
                 'tenant_name': tenant.name,
                 'tenant_schema': schema_name,
                 'reset_token': reset_token,
-                'users': users_list,
+                'target_user_id': target_user_id,
+                'target_username': target_username,
             }
             return render(request, 'clients/account_recovery.html', context)
 
         elif step == 'reset':
             schema_name = request.POST.get('tenant_schema', '')
             reset_token = request.POST.get('reset_token', '')
-            user_id = request.POST.get('user_id', '')
+            # 🔒 لا نثق بـ user_id من الفورم — نقرأه من الكاش المرتبط بالـ OTP
+            # المعتمد. يمنع المهاجم من إعادة تعيين كلمة سر أي مستخدم بمجرد
+            # امتلاك reset_token صالح.
+            user_id = cache.get(f"recovery_target_user_{schema_name}")
             new_password = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
 
@@ -607,25 +790,19 @@ def account_recovery(request):
                 context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
                 return render(request, 'clients/account_recovery.html', context)
 
-            if not new_password or len(new_password) < 8:
+            # 🔒 موحّد: نفس validators بتاعت signup + change-password
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError as _VE
+            try:
+                validate_password(new_password)
+            except _VE as e:
                 tenant = Client.objects.filter(schema_name=schema_name).first()
                 context = {
                     'step': 'reset',
                     'tenant_name': tenant.name if tenant else '',
                     'tenant_schema': schema_name,
                     'reset_token': reset_token,
-                    'error': 'كلمة السر يجب أن تكون 8 أحرف على الأقل.',
-                }
-                return render(request, 'clients/account_recovery.html', context)
-
-            if new_password.isdigit():
-                tenant = Client.objects.filter(schema_name=schema_name).first()
-                context = {
-                    'step': 'reset',
-                    'tenant_name': tenant.name if tenant else '',
-                    'tenant_schema': schema_name,
-                    'reset_token': reset_token,
-                    'error': 'كلمة المرور ضعيفة جداً. يرجى دمج حروف وأرقام.',
+                    'error': ' • '.join(e.messages),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -640,13 +817,32 @@ def account_recovery(request):
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
+            if not user_id:
+                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                return render(request, 'clients/account_recovery.html', context)
+
             try:
                 with schema_context(schema_name):
                     user = User.objects.get(id=user_id)
                     user.set_password(new_password)
                     user.save()
+                    # 🔒 إبطال كل sessions القديمة للمستخدم بعد إعادة التعيين.
+                    try:
+                        from django.contrib.sessions.models import Session
+                        from django.utils import timezone
+                        now = timezone.now()
+                        for s in Session.objects.filter(expire_date__gt=now):
+                            data = s.get_decoded()
+                            if str(data.get('_auth_user_id', '')) == str(user.id):
+                                s.delete()
+                    except Exception as sess_err:
+                        logger.warning(f"[RECOVERY] session purge skipped: {sess_err}")
 
                 cache.delete(f"recovery_reset_{schema_name}")
+                cache.delete(f"recovery_target_user_{schema_name}")
+                # invalidate the email→tenant memoize for safety
+                if user.email:
+                    cache.delete(f"login_lookup:{user.email.lower()}")
 
                 tenant = Client.objects.filter(schema_name=schema_name).first()
                 safe_slug = schema_name.replace('_', '-')
@@ -670,3 +866,196 @@ def account_recovery(request):
                 context['error'] = 'حدث خطأ. حاول مرة أخرى.'
 
     return render(request, 'clients/account_recovery.html', context)
+
+
+# =====================================================================
+# 🔐 تغيير كلمة السر للمستخدم المسجل دخوله (Logged-in Password Change)
+# =====================================================================
+@login_required
+def change_password(request):
+    """
+    تغيير كلمة سر المستخدم نفسه. يتطلب كلمة السر القديمة (Re-auth) لمنع
+    الاستيلاء على حساب لو فضل المستخدم سايب جهازه مفتوح. بعد التغيير:
+      • update_session_auth_hash يحافظ على جلسة المستخدم الحالي.
+      • نـ purge كل sessions تانية للمستخدم (logout other devices).
+    """
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+
+    ctx = {}
+    if request.method == 'POST':
+        old_pw = request.POST.get('old_password', '')
+        new_pw = request.POST.get('new_password', '')
+        confirm = request.POST.get('confirm_password', '')
+
+        # 🛡️ Throttle: 5 محاولات / 15 دقيقة (يمنع تخمين كلمة السر القديمة)
+        ip = _client_ip(request)
+        blocked, _ = _throttle(f"chpw:{request.user.id}:{ip}", limit=5, window=900)
+        if blocked:
+            ctx['error'] = '🚫 محاولات كثيرة. حاول بعد 15 دقيقة.'
+            return render(request, 'clients/change_password.html', ctx)
+
+        if not request.user.check_password(old_pw):
+            ctx['error'] = 'كلمة السر الحالية غير صحيحة.'
+            return render(request, 'clients/change_password.html', ctx)
+
+        if new_pw != confirm:
+            ctx['error'] = 'كلمة السر الجديدة وتأكيدها غير متطابقتين.'
+            return render(request, 'clients/change_password.html', ctx)
+
+        if old_pw and new_pw == old_pw:
+            ctx['error'] = 'كلمة السر الجديدة لازم تختلف عن القديمة.'
+            return render(request, 'clients/change_password.html', ctx)
+
+        try:
+            validate_password(new_pw, user=request.user)
+        except ValidationError as e:
+            ctx['error'] = ' • '.join(e.messages)
+            return render(request, 'clients/change_password.html', ctx)
+
+        request.user.set_password(new_pw)
+        request.user.save()
+        update_session_auth_hash(request, request.user)
+
+        # 🔒 Logout other sessions
+        try:
+            from django.contrib.sessions.models import Session
+            from django.utils import timezone
+            current_key = request.session.session_key
+            now = timezone.now()
+            for s in Session.objects.filter(expire_date__gt=now):
+                if s.session_key == current_key:
+                    continue
+                data = s.get_decoded()
+                if str(data.get('_auth_user_id', '')) == str(request.user.id):
+                    s.delete()
+        except Exception as sess_err:
+            logger.warning(f"[CHPW] session purge skipped: {sess_err}")
+
+        if request.user.email:
+            cache.delete(f"login_lookup:{request.user.email.lower()}")
+
+        ctx['success'] = '✅ تم تغيير كلمة السر بنجاح. باقي الأجهزة اتعملها logout.'
+
+    return render(request, 'clients/change_password.html', ctx)
+
+
+# =====================================================================
+# ✉️ تأكيد الإيميل بعد التسجيل (Email Verification Gate)
+# =====================================================================
+def verify_email(request):
+    """
+    GET /account/verify-email/?token=...
+    يفعّل الـ tenant بعد ما العميل يضغط الرابط في إيميله.
+    """
+    from django.core import signing
+    token = request.GET.get('token', '').strip()
+    if not token:
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': False, 'message': 'الرابط غير صالح.',
+        })
+
+    try:
+        data = signing.loads(token, salt='tenant-email-verify', max_age=60 * 60 * 48)
+    except signing.SignatureExpired:
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': False, 'message': 'انتهت صلاحية الرابط. اطلب رابطاً جديداً.',
+            'expired': True, 'email': '',
+        })
+    except signing.BadSignature:
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': False, 'message': 'الرابط غير صحيح أو تم العبث به.',
+        })
+
+    schema_name = data.get('schema_name')
+    tenant = Client.objects.filter(schema_name=schema_name).first()
+    if not tenant:
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': False, 'message': 'الحساب غير موجود.',
+        })
+
+    if not tenant.is_active:
+        tenant.is_active = True
+        tenant.save(update_fields=['is_active'])
+
+    # 🚪 Auto-login token (نفس آلية signup الأصلية)
+    from django.core import signing as _s
+    import time
+    auto_token = _s.dumps({
+        'schema_name': schema_name,
+        'user_id': data.get('user_id'),
+        'created': int(time.time()),
+    }, salt='tenant-auto-login-token')
+
+    base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
+    url_safe = schema_name.replace('_', '-')
+    target_url = f"https://{url_safe}.{base_domain}/auto-login/?token={auto_token}"
+
+    return render(request, 'clients/verify_email_result.html', {
+        'ok': True,
+        'tenant_name': tenant.name,
+        'target_url': target_url,
+    })
+
+
+def resend_verification(request):
+    """POST /account/verify-email/resend/  body: email"""
+    if request.method != 'POST':
+        return redirect('/login/')
+
+    email = request.POST.get('email', '').strip().lower()
+    if not email:
+        return redirect('/login/?msg=verify_missing_email')
+
+    # 🛡️ Throttle: 3 إعادات / ساعة / إيميل
+    blocked, _ = _throttle(f"verify_resend:{email}", limit=3, window=3600)
+    if blocked:
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': False, 'message': '🚫 طلبات كثيرة. حاول بعد ساعة.',
+        })
+
+    tenant = Client.objects.filter(email__iexact=email, is_active=False).first()
+    if not tenant:
+        # Don't leak whether the email is registered — generic OK
+        return render(request, 'clients/verify_email_result.html', {
+            'ok': True, 'message': 'لو الإيميل مسجل، هتلاقي الرابط في صندوق الوارد.',
+            'tenant_name': '', 'target_url': '',
+        })
+
+    admin_user = None
+    try:
+        with schema_context(tenant.schema_name):
+            admin_user = User.objects.filter(email__iexact=email, is_superuser=True).first()
+    except Exception:
+        pass
+    if not admin_user:
+        return redirect('/login/?msg=verify_user_missing')
+
+    from django.core import signing
+    import time
+    verify_token = signing.dumps({
+        'schema_name': tenant.schema_name,
+        'user_id': admin_user.id,
+        'email': email,
+        'created': int(time.time()),
+    }, salt='tenant-email-verify')
+
+    public_host = request.get_host()
+    verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
+
+    try:
+        from django.core.mail import send_mail
+        send_mail(
+            subject='✉️ رابط تأكيد جديد | Mouss Tec',
+            message=f"اضغط الرابط لتفعيل حساب {tenant.name}:\n\n{verify_url}\n\nصالح 48 ساعة.",
+            from_email=None, recipient_list=[email], fail_silently=True,
+        )
+    except Exception as e:
+        logger.warning(f"[RESEND_VERIFY] email send failed: {e}")
+
+    return render(request, 'clients/verify_email_result.html', {
+        'ok': True, 'tenant_name': tenant.name,
+        'message': 'تم إرسال رابط جديد. تحقق من بريدك.',
+        'target_url': '',
+    })
