@@ -107,15 +107,6 @@ class AttendanceService:
         }
         today_day = day_map.get(today.weekday(), '')
 
-        assignment = EmployeeShiftAssignment.objects.filter(
-            employee=employee,
-            shift__is_active=True,
-            effective_from__lte=today,
-        ).filter(
-            models_Q_effective_to_null_or_gte=today  # handled below
-        ).first()
-
-        # Manual filter since we need complex Q
         from django.db.models import Q
         assignment = EmployeeShiftAssignment.objects.filter(
             Q(effective_to__isnull=True) | Q(effective_to__gte=today),

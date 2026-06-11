@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة المصمم | {{ employee.full_name }}</title>
+    <title>لوحة المصمم | {{ employee.user.get_full_name|default:employee.user.username }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -203,7 +203,7 @@
         <div class="name">لوحة المصمم</div>
     </div>
     <div class="topbar-right">
-        <span class="topbar-pill"><i class="fas fa-id-badge"></i> {{ employee.full_name|truncatechars:25 }}</span>
+        <span class="topbar-pill"><i class="fas fa-id-badge"></i> {{ employee.user.get_full_name|default:employee.user.username|truncatechars:25 }}</span>
         <a href="/hr/attendance/" class="icon-btn" title="بصمة الوجه"><i class="fas fa-camera"></i></a>
         <a href="/secure-portal/" class="icon-btn" title="لوحة الأدمن"><i class="fas fa-gauge-high"></i></a>
         <a href="/logout/" class="icon-btn" title="خروج"><i class="fas fa-sign-out-alt"></i></a>
@@ -215,7 +215,7 @@
 <div class="wrap">
 
     <section class="hero">
-        <h1>أهلاً، {{ employee.full_name|truncatechars:35 }} 🎨</h1>
+        <h1>أهلاً، {{ employee.user.get_full_name|default:employee.user.username|truncatechars:35 }} 🎨</h1>
         <p class="sub">إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:</p>
         <div class="quick-chips">
             <button class="quick-chip primary" onclick="openModal('newDesignModal')">
@@ -368,10 +368,10 @@
         <aside>
             <div class="ai-status-card">
                 <div class="status-label">اشتراك AI الحالي</div>
-                {% if ai_sub and ai_sub.is_active %}
+                {% if ai_sub and ai_sub.is_active_and_valid %}
                 <div class="status-value active">{{ ai_sub.get_plan_display }} ✓</div>
-                <div style="font-size:0.82rem; color:var(--muted); margin-top:4px;">ينتهي: {{ ai_sub.end_date|date:"d/m/Y" }}</div>
-                <div style="font-size:0.82rem; margin-top:6px;">المستخدم: {{ ai_sub.designs_used }}/{{ ai_sub.monthly_limit }}</div>
+                <div style="font-size:0.82rem; color:var(--muted); margin-top:4px;">ينتهي: {{ ai_sub.end_date|date:"d/m/Y" }} ({{ ai_sub.days_remaining }} يوم)</div>
+                <div style="font-size:0.82rem; margin-top:6px;">المستخدم: {{ ai_sub.ai_generations_used }}{% if ai_sub.ai_generations_limit %}/{{ ai_sub.ai_generations_limit }}{% else %} (غير محدود){% endif %}</div>
                 {% else %}
                 <div class="status-value inactive">غير مشترك</div>
                 <a href="/secure-portal/hr/aidesignsubscription/add/" style="display:inline-block; margin-top:8px; background:#fff; color:#1e293b; padding:6px 14px; border-radius:8px; font-weight:800; text-decoration:none; font-size:0.82rem;">اشترك الآن</a>
