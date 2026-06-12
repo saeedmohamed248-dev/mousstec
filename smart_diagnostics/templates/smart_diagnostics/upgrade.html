@@ -45,6 +45,28 @@
     </div>
     {% else %}
 
+    {# ⚠️ سبب الـ gate (لو موجود) — ييظهر فوق صندوق السعر #}
+    {% if reason %}
+    <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 mb-6 text-center">
+        <i class="fas fa-circle-exclamation text-amber-300 text-2xl mb-2 block"></i>
+        <p class="text-amber-200 font-bold">{{ reason }}</p>
+        {% if gate == 'scan_quota' and plan_limit %}
+        <p class="text-xs text-amber-300/70 mt-2">باقتك الحالية: {{ plan_limit }} فحص/شهر.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# 🔁 لو الـ gate هو scan_quota — العميل محتاج شحنة top-up مش ترقية باقة #}
+    {% if gate == 'scan_quota' and topup_url %}
+    <div class="bg-gradient-to-br from-slate-900/80 to-blue-900/20 border border-blue-500/30 rounded-3xl p-8 mb-8 glow text-center">
+        <div class="text-5xl mb-3"><i class="fas fa-battery-quarter text-blue-300"></i></div>
+        <h2 class="text-xl font-black text-white mb-2">اشحن باقة فحوصات إضافية</h2>
+        <p class="text-slate-400 text-sm mb-5">استمتع بفحوصات إضافية دون الحاجة لترقية الباقة الشهرية.</p>
+        <a href="{{ topup_url }}" class="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3 px-8 rounded-xl shadow-lg shadow-blue-500/30">
+            <i class="fas fa-bolt ml-1"></i> اشحن دلوقتي
+        </a>
+    </div>
+    {% elif plan %}
     <!-- Price Card -->
     <div class="bg-gradient-to-br from-slate-900/80 to-purple-900/20 border border-purple-500/30 rounded-3xl p-8 mb-8 glow">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -62,19 +84,47 @@
                 </div>
             </div>
 
-            <div class="w-full md:w-auto">
-                <a href="/marketplace/diagnostics/" class="block w-full md:w-64 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-red-500/30">
-                    <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
-                </a>
-                <div class="mt-3 p-3 bg-slate-800/40 border border-slate-700/40 rounded-xl opacity-70">
+            <div class="w-full md:w-auto space-y-3">
+                {# ✅ فورم حقيقي بيوصّل لمسار الدفع الموحّد — مش لينك marketplace العملاء #}
+                <form method="POST" action="/payment/manual/subscription/start/" class="w-full md:w-64">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="{{ plan.slug }}">
+                    <input type="hidden" name="amount" value="{{ plan.monthly_price|floatformat:0 }}">
+                    <input type="hidden" name="billing_period" value="monthly">
+                    <input type="hidden" name="shop" value="{{ shop }}">
+                    <input type="hidden" name="payment_method" value="vodafone_cash">
+                    <button type="submit" class="block w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-red-500/30">
+                        <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
+                    </button>
+                </form>
+
+                <form method="POST" action="/payment/manual/subscription/start/" class="w-full md:w-64">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan" value="{{ plan.slug }}">
+                    <input type="hidden" name="amount" value="{{ plan.monthly_price|floatformat:0 }}">
+                    <input type="hidden" name="billing_period" value="monthly">
+                    <input type="hidden" name="shop" value="{{ shop }}">
+                    <input type="hidden" name="payment_method" value="instapay">
+                    <button type="submit" class="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-blue-500/30">
+                        <i class="fas fa-money-bill-transfer"></i> ادفع بإنستاباي
+                    </button>
+                </form>
+
+                <div class="p-3 bg-slate-800/40 border border-slate-700/40 rounded-xl opacity-70">
                     <button disabled class="w-full md:w-64 bg-slate-700/50 text-slate-400 font-bold py-2 rounded-lg text-xs cursor-not-allowed">
                         <i class="fas fa-clock"></i> Visa / Mastercard — قريباً
                     </button>
-                    <p class="text-[10px] text-slate-500 mt-2 text-center">الدفع بالفيزا تحت التطوير — استخدم فودافون كاش الآن</p>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">الدفع بالفيزا تحت التطوير</p>
                 </div>
             </div>
         </div>
     </div>
+    {% else %}
+    {# Plan مش متاح — جروم degraded #}
+    <div class="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 text-center mb-8">
+        <p class="text-slate-300">تواصل مع الدعم لتفعيل الباقة.</p>
+    </div>
+    {% endif %}
 
     <!-- Features grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

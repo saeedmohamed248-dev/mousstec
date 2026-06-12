@@ -252,9 +252,12 @@ def diagnostics_room(request):
     # SuperAdmin can grant `Client.has_obd_access` directly. If the tenant
     # never bought the add-on (or it expired), short-circuit to upgrade.
     if tenant is not None and not getattr(tenant, 'obd_access_is_valid', False):
+        from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {
             'reason': 'هذه الخدمة إضافة مدفوعة. تواصل مع الإدارة لتفعيل الوصول.',
             'tenant': tenant,
+            'shop': getattr(tenant, 'schema_name', '') if tenant else '',
+            'plan': _Plan.objects.filter(slug='premium_diagnostics', is_active=True).first(),
             'gate': 'obd_addon',
         }, status=402)
 
@@ -272,9 +275,12 @@ def diagnostics_room(request):
         })()
 
     if not gate.allowed:
+        from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {
             'reason': getattr(gate, 'reason', 'الباقة غير مفعّلة'),
             'tenant': tenant,
+            'shop': getattr(tenant, 'schema_name', '') if tenant else '',
+            'plan': _Plan.objects.filter(slug='premium_diagnostics', is_active=True).first(),
         }, status=402)
 
     # 🔍 2026 Relaunch — monthly scan quota gate (Silver=10, Gold=40, Empire=70).
@@ -283,9 +289,12 @@ def diagnostics_room(request):
     from clients.services.diagnostics_quota import consume_quota
     quota = consume_quota(tenant, kind='scan')
     if not quota.allowed:
+        from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {
             'reason': quota.reason,
             'tenant': tenant,
+            'shop': getattr(tenant, 'schema_name', '') if tenant else '',
+            'plan': _Plan.objects.filter(slug='premium_diagnostics', is_active=True).first(),
             'gate': 'scan_quota',
             'topup_url': '/subscription/topup/diagnostics/',
             'plan_limit': quota.plan_limit,
