@@ -89,48 +89,70 @@ def saas_pricing_page(request):
     # 💎 Dynamic plan catalog — single source of truth is the Plan model.
     # Super Admin edits to monthly_price / entitlements / features propagate
     # to this page on the next request (no cache).
-    feature_labels = dict(
-        Feature.objects.filter(is_active=True).values_list('code', 'name_ar')
-    )
+    #
+    # 🛡️ Defensive: any DB hiccup (missing migration, schema drift, Feature
+    # table renamed) used to surface as a generic 500 with no detail. We now
+    # degrade gracefully: log the real cause and render the page with whatever
+    # rows we managed to load. This keeps signups working even mid-deploy.
     plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
-
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
-    for p in Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'):
-        ents = p.entitlements if isinstance(p.entitlements, dict) else {}
-        enabled_codes = [
-            code for code, cfg in ents.items()
-            if isinstance(cfg, dict) and cfg.get('enabled')
-        ]
-        plans_by_industry.setdefault(p.industry, []).append({
-            'slug': p.slug,
-            'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
-            'name': p.name,
-            'monthly_price': p.monthly_price,
-            'max_users': p.max_users,
-            'max_branches': p.max_branches,
-            'max_treasuries': p.max_treasuries,
-            'monthly_ai_designs_quota': p.monthly_ai_designs_quota,
-            'features': list(p.features or []),
-            'entitlement_labels': [
-                feature_labels[c] for c in enabled_codes if c in feature_labels
-            ],
-        })
+
+    try:
+        feature_labels = dict(
+            Feature.objects.filter(is_active=True).values_list('code', 'name_ar')
+        )
+    except Exception:
+        logger.exception("[PRICING] failed to load Feature catalog — rendering without labels")
+        feature_labels = {}
+
+    try:
+        plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
+        for p in plan_qs:
+            try:
+                ents = p.entitlements if isinstance(p.entitlements, dict) else {}
+                enabled_codes = [
+                    code for code, cfg in ents.items()
+                    if isinstance(cfg, dict) and cfg.get('enabled')
+                ]
+                plans_by_industry.setdefault(p.industry, []).append({
+                    'slug': p.slug,
+                    'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
+                    'name': p.name,
+                    'monthly_price': p.monthly_price,
+                    'max_users': p.max_users,
+                    'max_branches': p.max_branches,
+                    'max_treasuries': p.max_treasuries,
+                    'monthly_ai_designs_quota': p.monthly_ai_designs_quota,
+                    'features': list(p.features or []),
+                    'entitlement_labels': [
+                        feature_labels[c] for c in enabled_codes if c in feature_labels
+                    ],
+                })
+            except Exception:
+                logger.exception("[PRICING] skipped Plan id=%s — bad row", getattr(p, 'pk', '?'))
+    except Exception:
+        logger.exception("[PRICING] failed to load Plan catalog — rendering empty pricing page")
 
     # convention: middle plan in each industry = "most popular"
     for plans_list in plans_by_industry.values():
         for idx, plan_dict in enumerate(plans_list):
             plan_dict['is_popular'] = (len(plans_list) >= 3 and idx == 1)
 
-    return render(request, 'clients/pricing.html', {
-        'tenant': tenant, 'shop': shop_schema,
-        'plans_by_industry': plans_by_industry,
-        'pricing': {
-            'addon_price': 125,
-            'free_trial_days': 3,
-            'vodafone_cash': '',
-            'billing_discounts': billing_discounts,
-        }
-    })
+    try:
+        return render(request, 'clients/pricing.html', {
+            'tenant': tenant, 'shop': shop_schema,
+            'plans_by_industry': plans_by_industry,
+            'pricing': {
+                'addon_price': 125,
+                'free_trial_days': 3,
+                'vodafone_cash': '',
+                'billing_discounts': billing_discounts,
+            }
+        })
+    except Exception:
+        logger.exception("[PRICING] template render failed shop=%r plans=%s",
+                         shop_schema, {k: len(v) for k, v in plans_by_industry.items()})
+        raise
 
 
 # =====================================================================
