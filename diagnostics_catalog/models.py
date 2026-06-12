@@ -140,3 +140,69 @@ class APICostRate(models.Model):
 
     def __str__(self):
         return f"{self.provider}.{self.endpoint} = ${self.cost_usd}"
+
+
+class VehicleProtocolMemory(models.Model):
+    """آخر بروتوكول OBD نجح لكل عربية. لو ميكانيكي رجع لنفس العربية،
+    الدرايفر يجرّب البروتوكول المحفوظ الأول قبل ما يبدأ sweep كامل
+    (يوفر ~30 ثانية).
+
+    الـ VIN مش موجود دايماً وقت الـ init لأن قراءة VIN نفسها بتحتاج
+    اتصال شغّال. لذلك بنحفظ بمفتاحين: VIN لو متاح، أو bluetooth_id
+    (MAC) كـ fallback."""
+
+    PROTOCOL_CHOICES = (
+        ('1', 'SAE J1850 PWM'),
+        ('2', 'SAE J1850 VPW'),
+        ('3', 'ISO 9141-2 (K-Line)'),
+        ('4', 'KWP2000 5-baud init'),
+        ('5', 'KWP2000 fast init'),
+        ('6', 'CAN 11-bit / 500 kbps'),
+        ('7', 'CAN 29-bit / 500 kbps'),
+        ('8', 'CAN 11-bit / 250 kbps'),
+        ('9', 'CAN 29-bit / 250 kbps'),
+        ('A', 'auto-search'),
+        ('B', 'SAE J1939 (heavy-duty CAN)'),
+    )
+
+    vin = models.CharField(
+        max_length=17, blank=True, default='', db_index=True,
+        help_text=_("اختياري — لو VIN متاح بنستخدمه كمفتاح أساسي."),
+    )
+    dongle_id = models.CharField(
+        max_length=64, blank=True, default='', db_index=True,
+        help_text=_("MAC الـ Bluetooth أو IP الـ WiFi — fallback لو VIN مش موجود."),
+    )
+    protocol_code = models.CharField(
+        max_length=1, choices=PROTOCOL_CHOICES,
+        help_text=_("الكود اللي بيتبعت لـ ATSP — 1..9, A, B."),
+    )
+    protocol_label = models.CharField(max_length=80, blank=True)
+    sweep_seconds_saved = models.FloatField(
+        default=0,
+        help_text=_("تقدير الزمن المُوفَّر بإعادة استخدام البروتوكول المحفوظ."),
+    )
+    hit_count = models.IntegerField(default=1, help_text=_("مرات إعادة استخدام البروتوكول دا."))
+    first_seen = models.DateTimeField(default=timezone.now)
+    last_used = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = _("ذاكرة بروتوكول عربية")
+        verbose_name_plural = _("🧠 ذاكرة البروتوكولات")
+        constraints = [
+            # على الأقل واحد من VIN أو dongle_id لازم يكون متاح.
+            models.CheckConstraint(
+                check=~(models.Q(vin='') & models.Q(dongle_id='')),
+                name='vehicle_protocol_memory_has_identifier',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['vin'], name='vpm_vin_idx'),
+            models.Index(fields=['dongle_id'], name='vpm_dongle_idx'),
+            models.Index(fields=['-last_used'], name='vpm_last_used_idx'),
+        ]
+        ordering = ['-last_used']
+
+    def __str__(self):
+        key = self.vin or self.dongle_id or '?'
+        return f"{key} → {self.protocol_label or self.protocol_code}"

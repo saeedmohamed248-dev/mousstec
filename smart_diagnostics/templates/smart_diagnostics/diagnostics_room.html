@@ -856,8 +856,9 @@ body {
 <!-- WiFi MUST load first — it exposes the shared brand library
      (MANUFACTURER_DIDS / MISFIRE_DIDS / detectManufacturerFromVIN)
      that the Bluetooth driver also consumes at runtime. -->
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=18-capabilities-probe"></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=16-capabilities-probe"></script>
+<script src="{% static 'smart_diagnostics/js/uds_did_catalog.js' %}?v=1"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=19-uds-mode22"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=17-uds-mode22"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {

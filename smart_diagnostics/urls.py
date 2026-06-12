@@ -12,6 +12,11 @@ urlpatterns = [
     path('vin/<str:vin>/passport/', api_views.vehicle_health_passport, name='health-passport'),
     path('dtc/<str:code>/plan/', api_views.dtc_test_plan, name='dtc-plan'),
     path('dtc/<str:code>/parts/', api_views.dtc_parts, name='dtc-parts'),
+
+    # 🧠 Protocol memory — skip OBD sweep on returning vehicles.
+    path('protocol-memory/', api_views.protocol_memory_lookup, name='protocol-memory-lookup'),
+    path('protocol-memory/save/', api_views.protocol_memory_save, name='protocol-memory-save'),
+
     # HTML dashboard
     path('live/<str:vin>/', html_views.live_dashboard, name='live-dashboard'),
 

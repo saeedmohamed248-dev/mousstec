@@ -177,6 +177,69 @@ const PIDS = {
         }},
     '5C': { label: 'oil_temp_c',      unit: '°C',   parse: b => b[0] - 40 },
     '5E': { label: 'fuel_rate_lh',    unit: 'L/h',  parse: b => ((b[0] << 8) + b[1]) * 0.05 },
+
+    // ── Status / accumulators — non-numeric but vital for diagnosis ─────
+    '03': { label: 'fuel_system_status', unit: '',
+        parse: b => {
+            const code = (b[0] || 0).toString(16).toUpperCase().padStart(2, '0');
+            const map = { '01': 'open_low_temp', '02': 'closed_loop',
+                          '04': 'open_load_or_decel', '08': 'open_failure',
+                          '10': 'closed_with_fault' };
+            return map[code] || code;
+        }},
+    '1C': { label: 'obd_standard', unit: '',
+        parse: b => b[0] },                       // 1=OBDII CARB, 6=EOBD, etc.
+    '1F': { label: 'run_time_s', unit: 's',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '21': { label: 'dist_with_mil_km', unit: 'km',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '30': { label: 'warmups_since_clear', unit: '',
+        parse: b => b[0] },
+    '31': { label: 'dist_since_clear_km', unit: 'km',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '4D': { label: 'mil_on_min', unit: 'min',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '4E': { label: 'time_since_clear_min', unit: 'min',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+
+    // ── Pedal & throttle actuator ──────────────────────────────────────
+    '49': { label: 'accel_pedal_d_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4A': { label: 'accel_pedal_e_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4B': { label: 'accel_pedal_f_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4C': { label: 'cmd_throttle_pct',   unit: '%', parse: b => b[0] * 100 / 255 },
+
+    // ── Fuel type & ethanol ────────────────────────────────────────────
+    '51': { label: 'fuel_type', unit: '',
+        parse: b => {
+            const map = { 0:'unknown', 1:'gasoline', 2:'methanol', 3:'ethanol',
+                          4:'diesel', 5:'lpg', 6:'cng', 7:'propane',
+                          8:'electric', 9:'bi_gasoline_cng', 10:'bi_propane_cng' };
+            return map[b[0]] !== undefined ? map[b[0]] : b[0];
+        }},
+    '52': { label: 'ethanol_fuel_pct', unit: '%', parse: b => b[0] * 100 / 255 },
+
+    // ── Hybrid / EV ────────────────────────────────────────────────────
+    '5B': { label: 'hybrid_battery_pct', unit: '%', parse: b => b[0] * 100 / 255 },
+    '5D': { label: 'fuel_inj_timing_deg', unit: '°',
+        parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) - 26880) / 128 : null },
+
+    // ── Diesel-specific (Mode 01 PIDs 61-7F, subset) ───────────────────
+    '61': { label: 'driver_demand_torque_pct', unit: '%', parse: b => b[0] - 125 },
+    '62': { label: 'actual_engine_torque_pct', unit: '%', parse: b => b[0] - 125 },
+    '63': { label: 'reference_torque_nm', unit: 'Nm',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '67': { label: 'ect_2_c', unit: '°C',
+        parse: b => b.length >= 2 ? b[1] - 40 : b[0] - 40 },
+    '6B': { label: 'egr_temp_c', unit: '°C',
+        parse: b => b.length >= 2 ? b[1] - 40 : b[0] - 40 },
+    '78': { label: 'egt_bank1_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
+    '79': { label: 'egt_bank2_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
+    '7B': { label: 'dpf_delta_kpa', unit: 'kPa',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.01 : null },
+    '7C': { label: 'dpf_temp_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
 };
 const DEFAULT_POLL_PIDS = ['0C', '0D', '05', '11', '04', '42'];
 
@@ -551,17 +614,75 @@ class OBDBluetooth extends EventTarget {
         throw lastErr;
     }
 
-    // 3. ELM327 chip init.
+    // 3. ELM327 chip init — exhaustive sweep across EVERY OBD-II bus protocol.
+    //    Kept in lock-step with obd_wifi.js so a mechanic gets identical
+    //    coverage whether they're using a Bluetooth or Wi-Fi dongle.
     async initialize() {
-        const seq = ['ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0', 'ATSP0'];
+        const seq = ['ATD', 'ATZ', 'ATE0', 'ATL0', 'ATH0', 'ATS0', 'ATAT1'];
         const out = {};
         for (const cmd of seq) {
             try { out[cmd] = await this._sendCommand(cmd, DEFAULT_TIMEOUT_MS); }
             catch (e) { out[cmd] = `<err:${e.message}>`; }
         }
-        // Warm the auto-protocol probe; first 0100 negotiates the bus.
-        try { out['0100'] = await this._sendCommand('0100', 4000); }
-        catch (e) { out['0100'] = `<err:${e.message}>`; }
+
+        // ── Protocol negotiation — every ELM327 protocol family ─────────
+        // Covers all 11 ELM327 protocol codes: 1-9 standard OBD-II buses,
+        // A = auto-search, B = SAE J1939 (heavy-duty CAN, 250 kbps).
+        const protocols = [
+            { code: 'A', label: 'auto-search (ATSPA)',     probeMs: 8000  },
+            { code: '6', label: 'CAN 11-bit / 500 kbps',   probeMs: 4000  },
+            { code: '7', label: 'CAN 29-bit / 500 kbps',   probeMs: 4000  },
+            { code: '8', label: 'CAN 11-bit / 250 kbps',   probeMs: 4000  },
+            { code: '9', label: 'CAN 29-bit / 250 kbps',   probeMs: 4000  },
+            { code: 'B', label: 'SAE J1939 (heavy-duty CAN)', probeMs: 5000 },
+            { code: '3', label: 'ISO 9141-2 (K-Line)',     probeMs: 12000 },
+            { code: '5', label: 'KWP2000 fast init',       probeMs: 7000  },
+            { code: '4', label: 'KWP2000 5-baud init',     probeMs: 12000 },
+            { code: '1', label: 'SAE J1850 PWM',           probeMs: 5000  },
+            { code: '2', label: 'SAE J1850 VPW',           probeMs: 5000  },
+        ];
+
+        let chosen = null;
+        const probes = [];
+        for (const p of protocols) {
+            try {
+                await this._sendCommand('ATSP' + p.code, 1500);
+                this._emit('protocol_probe', { protocol: p.label, phase: 'trying' });
+                const probe = await this._sendCommand('0100', p.probeMs);
+                const clean = (probe || '').replace(/\s/g, '').toUpperCase();
+                const stripped = clean.replace(/^.*BUSINIT:OK/, '');
+                const explicitFail = /NODATA|UNABLETOCONNECT|SEARCHING\.\.\.|STOPPED|BUSERROR|BUSINIT:ERROR|CANERROR|DATAERROR/
+                    .test(stripped) && !/4100[0-9A-F]{2,}/.test(stripped);
+                const ok = !explicitFail && /4100[0-9A-F]{2,}/.test(stripped);
+                probes.push({ protocol: p.label, code: p.code, response: probe, ok });
+                this._emit('protocol_probe', { protocol: p.label, response: probe, ok });
+                if (ok) {
+                    chosen = p;
+                    out['protocol']    = p.label;
+                    out['protocol_id'] = p.code;
+                    out['0100']        = probe;
+                    break;
+                }
+            } catch (e) {
+                probes.push({ protocol: p.label, code: p.code, response: `<err:${e.message}>`, ok: false });
+                this._emit('protocol_probe', { protocol: p.label, error: e.message, ok: false });
+            }
+        }
+        out['_probes'] = probes;
+
+        if (!chosen) {
+            const lines = probes.map(p =>
+                `  • ${p.protocol}: ${p.ok ? 'OK' : (p.response || 'no response').slice(0, 60)}`).join('\n');
+            throw new Error(
+                'الدونجل بيكلم الموبايل بس مش عارف يكلم ECU العربية. ' +
+                'جرّبت كل بروتوكولات OBD-II وكلهم فشلوا.\n\n' +
+                '1. مفتاح السيارة لازم يبقى على ON (مش لازم تشغّل المحرك).\n' +
+                '2. الفيشة بايبس على فيشة OBD صح؟\n' +
+                '3. الفيشة فيها مشكلة hardware؟\n\n' +
+                'نتايج التجارب:\n' + lines,
+            );
+        }
+
         this._emit('initialized', out);
         return out;
     }
@@ -950,6 +1071,96 @@ class OBDBluetooth extends EventTarget {
         }
         this._emit('misfire_counts', { cylinders: result });
         return result;
+    }
+
+    // ── Mode 05 — O2 Sensor Monitoring Test Results (legacy non-CAN) ────
+    // Only K-Line / J1850 ECUs answer; CAN cars use Mode 06 instead.
+    async readO2MonitoringResults({ sensors = 4 } = {}) {
+        const out = { _at: Date.now(), supported: false, results: [] };
+        const tids = ['01', '05', '06', '07', '08'];
+        for (let s = 1; s <= sensors; s++) {
+            const sensorIdx = s.toString(16).toUpperCase().padStart(2, '0');
+            for (const tid of tids) {
+                try {
+                    const raw = await this._sendCommand(`05${tid}${sensorIdx}`, 3000);
+                    if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) continue;
+                    out.supported = true;
+                    out.results.push({ sensor: s, tid, raw });
+                } catch (_) { /* per-TID failure non-fatal */ }
+            }
+        }
+        this._emit('mode05_o2', out);
+        return out;
+    }
+
+    // ── Mode 08 — Request Control of On-Board System/Test/Component ─────
+    // Bidirectional control — DESTRUCTIVE. UI must confirm before call.
+    async requestComponentTest(tid, dataBytes = []) {
+        if (!/^[0-9A-Fa-f]{2}$/.test(tid)) {
+            throw new Error('Mode 08 TID must be 2 hex chars (e.g. "01").');
+        }
+        const payload = '08' + tid.toUpperCase() +
+            dataBytes.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join('');
+        const raw = await this._sendCommand(payload, 5000);
+        const ok  = !/NO\s*DATA|UNABLE|\?|7F\s*08/i.test(raw);
+        const result = { tid, raw, ok };
+        this._emit('mode08_response', result);
+        return result;
+    }
+
+    // ── Mode 22 — UDS Read Data By Identifier (ISO 14229) ───────────────
+    // Talks to non-engine modules (ABS, Airbag, BCM, TCM, Cluster, HVAC)
+    // by switching ELM headers. See obd_wifi.js for the full doc.
+    async readDataByIdentifier(did, { reqHeader = null, respFilter = null } = {}) {
+        if (!/^[0-9A-Fa-f]{4}$/.test(did)) {
+            throw new Error('UDS DID must be 4 hex chars (e.g. "F190" for VIN).');
+        }
+        const out = { did: did.toUpperCase(), raw: null, ok: false, data: null, nrc: null };
+        try {
+            if (reqHeader)  { try { await this._sendCommand('ATSH' + reqHeader, 1500); } catch (_) {} }
+            if (respFilter) { try { await this._sendCommand('ATCRA' + respFilter, 1500); } catch (_) {} }
+
+            const raw = await this._sendCommand('22' + did.toUpperCase(), 4000);
+            out.raw = raw;
+            const stripped = (raw || '').replace(/\s+/g, '').toUpperCase();
+            const nrcMatch = stripped.match(/7F22([0-9A-F]{2})/);
+            if (nrcMatch) { out.nrc = nrcMatch[1]; return out; }
+            const m = stripped.match(new RegExp('62' + did.toUpperCase() + '([0-9A-F]+)'));
+            if (!m) return out;
+            out.data = m[1];
+            out.ok = true;
+        } finally {
+            try { await this._sendCommand('ATCRA', 1500); } catch (_) {}
+            try { await this._sendCommand('ATSH7E0', 1500); } catch (_) {}
+        }
+        return out;
+    }
+
+    async readModuleStandardInfo(moduleKey) {
+        const modules = (typeof UDS_MODULES !== 'undefined') ? UDS_MODULES : {};
+        const m = modules[moduleKey];
+        if (!m) throw new Error(`Unknown module key: ${moduleKey}`);
+        const dids = (typeof UDS_STANDARD_DIDS !== 'undefined') ? UDS_STANDARD_DIDS : {};
+        const out = { module: moduleKey, label: m.label, responses: {} };
+        for (const [did, spec] of Object.entries(dids)) {
+            const r = await this.readDataByIdentifier(did, {
+                reqHeader: m.request, respFilter: m.response,
+            }).catch(() => null);
+            if (r && r.ok && r.data) {
+                if (spec.ascii) {
+                    let s = '';
+                    for (let i = 0; i + 2 <= r.data.length; i += 2) {
+                        const b = parseInt(r.data.slice(i, i + 2), 16);
+                        if (b >= 0x20 && b <= 0x7E) s += String.fromCharCode(b);
+                    }
+                    out.responses[spec.label] = s.trim() || r.data;
+                } else {
+                    out.responses[spec.label] = r.data;
+                }
+            }
+        }
+        this._emit('module_info', out);
+        return out;
     }
 
     async readFuelSystemHealth() {

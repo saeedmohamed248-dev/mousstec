@@ -96,6 +96,67 @@ const OBD_WIFI_PIDS = {
             const signed = raw >= 0x8000 ? raw - 0x10000 : raw;
             return signed * 1.0;
         }},
+
+    // ── Status / accumulators — non-numeric but vital for diagnosis ─────
+    '03': { label: 'fuel_system_status', unit: '',
+        parse: b => {
+            const code = (b[0] || 0).toString(16).toUpperCase().padStart(2, '0');
+            const map = { '01': 'open_low_temp', '02': 'closed_loop',
+                          '04': 'open_load_or_decel', '08': 'open_failure',
+                          '10': 'closed_with_fault' };
+            return map[code] || code;
+        }},
+    '1C': { label: 'obd_standard', unit: '', parse: b => b[0] },
+    '1F': { label: 'run_time_s', unit: 's',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '21': { label: 'dist_with_mil_km', unit: 'km',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '30': { label: 'warmups_since_clear', unit: '', parse: b => b[0] },
+    '31': { label: 'dist_since_clear_km', unit: 'km',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '4D': { label: 'mil_on_min', unit: 'min',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '4E': { label: 'time_since_clear_min', unit: 'min',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+
+    // ── Pedal & throttle actuator ──────────────────────────────────────
+    '49': { label: 'accel_pedal_d_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4A': { label: 'accel_pedal_e_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4B': { label: 'accel_pedal_f_pct',  unit: '%', parse: b => b[0] * 100 / 255 },
+    '4C': { label: 'cmd_throttle_pct',   unit: '%', parse: b => b[0] * 100 / 255 },
+
+    // ── Fuel type & ethanol ────────────────────────────────────────────
+    '51': { label: 'fuel_type', unit: '',
+        parse: b => {
+            const map = { 0:'unknown', 1:'gasoline', 2:'methanol', 3:'ethanol',
+                          4:'diesel', 5:'lpg', 6:'cng', 7:'propane',
+                          8:'electric', 9:'bi_gasoline_cng', 10:'bi_propane_cng' };
+            return map[b[0]] !== undefined ? map[b[0]] : b[0];
+        }},
+    '52': { label: 'ethanol_fuel_pct', unit: '%', parse: b => b[0] * 100 / 255 },
+
+    // ── Hybrid / EV ────────────────────────────────────────────────────
+    '5B': { label: 'hybrid_battery_pct', unit: '%', parse: b => b[0] * 100 / 255 },
+    '5D': { label: 'fuel_inj_timing_deg', unit: '°',
+        parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) - 26880) / 128 : null },
+
+    // ── Diesel-specific (Mode 01 PIDs 61-7F, subset) ───────────────────
+    '61': { label: 'driver_demand_torque_pct', unit: '%', parse: b => b[0] - 125 },
+    '62': { label: 'actual_engine_torque_pct', unit: '%', parse: b => b[0] - 125 },
+    '63': { label: 'reference_torque_nm', unit: 'Nm',
+        parse: b => b.length >= 2 ? (b[0] << 8) + b[1] : null },
+    '67': { label: 'ect_2_c', unit: '°C',
+        parse: b => b.length >= 2 ? b[1] - 40 : b[0] - 40 },
+    '6B': { label: 'egr_temp_c', unit: '°C',
+        parse: b => b.length >= 2 ? b[1] - 40 : b[0] - 40 },
+    '78': { label: 'egt_bank1_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
+    '79': { label: 'egt_bank2_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
+    '7B': { label: 'dpf_delta_kpa', unit: 'kPa',
+        parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.01 : null },
+    '7C': { label: 'dpf_temp_c', unit: '°C',
+        parse: b => b.length >= 3 ? (((b[1] << 8) + b[2]) / 10) - 40 : null },
 };
 // Fast loop — only the 6 PIDs the gauges actually render. Polling more
 // PIDs on a slow K-Line bus (Nissan/Hyundai 2011) takes 4+ seconds per
@@ -311,6 +372,7 @@ class OBDWiFi extends EventTarget {
             { code: '7', label: 'CAN 29-bit / 500 kbps',   probeMs: 4000  },
             { code: '8', label: 'CAN 11-bit / 250 kbps',   probeMs: 4000  },
             { code: '9', label: 'CAN 29-bit / 250 kbps',   probeMs: 4000  },
+            { code: 'B', label: 'SAE J1939 (heavy-duty CAN)', probeMs: 5000 },
             { code: '3', label: 'ISO 9141-2 (K-Line)',     probeMs: 12000 },
             { code: '5', label: 'KWP2000 fast init',       probeMs: 7000  },
             { code: '4', label: 'KWP2000 5-baud init',     probeMs: 12000 },
@@ -359,7 +421,7 @@ class OBDWiFi extends EventTarget {
                 `  • ${p.protocol}: ${p.ok ? 'OK' : (p.response || 'no response').slice(0, 60)}`).join('\n');
             const reason = this._lastBridgeError ||
                 'الدونجل بيكلم البريدج بس مش عارف يكلم ECU العربية. ' +
-                'جرّبت 10 بروتوكولات مختلفة كلهم فشلوا. الأسباب الأرجح:\n\n' +
+                'جرّبت كل بروتوكولات OBD-II المتاحة وكلهم فشلوا. الأسباب الأرجح:\n\n' +
                 '1. مفتاح السيارة مش على ON. لفّه لوضع ON (مش لازم تشغّل المحرك) واعد.\n' +
                 '2. الفيشة على فيشة OBD غير الـ pins اللي السيارة بتستخدمها (نادر).\n' +
                 '3. الفيشة فيها مشكلة hardware.\n\n' +
@@ -661,6 +723,124 @@ class OBDWiFi extends EventTarget {
         }
         this._emit('misfire_counts', { cylinders: result });
         return result;
+    }
+
+    // ── Mode 05 — O2 Sensor Monitoring Test Results (legacy non-CAN) ────
+    // ONLY relevant on ISO 9141-2 / KWP2000 / J1850 buses. CAN cars return
+    // NO DATA — they use Mode 06 instead. We probe a small set of standard
+    // Test IDs across O2 sensors 1-4 and report whatever the ECU answers.
+    //   TID 0x01: rich-to-lean threshold voltage
+    //   TID 0x05: rich-to-lean switch time (ms)
+    //   TID 0x06: lean-to-rich switch time (ms)
+    //   TID 0x07: min voltage for test cycle
+    //   TID 0x08: max voltage for test cycle
+    async readO2MonitoringResults({ sensors = 4 } = {}) {
+        const out = { _at: Date.now(), supported: false, results: [] };
+        const tids = ['01', '05', '06', '07', '08'];
+        for (let s = 1; s <= sensors; s++) {
+            const sensorIdx = s.toString(16).toUpperCase().padStart(2, '0');
+            for (const tid of tids) {
+                try {
+                    const raw = await this._sendCommand(`05${tid}${sensorIdx}`, 3000);
+                    if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) continue;
+                    out.supported = true;
+                    out.results.push({ sensor: s, tid, raw });
+                } catch (_) { /* per-TID failure non-fatal */ }
+            }
+        }
+        this._emit('mode05_o2', out);
+        return out;
+    }
+
+    // ── Mode 08 — Request Control of On-Board System/Test/Component ─────
+    // Bidirectional control. Standard test IDs (SAE J1979):
+    //   TID 0x01: EVAP leak test — seal canister vent
+    //   TID 0x02-FF: manufacturer defined
+    // DESTRUCTIVE — actually commands hardware. UI must confirm before call.
+    async requestComponentTest(tid, dataBytes = []) {
+        if (!/^[0-9A-Fa-f]{2}$/.test(tid)) {
+            throw new Error('Mode 08 TID must be 2 hex chars (e.g. "01").');
+        }
+        const payload = '08' + tid.toUpperCase() +
+            dataBytes.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join('');
+        const raw = await this._sendCommand(payload, 5000);
+        const ok  = !/NO\s*DATA|UNABLE|\?|7F\s*08/i.test(raw);
+        const result = { tid, raw, ok };
+        this._emit('mode08_response', result);
+        return result;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ── Mode 22 — UDS Read Data By Identifier (ISO 14229) ───────────────
+    // ════════════════════════════════════════════════════════════════════
+    // Talks to NON-engine modules (ABS, Airbag, BCM, TCM, Cluster, HVAC).
+    // For each call we:
+    //   1. ATSH to the target module's CAN request ID (e.g. 7E2 for ABS).
+    //   2. ATCRA to filter responses to its reply ID (e.g. 7EA).
+    //   3. Send `22 <DID_hi> <DID_lo>`, parse `62 <DID> <data...>`.
+    //   4. Restore header to 7E0 (engine) so subsequent Mode 01 calls work.
+    // Negative response `7F 22 <NRC>` means the ECU rejected — common NRCs:
+    //   11=service-not-supported, 12=sub-function-not-supported,
+    //   31=request-out-of-range, 7E=session-conflict, 7F=conditions-not-met.
+
+    async readDataByIdentifier(did, { reqHeader = null, respFilter = null } = {}) {
+        if (!/^[0-9A-Fa-f]{4}$/.test(did)) {
+            throw new Error('UDS DID must be 4 hex chars (e.g. "F190" for VIN).');
+        }
+        const out = { did: did.toUpperCase(), raw: null, ok: false, data: null, nrc: null };
+        try {
+            if (reqHeader)   { try { await this._sendCommand('ATSH' + reqHeader, 1500); } catch (_) {} }
+            if (respFilter)  { try { await this._sendCommand('ATCRA' + respFilter, 1500); } catch (_) {} }
+
+            const raw = await this._sendCommand('22' + did.toUpperCase(), 4000);
+            out.raw = raw;
+            const stripped = (raw || '').replace(/\s+/g, '').toUpperCase();
+            const nrcMatch = stripped.match(/7F22([0-9A-F]{2})/);
+            if (nrcMatch) {
+                out.nrc = nrcMatch[1];
+                return out;
+            }
+            const m = stripped.match(new RegExp('62' + did.toUpperCase() + '([0-9A-F]+)'));
+            if (!m) return out;
+            // Strip multi-frame headers (ISO-TP "01:", "02:", etc.)
+            out.data = m[1];
+            out.ok = true;
+        } finally {
+            // Always restore engine header so Mode 01 streams aren't broken.
+            try { await this._sendCommand('ATCRA', 1500); } catch (_) {}
+            try { await this._sendCommand('ATSH7E0', 1500); } catch (_) {}
+        }
+        return out;
+    }
+
+    // Probe ISO 14229 standard DIDs (F186-F19D) on any module. Useful to
+    // tell the mechanic "Yes, this ABS module is alive and here's its
+    // software version" before requesting proprietary data.
+    async readModuleStandardInfo(moduleKey) {
+        const modules = (typeof UDS_MODULES !== 'undefined') ? UDS_MODULES : {};
+        const m = modules[moduleKey];
+        if (!m) throw new Error(`Unknown module key: ${moduleKey}`);
+        const dids = (typeof UDS_STANDARD_DIDS !== 'undefined') ? UDS_STANDARD_DIDS : {};
+        const out = { module: moduleKey, label: m.label, responses: {} };
+        for (const [did, spec] of Object.entries(dids)) {
+            const r = await this.readDataByIdentifier(did, {
+                reqHeader: m.request, respFilter: m.response,
+            }).catch(() => null);
+            if (r && r.ok && r.data) {
+                if (spec.ascii) {
+                    let s = '';
+                    for (let i = 0; i + 2 <= r.data.length; i += 2) {
+                        const b = parseInt(r.data.slice(i, i + 2), 16);
+                        if (b >= 0x20 && b <= 0x7E) s += String.fromCharCode(b);
+                    }
+                    out.responses[spec.label] = s.trim() || r.data;
+                } else {
+                    out.responses[spec.label] = r.data;
+                }
+            }
+        }
+        this._emit('module_info', out);
+        return out;
     }
 
     // ════════════════════════════════════════════════════════════════════

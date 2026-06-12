@@ -19,6 +19,9 @@ from smart_diagnostics.services.quota import (
     FEATURE_PARTS_FINDER,
 )
 from smart_diagnostics.models import DiagnosticScan, FaultLog
+from diagnostics_catalog.models import VehicleProtocolMemory
+from django.db import connection
+from django.utils import timezone
 
 
 def _tenant(request):
@@ -183,3 +186,112 @@ def vehicle_health_passport(request, vin):
             for f in faults
         ],
     })
+
+
+# ────────────────────────────────────────────────────────────────────────
+# 🧠 Protocol memory — saves ~30s per session by remembering which OBD
+# protocol succeeded last time on a given vehicle. Lives in public schema
+# (shared across tenants — one VIN has the same protocol everywhere).
+# ────────────────────────────────────────────────────────────────────────
+
+
+def _with_public_schema(fn):
+    """Run a callable in the public schema (where VehicleProtocolMemory lives),
+    restoring the previous schema afterward."""
+    def wrapped(*args, **kwargs):
+        prev = connection.schema_name
+        try:
+            if prev != 'public':
+                connection.set_schema_to_public()
+            return fn(*args, **kwargs)
+        finally:
+            if prev != 'public':
+                connection.set_schema(prev)
+    return wrapped
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def protocol_memory_lookup(request):
+    """GET ?vin=...&dongle_id=... → { protocol_code, protocol_label, hit_count } or 404."""
+    vin = (request.GET.get('vin') or '').strip().upper()
+    dongle_id = (request.GET.get('dongle_id') or '').strip()
+    if not vin and not dongle_id:
+        return Response({'error': 'vin or dongle_id required'}, status=400)
+
+    @_with_public_schema
+    def find():
+        qs = VehicleProtocolMemory.objects.all()
+        # Prefer VIN match (most specific); fall back to dongle.
+        if vin:
+            hit = qs.filter(vin=vin).first()
+            if hit:
+                return hit
+        if dongle_id:
+            return qs.filter(dongle_id=dongle_id).first()
+        return None
+
+    hit = find()
+    if not hit:
+        return Response({'found': False}, status=200)
+    return Response({
+        'found': True,
+        'protocol_code': hit.protocol_code,
+        'protocol_label': hit.protocol_label,
+        'hit_count': hit.hit_count,
+        'last_used': hit.last_used.isoformat(),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def protocol_memory_save(request):
+    """POST { vin?, dongle_id?, protocol_code, protocol_label?, sweep_seconds_saved? }.
+
+    Upserts on (vin) preferring exact VIN match, else (dongle_id)."""
+    data = request.data
+    vin = (data.get('vin') or '').strip().upper()
+    dongle_id = (data.get('dongle_id') or '').strip()
+    code = (data.get('protocol_code') or '').strip().upper()
+    label = (data.get('protocol_label') or '').strip()
+    seconds_saved = float(data.get('sweep_seconds_saved') or 0)
+
+    if not vin and not dongle_id:
+        return Response({'error': 'vin or dongle_id required'}, status=400)
+    if code not in {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B'}:
+        return Response({'error': f'invalid protocol_code: {code}'}, status=400)
+
+    @_with_public_schema
+    def upsert():
+        existing = None
+        if vin:
+            existing = VehicleProtocolMemory.objects.filter(vin=vin).first()
+        if not existing and dongle_id:
+            existing = VehicleProtocolMemory.objects.filter(dongle_id=dongle_id).first()
+
+        if existing:
+            existing.protocol_code = code
+            if label:
+                existing.protocol_label = label
+            existing.sweep_seconds_saved = max(existing.sweep_seconds_saved, seconds_saved)
+            existing.hit_count += 1
+            existing.last_used = timezone.now()
+            if vin and not existing.vin:
+                existing.vin = vin
+            if dongle_id and not existing.dongle_id:
+                existing.dongle_id = dongle_id
+            existing.save()
+            return existing, False
+        obj = VehicleProtocolMemory.objects.create(
+            vin=vin, dongle_id=dongle_id,
+            protocol_code=code, protocol_label=label,
+            sweep_seconds_saved=seconds_saved,
+        )
+        return obj, True
+
+    obj, created = upsert()
+    return Response({
+        'created': created,
+        'protocol_code': obj.protocol_code,
+        'hit_count': obj.hit_count,
+    }, status=201 if created else 200)
