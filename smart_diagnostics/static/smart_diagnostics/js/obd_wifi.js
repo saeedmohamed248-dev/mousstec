@@ -380,9 +380,28 @@ class OBDWiFi extends EventTarget {
             { code: '2', label: 'SAE J1850 VPW',           probeMs: 5000  },
         ];
 
+        // ── Protocol memory — same scheme as obd_bluetooth.js. dongle_id
+        // here is the bridge URL (one bridge ⇄ one Wi-Fi dongle).
+        const dongleId = this.url || '';
+        const sweepStart = Date.now();
+        let usedMemory = false;
+        let probeOrder = protocols;
+        if (window.ProtocolMemoryClient && dongleId) {
+            const hit = await window.ProtocolMemoryClient.lookup({ dongleId });
+            if (hit && hit.protocol_code) {
+                probeOrder = window.ProtocolMemoryClient.reorder(protocols, hit.protocol_code);
+                usedMemory = true;
+                this._emit('protocol_memory_hit', {
+                    protocol_code: hit.protocol_code,
+                    protocol_label: hit.protocol_label,
+                    hit_count: hit.hit_count,
+                });
+            }
+        }
+
         let chosen = null;
         const probes = [];
-        for (const p of protocols) {
+        for (const p of probeOrder) {
             try {
                 await this._sendCommand('ATSP' + p.code, 1500);
                 this._emit('protocol_probe', { protocol: p.label, phase: 'trying' });
@@ -401,6 +420,8 @@ class OBDWiFi extends EventTarget {
                 this._emit('protocol_probe', { protocol: p.label, response: probe, ok });
                 if (ok) {
                     chosen = p;
+                    this._lastProtocolCode  = p.code;
+                    this._lastProtocolLabel = p.label;
                     out['protocol']   = p.label;
                     out['protocol_id']= p.code;
                     out['0100']       = probe;
@@ -429,6 +450,22 @@ class OBDWiFi extends EventTarget {
             throw new Error(reason);
         }
 
+        // Persist the successful protocol — see obd_bluetooth.js for rationale.
+        if (window.ProtocolMemoryClient && dongleId) {
+            const naturalIdx = protocols.findIndex(p => p.code === chosen.code);
+            const wouldHaveTaken = protocols
+                .slice(0, naturalIdx)
+                .reduce((s, p) => s + (p.probeMs || 0), 0) / 1000;
+            window.ProtocolMemoryClient.save({
+                dongleId,
+                code: chosen.code,
+                label: chosen.label,
+                sweepSecondsSaved: wouldHaveTaken,
+            });
+        }
+
+        out['_used_memory'] = usedMemory;
+        out['_sweep_ms']    = Date.now() - sweepStart;
         this._emit('initialized', out);
         return out;
     }
@@ -688,7 +725,18 @@ class OBDWiFi extends EventTarget {
     async readVIN() {
         const raw = await this._sendCommand('0902', 5000);
         const vin = this._parseVINResponse(raw);
-        if (vin) this._emit('vin', { vin });
+        if (vin) {
+            this._emit('vin', { vin });
+            // Link VIN to the protocol memory row we wrote at init.
+            const dongleId = this.url || '';
+            if (window.ProtocolMemoryClient && this._lastProtocolCode && (vin || dongleId)) {
+                window.ProtocolMemoryClient.save({
+                    vin, dongleId,
+                    code: this._lastProtocolCode,
+                    label: this._lastProtocolLabel || '',
+                });
+            }
+        }
         return vin;
     }
 

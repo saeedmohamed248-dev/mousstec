@@ -189,6 +189,32 @@ class OBDProtocolCoverageTests(SimpleTestCase):
             'UDS_MODULES/UDS_STANDARD_DIDS globals are available to the drivers.',
         )
 
+    def test_protocol_memory_client_loaded_in_template(self):
+        tpl = Path(__file__).resolve().parent.parent / 'templates' / \
+              'smart_diagnostics' / 'diagnostics_room.html'
+        self.assertIn(
+            'protocol_memory_client.js', tpl.read_text(encoding='utf-8'),
+            'diagnostics_room.html must include protocol_memory_client.js '
+            'so the drivers can cache the successful protocol per vehicle.',
+        )
+
+    def test_drivers_use_protocol_memory(self):
+        """Both drivers must call lookup() before sweep and save() after success.
+        Without this, the model + endpoints we built never actually help."""
+        for label, src in (('bluetooth', self.bt), ('wifi', self.wifi)):
+            self.assertIn(
+                'ProtocolMemoryClient.lookup', src,
+                f'obd_{label}.js must call ProtocolMemoryClient.lookup before sweep.',
+            )
+            self.assertIn(
+                'ProtocolMemoryClient.save', src,
+                f'obd_{label}.js must call ProtocolMemoryClient.save after success.',
+            )
+            self.assertIn(
+                'ProtocolMemoryClient.reorder', src,
+                f'obd_{label}.js must use reorder() to try the cached protocol first.',
+            )
+
     def test_wifi_atsp_uses_real_codes(self):
         atsp = _atsp_codes(self.wifi)
         unknown = atsp - set(REQUIRED_PROTOCOL_CODES) - {'0'}

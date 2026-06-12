@@ -642,9 +642,28 @@ class OBDBluetooth extends EventTarget {
             { code: '2', label: 'SAE J1850 VPW',           probeMs: 5000  },
         ];
 
+        // ── Protocol memory — if we've seen this dongle/VIN before, try
+        // the previously-successful protocol FIRST. Saves ~30s on average.
+        const dongleId = (this.device && this.device.id) || '';
+        let sweepStart = Date.now();
+        let usedMemory = false;
+        let probeOrder = protocols;
+        if (window.ProtocolMemoryClient && dongleId) {
+            const hit = await window.ProtocolMemoryClient.lookup({ dongleId });
+            if (hit && hit.protocol_code) {
+                probeOrder = window.ProtocolMemoryClient.reorder(protocols, hit.protocol_code);
+                usedMemory = true;
+                this._emit('protocol_memory_hit', {
+                    protocol_code: hit.protocol_code,
+                    protocol_label: hit.protocol_label,
+                    hit_count: hit.hit_count,
+                });
+            }
+        }
+
         let chosen = null;
         const probes = [];
-        for (const p of protocols) {
+        for (const p of probeOrder) {
             try {
                 await this._sendCommand('ATSP' + p.code, 1500);
                 this._emit('protocol_probe', { protocol: p.label, phase: 'trying' });
@@ -658,6 +677,8 @@ class OBDBluetooth extends EventTarget {
                 this._emit('protocol_probe', { protocol: p.label, response: probe, ok });
                 if (ok) {
                     chosen = p;
+                    this._lastProtocolCode  = p.code;
+                    this._lastProtocolLabel = p.label;
                     out['protocol']    = p.label;
                     out['protocol_id'] = p.code;
                     out['0100']        = probe;
@@ -683,6 +704,24 @@ class OBDBluetooth extends EventTarget {
             );
         }
 
+        // ── Persist the successful protocol so the next visit skips the sweep.
+        // Estimate seconds saved as the total probe time of every protocol that
+        // would have run BEFORE this one in the natural order.
+        if (window.ProtocolMemoryClient && dongleId) {
+            const naturalIdx = protocols.findIndex(p => p.code === chosen.code);
+            const wouldHaveTaken = protocols
+                .slice(0, naturalIdx)
+                .reduce((s, p) => s + (p.probeMs || 0), 0) / 1000;
+            window.ProtocolMemoryClient.save({
+                dongleId,
+                code: chosen.code,
+                label: chosen.label,
+                sweepSecondsSaved: wouldHaveTaken,
+            });
+        }
+
+        out['_used_memory'] = usedMemory;
+        out['_sweep_ms']    = Date.now() - sweepStart;
         this._emit('initialized', out);
         return out;
     }
@@ -770,7 +809,21 @@ class OBDBluetooth extends EventTarget {
     async readVIN() {
         const raw = await this._sendCommand('0902', 5000);
         const vin = this._parseVINResponse(raw);
-        if (vin) this._emit('vin', { vin });
+        if (vin) {
+            this._emit('vin', { vin });
+            // Link the VIN to the protocol memory row we wrote at init.
+            // (The row was keyed only on dongle_id then; now we add the VIN
+            // so any future driver that knows the VIN — even on a different
+            // dongle — hits the same record.)
+            const dongleId = (this.device && this.device.id) || '';
+            if (window.ProtocolMemoryClient && this._lastProtocolCode && (vin || dongleId)) {
+                window.ProtocolMemoryClient.save({
+                    vin, dongleId,
+                    code: this._lastProtocolCode,
+                    label: this._lastProtocolLabel || '',
+                });
+            }
+        }
         return vin;
     }
 
