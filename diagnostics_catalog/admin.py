@@ -7,6 +7,7 @@ from .models import (
     VINDecodeCache,
     DTCExternalLookupCache,
     APICostRate,
+    VehicleProtocolMemory,
 )
 
 
@@ -46,3 +47,15 @@ class APICostRateAdmin(PublicOnlyMixin, admin.ModelAdmin):
     list_display = ('provider', 'endpoint', 'cost_usd', 'is_active', 'note')
     list_filter = ('provider', 'is_active')
     search_fields = ('provider', 'endpoint')
+
+
+@admin.register(VehicleProtocolMemory)
+class VehicleProtocolMemoryAdmin(PublicOnlyMixin, admin.ModelAdmin):
+    list_display = (
+        'vin', 'dongle_id', 'protocol_code', 'protocol_label',
+        'hit_count', 'sweep_seconds_saved', 'last_used',
+    )
+    list_filter = ('protocol_code',)
+    search_fields = ('vin', 'dongle_id', 'protocol_label')
+    readonly_fields = ('first_seen', 'last_used', 'hit_count')
+    ordering = ('-last_used',)
