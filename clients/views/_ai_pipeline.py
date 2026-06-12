@@ -12,6 +12,8 @@ Public API
 - :func:`_resolve_brand_context`
 - :func:`_persist_remote_image`
 - :func:`_composite_brand_logo`
+- :func:`_resolve_quality_size`
+- :func:`_upscale_local_image`
 - :func:`_run_marketplace_image_pipeline`
 
 These are intentionally underscore-prefixed because they are an internal
@@ -125,12 +127,110 @@ def _composite_brand_logo(
     return image_url, False
 
 
+# FLUX/Ideogram cap each side at 2048. Anything beyond that requires a
+# post-generation upscale step (PIL Lanczos).
+_FLUX_MAX_SIDE = 2048
+
+
+def _resolve_quality_size(canonical_size, package):
+    """Pick the generation size + final upscale target based on the package.
+
+    ``package.resolution_max`` ('2048x2048', '4096x4096', ...) is the contract
+    the customer paid for. We scale ``canonical_size`` so its longest side
+    reaches that target, but the FLUX call is clamped at 2048 — anything
+    above is reached via :func:`_upscale_local_image` after persist.
+
+    Returns ``(gen_size:str, target_max_dim:int)``. Falls back to 1024 on any
+    parse failure so we never break the generation flow over a quality hint.
+    """
+    target_max_dim = 1024
+    if package is not None:
+        try:
+            res = (getattr(package, 'resolution_max', '') or '').lower()
+            target_max_dim = max(int(x) for x in res.split('x') if x.strip().isdigit())
+        except (ValueError, AttributeError):
+            target_max_dim = 1024
+    try:
+        w, h = (int(x) for x in str(canonical_size).lower().split('x'))
+    except (ValueError, AttributeError):
+        w, h = 1024, 1024
+    max_side = max(w, h, 1)
+    gen_target = min(target_max_dim, _FLUX_MAX_SIDE)
+    if gen_target <= max_side:
+        return f'{w}x{h}', target_max_dim
+    scale = gen_target / max_side
+    gw = min(max(int(round(w * scale)), 256), _FLUX_MAX_SIDE)
+    gh = min(max(int(round(h * scale)), 256), _FLUX_MAX_SIDE)
+    return f'{gw}x{gh}', target_max_dim
+
+
+def _upscale_local_image(request, customer, image_url, target_max_dim, *, prefix='ai_store'):
+    """Lanczos-upscale a persisted image so its longest side ≥ target_max_dim.
+
+    Only runs when the target exceeds what FLUX produced (typically 4096 for
+    'ultra' packs). Returns the new public URL on success, the original URL
+    on no-op or failure (non-fatal — never blocks the response).
+    """
+    if not image_url or target_max_dim <= _FLUX_MAX_SIDE:
+        return image_url
+    try:
+        import io
+        import uuid as _uuid
+        from PIL import Image as PILImage
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        img_bytes = None
+        for media_prefix in ('/media/', 'media/'):
+            if media_prefix in image_url:
+                rel_path = image_url.split(media_prefix, 1)[-1]
+                try:
+                    if default_storage.exists(rel_path):
+                        with default_storage.open(rel_path, 'rb') as fp:
+                            img_bytes = fp.read()
+                except Exception:
+                    pass
+                break
+        if img_bytes is None:
+            try:
+                import requests as _req
+                r = _req.get(image_url, timeout=30)
+                if r.status_code == 200:
+                    img_bytes = r.content
+            except Exception:
+                return image_url
+        if not img_bytes:
+            return image_url
+
+        img = PILImage.open(io.BytesIO(img_bytes))
+        w, h = img.size
+        cur_max = max(w, h, 1)
+        if cur_max >= target_max_dim:
+            return image_url
+        scale = target_max_dim / cur_max
+        new_size = (max(int(round(w * scale)), 1), max(int(round(h * scale)), 1))
+        upscaled = img.resize(new_size, PILImage.LANCZOS)
+        buf = io.BytesIO()
+        upscaled.save(buf, format='PNG')
+        cust_uid = getattr(customer, 'uid', None) or 'anon'
+        filename = f'{prefix}/{cust_uid}/{_uuid.uuid4().hex}_hi.png'
+        saved = default_storage.save(filename, ContentFile(buf.getvalue()))
+        new_url = default_storage.url(saved)
+        if new_url.startswith('/'):
+            new_url = request.build_absolute_uri(new_url)
+        return new_url
+    except Exception as e:
+        logger.warning(f'[MP PIPELINE] upscale failed: {e}')
+        return image_url
+
+
 def _run_marketplace_image_pipeline(
     request, customer, *,
     engineered_prompt,
     description,
     category,
     canonical_size,
+    package=None,
     logo_file=None,
     block_schnell_fallback=True,
     prefix='ai_store',
@@ -179,11 +279,13 @@ def _run_marketplace_image_pipeline(
     has_text = bool(text_overlay and text_overlay.get('text'))
 
     # Stage B — Smart Router (FLUX for photo, Ideogram for text/logo)
+    gen_size, target_max_dim = _resolve_quality_size(canonical_size, package)
+    quality_tier = (getattr(package, 'quality_level', None) or 'hd') if package else 'hd'
     try:
         from erp_core.ai.printing_copilot import generate_design_image
         img = generate_design_image(
             prompt=final_prompt[:1800],
-            size=canonical_size,
+            size=gen_size,
             negative_prompt=final_negative or (
                 'low quality, blurry, watermark, distorted text, fake logo, '
                 'duplicated elements, extra fingers, jpeg artifacts'
@@ -191,6 +293,7 @@ def _run_marketplace_image_pipeline(
             category=presentation_category,
             has_text_content=has_text,
             block_schnell_fallback=block_schnell_fallback,
+            quality_tier=quality_tier,
         )
     except Exception:
         logger.exception('[MP PIPELINE] generate_design_image crashed')
@@ -216,6 +319,11 @@ def _run_marketplace_image_pipeline(
         return {'ok': False, 'status': 502, 'error_payload': {
             'error': 'محرك التوليد لم يُرجع صورة.',
         }}
+
+    # Stage B.5 — upscale to package's resolution_max if it exceeds FLUX's cap
+    image_url = _upscale_local_image(
+        request, customer, image_url, target_max_dim, prefix=prefix,
+    )
 
     # Stage C — composite brand/uploaded logo (FLUX only)
     logo_source = logo_file if logo_file else brand_logo_source

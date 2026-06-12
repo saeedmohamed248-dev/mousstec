@@ -301,6 +301,7 @@ def generate_flux_image(
     negative_prompt: str = '',
     provider: str | None = None,
     block_schnell_fallback: bool = False,
+    quality_tier: str = 'hd',
 ) -> dict[str, Any]:
     """
     يولّد صورة عبر Flux.1 — يدعم Together AI (default) و Replicate.
@@ -315,7 +316,11 @@ def generate_flux_image(
     provider = (provider or getattr(settings, 'FLUX_MODEL_PROVIDER', 'together')).lower()
 
     if provider == 'together':
-        return _gen_via_together(prompt, size, negative_prompt, block_schnell_fallback=block_schnell_fallback)
+        return _gen_via_together(
+            prompt, size, negative_prompt,
+            block_schnell_fallback=block_schnell_fallback,
+            quality_tier=quality_tier,
+        )
     elif provider == 'replicate':
         return _gen_via_replicate(prompt, size, negative_prompt)
     else:
@@ -331,12 +336,22 @@ def _parse_size(size: str) -> tuple[int, int]:
         return 1024, 1024
 
 
-def _gen_via_together(prompt: str, size: str, negative_prompt: str, *, block_schnell_fallback: bool = False) -> dict[str, Any]:
+def _gen_via_together(
+    prompt: str, size: str, negative_prompt: str,
+    *,
+    block_schnell_fallback: bool = False,
+    quality_tier: str = 'hd',
+) -> dict[str, Any]:
     key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
     if not key:
         return {'success': False, 'error': 'together_key_missing'}
 
-    primary_model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
+    # 🎯 'ultra' tier (premium packs) → force FLUX.1.1-pro for top-tier output.
+    # 'hd' tier falls back to the env-configured default (typically FLUX.1-dev).
+    if quality_tier == 'ultra':
+        primary_model = 'black-forest-labs/FLUX.1.1-pro'
+    else:
+        primary_model = str(getattr(settings, 'TOGETHER_FLUX_MODEL', '') or _DEFAULT_FLUX_MODEL).strip()
     # 🛡️ Fallback chain: لو الـ primary رجع 400/403/404 (مش متاح للحساب)،
     # نرجع تلقائياً لـ FLUX-schnell عشان المستخدم ياخد صورة دايماً.
     # 🚫 block_schnell_fallback=True → marketplace flow الـ premium محتاج dev
@@ -976,6 +991,7 @@ def generate_design_image(
     has_arabic: bool = False,
     force_engine: str | None = None,
     block_schnell_fallback: bool = True,
+    quality_tier: str = 'hd',
 ) -> dict[str, Any]:
     """🧠 Universal entry point — يختار Ideogram vs FLUX تلقائياً حسب الـ category.
 
@@ -1016,6 +1032,7 @@ def generate_design_image(
             result = generate_flux_image(
                 prompt=prompt, size=size, negative_prompt=negative_prompt,
                 block_schnell_fallback=block_schnell_fallback,
+                quality_tier=quality_tier,
             )
             result['fallback_from'] = 'ideogram'
         result['engine'] = 'ideogram' if result.get('provider') == 'ideogram' else 'flux'
@@ -1025,6 +1042,7 @@ def generate_design_image(
     result = generate_flux_image(
         prompt=prompt, size=size, negative_prompt=negative_prompt,
         block_schnell_fallback=block_schnell_fallback,
+        quality_tier=quality_tier,
     )
     result['engine'] = 'flux'
     return result

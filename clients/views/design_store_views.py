@@ -38,7 +38,9 @@ from ._ai_pipeline import (
     _composite_brand_logo,
     _persist_remote_image,
     _resolve_brand_context,
+    _resolve_quality_size,
     _run_marketplace_image_pipeline,
+    _upscale_local_image,
 )
 from ._shared import (
     _build_customer_topup_cards,
@@ -1311,12 +1313,18 @@ def design_store_generate(request):
     has_text = bool(text_overlay and text_overlay.get('text'))
     enhanced_desc = final_prompt  # update for downstream storage (DesignPromptLog etc.)
 
+    # 🎯 Honor the purchased package's resolution_max (HD vs Ultra/4K).
+    # FLUX caps each side at 2048; anything above is upscaled post-persist.
+    _pkg = purchase.package if purchase else None
+    gen_size, target_max_dim = _resolve_quality_size(canonical_size, _pkg)
+    quality_tier = (getattr(_pkg, 'quality_level', None) or 'hd') if _pkg else 'hd'
+
     try:
         # ── Stage B: generate via Smart Router (FLUX for photo, Ideogram for text) ──
         from erp_core.ai.printing_copilot import generate_design_image
         img = generate_design_image(
             prompt=final_prompt[:1800],
-            size=canonical_size,
+            size=gen_size,
             negative_prompt=final_negative or (
                 'low quality, blurry, watermark, distorted text, fake logo, '
                 'duplicated elements, extra fingers, jpeg artifacts'
@@ -1324,6 +1332,7 @@ def design_store_generate(request):
             category=presentation_category,
             has_text_content=has_text,
             block_schnell_fallback=True,  # marketplace: dev tier only
+            quality_tier=quality_tier,
         )
 
         if not img.get('success'):
@@ -1370,6 +1379,11 @@ def design_store_generate(request):
                 logger.warning(f'[DESIGN STORE] Failed to persist image url: {e}')
         else:
             return JsonResponse({'error': 'محرك التوليد لم يُرجع صورة.'}, status=502)
+
+        # ── Stage B.5: upscale to package's resolution_max (e.g. 4K for ultra) ──
+        image_url = _upscale_local_image(
+            request, customer, image_url, target_max_dim, prefix='ai_store',
+        )
 
         # ── Stage C: composite brand/uploaded logo (FLUX only; Ideogram draws it) ──
         logo_source = logo_file if logo_file else brand_logo_source
@@ -1534,6 +1548,15 @@ def design_store_send_whatsapp(request, design_code):
         return JsonResponse({"error": "POST only"}, status=405)
 
     design = get_object_or_404(CustomerDesign, design_code=design_code, customer=customer)
+
+    # 🎯 Package gate — only packs that bought WhatsApp delivery
+    pkg = design.purchase.package if design.purchase_id else None
+    if pkg is not None and not getattr(pkg, 'allows_whatsapp_delivery', True):
+        return JsonResponse({
+            "error": "إرسال الواتساب غير متاح في باقتك.",
+            "code": "whatsapp_not_in_package",
+        }, status=403)
+
     target_phone = request.POST.get('phone', customer.phone).strip()
     custom_message = request.POST.get('message', '').strip()
 
@@ -1568,8 +1591,17 @@ def design_store_download(request, design_code, fmt):
         return JsonResponse({"error": "التحميل غير متاح في التجربة المجانية"}, status=403)
 
     fmt = fmt.lower()
-    if fmt not in ('png', 'jpg', 'jpeg', 'pdf'):
-        return JsonResponse({"error": "صيغة غير مدعومة. الصيغ المتاحة: png, jpg, pdf"}, status=400)
+    if fmt not in ('png', 'jpg', 'jpeg', 'pdf', 'source'):
+        return JsonResponse({"error": "صيغة غير مدعومة. الصيغ المتاحة: png, jpg, pdf, source"}, status=400)
+
+    # 🎯 'source' (PNG عالي الدقة + SVG wrapper) متاح فقط لباقات allows_source_files
+    if fmt == 'source':
+        pkg = design.purchase.package if design.purchase_id else None
+        if pkg is None or not getattr(pkg, 'allows_source_files', False):
+            return JsonResponse({
+                "error": "ملفات المصدر غير متاحة في باقتك. ترقّى لباقة المصممين.",
+                "code": "source_not_in_package",
+            }, status=403)
 
     import io
     from django.core.files.storage import default_storage
@@ -1652,6 +1684,61 @@ def design_store_download(request, design_code, fmt):
         img.save(buf, format='PDF', resolution=300)
         response = HttpResponse(buf.getvalue(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}.pdf"'
+    elif fmt == 'source':
+        # 🎨 ZIP فيه: PNG عالي الدقة (max quality) + SVG wrapper
+        # المصمم يقدر يفتحه في Illustrator/Affinity ويضيف vector layers فوقه.
+        import base64 as _b64
+        import zipfile
+        png_buf = io.BytesIO()
+        img.save(png_buf, format='PNG', compress_level=1)
+        png_bytes = png_buf.getvalue()
+        w, h = img.size
+        b64 = _b64.b64encode(png_bytes).decode('ascii')
+        svg = (
+            f'<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'<svg xmlns="http://www.w3.org/2000/svg" '
+            f'width="{w}" height="{h}" viewBox="0 0 {w} {h}">\n'
+            f'  <image x="0" y="0" width="{w}" height="{h}" '
+            f'xlink:href="data:image/png;base64,{b64}"/>\n'
+            f'</svg>\n'
+        )
+        # License text reflects whatever the package paid for.
+        pkg_src = design.purchase.package if design.purchase_id else None
+        commercial = bool(pkg_src and getattr(pkg_src, 'allows_commercial_use', False))
+        license_text = (
+            f'Mouss Tec — Design License\n'
+            f'Design code: {design.design_code}\n'
+            f'Customer: {customer.full_name or customer.email or customer.uid}\n'
+            f'Package: {getattr(pkg_src, "name_ar", "—")}\n'
+            f'Issued: {timezone.now().date().isoformat()}\n\n'
+        )
+        if commercial:
+            license_text += (
+                'Grant: Full commercial use. The customer may reproduce, sell,\n'
+                'and incorporate this design into client work and paid projects\n'
+                'without further royalties.\n'
+            )
+        else:
+            license_text += (
+                'Grant: Personal use only. Commercial reproduction or resale\n'
+                'is not permitted under this package.\n'
+            )
+
+        zbuf = io.BytesIO()
+        with zipfile.ZipFile(zbuf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(f'design_{design.design_code}.png', png_bytes)
+            zf.writestr(f'design_{design.design_code}.svg', svg.encode('utf-8'))
+            zf.writestr('LICENSE.txt', license_text.encode('utf-8'))
+            zf.writestr(
+                'README.txt',
+                'Mouss Tec — Source files bundle\n'
+                'Open the SVG in Illustrator / Affinity Designer to add\n'
+                'vector layers (text, shapes, masks) on top of the base art.\n'
+                'PNG is the highest-resolution raster export of your design.\n'
+                'LICENSE.txt covers the usage rights for your package.\n',
+            )
+        response = HttpResponse(zbuf.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="design_{design.design_code}_source.zip"'
 
     design.download_count += 1
     design.save(update_fields=['download_count'])
@@ -1708,6 +1795,7 @@ def design_store_regenerate(request, design_code):
         description=design.description or design.raw_input or '',
         category=design.category or 'other',
         canonical_size=sz,
+        package=design.purchase.package if design.purchase_id else None,
         prefix='ai_store',
     )
     if not result['ok']:
@@ -1908,6 +1996,14 @@ def design_store_watermark(request, design_code):
 
     if design.is_free_trial:
         return JsonResponse({"error": "العلامة المائية غير متاحة في التجربة المجانية"}, status=403)
+
+    # 🎯 Package gate — only packs that bought the "custom watermark" feature
+    pkg = design.purchase.package if design.purchase_id else None
+    if pkg is not None and not getattr(pkg, 'allows_watermark', False):
+        return JsonResponse({
+            "error": "العلامة المائية المخصصة غير متاحة في باقتك. ترقّى لباقة أعلى.",
+            "code": "watermark_not_in_package",
+        }, status=403)
 
     watermark_text = request.POST.get('text', customer.company_name or customer.full_name).strip()
     if not watermark_text:
