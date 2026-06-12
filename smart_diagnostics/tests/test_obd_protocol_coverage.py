@@ -176,10 +176,19 @@ class OBDProtocolCoverageTests(SimpleTestCase):
         # Module address table — at least engine + non-engine modules.
         for mod in ('engine', 'abs', 'airbag', 'bcm'):
             self.assertIn(f'{mod}:', src, f'UDS module "{mod}" missing from catalog')
-        # Manufacturer-specific catalogs we ship with.
-        self.assertIn('TOYOTA_DIDS', src)
-        self.assertIn('HYUNDAI_DIDS', src)
-        self.assertIn('VAG_DIDS', src)
+        # Manufacturer-specific catalogs we ship with. Every make that's
+        # common in the Egyptian/MENA market should be present.
+        for name in ('TOYOTA_DIDS', 'HYUNDAI_DIDS', 'VAG_DIDS', 'BMW_DIDS',
+                     'MERCEDES_DIDS', 'NISSAN_DIDS', 'HONDA_DIDS', 'FORD_DIDS'):
+            self.assertIn(name, src, f'Manufacturer catalog {name} missing')
+        # Make→catalog lookup must cover at least these makes + their sister
+        # brands (lexus→toyota, kia→hyundai, mini→bmw, infiniti→nissan, etc).
+        for make in ('toyota:', 'hyundai:', 'bmw:', 'mercedes:', 'nissan:',
+                     'honda:', 'ford:', 'lexus:', 'kia:', 'mini:'):
+            self.assertIn(
+                make, src,
+                f'getDIDsForMake() must recognize "{make.rstrip(":")}"',
+            )
 
     def test_uds_catalog_loaded_in_template(self):
         tpl = Path(__file__).resolve().parent.parent / 'templates' / \

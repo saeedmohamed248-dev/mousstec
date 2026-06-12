@@ -115,11 +115,160 @@ const VAG_DIDS = {
     },
 };
 
+/* ──────────────────────────────────────────────────────────────────────
+ * IMPORTANT: The manufacturer DIDs below are best-effort entries derived
+ * from publicly available community resources (forums, ELM327 docs, open-
+ * source scan tool projects). Unlike SAE J1979 PIDs and ISO 14229 standard
+ * DIDs (F186-F19D), manufacturer DIDs have NO public specification — they
+ * vary per model, model year, and ECU supplier. ALWAYS validate scaling on
+ * a known-good vehicle before trusting the returned values for diagnosis.
+ *
+ * The Mode 22 driver gracefully handles unknown DIDs: an ECU that doesn't
+ * recognize a DID returns negative response 7F 22 31 ("requestOutOfRange"),
+ * which we surface as { ok: false, nrc: '31' } rather than throwing.
+ * ────────────────────────────────────────────────────────────────────── */
+
+// ── BMW (F/G chassis, 2008+) ───────────────────────────────────────────
+const BMW_DIDS = {
+    engine: {  // DDE for diesel, DME for petrol
+        '4101': { label: 'battery_voltage_v', unit: 'V',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 1000 : null },
+        '4115': { label: 'oil_temp_c', unit: '°C',
+                  parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) - 4000) / 10 : null },
+        '4116': { label: 'oil_pressure_bar', unit: 'bar',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.01 : null },
+    },
+    abs: {  // DSC module
+        '4505': { label: 'wheel_speed_fl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.0625 : null },
+        '4506': { label: 'wheel_speed_fr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.0625 : null },
+        '4507': { label: 'wheel_speed_rl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.0625 : null },
+        '4508': { label: 'wheel_speed_rr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.0625 : null },
+    },
+};
+
+// ── Mercedes-Benz (W204/W212/W213-era, post-2010) ──────────────────────
+const MERCEDES_DIDS = {
+    engine: {
+        '0101': { label: 'battery_voltage_v', unit: 'V',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.1 : null },
+        '010C': { label: 'fuel_rail_pressure_bar', unit: 'bar',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) : null },
+    },
+    abs: {  // ESP module
+        '0301': { label: 'steering_angle_deg', unit: '°',
+                  parse: b => b.length >= 2 ? (((b[0] << 8) + b[1]) - 32768) / 10 : null },
+        '0501': { label: 'brake_pressure_bar', unit: 'bar',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.1 : null },
+    },
+};
+
+// ── Nissan (Tiida/Sunny/Sentra/Altima/Qashqai post-2010) ───────────────
+const NISSAN_DIDS = {
+    engine: {
+        '0101': { label: 'battery_voltage_v', unit: 'V',
+                  parse: b => b[0] * 0.08 },
+        '0107': { label: 'coolant_temp_c', unit: '°C',
+                  parse: b => b[0] - 40 },
+    },
+    abs: {
+        '0102': { label: 'wheel_speed_fl_kph', unit: 'km/h',
+                  parse: b => b[0] },
+        '0103': { label: 'wheel_speed_fr_kph', unit: 'km/h',
+                  parse: b => b[0] },
+        '0104': { label: 'wheel_speed_rl_kph', unit: 'km/h',
+                  parse: b => b[0] },
+        '0105': { label: 'wheel_speed_rr_kph', unit: 'km/h',
+                  parse: b => b[0] },
+    },
+};
+
+// ── Honda (Civic/Accord/CR-V, UDS-era 2014+) ───────────────────────────
+const HONDA_DIDS = {
+    engine: {
+        '1101': { label: 'battery_voltage_v', unit: 'V',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 0.01 : null },
+        '1110': { label: 'fuel_pressure_kpa', unit: 'kPa',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) : null },
+    },
+    abs: {  // VSA module
+        '0201': { label: 'wheel_speed_fl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '0202': { label: 'wheel_speed_fr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '0203': { label: 'wheel_speed_rl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '0204': { label: 'wheel_speed_rr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+    },
+};
+
+// ── Ford (Focus/Fusion/EcoSport, PCM 2010+) ────────────────────────────
+const FORD_DIDS = {
+    engine: {  // PCM
+        '1100': { label: 'battery_voltage_v', unit: 'V',
+                  parse: b => b[0] * 0.0625 },
+        '1130': { label: 'fuel_rail_pressure_kpa', unit: 'kPa',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) * 10 : null },
+        '113F': { label: 'turbo_boost_kpa', unit: 'kPa',
+                  parse: b => b[0] },
+    },
+    abs: {
+        '8001': { label: 'wheel_speed_fl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '8002': { label: 'wheel_speed_fr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '8003': { label: 'wheel_speed_rl_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+        '8004': { label: 'wheel_speed_rr_kph', unit: 'km/h',
+                  parse: b => b.length >= 2 ? ((b[0] << 8) + b[1]) / 100 : null },
+    },
+};
+
+// ── Make → catalog lookup (use after VIN-decode tells us the make) ─────
+const MANUFACTURER_DID_CATALOGS = {
+    toyota:   TOYOTA_DIDS,
+    lexus:    TOYOTA_DIDS,
+    hyundai:  HYUNDAI_DIDS,
+    kia:      HYUNDAI_DIDS,
+    vw:       VAG_DIDS,
+    volkswagen: VAG_DIDS,
+    audi:     VAG_DIDS,
+    skoda:    VAG_DIDS,
+    seat:     VAG_DIDS,
+    bmw:      BMW_DIDS,
+    mini:     BMW_DIDS,
+    mercedes: MERCEDES_DIDS,
+    'mercedes-benz': MERCEDES_DIDS,
+    nissan:   NISSAN_DIDS,
+    infiniti: NISSAN_DIDS,
+    honda:    HONDA_DIDS,
+    acura:    HONDA_DIDS,
+    ford:     FORD_DIDS,
+    lincoln:  FORD_DIDS,
+};
+
+function getDIDsForMake(make) {
+    if (!make) return null;
+    const key = String(make).toLowerCase().trim();
+    return MANUFACTURER_DID_CATALOGS[key] || null;
+}
+
 // Export for both module and global (drivers use global; tests inspect file).
 if (typeof window !== 'undefined') {
-    window.UDS_STANDARD_DIDS = UDS_STANDARD_DIDS;
-    window.UDS_MODULES       = UDS_MODULES;
-    window.TOYOTA_DIDS       = TOYOTA_DIDS;
-    window.HYUNDAI_DIDS      = HYUNDAI_DIDS;
-    window.VAG_DIDS          = VAG_DIDS;
+    window.UDS_STANDARD_DIDS         = UDS_STANDARD_DIDS;
+    window.UDS_MODULES               = UDS_MODULES;
+    window.TOYOTA_DIDS               = TOYOTA_DIDS;
+    window.HYUNDAI_DIDS              = HYUNDAI_DIDS;
+    window.VAG_DIDS                  = VAG_DIDS;
+    window.BMW_DIDS                  = BMW_DIDS;
+    window.MERCEDES_DIDS             = MERCEDES_DIDS;
+    window.NISSAN_DIDS               = NISSAN_DIDS;
+    window.HONDA_DIDS                = HONDA_DIDS;
+    window.FORD_DIDS                 = FORD_DIDS;
+    window.MANUFACTURER_DID_CATALOGS = MANUFACTURER_DID_CATALOGS;
+    window.getDIDsForMake            = getDIDsForMake;
 }
