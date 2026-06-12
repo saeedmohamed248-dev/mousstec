@@ -200,12 +200,14 @@ class PrintOrderAdmin(PrintSecureAdmin):
     list_select_related = ('customer', 'branch')
     date_hierarchy = 'date_created'
     inlines = [PrintJobInline]
+    readonly_fields = ('paid_amount',)
     fieldsets = (
         ('📋 بيانات الطلب', {
             'fields': ('order_number', 'customer', 'branch', 'status', 'date_due'),
         }),
         ('💰 المالي', {
             'fields': ('total_amount', 'discount', 'paid_amount'),
+            'description': 'المدفوع يُحسب تلقائياً من حركات الخزينة المرتبطة بالطلب — أضف حركة إيداع (in) لتسجيل دفعة.',
         }),
         ('📁 ملفات المشروع', {
             'fields': ('project_file', 'project_file_2', 'project_file_3'),

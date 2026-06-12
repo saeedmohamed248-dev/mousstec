@@ -239,19 +239,19 @@
                 </button>
             </div>
 
-            <!-- Visa / Paymob -->
-            <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-4 mb-3">
+            <!-- Visa / Paymob — معطّل مؤقتاً -->
+            <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 mb-3 opacity-70">
                 <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-lg"><i class="fas fa-credit-card"></i></div>
+                    <div class="w-10 h-10 rounded-xl bg-slate-700/40 flex items-center justify-center text-slate-400 text-lg"><i class="fas fa-credit-card"></i></div>
                     <div>
-                        <h4 class="text-sm font-black text-white">بطاقة فيزا / ماستركارد</h4>
-                        <p class="text-xs text-slate-500">دفع فوري آمن عبر Paymob</p>
+                        <h4 class="text-sm font-black text-slate-300">بطاقة فيزا / ماستركارد</h4>
+                        <p class="text-xs text-slate-500">قريباً — تحت التطوير</p>
                     </div>
+                    <span class="ml-auto text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-full">قريباً</span>
                 </div>
-                <button onclick="payWithPaymob()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-500/20">
-                    <i class="fas fa-lock ml-1"></i> ادفع الآن بالفيزا
+                <button disabled class="w-full bg-slate-700/50 text-slate-400 font-bold py-3 rounded-xl text-sm cursor-not-allowed">
+                    <i class="fas fa-clock ml-1"></i> قريباً — استخدم فودافون كاش الآن
                 </button>
-                <p class="text-[11px] text-slate-600 text-center mt-2"><i class="fas fa-shield-alt ml-1"></i> مشفّر ومحمي بمعايير PCI DSS عبر Paymob</p>
             </div>
 
             <!-- Or use trial -->

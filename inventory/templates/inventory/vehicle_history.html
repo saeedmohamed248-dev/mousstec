@@ -17,7 +17,11 @@
                 <div class="bg-gradient-to-tr from-emerald-600 to-teal-600 p-2 rounded-xl"><i class="fas fa-car text-white"></i></div>
                 <span class="text-lg font-black bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">جواز السيارة الرقمي</span>
             </div>
-            <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+            <div class="flex items-center gap-2">
+                <button onclick="window.print()" class="text-xs font-bold text-slate-400 hover:text-emerald-300 transition px-3 py-1.5 rounded-lg border border-slate-700" title="طباعة سجل الصيانة"><i class="fas fa-print ml-1"></i>طباعة</button>
+                <button id="share-btn" class="text-xs font-bold text-slate-400 hover:text-purple-300 transition px-3 py-1.5 rounded-lg border border-slate-700" title="مشاركة الرابط"><i class="fas fa-share-alt ml-1"></i>مشاركة</button>
+                <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+            </div>
         </div>
     </nav>
 
@@ -43,7 +47,7 @@
                     </div>
                     <div class="bg-slate-800/60 rounded-xl px-4 py-2 border border-slate-700">
                         <p class="text-xs text-slate-500">صحة المركبة</p>
-                        <p class="text-sm font-black {% if vehicle.ai_health_score >= 80 %}text-emerald-400{% elif vehicle.ai_health_score >= 50 %}text-amber-400{% else %}text-red-400{% endif %}">{{ vehicle.ai_health_score }}%</p>
+                        <p class="text-sm font-black {% if vehicle.ai_health_score >= 80 %}text-emerald-400{% elif vehicle.ai_health_score >= 50 %}text-amber-400{% else %}text-red-400{% endif %}">{{ vehicle.ai_health_score|default:"—" }}{% if vehicle.ai_health_score %}%{% endif %}</p>
                     </div>
                     <a href="/system/vehicle/{{ vehicle.chassis_number }}/qr/" class="bg-slate-800/60 rounded-xl px-4 py-2 border border-slate-700 hover:border-purple-500/40 transition">
                         <p class="text-xs text-slate-500">QR</p>
@@ -112,5 +116,32 @@
     </main>
 
     <footer class="text-center py-4 text-slate-700 text-xs border-t border-slate-900">&copy; 2026 Mouss Tec Ecosystem</footer>
+
+<script>
+document.getElementById('share-btn')?.addEventListener('click', async () => {
+    const url = window.location.href;
+    const title = document.title;
+    if (navigator.share) {
+        try { await navigator.share({ title, url }); return; } catch (_) {}
+    }
+    try {
+        await navigator.clipboard.writeText(url);
+        const btn = document.getElementById('share-btn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check ml-1"></i>تم النسخ';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-emerald-400'); }, 1800);
+    } catch (_) {
+        prompt('انسخ الرابط:', url);
+    }
+});
+</script>
+
+<style media="print">
+    nav, footer, #share-btn, button[onclick] { display: none !important; }
+    body { background: #fff !important; color: #000 !important; }
+    .bg-slate-900\/60, .bg-slate-900 { background: #fff !important; border-color: #ddd !important; }
+    * { color: #000 !important; }
+</style>
 </body>
 </html>

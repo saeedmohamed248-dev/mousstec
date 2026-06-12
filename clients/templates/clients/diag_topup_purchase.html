@@ -1,0 +1,179 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شحن استخدامات التشخيص | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .pack-card { transition: all 0.2s ease; }
+        .pack-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(99, 102, 241, 0.15); }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-cyan-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
+
+    <header class="container mx-auto px-6 py-6 flex justify-between items-center">
+        <a href="/" class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-cyan-600 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/30">
+                <i class="fas fa-stethoscope text-2xl text-white"></i>
+            </div>
+            <span class="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">MOUSS TEC</span>
+        </a>
+        <a href="/diagnostics/room/" class="text-slate-400 hover:text-cyan-400 font-bold text-sm flex items-center gap-2 transition">
+            <i class="fas fa-arrow-right"></i> العودة لغرفة التشخيص
+        </a>
+    </header>
+
+    <main class="container mx-auto px-6 pb-16 max-w-5xl">
+
+        <!-- Header -->
+        <section class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-3">
+                شحن استخدامات التشخيص
+            </h1>
+            <p class="text-slate-400 text-lg">
+                خلصت حصة باقتك الشهرية؟ اشحن دلوقتي وكمّل شغلك من غير انتظار.
+            </p>
+        </section>
+
+        <!-- Current usage status -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="bg-cyan-500/20 p-2 rounded-lg">
+                        <i class="fas fa-search text-cyan-400 text-lg"></i>
+                    </div>
+                    <div class="font-bold text-slate-200">فحوصات التشخيص</div>
+                </div>
+                <div class="text-3xl font-black text-white">
+                    {{ scan_status.plan_remaining }}<span class="text-base text-slate-500 font-normal">/{{ scan_status.plan_limit }}</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">المتبقي من حصة الباقة الشهرية</div>
+            </div>
+
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="bg-purple-500/20 p-2 rounded-lg">
+                        <i class="fas fa-robot text-purple-400 text-lg"></i>
+                    </div>
+                    <div class="font-bold text-slate-200">بوت التشخيص</div>
+                </div>
+                <div class="text-3xl font-black text-white">
+                    {{ bot_status.plan_remaining }}<span class="text-base text-slate-500 font-normal">/{{ bot_status.plan_limit }}</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1">المتبقي من حصة الباقة الشهرية</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-amber-900/40 to-orange-900/40 border border-amber-600/40 rounded-2xl p-5">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="bg-amber-500/20 p-2 rounded-lg">
+                        <i class="fas fa-bolt text-amber-400 text-lg"></i>
+                    </div>
+                    <div class="font-bold text-amber-200">رصيد الشحن</div>
+                </div>
+                <div class="text-3xl font-black text-white">
+                    {{ scan_status.topup_remaining }}
+                </div>
+                <div class="text-xs text-amber-300/80 mt-1">استخدام إضافي متاح فوق الحصة الشهرية</div>
+            </div>
+        </section>
+
+        <!-- Packs -->
+        <section class="space-y-4">
+            <h2 class="text-2xl font-black text-white mb-4 flex items-center gap-3">
+                <i class="fas fa-tags text-cyan-400"></i>
+                اختر حزمة الشحن
+            </h2>
+
+            {% for pack in packs %}
+            <div class="pack-card bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-2 border-cyan-600/40 rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+                <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/30">
+                            <i class="fas fa-bolt text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-black text-white">{{ pack.name }}</h3>
+                    </div>
+                    <div class="text-slate-400 text-sm flex items-center gap-4 flex-wrap">
+                        <span><i class="fas fa-check-circle text-emerald-400"></i> {{ pack.uses_granted }} استخدام إضافي</span>
+                        <span><i class="fas fa-infinity text-cyan-400"></i> فحص أو بوت — أيهما</span>
+                        <span><i class="fas fa-calendar-times text-amber-400"></i> لا تنتهي صلاحيتها</span>
+                    </div>
+                </div>
+
+                <div class="text-center md:text-left">
+                    <div class="text-4xl font-black text-cyan-400 mb-1">
+                        {{ pack.price_egp|floatformat:0|intcomma }}
+                        <span class="text-base text-slate-400 font-normal">ج.م</span>
+                    </div>
+                    <div class="text-xs text-slate-500">
+                        ≈ {{ pack.price_egp|floatformat:2 }} ج.م لكل استخدام
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2 md:w-48">
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        <input type="hidden" name="pack_slug" value="{{ pack.slug }}">
+                        <input type="hidden" name="payment_method" value="vodafone_cash">
+                        <button type="submit"
+                                class="w-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-500/30 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-mobile-alt"></i>
+                            فودافون كاش
+                        </button>
+                    </form>
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        <input type="hidden" name="pack_slug" value="{{ pack.slug }}">
+                        <input type="hidden" name="payment_method" value="instapay">
+                        <button type="submit"
+                                class="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-purple-500/30 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-university"></i>
+                            إنستاباي
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 text-center">
+                <i class="fas fa-box-open text-5xl text-slate-600 mb-3"></i>
+                <p class="text-slate-400">لا توجد حزم شحن متاحة حالياً.</p>
+            </div>
+            {% endfor %}
+        </section>
+
+        <!-- Payment info -->
+        <section class="mt-10 bg-slate-800/40 border border-slate-700 rounded-2xl p-6">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fas fa-info-circle text-cyan-400"></i>
+                طريقة الدفع
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div class="bg-slate-900/60 p-4 rounded-xl">
+                    <div class="font-bold text-rose-400 mb-2 flex items-center gap-2">
+                        <i class="fas fa-mobile-alt"></i> فودافون كاش
+                    </div>
+                    <div class="text-slate-300 font-mono text-lg">{{ vodafone_number }}</div>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-xl">
+                    <div class="font-bold text-purple-400 mb-2 flex items-center gap-2">
+                        <i class="fas fa-university"></i> إنستاباي
+                    </div>
+                    <div class="text-slate-300 font-mono text-lg">{{ instapay_handle }}</div>
+                </div>
+            </div>
+            <p class="text-slate-400 text-xs mt-4 leading-relaxed">
+                بعد اختيارك لطريقة الدفع، هتظهرلك شاشة لرفع سكرين شوت التحويل + رقم العملية.
+                هيتم تفعيل الشحن خلال دقائق بعد مراجعة الإدارة، وهتقدر تستخدمه فوراً في غرفة التشخيص.
+            </p>
+        </section>
+
+    </main>
+
+</body>
+</html>

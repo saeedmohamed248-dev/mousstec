@@ -24,14 +24,16 @@ def default_trial_end():
 # =====================================================================
 class Client(SoftDeleteMixin, TenantMixin):
     ADDON_PRICE_PER_MONTH = Decimal('125.00')
+    # ⚠️ Legacy fallback prices — source of truth is Plan.monthly_price (DB).
+    # Kept for any legacy code path that asks before a Plan row is loaded.
     PLAN_BASE_PRICES = {
         # سيارات
-        'silver': Decimal('685.00'),
-        'gold': Decimal('1185.00'),
-        'empire': Decimal('3000.00'),
+        'silver': Decimal('550.00'),
+        'gold': Decimal('850.00'),
+        'empire': Decimal('2500.00'),
         # طباعة
-        'print_basic': Decimal('550.00'),
-        'print_pro': Decimal('880.00'),
+        'print_basic': Decimal('875.00'),
+        'print_pro': Decimal('1250.00'),
         'print_enterprise': Decimal('2000.00'),
     }
 
@@ -532,6 +534,19 @@ class Plan(models.Model):
         help_text=_("عدد التصاميم المجانية التي تحصل عليها الشركة شهرياً مع الاشتراك"),
     )
 
+    # 🔍 حصة فحوصات صفحة التشخيص الشهرية (Silver=10, Gold=40, Empire=70)
+    monthly_diagnostics_scans_quota = models.IntegerField(
+        default=0,
+        verbose_name=_("حصة فحوصات التشخيص شهرياً"),
+        help_text=_("عدد الفحوصات الناجحة في صفحة التشخيص شهرياً"),
+    )
+    # 🤖 حصة محادثات بوت التشخيص الشهرية (Silver=20, Gold=40, Empire=70)
+    monthly_diagnostics_bot_quota = models.IntegerField(
+        default=0,
+        verbose_name=_("حصة أسئلة بوت التشخيص شهرياً"),
+        help_text=_("عدد أسئلة بوت التشخيص الذكي شهرياً"),
+    )
+
     # 📝 Legacy: قائمة marketing copy strings للعرض على صفحة الـ pricing.
     # ⚠️ مش بتـ gate أي سلوك — ده لـ display بس. الـ behavior gating
     # بيتم عبر entitlements الجديد. يبقى موجود لـ backward compat.
@@ -902,6 +917,34 @@ class DiagnosticsAddon(models.Model):
 
 
 # =====================================================================
+# 🔍 8.6 حزمة شحن تشخيص (Top-Up) — شراء لمرة واحدة فوق أي باقة
+# =====================================================================
+# العميل يخلص حصته الشهرية من الفحوصات/البوت؟ يشتري حزمة شحن.
+# الافتراضي: 150 ج.م = 30 استخدام (فحص أو بوت).
+# =====================================================================
+class DiagnosticsTopUpPack(models.Model):
+    slug = models.SlugField(max_length=40, unique=True)
+    name = models.CharField(max_length=120, verbose_name=_("اسم الحزمة"))
+    price_egp = models.DecimalField(
+        max_digits=10, decimal_places=2, verbose_name=_("السعر (ج.م)"),
+    )
+    uses_granted = models.IntegerField(
+        verbose_name=_("عدد الاستخدامات"),
+        help_text=_("استخدام = فحص واحد أو سؤال بوت واحد"),
+    )
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = _("حزمة شحن تشخيص")
+        verbose_name_plural = _("🔍 حزم شحن التشخيص")
+        ordering = ['sort_order', 'price_egp']
+
+    def __str__(self):
+        return f"🔍 {self.name} — {self.uses_granted} × {self.price_egp} ج.م"
+
+
+# =====================================================================
 # 📋 9. اشتراك المستأجر (Tenant Subscription)
 # =====================================================================
 class TenantSubscription(models.Model):
@@ -973,6 +1016,31 @@ class TenantSubscription(models.Model):
         verbose_name=_("إجمالي فحوصات API المستهلكة (lifetime)"),
     )
     diag_api_last_refill_at = models.DateTimeField(null=True, blank=True)
+
+    # ─────────────────────────────────────────────────────────────────
+    # 🔍 2026 Relaunch — per-tenant monthly diagnostics quota tracking
+    # ─────────────────────────────────────────────────────────────────
+    # Plan defines the *limit* (monthly_diagnostics_scans_quota /
+    # monthly_diagnostics_bot_quota); these fields track the current
+    # period's *consumption*. Top-up balance is a separate pool used
+    # only after the monthly allowance is fully consumed.
+    diag_scans_used_this_period = models.IntegerField(
+        default=0,
+        verbose_name=_("فحوصات التشخيص المستهلكة (الفترة الحالية)"),
+    )
+    diag_bot_used_this_period = models.IntegerField(
+        default=0,
+        verbose_name=_("أسئلة بوت التشخيص المستهلكة (الفترة الحالية)"),
+    )
+    diag_topup_balance = models.IntegerField(
+        default=0,
+        verbose_name=_("رصيد شحن التشخيص (استخدامات إضافية)"),
+        help_text=_("استخدامات إضافية فوق حصة الباقة الشهرية، تنزل عند انتهاء الحصة الشهرية."),
+    )
+    diag_period_start = models.DateField(
+        null=True, blank=True,
+        verbose_name=_("بداية فترة حصة التشخيص الحالية"),
+    )
 
     def refill_diag_api_quota(self, amount: int, reset: bool = False):
         """يـ refill الـ scan quota. amount > 0 = إضافة؛ reset=True يـ set مباشرة."""
@@ -1949,6 +2017,14 @@ class DesignPackage(models.Model):
         ('des_25', _('🎨 باقة 25 تصميم')),
         ('des_50', _('🎨 باقة 50 تصميم')),
         ('des_100', _('🎨 باقة 100 تصميم')),
+
+        # ✨ 2026 launch packages — short clean slugs
+        ('c10',  _('🎯 باقة 10 تصاميم — عميل')),
+        ('c20',  _('🎯 باقة 20 تصميم — عميل')),
+        ('c50',  _('🎯 باقة 50 تصميم — عميل')),
+        ('d20',  _('🏢 باقة 20 تصميم — مصمم/شركة')),
+        ('d50',  _('🏢 باقة 50 تصميم — مصمم/شركة')),
+        ('d100', _('🏢 باقة 100 تصميم — مصمم/شركة')),
     )
 
     AUDIENCE_CHOICES = (
@@ -4205,6 +4281,7 @@ class ManualPaymentReceipt(models.Model):
         ('design',       _('باقة تصاميم')),
         ('diagnostics',  _('ترقية تشخيص')),
         ('addon',        _('إضافة (موظف/فرع/خزينة)')),
+        ('diag_topup',   _('شحن تشخيص (30 استخدام)')),
     )
     PAYMENT_METHODS = (
         ('vodafone_cash', _('فودافون كاش')),
@@ -4277,6 +4354,8 @@ class ManualPaymentReceipt(models.Model):
                 return PlatformInvoice.objects.filter(pk=self.purchase_id).first()
             if self.purchase_type == 'diagnostics':
                 return CustomerDiagnosticsSubscription.objects.filter(pk=self.purchase_id).first()
+            if self.purchase_type == 'diag_topup':
+                return DiagnosticsTopUpPack.objects.filter(pk=self.purchase_id).first()
         except Exception:
             return None
         return None
@@ -4334,6 +4413,15 @@ class ManualPaymentReceipt(models.Model):
                 purchase.upgrade(tier, payment_ref=f'manual:{self.txn_reference}')
             except Exception:
                 logger.exception("[ManualReceipt] diagnostics upgrade failed")
+        elif self.purchase_type == 'diag_topup':
+            # purchase is the DiagnosticsTopUpPack; credit its uses to the
+            # tenant on this receipt.
+            if self.tenant_id and getattr(purchase, 'uses_granted', 0) > 0:
+                try:
+                    from clients.services.diagnostics_quota import add_topup
+                    add_topup(self.tenant, purchase.uses_granted)
+                except Exception:
+                    logger.exception("[ManualReceipt] diag_topup credit failed")
 
     @transaction.atomic
     def reject(self, by_user=None, notes: str = ''):

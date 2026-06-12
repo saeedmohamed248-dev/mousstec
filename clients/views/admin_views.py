@@ -30,18 +30,25 @@ from django.views.decorators.csrf import csrf_exempt
 from django_tenants.utils import schema_context
 
 from clients.models import (
+    AIAddonPackage,
+    AIBonusGrant,
     BidOffer,
     BlindBiddingRequest,
     Client,
     CustomerNotification,
+    DesignPrintRequest,
     DesignPurchase,
     Domain,
     EscrowLedger,
+    GlobalB2BMarketplace,
+    ManualPaymentReceipt,
     MarketplaceCustomer,
     PartListing,
     PartOrder,
+    Plan,
     PlatformEvent,
     ServiceRequest,
+    TenantSubscription,
     TenderOffer,
     VisitorLog,
 )
@@ -99,7 +106,8 @@ def super_admin_dashboard(request):
         elif action == 'activate_subscription':
             plan = request.POST.get('plan', 'silver')
             billing_period = request.POST.get('billing_period', 'monthly')
-            plan_prices = {'silver': 780, 'gold': 1250, 'empire': 1800}
+            # 📌 source of truth = Plan.monthly_price (DB)؛ fallback لـ Client.PLAN_BASE_PRICES.
+            plan_row = Plan.objects.filter(slug=plan, is_active=True).only('monthly_price').first()
             period_days = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
             period_discounts = {'monthly': Decimal('0'), 'quarterly': Decimal('0.09'),
                                 'semi_annual': Decimal('0.125'), 'annual': Decimal('0.25')}
@@ -107,7 +115,10 @@ def super_admin_dashboard(request):
                              'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
             months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
 
-            base_price = Decimal(str(plan_prices.get(plan, 780)))
+            if plan_row:
+                base_price = plan_row.monthly_price
+            else:
+                base_price = Client.PLAN_BASE_PRICES.get(plan, Decimal('550.00'))
             discount = period_discounts.get(billing_period, Decimal('0'))
             months = months_map.get(billing_period, 1)
             total = (base_price * months * (1 - discount)).quantize(Decimal('1'))
@@ -150,7 +161,6 @@ def super_admin_dashboard(request):
 
         elif action == 'activate_ai_addon':
             # تفعيل حزمة AI Studio للشركة
-            from clients.models import TenantSubscription, AIAddonPackage
             addon_slug = request.POST.get('ai_addon_slug', 'ai-basic')
             addon = AIAddonPackage.objects.filter(slug=addon_slug, is_active=True).first()
             if not addon:
@@ -170,7 +180,6 @@ def super_admin_dashboard(request):
 
         elif action == 'deactivate_ai_addon':
             # إلغاء حزمة AI Studio
-            from clients.models import TenantSubscription
             try:
                 sub = TenantSubscription.objects.get(tenant=target)
                 old_addon = sub.ai_addon.name if sub.ai_addon else ''
@@ -187,7 +196,6 @@ def super_admin_dashboard(request):
 
         elif action == 'grant_ai_bonus':
             # 🎁 هدية رصيد AI Studio من السوبر أدمن
-            from clients.models import AIBonusGrant
             try:
                 designs = int(request.POST.get('grant_designs', 0) or 0)
                 whatsapp_n = int(request.POST.get('grant_whatsapp', 0) or 0)
@@ -228,7 +236,6 @@ def super_admin_dashboard(request):
                 )
 
         elif action == 'revoke_bonus':
-            from clients.models import AIBonusGrant
             grant_id = request.POST.get('grant_id')
             try:
                 grant = AIBonusGrant.objects.get(pk=grant_id, tenant=target)
@@ -380,29 +387,40 @@ def super_admin_dashboard(request):
     except Exception:
         logger.exception("super_admin_dashboard: recent_events fetch failed")
 
-    # --- Tenant Deep Details (per tenant) ---
-    from clients.models import TenantSubscription, AIAddonPackage
+    # --- Tenant Deep Details — bulk prefetches بدل N+1 ---
+    # AI addon name per tenant (1 query)
+    ai_addon_by_tenant = {
+        s['tenant_id']: s['ai_addon__name'] or ''
+        for s in TenantSubscription.objects.filter(
+            tenant__in=tenants, ai_addon__isnull=False,
+        ).values('tenant_id', 'ai_addon__name')
+    }
+    # All active grants per tenant (1 query)
+    grants_by_tenant = {t.id: [] for t in tenants}
+    for g in AIBonusGrant.objects.filter(tenant__in=tenants, is_active=True):
+        grants_by_tenant.setdefault(g.tenant_id, []).append(g)
+
+    # 👤 users_count per schema: cache 5min عشان مش هيتغير كل ثانية
+    users_count_cache_key = 'super_admin:users_count_by_schema'
+    users_count_by_schema = cache.get(users_count_cache_key) or {}
+    missing_schemas = [t.schema_name for t in tenants if t.schema_name not in users_count_by_schema]
+    if missing_schemas:
+        for schema in missing_schemas:
+            try:
+                with schema_context(schema):
+                    users_count_by_schema[schema] = User.objects.count()
+            except Exception:
+                logger.warning("super_admin_dashboard: failed to count users in schema %s", schema, exc_info=True)
+                users_count_by_schema[schema] = 0
+        cache.set(users_count_cache_key, users_count_by_schema, 300)
+
     tenants_enriched = []
     for t in tenants:
-        users_count = 0
-        try:
-            with schema_context(t.schema_name):
-                users_count = User.objects.count()
-        except Exception:
-            logger.warning("super_admin_dashboard: failed to count users in schema %s", t.schema_name, exc_info=True)
+        users_count = users_count_by_schema.get(t.schema_name, 0)
+        ai_addon_name = ai_addon_by_tenant.get(t.id, '')
 
-        # جلب حالة AI addon
-        ai_addon_name = ''
-        try:
-            sub = TenantSubscription.objects.get(tenant=t)
-            if sub.ai_addon:
-                ai_addon_name = sub.ai_addon.name
-        except TenantSubscription.DoesNotExist:
-            pass
-
-        # 🎁 جلب رصيد الهدايا النشطة
-        from clients.models import AIBonusGrant
-        active_grants = AIBonusGrant.objects.filter(tenant=t, is_active=True)
+        # 🎁 جلب رصيد الهدايا النشطة (من الـ prefetched dict)
+        active_grants = grants_by_tenant.get(t.id, [])
         bonus_designs_remaining = 0
         bonus_whatsapp_remaining = 0
         bonus_watermarks_remaining = 0
@@ -437,13 +455,11 @@ def super_admin_dashboard(request):
     ).select_related('customer', 'package').order_by('-created_at')[:20]
 
     # --- 💵 إيصالات الدفع اليدوي (فودافون/إنستاباي) ---
-    from clients.models import ManualPaymentReceipt
     pending_manual_receipts = ManualPaymentReceipt.objects.filter(
         status='pending'
     ).select_related('customer', 'tenant').order_by('-created_at')[:50]
 
     # --- طلبات طباعة التصاميم ---
-    from clients.models import DesignPrintRequest
     pending_print_requests = DesignPrintRequest.objects.filter(
         status__in=['pending', 'quoted']
     ).select_related('customer', 'design').order_by('-created_at')[:30]
@@ -473,30 +489,51 @@ def super_admin_dashboard(request):
         'with_designs': MarketplaceCustomer.objects.filter(designs__isnull=False).distinct().count(),
     }
 
-    # --- 🏢 نشاط الشركات (آخر أحداث + إحصائيات) ---
-    from clients.models import VisitorLog
+    # --- 🏢 نشاط الشركات (آخر أحداث + إحصائيات) — bulk aggregates بدل N+1 ---
+    schema_names = [t.schema_name for t in tenants]
+    # آخر زيارة لكل schema (Postgres DISTINCT ON — كويري واحدة)
+    last_visits_by_schema = {}
+    for row in (
+        VisitorLog.objects.filter(tenant_schema__in=schema_names)
+        .order_by('tenant_schema', '-timestamp')
+        .distinct('tenant_schema')
+        .values('tenant_schema', 'timestamp', 'path')
+    ):
+        last_visits_by_schema[row['tenant_schema']] = {
+            'last_ts': row['timestamp'], 'path': row['path'] or '',
+        }
+
+    visits_today_by_schema = {
+        r['tenant_schema']: r['n'] for r in
+        VisitorLog.objects.filter(tenant_schema__in=schema_names, timestamp__gte=today_start)
+        .values('tenant_schema').annotate(n=Count('id'))
+    }
+    visits_7d_by_schema = {
+        r['tenant_schema']: r['n'] for r in
+        VisitorLog.objects.filter(tenant_schema__in=schema_names, timestamp__gte=week_ago)
+        .values('tenant_schema').annotate(n=Count('id'))
+    }
+    # آخر 5 أحداث لكل tenant — بنحضّر كل الأحداث الحديثة (آخر 30 يوم) ونوزعها بـ Python
+    events_by_schema = {s: [] for s in schema_names}
+    for ev in (
+        PlatformEvent.objects.filter(
+            tenant_schema__in=schema_names, timestamp__gte=month_ago,
+        ).order_by('-timestamp')[:500]
+    ):
+        bucket = events_by_schema.get(ev.tenant_schema)
+        if bucket is not None and len(bucket) < 5:
+            bucket.append(ev)
+
     tenant_activity = []
     for t in tenants:
-        last_visit = VisitorLog.objects.filter(tenant_schema=t.schema_name).order_by('-timestamp').first()
-        visits_today = VisitorLog.objects.filter(
-            tenant_schema=t.schema_name,
-            timestamp__gte=today_start,
-        ).count()
-        visits_7d = VisitorLog.objects.filter(
-            tenant_schema=t.schema_name,
-            timestamp__gte=week_ago,
-        ).count()
-        last_events = list(
-            PlatformEvent.objects.filter(tenant_schema=t.schema_name)
-            .order_by('-timestamp')[:5]
-        )
+        lv = last_visits_by_schema.get(t.schema_name)
         tenant_activity.append({
             'tenant': t,
-            'last_visit_at': last_visit.timestamp if last_visit else None,
-            'last_visit_path': last_visit.path if last_visit else '',
-            'visits_today': visits_today,
-            'visits_7d': visits_7d,
-            'last_events': last_events,
+            'last_visit_at': lv['last_ts'] if lv else None,
+            'last_visit_path': lv['path'] if lv else '',
+            'visits_today': visits_today_by_schema.get(t.schema_name, 0),
+            'visits_7d': visits_7d_by_schema.get(t.schema_name, 0),
+            'last_events': events_by_schema.get(t.schema_name, []),
         })
     # رتب: آخر نشاط أولاً
     from datetime import datetime, timezone as _tz
@@ -504,7 +541,6 @@ def super_admin_dashboard(request):
     tenant_activity.sort(key=lambda x: x['last_visit_at'] or _epoch, reverse=True)
 
     # --- 🚗 P2P Parts Marketplace — refund requests + recent orders ---
-    from clients.models import PartOrder
     pending_refund_orders = list(
         PartOrder.objects.filter(status='refund_requested')
         .select_related('listing', 'listing__car_make', 'buyer_customer',
@@ -535,8 +571,16 @@ def super_admin_dashboard(request):
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
-    # --- الباقات للمودال ---
-    plan_prices_json = json.dumps({'silver': 780, 'gold': 1250, 'empire': 1800})
+    # --- الباقات للمودال (تتقرا من DB، fallback لقيم Client.PLAN_BASE_PRICES) ---
+    plan_prices_map = {
+        row['slug']: float(row['monthly_price'])
+        for row in Plan.objects.filter(
+            slug__in=['silver', 'gold', 'empire'], is_active=True,
+        ).values('slug', 'monthly_price')
+    }
+    for _slug in ('silver', 'gold', 'empire'):
+        plan_prices_map.setdefault(_slug, float(Client.PLAN_BASE_PRICES.get(_slug, 0)))
+    plan_prices_json = json.dumps(plan_prices_map)
     period_discounts_json = json.dumps({'monthly': 0, 'quarterly': 0.09, 'semi_annual': 0.125, 'annual': 0.25})
     period_months_json = json.dumps({'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12})
 
@@ -608,7 +652,6 @@ def super_admin_customer_detail(request, customer_id):
 def super_admin_tenant_grants(request, tenant_id):
     if getattr(connection, 'schema_name', 'public') != 'public':
         return HttpResponseForbidden('Access Denied')
-    from clients.models import AIBonusGrant
     tenant = get_object_or_404(Client, pk=tenant_id)
     grants = AIBonusGrant.objects.filter(tenant=tenant, is_active=True).order_by('granted_at')
     data = []

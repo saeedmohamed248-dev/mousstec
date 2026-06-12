@@ -455,15 +455,15 @@ def manage_subscription(request):
     industry = getattr(tenant, 'industry', 'automotive')
     if industry == 'printing':
         available_plans = [
-            {'key': 'print_basic', 'name': 'Print Basic', 'desc': 'للمطابع الصغيرة واستوديوهات التصميم', 'price': 550, 'users': 2, 'branches': 1, 'treasuries': 1, 'icon': 'fa-print', 'color': 'pink'},
-            {'key': 'print_pro', 'name': 'Print Pro', 'desc': 'للمطابع المتوسطة ومكاتب التصميم', 'price': 880, 'users': 5, 'branches': 2, 'treasuries': 2, 'icon': 'fa-palette', 'color': 'purple'},
-            {'key': 'print_enterprise', 'name': 'Print Enterprise', 'desc': 'للمطابع الكبيرة ومجموعات التصميم', 'price': 2000, 'users': 15, 'branches': 5, 'treasuries': 5, 'icon': 'fa-building', 'color': 'amber'},
+            {'key': 'print_basic', 'name': 'Print Starter', 'desc': 'للمطابع الصغيرة واستوديوهات التصميم', 'price': 875, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-print', 'color': 'pink'},
+            {'key': 'print_pro', 'name': 'Print Pro', 'desc': 'للمطابع المتوسطة ومكاتب التصميم', 'price': 1250, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-palette', 'color': 'purple'},
+            {'key': 'print_enterprise', 'name': 'Print Enterprise', 'desc': 'للمطابع الكبيرة ومجموعات التصميم', 'price': 2000, 'users': 6, 'branches': 4, 'treasuries': 6, 'icon': 'fa-building', 'color': 'amber'},
         ]
     else:
         available_plans = [
-            {'key': 'silver', 'name': 'سيلفر', 'desc': 'لمراكز الصيانة وتجار قطع الغيار', 'price': 685, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-car', 'color': 'slate'},
-            {'key': 'gold', 'name': 'جولد', 'desc': 'لمراكز الصيانة وتجار قطع الغيار الشامل', 'price': 1185, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-crown', 'color': 'yellow'},
-            {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 3000, 'users': 15, 'branches': 5, 'treasuries': 5, 'icon': 'fa-gem', 'color': 'purple'},
+            {'key': 'silver', 'name': 'سيلفر', 'desc': 'لمراكز الصيانة وتجار قطع الغيار', 'price': 550, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-car', 'color': 'slate'},
+            {'key': 'gold', 'name': 'جولد', 'desc': 'لمراكز الصيانة وتجار قطع الغيار الشامل', 'price': 850, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-crown', 'color': 'yellow'},
+            {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 2500, 'users': 10, 'branches': 5, 'treasuries': 4, 'icon': 'fa-gem', 'color': 'purple'},
         ]
 
     # ── AI Design packages (one-time purchase from DesignPackage model) ──

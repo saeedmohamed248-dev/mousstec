@@ -166,15 +166,31 @@
   const ctx = cv.getContext('2d');
   let drawing = false, hasInk = false;
 
-  function resize() {
+  function initCanvas() {
     const r = cv.getBoundingClientRect();
-    cv.width = r.width * (window.devicePixelRatio || 1);
-    cv.height = r.height * (window.devicePixelRatio || 1);
-    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = r.width * dpr;
+    cv.height = r.height * dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, r.width, r.height);
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   }
-  resize(); window.addEventListener('resize', resize);
+  initCanvas();
+  // Keep canvas crisp on orientation change but preserve any drawn ink
+  let lastW = cv.getBoundingClientRect().width;
+  window.addEventListener('resize', () => {
+    const w = cv.getBoundingClientRect().width;
+    if (Math.abs(w - lastW) < 4) return;
+    const snapshot = hasInk ? cv.toDataURL() : null;
+    initCanvas();
+    if (snapshot) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, cv.getBoundingClientRect().width, cv.getBoundingClientRect().height);
+      img.src = snapshot;
+    }
+    lastW = w;
+  });
 
   function pos(e) {
     const r = cv.getBoundingClientRect();
@@ -191,7 +207,7 @@
   cv.addEventListener('touchmove',  move,  {passive:false});
   cv.addEventListener('touchend',   end);
 
-  document.getElementById('clear-sig').addEventListener('click', () => { resize(); hasInk = false; });
+  document.getElementById('clear-sig').addEventListener('click', () => { initCanvas(); hasInk = false; });
 
   // ---- Submit ----
   document.getElementById('fb-form').addEventListener('submit', async (e) => {

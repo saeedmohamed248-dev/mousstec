@@ -165,6 +165,7 @@ from .manual_payment_views import (  # noqa: F401
     manual_pay_parts_start,
     manual_pay_design_start,
     manual_pay_diagnostics_start,
+    diag_topup_purchase,
     admin_review_receipt,
 )
 

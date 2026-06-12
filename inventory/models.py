@@ -262,15 +262,26 @@ class Customer(models.Model):
         verbose_name = _("عميل / شركة")
         verbose_name_plural = _("سجل العملاء والشركات (CRM)")
 
+    @staticmethod
+    def normalize_phone(raw):
+        """Apply the same phone normalization that .save() uses, so callers
+        that want to look up a record by phone get the same form that's
+        actually stored. Without this, code that does
+        ``Customer.objects.get_or_create(phone=raw)`` misses the existing row
+        and crashes on the UNIQUE constraint.
+        """
+        if not raw:
+            return raw
+        import re as _re
+        phone = _re.sub(r'[\s\-\(\)]+', '', str(raw))
+        if phone.startswith('00'):
+            phone = '+' + phone[2:]
+        elif phone.startswith('0') and not phone.startswith('+'):
+            phone = '+2' + phone
+        return phone
+
     def save(self, *args, **kwargs):
-        if self.phone:
-            import re as _re
-            phone = _re.sub(r'[\s\-\(\)]+', '', self.phone)
-            if phone.startswith('00'):
-                phone = '+' + phone[2:]
-            elif phone.startswith('0') and not phone.startswith('+'):
-                phone = '+2' + phone 
-            self.phone = phone
+        self.phone = self.normalize_phone(self.phone) if self.phone else self.phone
         super().save(*args, **kwargs)
 
     def __str__(self): return f"{self.name} - {self.vip_tier}"
@@ -492,9 +503,15 @@ class SaleInvoice(models.Model):
         gross_margin = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
         self.net_profit = gross_margin
 
-        if self.paid_amount == Decimal('0.00') and self.status == 'posted' and not self.maintenance_contract:
+        # 🛡️ Auto-fill paid_amount ONLY when a treasury is set — otherwise we
+        # mark the invoice as paid without any ledger entry, creating phantom
+        # revenue. Without a treasury the invoice stays as receivable.
+        if (self.paid_amount == Decimal('0.00')
+                and self.status == 'posted'
+                and self.treasury_id
+                and not self.maintenance_contract):
             self.paid_amount = self.total_amount
-            
+
         self.save(update_fields=['total_amount', 'paid_amount', 'total_cost', 'net_profit', 'total_core_charge'])
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
@@ -577,8 +594,20 @@ class SaleInvoiceItem(models.Model):
         if not self.pk and self.product:
             self.cost_at_sale = self.product.average_cost if self.product.average_cost > 0 else self.product.purchase_price
             self.core_charge_applied = self.product.core_charge
-            if self.invoice.customer and getattr(self.invoice.customer, 'is_b2b_company', False):
-                self.unit_price = self.product.b2b_wholesale_price if self.product.b2b_wholesale_price > 0 else self.product.retail_price
+
+            # 🛠️ B2B auto-pricing — only when cashier did NOT supply a unit_price.
+            # Previously this silently overwrote the user-typed price for B2B
+            # customers, and crashed when both wholesale & retail prices were
+            # null (NoneType > 0 TypeError → 500 → "ارجع للدعم").
+            needs_autoprice = self.unit_price is None or Decimal(str(self.unit_price)) <= 0
+            if needs_autoprice and self.invoice.customer and getattr(self.invoice.customer, 'is_b2b_company', False):
+                wholesale = self.product.b2b_wholesale_price or Decimal('0.00')
+                retail = self.product.retail_price or Decimal('0.00')
+                self.unit_price = wholesale if wholesale > 0 else retail
+
+            # Final safety net — DB requires NOT NULL on unit_price
+            if self.unit_price is None:
+                self.unit_price = Decimal('0.00')
 
             if self.product.warranty_months > 0:
                 self.warranty_end_date = timezone.now().date() + timedelta(days=30 * self.product.warranty_months)

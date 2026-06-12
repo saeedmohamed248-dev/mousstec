@@ -396,6 +396,9 @@ urlpatterns = [
     path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),
     path('api/v1/subscription/addon/', client_views.purchase_addon_api, name='api_purchase_addon'),
 
+    # 🔍 شحن استخدامات التشخيص (Top-up — 30 use pack)
+    path('subscription/topup/diagnostics/', client_views.diag_topup_purchase, name='diag_topup_purchase'),
+
     # 👑 لوحة المشرف الأعلى — إدارة كل الشركات
     path('superadmin/', client_views.super_admin_dashboard, name='super_admin_dashboard'),
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),

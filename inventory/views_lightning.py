@@ -33,9 +33,16 @@ WALK_IN_NAME = "عميل نقدي (Walk-in)"
 
 
 def _walk_in_customer():
-    """Single shared walk-in row — phone is unique on Customer."""
+    """Single shared walk-in row — phone is unique on Customer.
+
+    🛡️ We look up by the *normalized* form because Customer.save() rewrites
+    the phone (e.g. '0000000000' → '+00000000'). Looking up by the raw form
+    misses the existing row, then the create attempt races into a UNIQUE
+    constraint violation and the whole request 500s.
+    """
+    normalized = Customer.normalize_phone(WALK_IN_PHONE)
     cust, _ = Customer.objects.get_or_create(
-        phone=WALK_IN_PHONE,
+        phone=normalized,
         defaults={"name": WALK_IN_NAME},
     )
     return cust
@@ -77,14 +84,19 @@ def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user)
 
 
 def _resolve_customer(name, phone):
-    """Find-or-create by phone (the unique natural key). Blank phone → walk-in."""
-    phone = (phone or "").strip()
+    """Find-or-create by phone (the unique natural key). Blank phone → walk-in.
+
+    🛡️ Normalize before querying — Customer.save() rewrites phones so a
+    raw-form lookup would miss and race the UNIQUE constraint.
+    """
+    raw = (phone or "").strip()
     name = (name or "").strip()
-    if not phone:
+    if not raw:
         return _walk_in_customer()
+    normalized = Customer.normalize_phone(raw)
     cust, created = Customer.objects.get_or_create(
-        phone=phone,
-        defaults={"name": name or f"عميل {phone}"},
+        phone=normalized,
+        defaults={"name": name or f"عميل {raw}"},
     )
     if not created and name and cust.name != name and cust.name == WALK_IN_NAME:
         cust.name = name
@@ -243,11 +255,25 @@ def lightning_pos_checkout(request):
                 )
 
             invoice.update_total()
-            # Payment — if user provided treasury+paid, override the auto-fill done by update_total
+            # Payment — if user provided treasury+paid, record it to credit the treasury.
             if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
                 _record_invoice_payment(invoice, payload.get("treasury_id"),
                                         payload.get("paid_amount"), request.user)
                 invoice.refresh_from_db()
+
+            # 🛡️ Receivable on the customer for any unpaid portion. The post_save
+            # signal that normally does this (InvoiceService.execute_sale) fired
+            # at SaleInvoice.create() time when the invoice had no items, so it
+            # processed an empty invoice and set is_applied=True. We have to
+            # post the receivable explicitly here so the customer's balance
+            # reflects credit sales ("آجل") and partial payments.
+            if not getattr(invoice, "is_return", False):
+                due = invoice.due_amount
+                if due > Decimal("0.00"):
+                    from django.db.models import F as _F
+                    Customer.objects.filter(pk=customer.pk).update(
+                        balance=_F("balance") + due
+                    )
 
         return _json_response_safe({
             "ok": True,

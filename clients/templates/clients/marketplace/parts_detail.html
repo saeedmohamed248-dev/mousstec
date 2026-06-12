@@ -163,7 +163,7 @@
 <div id="buyModal" class="modal-bg">
     <div class="modal">
         <h3><i class="fas fa-shopping-cart" style="color:var(--accent);"></i> إتمام الشراء</h3>
-        <form id="buyForm">
+        <form id="buyForm" onsubmit="event.preventDefault(); return false;">
             {% csrf_token %}
             <label>الاسم الكامل للاستلام</label>
             <input type="text" name="shipping_name" value="{{ customer.full_name }}" required>
@@ -180,10 +180,13 @@
                 <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
             </div>
 
-            <button type="submit" class="buy-btn" id="payBtn"><i class="fas fa-lock"></i> ادفع بالفيزا (Paymob)</button>
             <button type="button" id="vodafonePayBtn" onclick="payPartsVodafone()"
-                    style="width:100%; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; padding:12px; border-radius:11px; margin-top:8px; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(239,68,68,0.25);">
+                    style="width:100%; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; padding:12px; border-radius:11px; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(239,68,68,0.25);">
                 <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش (01094850763)
+            </button>
+            <button type="button" disabled id="payBtn"
+                    style="width:100%; background:rgba(71,85,105,0.4); color:#94a3b8; border:1px dashed rgba(148,163,184,0.3); padding:12px; border-radius:11px; margin-top:8px; font-weight:700; cursor:not-allowed;">
+                <i class="fas fa-clock"></i> ادفع بالفيزا — قريباً
             </button>
             <button type="button" onclick="closeBuyModal()" style="width:100%; background:transparent; border:1px solid var(--line); color:var(--muted); padding:10px; border-radius:11px; margin-top:8px; font-weight:700; cursor:pointer;">إلغاء</button>
         </form>

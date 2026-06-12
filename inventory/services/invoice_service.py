@@ -202,9 +202,16 @@ class InvoiceService:
 
             # --- 2. Customer balance ---
             if is_return:
-                # مرتجع: تخفيض رصيد العميل (تقليل الدين)
-                if instance.total_amount > Decimal('0.00'):
-                    instance.customer.balance = F('balance') - instance.total_amount
+                # 🛡️ المرتجع: نخفّض رصيد العميل بمقدار الجزء *الآجل* من الفاتورة
+                # الأصلية فقط. الجزء النقدي اتـ refund للعميل عبر الخزينة (FT out)،
+                # فلو خفّضنا الرصيد بكامل total_amount يبقى العميل علينا فلوس
+                # وهمية. (مثلاً: بيع كاش 400 → رصيد العميل=0 → مرتجع → كانت
+                # المعادلة القديمة تخلي الرصيد=-400.)
+                credit_portion = (
+                    Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
+                )
+                if credit_portion > Decimal('0.00'):
+                    instance.customer.balance = F('balance') - credit_portion
                     instance.customer.save(update_fields=['balance'])
             elif instance.due_amount > Decimal('0.00'):
                 instance.customer.balance = F('balance') + instance.due_amount
@@ -436,9 +443,17 @@ class InvoiceService:
                 )
 
             return_inv.update_total()
-            # Set paid_amount = total so treasury refund triggers on posting
+            # 🛡️ Cash refund is bounded by what the customer actually paid on the
+            # original. If they bought on credit ("آجل") and never paid, the
+            # return cancels the receivable — there is nothing to refund in cash.
+            # If they paid 100 out of 400 then returned everything, we refund 100
+            # in cash and write off the 300 receivable.
+            cash_refund = min(
+                Decimal(str(return_inv.total_amount)),
+                Decimal(str(original_invoice.paid_amount)),
+            )
             SaleInvoice.objects.filter(pk=return_inv.pk).update(
-                paid_amount=return_inv.total_amount,
+                paid_amount=cash_refund,
             )
             return_inv.refresh_from_db()
 

@@ -2011,12 +2011,14 @@ def profit_loss_report(request):
     else:
         end = _date(year, month + 1, 1)
 
-    # حركات الشهر
+    # حركات الشهر — نستخدم __date lookup عشان نقارن جزء التاريخ فقط
+    # بدل من تمرير python date لحقل DateTimeField (يطلع RuntimeWarning عن
+    # naive datetime ويزود فرصة باج timezone مستقبلاً).
     in_txns = PrintTransaction.objects.filter(
-        transaction_type='in', date__gte=start, date__lt=end,
+        transaction_type='in', date__date__gte=start, date__date__lt=end,
     )
     out_txns = PrintTransaction.objects.filter(
-        transaction_type='out', date__gte=start, date__lt=end,
+        transaction_type='out', date__date__gte=start, date__date__lt=end,
     )
 
     total_income = in_txns.aggregate(t=Sum('amount'))['t'] or Decimal('0')
@@ -2052,7 +2054,7 @@ def profit_loss_report(request):
         c['percent'] = (c['total'] / total_expense * 100) if total_expense else Decimal('0')
 
     # طلبات الشهر
-    orders_this_month = PrintOrder.objects.filter(date_created__gte=start, date_created__lt=end)
+    orders_this_month = PrintOrder.objects.filter(date_created__date__gte=start, date_created__date__lt=end)
     orders_count = orders_this_month.count()
     orders_total_amount = orders_this_month.aggregate(t=Sum('total_amount'))['t'] or Decimal('0')
     orders_paid = orders_this_month.aggregate(t=Sum('paid_amount'))['t'] or Decimal('0')
@@ -2070,8 +2072,8 @@ def profit_loss_report(request):
             m_end = _date(m_year + 1, 1, 1)
         else:
             m_end = _date(m_year, m_month + 1, 1)
-        m_in = PrintTransaction.objects.filter(transaction_type='in', date__gte=m_start, date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-        m_out = PrintTransaction.objects.filter(transaction_type='out', date__gte=m_start, date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        m_in = PrintTransaction.objects.filter(transaction_type='in', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+        m_out = PrintTransaction.objects.filter(transaction_type='out', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
         trend.append({
             'label': f'{m_year}/{m_month:02d}',
             'income': float(m_in),

@@ -112,9 +112,13 @@ class SaleReturnTests(ERPTenantTestCase):
         self.assertEqual(refund_txn.amount, Decimal('1000.00'))
 
     def test_posted_return_credits_customer_balance(self):
-        """Posting a return should reduce customer balance."""
+        """Posting a return on a fully-paid (cash) sale should refund the
+        customer via the treasury, NOT credit their AR balance. The customer
+        already paid in cash, so they get cash back — their AR balance must
+        stay at zero. Crediting it would make them appear to owe us money
+        we then refunded twice.
+        """
         from inventory.services.invoice_service import InvoiceService
-        from inventory.models import Customer
 
         # Customer starts with 0 balance (fully paid original)
         self.customer.refresh_from_db()
@@ -125,11 +129,10 @@ class SaleReturnTests(ERPTenantTestCase):
         ret.save()
 
         self.customer.refresh_from_db()
-        # Balance should decrease by total return amount
-        self.assertEqual(
-            self.customer.balance,
-            balance_before - Decimal('1000.00'),
-        )
+        # Balance should stay at 0 — the refund went through treasury (FT out),
+        # not through AR. See test_posted_return_creates_refund_transaction
+        # for the cash side of this flow.
+        self.assertEqual(self.customer.balance, balance_before)
 
     def test_posted_return_restores_inventory(self):
         """Posting a return should add items back to inventory."""

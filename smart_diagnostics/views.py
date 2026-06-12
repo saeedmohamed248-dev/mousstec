@@ -277,6 +277,20 @@ def diagnostics_room(request):
             'tenant': tenant,
         }, status=402)
 
+    # 🔍 2026 Relaunch — monthly scan quota gate (Silver=10, Gold=40, Empire=70).
+    # Opening the diagnostics room counts as one scan usage. If exhausted
+    # (plan + top-up), surface the top-up purchase screen.
+    from clients.services.diagnostics_quota import consume_quota
+    quota = consume_quota(tenant, kind='scan')
+    if not quota.allowed:
+        return render(request, 'smart_diagnostics/upgrade.html', {
+            'reason': quota.reason,
+            'tenant': tenant,
+            'gate': 'scan_quota',
+            'topup_url': '/subscription/topup/diagnostics/',
+            'plan_limit': quota.plan_limit,
+        }, status=402)
+
     # 🐛 [Bug #1 FIX] Gracefully degrade when neither Together nor Gemini
     # is configured — show the page in "offline AI" mode rather than
     # crashing on first chat round-trip.
@@ -341,6 +355,21 @@ def diagnostics_room_chat(request):
         return JsonResponse({"error": "invalid_json"}, status=400)
     if not isinstance(payload, dict):
         return JsonResponse({"error": "invalid_payload"}, status=400)
+
+    # 🤖 2026 Relaunch — bot quota gate. Each non-empty user message counts
+    # as one bot usage. Empty messages (e.g. the auto-opener) pass through.
+    tenant = getattr(request, "tenant", None)
+    if (payload.get("user_message") or "").strip() and tenant is not None:
+        from clients.services.diagnostics_quota import consume_quota
+        quota = consume_quota(tenant, kind='bot')
+        if not quota.allowed:
+            return JsonResponse({
+                "error": "bot_quota_exhausted",
+                "reason": quota.reason,
+                "upgrade_url": "/subscription/topup/diagnostics/",
+                "plan_limit": quota.plan_limit,
+                "used_this_period": quota.used_this_period,
+            }, status=402)
 
     from erp_core.ai.diagnostic_room_ai import answer_room_turn
 

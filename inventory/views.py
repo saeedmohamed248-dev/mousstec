@@ -2172,6 +2172,12 @@ def customer_statement_api(request, customer_id):
         e['balance'] = float(running_balance)
         entries.append(e)
 
+    # 🛡️ total_paid must include BOTH standalone payments AND payments embedded
+    # in invoices (invoice.paid_amount). The old version aggregated only
+    # standalone payments → it reported 0 paid even when the customer paid
+    # in full at the time of the invoice, which is the common case.
+    invoice_paid_sum = invoices_qs.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
+    standalone_paid_sum = payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0
     return _json_response_safe({
         "status": "success",
         "customer": {"id": customer.pk, "name": customer.name, "phone": customer.phone, "current_balance": float(customer.balance)},
@@ -2179,7 +2185,7 @@ def customer_statement_api(request, customer_id):
         "entries": entries,
         "totals": {
             "total_invoiced": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
-            "total_paid": float(payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0),
+            "total_paid": float(Decimal(str(invoice_paid_sum)) + Decimal(str(standalone_paid_sum))),
             "outstanding_balance": float(customer.balance),
         },
     })
@@ -2252,13 +2258,17 @@ def vendor_statement_api(request, vendor_id):
         e['balance'] = float(running_balance)
         entries.append(e)
 
+    # 🛡️ total_paid must include payments embedded in invoices too — same
+    # fix as the customer statement: standalone payments alone undercount.
+    invoice_paid_sum = invoices_qs.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
+    standalone_paid_sum = payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0
     return _json_response_safe({
         "status": "success",
         "vendor": {"id": vendor.pk, "name": vendor.name, "phone": vendor.phone, "current_balance": float(vendor.balance)},
         "entries": entries,
         "totals": {
             "total_purchases": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
-            "total_paid": float(payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0),
+            "total_paid": float(Decimal(str(invoice_paid_sum)) + Decimal(str(standalone_paid_sum))),
             "outstanding_balance": float(vendor.balance),
         },
     })

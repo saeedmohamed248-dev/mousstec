@@ -62,24 +62,17 @@
                 </div>
             </div>
 
-            <form method="post" action="{% url 'paymob_checkout' %}" class="w-full md:w-auto">
-                {% csrf_token %}
-                <input type="hidden" name="plan" value="premium_diagnostics">
-                <input type="hidden" name="amount" value="{{ plan.monthly_price|floatformat:0 }}">
-                <input type="hidden" name="shop" value="{{ shop }}">
-
-                <label class="block text-xs text-slate-400 mb-2">اختر دورة الفوترة</label>
-                <select name="billing_period" class="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm w-full md:w-64 mb-3">
-                    <option value="monthly">شهري (بدون خصم)</option>
-                    <option value="quarterly">ربع سنوي (خصم {{ plan.quarterly_discount }}%)</option>
-                    <option value="semi_annual">نصف سنوي (خصم {{ plan.semi_annual_discount }}%)</option>
-                    <option value="annual">سنوي (خصم {{ plan.annual_discount }}%)</option>
-                </select>
-                <button class="w-full md:w-64 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black py-3 rounded-xl text-sm shadow-lg shadow-amber-500/30">
-                    <i class="fas fa-lock"></i> الدفع عبر Visa / Mastercard
-                </button>
-                <p class="text-[10px] text-slate-500 mt-2 text-center">معالج بواسطة Paymob — آمن ومشفر بـ HMAC</p>
-            </form>
+            <div class="w-full md:w-auto">
+                <a href="/marketplace/diagnostics/" class="block w-full md:w-64 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-red-500/30">
+                    <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
+                </a>
+                <div class="mt-3 p-3 bg-slate-800/40 border border-slate-700/40 rounded-xl opacity-70">
+                    <button disabled class="w-full md:w-64 bg-slate-700/50 text-slate-400 font-bold py-2 rounded-lg text-xs cursor-not-allowed">
+                        <i class="fas fa-clock"></i> Visa / Mastercard — قريباً
+                    </button>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">الدفع بالفيزا تحت التطوير — استخدم فودافون كاش الآن</p>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -310,6 +310,61 @@ def manual_pay_design_start(request, package_slug):
     })
 
 
+@login_required
+def diag_topup_purchase(request):
+    """🔍 صفحة شراء حزمة شحن التشخيص (للورش).
+
+    GET → يعرض الحزم النشطة + الرصيد الحالي + الحصة الشهرية المتبقية.
+    POST → يبني ManualPaymentReceipt على الحزمة المختارة ويوجّه لشاشة رفع
+    سكرين شوت التحويل (نفس flow اشتراك SaaS).
+    """
+    from clients.models import DiagnosticsTopUpPack
+    from clients.services.diagnostics_quota import check_quota
+
+    tenant = getattr(request, 'tenant', None)
+    if tenant is None:
+        return HttpResponseForbidden('متاحة فقط من نطاق الشركة (tenant).')
+
+    packs = list(DiagnosticsTopUpPack.objects.filter(is_active=True).order_by('sort_order', 'price_egp'))
+
+    if request.method == 'POST':
+        slug = request.POST.get('pack_slug') or ''
+        method = request.POST.get('payment_method') or 'vodafone_cash'
+        if method not in ('vodafone_cash', 'instapay'):
+            return JsonResponse({'error': 'طريقة دفع غير صالحة.'}, status=400)
+        pack = next((p for p in packs if p.slug == slug), None)
+        if pack is None:
+            return JsonResponse({'error': 'الحزمة غير موجودة.'}, status=400)
+
+        with transaction.atomic():
+            receipt = ManualPaymentReceipt.objects.create(
+                purchase_type='diag_topup',
+                purchase_id=pack.pk,
+                amount=pack.price_egp,
+                payment_method=method,
+                tenant=tenant,
+                contact_name=getattr(tenant, 'owner_name', '') or tenant.name,
+                contact_phone=getattr(tenant, 'phone', '') or '',
+                notes=f'topup={pack.uses_granted}',
+                sender_phone='', txn_reference='',
+            )
+        return redirect(reverse('manual_payment_upload', args=[receipt.receipt_code]))
+
+    # Surface the current scan + bot status so the merchant can see why they
+    # need the top-up before they pay.
+    scan_status = check_quota(tenant, kind='scan')
+    bot_status = check_quota(tenant, kind='bot')
+
+    return render(request, 'clients/diag_topup_purchase.html', {
+        'tenant': tenant,
+        'packs': packs,
+        'scan_status': scan_status,
+        'bot_status': bot_status,
+        'vodafone_number': VODAFONE_CASH_NUMBER,
+        'instapay_handle': INSTAPAY_HANDLE,
+    })
+
+
 def manual_pay_diagnostics_start(request, tier):
     """🔧 بداية ترقية باقة Diagnostics بفودافون كاش."""
     from clients.models import CustomerDiagnosticsSubscription
