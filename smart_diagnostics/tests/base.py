@@ -65,6 +65,9 @@ class DiagnosticsTenantTestCase(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # The previous test class may have left the connection on a tenant
+        # schema. django-tenants refuses to create tenants outside public.
+        connection.set_schema_to_public()
         cls.tenant, cls.domain = _build_tenant('test_diag', 'test-diag.test.com')
         connection.set_tenant(cls.tenant)
 
@@ -90,6 +93,9 @@ class TwoTenantTestCase(TransactionTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # The previous test class may have left the connection on a tenant
+        # schema. django-tenants refuses to create tenants outside public.
+        connection.set_schema_to_public()
         cls.tenant_a, cls.domain_a = _build_tenant('test_diag_a', 'a.test.com')
         cls.tenant_b, cls.domain_b = _build_tenant('test_diag_b', 'b.test.com')
 
