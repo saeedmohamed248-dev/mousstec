@@ -319,13 +319,18 @@ def diag_topup_purchase(request):
     سكرين شوت التحويل (نفس flow اشتراك SaaS).
     """
     from clients.models import DiagnosticsTopUpPack
-    from clients.services.diagnostics_quota import check_quota
+    from clients.services.diagnostics_quota import check_quota, QuotaResult
 
     tenant = getattr(request, 'tenant', None)
     if tenant is None:
         return HttpResponseForbidden('متاحة فقط من نطاق الشركة (tenant).')
 
-    packs = list(DiagnosticsTopUpPack.objects.filter(is_active=True).order_by('sort_order', 'price_egp'))
+    try:
+        packs = list(DiagnosticsTopUpPack.objects.filter(is_active=True).order_by('sort_order', 'price_egp'))
+    except Exception:
+        logger.exception("[DIAG TOPUP] failed to load packs for tenant=%s",
+                         getattr(tenant, 'schema_name', '?'))
+        packs = []
 
     if request.method == 'POST':
         slug = request.POST.get('pack_slug') or ''
@@ -352,17 +357,42 @@ def diag_topup_purchase(request):
 
     # Surface the current scan + bot status so the merchant can see why they
     # need the top-up before they pay.
-    scan_status = check_quota(tenant, kind='scan')
-    bot_status = check_quota(tenant, kind='bot')
+    #
+    # 🛡️ Defensive: a tenant without an active TenantSubscription (e.g. brand
+    # new schema, still on trial, sub_id NULL) used to surface as 500 because
+    # check_quota threw or returned an object whose attributes were missing.
+    # We now degrade to a zero-state QuotaResult so the page still renders.
+    _empty = QuotaResult(
+        allowed=False, reason='لا يوجد اشتراك نشط',
+        plan_remaining=0, topup_remaining=0,
+        plan_limit=0, used_this_period=0,
+    )
+    try:
+        scan_status = check_quota(tenant, kind='scan')
+    except Exception:
+        logger.exception("[DIAG TOPUP] scan check_quota failed tenant=%s",
+                         getattr(tenant, 'schema_name', '?'))
+        scan_status = _empty
+    try:
+        bot_status = check_quota(tenant, kind='bot')
+    except Exception:
+        logger.exception("[DIAG TOPUP] bot check_quota failed tenant=%s",
+                         getattr(tenant, 'schema_name', '?'))
+        bot_status = _empty
 
-    return render(request, 'clients/diag_topup_purchase.html', {
-        'tenant': tenant,
-        'packs': packs,
-        'scan_status': scan_status,
-        'bot_status': bot_status,
-        'vodafone_number': VODAFONE_CASH_NUMBER,
-        'instapay_handle': INSTAPAY_HANDLE,
-    })
+    try:
+        return render(request, 'clients/diag_topup_purchase.html', {
+            'tenant': tenant,
+            'packs': packs,
+            'scan_status': scan_status,
+            'bot_status': bot_status,
+            'vodafone_number': VODAFONE_CASH_NUMBER,
+            'instapay_handle': INSTAPAY_HANDLE,
+        })
+    except Exception:
+        logger.exception("[DIAG TOPUP] render failed tenant=%s packs=%d",
+                         getattr(tenant, 'schema_name', '?'), len(packs))
+        raise
 
 
 def manual_pay_diagnostics_start(request, tier):
