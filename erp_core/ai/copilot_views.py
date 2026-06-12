@@ -586,14 +586,31 @@ def copilot_topup_purchase(request):
                 payment_method=payment_method,
                 mark_paid=False,
             )
+
+            # Vodafone Cash / InstaPay → unified manual upload flow.
+            if payment_method in ('vodafone_cash', 'instapay'):
+                from clients.models import ManualPaymentReceipt
+                receipt = ManualPaymentReceipt.objects.create(
+                    purchase_type='tenant_topup',
+                    purchase_id=topup.pk,
+                    amount=topup.price_paid,
+                    payment_method=payment_method,
+                    tenant=tenant,
+                    contact_name=getattr(tenant, 'owner_name', '') or tenant.name,
+                    contact_phone=getattr(tenant, 'phone', '') or '',
+                    sender_phone='', txn_reference='',
+                )
+                checkout_url = f'/payment/manual/upload/{receipt.receipt_code}/'
+            else:
+                checkout_url = f'/payment/paymob/checkout/?topup_id={topup.id}'
+
             return JsonResponse({
                 'success': True,
                 'purchase_code': str(topup.purchase_code),
                 'designs': pkg['designs'],
                 'price_egp': float(pkg['price']),
                 'message': 'تم تجهيز طلب الشراء. كمل الدفع لتفعيل الرصيد.',
-                # checkout_url هيتولّد من Paymob layer لو متفعّل
-                'checkout_url': f'/payment/paymob/checkout/?topup_id={topup.id}',
+                'checkout_url': checkout_url,
             })
         else:
             # Customer purchase — نستخدم DesignPurchase موديل الموجود
@@ -641,8 +658,19 @@ def copilot_topup_purchase(request):
                     }, status=502)
                 checkout_url = iframe_url
             else:
-                # Manual transfer flow → upload receipt page
-                checkout_url = f'/marketplace/design-store/payment/{purchase.purchase_code}/'
+                # Manual transfer flow → unified ManualPaymentReceipt + upload page (with screenshot).
+                from clients.models import ManualPaymentReceipt
+                receipt = ManualPaymentReceipt.objects.create(
+                    purchase_type='design',
+                    purchase_id=purchase.pk,
+                    amount=purchase.price_paid,
+                    payment_method=payment_method,
+                    customer=customer,
+                    contact_name=customer.full_name,
+                    contact_phone=customer.phone or '',
+                    sender_phone='', txn_reference='',
+                )
+                checkout_url = f'/payment/manual/upload/{receipt.receipt_code}/'
 
             return JsonResponse({
                 'success': True,

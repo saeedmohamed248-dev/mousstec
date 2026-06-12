@@ -255,20 +255,23 @@ def design_store_buy(request, package_slug):
     logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} created — PENDING payment ({payment_method})")
 
     # Build response based on payment method
-    if payment_method == 'vodafone_cash':
+    if payment_method in ('vodafone_cash', 'instapay'):
+        from clients.models import ManualPaymentReceipt
+        receipt = ManualPaymentReceipt.objects.create(
+            purchase_type='design',
+            purchase_id=purchase.pk,
+            amount=purchase.price_paid,
+            payment_method=payment_method,
+            customer=customer,
+            contact_name=customer.full_name,
+            contact_phone=customer.phone or '',
+            sender_phone='', txn_reference='',
+        )
         return JsonResponse({
             "status": "pending_payment",
             "purchase_id": purchase.pk,
             "purchase_code": str(purchase.purchase_code),
-            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
-            "message": "جاري توجيهك لصفحة الدفع...",
-        })
-    elif payment_method == 'instapay':
-        return JsonResponse({
-            "status": "pending_payment",
-            "purchase_id": purchase.pk,
-            "purchase_code": str(purchase.purchase_code),
-            "redirect": f"/marketplace/design-store/payment/{purchase.purchase_code}/",
+            "redirect": f"/payment/manual/upload/{receipt.receipt_code}/",
             "message": "جاري توجيهك لصفحة الدفع...",
         })
     else:

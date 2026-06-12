@@ -239,6 +239,25 @@
                 </button>
             </div>
 
+            <!-- InstaPay -->
+            <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 mb-3">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 text-lg"><i class="fas fa-money-bill-transfer"></i></div>
+                    <div>
+                        <h4 class="text-sm font-black text-white">إنستاباي</h4>
+                        <p class="text-xs text-slate-500">حوّل عن طريق InstaPay وارفع سكرين شوت العملية</p>
+                    </div>
+                </div>
+                <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
+                    <p class="text-xs text-slate-500 mb-1">عنوان InstaPay:</p>
+                    <p class="text-lg font-black text-blue-400 tracking-wider" dir="ltr">01094850763@instapay</p>
+                </div>
+                <button onclick="payWithInstapay()"
+                        class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-blue-500/20">
+                    <i class="fas fa-money-bill-transfer ml-1"></i> ادفع بإنستاباي — ارفع الإيصال
+                </button>
+            </div>
+
             <!-- Visa / Paymob — معطّل مؤقتاً -->
             <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 mb-3 opacity-70">
                 <div class="flex items-center gap-3 mb-3">
@@ -368,10 +387,10 @@ function payWithPaymob() {
     form.submit();
 }
 
-function payWithVodafone() {
+function _payManual(method) {
     var shop = '{{ shop|escapejs }}';
     if (!shop) {
-        alert('لازم تسجّل المتجر الأول قبل الاشتراك بفودافون كاش.');
+        alert('لازم تسجّل المتجر الأول قبل الدفع — افتح صفحة التسجيل وأرجع.');
         return;
     }
     var form = document.createElement('form');
@@ -381,11 +400,13 @@ function payWithVodafone() {
         + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
-        + '<input type="hidden" name="payment_method" value="vodafone_cash">'
+        + '<input type="hidden" name="payment_method" value="' + method + '">'
         + '<input type="hidden" name="shop" value="' + shop + '">';
     document.body.appendChild(form);
     form.submit();
 }
+function payWithVodafone() { _payManual('vodafone_cash'); }
+function payWithInstapay() { _payManual('instapay'); }
 
 function getCSRF() {
     const c = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)');

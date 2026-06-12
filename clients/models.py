@@ -4282,6 +4282,7 @@ class ManualPaymentReceipt(models.Model):
         ('diagnostics',  _('ترقية تشخيص')),
         ('addon',        _('إضافة (موظف/فرع/خزينة)')),
         ('diag_topup',   _('شحن تشخيص (30 استخدام)')),
+        ('tenant_topup', _('شحن تصاميم للشركة')),
     )
     PAYMENT_METHODS = (
         ('vodafone_cash', _('فودافون كاش')),
@@ -4356,6 +4357,8 @@ class ManualPaymentReceipt(models.Model):
                 return CustomerDiagnosticsSubscription.objects.filter(pk=self.purchase_id).first()
             if self.purchase_type == 'diag_topup':
                 return DiagnosticsTopUpPack.objects.filter(pk=self.purchase_id).first()
+            if self.purchase_type == 'tenant_topup':
+                return TenantDesignTopUp.objects.filter(pk=self.purchase_id).first()
         except Exception:
             return None
         return None
@@ -4422,6 +4425,18 @@ class ManualPaymentReceipt(models.Model):
                     add_topup(self.tenant, purchase.uses_granted)
                 except Exception:
                     logger.exception("[ManualReceipt] diag_topup credit failed")
+        elif self.purchase_type == 'tenant_topup':
+            # purchase is the TenantDesignTopUp itself; flip to paid.
+            try:
+                purchase.status = 'paid'
+                purchase.paid_at = timezone.now()
+                purchase.payment_reference = self.txn_reference
+                purchase.payment_method = self.payment_method
+                purchase.save(update_fields=[
+                    'status', 'paid_at', 'payment_reference', 'payment_method',
+                ])
+            except Exception:
+                logger.exception("[ManualReceipt] tenant_topup activate failed")
 
     @transaction.atomic
     def reject(self, by_user=None, notes: str = ''):
