@@ -35,6 +35,11 @@ REQUIRED_SERVICE_METHODS = {
     'readDataByIdentifier':     ['22'],          # Mode 22 UDS DID read
     'readModuleStandardInfo':   [],              # uses readDataByIdentifier
     'readSupportedPIDs':        ['0100'],        # Mode 01 PID 00 bitmask
+    'writeDataByIdentifier':    ['2E'],          # UDS Mode 0x2E write
+    'setDiagnosticSession':     ['10'],          # UDS Mode 0x10 session ctrl
+    'runBatteryChargingTest':   ['0142'],        # PID 42 control_voltage
+    'sampleBatteryVoltage':     ['0142'],
+    'runAdaptationStep':        [],              # generic step runner
     'readVehicleInfo':          ['09'],          # Mode 09 CalID/CVN/ECU name
     'readVIN':                  ['0902'],        # Mode 09 PID 02
     'readReadinessMonitors':    ['0101'],        # Mode 01 PID 01 readiness

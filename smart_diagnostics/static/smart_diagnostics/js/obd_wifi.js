@@ -933,6 +933,179 @@ class OBDWiFi extends EventTarget {
         return out;
     }
 
+    // ── UDS Mode 0x2E — Write Data By Identifier (ISO 14229) ────────────
+    // The destructive counterpart of Mode 0x22. Required for things like
+    // BMW battery registration. The ECU usually demands an extended
+    // diagnostic session first (Mode 0x10 sub-function 03) and may need
+    // security access (Mode 0x27) for protected DIDs. ALWAYS gate calls
+    // behind explicit user confirmation — a bad write can brick a module.
+    async writeDataByIdentifier(did, dataHex, { reqHeader = null, respFilter = null } = {}) {
+        if (!/^[0-9A-Fa-f]{4}$/.test(did)) {
+            throw new Error('UDS DID must be 4 hex chars.');
+        }
+        if (!/^[0-9A-Fa-f]+$/.test(dataHex) || dataHex.length % 2 !== 0) {
+            throw new Error('Data must be even-length hex.');
+        }
+        const CAN_PROTOCOLS = new Set(['6', '7', '8', '9', 'B']);
+        if (this._lastProtocolCode && !CAN_PROTOCOLS.has(this._lastProtocolCode)) {
+            throw new Error(`Mode 2E (UDS write) شغّال على CAN فقط.`);
+        }
+        const out = { did: did.toUpperCase(), ok: false, raw: null, nrc: null };
+        try {
+            if (reqHeader)  { try { await this._sendCommand('ATSH' + reqHeader, 1500); } catch (_) {} }
+            if (respFilter) { try { await this._sendCommand('ATCRA' + respFilter, 1500); } catch (_) {} }
+            const payload = '2E' + did.toUpperCase() + dataHex.toUpperCase();
+            const raw = await this._sendCommand(payload, 5000);
+            out.raw = raw;
+            const stripped = (raw || '').replace(/\s+/g, '').toUpperCase();
+            const nrc = stripped.match(/7F2E([0-9A-F]{2})/);
+            if (nrc) { out.nrc = nrc[1]; return out; }
+            // Positive response: 6E <DID>
+            if (stripped.includes('6E' + did.toUpperCase())) out.ok = true;
+        } finally {
+            try { await this._sendCommand('ATCRA', 1500); } catch (_) {}
+            try { await this._sendCommand('ATSH7E0', 1500); } catch (_) {}
+        }
+        this._emit('uds_write', out);
+        return out;
+    }
+
+    // ── UDS Mode 0x10 — Diagnostic Session Control ──────────────────────
+    // 01 = default, 02 = programming, 03 = extendedDiagnostic.
+    // Most write/relearn flows need 03 because the default session
+    // refuses everything except plain reads.
+    async setDiagnosticSession(sub, { reqHeader = null } = {}) {
+        if (!/^[0-9A-Fa-f]{2}$/.test(sub)) {
+            throw new Error('Session sub-function must be 2 hex chars (e.g. "03").');
+        }
+        try {
+            if (reqHeader) { try { await this._sendCommand('ATSH' + reqHeader, 1500); } catch (_) {} }
+            const raw = await this._sendCommand('10' + sub.toUpperCase(), 3000);
+            return { ok: /^50/.test(raw.replace(/\s+/g, '').toUpperCase()), raw };
+        } finally {
+            try { await this._sendCommand('ATSH7E0', 1500); } catch (_) {}
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ── Battery & Charging Health (BCH) ─────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════
+    // PID 42 (control_voltage) is the ECU's read of battery/charging
+    // system voltage. It's NOT a direct battery measurement — it's
+    // measured AT the ECU, after fuses/wiring drop. Still: it's the only
+    // reliable voltage signal we have without a multimeter, and the
+    // delta between phases (off → cranking → idle → rev) is highly
+    // diagnostic.
+
+    // Read a single voltage sample, retrying once if NO DATA.
+    async _readBatteryVoltage(timeoutMs = 2500) {
+        let raw;
+        try { raw = await this._sendCommand('0142', timeoutMs); }
+        catch (_) { return null; }
+        if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) {
+            try { raw = await this._sendCommand('0142', timeoutMs); } catch (_) {}
+            if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) return null;
+        }
+        const stripped = raw.replace(/\s+/g, '').toUpperCase();
+        const m = stripped.match(/4142([0-9A-F]{4})/);
+        if (!m) return null;
+        const raw16 = parseInt(m[1], 16);
+        return raw16 / 1000;
+    }
+
+    // Sample voltage over `durationMs` and return { min, max, mean, samples }.
+    // Used by the cranking phase (we need the dip) and parasitic draw test.
+    async sampleBatteryVoltage(durationMs = 3000, intervalMs = 100) {
+        const samples = [];
+        const end = Date.now() + durationMs;
+        while (Date.now() < end) {
+            const v = await this._readBatteryVoltage(1500);
+            if (v != null) samples.push({ t: Date.now(), v });
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+        if (!samples.length) return { samples: [], min: null, max: null, mean: null };
+        const vs = samples.map(s => s.v);
+        return {
+            samples,
+            min:  Math.min(...vs),
+            max:  Math.max(...vs),
+            mean: vs.reduce((a, b) => a + b, 0) / vs.length,
+        };
+    }
+
+    // Multi-phase battery & charging health test. The UI drives this — it
+    // calls runBatteryChargingTest({phase: 'rest'}) first, then prompts
+    // the mechanic to crank, then idle, then rev. Each phase returns its
+    // voltage + verdict; the UI accumulates a full report.
+    async runBatteryChargingTest({ phase = 'rest', durationMs = null } = {}) {
+        const phaseDurations = {
+            rest:          1500,
+            crank:         4000,   // capture the dip during a full crank
+            idle_charging: 3000,
+            rev_charging:  3000,
+        };
+        const dur = durationMs || phaseDurations[phase] || 2000;
+        const verdictFn = (typeof window !== 'undefined' && window.verdictForPhase)
+            ? window.verdictForPhase : (() => ({ level: 'unknown', message: '' }));
+
+        const data = await this.sampleBatteryVoltage(dur, 100);
+        if (!data.samples.length) {
+            const out = { phase, voltage: null, verdict: { level: 'unknown', message: 'لا توجد قراءة من الـ ECU.' } };
+            this._emit('battery_phase', out);
+            return out;
+        }
+        // For the cranking phase, the lowest dip is the diagnostic signal.
+        // For everything else, the mean is what matters.
+        const voltage = phase === 'crank' ? data.min : data.mean;
+        const verdict = verdictFn(phase, voltage);
+        const out = { phase, voltage, min: data.min, max: data.max, mean: data.mean,
+                      sample_count: data.samples.length, verdict };
+        this._emit('battery_phase', out);
+        return out;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // ── Adaptation / Relearn Procedure Runner ───────────────────────────
+    // ════════════════════════════════════════════════════════════════════
+    // Walks a procedure from ADAPTATION_PROCEDURES step-by-step. Manual
+    // steps just emit events the UI renders as instructions; automated
+    // steps (clear/wait/session/write) actually fire commands. The UI is
+    // responsible for prompting the mechanic to confirm before each
+    // destructive step (write) and for collecting any data_input values
+    // (e.g. battery capacity for BMW registration).
+    async runAdaptationStep(step, { onPromptForData = null } = {}) {
+        const out = { type: step.type, ok: false, message: '' };
+        try {
+            if (step.type === 'manual') {
+                out.ok = true; out.message = step.text || '';
+            } else if (step.type === 'wait') {
+                await new Promise(r => setTimeout(r, (step.seconds || 1) * 1000));
+                out.ok = true;
+            } else if (step.type === 'clear') {
+                const raw = await this._sendCommand('04', 4000);
+                out.ok = !/NO\s*DATA|UNABLE|7F\s*04/i.test(raw || '');
+                out.raw = raw;
+            } else if (step.type === 'session') {
+                const r = await this.setDiagnosticSession(step.session || '03');
+                out.ok = r.ok; out.raw = r.raw;
+            } else if (step.type === 'write') {
+                let data = step.data;
+                if (step.data_input && onPromptForData) {
+                    data = await onPromptForData(step.data_input, step);
+                }
+                if (!data || /^TBD_/.test(data)) {
+                    throw new Error('قيمة الكتابة مش متوفّرة — الـ UI لازم يجمعها من الميكانيكي.');
+                }
+                const r = await this.writeDataByIdentifier(step.did, data);
+                out.ok = r.ok; out.raw = r.raw; out.nrc = r.nrc;
+            } else {
+                throw new Error(`نوع خطوة غير معروف: ${step.type}`);
+            }
+        } catch (e) { out.message = e.message; }
+        this._emit('adaptation_step', { step, result: out });
+        return out;
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // ── Adapter & ECU capability probe ──────────────────────────────────
     // ════════════════════════════════════════════════════════════════════

@@ -549,6 +549,27 @@ body {
                 </button>
             </div>
 
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-car-battery"></i> فحص البطارية والشحن
+                </div>
+                <button type="button" id="btnBatteryHealth" class="btn primary" disabled
+                        style="background:linear-gradient(135deg,#facc15,#ca8a04);color:#1f2937;"
+                        title="فحص شامل: راحة + cranking + شحن idle + شحن rev">
+                    <i class="fa-solid fa-bolt"></i> فحص البطارية الشامل
+                </button>
+            </div>
+
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-gears"></i> Adaptation / Relearn
+                </div>
+                <button type="button" id="btnAdaptationMenu" class="btn danger" disabled
+                        title="إجراءات إعادة تعلّم (ETC, idle, BMW battery reg, إلخ)">
+                    <i class="fa-solid fa-list-check"></i> قائمة إجراءات Relearn
+                </button>
+            </div>
+
             <div class="action-group action-group-final">
                 <button type="button" id="btnAttachInvoice" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#8b5cf6,#6366f1);
@@ -875,9 +896,10 @@ body {
      (MANUFACTURER_DIDS / MISFIRE_DIDS / detectManufacturerFromVIN)
      that the Bluetooth driver also consumes at runtime. -->
 <script src="{% static 'smart_diagnostics/js/uds_did_catalog.js' %}?v=2-multi-make"></script>
+<script src="{% static 'smart_diagnostics/js/electrical_adaptation_catalog.js' %}?v=1"></script>
 <script src="{% static 'smart_diagnostics/js/protocol_memory_client.js' %}?v=1"></script>
-<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=21-supported-pids"></script>
-<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=19-supported-pids"></script>
+<script src="{% static 'smart_diagnostics/js/obd_wifi.js' %}?v=22-battery-adapt"></script>
+<script src="{% static 'smart_diagnostics/js/obd_bluetooth.js' %}?v=20-battery-adapt"></script>
 <script src="{% static 'smart_diagnostics/js/diag_offline_queue.js' %}?v=1"></script>
 <script>
 (() => {
@@ -912,6 +934,8 @@ body {
     const btnSupportedPIDs = $('btnSupportedPIDs');
     const btnModuleInfo    = $('btnModuleInfo');
     const btnEvapLeakTest  = $('btnEvapLeakTest');
+    const btnBatteryHealth = $('btnBatteryHealth');
+    const btnAdaptationMenu = $('btnAdaptationMenu');
     const btnSaveSnapshot = $('btnSaveSnapshot');
     const btnSensorSweep  = $('btnSensorSweep');
     const btnAttachInvoice = $('btnAttachInvoice');
@@ -967,6 +991,8 @@ body {
         if (btnSupportedPIDs) btnSupportedPIDs.disabled = !connected;
         if (btnModuleInfo)    btnModuleInfo.disabled    = !connected;
         if (btnEvapLeakTest)  btnEvapLeakTest.disabled  = !connected;
+        if (btnBatteryHealth) btnBatteryHealth.disabled = !connected;
+        if (btnAdaptationMenu) btnAdaptationMenu.disabled = !connected;
         if (btnSaveSnapshot) btnSaveSnapshot.disabled = !connected;
         if (btnSensorSweep)  btnSensorSweep.disabled  = !connected;
         if (btnAttachInvoice) btnAttachInvoice.disabled = !connected;
@@ -1606,6 +1632,127 @@ body {
             }
         } catch (e) { log(`EVAP test failed: ${e.message}`, true); }
         finally     { btnEvapLeakTest.disabled = !obd.isConnected; }
+    });
+
+    // ── Battery & Charging Health — 4-phase guided test ─────────────────
+    if (btnBatteryHealth) btnBatteryHealth.addEventListener('click', async () => {
+        if (typeof obd.runBatteryChargingTest !== 'function') {
+            log('Battery Health requires updated driver.', true); return;
+        }
+        const phases = [
+            { key: 'rest',          prompt: 'الفحص الأول: المحرك متوقف لكن الـ contact ON. اضغط OK للقياس.' },
+            { key: 'crank',         prompt: 'الفحص الثاني: هندوس على السلف. حضّر مفتاح التشغيل واضغط OK، وبعدها فوراً اشغّل العربية (4 ثوانٍ).' },
+            { key: 'idle_charging', prompt: 'الفحص الثالث: المحرك شغّال idle، كل الأحمال OFF (AC، أنوار، راديو). اضغط OK للقياس.' },
+            { key: 'rev_charging',  prompt: 'الفحص الرابع: ارفع الـ RPM حوالين 2000 وثبّتها، شغّل الأحمال (AC + أنوار + ديفوست). اضغط OK للقياس.' },
+        ];
+        const report = [];
+        try {
+            btnBatteryHealth.disabled = true;
+            log('═══ بدء فحص البطارية والشحن الشامل ═══');
+            for (const ph of phases) {
+                if (!window.confirm(ph.prompt)) {
+                    log('تم إيقاف الفحص.', true);
+                    return;
+                }
+                log(`◐ قياس ${ph.key}…`);
+                const r = await obd.runBatteryChargingTest({ phase: ph.key });
+                report.push(r);
+                if (r.voltage == null) {
+                    log(`  ⚠️ ${ph.key}: لا توجد قراءة`, true);
+                } else {
+                    const icon = r.verdict.level === 'good' ? '✅' :
+                                 r.verdict.level === 'bad'  ? '❌' : '⚠️';
+                    log(`  ${icon} ${ph.key}: ${r.voltage.toFixed(2)}V — ${r.verdict.message}`);
+                }
+            }
+            // Summary
+            log('═══ ملخص فحص البطارية والشحن ═══');
+            const levels = report.map(r => r.verdict.level);
+            if (levels.every(l => l === 'good')) {
+                log('✅ النظام الكهربائي سليم بالكامل.');
+            } else if (levels.includes('bad')) {
+                log('❌ مشكلة حرجة في النظام الكهربائي — راجع التفاصيل أعلاه.', true);
+            } else {
+                log('⚠️ النظام شغّال لكن فيه ضعف — راجع التفاصيل أعلاه.', true);
+            }
+            window.__batteryHealthLast = report;
+        } catch (e) { log(`Battery test failed: ${e.message}`, true); }
+        finally     { btnBatteryHealth.disabled = !obd.isConnected; }
+    });
+
+    // ── Adaptation / Relearn menu ───────────────────────────────────────
+    if (btnAdaptationMenu) btnAdaptationMenu.addEventListener('click', async () => {
+        if (typeof obd.runAdaptationStep !== 'function') {
+            log('Adaptation requires updated driver.', true); return;
+        }
+        if (typeof window.getAdaptationProceduresForMake !== 'function') {
+            log('Adaptation catalog not loaded.', true); return;
+        }
+        // Detect make from last VIN if available (lightweight — first 3 chars of VIN = WMI).
+        const make = (window.__detectedMake || '').toLowerCase();
+        const procs = window.getAdaptationProceduresForMake(make);
+
+        // Build a numbered menu in a single prompt — keeps the UI minimal.
+        const menu = procs.map((p, i) =>
+            `${i + 1}. [${p.make}] ${p.name}`).join('\n');
+        const choice = window.prompt(
+            `إجراءات Adaptation / Relearn المتاحة:\n\n${menu}\n\n` +
+            `اكتب رقم الإجراء (1-${procs.length}) أو cancel:`
+        );
+        const idx = parseInt(choice, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= procs.length) {
+            log('تم الإلغاء.');
+            return;
+        }
+        const proc = procs[idx];
+
+        if (!window.confirm(
+            `⚠️ هتنفّذ: "${proc.name}"\n\n${proc.description}\n\n` +
+            `الإجراء فيه ${proc.steps.length} خطوة. هتمر عليها واحدة واحدة.\n\nتكمّل؟`
+        )) { log('تم الإلغاء.'); return; }
+
+        try {
+            btnAdaptationMenu.disabled = true;
+            log(`═══ بدء: ${proc.name} ═══`);
+
+            for (let i = 0; i < proc.steps.length; i++) {
+                const step = proc.steps[i];
+                const stepNum = `${i + 1}/${proc.steps.length}`;
+
+                // Manual steps just need acknowledgement.
+                if (step.type === 'manual') {
+                    if (!window.confirm(`خطوة ${stepNum}:\n\n${step.text}\n\nاتممت؟`)) {
+                        log(`تم إيقاف الإجراء عند الخطوة ${stepNum}.`, true);
+                        return;
+                    }
+                    log(`  ✓ خطوة ${stepNum}: ${step.text}`);
+                    continue;
+                }
+
+                // Destructive steps need explicit confirm.
+                if (step.type === 'write' || step.type === 'clear') {
+                    if (!window.confirm(`خطوة ${stepNum} (هتغيّر ECU):\n\n${step.text || step.type}\n\nنفّذ؟`)) {
+                        log(`تم إيقاف الإجراء عند الخطوة ${stepNum}.`, true);
+                        return;
+                    }
+                }
+
+                const r = await obd.runAdaptationStep(step, {
+                    onPromptForData: async (inputKey, s) => {
+                        let v = window.prompt(`أدخل قيمة ${inputKey} (hex):`);
+                        return (v || '').trim().toUpperCase();
+                    },
+                });
+                const icon = r.ok ? '✅' : '❌';
+                log(`  ${icon} خطوة ${stepNum} (${step.type}): ${r.message || (r.ok ? 'تم' : 'فشل')}`);
+                if (!r.ok && (step.type === 'write' || step.type === 'session')) {
+                    log(`  ⚠️ خطوة حرجة فشلت — يُستحسن وقف الإجراء.`, true);
+                    if (!window.confirm('فيه فشل في خطوة حرجة. تكمّل برغم ذلك؟')) return;
+                }
+            }
+            log(`═══ اكتمل: ${proc.name} ═══`);
+        } catch (e) { log(`Adaptation failed: ${e.message}`, true); }
+        finally     { btnAdaptationMenu.disabled = !obd.isConnected; }
     });
 
     // Session recorder — persist snapshots so the mechanic can review later.
