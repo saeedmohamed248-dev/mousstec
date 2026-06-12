@@ -34,6 +34,7 @@ REQUIRED_SERVICE_METHODS = {
     'requestComponentTest':     ['08'],          # Mode 08 bidirectional
     'readDataByIdentifier':     ['22'],          # Mode 22 UDS DID read
     'readModuleStandardInfo':   [],              # uses readDataByIdentifier
+    'readSupportedPIDs':        ['0100'],        # Mode 01 PID 00 bitmask
     'readVehicleInfo':          ['09'],          # Mode 09 CalID/CVN/ECU name
     'readVIN':                  ['0902'],        # Mode 09 PID 02
     'readReadinessMonitors':    ['0101'],        # Mode 01 PID 01 readiness
@@ -197,6 +198,20 @@ class OBDProtocolCoverageTests(SimpleTestCase):
             'diagnostics_room.html must include protocol_memory_client.js '
             'so the drivers can cache the successful protocol per vehicle.',
         )
+
+    def test_mode22_is_gated_to_can_protocols(self):
+        """Mode 22 + ATSH/ATCRA only work on CAN. The drivers must throw a
+        helpful error on K-Line/J1850 rather than firing a doomed request."""
+        for label, src in (('bluetooth', self.bt), ('wifi', self.wifi)):
+            self.assertIn(
+                'CAN_PROTOCOLS', src,
+                f'obd_{label}.js must define a CAN protocol set to gate Mode 22.',
+            )
+            # Must reference the protocol code the driver remembers after init.
+            self.assertIn(
+                '_lastProtocolCode', src,
+                f'obd_{label}.js Mode 22 gate must use _lastProtocolCode.',
+            )
 
     def test_drivers_use_protocol_memory(self):
         """Both drivers must call lookup() before sweep and save() after success.

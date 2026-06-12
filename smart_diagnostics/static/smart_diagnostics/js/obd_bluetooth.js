@@ -1161,12 +1161,49 @@ class OBDBluetooth extends EventTarget {
         return result;
     }
 
+    // ── Mode 01 PID 00 / 20 / 40 / ... — Supported PIDs bitmask ─────────
+    // Walks the bitmask chain (PID 00, 20, 40 ... E0) to learn which Mode 01
+    // PIDs this specific ECU answers. See obd_wifi.js for the full doc.
+    async readSupportedPIDs() {
+        const supported = new Set();
+        const bases = ['00', '20', '40', '60', '80', 'A0', 'C0', 'E0'];
+        for (const base of bases) {
+            let raw;
+            try { raw = await this._sendCommand('01' + base, 3000); }
+            catch (_) { break; }
+            if (!raw || /NO\s*DATA|UNABLE|\?/i.test(raw)) break;
+            const stripped = raw.replace(/\s+/g, '').toUpperCase();
+            const m = stripped.match(new RegExp('41' + base + '([0-9A-F]{8})'));
+            if (!m) break;
+            const baseInt = parseInt(base, 16);
+            const bytes = m[1].match(/.{2}/g).map(h => parseInt(h, 16));
+            for (let i = 0; i < 4; i++) {
+                for (let b = 7; b >= 0; b--) {
+                    if (bytes[i] & (1 << b)) {
+                        const pid = baseInt + 1 + (i * 8) + (7 - b);
+                        supported.add(pid.toString(16).toUpperCase().padStart(2, '0'));
+                    }
+                }
+            }
+            if (!(bytes[3] & 0x01)) break;
+        }
+        const list = Array.from(supported).sort();
+        this._emit('supported_pids', { pids: list, count: list.length });
+        return list;
+    }
+
     // ── Mode 22 — UDS Read Data By Identifier (ISO 14229) ───────────────
     // Talks to non-engine modules (ABS, Airbag, BCM, TCM, Cluster, HVAC)
     // by switching ELM headers. See obd_wifi.js for the full doc.
     async readDataByIdentifier(did, { reqHeader = null, respFilter = null } = {}) {
         if (!/^[0-9A-Fa-f]{4}$/.test(did)) {
             throw new Error('UDS DID must be 4 hex chars (e.g. "F190" for VIN).');
+        }
+        const CAN_PROTOCOLS = new Set(['6', '7', '8', '9', 'B']);
+        if (this._lastProtocolCode && !CAN_PROTOCOLS.has(this._lastProtocolCode)) {
+            throw new Error(
+                `Mode 22 (UDS) شغّال على CAN فقط. العربية دي على ${this._lastProtocolLabel || this._lastProtocolCode} — مينفعش.`
+            );
         }
         const out = { did: did.toUpperCase(), raw: null, ok: false, data: null, nrc: null };
         try {
