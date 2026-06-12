@@ -525,9 +525,27 @@ body {
                         title="معلومات الـ ECU (Mode 09)">
                     <i class="fa-solid fa-info-circle"></i> معلومات الـ ECU
                 </button>
+                <button type="button" id="btnSupportedPIDs" class="btn secondary" disabled
+                        title="Mode 01 PID 00 bitmask — أي PIDs العربية بتدعمها فعلاً">
+                    <i class="fa-solid fa-list-ul"></i> PIDs المدعومة
+                </button>
+                <button type="button" id="btnModuleInfo" class="btn secondary" disabled
+                        title="ISO 14229 standard info (VIN/CalID/Serial) من ABS/Airbag/BCM/TCM">
+                    <i class="fa-solid fa-network-wired"></i> معلومات الوحدات (Mode 22)
+                </button>
                 <button type="button" id="btnSaveSnapshot" class="btn secondary" disabled
                         title="احفظ القراءات في المتصفح">
                     <i class="fa-solid fa-bookmark"></i> احفظ لقطة محلية
+                </button>
+            </div>
+
+            <div class="action-group">
+                <div class="action-group-title">
+                    <i class="fa-solid fa-triangle-exclamation"></i> اختبارات تحكم (Mode 08)
+                </div>
+                <button type="button" id="btnEvapLeakTest" class="btn danger" disabled
+                        title="يطلب من ECU إغلاق صمام EVAP لاختبار التسرّب — السيارة لازم تكون متوقّفة">
+                    <i class="fa-solid fa-flask"></i> EVAP Leak Test
                 </button>
             </div>
 
@@ -891,6 +909,9 @@ body {
     const btnFreezeFrame = $('btnFreezeFrame');
     const btnReadiness   = $('btnReadiness');
     const btnVehicleInfo = $('btnVehicleInfo');
+    const btnSupportedPIDs = $('btnSupportedPIDs');
+    const btnModuleInfo    = $('btnModuleInfo');
+    const btnEvapLeakTest  = $('btnEvapLeakTest');
     const btnSaveSnapshot = $('btnSaveSnapshot');
     const btnSensorSweep  = $('btnSensorSweep');
     const btnAttachInvoice = $('btnAttachInvoice');
@@ -943,6 +964,9 @@ body {
         if (btnFreezeFrame)  btnFreezeFrame.disabled  = !connected;
         if (btnReadiness)    btnReadiness.disabled    = !connected;
         if (btnVehicleInfo)  btnVehicleInfo.disabled  = !connected;
+        if (btnSupportedPIDs) btnSupportedPIDs.disabled = !connected;
+        if (btnModuleInfo)    btnModuleInfo.disabled    = !connected;
+        if (btnEvapLeakTest)  btnEvapLeakTest.disabled  = !connected;
         if (btnSaveSnapshot) btnSaveSnapshot.disabled = !connected;
         if (btnSensorSweep)  btnSensorSweep.disabled  = !connected;
         if (btnAttachInvoice) btnAttachInvoice.disabled = !connected;
@@ -1502,6 +1526,86 @@ body {
             await obd.readVehicleInfo();
         } catch (e) { log(`Vehicle Info failed: ${e.message}`, true); }
         finally     { btnVehicleInfo.disabled = !obd.isConnected; }
+    });
+
+    // ── Mode 01 PID 00 — Supported PIDs bitmask ─────────────────────────
+    if (btnSupportedPIDs) btnSupportedPIDs.addEventListener('click', async () => {
+        if (typeof obd.readSupportedPIDs !== 'function') {
+            log('Supported PIDs requires updated driver.', true); return;
+        }
+        try {
+            btnSupportedPIDs.disabled = true;
+            log('Reading supported-PIDs bitmask (Mode 01 PID 00 chain)…');
+            const list = await obd.readSupportedPIDs();
+            log(`✅ العربية دي بتدعم ${list.length} PID: ${list.join(', ')}`);
+        } catch (e) { log(`Supported PIDs failed: ${e.message}`, true); }
+        finally     { btnSupportedPIDs.disabled = !obd.isConnected; }
+    });
+
+    // ── Mode 22 — module standard info (ABS, Airbag, BCM, TCM, ...) ─────
+    // Iterates the UDS_MODULES table and reads ISO 14229 standard DIDs
+    // (VIN/CalID/Serial/Software version) from each. Gives the mechanic
+    // a quick "which modules are alive and what version" snapshot.
+    if (btnModuleInfo) btnModuleInfo.addEventListener('click', async () => {
+        if (typeof obd.readModuleStandardInfo !== 'function') {
+            log('Module Info requires updated driver.', true); return;
+        }
+        const targets = ['engine', 'trans', 'abs', 'airbag', 'bcm', 'cluster', 'hvac'];
+        try {
+            btnModuleInfo.disabled = true;
+            log('Mode 22: querying every diagnostic module…');
+            for (const key of targets) {
+                try {
+                    const r = await obd.readModuleStandardInfo(key);
+                    const keys = Object.keys(r.responses || {});
+                    if (keys.length) {
+                        log(`  ✅ ${r.label}: ${keys.length} DIDs ردّوا`);
+                        for (const k of keys) {
+                            log(`     • ${k}: ${r.responses[k]}`);
+                        }
+                    } else {
+                        log(`  ⚪ ${r.label}: مفيش رد (الوحدة مش متصلة أو الـ DIDs مش مدعومة)`);
+                    }
+                } catch (e) {
+                    log(`  ❌ ${key}: ${e.message}`);
+                    // CAN-only gate trips here on K-Line — stop the sweep.
+                    if (/CAN فقط/.test(e.message)) break;
+                }
+            }
+        } finally { btnModuleInfo.disabled = !obd.isConnected; }
+    });
+
+    // ── Mode 08 — EVAP leak test (BIDIRECTIONAL — destructive) ──────────
+    // Confirms loudly before sending. Standard SAE J1979 TID 0x01 commands
+    // the ECU to seal the canister vent valve and monitor for pressure
+    // decay. Must run with engine OFF.
+    if (btnEvapLeakTest) btnEvapLeakTest.addEventListener('click', async () => {
+        if (typeof obd.requestComponentTest !== 'function') {
+            log('Mode 08 requires updated driver.', true); return;
+        }
+        const confirmed = window.confirm(
+            'EVAP Leak Test (Mode 08 TID 01)\n\n' +
+            'الـ ECU هيقفل صمام تنفيس خزّان الكربون ويراقب الضغط.\n\n' +
+            'متطلّبات:\n' +
+            '• المحرك متوقّف\n' +
+            '• خزّان البنزين بين ¼ و ¾\n' +
+            '• الكونتاكت على ON\n\n' +
+            'تكمّل؟'
+        );
+        if (!confirmed) return;
+        try {
+            btnEvapLeakTest.disabled = true;
+            log('Mode 08 TID 01: requesting EVAP seal & monitor…');
+            const r = await obd.requestComponentTest('01');
+            if (r.ok) {
+                log(`✅ ECU قبلت الطلب. Raw: ${r.raw}`);
+            } else if (r.raw && /7F\s*08/.test(r.raw)) {
+                log(`⚠️ ECU رفضت — Mode 08 مش مدعوم على العربية دي.`, true);
+            } else {
+                log(`⚠️ مفيش رد قاطع: ${r.raw}`, true);
+            }
+        } catch (e) { log(`EVAP test failed: ${e.message}`, true); }
+        finally     { btnEvapLeakTest.disabled = !obd.isConnected; }
     });
 
     // Session recorder — persist snapshots so the mechanic can review later.

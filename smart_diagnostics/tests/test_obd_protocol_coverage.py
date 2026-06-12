@@ -199,6 +199,26 @@ class OBDProtocolCoverageTests(SimpleTestCase):
             'UDS_MODULES/UDS_STANDARD_DIDS globals are available to the drivers.',
         )
 
+    def test_new_diagnostic_buttons_wired_in_template(self):
+        """Mode 22 / Mode 08 / supported-PIDs buttons must exist AND have
+        click handlers calling the driver methods. Without both halves the
+        feature is invisible to the mechanic."""
+        tpl = (Path(__file__).resolve().parent.parent / 'templates' /
+               'smart_diagnostics' / 'diagnostics_room.html').read_text(encoding='utf-8')
+        for btn_id, method in (
+            ('btnSupportedPIDs', 'readSupportedPIDs'),
+            ('btnModuleInfo',    'readModuleStandardInfo'),
+            ('btnEvapLeakTest',  'requestComponentTest'),
+        ):
+            self.assertIn(
+                f'id="{btn_id}"', tpl,
+                f'diagnostics_room.html missing button {btn_id}',
+            )
+            self.assertIn(
+                f'obd.{method}', tpl,
+                f'Button {btn_id} click handler must call obd.{method}',
+            )
+
     def test_protocol_memory_client_loaded_in_template(self):
         tpl = Path(__file__).resolve().parent.parent / 'templates' / \
               'smart_diagnostics' / 'diagnostics_room.html'
