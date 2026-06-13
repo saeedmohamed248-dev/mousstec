@@ -1,0 +1,121 @@
+"""
+🛡️ Plan-based quota enforcement signals
+=======================================
+Hooks ``pre_save`` on User / Branch / Treasury so the tenant's
+``total_allowed_*`` limits (Plan max + purchased extras) are enforced
+on **every** creation path — Django admin, REST endpoints, the
+``manage.py shell``, fixtures, ``loaddata``, etc.
+
+Why pre_save instead of a view-layer decorator
+---------------------------------------------
+* The Branch admin already had an inline check (``inventory/admin.py``)
+  but only on the admin form — every other entry point (DRF, custom
+  views, shell) could create branches unchecked. Same is true for User
+  and Treasury today: no enforcement at all.
+* Signals run regardless of who calls ``save()``. One implementation,
+  zero leaks.
+
+Skip rules
+----------
+* Updates (``instance.pk`` already set) are never blocked — only the
+  *creation* of an extra row.
+* ``public`` schema activity (the platform-owner shell) is exempt.
+* If the tenant's ``total_allowed_*`` returns 0/None, treat as
+  unlimited (matches existing ``max_repair_cards`` convention where
+  ``0 = unlimited``).
+"""
+from __future__ import annotations
+
+import logging
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import connection
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+
+logger = logging.getLogger('mouss_tec_core')
+
+
+def _current_tenant():
+    """Return the tenant for the current schema, or None for public."""
+    tenant = getattr(connection, 'tenant', None)
+    if tenant is None:
+        return None
+    if getattr(tenant, 'schema_name', 'public') == 'public':
+        return None
+    return tenant
+
+
+def _enforce(*, instance, model_cls, allowed_attr: str, label_ar: str, upgrade_hint: str):
+    """Generic quota check used by the three pre_save handlers.
+
+    Raises ``ValidationError`` (caught by Django admin and DRF) when
+    creating the row would push the tenant past its plan limit.
+    """
+    # Updates are always allowed.
+    if instance.pk:
+        return
+
+    tenant = _current_tenant()
+    if tenant is None:
+        return  # public schema or no tenant context — let it through
+
+    allowed = getattr(tenant, allowed_attr, 0) or 0
+    if allowed <= 0:
+        return  # 0 = unlimited per existing convention
+
+    current = model_cls.objects.count()
+    if current >= allowed:
+        logger.warning(
+            f"[QUOTA] tenant={tenant.schema_name} blocked {model_cls.__name__} "
+            f"creation: {current}/{allowed} (allowed_attr={allowed_attr})"
+        )
+        raise ValidationError(
+            f"🚫 وصلت الحد الأقصى لـ{label_ar} في باقتك ({allowed}). "
+            f"{upgrade_hint}"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Lazy connect — we can't import inventory.models at module top because
+# the apps registry isn't ready yet. We wire receivers as soon as the
+# AppConfig.ready() pulls this module in.
+# ─────────────────────────────────────────────────────────────────────
+def _connect():
+    from django.contrib.auth import get_user_model
+    from inventory.models import Branch, Treasury
+
+    User = get_user_model()
+
+    @receiver(pre_save, sender=User, dispatch_uid='quota_enforce_user')
+    def _quota_user(sender, instance, **kwargs):
+        _enforce(
+            instance=instance, model_cls=User,
+            allowed_attr='total_allowed_users',
+            label_ar='المستخدمين',
+            upgrade_hint='اشترِ مستخدمين إضافيين أو ترقّى لباقة أعلى.',
+        )
+
+    @receiver(pre_save, sender=Branch, dispatch_uid='quota_enforce_branch')
+    def _quota_branch(sender, instance, **kwargs):
+        _enforce(
+            instance=instance, model_cls=Branch,
+            allowed_attr='total_allowed_branches',
+            label_ar='الفروع',
+            upgrade_hint='اشترِ فرع إضافي أو ترقّى لباقة أعلى.',
+        )
+
+    @receiver(pre_save, sender=Treasury, dispatch_uid='quota_enforce_treasury')
+    def _quota_treasury(sender, instance, **kwargs):
+        _enforce(
+            instance=instance, model_cls=Treasury,
+            allowed_attr='total_allowed_treasuries',
+            label_ar='الخزائن',
+            upgrade_hint='اشترِ خزنة إضافية أو ترقّى لباقة أعلى.',
+        )
+
+    logger.debug("[QUOTA] pre_save receivers wired for User/Branch/Treasury")
+
+
+_connect()

@@ -143,13 +143,12 @@ class BranchAdmin(SecureImportExportAdmin):
         return format_html('<span style="color:#28a745; font-weight:bold;">✅ نشط وبث لايف</span>')
     is_active_badge.short_description = "حالة الفرع"
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            tenant = connection.tenant 
-            current_branches_count = Branch.objects.count()
-            if tenant.max_branches and current_branches_count >= tenant.max_branches:
-                raise ValidationError(f"🚫 حظر الباقة التأسيسية: شركتكم مسموح لها بإنشاء عدد ({tenant.max_branches}) فروع فقط بموجب الباقة الحالية.")
-        super().save_model(request, obj, form, change)
+    # 🧹 Branch-count guard was moved to clients.signals_quota.pre_save so
+    # it fires on every path (admin / DRF / shell / loaddata), not just
+    # the admin form. The signal raises ValidationError, which the admin
+    # surfaces the same way save_model() did. No behavior change for
+    # admin users; closes the leak for non-admin entry points.
+    pass
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(SecureImportExportAdmin):

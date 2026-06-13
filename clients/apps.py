@@ -85,6 +85,14 @@ class ClientsConfig(AppConfig):
         except ImportError as e:
             logger.error(f"🔴 Mouss Tec Core: Signals file failed to load - {e}")
 
+        # 🛡️ Plan-based quota enforcement on User/Branch/Treasury creation.
+        # Lives in its own module so the provisioning signals stay focused.
+        try:
+            import clients.signals_quota  # noqa: F401
+            logger.info("🟢 Mouss Tec Core: Plan Quota Signals connected successfully.")
+        except ImportError as e:
+            logger.error(f"🔴 Mouss Tec Core: Quota signals failed to load - {e}")
+
         # 🚀 Watchdog — فقط في سيرفرات HTTP طويلة العمر
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
         is_long_running = any(server in sys.argv[0] or server in sys.argv for server in active_servers)
