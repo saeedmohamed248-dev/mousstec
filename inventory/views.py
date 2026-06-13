@@ -28,6 +28,7 @@ import concurrent.futures
 
 from .ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
 from clients.models import GlobalB2BMarketplace, Client, BlindBiddingRequest
+from clients.services.entitlements import require_feature
 
 try:
     import qrcode
@@ -217,8 +218,14 @@ def solutions_tour(request):
 
 @login_required(login_url='/login/')
 @tenant_required
+@require_feature('b2b_marketplace')
 def b2b_marketplace(request):
-    """واجهة سوق B2B التفاعلية مع بحث حي في السوق المركزي"""
+    """واجهة سوق B2B التفاعلية مع بحث حي في السوق المركزي.
+
+    🔒 Gated by ``b2b_marketplace`` entitlement — Gold + Empire only.
+    Silver tenants get a 403 with an upgrade link (the marketing page
+    already promised B2B as a paid feature).
+    """
     return render(request, 'inventory/b2b_marketplace.html')
 
 
@@ -1132,8 +1139,12 @@ def ai_vehicle_docs_scanner_api(request):
 
 @login_required(login_url='/login/')
 @tenant_required
+@require_feature('b2b_marketplace')
 def b2b_market_search_api(request):
-    """HTTP Adapter لوكيل السوق المركزي"""
+    """HTTP Adapter لوكيل السوق المركزي.
+
+    🔒 Same gate as the b2b_marketplace page — closes the API back door.
+    """
     query = request.GET.get('q', request.GET.get('part_number', '')).strip()
     if not query:
         return _json_response_safe({'results': []})
@@ -1166,7 +1177,9 @@ def return_core_charge_api(request, item_id):
 
 @login_required(login_url='/login/')
 @tenant_required
+@require_feature('b2b_marketplace')
 def create_blind_bid_api(request):
+    """🔒 Blind bidding is a B2B-marketplace feature — same gate as the page."""
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
     try:

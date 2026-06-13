@@ -22,7 +22,11 @@ Usage:
 from __future__ import annotations
 
 import logging
+from functools import wraps
 from typing import Optional, Iterable
+
+from django.db import connection
+from django.http import HttpResponseForbidden, JsonResponse
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -122,3 +126,64 @@ class EntitlementService:
         if not isinstance(entitlements, dict):
             return None
         return entitlements.get(feature_code)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# View decorator
+# ─────────────────────────────────────────────────────────────────────
+def require_feature(feature_code: str, *, upgrade_url: str = '/pricing/'):
+    """🛡️ View decorator — blocks tenants whose plan doesn't include the feature.
+
+    Use after ``@login_required`` and ``@tenant_required`` so the request is
+    guaranteed to have a tenant. Resolves the tenant from
+    ``connection.tenant`` (django-tenants) and consults
+    :class:`EntitlementService`.
+
+    Behavior on deny:
+      * JSON requests (``Accept: application/json`` or path under ``/api/``,
+        ``/system/api/``) → 403 JSON ``{error, code, upgrade_url}``
+      * Browser requests → 403 HTML with a link to the pricing page
+
+    Usage::
+
+        @login_required
+        @tenant_required
+        @require_feature('b2b_marketplace')
+        def b2b_marketplace(request):
+            ...
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            tenant = getattr(connection, 'tenant', None)
+            if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+                # Defensive — caller forgot @tenant_required. Don't leak.
+                return HttpResponseForbidden(
+                    '🛑 هذه الخدمة مخصصة للحسابات المسجلة فقط.',
+                )
+            if EntitlementService.has(tenant, feature_code):
+                return view_func(request, *args, **kwargs)
+
+            logger.info(
+                f"[require_feature] denied tenant={tenant.schema_name} "
+                f"feature={feature_code} path={request.path}"
+            )
+            wants_json = (
+                request.path.startswith('/api/')
+                or request.path.startswith('/system/api/')
+                or 'application/json' in request.headers.get('Accept', '')
+            )
+            if wants_json:
+                return JsonResponse({
+                    'error': 'هذه الميزة غير متاحة في باقتك الحالية.',
+                    'code': 'feature_not_in_plan',
+                    'feature': feature_code,
+                    'upgrade_url': upgrade_url,
+                }, status=403)
+            return HttpResponseForbidden(
+                f'<h1>🔒 الميزة غير متاحة في باقتك</h1>'
+                f'<p>الميزة المطلوبة (<code>{feature_code}</code>) جزء من '
+                f'باقة أعلى. <a href="{upgrade_url}">ترقّى الآن</a>.</p>'
+            )
+        return _wrapped
+    return decorator
