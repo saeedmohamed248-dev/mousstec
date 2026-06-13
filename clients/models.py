@@ -3726,8 +3726,7 @@ class EscrowHold(models.Model):
         verbose_name_plural = _("💰 حجوزات الضمان")
         ordering = ['-held_at']
         constraints = [
-            # Money preservation: payout + refund + commission ≤ held_amount
-            # (equality on settled states; held state may have all three = 0)
+            # All amounts must be non-negative
             models.CheckConstraint(
                 name='escrowhold_amounts_nonnegative',
                 check=(
@@ -3735,6 +3734,16 @@ class EscrowHold(models.Model):
                     & models.Q(seller_payout_amount__gte=0)
                     & models.Q(buyer_refund_amount__gte=0)
                     & models.Q(platform_commission_amount__gte=0)
+                ),
+            ),
+            # Money conservation: disbursements must not exceed what was held.
+            # Enforced at the DB level to survive concurrent updates.
+            models.CheckConstraint(
+                name='escrowhold_conservation',
+                check=models.Q(
+                    held_amount__gte=models.F('seller_payout_amount')
+                    + models.F('buyer_refund_amount')
+                    + models.F('platform_commission_amount')
                 ),
             ),
         ]

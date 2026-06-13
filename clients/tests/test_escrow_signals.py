@@ -26,12 +26,14 @@ Coverage strategy:
 """
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
+from django.utils import timezone
 
-from clients.models import Client, EscrowLedger
+from clients.models import BlindBiddingRequest, Client, EscrowLedger
 
 
 class _EscrowTestBase(TransactionTestCase):
@@ -223,3 +225,110 @@ class EscrowPostSaveLedgerTests(_EscrowTestBase):
         client.refresh_from_db()
         # Still 600 — not 700.
         self.assertEqual(client.wallet_balance, Decimal('600.00'))
+
+
+class EscrowReleaseAuctionPayoutTests(_EscrowTestBase):
+    """The ``release`` branch has two halves:
+
+      1. The buyer's escrow_held shrinks by the released amount.
+      2. If the EscrowLedger row is linked to an awarded
+         BlindBiddingRequest (``bidding_request.winner_id`` set),
+         the seller's wallet_balance grows by
+         ``amount - platform_fee_collected``.
+
+    The second half is the actual seller payout — the *single most
+    money-moving* line in the whole platform. There is no test
+    elsewhere that covers the cross-client transfer (buyer → seller)
+    or the platform fee deduction. A silent bug here would either
+    underpay sellers or skip platform commission silently.
+    """
+
+    def _make_bidding_request(
+        self, *, buyer, winner, winning_price, fee=Decimal('0'),
+    ):
+        return BlindBiddingRequest.objects.create(
+            buyer=buyer,
+            part_number='X-001',
+            required_qty=1,
+            winning_price=winning_price,
+            winner=winner,
+            platform_fee_collected=fee,
+            status='escrow_held',
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+    def test_release_pays_seller_net_of_platform_fee(self):
+        buyer = self._make_client(
+            wallet=Decimal('0'), held=Decimal('1000'), suffix='auc_buy',
+        )
+        seller = self._make_client(
+            wallet=Decimal('200'), suffix='auc_sell',
+        )
+        bid = self._make_bidding_request(
+            buyer=buyer, winner=seller,
+            winning_price=Decimal('1000'), fee=Decimal('25'),
+        )
+
+        EscrowLedger.objects.create(
+            client=buyer,
+            bidding_request=bid,
+            transaction_type='release',
+            amount=Decimal('1000'),
+            description='auction completed',
+        )
+
+        buyer.refresh_from_db()
+        seller.refresh_from_db()
+        # Buyer's hold is released.
+        self.assertEqual(buyer.escrow_held, Decimal('0.00'))
+        # Buyer's spendable wallet stays at 0 — release is NOT a
+        # refund. Money goes to the seller, not back to the buyer.
+        self.assertEqual(buyer.wallet_balance, Decimal('0.00'))
+        # Seller gets winning_price - fee.
+        self.assertEqual(seller.wallet_balance, Decimal('1175.00'))  # 200 + 975
+
+    def test_release_with_zero_fee_pays_full_amount(self):
+        """The default platform_fee_collected is 0 (column default).
+        Make sure that case sends the full winning_price to the seller
+        instead of accidentally subtracting None or '' from amount."""
+        buyer = self._make_client(held=Decimal('500'), suffix='zfee_buy')
+        seller = self._make_client(wallet=Decimal('0'), suffix='zfee_sell')
+        bid = self._make_bidding_request(
+            buyer=buyer, winner=seller,
+            winning_price=Decimal('500'), fee=Decimal('0'),
+        )
+
+        EscrowLedger.objects.create(
+            client=buyer, bidding_request=bid,
+            transaction_type='release',
+            amount=Decimal('500'),
+            description='no-fee deal',
+        )
+
+        seller.refresh_from_db()
+        self.assertEqual(seller.wallet_balance, Decimal('500.00'))
+
+    def test_release_does_not_credit_when_no_winner(self):
+        """If the auction was cancelled and a release happens for
+        administrative reasons (refund-shaped release), there's no
+        seller to pay. The signal must still decrement escrow_held
+        without crashing on a NoneType winner_id."""
+        buyer = self._make_client(held=Decimal('200'), suffix='nowin')
+        bid = BlindBiddingRequest.objects.create(
+            buyer=buyer,
+            part_number='Y-9',
+            required_qty=1,
+            winning_price=Decimal('200'),
+            winner=None,  # cancelled mid-flight
+            status='cancelled',
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        EscrowLedger.objects.create(
+            client=buyer, bidding_request=bid,
+            transaction_type='release',
+            amount=Decimal('200'),
+            description='manual release without award',
+        )
+        buyer.refresh_from_db()
+        self.assertEqual(buyer.escrow_held, Decimal('0.00'))
