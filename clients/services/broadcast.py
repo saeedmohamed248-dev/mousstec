@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, get_connection
 from django.utils import timezone
 
 logger = logging.getLogger('mouss_tec_core')
@@ -85,30 +85,38 @@ def send_campaign(campaign):
 
     from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@mousstec.com')
 
-    for t in tenants:
-        recipient = (t.email or '').strip()
-        if not recipient:
-            skipped += 1
-            continue
-        # نسخة شخصية: نستبدل {tenant_name} و {schema} داخل الجسم
-        personalised = (
-            campaign.body
-            .replace('{tenant_name}', t.name or '')
-            .replace('{schema}', t.schema_name or '')
-        )
-        try:
-            send_mail(
-                subject=campaign.subject,
-                message=personalised,
-                from_email=from_email,
-                recipient_list=[recipient],
-                fail_silently=False,
+    # 🔁 connection واحد لكل الـ batch — أسرع 5-10× من فتح SMTP لكل إيميل
+    connection = get_connection()
+    try:
+        connection.open()
+        for t in tenants:
+            recipient = (t.email or '').strip()
+            if not recipient:
+                skipped += 1
+                continue
+            personalised = (
+                campaign.body
+                .replace('{tenant_name}', t.name or '')
+                .replace('{schema}', t.schema_name or '')
             )
-            sent += 1
-        except Exception as e:
-            failed += 1
-            errors.append(f"{t.schema_name} <{recipient}>: {e}")
-            logger.warning("broadcast #%s → %s failed: %s", campaign.id, recipient, e)
+            try:
+                EmailMessage(
+                    subject=campaign.subject,
+                    body=personalised,
+                    from_email=from_email,
+                    to=[recipient],
+                    connection=connection,
+                ).send(fail_silently=False)
+                sent += 1
+            except Exception as e:
+                failed += 1
+                errors.append(f"{t.schema_name} <{recipient}>: {e}")
+                logger.warning("broadcast #%s → %s failed: %s", campaign.id, recipient, e)
+    finally:
+        try:
+            connection.close()
+        except Exception:
+            pass
 
     campaign.sent_count = sent
     campaign.failed_count = failed

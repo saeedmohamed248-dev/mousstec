@@ -1620,28 +1620,24 @@ def broadcast_send(request):
         created_by=request.user,
     )
 
+    # 🚀 الإرسال في الخلفية عبر Celery — الـ view يرجع فوراً ومفيش 504
     try:
-        from clients.services.broadcast import send_campaign
-        send_campaign(campaign)
+        from clients.tasks import send_broadcast_campaign
+        send_broadcast_campaign.delay(campaign.id)
     except Exception as e:
-        logger.exception("broadcast_send failed")
+        logger.exception("broadcast_send enqueue failed")
         campaign.status = 'failed'
-        campaign.error_log = f"{type(e).__name__}: {e}"
+        campaign.error_log = f"enqueue error: {type(e).__name__}: {e}"
         campaign.save(update_fields=['status', 'error_log'])
-        messages.error(request, f"فشل الإرسال: {e}")
+        messages.error(request, f"فشل بدء الإرسال: {e}")
         return redirect('saas_broadcast_list')
 
     _log_event(
         'other', user=request.user,
-        description=(
-            f"📢 بث جماعي «{subject[:80]}» — "
-            f"{campaign.sent_count} مُرسَل / {campaign.failed_count} فشل / "
-            f"{campaign.skipped_count} متخطّى"
-        ),
+        description=f"📢 بدء بث جماعي «{subject[:80]}» (campaign #{campaign.id}) في الخلفية",
     )
     messages.success(
         request,
-        f"✅ تم الإرسال: {campaign.sent_count} نجاح، {campaign.failed_count} فشل، "
-        f"{campaign.skipped_count} متخطٍ (بدون email).",
+        f"✅ تم بدء إرسال الحملة «{subject[:60]}» في الخلفية. هتظهر النتيجة في القائمة لما تخلص."
     )
     return redirect('saas_broadcast_list')

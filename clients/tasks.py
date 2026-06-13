@@ -115,6 +115,27 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
 
 
 # =====================================================================
+# 📢 Broadcast campaign sender — runs in background to avoid HTTP timeout
+# =====================================================================
+@shared_task(bind=True, name='clients.tasks.send_broadcast_campaign', queue='notifications')
+def send_broadcast_campaign(self, campaign_id):
+    from clients.models import BroadcastCampaign
+    from clients.services.broadcast import send_campaign
+    try:
+        campaign = BroadcastCampaign.objects.get(pk=campaign_id)
+    except BroadcastCampaign.DoesNotExist:
+        logger.warning("send_broadcast_campaign: campaign #%s not found", campaign_id)
+        return
+    try:
+        send_campaign(campaign)
+    except Exception as e:
+        logger.exception("send_broadcast_campaign #%s failed", campaign_id)
+        campaign.status = 'failed'
+        campaign.error_log = f"{type(e).__name__}: {e}"
+        campaign.save(update_fields=['status', 'error_log'])
+
+
+# =====================================================================
 # 💸 2. وكيل إدارة المطالبات والتعليق (Dunning & Grace Period Enforcer)
 # =====================================================================
 @shared_task
