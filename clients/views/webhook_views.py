@@ -75,18 +75,40 @@ def universal_webhook_multiplexer(request):
             with transaction.atomic():
                 tenant = Client.objects.select_for_update().get(id=client_id)
 
-                # 🚀 ابتكار AML: إذا كان المبلغ ضخماً جداً، يتم تعليقه لحين المراجعة اليدوية
+                # 🚀 AML: deposits over the threshold are credited *and*
+                # immediately frozen so the fraud team can review before
+                # the tenant can spend them.
+                #
+                # 🐛 [bug-fix 2026-06-13]:
+                #   Previously this branch created a 'hold' EscrowLedger
+                #   row directly on an empty wallet; the pre_save guard
+                #   refused it ("الرصيد المتاح لا يكفي") and the atomic
+                #   block aborted — so a 150k EGP deposit returned 500
+                #   to the provider and the money silently disappeared.
+                #   Fix: deposit first (signal credits wallet), THEN hold
+                #   (signal moves it into escrow_held).
                 if amount > Decimal('100000'):
                     logger.warning(f"🚨 [AML ALERT]: Large suspicious deposit of {amount} for {tenant.schema_name}.")
                     EscrowLedger.objects.create(
+                        client=tenant, transaction_type='deposit', amount=amount,
+                        description=f"إيداع كبير للمراجعة الأمنية ({event_id})",
+                    )
+                    EscrowLedger.objects.create(
                         client=tenant, transaction_type='hold', amount=amount,
-                        description=f"إيداع معلق للمراجعة الأمنية ({event_id})",
+                        description=f"تجميد إداري لمراجعة AML ({event_id})",
                     )
                     tenant.is_fraud_flagged = True
                     tenant.save(update_fields=['is_fraud_flagged'])
                 else:
-                    tenant.wallet_balance = F('wallet_balance') + amount
-                    tenant.save(update_fields=['wallet_balance'])
+                    # 🐛 [bug-fix 2026-06-13]:
+                    #   Previously this also did
+                    #     tenant.wallet_balance = F('wallet_balance') + amount
+                    #     tenant.save(update_fields=['wallet_balance'])
+                    #   *before* creating the deposit row. Both paths
+                    #   incremented the wallet by `amount`, so every
+                    #   provider top-up was double-credited (1,000 EGP
+                    #   in → 2,000 EGP on the wallet). The signal alone
+                    #   is the source of truth; remove the manual update.
                     EscrowLedger.objects.create(
                         client=tenant, transaction_type='deposit', amount=amount,
                         description=f"إيداع سحابي ({event_id})",
