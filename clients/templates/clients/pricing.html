@@ -375,10 +375,23 @@ function copyVodafone() {
 
 function payWithPaymob() {
     var shop = '{{ shop|escapejs }}';
+    if (!shop) {
+        var qs = '?plan=' + encodeURIComponent(selectedPlan)
+            + '&industry=' + encodeURIComponent(currentIndustry)
+            + '&billing_period=' + encodeURIComponent(currentBilling)
+            + '&payment_method=paymob';
+        window.location.href = '/connect/signup/' + qs;
+        return;
+    }
+    var token = getCSRF();
+    if (!token) {
+        alert('انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى.');
+        return;
+    }
     var form = document.createElement('form');
     form.method = 'POST';
     form.action = '/payment/paymob/checkout/';
-    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCSRF() + '">'
+    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + token + '">'
         + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
@@ -389,14 +402,26 @@ function payWithPaymob() {
 
 function _payManual(method) {
     var shop = '{{ shop|escapejs }}';
+    // 🆕 New visitor (no shop): redirect to signup with plan/payment intent
+    // preserved as query params so they can register first then continue
+    // payment without losing their choice.
     if (!shop) {
-        alert('لازم تسجّل المتجر الأول قبل الدفع — افتح صفحة التسجيل وأرجع.');
+        var qs = '?plan=' + encodeURIComponent(selectedPlan)
+            + '&industry=' + encodeURIComponent(currentIndustry)
+            + '&billing_period=' + encodeURIComponent(currentBilling)
+            + '&payment_method=' + encodeURIComponent(method);
+        window.location.href = '/connect/signup/' + qs;
+        return;
+    }
+    var token = getCSRF();
+    if (!token) {
+        alert('انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى.');
         return;
     }
     var form = document.createElement('form');
     form.method = 'POST';
     form.action = '/payment/manual/subscription/start/';
-    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + getCSRF() + '">'
+    form.innerHTML = '<input type="hidden" name="csrfmiddlewaretoken" value="' + token + '">'
         + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'

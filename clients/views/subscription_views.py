@@ -24,7 +24,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
 from clients.models import (
     Client, DesignPurchase, EscrowLedger, Feature,
@@ -39,6 +39,7 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
+@ensure_csrf_cookie
 def saas_pricing_page(request):
     shop_schema = request.GET.get('shop', '')
     tenant = Client.objects.filter(schema_name=shop_schema).first() if shop_schema else None
