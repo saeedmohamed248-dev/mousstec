@@ -207,14 +207,14 @@
                         {% endif %}
 
                         <div class="actions">
+                            <a href="/superadmin/tenant/{{ row.tenant.id }}/360/" class="action-btn" style="border-color:#a78bfa; color:#c4b5fd;">
+                                <i class="fas fa-binoculars"></i> 360 view
+                            </a>
                             <a href="/superadmin/enter/{{ row.tenant.schema_name }}/" target="_blank" class="action-btn">
                                 <i class="fas fa-arrow-right-to-bracket"></i> دخول
                             </a>
                             <a href="/superadmin/audit-log/?tenant={{ row.tenant.schema_name }}" target="_blank" class="action-btn">
                                 <i class="fas fa-clipboard-list"></i> سجل التدقيق
-                            </a>
-                            <a href="/superadmin/support/?tenant={{ row.tenant.schema_name }}" target="_blank" class="action-btn">
-                                <i class="fas fa-life-ring"></i> الدعم
                             </a>
                         </div>
                     </div>

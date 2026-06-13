@@ -1323,6 +1323,188 @@ def system_status(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🧭 Tenant 360 View — single page with everything about one tenant
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def tenant_360(request, tenant_id):
+    """
+    /superadmin/tenant/<id>/360/ — لقطة شاملة لشركة واحدة.
+    تشمل: health score, subscription, billing, usage, support, errors,
+    marketplace, audit log.
+    """
+    from clients.models import VisitorLog, PlatformInvoice, BroadcastCampaign
+    from clients.services.tenant_health import bulk_tenant_health
+    from django.db.models import Sum, Q
+
+    tenant = get_object_or_404(
+        Client.all_objects.select_related(),
+        pk=tenant_id,
+    )
+
+    today = timezone.localdate()
+    now = timezone.now()
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+    quarter_ago = now - timedelta(days=90)
+
+    # ─── Health ───
+    health = bulk_tenant_health([tenant]).get(tenant.id, {})
+
+    # ─── Subscription summary ───
+    sub_end = tenant.subscription_end_date
+    days_left = (sub_end - today).days if sub_end else None
+    trial_days_left = None
+    if tenant.status == 'trial' and tenant.trial_ends_at:
+        trial_days_left = (tenant.trial_ends_at - today).days
+
+    # ─── Billing ───
+    try:
+        invoices = list(
+            PlatformInvoice.objects
+            .filter(tenant=tenant)
+            .select_related('plan_revision__plan')
+            .order_by('-issued_at')[:20]
+            .values(
+                'invoice_number', 'period_start', 'period_end',
+                'total', 'currency', 'status', 'issued_at', 'paid_at',
+            )
+        )
+        billing_totals = PlatformInvoice.objects.filter(tenant=tenant).aggregate(
+            paid=Sum('total', filter=Q(status='paid')),
+            issued=Sum('total', filter=Q(status='issued')),
+        )
+        paid_total = float(billing_totals.get('paid') or 0)
+        owed_total = float(billing_totals.get('issued') or 0)
+    except Exception:
+        logger.exception("tenant_360: billing fetch failed for tenant=%s", tenant.schema_name)
+        invoices = []
+        paid_total = owed_total = 0
+
+    # ─── Usage (VisitorLog) ───
+    try:
+        visits_7d = VisitorLog.objects.filter(
+            tenant_schema=tenant.schema_name, timestamp__gte=week_ago,
+        ).count()
+        visits_30d = VisitorLog.objects.filter(
+            tenant_schema=tenant.schema_name, timestamp__gte=month_ago,
+        ).count()
+        last_visit = VisitorLog.objects.filter(
+            tenant_schema=tenant.schema_name,
+        ).order_by('-timestamp').values('timestamp', 'path', 'ip_address').first()
+        top_pages = list(
+            VisitorLog.objects
+            .filter(tenant_schema=tenant.schema_name, timestamp__gte=month_ago)
+            .values('path')
+            .annotate(n=Count('id'))
+            .order_by('-n')[:10]
+        )
+    except Exception:
+        visits_7d = visits_30d = 0
+        last_visit = None
+        top_pages = []
+
+    # ─── Users count (read inside tenant schema) ───
+    try:
+        from django.contrib.auth import get_user_model
+        U = get_user_model()
+        with schema_context(tenant.schema_name):
+            users_total = U.objects.count()
+            users_active = U.objects.filter(is_active=True).count()
+    except Exception:
+        users_total = users_active = None
+
+    # ─── Support ───
+    try:
+        from clients.models import SupportTicket
+        open_tickets = list(
+            SupportTicket.objects
+            .filter(tenant=tenant, is_deleted=False)
+            .exclude(status='closed')
+            .order_by('-created_at')[:10]
+            .values('id', 'subject', 'status', 'priority', 'created_at')
+        )
+        closed_count = SupportTicket.objects.filter(
+            tenant=tenant, status='closed',
+        ).count()
+    except Exception:
+        open_tickets = []
+        closed_count = 0
+
+    # ─── Errors ───
+    try:
+        recent_errors = list(
+            SystemErrorLog.objects
+            .filter(tenant_schema=tenant.schema_name)
+            .order_by('-created_at')[:10]
+            .values(
+                'id', 'status_code', 'exception_class', 'message',
+                'created_at', 'is_resolved', 'level',
+            )
+        )
+        errors_30d = SystemErrorLog.objects.filter(
+            tenant_schema=tenant.schema_name, created_at__gte=month_ago,
+        ).count()
+        unresolved_errors = SystemErrorLog.objects.filter(
+            tenant_schema=tenant.schema_name, is_resolved=False,
+        ).count()
+    except Exception:
+        recent_errors = []
+        errors_30d = unresolved_errors = 0
+
+    # ─── Marketplace ───
+    try:
+        listings_total = PartListing.objects.filter(
+            seller_tenant=tenant, is_deleted=False,
+        ).count()
+        listings_active = PartListing.objects.filter(
+            seller_tenant=tenant, is_deleted=False, moderation_status='approved',
+        ).count()
+        disputes_open = DisputeTicket.objects.filter(
+            opened_by_tenant=tenant, is_deleted=False,
+            status__in=['open', 'under_review'],
+        ).count()
+    except Exception:
+        listings_total = listings_active = disputes_open = 0
+
+    # ─── Recent audit trail ───
+    try:
+        events = list(
+            PlatformEvent.objects
+            .filter(tenant_schema=tenant.schema_name)
+            .order_by('-timestamp')[:20]
+            .values('timestamp', 'event_type', 'user_name', 'description')
+        )
+    except Exception:
+        events = []
+
+    return render(request, 'clients/saas_admin/tenant_360.html', {
+        'tenant': tenant,
+        'today': today,
+        'health': health,
+        'days_left': days_left,
+        'trial_days_left': trial_days_left,
+        'invoices': invoices,
+        'paid_total': paid_total,
+        'owed_total': owed_total,
+        'visits_7d': visits_7d,
+        'visits_30d': visits_30d,
+        'last_visit': last_visit,
+        'top_pages': top_pages,
+        'users_total': users_total,
+        'users_active': users_active,
+        'open_tickets': open_tickets,
+        'closed_tickets_count': closed_count,
+        'recent_errors': recent_errors,
+        'errors_30d': errors_30d,
+        'unresolved_errors': unresolved_errors,
+        'listings_total': listings_total,
+        'listings_active': listings_active,
+        'disputes_open': disputes_open,
+        'events': events,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 🔍 Quick Search API — backs the ⌘K command palette
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
@@ -1350,7 +1532,7 @@ def quick_search(request):
                 'kind':  'tenant',
                 'label': t['name'] or t['schema_name'],
                 'sub':   f"{t['schema_name']} · {t['plan']} · {t['status']}",
-                'url':   f"/superadmin/enter/{t['schema_name']}/",
+                'url':   f"/superadmin/tenant/{t['id']}/360/",
                 'icon':  'building',
             })
 

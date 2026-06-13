@@ -1,0 +1,349 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ tenant.name }} — Tenant 360</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1500px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:14px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+
+        /* ─── Header ─── */
+        .hero {
+            background:linear-gradient(135deg, #1e293b 0%, #312e81 100%);
+            border:1px solid #475569; border-radius:18px; padding:24px;
+            margin-bottom:18px; display:grid;
+            grid-template-columns: auto 1fr auto; gap:24px; align-items:center;
+        }
+        @media (max-width:900px) { .hero { grid-template-columns:1fr; text-align:center; } }
+        .score-big {
+            width:120px; height:120px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            font-size:42px; font-weight:900; border:5px solid;
+            flex-shrink:0;
+        }
+        .grade-A { background:#15803d22; border-color:#22c55e; color:#86efac; }
+        .grade-B { background:#0e749022; border-color:#06b6d4; color:#5eead4; }
+        .grade-C { background:#b4530922; border-color:#f59e0b; color:#fcd34d; }
+        .grade-D { background:#ea580c22; border-color:#f97316; color:#fdba74; }
+        .grade-F { background:#dc262622; border-color:#ef4444; color:#fca5a5; }
+
+        .hero h1 { color:#fff; font-size:28px; font-weight:900; margin:0; }
+        .hero .meta { color:#cbd5e1; font-size:13px; margin-top:6px; }
+        .hero .chips { margin-top:10px; }
+        .chip {
+            display:inline-block; padding:3px 10px; border-radius:6px; font-size:11px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-left:4px; margin-bottom:4px;
+        }
+        .chip.plan { color:#c4b5fd; border-color:#a78bfa55; }
+        .chip.status-active    { color:#86efac; border-color:#22c55e55; }
+        .chip.status-trial     { color:#fcd34d; border-color:#f59e0b55; }
+        .chip.status-suspended { color:#fca5a5; border-color:#ef444466; }
+
+        .hero-actions { display:flex; flex-direction:column; gap:8px; }
+        .btn {
+            padding:9px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
+            text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit; white-space:nowrap;
+        }
+        .btn-primary { background:#7c3aed; color:#fff; }
+        .btn-warn    { background:#f59e0b; color:#0f172a; }
+        .btn-danger  { background:#ef4444; color:#fff; }
+        .btn-ghost   { background:#334155; color:#e2e8f0; }
+        .btn:hover { filter:brightness(1.1); }
+
+        /* ─── Grid layout ─── */
+        .grid { display:grid; grid-template-columns: 2fr 1fr; gap:18px; }
+        @media (max-width:1100px) { .grid { grid-template-columns:1fr; } }
+
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; margin-bottom:14px; }
+        .card h3 {
+            margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px;
+            display:flex; align-items:center; gap:8px;
+        }
+        .card h3 .more { margin-right:auto; font-size:11px; color:#64748b; font-weight:700; }
+        .card h3 .more a { color:#a78bfa; text-decoration:none; }
+
+        /* ─── Stat tiles ─── */
+        .stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:14px; }
+        @media (max-width:700px) { .stats { grid-template-columns:repeat(2,1fr); } }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
+        .stat .num { font-size:24px; font-weight:900; color:#c4b5fd; line-height:1; }
+        .stat .num.ok   { color:#86efac; }
+        .stat .num.warn { color:#fcd34d; }
+        .stat .num.bad  { color:#fca5a5; }
+        .stat .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:4px; }
+
+        /* ─── Lists / tables ─── */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:8px 10px; text-align:right; border-bottom:1px solid #334155; font-size:12px; vertical-align:top; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
+        .ts { color:#94a3b8; white-space:nowrap; font-size:11px; }
+        .pill { font-size:10px; font-weight:900; padding:2px 8px; border-radius:99px; }
+        .pill-paid     { background:#15803d22; color:#86efac; }
+        .pill-issued   { background:#1d4ed822; color:#93c5fd; }
+        .pill-failed   { background:#dc262622; color:#fca5a5; }
+        .pill-void     { background:#33415544; color:#cbd5e1; }
+        .pill-open     { background:#b4530922; color:#fcd34d; }
+        .pill-resolved { background:#15803d22; color:#86efac; }
+
+        /* health bars */
+        .signal-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12px; }
+        .signal-row .lbl-s { width:80px; color:#cbd5e1; }
+        .signal-row .bar { flex:1; background:#0f172a; border-radius:99px; height:6px; overflow:hidden; }
+        .signal-row .fill { height:100%; background:linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); }
+        .signal-row .v { font-weight:900; color:#e2e8f0; width:30px; text-align:left; }
+
+        .reasons { background:#dc262611; border:1px solid #ef444433; padding:10px 14px; border-radius:8px; }
+        .reasons li { font-size:12px; color:#fca5a5; padding:2px 0; }
+
+        .empty { text-align:center; color:#64748b; padding:20px; font-size:12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> /
+        <a href="/superadmin/churn-risk/">🩺 صحة الشركات</a> /
+        <strong>{{ tenant.name }}</strong>
+    </div>
+
+    <!-- ─── Hero ─── -->
+    <div class="hero">
+        <div class="score-big grade-{{ health.grade|default:'F' }}">{{ health.score|default:0 }}</div>
+        <div>
+            <h1>{{ tenant.name }}</h1>
+            <div class="meta">
+                {{ tenant.owner_name|default:"—" }} · {{ tenant.email|default:"بدون email" }} · {{ tenant.phone|default:"—" }}
+            </div>
+            <div class="chips">
+                <span class="chip">{{ tenant.schema_name }}</span>
+                <span class="chip plan">{{ tenant.get_plan_display }}</span>
+                <span class="chip status-{{ tenant.status }}">{{ tenant.get_status_display }}</span>
+                <span class="chip">انضم {{ tenant.created_on|date:"Y-m-d" }}</span>
+                {% if tenant.industry %}<span class="chip">{{ tenant.get_industry_display }}</span>{% endif %}
+                {% if tenant.is_fraud_flagged %}<span class="chip" style="color:#fca5a5; border-color:#ef444466;">🚨 fraud flag</span>{% endif %}
+            </div>
+        </div>
+        <div class="hero-actions">
+            <a href="/superadmin/enter/{{ tenant.schema_name }}/" target="_blank" class="btn btn-primary">
+                <i class="fas fa-arrow-right-to-bracket"></i> دخول للحساب
+            </a>
+            <a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
+                <i class="fas fa-clipboard-list"></i> سجل التدقيق
+            </a>
+            <a href="/superadmin/support/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
+                <i class="fas fa-life-ring"></i> الدعم
+            </a>
+        </div>
+    </div>
+
+    <!-- ─── Quick stats ─── -->
+    <div class="stats">
+        <div class="stat">
+            <div class="num {% if days_left and days_left > 7 %}ok{% elif days_left and days_left >= 0 %}warn{% else %}bad{% endif %}">
+                {% if trial_days_left is not None %}{{ trial_days_left }}
+                {% elif days_left is not None %}{{ days_left }}
+                {% else %}—{% endif %}
+            </div>
+            <div class="lbl">
+                {% if trial_days_left is not None %}يوم متبقي على التجربة
+                {% elif days_left is not None %}يوم متبقي على الاشتراك
+                {% else %}بدون تاريخ انتهاء{% endif %}
+            </div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> ج.م</span></div>
+            <div class="lbl">إجمالي المدفوع</div>
+        </div>
+        <div class="stat">
+            <div class="num {% if visits_7d > 50 %}ok{% elif visits_7d > 0 %}warn{% else %}bad{% endif %}">{{ visits_7d }}</div>
+            <div class="lbl">زيارات آخر 7 أيام</div>
+        </div>
+        <div class="stat">
+            <div class="num {% if unresolved_errors %}bad{% endif %}">{{ unresolved_errors }}</div>
+            <div class="lbl">أخطاء غير محلولة</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- ─── Left column ─── -->
+        <div>
+            <!-- Health signals -->
+            <div class="card">
+                <h3><i class="fas fa-heart-pulse"></i> تشريح درجة الصحة</h3>
+                {% for name, label in health.signals.items %}
+                    <div class="signal-row">
+                        <span class="lbl-s">
+                            {% if name == 'subscription' %}الاشتراك
+                            {% elif name == 'activity' %}النشاط
+                            {% elif name == 'tenure' %}عمر الحساب
+                            {% elif name == 'support' %}الدعم
+                            {% elif name == 'trust' %}الثقة
+                            {% else %}{{ name }}{% endif %}
+                        </span>
+                        <span class="bar"><span class="fill" style="width:{{ label }}%;"></span></span>
+                        <span class="v">{{ label }}</span>
+                    </div>
+                {% endfor %}
+                {% if health.reasons %}
+                    <ul class="reasons" style="margin:12px 0 0; padding-right:20px;">
+                        {% for r in health.reasons %}<li>{{ r }}</li>{% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            <!-- Billing -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-file-invoice-dollar"></i> الفواتير (آخر 20)
+                    <span class="more">المدفوع: <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} ج.م</strong> · المستحق: <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} ج.م</strong></span>
+                </h3>
+                {% if invoices %}
+                    <table>
+                        <thead><tr>
+                            <th>الرقم</th><th>الفترة</th><th>الإجمالي</th><th>الحالة</th><th>الإصدار</th>
+                        </tr></thead>
+                        <tbody>
+                            {% for inv in invoices %}
+                                <tr>
+                                    <td style="color:#e2e8f0; font-family:monospace;" dir="ltr">{{ inv.invoice_number|default:"—" }}</td>
+                                    <td class="ts">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</td>
+                                    <td>{{ inv.total|floatformat:0 }} {{ inv.currency }}</td>
+                                    <td><span class="pill pill-{{ inv.status }}">{{ inv.status }}</span></td>
+                                    <td class="ts">{{ inv.issued_at|date:"Y-m-d H:i" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد فواتير بعد.</div>
+                {% endif %}
+            </div>
+
+            <!-- Top pages -->
+            <div class="card">
+                <h3><i class="fas fa-fire"></i> أكثر الصفحات زيارة (30 يوم)</h3>
+                {% if top_pages %}
+                    <table>
+                        <tbody>
+                            {% for p in top_pages %}
+                                <tr>
+                                    <td style="color:#e2e8f0;" dir="ltr">{{ p.path|truncatechars:80 }}</td>
+                                    <td style="width:60px;"><span class="pill pill-issued">{{ p.n }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد بيانات تصفّح في آخر 30 يوم.</div>
+                {% endif %}
+            </div>
+
+            <!-- Errors -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-triangle-exclamation"></i> آخر الأخطاء (10)
+                    <span class="more">آخر 30 يوم: <strong>{{ errors_30d }}</strong></span>
+                </h3>
+                {% if recent_errors %}
+                    <table>
+                        <thead><tr><th>الوقت</th><th>الحالة</th><th>الاستثناء</th><th>الحالة</th></tr></thead>
+                        <tbody>
+                            {% for e in recent_errors %}
+                                <tr>
+                                    <td class="ts">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>{{ e.status_code }}</td>
+                                    <td style="color:#e2e8f0;">{{ e.exception_class|default:"—" }}<br><span class="ts">{{ e.message|truncatechars:80 }}</span></td>
+                                    <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}محلول{% else %}مفتوح{% endif %}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد أخطاء — رائع!</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ─── Right column ─── -->
+        <div>
+            <!-- Usage summary -->
+            <div class="card">
+                <h3><i class="fas fa-chart-simple"></i> ملخص الاستخدام</h3>
+                <table>
+                    <tr><td>زيارات آخر 7 يوم</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_7d }}</td></tr>
+                    <tr><td>زيارات آخر 30 يوم</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_30d }}</td></tr>
+                    <tr><td>المستخدمون</td><td style="text-align:left; font-weight:900;">{{ users_active|default:"—" }}<span style="color:#64748b;"> / {{ users_total|default:"—" }}</span></td></tr>
+                    <tr><td>آخر زيارة</td><td style="text-align:left;" class="ts">
+                        {% if last_visit %}{{ last_visit.timestamp|date:"Y-m-d H:i" }}<br><span style="color:#64748b;">{{ last_visit.path|truncatechars:30 }}</span>{% else %}—{% endif %}
+                    </td></tr>
+                </table>
+            </div>
+
+            <!-- Marketplace -->
+            <div class="card">
+                <h3><i class="fas fa-store"></i> السوق (B2B)</h3>
+                <table>
+                    <tr><td>قطع الغيار النشطة</td><td style="text-align:left; font-weight:900; color:#86efac;">{{ listings_active }}</td></tr>
+                    <tr><td>إجمالي القطع المعروضة</td><td style="text-align:left; font-weight:900;">{{ listings_total }}</td></tr>
+                    <tr><td>نزاعات مفتوحة</td><td style="text-align:left; font-weight:900; {% if disputes_open %}color:#fcd34d;{% endif %}">{{ disputes_open }}</td></tr>
+                    {% if tenant.market_rating %}
+                        <tr><td>التقييم</td><td style="text-align:left; font-weight:900;">⭐ {{ tenant.market_rating|floatformat:2 }}</td></tr>
+                    {% endif %}
+                    {% if tenant.is_verified_merchant %}
+                        <tr><td>التوثيق</td><td style="text-align:left;"><span class="pill pill-resolved">✓ موثق</span></td></tr>
+                    {% endif %}
+                </table>
+            </div>
+
+            <!-- Support tickets -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-life-ring"></i> تذاكر الدعم
+                    <span class="more">مغلق: {{ closed_tickets_count }}</span>
+                </h3>
+                {% if open_tickets %}
+                    <table>
+                        <tbody>
+                            {% for t in open_tickets %}
+                                <tr>
+                                    <td>
+                                        <a href="/superadmin/support/{{ t.id }}/" style="color:#e2e8f0; text-decoration:none;">{{ t.subject|truncatechars:50 }}</a><br>
+                                        <span class="ts">{{ t.created_at|date:"Y-m-d" }} · {{ t.priority }}</span>
+                                    </td>
+                                    <td style="width:70px;"><span class="pill pill-open">{{ t.status }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد تذاكر مفتوحة.</div>
+                {% endif %}
+            </div>
+
+            <!-- Recent audit -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-clipboard-list"></i> آخر الأحداث
+                    <span class="more"><a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}">الكل ←</a></span>
+                </h3>
+                {% if events %}
+                    {% for e in events %}
+                        <div style="padding:7px 0; border-bottom:1px dashed #334155; font-size:12px;">
+                            <div style="color:#e2e8f0;">{{ e.description|truncatechars:90 }}</div>
+                            <div class="ts">{{ e.timestamp|date:"Y-m-d H:i" }} · {{ e.user_name|default:"—" }} · <span style="color:#a78bfa;">{{ e.event_type }}</span></div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty">لا توجد أحداث.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

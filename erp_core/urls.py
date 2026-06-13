@@ -465,6 +465,9 @@ urlpatterns = [
     # 🔍 Quick search (backs the ⌘K palette)
     path('superadmin/api/quick-search/', saas_admin_views.quick_search, name='saas_quick_search'),
 
+    # 🧭 Tenant 360 — single page with everything about one tenant
+    path('superadmin/tenant/<int:tenant_id>/360/', saas_admin_views.tenant_360, name='saas_tenant_360'),
+
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
     path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),
     path('superadmin/parts/moderation/<int:listing_id>/approve/', saas_admin_views.parts_moderation_approve, name='saas_parts_moderation_approve'),
