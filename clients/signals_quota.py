@@ -113,64 +113,94 @@ def _enforce_feature(*, instance, feature_code: str, label_ar: str, upgrade_hint
 # the apps registry isn't ready yet. We wire receivers as soon as the
 # AppConfig.ready() pulls this module in.
 # ─────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────
+# Receivers
+# -----------
+# Module-level functions, not closures, on purpose: Django's signal
+# dispatcher holds receivers via weak references by default, so any
+# function defined inside a helper goes out of scope the moment the
+# helper returns and gets garbage-collected before its first fire.
+# An earlier revision of this module shipped exactly that bug —
+# receivers were closures inside _connect(); the signals were silently
+# dead in production. ``weak=False`` belt-and-braces but module-level
+# is the real fix.
+# ─────────────────────────────────────────────────────────────────────
+def _quota_user(sender, instance, **kwargs):
+    _enforce(
+        instance=instance, model_cls=sender,
+        allowed_attr='total_allowed_users',
+        label_ar='المستخدمين',
+        upgrade_hint='اشترِ مستخدمين إضافيين أو ترقّى لباقة أعلى.',
+    )
+
+
+def _quota_branch(sender, instance, **kwargs):
+    _enforce(
+        instance=instance, model_cls=sender,
+        allowed_attr='total_allowed_branches',
+        label_ar='الفروع',
+        upgrade_hint='اشترِ فرع إضافي أو ترقّى لباقة أعلى.',
+    )
+
+
+def _quota_treasury(sender, instance, **kwargs):
+    _enforce(
+        instance=instance, model_cls=sender,
+        allowed_attr='total_allowed_treasuries',
+        label_ar='الخزائن',
+        upgrade_hint='اشترِ خزنة إضافية أو ترقّى لباقة أعلى.',
+    )
+
+
+def _ent_fleet_contracts(sender, instance, **kwargs):
+    _enforce_feature(
+        instance=instance,
+        feature_code='workshop_fleet_contracts',
+        label_ar='عقود أساطيل الصيانة',
+        upgrade_hint='ميزة Empire — ترقّى لاستخدامها.',
+    )
+
+
+def _ent_designer_worklog(sender, instance, **kwargs):
+    _enforce_feature(
+        instance=instance,
+        feature_code='print_designer_worklog',
+        label_ar='سجل أعمال المصممين',
+        upgrade_hint='متاح في Pro + Enterprise — ترقّى للاستخدام.',
+    )
+
+
 def _connect():
     from django.contrib.auth import get_user_model
     from inventory.models import Branch, MaintenanceContract, Treasury
 
     User = get_user_model()
 
-    @receiver(pre_save, sender=User, dispatch_uid='quota_enforce_user')
-    def _quota_user(sender, instance, **kwargs):
-        _enforce(
-            instance=instance, model_cls=User,
-            allowed_attr='total_allowed_users',
-            label_ar='المستخدمين',
-            upgrade_hint='اشترِ مستخدمين إضافيين أو ترقّى لباقة أعلى.',
-        )
+    pre_save.connect(
+        _quota_user, sender=User, weak=False,
+        dispatch_uid='quota_enforce_user',
+    )
+    pre_save.connect(
+        _quota_branch, sender=Branch, weak=False,
+        dispatch_uid='quota_enforce_branch',
+    )
+    pre_save.connect(
+        _quota_treasury, sender=Treasury, weak=False,
+        dispatch_uid='quota_enforce_treasury',
+    )
+    pre_save.connect(
+        _ent_fleet_contracts, sender=MaintenanceContract, weak=False,
+        dispatch_uid='entitlement_fleet_contracts',
+    )
 
-    @receiver(pre_save, sender=Branch, dispatch_uid='quota_enforce_branch')
-    def _quota_branch(sender, instance, **kwargs):
-        _enforce(
-            instance=instance, model_cls=Branch,
-            allowed_attr='total_allowed_branches',
-            label_ar='الفروع',
-            upgrade_hint='اشترِ فرع إضافي أو ترقّى لباقة أعلى.',
-        )
-
-    @receiver(pre_save, sender=Treasury, dispatch_uid='quota_enforce_treasury')
-    def _quota_treasury(sender, instance, **kwargs):
-        _enforce(
-            instance=instance, model_cls=Treasury,
-            allowed_attr='total_allowed_treasuries',
-            label_ar='الخزائن',
-            upgrade_hint='اشترِ خزنة إضافية أو ترقّى لباقة أعلى.',
-        )
-
-    # ── Boolean-entitlement guards ───────────────────────────────────
-    @receiver(pre_save, sender=MaintenanceContract,
-              dispatch_uid='entitlement_fleet_contracts')
-    def _ent_fleet_contracts(sender, instance, **kwargs):
-        _enforce_feature(
-            instance=instance,
-            feature_code='workshop_fleet_contracts',
-            label_ar='عقود أساطيل الصيانة',
-            upgrade_hint='ميزة Empire — ترقّى لاستخدامها.',
-        )
-
-    # DesignerWorkLog lives in the printing app — connect lazily so the
+    # DesignerWorkLog lives in the printing app — wire lazily so the
     # signal still fires if printing app is installed.
     try:
         from printing.models import DesignerWorkLog
-
-        @receiver(pre_save, sender=DesignerWorkLog,
-                  dispatch_uid='entitlement_designer_worklog')
-        def _ent_designer_worklog(sender, instance, **kwargs):
-            _enforce_feature(
-                instance=instance,
-                feature_code='print_designer_worklog',
-                label_ar='سجل أعمال المصممين',
-                upgrade_hint='متاح في Pro + Enterprise — ترقّى للاستخدام.',
-            )
+        pre_save.connect(
+            _ent_designer_worklog, sender=DesignerWorkLog, weak=False,
+            dispatch_uid='entitlement_designer_worklog',
+        )
     except ImportError:
         logger.debug("[QUOTA] printing app not installed; skipping DesignerWorkLog guard")
 
@@ -178,3 +208,7 @@ def _connect():
 
 
 _connect()
+
+# Unused import — kept for completeness of the public API the
+# `@receiver` decorator would have given us.
+_ = receiver
