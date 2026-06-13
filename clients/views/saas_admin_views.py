@@ -1011,3 +1011,87 @@ def marketplace_requests_list(request):
             ('expired', 'منتهي الصلاحية'),
         ],
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 📜 Audit Log — full PlatformEvent viewer
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def audit_log_list(request):
+    """
+    سجل أحداث المنصة الكامل (PlatformEvent) — فلاتر + بحث + pagination.
+    GET params:
+      - event_type, tenant, user → exact match
+      - q → بحث في description
+      - from, to → نطاق زمني (YYYY-MM-DD)
+      - page
+    """
+    from django.core.paginator import Paginator
+    from datetime import datetime
+
+    qs = PlatformEvent.objects.all().order_by('-timestamp')
+
+    event_type = (request.GET.get('event_type') or '').strip()
+    tenant = (request.GET.get('tenant') or '').strip()
+    user_q = (request.GET.get('user') or '').strip()
+    q = (request.GET.get('q') or '').strip()
+    date_from = (request.GET.get('from') or '').strip()
+    date_to = (request.GET.get('to') or '').strip()
+
+    if event_type:
+        qs = qs.filter(event_type=event_type)
+    if tenant:
+        qs = qs.filter(tenant_schema__iexact=tenant)
+    if user_q:
+        qs = qs.filter(user_name__icontains=user_q)
+    if q:
+        qs = qs.filter(
+            Q(description__icontains=q)
+            | Q(tenant_name__icontains=q)
+            | Q(user_name__icontains=q)
+        )
+    if date_from:
+        try:
+            d = datetime.strptime(date_from, '%Y-%m-%d').date()
+            qs = qs.filter(timestamp__date__gte=d)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d = datetime.strptime(date_to, '%Y-%m-%d').date()
+            qs = qs.filter(timestamp__date__lte=d)
+        except ValueError:
+            pass
+
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    # تجميعات سريعة للسايد بانل
+    total = PlatformEvent.objects.count()
+    by_type = (
+        PlatformEvent.objects.values('event_type')
+        .annotate(n=Count('id')).order_by('-n')
+    )
+    top_tenants = (
+        PlatformEvent.objects.exclude(tenant_schema='')
+        .values('tenant_schema', 'tenant_name')
+        .annotate(n=Count('id')).order_by('-n')[:10]
+    )
+    top_users = (
+        PlatformEvent.objects.exclude(user_name='')
+        .values('user_name').annotate(n=Count('id')).order_by('-n')[:10]
+    )
+
+    return render(request, 'clients/saas_admin/audit_log.html', {
+        'page_obj': page_obj,
+        'filters': {
+            'event_type': event_type, 'tenant': tenant, 'user': user_q,
+            'q': q, 'from': date_from, 'to': date_to,
+        },
+        'event_types': PlatformEvent.EVENT_TYPES,
+        'total': total,
+        'filtered_count': qs.count(),
+        'by_type': list(by_type),
+        'top_tenants': list(top_tenants),
+        'top_users': list(top_users),
+    })

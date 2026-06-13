@@ -1,0 +1,291 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>سجل التدقيق — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1500px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+
+        .grid { display:grid; grid-template-columns: 1fr 280px; gap:18px; }
+        @media (max-width:1024px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; }
+        .card h3 { margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px; }
+
+        /* Filter bar */
+        .filters { display:grid; grid-template-columns: repeat(6, 1fr); gap:10px; margin-bottom:14px; }
+        @media (max-width:1100px) { .filters { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width:600px)  { .filters { grid-template-columns: repeat(2, 1fr); } }
+        .filters label { display:block; font-size:11px; color:#94a3b8; font-weight:700; margin-bottom:4px; }
+        .filters input, .filters select {
+            width:100%; padding:8px 10px; background:#0f172a; color:#e2e8f0;
+            border:1px solid #334155; border-radius:8px; font-family:inherit; font-size:13px;
+        }
+        .filters input:focus, .filters select:focus { outline:none; border-color:#a78bfa; }
+        .filters-actions { display:flex; gap:8px; align-items:flex-end; }
+        .btn {
+            padding:9px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
+            text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+        }
+        .btn-primary { background:#7c3aed; color:#fff; }
+        .btn-primary:hover { background:#6d28d9; }
+        .btn-ghost { background:#334155; color:#e2e8f0; }
+        .btn-ghost:hover { background:#475569; }
+
+        /* Stat strip */
+        .stats { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:14px; }
+        @media (max-width:700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
+        .stat .num { font-size:24px; font-weight:900; color:#c4b5fd; }
+        .stat .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:2px; }
+
+        /* Events table */
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; letter-spacing:0.5px; }
+        tr:hover { background:#293548; }
+        td.desc { color:#e2e8f0; max-width:480px; }
+        td.ts { color:#94a3b8; white-space:nowrap; font-size:12px; }
+
+        .badge {
+            display:inline-block; padding:3px 10px; border-radius:99px; font-size:10px; font-weight:900;
+            letter-spacing:0.3px;
+        }
+        .b-signup       { background:#15803d22; color:#86efac; }
+        .b-login        { background:#1d4ed822; color:#93c5fd; }
+        .b-payment      { background:#0e749022; color:#5eead4; }
+        .b-subscription { background:#0e749022; color:#5eead4; }
+        .b-suspension   { background:#b4530922; color:#fcd34d; }
+        .b-fraud_flag   { background:#dc262622; color:#fca5a5; }
+        .b-invoice      { background:#7c3aed22; color:#c4b5fd; }
+        .b-error        { background:#dc262622; color:#fca5a5; }
+        .b-other        { background:#33415522; color:#cbd5e1; }
+
+        .chip {
+            display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+        }
+
+        /* Side panel */
+        .side-list { list-style:none; margin:0; padding:0; }
+        .side-list li {
+            display:flex; justify-content:space-between; align-items:center;
+            padding:7px 0; border-bottom:1px dashed #334155; font-size:12px;
+        }
+        .side-list li:last-child { border:none; }
+        .side-list a { color:#e2e8f0; text-decoration:none; }
+        .side-list a:hover { color:#a78bfa; }
+        .side-list .n {
+            background:#7c3aed22; color:#c4b5fd; padding:1px 8px;
+            border-radius:99px; font-weight:900; font-size:11px;
+        }
+
+        /* Pagination */
+        .pager { display:flex; gap:6px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+        .pager a, .pager span {
+            padding:7px 12px; border-radius:8px; background:#1e293b; color:#cbd5e1;
+            text-decoration:none; font-size:12px; font-weight:700; border:1px solid #334155;
+        }
+        .pager a:hover { background:#334155; }
+        .pager .active { background:#7c3aed; color:#fff; border-color:#a78bfa; }
+        .pager .disabled { opacity:0.4; cursor:not-allowed; }
+
+        .empty { text-align:center; padding:60px 20px; color:#64748b; font-size:14px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / سجل التدقيق
+    </div>
+    <h1>📜 سجل التدقيق (Audit Log)</h1>
+    <p class="sub">كل أحداث المنصة الحساسة في مكان واحد — لمن، ومتى، وعلى أي شركة. اعمل فلتر، صدّر، حلّل.</p>
+
+    <!-- Stats strip -->
+    <div class="stats">
+        <div class="stat">
+            <div class="num">{{ total }}</div>
+            <div class="lbl">إجمالي الأحداث</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ filtered_count }}</div>
+            <div class="lbl">بعد الفلتر</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ top_tenants|length }}</div>
+            <div class="lbl">شركات لها أحداث</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ top_users|length }}</div>
+            <div class="lbl">مستخدمون نشطون</div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- ─── Main column: filters + table ─── -->
+        <div>
+            <div class="card">
+                <form method="get" id="filterForm">
+                    <div class="filters">
+                        <div>
+                            <label>نوع الحدث</label>
+                            <select name="event_type">
+                                <option value="">كل الأنواع</option>
+                                {% for code, label in event_types %}
+                                    <option value="{{ code }}" {% if filters.event_type == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label>الشركة (schema)</label>
+                            <input type="text" name="tenant" value="{{ filters.tenant }}" placeholder="qatest, fixit_new_cairo …">
+                        </div>
+                        <div>
+                            <label>المستخدم</label>
+                            <input type="text" name="user" value="{{ filters.user }}" placeholder="username">
+                        </div>
+                        <div>
+                            <label>من تاريخ</label>
+                            <input type="date" name="from" value="{{ filters.from }}">
+                        </div>
+                        <div>
+                            <label>إلى تاريخ</label>
+                            <input type="date" name="to" value="{{ filters.to }}">
+                        </div>
+                        <div>
+                            <label>بحث في الوصف</label>
+                            <input type="text" name="q" value="{{ filters.q }}" placeholder="كلمة …">
+                        </div>
+                    </div>
+                    <div class="filters-actions">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> تطبيق</button>
+                        <a href="?" class="btn btn-ghost"><i class="fas fa-rotate-left"></i> إعادة تعيين</a>
+                    </div>
+                </form>
+            </div>
+
+            <div style="margin-top:14px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:140px;">الوقت</th>
+                            <th style="width:130px;">النوع</th>
+                            <th style="width:160px;">الشركة</th>
+                            <th style="width:130px;">المستخدم</th>
+                            <th>الوصف</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ev in page_obj %}
+                            <tr>
+                                <td class="ts">
+                                    {{ ev.timestamp|date:"Y-m-d" }}<br>
+                                    <span style="color:#64748b;">{{ ev.timestamp|date:"H:i:s" }}</span>
+                                </td>
+                                <td><span class="badge b-{{ ev.event_type }}">{{ ev.get_event_type_display }}</span></td>
+                                <td>
+                                    {% if ev.tenant_name %}
+                                        <strong style="color:#e2e8f0;">{{ ev.tenant_name }}</strong><br>
+                                        <span class="chip">{{ ev.tenant_schema }}</span>
+                                    {% else %}
+                                        <span style="color:#64748b;">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if ev.user_name %}
+                                        <span class="chip">{{ ev.user_name }}</span>
+                                    {% else %}
+                                        <span style="color:#64748b;">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="desc">{{ ev.description }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="5"><div class="empty">
+                                <i class="fas fa-clipboard" style="font-size:32px; color:#475569;"></i>
+                                <p>لا توجد أحداث مطابقة للفلاتر الحالية.</p>
+                            </div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if page_obj.paginator.num_pages > 1 %}
+                <div class="pager">
+                    {% if page_obj.has_previous %}
+                        <a href="?{% for k,v in filters.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"><i class="fas fa-chevron-right"></i></a>
+                    {% else %}
+                        <span class="disabled"><i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+
+                    <span class="active">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?{% for k,v in filters.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"><i class="fas fa-chevron-left"></i></a>
+                    {% else %}
+                        <span class="disabled"><i class="fas fa-chevron-left"></i></span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ─── Side panel: aggregates ─── -->
+        <div>
+            <div class="card" style="margin-bottom:14px;">
+                <h3>📊 توزيع الأنواع</h3>
+                <ul class="side-list">
+                    {% for row in by_type %}
+                        <li>
+                            <a href="?event_type={{ row.event_type }}">
+                                <span class="badge b-{{ row.event_type }}">{{ row.event_type }}</span>
+                            </a>
+                            <span class="n">{{ row.n }}</span>
+                        </li>
+                    {% empty %}
+                        <li style="color:#64748b;">لا توجد بيانات</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="card" style="margin-bottom:14px;">
+                <h3>🏢 أنشط الشركات</h3>
+                <ul class="side-list">
+                    {% for row in top_tenants %}
+                        <li>
+                            <a href="?tenant={{ row.tenant_schema }}">
+                                {{ row.tenant_name|default:row.tenant_schema }}
+                            </a>
+                            <span class="n">{{ row.n }}</span>
+                        </li>
+                    {% empty %}
+                        <li style="color:#64748b;">لا توجد بيانات</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>👤 أنشط المستخدمين</h3>
+                <ul class="side-list">
+                    {% for row in top_users %}
+                        <li>
+                            <a href="?user={{ row.user_name }}">{{ row.user_name }}</a>
+                            <span class="n">{{ row.n }}</span>
+                        </li>
+                    {% empty %}
+                        <li style="color:#64748b;">لا توجد بيانات</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
