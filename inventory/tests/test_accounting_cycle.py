@@ -32,13 +32,14 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
     """AccountingEntry.clean() must enforce single-sided entries."""
 
     def _make_account(self, code, name, account_type='asset'):
-        return ChartOfAccount.objects.create(
-            code=code, name=name, account_type=account_type,
+        obj, _ = ChartOfAccount.objects.get_or_create(
+            code=code, defaults={'name': name, 'account_type': account_type},
         )
+        return obj
 
     def test_debit_only_entry_is_valid(self):
         """An entry with only debit > 0 is valid."""
-        acct = self._make_account('1001', 'نقدية اختبار', 'asset')
+        acct = self._make_account('TST-D01', 'نقدية اختبار', 'asset')
         entry = AccountingEntry(
             reference='TEST-001',
             description='قيد مدين',
@@ -50,7 +51,7 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
 
     def test_credit_only_entry_is_valid(self):
         """An entry with only credit > 0 is valid."""
-        acct = self._make_account('4001', 'إيرادات اختبار', 'revenue')
+        acct = self._make_account('TST-C01', 'إيرادات اختبار', 'revenue')
         entry = AccountingEntry(
             reference='TEST-002',
             description='قيد دائن',
@@ -62,7 +63,7 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
 
     def test_both_debit_and_credit_raises(self):
         """An entry cannot have both debit > 0 and credit > 0."""
-        acct = self._make_account('1002', 'حساب مختلط', 'asset')
+        acct = self._make_account('TST-M01', 'حساب مختلط', 'asset')
         entry = AccountingEntry(
             reference='TEST-003',
             description='قيد مختلط خاطئ',
@@ -75,7 +76,7 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
 
     def test_zero_debit_and_zero_credit_raises(self):
         """An entry cannot have both debit = 0 and credit = 0."""
-        acct = self._make_account('1003', 'حساب صفري', 'asset')
+        acct = self._make_account('TST-Z01', 'حساب صفري', 'asset')
         entry = AccountingEntry(
             reference='TEST-004',
             description='قيد صفري خاطئ',
@@ -88,8 +89,8 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
 
     def test_validate_balanced_passes_for_balanced_entries(self):
         """validate_balanced() must pass when debit total == credit total."""
-        cash_acct = self._make_account('1010', 'خزينة', 'asset')
-        rev_acct = self._make_account('4010', 'إيرادات', 'revenue')
+        cash_acct = self._make_account('TST-B01', 'خزينة', 'asset')
+        rev_acct = self._make_account('TST-B02', 'إيرادات', 'revenue')
         ref = 'BALANCED-001'
         AccountingEntry.objects.create(
             reference=ref, description='مدين', account=cash_acct,
@@ -104,7 +105,7 @@ class AccountingEntryValidationTests(ERPTenantTestCase):
 
     def test_validate_balanced_raises_for_unbalanced_entries(self):
         """validate_balanced() must raise when entries are not balanced."""
-        acct = self._make_account('1011', 'خزينة اختبار', 'asset')
+        acct = self._make_account('TST-U01', 'خزينة اختبار', 'asset')
         ref = 'UNBALANCED-001'
         AccountingEntry.objects.create(
             reference=ref, description='مدين وحيد', account=acct,
