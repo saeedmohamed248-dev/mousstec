@@ -26,7 +26,7 @@ import re
 import logging
 import concurrent.futures
 
-from .ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
+from ..ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
 from clients.models import GlobalB2BMarketplace, Client, BlindBiddingRequest
 from clients.services.entitlements import require_feature
 
@@ -36,7 +36,7 @@ try:
 except ImportError:
     qrcode = None
 
-from .models import (
+from ..models import (
     Product, Inventory, SaleInvoice, SaleInvoiceItem, Branch,
     Customer, Vehicle, ScrapDismantlingJob, ScrapDismantlingYield,
     FinancialTransaction, EmployeeShift, MaintenanceContract, Treasury,
@@ -2648,8 +2648,8 @@ def commission_dashboard(request):
     """GET /system/commissions/ — list outstanding commission balances.
     POST /system/commissions/ — settle selected employees from chosen treasury.
     """
-    from .models import EmployeeProfile, Treasury
-    from .services.treasury_service import TreasuryService
+    from ..models import EmployeeProfile, Treasury
+    from ..services.treasury_service import TreasuryService
 
     branch = _get_branch_for_user(request.user)
 
