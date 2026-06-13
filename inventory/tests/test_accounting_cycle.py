@@ -124,16 +124,18 @@ class CommissionLedgerTests(ERPTenantTestCase):
     def setUp(self):
         from inventory.models import EmployeeProfile
         from django.contrib.auth.models import User
+        import uuid
 
         self.branch = make_branch()
         self.customer = make_customer()
         self.treasury = make_treasury(self.branch, balance='5000.00')
         self.product = make_product(
-            part_number='SVC-001', retail_price='500.00', average_cost='200.00',
+            part_number=f'SVC-{uuid.uuid4().hex[:6]}', retail_price='500.00', average_cost='200.00',
         )
         make_inventory(self.product, self.branch, quantity=10)
 
-        user = User.objects.create_user('tech_user_test', password='x')
+        uname = f'tech_{uuid.uuid4().hex[:8]}'
+        user = User.objects.create_user(uname, password='x')
         self.tech_profile = EmployeeProfile.objects.create(
             user=user,
             role='tech',
@@ -351,38 +353,53 @@ class InventoryConservationTests(ERPTenantTestCase):
 # EscrowHold conservation
 # ──────────────────────────────────────────────────────────────────────────────
 class EscrowHoldConservationTests(ERPTenantTestCase):
-    """EscrowHold disbursements must never exceed held_amount."""
+    """
+    EscrowHold disbursements must never exceed held_amount.
 
-    def _make_escrow_hold(self, held, seller, buyer, commission, status='held'):
-        from clients.models import EscrowHold, PartOrder, PartListing, MarketplaceCustomer
-        from django.contrib.auth.models import User
+    These tests live in ERPTenantTestCase only because the shared test
+    database is managed centrally. EscrowHold itself lives in the public
+    schema, so we access it without schema_context.
+    """
 
-        user = User.objects.create_user(
-            f'mkt_{PartListing.objects.count()}', password='x'
+    _phone_seq = 8800000000
+
+    def _next_phone(self):
+        EscrowHoldConservationTests._phone_seq += 1
+        return str(EscrowHoldConservationTests._phone_seq)
+
+    def _make_marketplace_customer(self):
+        from clients.models import MarketplaceCustomer
+        return MarketplaceCustomer.objects.using('default').create(
+            customer_type='individual',
+            full_name='اختبار مالي',
+            phone=self._next_phone(),
         )
-        mkt_customer = MarketplaceCustomer.objects.create(
-            user=user,
-            phone='01000000001',
-            display_name='مشتري اختبار',
+
+    def _make_escrow_hold(self, held, seller, buyer, commission):
+        from clients.models import EscrowHold, PartOrder, PartListing
+        from django.db import connection as _conn
+        _conn.set_schema_to_public()
+
+        seller_cust = self._make_marketplace_customer()
+        buyer_cust = self._make_marketplace_customer()
+
+        listing = PartListing.objects.using('default').create(
+            seller_customer=seller_cust,
+            title='قطعة اختبار حفاظ مالي',
+            price_egp=Decimal(str(held)),
+            condition='used_good',
+            status='active',
+            moderation_status='approved',
         )
-        listing = PartListing.objects.create(
-            seller=mkt_customer,
-            title='قطعة اختبار',
-            price=Decimal(str(held)),
-            category='engine',
-            condition='used',
-            status='available',
-        )
-        order = PartOrder.objects.create(
+        order = PartOrder.objects.using('default').create(
             listing=listing,
-            buyer=mkt_customer,
+            buyer_customer=buyer_cust,
             amount=Decimal(str(held)),
-            order_code=f'ORD-{PartOrder.objects.count() + 1:06d}',
             status='paid_held',
         )
-        return EscrowHold.objects.create(
+        return EscrowHold.objects.using('default').create(
             order=order,
-            status=status,
+            status='held',
             held_amount=Decimal(str(held)),
             seller_payout_amount=Decimal(str(seller)),
             buyer_refund_amount=Decimal(str(buyer)),
@@ -391,26 +408,20 @@ class EscrowHoldConservationTests(ERPTenantTestCase):
 
     def test_valid_conservation_is_accepted(self):
         """EscrowHold where disbursements <= held_amount should save."""
-        hold = self._make_escrow_hold(
-            held=1000, seller=900, buyer=0, commission=100,
-        )
+        hold = self._make_escrow_hold(held=1000, seller=900, buyer=0, commission=100)
         self.assertIsNotNone(hold.pk)
 
     def test_conservation_violation_raises_integrity_error(self):
-        """EscrowHold where disbursements > held_amount must be rejected by DB."""
+        """EscrowHold where payout + refund + commission > held_amount must be rejected."""
         from django.db import IntegrityError
-
         with self.assertRaises((IntegrityError, Exception)):
             self._make_escrow_hold(
                 held=1000, seller=900, buyer=200, commission=100,
-                # 900 + 200 + 100 = 1200 > 1000 — violates constraint
+                # 900 + 200 + 100 = 1200 > 1000 — violates escrowhold_conservation
             )
 
     def test_negative_amount_raises_integrity_error(self):
-        """Negative disbursement amounts must be rejected by DB constraint."""
+        """Negative disbursement amounts must be rejected by the non-negative constraint."""
         from django.db import IntegrityError
-
         with self.assertRaises((IntegrityError, Exception)):
-            self._make_escrow_hold(
-                held=1000, seller=-100, buyer=0, commission=0,
-            )
+            self._make_escrow_hold(held=1000, seller=-100, buyer=0, commission=0)
