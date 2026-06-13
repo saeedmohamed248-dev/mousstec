@@ -465,7 +465,6 @@ def super_admin_dashboard(request):
     ).select_related('customer', 'design').order_by('-created_at')[:30]
 
     # --- 🛍️ عملاء السوق + إحصائيات نشاطهم ---
-    from django.db.models import Count, Sum
     marketplace_customers = (
         MarketplaceCustomer.objects.all()
         .annotate(
