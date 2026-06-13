@@ -1,0 +1,213 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صحة النظام — Mouss Tec Super Admin</title>
+    <meta http-equiv="refresh" content="30">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+
+        /* Overall status hero */
+        .hero {
+            border-radius:16px; padding:24px; margin-bottom:18px;
+            display:flex; align-items:center; gap:20px;
+            border:1px solid;
+        }
+        .hero.ok       { background:linear-gradient(135deg,#15803d22,#22c55e11); border-color:#22c55e44; }
+        .hero.degraded { background:linear-gradient(135deg,#b4530922,#f59e0b11); border-color:#f59e0b44; }
+        .hero.down     { background:linear-gradient(135deg,#dc262622,#ef444411); border-color:#ef444466; }
+        .hero-icon { font-size:48px; }
+        .hero.ok .hero-icon       { color:#22c55e; }
+        .hero.degraded .hero-icon { color:#f59e0b; }
+        .hero.down .hero-icon     { color:#ef4444; }
+        .hero-text h2 { margin:0; font-size:28px; font-weight:900; }
+        .hero.ok       .hero-text h2 { color:#86efac; }
+        .hero.degraded .hero-text h2 { color:#fcd34d; }
+        .hero.down     .hero-text h2 { color:#fca5a5; }
+        .hero-text p { margin:4px 0 0; color:#cbd5e1; font-size:13px; }
+        .hero-meta { margin-right:auto; text-align:left; font-size:11px; color:#94a3b8; }
+        .hero-meta .now { font-size:18px; color:#e2e8f0; font-weight:700; }
+
+        /* Checks grid */
+        .checks { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+        @media (max-width:900px) { .checks { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:560px) { .checks { grid-template-columns:1fr; } }
+        .check {
+            background:#1e293b; border-radius:12px; padding:16px;
+            border:1px solid #334155; display:flex; align-items:center; gap:14px;
+        }
+        .check .ico {
+            width:46px; height:46px; border-radius:10px;
+            display:flex; align-items:center; justify-content:center;
+            font-size:18px;
+        }
+        .check .info { flex:1; min-width:0; }
+        .check .name { font-weight:900; font-size:14px; color:#e2e8f0; }
+        .check .detail { font-size:12px; color:#94a3b8; margin-top:2px; word-break:break-all; }
+        .check.ok       .ico { background:#22c55e22; color:#86efac; }
+        .check.degraded .ico { background:#f59e0b22; color:#fcd34d; }
+        .check.down     .ico { background:#ef444422; color:#fca5a5; }
+        .check.unknown  .ico { background:#33415544; color:#94a3b8; }
+        .pill {
+            font-size:10px; font-weight:900; padding:3px 10px; border-radius:99px;
+            letter-spacing:0.3px;
+        }
+        .pill.ok       { background:#22c55e22; color:#86efac; }
+        .pill.degraded { background:#f59e0b22; color:#fcd34d; }
+        .pill.down     { background:#ef444422; color:#fca5a5; }
+        .pill.unknown  { background:#33415544; color:#94a3b8; }
+
+        /* App metrics */
+        .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+        @media (max-width:900px) { .metrics { grid-template-columns:repeat(2,1fr); } }
+        .metric { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
+        .metric .num { font-size:26px; font-weight:900; color:#c4b5fd; }
+        .metric .num.warn { color:#fcd34d; }
+        .metric .num.bad  { color:#fca5a5; }
+        .metric .num.ok   { color:#86efac; }
+        .metric .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:2px; }
+
+        /* Slowest table */
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; }
+        .card h3 { margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #334155; font-size:12px; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
+        tr:hover { background:#293548; }
+        .chip {
+            display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+        }
+        .ms-bad  { color:#fca5a5; font-weight:900; }
+        .ms-warn { color:#fcd34d; font-weight:900; }
+        .ms-ok   { color:#86efac; }
+
+        .auto-refresh { font-size:11px; color:#64748b; text-align:center; margin-top:18px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / صحة النظام
+    </div>
+    <h1>⚙️ صحة النظام (System Status)</h1>
+    <p class="sub">لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً.</p>
+
+    <!-- ─── Overall status ─── -->
+    <div class="hero {{ overall }}">
+        <div class="hero-icon">
+            {% if overall == 'ok' %}<i class="fas fa-circle-check"></i>
+            {% elif overall == 'degraded' %}<i class="fas fa-triangle-exclamation"></i>
+            {% else %}<i class="fas fa-circle-xmark"></i>{% endif %}
+        </div>
+        <div class="hero-text">
+            <h2>
+                {% if overall == 'ok' %}كل الأنظمة شغّالة
+                {% elif overall == 'degraded' %}في تدهور أداء
+                {% else %}🚨 يوجد عُطل{% endif %}
+            </h2>
+            <p>
+                {% if overall == 'ok' %}مفيش حاجة محتاجة تدخل دلوقتي.
+                {% elif overall == 'degraded' %}بعض المكونات بتشتغل ببطء — شيك على التفاصيل تحت.
+                {% else %}مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً.{% endif %}
+            </p>
+        </div>
+        <div class="hero-meta">
+            آخر فحص<br>
+            <span class="now">{{ now|date:"H:i:s" }}</span><br>
+            {{ now|date:"Y-m-d" }}
+        </div>
+    </div>
+
+    <!-- ─── Infra checks ─── -->
+    <div class="checks">
+        {% for c in checks %}
+            <div class="check {{ c.status }}">
+                <div class="ico"><i class="fas fa-{{ c.icon }}"></i></div>
+                <div class="info">
+                    <div class="name">{{ c.name }}</div>
+                    <div class="detail">{{ c.detail }}</div>
+                </div>
+                <span class="pill {{ c.status }}">
+                    {% if c.status == 'ok' %}شغّال
+                    {% elif c.status == 'degraded' %}بطيء
+                    {% elif c.status == 'down' %}واقف
+                    {% else %}غير معروف{% endif %}
+                </span>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- ─── App-level metrics ─── -->
+    <div class="metrics">
+        <div class="metric">
+            <div class="num {% if reqs_hour > 1000 %}ok{% elif reqs_hour > 100 %}warn{% endif %}">{{ reqs_hour|default:0 }}</div>
+            <div class="lbl">طلبات في آخر ساعة</div>
+        </div>
+        <div class="metric">
+            <div class="num {% if avg_resp_hour < 200 %}ok{% elif avg_resp_hour < 800 %}warn{% else %}bad{% endif %}">{{ avg_resp_hour|default:0 }}<span style="font-size:14px;color:#64748b;">ms</span></div>
+            <div class="lbl">متوسط زمن الاستجابة</div>
+        </div>
+        <div class="metric">
+            <div class="num ok">{{ active_5m|default:0 }}</div>
+            <div class="lbl">زوار نشطون (آخر 5 دقايق)</div>
+        </div>
+        <div class="metric">
+            <div class="num {% if errors_hour and errors_hour > 5 %}bad{% elif errors_hour and errors_hour > 0 %}warn{% endif %}">{{ errors_hour|default:0 }}</div>
+            <div class="lbl">أخطاء في آخر ساعة</div>
+        </div>
+    </div>
+
+    {% if unresolved_errors %}
+    <div style="background:#dc262611; border:1px solid #dc262644; padding:12px 16px; border-radius:10px; margin-bottom:18px;">
+        <i class="fas fa-bell" style="color:#fca5a5;"></i>
+        <strong style="color:#fca5a5;">{{ unresolved_errors }}</strong> خطأ غير محلول في
+        <a href="/superadmin/errors/" style="color:#a78bfa;">سجل الأخطاء</a> — راجعهم.
+    </div>
+    {% endif %}
+
+    <!-- ─── Slowest requests last hour ─── -->
+    <div class="card">
+        <h3>🐢 أبطأ 10 طلبات (آخر ساعة)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:90px;">الوقت</th>
+                    <th>المسار</th>
+                    <th style="width:120px;">الشركة</th>
+                    <th style="width:80px;">الحالة</th>
+                    <th style="width:100px;">المدة</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in slowest %}
+                    <tr>
+                        <td style="color:#94a3b8;">{{ v.timestamp|date:"H:i:s" }}</td>
+                        <td style="color:#e2e8f0;" dir="ltr">{{ v.path|truncatechars:80 }}</td>
+                        <td>{% if v.tenant_schema %}<span class="chip">{{ v.tenant_schema }}</span>{% else %}—{% endif %}</td>
+                        <td>{{ v.status_code }}</td>
+                        <td>
+                            <span class="{% if v.response_time_ms > 2000 %}ms-bad{% elif v.response_time_ms > 800 %}ms-warn{% else %}ms-ok{% endif %}">
+                                {{ v.response_time_ms }} ms
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">لا توجد بيانات في آخر ساعة.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="auto-refresh"><i class="fas fa-rotate"></i> الصفحة بتـ refresh تلقائياً كل 30 ثانية</p>
+</div>
+</body>
+</html>

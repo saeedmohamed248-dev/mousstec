@@ -1095,3 +1095,156 @@ def audit_log_list(request):
         'top_tenants': list(top_tenants),
         'top_users': list(top_users),
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ⚙️ System Status — DB / Redis / Celery / app health
+# ─────────────────────────────────────────────────────────────────────
+def _check_database():
+    """Ping the DB with `SELECT 1` and time it."""
+    from django.db import connection as _conn
+    import time
+    t0 = time.perf_counter()
+    try:
+        with _conn.cursor() as cur:
+            cur.execute('SELECT 1')
+            cur.fetchone()
+        ms = (time.perf_counter() - t0) * 1000
+        if ms > 500:
+            return {'name': 'PostgreSQL', 'status': 'degraded', 'detail': f'{ms:.0f}ms (بطيء)', 'icon': 'database'}
+        return {'name': 'PostgreSQL', 'status': 'ok', 'detail': f'{ms:.1f}ms', 'icon': 'database'}
+    except Exception as e:
+        return {'name': 'PostgreSQL', 'status': 'down', 'detail': str(e)[:120], 'icon': 'database'}
+
+
+def _check_cache():
+    """Round-trip set/get from the default cache backend."""
+    from django.core.cache import cache
+    import time, secrets
+    key = f'__health_probe_{secrets.token_hex(4)}__'
+    val = secrets.token_hex(8)
+    t0 = time.perf_counter()
+    try:
+        cache.set(key, val, 10)
+        got = cache.get(key)
+        ms = (time.perf_counter() - t0) * 1000
+        if got != val:
+            return {'name': 'Redis Cache', 'status': 'degraded', 'detail': 'set/get mismatch', 'icon': 'bolt'}
+        cache.delete(key)
+        if ms > 200:
+            return {'name': 'Redis Cache', 'status': 'degraded', 'detail': f'{ms:.0f}ms (بطيء)', 'icon': 'bolt'}
+        return {'name': 'Redis Cache', 'status': 'ok', 'detail': f'{ms:.1f}ms', 'icon': 'bolt'}
+    except Exception as e:
+        return {'name': 'Redis Cache', 'status': 'down', 'detail': str(e)[:120], 'icon': 'bolt'}
+
+
+def _check_celery():
+    """Ping live Celery workers."""
+    try:
+        from erp_core.celery import app as celery_app
+    except Exception:
+        try:
+            from celery import current_app as celery_app
+        except Exception as e:
+            return {'name': 'Celery Workers', 'status': 'unknown', 'detail': f'لا يمكن استيراد celery: {e}', 'icon': 'gears'}
+    try:
+        replies = celery_app.control.ping(timeout=1.0) or []
+        n = len(replies)
+        if n == 0:
+            return {'name': 'Celery Workers', 'status': 'down', 'detail': 'لا يوجد عمال نشطون', 'icon': 'gears'}
+        return {'name': 'Celery Workers', 'status': 'ok', 'detail': f'{n} عامل نشط', 'icon': 'gears'}
+    except Exception as e:
+        return {'name': 'Celery Workers', 'status': 'unknown', 'detail': str(e)[:120], 'icon': 'gears'}
+
+
+def _check_resources():
+    """Disk + memory via psutil if available."""
+    out = []
+    try:
+        import psutil
+    except ImportError:
+        return [{'name': 'Disk / Memory', 'status': 'unknown', 'detail': 'psutil غير مثبت — pip install psutil', 'icon': 'microchip'}]
+    try:
+        du = psutil.disk_usage('/')
+        pct = du.percent
+        free_gb = du.free / (1024 ** 3)
+        status = 'ok' if pct < 80 else ('degraded' if pct < 92 else 'down')
+        out.append({
+            'name': 'Disk', 'status': status,
+            'detail': f'{pct:.1f}% مستخدم — {free_gb:.1f} GB متاح', 'icon': 'hard-drive',
+        })
+    except Exception as e:
+        out.append({'name': 'Disk', 'status': 'unknown', 'detail': str(e)[:80], 'icon': 'hard-drive'})
+    try:
+        vm = psutil.virtual_memory()
+        status = 'ok' if vm.percent < 85 else ('degraded' if vm.percent < 95 else 'down')
+        out.append({
+            'name': 'Memory', 'status': status,
+            'detail': f'{vm.percent:.1f}% مستخدم — {vm.available / (1024**3):.1f} GB متاح', 'icon': 'memory',
+        })
+    except Exception as e:
+        out.append({'name': 'Memory', 'status': 'unknown', 'detail': str(e)[:80], 'icon': 'memory'})
+    return out
+
+
+@saas_admin_required
+def system_status(request):
+    """
+    /superadmin/system/ — لقطة لحظية لصحة المنصة.
+    تشمل: DB ping, Redis cache, Celery workers, disk/memory, error rate, response time.
+    """
+    from clients.models import VisitorLog
+    from django.db.models import Avg
+    now = timezone.now()
+    hour_ago = now - timedelta(hours=1)
+    day_ago = now - timedelta(hours=24)
+    five_min_ago = now - timedelta(minutes=5)
+
+    checks = [_check_database(), _check_cache(), _check_celery()] + _check_resources()
+
+    # تحديد الحالة الإجمالية
+    statuses = [c['status'] for c in checks]
+    if 'down' in statuses:
+        overall = 'down'
+    elif 'degraded' in statuses:
+        overall = 'degraded'
+    elif all(s == 'ok' for s in statuses):
+        overall = 'ok'
+    else:
+        overall = 'degraded'
+
+    # App-level metrics
+    try:
+        errors_hour = SystemErrorLog.objects.filter(timestamp__gte=hour_ago).count()
+        errors_day = SystemErrorLog.objects.filter(timestamp__gte=day_ago).count()
+        unresolved = SystemErrorLog.objects.filter(is_resolved=False).count()
+    except Exception:
+        errors_hour = errors_day = unresolved = None
+
+    try:
+        avg_resp_hour = VisitorLog.objects.filter(
+            timestamp__gte=hour_ago, response_time_ms__isnull=False,
+        ).aggregate(avg=Avg('response_time_ms'))['avg'] or 0
+        slowest = VisitorLog.objects.filter(
+            timestamp__gte=hour_ago, response_time_ms__isnull=False,
+        ).order_by('-response_time_ms')[:10].values(
+            'timestamp', 'path', 'response_time_ms', 'status_code', 'tenant_schema',
+        )
+        active_5m = VisitorLog.objects.filter(timestamp__gte=five_min_ago).values('ip_address').distinct().count()
+        reqs_hour = VisitorLog.objects.filter(timestamp__gte=hour_ago).count()
+    except Exception:
+        avg_resp_hour = reqs_hour = active_5m = 0
+        slowest = []
+
+    return render(request, 'clients/saas_admin/system_status.html', {
+        'checks': checks,
+        'overall': overall,
+        'errors_hour': errors_hour,
+        'errors_day': errors_day,
+        'unresolved_errors': unresolved,
+        'avg_resp_hour': int(avg_resp_hour or 0),
+        'reqs_hour': reqs_hour,
+        'active_5m': active_5m,
+        'slowest': list(slowest),
+        'now': now,
+    })
