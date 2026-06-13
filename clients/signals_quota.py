@@ -77,6 +77,37 @@ def _enforce(*, instance, model_cls, allowed_attr: str, label_ar: str, upgrade_h
         )
 
 
+def _enforce_feature(*, instance, feature_code: str, label_ar: str, upgrade_hint: str):
+    """Block creation when the tenant's plan doesn't include the feature.
+
+    Boolean entitlement guard — pairs with the quantitative ``_enforce``
+    above. Updates pass through; only the *first* creation of the row is
+    checked. Public schema is exempt.
+    """
+    if instance.pk:
+        return
+
+    tenant = _current_tenant()
+    if tenant is None:
+        return
+
+    # Local import: EntitlementService imports from clients.models which
+    # may not be fully loaded at module top during apps registry boot.
+    from clients.services.entitlements import EntitlementService
+
+    if EntitlementService.has(tenant, feature_code):
+        return
+
+    logger.warning(
+        f"[ENTITLEMENT] tenant={tenant.schema_name} blocked "
+        f"{instance.__class__.__name__} creation: feature '{feature_code}' "
+        f"not in plan"
+    )
+    raise ValidationError(
+        f"🔒 ميزة {label_ar} غير متاحة في باقتك الحالية. {upgrade_hint}"
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Lazy connect — we can't import inventory.models at module top because
 # the apps registry isn't ready yet. We wire receivers as soon as the
@@ -84,7 +115,7 @@ def _enforce(*, instance, model_cls, allowed_attr: str, label_ar: str, upgrade_h
 # ─────────────────────────────────────────────────────────────────────
 def _connect():
     from django.contrib.auth import get_user_model
-    from inventory.models import Branch, Treasury
+    from inventory.models import Branch, MaintenanceContract, Treasury
 
     User = get_user_model()
 
@@ -115,7 +146,35 @@ def _connect():
             upgrade_hint='اشترِ خزنة إضافية أو ترقّى لباقة أعلى.',
         )
 
-    logger.debug("[QUOTA] pre_save receivers wired for User/Branch/Treasury")
+    # ── Boolean-entitlement guards ───────────────────────────────────
+    @receiver(pre_save, sender=MaintenanceContract,
+              dispatch_uid='entitlement_fleet_contracts')
+    def _ent_fleet_contracts(sender, instance, **kwargs):
+        _enforce_feature(
+            instance=instance,
+            feature_code='workshop_fleet_contracts',
+            label_ar='عقود أساطيل الصيانة',
+            upgrade_hint='ميزة Empire — ترقّى لاستخدامها.',
+        )
+
+    # DesignerWorkLog lives in the printing app — connect lazily so the
+    # signal still fires if printing app is installed.
+    try:
+        from printing.models import DesignerWorkLog
+
+        @receiver(pre_save, sender=DesignerWorkLog,
+                  dispatch_uid='entitlement_designer_worklog')
+        def _ent_designer_worklog(sender, instance, **kwargs):
+            _enforce_feature(
+                instance=instance,
+                feature_code='print_designer_worklog',
+                label_ar='سجل أعمال المصممين',
+                upgrade_hint='متاح في Pro + Enterprise — ترقّى للاستخدام.',
+            )
+    except ImportError:
+        logger.debug("[QUOTA] printing app not installed; skipping DesignerWorkLog guard")
+
+    logger.debug("[QUOTA] pre_save receivers wired (quantitative + boolean)")
 
 
 _connect()

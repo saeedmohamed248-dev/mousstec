@@ -448,7 +448,9 @@ def generate_vehicle_qr(request, chassis_number):
 
 @login_required(login_url='/login/')
 @tenant_required
+@require_feature('workshop_fleet_contracts')
 def fleet_contract_balance_api(request, contract_code):
+    """🔒 Fleet maintenance contract balance — Empire-only feature."""
     contract = get_object_or_404(
         MaintenanceContract, contract_code=contract_code, is_active=True
     )
