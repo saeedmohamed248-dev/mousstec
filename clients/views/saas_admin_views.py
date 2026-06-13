@@ -1187,6 +1187,78 @@ def _check_resources():
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────
+# 🩺 Tenant Health Score — churn-risk dashboard
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def churn_risk(request):
+    """
+    /superadmin/churn-risk/ — تصنيف كل الشركات بدرجة صحة + أسباب الخطر.
+    GET params:
+      - risk  → low|medium|high|critical
+      - grade → A|B|C|D|F
+      - q     → بحث بالاسم/الـ schema
+      - sort  → score (default ascending = worst first) | -score | name
+    """
+    from clients.services.tenant_health import bulk_tenant_health
+
+    risk_filter = (request.GET.get('risk') or '').strip()
+    grade_filter = (request.GET.get('grade') or '').strip().upper()
+    q = (request.GET.get('q') or '').strip()
+    sort = (request.GET.get('sort') or 'score').strip()
+
+    tenants = list(
+        Client.objects.exclude(schema_name='public').filter(is_deleted=False)
+    )
+    if q:
+        ql = q.lower()
+        tenants = [
+            t for t in tenants
+            if ql in (t.name or '').lower() or ql in (t.schema_name or '').lower()
+        ]
+
+    healths = bulk_tenant_health(tenants)
+
+    rows = []
+    for t in tenants:
+        h = healths.get(t.id, {})
+        rows.append({
+            'tenant': t,
+            'score': h.get('score', 0),
+            'grade': h.get('grade', 'F'),
+            'risk': h.get('risk', 'critical'),
+            'signals': h.get('signals', {}),
+            'reasons': h.get('reasons', []),
+        })
+
+    if risk_filter:
+        rows = [r for r in rows if r['risk'] == risk_filter]
+    if grade_filter:
+        rows = [r for r in rows if r['grade'] == grade_filter]
+
+    if sort == '-score':
+        rows.sort(key=lambda r: r['score'], reverse=True)
+    elif sort == 'name':
+        rows.sort(key=lambda r: (r['tenant'].name or '').lower())
+    else:  # default: worst first
+        rows.sort(key=lambda r: r['score'])
+
+    # تجميعات
+    buckets = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
+    grades  = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'F': 0}
+    for r in rows:
+        buckets[r['risk']] = buckets.get(r['risk'], 0) + 1
+        grades[r['grade']] = grades.get(r['grade'], 0) + 1
+
+    return render(request, 'clients/saas_admin/churn_risk.html', {
+        'rows': rows,
+        'filters': {'risk': risk_filter, 'grade': grade_filter, 'q': q, 'sort': sort},
+        'buckets': buckets,
+        'grades': grades,
+        'total': len(rows),
+    })
+
+
 @saas_admin_required
 def system_status(request):
     """

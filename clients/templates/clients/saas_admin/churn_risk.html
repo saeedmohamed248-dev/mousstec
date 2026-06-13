@@ -1,0 +1,232 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صحة الشركات — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1500px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#fda4af; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+
+        /* Risk buckets at top */
+        .buckets { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+        @media (max-width:900px) { .buckets { grid-template-columns:repeat(2,1fr); } }
+        .bucket {
+            border-radius:14px; padding:16px; border:1px solid; cursor:pointer;
+            transition:transform 0.15s;
+        }
+        .bucket:hover { transform:translateY(-2px); }
+        .bucket a { color:inherit; text-decoration:none; display:block; }
+        .bucket .n { font-size:32px; font-weight:900; line-height:1; }
+        .bucket .lbl { font-size:12px; font-weight:700; margin-top:4px; }
+        .bucket.low      { background:#15803d22; border-color:#22c55e44; color:#86efac; }
+        .bucket.medium   { background:#0e749022; border-color:#06b6d444; color:#5eead4; }
+        .bucket.high     { background:#b4530922; border-color:#f59e0b44; color:#fcd34d; }
+        .bucket.critical { background:#dc262622; border-color:#ef444466; color:#fca5a5; }
+
+        /* Filters */
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; margin-bottom:14px; }
+        .filters { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:10px; align-items:end; }
+        @media (max-width:900px) { .filters { grid-template-columns:repeat(2,1fr); } }
+        .filters label { display:block; font-size:11px; color:#94a3b8; font-weight:700; margin-bottom:4px; }
+        .filters input, .filters select {
+            width:100%; padding:8px 10px; background:#0f172a; color:#e2e8f0;
+            border:1px solid #334155; border-radius:8px; font-family:inherit; font-size:13px;
+        }
+        .btn {
+            padding:9px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
+            text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+        }
+        .btn-primary { background:#e11d48; color:#fff; }
+        .btn-primary:hover { background:#be123c; }
+        .btn-ghost { background:#334155; color:#e2e8f0; }
+
+        /* Tenant cards */
+        .tenants { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+        @media (max-width:1100px) { .tenants { grid-template-columns:1fr; } }
+        .tenant-card {
+            background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px;
+            display:flex; gap:14px;
+        }
+        .score-circle {
+            flex-shrink:0; width:80px; height:80px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            font-size:26px; font-weight:900; border:4px solid;
+        }
+        .score-circle.A { background:#15803d22; border-color:#22c55e; color:#86efac; }
+        .score-circle.B { background:#0e749022; border-color:#06b6d4; color:#5eead4; }
+        .score-circle.C { background:#b4530922; border-color:#f59e0b; color:#fcd34d; }
+        .score-circle.D { background:#ea580c22; border-color:#f97316; color:#fdba74; }
+        .score-circle.F { background:#dc262622; border-color:#ef4444; color:#fca5a5; }
+
+        .tenant-info { flex:1; min-width:0; }
+        .tenant-name { font-weight:900; font-size:15px; color:#e2e8f0; margin-bottom:2px; }
+        .tenant-meta { font-size:11px; color:#94a3b8; margin-bottom:8px; }
+        .chip {
+            display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-left:4px;
+        }
+        .chip.plan { color:#c4b5fd; border-color:#a78bfa55; }
+        .chip.status-active    { color:#86efac; border-color:#22c55e55; }
+        .chip.status-trial     { color:#fcd34d; border-color:#f59e0b55; }
+        .chip.status-suspended { color:#fca5a5; border-color:#ef444466; }
+
+        .signals { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+        .signal {
+            font-size:10px; padding:2px 7px; border-radius:6px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+        }
+        .signal b { color:#e2e8f0; }
+
+        .reasons { font-size:12px; color:#cbd5e1; line-height:1.7; }
+        .reasons li { margin:0; padding:2px 0; }
+
+        .actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+        .action-btn {
+            font-size:11px; padding:5px 10px; border-radius:6px;
+            background:#0f172a; border:1px solid #475569; color:#cbd5e1;
+            text-decoration:none; font-weight:700;
+        }
+        .action-btn:hover { border-color:#a78bfa; color:#a78bfa; }
+
+        .empty { text-align:center; padding:60px 20px; color:#64748b; font-size:14px; background:#1e293b; border-radius:12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / 🩺 صحة الشركات
+    </div>
+    <h1>🩺 صحة الشركات (Tenant Health & Churn Risk)</h1>
+    <p class="sub">تصنيف كل الشركات بدرجة 0-100 بناءً على الاشتراك + النشاط + العمر + الدعم + الثقة. ركّز على الـ critical &amp; high أولاً.</p>
+
+    <!-- Risk buckets -->
+    <div class="buckets">
+        <div class="bucket critical">
+            <a href="?risk=critical">
+                <div class="n">{{ buckets.critical }}</div>
+                <div class="lbl">🚨 خطر حرج</div>
+            </a>
+        </div>
+        <div class="bucket high">
+            <a href="?risk=high">
+                <div class="n">{{ buckets.high }}</div>
+                <div class="lbl">⚠️ خطر مرتفع</div>
+            </a>
+        </div>
+        <div class="bucket medium">
+            <a href="?risk=medium">
+                <div class="n">{{ buckets.medium }}</div>
+                <div class="lbl">🟡 خطر متوسط</div>
+            </a>
+        </div>
+        <div class="bucket low">
+            <a href="?risk=low">
+                <div class="n">{{ buckets.low }}</div>
+                <div class="lbl">✅ آمن</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card">
+        <form method="get">
+            <div class="filters">
+                <div>
+                    <label>الخطر</label>
+                    <select name="risk">
+                        <option value="">الكل</option>
+                        <option value="critical" {% if filters.risk == 'critical' %}selected{% endif %}>حرج</option>
+                        <option value="high"     {% if filters.risk == 'high' %}selected{% endif %}>مرتفع</option>
+                        <option value="medium"   {% if filters.risk == 'medium' %}selected{% endif %}>متوسط</option>
+                        <option value="low"      {% if filters.risk == 'low' %}selected{% endif %}>منخفض</option>
+                    </select>
+                </div>
+                <div>
+                    <label>الدرجة</label>
+                    <select name="grade">
+                        <option value="">الكل</option>
+                        {% for g in "ABCDF" %}
+                            <option value="{{ g }}" {% if filters.grade == g %}selected{% endif %}>{{ g }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>بحث</label>
+                    <input type="text" name="q" value="{{ filters.q }}" placeholder="اسم أو schema …">
+                </div>
+                <div>
+                    <label>الترتيب</label>
+                    <select name="sort">
+                        <option value="score"  {% if filters.sort == 'score' %}selected{% endif %}>الأسوأ أولاً</option>
+                        <option value="-score" {% if filters.sort == '-score' %}selected{% endif %}>الأفضل أولاً</option>
+                        <option value="name"   {% if filters.sort == 'name' %}selected{% endif %}>اسم الشركة</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> تطبيق</button>
+                    <a href="?" class="btn btn-ghost">إعادة</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tenants list -->
+    {% if rows %}
+        <div class="tenants">
+            {% for row in rows %}
+                <div class="tenant-card">
+                    <div class="score-circle {{ row.grade }}">{{ row.score }}</div>
+                    <div class="tenant-info">
+                        <div class="tenant-name">{{ row.tenant.name }}</div>
+                        <div class="tenant-meta">
+                            <span class="chip">{{ row.tenant.schema_name }}</span>
+                            <span class="chip plan">{{ row.tenant.get_plan_display }}</span>
+                            <span class="chip status-{{ row.tenant.status }}">{{ row.tenant.get_status_display }}</span>
+                            <span class="chip">{{ row.tenant.created_on|date:"Y-m-d" }}</span>
+                        </div>
+
+                        <div class="signals">
+                            <span class="signal">اشتراك: <b>{{ row.signals.subscription }}</b></span>
+                            <span class="signal">نشاط: <b>{{ row.signals.activity }}</b></span>
+                            <span class="signal">عمر: <b>{{ row.signals.tenure }}</b></span>
+                            <span class="signal">دعم: <b>{{ row.signals.support }}</b></span>
+                            <span class="signal">ثقة: <b>{{ row.signals.trust }}</b></span>
+                        </div>
+
+                        {% if row.reasons %}
+                            <ul class="reasons" style="margin:6px 0 0; padding-right:18px;">
+                                {% for r in row.reasons %}<li>{{ r }}</li>{% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <div class="actions">
+                            <a href="/superadmin/enter/{{ row.tenant.schema_name }}/" target="_blank" class="action-btn">
+                                <i class="fas fa-arrow-right-to-bracket"></i> دخول
+                            </a>
+                            <a href="/superadmin/audit-log/?tenant={{ row.tenant.schema_name }}" target="_blank" class="action-btn">
+                                <i class="fas fa-clipboard-list"></i> سجل التدقيق
+                            </a>
+                            <a href="/superadmin/support/?tenant={{ row.tenant.schema_name }}" target="_blank" class="action-btn">
+                                <i class="fas fa-life-ring"></i> الدعم
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <i class="fas fa-circle-check" style="font-size:32px; color:#475569;"></i>
+            <p>لا توجد شركات مطابقة. {% if filters.risk or filters.grade or filters.q %}جرّب تغيير الفلاتر.{% endif %}</p>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

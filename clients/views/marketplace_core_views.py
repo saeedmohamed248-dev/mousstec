@@ -156,13 +156,34 @@ def marketplace_register(request):
     job_title = data.get('job_title', '').strip()
     sector = data.get('sector', 'automotive')
     city = data.get('city', '').strip()
-    email = data.get('email', '').strip()
+    # 🐛 [FIX]: lowercase الإيميل لمنع ازدواجية الحسابات بسبب الحروف الكبيرة
+    # ومطابقة سلوك tenant signup (clean_email في TenantSignupForm).
+    email = data.get('email', '').strip().lower()
 
     if not full_name or not phone:
         return JsonResponse({"error": "الاسم ورقم الموبايل مطلوبان"}, status=400)
 
-    if not password or len(password) < 6:
-        return JsonResponse({"error": "كلمة المرور مطلوبة (٦ حروف على الأقل)"}, status=400)
+    # 🛡️ [FIX]: نوحّد قواعد كلمة السر مع tenant signup عبر Django validators
+    # (min_length 8، بدون common passwords، مش numeric-only). أحسن من شرط
+    # 6 حروف الأعمى — كان أقل بكتير من معايير 2026 الصناعية.
+    if not password:
+        return JsonResponse({"error": "كلمة المرور مطلوبة"}, status=400)
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as _PwdVE
+    try:
+        validate_password(password)
+    except _PwdVE as pwd_err:
+        return JsonResponse({"error": ' • '.join(pwd_err.messages)}, status=400)
+
+    # 🐛 [FIX]: تحقّق صيغة الإيميل لو متعبّى، عشان مايتحفظش "hi" أو "foo"
+    # في DB كقيمة فاسدة (الـ field optional لكن لو موجود لازم يكون valid).
+    if email:
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as _EmailVE
+        try:
+            validate_email(email)
+        except _EmailVE:
+            return JsonResponse({"error": "صيغة البريد الإلكتروني غير صالحة"}, status=400)
 
     if customer_type not in ('individual', 'company'):
         return JsonResponse({"error": "نوع العميل غير صالح"}, status=400)

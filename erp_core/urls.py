@@ -455,6 +455,9 @@ urlpatterns = [
     # ⚙️ System Status (DB / Redis / Celery / disk / memory)
     path('superadmin/system/', saas_admin_views.system_status, name='saas_system_status'),
 
+    # 🩺 Tenant Health / Churn Risk
+    path('superadmin/churn-risk/', saas_admin_views.churn_risk, name='saas_churn_risk'),
+
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
     path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),
     path('superadmin/parts/moderation/<int:listing_id>/approve/', saas_admin_views.parts_moderation_approve, name='saas_parts_moderation_approve'),
