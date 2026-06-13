@@ -462,6 +462,9 @@ urlpatterns = [
     path('superadmin/broadcast/',      saas_admin_views.broadcast_list, name='saas_broadcast_list'),
     path('superadmin/broadcast/send/', saas_admin_views.broadcast_send, name='saas_broadcast_send'),
 
+    # 🔍 Quick search (backs the ⌘K palette)
+    path('superadmin/api/quick-search/', saas_admin_views.quick_search, name='saas_quick_search'),
+
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
     path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),
     path('superadmin/parts/moderation/<int:listing_id>/approve/', saas_admin_views.parts_moderation_approve, name='saas_parts_moderation_approve'),

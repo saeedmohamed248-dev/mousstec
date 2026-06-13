@@ -1323,6 +1323,59 @@ def system_status(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🔍 Quick Search API — backs the ⌘K command palette
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def quick_search(request):
+    """
+    /superadmin/api/quick-search/?q=… → JSON {results: [{label, sub, url, kind}, …]}
+    يبحث في: tenants (name + schema), users (username + email).
+    """
+    from django.http import JsonResponse
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+
+    q = (request.GET.get('q') or '').strip()
+    out = []
+
+    if len(q) >= 1:
+        # tenants
+        tenants = (
+            Client.objects.exclude(schema_name='public').filter(is_deleted=False)
+            .filter(Q(name__icontains=q) | Q(schema_name__icontains=q) | Q(email__icontains=q))
+            .values('id', 'name', 'schema_name', 'plan', 'status')[:8]
+        )
+        for t in tenants:
+            out.append({
+                'kind':  'tenant',
+                'label': t['name'] or t['schema_name'],
+                'sub':   f"{t['schema_name']} · {t['plan']} · {t['status']}",
+                'url':   f"/superadmin/enter/{t['schema_name']}/",
+                'icon':  'building',
+            })
+
+        # users (platform-wide; we look up superusers + tenant admins on public schema)
+        U = get_user_model()
+        users = (
+            U.objects.filter(
+                Q(username__icontains=q) | Q(email__icontains=q),
+            )[:5]
+            .values('id', 'username', 'email', 'is_superuser', 'is_active')
+        )
+        for u in users:
+            badge = '🛡️ super' if u['is_superuser'] else 'user'
+            out.append({
+                'kind':  'user',
+                'label': u['username'],
+                'sub':   f"{u['email'] or '—'} · {badge}",
+                'url':   f"/superadmin/audit-log/?user={u['username']}",
+                'icon':  'user',
+            })
+
+    return JsonResponse({'results': out, 'q': q})
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 📢 Email Broadcast — composer + history
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required

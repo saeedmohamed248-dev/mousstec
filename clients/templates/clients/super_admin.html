@@ -2607,5 +2607,230 @@ async function submitCustomerDelete(e) {
 }
 </script>
 
+<!-- ─────────────────────────────────────────────────────────────
+     ⌘K Command Palette
+     ───────────────────────────────────────────────────────────── -->
+<style>
+.cmdk-bg {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px);
+    z-index:9999; display:none; align-items:flex-start; justify-content:center;
+    padding-top:12vh; font-family:'Cairo',sans-serif;
+}
+.cmdk-bg.open { display:flex; }
+.cmdk-box {
+    width:90%; max-width:640px; background:#1e293b; border:1px solid #475569;
+    border-radius:16px; box-shadow:0 25px 50px -12px rgba(124,58,237,0.5);
+    overflow:hidden; animation:cmdkPop .15s ease-out;
+}
+@keyframes cmdkPop {
+    from { transform:translateY(-10px); opacity:0; }
+    to   { transform:translateY(0);     opacity:1; }
+}
+.cmdk-input-wrap {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; border-bottom:1px solid #334155;
+}
+.cmdk-input-wrap i { color:#94a3b8; font-size:16px; }
+.cmdk-input {
+    flex:1; background:transparent; border:none; outline:none;
+    color:#e2e8f0; font-size:16px; font-family:inherit;
+}
+.cmdk-kbd {
+    background:#0f172a; color:#94a3b8; font-size:11px; padding:2px 8px;
+    border-radius:6px; border:1px solid #334155; font-family:monospace;
+}
+.cmdk-results { max-height:60vh; overflow-y:auto; padding:8px 0; }
+.cmdk-section {
+    font-size:10px; color:#64748b; font-weight:900; letter-spacing:1px;
+    padding:8px 18px 4px; text-transform:uppercase;
+}
+.cmdk-item {
+    display:flex; align-items:center; gap:12px;
+    padding:10px 18px; cursor:pointer; color:#e2e8f0;
+    border-right:3px solid transparent;
+    text-decoration:none;
+}
+.cmdk-item.active {
+    background:linear-gradient(90deg, rgba(124,58,237,0.15), transparent);
+    border-right-color:#a78bfa;
+}
+.cmdk-item:hover { background:rgba(124,58,237,0.08); }
+.cmdk-item .ico {
+    width:32px; height:32px; border-radius:8px; background:#0f172a;
+    border:1px solid #334155; display:flex; align-items:center; justify-content:center;
+    color:#a78bfa; font-size:13px;
+}
+.cmdk-item .text { flex:1; min-width:0; }
+.cmdk-item .label { font-size:14px; font-weight:700; color:#e2e8f0; }
+.cmdk-item .sub   { font-size:11px; color:#94a3b8; margin-top:1px; }
+.cmdk-empty { text-align:center; padding:30px; color:#64748b; font-size:13px; }
+</style>
+
+<div class="cmdk-bg" id="cmdkBg" onclick="if(event.target===this) closeCmdk()">
+    <div class="cmdk-box">
+        <div class="cmdk-input-wrap">
+            <i class="fas fa-magnifying-glass"></i>
+            <input id="cmdkInput" class="cmdk-input" type="text" placeholder="ابحث عن صفحة، شركة، مستخدم …" autocomplete="off">
+            <span class="cmdk-kbd">esc</span>
+        </div>
+        <div class="cmdk-results" id="cmdkResults"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // ─── Static page index ──────────────────────────────────────────
+    const PAGES = [
+        { kind:'page', label:'الرئيسية',          sub:'لوحة السوبر أدمن',                url:'/superadmin/',                       icon:'house' },
+        { kind:'page', label:'إدارة المستأجرين',  sub:'soft-delete · restore · force',   url:'/superadmin/tenants/',               icon:'building' },
+        { kind:'page', label:'الباقات',           sub:'تسعير · مزايا · تحرير',           url:'/superadmin/plans/',                 icon:'gem' },
+        { kind:'page', label:'الإيرادات',         sub:'MRR · نمو · تحصيل',               url:'/superadmin/revenue/',               icon:'chart-line' },
+        { kind:'page', label:'مصروفات التشخيص',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
+        { kind:'page', label:'سجل الأخطاء',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
+        { kind:'page', label:'سجل التدقيق',       sub:'كل أحداث المنصة + فلاتر',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
+        { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
+        { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
+        { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
+        { kind:'page', label:'صندوق الدعم',       sub:'تذاكر · Help Form',                url:'/superadmin/support/',               icon:'envelope-open-text' },
+        { kind:'page', label:'الشات الحي',        sub:'9-5 ع.م',                          url:'/superadmin/chat/',                  icon:'comments' },
+        { kind:'page', label:'هدية تشخيص',        sub:'منح OBD · تجديد اشتراك',           url:'/superadmin/gift-diagnostics/',      icon:'gift' },
+        { kind:'page', label:'وصول OBD',          sub:'grant / revoke per tenant',        url:'/superadmin/obd-access/',            icon:'plug' },
+        { kind:'page', label:'مراجعة قطع الغيار', sub:'pending listings',                 url:'/superadmin/parts/moderation/',      icon:'shield-halved' },
+        { kind:'page', label:'القطع النشطة',      sub:'live marketplace',                 url:'/superadmin/parts/active/',          icon:'screwdriver-wrench' },
+        { kind:'page', label:'النزاعات',          sub:'dispute tickets',                  url:'/superadmin/disputes/',              icon:'scale-balanced' },
+        { kind:'page', label:'طلبات السوق',       sub:'service requests',                 url:'/superadmin/marketplace/requests/',  icon:'list-check' },
+    ];
+
+    let activeIdx = 0;
+    let currentResults = [];
+    let searchSeq = 0;
+
+    const bg    = document.getElementById('cmdkBg');
+    const input = document.getElementById('cmdkInput');
+    const wrap  = document.getElementById('cmdkResults');
+
+    function openCmdk() {
+        bg.classList.add('open');
+        input.value = '';
+        activeIdx = 0;
+        render(filter(''));
+        setTimeout(() => input.focus(), 30);
+    }
+    function closeCmdk() { bg.classList.remove('open'); }
+    window.closeCmdk = closeCmdk;
+
+    function filter(q) {
+        q = (q || '').trim().toLowerCase();
+        if (!q) return PAGES.slice(0, 10);
+        return PAGES.filter(p =>
+            p.label.toLowerCase().includes(q) ||
+            (p.sub || '').toLowerCase().includes(q) ||
+            p.url.toLowerCase().includes(q)
+        );
+    }
+
+    function render(pages, remote) {
+        currentResults = [...pages, ...(remote || [])];
+        if (currentResults.length === 0) {
+            wrap.innerHTML = '<div class="cmdk-empty"><i class="fas fa-circle-question" style="font-size:24px; color:#475569;"></i><p>لا توجد نتائج. جرّب كلمة تانية.</p></div>';
+            return;
+        }
+        let html = '';
+        if (pages.length) {
+            html += '<div class="cmdk-section">صفحات</div>';
+            pages.forEach((p, i) => html += renderItem(p, i));
+        }
+        if (remote && remote.length) {
+            html += '<div class="cmdk-section">شركات / مستخدمون</div>';
+            remote.forEach((r, j) => html += renderItem(r, pages.length + j));
+        }
+        wrap.innerHTML = html;
+        wrap.querySelectorAll('.cmdk-item').forEach((el, i) => {
+            el.addEventListener('mouseenter', () => { activeIdx = i; updateActive(); });
+            el.addEventListener('click', () => go(currentResults[i]));
+        });
+        updateActive();
+    }
+
+    function renderItem(item, idx) {
+        return `<a class="cmdk-item ${idx === activeIdx ? 'active' : ''}" data-idx="${idx}" href="${item.url}">
+            <span class="ico"><i class="fas fa-${item.icon || 'arrow-right'}"></i></span>
+            <span class="text">
+                <div class="label">${escapeHtml(item.label)}</div>
+                ${item.sub ? `<div class="sub">${escapeHtml(item.sub)}</div>` : ''}
+            </span>
+        </a>`;
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+        }[c]));
+    }
+
+    function updateActive() {
+        wrap.querySelectorAll('.cmdk-item').forEach((el, i) => {
+            el.classList.toggle('active', i === activeIdx);
+            if (i === activeIdx) el.scrollIntoView({ block:'nearest' });
+        });
+    }
+
+    function go(item) {
+        if (!item) return;
+        closeCmdk();
+        window.location.href = item.url;
+    }
+
+    // remote search (debounced)
+    let debounceTimer = null;
+    input.addEventListener('input', () => {
+        const q = input.value.trim();
+        activeIdx = 0;
+        const pages = filter(q);
+        render(pages, []);
+        clearTimeout(debounceTimer);
+        if (q.length >= 1) {
+            const mySeq = ++searchSeq;
+            debounceTimer = setTimeout(() => {
+                fetch(`/superadmin/api/quick-search/?q=${encodeURIComponent(q)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (mySeq !== searchSeq) return; // stale
+                        render(filter(q), data.results || []);
+                    })
+                    .catch(() => {});
+            }, 180);
+        }
+    });
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeCmdk(); }
+        else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIdx = Math.min(activeIdx + 1, currentResults.length - 1);
+            updateActive();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIdx = Math.max(activeIdx - 1, 0);
+            updateActive();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            go(currentResults[activeIdx]);
+        }
+    });
+
+    // global keybinding ⌘K / Ctrl+K
+    window.addEventListener('keydown', e => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            if (bg.classList.contains('open')) closeCmdk();
+            else openCmdk();
+        }
+    });
+})();
+</script>
+
 </body>
 </html>
