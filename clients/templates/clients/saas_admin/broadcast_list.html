@@ -152,6 +152,40 @@
 
 …"></textarea>
 
+                {# 📣 قنوات التوصيل #}
+                <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; margin-top:12px;">
+                    <div style="color:#cbd5e1; font-weight:700; margin-bottom:8px;">📣 قنوات التوصيل</div>
+
+                    <label style="display:flex; align-items:center; gap:8px; color:#e2e8f0; font-weight:normal;">
+                        <input type="checkbox" name="send_email" checked style="margin:0;">
+                        📧 إرسال إيميل (يتم في الخلفية عبر Celery)
+                    </label>
+
+                    <label style="display:flex; align-items:center; gap:8px; color:#e2e8f0; font-weight:normal; margin-top:6px;">
+                        <input type="checkbox" name="show_in_app" id="show_in_app_chk" style="margin:0;">
+                        🔔 عرض كبانر داخل لوحة الشركة (يصل 100% من الشركات)
+                    </label>
+
+                    <div id="in_app_options" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #334155;">
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:140px;">
+                                <label style="color:#94a3b8; font-size:12px;">نوع البانر</label>
+                                <select name="in_app_severity" style="width:100%; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:6px;">
+                                    <option value="info">📢 معلومة (أزرق)</option>
+                                    <option value="success">✅ نجاح (أخضر)</option>
+                                    <option value="warning">⚠️ تحذير (أصفر)</option>
+                                    <option value="critical">🚨 حرج (أحمر)</option>
+                                </select>
+                            </div>
+                            <div style="flex:1; min-width:140px;">
+                                <label style="color:#94a3b8; font-size:12px;">يبقى ظاهر لمدة (أيام)</label>
+                                <input type="number" name="in_app_days" value="14" min="1" max="90"
+                                       style="width:100%; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:6px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="warn">
                     ⚠️ هتبعت لـ <strong>{{ preview_count }}</strong> شركة. الإرسال نهائي ومش هينفع تتراجع. لو الإرسال كبير، استعد لانتظار 30-60 ثانية.
                 </div>
@@ -269,9 +303,29 @@
 function confirmSend(form) {
     const subject = form.subject.value.trim();
     const audienceCount = {{ preview_count|default:0 }};
+    const sendEmail = form.send_email.checked;
+    const showBanner = form.show_in_app.checked;
     if (!subject) return false;
-    return confirm(`هتبعت "${subject}" لـ ${audienceCount} شركة. متأكد؟`);
+    if (!sendEmail && !showBanner) {
+        alert("اختر قناة توصيل واحدة على الأقل: إيميل أو بانر داخل النظام.");
+        return false;
+    }
+    const channels = [];
+    if (sendEmail) channels.push("📧 إيميل");
+    if (showBanner) channels.push("🔔 بانر داخل النظام");
+    return confirm(`هتبعت "${subject}" لـ ${audienceCount} شركة عبر: ${channels.join(' + ')}. متأكد؟`);
 }
+
+// إظهار/إخفاء خيارات البانر مع الـ checkbox
+document.addEventListener('DOMContentLoaded', function () {
+    const chk = document.getElementById('show_in_app_chk');
+    const opts = document.getElementById('in_app_options');
+    if (chk && opts) {
+        const toggle = () => { opts.style.display = chk.checked ? 'block' : 'none'; };
+        chk.addEventListener('change', toggle);
+        toggle();
+    }
+});
 </script>
 </body>
 </html>

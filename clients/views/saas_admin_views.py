@@ -1709,3 +1709,24 @@ def broadcast_retry(request, campaign_id):
 
     messages.success(request, f"🔄 تم إعادة جدولة الحملة «{campaign.subject[:60]}» للإرسال.")
     return redirect('saas_broadcast_list')
+
+
+# =====================================================================
+# 📢 Tenant-side: dismiss a broadcast banner (any logged-in tenant user)
+# =====================================================================
+def broadcast_banner_dismiss(request, campaign_id):
+    """يستدعيها user من tenant عشان يقفل البانر — يتسجّل إخفاء واحد لكل user/campaign."""
+    from django.contrib.auth.decorators import login_required as _li  # local to avoid module reload
+    if not request.user.is_authenticated:
+        return redirect('/')
+    if request.method != 'POST':
+        return redirect(request.META.get('HTTP_REFERER') or '/')
+
+    from clients.models import BroadcastCampaign, BroadcastDismissal
+    try:
+        campaign = BroadcastCampaign.objects.get(pk=campaign_id, show_in_app=True)
+    except BroadcastCampaign.DoesNotExist:
+        return redirect(request.META.get('HTTP_REFERER') or '/')
+
+    BroadcastDismissal.objects.get_or_create(campaign=campaign, user=request.user)
+    return redirect(request.META.get('HTTP_REFERER') or '/')

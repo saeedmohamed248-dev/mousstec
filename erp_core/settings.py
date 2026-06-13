@@ -649,6 +649,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ROUTES = {
     # ── Notification queue ───────────────────────────────────────────
     'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},
+    'clients.tasks.send_broadcast_campaign':            {'queue': 'notifications'},
     'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},
     # ── Heavy AI queue ───────────────────────────────────────────────
     'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},

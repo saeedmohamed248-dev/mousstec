@@ -117,7 +117,7 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
 # =====================================================================
 # 📢 Broadcast campaign sender — runs in background to avoid HTTP timeout
 # =====================================================================
-@shared_task(bind=True, name='clients.tasks.send_broadcast_campaign', queue='notifications')
+@shared_task(bind=True, name='clients.tasks.send_broadcast_campaign')
 def send_broadcast_campaign(self, campaign_id):
     from clients.models import BroadcastCampaign
     from clients.services.broadcast import send_campaign
