@@ -766,6 +766,10 @@ def impersonate_login(request):
                 email__iexact=tenant_email, is_active=True
             ).first()
     except Exception:
+        logger.warning(
+            "enter_tenant: failed to look up tenant admin by email for schema=%s",
+            schema_name, exc_info=True,
+        )
         admin_user = None
 
     # 🔁 fallback: لو ملقيناش، استخدم أقدم superuser (مالك الشركة غالباً أول واحد)

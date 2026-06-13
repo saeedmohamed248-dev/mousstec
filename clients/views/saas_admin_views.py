@@ -28,11 +28,25 @@ from django.utils import timezone
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
     TenantSubscription, Feature, SystemErrorLog,
-    PartListing, DisputeTicket,
+    PartListing, DisputeTicket, PlatformEvent,
 )
 from clients.permissions import get_user_widgets, widget_required
 
 logger = logging.getLogger('mouss_tec_core')
+
+
+def _log_event(event_type, *, tenant=None, user=None, description=''):
+    """تسجيل حدث في PlatformEvent بأمان — لا يفشل أبداً."""
+    try:
+        PlatformEvent.objects.create(
+            event_type=event_type,
+            tenant_schema=getattr(tenant, 'schema_name', '') or '',
+            tenant_name=getattr(tenant, 'name', '') or '',
+            user_name=getattr(user, 'username', '') or '',
+            description=description[:500],
+        )
+    except Exception:
+        logger.exception("PlatformEvent log failed (event_type=%s)", event_type)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -428,6 +442,10 @@ def tenant_soft_delete(request, tenant_id):
     tenant.soft_delete(user=request.user, reason=reason)
     logger.warning("Tenant SOFT-DELETED id=%s name=%s by=%s reason=%s",
                    tenant.id, tenant.name, request.user.username, reason)
+    _log_event(
+        'suspension', tenant=tenant, user=request.user,
+        description=f"Soft-delete «{tenant.name}» — السبب: {reason or 'لم يُذكر'}",
+    )
     messages.success(request, f"تم إخفاء المستأجر «{tenant.name}» (Soft Delete). البيانات التاريخية محفوظة.")
     return redirect('saas_tenants_list')
 
@@ -439,6 +457,10 @@ def tenant_restore(request, tenant_id):
     tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
     tenant.restore()
     logger.warning("Tenant RESTORED id=%s name=%s by=%s", tenant.id, tenant.name, request.user.username)
+    _log_event(
+        'other', tenant=tenant, user=request.user,
+        description=f"استعادة «{tenant.name}» من Soft-delete",
+    )
     messages.success(request, f"تم استعادة «{tenant.name}». الحالة الآن: «معلق» — فعّله يدوياً.")
     return redirect('saas_tenants_list')
 
@@ -466,6 +488,10 @@ def tenant_force_delete(request, tenant_id):
         return redirect('saas_tenants_list')
     name = tenant.name
     logger.critical("Tenant FORCE-DELETED id=%s name=%s by=%s", tenant.id, name, request.user.username)
+    _log_event(
+        'suspension', tenant=tenant, user=request.user,
+        description=f"💀 Force-delete نهائي لـ «{name}» من قاعدة البيانات",
+    )
     tenant.force_delete(user=request.user)
     messages.warning(request, f"تم الحذف النهائي لـ «{name}» من قاعدة البيانات.")
     return redirect('saas_tenants_list')
@@ -549,6 +575,10 @@ def parts_moderation_approve(request, listing_id):
         PartListing.objects.filter(is_deleted=False), pk=listing_id,
     )
     listing.approve(by_user=request.user)
+    _log_event(
+        'other', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
+        description=f"اعتماد قطعة غيار «{listing.title[:60]}» (id={listing.id})",
+    )
     messages.success(request, f"تم اعتماد القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_moderation_queue')
 
@@ -613,6 +643,10 @@ def parts_listing_suspend(request, listing_id):
         "PartListing SUSPENDED id=%s by=%s reason=%s",
         listing.id, request.user.username, reason,
     )
+    _log_event(
+        'suspension', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
+        description=f"تعليق قطعة «{listing.title[:60]}» (id={listing.id}) — {reason or 'بدون سبب'}",
+    )
     messages.success(request, f"تم تعليق القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_active_listings')
 
@@ -630,6 +664,10 @@ def parts_listing_soft_delete(request, listing_id):
         listing.is_deleted = True
         listing.save(update_fields=['is_deleted'])
     logger.warning("PartListing SOFT-DELETED id=%s by=%s", listing.id, request.user.username)
+    _log_event(
+        'suspension', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
+        description=f"حذف قطعة «{listing.title[:60]}» (id={listing.id}) من السوق",
+    )
     messages.success(request, f"تم حذف القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_active_listings')
 
@@ -755,6 +793,10 @@ def obd_access_grant(request, tenant_id):
         "OBD access GRANTED tenant=%s duration=%s by=%s",
         tenant.schema_name, label, request.user.username,
     )
+    _log_event(
+        'other', tenant=tenant, user=request.user,
+        description=f"🎁 منح OBD لـ «{tenant.name}» لمدة {label}",
+    )
     messages.success(request, f"✅ تم منح وصول OBD لـ «{tenant.name}» ({label}).")
     return redirect('saas_obd_access_list')
 
@@ -770,6 +812,10 @@ def obd_access_revoke(request, tenant_id):
     logger.warning(
         "OBD access REVOKED tenant=%s by=%s",
         tenant.schema_name, request.user.username,
+    )
+    _log_event(
+        'suspension', tenant=tenant, user=request.user,
+        description=f"سحب وصول OBD من «{tenant.name}»",
     )
     messages.success(request, f"تم سحب وصول OBD من «{tenant.name}».")
     return redirect('saas_obd_access_list')
@@ -789,6 +835,10 @@ def parts_moderation_reject(request, listing_id):
     except Exception:
         reason = (request.POST.get('reason') or '').strip()
     listing.reject(by_user=request.user, reason=reason)
+    _log_event(
+        'other', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
+        description=f"رفض قطعة «{listing.title[:60]}» (id={listing.id}) — {reason or 'بدون سبب'}",
+    )
     if request.headers.get('Content-Type', '').startswith('application/json') or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         from django.http import JsonResponse
         return JsonResponse({'message': f"تم رفض القطعة «{listing.title[:40]}»."})
@@ -858,6 +908,10 @@ def dispute_resolve(request, ticket_id):
     except DjVE as exc:
         messages.error(request, '; '.join(exc.messages) if hasattr(exc, 'messages') else str(exc))
         return redirect('saas_disputes_queue')
+    _log_event(
+        'other', tenant=getattr(ticket, 'opened_by_tenant', None), user=request.user,
+        description=f"⚖️ نزاع #{ticket.id} → إجراء «{action}»" + (f" — {notes}" if notes else ''),
+    )
     messages.success(request, f"تم تنفيذ '{action}' على التذكرة.")
     return redirect('saas_disputes_queue')
 
