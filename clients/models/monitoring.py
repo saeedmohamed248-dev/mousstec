@@ -182,6 +182,20 @@ class BroadcastCampaign(models.Model):
                                         help_text="مستلمون بدون بريد")
     error_log = models.TextField(blank=True, default='')
 
+    # 📣 قناة الإرسال — الافتراضي إيميل، ممكن تفعّل البانر داخل النظام كمان
+    send_email = models.BooleanField(default=True, help_text="إرسال نسخة بالبريد الإلكتروني")
+    show_in_app = models.BooleanField(default=False, db_index=True,
+                                     help_text="عرض كبانر داخل لوحة كل شركة")
+    in_app_starts_at = models.DateTimeField(null=True, blank=True,
+                                            help_text="بداية ظهور البانر (افتراضي: وقت الإنشاء)")
+    in_app_ends_at = models.DateTimeField(null=True, blank=True,
+                                          help_text="نهاية ظهور البانر (افتراضي: 14 يوم)")
+    in_app_severity = models.CharField(
+        max_length=10,
+        choices=(('info', 'معلومة'), ('success', 'نجاح'), ('warning', 'تحذير'), ('critical', 'حرج')),
+        default='info',
+    )
+
     class Meta:
         verbose_name = _("حملة بث")
         verbose_name_plural = _("حملات البث")
@@ -189,5 +203,28 @@ class BroadcastCampaign(models.Model):
 
     def __str__(self):
         return f"[{self.get_status_display()}] {self.subject[:50]}"
+
+
+class BroadcastDismissal(models.Model):
+    """
+    سجل إخفاء البانر — كل user دوس X على بانر يتسجّل هنا
+    عشان ميرجعش يظهر له تاني.
+    """
+    campaign = models.ForeignKey(
+        BroadcastCampaign, on_delete=models.CASCADE, related_name='dismissals',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='+',
+    )
+    dismissed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (('campaign', 'user'),)
+        indexes = [models.Index(fields=['user', 'campaign'])]
+        verbose_name = _("إخفاء بانر")
+        verbose_name_plural = _("إخفاءات البانرات")
+
+    def __str__(self):
+        return f"user={self.user_id} dismissed campaign={self.campaign_id}"
 
 

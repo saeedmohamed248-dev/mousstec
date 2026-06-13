@@ -297,6 +297,35 @@
 
 <div class="container-fluid mb-4">
 
+    {# 📢 بانرات إدارة Mouss Tec — إعلانات/تحديثات/صيانة #}
+    {% if pending_broadcasts %}
+        {% for b in pending_broadcasts %}
+            {% with sev=b.in_app_severity %}
+            <div class="alert mb-3 d-flex align-items-start gap-3" role="alert"
+                 style="border-radius:12px; padding:14px 18px; border:2px solid
+                        {% if sev == 'critical' %}#dc2626{% elif sev == 'warning' %}#f59e0b{% elif sev == 'success' %}#16a34a{% else %}#3b82f6{% endif %};
+                        background:
+                        {% if sev == 'critical' %}#fef2f2{% elif sev == 'warning' %}#fffbeb{% elif sev == 'success' %}#f0fdf4{% else %}#eff6ff{% endif %};
+                        color:#0f172a;">
+                <div style="font-size:24px;">
+                    {% if sev == 'critical' %}🚨{% elif sev == 'warning' %}⚠️{% elif sev == 'success' %}✅{% else %}📢{% endif %}
+                </div>
+                <div style="flex:1;">
+                    <h6 style="margin:0; font-weight:800;">{{ b.subject }}</h6>
+                    <div style="font-size:13px; margin-top:4px; white-space:pre-wrap;">{{ b.body }}</div>
+                </div>
+                <form method="POST" action="{% url 'broadcast_banner_dismiss' b.id %}" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit"
+                            style="background:transparent; border:none; color:#64748b; font-size:20px;
+                                   cursor:pointer; line-height:1; padding:4px 8px;"
+                            title="إخفاء">×</button>
+                </form>
+            </div>
+            {% endwith %}
+        {% endfor %}
+    {% endif %}
+
     {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
     {% if active_ai_bonus_totals.has_any %}
     <div class="alert mb-4 d-flex align-items-center gap-3 flex-wrap" role="alert"

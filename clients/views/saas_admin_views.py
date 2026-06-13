@@ -1604,6 +1604,10 @@ def broadcast_send(request):
     audience = (request.POST.get('audience') or 'all').strip()
     plan = (request.POST.get('plan') or '').strip()
     confirm = (request.POST.get('confirm') or '').strip()
+    send_email = request.POST.get('send_email') == 'on'
+    show_in_app = request.POST.get('show_in_app') == 'on'
+    in_app_severity = (request.POST.get('in_app_severity') or 'info').strip()
+    in_app_days = request.POST.get('in_app_days') or '14'
 
     if not subject or not body:
         messages.error(request, "الموضوع والنص مطلوبان.")
@@ -1611,6 +1615,17 @@ def broadcast_send(request):
     if confirm != 'SEND':
         messages.error(request, "اكتب SEND في خانة التأكيد للإرسال.")
         return redirect('saas_broadcast_list')
+    if not send_email and not show_in_app:
+        messages.error(request, "اختر قناة واحدة على الأقل: إيميل أو بانر داخل النظام.")
+        return redirect('saas_broadcast_list')
+
+    in_app_ends_at = None
+    if show_in_app:
+        try:
+            days = max(1, min(int(in_app_days), 90))
+        except (ValueError, TypeError):
+            days = 14
+        in_app_ends_at = timezone.now() + timedelta(days=days)
 
     campaign = BroadcastCampaign.objects.create(
         subject=subject[:200],
@@ -1618,7 +1633,23 @@ def broadcast_send(request):
         audience=audience,
         audience_plan=plan,
         created_by=request.user,
+        send_email=send_email,
+        show_in_app=show_in_app,
+        in_app_severity=in_app_severity if in_app_severity in ('info', 'success', 'warning', 'critical') else 'info',
+        in_app_ends_at=in_app_ends_at,
     )
+
+    # 🚀 لو محدش طلب إيميل، خلصنا — البانر بقى نشط دلوقتي
+    if not send_email:
+        campaign.status = 'sent'
+        campaign.sent_at = timezone.now()
+        campaign.save(update_fields=['status', 'sent_at'])
+        _log_event(
+            'other', user=request.user,
+            description=f"📢 بث بانر «{subject[:80]}» (campaign #{campaign.id}) — بدون إيميل",
+        )
+        messages.success(request, f"✅ تم نشر البانر للشركات. مفيش إرسال إيميل.")
+        return redirect('saas_broadcast_list')
 
     # 🚀 الإرسال في الخلفية عبر Celery — الـ view يرجع فوراً ومفيش 504
     try:

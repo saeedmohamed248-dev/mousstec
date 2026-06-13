@@ -43,4 +43,39 @@ def tenant_context(request):
         # context processors يجب ألا يكسروا الـ template — تجاهل أي خطأ بصمت
         pass
 
+    # 📢 بانرات السوبر أدمن الفعّالة للـ tenant الحالي
+    try:
+        if (
+            connection.schema_name != 'public'
+            and getattr(request, 'user', None)
+            and request.user.is_authenticated
+        ):
+            from django.utils import timezone
+            from clients.models import BroadcastCampaign, BroadcastDismissal
+            now = timezone.now()
+            dismissed_ids = set(
+                BroadcastDismissal.objects.filter(user=request.user)
+                .values_list('campaign_id', flat=True)
+            )
+            banners = list(
+                BroadcastCampaign.objects.filter(
+                    show_in_app=True,
+                ).exclude(id__in=dismissed_ids)
+                .order_by('-created_at')[:5]
+            )
+            # فلتر بالـ window (start/end) لو متعرّفين
+            active = []
+            for b in banners:
+                start = b.in_app_starts_at or b.created_at
+                end = b.in_app_ends_at  # NULL = مفيش نهاية
+                if start and start > now:
+                    continue
+                if end and end < now:
+                    continue
+                active.append(b)
+            if active:
+                ctx['pending_broadcasts'] = active
+    except Exception:
+        pass
+
     return ctx
