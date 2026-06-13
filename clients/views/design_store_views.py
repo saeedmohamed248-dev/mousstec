@@ -516,7 +516,10 @@ def design_store_my_designs(request):
     # for forensics; just shouldn't appear in the customer's gallery.
     designs = list(
         annotate_designs_from_chat(
-            customer.designs.exclude(title__startswith='[BROKEN] ').order_by('-created_at')
+            customer.designs
+            .exclude(title__startswith='[BROKEN] ')
+            .select_related('purchase__package')
+            .order_by('-created_at')
         )[:50]
     )
 

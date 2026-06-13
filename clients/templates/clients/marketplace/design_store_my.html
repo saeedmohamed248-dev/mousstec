@@ -372,6 +372,11 @@
                     <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/print-spec.pdf" target="_blank" title="PDF مع مواصفات الطباعة">
                         <i class="fas fa-file-pdf"></i>
                     </a>
+                    {% if d.purchase.package.allows_source_files %}
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/source/" title="ملفات المصدر (PNG عالي الدقة + SVG + ترخيص)" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;">
+                        <i class="fas fa-file-code"></i> SRC
+                    </a>
+                    {% endif %}
                     {% endif %}
                     <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code }}')">
                         <i class="fab fa-whatsapp"></i>
