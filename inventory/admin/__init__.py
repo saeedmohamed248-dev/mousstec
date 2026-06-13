@@ -20,7 +20,7 @@ from django.db import connection, transaction
 from django_tenants.utils import schema_context 
 
 # 🟢 استدعاء الجداول الأساسية للمنظومة التشغيلية
-from .models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
+from ..models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      PurchaseInvoiceItem, SaleInvoiceItem, StockTransfer,
                      Treasury, ExpenseCategory, FinancialTransaction, EmployeeProfile,
                      Customer, Vendor, Vehicle,
