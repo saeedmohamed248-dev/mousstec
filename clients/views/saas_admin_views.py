@@ -1641,3 +1641,40 @@ def broadcast_send(request):
         f"✅ تم بدء إرسال الحملة «{subject[:60]}» في الخلفية. هتظهر النتيجة في القائمة لما تخلص."
     )
     return redirect('saas_broadcast_list')
+
+
+@saas_admin_required
+def broadcast_retry(request, campaign_id):
+    """إعادة إرسال حملة عالقة في sending أو فشلت. POST فقط."""
+    if request.method != 'POST':
+        return redirect('saas_broadcast_list')
+
+    try:
+        campaign = BroadcastCampaign.objects.get(pk=campaign_id)
+    except BroadcastCampaign.DoesNotExist:
+        messages.error(request, "الحملة مش موجودة.")
+        return redirect('saas_broadcast_list')
+
+    # نسمح بإعادة الإرسال للحملات العالقة (sending) أو الفاشلة فقط — مش المُرسلة
+    if campaign.status not in ('sending', 'failed', 'draft'):
+        messages.error(request, f"الحملة دي حالتها «{campaign.get_status_display()}» مش قابلة لإعادة الإرسال.")
+        return redirect('saas_broadcast_list')
+
+    # نرجعها draft عشان send_campaign يقبلها
+    campaign.status = 'draft'
+    campaign.sent_count = 0
+    campaign.failed_count = 0
+    campaign.skipped_count = 0
+    campaign.error_log = ''
+    campaign.save(update_fields=['status', 'sent_count', 'failed_count', 'skipped_count', 'error_log'])
+
+    try:
+        from clients.tasks import send_broadcast_campaign
+        send_broadcast_campaign.delay(campaign.id)
+    except Exception as e:
+        logger.exception("broadcast_retry enqueue failed")
+        messages.error(request, f"فشل بدء الإرسال: {e}")
+        return redirect('saas_broadcast_list')
+
+    messages.success(request, f"🔄 تم إعادة جدولة الحملة «{campaign.subject[:60]}» للإرسال.")
+    return redirect('saas_broadcast_list')

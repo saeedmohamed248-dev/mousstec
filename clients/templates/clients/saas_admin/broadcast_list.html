@@ -234,7 +234,23 @@
                             <td style="color:#86efac;">{{ c.sent_count }}</td>
                             <td style="color:#fca5a5;">{{ c.failed_count }}</td>
                             <td style="color:#64748b;">{{ c.skipped_count }}</td>
-                            <td><span class="pill {{ c.status }}">{{ c.get_status_display }}</span></td>
+                            <td>
+                                <span class="pill {{ c.status }}">{{ c.get_status_display }}</span>
+                                {% if c.status == 'sending' or c.status == 'failed' or c.status == 'draft' %}
+                                    <form method="POST" action="{% url 'saas_broadcast_retry' c.id %}"
+                                          style="display:inline; margin-top:4px;"
+                                          onsubmit="return confirm('إعادة إرسال «{{ c.subject|escapejs }}»؟');">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                style="background:#1e293b; color:#fbbf24; border:1px solid #334155;
+                                                       border-radius:4px; padding:2px 8px; font-size:11px; cursor:pointer;
+                                                       margin-top:4px;"
+                                                title="إعادة إرسال">
+                                            🔄 إعادة
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
                             <td style="color:#cbd5e1;">{{ c.created_by.username|default:"—" }}</td>
                         </tr>
                     {% endfor %}

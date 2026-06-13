@@ -461,6 +461,7 @@ urlpatterns = [
     # 📢 Email Broadcast
     path('superadmin/broadcast/',      saas_admin_views.broadcast_list, name='saas_broadcast_list'),
     path('superadmin/broadcast/send/', saas_admin_views.broadcast_send, name='saas_broadcast_send'),
+    path('superadmin/broadcast/<int:campaign_id>/retry/', saas_admin_views.broadcast_retry, name='saas_broadcast_retry'),
 
     # 🔍 Quick search (backs the ⌘K palette)
     path('superadmin/api/quick-search/', saas_admin_views.quick_search, name='saas_quick_search'),
