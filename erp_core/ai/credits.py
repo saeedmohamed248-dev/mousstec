@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from django.db import connection, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 from .credit_packages import SIGNUP_BONUS_DESIGNS_CUSTOMER, SIGNUP_BONUS_DESIGNS_TENANT
@@ -122,43 +122,51 @@ def consume_tenant_credit(tenant, metadata: dict | None = None) -> dict[str, Any
             return {'success': True, 'source': 'plan', 'remaining_total': bal['total'], 'balance': bal}
 
     # 2. جرّب AIBonusGrant (أقدم grant فيه رصيد)
+    # 🐛 [bug-fix 2026-06-13]: السطر اللي كان بيـ filter بدون شيك على
+    # expires_at كان بيختار أقدم grant حتى لو منتهي. لو الأقدم منتهي،
+    # كان الكود بيـ skip ويـ fall through للـ topup مباشرة بدون ما
+    # يجرب الـ grants الأحدث (اللي ممكن تكون لسه valid). المستأجر كان
+    # بيدفع من الـ topup المدفوع بدل ما يستخدم الـ grant المجاني.
+    # الإصلاح: نـ filter الـ expired من الـ QuerySet نفسه.
     grant = (
         AIBonusGrant.objects.filter(tenant=tenant, is_active=True)
         .filter(granted_designs__gt=F('consumed_designs'))
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
         .order_by('granted_at')
         .select_for_update(skip_locked=True)
         .first()
     )
     if grant:
-        # تأكد إن مش منتهي
-        if not (grant.expires_at and grant.expires_at < now):
-            AIBonusGrant.objects.filter(pk=grant.pk).update(consumed_designs=F('consumed_designs') + 1)
-            AILimitTracker.objects.create(
-                tenant=tenant,
-                action_type='ai_generation',
-                metadata={**metadata, 'source': 'admin_grant', 'grant_id': grant.pk},
-            )
-            bal = get_tenant_balance(tenant)
-            return {'success': True, 'source': 'grant', 'remaining_total': bal['total'], 'balance': bal}
+        AIBonusGrant.objects.filter(pk=grant.pk).update(consumed_designs=F('consumed_designs') + 1)
+        AILimitTracker.objects.create(
+            tenant=tenant,
+            action_type='ai_generation',
+            metadata={**metadata, 'source': 'admin_grant', 'grant_id': grant.pk},
+        )
+        bal = get_tenant_balance(tenant)
+        return {'success': True, 'source': 'grant', 'remaining_total': bal['total'], 'balance': bal}
 
     # 3. جرّب TenantDesignTopUp (أقدم top-up فيه رصيد)
+    # 🐛 [bug-fix 2026-06-13]: نفس نمط الـ grants — نـ filter الـ
+    # expired topups في الـ QuerySet عشان expired topup قديم ميـ blockش
+    # topup صالح أحدث.
     topup = (
         TenantDesignTopUp.objects.filter(tenant=tenant, status='paid')
         .filter(designs_total__gt=F('designs_used'))
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
         .order_by('paid_at', 'created_at')
         .select_for_update(skip_locked=True)
         .first()
     )
     if topup:
-        if not (topup.expires_at and topup.expires_at < now):
-            topup.consume_design()
-            AILimitTracker.objects.create(
-                tenant=tenant,
-                action_type='ai_generation',
-                metadata={**metadata, 'source': 'topup', 'topup_id': topup.pk},
-            )
-            bal = get_tenant_balance(tenant)
-            return {'success': True, 'source': 'topup', 'remaining_total': bal['total'], 'balance': bal}
+        topup.consume_design()
+        AILimitTracker.objects.create(
+            tenant=tenant,
+            action_type='ai_generation',
+            metadata={**metadata, 'source': 'topup', 'topup_id': topup.pk},
+        )
+        bal = get_tenant_balance(tenant)
+        return {'success': True, 'source': 'topup', 'remaining_total': bal['total'], 'balance': bal}
 
     return {'success': False, 'reason': 'no_credit', 'balance': get_tenant_balance(tenant)}
 
