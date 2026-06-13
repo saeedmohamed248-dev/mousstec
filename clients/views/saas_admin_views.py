@@ -28,7 +28,7 @@ from django.utils import timezone
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
     TenantSubscription, Feature, SystemErrorLog,
-    PartListing, DisputeTicket, PlatformEvent,
+    PartListing, DisputeTicket, PlatformEvent, BroadcastCampaign,
 )
 from clients.permissions import get_user_widgets, widget_required
 
@@ -1320,3 +1320,93 @@ def system_status(request):
         'slowest': list(slowest),
         'now': now,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 📢 Email Broadcast — composer + history
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def broadcast_list(request):
+    """صفحة قائمة الحملات + composer للحملة الجديدة."""
+    from clients.services.broadcast import resolve_audience
+
+    campaigns = BroadcastCampaign.objects.order_by('-created_at')[:100]
+
+    # القيم الافتراضية للـ composer
+    preview_audience = (request.GET.get('audience') or 'all').strip()
+    preview_plan = (request.GET.get('plan') or '').strip()
+    try:
+        preview_qs = resolve_audience(preview_audience, plan=preview_plan)
+        preview_count = preview_qs.count()
+        preview_sample = list(preview_qs.values_list('name', 'email', 'schema_name')[:5])
+    except Exception:
+        preview_count = 0
+        preview_sample = []
+
+    plans = list(
+        Plan.objects.filter(is_active=True).values('slug', 'name').order_by('name')
+    )
+
+    return render(request, 'clients/saas_admin/broadcast_list.html', {
+        'campaigns': campaigns,
+        'audience_choices': BroadcastCampaign.AUDIENCE_CHOICES,
+        'preview_audience': preview_audience,
+        'preview_plan': preview_plan,
+        'preview_count': preview_count,
+        'preview_sample': preview_sample,
+        'plans': plans,
+    })
+
+
+@saas_admin_required
+def broadcast_send(request):
+    """POST: ينشئ حملة + يبعتها (sync — لـ MVP). للأحجام الكبيرة ننقلها لـ Celery لاحقاً."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+
+    subject = (request.POST.get('subject') or '').strip()
+    body = (request.POST.get('body') or '').strip()
+    audience = (request.POST.get('audience') or 'all').strip()
+    plan = (request.POST.get('plan') or '').strip()
+    confirm = (request.POST.get('confirm') or '').strip()
+
+    if not subject or not body:
+        messages.error(request, "الموضوع والنص مطلوبان.")
+        return redirect('saas_broadcast_list')
+    if confirm != 'SEND':
+        messages.error(request, "اكتب SEND في خانة التأكيد للإرسال.")
+        return redirect('saas_broadcast_list')
+
+    campaign = BroadcastCampaign.objects.create(
+        subject=subject[:200],
+        body=body,
+        audience=audience,
+        audience_plan=plan,
+        created_by=request.user,
+    )
+
+    try:
+        from clients.services.broadcast import send_campaign
+        send_campaign(campaign)
+    except Exception as e:
+        logger.exception("broadcast_send failed")
+        campaign.status = 'failed'
+        campaign.error_log = f"{type(e).__name__}: {e}"
+        campaign.save(update_fields=['status', 'error_log'])
+        messages.error(request, f"فشل الإرسال: {e}")
+        return redirect('saas_broadcast_list')
+
+    _log_event(
+        'other', user=request.user,
+        description=(
+            f"📢 بث جماعي «{subject[:80]}» — "
+            f"{campaign.sent_count} مُرسَل / {campaign.failed_count} فشل / "
+            f"{campaign.skipped_count} متخطّى"
+        ),
+    )
+    messages.success(
+        request,
+        f"✅ تم الإرسال: {campaign.sent_count} نجاح، {campaign.failed_count} فشل، "
+        f"{campaign.skipped_count} متخطٍ (بدون email).",
+    )
+    return redirect('saas_broadcast_list')

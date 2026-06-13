@@ -1,0 +1,261 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>البث الجماعي — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#f0abfc; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+        @media (max-width:1100px) { .grid { grid-template-columns:1fr; } }
+
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; }
+        .card h3 { margin:0 0 14px; color:#f0abfc; font-size:14px; font-weight:900; letter-spacing:0.5px; display:flex; align-items:center; gap:8px; }
+
+        label { display:block; font-size:11px; color:#94a3b8; font-weight:700; margin:10px 0 4px; }
+        input, select, textarea {
+            width:100%; padding:9px 10px; background:#0f172a; color:#e2e8f0;
+            border:1px solid #334155; border-radius:8px; font-family:inherit; font-size:13px;
+            box-sizing:border-box;
+        }
+        input:focus, select:focus, textarea:focus { outline:none; border-color:#f0abfc; }
+        textarea { min-height:160px; resize:vertical; }
+
+        .btn {
+            padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:13px;
+            text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+        }
+        .btn-primary { background:#c026d3; color:#fff; }
+        .btn-primary:hover { background:#a21caf; }
+        .btn-ghost { background:#334155; color:#e2e8f0; }
+        .btn-link { background:none; color:#a78bfa; text-decoration:underline; padding:4px 8px; font-size:12px; }
+
+        .preview-box {
+            background:#0f172a; border:1px dashed #334155; border-radius:10px; padding:12px;
+            margin-top:8px; font-size:12px; color:#cbd5e1;
+        }
+        .preview-box .n {
+            font-size:24px; font-weight:900; color:#f0abfc; line-height:1;
+        }
+        .preview-box ul { margin:8px 0 0; padding-right:18px; }
+        .preview-box li { padding:2px 0; }
+
+        .warn {
+            background:#b4530922; border:1px solid #f59e0b66; padding:10px 14px;
+            border-radius:8px; color:#fcd34d; font-size:12px; margin:10px 0;
+        }
+        .info {
+            background:#1d4ed822; border:1px solid #06b6d466; padding:10px 14px;
+            border-radius:8px; color:#67e8f9; font-size:12px; margin:10px 0;
+        }
+        .messages .alert {
+            padding:10px 14px; border-radius:8px; margin-bottom:10px; font-size:13px;
+        }
+        .messages .alert.success { background:#15803d; color:#fff; }
+        .messages .alert.error   { background:#ef4444; color:#fff; }
+        .messages .alert.warning { background:#f59e0b; color:#0f172a; }
+
+        /* Campaigns table */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:9px 10px; text-align:right; border-bottom:1px solid #334155; font-size:12px; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
+        tr:hover { background:#293548; }
+        .pill {
+            font-size:10px; font-weight:900; padding:2px 8px; border-radius:99px;
+        }
+        .pill.draft   { background:#33415544; color:#cbd5e1; }
+        .pill.sending { background:#1d4ed822; color:#93c5fd; }
+        .pill.sent    { background:#15803d22; color:#86efac; }
+        .pill.failed  { background:#dc262622; color:#fca5a5; }
+
+        details summary {
+            cursor:pointer; color:#94a3b8; font-size:11px; font-weight:700;
+            list-style:none; margin-top:4px;
+        }
+        details summary::before { content:"▸ "; }
+        details[open] summary::before { content:"▾ "; }
+        details pre {
+            background:#0f172a; padding:10px; border-radius:6px; font-size:11px;
+            color:#cbd5e1; overflow:auto; max-height:240px; white-space:pre-wrap;
+            border:1px solid #334155;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / 📢 البث الجماعي
+    </div>
+    <h1>📢 البث الجماعي (Email Broadcast)</h1>
+    <p class="sub">ابعت إعلان أو إشعار صيانة لكل الشركات أو شريحة محددة. الإرسال sync — للأحجام الكبيرة هنعمل Celery لاحقاً.</p>
+
+    {% if messages %}
+        <div class="messages">
+            {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid">
+        <!-- ─── Composer ─── -->
+        <div class="card">
+            <h3><i class="fas fa-pen-to-square"></i> حملة جديدة</h3>
+
+            <form id="audience-form" method="get">
+                <label>الجمهور المستهدف</label>
+                <select name="audience" onchange="this.form.submit()">
+                    {% for code, label in audience_choices %}
+                        <option value="{{ code }}" {% if preview_audience == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+
+                {% if preview_audience == 'plan' %}
+                    <label>الباقة</label>
+                    <select name="plan" onchange="this.form.submit()">
+                        <option value="">— اختر —</option>
+                        {% for p in plans %}
+                            <option value="{{ p.slug }}" {% if preview_plan == p.slug %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+            </form>
+
+            <div class="preview-box">
+                <div class="n">{{ preview_count }}</div>
+                <div>شركة مطابقة للفلتر الحالي</div>
+                {% if preview_sample %}
+                    <ul>
+                        {% for name, email, schema in preview_sample %}
+                            <li>{{ name }} — <span dir="ltr">{{ email|default:"⛔ بدون email" }}</span></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            <form method="post" action="/superadmin/broadcast/send/" onsubmit="return confirmSend(this);">
+                {% csrf_token %}
+                <input type="hidden" name="audience" value="{{ preview_audience }}">
+                <input type="hidden" name="plan" value="{{ preview_plan }}">
+
+                <label>الموضوع <span style="color:#fca5a5;">*</span></label>
+                <input type="text" name="subject" required maxlength="200" placeholder="إعلان مهم …">
+
+                <label>نص الرسالة <span style="color:#fca5a5;">*</span> <span style="color:#64748b;">— استخدم {تعبير tenant_name} لتخصيص اسم الشركة</span></label>
+                <textarea name="body" required placeholder="عزيزي {tenant_name}،
+
+…"></textarea>
+
+                <div class="warn">
+                    ⚠️ هتبعت لـ <strong>{{ preview_count }}</strong> شركة. الإرسال نهائي ومش هينفع تتراجع. لو الإرسال كبير، استعد لانتظار 30-60 ثانية.
+                </div>
+
+                <label>للتأكيد، اكتب <code style="color:#fca5a5;">SEND</code></label>
+                <input type="text" name="confirm" required pattern="SEND" placeholder="SEND">
+
+                <div style="margin-top:14px; display:flex; gap:8px;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> إرسال الآن</button>
+                    <a href="/superadmin/broadcast/" class="btn btn-ghost">إعادة</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- ─── Help / Tips ─── -->
+        <div class="card">
+            <h3><i class="fas fa-circle-info"></i> دليل سريع</h3>
+
+            <div class="info">
+                <strong>أنواع الجمهور:</strong><br>
+                • <b>كل الشركات</b> — كل tenant مفعّل (مش متحذف)<br>
+                • <b>الشركات النشطة</b> — status=active بس<br>
+                • <b>في الفترة التجريبية</b> — status=trial<br>
+                • <b>ينتهي خلال 14 يوم</b> — تذكير تجديد<br>
+                • <b>في خطر churn</b> — موقوف / منتهي / fraud<br>
+                • <b>باقة محددة</b> — silver/gold/empire إلخ
+            </div>
+
+            <h3 style="margin-top:18px;"><i class="fas fa-wand-magic-sparkles"></i> متغيرات الـ template</h3>
+            <ul style="font-size:13px; color:#cbd5e1; padding-right:18px; line-height:1.8;">
+                <li><code style="background:#0f172a; padding:2px 6px; border-radius:4px;">{tenant_name}</code> — اسم الشركة</li>
+                <li><code style="background:#0f172a; padding:2px 6px; border-radius:4px;">{schema}</code> — معرف الشركة (subdomain)</li>
+            </ul>
+
+            <h3 style="margin-top:18px;"><i class="fas fa-shield"></i> أمان</h3>
+            <ul style="font-size:13px; color:#cbd5e1; padding-right:18px; line-height:1.8;">
+                <li>كل بث بيتسجل في <a href="/superadmin/audit-log/?q=بث" style="color:#a78bfa;">سجل التدقيق</a>.</li>
+                <li>الشركات اللي مالهاش email بتتخطى تلقائي (skipped count).</li>
+                <li>الفشل في إرسال لشركة معينة مش بيوقف الباقي — كل واحدة منفصلة.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ─── Campaigns history ─── -->
+    <div class="card" style="margin-top:18px;">
+        <h3><i class="fas fa-clock-rotate-left"></i> سجل الحملات (آخر 100)</h3>
+        {% if campaigns %}
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:120px;">التاريخ</th>
+                        <th>الموضوع</th>
+                        <th style="width:130px;">الجمهور</th>
+                        <th style="width:80px;">المستهدفون</th>
+                        <th style="width:80px;">نجاح</th>
+                        <th style="width:80px;">فشل</th>
+                        <th style="width:80px;">تخطّى</th>
+                        <th style="width:100px;">الحالة</th>
+                        <th style="width:110px;">المرسل</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in campaigns %}
+                        <tr>
+                            <td style="color:#94a3b8; white-space:nowrap;">
+                                {{ c.created_at|date:"Y-m-d" }}<br>
+                                <span style="color:#64748b;">{{ c.created_at|date:"H:i" }}</span>
+                            </td>
+                            <td style="color:#e2e8f0;">
+                                {{ c.subject|truncatechars:80 }}
+                                {% if c.error_log %}
+                                    <details>
+                                        <summary>أخطاء ({{ c.failed_count }})</summary>
+                                        <pre>{{ c.error_log }}</pre>
+                                    </details>
+                                {% endif %}
+                            </td>
+                            <td>{{ c.get_audience_display }}{% if c.audience_plan %} ({{ c.audience_plan }}){% endif %}</td>
+                            <td>{{ c.audience_size }}</td>
+                            <td style="color:#86efac;">{{ c.sent_count }}</td>
+                            <td style="color:#fca5a5;">{{ c.failed_count }}</td>
+                            <td style="color:#64748b;">{{ c.skipped_count }}</td>
+                            <td><span class="pill {{ c.status }}">{{ c.get_status_display }}</span></td>
+                            <td style="color:#cbd5e1;">{{ c.created_by.username|default:"—" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div style="text-align:center; color:#64748b; padding:30px;">
+                <i class="fas fa-inbox" style="font-size:32px; color:#475569;"></i>
+                <p>لسه مفيش حملات. ابدأ من الـ composer جنب.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function confirmSend(form) {
+    const subject = form.subject.value.trim();
+    const audienceCount = {{ preview_count|default:0 }};
+    if (!subject) return false;
+    return confirm(`هتبعت "${subject}" لـ ${audienceCount} شركة. متأكد؟`);
+}
+</script>
+</body>
+</html>

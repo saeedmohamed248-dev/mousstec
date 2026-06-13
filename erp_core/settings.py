@@ -199,6 +199,18 @@ AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
     'clients.backends.CaseInsensitiveEmailBackend',
 ]
+
+# 🛡️ Password policy — كان مش معرّف خالص، فـ validate_password كانت تمرّ على
+# أي قيمة (حتى "1"). signup/recovery/change_password كلهم بيستدعوا
+# validate_password، فلازم الـ validators المعيارية هنا.
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+     'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 ROOT_URLCONF = 'erp_core.urls'
 PUBLIC_SCHEMA_URLCONF = 'erp_core.urls'
 

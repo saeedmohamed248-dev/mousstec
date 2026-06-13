@@ -133,3 +133,61 @@ class SystemErrorLog(models.Model):
         return f"[{self.status_code}] {self.exception_class or self.path} @ {self.tenant_schema or 'public'}"
 
 
+# =====================================================================
+# 📢 Email Broadcast Campaigns (Super Admin → Tenants)
+# =====================================================================
+
+class BroadcastCampaign(models.Model):
+    """
+    حملة بث جماعية من السوبر أدمن — إعلان، تحديث، maintenance notice…
+    تحفظ الـ audience filters المستخدمة + نتائج الإرسال.
+    """
+    AUDIENCE_CHOICES = (
+        ('all',         _('كل الشركات')),
+        ('active',      _('الشركات النشطة فقط')),
+        ('trial',       _('في الفترة التجريبية')),
+        ('expiring',    _('اشتراك ينتهي خلال 14 يوم')),
+        ('at_risk',     _('شركات في خطر churn')),
+        ('plan',        _('باقة محددة')),
+        ('custom',      _('فلتر مخصص')),
+    )
+    STATUS_CHOICES = (
+        ('draft',     _('مسودة')),
+        ('sending',   _('جاري الإرسال')),
+        ('sent',      _('تم الإرسال')),
+        ('failed',    _('فشل')),
+    )
+
+    subject = models.CharField(max_length=200, verbose_name=_("الموضوع"))
+    body = models.TextField(verbose_name=_("نص الرسالة"))
+    audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default='all')
+    audience_plan = models.CharField(max_length=20, blank=True, default='',
+                                     help_text="لو audience=plan: slug الباقة")
+    audience_filter = models.JSONField(default=dict, blank=True,
+                                       help_text="فلتر إضافي JSON (e.g. industry=automotive)")
+
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='draft', db_index=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    # نتائج الإرسال
+    audience_size = models.IntegerField(default=0, help_text="عدد المستلمين المتوقع")
+    sent_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    skipped_count = models.IntegerField(default=0,
+                                        help_text="مستلمون بدون بريد")
+    error_log = models.TextField(blank=True, default='')
+
+    class Meta:
+        verbose_name = _("حملة بث")
+        verbose_name_plural = _("حملات البث")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.subject[:50]}"
+
+
