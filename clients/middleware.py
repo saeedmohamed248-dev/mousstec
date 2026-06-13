@@ -58,12 +58,52 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         return cls._cached_exempt_urls
 
     # 🚦 سرعات الباقات (طلبات لكل دقيقة)
+    # Keys cover BOTH the legacy Tenant.plan CharField values
+    # ('silver'/'gold'/'empire') AND the current Plan.slug values
+    # ('auto-*' / 'print-*'). _resolve_plan_key() normalizes whichever
+    # source we have before lookup, so neither vocabulary leaks the
+    # mapping into the caller.
     TIER_RATE_LIMITS = {
+        # Automotive
         'silver': 60,
         'gold': 300,
         'empire': 1000,
-        'unknown': 30
+        # Printing
+        'starter': 60,
+        'pro': 300,
+        'enterprise': 1000,
+        # Safety net
+        'unknown': 30,
     }
+
+    @staticmethod
+    def _resolve_plan_key(tenant) -> str:
+        """Resolve the tier key for rate-limit lookup.
+
+        Priority:
+          1. The active TenantSubscription's Plan.slug, stripped of its
+             industry prefix ('auto-silver' → 'silver'). This is the
+             current source of truth set by the relaunch 2026 pricing.
+          2. The legacy Tenant.plan CharField. Drifts from #1 are common
+             because nothing keeps them in sync; we only fall back to it
+             when no subscription/plan row exists.
+          3. 'unknown' — safe minimum rate.
+        """
+        try:
+            sub = getattr(tenant, 'subscription', None)
+            slug = getattr(getattr(sub, 'plan', None), 'slug', None) if sub else None
+            if slug:
+                key = slug.split('-', 1)[-1].lower()  # 'auto-empire' → 'empire'
+                if key in TenantQuotaMiddleware.TIER_RATE_LIMITS:
+                    return key
+        except Exception:
+            # Tenant w/o subscription relation, lazy-load errors, etc.
+            # Fall through to the legacy field rather than 500.
+            pass
+        legacy = (getattr(tenant, 'plan', None) or '').lower()
+        if legacy in TenantQuotaMiddleware.TIER_RATE_LIMITS:
+            return legacy
+        return 'unknown'
 
     def _get_tenant_status(self, tenant):
         """
@@ -93,7 +133,9 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             status_data = {
                 'is_valid': is_valid,
                 'is_fraud': is_fraud,
-                'plan': tenant.plan or 'unknown',
+                # Source of truth: subscription.plan.slug, not the
+                # legacy Tenant.plan CharField that drifts silently.
+                'plan': self._resolve_plan_key(tenant),
                 'days_left': max(days_left, 0),
                 'in_grace_period': in_grace_period,
                 'schema': tenant.schema_name
