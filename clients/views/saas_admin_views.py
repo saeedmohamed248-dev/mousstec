@@ -1597,7 +1597,7 @@ def broadcast_list(request):
 def broadcast_send(request):
     """POST: ينشئ حملة + يبعتها (sync — لـ MVP). للأحجام الكبيرة ننقلها لـ Celery لاحقاً."""
     if request.method != 'POST':
-        return HttpResponseBadRequest("POST required")
+        return redirect('saas_broadcast_list')
 
     subject = (request.POST.get('subject') or '').strip()
     body = (request.POST.get('body') or '').strip()
