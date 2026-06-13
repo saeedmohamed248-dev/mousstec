@@ -48,7 +48,18 @@ def update_sale_invoice_total(sender, instance, **kwargs):
 
 @receiver(post_save, sender=SaleInvoiceItem)
 def accrue_salesperson_commission(sender, instance, created, **kwargs):
-    """Calculate and credit commission to the salesperson on item save."""
+    """Calculate and credit commission to the salesperson on item save.
+
+    🛡️ Only fires on creation. The ``commission_balance`` update is an
+    ``F() + commission`` increment — running it on every save would
+    double-pay the salesperson every time anyone edited the line
+    (description fix, status flip, parent invoice cascade, etc.).
+    Without this guard a 40 EGP commission turned into 80 → 120 → …
+    silently as the row got touched. Demonstrated by
+    inventory/tests/test_commission_signal.test_edit_does_not_re_accrue.
+    """
+    if not created:
+        return
     from decimal import Decimal, ROUND_HALF_UP
     if not instance.salesperson_id:
         return
