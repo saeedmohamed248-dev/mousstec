@@ -107,8 +107,9 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000     # AI Studio forms have many fields
 # =====================================================================
 SHARED_APPS = (
     'daphne',          # ⚡ محرك الاتصالات الحية
-    'django_tenants',  
+    'django_tenants',
     'clients',         # 👑 إدارة الإمبراطورية السحابية والمزادات المركزية
+    'tenancy',         # 🏛️ SaaS tenant lifecycle, plans, entitlements (Wave 2 Phase 2A — services only; models still live in clients)
     
     'jazzmin', 
     'django.contrib.admin',
