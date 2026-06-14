@@ -19,3 +19,11 @@ class TenancyConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'tenancy'
     verbose_name = 'SaaS Tenancy & Entitlements'
+
+    def ready(self):
+        # Plan-based quota enforcement signals on User/Branch/Treasury creation.
+        # The file used to live at clients/signals_quota.py and be imported
+        # from clients/apps.py; Wave 2 Phase 2A moved both the file and the
+        # wiring here so quota enforcement is owned by its proper domain.
+        from . import signals  # noqa: F401
+        from .signals import quota  # noqa: F401
