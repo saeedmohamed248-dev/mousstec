@@ -418,28 +418,32 @@ operations = [
 
 ## 9. خارطة الـ Refactor (Waves)
 
-### Wave 0 — Documentation (الحالي ✅)
+### Wave 0 — Documentation ✅
 - ✅ `docs/ARCHITECTURE.md` (هذا الملف)
 - ⏳ `docs/RFC-001-domain-split.md` (لاحقاً، عند الحاجة)
 
-### Wave 1 — Internal File Splits (آمن، صفر behavior change)
+### Wave 1 — Internal File Splits (آمن، صفر behavior change) ✅
 
-| # | الملف | الـ split المقترح | الحالة |
-|---|------|------------------|--------|
-| 1 | `clients/models.py` (4462) | `clients/models/` package (8 submodules) | ⏳ TODO |
-| 2 | `inventory/views.py` (4052) | `inventory/views/` package (6 submodules) | ⏳ TODO |
-| 3 | `erp_core/ai/design_engine.py` (2971) | `erp_core/ai/design_engine/` package | ⏳ TODO |
-| 4 | `inventory/admin.py` (2877) | `inventory/admin/` package | ⏳ TODO |
-| 5 | `clients/views/design_store_views.py` (2374) | تقسيم لـ 4 ملفات | ⏳ TODO |
-| 6 | `printing/views.py` (2103) | تقسيم لـ 3 ملفات | ⏳ TODO |
-| 7 | `inventory/models.py` (1612) | `inventory/models/` package | ⏳ TODO |
+| # | الملف | قبل | بعد __init__.py | Submodules | الحالة |
+|---|------|----|----------------|-----------|--------|
+| 1 | `clients/models.py` | 4462 | **37** | 8 (tenancy/marketplace_b2b/marketplace_c2c/design_store/billing/support/diagnostics/monitoring) | ✅ Done |
+| 2 | `inventory/views.py` | 4052 | **74** | 10 (utils + dashboards/printing/vehicles/webhooks/stock_ops/ai_agents/business_ops/reports/service) | ✅ Done |
+| 3 | `erp_core/ai/design_engine.py` | 2971 | 2971 | rename only | ⚠️ Skeleton — split blocked by @patch contracts (see ADR-003) |
+| 4 | `inventory/admin.py` | 2877 | **58** | 10 (mixins/organization/customers/catalog/invoices/finance/dashboard/audit/accounting/b2b) | ✅ Done |
+| 5 | `clients/views/design_store_views.py` | 2374 | **61** | 3 (navigation/generate/delivery) | ✅ Done |
+| 6 | `printing/views.py` | 2103 | **40** | 7 (utils/ai_design/copilot/catalog/ai_diagnostics/studio/finance) | ✅ Done |
+| 7 | `inventory/models.py` | 1612 | **29** | 7 (organization/catalog/customers/finance/invoices/operations/diagnostics) | ✅ Done |
 
-**استراتيجية كل split:**
-1. اعمل `<file>/` package
-2. اعمل `__init__.py` يـ re-export كل شيء
-3. انقل الكلاسات تدريجياً في sub-modules
-4. اشغّل الـ tests
-5. commit
+**Cumulative shrinkage:** 20,451 سطر في الـ entry files → **2,270 سطر** (-89%). 45 domain submodule جديد.
+
+**استراتيجية كل split (المُتَّبَعة فعلاً):**
+1. ✅ `git mv <file>.py <file>/__init__.py` — package skeleton كـ sub-commit أول
+2. ✅ كل submodule = sub-commit مستقل، يـ run tests + commit
+3. ✅ الـ __init__.py يـ `from .submodule import *` للـ backward compat
+4. ✅ Underscore-prefixed helpers يتـ re-export صراحةً (لأن `import *` بيتخطاهم)
+5. ✅ Decorator stacks (`@csrf_exempt @login_required`) تُنقل مع الـ function (الـ extractor walks back through `@/#/blank` lines)
+
+**Lessons learned (في ADR-003):** الـ pattern آمن لـ models (Django ContentType بيـ resolve FKs lazy)، وللـ views/admin (HTTP adapters مستقلة). بس **مش آمن لـ modules فيها functions بتنادي بعضها داخلياً + tests بتـ `@patch('module.X')`** — لأن الـ `@patch` بيـ swap الـ binding في الـ `__init__.py` namespace بس، مش في الـ submodule اللي بيستخدم الـ function. لازم scan الـ tests الأول.
 
 ### Wave 2 — Extract New Domain Apps (متوسط الخطورة)
 
