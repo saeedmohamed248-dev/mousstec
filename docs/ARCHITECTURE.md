@@ -480,6 +480,35 @@ operations = [
 **القرار:** الـ docs بـ عربي للشرح + إنجليزي للـ code/paths.
 **السبب:** التيم الحالي عربي بشكل أساسي، الـ paths والـ code أسماء فنية ما تتترجمش.
 
+### ADR-003 — Module splits must respect `@patch` contracts (2026-06-14)
+**القرار:** قبل ما نـ split أي module بيـ expose دوال بتنادي بعضها داخلياً، نـ scan الـ tests لـ `@patch('module.X')` patterns الأول.
+
+**السبب:** عملنا split لـ `erp_core/ai/design_engine.py` لـ submodules
+(llm_client, prompt_composer, text_utils...). الـ tests كانت بتـ patch
+`erp_core.ai.design_engine._call_together_llm`. بس بعد الـ split،
+`prompt_composer.py` بيـ import `_call_together_llm` من `.llm_client`
+بـ `from .llm_client import _call_together_llm`، فبيكون عنده reference
+محلي للـ function. الـ `@patch` على `design_engine._call_together_llm`
+بيـ swap الـ name في الـ `__init__.py` namespace بس، مش في
+`prompt_composer.py` — فالـ patched mock مش بيـ trigger.
+
+**التأثير:** 12 test error في `test_brand_design_pipeline.py` بعد split.
+الـ `manage.py check` نظيف لكن الـ behavior كان مكسور.
+
+**القرار النهائي:** revert الـ split لـ design_engine (5b)، يبقى الـ
+package skeleton (5a) لأن مفيش tests بتـ patch الـ rename فحسب. الـ
+re-split هيتعمل لاحقاً بعد إما:
+  - تعديل الـ tests لـ patch الـ submodule path الجديد
+    (`design_engine.prompt_composer._call_together_llm`)
+  - أو استخدام `from . import llm_client` + call عبر
+    `llm_client._call_together_llm(...)` في submodules — يخلي الـ
+    patch path قابل للتوقع
+
+**درس مستفاد:** الـ split الآمن للـ models بـ FKs (clients/models.py,
+inventory/models.py) لأن FKs بتـ resolve بـ Django's ContentType
+lazy mechanism. لكن split للـ functions اللي بتنادي بعضها مع
+test patches = مخاطرة. لازم scan قبل.
+
 ---
 
 ## 11. الـ Checklist لإضافة Domain جديد
