@@ -34,7 +34,7 @@ from clients.models import (
     MarketplaceCustomer,
 )
 
-from ._ai_pipeline import (
+from .._ai_pipeline import (
     _composite_brand_logo,
     _persist_remote_image,
     _resolve_brand_context,
@@ -42,7 +42,7 @@ from ._ai_pipeline import (
     _run_marketplace_image_pipeline,
     _upscale_local_image,
 )
-from ._shared import (
+from .._shared import (
     _build_customer_topup_cards,
     _marketplace_auth,
 )
@@ -556,7 +556,7 @@ def design_store_my_designs(request):
 # When this module is finally retired, callers will import directly from
 # ``clients.views._ai_pipeline``.
 # ═══════════════════════════════════════════════════════════════════════════
-from ._ai_pipeline import (
+from .._ai_pipeline import (
     _resolve_brand_context,
     _persist_remote_image,
     _composite_brand_logo,
