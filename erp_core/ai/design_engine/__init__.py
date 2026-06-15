@@ -2580,7 +2580,7 @@ def compose_mega_prompt(
     placement = str(data.get('print_placement') or '').strip().lower()
     if placement not in ('front', 'back'):
         # Regex fallback — نشيك على الـ raw_idea + selections values
-        from .printing_copilot import detect_placement_from_text
+        from ..printing_copilot import detect_placement_from_text  # ..  = erp_core.ai (parent of the design_engine package — see 5a rename)
         combined = (raw_idea or '') + ' ' + ' '.join(str(v) for v in (selections or {}).values())
         placement = detect_placement_from_text(combined)
 
