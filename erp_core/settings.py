@@ -113,8 +113,9 @@ SHARED_APPS = (
     'marketplace_b2b', # 🛒 B2B parts marketplace, blind bidding, escrow (Wave 2 Phase 2A — services + tests; models still live in clients)
     'design_store',    # 🎨 AI design store: chat + persistence + brand profile (Wave 2 Phase 2A — services + tests; models still live in clients)
     'billing',         # 💳 Payment gateway (Paymob), manual receipts (Wave 2 Phase 2A — services + tests; models still live in clients)
-    
-    'jazzmin', 
+    'marketplace_c2c', # 🤝 C2C marketplace: tenders, disputes, trust/KYC (Wave 2 Phase 2A — services + tests; models still live in clients)
+
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
