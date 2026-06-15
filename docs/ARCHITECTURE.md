@@ -445,17 +445,28 @@ operations = [
 
 **Lessons learned (في ADR-003):** الـ pattern آمن لـ models (Django ContentType بيـ resolve FKs lazy)، وللـ views/admin (HTTP adapters مستقلة). بس **مش آمن لـ modules فيها functions بتنادي بعضها داخلياً + tests بتـ `@patch('module.X')`** — لأن الـ `@patch` بيـ swap الـ binding في الـ `__init__.py` namespace بس، مش في الـ submodule اللي بيستخدم الـ function. لازم scan الـ tests الأول.
 
-### Wave 2 — Extract New Domain Apps (متوسط الخطورة)
+### Wave 2 — Extract New Domain Apps
 
-1. `tenancy` ← extract من `clients` (الأسهل، الأقل تبعيات)
-2. `marketplace_b2b` ← extract من `clients` + `inventory`
-3. `design_store` ← extract من `clients`
-4. `billing` ← extract من `clients`
-5. `marketplace_c2c` ← extract من `clients`
-6. `support` ← extract من `clients`
-7. `workshop` ← extract من `inventory`
+**Phase 2A** (✅ في تقدم): services + signals + middleware + tests ينتقلوا للـ apps الجديدة. Models تفضل في `clients.models.<domain>` (submodules اللي اتعملت في Wave 1). الـ shims في `clients/services/*.py` و `clients/middleware.py` بتـ re-export من الـ canonical location عشان الـ external callers ما يحتاجوش تعديل.
 
-**كل extraction = PR منفصل + migration دقيقة + tests pass**
+**Phase 2B** (مؤجلة): نقل الـ models نفسها بـ `db_table` ثابت و `state_operations` migrations. تتعمل لكل domain بعد ما الـ Phase 2A ترسخ و staging dry-run ينجح.
+
+| # | App | Phase 2A | Submodules منقولة | Tests | الحالة |
+|---|-----|----------|-------------------|-------|--------|
+| 1 | `tenancy` | ✅ Done (8a-8d) | services/{entitlements,plan_mapping}, signals/quota, middleware/quota | 24 tests | Phase 2B pending |
+| 2 | `marketplace_b2b` | ✅ Done (9a) | services/{escrow,fitment} | 82 tests | Phase 2B pending |
+| 3 | `design_store` | ✅ Done (10a) | services/{design_chat,design_persistence} | 161 tests | Phase 2B pending |
+| 4 | `billing` | ✅ Done (11a) | services/paymob | 31 tests (4 pre-existing failures) | Phase 2B pending |
+| 5 | `marketplace_c2c` | ✅ Done (12a) | services/{disputes,trust} | 16 tests | Phase 2B pending |
+| 6 | `support` | ⏳ TODO | TBD (clients/views chat + ticket views) | TBD | — |
+| 7 | `workshop` | ⏳ TODO | TBD (inventory automotive verticals) | TBD | — |
+
+**شِيمات الـ Backward Compatibility:**
+- `clients/services/<name>.py` → `from <new_app>.services.<name> import *`
+- `clients/middleware.py` → `from tenancy.middleware.quota import TenantQuotaMiddleware`
+- `clients/signals_quota.py` → نُقل تماماً، الـ wiring بقى في `tenancy/apps.py:ready()`
+
+**Settings تحديث (`SHARED_APPS`):** الـ 5 apps الجديدة مسجَّلين بعد `clients` مباشرة عشان نضمن trial provisioning و tenant lifecycle يفضلوا يشتغلوا.
 
 ### Wave 3 — Service Boundaries (إعادة هيكلة المنطق)
 
