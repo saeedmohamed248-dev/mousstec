@@ -380,9 +380,70 @@ body {
 
 <div id="unsupported" class="unsupported">
     <h2><i class="fa-solid fa-triangle-exclamation"></i> المتصفح لا يدعم Web Bluetooth</h2>
-    <p>افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث، وبعدوسائط HTTPS فقط.<br>
-       Safari و Firefox لا يدعمان حالياً البلوتوث في المتصفح.</p>
+    <p id="unsupportedGeneric">افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث (HTTPS فقط).<br>
+       Safari و Firefox لا يدعمان البلوتوث في المتصفح.</p>
+
+    <!-- 📱 iPhone/iPad — Apple-specific guidance: 3 working paths -->
+    <div id="iosGuidance" style="display:none; margin-top:16px; text-align:right;
+            background:rgba(15,23,42,.55); border:1px solid rgba(56,189,248,.35);
+            border-radius:14px; padding:18px 20px;">
+        <h3 style="margin:0 0 12px; color:#7dd3fc; font-size:16px; display:flex; align-items:center; gap:8px;">
+            <i class="fa-brands fa-apple"></i> أنت تستخدم iPhone / iPad
+        </h3>
+        <p style="color:#cbd5e1; font-size:13px; margin:0 0 14px; line-height:1.7;">
+            Apple لا تسمح لأي متصفح على iOS بالاتصال المباشر بالبلوتوث (حتى Chrome على iPhone يستخدم Safari بالداخل).
+            عندك <b>3 حلول مجرّبة</b> ترتيب من الأسهل للأقوى:
+        </p>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Path 1: WiFi dongle -->
+            <div style="background:rgba(20,83,45,.25); border:1px solid rgba(34,197,94,.4); border-radius:10px; padding:12px;">
+                <div style="color:#86efac; font-weight:800; font-size:14px; margin-bottom:4px;">
+                    ✅ الحل الأفضل — فيشة OBD2 <b>Wi-Fi</b>
+                </div>
+                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                    اشتري فيشة <b>vLinker MC+</b> أو <b>OBDLink MX+</b> (تدعم Wi-Fi). اتصل بشبكتها من إعدادات iPhone،
+                    ارجع للصفحة دي واضغط زر <b>"اتصل عبر Wi-Fi"</b> في الأسفل. يشتغل على iPhone بدون أي إضافات.
+                </div>
+            </div>
+
+            <!-- Path 2: Bluefy browser -->
+            <div style="background:rgba(30,58,138,.25); border:1px solid rgba(96,165,250,.4); border-radius:10px; padding:12px;">
+                <div style="color:#93c5fd; font-weight:800; font-size:14px; margin-bottom:4px;">
+                    🌐 الحل البديل — متصفح <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener" style="color:#7dd3fc; text-decoration:underline;">Bluefy</a>
+                </div>
+                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                    متصفح مجاني من App Store يضيف دعم Web Bluetooth لـ iPhone. حمّله، افتح الصفحة دي من خلاله،
+                    وزر "اقرن جهاز OBD2" البلوتوث هيشتغل عادي.
+                </div>
+            </div>
+
+            <!-- Path 3: Use Android/PC -->
+            <div style="background:rgba(120,53,15,.25); border:1px solid rgba(251,191,36,.4); border-radius:10px; padding:12px;">
+                <div style="color:#fcd34d; font-weight:800; font-size:14px; margin-bottom:4px;">
+                    💻 الحل الأخير — موبايل Android أو لاب
+                </div>
+                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                    أي موبايل Android (Chrome) أو لاب (Chrome/Edge) يدعم Web Bluetooth بشكل كامل وفوري.
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Show iOS-specific guidance only on Apple devices
+(function detectIOS(){
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+    if (isIOS) {
+        const el = document.getElementById('iosGuidance');
+        const generic = document.getElementById('unsupportedGeneric');
+        if (el) el.style.display = 'block';
+        if (generic) generic.style.display = 'none';
+    }
+})();
+</script>
 
 <!-- 📡 OBD Wi-Fi offline-mode banner (Phase 3 #2). Shown when the browser
      reports offline (navigator.onLine === false) — typically because the
