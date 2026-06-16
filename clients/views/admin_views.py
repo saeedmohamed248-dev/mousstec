@@ -1223,7 +1223,7 @@ def super_admin_gift_diagnostics(request):
                 ),
                 level='success',
                 icon='fa-gift',
-                action_url='/diagnostic/shop/',
+                action_url='/marketplace/diagnostics/',
                 action_label='ابدأ التشخيص',
                 sent_by=request.user,
             )

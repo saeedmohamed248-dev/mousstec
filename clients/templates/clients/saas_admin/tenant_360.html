@@ -132,6 +132,9 @@
             <a href="/superadmin/enter/{{ tenant.schema_name }}/" target="_blank" class="btn btn-primary">
                 <i class="fas fa-arrow-right-to-bracket"></i> دخول للحساب
             </a>
+            <button onclick="openRenewModal()" class="btn btn-ghost" style="color:#34d399; border-color:#34d39966;">
+                <i class="fas fa-rotate"></i> تجديد الاشتراك
+            </button>
             <a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
                 <i class="fas fa-clipboard-list"></i> سجل التدقيق
             </a>
@@ -344,6 +347,91 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- ─── Renew Subscription Modal ─── -->
+<div id="renew-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#1e293b; border:1px solid #4c1d95; border-radius:18px; padding:28px; width:100%; max-width:400px; text-align:center; font-family:Cairo,sans-serif;">
+    <div style="font-size:32px; margin-bottom:8px;">🔄</div>
+    <h3 style="color:#a78bfa; font-size:18px; font-weight:900; margin:0 0 4px;">تجديد اشتراك</h3>
+    <p style="color:#94a3b8; font-size:13px; margin:0 0 20px;">{{ tenant.name }}</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+      <button onclick="renewSub(1)"  class="renew-opt">شهر واحد</button>
+      <button onclick="renewSub(3)"  class="renew-opt">3 أشهر</button>
+      <button onclick="renewSub(6)"  class="renew-opt">6 أشهر</button>
+      <button onclick="renewSub(12)" class="renew-opt">سنة كاملة</button>
+    </div>
+
+    <div id="renew-result" style="display:none; padding:10px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:14px;"></div>
+
+    <button onclick="closeRenewModal()" style="background:transparent; border:1px solid #475569; color:#94a3b8; border-radius:10px; padding:8px 20px; cursor:pointer; font-family:Cairo,sans-serif; font-size:13px;">إغلاق</button>
+  </div>
+</div>
+
+<style>
+.renew-opt {
+  background:#312e81; border:1px solid #4c1d95; color:#c4b5fd;
+  border-radius:10px; padding:12px; cursor:pointer; font-family:Cairo,sans-serif;
+  font-size:13px; font-weight:700; transition:background .15s;
+}
+.renew-opt:hover { background:#4c1d95; }
+.renew-opt:disabled { opacity:.5; cursor:not-allowed; }
+</style>
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+const RENEW_URL = '/superadmin/tenants/{{ tenant.pk }}/renew-subscription/';
+
+function openRenewModal() {
+  const m = document.getElementById('renew-modal');
+  m.style.display = 'flex';
+  document.getElementById('renew-result').style.display = 'none';
+}
+function closeRenewModal() {
+  document.getElementById('renew-modal').style.display = 'none';
+}
+async function renewSub(months) {
+  const btns = document.querySelectorAll('.renew-opt');
+  btns.forEach(b => b.disabled = true);
+  const resultEl = document.getElementById('renew-result');
+  resultEl.style.display = 'none';
+
+  const form = new FormData();
+  form.append('months', months);
+
+  try {
+    const res = await fetch(RENEW_URL, {
+      method: 'POST',
+      headers: {'X-CSRFToken': CSRF_TOKEN},
+      body: form,
+    });
+    const data = await res.json();
+    resultEl.style.display = 'block';
+    if (data.ok) {
+      resultEl.style.background = 'rgba(20,83,45,.4)';
+      resultEl.style.border = '1px solid rgba(34,197,94,.4)';
+      resultEl.style.color = '#86efac';
+      resultEl.textContent = data.message;
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      resultEl.style.background = 'rgba(127,29,29,.4)';
+      resultEl.style.border = '1px solid rgba(239,68,68,.4)';
+      resultEl.style.color = '#fca5a5';
+      resultEl.textContent = data.error || 'حدث خطأ';
+    }
+  } catch(e) {
+    resultEl.style.display = 'block';
+    resultEl.style.color = '#fca5a5';
+    resultEl.textContent = 'خطأ في الاتصال بالسيرفر';
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+document.getElementById('renew-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeRenewModal();
+});
+</script>
 </div>
 </body>
 </html>

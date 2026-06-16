@@ -444,6 +444,7 @@ urlpatterns = [
     path('superadmin/tenants/<int:tenant_id>/soft-delete/', saas_admin_views.tenant_soft_delete, name='saas_tenant_soft_delete'),
     path('superadmin/tenants/<int:tenant_id>/restore/',     saas_admin_views.tenant_restore,     name='saas_tenant_restore'),
     path('superadmin/tenants/<int:tenant_id>/force-delete/',saas_admin_views.tenant_force_delete,name='saas_tenant_force_delete'),
+    path('superadmin/tenants/<int:tenant_id>/renew-subscription/', saas_admin_views.tenant_renew_subscription, name='saas_tenant_renew_subscription'),
 
     # 🚨 System Error Log (live)
     path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),

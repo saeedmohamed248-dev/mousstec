@@ -1505,6 +1505,72 @@ def tenant_360(request, tenant_id):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🔄 Tenant Subscription Renewal — AJAX from tenant_360
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def tenant_renew_subscription(request, tenant_id):
+    """
+    POST /superadmin/tenants/<id>/renew-subscription/
+    Body: months=1|3|6|12
+    تجديد أو تمديد اشتراك شركة مباشرة من لوحة السوبر أدمن.
+    """
+    from django.http import JsonResponse
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+
+    tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
+
+    try:
+        months = int(request.POST.get('months') or 1)
+        if months not in (1, 3, 6, 12):
+            return JsonResponse({'ok': False, 'error': 'مدة غير صحيحة — اختر 1 أو 3 أو 6 أو 12 شهراً'}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'مدة غير صحيحة'}, status=400)
+
+    today = timezone.localdate()
+    with transaction.atomic():
+        # لو الاشتراك منتهي → نبدأ من اليوم، لو لسه شغال → نمده من نهايته
+        base = max(tenant.subscription_end_date or today, today)
+        new_end = base + timedelta(days=30 * months)
+        tenant.subscription_end_date = new_end
+        tenant.status = 'active'
+        tenant.is_active = True
+        tenant.save(update_fields=['subscription_end_date', 'status', 'is_active'])
+
+        # مسح الكاش عشان الـ middleware يشوف التغيير فوراً
+        try:
+            from django.core.cache import caches
+            cache = caches['local_tier'] if 'local_tier' in caches else caches['default']
+            cache.delete(f"tenant_guard_status_{tenant.schema_name}")
+        except Exception:
+            pass
+
+        PlatformEvent.objects.create(
+            event_type='other',
+            tenant_schema=tenant.schema_name,
+            tenant_name=tenant.name,
+            user_name=request.user.username,
+            description=(
+                f"🔄 تجديد اشتراك «{tenant.name}» لمدة {months} شهر "
+                f"(ينتهي {new_end}) — بواسطة {request.user.username}"
+            ),
+        )
+
+    logger.warning(
+        "subscription_renewal tenant=%s months=%d new_end=%s by=%s",
+        tenant.schema_name, months, new_end, request.user.username,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'message': f'✅ تم تجديد اشتراك «{tenant.name}» حتى {new_end}',
+        'new_end': str(new_end),
+        'months': months,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 🔍 Quick Search API — backs the ⌘K command palette
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required

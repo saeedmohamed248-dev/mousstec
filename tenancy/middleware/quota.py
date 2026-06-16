@@ -32,6 +32,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/auth/redirect/'),   # التوجيه الذكي بعد تسجيل الدخول
         re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
+        re.compile(r'^/impersonate-login/'), # دخول السوبر أدمن على الشركات (لازم يشتغل حتى لو الاشتراك منتهي)
         re.compile(r'^/system/health/'),   # فحص صحة النظام
         re.compile(r'^/system/api/v1/ai/'),
         re.compile(r'^/printing/copilot/'),   # Smart Business Copilot
