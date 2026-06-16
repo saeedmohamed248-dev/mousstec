@@ -32,8 +32,8 @@ from django_tenants.utils import schema_context
 from inventory.api_obd import ReceiveOBDDataView
 from inventory.models import SaleInvoice, Vehicle, VehicleDiagnosticReport
 
-from .base import ERPTenantTestCase
-from .factories import make_branch, make_customer
+from inventory.tests.base import ERPTenantTestCase
+from inventory.tests.factories import make_branch, make_customer
 
 
 # A fixed test KEK so we don't depend on the operator's environment.

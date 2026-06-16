@@ -44,6 +44,11 @@ from ..models import (
     ImportSession, AuditLog, PurchaseInvoice, Vendor,
 )
 
+# Shared logger — picked up by every submodule via `from .utils import *`.
+# Was at line 47 of the original views.py; got lost when the file was
+# split because the HEADER slice ended at line 46 (Wave 1 commit 2c).
+logger = logging.getLogger('mouss_tec_core')
+
 
 # Shared utilities & decorators used across every view module.
 # =====================================================================

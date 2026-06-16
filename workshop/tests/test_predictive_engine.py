@@ -19,8 +19,8 @@ from django.contrib.auth.models import User
 from django.test import RequestFactory
 from django.utils import timezone
 
-from .base import ERPTenantTestCase
-from .factories import (
+from inventory.tests.base import ERPTenantTestCase
+from inventory.tests.factories import (
     make_branch, make_customer, make_employee, make_product,
     make_inventory, make_treasury, make_sale_invoice,
 )

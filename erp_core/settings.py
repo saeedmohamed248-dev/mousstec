@@ -115,6 +115,8 @@ SHARED_APPS = (
     'billing',         # 💳 Payment gateway (Paymob), manual receipts (Wave 2 Phase 2A — services + tests; models still live in clients)
     'marketplace_c2c', # 🤝 C2C marketplace: tenders, disputes, trust/KYC (Wave 2 Phase 2A — services + tests; models still live in clients)
     'support',         # 🎧 Tickets, live chat business-hours gate (Wave 2 Phase 2A — services only; models still live in clients)
+    'workshop',        # 🚗 Automotive vertical: OBD ingest, predictive maintenance (Wave 2 Phase 2A — services + tests; models still live in inventory)
+    'workshop',        # 🔧 Automotive vertical: OBD ingest, predictive maintenance (Wave 2 Phase 2A — services + tests; models still live in inventory)
 
     'jazzmin',
     'django.contrib.admin',
