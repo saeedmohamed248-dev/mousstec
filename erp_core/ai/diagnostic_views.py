@@ -23,6 +23,32 @@ _MAX_HISTORY = 16
 # ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
+def _brand_catalog_for_template():
+    """Brand catalog rendered as (python_list, json_string).
+
+    - The list is for `{% for b in brands %}` server-side iteration (tabs).
+    - The JSON string is injected raw into a <script> for the JS side, so we
+      must guarantee proper JSON (double-quoted strings, escaped non-ASCII)
+      rather than relying on Python repr which uses single quotes.
+    """
+    from erp_core.ai.diagnostic_catalog import DIAGNOSTIC_BRANDS
+    rows = [
+        {
+            'key': key,
+            'label': b['label'],
+            'emoji': b.get('emoji', '🚗'),
+            'color': b.get('color', '#0099ff'),
+            'engines': b.get('engines', []),
+            'shop_faqs': b.get('shop_faqs', []),
+            'customer_faqs': b.get('customer_faqs', []),
+        }
+        for key, b in DIAGNOSTIC_BRANDS.items()
+    ]
+    # ensure_ascii=True keeps the output safe to splice into HTML without
+    # worrying about <script> being closed by a stray character.
+    return rows, json.dumps(rows, ensure_ascii=True)
+
+
 @login_required
 def diagnostic_page_shop(request):
     """صفحة التشخيص للورشة (الفنيين المحترفين)."""
@@ -31,6 +57,8 @@ def diagnostic_page_shop(request):
         'audience_label': 'الفني / الورشة',
         'audience_emoji': '🔧',
         'tenant_schema': getattr(connection, 'schema_name', 'public'),
+        'brands': _brand_catalog_for_template()[0],
+        'brands_json': _brand_catalog_for_template()[1],
     })
 
 
@@ -42,6 +70,8 @@ def diagnostic_page_customer(request):
         'audience_label': 'صاحب السيارة',
         'audience_emoji': '🚙',
         'tenant_schema': getattr(connection, 'schema_name', 'public'),
+        'brands': _brand_catalog_for_template()[0],
+        'brands_json': _brand_catalog_for_template()[1],
     })
 
 
@@ -59,6 +89,7 @@ def diagnostic_chat_api(request):
 
     query = (body.get('query') or '').strip()
     audience = (body.get('audience') or 'shop').strip()
+    brand = (body.get('brand') or '').strip().lower() or None
 
     if audience not in ('shop', 'customer'):
         return JsonResponse({'success': False, 'error': 'invalid_audience'}, status=400)
@@ -80,7 +111,9 @@ def diagnostic_chat_api(request):
     history = request.session.get(session_key, [])
 
     try:
-        result = run_diagnostic_pipeline(query, audience=audience, history=history)
+        result = run_diagnostic_pipeline(
+            query, audience=audience, history=history, brand=brand,
+        )
     except Exception as e:
         logger.exception('[DIAG VIEW] pipeline crashed')
         return JsonResponse({

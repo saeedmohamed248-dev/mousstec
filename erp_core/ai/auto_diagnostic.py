@@ -19,10 +19,15 @@ from typing import Any
 from django.conf import settings
 
 from inventory.ai_services import call_llm_layer
+from erp_core.ai.diagnostic_catalog import (
+    DIAGNOSTIC_BRANDS, all_engine_codes, detect_brand_from_text, get_brand,
+)
 
 logger = logging.getLogger('mouss_tec_core')
 
-_SUPPORTED_ENGINES = ('N13', 'N20', 'N52', 'N54', 'N55', 'N57', 'N63', 'B38', 'B48', 'B58')
+# Backwards-compat name kept for any legacy importer; the canonical source
+# of supported engine codes is now diagnostic_catalog.all_engine_codes().
+_SUPPORTED_ENGINES = tuple(all_engine_codes())
 
 
 # =============================================================================
@@ -84,9 +89,15 @@ def refine_complaint(text: str) -> dict[str, Any]:
 
 
 # =============================================================================
-# Stage 2 — BMW/MINI Expert
+# Stage 2 — Multi-Brand Auto Diagnostic Expert
 # =============================================================================
-def _expert_system_prompt(audience: str) -> str:
+def _expert_system_prompt(audience: str, brand_key: str | None = None) -> str:
+    """Build a brand-aware system prompt.
+
+    If `brand_key` matches a catalog entry, the AI gets that brand's
+    expert_focus + engine list. Otherwise it falls back to a generalist
+    multi-brand expert that still has access to every catalog brand.
+    """
     audience_note = (
         'الجمهور: ميكانيكي محترف في الورشة — اكتب بمصطلحات تقنية دقيقة، '
         'اذكر عزوم التربيط بالـ Nm، رتب الخطوات بشكل هندسي صارم، '
@@ -97,23 +108,31 @@ def _expert_system_prompt(audience: str) -> str:
         'تجنّب المصطلحات الصعبة من غير ما تفسرها.'
     )
 
-    return f"""
-أنت "خبير تشخيص BMW و MINI Cooper" المتخصص في محركات:
-N13, N20, N52, N54, N55, N57, N63, B38, B48, B58.
+    brand = get_brand(brand_key) if brand_key else None
 
-عندك معرفة هندسية صارمة لـ:
-• تخطيط الـ engine bay الفعلي لكل محرك (الـ Turbo position vs Intake direction)
-• Torque specifications الصحيحة (مثال: N54 turbo manifold = 22 Nm + 90°)
-• Common failure points (N54 HPFP, N20 timing chain, N13 carbon buildup, etc.)
-• Diagnostic procedures عبر ISTA / INPA / Carly
-• فروق التصميم بين F-series و G-series
+    if brand:
+        engines = ', '.join(brand.get('engines', []))
+        intro_line = f'أنت "خبير تشخيص {brand["label"]}" المتخصص في محركات:\n{engines}.'
+        focus = brand.get('expert_focus', '')
+    else:
+        all_labels = ' / '.join(b['label'] for b in DIAGNOSTIC_BRANDS.values())
+        intro_line = f'أنت "خبير تشخيص متعدد الماركات" متخصص في: {all_labels}.'
+        focus = (
+            'عندك معرفة هندسية شاملة لكل الماركات الكبيرة. '
+            'أول حاجة: حدد من الشكوى الماركة + الموديل + المحرك قبل ما تشخص. '
+            'لو غير محددة، اسأل المستخدم عنها قبل ما ترد.'
+        )
+
+    return f"""
+{intro_line}
+
+{focus}
 
 ⚠️ قواعد صارمة:
-1. **دقة مكانية صارمة**: لو سألوا عن قطعة في N13، حدد بالضبط إن الـ Turbo
-   ناحية الفايرول والـ Intake ناحية المروحة (مش العكس زي N20).
+1. **دقة مكانية صارمة**: لو سألوا عن قطعة، حدد مكانها بالضبط على المحرك المذكور.
 2. **عزوم التربيط**: اذكر العزم بالـ Nm + الزاوية لو موجودة.
-3. **لو مش متأكد**: قول بصراحة "محتاج فحص ISTA" بدل ما تخمن.
-4. **الـ Safety**: نبّه على أي خطوة فيها خطر (high-pressure fuel, air bag, etc.)
+3. **لو مش متأكد**: قول بصراحة "محتاج فحص بجهاز التشخيص المتخصص" بدل ما تخمن.
+4. **الـ Safety**: نبّه على أي خطوة فيها خطر (high-pressure fuel, air bag, hybrid HV battery, etc.)
 
 {audience_note}
 
@@ -126,8 +145,15 @@ def run_diagnostic_pipeline(
     user_text: str,
     audience: str = 'shop',
     history: list[dict] | None = None,
+    brand: str | None = None,
 ) -> dict[str, Any]:
-    """Pipeline كامل: refine → expert diagnosis (Llama-3.3 via Together)."""
+    """Pipeline كامل: refine → expert diagnosis (Llama-3.3 via Together).
+
+    `brand` selects the brand-specific expert profile (BMW, Mercedes, Audi,
+    Toyota, Hyundai, Nissan, Honda). If omitted or unknown, we auto-detect
+    from the user's text — and fall back to a multi-brand generalist prompt
+    if detection fails.
+    """
     if not _enabled():
         return {
             'success': False,
@@ -138,14 +164,18 @@ def run_diagnostic_pipeline(
     if audience not in ('shop', 'customer'):
         audience = 'shop'
 
+    # Resolve brand: explicit param wins; otherwise sniff from text.
+    resolved_brand = brand if get_brand(brand) else detect_brand_from_text(user_text)
+
     # --- Stage 1 ---
     refined = refine_complaint(user_text)
     if not isinstance(refined, dict):
         refined = {'refiner_status': 'invalid', 'refined_complaint': user_text}
+    refined['brand'] = resolved_brand
 
     # --- Stage 2 ---
     messages: list[dict] = [
-        {'role': 'system', 'content': _expert_system_prompt(audience)},
+        {'role': 'system', 'content': _expert_system_prompt(audience, resolved_brand)},
     ]
     for msg in (history or [])[-8:]:
         role = 'user' if msg.get('role') == 'user' else 'assistant'

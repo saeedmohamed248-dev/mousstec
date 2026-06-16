@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خبير تشخيص BMW / MINI — {{ audience_label }}</title>
+    <title>خبير تشخيص متعدد الماركات — {{ audience_label }}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -156,74 +156,80 @@
             padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
             border: 1px solid rgba(34, 197, 94, 0.3);
         }
+
+        /* ── Brand tabs ─────────────────────────────────────────── */
+        .brand-tabs {
+            display: flex; gap: 8px; padding: 12px 24px; overflow-x: auto;
+            background: rgba(10, 25, 41, 0.65);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+            scrollbar-width: thin;
+        }
+        .brand-tabs::-webkit-scrollbar { height: 4px; }
+        .brand-tabs::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.3); border-radius: 2px; }
+        .brand-tab {
+            flex-shrink: 0; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #94a3b8; padding: 8px 16px; border-radius: 10px;
+            font-family: inherit; font-size: 0.85rem; font-weight: 700;
+            cursor: pointer; transition: all 0.18s; white-space: nowrap;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .brand-tab:hover { background: rgba(0, 212, 255, 0.08); color: #cbd5e1; border-color: rgba(0, 212, 255, 0.25); }
+        .brand-tab.active {
+            background: var(--brand-color, #0099ff);
+            border-color: var(--brand-color, #0099ff);
+            color: #fff; box-shadow: 0 4px 14px var(--brand-glow, rgba(0,153,255,.35));
+        }
+        .brand-tab .count {
+            background: rgba(255,255,255,0.18); color: inherit;
+            font-size: 0.65rem; padding: 1px 6px; border-radius: 99px;
+            font-weight: 800;
+        }
+        .brand-tab.active .count { background: rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
 
 <div class="topbar">
-    <h1>{{ audience_emoji }} خبير تشخيص BMW / MINI — {{ audience_label }}</h1>
+    <h1>{{ audience_emoji }} <span id="topbarBrandLabel">خبير تشخيص متعدد الماركات</span> — {{ audience_label }}</h1>
     <div class="actions">
         <button id="reset-btn"><i class="fas fa-broom"></i> محادثة جديدة</button>
         <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
     </div>
 </div>
 
+<!-- ── Brand picker ───────────────────────────────────────── -->
+<div class="brand-tabs" id="brandTabs">
+    {% for b in brands %}
+    <button class="brand-tab" data-brand="{{ b.key }}"
+            data-color="{{ b.color }}"
+            data-label="{{ b.label }}">
+        <span>{{ b.emoji }}</span>
+        <span>{{ b.label }}</span>
+        <span class="count">{{ b.engines|length }}</span>
+    </button>
+    {% endfor %}
+</div>
+
 <div class="shell">
 
     <aside class="sidebar">
-        <h3><i class="fas fa-microchip"></i> المحركات المدعومة</h3>
-        <div style="margin-bottom: 16px;">
-            <span class="engine-chip">N13</span>
-            <span class="engine-chip">N20</span>
-            <span class="engine-chip">N52</span>
-            <span class="engine-chip">N54</span>
-            <span class="engine-chip">N55</span>
-            <span class="engine-chip">N57</span>
-            <span class="engine-chip">B38</span>
-            <span class="engine-chip">B48</span>
-            <span class="engine-chip">B58</span>
-        </div>
+        <h3><i class="fas fa-microchip"></i> المحركات المدعومة
+            <span style="font-size:.7rem; color:#64748b; font-weight:600; margin-right:auto;" id="engineCount"></span>
+        </h3>
+        <div id="engineChips" style="margin-bottom: 16px;"></div>
 
         <h3><i class="fas fa-bolt"></i> أسئلة شائعة</h3>
-
-        {% if audience == 'shop' %}
-            <button class="suggestion" data-q="P0301 على F30 N20 — العربية بترعش في الـ idle. إيه التشخيص المتسلسل وعزوم تربيط الـ coils؟">
-                <span class="badge">N20</span> P0301 ميس فاير
-            </button>
-            <button class="suggestion" data-q="N54 على E90 — صوت من الـ HPFP وإنذار Reduced Power. خطوات الفحص بالـ ISTA؟">
-                <span class="badge">N54</span> HPFP failure
-            </button>
-            <button class="suggestion" data-q="N13 على F20 — تحديد مكان الـ Turbo بالضبط واتجاه الـ Intake وفرقها عن N20">
-                <span class="badge">N13</span> تخطيط Turbo/Intake
-            </button>
-            <button class="suggestion" data-q="N52 على E60 — Valvetronic motor failure. أكواد العطل وعزم تربيط الـ Valvetronic motor؟">
-                <span class="badge">N52</span> Valvetronic
-            </button>
-            <button class="suggestion" data-q="N20 timing chain rattle — خطوات التغيير وعزوم تربيط الـ guides والـ tensioner">
-                <span class="badge">N20</span> Timing chain
-            </button>
-        {% else %}
-            <button class="suggestion" data-q="عربيتي F30 موديل 2014 بتترعش لما باقف وأحياناً نور المحرك بيولع. إيه ممكن يكون السبب؟">
-                🚙 رعشة في الـ idle
-            </button>
-            <button class="suggestion" data-q="بسمع صوت غريب من تحت الكبوت وهي شغالة، وفيه فقدان في العزم">
-                🔊 صوت + ضعف عزم
-            </button>
-            <button class="suggestion" data-q="ولّع نور Engine Reduced Power. أنا في الطريق — أقدر أكمل ولا لازم أوقف؟">
-                ⚠️ Reduced Power
-            </button>
-            <button class="suggestion" data-q="استهلاك الزيت بقى عالي قوي، هل ده طبيعي لـ BMW N52؟">
-                🛢️ استهلاك زيت عالي
-            </button>
-        {% endif %}
+        <div id="faqList"></div>
     </aside>
 
     <main class="chat-area">
         <div class="messages" id="messages">
             <div class="welcome" id="welcome">
                 <span class="emoji">{{ audience_emoji }}</span>
-                <h2>أهلاً بيك في خبير BMW / MINI</h2>
-                <p>اكتب الشكوى بالعامية، أو كود العطل من جهاز الفحص (مثلاً P0301)، أو حدد موديل السيارة + المحرك. الخبير هيرد بتشخيص هندسي دقيق.</p>
+                <h2 id="welcomeTitle">أهلاً بيك في خبير التشخيص</h2>
+                <p id="welcomeBody">اختر الماركة من الأعلى — أو اكتب الشكوى مباشرة وهنرشحلك الماركة تلقائياً.
+                    تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك.</p>
                 <span class="tenant-badge"><i class="fas fa-shield-alt"></i> Tenant: {{ tenant_schema }}</span>
             </div>
         </div>
@@ -245,6 +251,76 @@
     const input = document.getElementById('query-input');
     const sendBtn = document.getElementById('send-btn');
     const resetBtn = document.getElementById('reset-btn');
+
+    // ── Brand catalog (server-rendered) ─────────────────────────────
+    const BRANDS = {{ brands_json|safe }};
+    const BRAND_BY_KEY = Object.fromEntries(BRANDS.map(b => [b.key, b]));
+    const LS_BRAND_KEY = 'mousstec_diag_brand';
+    let selectedBrand = localStorage.getItem(LS_BRAND_KEY) || BRANDS[0]?.key || 'bmw';
+    if (!BRAND_BY_KEY[selectedBrand]) selectedBrand = BRANDS[0]?.key;
+
+    const tabsEl = document.getElementById('brandTabs');
+    const engineChipsEl = document.getElementById('engineChips');
+    const engineCountEl = document.getElementById('engineCount');
+    const faqListEl = document.getElementById('faqList');
+    const topbarBrandLabel = document.getElementById('topbarBrandLabel');
+    const welcomeTitle = document.getElementById('welcomeTitle');
+
+    function renderBrand(key) {
+        const brand = BRAND_BY_KEY[key];
+        if (!brand) return;
+        selectedBrand = key;
+        try { localStorage.setItem(LS_BRAND_KEY, key); } catch (_) {}
+
+        // Tabs visual state
+        tabsEl.querySelectorAll('.brand-tab').forEach(t => {
+            const active = t.dataset.brand === key;
+            t.classList.toggle('active', active);
+            if (active) {
+                const c = t.dataset.color || '#0099ff';
+                t.style.setProperty('--brand-color', c);
+                t.style.setProperty('--brand-glow', c + '59');  // ~35% alpha
+            }
+        });
+
+        // Engine chips
+        engineChipsEl.innerHTML = brand.engines.map(
+            e => `<span class="engine-chip">${e}</span>`
+        ).join('');
+        engineCountEl.textContent = `${brand.engines.length} محرك`;
+
+        // FAQs (audience-aware)
+        const faqs = AUDIENCE === 'shop' ? brand.shop_faqs : brand.customer_faqs;
+        faqListEl.innerHTML = faqs.map(f => `
+            <button class="suggestion" data-q="${f.q.replace(/"/g, '&quot;')}">
+                ${f.badge ? `<span class="badge">${f.badge}</span>` : ''} ${f.label}
+            </button>
+        `).join('');
+
+        // Wire FAQ click handlers (re-bind after innerHTML rewrite)
+        faqListEl.querySelectorAll('.suggestion').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const q = btn.dataset.q;
+                if (q) sendQuery(q);
+            });
+        });
+
+        // Header label + welcome title
+        topbarBrandLabel.textContent = `${brand.emoji} خبير تشخيص ${brand.label}`;
+        if (welcomeTitle) welcomeTitle.textContent = `أهلاً بيك في خبير ${brand.label}`;
+
+        // Input placeholder reflects the active brand's engines
+        const sampleEngine = brand.engines[0] || '';
+        input.placeholder = `اكتب شكوتك أو كود العطل... (مثال: P0301 على ${brand.label} ${sampleEngine})`;
+    }
+
+    // Wire brand tab clicks
+    tabsEl.querySelectorAll('.brand-tab').forEach(tab => {
+        tab.addEventListener('click', () => renderBrand(tab.dataset.brand));
+    });
+
+    // Initial render
+    renderBrand(selectedBrand);
 
     function addMessage(text, role) {
         if (welcomeEl && welcomeEl.parentNode) welcomeEl.remove();
@@ -291,7 +367,7 @@
             const resp = await fetch('/diagnostic/api/chat/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-                body: JSON.stringify({ query, audience: AUDIENCE }),
+                body: JSON.stringify({ query, audience: AUDIENCE, brand: selectedBrand }),
                 credentials: 'same-origin',
             });
             const data = await resp.json();
@@ -331,12 +407,7 @@
         input.style.height = Math.min(input.scrollHeight, 140) + 'px';
     });
 
-    document.querySelectorAll('.suggestion').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const q = btn.dataset.q;
-            if (q) sendQuery(q);
-        });
-    });
+    // (FAQ click handlers are wired inside renderBrand() — no global binding)
 
     resetBtn.addEventListener('click', async () => {
         if (!confirm('متأكد إنك عاوز تبدأ من الأول؟')) return;
