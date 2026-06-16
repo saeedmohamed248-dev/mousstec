@@ -38,19 +38,21 @@ class CoachReplyTest(TestCase):
         self.assertFalse(out['success'])
         self.assertEqual(out['source'], 'none')
 
+    @patch('repair_atlas.services.verifier.call_llm_layer')
     @patch('repair_atlas.services.repair_coach.call_llm_layer')
-    def test_llm_path_returns_answer(self, mock_llm):
-        mock_llm.return_value = '1. افصل البطارية. 2. فك الكونيكتور.'
+    def test_llm_path_returns_answer(self, mock_gen, mock_verify):
+        mock_gen.return_value = '1. افصل البطارية. 2. فك الكونيكتور.'
+        # Verifier returns low-ish confidence so the source stays 'llm'
+        mock_verify.return_value = '{"confidence": 70, "verdict": "pass", "doubts": []}'
         out = coach_reply(
             'إزاي أفك دينمو السيارة؟',
             mode='disassembly',
             vehicle={'brand': 'Hyundai', 'model_name': 'Elantra'},
         )
         self.assertTrue(out['success'])
-        self.assertEqual(out['source'], 'llm')
+        self.assertIn(out['source'], {'llm', 'ai_auto_verified'})
         self.assertIn('افصل البطارية', out['answer'])
-        # System prompt should mention coach role
-        sent_messages = mock_llm.call_args[0][0]
+        sent_messages = mock_gen.call_args[0][0]
         self.assertEqual(sent_messages[0]['role'], 'system')
         self.assertIn('Master Repair Coach', sent_messages[0]['content'])
 

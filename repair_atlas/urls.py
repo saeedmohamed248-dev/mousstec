@@ -7,6 +7,7 @@ app_name = 'repair_atlas'
 
 urlpatterns = [
     path('', views.repair_atlas_page, name='page'),
+    path('customer/', views.repair_atlas_customer_page, name='customer-page'),
     path('api/ask/', views.repair_atlas_ask, name='api-ask'),
     path('api/photo/', views.repair_atlas_photo, name='api-photo'),
     path('api/reset/', views.repair_atlas_reset, name='api-reset'),

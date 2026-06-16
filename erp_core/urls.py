@@ -7,6 +7,7 @@ from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFoun
 from django.shortcuts import redirect, render
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
+from django.views.generic import RedirectView
 from django.db import connection
 
 import os
@@ -620,6 +621,11 @@ urlpatterns = [
     path('marketplace/diagnostics/chat/',                   client_views.diagnostics_chat,            name='customer_diagnostics_chat'),
     path('marketplace/diagnostics/chat/reset/',             client_views.diagnostics_chat_reset,      name='customer_diagnostics_chat_reset'),
 
+    # 🔧 Customer Repair Atlas — صاحب السيارة يفهم تفكيك/تركيب/ضفائر عربيته
+    path('marketplace/repair-atlas/',
+         RedirectView.as_view(pattern_name='repair_atlas:customer-page', permanent=False),
+         name='customer_repair_atlas'),
+
     # 🧠 Customer Advisor (sector-aware: brand for printing, vehicle for automotive)
     path('marketplace/advisor/',                            client_views.customer_advisor_page,       name='customer_advisor_page'),
     path('marketplace/advisor/chat/',                       client_views.customer_advisor_chat,       name='customer_advisor_chat'),
@@ -686,6 +692,9 @@ urlpatterns = [
 
     # 🔧 Repair Atlas — disassembly/install/wiring coach
     path('repair-atlas/', include('repair_atlas.urls')),
+
+    # 🧠 AI Rooms Hub — unified entry + cross-room history
+    path('ai-rooms/', include('ai_rooms.urls')),
 ]
 
 # =====================================================================

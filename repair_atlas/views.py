@@ -110,8 +110,25 @@ def _push_history(request, role: str, text: str) -> None:
 # ---------------------------------------------------------------------------
 @login_required
 def repair_atlas_page(request):
+    # 🔧 الفني (default flow)
+    request.session['is_customer_audience'] = False
+    request.session.modified = True
+    return _render_atlas_page(request, audience='shop')
+
+
+@login_required
+def repair_atlas_customer_page(request):
+    """🚙 صاحب السيارة — نفس البوت بستايل بسيط أكثر."""
+    request.session['is_customer_audience'] = True
+    request.session.modified = True
+    return _render_atlas_page(request, audience='customer')
+
+
+def _render_atlas_page(request, *, audience: str):
     return render(request, 'repair_atlas/repair_atlas.html', {
         'brands': _brand_catalog(),
+        'audience': audience,
+        'audience_label': 'صاحب السيارة' if audience == 'customer' else 'الفني / الورشة',
         'modes': [
             {'key': RepairMode.DISASSEMBLY, 'label': 'تفكيك', 'icon': '🔧'},
             {'key': RepairMode.INSTALL,     'label': 'تركيب', 'icon': '🔩'},
@@ -168,6 +185,7 @@ def repair_atlas_ask(request):
 
     _push_history(request, 'user', question)
     _push_history(request, 'assistant', result['answer'])
+    _persist_to_unified_hub(request, sess, question, result)
 
     return JsonResponse({
         'success': True,
@@ -182,6 +200,27 @@ def repair_atlas_ask(request):
         'doubts': result.get('doubts', []),
         'auto_promoted': result.get('auto_promoted', False),
     })
+
+
+def _persist_to_unified_hub(request, sess, user_text, result):
+    try:
+        from ai_rooms.services.persist import persist_turn
+        audience = 'customer' if request.session.get('is_customer_audience') else 'shop'
+        persist_turn(
+            request, room='repair_atlas', audience=audience,
+            user_text=user_text, assistant_text=result.get('answer', ''),
+            vehicle={'brand': sess.brand, 'model_name': sess.model_name,
+                     'year': sess.year, 'vin': sess.vin},
+            external_session_id=sess.id,
+            meta={
+                'tier': result.get('tier'),
+                'confidence': result.get('confidence'),
+                'mode': result.get('mode'),
+                'auto_promoted': result.get('auto_promoted'),
+            },
+        )
+    except Exception:
+        logger.debug('[REPAIR_ATLAS] ai_rooms persist skipped', exc_info=True)
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +341,7 @@ def repair_atlas_photo(request):
 
     _push_history(request, 'user', f'[صورة] {caption}'.strip())
     _push_history(request, 'assistant', result['answer'])
+    _persist_to_unified_hub(request, sess, f'[صورة] {caption}'.strip(), result)
 
     return JsonResponse({
         'success': True,

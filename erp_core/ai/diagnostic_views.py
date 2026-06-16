@@ -128,6 +128,19 @@ def diagnostic_chat_api(request):
         request.session[session_key] = history[-_MAX_HISTORY:]
         request.session.modified = True
 
+        # 🧠 Persist to unified ai_rooms backbone
+        try:
+            from ai_rooms.services.persist import persist_turn
+            persist_turn(
+                request, room='auto_diagnostic',
+                audience=audience,
+                user_text=query, assistant_text=result.get('answer', ''),
+                vehicle={'brand': brand or ''},
+                meta={'refined': result.get('refined')},
+            )
+        except Exception:
+            logger.debug('[DIAG VIEW] ai_rooms persist skipped', exc_info=True)
+
     return JsonResponse(result)
 
 

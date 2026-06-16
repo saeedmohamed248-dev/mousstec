@@ -398,6 +398,23 @@ def diagnostics_room_chat(request):
         logger.exception("Diagnostics Room AI failed: %s", exc)
         return JsonResponse({"error": "ai_unavailable"}, status=503)
 
+    # 🧠 Persist to unified ai_rooms backbone
+    try:
+        from ai_rooms.services.persist import persist_turn
+        vehicle_hint = payload.get("vehicle_hint") or {}
+        persist_turn(
+            request, room='diagnostic_room', audience='shop',
+            user_text=(payload.get("user_message") or "").strip(),
+            assistant_text=result.get('reply', '') if isinstance(result, dict) else '',
+            vehicle={'brand': vehicle_hint.get('model', '').split()[0] if vehicle_hint.get('model') else '',
+                     'model_name': vehicle_hint.get('model', ''),
+                     'year': vehicle_hint.get('year'),
+                     'vin': payload.get('vin') or ''},
+            meta={'dtcs': payload.get('dtcs') or []},
+        )
+    except Exception:
+        logger.debug('[DIAG ROOM] ai_rooms persist skipped', exc_info=True)
+
     return JsonResponse(result)
 
 

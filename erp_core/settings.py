@@ -139,6 +139,7 @@ SHARED_APPS = (
     # 🧬 Smart Diagnostics — Shared catalog (DTC codes, VIN decode cache, API cost rates)
     # نواة معرفة عامة بين كل الـ tenants عشان نـ amortize الـ external API cost
     'diagnostics_catalog',
+    'ai_rooms',        # 🧠 Hub موحد للـ 3 غرف الذكية + Conversation history backbone (SHARED — public schema)
 
     # 💬 Messenger Bot — Facebook webhook + Gemini RAG. SHARED because Meta calls
     # the public domain, not any tenant subdomain; the bot's knowledge base
