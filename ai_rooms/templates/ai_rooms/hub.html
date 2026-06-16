@@ -1,0 +1,124 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>🧠 الهب الذكي — Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at 30% 0%, #0a1929 0%, #050b14 60%, #000 100%);
+            color: #e6f1ff; min-height: 100vh;
+        }
+        .topbar { padding: 22px 28px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .topbar h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, #00d4ff, #6366f1, #ff9500);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar .audience-pill {
+            background: rgba(0,212,255,0.12); border: 1px solid rgba(0,212,255,0.3);
+            color: #67e8f9; padding: 6px 14px; border-radius: 999px; font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px 24px 60px; }
+        .section-title { font-size: 1.1rem; color: #94a3b8; margin: 30px 0 16px; font-weight: 700; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+        .card {
+            background: rgba(15,30,50,0.6); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px; padding: 22px; text-decoration: none; color: inherit;
+            transition: transform 0.15s, border-color 0.15s; display: block; position: relative;
+            overflow: hidden;
+        }
+        .card:hover { transform: translateY(-3px); border-color: rgba(0,212,255,0.4); }
+        .card .bg-glow { position: absolute; inset: 0; opacity: 0.08; pointer-events: none; }
+        .card .emoji { font-size: 2.4rem; }
+        .card h3 { margin: 10px 0 6px; font-size: 1.2rem; }
+        .card p { color: #94a3b8; font-size: 0.88rem; line-height: 1.6; }
+        .card .count {
+            margin-top: 16px; display: inline-block; padding: 4px 10px;
+            background: rgba(0,0,0,0.3); border-radius: 999px; font-size: 0.78rem;
+            color: #67e8f9;
+        }
+
+        .recent-list {
+            background: rgba(15,30,50,0.4);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px; overflow: hidden;
+        }
+        .recent-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            text-decoration: none; color: inherit; transition: background 0.12s;
+        }
+        .recent-row:last-child { border-bottom: none; }
+        .recent-row:hover { background: rgba(0,212,255,0.06); }
+        .recent-row .room-tag {
+            font-size: 0.72rem; padding: 3px 8px; border-radius: 6px;
+            font-weight: 700; flex-shrink: 0;
+        }
+        .recent-row .title { flex: 1; }
+        .recent-row .title h4 { font-size: 0.92rem; color: #e6f1ff; }
+        .recent-row .title p { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+        .recent-row .when { color: #64748b; font-size: 0.78rem; }
+        .empty { padding: 30px; text-align: center; color: #64748b; }
+    </style>
+</head>
+<body>
+    {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
+    <div class="topbar">
+        <h1>🧠 الهب الذكي — كل أدواتك في مكان واحد</h1>
+        <span class="audience-pill">
+            {% if audience == 'customer' %}🚙 صاحب السيارة{% else %}🔧 فني / ورشة{% endif %}
+        </span>
+    </div>
+
+    <div class="container">
+        <div class="section-title">الغرف المتاحة</div>
+        <div class="grid">
+            {% for r in rooms %}
+                <a class="card" href="{% url r.url_name %}">
+                    <div class="bg-glow" style="background: {{ r.gradient }};"></div>
+                    <div class="emoji">{{ r.emoji }}</div>
+                    <h3>{{ r.title }}</h3>
+                    <p>{{ r.subtitle }}</p>
+                    <span class="count">{{ r.count }} محادثة</span>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="section-title" style="margin-top: 40px;">آخر المحادثات</div>
+        <div class="recent-list">
+            {% for conv in recent %}
+                {% with meta=room_meta|dictsort:"0" %}{% endwith %}
+                <a class="recent-row" href="{% url 'ai_rooms:detail' conv.id %}">
+                    <span class="room-tag" style="background: {{ room_meta|default_if_none:''|stringformat:'s' }}rgba(0,212,255,0.18); color: #67e8f9;">
+                        {{ conv.get_room_display }}
+                    </span>
+                    <div class="title">
+                        <h4>{{ conv.title|default:"محادثة بدون عنوان" }}</h4>
+                        <p>
+                            {% if conv.brand %}{{ conv.brand }}{% endif %}
+                            {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
+                            {% if conv.year %} · {{ conv.year }}{% endif %}
+                            · {{ conv.turn_count }} رسالة
+                        </p>
+                    </div>
+                    <span class="when">{{ conv.updated_at|date:"d M H:i" }}</span>
+                </a>
+            {% empty %}
+                <div class="empty">📭 لسه مفيش محادثات — افتح أي غرفة وابدأ.</div>
+            {% endfor %}
+        </div>
+
+        <p style="margin-top: 18px; text-align: center;">
+            <a href="{% url 'ai_rooms:history' %}" style="color: #00d4ff; text-decoration: none; font-weight: 700;">
+                شوف كل التاريخ →
+            </a>
+        </p>
+    </div>
+</body>
+</html>

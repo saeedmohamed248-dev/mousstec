@@ -1,0 +1,60 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ conv.title|default:"محادثة" }} — Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Cairo', sans-serif; background: #050b14; color: #e6f1ff; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+        .head {
+            background: rgba(15,30,50,0.7); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; padding: 18px; margin-bottom: 20px;
+        }
+        .head h1 { font-size: 1.2rem; color: #00d4ff; margin-bottom: 6px; }
+        .head p { color: #94a3b8; font-size: 0.88rem; }
+        .head .room-badge { display: inline-block; padding: 3px 10px;
+            background: rgba(0,212,255,0.18); color: #67e8f9;
+            border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-inline-start: 6px; }
+        .turns { display: flex; flex-direction: column; gap: 12px; }
+        .turn { padding: 14px 18px; border-radius: 14px; line-height: 1.85; white-space: pre-wrap; max-width: 85%; }
+        .turn.user { background: linear-gradient(135deg, #0099ff, #6366f1); color: #fff; align-self: flex-start; border-bottom-right-radius: 4px; }
+        .turn.assistant { background: rgba(15,30,50,0.9); border: 1px solid rgba(255,255,255,0.08); align-self: flex-end; border-bottom-left-radius: 4px; }
+        .turn .ts { display: block; color: rgba(255,255,255,0.4); font-size: 0.72rem; margin-bottom: 6px; }
+        .turn .meta { margin-top: 8px; font-size: 0.78rem; color: #94a3b8; padding: 6px 10px;
+            background: rgba(0,0,0,0.3); border-radius: 8px; }
+    </style>
+</head>
+<body>
+    {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
+    <div class="container">
+        <div class="head">
+            <h1>{{ conv.title|default:"محادثة" }}<span class="room-badge">{{ conv.get_room_display }}</span></h1>
+            <p>
+                {% if conv.brand %}{{ conv.brand }}{% endif %}
+                {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
+                {% if conv.year %} · {{ conv.year }}{% endif %}
+                · {{ conv.turn_count }} رسالة · {{ conv.updated_at|date:"d M Y H:i" }}
+            </p>
+        </div>
+        <div class="turns">
+            {% for t in conv.turns %}
+                <div class="turn {{ t.role }}">
+                    <span class="ts">{{ t.ts }}</span>
+                    {{ t.text }}
+                    {% if t.meta %}
+                        <div class="meta">
+                            {% if t.meta.tier %}🎯 {{ t.meta.tier }}{% endif %}
+                            {% if t.meta.confidence %} · ثقة {{ t.meta.confidence }}%{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p style="color: #64748b; text-align: center; padding: 40px;">محادثة فاضية.</p>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

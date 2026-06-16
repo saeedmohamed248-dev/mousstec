@@ -1,0 +1,66 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>📜 تاريخ المحادثات — Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Cairo', sans-serif; background: #050b14; color: #e6f1ff; min-height: 100vh; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 1.4rem; color: #00d4ff; margin-bottom: 18px; }
+        .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+        .filters a {
+            padding: 7px 14px; border-radius: 999px; text-decoration: none;
+            background: rgba(255,255,255,0.06); color: #cbd5e1; font-size: 0.85rem; font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .filters a.active { background: linear-gradient(135deg, #00d4ff, #6366f1); color: #fff; border-color: transparent; }
+
+        .row {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 18px;
+            background: rgba(15,30,50,0.6);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; margin-bottom: 10px;
+            text-decoration: none; color: inherit;
+        }
+        .row:hover { border-color: rgba(0,212,255,0.4); }
+        .row .room { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; background: rgba(0,212,255,0.18); color: #67e8f9; font-weight: 700; }
+        .row .body { flex: 1; }
+        .row h4 { font-size: 0.95rem; }
+        .row p { color: #94a3b8; font-size: 0.78rem; margin-top: 2px; }
+        .row .when { color: #64748b; font-size: 0.78rem; }
+    </style>
+</head>
+<body>
+    {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
+    <div class="container">
+        <h1>📜 تاريخ المحادثات</h1>
+        <div class="filters">
+            <a href="?" {% if not room_filter %}class="active"{% endif %}>الكل</a>
+            {% for key, label in rooms %}
+                <a href="?room={{ key }}" {% if room_filter == key %}class="active"{% endif %}>{{ label }}</a>
+            {% endfor %}
+        </div>
+
+        {% for conv in conversations %}
+            <a class="row" href="{% url 'ai_rooms:detail' conv.id %}">
+                <span class="room">{{ conv.get_room_display }}</span>
+                <div class="body">
+                    <h4>{{ conv.title|default:"محادثة بدون عنوان" }}</h4>
+                    <p>
+                        {% if conv.brand %}{{ conv.brand }}{% endif %}
+                        {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
+                        · {{ conv.turn_count }} رسالة
+                    </p>
+                </div>
+                <span class="when">{{ conv.updated_at|date:"d M Y H:i" }}</span>
+            </a>
+        {% empty %}
+            <p style="text-align: center; color: #64748b; padding: 40px;">مفيش محادثات لسه.</p>
+        {% endfor %}
+    </div>
+</body>
+</html>
