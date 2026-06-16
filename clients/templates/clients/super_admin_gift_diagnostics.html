@@ -56,6 +56,7 @@
               <th class="px-3 py-2 text-center font-semibold">الباقة</th>
               <th class="px-3 py-2 text-center font-semibold">OBD</th>
               <th class="px-3 py-2 text-center font-semibold">🎁 هدية OBD</th>
+              <th class="px-3 py-2 text-center font-semibold">⚡ شحن فحوصات</th>
               <th class="px-3 py-2 text-center font-semibold">دخول</th>
             </tr>
           </thead>
@@ -102,6 +103,12 @@
                 </button>
               </td>
               <td class="px-3 py-3 text-center">
+                <button onclick="openTopupModal({{ c.id }}, '{{ c.name|escapejs }}')"
+                  class="text-xs px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-500/30 rounded-lg transition font-bold">
+                  <i class="fas fa-bolt ml-1"></i>شحن
+                </button>
+              </td>
+              <td class="px-3 py-3 text-center">
                 <a href="/superadmin/enter/{{ c.schema_name }}/"
                    target="_blank" rel="noopener"
                    class="text-xs px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-300 rounded transition"
@@ -111,7 +118,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
+            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -258,6 +265,41 @@
     </button>
 
     <div id="obd-modal-result" class="hidden mt-3 p-3 rounded-xl text-xs text-center font-bold"></div>
+  </div>
+</div>
+
+<!-- ⚡ Diagnostics Top-up Modal -->
+<div id="topup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
+  <div class="bg-slate-900 border border-blue-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300 text-lg"><i class="fas fa-bolt"></i></div>
+      <div>
+        <div class="font-black text-white text-sm">شحن رصيد فحوصات تشخيص</div>
+        <div id="topup-modal-name" class="text-xs text-blue-300 mt-0.5"></div>
+      </div>
+      <button onclick="closeTopupModal()" class="mr-auto text-slate-500 hover:text-white text-lg"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-4">اختر عدد الفحوصات اللي تحب تشحنها — هتتضاف للرصيد الحالي للشركة فوراً:</p>
+
+    <div class="grid grid-cols-3 gap-2 mb-3">
+      <button onclick="grantTopup(10)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">10 فحص</button>
+      <button onclick="grantTopup(30)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">30 فحص</button>
+      <button onclick="grantTopup(50)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">50 فحص</button>
+      <button onclick="grantTopup(100)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">100 فحص</button>
+      <button onclick="grantTopup(200)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">200 فحص</button>
+      <button onclick="grantTopup(500)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">500 فحص</button>
+    </div>
+
+    <div class="flex gap-2">
+      <input id="topup-custom" type="number" min="1" max="1000" placeholder="عدد مخصص…"
+        class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm">
+      <button onclick="grantTopupCustom()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition text-sm">
+        <i class="fas fa-plus"></i>
+      </button>
+    </div>
+
+    <div id="topup-modal-result" class="hidden mt-3 p-3 rounded-xl text-xs text-center font-bold"></div>
   </div>
 </div>
 
@@ -425,6 +467,70 @@ async function grantObd(duration) {
 // Close modal on backdrop click
 document.getElementById('obd-modal').addEventListener('click', function(e) {
   if (e.target === this) closeGiftModal();
+});
+
+// ⚡ Diagnostics Top-up Modal
+let topupTenantId = null;
+
+function openTopupModal(tid, name) {
+  topupTenantId = tid;
+  document.getElementById('topup-modal-name').textContent = name;
+  document.getElementById('topup-modal-result').classList.add('hidden');
+  document.getElementById('topup-custom').value = '';
+  document.getElementById('topup-modal').classList.remove('hidden');
+  document.getElementById('topup-modal').classList.add('flex');
+}
+
+function closeTopupModal() {
+  document.getElementById('topup-modal').classList.add('hidden');
+  document.getElementById('topup-modal').classList.remove('flex');
+  topupTenantId = null;
+}
+
+async function grantTopup(uses) {
+  if (!topupTenantId || !uses || uses <= 0) return;
+  const btns = document.querySelectorAll('.topup-btn');
+  btns.forEach(b => { b.disabled = true; b.classList.add('opacity-50'); });
+
+  const form = new FormData();
+  form.append('uses', uses);
+
+  const res = await fetch(`/superadmin/tenant/${topupTenantId}/diag-topup-grant/`, {
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token }}'},
+    body: form,
+  });
+  const data = await res.json();
+
+  btns.forEach(b => { b.disabled = false; b.classList.remove('opacity-50'); });
+
+  const resultEl = document.getElementById('topup-modal-result');
+  if (data.ok) {
+    resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-emerald-900/40 border border-emerald-500/40 text-emerald-200';
+    resultEl.textContent = data.message;
+    resultEl.classList.remove('hidden');
+    setTimeout(closeTopupModal, 2500);
+  } else {
+    resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
+    resultEl.textContent = data.error || 'حدث خطأ';
+    resultEl.classList.remove('hidden');
+  }
+}
+
+function grantTopupCustom() {
+  const val = parseInt(document.getElementById('topup-custom').value || '0', 10);
+  if (!val || val <= 0 || val > 1000) {
+    const resultEl = document.getElementById('topup-modal-result');
+    resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
+    resultEl.textContent = 'العدد لازم يكون بين 1 و 1000';
+    resultEl.classList.remove('hidden');
+    return;
+  }
+  grantTopup(val);
+}
+
+document.getElementById('topup-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeTopupModal();
 });
 </script>
 </body>

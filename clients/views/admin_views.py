@@ -1316,3 +1316,57 @@ def super_admin_obd_quick_grant(request, tenant_id):
         'new_expiry': new_expiry or 'مدى الحياة',
         'tenant_id': tenant_id,
     })
+
+
+# ============================================================================
+# 🎁 Superadmin — Quick Diagnostics Top-up Grant (AJAX) for gift-diagnostics page
+# ============================================================================
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_diag_topup_grant(request, tenant_id):
+    """
+    AJAX POST — gift diagnostics scan credits to a tenant.
+    POST body: uses = integer (number of scans to add to diag_topup_balance)
+    Returns JSON {ok, message, new_balance}
+
+    ده بيحل مشكلة "الحصة منتهية ولا يوجد رصيد شحن" — السوبر أدمن
+    يقدر يدي الشركة رصيد فحوصات مجاني من غير ما تدفع.
+    """
+    from clients.services.diagnostics_quota import add_topup
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+
+    tenant = get_object_or_404(Client, pk=tenant_id)
+
+    try:
+        uses = int(request.POST.get('uses') or 0)
+    except (ValueError, TypeError):
+        return JsonResponse({'ok': False, 'error': 'عدد الفحوصات غير صحيح'}, status=400)
+
+    if uses <= 0 or uses > 1000:
+        return JsonResponse({'ok': False, 'error': 'عدد الفحوصات لازم يكون بين 1 و 1000'}, status=400)
+
+    new_balance = add_topup(tenant, uses)
+
+    PlatformEvent.objects.create(
+        event_type='other', tenant_schema='public', tenant_name=tenant.schema_name,
+        user_name=request.user.username,
+        description=(
+            f"🎁 شحن رصيد تشخيص لـ «{tenant.name}»: +{uses} فحص "
+            f"(الرصيد الجديد {new_balance}) بواسطة {request.user.username}"
+        ),
+    )
+
+    logger.warning(
+        "diag-topup gift tenant=%s uses=+%d new_balance=%d by=%s",
+        tenant.schema_name, uses, new_balance, request.user.username,
+    )
+
+    return JsonResponse({
+        'ok': True,
+        'message': f'✅ تم شحن {uses} فحص لـ «{tenant.name}» (الرصيد {new_balance})',
+        'new_balance': new_balance,
+        'tenant_id': tenant_id,
+    })

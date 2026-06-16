@@ -187,6 +187,7 @@ from .admin_views import (  # noqa: F401
     super_admin_parts_refund_reject,
     super_admin_gift_diagnostics,
     super_admin_obd_quick_grant,
+    super_admin_diag_topup_grant,
 )
 
 # ───────────────────────────────────────────────────────────────────────────
