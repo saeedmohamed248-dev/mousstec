@@ -33,7 +33,7 @@ _original_get_app_list = admin.AdminSite.get_app_list
 
 # Apps that live ONLY in TENANT_APPS — their tables don't exist in the public schema.
 # Hide them from the admin sidebar when the request is served from public.
-_TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export', 'smart_diagnostics'}
+_TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export', 'smart_diagnostics', 'repair_atlas'}
 
 def _industry_filtered_get_app_list(self, request, app_label=None):
     app_list = _original_get_app_list(self, request, app_label=app_label)
@@ -49,7 +49,7 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         # شركات الطباعة: إخفاء كل ما يتعلق بالسيارات/التشخيص + أدوات الـ admin
         # العامة اللي مش بتفيد المستخدم النهائي (Messenger Bot internals، Auth raw).
         hidden_apps = {
-            'inventory', 'smart_diagnostics', 'diagnostics_catalog',
+            'inventory', 'smart_diagnostics', 'diagnostics_catalog', 'repair_atlas',
             'messenger_bot',  # Conversation logs + System updates internals
         }
         # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only أو إدارية.
@@ -683,6 +683,9 @@ urlpatterns = [
 
     # 🔧 Smart Diagnostics & Telematics (Premium SaaS)
     path('api/diagnostics/', include('smart_diagnostics.urls')),
+
+    # 🔧 Repair Atlas — disassembly/install/wiring coach
+    path('repair-atlas/', include('repair_atlas.urls')),
 ]
 
 # =====================================================================

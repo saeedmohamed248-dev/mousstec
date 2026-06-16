@@ -160,6 +160,7 @@ TENANT_APPS = (
     'printing',        # 🎨 النواة التشغيلية للمطابع (قطاع الطباعة والتصميم)
     'hr',              # 👥 الموارد البشرية المؤتمتة (حضور/رواتب/سلف/تصميم)
     'smart_diagnostics',  # 🔧 Mousstec Smart Diagnostics & Telematics (Premium SaaS)
+    'repair_atlas',    # 🔧 أطلس الإصلاح والضفائر — Repair coach (disassembly/install/wiring) + Vision feedback
     'import_export',
     'rest_framework',
     'simple_history',

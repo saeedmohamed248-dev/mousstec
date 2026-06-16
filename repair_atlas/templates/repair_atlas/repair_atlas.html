@@ -1,0 +1,368 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 أطلس الإصلاح — Mouss Tec</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top left, #0a1929 0%, #050b14 60%, #000 100%);
+            color: #e6f1ff; min-height: 100vh; display: flex; flex-direction: column;
+        }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 28px; background: rgba(10, 25, 41, 0.8);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            position: sticky; top: 0; z-index: 50;
+        }
+        .topbar h1 {
+            font-size: 1.35rem; font-weight: 900;
+            background: linear-gradient(135deg, #ff9500, #ffcc00, #ff6b6b);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .topbar .actions a, .topbar .actions button {
+            background: rgba(255,255,255,0.05); color: #a8b8d0;
+            border: 1px solid rgba(255, 149, 0, 0.2);
+            padding: 8px 14px; border-radius: 10px; font-family: inherit;
+            font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-inline-start: 8px;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .topbar .actions a:hover, .topbar .actions button:hover {
+            background: rgba(255, 149, 0, 0.15); color: #ffcc00; border-color: #ffcc00;
+        }
+
+        .shell { flex: 1; display: grid; grid-template-columns: 300px 1fr; max-width: 1400px; margin: 0 auto; width: 100%; gap: 24px; padding: 24px; }
+        @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } }
+
+        .sidebar {
+            background: rgba(15, 30, 50, 0.65);
+            border: 1px solid rgba(255, 149, 0, 0.18);
+            border-radius: 18px; padding: 20px; height: fit-content;
+        }
+        .sidebar h3 {
+            font-size: 0.95rem; color: #ffcc00; margin: 14px 0 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .sidebar input, .sidebar select {
+            width: 100%; padding: 9px 12px; margin-bottom: 8px;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,149,0,0.2);
+            border-radius: 10px; color: #e6f1ff; font-family: inherit; font-size: 0.85rem;
+        }
+        .sidebar input:focus, .sidebar select:focus { outline: none; border-color: #ffcc00; }
+
+        .mode-chip {
+            display: inline-block; padding: 8px 14px; border-radius: 999px;
+            border: 1px solid rgba(255,149,0,0.25);
+            background: rgba(255,149,0,0.08); color: #e6f1ff;
+            cursor: pointer; font-family: inherit; font-size: 0.82rem;
+            font-weight: 700; margin: 3px 2px; transition: all 0.15s;
+        }
+        .mode-chip:hover { background: rgba(255,149,0,0.18); }
+        .mode-chip.active { background: linear-gradient(135deg, #ff9500, #ff6b6b); border-color: transparent; color: #fff; }
+
+        .chat-area {
+            background: rgba(10, 25, 41, 0.7);
+            border: 1px solid rgba(255, 149, 0, 0.18);
+            border-radius: 18px; display: flex; flex-direction: column;
+            height: calc(100vh - 140px); overflow: hidden;
+        }
+        .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-thumb { background: rgba(255,149,0,0.35); border-radius: 3px; }
+
+        .msg { max-width: 85%; padding: 14px 18px; border-radius: 16px; line-height: 1.85; font-size: 0.95rem; word-wrap: break-word; white-space: pre-wrap; }
+        .msg.user {
+            align-self: flex-start;
+            background: linear-gradient(135deg, #ff9500, #ff6b6b);
+            color: #fff; border-bottom-right-radius: 4px;
+        }
+        .msg.assistant {
+            align-self: flex-end;
+            background: rgba(15, 30, 50, 0.9); color: #e6f1ff;
+            border: 1px solid rgba(255, 149, 0, 0.15);
+            border-bottom-left-radius: 4px;
+        }
+        .msg.assistant strong { color: #ffcc00; }
+        .msg .photo { display: block; max-width: 100%; border-radius: 10px; margin-bottom: 8px; }
+        .source-tag {
+            display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+            margin-inline-start: 8px; font-weight: 700;
+        }
+        .source-tag.verified { background: #16a34a; color: #fff; }
+        .source-tag.llm { background: #6366f1; color: #fff; }
+
+        .welcome { text-align: center; padding: 40px 20px; color: #8b9dc3; }
+        .welcome h2 { color: #ffcc00; margin-bottom: 12px; font-size: 1.4rem; }
+        .welcome p { font-size: 0.95rem; line-height: 1.8; max-width: 600px; margin: 0 auto; }
+
+        .composer {
+            border-top: 1px solid rgba(255,149,0,0.15);
+            padding: 14px 18px; display: flex; gap: 10px; align-items: flex-end;
+            background: rgba(0,0,0,0.25);
+        }
+        .composer textarea {
+            flex: 1; padding: 11px 14px; background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,149,0,0.2); border-radius: 12px;
+            color: #e6f1ff; font-family: inherit; font-size: 0.95rem; resize: none;
+            min-height: 44px; max-height: 140px;
+        }
+        .composer textarea:focus { outline: none; border-color: #ffcc00; }
+        .composer button {
+            background: linear-gradient(135deg, #ff9500, #ff6b6b);
+            color: #fff; border: none; padding: 11px 18px; border-radius: 12px;
+            font-family: inherit; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .composer button:hover { transform: translateY(-1px); }
+        .composer button.icon {
+            padding: 11px 14px;
+            background: rgba(255,149,0,0.1); color: #ffcc00;
+            border: 1px solid rgba(255,149,0,0.3);
+        }
+        .composer input[type=file] { display: none; }
+
+        .typing {
+            align-self: flex-end; background: rgba(15,30,50,0.9);
+            border: 1px solid rgba(255,149,0,0.15); padding: 14px 18px;
+            border-radius: 16px; color: #8b9dc3; font-size: 0.88rem;
+        }
+        .typing span { display: inline-block; width: 6px; height: 6px;
+            background: #ffcc00; border-radius: 50%; margin: 0 2px;
+            animation: bounce 1.4s infinite; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(15,30,50,0.95); border: 1px solid #ffcc00;
+            color: #ffcc00; padding: 12px 22px; border-radius: 12px;
+            font-weight: 700; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🔧 أطلس الإصلاح — تفكيك، تركيب، ضفائر</h1>
+        <div class="actions">
+            <a href="{% url 'smart_diagnostics:diagnostics-room' %}"><i class="fas fa-stethoscope"></i> غرفة التشخيص</a>
+            <button id="resetBtn"><i class="fas fa-rotate"></i> جلسة جديدة</button>
+        </div>
+    </div>
+
+    <div class="shell">
+        <aside class="sidebar">
+            <h3><i class="fas fa-car"></i> العربية</h3>
+            <select id="brand">
+                <option value="">— اختر الماركة —</option>
+                {% for b in brands %}
+                    <option value="{{ b.key }}">{{ b.emoji }} {{ b.label }}</option>
+                {% endfor %}
+            </select>
+            <input id="model" placeholder="الموديل (مثلاً Elantra / E90 / C200)" />
+            <input id="year" type="number" min="1980" max="2030" placeholder="السنة" />
+            <input id="engine" placeholder="كود المحرك (اختياري)" />
+            <input id="vin" placeholder="VIN (اختياري — 17 خانة)" maxlength="17" />
+
+            <h3><i class="fas fa-wrench"></i> الوضع</h3>
+            <div id="modeChips">
+                {% for m in modes %}
+                    <button type="button" class="mode-chip{% if forloop.first %} active{% endif %}"
+                            data-mode="{{ m.key }}">{{ m.icon }} {{ m.label }}</button>
+                {% endfor %}
+            </div>
+
+            <h3><i class="fas fa-lightbulb"></i> أمثلة</h3>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="إزاي أفك حساس طلمبة الزيت في Elantra 2018؟">حساس طلمبة الزيت Elantra 2018</button>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="ضفيرة كهرباء طلمبة البنزين في Corolla 2015 ماشية ازاي من البطارية للطلمبة؟">ضفيرة طلمبة البنزين Corolla</button>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;" data-example="مكان حساس ضغط الزيت في BMW E90 N52؟">مكان حساس ضغط الزيت BMW E90</button>
+        </aside>
+
+        <section class="chat-area">
+            <div class="messages" id="messages">
+                <div class="welcome">
+                    <h2>🔧 أهلاً يا فني!</h2>
+                    <p>اكتب سؤالك بالعربي — مثلاً "إزاي أفك دينمو السيارة دي؟" أو "ضفيرة ABS بتمشي ازاي؟" أو ارفع صورة من مكان الشغل وأنا هقولك ماشي صح ولا لا.</p>
+                </div>
+            </div>
+
+            <div class="composer">
+                <button class="icon" id="photoBtn" title="ارفع صورة"><i class="fas fa-camera"></i></button>
+                <input type="file" id="photoInput" accept="image/*" capture="environment" />
+                <textarea id="composer" rows="1" placeholder="اكتب سؤالك… (Shift+Enter لسطر جديد)"></textarea>
+                <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+<script>
+    const csrf = document.querySelector('meta[name=csrf-token]').content;
+    const messagesEl = document.getElementById('messages');
+    const composer = document.getElementById('composer');
+    const sendBtn = document.getElementById('sendBtn');
+    const photoBtn = document.getElementById('photoBtn');
+    const photoInput = document.getElementById('photoInput');
+    const resetBtn = document.getElementById('resetBtn');
+    const toast = document.getElementById('toast');
+
+    let currentMode = 'disassembly';
+    let typingEl = null;
+
+    function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function getVehicle() {
+        return {
+            brand: document.getElementById('brand').value,
+            model: document.getElementById('model').value,
+            year: document.getElementById('year').value,
+            engine: document.getElementById('engine').value,
+            vin: document.getElementById('vin').value,
+        };
+    }
+
+    function clearWelcome() {
+        const w = messagesEl.querySelector('.welcome');
+        if (w) w.remove();
+    }
+
+    function addMsg(role, text, opts = {}) {
+        clearWelcome();
+        const div = document.createElement('div');
+        div.className = `msg ${role}`;
+        if (opts.photo) {
+            const img = document.createElement('img');
+            img.src = opts.photo;
+            img.className = 'photo';
+            div.appendChild(img);
+        }
+        const span = document.createElement('span');
+        span.textContent = text;
+        div.appendChild(span);
+        if (opts.source) {
+            const tag = document.createElement('span');
+            tag.className = `source-tag ${opts.source}`;
+            tag.textContent = opts.source === 'verified' ? '✅ معتمد' : '🤖 AI';
+            div.appendChild(tag);
+        }
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function showTyping() {
+        typingEl = document.createElement('div');
+        typingEl.className = 'typing';
+        typingEl.innerHTML = 'البوت بيفكر <span></span><span></span><span></span>';
+        messagesEl.appendChild(typingEl);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+
+    async function ask(question) {
+        if (!question.trim()) return;
+        addMsg('user', question);
+        composer.value = ''; composer.style.height = 'auto';
+        sendBtn.disabled = true; showTyping();
+
+        try {
+            const r = await fetch('{% url "repair_atlas:api-ask" %}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                body: JSON.stringify({ question, mode: currentMode, ...getVehicle() }),
+            });
+            const data = await r.json();
+            hideTyping();
+            addMsg('assistant', data.answer || '⚠️ مفيش رد',
+                   { source: data.source === 'verified' ? 'verified' : 'llm' });
+        } catch (e) {
+            hideTyping();
+            addMsg('assistant', '⚠️ مشكلة في الاتصال بالسيرفر — جرّب تاني.');
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    async function uploadPhoto(file, caption) {
+        const reader = new FileReader();
+        reader.onload = (ev) => addMsg('user', caption || '[صورة من الورشة]', { photo: ev.target.result });
+        reader.readAsDataURL(file);
+
+        showTyping(); sendBtn.disabled = true;
+        const fd = new FormData();
+        fd.append('image', file);
+        fd.append('caption', caption || '');
+        fd.append('mode', currentMode);
+        const v = getVehicle();
+        for (const k in v) fd.append(k, v[k]);
+
+        try {
+            const r = await fetch('{% url "repair_atlas:api-photo" %}', {
+                method: 'POST', headers: { 'X-CSRFToken': csrf }, body: fd,
+            });
+            const data = await r.json();
+            hideTyping();
+            addMsg('assistant', data.answer || '⚠️ مفيش رد',
+                   { source: 'llm' });
+        } catch (e) {
+            hideTyping();
+            addMsg('assistant', '⚠️ مشكلة في رفع الصورة.');
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    sendBtn.onclick = () => ask(composer.value);
+    composer.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(composer.value); }
+    });
+    composer.addEventListener('input', () => {
+        composer.style.height = 'auto';
+        composer.style.height = Math.min(composer.scrollHeight, 140) + 'px';
+    });
+
+    photoBtn.onclick = () => photoInput.click();
+    photoInput.onchange = () => {
+        if (!photoInput.files[0]) return;
+        const f = photoInput.files[0];
+        const cap = composer.value.trim();
+        composer.value = ''; composer.style.height = 'auto';
+        uploadPhoto(f, cap);
+        photoInput.value = '';
+    };
+
+    document.querySelectorAll('.mode-chip[data-mode]').forEach(chip => {
+        chip.onclick = () => {
+            document.querySelectorAll('.mode-chip[data-mode]').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            currentMode = chip.dataset.mode;
+        };
+    });
+
+    document.querySelectorAll('[data-example]').forEach(b => {
+        b.onclick = () => { composer.value = b.dataset.example; composer.focus(); };
+    });
+
+    resetBtn.onclick = async () => {
+        if (!confirm('تبدأ جلسة جديدة؟ هتفقد المحادثة الحالية.')) return;
+        await fetch('{% url "repair_atlas:api-reset" %}', {
+            method: 'POST', headers: {'X-CSRFToken': csrf},
+        });
+        messagesEl.innerHTML = '<div class="welcome"><h2>🔧 جلسة جديدة</h2><p>اسأل من جديد.</p></div>';
+        showToast('اتعملت جلسة جديدة');
+    };
+</script>
+</body>
+</html>
