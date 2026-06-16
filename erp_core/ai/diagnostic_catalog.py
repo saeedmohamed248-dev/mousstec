@@ -436,6 +436,316 @@ DIAGNOSTIC_BRANDS: dict[str, dict] = {
              'q': 'سيتي 2017 بترعش وهي واقفة على الإشارة. عيب في الـ throttle body؟'},
         ],
     },
+
+    # ─────────────────────────────────────────────────────────────────
+    'chevrolet': {
+        'label': 'Chevrolet / GM / Opel',
+        'emoji': '🇺🇸',
+        'color': '#fbbf24',
+        'engines': [
+            # GM Family 0 / Family 1 (Lanos / Aveo / Spark)
+            'A13DTC', 'A14NET', 'A14XEL', 'A14XER',
+            'F14D3', 'F16D3', 'F16D4', 'F18D4',
+            # Ecotec
+            'LDE', 'LUW', 'LUV', 'LUJ', 'LUZ', 'LUX', 'LUK',
+            'L83', 'LE5', 'LEA', 'LFW', 'LFX', 'LLT', 'LY7',
+            # LS / LT V8
+            'LS1', 'LS3', 'LS7', 'LT1', 'LT4',
+            # Cruze / Sonic / Trax
+            '2H0', 'LWE', 'LFV', 'L3G', 'L2H',
+            # Duramax diesel
+            'LB7', 'LLY', 'LBZ', 'LMM', 'LML', 'LWN', 'L5P',
+        ],
+        'expert_focus': (
+            'Chevrolet / GM / Opel — معرفة هندسية صارمة لـ:\n'
+            '• F16D3 / F16D4 (Aveo, Optra, Lanos) — coolant leak من thermostat housing البلاستيك\n'
+            '• LUW/LUV (Cruze 1.4T / 1.8) — PCV valve، water pump، intake manifold\n'
+            '• LFV (Cruze 1.4T Gen2) — head gasket failure، piston ring wear\n'
+            '• LDE / LUJ — timing chain stretch مع الـ direct injection carbon buildup\n'
+            '• 6T30 / 6T40 / 6T45 gearboxes — wave plate fracture\n'
+            '• Diagnostic via Tech 2 / GDS 2 / MDI'
+        ),
+        'aliases': [
+            'Lanos', 'Aveo', 'Optra', 'Spark', 'Sonic', 'Cruze', 'Camaro', 'Captiva',
+            'Equinox', 'Trax', 'Trailblazer', 'Tahoe', 'Suburban', 'Silverado', 'Colorado',
+            'Malibu', 'Impala', 'Corvette', 'Blazer',
+            'Lacetti', 'Epica', 'Kalos', 'Matiz', 'Nubira',
+            'Astra', 'Corsa', 'Insignia', 'Mokka', 'Vectra', 'Zafira',
+        ],
+        'shop_faqs': [
+            {'badge': 'F16D3', 'label': 'Coolant leak',
+             'q': 'Optra F16D3 — تسريب coolant من thermostat housing البلاستيك. رقم القطعة الـ updated alu'},
+            {'badge': 'LUW', 'label': 'Cruze water pump',
+             'q': 'Cruze 1.8 LUW — تسريب من الـ water pump خلف الـ timing cover. ترتيب الفك وعزوم التركيب'},
+            {'badge': 'LUJ', 'label': 'Timing chain',
+             'q': 'Cruze 1.4T LUJ — كود P0008 timing chain stretch. عزوم الـ guides والـ tensioner الجديد'},
+            {'badge': '6T40', 'label': '6T40 wave plate',
+             'q': '6T40 على Cruze 2014 — slip في 3rd gear. الـ wave plate fracture وحلها'},
+            {'badge': 'LFV', 'label': 'Head gasket',
+             'q': 'Cruze Gen2 LFV 1.4T — اختلاط زيت بالمياه. اختبار head gasket والـ replacement procedure'},
+        ],
+        'customer_faqs': [
+            {'label': '🛢️ تسريب مياه Aveo',
+             'q': 'افيو 2010 — بيقل المياه باستمرار وفيه بقعة تحت الموتور'},
+            {'label': '⚠️ Engine في Cruze',
+             'q': 'كروز 2013 — ولّع Check Engine ومستوى الزيت بيقل. خطر؟'},
+            {'label': '🔧 صوت في Lanos',
+             'q': 'لانوس قديمة — بتطلع صوت طقطقة من المحرك صبح بس'},
+            {'label': '🚗 ترددات في Optra',
+             'q': 'أوبترا — في تردد عند التحويل من 1 لـ 2 على القير العادي'},
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────
+    'peugeot_citroen': {
+        'label': 'Peugeot / Citroën / DS',
+        'emoji': '🇫🇷',
+        'color': '#3b82f6',
+        'engines': [
+            # TU / EW / EP legacy
+            'TU3', 'TU5', 'TU5JP4',
+            'EW7', 'EW10', 'EW12',
+            # PSA / BMW Prince (1.4 / 1.6 THP)
+            'EP3', 'EP6', 'EP6C', 'EP6CDT', 'EP6CDTX', 'EP6FDT', 'EP6FDTX', 'EP6FDTM',
+            # PureTech (1.0 / 1.2 / 1.6 turbo)
+            'EB0', 'EB2', 'EB2DT', 'EB2DTS', 'EB2ADT', 'EB2ADTS',
+            'EP6FADTX',
+            # Diesel HDi / BlueHDi
+            'DV4', 'DV6', 'DV6C', 'DV6D', 'DV6FC', 'DV5R',
+            'DW10', 'DW10BTED4', 'DW12C',
+        ],
+        'expert_focus': (
+            'Peugeot / Citroën / DS — معرفة هندسية صارمة لـ:\n'
+            '• EP6 (Prince 1.6 THP) — timing chain stretch، carbon buildup، VANOS solenoid (مشترك مع BMW N13/N14)\n'
+            '• PureTech EB2DT/EB2DTS — wet timing belt failure، injector seal، coolant leak\n'
+            '• 1.6 HDi DV6 — turbo failure، EGR cooler، DPF clog، injector seal\n'
+            '• 1.5 BlueHDi DV5R — recall على الـ timing belt + oil pump\n'
+            '• EAT6 / EAT8 / BMP6 gearboxes — Aisin AWF21 mechatronics\n'
+            '• Diagnostic via DiagBox / Lexia / PP2000'
+        ),
+        'aliases': [
+            # Peugeot
+            '206', '207', '208', '301', '307', '308', '407', '408', '508', '607', '807',
+            '2008', '3008', '4008', '5008',
+            'Partner', 'Expert', 'Boxer', 'Bipper',
+            # Citroën
+            'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C8', 'DS3', 'DS4', 'DS5', 'DS7',
+            'Berlingo', 'Jumpy', 'Jumper', 'Xsara', 'Picasso',
+        ],
+        'shop_faqs': [
+            {'badge': 'EP6', 'label': 'THP timing chain',
+             'q': '208 EP6 1.6 THP — رنين timing chain وكود P0016. الـ updated chain kit والـ procedure'},
+            {'badge': 'EP6', 'label': 'Carbon buildup',
+             'q': '308 GTi EP6FDT — misfire P0301 من carbon على intake valves. media للـ walnut blast'},
+            {'badge': 'EB2', 'label': 'PureTech wet belt',
+             'q': '3008 PureTech 1.2 EB2 — تكسر الـ wet timing belt مبكر. رقم الـ kit والـ oil pump pickup screen'},
+            {'badge': 'DV6', 'label': '1.6 HDi turbo',
+             'q': '308 1.6 HDi DV6 — turbo whining + ضعف عزم. تشخيص الـ VGT والـ oil supply line'},
+            {'badge': 'EAT6', 'label': 'AWF21 mechatronics',
+             'q': '308 EAT6 — harsh shift 1-2. الـ adaptation أو valve body replacement؟'},
+        ],
+        'customer_faqs': [
+            {'label': '🛢️ زيت بيقل في 208',
+             'q': '208 موديل 2015 — استهلاك زيت زيادة عن الطبيعي ودخان أزرق خفيف'},
+            {'label': '⚠️ STOP في 3008',
+             'q': '3008 طلعت رسالة STOP حمرا. أوقف فوراً ولا أقدر أكمل لورشة قريبة؟'},
+            {'label': '🔧 صوت في C4',
+             'q': 'سيتروين C4 — صوت طقطقة من المحرك بيختفي بعد التسخين'},
+            {'label': '🚗 وحدة قير في 308',
+             'q': '308 قير أوتوماتيك — بيدي رجة عند التحويل من 1 لـ 2'},
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────
+    'renault_dacia': {
+        'label': 'Renault / Dacia',
+        'emoji': '🇫🇷',
+        'color': '#facc15',
+        'engines': [
+            # K series petrol
+            'K4J', 'K4M', 'K7J', 'K7M', 'K9K',
+            # F series petrol
+            'F4R', 'F4RT', 'F9Q',
+            # Energy / TCe family
+            'H4Bt', 'H4Jt', 'H4M', 'H5Ht', 'H5Ft',
+            'M5M', 'M5Mt',
+            'M9R', 'M9T',
+            # D series
+            'D4F', 'D4D', 'D7F',
+            # Diesel dCi
+            'K9K', 'M9R', 'M9T', 'R9M', 'R9N',
+        ],
+        'expert_focus': (
+            'Renault / Dacia — معرفة هندسية صارمة لـ:\n'
+            '• K4M (Megane / Logan 1.6) — coil pack failure، timing belt interval\n'
+            '• K9K 1.5 dCi — injector failure (Delphi vs Bosch)، swirl flap motor\n'
+            '• H5Ht 1.3 TCe (Megane IV / Captur II) — مشترك مع Mercedes M282 (DDD coolant leak)\n'
+            '• EDC dual-clutch (DC4) و Easy-R AMT quirks\n'
+            '• CVT JF015E / JF016E (Jatco) على Captur الجديدة\n'
+            '• Diagnostic via CLIP / Easy Scan'
+        ),
+        'aliases': [
+            # Renault
+            'Clio', 'Megane', 'Symbol', 'Logan', 'Sandero', 'Duster', 'Captur',
+            'Fluence', 'Talisman', 'Laguna', 'Espace', 'Scenic', 'Grand Scenic',
+            'Kangoo', 'Trafic', 'Master', 'Koleos', 'Kadjar',
+            'Twingo', 'Modus',
+            # Dacia
+            'Lodgy', 'Dokker', 'Spring',
+        ],
+        'shop_faqs': [
+            {'badge': 'K4M', 'label': 'Coil pack',
+             'q': 'Megane II K4M 1.6 — misfire P0301 من coil pack. رقم الـ OEM والـ updated coil'},
+            {'badge': 'K9K', 'label': 'dCi injector',
+             'q': 'Duster 1.5 dCi K9K — صوت knock من المحرك. أي حقن (Delphi/Bosch) وعزم الـ clamp'},
+            {'badge': 'H5Ht', 'label': '1.3 TCe coolant',
+             'q': 'Captur II 1.3 TCe H5Ht — تسريب coolant داخل المحرك (Mercedes M282 issue). الإصلاح'},
+            {'badge': 'EDC', 'label': 'DC4 dual-clutch',
+             'q': 'Megane III EDC — judder عند الإقلاع. الـ clutch adaptation أو replacement؟'},
+            {'badge': 'F4R', 'label': 'Phase variator',
+             'q': 'Megane RS F4RT — رنين phase variator (VVT). رقم القطعة وعزم التركيب'},
+        ],
+        'customer_faqs': [
+            {'label': '🚗 ضعف عزم في Duster',
+             'q': 'داستر 1.5 ديزل — ضعف عزم مع نور engine، يجي ويروح'},
+            {'label': '🔧 صوت في Logan',
+             'q': 'لوجان 1.6 — صوت طقطقة من المحرك صبح'},
+            {'label': '⚠️ Service due',
+             'q': 'مجان IV — رسالة Service Required ظهرت لوحدها. لازم برمجة؟'},
+            {'label': '🛢️ تسريب زيت',
+             'q': 'فلونس — بقعة زيت تحت العربية بعد الوقوف ليلة كاملة'},
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────
+    'mitsubishi': {
+        'label': 'Mitsubishi',
+        'emoji': '🇯🇵',
+        'color': '#dc2626',
+        'engines': [
+            # 4G family (legacy + Lancer/Outlander)
+            '4G13', '4G15', '4G18', '4G19', '4G63', '4G63T', '4G64', '4G69', '4G92', '4G93', '4G94',
+            # 4B family (MIVEC modern)
+            '4B10', '4B11', '4B11T', '4B12', '4B40',
+            # 4J / 4N (new generation + diesel)
+            '4J10', '4J11', '4J12',
+            '4N13', '4N14', '4N15',
+            # V6
+            '6A12', '6A13', '6G72', '6G73', '6G74', '6G75',
+            # Pajero diesel
+            '4D56', '4D56T', '4M40', '4M41', '4M42',
+            # CVT codes
+            'F1CJA', 'CVT8',
+        ],
+        'expert_focus': (
+            'Mitsubishi — معرفة هندسية صارمة لـ:\n'
+            '• 4B11 (Lancer EX / Outlander) — timing chain، oil control valve\n'
+            '• 4G63T (Lancer Evo legacy) — turbo، forged internals procedure\n'
+            '• 4D56 / 4M41 (Pajero / L200 ديزل) — balance shaft، injector failure\n'
+            '• 6G74 / 6G75 (Pajero V6) — timing belt interval، oil leak\n'
+            '• Jatco JF011E CVT (Lancer/Outlander) — judder، valve body\n'
+            '• Diagnostic via MUT-III'
+        ),
+        'aliases': [
+            'Lancer', 'Mirage', 'Colt', 'Galant', 'ASX', 'Outlander', 'Eclipse', 'Eclipse Cross',
+            'Pajero', 'Montero', 'Shogun', 'L200', 'Triton', 'Strada',
+            'Attrage', 'Xpander', 'Space Wagon', 'Grandis', 'Delica', 'Canter',
+            'EVO', 'Evolution', 'FTO', 'GTO', '3000GT',
+        ],
+        'shop_faqs': [
+            {'badge': '4B11', 'label': 'Timing chain noise',
+             'q': 'Lancer EX 4B11 — رنين timing chain صبح. عزوم الـ tensioner والـ guides'},
+            {'badge': '4D56', 'label': 'L200 balance shaft',
+             'q': 'L200 4D56 — صوت من balance shaft. الـ chain tensioner أو balance shaft replacement؟'},
+            {'badge': '6G74', 'label': 'Pajero timing belt',
+             'q': 'Pajero V6 6G74 — interval الـ timing belt + water pump + tensioner. أرقام OEM'},
+            {'badge': 'JF011E', 'label': 'CVT judder',
+             'q': 'Lancer EX CVT JF011E — judder عند الإقلاع. الـ ATF spec والـ adaptation'},
+            {'badge': '4G15', 'label': 'MIVEC actuator',
+             'q': 'Mirage 4G15 — كود P0011 (VVT). الـ oil control valve والـ MIVEC actuator'},
+        ],
+        'customer_faqs': [
+            {'label': '🚗 CVT في لانسر',
+             'q': 'لانسر CVT — العربية بقت بتاخد سرعة بصعوبة، احتمال عيب في القير؟'},
+            {'label': '⚠️ Check Engine ASX',
+             'q': 'ASX 2014 — ولّع Check Engine بدون أي أعراض. خطر؟'},
+            {'label': '🔧 صوت في Pajero',
+             'q': 'باجيرو ديزل — صوت من المحرك زاد بعد ما العربية مشيت 200 ألف'},
+            {'label': '🛢️ تسريب زيت L200',
+             'q': 'L200 ديزل — تسريب زيت من خلف المحرك ناحية الـ flywheel'},
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────
+    'chinese': {
+        'label': 'MG / Chery / Geely / BYD',
+        'emoji': '🇨🇳',
+        'color': '#ec4899',
+        'engines': [
+            # MG / SAIC
+            '15S4C', '15S4G', '15S4H', '20T4H', '13NTGE', '15NTGE',
+            'NSE', 'NLE', 'NetA',
+            # Chery
+            'SQR371', 'SQR472', 'SQRE4G16', 'SQRE4T15', 'SQRE4G15B',
+            'SQRD4G15T', 'SQRD4T15C', 'SQRF4J20',
+            'ACTECO-1.5T', 'ACTECO-1.6T', 'ACTECO-2.0T',
+            # Geely
+            'JLD-4G15', 'JLD-4G18', 'JLD-4G20',
+            'JLH-3G15TD', 'JLH-4G15TD', 'JLH-4G18TD', 'JLH-4G20TDB',
+            'BHE15-EFZ',
+            # BYD
+            'BYD476ZQA', 'BYD473QE', 'BYD483QB',
+            'BYD476ZQB',
+            'DM-i', 'DM-p',  # hybrid
+            # Great Wall / Haval
+            'GW4D20', 'GW4G15B', 'GW4N20', 'GW4B15',
+        ],
+        'expert_focus': (
+            'الماركات الصينية (MG / Chery / Geely / BYD / Great Wall) — معرفة هندسية صارمة لـ:\n'
+            '• MG (SAIC) — استخدام محركات Volvo VEA معدلة (NSE/NLE)، DCT mechatronics\n'
+            '• Chery ACTECO — تطور من Tritec إلى ACTECO Gen3 (1.5T/1.6T)\n'
+            '• Geely (Volvo-derived JLH series) — محركات مرخصة من Volvo، 7DCT/CVT\n'
+            '• BYD DM-i hybrid — Atkinson 1.5L + EV motor، Blade battery\n'
+            '• Diagnostic غالباً يحتاج Launch X431 أو Autel + brand-specific software\n'
+            '• ⚠️ قطع الغيار: بعض الأكواد لها بدائل من VW/Volvo/Mitsubishi (origin engines)'
+        ),
+        'aliases': [
+            # Brand keywords — bare matches catch compound names like
+            # "MG ZS", "BYD Atto 3", "Chery Tiggo 7" with one token.
+            'MG', 'BYD', 'Chery', 'Geely', 'Haval', 'Wuling', 'SAIC',
+            # Specific full model names (long enough not to false-positive)
+            'MG3', 'MG4', 'MG5', 'MG6', 'MG7', 'RX5', 'RX8',
+            'Marvel', 'Cyberster',
+            'Tiggo', 'Arrizo', 'Eastar', 'Fulwin', 'Cowin',
+            'Emgrand', 'Coolray', 'Tugella', 'Azkarra', 'Boyue', 'Okavango', 'Monjaro',
+            'Dolphin', 'Atto', 'Trumpchi', 'Changan',
+            # Sub-brands
+            'JAC', 'Dongfeng', 'GAC',
+            'Wingle', 'Hover', 'Jolion', 'Dargo',
+        ],
+        'shop_faqs': [
+            {'badge': 'MG ZS', 'label': '15S4C timing chain',
+             'q': 'MG ZS 15S4C 1.5 — رنين timing chain بعد 60 ألف. الـ tensioner update والـ chain kit OEM'},
+            {'badge': 'Chery', 'label': 'ACTECO carbon',
+             'q': 'Tiggo 7 ACTECO 1.5T — misfire intermittent من carbon buildup. media للـ walnut blast'},
+            {'badge': 'Geely', 'label': 'JLH 3-cyl vibration',
+             'q': 'Coolray JLH-3G15TD — vibration في idle ودخان أزرق خفيف. الـ engine mount أو piston rings؟'},
+            {'badge': 'BYD', 'label': 'DM-i hybrid system',
+             'q': 'BYD Song DM-i — رسالة Hybrid System Check. تشخيص الـ traction battery isolation'},
+            {'badge': 'Haval', 'label': 'H6 DCT judder',
+             'q': 'Haval H6 7DCT — judder عند الإقلاع. clutch adaptation أو mechatronics؟'},
+        ],
+        'customer_faqs': [
+            {'label': '⚠️ Check في MG ZS',
+             'q': 'MG ZS موديل 2020 — Check Engine بيولع كل فترة، استهلاك بنزين زاد'},
+            {'label': '🔋 بطارية BYD',
+             'q': 'BYD Atto 3 — رسالة Battery Cell Imbalance. خطر؟'},
+            {'label': '🚗 صوت في Tiggo',
+             'q': 'تيجو 7 — صوت طقطقة من تحت العربية لما أعدي مطبات'},
+            {'label': '🛢️ تسريب Haval',
+             'q': 'هافال H6 — تسريب زيت بسيط بعد ما العربية تقف ساعات'},
+        ],
+    },
 }
 
 
