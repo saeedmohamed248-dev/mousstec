@@ -20,6 +20,8 @@ from .verifier import (
     verify_answer, tier_from_confidence,
     AUTO_PROMOTE_THRESHOLD, RETRY_FLOOR,
 )
+from .tie_breaker import tie_break
+from .sanity import sweep as sanity_sweep
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -63,10 +65,18 @@ _SYSTEM_BASE = (
     "  • verdict واحد بوضوح في أول سطر: ✅ صح كمل / ⚠️ انتبه / ❌ غلط ارجع / ❓ صور تاني.\n"
     "  • وضح ليه — أنهي مسمار/سلك/جزء غلط بالظبط.\n\n"
 
+    "📚 الاستشهاد بالمصدر (إلزامي): كل ادعاء specific (رقم، كود، اسم قطعة، "
+    "pinout) لازم يبقى مصحوب بـ مصدر معرفي بين قوسين، مثلاً:\n"
+    "  • '8 Nm (Workshop Manual — Hyundai Elantra 2018)'\n"
+    "  • 'كونيكتور C101 (تقدير عام — تأكد من ETM)'\n"
+    "  • 'سلك أحمر (خبرة عامة على العائلة دي)'\n"
+    "الادعاءات بدون مصدر = ضعيفة، الـ Verifier هيخفّض الثقة عليها.\n\n"
+
     "🚫 ممنوع:\n"
     "  • تخمن موديل عربية بدون ما الفني يأكد.\n"
     "  • تكتب 'استشير الوكيل' بدون ما تحاول تساعد الأول.\n"
-    "  • تطلب أكتر من حاجة واحدة في الرسالة (سؤال واحد أو خطوة واحدة).\n\n"
+    "  • تطلب أكتر من حاجة واحدة في الرسالة (سؤال واحد أو خطوة واحدة).\n"
+    "  • تكتب رقم Nm/V/Ω بدون ما يكون في نطاق فيزيكي معقول.\n\n"
 
     "✅ مسموح: تقول 'أنا مش متأكد 100% من رقم الكونيكتور في الموديل ده تحديداً، "
     "بس في غالبية الموديلات ده C123. لو في wiring diagram للموديل أكّد منه.' — "
@@ -134,28 +144,55 @@ def coach_reply(
         return {'success': False, 'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.',
                 'source': 'error'}
 
-    # 3. Verifier pass — البوت يراجع نفسه
+    # 3. Sanity Sweep (deterministic, no LLM) — أرقام مستحيلة فيزيكياً
+    sanity = sanity_sweep(answer)
+
+    # 4. Verifier pass (V2)
     verify_result = verify_answer(
         question=question, answer=answer, mode=mode, vehicle=vehicle,
     )
     revisions = 0
 
-    # 4. لو الـ Verifier طلب revise والـ confidence ≥ RETRY_FLOOR، نعيد مرة واحدة
-    if verify_result['verdict'] == 'revise' and revisions < _MAX_REVISIONS:
-        # خد اقتراح الـ Verifier إن كان موجود، وإلا اطلب إعادة من الـ Generator
-        if verify_result.get('suggested_revision'):
+    # 5. لو V2 طلب revise أو الـ sanity فشل → نعيد مرة واحدة
+    if (verify_result['verdict'] == 'revise' or not sanity.ok) and revisions < _MAX_REVISIONS:
+        combined_doubts = list(verify_result['doubts']) + sanity.failures
+        if verify_result.get('suggested_revision') and sanity.ok:
             answer = verify_result['suggested_revision']
         else:
-            answer = _request_revision(messages, answer, verify_result['doubts'])
+            answer = _request_revision(messages, answer, combined_doubts)
         revisions += 1
-        # Re-verify بعد التعديل
+        sanity = sanity_sweep(answer)
         verify_result = verify_answer(
             question=question, answer=answer, mode=mode, vehicle=vehicle,
         )
 
     confidence = verify_result['confidence']
+    doubts = list(verify_result['doubts'])
+
+    # 6. لو لسه الـ sanity فشل بعد إعادة → نخفّض الثقة بقوة
+    if not sanity.ok:
+        doubts = sanity.failures + doubts
+        confidence = min(confidence, 45)  # below RETRY_FLOOR ⇒ tier=low
+
     tier = tier_from_confidence(confidence)
-    auto_promoted = confidence >= AUTO_PROMOTE_THRESHOLD
+
+    # 7. Tie-Breaker (V3) — للحالات المتوسطة فقط، عشان نوفّر LLM cost
+    tie_decision = None
+    if tier == 'medium':
+        tb = tie_break(
+            question=question, answer=answer, mode=mode, vehicle=vehicle,
+            v2_doubts=doubts, v2_confidence=confidence,
+        )
+        tie_decision = tb['decision']
+        if tb['decision'] == 'approve':
+            confidence = max(confidence, AUTO_PROMOTE_THRESHOLD + 5)
+        elif tb['decision'] == 'overrule':
+            confidence = min(confidence, RETRY_FLOOR - 5)
+            if tb.get('critical_issue'):
+                doubts.insert(0, f"عيب جوهري: {tb['critical_issue']}")
+        tier = tier_from_confidence(confidence)
+
+    auto_promoted = tier == 'high'
 
     return {
         'success': True,
@@ -165,9 +202,11 @@ def coach_reply(
         'suggested_part': _extract_part_hint(question),
         'confidence': confidence,
         'tier': tier,
-        'doubts': verify_result['doubts'],
+        'doubts': doubts,
         'auto_promoted': auto_promoted,
         'revisions': revisions,
+        'sanity_ok': sanity.ok,
+        'tie_decision': tie_decision,
     }
 
 
