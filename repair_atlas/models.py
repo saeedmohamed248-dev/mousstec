@@ -31,6 +31,14 @@ class AnswerSource(models.TextChoices):
     LLM = 'llm', 'AI مولّد'
     VERIFIED = 'verified', 'معتمد (SuperAdmin)'
     LLM_VERIFIED = 'llm_verified', 'AI + معتمد لاحقاً'
+    AI_AUTO_VERIFIED = 'ai_auto_verified', 'AI ذاتي التحقق (Verifier ≥85)'
+
+
+class ConfidenceTier(models.TextChoices):
+    HIGH = 'high', '🟢 موثوق'
+    MEDIUM = 'medium', '🟡 محتمل'
+    LOW = 'low', '🔴 غير مؤكد'
+    UNKNOWN = 'unknown', '⚪ لم يفحص'
 
 
 class VerificationStatus(models.TextChoices):
@@ -139,6 +147,29 @@ class RepairAnswer(models.Model):
     tokens_in = models.PositiveIntegerField(default=0)
     tokens_out = models.PositiveIntegerField(default=0)
     cost_cents = models.PositiveIntegerField(default=0)
+
+    # 🔎 Self-Verifier — البوت بيراجع نفسه
+    confidence_score = models.PositiveSmallIntegerField(
+        default=0,
+        help_text='0-100 من الـ Verifier LLM. ≥85 → auto-promoted to KB.',
+    )
+    confidence_tier = models.CharField(
+        max_length=10, choices=ConfidenceTier.choices,
+        default=ConfidenceTier.UNKNOWN, db_index=True,
+        verbose_name='شارة الثقة',
+    )
+    verifier_doubts = models.JSONField(
+        default=list, blank=True,
+        help_text='قائمة الشكوك اللي طلعها الـ Verifier',
+    )
+    auto_promoted = models.BooleanField(
+        default=False, db_index=True,
+        help_text='True لو الإجابة دي اتـ promote تلقائياً لـ VerifiedKnowledge',
+    )
+    revision_count = models.PositiveSmallIntegerField(
+        default=0,
+        help_text='كام مرة الـ Generator أعاد بعد ملاحظات الـ Verifier',
+    )
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 

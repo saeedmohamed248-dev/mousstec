@@ -24,7 +24,7 @@ from django.views.decorators.http import require_POST
 
 from .models import (
     RepairSession, RepairQuery, RepairAnswer, TechPhoto, VerifiedKnowledge,
-    RepairMode, AnswerSource, VerificationStatus,
+    RepairMode, AnswerSource, VerificationStatus, ConfidenceTier,
 )
 from .services.repair_coach import coach_reply
 
@@ -153,22 +153,12 @@ def repair_atlas_ask(request):
     if not result.get('success'):
         return JsonResponse(result, status=200)
 
-    # Persist query + answer
     q = RepairQuery.objects.create(
         session=sess, mode=mode,
         part_or_system=result.get('suggested_part', ''),
         question_text=question,
     )
-    ans = RepairAnswer.objects.create(
-        query=q,
-        body_markdown=result['answer'],
-        source=AnswerSource.VERIFIED if result['source'] == 'verified'
-               else AnswerSource.LLM,
-        verified_kb_id=result.get('used_verified_kb_id'),
-        review_status=VerificationStatus.APPROVED
-                       if result['source'] == 'verified'
-                       else VerificationStatus.PENDING,
-    )
+    ans = _persist_answer(q, result)
     q.last_answer = ans
     q.save(update_fields=['last_answer'])
 
@@ -187,7 +177,79 @@ def repair_atlas_ask(request):
         'query_id': q.id,
         'answer_id': ans.id,
         'session_id': sess.id,
+        'confidence': result.get('confidence', 0),
+        'tier': result.get('tier', 'unknown'),
+        'doubts': result.get('doubts', []),
+        'auto_promoted': result.get('auto_promoted', False),
     })
+
+
+# ---------------------------------------------------------------------------
+# Persistence helper — wires Verifier results onto RepairAnswer + auto-promotes
+# ---------------------------------------------------------------------------
+_TIER_TO_CHOICE = {
+    'high': ConfidenceTier.HIGH,
+    'medium': ConfidenceTier.MEDIUM,
+    'low': ConfidenceTier.LOW,
+}
+
+
+def _persist_answer(query: RepairQuery, result: dict) -> RepairAnswer:
+    source = result.get('source', 'llm')
+    if source == 'verified':
+        ans_source = AnswerSource.VERIFIED
+        review_status = VerificationStatus.APPROVED
+    elif source == 'ai_auto_verified':
+        ans_source = AnswerSource.AI_AUTO_VERIFIED
+        review_status = VerificationStatus.APPROVED
+    else:
+        ans_source = AnswerSource.LLM
+        review_status = VerificationStatus.PENDING
+
+    ans = RepairAnswer.objects.create(
+        query=query,
+        body_markdown=result['answer'],
+        source=ans_source,
+        verified_kb_id=result.get('used_verified_kb_id'),
+        review_status=review_status,
+        confidence_score=result.get('confidence', 0),
+        confidence_tier=_TIER_TO_CHOICE.get(result.get('tier', ''),
+                                             ConfidenceTier.UNKNOWN),
+        verifier_doubts=result.get('doubts', []),
+        auto_promoted=result.get('auto_promoted', False),
+        revision_count=result.get('revisions', 0),
+    )
+
+    # 🤖 Auto-promote to VerifiedKnowledge — لا تدخل بشري
+    if ans.auto_promoted and source != 'verified':
+        _promote_to_kb_auto(ans)
+
+    return ans
+
+
+def _promote_to_kb_auto(answer: RepairAnswer) -> None:
+    """نفس منطق _promote_to_kb لكن بدون reviewed_by (الـ Verifier هو اللي وافق)."""
+    from .services.repair_coach import _normalize
+    q = answer.query
+    sess = q.session
+    brand_norm = _normalize(sess.brand)
+    if not brand_norm:
+        return
+    try:
+        VerifiedKnowledge.objects.create(
+            brand_norm=brand_norm,
+            model_norm=_normalize(sess.model_name),
+            year_from=sess.year,
+            year_to=sess.year,
+            mode=q.mode,
+            part_or_system_norm=(_normalize(q.part_or_system)
+                                  or _normalize(q.question_text[:80])),
+            question_pattern=q.question_text,
+            answer_markdown=answer.body_markdown,
+            oem_source=f'AI auto-verified (confidence={answer.confidence_score})',
+        )
+    except Exception:
+        logger.exception('[REPAIR_ATLAS] auto-promote to KB failed')
 
 
 # ---------------------------------------------------------------------------
@@ -222,20 +284,15 @@ def repair_atlas_photo(request):
     if not result.get('success'):
         return JsonResponse(result, status=200)
 
-    # Persist
     q = RepairQuery.objects.create(
         session=sess, mode=mode,
         part_or_system=result.get('suggested_part', ''),
         question_text=caption or '[صورة فقط]',
     )
-    ans = RepairAnswer.objects.create(
-        query=q, body_markdown=result['answer'], source=AnswerSource.LLM,
-        review_status=VerificationStatus.PENDING,
-    )
+    ans = _persist_answer(q, result)
     q.last_answer = ans
     q.save(update_fields=['last_answer'])
 
-    # Save the photo too — rewind file pointer first
     f.seek(0)
     verdict = _verdict_from_text(result['answer'])
     TechPhoto.objects.create(
@@ -253,6 +310,10 @@ def repair_atlas_photo(request):
         'mode': mode,
         'query_id': q.id,
         'answer_id': ans.id,
+        'confidence': result.get('confidence', 0),
+        'tier': result.get('tier', 'unknown'),
+        'doubts': result.get('doubts', []),
+        'auto_promoted': result.get('auto_promoted', False),
     })
 
 

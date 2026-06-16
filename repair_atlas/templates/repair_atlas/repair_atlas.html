@@ -96,6 +96,21 @@
         }
         .source-tag.verified { background: #16a34a; color: #fff; }
         .source-tag.llm { background: #6366f1; color: #fff; }
+        .conf-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.72rem; padding: 3px 9px; border-radius: 999px;
+            margin-inline-start: 8px; font-weight: 700;
+        }
+        .conf-badge.high   { background: rgba(22,163,74,0.2); color: #4ade80; border: 1px solid #16a34a; }
+        .conf-badge.medium { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid #f59e0b; }
+        .conf-badge.low    { background: rgba(220,38,38,0.2); color: #f87171; border: 1px solid #dc2626; }
+        .doubts {
+            margin-top: 10px; padding: 10px 12px;
+            background: rgba(245,158,11,0.08); border: 1px dashed rgba(245,158,11,0.4);
+            border-radius: 10px; font-size: 0.85rem; color: #fbbf24;
+        }
+        .doubts strong { color: #fbbf24; display: block; margin-bottom: 4px; }
+        .doubts ul { padding-inline-start: 18px; line-height: 1.7; }
 
         .welcome { text-align: center; padding: 40px 20px; color: #8b9dc3; }
         .welcome h2 { color: #ffcc00; margin-bottom: 12px; font-size: 1.4rem; }
@@ -239,6 +254,12 @@
         if (w) w.remove();
     }
 
+    const TIER_LABEL = {
+        high:   { emoji: '🟢', text: 'موثوق' },
+        medium: { emoji: '🟡', text: 'محتمل — اتأكد' },
+        low:    { emoji: '🔴', text: 'غير مؤكد — راجع OEM' },
+    };
+
     function addMsg(role, text, opts = {}) {
         clearWelcome();
         const div = document.createElement('div');
@@ -252,12 +273,37 @@
         const span = document.createElement('span');
         span.textContent = text;
         div.appendChild(span);
-        if (opts.source) {
+
+        if (opts.tier && TIER_LABEL[opts.tier]) {
+            const badge = document.createElement('span');
+            badge.className = `conf-badge ${opts.tier}`;
+            const tl = TIER_LABEL[opts.tier];
+            const score = (opts.confidence != null) ? ` ${opts.confidence}%` : '';
+            badge.textContent = `${tl.emoji} ${tl.text}${score}`;
+            div.appendChild(badge);
+        } else if (opts.source) {
             const tag = document.createElement('span');
             tag.className = `source-tag ${opts.source}`;
-            tag.textContent = opts.source === 'verified' ? '✅ معتمد' : '🤖 AI';
+            tag.textContent = opts.source === 'verified' ? '✅ KB' : '🤖 AI';
             div.appendChild(tag);
         }
+
+        if (opts.doubts && opts.doubts.length && opts.tier !== 'high') {
+            const doubts = document.createElement('div');
+            doubts.className = 'doubts';
+            const head = document.createElement('strong');
+            head.textContent = '⚠️ نقاط شك المراجع:';
+            doubts.appendChild(head);
+            const ul = document.createElement('ul');
+            opts.doubts.forEach(d => {
+                const li = document.createElement('li');
+                li.textContent = d;
+                ul.appendChild(li);
+            });
+            doubts.appendChild(ul);
+            div.appendChild(doubts);
+        }
+
         messagesEl.appendChild(div);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -285,8 +331,12 @@
             });
             const data = await r.json();
             hideTyping();
-            addMsg('assistant', data.answer || '⚠️ مفيش رد',
-                   { source: data.source === 'verified' ? 'verified' : 'llm' });
+            addMsg('assistant', data.answer || '⚠️ مفيش رد', {
+                source: data.source === 'verified' ? 'verified' : 'llm',
+                tier: data.tier,
+                confidence: data.confidence,
+                doubts: data.doubts,
+            });
         } catch (e) {
             hideTyping();
             addMsg('assistant', '⚠️ مشكلة في الاتصال بالسيرفر — جرّب تاني.');
@@ -314,8 +364,12 @@
             });
             const data = await r.json();
             hideTyping();
-            addMsg('assistant', data.answer || '⚠️ مفيش رد',
-                   { source: 'llm' });
+            addMsg('assistant', data.answer || '⚠️ مفيش رد', {
+                source: 'llm',
+                tier: data.tier,
+                confidence: data.confidence,
+                doubts: data.doubts,
+            });
         } catch (e) {
             hideTyping();
             addMsg('assistant', '⚠️ مشكلة في رفع الصورة.');

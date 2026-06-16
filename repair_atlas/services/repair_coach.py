@@ -16,10 +16,15 @@ import re
 from typing import Any
 
 from inventory.ai_services import call_llm_layer
+from .verifier import (
+    verify_answer, tier_from_confidence,
+    AUTO_PROMOTE_THRESHOLD, RETRY_FLOOR,
+)
 
 logger = logging.getLogger('mouss_tec_core')
 
 _MAX_HISTORY_TURNS = 8
+_MAX_REVISIONS = 1  # طلب إعادة واحد فقط (يفضل، تكلفة معقولة)
 
 
 # ---------------------------------------------------------------------------
@@ -115,12 +120,12 @@ def coach_reply(
             'suggested_part': kb_hit.part_or_system_norm,
         }
 
-    # 2. LLM call
+    # 2. Generator LLM call
     messages = _build_messages(question, mode, vehicle, history, image_b64)
     try:
         raw = call_llm_layer(messages, json_mode=False, max_retries=2)
     except Exception as e:
-        logger.exception('[REPAIR_COACH] LLM crashed')
+        logger.exception('[REPAIR_COACH] Generator LLM crashed')
         return {'success': False, 'answer': '⚠️ حصل عطل في الـ AI، جرب تاني.',
                 'source': 'error', 'error': str(e)}
 
@@ -129,13 +134,63 @@ def coach_reply(
         return {'success': False, 'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.',
                 'source': 'error'}
 
+    # 3. Verifier pass — البوت يراجع نفسه
+    verify_result = verify_answer(
+        question=question, answer=answer, mode=mode, vehicle=vehicle,
+    )
+    revisions = 0
+
+    # 4. لو الـ Verifier طلب revise والـ confidence ≥ RETRY_FLOOR، نعيد مرة واحدة
+    if verify_result['verdict'] == 'revise' and revisions < _MAX_REVISIONS:
+        # خد اقتراح الـ Verifier إن كان موجود، وإلا اطلب إعادة من الـ Generator
+        if verify_result.get('suggested_revision'):
+            answer = verify_result['suggested_revision']
+        else:
+            answer = _request_revision(messages, answer, verify_result['doubts'])
+        revisions += 1
+        # Re-verify بعد التعديل
+        verify_result = verify_answer(
+            question=question, answer=answer, mode=mode, vehicle=vehicle,
+        )
+
+    confidence = verify_result['confidence']
+    tier = tier_from_confidence(confidence)
+    auto_promoted = confidence >= AUTO_PROMOTE_THRESHOLD
+
     return {
         'success': True,
         'answer': answer,
-        'source': 'llm',
+        'source': 'ai_auto_verified' if auto_promoted else 'llm',
         'mode': mode,
         'suggested_part': _extract_part_hint(question),
+        'confidence': confidence,
+        'tier': tier,
+        'doubts': verify_result['doubts'],
+        'auto_promoted': auto_promoted,
+        'revisions': revisions,
     }
+
+
+def _request_revision(orig_messages: list[dict], orig_answer: str,
+                       doubts: list[str]) -> str:
+    """ينده الـ Generator تاني مع الشكوك."""
+    doubts_block = '\n'.join(f'  - {d}' for d in doubts) or '  - (لا توجد شكوك محددة)'
+    follow_up = (
+        f"ردك السابق:\n{orig_answer}\n\n"
+        f"الشكوك اللي طلعت من المراجع:\n{doubts_block}\n\n"
+        f"أعد كتابة الرد كامل بعد ما تعالج الشكوك دي. لو شك مش صح، علّق "
+        f"عليه بأدب وبرر."
+    )
+    msgs = list(orig_messages) + [
+        {'role': 'assistant', 'content': orig_answer},
+        {'role': 'user', 'content': follow_up},
+    ]
+    try:
+        revised = call_llm_layer(msgs, json_mode=False, max_retries=1)
+    except Exception:
+        logger.exception('[REPAIR_COACH] revision LLM crashed')
+        return orig_answer
+    return (revised or '').strip() or orig_answer
 
 
 # ---------------------------------------------------------------------------
