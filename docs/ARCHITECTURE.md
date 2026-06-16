@@ -458,8 +458,8 @@ operations = [
 | 3 | `design_store` | ✅ Done (10a) | services/{design_chat,design_persistence} | 161 tests | Phase 2B pending |
 | 4 | `billing` | ✅ Done (11a) | services/paymob | 31 tests (4 pre-existing failures) | Phase 2B pending |
 | 5 | `marketplace_c2c` | ✅ Done (12a) | services/{disputes,trust} | 16 tests | Phase 2B pending |
-| 6 | `support` | ⏳ TODO | TBD (clients/views chat + ticket views) | TBD | — |
-| 7 | `workshop` | ⏳ TODO | TBD (inventory automotive verticals) | TBD | — |
+| 6 | `support` | ✅ Done (13a) | services/business_hours | — | Phase 2B pending |
+| 7 | `workshop` | ✅ Done (14a) | api_obd, predictive_engine (extracted from inventory) | 47 tests (1 pre-existing quota flake) | Phase 2B pending |
 
 **شِيمات الـ Backward Compatibility:**
 - `clients/services/<name>.py` → `from <new_app>.services.<name> import *`
