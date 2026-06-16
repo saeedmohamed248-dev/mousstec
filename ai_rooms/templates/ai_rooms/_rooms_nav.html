@@ -1,5 +1,7 @@
-{# Shared cross-room navigation bar. Include this in each room template:
-   {% include 'ai_rooms/_rooms_nav.html' with active='repair_atlas' %}    #}
+{% comment %}
+Shared cross-room navigation bar. Include this in each room template, e.g.:
+include 'ai_rooms/_rooms_nav.html' with active='repair_atlas'
+{% endcomment %}
 <style>
     .rooms-nav {
         display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
