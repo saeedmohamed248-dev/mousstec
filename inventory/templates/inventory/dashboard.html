@@ -316,6 +316,13 @@
                 <span class="text-xs font-black text-fuchsia-200">🤖 غرفة التشخيص</span>
             </a>
             {% endif %}
+
+            {# 🔧 Repair Atlas — disassembly / install / wiring coach #}
+            <a href="{% url 'repair_atlas:page' %}" class="card-hover bg-gradient-to-b from-orange-900/30 to-slate-900/60 border border-orange-500/40 hover:border-orange-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-orange-500/20 text-orange-200 px-1.5 py-0.5 rounded">AI</span>
+                <div class="w-12 h-12 rounded-xl bg-orange-500/15 flex items-center justify-center text-orange-300 text-xl"><i class="fas fa-screwdriver-wrench"></i></div>
+                <span class="text-xs font-black text-orange-200">🔧 أطلس الإصلاح</span>
+            </a>
             {% endif %}
 
             {# 🧑‍💼 HR Workspace — RBAC: superuser / admin / manager / hr #}
