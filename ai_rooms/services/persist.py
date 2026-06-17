@@ -87,8 +87,13 @@ def persist_turn(
     vehicle: dict[str, Any] | None = None,
     external_session_id: int | None = None,
     meta: dict[str, Any] | None = None,
+    user_meta: dict[str, Any] | None = None,
 ) -> AIRoomConversation | None:
-    """Append a user + assistant turn to the unified conversation."""
+    """Append a user + assistant turn to the unified conversation.
+
+    ``user_meta`` يتعلّق برسالة الفني (مثلاً رابط صورة رفعها)، و``meta``
+    يتعلّق برد المساعد (tier / confidence / mode).
+    """
     conv = get_or_open_conversation(
         request, room=room, audience=audience,
         vehicle=vehicle, external_session_id=external_session_id,
@@ -96,8 +101,8 @@ def persist_turn(
     if not conv:
         return None
     try:
-        if user_text:
-            conv.append_turn('user', user_text)
+        if user_text or user_meta:
+            conv.append_turn('user', user_text, meta=user_meta)
         if assistant_text:
             conv.append_turn('assistant', assistant_text, meta=meta)
     except DatabaseError:

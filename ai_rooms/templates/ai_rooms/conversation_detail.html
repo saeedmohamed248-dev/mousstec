@@ -25,6 +25,8 @@
         .turn .ts { display: block; color: rgba(255,255,255,0.4); font-size: 0.72rem; margin-bottom: 6px; }
         .turn .meta { margin-top: 8px; font-size: 0.78rem; color: #94a3b8; padding: 6px 10px;
             background: rgba(0,0,0,0.3); border-radius: 8px; }
+        .turn .turn-photo { display: block; max-width: 100%; max-height: 320px;
+            border-radius: 10px; margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -43,8 +45,11 @@
             {% for t in conv.turns %}
                 <div class="turn {{ t.role }}">
                     <span class="ts">{{ t.ts }}</span>
+                    {% if t.meta.image_url %}
+                        <img src="{{ t.meta.image_url }}" class="turn-photo" alt="صورة من الورشة">
+                    {% endif %}
                     {{ t.text }}
-                    {% if t.meta %}
+                    {% if t.meta.tier or t.meta.confidence %}
                         <div class="meta">
                             {% if t.meta.tier %}🎯 {{ t.meta.tier }}{% endif %}
                             {% if t.meta.confidence %} · ثقة {{ t.meta.confidence }}%{% endif %}

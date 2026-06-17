@@ -202,7 +202,7 @@ def repair_atlas_ask(request):
     })
 
 
-def _persist_to_unified_hub(request, sess, user_text, result):
+def _persist_to_unified_hub(request, sess, user_text, result, image_url=None):
     try:
         from ai_rooms.services.persist import persist_turn
         audience = 'customer' if request.session.get('is_customer_audience') else 'shop'
@@ -212,6 +212,7 @@ def _persist_to_unified_hub(request, sess, user_text, result):
             vehicle={'brand': sess.brand, 'model_name': sess.model_name,
                      'year': sess.year, 'vin': sess.vin},
             external_session_id=sess.id,
+            user_meta={'image_url': image_url} if image_url else None,
             meta={
                 'tier': result.get('tier'),
                 'confidence': result.get('confidence'),
@@ -334,14 +335,19 @@ def repair_atlas_photo(request):
 
     f.seek(0)
     verdict = _verdict_from_text(result['answer'])
-    TechPhoto.objects.create(
+    photo = TechPhoto.objects.create(
         query=q, image=f, caption=caption,
         ai_feedback=result['answer'][:2000], ai_verdict=verdict,
     )
+    try:
+        image_url = photo.image.url
+    except Exception:
+        image_url = None
 
     _push_history(request, 'user', f'[صورة] {caption}'.strip())
     _push_history(request, 'assistant', result['answer'])
-    _persist_to_unified_hub(request, sess, f'[صورة] {caption}'.strip(), result)
+    _persist_to_unified_hub(request, sess, f'[صورة] {caption}'.strip(), result,
+                            image_url=image_url)
 
     return JsonResponse({
         'success': True,

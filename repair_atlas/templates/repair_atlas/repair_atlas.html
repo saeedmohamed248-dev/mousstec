@@ -89,6 +89,13 @@
             border-bottom-left-radius: 4px;
         }
         .msg.assistant strong { color: #ffcc00; }
+        .msg .md-h { display: block; margin: 10px 0 4px; font-size: 1rem; }
+        .msg .md-code {
+            display: block; background: rgba(0, 0, 0, 0.35); color: #9fe8c0;
+            padding: 10px 12px; border-radius: 8px; margin: 6px 0;
+            font-family: 'Courier New', monospace; font-size: 0.85rem;
+            white-space: pre; overflow-x: auto; direction: ltr; text-align: left;
+        }
         .msg .photo { display: block; max-width: 100%; border-radius: 10px; margin-bottom: 8px; }
         .source-tag {
             display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
@@ -255,6 +262,25 @@
         if (w) w.remove();
     }
 
+    // تنسيق آمن للرد: نـ escape الـ HTML الأول (ضد XSS) وبعدين نطبّق markdown بسيط.
+    function escapeHtml(s) {
+        return (s || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function renderMarkdown(raw) {
+        let s = escapeHtml(raw);
+        // بلوكات الكود / الشجرة ``` ``` → خط ثابت (monospace) يحافظ على الرسم
+        s = s.replace(/```([\s\S]*?)```/g,
+            (m, c) => '<code class="md-code">' + c.replace(/^\n/, '') + '</code>');
+        // **عريض**
+        s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // عناوين ### / ## → سطر عريض
+        s = s.replace(/(^|\n)\s*#{1,4}\s+(.+)/g, '$1<strong class="md-h">$2</strong>');
+        // نقاط - أو * في أول السطر → •
+        s = s.replace(/(^|\n)\s*[-*]\s+/g, '$1• ');
+        return s;
+    }
+
     const TIER_LABEL = {
         high:   { emoji: '🟢', text: 'موثوق' },
         medium: { emoji: '🟡', text: 'محتمل — اتأكد' },
@@ -272,7 +298,11 @@
             div.appendChild(img);
         }
         const span = document.createElement('span');
-        span.textContent = text;
+        if (role === 'assistant') {
+            span.innerHTML = renderMarkdown(text);
+        } else {
+            span.textContent = text;
+        }
         div.appendChild(span);
 
         if (opts.tier && TIER_LABEL[opts.tier]) {

@@ -54,7 +54,7 @@ class CoachReplyTest(TestCase):
         self.assertIn('افصل البطارية', out['answer'])
         sent_messages = mock_gen.call_args[0][0]
         self.assertEqual(sent_messages[0]['role'], 'system')
-        self.assertIn('Master Repair Coach', sent_messages[0]['content'])
+        self.assertIn('أسطى Mouss Tec', sent_messages[0]['content'])
 
     @patch('repair_atlas.services.repair_coach.call_llm_layer')
     def test_invalid_mode_falls_back_to_disassembly(self, mock_llm):
