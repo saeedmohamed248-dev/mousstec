@@ -219,7 +219,7 @@
 
             <div class="composer">
                 <button class="icon" id="photoBtn" title="ارفع صورة"><i class="fas fa-camera"></i></button>
-                <input type="file" id="photoInput" accept="image/*" capture="environment" />
+                <input type="file" id="photoInput" accept="image/*" multiple />
                 <textarea id="composer" rows="1" placeholder="اكتب سؤالك… (Shift+Enter لسطر جديد)"></textarea>
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
             </div>
@@ -376,14 +376,21 @@
         }
     }
 
-    async function uploadPhoto(file, caption) {
-        const reader = new FileReader();
-        reader.onload = (ev) => addMsg('user', caption || '[صورة من الورشة]', { photo: ev.target.result });
-        reader.readAsDataURL(file);
+    async function uploadPhoto(files, caption) {
+        const list = Array.from(files);
+        // preview أول صورة في فقاعة الرسالة + عدّاد لو أكتر من واحدة
+        if (list[0]) {
+            const reader = new FileReader();
+            const label = list.length > 1
+                ? (caption || '') + ' (' + list.length + ' صور)'
+                : (caption || '[صورة من الورشة]');
+            reader.onload = (ev) => addMsg('user', label.trim(), { photo: ev.target.result });
+            reader.readAsDataURL(list[0]);
+        }
 
         showTyping(); sendBtn.disabled = true;
         const fd = new FormData();
-        fd.append('image', file);
+        list.forEach((file) => fd.append('image', file));
         fd.append('caption', caption || '');
         fd.append('mode', currentMode);
         const v = getVehicle();
@@ -420,11 +427,12 @@
 
     photoBtn.onclick = () => photoInput.click();
     photoInput.onchange = () => {
-        if (!photoInput.files[0]) return;
-        const f = photoInput.files[0];
+        if (!photoInput.files.length) return;
+        let files = Array.from(photoInput.files);
+        if (files.length > 4) { alert('أقصى حد 4 صور في المرة. هرفع أول 4.'); files = files.slice(0, 4); }
         const cap = composer.value.trim();
         composer.value = ''; composer.style.height = 'auto';
-        uploadPhoto(f, cap);
+        uploadPhoto(files, cap);
         photoInput.value = '';
     };
 

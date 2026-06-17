@@ -119,13 +119,21 @@ def coach_reply(
     vehicle: dict[str, Any] | None = None,
     history: list[dict] | None = None,
     image_b64: str | None = None,
+    images_b64: list[str] | None = None,
 ) -> dict[str, Any]:
     """
     Main entry. Returns:
         { success, answer, source, suggested_part, mode, error? }
+
+    ``image_b64`` (واحدة) أو ``images_b64`` (لستة) — الاتنين بيتدمجوا.
     """
     question = (question or '').strip()
-    if not question and not image_b64:
+    images = list(images_b64 or [])
+    if image_b64:
+        images.insert(0, image_b64)
+    images = [b for b in images if b]
+
+    if not question and not images:
         return {'success': False, 'answer': 'اكتب سؤال أو ارفع صورة.',
                 'source': 'none'}
 
@@ -135,7 +143,7 @@ def coach_reply(
 
     # 1. Verified KB lookup — قبل أي LLM call
     kb_hit = _lookup_verified_kb(question, mode, vehicle)
-    if kb_hit and not image_b64:
+    if kb_hit and not images:
         return {
             'success': True,
             'answer': kb_hit.answer_markdown,
@@ -146,7 +154,7 @@ def coach_reply(
         }
 
     # 2. Generator LLM call
-    messages = _build_messages(question, mode, vehicle, history, image_b64)
+    messages = _build_messages(question, mode, vehicle, history, images)
     try:
         raw = call_llm_layer(messages, json_mode=False, max_retries=2)
     except Exception as e:
@@ -156,8 +164,12 @@ def coach_reply(
 
     answer = (raw or '').strip()
     if not answer:
-        return {'success': False, 'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.',
-                'source': 'error'}
+        if images:
+            msg = ('⚠️ معرفتش أقرأ الصورة دلوقتي (خدمة تحليل الصور مش متاحة على '
+                   'السيرفر). جرّب توصف المشكلة بالكلام وأنا أساعدك.')
+        else:
+            msg = '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.'
+        return {'success': False, 'answer': msg, 'source': 'error'}
 
     # 3. Sanity Sweep (deterministic, no LLM) — أرقام مستحيلة فيزيكياً
     sanity = sanity_sweep(answer)
@@ -250,7 +262,7 @@ def _request_revision(orig_messages: list[dict], orig_answer: str,
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
-def _build_messages(question, mode, vehicle, history, image_b64):
+def _build_messages(question, mode, vehicle, history, images):
     system = _SYSTEM_BASE + "\n\n=== سياق السؤال الحالي ===\n" + _MODE_HINTS[mode]
     if vehicle:
         v_lines = []
@@ -268,16 +280,18 @@ def _build_messages(question, mode, vehicle, history, image_b64):
         role = 'user' if turn.get('role') == 'user' else 'assistant'
         msgs.append({'role': role, 'content': turn.get('text', '')})
 
-    if image_b64:
-        msgs.append({
-            'role': 'user',
-            'content': [
-                {'type': 'text',
-                 'text': question or 'دي الصورة من مكان الشغل — ارفعلي تقييمك.'},
-                {'type': 'image_url',
-                 'image_url': {'url': f'data:image/jpeg;base64,{image_b64}'}},
-            ],
-        })
+    images = images or []
+    if images:
+        content = [
+            {'type': 'text',
+             'text': question or 'دي الصور من مكان الشغل — ارفعلي تقييمك.'},
+        ]
+        for b64 in images:
+            content.append({
+                'type': 'image_url',
+                'image_url': {'url': f'data:image/jpeg;base64,{b64}'},
+            })
+        msgs.append({'role': 'user', 'content': content})
     else:
         msgs.append({'role': 'user', 'content': question})
     return msgs

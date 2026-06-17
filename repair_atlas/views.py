@@ -34,6 +34,7 @@ _SESSION_KEY = 'repair_atlas_session_id_v1'
 _HISTORY_KEY = 'repair_atlas_history_v1'
 _MAX_HISTORY = 12
 _MAX_IMAGE_BYTES = 6 * 1024 * 1024  # 6 MB
+_MAX_IMAGES = 4  # عدد الصور المسموح رفعها في رسالة واحدة
 
 
 # ---------------------------------------------------------------------------
@@ -298,14 +299,17 @@ def _promote_to_kb_auto(answer: RepairAnswer) -> None:
 @login_required
 @require_POST
 def repair_atlas_photo(request):
-    """Receives multipart form: image (file), caption, mode, vehicle fields."""
-    f = request.FILES.get('image')
-    if not f:
+    """Receives multipart form: image (one or more files), caption, mode, vehicle fields."""
+    files = request.FILES.getlist('image')
+    if not files:
         return JsonResponse({'success': False, 'error': 'no_image'}, status=400)
-    if f.size > _MAX_IMAGE_BYTES:
-        return JsonResponse({'success': False,
-                              'answer': 'الصورة كبيرة (الحد 6 MB).'},
-                             status=400)
+    if len(files) > _MAX_IMAGES:
+        files = files[:_MAX_IMAGES]
+    for f in files:
+        if f.size > _MAX_IMAGE_BYTES:
+            return JsonResponse({'success': False,
+                                  'answer': f'صورة كبيرة ({f.name}) — الحد 6 MB لكل صورة.'},
+                                 status=400)
 
     caption = (request.POST.get('caption') or '').strip()
     mode = request.POST.get('mode') or 'disassembly'
@@ -314,12 +318,15 @@ def repair_atlas_photo(request):
     vehicle = _vehicle_from_payload(request.POST)
     sess = _get_or_create_session(request, vehicle)
 
-    image_b64 = base64.b64encode(f.read()).decode('ascii')
+    images_b64 = []
+    for f in files:
+        images_b64.append(base64.b64encode(f.read()).decode('ascii'))
+        f.seek(0)
     history = request.session.get(_HISTORY_KEY, [])
 
     result = coach_reply(
-        question=caption or 'حلّل الصورة وقولي إذا كنت ماشي صح ولا لا.',
-        mode=mode, vehicle=vehicle, history=history, image_b64=image_b64,
+        question=caption or 'حلّل الصور وقولي إذا كنت ماشي صح ولا لا.',
+        mode=mode, vehicle=vehicle, history=history, images_b64=images_b64,
     )
     if not result.get('success'):
         return JsonResponse(result, status=200)
@@ -333,21 +340,25 @@ def repair_atlas_photo(request):
     q.last_answer = ans
     q.save(update_fields=['last_answer'])
 
-    f.seek(0)
     verdict = _verdict_from_text(result['answer'])
-    photo = TechPhoto.objects.create(
-        query=q, image=f, caption=caption,
-        ai_feedback=result['answer'][:2000], ai_verdict=verdict,
-    )
-    try:
-        image_url = photo.image.url
-    except Exception:
-        image_url = None
+    image_url = None
+    for idx, f in enumerate(files):
+        f.seek(0)
+        photo = TechPhoto.objects.create(
+            query=q, image=f, caption=caption,
+            ai_feedback=result['answer'][:2000] if idx == 0 else '',
+            ai_verdict=verdict if idx == 0 else '',
+        )
+        if idx == 0:
+            try:
+                image_url = photo.image.url
+            except Exception:
+                image_url = None
 
-    _push_history(request, 'user', f'[صورة] {caption}'.strip())
+    label = f'[صورة] {caption}'.strip() if len(files) == 1 else f'[{len(files)} صور] {caption}'.strip()
+    _push_history(request, 'user', label)
     _push_history(request, 'assistant', result['answer'])
-    _persist_to_unified_hub(request, sess, f'[صورة] {caption}'.strip(), result,
-                            image_url=image_url)
+    _persist_to_unified_hub(request, sess, label, result, image_url=image_url)
 
     return JsonResponse({
         'success': True,
