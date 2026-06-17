@@ -1,0 +1,303 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>💎 Revenue Intelligence — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1500px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#86efac; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+
+        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:14px; }
+        .card h3 {
+            margin:0 0 14px; color:#86efac; font-size:14px; font-weight:900; letter-spacing:0.5px;
+            display:flex; align-items:center; gap:8px;
+        }
+        .card h3 .more { margin-right:auto; font-size:11px; color:#64748b; font-weight:700; }
+
+        /* Hero metrics */
+        .hero {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px;
+        }
+        @media (max-width:900px) { .hero { grid-template-columns:repeat(2,1fr); } }
+        .metric {
+            background:linear-gradient(135deg, #15803d22 0%, #064e3b22 100%);
+            border:1px solid #22c55e44; border-radius:14px; padding:18px;
+        }
+        .metric .lbl { font-size:11px; color:#86efac; font-weight:700; letter-spacing:0.5px; }
+        .metric .big { font-size:30px; font-weight:900; color:#fff; line-height:1.1; margin-top:6px; }
+        .metric .sub-val { font-size:12px; color:#cbd5e1; margin-top:6px; }
+        .metric.alt {
+            background:linear-gradient(135deg, #1d4ed822 0%, #0e749022 100%);
+            border-color:#06b6d444;
+        }
+        .metric.alt .lbl, .metric.alt .big { color:#5eead4; }
+        .metric.alt .big { color:#fff; }
+        .metric.warn {
+            background:linear-gradient(135deg, #b4530922 0%, #92400e22 100%);
+            border-color:#f59e0b44;
+        }
+        .metric.warn .lbl { color:#fcd34d; }
+
+        /* Grid layout */
+        .grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+        @media (max-width:1100px) { .grid-2 { grid-template-columns:1fr; } }
+
+        /* MRR trend chart (CSS-only bars) */
+        .trend { display:flex; gap:8px; align-items:flex-end; height:160px; padding:10px 0; }
+        .trend-bar {
+            flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+            min-width:0;
+        }
+        .trend-bar .val {
+            font-size:10px; color:#86efac; font-weight:900;
+        }
+        .trend-bar .bar {
+            width:100%; background:linear-gradient(180deg, #86efac, #22c55e); border-radius:6px 6px 0 0;
+            min-height:4px;
+        }
+        .trend-bar .lbl { font-size:10px; color:#94a3b8; font-weight:700; text-align:center; }
+
+        /* Funnel */
+        .funnel-row {
+            display:grid; grid-template-columns:100px 1fr 80px; gap:8px; align-items:center;
+            padding:8px 0; border-bottom:1px solid #334155; font-size:13px;
+        }
+        .funnel-row .stage { color:#cbd5e1; font-weight:700; }
+        .funnel-bar {
+            height:18px; background:linear-gradient(90deg, #22c55e, #16a34a);
+            border-radius:99px; min-width:30px; display:flex; align-items:center; justify-content:flex-end;
+            padding:0 8px; color:#fff; font-size:11px; font-weight:900;
+        }
+        .funnel-bar.b { background:linear-gradient(90deg, #06b6d4, #0891b2); }
+        .funnel-bar.c { background:linear-gradient(90deg, #a78bfa, #7c3aed); }
+        .funnel-row .pct { text-align:left; color:#86efac; font-weight:900; }
+        .funnel-window {
+            margin:18px 0 6px; padding:8px 14px; background:#0f172a; border-radius:8px;
+            color:#a78bfa; font-weight:900; font-size:12px;
+        }
+
+        /* Cohort table */
+        .cohort-table { width:100%; border-collapse:separate; border-spacing:3px; }
+        .cohort-table th, .cohort-table td {
+            padding:8px 6px; text-align:center; font-size:11px;
+            border-radius:5px;
+        }
+        .cohort-table th { background:#0f172a; color:#a78bfa; font-weight:900; }
+        .cohort-table .row-label {
+            background:#0f172a; color:#cbd5e1; font-weight:700; text-align:right;
+            padding-right:10px; min-width:90px;
+        }
+        .cohort-table .row-size {
+            background:#1e293b; color:#94a3b8; font-weight:900; font-size:12px;
+        }
+        .cohort-cell {
+            color:#fff; font-weight:900; min-width:50px;
+            background:rgba(34,197,94,0.0);
+        }
+
+        /* by-plan table */
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:9px 10px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
+        tr:hover td { background:#293548; }
+        .plan-name { color:#e2e8f0; font-weight:900; }
+        .pill {
+            display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+        }
+        .empty { text-align:center; color:#64748b; padding:30px; font-size:13px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> /
+        <a href="/superadmin/revenue/">الإيرادات</a> /
+        💎 Revenue Intelligence
+    </div>
+    <h1>💎 Revenue Intelligence</h1>
+    <p class="sub">MRR، conversion، cohort retention، churn — كل القرارات اللي تخص نمو الإيرادات في صفحة واحدة.</p>
+
+    <!-- ─── Hero metrics ─── -->
+    <div class="hero">
+        <div class="metric">
+            <div class="lbl"><i class="fas fa-chart-line"></i> MRR الحالي</div>
+            <div class="big">{{ current_mrr|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> ج.م</span></div>
+            <div class="sub-val">ARR ≈ {{ arr|floatformat:0 }} ج.م</div>
+        </div>
+        <div class="metric alt">
+            <div class="lbl"><i class="fas fa-users"></i> شركات بتدفع</div>
+            <div class="big">{{ paying_count }}</div>
+            <div class="sub-val">من إجمالي الشركات في الـ DB</div>
+        </div>
+        <div class="metric alt">
+            <div class="lbl"><i class="fas fa-coins"></i> ARPU</div>
+            <div class="big">{{ arpu|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> ج.م</span></div>
+            <div class="sub-val">متوسط الإيراد لكل شركة (شهرياً)</div>
+        </div>
+        <div class="metric warn">
+            <div class="lbl"><i class="fas fa-arrow-down"></i> Churn (الشهر الحالي)</div>
+            <div class="big" style="color:#fff;">{{ churn_count }}<span style="font-size:14px;"> / {{ last_month_active }}</span></div>
+            <div class="sub-val">معدل الـ churn: <strong style="color:#fcd34d;">{{ churn_rate }}%</strong></div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- ─── MRR Trend ─── -->
+        <div>
+            <div class="card">
+                <h3>
+                    <i class="fas fa-arrow-trend-up"></i> اتجاه الإيرادات الشهرية (آخر 6 شهور)
+                </h3>
+                {% if mrr_trend %}
+                    <div class="trend">
+                        {# pick max for scaling #}
+                        {% with max_total=0 %}
+                            {% for m in mrr_trend %}
+                                {% if m.total > max_total %}{% with max_total=m.total %}{% endwith %}{% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                        {% for m in mrr_trend %}
+                            <div class="trend-bar">
+                                <span class="val">{{ m.total|floatformat:0 }}</span>
+                                <div class="bar" style="height: {% widthratio m.total 5000 140 %}px;"></div>
+                                <span class="lbl">{{ m.month_label }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <table style="margin-top:10px;">
+                        <thead>
+                            <tr>
+                                <th>الشهر</th>
+                                <th style="text-align:left;">إيراد</th>
+                                <th style="text-align:left;">شركات دفعت</th>
+                                <th style="text-align:left;">تسجيلات جديدة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in mrr_trend %}
+                                <tr>
+                                    <td>{{ m.month_label }}</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ m.total|floatformat:0 }} ج.م</td>
+                                    <td style="text-align:left;">{{ m.paid_tenants }}</td>
+                                    <td style="text-align:left;">{{ m.new_signups }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد بيانات بعد.</div>
+                {% endif %}
+            </div>
+
+            <!-- ─── Cohort Retention ─── -->
+            <div class="card">
+                <h3>
+                    <i class="fas fa-layer-group"></i> Cohort Retention
+                    <span class="more">% من شركات شهر X لسه بيدفعوا في الشهور اللي بعده</span>
+                </h3>
+                {% if cohorts %}
+                    <table class="cohort-table">
+                        <thead>
+                            <tr>
+                                <th class="row-label">الـ Cohort</th>
+                                <th>عدد</th>
+                                {% for n in "0123456" %}
+                                    {% if forloop.counter0 <= cohorts|length %}
+                                        <th>M{{ forloop.counter0 }}</th>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cohort in cohorts %}
+                                <tr>
+                                    <td class="row-label">{{ cohort.month_label }}</td>
+                                    <td class="row-size">{{ cohort.size }}</td>
+                                    {% for cell in cohort.cells %}
+                                        <td class="cohort-cell"
+                                            style="background:rgba(34,197,94,{{ cell.pct }}%); color:{% if cell.pct > 30 %}#fff{% else %}#cbd5e1{% endif %};">
+                                            {% if cohort.size %}{{ cell.pct }}%{% else %}—{% endif %}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <p style="color:#64748b; font-size:11px; margin-top:10px;">
+                        💡 M0 = شهر التسجيل، M1 = الشهر اللي بعده، إلخ.
+                        كل ما النسبة قرّبت من 100%، كل ما الـ cohort أكثر retention.
+                    </p>
+                {% else %}
+                    <div class="empty">لا توجد cohorts بعد.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ─── Sidebar: Funnel + Plans ─── -->
+        <div>
+            <!-- Funnel -->
+            <div class="card">
+                <h3><i class="fas fa-filter"></i> Trial → Paid Funnel</h3>
+                {% for f in funnel %}
+                    <div class="funnel-window">{{ f.label }}</div>
+
+                    <div class="funnel-row">
+                        <span class="stage">تسجيلات</span>
+                        <div class="funnel-bar">{{ f.signed_up }}</div>
+                        <span class="pct">100%</span>
+                    </div>
+                    <div class="funnel-row">
+                        <span class="stage">أكّدوا الإيميل</span>
+                        <div class="funnel-bar b" style="width:{% widthratio f.verified f.signed_up 100 %}%; min-width:30px;">{{ f.verified }}</div>
+                        <span class="pct">{{ f.verified_pct }}%</span>
+                    </div>
+                    <div class="funnel-row">
+                        <span class="stage">دفعوا</span>
+                        <div class="funnel-bar c" style="width:{% widthratio f.converted f.signed_up 100 %}%; min-width:30px;">{{ f.converted }}</div>
+                        <span class="pct">{{ f.converted_pct }}%</span>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- By plan -->
+            <div class="card">
+                <h3><i class="fas fa-gem"></i> MRR لكل باقة</h3>
+                {% if by_plan_mrr %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>الباقة</th>
+                                <th style="text-align:left;">شركات</th>
+                                <th style="text-align:left;">MRR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in by_plan_mrr %}
+                                <tr>
+                                    <td>
+                                        <span class="plan-name">{{ row.name }}</span><br>
+                                        <span class="pill" style="font-size:10px;">{{ row.slug }}</span>
+                                    </td>
+                                    <td style="text-align:left;">{{ row.count }}</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ row.mrr|floatformat:0 }} ج.م</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty">لا توجد اشتراكات نشطة.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

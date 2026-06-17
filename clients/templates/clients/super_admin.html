@@ -125,6 +125,16 @@
             </div>
         </a>
 
+        <a href="/superadmin/revenue-intel/" class="group flex items-center gap-3 p-4 rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-emerald-500/5 hover:from-green-500/20 hover:to-emerald-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-green-500/20 flex items-center justify-center text-green-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-gem"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">💎 Revenue Intel</div>
+                <div class="text-slate-400 text-xs">MRR • cohorts • conversion</div>
+            </div>
+        </a>
+
         <a href="/superadmin/broadcast/" class="group flex items-center gap-3 p-4 rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/10 to-purple-500/5 hover:from-fuchsia-500/20 hover:to-purple-500/15 transition">
             <div class="w-11 h-11 rounded-xl bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-300 text-lg group-hover:scale-110 transition">
                 <i class="fas fa-bullhorn"></i>
@@ -2687,6 +2697,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'إدارة المستأجرين',  sub:'soft-delete · restore · force',   url:'/superadmin/tenants/',               icon:'building' },
         { kind:'page', label:'الباقات',           sub:'تسعير · مزايا · تحرير',           url:'/superadmin/plans/',                 icon:'gem' },
         { kind:'page', label:'الإيرادات',         sub:'MRR · نمو · تحصيل',               url:'/superadmin/revenue/',               icon:'chart-line' },
+        { kind:'page', label:'Revenue Intelligence', sub:'MRR breakdown · cohorts · conversion', url:'/superadmin/revenue-intel/',      icon:'gem' },
         { kind:'page', label:'مصروفات التشخيص',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
         { kind:'page', label:'سجل الأخطاء',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
         { kind:'page', label:'سجل التدقيق',       sub:'كل أحداث المنصة + فلاتر',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
