@@ -128,19 +128,29 @@ def stream_llm_text(messages, max_tokens=700, temperature=0.2):
                 logger.error("🔴 [COGNITIVE AGENT] stream HTTP %s: %s",
                              resp.status_code, safe_log_text(resp.text, 300))
                 raise RuntimeError(f'together_stream_{resp.status_code}')
-            for line in resp.iter_lines(decode_unicode=True):
-                if not line or not line.startswith('data:'):
+            # ⚠️ مهم: مانستخدمش iter_lines(decode_unicode=True) لأنه بيقطع حروف
+            # UTF-8 العربي عند حدود الـ chunk فيطلع رموز متلخبطة (نют��ن).
+            # بنجمّع bytes ونقسّم على السطر وندكود سطر **كامل** بس.
+            buf = b''
+            for chunk in resp.iter_content(chunk_size=None):
+                if not chunk:
                     continue
-                data = line[5:].strip()
-                if data == '[DONE]':
-                    break
-                try:
-                    delta = json.loads(data)['choices'][0].get('delta', {})
-                    piece = delta.get('content')
-                except (KeyError, IndexError, ValueError):
-                    continue
-                if piece:
-                    yield piece
+                buf += chunk
+                while b'\n' in buf:
+                    raw, buf = buf.split(b'\n', 1)
+                    line = raw.decode('utf-8', errors='ignore').strip()
+                    if not line or not line.startswith('data:'):
+                        continue
+                    data = line[5:].strip()
+                    if data == '[DONE]':
+                        return
+                    try:
+                        delta = json.loads(data)['choices'][0].get('delta', {})
+                        piece = delta.get('content')
+                    except (KeyError, IndexError, ValueError):
+                        continue
+                    if piece:
+                        yield piece
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
         logger.warning("⏳ [COGNITIVE AGENT]: stream connection lost — %s", e)
         raise
