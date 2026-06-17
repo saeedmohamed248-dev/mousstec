@@ -22,7 +22,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--fix-trial-dates',
             action='store_true',
-            help='إصلاح تواريخ التجربة الخاطئة (أكثر من 3 أيام من تاريخ الإنشاء)',
+            help='إصلاح تواريخ التجربة الخاطئة (أكثر من 7 أيام من تاريخ الإنشاء)',
         )
         parser.add_argument(
             '--dry-run',
@@ -45,7 +45,9 @@ class Command(BaseCommand):
             fixed_count = 0
             for client in trial_clients:
                 if client.created_on:
-                    correct_end = client.created_on + timedelta(days=3)
+                    # 🎁 7-day trial — مطابق لـ default_trial_end() في models/tenancy.py
+                    from clients.models.tenancy import TRIAL_DAYS
+                    correct_end = client.created_on + timedelta(days=TRIAL_DAYS)
                     if client.trial_ends_at != correct_end:
                         self.stdout.write(
                             f'  ⚠️ {client.name} ({client.schema_name}): '

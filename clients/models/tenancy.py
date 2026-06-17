@@ -15,9 +15,12 @@ import logging
 
 logger = logging.getLogger('mouss_tec_core')
 
-# 🎯 أتمتة الفخ الذهبي: فترة تجريبية 3 أيام فقط
+# 🎁 فترة تجريبية 7 أيام — العميل يجرّب كل features أعلى باقة (empire / print_enterprise)
+# عشان يقرر بمعرفة كاملة، مش بـ "feature gating" ضيق.
+TRIAL_DAYS = 7
+
 def default_trial_end():
-    return timezone.now().date() + timedelta(days=3)
+    return timezone.now().date() + timedelta(days=TRIAL_DAYS)
 
 # =====================================================================
 # 🏢 1. جدول المستأجرين (شركات Mouss Tec Ecosystem)

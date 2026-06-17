@@ -94,7 +94,9 @@ def register_new_tenant_saas(request):
             while not success and attempts < 10:
                 try:
                     with transaction.atomic():
-                        default_plan = 'print_pro' if industry == 'printing' else 'gold'
+                        # 🎁 خلال التجربة بنديهم أعلى باقة (empire / print_enterprise)
+                        # عشان يجرّبوا كل features. لما يدفعوا، بيختاروا الباقة اللي تناسبهم.
+                        default_plan = 'print_enterprise' if industry == 'printing' else 'empire'
 
                         tenant = Client.objects.create(
                             schema_name=schema_name,
