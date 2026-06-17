@@ -318,6 +318,15 @@ def repair_atlas_ask_stream(request):
                     sess.save(update_fields=['title'])
                 _push_history(request, 'user', question)
                 _push_history(request, 'assistant', final['answer'])
+                # ⚠️ مهم: الـ SessionMiddleware بيحفظ الـ session في
+                # process_response اللي بيشتغل قبل ما الـ stream body يتنفّذ،
+                # فلازم نحفظ بإيدينا هنا وإلا تاريخ المحادثة بيضيع على مسار
+                # الـ streaming (والـ context بتاع التيرنات اللي بعده بيتكسر).
+                try:
+                    request.session.save()
+                except Exception:
+                    logger.debug('[REPAIR_ATLAS] session save in stream failed',
+                                 exc_info=True)
                 _persist_to_unified_hub(request, sess, question, final,
                                         answer_id=ans.id)
                 pending = _enqueue_verification(request, ans, final)

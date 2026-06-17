@@ -99,7 +99,7 @@ def _call_together_text(messages, json_mode, max_retries):
 
 
 def stream_llm_text(messages, max_tokens=700, temperature=0.2):
-    """�streaming generator — بيرجّع نص الرد قطعة قطعة وهو بيتولّد.
+    """⚡ streaming generator — بيرجّع نص الرد قطعة قطعة وهو بيتولّد.
 
     بيستخدمه repair_atlas علشان الفني يشوف الرد بيتكتب فوراً بدل ما يستنى
     لحد ما الـ 70B يخلّص كل الـ tokens. بيرجّع str deltas (ممكن فاضية تتجاهل).

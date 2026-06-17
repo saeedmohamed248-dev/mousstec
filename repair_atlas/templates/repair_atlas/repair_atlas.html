@@ -284,6 +284,7 @@
 
     let currentMode = 'disassembly';
     let typingEl = null;
+    let busy = false;   // طلب رد/صورة شغّال دلوقتي — نمنع إرسال تاني فوقه
 
     function showToast(msg) {
         toast.textContent = msg;
@@ -511,7 +512,8 @@
     function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
 
     async function ask(question) {
-        if (!question.trim()) return;
+        if (!question.trim() || busy) return;
+        busy = true;
         addMsg('user', question);
         composer.value = ''; composer.style.height = 'auto';
         sendBtn.disabled = true; showTyping();
@@ -520,6 +522,7 @@
             if (!ok) await askFallback(question);    // لو الـ streaming فشل
         } finally {
             sendBtn.disabled = false;
+            busy = false;
         }
     }
 
@@ -623,6 +626,8 @@
     }
 
     async function uploadPhoto(files, caption) {
+        if (busy) return;
+        busy = true;
         const list = Array.from(files);
         // preview أول صورة في فقاعة الرسالة + عدّاد لو أكتر من واحدة
         if (list[0]) {
@@ -662,6 +667,7 @@
             addMsg('assistant', '⚠️ مشكلة في رفع الصورة.');
         } finally {
             sendBtn.disabled = false;
+            busy = false;
         }
     }
 
@@ -693,6 +699,7 @@
     }
 
     function send() {
+        if (busy) return;   // لسه في رد شغّال — استنى ميضيعش المرفقات
         const text = composer.value.trim();
         if (pendingFiles.length) {
             const files = pendingFiles.slice();
