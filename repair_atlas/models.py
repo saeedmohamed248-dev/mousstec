@@ -171,6 +171,14 @@ class RepairAnswer(models.Model):
         help_text='كام مرة الـ Generator أعاد بعد ملاحظات الـ Verifier',
     )
 
+    # 👍/👎 رأي الفني نفسه في الرد — إشارة جودة من المستخدم (مش مراجعة بشرية
+    # على نطاق واسع): 1 = مفيد، -1 = مش مفيد، 0 = لسه.
+    tech_feedback = models.SmallIntegerField(
+        default=0, db_index=True,
+        help_text='رأي الفني: 1 مفيد / -1 مش مفيد / 0 لسه',
+    )
+    tech_feedback_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

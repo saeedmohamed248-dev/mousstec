@@ -163,6 +163,7 @@ def _load_past_turns(request, audience: str) -> list[dict]:
                 'image_url': meta.get('image_url'),
                 'tier': meta.get('tier'),
                 'confidence': meta.get('confidence'),
+                'answer_id': meta.get('answer_id'),
             })
         return out
     except Exception:
@@ -389,6 +390,35 @@ def _enqueue_verification(request, ans, result) -> bool:
     except Exception:
         logger.warning('[REPAIR_ATLAS] could not enqueue verification', exc_info=True)
         return False
+
+
+@login_required
+@require_POST
+def repair_atlas_feedback(request, answer_id: int):
+    """👍/👎 رأي الفني في الرد. body: {"value": 1|-1|0}.
+
+    إشارة جودة من المستخدم نفسه — مش مراجعة بشرية على نطاق واسع. ممكن تتغذّى
+    لاحقاً في ترتيب الـ KB، بس دلوقتي بنخزّنها بس.
+    """
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
+    value = body.get('value')
+    if value not in (1, -1, 0):
+        return JsonResponse({'ok': False, 'error': 'bad_value'}, status=400)
+
+    sess_ids = list(RepairSession.objects.filter(
+        user=request.user).values_list('id', flat=True))
+    ans = (RepairAnswer.objects
+           .filter(id=answer_id, query__session_id__in=sess_ids).first())
+    if not ans:
+        return JsonResponse({'ok': False, 'error': 'not_found'}, status=404)
+
+    ans.tech_feedback = value
+    ans.tech_feedback_at = timezone.now()
+    ans.save(update_fields=['tech_feedback', 'tech_feedback_at'])
+    return JsonResponse({'ok': True, 'value': value})
 
 
 @login_required

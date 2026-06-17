@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/ask-stream/', views.repair_atlas_ask_stream, name='api-ask-stream'),
     path('api/photo/', views.repair_atlas_photo, name='api-photo'),
     path('api/verdict/<int:answer_id>/', views.repair_atlas_verdict, name='api-verdict'),
+    path('api/feedback/<int:answer_id>/', views.repair_atlas_feedback, name='api-feedback'),
     path('api/reset/', views.repair_atlas_reset, name='api-reset'),
 
     # SuperAdmin review

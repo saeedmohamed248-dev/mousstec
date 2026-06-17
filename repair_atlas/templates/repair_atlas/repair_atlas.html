@@ -116,6 +116,39 @@
             animation: caretBlink 0.9s step-end infinite;
         }
         @keyframes caretBlink { 50% { opacity: 0; } }
+        .msg-controls {
+            display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+        }
+        .ctrl-btn {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+            color: #cbd5e1; border-radius: 8px; padding: 4px 9px; cursor: pointer;
+            font-size: 0.82rem; transition: all 0.15s;
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,0.12); }
+        .ctrl-btn.speaking { background: rgba(99,102,241,0.3); border-color: #6366f1; color: #c7d2fe; }
+        .ctrl-btn.chosen { background: rgba(22,163,74,0.3); border-color: #16a34a; color: #4ade80; }
+        .reuse-strip { padding: 6px 14px 0; }
+        .reuse-strip #reusePhotoBtn {
+            background: rgba(255,149,0,0.12); border: 1px dashed rgba(255,149,0,0.5);
+            color: #ffcc00; border-radius: 999px; padding: 6px 14px; cursor: pointer;
+            font-size: 0.82rem; font-weight: 700;
+        }
+        .reuse-strip #reusePhotoBtn.active {
+            background: linear-gradient(135deg, #ff9500, #ff6b6b); color: #fff;
+            border-style: solid; border-color: transparent;
+        }
+        #stopBtn { background: rgba(220,38,38,0.85) !important; color: #fff !important;
+                   border-color: #dc2626 !important; }
+        @media print {
+            .topbar, .sidebar, .composer, .pending-strip, .reuse-strip,
+            #rooms-nav, .msg-controls, .typing { display: none !important; }
+            body, .shell, .chat-area, .messages {
+                display: block !important; height: auto !important;
+                overflow: visible !important; background: #fff !important; color: #000 !important;
+            }
+            .msg { color: #000 !important; max-width: 100% !important; }
+            .msg .md-code, .wiring-diagram { border: 1px solid #999 !important; }
+        }
         .source-tag {
             display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
             margin-inline-start: 8px; font-weight: 700;
@@ -218,6 +251,7 @@
         <h1>🔧 أطلس الإصلاح — تفكيك، تركيب، ضفائر</h1>
         <div class="actions">
             <a href="{% url 'smart_diagnostics:diagnostics-room' %}"><i class="fas fa-stethoscope"></i> غرفة التشخيص</a>
+            <button id="printBtn" title="طبع / صدّر الجلسة PDF"><i class="fas fa-print"></i> طبع</button>
             <button id="resetBtn"><i class="fas fa-rotate"></i> جلسة جديدة</button>
         </div>
     </div>
@@ -259,11 +293,15 @@
             </div>
 
             <div class="pending-strip" id="pendingStrip" style="display:none;"></div>
+            <div class="reuse-strip" id="reuseStrip" style="display:none;">
+                <button type="button" id="reusePhotoBtn">📷 أكمل على آخر صورة</button>
+            </div>
             <div class="composer">
                 <button class="icon" id="photoBtn" title="أرفق صور (لحد 4)"><i class="fas fa-camera"></i></button>
                 <button class="icon" id="micBtn" title="إدخال صوتي" style="display:none;"><i class="fas fa-microphone"></i></button>
                 <input type="file" id="photoInput" accept="image/*" multiple />
                 <textarea id="composer" rows="1" placeholder="اكتب سؤالك… أو اضغط المايك واتكلم"></textarea>
+                <button class="icon" id="stopBtn" title="وقّف الرد" style="display:none;"><i class="fas fa-stop"></i></button>
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
             </div>
         </section>
@@ -280,11 +318,19 @@
     const photoInput = document.getElementById('photoInput');
     const pendingStrip = document.getElementById('pendingStrip');
     const resetBtn = document.getElementById('resetBtn');
+    const printBtn = document.getElementById('printBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const reuseStrip = document.getElementById('reuseStrip');
+    const reusePhotoBtn = document.getElementById('reusePhotoBtn');
     const toast = document.getElementById('toast');
 
     let currentMode = 'disassembly';
     let typingEl = null;
     let busy = false;   // طلب رد/صورة شغّال دلوقتي — نمنع إرسال تاني فوقه
+    let streamCtrl = null;     // AbortController للرد الجاري (زرار وقّف)
+    let streamAborted = false; // الفني وقّف الرد بإيده
+    let lastPhotoFiles = null; // آخر صور اترفعت — للمتابعة عليها
+    let reuseActive = false;   // وضع "أكمل على آخر صورة" مفعّل
 
     function showToast(msg) {
         toast.textContent = msg;
@@ -511,6 +557,69 @@
     }
     function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
 
+    // ── أزرار تحت كل رد: 🔊 نطق + 👍/👎 تقييم ────────────────────────
+    function attachControls(div, text, answerId) {
+        if (!div || !(text || '').trim()) return;
+        if (div.querySelector('.msg-controls')) return;  // اتعملت قبل كده
+        const bar = document.createElement('div');
+        bar.className = 'msg-controls';
+
+        if ('speechSynthesis' in window) {
+            const speak = document.createElement('button');
+            speak.className = 'ctrl-btn'; speak.title = 'اسمع الرد';
+            speak.innerHTML = '<i class="fas fa-volume-high"></i>';
+            speak.onclick = () => toggleSpeak(div._fullText || text, speak);
+            bar.appendChild(speak);
+        }
+        if (answerId) {
+            const up = document.createElement('button');
+            up.className = 'ctrl-btn'; up.title = 'مفيد'; up.textContent = '👍';
+            const down = document.createElement('button');
+            down.className = 'ctrl-btn'; down.title = 'مش مفيد'; down.textContent = '👎';
+            up.onclick = () => sendFeedback(answerId, 1, up, down);
+            down.onclick = () => sendFeedback(answerId, -1, down, up);
+            bar.appendChild(up); bar.appendChild(down);
+        }
+        if (bar.children.length) div.appendChild(bar);
+    }
+
+    function stripForSpeech(t) {
+        return (t || '')
+            .replace(/```mermaid[\s\S]*?```/g, ' ')
+            .replace(/```[\s\S]*?```/g, ' ')
+            .replace(/[#*_`>~]|•/g, ' ')
+            .replace(/\s+/g, ' ').trim();
+    }
+    let _speakingBtn = null;
+    function toggleSpeak(text, btn) {
+        if (!('speechSynthesis' in window)) return;
+        const wasThis = (_speakingBtn === btn) && speechSynthesis.speaking;
+        speechSynthesis.cancel();
+        if (_speakingBtn) { _speakingBtn.classList.remove('speaking'); _speakingBtn = null; }
+        if (wasThis) return;  // كان شغّال على نفس الزرار → وقّفناه
+        const u = new SpeechSynthesisUtterance(stripForSpeech(text));
+        u.lang = 'ar-EG'; u.rate = 1.0;
+        u.onend = u.onerror = () => { btn.classList.remove('speaking'); _speakingBtn = null; };
+        btn.classList.add('speaking'); _speakingBtn = btn;
+        speechSynthesis.speak(u);
+    }
+
+    async function sendFeedback(answerId, value, activeBtn, otherBtn) {
+        const url = '{% url "repair_atlas:api-feedback" 0 %}'.replace('/0/', '/' + answerId + '/');
+        try {
+            const r = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ value }),
+            });
+            if (r.ok) {
+                activeBtn.classList.add('chosen');
+                otherBtn.classList.remove('chosen');
+                showToast(value === 1 ? 'تمام، شكراً 👍' : 'وصلت، هنحسّن 👎');
+            }
+        } catch (e) { /* تجاهل */ }
+    }
+
     async function ask(question) {
         if (!question.trim() || busy) return;
         busy = true;
@@ -529,11 +638,14 @@
     // ⚡ streaming: الرد بيظهر كلمة كلمة (SSE) — يرجّع true لو نجح
     async function askStream(question) {
         let resp;
+        streamCtrl = new AbortController();
+        streamAborted = false;
         try {
             resp = await fetch('{% url "repair_atlas:api-ask-stream" %}', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
                 body: JSON.stringify({ question, mode: currentMode, ...getVehicle() }),
+                signal: streamCtrl.signal,
             });
         } catch (e) { return false; }
         if (!resp.ok || !resp.body) return false;
@@ -542,6 +654,7 @@
         const div = addMsg('assistant', '', {});
         const span = div.querySelector('span');
         div.classList.add('streaming');
+        stopBtn.style.display = '';   // وقّف متاح أثناء الكتابة
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
@@ -571,14 +684,28 @@
             }
         } catch (e) {
             div.classList.remove('streaming');
+            stopBtn.style.display = 'none';
+            // الفني وقّف الرد بإيده → نسيب اللي اتكتب، مفيش fallback
+            if (streamAborted) {
+                if (!full) { div.remove(); return true; }
+                span.innerHTML = ''; renderAssistant(span, full);
+                div._fullText = full;
+                const note = document.createElement('span');
+                note.className = 'conf-badge low'; note.textContent = '⏹ اتوقف';
+                div.appendChild(note);
+                attachControls(div, full, null);
+                return true;
+            }
             if (!full) { div.remove(); return false; }  // مكتبناش حاجة → fallback
         }
         div.classList.remove('streaming');
+        stopBtn.style.display = 'none';
         if (errored) return true;
 
         // رندر نهائي: ماركداون كامل + دياجرام mermaid لو موجود
         span.innerHTML = '';
         renderAssistant(span, full);
+        div._fullText = full;
         if (meta) {
             const pending = !!meta.verification_pending;
             if (pending) {
@@ -597,6 +724,7 @@
             }
             renderDoubts(div, meta.doubts, meta.tier);
         }
+        attachControls(div, full, meta && meta.answer_id);
         messagesEl.scrollTop = messagesEl.scrollHeight;
         return true;
     }
@@ -619,6 +747,7 @@
                 doubts: data.doubts, pending: pending,
             });
             if (pending && data.answer_id) pollVerdict(data.answer_id, div);
+            attachControls(div, data.answer || '', data.answer_id);
         } catch (e) {
             hideTyping();
             addMsg('assistant', '⚠️ مشكلة في الاتصال بالسيرفر — جرّب تاني.');
@@ -662,6 +791,10 @@
                 pending: pending,
             });
             if (pending && data.answer_id) pollVerdict(data.answer_id, div);
+            attachControls(div, data.answer || '', data.answer_id);
+            // افتكر الصور دي عشان الفني يقدر يكمّل عليها أسئلة من غير ما يرفعها تاني
+            lastPhotoFiles = list;
+            reuseStrip.style.display = 'block';
         } catch (e) {
             hideTyping();
             addMsg('assistant', '⚠️ مشكلة في رفع الصورة.');
@@ -706,12 +839,28 @@
             pendingFiles = []; renderPending();
             composer.value = ''; composer.style.height = 'auto';
             uploadPhoto(files, text);
+        } else if (reuseActive && lastPhotoFiles && text) {
+            // "أكمل على آخر صورة" مفعّل → نبعت السؤال على نفس الصور
+            composer.value = ''; composer.style.height = 'auto';
+            uploadPhoto(lastPhotoFiles, text);
         } else if (text) {
             ask(text);
         }
     }
 
     sendBtn.onclick = send;
+    stopBtn.onclick = () => {
+        if (streamCtrl) { streamAborted = true; streamCtrl.abort(); }
+    };
+    printBtn.onclick = () => window.print();
+    reusePhotoBtn.onclick = () => {
+        reuseActive = !reuseActive;
+        reusePhotoBtn.classList.toggle('active', reuseActive);
+        composer.placeholder = reuseActive
+            ? 'اسأل عن نفس الصورة… (مفعّل 📷)'
+            : 'اكتب سؤالك… أو اضغط المايك واتكلم';
+        composer.focus();
+    };
     composer.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
@@ -803,6 +952,10 @@
             method: 'POST', headers: {'X-CSRFToken': csrf},
         });
         messagesEl.innerHTML = '<div class="welcome"><h2>🔧 جلسة جديدة</h2><p>اسأل من جديد.</p></div>';
+        lastPhotoFiles = null; reuseActive = false;
+        reuseStrip.style.display = 'none';
+        reusePhotoBtn.classList.remove('active');
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
         showToast('اتعملت جلسة جديدة');
     };
 
@@ -819,7 +972,11 @@
                 if (t.tier) opts.tier = t.tier;
                 if (t.confidence != null) opts.confidence = t.confidence;
             }
-            addMsg(t.role === 'user' ? 'user' : 'assistant', t.text || '', opts);
+            const div = addMsg(t.role === 'user' ? 'user' : 'assistant', t.text || '', opts);
+            if (t.role === 'assistant' && (t.text || '').trim()) {
+                div._fullText = t.text;
+                attachControls(div, t.text, t.answer_id);
+            }
         });
     })();
 </script>
