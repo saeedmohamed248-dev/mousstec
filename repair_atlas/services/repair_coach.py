@@ -132,12 +132,18 @@ def coach_reply(
     history: list[dict] | None = None,
     image_b64: str | None = None,
     images_b64: list[str] | None = None,
+    verify: bool = True,
 ) -> dict[str, Any]:
     """
     Main entry. Returns:
         { success, answer, source, suggested_part, mode, error? }
 
     ``image_b64`` (واحدة) أو ``images_b64`` (لستة) — الاتنين بيتدمجوا.
+
+    ``verify=True``  → السلوك الكامل (توليد + مراجعة + إعادة + حَكَم) متزامن.
+    ``verify=False`` → **المسار السريع**: توليد + sanity بس، يرجّع فوراً بحالة
+                       ``verification_pending`` عشان المراجعة تتعمل في الخلفية
+                       (Celery) من غير ما الفني يستنى 5 نداءات LLM ورا بعض.
     """
     question = (question or '').strip()
     images = list(images_b64 or [])
@@ -185,6 +191,23 @@ def coach_reply(
 
     # 3. Sanity Sweep (deterministic, no LLM) — أرقام مستحيلة فيزيكياً
     sanity = sanity_sweep(answer)
+
+    # ⚡ المسار السريع: نرجّع الرد فوراً والمراجعة تتعمل في الخلفية.
+    if not verify:
+        return {
+            'success': True,
+            'answer': answer,
+            'source': 'llm',
+            'mode': mode,
+            'suggested_part': _extract_part_hint(question),
+            'confidence': None,
+            'tier': 'pending',
+            'doubts': sanity.failures if not sanity.ok else [],
+            'auto_promoted': False,
+            'revisions': 0,
+            'sanity_ok': sanity.ok,
+            'verification_pending': True,
+        }
 
     # 4. Verifier pass (V2)
     verify_result = verify_answer(
@@ -244,6 +267,54 @@ def coach_reply(
         'doubts': doubts,
         'auto_promoted': auto_promoted,
         'revisions': revisions,
+        'sanity_ok': sanity.ok,
+        'tie_decision': tie_decision,
+    }
+
+
+def score_answer(question: str, answer: str, mode: str,
+                 vehicle: dict[str, Any] | None = None) -> dict[str, Any]:
+    """🔎 يقيّم رد جاهز بدون ما يعيد توليده — يستعمله الـ Celery task للمراجعة
+    في الخلفية. بيرجّع الثقة والـ tier والشكوك من غير ما يغيّر نص الرد (عشان
+    اللي الفني شايفه ميتبدّلش تحت إيده).
+    """
+    mode = mode if mode in _MODE_HINTS else 'disassembly'
+    vehicle = vehicle or {}
+
+    sanity = sanity_sweep(answer)
+    verify_result = verify_answer(
+        question=question, answer=answer, mode=mode, vehicle=vehicle,
+    )
+    confidence = verify_result['confidence']
+    doubts = list(verify_result['doubts'])
+
+    if not sanity.ok:
+        doubts = sanity.failures + doubts
+        confidence = min(confidence, 45)
+
+    tier = tier_from_confidence(confidence)
+
+    tie_decision = None
+    if tier == 'medium':
+        tb = tie_break(
+            question=question, answer=answer, mode=mode, vehicle=vehicle,
+            v2_doubts=doubts, v2_confidence=confidence,
+        )
+        tie_decision = tb['decision']
+        if tb['decision'] == 'approve':
+            confidence = max(confidence, AUTO_PROMOTE_THRESHOLD + 5)
+        elif tb['decision'] == 'overrule':
+            confidence = min(confidence, RETRY_FLOOR - 5)
+            if tb.get('critical_issue'):
+                doubts.insert(0, f"عيب جوهري: {tb['critical_issue']}")
+        tier = tier_from_confidence(confidence)
+
+    auto_promoted = tier == 'high'
+    return {
+        'confidence': confidence,
+        'tier': tier,
+        'doubts': doubts,
+        'auto_promoted': auto_promoted,
         'sanity_ok': sanity.ok,
         'tie_decision': tie_decision,
     }

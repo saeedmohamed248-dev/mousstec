@@ -10,6 +10,7 @@ urlpatterns = [
     path('customer/', views.repair_atlas_customer_page, name='customer-page'),
     path('api/ask/', views.repair_atlas_ask, name='api-ask'),
     path('api/photo/', views.repair_atlas_photo, name='api-photo'),
+    path('api/verdict/<int:answer_id>/', views.repair_atlas_verdict, name='api-verdict'),
     path('api/reset/', views.repair_atlas_reset, name='api-reset'),
 
     # SuperAdmin review

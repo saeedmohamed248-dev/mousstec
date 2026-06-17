@@ -20,7 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 
 from .models import (
     RepairSession, RepairQuery, RepairAnswer, TechPhoto, VerifiedKnowledge,
@@ -197,7 +197,8 @@ def repair_atlas_ask(request):
     sess = _get_or_create_session(request, vehicle)
     history = request.session.get(_HISTORY_KEY, [])
 
-    result = coach_reply(question, mode, vehicle, history)
+    # ⚡ المسار السريع: رد فوري، والمراجعة الذاتية تتعمل في الخلفية.
+    result = coach_reply(question, mode, vehicle, history, verify=False)
 
     if not result.get('success'):
         return JsonResponse(result, status=200)
@@ -217,7 +218,9 @@ def repair_atlas_ask(request):
 
     _push_history(request, 'user', question)
     _push_history(request, 'assistant', result['answer'])
-    _persist_to_unified_hub(request, sess, question, result)
+    _persist_to_unified_hub(request, sess, question, result, answer_id=ans.id)
+
+    pending = _enqueue_verification(request, ans, result)
 
     return JsonResponse({
         'success': True,
@@ -227,14 +230,16 @@ def repair_atlas_ask(request):
         'query_id': q.id,
         'answer_id': ans.id,
         'session_id': sess.id,
-        'confidence': result.get('confidence', 0),
-        'tier': result.get('tier', 'unknown'),
+        'confidence': result.get('confidence'),
+        'tier': result.get('tier', 'pending'),
         'doubts': result.get('doubts', []),
         'auto_promoted': result.get('auto_promoted', False),
+        'verification_pending': pending,
     })
 
 
-def _persist_to_unified_hub(request, sess, user_text, result, image_url=None):
+def _persist_to_unified_hub(request, sess, user_text, result,
+                            image_url=None, answer_id=None):
     try:
         from ai_rooms.services.persist import persist_turn
         audience = 'customer' if request.session.get('is_customer_audience') else 'shop'
@@ -250,10 +255,54 @@ def _persist_to_unified_hub(request, sess, user_text, result, image_url=None):
                 'confidence': result.get('confidence'),
                 'mode': result.get('mode'),
                 'auto_promoted': result.get('auto_promoted'),
+                'answer_id': answer_id,
             },
         )
     except Exception:
         logger.debug('[REPAIR_ATLAS] ai_rooms persist skipped', exc_info=True)
+
+
+def _enqueue_verification(request, ans, result) -> bool:
+    """يبعت المراجعة الذاتية للـ Celery (في الخلفية). يرجّع True لو اتبعتت
+    عشان الواجهة تستنى النتيجة، أو False لو الـ broker مش متاح (الرد يفضل
+    شغّال زي ما هو من غير badge)."""
+    if not result.get('verification_pending'):
+        return False
+    try:
+        from django.db import connection
+        from .tasks import verify_repair_answer
+        schema_name = getattr(connection, 'schema_name', None) or 'public'
+        verify_repair_answer.delay(schema_name, ans.id)
+        return True
+    except Exception:
+        logger.warning('[REPAIR_ATLAS] could not enqueue verification', exc_info=True)
+        return False
+
+
+@login_required
+@require_GET
+def repair_atlas_verdict(request, answer_id: int):
+    """polling endpoint: ترجّع نتيجة المراجعة الذاتية لرد معيّن.
+
+    ``ready=True`` لما المراجعة في الخلفية تخلص (الـ tier بقى high/medium/low).
+    """
+    sess_ids = list(RepairSession.objects.filter(
+        user=request.user).values_list('id', flat=True))
+    ans = (RepairAnswer.objects
+           .select_related('query')
+           .filter(id=answer_id, query__session_id__in=sess_ids).first())
+    if not ans:
+        return JsonResponse({'ready': False, 'error': 'not_found'}, status=404)
+
+    ready = ans.confidence_tier in (
+        ConfidenceTier.HIGH, ConfidenceTier.MEDIUM, ConfidenceTier.LOW)
+    return JsonResponse({
+        'ready': ready,
+        'tier': ans.confidence_tier if ready else 'pending',
+        'confidence': ans.confidence_score if ready else None,
+        'doubts': ans.verifier_doubts or [],
+        'auto_promoted': ans.auto_promoted,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -358,6 +407,7 @@ def repair_atlas_photo(request):
     result = coach_reply(
         question=caption or 'حلّل الصور وقولي إذا كنت ماشي صح ولا لا.',
         mode=mode, vehicle=vehicle, history=history, images_b64=images_b64,
+        verify=False,
     )
     if not result.get('success'):
         return JsonResponse(result, status=200)
@@ -389,7 +439,10 @@ def repair_atlas_photo(request):
     label = f'[صورة] {caption}'.strip() if len(files) == 1 else f'[{len(files)} صور] {caption}'.strip()
     _push_history(request, 'user', label)
     _push_history(request, 'assistant', result['answer'])
-    _persist_to_unified_hub(request, sess, label, result, image_url=image_url)
+    _persist_to_unified_hub(request, sess, label, result,
+                            image_url=image_url, answer_id=ans.id)
+
+    pending = _enqueue_verification(request, ans, result)
 
     return JsonResponse({
         'success': True,
@@ -398,10 +451,11 @@ def repair_atlas_photo(request):
         'mode': mode,
         'query_id': q.id,
         'answer_id': ans.id,
-        'confidence': result.get('confidence', 0),
-        'tier': result.get('tier', 'unknown'),
+        'confidence': result.get('confidence'),
+        'tier': result.get('tier', 'pending'),
         'doubts': result.get('doubts', []),
         'auto_promoted': result.get('auto_promoted', False),
+        'verification_pending': pending,
     })
 
 
