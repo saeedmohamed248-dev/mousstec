@@ -100,8 +100,9 @@ def super_admin_dashboard(request):
             target.is_fraud_flagged = False
             target.save(update_fields=['is_fraud_flagged'])
         elif action == 'extend_trial':
+            from clients.models.tenancy import TRIAL_DAYS
             base_date = target.trial_ends_at or timezone.localdate()
-            target.trial_ends_at = base_date + timedelta(days=3)
+            target.trial_ends_at = base_date + timedelta(days=TRIAL_DAYS)
             target.save(update_fields=['trial_ends_at'])
         elif action == 'activate_subscription':
             plan = request.POST.get('plan', 'silver')

@@ -164,10 +164,23 @@ def register_new_tenant_saas(request):
                         # لوحة الإدارة الذكية (TenantSubscription admin)، وعلشان نظام
                         # الفوترة و الـ entitlements يقدر يقرأ منه. غير مفعّل افتراضياً
                         # — الأدمن بيفعّل الباقة يدوياً أو لما العميل يدفع.
-                        from clients.models import TenantSubscription
+                        # 🎁 [Trial Fix]: لازم نـ link الـ Plan الفعلي عشان
+                        # effective_entitlements يرجّع features الـ empire/enterprise
+                        # خلال التجربة. بدون كده الـ EntitlementService.has() = False
+                        # على كل feature → العميل يلاقي كل حاجة مقفولة.
+                        from clients.models import TenantSubscription, Plan
+                        from clients.services.plan_mapping import resolve_plan_slug
+                        trial_plan_slug = resolve_plan_slug(default_plan)
+                        trial_plan_obj = (
+                            Plan.objects.filter(slug=trial_plan_slug, is_active=True).first()
+                            if trial_plan_slug else None
+                        )
                         TenantSubscription.objects.get_or_create(
                             tenant=tenant,
-                            defaults={'is_active': False},
+                            defaults={
+                                'plan': trial_plan_obj,
+                                'is_active': False,
+                            },
                         )
 
                     success = True
