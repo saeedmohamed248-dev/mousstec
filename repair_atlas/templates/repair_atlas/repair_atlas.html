@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -97,6 +98,19 @@
             white-space: pre; overflow-x: auto; direction: ltr; text-align: left;
         }
         .msg .photo { display: block; max-width: 100%; border-radius: 10px; margin-bottom: 8px; }
+        .wiring-diagram {
+            margin: 10px 0; border: 1px solid rgba(255,204,0,0.3);
+            border-radius: 10px; overflow: hidden; background: rgba(0,0,0,0.25);
+        }
+        .wiring-diagram .wiring-note {
+            background: rgba(245,158,11,0.18); color: #fbbf24;
+            font-size: 0.72rem; font-weight: 700; padding: 6px 10px;
+            border-bottom: 1px solid rgba(245,158,11,0.3);
+        }
+        .wiring-diagram .mermaid {
+            padding: 12px; overflow-x: auto; text-align: center; direction: ltr;
+        }
+        .wiring-diagram .mermaid svg { max-width: 100%; height: auto; }
         .source-tag {
             display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
             margin-inline-start: 8px; font-weight: 700;
@@ -149,6 +163,11 @@
             background: rgba(255,149,0,0.1); color: #ffcc00;
             border: 1px solid rgba(255,149,0,0.3);
         }
+        .composer button.icon#micBtn.recording {
+            background: rgba(220,38,38,0.85); color: #fff;
+            border-color: #dc2626; animation: micPulse 1.1s ease-in-out infinite;
+        }
+        @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); } 50% { box-shadow: 0 0 0 6px rgba(220,38,38,0); } }
         .composer input[type=file] { display: none; }
         .pending-strip {
             display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
@@ -237,8 +256,9 @@
             <div class="pending-strip" id="pendingStrip" style="display:none;"></div>
             <div class="composer">
                 <button class="icon" id="photoBtn" title="أرفق صور (لحد 4)"><i class="fas fa-camera"></i></button>
+                <button class="icon" id="micBtn" title="إدخال صوتي" style="display:none;"><i class="fas fa-microphone"></i></button>
                 <input type="file" id="photoInput" accept="image/*" multiple />
-                <textarea id="composer" rows="1" placeholder="اكتب سؤالك… (Shift+Enter لسطر جديد)"></textarea>
+                <textarea id="composer" rows="1" placeholder="اكتب سؤالك… أو اضغط المايك واتكلم"></textarea>
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
             </div>
         </section>
@@ -300,6 +320,67 @@
         return s;
     }
 
+    // mermaid (للدياجرامات): init مرة واحدة
+    let _mermaidReady = false;
+    function ensureMermaid() {
+        if (_mermaidReady || typeof mermaid === 'undefined') return;
+        try {
+            mermaid.initialize({ startOnLoad: false, theme: 'dark',
+                securityLevel: 'strict', fontFamily: 'inherit' });
+            _mermaidReady = true;
+        } catch (e) {}
+    }
+    let _mermaidSeq = 0;
+
+    // بيحط رد المساعد جوّه span: نص ماركداون + أي دياجرام mermaid كرسمة
+    function renderAssistant(span, text) {
+        const re = /```mermaid\s*([\s\S]*?)```/g;
+        let last = 0, m, found = false;
+        while ((m = re.exec(text)) !== null) {
+            found = true;
+            const before = text.slice(last, m.index);
+            if (before.trim()) {
+                const t = document.createElement('div');
+                t.innerHTML = renderMarkdown(before);
+                span.appendChild(t);
+            }
+            span.appendChild(buildDiagram(m[1].trim()));
+            last = re.lastIndex;
+        }
+        const rest = found ? text.slice(last) : text;
+        if (!found) { span.innerHTML = renderMarkdown(text); return; }
+        if (rest.trim()) {
+            const t = document.createElement('div');
+            t.innerHTML = renderMarkdown(rest);
+            span.appendChild(t);
+        }
+    }
+
+    function buildDiagram(code) {
+        const wrap = document.createElement('div');
+        wrap.className = 'wiring-diagram';
+        const banner = document.createElement('div');
+        banner.className = 'wiring-note';
+        banner.textContent = '📐 دياجرام استرشادي مرسوم بالـ AI — أكّده من الدياجرام الرسمي قبل التوصيل';
+        wrap.appendChild(banner);
+        const holder = document.createElement('div');
+        holder.className = 'mermaid';
+        holder.textContent = code;
+        wrap.appendChild(holder);
+        ensureMermaid();
+        if (_mermaidReady) {
+            const id = 'mmd-' + (++_mermaidSeq);
+            mermaid.render(id, code).then(({ svg }) => { holder.innerHTML = svg; })
+                .catch(() => {
+                    // الرسم فشل — نوريه كنص كود بدل ما نضيّعه
+                    holder.innerHTML = '<code class="md-code">' + escapeHtml(code) + '</code>';
+                });
+        } else {
+            holder.innerHTML = '<code class="md-code">' + escapeHtml(code) + '</code>';
+        }
+        return wrap;
+    }
+
     const TIER_LABEL = {
         high:   { emoji: '🟢', text: 'موثوق' },
         medium: { emoji: '🟡', text: 'محتمل — اتأكد' },
@@ -318,7 +399,7 @@
         }
         const span = document.createElement('span');
         if (role === 'assistant') {
-            span.innerHTML = renderMarkdown(text);
+            renderAssistant(span, text);
         } else {
             span.textContent = text;
         }
@@ -559,6 +640,57 @@
         renderPending();
         composer.focus();
     };
+
+    // ── إدخال صوتي (Web Speech API) — بالعربي ──────────────────────────
+    (function setupVoice() {
+        const micBtn = document.getElementById('micBtn');
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR || !micBtn) return;           // المتصفح مش بيدعم — نسيب الزرار مخفي
+        micBtn.style.display = '';
+
+        const rec = new SR();
+        rec.lang = 'ar-EG';
+        rec.interimResults = true;
+        rec.continuous = false;
+        let recording = false;
+        let baseText = '';                    // النص اللي كان مكتوب قبل ما نبدأ
+
+        rec.onresult = (ev) => {
+            let finalT = '', interim = '';
+            for (let i = ev.resultIndex; i < ev.results.length; i++) {
+                const t = ev.results[i][0].transcript;
+                if (ev.results[i].isFinal) finalT += t; else interim += t;
+            }
+            const sep = baseText && !baseText.endsWith(' ') ? ' ' : '';
+            composer.value = baseText + sep + finalT + interim;
+            composer.style.height = 'auto';
+            composer.style.height = Math.min(composer.scrollHeight, 140) + 'px';
+            if (finalT) baseText = composer.value;
+        };
+        rec.onerror = (ev) => {
+            stop();
+            if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+                alert('مش قادر يوصل للمايك — اسمح بالميكروفون للموقع.');
+            }
+        };
+        rec.onend = () => { if (recording) stop(); };
+
+        function start() {
+            baseText = composer.value.trim();
+            try { rec.start(); } catch (e) { return; }
+            recording = true;
+            micBtn.classList.add('recording');
+            micBtn.title = 'بسمعك… دوس تاني تقف';
+        }
+        function stop() {
+            recording = false;
+            micBtn.classList.remove('recording');
+            micBtn.title = 'إدخال صوتي';
+            try { rec.stop(); } catch (e) {}
+            composer.focus();
+        }
+        micBtn.onclick = () => { recording ? stop() : start(); };
+    })();
 
     document.querySelectorAll('.mode-chip[data-mode]').forEach(chip => {
         chip.onclick = () => {
