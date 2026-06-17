@@ -148,6 +148,21 @@
             border: 1px solid rgba(255,149,0,0.3);
         }
         .composer input[type=file] { display: none; }
+        .pending-strip {
+            display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+            padding: 10px 18px 0; background: rgba(0,0,0,0.25);
+        }
+        .pending-strip .pend-thumb {
+            position: relative; width: 56px; height: 56px; border-radius: 10px;
+            overflow: hidden; border: 1px solid rgba(255,149,0,0.4);
+        }
+        .pending-strip .pend-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .pending-strip .pend-thumb .rm {
+            position: absolute; top: 2px; inset-inline-end: 2px; width: 18px; height: 18px;
+            border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff; border: none;
+            cursor: pointer; font-size: 0.7rem; line-height: 18px; padding: 0; text-align: center;
+        }
+        .pending-strip .pend-label { color: #ffcc00; font-size: 0.8rem; font-weight: 700; }
 
         .typing {
             align-self: flex-end; background: rgba(15,30,50,0.9);
@@ -217,8 +232,9 @@
                 </div>
             </div>
 
+            <div class="pending-strip" id="pendingStrip" style="display:none;"></div>
             <div class="composer">
-                <button class="icon" id="photoBtn" title="ارفع صورة"><i class="fas fa-camera"></i></button>
+                <button class="icon" id="photoBtn" title="أرفق صور (لحد 4)"><i class="fas fa-camera"></i></button>
                 <input type="file" id="photoInput" accept="image/*" multiple />
                 <textarea id="composer" rows="1" placeholder="اكتب سؤالك… (Shift+Enter لسطر جديد)"></textarea>
                 <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
@@ -235,6 +251,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const photoBtn = document.getElementById('photoBtn');
     const photoInput = document.getElementById('photoInput');
+    const pendingStrip = document.getElementById('pendingStrip');
     const resetBtn = document.getElementById('resetBtn');
     const toast = document.getElementById('toast');
 
@@ -416,9 +433,48 @@
         }
     }
 
-    sendBtn.onclick = () => ask(composer.value);
+    // الصور المُرفَقة اللي لسه ماتبعتتش — بتتبعت مع السؤال لما تدوس إرسال
+    let pendingFiles = [];
+
+    function renderPending() {
+        if (!pendingFiles.length) { pendingStrip.style.display = 'none'; pendingStrip.innerHTML = ''; return; }
+        pendingStrip.style.display = 'flex';
+        pendingStrip.innerHTML = '';
+        const label = document.createElement('span');
+        label.className = 'pend-label';
+        label.textContent = '📎 ' + pendingFiles.length + ' صورة جاهزة — اكتب سؤالك وابعت';
+        pendingStrip.appendChild(label);
+        pendingFiles.forEach((file, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'pend-thumb';
+            const img = document.createElement('img');
+            const reader = new FileReader();
+            reader.onload = (ev) => { img.src = ev.target.result; };
+            reader.readAsDataURL(file);
+            thumb.appendChild(img);
+            const rm = document.createElement('button');
+            rm.className = 'rm'; rm.textContent = '✕';
+            rm.onclick = () => { pendingFiles.splice(idx, 1); renderPending(); };
+            thumb.appendChild(rm);
+            pendingStrip.appendChild(thumb);
+        });
+    }
+
+    function send() {
+        const text = composer.value.trim();
+        if (pendingFiles.length) {
+            const files = pendingFiles.slice();
+            pendingFiles = []; renderPending();
+            composer.value = ''; composer.style.height = 'auto';
+            uploadPhoto(files, text);
+        } else if (text) {
+            ask(text);
+        }
+    }
+
+    sendBtn.onclick = send;
     composer.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(composer.value); }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
     composer.addEventListener('input', () => {
         composer.style.height = 'auto';
@@ -428,12 +484,15 @@
     photoBtn.onclick = () => photoInput.click();
     photoInput.onchange = () => {
         if (!photoInput.files.length) return;
-        let files = Array.from(photoInput.files);
-        if (files.length > 4) { alert('أقصى حد 4 صور في المرة. هرفع أول 4.'); files = files.slice(0, 4); }
-        const cap = composer.value.trim();
-        composer.value = ''; composer.style.height = 'auto';
-        uploadPhoto(files, cap);
+        let dropped = 0;
+        Array.from(photoInput.files).forEach((f) => {
+            if (pendingFiles.length < 4) pendingFiles.push(f);
+            else dropped++;
+        });
+        if (dropped) alert('أقصى حد 4 صور مع بعض — اتجاهل ' + dropped + '.');
         photoInput.value = '';
+        renderPending();
+        composer.focus();
     };
 
     document.querySelectorAll('.mode-chip[data-mode]').forEach(chip => {
