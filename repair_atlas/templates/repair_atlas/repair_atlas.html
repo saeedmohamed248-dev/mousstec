@@ -515,6 +515,23 @@
         messagesEl.innerHTML = '<div class="welcome"><h2>🔧 جلسة جديدة</h2><p>اسأل من جديد.</p></div>';
         showToast('اتعملت جلسة جديدة');
     };
+
+    // 🔁 حمّل المحادثة القديمة لو الفني قفل الصفحة ورجع — عشان يكمّل من حيث وقف
+    (function hydratePastTurns() {
+        let past = [];
+        try { past = JSON.parse('{{ past_turns_json|escapejs }}') || []; }
+        catch (e) { past = []; }
+        if (!past.length) return;
+        past.forEach((t) => {
+            const opts = {};
+            if (t.image_url) opts.photo = t.image_url;
+            if (t.role === 'assistant') {
+                if (t.tier) opts.tier = t.tier;
+                if (t.confidence != null) opts.confidence = t.confidence;
+            }
+            addMsg(t.role === 'user' ? 'user' : 'assistant', t.text || '', opts);
+        });
+    })();
 </script>
 </body>
 </html>

@@ -130,6 +130,8 @@ def _render_atlas_page(request, *, audience: str):
         'brands': _brand_catalog(),
         'audience': audience,
         'audience_label': 'صاحب السيارة' if audience == 'customer' else 'الفني / الورشة',
+        'past_turns_json': json.dumps(_load_past_turns(request, audience),
+                                      ensure_ascii=False),
         'modes': [
             {'key': RepairMode.DISASSEMBLY, 'label': 'تفكيك', 'icon': '🔧'},
             {'key': RepairMode.INSTALL,     'label': 'تركيب', 'icon': '🔩'},
@@ -137,6 +139,35 @@ def _render_atlas_page(request, *, audience: str):
             {'key': RepairMode.LOCATE,      'label': 'مكان قطعة', 'icon': '📍'},
         ],
     })
+
+
+def _load_past_turns(request, audience: str) -> list[dict]:
+    """يرجّع رسايل المحادثة الحيّة عشان الشات يفضل كامل بعد إعادة فتح الصفحة."""
+    try:
+        from ai_rooms.models import AIRoomConversation
+        sk = f'ai_rooms_conv_id__repair_atlas__{audience}'
+        conv_id = request.session.get(sk)
+        if not conv_id:
+            return []
+        conv = AIRoomConversation.objects.filter(
+            id=conv_id, user=request.user,
+        ).first()
+        if not conv:
+            return []
+        out = []
+        for t in (conv.turns or []):
+            meta = t.get('meta') or {}
+            out.append({
+                'role': t.get('role', 'assistant'),
+                'text': t.get('text', ''),
+                'image_url': meta.get('image_url'),
+                'tier': meta.get('tier'),
+                'confidence': meta.get('confidence'),
+            })
+        return out
+    except Exception:
+        logger.debug('[REPAIR_ATLAS] could not load past turns', exc_info=True)
+        return []
 
 
 # ---------------------------------------------------------------------------
