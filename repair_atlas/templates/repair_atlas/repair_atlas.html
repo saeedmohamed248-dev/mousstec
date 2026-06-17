@@ -111,6 +111,11 @@
             padding: 12px; overflow-x: auto; text-align: center; direction: ltr;
         }
         .wiring-diagram .mermaid svg { max-width: 100%; height: auto; }
+        .msg.streaming > span::after {
+            content: '▋'; color: #ffcc00; margin-inline-start: 2px;
+            animation: caretBlink 0.9s step-end infinite;
+        }
+        @keyframes caretBlink { 50% { opacity: 0; } }
         .source-tag {
             display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
             margin-inline-start: 8px; font-weight: 700;
@@ -510,7 +515,92 @@
         addMsg('user', question);
         composer.value = ''; composer.style.height = 'auto';
         sendBtn.disabled = true; showTyping();
+        try {
+            const ok = await askStream(question);   // ⚡ الرد بيتكتب live
+            if (!ok) await askFallback(question);    // لو الـ streaming فشل
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
 
+    // ⚡ streaming: الرد بيظهر كلمة كلمة (SSE) — يرجّع true لو نجح
+    async function askStream(question) {
+        let resp;
+        try {
+            resp = await fetch('{% url "repair_atlas:api-ask-stream" %}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+                body: JSON.stringify({ question, mode: currentMode, ...getVehicle() }),
+            });
+        } catch (e) { return false; }
+        if (!resp.ok || !resp.body) return false;
+
+        hideTyping();
+        const div = addMsg('assistant', '', {});
+        const span = div.querySelector('span');
+        div.classList.add('streaming');
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '', full = '', meta = null, errored = false;
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = buf.indexOf('\n\n')) !== -1) {
+                    const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 2);
+                    if (!line.startsWith('data:')) continue;
+                    let ev;
+                    try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+                    if (ev.type === 'delta') {
+                        full += ev.text;
+                        span.innerHTML = renderMarkdown(full);   // بدون mermaid أثناء الكتابة
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    } else if (ev.type === 'done') {
+                        meta = ev;
+                    } else if (ev.type === 'error') {
+                        span.innerHTML = renderMarkdown(ev.answer || '⚠️ خطأ');
+                        errored = true;
+                    }
+                }
+            }
+        } catch (e) {
+            div.classList.remove('streaming');
+            if (!full) { div.remove(); return false; }  // مكتبناش حاجة → fallback
+        }
+        div.classList.remove('streaming');
+        if (errored) return true;
+
+        // رندر نهائي: ماركداون كامل + دياجرام mermaid لو موجود
+        span.innerHTML = '';
+        renderAssistant(span, full);
+        if (meta) {
+            const pending = !!meta.verification_pending;
+            if (pending) {
+                const badge = document.createElement('span');
+                badge.className = 'conf-badge pending';
+                badge.textContent = '🔄 بيراجع نفسه...';
+                div.appendChild(badge);
+                if (meta.answer_id) pollVerdict(meta.answer_id, div);
+            } else if (meta.tier && TIER_LABEL[meta.tier]) {
+                const tl = TIER_LABEL[meta.tier];
+                const badge = document.createElement('span');
+                badge.className = `conf-badge ${meta.tier}`;
+                const score = (meta.confidence != null) ? ` ${meta.confidence}%` : '';
+                badge.textContent = `${tl.emoji} ${tl.text}${score}`;
+                div.appendChild(badge);
+            }
+            renderDoubts(div, meta.doubts, meta.tier);
+        }
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return true;
+    }
+
+    // المسار العادي (non-stream) — احتياطي لو الـ streaming مش متاح
+    async function askFallback(question) {
+        showTyping();
         try {
             const r = await fetch('{% url "repair_atlas:api-ask" %}', {
                 method: 'POST',
@@ -522,17 +612,13 @@
             const pending = !!data.verification_pending;
             const div = addMsg('assistant', data.answer || '⚠️ مفيش رد', {
                 source: data.source === 'verified' ? 'verified' : 'llm',
-                tier: data.tier,
-                confidence: data.confidence,
-                doubts: data.doubts,
-                pending: pending,
+                tier: data.tier, confidence: data.confidence,
+                doubts: data.doubts, pending: pending,
             });
             if (pending && data.answer_id) pollVerdict(data.answer_id, div);
         } catch (e) {
             hideTyping();
             addMsg('assistant', '⚠️ مشكلة في الاتصال بالسيرفر — جرّب تاني.');
-        } finally {
-            sendBtn.disabled = false;
         }
     }
 

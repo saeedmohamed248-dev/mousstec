@@ -17,7 +17,7 @@ import logging
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
@@ -26,7 +26,7 @@ from .models import (
     RepairSession, RepairQuery, RepairAnswer, TechPhoto, VerifiedKnowledge,
     RepairMode, AnswerSource, VerificationStatus, ConfidenceTier,
 )
-from .services.repair_coach import coach_reply
+from .services.repair_coach import coach_reply, coach_reply_stream
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -236,6 +236,109 @@ def repair_atlas_ask(request):
         'auto_promoted': result.get('auto_promoted', False),
         'verification_pending': pending,
     })
+
+
+@login_required
+@require_POST
+def repair_atlas_ask_stream(request):
+    """⚡ نسخة streaming من /api/ask — الرد بيظهر للفني وهو بيتكتب (SSE).
+
+    بيبعت أحداث ``data: {json}\\n\\n``:
+      • {"type":"delta","text":"..."}  → قطعة من الرد
+      • {"type":"done", ...meta...}    → answer_id + tier + verification_pending
+      • {"type":"error","answer":"..."} → فشل
+    وبعد ما الرد يكتمل بنحفظه + نـ enqueue المراجعة الذاتية في الخلفية.
+    """
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'invalid_json'}, status=400)
+
+    question = (body.get('question') or '').strip()
+    mode = (body.get('mode') or 'disassembly').strip()
+    if mode not in dict(RepairMode.choices):
+        mode = 'disassembly'
+    if not question:
+        return JsonResponse({'success': False, 'answer': 'اكتب سؤال.'})
+    if len(question) > 2000:
+        return JsonResponse({'success': False,
+                             'answer': 'السؤال طويل أوي — اختصره.'}, status=400)
+
+    vehicle = _vehicle_from_payload(body)
+    sess = _get_or_create_session(request, vehicle)
+    history = request.session.get(_HISTORY_KEY, [])
+
+    # نثبّت اسم الـ schema دلوقتي (جوّه الـ request) عشان لو الـ streaming
+    # generator اشتغل على connection تاني وقت الإرسال، الحفظ يفضل في schema
+    # التينانت الصح مش public.
+    from django.db import connection
+    schema_name = getattr(connection, 'schema_name', None) or 'public'
+
+    def _sse(payload: dict) -> str:
+        return 'data: ' + json.dumps(payload, ensure_ascii=False) + '\n\n'
+
+    def event_stream():
+        from django_tenants.utils import schema_context
+        final = None
+        try:
+            for ev in coach_reply_stream(question, mode, vehicle, history):
+                kind = ev.get('type')
+                if kind == 'delta':
+                    yield _sse({'type': 'delta', 'text': ev['text']})
+                elif kind in ('done', 'kb'):
+                    final = ev['result']
+                    if kind == 'kb':
+                        yield _sse({'type': 'delta', 'text': final['answer']})
+                elif kind == 'error':
+                    yield _sse({'type': 'error',
+                                'answer': ev['result'].get('answer', '⚠️ خطأ')})
+                    return
+        except Exception:
+            logger.exception('[REPAIR_ATLAS] stream crashed')
+            yield _sse({'type': 'error', 'answer': '⚠️ حصل عطل، جرّب تاني.'})
+            return
+
+        if not final or not final.get('success'):
+            yield _sse({'type': 'error', 'answer': '⚠️ مفيش رد، جرّب تاني.'})
+            return
+
+        # حفظ الرد + المراجعة في الخلفية (نفس منطق /api/ask)
+        try:
+            with schema_context(schema_name):
+                q = RepairQuery.objects.create(
+                    session=sess, mode=mode,
+                    part_or_system=final.get('suggested_part', ''),
+                    question_text=question,
+                )
+                ans = _persist_answer(q, final)
+                q.last_answer = ans
+                q.save(update_fields=['last_answer'])
+                if not sess.title:
+                    sess.title = question[:120]
+                    sess.save(update_fields=['title'])
+                _push_history(request, 'user', question)
+                _push_history(request, 'assistant', final['answer'])
+                _persist_to_unified_hub(request, sess, question, final,
+                                        answer_id=ans.id)
+                pending = _enqueue_verification(request, ans, final)
+            yield _sse({
+                'type': 'done', 'answer_id': ans.id, 'query_id': q.id,
+                'session_id': sess.id, 'source': final['source'],
+                'tier': final.get('tier', 'pending'),
+                'confidence': final.get('confidence'),
+                'doubts': final.get('doubts', []),
+                'verification_pending': pending,
+            })
+        except Exception:
+            logger.exception('[REPAIR_ATLAS] stream persist failed')
+            # الرد اتعرض للفني بالفعل — منكسرش الـ stream
+            yield _sse({'type': 'done', 'verification_pending': False})
+
+    resp = StreamingHttpResponse(event_stream(),
+                                 content_type='text/event-stream')
+    resp['Cache-Control'] = 'no-cache'
+    resp['X-Accel-Buffering'] = 'no'   # يوقف buffering بتاع Nginx للـ SSE
+    return resp
 
 
 def _persist_to_unified_hub(request, sess, user_text, result,

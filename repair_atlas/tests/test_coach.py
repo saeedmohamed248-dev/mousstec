@@ -86,6 +86,43 @@ class CoachReplyTest(TestCase):
         mock_verify.assert_not_called()
 
 
+class CoachReplyStreamTest(TestCase):
+    @patch('repair_atlas.services.repair_coach.stream_llm_text')
+    def test_stream_yields_deltas_then_done(self, mock_stream):
+        from repair_atlas.services.repair_coach import coach_reply_stream
+        mock_stream.return_value = iter(['افصل ', 'البطارية ', 'الأول.'])
+        events = list(coach_reply_stream(
+            'إزاي أفك الدينمو؟', mode='disassembly', vehicle={'brand': 'BMW'}))
+        kinds = [e['type'] for e in events]
+        # لازم في deltas وبعدها done
+        self.assertIn('delta', kinds)
+        self.assertEqual(kinds[-1], 'done')
+        done = events[-1]['result']
+        self.assertTrue(done['success'])
+        self.assertTrue(done['verification_pending'])
+        self.assertEqual(done['tier'], 'pending')
+        self.assertIn('افصل البطارية الأول.', done['answer'])
+
+    @patch('repair_atlas.services.repair_coach.coach_reply')
+    @patch('repair_atlas.services.repair_coach.stream_llm_text')
+    def test_stream_falls_back_when_streaming_crashes(self, mock_stream, mock_coach):
+        from repair_atlas.services.repair_coach import coach_reply_stream
+        mock_stream.side_effect = RuntimeError('no stream')
+        mock_coach.return_value = {
+            'success': True, 'answer': 'رد احتياطي', 'source': 'llm',
+            'tier': 'pending', 'verification_pending': True,
+        }
+        events = list(coach_reply_stream('سؤال', mode='disassembly', vehicle={}))
+        self.assertEqual(events[-1]['type'], 'done')
+        self.assertIn('رد احتياطي', events[-1]['result']['answer'])
+        mock_coach.assert_called_once()
+
+    def test_stream_empty_question_errors(self):
+        from repair_atlas.services.repair_coach import coach_reply_stream
+        events = list(coach_reply_stream('', mode='disassembly', vehicle={}))
+        self.assertEqual(events[0]['type'], 'error')
+
+
 class ScoreAnswerTest(TestCase):
     @patch('repair_atlas.services.verifier.call_llm_layer')
     def test_score_answer_returns_tier_without_rewriting(self, mock_verify):

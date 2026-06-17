@@ -98,6 +98,54 @@ def _call_together_text(messages, json_mode, max_retries):
     return None
 
 
+def stream_llm_text(messages, max_tokens=700, temperature=0.2):
+    """�streaming generator — بيرجّع نص الرد قطعة قطعة وهو بيتولّد.
+
+    بيستخدمه repair_atlas علشان الفني يشوف الرد بيتكتب فوراً بدل ما يستنى
+    لحد ما الـ 70B يخلّص كل الـ tokens. بيرجّع str deltas (ممكن فاضية تتجاهل).
+    لو في صورة في الرسايل → مفيش streaming (Gemini)، بنرمي ValueError عشان
+    الـ caller يرجع للمسار العادي.
+    """
+    if _messages_contain_image(messages):
+        raise ValueError('stream_llm_text: image messages not streamable')
+
+    api_key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
+    if not api_key:
+        logger.warning("⚠️ [COGNITIVE AGENT]: TOGETHER_API_KEY missing — stream disabled.")
+        return
+
+    model = str(getattr(settings, 'TOGETHER_LLM_MODEL', '') or _DEFAULT_TOGETHER_MODEL).strip()
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+    payload = {
+        'model': model, 'messages': messages,
+        'temperature': temperature, 'max_tokens': max_tokens,
+        'stream': True,
+    }
+    try:
+        with requests.post(_TOGETHER_CHAT_URL, headers=headers, json=payload,
+                           timeout=60, stream=True) as resp:
+            if resp.status_code != 200:
+                logger.error("🔴 [COGNITIVE AGENT] stream HTTP %s: %s",
+                             resp.status_code, safe_log_text(resp.text, 300))
+                raise RuntimeError(f'together_stream_{resp.status_code}')
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line or not line.startswith('data:'):
+                    continue
+                data = line[5:].strip()
+                if data == '[DONE]':
+                    break
+                try:
+                    delta = json.loads(data)['choices'][0].get('delta', {})
+                    piece = delta.get('content')
+                except (KeyError, IndexError, ValueError):
+                    continue
+                if piece:
+                    yield piece
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+        logger.warning("⏳ [COGNITIVE AGENT]: stream connection lost — %s", e)
+        raise
+
+
 def _call_gemini_vision(messages, json_mode, max_retries):
     """Image-only path. Kept on Gemini until a Together vision model is wired up."""
     api_key = str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()

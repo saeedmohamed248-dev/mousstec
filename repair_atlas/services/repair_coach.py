@@ -15,7 +15,7 @@ import logging
 import re
 from typing import Any
 
-from inventory.ai_services import call_llm_layer
+from inventory.ai_services import call_llm_layer, stream_llm_text
 from .verifier import (
     verify_answer, tier_from_confidence,
     AUTO_PROMOTE_THRESHOLD, RETRY_FLOOR,
@@ -282,6 +282,79 @@ def coach_reply(
         'sanity_ok': sanity.ok,
         'tie_decision': tie_decision,
     }
+
+
+def coach_reply_stream(
+    question: str,
+    mode: str,
+    vehicle: dict[str, Any] | None = None,
+    history: list[dict] | None = None,
+):
+    """⚡ نسخة streaming من المسار السريع — بتـ yield الرد قطعة قطعة وهو بيتكتب.
+
+    بتـ yield dict events:
+      • {'type': 'kb',    'result': {...}}  → جواب من الـ KB جاهز (مفيش streaming)
+      • {'type': 'delta', 'text': '...'}    → قطعة من الرد لسه بتتولّد
+      • {'type': 'done',  'result': {...}}  → نفس dict المسار السريع (verify=False)
+      • {'type': 'error', 'result': {...}}  → فشل، فيه رسالة للفني
+
+    المراجعة الذاتية بتتعمل في الخلفية زي المسار العادي (verification_pending).
+    """
+    question = (question or '').strip()
+    if not question:
+        yield {'type': 'error', 'result': {
+            'success': False, 'answer': 'اكتب سؤال.', 'source': 'none'}}
+        return
+
+    mode = mode if mode in _MODE_HINTS else 'disassembly'
+    vehicle = vehicle or {}
+    history = history or []
+
+    # 1. KB lookup قبل أي LLM
+    kb_hit = _lookup_verified_kb(question, mode, vehicle)
+    if kb_hit:
+        yield {'type': 'kb', 'result': {
+            'success': True, 'answer': kb_hit.answer_markdown,
+            'source': 'verified', 'used_verified_kb_id': kb_hit.id,
+            'mode': mode, 'suggested_part': kb_hit.part_or_system_norm,
+            'tier': 'high', 'confidence': None, 'doubts': [],
+            'auto_promoted': False, 'verification_pending': False,
+        }}
+        return
+
+    # 2. Generator — streaming
+    messages = _build_messages(question, mode, vehicle, history, images=[])
+    chunks: list[str] = []
+    try:
+        for piece in stream_llm_text(messages, max_tokens=700):
+            chunks.append(piece)
+            yield {'type': 'delta', 'text': piece}
+    except Exception as e:
+        logger.warning('[REPAIR_COACH] stream failed, falling back: %s', e)
+        # fallback للمسار العادي (non-stream) عشان الفني ياخد رد بأي حال
+        result = coach_reply(question, mode, vehicle, history, verify=False)
+        if result.get('answer'):
+            yield {'type': 'delta', 'text': result['answer']}
+        yield {'type': 'done' if result.get('success') else 'error',
+               'result': result}
+        return
+
+    answer = ''.join(chunks).strip()
+    if not answer:
+        yield {'type': 'error', 'result': {
+            'success': False, 'source': 'error',
+            'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.'}}
+        return
+
+    sanity = sanity_sweep(answer)
+    yield {'type': 'done', 'result': {
+        'success': True, 'answer': answer, 'source': 'llm', 'mode': mode,
+        'suggested_part': _extract_part_hint(question),
+        'confidence': None, 'tier': 'pending',
+        'doubts': sanity.failures if not sanity.ok else [],
+        'auto_promoted': False, 'revisions': 0,
+        'sanity_ok': sanity.ok, 'verification_pending': True,
+    }}
 
 
 def score_answer(question: str, answer: str, mode: str,
