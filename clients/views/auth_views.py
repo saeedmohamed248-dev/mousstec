@@ -215,20 +215,24 @@ def register_new_tenant_saas(request):
                 verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
 
                 # Send email — fail-silently (we still show the user the link page)
+                # 🐛 [FIX]: لازم EmailMessage مع encoding='utf-8' عشان SMTP يبعت
+                # subject/body عربي. send_mail لوحدها كانت بترمي
+                # 'ascii' codec can't encode على الـ SMTP transmission.
                 try:
-                    from django.core.mail import send_mail
-                    send_mail(
+                    from django.core.mail import EmailMessage
+                    msg = EmailMessage(
                         subject='✉️ أكّد بريدك الإلكتروني | Mouss Tec',
-                        message=(
+                        body=(
                             f"أهلاً {data['full_name']}،\n\n"
                             f"اضغط الرابط لتفعيل حساب {company_name}:\n\n"
                             f"{verify_url}\n\n"
                             f"الرابط صالح لمدة 48 ساعة.\n\nMouss Tec"
                         ),
                         from_email=None,
-                        recipient_list=[data['email']],
-                        fail_silently=True,
+                        to=[data['email']],
                     )
+                    msg.encoding = 'utf-8'
+                    msg.send(fail_silently=True)
                 except Exception as e:
                     logger.warning(f"[SIGNUP] verification email failed: {e}")
 
@@ -693,14 +697,16 @@ def account_recovery(request):
             email_sent = False
             if recovery_email and getattr(settings, 'EMAIL_HOST', ''):
                 try:
-                    from django.core.mail import send_mail
-                    send_mail(
+                    # 🐛 UTF-8 encoding عشان الـ subject/body عربي يوصل صح عبر SMTP
+                    from django.core.mail import EmailMessage
+                    msg = EmailMessage(
                         subject='كود استرجاع حسابك | Mouss Tec',
-                        message=f'كود التحقق الخاص بك هو: {otp_code}\n\nصالح لمدة 10 دقائق.\n\nMouss Tec',
+                        body=f'كود التحقق الخاص بك هو: {otp_code}\n\nصالح لمدة 10 دقائق.\n\nMouss Tec',
                         from_email=None,
-                        recipient_list=[recovery_email],
-                        fail_silently=True,
+                        to=[recovery_email],
                     )
+                    msg.encoding = 'utf-8'
+                    msg.send(fail_silently=True)
                     email_sent = True
                 except Exception as e:
                     logger.warning(f"[RECOVERY] Failed to send OTP email: {e}")
@@ -1060,12 +1066,16 @@ def resend_verification(request):
     verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
 
     try:
-        from django.core.mail import send_mail
-        send_mail(
+        # 🐛 UTF-8 encoding عشان الـ subject/body عربي يوصل صح عبر SMTP
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
             subject='✉️ رابط تأكيد جديد | Mouss Tec',
-            message=f"اضغط الرابط لتفعيل حساب {tenant.name}:\n\n{verify_url}\n\nصالح 48 ساعة.",
-            from_email=None, recipient_list=[email], fail_silently=True,
+            body=f"اضغط الرابط لتفعيل حساب {tenant.name}:\n\n{verify_url}\n\nصالح 48 ساعة.",
+            from_email=None,
+            to=[email],
         )
+        msg.encoding = 'utf-8'
+        msg.send(fail_silently=True)
     except Exception as e:
         logger.warning(f"[RESEND_VERIFY] email send failed: {e}")
 

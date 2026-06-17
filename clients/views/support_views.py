@@ -64,9 +64,11 @@ def submit_help_form(request):
     # 📧 الإيميل المخفي — مش معروض في الـ frontend مطلقاً، جاي من .env
     inbox = getattr(settings, 'SUPPORT_INBOX_EMAIL', '') or settings.DEFAULT_FROM_EMAIL
     try:
-        send_mail(
+        # 🐛 UTF-8 encoding عشان الـ Arabic subject/body يوصل صح عبر SMTP
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
             subject=f"[Mousstec Ticket #{ticket.id}] {subject}",
-            message=(
+            body=(
                 f"From: {name} <{email}>\n"
                 f"Phone: {phone or '—'}\n"
                 f"Tenant: {tenant_obj.name if tenant_obj else '—'}\n"
@@ -76,9 +78,11 @@ def submit_help_form(request):
                 f"— Reply to {email}"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[inbox],
-            fail_silently=False,
+            to=[inbox],
+            reply_to=[email] if email else None,
         )
+        msg.encoding = 'utf-8'
+        msg.send(fail_silently=False)
         with schema_context('public'):
             SupportTicket.objects.filter(pk=ticket.pk).update(email_delivered=True)
     except Exception as e:

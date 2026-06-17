@@ -150,28 +150,31 @@ def _send_otp_via_channel(phone, otp, **kwargs):
 
     elif provider == 'email':
         try:
-            from django.core.mail import send_mail
+            # 🐛 UTF-8 encoding عشان الـ Arabic subject/body يوصل صح عبر SMTP
+            from django.core.mail import EmailMultiAlternatives
             email_addr = kwargs.get('email', '')
             if not email_addr:
                 logger.error("[OTP/Email] No email address provided")
                 return False
-            send_mail(
-                subject='Mouss Tec — كود التحقق',
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email_addr],
-                html_message=f'''
-                <div dir="rtl" style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:20px;">
-                    <h2 style="color:#2563eb;">Mouss Tec</h2>
-                    <p>كود التحقق الخاص بك:</p>
-                    <div style="background:#f1f5f9;padding:15px;border-radius:8px;text-align:center;margin:15px 0;">
-                        <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1e293b;">{otp}</span>
-                    </div>
-                    <p style="color:#64748b;font-size:13px;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>
-                </div>
-                ''',
-                fail_silently=False,
+            html = (
+                f'<div dir="rtl" style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;padding:20px;">'
+                f'<h2 style="color:#2563eb;">Mouss Tec</h2>'
+                f'<p>كود التحقق الخاص بك:</p>'
+                f'<div style="background:#f1f5f9;padding:15px;border-radius:8px;text-align:center;margin:15px 0;">'
+                f'<span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1e293b;">{otp}</span>'
+                f'</div>'
+                f'<p style="color:#64748b;font-size:13px;">صالح لمدة 10 دقائق. لا تشاركه مع أحد.</p>'
+                f'</div>'
             )
+            msg = EmailMultiAlternatives(
+                subject='Mouss Tec — كود التحقق',
+                body=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email_addr],
+            )
+            msg.encoding = 'utf-8'
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=False)
             logger.info(f"[OTP/Email] sent to {email_addr[:4]}***")
             return True
         except Exception as e:

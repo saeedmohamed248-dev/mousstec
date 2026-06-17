@@ -96,13 +96,19 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
     # Email: لو SMTP متضبط
     recipient = (tenant.email or '').strip()
     if recipient and getattr(settings, 'EMAIL_HOST', ''):
-        send_mail(
+        # 🐛 UTF-8 encoding عشان الـ Arabic subject/body يوصل صح عبر SMTP
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
             subject=subject,
-            message=body,
+            body=body,
             from_email=None,  # DEFAULT_FROM_EMAIL
-            recipient_list=[recipient],
-            fail_silently=True,
+            to=[recipient],
         )
+        msg.encoding = 'utf-8'
+        try:
+            msg.send(fail_silently=True)
+        except Exception:
+            logger.warning(f"[DUNNING] email send failed for {tenant.schema_name}", exc_info=True)
 
     # WhatsApp: stub — لما الـ provider يتربط، اللي بعد الـ log هيتبعت فعلاً
     if tenant.phone:
