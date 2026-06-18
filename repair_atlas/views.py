@@ -623,6 +623,14 @@ def repair_atlas_reset(request):
     request.session.pop(_SESSION_KEY, None)
     request.session.pop(_HISTORY_KEY, None)
     request.session.modified = True
+    # also close the matching ai_rooms conversation so the hub shows it
+    # as ended instead of leaving it open forever
+    try:
+        from ai_rooms.services.persist import close_conversation
+        audience = 'customer' if request.session.get('is_customer_audience') else 'shop'
+        close_conversation(request, room='repair_atlas', audience=audience)
+    except Exception:
+        logger.debug('[REPAIR_ATLAS] ai_rooms close on reset skipped', exc_info=True)
     return JsonResponse({'success': True})
 
 

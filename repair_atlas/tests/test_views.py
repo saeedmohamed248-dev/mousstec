@@ -233,3 +233,21 @@ class RepairAtlasResetTests(ERPTenantTestCase):
         sess = self.client.session
         self.assertNotIn('repair_atlas_session_id_v1', sess)
         self.assertNotIn('repair_atlas_history_v1', sess)
+
+    def test_reset_closes_ai_rooms_conversation(self):
+        """Resetting the chat should mark the matching ai_rooms conversation
+        as closed (closed_at set) so the hub doesn't show it as ongoing."""
+        from ai_rooms.models import AIRoomConversation, RoomKind, Audience
+        conv = AIRoomConversation.objects.create(
+            user=self.user, room=RoomKind.REPAIR_ATLAS,
+            audience=Audience.SHOP, title='draft',
+        )
+        sess = self.client.session
+        sess['ai_rooms_conv_id__repair_atlas__shop'] = conv.id
+        sess.save()
+
+        resp = self.client.post('/repair-atlas/api/reset/')
+        self.assertEqual(resp.status_code, 200)
+
+        conv.refresh_from_db()
+        self.assertIsNotNone(conv.closed_at)
