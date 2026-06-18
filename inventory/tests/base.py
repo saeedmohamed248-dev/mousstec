@@ -43,11 +43,18 @@ class ERPTenantTestCase(TransactionTestCase):
         TenantModel = get_tenant_model()
         DomainModel = get_tenant_domain_model()
 
+        # max_*=0 → unlimited (matches the production "0 = unlimited"
+        # convention in tenancy.signals.quota._enforce). Without this,
+        # the post_schema_sync seed creates 1 default branch and the
+        # default plan's 2-branch cap blocks tests that need 3+ branches.
         cls.tenant = TenantModel(
             schema_name=schema_name,
             name='Test Company',
             owner_name='Test Owner',
             phone='01000000000',
+            max_branches=0,
+            max_users=0,
+            max_treasuries=0,
         )
         cls.tenant.auto_create_schema = True
         cls.tenant.save(verbosity=0)

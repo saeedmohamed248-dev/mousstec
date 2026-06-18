@@ -35,12 +35,23 @@ import hmac
 import json
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.test import RequestFactory, TransactionTestCase, override_settings
 
 from clients.models import Client, EscrowLedger
 from clients.views.webhook_views import universal_webhook_multiplexer
 
 WEBHOOK_SECRET = 'test-secret-32chars-or-whatever-X'
+
+# 🛡️ Isolate cache from production Redis — otherwise webhook_processed_<id>
+# keys leak across test runs and every replay test gets short-circuited as
+# "duplicate" before any DB work happens. locmem is per-process.
+TEST_CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'test-webhook',
+    },
+}
 
 
 def _make_tenant(*, wallet=Decimal('0'), suffix='wh'):
@@ -62,10 +73,14 @@ def _signed_payload(*, body: dict, secret: str = WEBHOOK_SECRET) -> tuple[bytes,
     return raw, sig
 
 
-@override_settings(WEBHOOK_HMAC_SECRET=WEBHOOK_SECRET)
+@override_settings(WEBHOOK_HMAC_SECRET=WEBHOOK_SECRET, CACHES=TEST_CACHES)
 class PaymentWebhookTests(TransactionTestCase):
     """Each test posts a fresh signed payload through the real view
     function so HMAC + idempotency + the balance write all happen."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
 
     def _post(self, body: dict):
         raw, sig = _signed_payload(body=body)
@@ -104,8 +119,10 @@ class PaymentWebhookTests(TransactionTestCase):
             'Wallet must be credited exactly once. Two += amount '
             'paths (manual update + signal) means double-credit.',
         )
-        # Exactly one ledger row, of type 'deposit'.
-        rows = EscrowLedger.objects.filter(client=tenant)
+        # Exactly one deposit row for this webhook event. Tenant signup
+        # creates a separate Genesis Block ledger row at amount=0; we
+        # scope to amount>0 so the assertion stays semantic.
+        rows = EscrowLedger.objects.filter(client=tenant, amount__gt=0)
         self.assertEqual(rows.count(), 1)
         self.assertEqual(rows.first().transaction_type, 'deposit')
 
@@ -168,7 +185,11 @@ class PaymentWebhookTests(TransactionTestCase):
 
         tenant.refresh_from_db()
         self.assertEqual(tenant.wallet_balance, Decimal('500.00'))
-        self.assertEqual(EscrowLedger.objects.filter(client=tenant).count(), 1)
+        # Genesis row at amount=0 is unrelated; only count real deposits.
+        self.assertEqual(
+            EscrowLedger.objects.filter(client=tenant, amount__gt=0).count(),
+            1,
+        )
 
     def test_bad_signature_is_rejected(self):
         """Wrong HMAC must hit 403 before any balance write happens."""
@@ -190,4 +211,9 @@ class PaymentWebhookTests(TransactionTestCase):
 
         tenant.refresh_from_db()
         self.assertEqual(tenant.wallet_balance, Decimal('0.00'))
-        self.assertEqual(EscrowLedger.objects.filter(client=tenant).count(), 0)
+        # No real ledger writes from the rejected webhook. Genesis row
+        # exists (amount=0) regardless of webhook outcome.
+        self.assertEqual(
+            EscrowLedger.objects.filter(client=tenant, amount__gt=0).count(),
+            0,
+        )
