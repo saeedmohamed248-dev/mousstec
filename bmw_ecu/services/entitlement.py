@@ -85,12 +85,26 @@ class DefaultEntitlementProvider(AbstractEntitlementProvider):
 
         # Coding path.
         from django.conf import settings
+        from .gift_credits import GIFT_TYPES_FOR_CODING, has_active_gift
 
         global_on = bool(getattr(settings, "BMW_ECU_CODING_ENTITLED_GLOBALLY",
                                  False))
         whitelist = set(getattr(settings, "BMW_ECU_CODING_ENTITLED_TENANTS",
                                 set()))
         schema = tenant_schema or await _current_schema()
+
+        # Gift entitlement check — promotional grants beat the whitelist.
+        if schema:
+            gift_pk = await has_active_gift(
+                tenant_schema=schema, grant_types=GIFT_TYPES_FOR_CODING,
+            )
+            if gift_pk is not None:
+                return EntitlementVerdict(
+                    entitled=True, operation_type=operation_type,
+                    mode="gift",
+                    subscription_ref=f"gift:{gift_pk}",
+                    reason="active Mousstec promotional gift",
+                )
 
         if global_on or (schema and schema in whitelist):
             return EntitlementVerdict(
