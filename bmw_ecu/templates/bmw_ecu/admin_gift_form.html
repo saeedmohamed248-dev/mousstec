@@ -1,0 +1,141 @@
+{% load static %}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎁 Mousstec Gift Engine — Super-Admin</title>
+<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}">
+<link rel="stylesheet" href="{% static 'bmw_ecu/admin_gift_form.css' %}">
+</head>
+<body>
+
+<header class="cr-header">
+  <h1>🎁 Gift Engine — Super-Admin</h1>
+  <div class="cr-session">
+    <span class="ag-pill">
+      {{ tenants|length }} tenant{{ tenants|length|pluralize }}
+    </span>
+    <span class="ag-pill">
+      {{ recent_gifts|length }} recent gift{{ recent_gifts|length|pluralize }}
+    </span>
+  </div>
+</header>
+
+<main class="ag-main">
+
+  <!-- LEFT: issue-new form -->
+  <section class="ag-panel">
+    <h2>إصدار gift جديد — Issue new gift</h2>
+    <form id="gift-form" class="ag-form" autocomplete="off">
+
+      <label class="ag-field">
+        <span class="ag-label">Tenant *</span>
+        <select name="tenant_schema" id="tenant-select" required>
+          <option value="">— اختر ورشة —</option>
+          {% for t in tenants %}
+            <option value="{{ t.schema_name }}">
+              {{ t.name|default:t.schema_name }} ({{ t.schema_name }})
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="ag-field">
+        <span class="ag-label">Grant type *</span>
+        <select name="grant_type" id="grant-type" required>
+          <option value="coding_credits">Coding credits — رصيد تكويدات</option>
+          <option value="isn_credits">ISN credits — رصيد ISN</option>
+          <option value="subscription_window">Subscription window — اشتراك زمني</option>
+        </select>
+      </label>
+
+      <label class="ag-field" id="credits-field">
+        <span class="ag-label">Credits count *</span>
+        <input type="number" name="credits" id="credits-input"
+               min="1" step="1" placeholder="e.g. 5">
+        <span class="ag-hint">عدد العمليات المجانية. لازم > 0.</span>
+      </label>
+
+      <label class="ag-field" id="valid-until-field">
+        <span class="ag-label">
+          Valid until <span id="valid-until-required">(required for subscription_window)</span>
+        </span>
+        <input type="datetime-local" name="valid_until" id="valid-until-input">
+        <span class="ag-hint">اختياري لـ *_credits، إجباري لـ subscription_window.</span>
+      </label>
+
+      <label class="ag-field">
+        <span class="ag-label">Note</span>
+        <textarea name="note" id="note-input" rows="2" maxlength="255"
+                  placeholder="مثلاً: عرض العيد — 5 تكويدات مجانية"></textarea>
+      </label>
+
+      <label class="ag-check">
+        <input type="checkbox" name="allow_stack" id="allow-stack">
+        <span>Allow stacking — اسمح بالتراكم</span>
+        <span class="ag-hint">
+          لو في gift فعّال من نفس النوع، الافتراضي يرفض بـ 409.
+          فعّل ده عشان تسمح بإضافة gift فوق الموجود.
+        </span>
+      </label>
+
+      <button type="submit" class="ag-submit">🎁 Issue gift</button>
+      <div id="ag-flash" class="ag-flash" hidden></div>
+    </form>
+  </section>
+
+  <!-- RIGHT: recent gifts table -->
+  <section class="ag-panel">
+    <h2>آخر 20 gift — Recent gifts</h2>
+    <div class="ag-table-wrap">
+      <table class="ag-table" id="gifts-table">
+        <thead>
+          <tr>
+            <th>Tenant</th>
+            <th>Type</th>
+            <th>Credits</th>
+            <th>Valid until</th>
+            <th>Status</th>
+            <th>By</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in recent_gifts %}
+          <tr data-pk="{{ g.pk }}" data-status="{{ g.status }}">
+            <td>{{ g.tenant_schema }}</td>
+            <td><span class="ag-chip ag-chip-{{ g.grant_type }}">{{ g.grant_type }}</span></td>
+            <td>
+              {% if g.grant_type == "subscription_window" %}—
+              {% else %}{{ g.credits_remaining }}/{{ g.credits_total }}{% endif %}
+            </td>
+            <td>{% if g.valid_until %}{{ g.valid_until|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+            <td><span class="ag-status ag-status-{{ g.status }}">{{ g.status }}</span></td>
+            <td><small>{{ g.granted_by|default:"—" }}</small></td>
+            <td>
+              {% if g.status == "active" %}
+              <button class="ag-revoke" data-pk="{{ g.pk }}" type="button">Revoke</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="ag-empty">مفيش gifts لسة.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  window.BMW_ECU_ADMIN_CFG = {
+    grantUrl: "{% url 'bmw_ecu:bmw_ecu_admin:grant_gift' %}",
+    revokeUrlTemplate: "{% url 'bmw_ecu:bmw_ecu_admin:revoke_gift' gift_pk=0 %}",
+    csrfToken: "{{ csrf_token }}",
+  };
+</script>
+<script src="{% static 'bmw_ecu/admin_gift_form.js' %}" defer></script>
+</body>
+</html>
