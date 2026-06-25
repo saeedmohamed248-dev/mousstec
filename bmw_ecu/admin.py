@@ -1,9 +1,18 @@
 from django.contrib import admin
 
 from .models import (
-    EcuBackupRef, EcuPinoutDiagram, EcuSession, EcuStateChange,
-    ExecutionAttempt, WizardSession,
+    DiagnosticFeeCharge, EcuBackupRef, EcuPinoutDiagram, EcuSession,
+    EcuStateChange, ExecutionAttempt, WizardSession,
 )
+
+
+@admin.register(DiagnosticFeeCharge)
+class DiagnosticFeeChargeAdmin(admin.ModelAdmin):
+    list_display = ("authorized_at", "vin", "amount", "currency", "status",
+                    "finalised_at")
+    list_filter = ("status", "currency")
+    search_fields = ("vin", "authorization_ref")
+    date_hierarchy = "authorized_at"
 
 
 @admin.register(ExecutionAttempt)
