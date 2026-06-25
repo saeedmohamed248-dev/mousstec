@@ -77,7 +77,17 @@ class LocalBillingGate(AbstractBillingGate):
         return result
 
     async def capture_fee(self, *, vin: str) -> AuthorizationResult:
-        return await self._finalise_sync(vin, target="captured")
+        result = await self._finalise_sync(vin, target="captured")
+        # Settlement is fire-and-record. Failures here do NOT roll back the
+        # capture — the technician already finished the job. The audit row
+        # tells accounting what's pending.
+        try:
+            await self.on_captured(result.authorization_ref, result.amount)
+        except Exception as e:
+            log.error("on_captured raised (suppressed)", extra={
+                "vin": vin, "ref": result.authorization_ref, "err": str(e),
+            })
+        return result
 
     async def release_fee(self, *, vin: str, reason: str = "") -> AuthorizationResult:
         return await self._finalise_sync(vin, target="released", reason=reason)
@@ -154,12 +164,62 @@ class LocalBillingGate(AbstractBillingGate):
                 is_new=True,
             )
 
-    # --- ERP integration hooks (override in subclass) ---------------------
+    # --- ERP integration hooks --------------------------------------------
     async def on_captured(self, ref: str, amount: Decimal) -> None:
-        """Override to post to billing.services.paymob or treasury."""
+        """Invoke the configured settlement provider and persist its audit.
+
+        Default = WalletThenPaymobProvider (wallet deduct first, then
+        Paymob iframe fallback). Override `provider_factory()` or set
+        BMW_ECU_SETTLEMENT_PROVIDER in Django settings.
+        """
+        from .settlement import get_default_provider
+
+        provider = self.provider_factory() or get_default_provider()
+        charge = await self._load_charge_by_ref(ref)
+        if charge is None:
+            log.warning("on_captured: charge not found", extra={"ref": ref})
+            return
+        outcome = await provider.settle(
+            authorization_ref=ref, vin=charge["vin"], amount=amount,
+            currency=charge["currency"],
+        )
+        await self._save_settlement(charge_pk=charge["pk"], outcome=outcome)
 
     async def on_released(self, ref: str, amount: Decimal) -> None:
-        """Override to release a Paymob auth hold or void a manual receipt."""
+        """Override to release a Paymob auth hold or void a manual receipt.
+
+        Default no-op: wallet deduction was never made, so nothing to refund.
+        """
+
+    def provider_factory(self):
+        """Subclass override hook — return a SettlementProvider instance."""
+        return None
+
+    @staticmethod
+    @sync_to_async
+    def _load_charge_by_ref(ref: str):
+        from ..models import DiagnosticFeeCharge
+        row = DiagnosticFeeCharge.objects.filter(
+            authorization_ref=ref).values("pk", "vin", "currency").first()
+        return row
+
+    @staticmethod
+    @sync_to_async
+    def _save_settlement(*, charge_pk: int, outcome) -> None:
+        from django.db import transaction
+        from ..models import BmwEcuSettlement
+        with transaction.atomic():
+            BmwEcuSettlement.objects.update_or_create(
+                charge_id=charge_pk,
+                defaults=dict(
+                    mode=outcome.mode, succeeded=outcome.succeeded,
+                    amount=outcome.amount, currency="EGP",
+                    wallet_before=outcome.wallet_before,
+                    wallet_after=outcome.wallet_after,
+                    paymob_iframe_url=outcome.paymob_iframe_url,
+                    error_message=outcome.error_message,
+                ),
+            )
 
 
 # ---------------------------------------------------------------------------
