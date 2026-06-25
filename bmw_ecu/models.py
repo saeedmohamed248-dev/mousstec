@@ -156,6 +156,9 @@ class DiagnosticFeeCharge(models.Model):
     ]
 
     vin = models.CharField(max_length=17, db_index=True)
+    operation_type = models.CharField(max_length=16, default="isn",
+                                      db_index=True,
+                                      help_text="isn | coding")
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default="EGP")
     status = models.CharField(max_length=16, choices=STATUS_CHOICES,
@@ -181,6 +184,48 @@ class DiagnosticFeeCharge(models.Model):
 
     def __str__(self) -> str:
         return f"{self.vin} · {self.amount} {self.currency} · {self.status}"
+
+
+class CodingEntitlementHold(models.Model):
+    """Audit row for Coding operations attempted without an active subscription.
+
+    Created by entitlement.DefaultEntitlementProvider when a Coding
+    request lands but the tenant has no Coding add-on. The hold is a
+    placeholder so when pricing is finalised the finance team can chase
+    these and convert them to charges OR drop them.
+
+    Idempotency: one open hold per (vin, operation_type).
+    """
+
+    STATUS_CHOICES = [
+        ("open", "Open (awaiting policy)"),
+        ("converted", "Converted to charge"),
+        ("dropped", "Dropped (not charged)"),
+    ]
+
+    vin = models.CharField(max_length=17, db_index=True)
+    operation_type = models.CharField(max_length=16, db_index=True)
+    tenant_schema = models.CharField(max_length=64, blank=True, db_index=True)
+    hold_ref = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES,
+                              default="open", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Coding Entitlement Hold"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vin", "operation_type"],
+                condition=models.Q(status="open"),
+                name="bmw_ecu_one_open_hold_per_vin_op",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.vin} · {self.operation_type} · {self.status}"
 
 
 class BmwEcuSettlement(models.Model):

@@ -1,9 +1,19 @@
 from django.contrib import admin
 
 from .models import (
-    BmwEcuSettlement, DiagnosticFeeCharge, EcuBackupRef, EcuPinoutDiagram,
-    EcuSession, EcuStateChange, ExecutionAttempt, WizardSession,
+    BmwEcuSettlement, CodingEntitlementHold, DiagnosticFeeCharge,
+    EcuBackupRef, EcuPinoutDiagram, EcuSession, EcuStateChange,
+    ExecutionAttempt, WizardSession,
 )
+
+
+@admin.register(CodingEntitlementHold)
+class CodingEntitlementHoldAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "vin", "operation_type", "tenant_schema",
+                    "status", "resolved_at")
+    list_filter = ("status", "operation_type", "tenant_schema")
+    search_fields = ("vin", "hold_ref", "tenant_schema")
+    date_hierarchy = "created_at"
 
 
 @admin.register(BmwEcuSettlement)
