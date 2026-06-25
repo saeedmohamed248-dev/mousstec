@@ -266,6 +266,7 @@ class LocalBillingGate(AbstractBillingGate):
                     wallet_before=outcome.wallet_before,
                     wallet_after=outcome.wallet_after,
                     paymob_iframe_url=outcome.paymob_iframe_url,
+                    gift_id=outcome.gift_pk,
                     error_message=outcome.error_message,
                 ),
             )
