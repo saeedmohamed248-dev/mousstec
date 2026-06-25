@@ -107,6 +107,8 @@ class CodingOrchestrator:
                 return await self._list_features(ctx, coding_request, entitlement)
             if action == "apply_feature":
                 return await self._apply_feature(ctx, coding_request, entitlement)
+            if action == "apply_features":
+                return await self._apply_features_batch(ctx, coding_request, entitlement)
             if action == "initialize_module":
                 return await self._initialize_module(ctx, coding_request, entitlement)
             return CodingResponse(
@@ -194,6 +196,60 @@ class CodingOrchestrator:
                              "did": f"0x{feature.did:04X}"},
             ),
             outcome="success",
+            entitlement=self._entitlement_dict(entitlement),
+        )
+
+    # --- Action: apply_features (batch) ----------------------------------
+    async def _apply_features_batch(self, ctx: StrategyContext,
+                                    req: dict[str, Any],
+                                    entitlement: CodingEntitlement
+                                    ) -> CodingResponse:
+        items = req.get("items") or []
+        if not isinstance(items, list) or not items:
+            return CodingResponse(
+                chatbot=ChatbotPayload(
+                    chatbot_message="مفيش features متحددة. اختار حاجة واحدة على الأقل.\n"
+                                    "No features selected.",
+                    required_action="choose_feature", severity="warning",
+                ),
+                outcome="bad_request",
+                entitlement=self._entitlement_dict(entitlement),
+            )
+
+        from ..uds.client import UdsClient
+        results: list[dict[str, Any]] = []
+        ok_count = 0
+        for item in items:
+            fid = item.get("feature_id")
+            enable = bool(item.get("enable", True))
+            try:
+                feature = get_feature(fid)
+                client = UdsClient(ctx.transport, ecu_addr=feature.did >> 8,
+                                   session_name="coding_batch")
+                await apply_feature(client, ctx.security, feature=feature,
+                                    enable=enable, vin=ctx.vin)
+                results.append({"feature_id": fid, "enable": enable,
+                                "succeeded": True})
+                ok_count += 1
+            except Exception as e:
+                results.append({"feature_id": fid, "enable": enable,
+                                "succeeded": False, "error": str(e)})
+
+        all_ok = ok_count == len(items)
+        return CodingResponse(
+            chatbot=ChatbotPayload(
+                chatbot_message=(
+                    f"✅ تمام، {ok_count} من {len(items)} ميزة اتطبقوا بنجاح. "
+                    f"دور المفتاح OFF/ON لتفعيل التغييرات.\n"
+                    f"{ok_count} of {len(items)} features applied successfully. "
+                    f"Cycle ignition to activate."
+                ),
+                required_action="cycle_ignition" if all_ok else "review_failed_items",
+                severity="info" if all_ok else "warning",
+                diagnostics={"items": results, "ok_count": ok_count,
+                             "total": len(items)},
+            ),
+            outcome="success" if all_ok else "partial",
             entitlement=self._entitlement_dict(entitlement),
         )
 
