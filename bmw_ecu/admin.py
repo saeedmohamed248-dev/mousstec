@@ -3,8 +3,33 @@ from django.contrib import admin
 from .models import (
     BmwEcuSettlement, CodingEntitlementHold, DiagnosticFeeCharge,
     EcuBackupRef, EcuPinoutDiagram, EcuSession, EcuStateChange,
-    ExecutionAttempt, WizardSession,
+    ExecutionAttempt, GiftCredit, GiftCreditUsage, WizardSession,
 )
+
+
+@admin.register(GiftCredit)
+class GiftCreditAdmin(admin.ModelAdmin):
+    list_display = ("granted_at", "tenant_schema", "grant_type",
+                    "credits_remaining", "credits_total", "valid_until",
+                    "status", "granted_by")
+    list_filter = ("grant_type", "status")
+    search_fields = ("tenant_schema", "note", "granted_by")
+    date_hierarchy = "granted_at"
+    actions = ["revoke_selected"]
+
+    @admin.action(description="Revoke selected gift credits")
+    def revoke_selected(self, request, queryset):
+        n = queryset.update(status="revoked")
+        self.message_user(request, f"Revoked {n} gift credit(s).")
+
+
+@admin.register(GiftCreditUsage)
+class GiftCreditUsageAdmin(admin.ModelAdmin):
+    list_display = ("used_at", "gift", "vin", "operation_type", "reference")
+    list_filter = ("operation_type",)
+    search_fields = ("vin", "reference", "gift__tenant_schema")
+    date_hierarchy = "used_at"
+    readonly_fields = ("gift", "vin", "operation_type", "used_at", "reference")
 
 
 @admin.register(CodingEntitlementHold)
