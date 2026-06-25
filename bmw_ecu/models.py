@@ -135,6 +135,54 @@ class EcuPinoutDiagram(models.Model):
         return self.ecu_name
 
 
+class DiagnosticFeeCharge(models.Model):
+    """Pay-Per-Success ledger: 450 EGP per unlocked VIN.
+
+    Lifecycle:
+        authorized → captured  (charge finalised; SUCCESS)
+        authorized → released  (charge cancelled; rolled back / failed)
+        authorized → expired   (stale; reaper task should release)
+
+    Idempotency: only one row per (vin, status='authorized') at any time.
+    Re-calling authorize() returns the existing open row.
+    """
+
+    STATUS_CHOICES = [
+        ("authorized", "Authorized"),
+        ("captured", "Captured"),
+        ("released", "Released"),
+        ("expired", "Expired"),
+        ("declined", "Declined"),
+    ]
+
+    vin = models.CharField(max_length=17, db_index=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="EGP")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES,
+                              default="authorized", db_index=True)
+    authorization_ref = models.CharField(max_length=64, unique=True,
+                                         help_text="Idempotency key")
+    session = models.ForeignKey("EcuSession", on_delete=models.SET_NULL,
+                                null=True, blank=True,
+                                related_name="fee_charges")
+    authorized_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    finalised_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-authorized_at"]
+        verbose_name = "Diagnostic Fee Charge"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vin"], condition=models.Q(status="authorized"),
+                name="bmw_ecu_one_open_auth_per_vin",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.vin} · {self.amount} {self.currency} · {self.status}"
+
+
 class EcuBackupRef(models.Model):
     """Index of on-disk backups so the cloud knows what's safely stored."""
 
