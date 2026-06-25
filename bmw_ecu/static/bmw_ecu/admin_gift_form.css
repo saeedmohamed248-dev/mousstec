@@ -1,0 +1,117 @@
+/* Admin Gift form — supplements coding_room.css (shares CSS variables). */
+
+.ag-main {
+  display: grid; grid-template-columns: 480px 1fr; gap: 16px;
+  padding: 16px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .ag-main { grid-template-columns: 1fr; }
+}
+
+.ag-panel {
+  background: var(--c-surface); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px;
+}
+.ag-panel h2 { margin: 0 0 14px; font-size: 17px; }
+
+.ag-pill {
+  display: inline-block; padding: 4px 12px; border-radius: 999px;
+  background: var(--c-accent-soft); color: var(--c-accent);
+  font-size: 12px; font-weight: 600; margin-inline-start: 8px;
+}
+
+/* Form */
+.ag-form { display: flex; flex-direction: column; gap: 14px; }
+.ag-field { display: flex; flex-direction: column; gap: 4px; }
+.ag-label { font-weight: 600; font-size: 13px; }
+.ag-hint  { font-size: 12px; color: var(--c-text-muted); }
+.ag-form input[type="number"],
+.ag-form input[type="datetime-local"],
+.ag-form select,
+.ag-form textarea {
+  padding: 8px 10px; border: 1px solid var(--c-border); border-radius: 8px;
+  font-family: inherit; font-size: 14px; background: #fff;
+  transition: border-color 120ms;
+}
+.ag-form input:focus, .ag-form select:focus, .ag-form textarea:focus {
+  outline: 0; border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+.ag-form textarea { resize: vertical; }
+
+/* Conditional fields hidden via class — JS toggles. */
+.ag-field.is-hidden { display: none; }
+.ag-label .ag-conditional { color: var(--c-warning); font-size: 11px;
+                            font-weight: 500; }
+#valid-until-required { color: var(--c-warning); font-size: 11px;
+                        font-weight: 500; margin-inline-start: 4px; }
+#valid-until-required.is-hidden { display: none; }
+
+.ag-check {
+  display: grid; grid-template-columns: 22px 1fr; gap: 8px;
+  align-items: start; padding: 10px; background: #f8fafc;
+  border-radius: 8px; cursor: pointer;
+}
+.ag-check input { margin-top: 3px; }
+.ag-check > span:nth-child(2) { font-weight: 600; }
+.ag-check .ag-hint { grid-column: 2; display: block; margin-top: 2px; }
+
+.ag-submit {
+  margin-top: 6px; padding: 12px; border: 0; border-radius: 10px;
+  background: var(--c-accent); color: #fff; font-weight: 700; font-size: 15px;
+  cursor: pointer;
+}
+.ag-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+.ag-submit:not(:disabled):hover { filter: brightness(1.08); }
+
+/* Flash messages */
+.ag-flash {
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5;
+  margin-top: 4px;
+}
+.ag-flash.ok    { background: #dcfce7; color: #166534; }
+.ag-flash.warn  { background: #fef9c3; color: #854d0e; }
+.ag-flash.error { background: var(--c-danger-soft); color: var(--c-danger); }
+
+/* Table */
+.ag-table-wrap { overflow-x: auto; }
+.ag-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.ag-table th, .ag-table td {
+  padding: 9px 10px; text-align: start; vertical-align: middle;
+  border-bottom: 1px solid var(--c-border);
+}
+.ag-table th {
+  font-weight: 700; color: var(--c-text-muted); font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  background: #f8fafc; position: sticky; top: 0;
+}
+.ag-table tr[data-status="revoked"]  { opacity: 0.55; }
+.ag-table tr[data-status="consumed"] { opacity: 0.65; }
+.ag-empty { text-align: center; padding: 24px; color: var(--c-text-muted); }
+
+.ag-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.ag-chip-coding_credits      { background: #e0e7ff; color: #4338ca; }
+.ag-chip-isn_credits         { background: #fef3c7; color: #92400e; }
+.ag-chip-subscription_window { background: #cffafe; color: #155e75; }
+
+.ag-status {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.ag-status-active   { background: #dcfce7; color: var(--c-success); }
+.ag-status-consumed { background: #f1f5f9; color: var(--c-text-muted); }
+.ag-status-revoked  { background: var(--c-danger-soft); color: var(--c-danger); }
+.ag-status-expired  { background: #fee2e2; color: var(--c-warning); }
+
+.ag-revoke {
+  padding: 5px 10px; border: 1px solid var(--c-danger); border-radius: 6px;
+  background: #fff; color: var(--c-danger); font-size: 12px; cursor: pointer;
+}
+.ag-revoke:hover { background: var(--c-danger); color: #fff; }
+.ag-revoke:disabled { opacity: 0.4; cursor: not-allowed; }
