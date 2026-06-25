@@ -116,7 +116,8 @@ SHARED_APPS = (
     'marketplace_c2c', # 🤝 C2C marketplace: tenders, disputes, trust/KYC (Wave 2 Phase 2A — services + tests; models still live in clients)
     'support',         # 🎧 Tickets, live chat business-hours gate (Wave 2 Phase 2A — services only; models still live in clients)
     'workshop',        # 🚗 Automotive vertical: OBD ingest, predictive maintenance (Wave 2 Phase 2A — services + tests; models still live in inventory)
-    'bmw_ecu',         # 🔧 BMW/Mini ECU subsystem: DoIP/UDS, ISN, flashing, un-brickable failsafe
+    # 🔧 NOTE: bmw_ecu lives in TENANT_APPS (below) — it owns its own per-workshop
+    # tables (ECU sessions, fee charges, wizard state) and MUST be isolated per schema.
 
     'jazzmin',
     'django.contrib.admin',
@@ -163,6 +164,7 @@ TENANT_APPS = (
     'hr',              # 👥 الموارد البشرية المؤتمتة (حضور/رواتب/سلف/تصميم)
     'smart_diagnostics',  # 🔧 Mousstec Smart Diagnostics & Telematics (Premium SaaS)
     'repair_atlas',    # 🔧 أطلس الإصلاح والضفائر — Repair coach (disassembly/install/wiring) + Vision feedback
+    'bmw_ecu',         # 🔧 BMW/Mini ECU subsystem — DoIP/UDS/ISN + 450 EGP pay-per-success ledger (per-workshop tables)
     'import_export',
     'rest_framework',
     'simple_history',
