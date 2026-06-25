@@ -1,9 +1,21 @@
 from django.contrib import admin
 
 from .models import (
-    DiagnosticFeeCharge, EcuBackupRef, EcuPinoutDiagram, EcuSession,
-    EcuStateChange, ExecutionAttempt, WizardSession,
+    BmwEcuSettlement, DiagnosticFeeCharge, EcuBackupRef, EcuPinoutDiagram,
+    EcuSession, EcuStateChange, ExecutionAttempt, WizardSession,
 )
+
+
+@admin.register(BmwEcuSettlement)
+class BmwEcuSettlementAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "charge", "mode", "succeeded", "amount",
+                    "wallet_after")
+    list_filter = ("mode", "succeeded", "currency")
+    search_fields = ("charge__vin", "charge__authorization_ref")
+    date_hierarchy = "created_at"
+    readonly_fields = ("charge", "mode", "succeeded", "amount", "currency",
+                       "wallet_before", "wallet_after", "paymob_iframe_url",
+                       "error_message", "created_at")
 
 
 @admin.register(DiagnosticFeeCharge)

@@ -183,6 +183,45 @@ class DiagnosticFeeCharge(models.Model):
         return f"{self.vin} · {self.amount} {self.currency} · {self.status}"
 
 
+class BmwEcuSettlement(models.Model):
+    """Audit row for every settlement attempt against a captured fee.
+
+    Created by LocalBillingGate.on_captured. Decouples the diagnostic
+    capture (which is final once it lands) from the money movement
+    (which can succeed, fail, or end up as a Paymob iframe waiting on
+    the workshop to pay).
+    """
+
+    MODE_CHOICES = [
+        ("wallet", "Wallet Deduct"),
+        ("paymob", "Paymob Iframe"),
+        ("failed", "Settlement Failed"),
+    ]
+
+    charge = models.OneToOneField(
+        "DiagnosticFeeCharge", on_delete=models.CASCADE,
+        related_name="settlement",
+    )
+    mode = models.CharField(max_length=16, choices=MODE_CHOICES, db_index=True)
+    succeeded = models.BooleanField(default=False, db_index=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="EGP")
+    wallet_before = models.DecimalField(max_digits=15, decimal_places=2,
+                                        null=True, blank=True)
+    wallet_after = models.DecimalField(max_digits=15, decimal_places=2,
+                                       null=True, blank=True)
+    paymob_iframe_url = models.URLField(max_length=1024, blank=True)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "BMW ECU Settlement"
+
+    def __str__(self) -> str:
+        return f"{self.charge.vin} · {self.mode} · {self.amount} {self.currency}"
+
+
 class EcuBackupRef(models.Model):
     """Index of on-disk backups so the cloud knows what's safely stored."""
 
