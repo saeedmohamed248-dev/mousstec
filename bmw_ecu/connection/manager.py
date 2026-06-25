@@ -1,0 +1,96 @@
+"""ConnectionManager — auto-detect and own the active transport.
+
+Discovery order (matches what BMW techs actually do in the shop):
+    1. ENET / DoIP at 169.254.x.x or user-specified host (fastest, F/G series)
+    2. SocketCAN if `can0` is up (workshop bench setup)
+    3. K+DCAN serial fallback (E-series, USB)
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+from typing import Optional
+
+from ..exceptions import NoInterfaceDetected
+from ..logging_setup import get_logger
+from .base import AbstractTransport, TransportConfig, TransportKind
+from .doip import DoIPTransport
+from .kdcan import KDCANTransport
+from .socketcan import SocketCANTransport
+
+log = get_logger(__name__)
+
+
+class ConnectionManager:
+    """Owns the active transport for the lifetime of one ECU session."""
+
+    def __init__(self) -> None:
+        self._active: Optional[AbstractTransport] = None
+
+    @property
+    def transport(self) -> AbstractTransport:
+        if self._active is None or not self._active.is_connected:
+            raise NoInterfaceDetected("No active transport — call connect() first")
+        return self._active
+
+    async def connect(self, prefer: Optional[TransportConfig] = None) -> AbstractTransport:
+        """Open the first interface that responds. `prefer` short-circuits detection."""
+        if prefer is not None:
+            self._active = self._build(prefer)
+            await self._active.open()
+            return self._active
+
+        for cfg in self._detection_candidates():
+            try:
+                t = self._build(cfg)
+                await asyncio.wait_for(t.open(), timeout=3.0)
+                log.info("Auto-detected transport", extra={"kind": t.kind.value})
+                self._active = t
+                return t
+            except Exception as e:
+                log.info("Probe failed", extra={"kind": cfg.kind.value, "err": str(e)})
+                continue
+
+        raise NoInterfaceDetected("No DoIP / SocketCAN / K+DCAN interface responding")
+
+    async def disconnect(self) -> None:
+        if self._active is not None:
+            await self._active.close()
+            self._active = None
+
+    # --- Internals ---------------------------------------------------------
+    @staticmethod
+    def _build(cfg: TransportConfig) -> AbstractTransport:
+        if cfg.kind is TransportKind.DOIP:
+            return DoIPTransport(cfg)
+        if cfg.kind is TransportKind.SOCKETCAN:
+            return SocketCANTransport(cfg)
+        if cfg.kind is TransportKind.KDCAN:
+            return KDCANTransport(cfg)
+        raise ValueError(f"Unknown transport kind: {cfg.kind}")
+
+    @staticmethod
+    def _detection_candidates() -> list[TransportConfig]:
+        candidates: list[TransportConfig] = []
+
+        # DoIP — try the standard BMW ENET link-local first.
+        candidates.append(TransportConfig(
+            kind=TransportKind.DOIP,
+            host=os.environ.get("BMW_ECU_DOIP_HOST", "169.254.255.0"),
+            port=13400,
+        ))
+
+        # SocketCAN — only if can0 looks present (Linux only).
+        if os.path.exists("/sys/class/net/can0"):
+            candidates.append(TransportConfig(
+                kind=TransportKind.SOCKETCAN, channel="can0",
+            ))
+
+        # K+DCAN — env-driven, since the serial port name is OS-specific.
+        kdcan_port = os.environ.get("BMW_ECU_KDCAN_PORT")
+        if kdcan_port:
+            candidates.append(TransportConfig(
+                kind=TransportKind.KDCAN, serial_port=kdcan_port,
+            ))
+
+        return candidates
