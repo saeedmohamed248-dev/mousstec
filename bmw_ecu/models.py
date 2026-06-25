@@ -68,6 +68,73 @@ class EcuStateChange(models.Model):
         return f"{self.session.vin} · {self.kind} · {self.ecu_name}"
 
 
+class ExecutionAttempt(models.Model):
+    """Audit row for every Manager-orchestrated run (whichever strategy won)."""
+
+    STRATEGY_CHOICES = [
+        ("software_only", "Software Only"),
+        ("hardware_automation", "Hardware Automation"),
+        ("interactive_guided", "Interactive Guided"),
+    ]
+    OUTCOME_CHOICES = [
+        ("success", "Success"),
+        ("partial", "Partial"),
+        ("suspended", "Suspended"),
+        ("failed_rolled_back", "Failed (rolled back)"),
+        ("failed_unrecoverable", "Failed (unrecoverable)"),
+    ]
+
+    session = models.ForeignKey(EcuSession, on_delete=models.CASCADE,
+                                related_name="execution_attempts")
+    started_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    profile_name = models.CharField(max_length=32, db_index=True)
+    strategy = models.CharField(max_length=24, choices=STRATEGY_CHOICES, db_index=True)
+    outcome = models.CharField(max_length=24, choices=OUTCOME_CHOICES, db_index=True)
+    exploit_used = models.CharField(max_length=64, blank=True)
+    error_code = models.CharField(max_length=64, blank=True)
+    error_message = models.TextField(blank=True)
+    diagnostics = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+        verbose_name = "Execution Attempt"
+
+
+class WizardSession(models.Model):
+    """Persisted state of an InteractiveGuidedStrategy run between requests."""
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    state = models.CharField(max_length=32, db_index=True)
+    vin = models.CharField(max_length=17, db_index=True)
+    ecu_name = models.CharField(max_length=32)
+    captured_isn_hex = models.CharField(max_length=128, blank=True)
+    technician_id = models.CharField(max_length=64, blank=True)
+    notes = models.TextField(blank=True)
+    error_code = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Wizard Session"
+
+
+class EcuPinoutDiagram(models.Model):
+    """One pinout image + callouts per ECU. Editable from Django admin."""
+
+    ecu_name = models.CharField(max_length=32, unique=True)
+    image_url = models.CharField(max_length=512)
+    callouts = models.JSONField(default=list, blank=True,
+                                help_text='[{"pin": 18, "label": "BOOT", "color": "red"}]')
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "ECU Pinout Diagram"
+
+    def __str__(self) -> str:
+        return self.ecu_name
+
+
 class EcuBackupRef(models.Model):
     """Index of on-disk backups so the cloud knows what's safely stored."""
 
