@@ -1,6 +1,31 @@
 from django.contrib import admin
 
-from .models import EcuBackupRef, EcuSession, EcuStateChange
+from .models import (
+    EcuBackupRef, EcuPinoutDiagram, EcuSession, EcuStateChange,
+    ExecutionAttempt, WizardSession,
+)
+
+
+@admin.register(ExecutionAttempt)
+class ExecutionAttemptAdmin(admin.ModelAdmin):
+    list_display = ("started_at", "profile_name", "strategy", "outcome", "exploit_used")
+    list_filter = ("strategy", "outcome", "profile_name")
+    search_fields = ("session__vin", "error_code", "exploit_used")
+    date_hierarchy = "started_at"
+
+
+@admin.register(WizardSession)
+class WizardSessionAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "vin", "ecu_name", "state", "technician_id")
+    list_filter = ("state", "ecu_name")
+    search_fields = ("vin", "technician_id")
+    date_hierarchy = "created_at"
+
+
+@admin.register(EcuPinoutDiagram)
+class EcuPinoutDiagramAdmin(admin.ModelAdmin):
+    list_display = ("ecu_name", "image_url")
+    search_fields = ("ecu_name",)
 
 
 @admin.register(EcuSession)
