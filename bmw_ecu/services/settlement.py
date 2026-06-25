@@ -37,12 +37,15 @@ log = get_logger(__name__)
 
 @dataclass
 class SettlementOutcome:
-    mode: str                    # "wallet" | "paymob" | "failed"
+    mode: str                    # "gift" | "wallet" | "paymob" | "failed"
     succeeded: bool
     amount: Decimal
     wallet_before: Optional[Decimal] = None
     wallet_after: Optional[Decimal] = None
     paymob_iframe_url: str = ""
+    gift_pk: Optional[int] = None
+    gift_grant_type: str = ""
+    gift_remaining_after: Optional[int] = None
     error_message: str = ""
 
 
@@ -208,17 +211,76 @@ class WalletThenPaymobProvider(AbstractSettlementProvider):
 
 
 # ---------------------------------------------------------------------------
+# Provider D — gift first (try a promotional credit before any money moves)
+# ---------------------------------------------------------------------------
+class GiftFirstProvider(AbstractSettlementProvider):
+    """Production default. Consume one gift credit if available, otherwise
+    fall through to the (configurable) money-movement provider chain.
+
+    Always uses the same `(tenant_schema, vin)` pair as the consumption
+    key so retries are idempotent at the gift_credits.consume_gift layer.
+    """
+    name = "gift_then_money"
+
+    def __init__(self,
+                 money_provider: Optional[AbstractSettlementProvider] = None
+                 ) -> None:
+        self.money = money_provider or WalletThenPaymobProvider()
+
+    async def settle(self, *, authorization_ref: str, vin: str,
+                     amount: Decimal, currency: str,
+                     tenant_schema: Optional[str] = None) -> SettlementOutcome:
+        from .gift_credits import GIFT_TYPES_FOR_ISN, consume_gift
+
+        schema = tenant_schema or await _current_schema_async()
+        if schema:
+            # Try gift first. Use ISN bundle by default — coding goes
+            # through the entitlement gate, not settlement.
+            result = await consume_gift(
+                tenant_schema=schema,
+                grant_types=GIFT_TYPES_FOR_ISN,
+                vin=vin, operation_type="isn",
+                reference=authorization_ref,
+            )
+            if result.consumed:
+                log.info("Settled via gift", extra={
+                    "vin": vin, "gift_pk": result.gift_pk,
+                    "remaining": result.remaining_after,
+                })
+                return SettlementOutcome(
+                    mode="gift", succeeded=True, amount=amount,
+                    gift_pk=result.gift_pk,
+                    gift_grant_type=result.grant_type,
+                    gift_remaining_after=result.remaining_after,
+                )
+
+        return await self.money.settle(
+            authorization_ref=authorization_ref, vin=vin,
+            amount=amount, currency=currency, tenant_schema=tenant_schema,
+        )
+
+
+async def _current_schema_async() -> Optional[str]:
+    from asgiref.sync import sync_to_async
+    return await sync_to_async(_current_schema)()
+
+
+# ---------------------------------------------------------------------------
 # Resolver
 # ---------------------------------------------------------------------------
 def get_default_provider() -> AbstractSettlementProvider:
-    """Resolve from Django settings; default to composite."""
+    """Resolve from Django settings; default to gift_then_wallet_then_paymob."""
     from django.conf import settings
-    name = getattr(settings, "BMW_ECU_SETTLEMENT_PROVIDER", "wallet_then_paymob")
+    name = getattr(settings, "BMW_ECU_SETTLEMENT_PROVIDER",
+                   "gift_then_wallet_then_paymob")
     if name == "wallet":
         return WalletDeductProvider()
     if name == "paymob":
         return PaymobInvoiceProvider()
-    return WalletThenPaymobProvider()
+    if name == "wallet_then_paymob":
+        return WalletThenPaymobProvider()
+    # Default — gift gets first crack.
+    return GiftFirstProvider(money_provider=WalletThenPaymobProvider())
 
 
 def _current_schema() -> Optional[str]:
