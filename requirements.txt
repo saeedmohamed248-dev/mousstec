@@ -94,3 +94,12 @@ python-bidi==0.6.6
 
 # 📄 Print-ready spec PDF generation (sent to print shops with each design)
 reportlab>=4.0,<5.0
+
+# 🔧 BMW/Mini ECU subsystem — optional hardware deps.
+# Install only on workshop laptops connected to ICOM/ENET/K+DCAN hardware.
+# The mock simulator + unit tests work without these.
+#   udsoncan>=1.21       # UDS protocol primitives
+#   doipclient>=1.1      # ENET / DoIP transport
+#   python-can>=4.3      # SocketCAN + bus abstraction
+#   can-isotp>=2.0       # ISO-TP framing for K+DCAN / SocketCAN
+#   pyserial>=3.5        # K+DCAN USB serial
