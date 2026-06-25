@@ -11,4 +11,7 @@ urlpatterns = [
 
     # Coding Room HTML page (session-auth, technician/customer-facing).
     path("bmw-ecu/coding-room/", views_ui.coding_room, name="coding_room"),
+
+    # Super-admin Gift issuance UI (staff_member_required).
+    path("bmw-ecu/admin/gifts/", views_ui.admin_gift_form, name="admin_gift_form"),
 ]
