@@ -31,6 +31,36 @@ class NoInterfaceDetected(ConnectionError_):
     code = "NO_INTERFACE_DETECTED"
 
 
+# --- Hardware / wiring (chatbot translates these to actionable instructions) ---
+class HardwareWiringError(BmwEcuError):
+    code = "HARDWARE_WIRING"
+
+
+class ECUNoPowerError(HardwareWiringError):
+    code = "ECU_NO_POWER"
+
+
+class CANLinesReversedError(HardwareWiringError):
+    code = "CAN_LINES_REVERSED"
+
+
+class IgnitionOffError(HardwareWiringError):
+    code = "IGNITION_OFF"
+
+
+class BoxNotConnectedError(HardwareWiringError):
+    code = "SMART_BOX_NOT_CONNECTED"
+
+
+# --- Billing ----------------------------------------------------------------
+class BillingError(BmwEcuError):
+    code = "BILLING_ERROR"
+
+
+class FeeAuthorizationDeclined(BillingError):
+    code = "FEE_AUTH_DECLINED"
+
+
 # --- Safety layer -----------------------------------------------------------
 class SafetyAbort(BmwEcuError):
     """Raised when a pre-flight or post-flight safety gate fails.
