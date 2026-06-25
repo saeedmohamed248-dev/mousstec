@@ -186,6 +186,89 @@ class DiagnosticFeeCharge(models.Model):
         return f"{self.vin} · {self.amount} {self.currency} · {self.status}"
 
 
+class GiftCredit(models.Model):
+    """Promotional grant from Mousstec management to a specific workshop.
+
+    Two kinds:
+      - CODING_CREDITS / ISN_CREDITS — counted, decrement on each use.
+      - SUBSCRIPTION_WINDOW — time-bounded, unlimited use during window.
+
+    Always tried FIRST before wallet/Paymob settlement. Idempotency at the
+    issuing layer is enforced by the admin endpoint (one open grant of
+    the same kind per tenant unless `allow_stack=True`).
+    """
+
+    GRANT_TYPE_CHOICES = [
+        ("coding_credits", "Coding credits (count)"),
+        ("isn_credits", "ISN credits (count)"),
+        ("subscription_window", "Subscription window (time-bounded)"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("consumed", "Consumed"),
+        ("expired", "Expired"),
+        ("revoked", "Revoked by admin"),
+    ]
+
+    tenant_schema = models.CharField(max_length=64, db_index=True,
+                                     help_text="clients.Client.schema_name")
+    grant_type = models.CharField(max_length=24, choices=GRANT_TYPE_CHOICES,
+                                  db_index=True)
+    credits_total = models.PositiveIntegerField(default=0,
+                                                help_text="0 for time-based")
+    credits_remaining = models.PositiveIntegerField(default=0)
+    valid_from = models.DateTimeField(auto_now_add=True, db_index=True)
+    valid_until = models.DateTimeField(null=True, blank=True, db_index=True,
+                                       help_text="null = no time bound")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES,
+                              default="active", db_index=True)
+    note = models.CharField(max_length=255, blank=True)
+    granted_by = models.CharField(max_length=64, blank=True,
+                                  help_text="username of issuing super-admin")
+    granted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-granted_at"]
+        verbose_name = "Gift Credit"
+        indexes = [
+            models.Index(fields=["tenant_schema", "status", "grant_type"]),
+        ]
+
+    def __str__(self) -> str:
+        if self.grant_type == "subscription_window":
+            return f"{self.tenant_schema} · subscription · until {self.valid_until:%Y-%m-%d}"
+        return f"{self.tenant_schema} · {self.grant_type} · {self.credits_remaining}/{self.credits_total}"
+
+    def is_consumable(self) -> bool:
+        from django.utils import timezone
+        if self.status != "active":
+            return False
+        if self.valid_until and self.valid_until < timezone.now():
+            return False
+        if self.grant_type == "subscription_window":
+            return True
+        return self.credits_remaining > 0
+
+
+class GiftCreditUsage(models.Model):
+    """Audit row each time a gift credit is consumed (or window-touched)."""
+
+    gift = models.ForeignKey(GiftCredit, on_delete=models.CASCADE,
+                             related_name="usages")
+    vin = models.CharField(max_length=17, db_index=True)
+    operation_type = models.CharField(max_length=16, db_index=True)
+    used_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reference = models.CharField(max_length=64, blank=True,
+                                 help_text="DiagnosticFeeCharge.authorization_ref")
+
+    class Meta:
+        ordering = ["-used_at"]
+        verbose_name = "Gift Credit Usage"
+
+    def __str__(self) -> str:
+        return f"{self.vin} · {self.operation_type} · {self.used_at:%Y-%m-%d}"
+
+
 class CodingEntitlementHold(models.Model):
     """Audit row for Coding operations attempted without an active subscription.
 
@@ -238,6 +321,7 @@ class BmwEcuSettlement(models.Model):
     """
 
     MODE_CHOICES = [
+        ("gift", "Gift Credit"),
         ("wallet", "Wallet Deduct"),
         ("paymob", "Paymob Iframe"),
         ("failed", "Settlement Failed"),
@@ -256,6 +340,9 @@ class BmwEcuSettlement(models.Model):
     wallet_after = models.DecimalField(max_digits=15, decimal_places=2,
                                        null=True, blank=True)
     paymob_iframe_url = models.URLField(max_length=1024, blank=True)
+    gift = models.ForeignKey("GiftCredit", on_delete=models.SET_NULL,
+                             null=True, blank=True,
+                             related_name="settlements")
     error_message = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
