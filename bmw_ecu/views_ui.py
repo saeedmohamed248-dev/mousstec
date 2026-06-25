@@ -6,6 +6,7 @@ vanilla-JS controller in `static/bmw_ecu/coding_room.js`.
 """
 from __future__ import annotations
 
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
@@ -27,3 +28,45 @@ def coding_room(request):
         "chassis": request.GET.get("chassis", "F30"),
     }
     return render(request, "bmw_ecu/coding_room.html", context)
+
+
+@staff_member_required
+@require_GET
+def admin_gift_form(request):
+    """Mousstec Super-Admin gift issuance UI.
+
+    Renders a form that POSTs to /api/admin/entitlements/gift, plus a
+    table of the 20 most-recent gifts with revoke buttons that hit
+    /api/admin/entitlements/gift/<pk>/revoke.
+
+    All data is fetched from the PUBLIC schema (where gift rows live
+    for cross-tenant super-admin visibility) regardless of the
+    requesting subdomain's tenant context.
+    """
+    from django_tenants.utils import schema_context
+    from .models import GiftCredit
+
+    with schema_context("public"):
+        # Tenants list — Client is the django_tenants tenant model.
+        try:
+            from clients.models import Client
+            tenants = list(
+                Client.objects.exclude(schema_name="public")
+                .order_by("schema_name")
+                .values("schema_name", "name")[:500]
+            )
+        except Exception:
+            tenants = []
+
+        recent = list(
+            GiftCredit.objects.order_by("-granted_at")[:20]
+            .values("pk", "tenant_schema", "grant_type", "credits_total",
+                    "credits_remaining", "valid_until", "status",
+                    "granted_by", "granted_at", "note")
+        )
+
+    context = {
+        "tenants": tenants,
+        "recent_gifts": recent,
+    }
+    return render(request, "bmw_ecu/admin_gift_form.html", context)
