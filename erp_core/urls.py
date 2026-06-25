@@ -326,6 +326,9 @@ urlpatterns = [
     # 🎨 Printing AI Studio endpoints
     path('printing/', include('printing.urls')),
 
+    # 🔧 BMW/Mini ECU subsystem — chatbot-driven ISN flow (Pay-Per-Success 450 EGP/VIN)
+    path('', include('bmw_ecu.urls')),
+
     # 🧠 المستشار الذكي (Cognitive Advisor Agent) — Two-Stage Pipeline
     # Phase 1: Function-calling agent مع 4 tools متخصصة (cash flow, dead stock,
     # inventory sim, report links). كل tool محصور في tenant schema الحالي.
