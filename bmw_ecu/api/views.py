@@ -94,7 +94,25 @@ def wizard_step(request: Request) -> Response:
 
 # --- Async core --------------------------------------------------------------
 async def _run_execute(payload: dict[str, Any]) -> dict[str, Any]:
+    # Backwards-compat: operation_type defaults to "isn" so the existing
+    # chatbot flow is byte-identical.
+    operation_type = (payload.get("operation_type") or "isn").lower()
+
     orchestrator, ctx = await _build(payload)
+
+    if operation_type == "coding":
+        # Coding flow uses a separate orchestrator + entitlement gate.
+        # Same ChatbotPayload JSON shape — UI doesn't change.
+        from .coding_orchestrator import CodingOrchestrator
+        from ..services.billing_gate import LocalBillingGate
+
+        coding = CodingOrchestrator(billing=LocalBillingGate())
+        response = await coding.run(
+            ctx=ctx, coding_request=payload.get("coding_request") or {},
+        )
+        return response.to_json()
+
+    # Default = ISN flow (unchanged).
     target_isn = payload.get("target_isn_hex")
     if target_isn:
         ctx.target_isn = bytes.fromhex(target_isn)
