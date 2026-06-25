@@ -1,0 +1,56 @@
+"""UDS service IDs and negative response codes (ISO 14229)."""
+from __future__ import annotations
+
+import enum
+
+
+class SID(enum.IntEnum):
+    DIAGNOSTIC_SESSION_CONTROL = 0x10
+    ECU_RESET = 0x11
+    SECURITY_ACCESS = 0x27
+    COMMUNICATION_CONTROL = 0x28
+    TESTER_PRESENT = 0x3E
+    READ_DATA_BY_IDENT = 0x22
+    READ_MEMORY_BY_ADDRESS = 0x23
+    WRITE_DATA_BY_IDENT = 0x2E
+    WRITE_MEMORY_BY_ADDRESS = 0x3D
+    ROUTINE_CONTROL = 0x31
+    REQUEST_DOWNLOAD = 0x34
+    REQUEST_UPLOAD = 0x35
+    TRANSFER_DATA = 0x36
+    REQUEST_TRANSFER_EXIT = 0x37
+
+
+NEG_RESP = 0x7F
+
+
+class NRC(enum.IntEnum):
+    GENERAL_REJECT = 0x10
+    SERVICE_NOT_SUPPORTED = 0x11
+    SUB_FUNC_NOT_SUPPORTED = 0x12
+    BUSY_REPEAT_REQUEST = 0x21
+    CONDITIONS_NOT_CORRECT = 0x22
+    REQUEST_SEQUENCE_ERROR = 0x24
+    REQUEST_OUT_OF_RANGE = 0x31
+    SECURITY_ACCESS_DENIED = 0x33
+    INVALID_KEY = 0x35
+    EXCEEDED_NUMBER_OF_ATTEMPTS = 0x36
+    REQUIRED_TIME_DELAY_NOT_EXPIRED = 0x37
+    RESPONSE_PENDING = 0x78
+
+
+class DiagSession(enum.IntEnum):
+    DEFAULT = 0x01
+    PROGRAMMING = 0x02
+    EXTENDED = 0x03
+
+
+# Common BMW DIDs (sample — extend as you map per-ECU).
+class BmwDID(enum.IntEnum):
+    BATTERY_VOLTAGE = 0xF40C
+    VIN = 0xF190
+    SW_VERSION = 0xF195
+    HW_NUMBER = 0xF191
+    ECU_SERIAL = 0xF18C
+    PROGRAMMING_DATE = 0xF199
+    ISN = 0xF1A0  # placeholder — actual DID is platform-dependent + secured
