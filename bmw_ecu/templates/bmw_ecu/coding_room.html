@@ -1,0 +1,109 @@
+{% load static %}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMW Coding Room — Mousstec</title>
+<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}">
+</head>
+<body data-vin="{{ vin }}"
+      data-profile="{{ profile_name }}"
+      data-chassis="{{ chassis }}">
+
+<header class="cr-header">
+  <h1>🔧 Coding &amp; Retrofit Room</h1>
+  <div class="cr-session">
+    <label>VIN:
+      <input id="vin-input" type="text" value="{{ vin }}" placeholder="WBA…">
+    </label>
+    <label>Profile:
+      <select id="profile-input">
+        <option value="FEM_F30" {% if profile_name == "FEM_F30" %}selected{% endif %}>FEM_F30</option>
+        <option value="FEM_F30_POST_2014" {% if profile_name == "FEM_F30_POST_2014" %}selected{% endif %}>FEM_F30 (post-2014)</option>
+        <option value="MEVD17_2_9" {% if profile_name == "MEVD17_2_9" %}selected{% endif %}>MEVD17_2_9 (N20)</option>
+      </select>
+    </label>
+    <label>Chassis:
+      <select id="chassis-input">
+        <option value="F20">F20</option>
+        <option value="F22">F22</option>
+        <option value="F30" {% if chassis == "F30" %}selected{% endif %}>F30</option>
+        <option value="F32">F32</option>
+        <option value="F36">F36</option>
+      </select>
+    </label>
+    <button id="load-features-btn" type="button">📋 Load features</button>
+  </div>
+</header>
+
+<main class="cr-main">
+
+  <!-- LEFT: chatbot conversation -->
+  <section class="cr-chat" aria-label="Chatbot conversation">
+    <div id="chat-log" class="cr-chat-log" role="log" aria-live="polite"></div>
+    <form id="chat-form" class="cr-chat-input">
+      <input id="chat-input" type="text" autocomplete="off"
+             placeholder="اكتب رسالة أو سؤال للـ AI…">
+      <button type="submit">➤</button>
+    </form>
+  </section>
+
+  <!-- RIGHT: interactive feature panel -->
+  <aside class="cr-panel" aria-label="Hidden features">
+    <div class="cr-panel-head">
+      <h2>الميزات المخفية / Hidden features</h2>
+      <div class="cr-filter">
+        <label>Category:
+          <select id="category-filter">
+            <option value="">All</option>
+            <option value="comfort">Comfort</option>
+            <option value="kombi">KOMBI cluster</option>
+            <option value="lighting">Lighting</option>
+            <option value="safety_disable">⚠️ Safety disable</option>
+            <option value="performance_display">Performance display</option>
+          </select>
+        </label>
+        <span id="selected-count" class="cr-counter">0 selected</span>
+      </div>
+    </div>
+
+    <div id="feature-grid" class="cr-grid">
+      <div class="cr-empty">اضغط «Load features» للبدء.</div>
+    </div>
+
+    <footer class="cr-panel-foot">
+      <button id="apply-btn" class="cr-apply" type="button" disabled>
+        🚀 Execute / Apply selected
+      </button>
+    </footer>
+  </aside>
+
+</main>
+
+<!-- Safety confirmation modal (shown for safety_disable features) -->
+<div id="safety-modal" class="cr-modal" hidden>
+  <div class="cr-modal-body">
+    <h3>⚠️ تأكيد عطل ميزة أمان</h3>
+    <p id="safety-modal-text"></p>
+    <ul id="safety-modal-list"></ul>
+    <label class="cr-consent">
+      <input type="checkbox" id="safety-consent">
+      أتعهد بإن العميل وقّع على إقرار الموافقة. <span class="en">Customer signed consent acknowledged.</span>
+    </label>
+    <div class="cr-modal-actions">
+      <button id="safety-cancel" type="button">إلغاء</button>
+      <button id="safety-confirm" type="button" disabled>تأكيد وتنفيذ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.BMW_ECU_CFG = {
+    executeUrl: "{% url 'bmw_ecu:bmw_ecu_api:execute' %}",
+    csrfToken: "{{ csrf_token }}",
+  };
+</script>
+<script src="{% static 'bmw_ecu/coding_room.js' %}" defer></script>
+</body>
+</html>
