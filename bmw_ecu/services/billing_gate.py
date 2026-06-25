@@ -41,6 +41,7 @@ class AuthorizationResult:
     currency: str
     status: str
     is_new: bool                    # False = idempotent replay
+    operation_type: str = "isn"     # "isn" | "coding"
 
 
 class AbstractBillingGate(abc.ABC):
@@ -57,6 +58,54 @@ class AbstractBillingGate(abc.ABC):
 
     @abc.abstractmethod
     async def release_fee(self, *, vin: str, reason: str = "") -> AuthorizationResult: ...
+
+    # --- Generic entitlement check (Coding + future op types) -------------
+    async def verify_coding_subscription_or_hold(
+        self, *, vin: str, operation_type: str = "coding",
+    ) -> "CodingEntitlement":
+        """Verify the workshop is entitled to run `operation_type`.
+
+        Returns a CodingEntitlement (entitled, mode, refs). Default impl
+        delegates to the configured EntitlementProvider — ISN bypasses
+        the subscription check and always returns entitled=True with
+        mode='subscription' (the fee gate handles ISN billing instead).
+        """
+        from .entitlement import (
+            OperationType, get_default_provider, EntitlementVerdict,
+        )
+
+        try:
+            op = OperationType(operation_type)
+        except ValueError as e:
+            raise BillingError(f"Unknown operation_type: {operation_type}") from e
+
+        provider = self._entitlement_provider() or get_default_provider()
+        verdict: EntitlementVerdict = await provider.verify(
+            vin=vin, operation_type=op,
+        )
+        return CodingEntitlement(
+            entitled=verdict.entitled,
+            operation_type=verdict.operation_type.value,
+            mode=verdict.mode,
+            subscription_ref=verdict.subscription_ref,
+            hold_ref=verdict.hold_ref,
+            reason=verdict.reason,
+        )
+
+    def _entitlement_provider(self):
+        """Override in subclass to inject a stub provider in tests."""
+        return None
+
+
+@dataclass(frozen=True)
+class CodingEntitlement:
+    """Outcome of an entitlement check — chatbot-friendly shape."""
+    entitled: bool
+    operation_type: str
+    mode: str                       # "subscription" | "hold" | "denied"
+    subscription_ref: str = ""
+    hold_ref: str = ""
+    reason: str = ""
 
 
 # ---------------------------------------------------------------------------
