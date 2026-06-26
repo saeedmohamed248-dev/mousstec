@@ -12,6 +12,8 @@
 """
 from __future__ import annotations
 
+import re
+
 
 DIAGNOSTIC_BRANDS: dict[str, dict] = {
     # ─────────────────────────────────────────────────────────────────
@@ -779,7 +781,6 @@ def detect_brand_from_text(text: str) -> str | None:
     """
     if not text:
         return None
-    import re
     # Token = run of letters/digits/hyphen. Lowercases all-at-once for cheap
     # case-insensitive comparison against pre-lowered catalogs.
     tokens = {t for t in re.findall(r'[A-Za-z0-9\-]+', text)}

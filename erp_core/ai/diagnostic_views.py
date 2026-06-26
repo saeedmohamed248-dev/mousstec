@@ -52,26 +52,28 @@ def _brand_catalog_for_template():
 @login_required
 def diagnostic_page_shop(request):
     """صفحة التشخيص للورشة (الفنيين المحترفين)."""
+    brands, brands_json = _brand_catalog_for_template()
     return render(request, 'erp_core/auto_diagnostic.html', {
         'audience': 'shop',
         'audience_label': 'الفني / الورشة',
         'audience_emoji': '🔧',
         'tenant_schema': getattr(connection, 'schema_name', 'public'),
-        'brands': _brand_catalog_for_template()[0],
-        'brands_json': _brand_catalog_for_template()[1],
+        'brands': brands,
+        'brands_json': brands_json,
     })
 
 
 @login_required
 def diagnostic_page_customer(request):
     """صفحة التشخيص لصاحب السيارة (مش فني)."""
+    brands, brands_json = _brand_catalog_for_template()
     return render(request, 'erp_core/auto_diagnostic.html', {
         'audience': 'customer',
         'audience_label': 'صاحب السيارة',
         'audience_emoji': '🚙',
         'tenant_schema': getattr(connection, 'schema_name', 'public'),
-        'brands': _brand_catalog_for_template()[0],
-        'brands_json': _brand_catalog_for_template()[1],
+        'brands': brands,
+        'brands_json': brands_json,
     })
 
 

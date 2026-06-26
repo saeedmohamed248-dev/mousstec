@@ -219,8 +219,17 @@ def _check_granular_grant_sync(*, tenant_schema: str, feature_code: str,
         return None
 
     # 1️⃣ Package grants take precedence (they're the "bundle" purchase).
+    # ⚠️ We INCLUDE non-revoked terminal statuses (expired / exhausted) in
+    # the filter — otherwise a grant auto-marked 'exhausted' by a previous
+    # consume() would disappear from the result set, `saw_expired_or_exhausted`
+    # would stay False, and the caller would fall through to the legacy
+    # global-whitelist path — silently RE-ENTITLING a tenant whose
+    # subscription just ran out. Revoked grants are excluded so an admin
+    # revocation has the same effect as "never bought it" (legacy decides).
+    NON_REVOKED = ("active", "expired", "exhausted")
     pkg_grants = (TenantPackageGrant.objects
-                  .filter(tenant_schema=tenant_schema, status="active",
+                  .filter(tenant_schema=tenant_schema,
+                          status__in=NON_REVOKED,
                           package__features=feature,
                           package__is_active=True)
                   .select_related("package")
@@ -240,9 +249,10 @@ def _check_granular_grant_sync(*, tenant_schema: str, feature_code: str,
             )
         saw_expired_or_exhausted = True
 
-    # 2️⃣ Direct single-feature grants.
+    # 2️⃣ Direct single-feature grants — same non-revoked filter rationale.
     feat_grants = (TenantFeatureGrant.objects
-                   .filter(tenant_schema=tenant_schema, status="active",
+                   .filter(tenant_schema=tenant_schema,
+                           status__in=NON_REVOKED,
                            feature=feature)
                    .order_by("-granted_at"))
     for g in feat_grants:
@@ -338,43 +348,55 @@ def consume_feature_usage_sync(*, verdict: EntitlementVerdict,
     if feature is None:
         return False
 
-    # Idempotency probe — bail out if we already booked this exact ref.
-    if operation_ref and FeatureUsageEvent.objects.filter(
-        tenant_schema=tenant_schema, feature=feature,
-        operation_ref=operation_ref,
-    ).exists():
-        return True
-
     Model = (TenantPackageGrant if verdict.grant_kind == "package"
              else TenantFeatureGrant)
-    with transaction.atomic():
-        grant = (Model.objects
-                 .select_for_update()
-                 .filter(pk=verdict.grant_pk).first())
-        if grant is None:
-            return False
+    from django.db import IntegrityError
+    try:
+        with transaction.atomic():
+            grant = (Model.objects
+                     .select_for_update()
+                     .filter(pk=verdict.grant_pk).first())
+            if grant is None:
+                return False
 
-        # Re-check validity under lock — race with another consumer.
-        if not grant.is_currently_valid():
-            return False
+            # ── Idempotency probe — INSIDE the transaction so a concurrent
+            # consume() with the same operation_ref racing through select_for_update
+            # cannot double-book. The partial unique index defined on
+            # FeatureUsageEvent (tenant_schema, feature, operation_ref) is the
+            # ultimate safety net — even if a worker bypasses this probe, the
+            # INSERT will fail with IntegrityError below.
+            if operation_ref and FeatureUsageEvent.objects.filter(
+                tenant_schema=tenant_schema, feature=feature,
+                operation_ref=operation_ref,
+            ).exists():
+                return True
 
-        grant.usage_used = (grant.usage_used or 0) + 1
-        # Auto-transition the grant into exhausted/expired so subsequent
-        # verifies short-circuit instead of touching the row again.
-        if grant.is_usage_exhausted():
-            grant.status = "exhausted"
-        elif grant.is_time_expired():
-            grant.status = "expired"
-        grant.save(update_fields=["usage_used", "status", "updated_at"])
+            # Re-check validity under lock — race with another consumer.
+            if not grant.is_currently_valid():
+                return False
 
-        FeatureUsageEvent.objects.create(
-            tenant_schema=tenant_schema, feature=feature,
-            grant_kind=verdict.grant_kind,
-            package_grant=grant if verdict.grant_kind == "package" else None,
-            feature_grant=grant if verdict.grant_kind == "feature" else None,
-            vin=vin, operation_ref=operation_ref,
-        )
-    return True
+            grant.usage_used = (grant.usage_used or 0) + 1
+            # Auto-transition the grant into exhausted/expired so subsequent
+            # verifies short-circuit instead of touching the row again.
+            if grant.is_usage_exhausted():
+                grant.status = "exhausted"
+            elif grant.is_time_expired():
+                grant.status = "expired"
+            grant.save(update_fields=["usage_used", "status", "updated_at"])
+
+            FeatureUsageEvent.objects.create(
+                tenant_schema=tenant_schema, feature=feature,
+                grant_kind=verdict.grant_kind,
+                package_grant=grant if verdict.grant_kind == "package" else None,
+                feature_grant=grant if verdict.grant_kind == "feature" else None,
+                vin=vin, operation_ref=operation_ref,
+            )
+        return True
+    except IntegrityError:
+        # The partial unique index on (tenant_schema, feature, operation_ref)
+        # rejected the INSERT — another worker already recorded this exact
+        # operation_ref. That's the idempotency contract honouring itself.
+        return True
 
 
 @sync_to_async

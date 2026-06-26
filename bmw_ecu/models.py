@@ -621,6 +621,18 @@ class FeatureUsageEvent(models.Model):
         indexes = [
             models.Index(fields=["tenant_schema", "feature", "used_at"]),
         ]
+        constraints = [
+            # Idempotency at the DB level: a second consume() call with the
+            # same (tenant, feature, operation_ref) triple cannot insert a
+            # duplicate even under racy concurrent retries. Empty operation_ref
+            # is excluded so callers that don't pass an idempotency key can
+            # still book unlimited events (e.g. legacy/anonymous flows).
+            models.UniqueConstraint(
+                fields=["tenant_schema", "feature", "operation_ref"],
+                condition=~models.Q(operation_ref=""),
+                name="bmw_ecu_unique_consume_per_op_ref",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.tenant_schema} · {self.feature.code} · {self.used_at:%Y-%m-%d}"

@@ -248,6 +248,39 @@ class GranularVerifyTests(TestCase):
         self.assertFalse(v.entitled)
         self.assertEqual(v.mode, "denied")
 
+    def test_terminal_status_grant_still_denies_with_legacy_flag(self) -> None:
+        """Audit fix B2 — a grant auto-marked status='exhausted' by a prior
+        consume() must NOT be invisible to the granular lookup. Before the
+        fix, the filter restricted to status='active' which silently dropped
+        terminal-status rows; with the legacy global flag on, the caller
+        would then fall through and re-entitle a lapsed customer."""
+        TenantFeatureGrant.objects.create(
+            tenant_schema=self.tenant, feature=self.feature,
+            billing_mode="usage", usage_quota=3, usage_used=3,
+            status="exhausted",   # ← terminal status the bug used to skip
+        )
+        with self.settings(BMW_ECU_CODING_ENTITLED_GLOBALLY=True):
+            v = self._verify(feature_code=self.feature_code)
+        self.assertFalse(v.entitled)
+        self.assertEqual(v.mode, "denied")
+        self.assertIn("expired or exhausted", v.reason)
+
+    def test_revoked_grant_falls_through_to_legacy(self) -> None:
+        """Audit fix B2 (sibling) — a revoked grant should behave as if the
+        tenant never had any grant (the legacy whitelist gets to decide),
+        because admin revocation models a refund + re-evaluation, not a
+        terminal billing event."""
+        TenantFeatureGrant.objects.create(
+            tenant_schema=self.tenant, feature=self.feature,
+            billing_mode="usage", usage_quota=3, status="revoked",
+        )
+        result = _check_granular_grant_sync(
+            tenant_schema=self.tenant,
+            feature_code=self.feature_code,
+            operation_type=OperationType.CODING,
+        )
+        self.assertIsNone(result)
+
     def test_no_grant_returns_none_so_caller_falls_through(self) -> None:
         """When tenant has NO grant for the feature, _check_granular_grant
         returns None — signalling the upstream verify() to fall through to
@@ -363,6 +396,45 @@ class ConsumeUsageTests(TestCase):
             verdict=legacy, tenant_schema=self.tenant,
             operation_ref="OP-LEGACY",
         ))
+
+    def test_unique_constraint_blocks_duplicate_at_db_level(self) -> None:
+        """Audit fix B4: the partial unique index on
+        (tenant_schema, feature, operation_ref) is the last line of
+        defence against a concurrent worker that bypasses the Python
+        idempotency probe. Construct a duplicate INSERT directly and
+        verify Postgres rejects it."""
+        from django.db import IntegrityError, transaction
+        from bmw_ecu.models import FeatureUsageEvent
+        FeatureUsageEvent.objects.create(
+            tenant_schema=self.tenant, feature=self.feature,
+            grant_kind="feature", feature_grant=self.grant,
+            vin="WBA1", operation_ref="OP-DUP",
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                FeatureUsageEvent.objects.create(
+                    tenant_schema=self.tenant, feature=self.feature,
+                    grant_kind="feature", feature_grant=self.grant,
+                    vin="WBA1", operation_ref="OP-DUP",
+                )
+
+    def test_unique_constraint_allows_empty_operation_ref(self) -> None:
+        """Audit fix B4: the partial unique index has a
+        `condition=~Q(operation_ref="")` clause so callers without an
+        idempotency key (legacy / anonymous flows) can still book
+        multiple events. Two consecutive rows with operation_ref=""
+        must both succeed."""
+        from bmw_ecu.models import FeatureUsageEvent
+        for _ in range(2):
+            FeatureUsageEvent.objects.create(
+                tenant_schema=self.tenant, feature=self.feature,
+                grant_kind="feature", feature_grant=self.grant,
+                vin="WBA1", operation_ref="",
+            )
+        self.assertEqual(
+            FeatureUsageEvent.objects.filter(operation_ref="").count(),
+            2,
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
