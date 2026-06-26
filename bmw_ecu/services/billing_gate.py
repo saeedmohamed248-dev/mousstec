@@ -62,13 +62,20 @@ class AbstractBillingGate(abc.ABC):
     # --- Generic entitlement check (Coding + future op types) -------------
     async def verify_coding_subscription_or_hold(
         self, *, vin: str, operation_type: str = "coding",
+        feature_code: Optional[str] = None,
     ) -> "CodingEntitlement":
-        """Verify the workshop is entitled to run `operation_type`.
+        """Verify the workshop is entitled to run `operation_type` (and
+        optionally a specific granular `feature_code`).
 
         Returns a CodingEntitlement (entitled, mode, refs). Default impl
         delegates to the configured EntitlementProvider — ISN bypasses
         the subscription check and always returns entitled=True with
         mode='subscription' (the fee gate handles ISN billing instead).
+
+        When `feature_code` is provided, the provider consults the
+        TenantPackageGrant + TenantFeatureGrant tables first; legacy
+        settings-whitelist / gift behaviour kicks in as a fallback so
+        the existing 70 entitlement tests stay green.
         """
         from .entitlement import (
             OperationType, get_default_provider, EntitlementVerdict,
@@ -81,7 +88,7 @@ class AbstractBillingGate(abc.ABC):
 
         provider = self._entitlement_provider() or get_default_provider()
         verdict: EntitlementVerdict = await provider.verify(
-            vin=vin, operation_type=op,
+            vin=vin, operation_type=op, feature_code=feature_code,
         )
         return CodingEntitlement(
             entitled=verdict.entitled,
@@ -90,6 +97,10 @@ class AbstractBillingGate(abc.ABC):
             subscription_ref=verdict.subscription_ref,
             hold_ref=verdict.hold_ref,
             reason=verdict.reason,
+            feature_code=verdict.feature_code,
+            grant_kind=verdict.grant_kind,
+            grant_pk=verdict.grant_pk,
+            usage_remaining=verdict.usage_remaining,
         )
 
     def _entitlement_provider(self):
@@ -102,10 +113,15 @@ class CodingEntitlement:
     """Outcome of an entitlement check — chatbot-friendly shape."""
     entitled: bool
     operation_type: str
-    mode: str                       # "subscription" | "hold" | "denied"
+    mode: str                       # "subscription" | "hold" | "denied" | "package" | "feature_grant" | "gift"
     subscription_ref: str = ""
     hold_ref: str = ""
     reason: str = ""
+    # ── Granular-grant fields (populated when verify was called with feature_code)
+    feature_code: str = ""
+    grant_kind: str = ""            # "package" | "feature" — empty for legacy paths
+    grant_pk: int = 0               # row id; consumers pass this to consume_feature_usage()
+    usage_remaining: Optional[int] = None  # None when unlimited
 
 
 # ---------------------------------------------------------------------------

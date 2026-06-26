@@ -354,6 +354,278 @@ class BmwEcuSettlement(models.Model):
         return f"{self.charge.vin} · {self.mode} · {self.amount} {self.currency}"
 
 
+#############################################################################
+# Granular SaaS Billing — Feature catalog, Packages, and per-tenant Grants.
+#
+# Layered on top of the existing CodingEntitlementHold / GiftCredit machinery,
+# NOT a replacement. The legacy settings whitelist (BMW_ECU_CODING_ENTITLED_*)
+# still applies — when no feature_code is asked for, the old code path runs
+# unchanged. When a feature_code IS specified, the new tables decide.
+#
+# Mental model:
+#   Feature                 → atomic capability ("frm_repair", "key_programming")
+#   SubscriptionPackage     → admin-defined bundle of Features ("Key Master")
+#   TenantPackageGrant      → workshop bought / was gifted a Package instance
+#   TenantFeatureGrant      → workshop got one Feature directly (no package)
+#
+# Both grant tables carry the SAME limit semantics (time-bound OR usage-bound)
+# so a single helper can answer "is this tenant currently entitled to X?".
+#############################################################################
+class Feature(models.Model):
+    """Atomic capability the platform sells. Admin-managed catalog row."""
+
+    CATEGORY_CHOICES = [
+        ("coding", "Coding (CAFD / FA-VO)"),
+        ("repair", "Module Repair (FRM, footwell, BDC)"),
+        ("key_programming", "Key Programming"),
+        ("isn_reset", "ISN Reset (EGS / used module swap)"),
+        ("crash_reset", "Crash Reset (Airbag / SRS)"),
+        ("battery", "Battery / CBS Management"),
+        ("flash", "Flashing / Firmware"),
+        ("diagnostic", "Diagnostic / Read-only"),
+        ("other", "Other"),
+    ]
+    # Mirrors bmw_ecu.services.entitlement.OperationType so legacy callers
+    # that only know "coding" / "isn" still resolve correctly when a Feature
+    # is asked for as part of one of those flows.
+    OP_TYPE_CHOICES = [
+        ("coding", "Coding"),
+        ("isn", "ISN"),
+        ("flash", "Flash"),
+        ("repair", "Repair"),
+        ("reset", "Reset"),
+    ]
+
+    code = models.SlugField(max_length=64, unique=True,
+                            help_text="Stable machine identifier, e.g. 'frm_repair'.")
+    name = models.CharField(max_length=128)
+    category = models.CharField(max_length=24, choices=CATEGORY_CHOICES,
+                                default="other", db_index=True)
+    default_operation_type = models.CharField(
+        max_length=16, choices=OP_TYPE_CHOICES, default="coding",
+        help_text="Coarse-grained op family — keeps the legacy ISN-vs-Coding gate happy.",
+    )
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, db_index=True,
+                                    help_text="False hides this feature from new package bundles.")
+    sort_order = models.PositiveIntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "code"]
+        verbose_name = "Feature"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.code})"
+
+
+class SubscriptionPackage(models.Model):
+    """A bundle of Features the Super Admin can sell as one product.
+
+    Packages carry DEFAULT limits — actual TenantPackageGrant rows snapshot
+    those defaults at purchase time so a price/quota change to the Package
+    catalog never silently mutates an already-active customer subscription.
+    """
+
+    BILLING_MODE_CHOICES = [
+        ("time", "Time-bound (e.g. 30 days)"),
+        ("usage", "Usage-bound (e.g. 10 successful runs)"),
+        ("hybrid", "Hybrid (whichever runs out first)"),
+        ("unlimited", "Unlimited (lifetime)"),
+    ]
+
+    code = models.SlugField(max_length=64, unique=True,
+                            help_text="e.g. 'pkg_key_master', 'pkg_full_suite'.")
+    name = models.CharField(max_length=128)
+    description = models.TextField(blank=True)
+    features = models.ManyToManyField(
+        Feature, related_name="packages", blank=True,
+        help_text="Atomic features bundled into this package.",
+    )
+
+    billing_mode = models.CharField(max_length=16, choices=BILLING_MODE_CHOICES,
+                                    default="time", db_index=True)
+    default_duration_days = models.PositiveIntegerField(
+        default=30, help_text="Time-bound: how long the grant is valid. 0 = unlimited.",
+    )
+    default_usage_quota = models.PositiveIntegerField(
+        default=0, help_text="Usage-bound: total successful operations allowed. 0 = unlimited.",
+    )
+    price_egp = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Sticker price the storefront card shows.",
+    )
+    currency = models.CharField(max_length=3, default="EGP")
+    is_active = models.BooleanField(default=True, db_index=True)
+    is_featured = models.BooleanField(
+        default=False, help_text="Highlight on the storefront ('Most popular').",
+    )
+    sort_order = models.PositiveIntegerField(default=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "code"]
+        verbose_name = "Subscription Package"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.code})"
+
+    def feature_codes(self) -> list[str]:
+        """Convenience — list of feature codes contained in this package."""
+        return list(self.features.filter(is_active=True).values_list("code", flat=True))
+
+
+class _AbstractTenantGrant(models.Model):
+    """Shared limit/lifecycle plumbing for TenantPackageGrant & TenantFeatureGrant.
+
+    Lifecycle states mirror GiftCredit so the front-end can render both
+    tables in one timeline without a special-case per type.
+    """
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("expired", "Expired (time)"),
+        ("exhausted", "Exhausted (usage)"),
+        ("revoked", "Revoked by admin"),
+    ]
+    BILLING_MODE_CHOICES = SubscriptionPackage.BILLING_MODE_CHOICES
+
+    tenant_schema = models.CharField(max_length=64, db_index=True,
+                                     help_text="clients.Client.schema_name")
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES,
+                              default="active", db_index=True)
+    billing_mode = models.CharField(max_length=16, choices=BILLING_MODE_CHOICES,
+                                    default="time", db_index=True)
+
+    valid_from = models.DateTimeField(auto_now_add=True, db_index=True)
+    valid_until = models.DateTimeField(null=True, blank=True, db_index=True,
+                                       help_text="null = unlimited time")
+    usage_quota = models.PositiveIntegerField(default=0,
+                                              help_text="0 = unlimited usage")
+    usage_used = models.PositiveIntegerField(default=0)
+
+    price_paid_egp = models.DecimalField(max_digits=10, decimal_places=2,
+                                         default=0)
+    granted_by = models.CharField(max_length=64, blank=True,
+                                  help_text="Super-admin username or 'paymob:<txn>'")
+    note = models.CharField(max_length=255, blank=True)
+
+    granted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["-granted_at"]
+
+    # ---- limit-state helpers ----------------------------------------------
+    def usage_remaining(self) -> int | None:
+        """None when unlimited, else int >= 0."""
+        if self.usage_quota == 0:
+            return None
+        return max(0, self.usage_quota - self.usage_used)
+
+    def is_time_expired(self) -> bool:
+        from django.utils import timezone
+        return bool(self.valid_until and self.valid_until < timezone.now())
+
+    def is_usage_exhausted(self) -> bool:
+        return self.usage_quota > 0 and self.usage_used >= self.usage_quota
+
+    def is_currently_valid(self) -> bool:
+        """Active + within time window + has usage left (mode-aware)."""
+        if self.status != "active":
+            return False
+        if self.billing_mode in ("time", "hybrid") and self.is_time_expired():
+            return False
+        if self.billing_mode in ("usage", "hybrid") and self.is_usage_exhausted():
+            return False
+        return True
+
+
+class TenantPackageGrant(_AbstractTenantGrant):
+    """A specific tenant ↔ package binding with its own limits + audit trail."""
+
+    package = models.ForeignKey(
+        SubscriptionPackage, on_delete=models.PROTECT,
+        related_name="tenant_grants",
+    )
+
+    class Meta(_AbstractTenantGrant.Meta):
+        verbose_name = "Tenant Package Grant"
+        indexes = [
+            models.Index(fields=["tenant_schema", "status"]),
+            models.Index(fields=["tenant_schema", "package", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        suffix = self.valid_until.strftime("%Y-%m-%d") if self.valid_until else "∞"
+        return f"{self.tenant_schema} · {self.package.code} · until {suffix}"
+
+
+class TenantFeatureGrant(_AbstractTenantGrant):
+    """A specific tenant ↔ single-feature binding (a-la-carte purchases)."""
+
+    feature = models.ForeignKey(
+        Feature, on_delete=models.PROTECT,
+        related_name="tenant_grants",
+    )
+
+    class Meta(_AbstractTenantGrant.Meta):
+        verbose_name = "Tenant Feature Grant"
+        indexes = [
+            models.Index(fields=["tenant_schema", "status"]),
+            models.Index(fields=["tenant_schema", "feature", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        suffix = self.valid_until.strftime("%Y-%m-%d") if self.valid_until else "∞"
+        return f"{self.tenant_schema} · {self.feature.code} · until {suffix}"
+
+
+class FeatureUsageEvent(models.Model):
+    """Append-only consumption ledger — one row per successful feature run.
+
+    Decrements `usage_used` on the source grant via the entitlement service
+    (NOT via signals, to keep the transaction in one place). Powers usage
+    reports + lets accounting trace "which VIN ate which subscription unit".
+    """
+
+    GRANT_KIND_CHOICES = [
+        ("package", "Package grant"),
+        ("feature", "Feature grant"),
+    ]
+
+    tenant_schema = models.CharField(max_length=64, db_index=True)
+    feature = models.ForeignKey(Feature, on_delete=models.PROTECT,
+                                related_name="usage_events")
+    grant_kind = models.CharField(max_length=8, choices=GRANT_KIND_CHOICES,
+                                  db_index=True)
+    package_grant = models.ForeignKey(TenantPackageGrant,
+                                      on_delete=models.SET_NULL,
+                                      null=True, blank=True,
+                                      related_name="usage_events")
+    feature_grant = models.ForeignKey(TenantFeatureGrant,
+                                      on_delete=models.SET_NULL,
+                                      null=True, blank=True,
+                                      related_name="usage_events")
+    vin = models.CharField(max_length=17, db_index=True, blank=True)
+    operation_ref = models.CharField(max_length=64, blank=True,
+                                     help_text="DiagnosticFeeCharge.authorization_ref or session id")
+    used_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-used_at"]
+        verbose_name = "Feature Usage Event"
+        indexes = [
+            models.Index(fields=["tenant_schema", "feature", "used_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.tenant_schema} · {self.feature.code} · {self.used_at:%Y-%m-%d}"
+
+
 class EcuBackupRef(models.Model):
     """Index of on-disk backups so the cloud knows what's safely stored."""
 

@@ -42,20 +42,30 @@ class OperationType(str, enum.Enum):
 class EntitlementVerdict:
     entitled: bool
     operation_type: OperationType
-    mode: str                    # "subscription" | "hold" | "denied"
+    mode: str                    # "subscription" | "hold" | "denied" | "package" | "feature_grant" | "gift"
     subscription_ref: str = ""   # provider-specific id (TenantSubscription pk, etc.)
     hold_ref: str = ""           # idempotency key when mode="hold"
     reason: str = ""
+    feature_code: str = ""       # set when verify() was called with a granular feature_code
+    grant_kind: str = ""         # "package" | "feature" — which grant table answered, if any
+    grant_pk: int = 0            # row id of the matching TenantPackageGrant / TenantFeatureGrant
+    usage_remaining: int | None = None  # None = unlimited, else int >= 0
 
 
 class AbstractEntitlementProvider(abc.ABC):
     """One provider per environment. All implementations MUST be idempotent
-    against (vin, operation_type) — chatbot retries are safe."""
+    against (vin, operation_type, feature_code) — chatbot retries are safe.
+
+    `feature_code` is the granular axis introduced by the SubscriptionPackage
+    epic. When None, the provider runs the legacy ISN-vs-Coding logic for
+    backward compatibility with every existing call site.
+    """
 
     @abc.abstractmethod
     async def verify(self, *, vin: str,
                      operation_type: OperationType,
-                     tenant_schema: Optional[str] = None
+                     tenant_schema: Optional[str] = None,
+                     feature_code: Optional[str] = None,
                      ) -> EntitlementVerdict: ...
 
 
@@ -74,10 +84,14 @@ class DefaultEntitlementProvider(AbstractEntitlementProvider):
 
     async def verify(self, *, vin: str,
                      operation_type: OperationType,
-                     tenant_schema: Optional[str] = None
+                     tenant_schema: Optional[str] = None,
+                     feature_code: Optional[str] = None,
                      ) -> EntitlementVerdict:
-        if operation_type == OperationType.ISN:
+        if operation_type == OperationType.ISN and not feature_code:
             # ISN is always entitled at this layer — the fee gate handles it.
+            # (When the caller supplies a feature_code we still want the
+            # granular grant lookup to run — some ISN-family features like
+            # egs_isn_reset ARE gated by a package.)
             return EntitlementVerdict(
                 entitled=True, operation_type=operation_type,
                 mode="subscription", reason="ISN flow uses pay-per-success",
@@ -92,6 +106,20 @@ class DefaultEntitlementProvider(AbstractEntitlementProvider):
         whitelist = set(getattr(settings, "BMW_ECU_CODING_ENTITLED_TENANTS",
                                 set()))
         schema = tenant_schema or await _current_schema()
+
+        # ── NEW: granular feature-level grant lookup ───────────────────
+        # When the caller asks for a specific feature_code, package and
+        # feature grants take precedence over the coarse-grained settings
+        # whitelist. Returning early with a structured verdict means audit
+        # rows + usage tracking carry the right grant_pk for the consumer
+        # to decrement after a successful op.
+        if feature_code and schema:
+            granular = await _check_granular_grant(
+                tenant_schema=schema, feature_code=feature_code,
+                operation_type=operation_type,
+            )
+            if granular is not None:
+                return granular
 
         # Gift entitlement check — promotional grants beat the whitelist.
         if schema:
@@ -157,6 +185,227 @@ def _current_schema() -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Granular grant lookup — runs ONLY when verify() was called with feature_code.
+# Returns a fully-formed EntitlementVerdict, or None to fall through to the
+# legacy (settings whitelist / gift credit) check.
+#
+# Split into _sync core + sync_to_async wrapper so tests can exercise the
+# DB logic without paying for an event loop, and so production code paths
+# that ARE already sync (Django REST views) can call the underlying
+# function directly.
+# ---------------------------------------------------------------------------
+def _check_granular_grant_sync(*, tenant_schema: str, feature_code: str,
+                               operation_type: OperationType,
+                               ) -> Optional[EntitlementVerdict]:
+    """Look for an active TenantPackageGrant containing the requested feature,
+    then for a direct TenantFeatureGrant. First valid match wins.
+
+    Returns:
+      - EntitlementVerdict(entitled=True, ...) when a grant is found AND
+        currently valid (time + usage check).
+      - EntitlementVerdict(entitled=False, mode='denied', ...) when a grant
+        exists for the tenant + feature but is expired/exhausted/revoked.
+      - None when the tenant has no grant for this feature at all → caller
+        falls through to legacy settings whitelist / gift credit logic.
+    """
+    from ..models import (
+        Feature, TenantFeatureGrant, TenantPackageGrant,
+    )
+
+    # Resolve the feature once. Unknown code → cannot answer at this layer.
+    try:
+        feature = Feature.objects.get(code=feature_code, is_active=True)
+    except Feature.DoesNotExist:
+        return None
+
+    # 1️⃣ Package grants take precedence (they're the "bundle" purchase).
+    pkg_grants = (TenantPackageGrant.objects
+                  .filter(tenant_schema=tenant_schema, status="active",
+                          package__features=feature,
+                          package__is_active=True)
+                  .select_related("package")
+                  .order_by("-granted_at"))
+
+    saw_expired_or_exhausted = False
+    for g in pkg_grants:
+        if g.is_currently_valid():
+            return EntitlementVerdict(
+                entitled=True, operation_type=operation_type,
+                mode="package",
+                subscription_ref=f"pkg:{g.package.code}#{g.pk}",
+                reason=f"active package {g.package.code}",
+                feature_code=feature_code,
+                grant_kind="package", grant_pk=g.pk,
+                usage_remaining=g.usage_remaining(),
+            )
+        saw_expired_or_exhausted = True
+
+    # 2️⃣ Direct single-feature grants.
+    feat_grants = (TenantFeatureGrant.objects
+                   .filter(tenant_schema=tenant_schema, status="active",
+                           feature=feature)
+                   .order_by("-granted_at"))
+    for g in feat_grants:
+        if g.is_currently_valid():
+            return EntitlementVerdict(
+                entitled=True, operation_type=operation_type,
+                mode="feature_grant",
+                subscription_ref=f"feat:{feature.code}#{g.pk}",
+                reason=f"active feature grant {feature.code}",
+                feature_code=feature_code,
+                grant_kind="feature", grant_pk=g.pk,
+                usage_remaining=g.usage_remaining(),
+            )
+        saw_expired_or_exhausted = True
+
+    if saw_expired_or_exhausted:
+        # Tenant had a grant once — be explicit about WHY it's denied
+        # instead of falling through to the legacy whitelist (which would
+        # accidentally re-entitle them if they're on the global flag).
+        return EntitlementVerdict(
+            entitled=False, operation_type=operation_type,
+            mode="denied",
+            reason=f"grant for {feature_code} is expired or exhausted",
+            feature_code=feature_code,
+        )
+
+    # No grant of any kind for this tenant + feature → let legacy decide.
+    return None
+
+
+@sync_to_async
+def _check_granular_grant(*, tenant_schema: str, feature_code: str,
+                          operation_type: OperationType,
+                          ) -> Optional[EntitlementVerdict]:
+    """Async wrapper. sync_to_async runs the body on a dedicated worker
+    thread whose `connection` object is initialised on the *public*
+    schema, not the tenant schema the asyncio caller set. Use
+    django_tenants.schema_context to bracket the DB work so the worker's
+    connection is switched to the tenant schema for the duration of the
+    query and restored afterwards."""
+    if not tenant_schema:
+        return _check_granular_grant_sync(
+            tenant_schema=tenant_schema,
+            feature_code=feature_code,
+            operation_type=operation_type,
+        )
+    try:
+        from django_tenants.utils import schema_context
+    except ImportError:
+        # Non-tenant install (very unusual at runtime) — fall through.
+        return _check_granular_grant_sync(
+            tenant_schema=tenant_schema,
+            feature_code=feature_code,
+            operation_type=operation_type,
+        )
+    with schema_context(tenant_schema):
+        return _check_granular_grant_sync(
+            tenant_schema=tenant_schema,
+            feature_code=feature_code,
+            operation_type=operation_type,
+        )
+
+
+def consume_feature_usage_sync(*, verdict: EntitlementVerdict,
+                               tenant_schema: str,
+                               vin: str = "",
+                               operation_ref: str = "",
+                               ) -> bool:
+    """Atomically decrement the matching grant's usage counter + write an
+    audit row to FeatureUsageEvent.
+
+    Idempotency: caller must pass a stable `operation_ref` (e.g. the
+    DiagnosticFeeCharge.authorization_ref). A second call with the same
+    (tenant, feature, operation_ref) is a no-op and returns True.
+
+    Returns False only when the grant disappeared between verify() and
+    consume() — caller should re-verify and decide whether to roll back.
+    """
+    from django.db import transaction
+    from django.utils import timezone
+
+    from ..models import (
+        Feature, FeatureUsageEvent,
+        TenantFeatureGrant, TenantPackageGrant,
+    )
+
+    if not verdict.entitled or verdict.grant_kind not in ("package", "feature"):
+        # Nothing to consume — legacy paths (settings whitelist / gift)
+        # are tracked through their own ledgers (GiftCredit / settings).
+        return True
+
+    feature = Feature.objects.filter(code=verdict.feature_code).first()
+    if feature is None:
+        return False
+
+    # Idempotency probe — bail out if we already booked this exact ref.
+    if operation_ref and FeatureUsageEvent.objects.filter(
+        tenant_schema=tenant_schema, feature=feature,
+        operation_ref=operation_ref,
+    ).exists():
+        return True
+
+    Model = (TenantPackageGrant if verdict.grant_kind == "package"
+             else TenantFeatureGrant)
+    with transaction.atomic():
+        grant = (Model.objects
+                 .select_for_update()
+                 .filter(pk=verdict.grant_pk).first())
+        if grant is None:
+            return False
+
+        # Re-check validity under lock — race with another consumer.
+        if not grant.is_currently_valid():
+            return False
+
+        grant.usage_used = (grant.usage_used or 0) + 1
+        # Auto-transition the grant into exhausted/expired so subsequent
+        # verifies short-circuit instead of touching the row again.
+        if grant.is_usage_exhausted():
+            grant.status = "exhausted"
+        elif grant.is_time_expired():
+            grant.status = "expired"
+        grant.save(update_fields=["usage_used", "status", "updated_at"])
+
+        FeatureUsageEvent.objects.create(
+            tenant_schema=tenant_schema, feature=feature,
+            grant_kind=verdict.grant_kind,
+            package_grant=grant if verdict.grant_kind == "package" else None,
+            feature_grant=grant if verdict.grant_kind == "feature" else None,
+            vin=vin, operation_ref=operation_ref,
+        )
+    return True
+
+
+@sync_to_async
+def consume_feature_usage(*, verdict: EntitlementVerdict,
+                          tenant_schema: str,
+                          vin: str = "",
+                          operation_ref: str = "",
+                          ) -> bool:
+    """Async wrapper around consume_feature_usage_sync. Uses
+    django_tenants.schema_context so the worker thread's connection lands
+    on the tenant schema for the duration of the consume."""
+    if not tenant_schema:
+        return consume_feature_usage_sync(
+            verdict=verdict, tenant_schema=tenant_schema,
+            vin=vin, operation_ref=operation_ref,
+        )
+    try:
+        from django_tenants.utils import schema_context
+    except ImportError:
+        return consume_feature_usage_sync(
+            verdict=verdict, tenant_schema=tenant_schema,
+            vin=vin, operation_ref=operation_ref,
+        )
+    with schema_context(tenant_schema):
+        return consume_feature_usage_sync(
+            verdict=verdict, tenant_schema=tenant_schema,
+            vin=vin, operation_ref=operation_ref,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Test double
 # ---------------------------------------------------------------------------
 class MockEntitlementProvider(AbstractEntitlementProvider):
@@ -174,7 +423,8 @@ class MockEntitlementProvider(AbstractEntitlementProvider):
 
     async def verify(self, *, vin: str,
                      operation_type: OperationType,
-                     tenant_schema: Optional[str] = None
+                     tenant_schema: Optional[str] = None,
+                     feature_code: Optional[str] = None,
                      ) -> EntitlementVerdict:
         key = (vin, operation_type)
         if key in self._entitled:
