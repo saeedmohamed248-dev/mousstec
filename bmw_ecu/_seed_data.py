@@ -57,6 +57,11 @@ INITIAL_FEATURES: list[tuple[str, str, str, str, str, int]] = [
      "service", "reset",
      "قراءة حساسات ضغط الإطارات (ضغط/حرارة/بطارية) وإعادة ربط كل حساس "
      "بمكانه بعد تبديل الكاوتش أو الحساس.", 950),
+    ("ai_repair_assistant", "AI Repair Assistant (self-verifying)",
+     "diagnostic", "coding",
+     "مساعد إصلاح ذكي: يحلل الأكواد والأعراض والبيانات الحية، يقترح "
+     "الأسباب الأرجح مع نسبة ثقة، ويراجع نفسه (Generator + Verifier) "
+     "قبل ما يأكّد أي حل.", 960),
 ]
 
 # (code, name, description, billing_mode, duration_days, usage_quota, price_egp, sort_order, is_featured, feature_codes)
@@ -86,14 +91,15 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         ["f_series_coding", "g_series_coding", "e_series_coding",
          "cbs_battery_manager", "diagnostic_room", "full_system_scan",
          "live_data_stream", "service_resets", "bidirectional_tests",
-         "tpms_service"],
+         "tpms_service", "ai_repair_assistant"],
     ),
     (
         "pkg_repair_specialist",
         "Repair Specialist — FRM / BDC",
         "FRM3 BDM recovery + FEM/BDC repair + Airbag crash clear. للورش المتخصصة.",
         "usage", 0, 10, 6000, 40, False,
-        ["frm_repair", "bdc_repair", "acsm_crash_reset", "diagnostic_room"],
+        ["frm_repair", "bdc_repair", "acsm_crash_reset", "diagnostic_room",
+         "ai_repair_assistant"],
     ),
     (
         "pkg_full_suite",
@@ -108,6 +114,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
             "acsm_crash_reset", "cbs_battery_manager",
             "diagnostic_room", "full_system_scan", "live_data_stream",
             "service_resets", "bidirectional_tests", "tpms_service",
+            "ai_repair_assistant",
         ],
     ),
 ]
