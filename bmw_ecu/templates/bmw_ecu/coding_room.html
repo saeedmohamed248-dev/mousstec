@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMW Coding Room — Mousstec</title>
-<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}">
+<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=4">
 </head>
 <body data-vin="{{ vin }}"
       data-profile="{{ profile_name }}"
@@ -49,11 +49,24 @@
         <h3 id="guidance-title">إجراءات التوصيل / Connection steps</h3>
         <button id="guidance-close" type="button" aria-label="close">✕</button>
       </div>
-      <ol id="guidance-steps" class="cr-guidance-steps"></ol>
+      <!-- The system SHOWS the technician the module + pins first. -->
       <figure id="guidance-pinout" class="cr-guidance-pinout" hidden>
+        <figcaption class="cr-guidance-pinout-title">
+          📍 ده مخطط الكنترول بتاعك — كل بِن بلونه ومكانه
+          <span class="en">This is your module — every pin by colour &amp; position</span>
+        </figcaption>
         <img id="guidance-pinout-img" alt="ECU pinout diagram">
-        <figcaption id="guidance-callouts" class="cr-guidance-callouts"></figcaption>
+        <div id="guidance-callouts" class="cr-guidance-callouts"></div>
       </figure>
+      <!-- Explicit wire-by-wire map: OBD plug pin → ECU bench pin. -->
+      <div id="guidance-wiring" class="cr-guidance-wiring" hidden>
+        <div class="cr-guidance-wiring-title">
+          🔌 وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور
+          <span class="en">Wire by wire: OBD plug pin → ECU pin</span>
+        </div>
+        <div id="guidance-wiring-body" class="cr-guidance-wiring-body"></div>
+      </div>
+      <ol id="guidance-steps" class="cr-guidance-steps"></ol>
     </div>
 
     <div id="chat-log" class="cr-chat-log" role="log" aria-live="polite"></div>
@@ -119,6 +132,6 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'bmw_ecu/coding_room.js' %}" defer></script>
+<script src="{% static 'bmw_ecu/coding_room.js' %}?v=4" defer></script>
 </body>
 </html>

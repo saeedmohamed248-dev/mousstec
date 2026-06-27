@@ -4,10 +4,12 @@ Covers:
   • assess_connection() decides OPEN vs LOCKED off the EcuProfile.
   • OPEN modules (FEM_F30, software exploit) → straight-to-code steps,
     cable="enet", no scary bench teardown.
-  • LOCKED modules (MEVD17_2_9 / N20, bench-only) → full bench procedure
-    with pinout diagram + coloured callouts + boot-pin step, cable="dcan_bench".
-  • Pin numbers in the locked procedure are pulled from the live pinout
-    (so the steps always match the real connector).
+  • LOCKED modules (MEVD17_2_9 / N20, bench-only) → full wire-by-wire bench
+    procedure: connect D-CAN to laptop, then OBD-pin → ECU-pin wiring map,
+    boot-pin step, cable="dcan_bench".
+  • The wiring map is built from the standard OBD-II (J1962) plug on one side
+    and the live ECU pinout on the other, so the steps always match the real
+    connector.
   • CodingOrchestrator action="connect_read" returns the guidance in the
     standard ChatbotPayload JSON shape, with outcome connected/module_locked.
 """
@@ -31,6 +33,8 @@ class AssessOpenModuleTests(unittest.TestCase):
         self.assertEqual(a.cable, "enet")
         self.assertEqual(a.ecu_name, "FEM_F30")
         self.assertIn("مفتوح", a.headline_ar)
+        # OPEN module has no bench wiring map.
+        self.assertEqual(a.wiring, [])
         # OPEN procedure is short + does NOT tell them to rip the module out.
         joined = " ".join(s.ar for s in a.steps)
         self.assertNotIn("فك الكنترول", joined)
@@ -52,26 +56,74 @@ class AssessLockedModuleTests(unittest.TestCase):
         self.assertTrue(self.a.pinout_diagram_url)
         self.assertTrue(self.a.pinout_callouts)
 
-    def test_steps_include_removal_power_dcan_boot_and_photo(self) -> None:
+    def test_steps_connect_dcan_then_remove_boot_and_diagram(self) -> None:
         ars = [s.ar for s in self.a.steps]
         joined = " ".join(ars)
+        ens = " ".join(s.en for s in self.a.steps)
         self.assertGreaterEqual(len(ars), 5)
-        self.assertIn("فك الكنترول", joined)      # remove module
-        self.assertIn("12V", joined)               # power
-        self.assertIn("D-CAN", joined)             # diagnostic cable
-        self.assertIn("BSL", " ".join(s.en for s in self.a.steps))  # bootloader
-        self.assertIn("📸", joined)                # photograph PCB
+        self.assertIn("فك الكنترول", joined)       # remove module
+        # The tech is told to connect the D-CAN interface to the laptop first.
+        self.assertIn("D-CAN", joined)
+        self.assertIn("laptop", ens)
+        self.assertIn("BSL", ens)                  # bootloader step
+        # The system tells him to read the coloured diagram.
+        self.assertIn("المخطط", joined)
 
-    def test_boot_pin_from_profile_appears_in_steps(self) -> None:
+    def test_wiring_map_is_obd_to_ecu(self) -> None:
+        # N20 DME: 12V on ECU pin 87, GND on ECU pin 88, K-Line on ECU pin 63.
+        # Standard OBD-II side: 12V=16, GND=4, K-Line=7.
+        by_fn = {w.function: w for w in self.a.wiring}
+        self.assertIn("12v", by_fn)
+        self.assertEqual(by_fn["12v"].obd_pin, 16)
+        self.assertEqual(by_fn["12v"].ecu_pin, 87)
+        self.assertIn("gnd", by_fn)
+        self.assertEqual(by_fn["gnd"].obd_pin, 4)
+        self.assertEqual(by_fn["gnd"].ecu_pin, 88)
+        # N20 talks K-Line, not CAN.
+        self.assertIn("kline", by_fn)
+        self.assertEqual(by_fn["kline"].obd_pin, 7)
+        self.assertEqual(by_fn["kline"].ecu_pin, 63)
+        self.assertNotIn("canh", by_fn)
+
+    def test_kline_wire_step_shows_both_pins(self) -> None:
+        # The per-wire step must spell out OBD pin 7 → ECU pin 63.
+        kline_step = next(s for s in self.a.steps if "K-Line" in s.en)
+        self.assertIn("7", kline_step.en)
+        self.assertIn("63", kline_step.en)
+
+    def test_boot_pin_from_profile_appears_in_bsl_step(self) -> None:
         # MEVD17_2_9.boot_pin == 24 — must surface in the BSL step.
+        self.assertEqual(self.a.boot_pin, 24)
         boot_step = next(s for s in self.a.steps if "BSL" in s.en)
         self.assertIn("24", boot_step.en)
 
-    def test_power_pins_pulled_from_pinout(self) -> None:
-        # MEVD17_2_9 pinout: 12V on pin 87, GND on pin 88.
-        power_step = next(s for s in self.a.steps if "12V" in s.ar)
-        self.assertIn("87", power_step.ar)
-        self.assertIn("88", power_step.ar)
+
+class AssessLockedCanModuleTests(unittest.TestCase):
+    """FEM_F30_POST_2014 is LOCKED (HIGH, no exploit) and shares the FEM_F30
+    connector — the diagram falls back to the base, giving a CAN-based bench
+    procedure (proves the wiring map adapts the other way)."""
+    def setUp(self) -> None:
+        self.a = asyncio.run(assess_connection(
+            profile=KNOWN_PROFILES["FEM_F30_POST_2014"],
+            vin="WBA3A5C50DF000099", chassis="F30"))
+
+    def test_locked(self) -> None:
+        self.assertTrue(self.a.locked)
+
+    def test_uses_base_diagram_and_can_wiring(self) -> None:
+        # Fallback to FEM_F30 diagram → has CAN pins → CAN-H/CAN-L wires.
+        self.assertTrue(self.a.pinout_callouts)
+        by_fn = {w.function: w for w in self.a.wiring}
+        self.assertIn("canh", by_fn)
+        self.assertEqual(by_fn["canh"].obd_pin, 6)   # OBD CAN-H
+        self.assertEqual(by_fn["canh"].ecu_pin, 15)  # FEM CAN-H
+        self.assertIn("canl", by_fn)
+        self.assertEqual(by_fn["canl"].obd_pin, 14)  # OBD CAN-L
+        self.assertEqual(by_fn["canl"].ecu_pin, 16)  # FEM CAN-L
+        self.assertNotIn("kline", by_fn)
+        # A CAN module gets the "don't reverse the pair" safety step.
+        joined = " ".join(s.ar for s in self.a.steps)
+        self.assertIn("CAN", joined)
 
 
 # --- Orchestrator integration (no DB) — stub the billing gate ---------------
@@ -129,7 +181,7 @@ class ConnectReadOrchestratorTests(unittest.TestCase):
         self.assertEqual(body["diagnostics"]["cable"], "enet")
         self.assertIn("steps", body["diagnostics"]["guidance"])
 
-    def test_locked_module_returns_module_locked_with_pinout(self) -> None:
+    def test_locked_module_returns_module_locked_with_wiring(self) -> None:
         body = self._run("MEVD17_2_9")
         self.assertEqual(body["outcome"], "module_locked")
         self.assertTrue(body["diagnostics"]["locked"])
@@ -138,6 +190,11 @@ class ConnectReadOrchestratorTests(unittest.TestCase):
         g = body["diagnostics"]["guidance"]
         self.assertTrue(g["pinout_callouts"])
         self.assertGreaterEqual(len(g["steps"]), 5)
+        # The wiring map serializes as OBD-pin → ECU-pin rows.
+        self.assertTrue(g["wiring"])
+        w0 = g["wiring"][0]
+        self.assertIn("obd_pin", w0)
+        self.assertIn("ecu_pin", w0)
 
 
 if __name__ == "__main__":

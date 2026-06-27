@@ -187,6 +187,8 @@
     const fig = document.getElementById("guidance-pinout");
     const img = document.getElementById("guidance-pinout-img");
     const callouts = document.getElementById("guidance-callouts");
+    const wiring = document.getElementById("guidance-wiring");
+    const wiringBody = document.getElementById("guidance-wiring-body");
 
     badge.textContent = locked ? "🔒 LOCKED" : "✅ OPEN";
     badge.className = "cr-guidance-badge " + (locked ? "locked" : "open");
@@ -223,6 +225,41 @@
     } else {
       fig.hidden = true;
     }
+
+    // Explicit OBD-pin → ECU-pin wiring map (bench/locked only).
+    wiringBody.innerHTML = "";
+    const wires = g.wiring || [];
+    if (wires.length > 0) {
+      wires.forEach((w) => {
+        const row = document.createElement("div");
+        row.className = "cr-wire";
+        const dot = document.createElement("span");
+        dot.className = "cr-callout-dot";
+        dot.style.background = w.color || "#999";
+        const obd = document.createElement("span");
+        obd.className = "cr-wire-pin obd";
+        obd.textContent = "OBD " + w.obd_pin;
+        const arrow = document.createElement("span");
+        arrow.className = "cr-wire-arrow";
+        arrow.textContent = "→";
+        const ecu = document.createElement("span");
+        ecu.className = "cr-wire-pin ecu";
+        ecu.textContent = "ECU " + w.ecu_pin;
+        const lbl = document.createElement("span");
+        lbl.className = "cr-wire-label";
+        lbl.textContent = w.label_ar + " · " + w.label_en;
+        row.appendChild(dot);
+        row.appendChild(obd);
+        row.appendChild(arrow);
+        row.appendChild(ecu);
+        row.appendChild(lbl);
+        wiringBody.appendChild(row);
+      });
+      wiring.hidden = false;
+    } else {
+      wiring.hidden = true;
+    }
+
     panel.hidden = false;
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
