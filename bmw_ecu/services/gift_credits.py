@@ -44,7 +44,13 @@ def has_active_gift(*, tenant_schema: str,
     from django_tenants.utils import schema_context
     from ..models import GiftCredit
 
-    with schema_context("public"):
+    # bmw_ecu is a TENANT app — GiftCredit physically lives in each tenant's
+    # own schema, NOT in public. Querying "public" raises ProgrammingError
+    # ("relation does not exist") and crashes the whole coding session. We
+    # scope the lookup to the tenant's schema where the rows actually live.
+    if not tenant_schema:
+        return None
+    with schema_context(tenant_schema):
         candidates = (GiftCredit.objects
                       .filter(tenant_schema=tenant_schema,
                               status="active",
@@ -73,7 +79,11 @@ def consume_gift(*, tenant_schema: str,
     from django_tenants.utils import schema_context
     from ..models import GiftCredit, GiftCreditUsage
 
-    with schema_context("public"):
+    # See has_active_gift: GiftCredit lives in the tenant schema, not public.
+    if not tenant_schema:
+        return GiftConsumption(consumed=False, gift_pk=None,
+                               grant_type="", remaining_after=None)
+    with schema_context(tenant_schema):
         with transaction.atomic():
             candidates = (GiftCredit.objects
                           .select_for_update()

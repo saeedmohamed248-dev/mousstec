@@ -10,11 +10,17 @@ from typing import Optional
 
 def fetch_diagram(ecu_name: str):
     """Return a PinoutDiagram from the DB, or None."""
+    from django.db.utils import OperationalError, ProgrammingError
     from .execution.interactive_guided.pinout_repository import PinoutDiagram
     from .models import EcuPinoutDiagram
     try:
         row = EcuPinoutDiagram.objects.get(ecu_name=ecu_name)
     except EcuPinoutDiagram.DoesNotExist:
+        return None
+    except (ProgrammingError, OperationalError):
+        # Table not present in the current schema/connection (e.g. queried
+        # outside a tenant request, or before migrate). The repository falls
+        # back to its bundled diagrams — never crash the caller.
         return None
     return PinoutDiagram(
         ecu_name=row.ecu_name, image_url=row.image_url,

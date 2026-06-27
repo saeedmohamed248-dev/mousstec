@@ -481,3 +481,101 @@ class GateGranularPathTests(TestCase):
         self.assertEqual(ent.grant_kind, "feature")
         self.assertEqual(ent.grant_pk, grant.pk)
         self.assertEqual(ent.usage_remaining, 3)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Regression: GiftCredit lives in the TENANT schema, not public.
+#
+# has_active_gift/consume_gift previously forced schema_context("public"),
+# but bmw_ecu is a TENANT app so the table only exists per-tenant. In the
+# browser this raised ProgrammingError ("relation bmw_ecu_giftcredit does
+# not exist") and crashed EVERY coding session at the gift-lookup step.
+# These tests pin the corrected behaviour: the lookup must run against the
+# tenant schema, find/decrement correctly, and NEVER raise.
+# ─────────────────────────────────────────────────────────────────────
+class GiftCreditSchemaRegressionTests(TestCase):
+    TENANT = "test_bmw_ecu"  # the real schema set up by setUpModule
+
+    def test_has_active_gift_no_rows_returns_none_without_crashing(self) -> None:
+        """The original bug: this exact call raised ProgrammingError because
+        it queried 'public' where the table is absent. Now it must return
+        None cleanly when the tenant has no gift rows."""
+        from asgiref.sync import async_to_sync
+        from bmw_ecu.services.gift_credits import (
+            has_active_gift, GIFT_TYPES_FOR_CODING,
+        )
+        result = async_to_sync(has_active_gift)(
+            tenant_schema=self.TENANT, grant_types=GIFT_TYPES_FOR_CODING,
+        )
+        self.assertIsNone(result)
+
+    def test_has_active_gift_finds_consumable_credit(self) -> None:
+        from asgiref.sync import async_to_sync
+        from django_tenants.utils import schema_context
+        from bmw_ecu.models import GiftCredit
+        from bmw_ecu.services.gift_credits import (
+            has_active_gift, GIFT_TYPES_FOR_CODING,
+        )
+        with schema_context(self.TENANT):
+            gift = GiftCredit.objects.create(
+                tenant_schema=self.TENANT, grant_type="coding_credits",
+                credits_total=2, credits_remaining=2, status="active",
+            )
+        result = async_to_sync(has_active_gift)(
+            tenant_schema=self.TENANT, grant_types=GIFT_TYPES_FOR_CODING,
+        )
+        self.assertEqual(result, gift.pk)
+
+    def test_consume_gift_decrements_counted_credit(self) -> None:
+        from asgiref.sync import async_to_sync
+        from django_tenants.utils import schema_context
+        from bmw_ecu.models import GiftCredit
+        from bmw_ecu.services.gift_credits import (
+            consume_gift, GIFT_TYPES_FOR_CODING,
+        )
+        with schema_context(self.TENANT):
+            gift = GiftCredit.objects.create(
+                tenant_schema=self.TENANT, grant_type="coding_credits",
+                credits_total=2, credits_remaining=2, status="active",
+            )
+        outcome = async_to_sync(consume_gift)(
+            tenant_schema=self.TENANT, grant_types=GIFT_TYPES_FOR_CODING,
+            vin="WBA3A5C50DF000001", operation_type="coding",
+        )
+        self.assertTrue(outcome.consumed)
+        self.assertEqual(outcome.gift_pk, gift.pk)
+        self.assertEqual(outcome.remaining_after, 1)
+        with schema_context(self.TENANT):
+            gift.refresh_from_db()
+            self.assertEqual(gift.credits_remaining, 1)
+            self.assertEqual(gift.status, "active")
+
+    def test_consume_gift_no_rows_returns_not_consumed(self) -> None:
+        """No gift → consumed=False so the caller falls through to
+        wallet/Paymob. Must not raise on the empty tenant schema."""
+        from asgiref.sync import async_to_sync
+        from bmw_ecu.services.gift_credits import (
+            consume_gift, GIFT_TYPES_FOR_CODING,
+        )
+        outcome = async_to_sync(consume_gift)(
+            tenant_schema=self.TENANT, grant_types=GIFT_TYPES_FOR_CODING,
+            vin="WBA3A5C50DF000002", operation_type="coding",
+        )
+        self.assertFalse(outcome.consumed)
+        self.assertIsNone(outcome.gift_pk)
+
+    def test_blank_tenant_schema_is_guarded(self) -> None:
+        """Empty tenant_schema must short-circuit to a safe miss, never
+        attempt a query against an empty schema name."""
+        from asgiref.sync import async_to_sync
+        from bmw_ecu.services.gift_credits import (
+            has_active_gift, consume_gift, GIFT_TYPES_FOR_CODING,
+        )
+        self.assertIsNone(async_to_sync(has_active_gift)(
+            tenant_schema="", grant_types=GIFT_TYPES_FOR_CODING,
+        ))
+        outcome = async_to_sync(consume_gift)(
+            tenant_schema="", grant_types=GIFT_TYPES_FOR_CODING,
+            vin="X", operation_type="coding",
+        )
+        self.assertFalse(outcome.consumed)
