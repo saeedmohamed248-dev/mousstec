@@ -22,7 +22,10 @@ from __future__ import annotations
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..services.entitlement_guard import AbstractEntitlementGuard
 
 from .bdm_transport import (
     AbstractBdmTransport,
@@ -171,10 +174,16 @@ class FrmRecoveryOrchestrator:
 
     def __init__(self, bdm: AbstractBdmTransport,
                  *, data: Optional[FrmRecoveryData] = None,
-                 state: FrmRecoveryState = FrmRecoveryState.IDLE) -> None:
+                 state: FrmRecoveryState = FrmRecoveryState.IDLE,
+                 entitlement: Optional["AbstractEntitlementGuard"] = None,
+                 ) -> None:
         self.bdm = bdm
         self.data = data or FrmRecoveryData()
         self.state = state
+        # Optional entitlement gate — same contract as the bench
+        # orchestrator: check() before advancing past IDLE, consume()
+        # exactly once on FINISH.
+        self.entitlement = entitlement
 
     # ── State control ──────────────────────────────────────────
     def _advance(self, to: FrmRecoveryState) -> None:
@@ -282,6 +291,13 @@ class FrmRecoveryOrchestrator:
             variant = FrmVariant(variant_raw)
         except ValueError:
             return self._fail("unknown_variant", f"Unknown variant {variant_raw!r}")
+
+        # ── Entitlement gate — block unentitled sessions BEFORE any
+        # BDM interaction.
+        if self.entitlement is not None:
+            entitled, reason = self.entitlement.check()
+            if not entitled:
+                return self._fail("not_entitled", reason)
 
         self.data.variant = variant
         self.data.vin = (payload.get("vin") or "").strip().upper()
@@ -553,6 +569,15 @@ class FrmRecoveryOrchestrator:
                 f"FINISH only valid in VERIFIED (now {self.state.value})",
             )
         self._advance(FrmRecoveryState.DONE)
+
+        # Entitlement consume — FRM3 successfully recovered + reflashed.
+        if self.entitlement is not None:
+            op_ref = (
+                f"frm-{self.data.vin or 'no-vin'}-"
+                f"{self.data.variant.value if self.data.variant else '?'}"
+            )
+            self.entitlement.consume(vin=self.data.vin, operation_ref=op_ref)
+
         return FrmRecoveryPrompt(
             state=self.state,
             title="انتهت العملية 🎉",

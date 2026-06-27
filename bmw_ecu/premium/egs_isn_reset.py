@@ -40,7 +40,10 @@ import abc
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..services.entitlement_guard import AbstractEntitlementGuard
 
 from .safety_checks import (
     AbstractSafetyGate,
@@ -209,11 +212,16 @@ class EgsIsnOrchestrator:
     def __init__(self, *, safety: AbstractSafetyGate,
                  provider: AbstractEgsServiceProvider,
                  data: Optional[EgsIsnData] = None,
-                 state: EgsIsnState = EgsIsnState.IDLE) -> None:
+                 state: EgsIsnState = EgsIsnState.IDLE,
+                 entitlement: Optional["AbstractEntitlementGuard"] = None,
+                 ) -> None:
         self.safety = safety
         self.provider = provider
         self.data = data or EgsIsnData()
         self.state = state
+        # Entitlement gate (granular SaaS) — check() before advancing
+        # past IDLE, consume() on FINISH.
+        self.entitlement = entitlement
 
     def _advance(self, to: EgsIsnState) -> None:
         if to not in _ALLOWED[self.state]:
@@ -282,6 +290,13 @@ class EgsIsnOrchestrator:
             )
         self.data.vin = (payload.get("vin") or "").strip().upper()
         self.data.technician_id = (payload.get("technician_id") or "").strip()
+
+        # Entitlement gate — block unentitled sessions BEFORE any
+        # bus chatter or UDS handshake.
+        if self.entitlement is not None:
+            entitled, reason = self.entitlement.check()
+            if not entitled:
+                return self._fail("not_entitled", reason)
 
         report: SafetyReport = await self.safety.probe(require={
             "voltage_min_v": 12.0, "voltage_max_v": 14.8,
@@ -403,6 +418,12 @@ class EgsIsnOrchestrator:
                 f"FINISH only valid in VERIFIED (now {self.state.value})",
             )
         self._advance(EgsIsnState.DONE)
+
+        # Entitlement consume — EGS ISN cleared + verified successfully.
+        if self.entitlement is not None:
+            op_ref = f"egs-{self.data.vin or 'no-vin'}"
+            self.entitlement.consume(vin=self.data.vin, operation_ref=op_ref)
+
         return EgsIsnPrompt(
             state=self.state,
             title="انتهت العملية 🎉",

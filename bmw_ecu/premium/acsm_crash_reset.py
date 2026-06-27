@@ -39,7 +39,10 @@ import abc
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..services.entitlement_guard import AbstractEntitlementGuard
 
 from .safety_checks import (
     AbstractSafetyGate,
@@ -246,11 +249,19 @@ class AcsmCrashOrchestrator:
     def __init__(self, *, safety: AbstractSafetyGate,
                  provider: AbstractAcsmServiceProvider,
                  data: Optional[AcsmCrashData] = None,
-                 state: AcsmCrashState = AcsmCrashState.IDLE) -> None:
+                 state: AcsmCrashState = AcsmCrashState.IDLE,
+                 entitlement: Optional["AbstractEntitlementGuard"] = None,
+                 ) -> None:
         self.safety = safety
         self.provider = provider
         self.data = data or AcsmCrashData()
         self.state = state
+        # Entitlement gate — check() at ASSESS_DAMAGE, consume() on FINISH.
+        # NOTE: consume() runs ONLY when the orchestrator hits DONE.
+        # BLOCKED_FOR_SAFETY terminal states do NOT consume the grant —
+        # the technician didn't actually use the service, just got
+        # refused by safety logic.
+        self.entitlement = entitlement
 
     def _advance(self, to: AcsmCrashState) -> None:
         if to not in _ALLOWED[self.state]:
@@ -349,6 +360,14 @@ class AcsmCrashOrchestrator:
             )
         self.data.vin = (payload.get("vin") or "").strip().upper()
         self.data.technician_id = (payload.get("technician_id") or "").strip()
+
+        # Entitlement gate — block unentitled sessions BEFORE we
+        # ever probe the SRS bus. ACSM-bus access is itself sensitive,
+        # so refusing early is preferable to refusing mid-session.
+        if self.entitlement is not None:
+            entitled, reason = self.entitlement.check()
+            if not entitled:
+                return self._fail("not_entitled", reason)
 
         report: SafetyReport = await self.safety.probe(require={
             "voltage_min_v": 11.8, "voltage_max_v": 14.6,
@@ -499,6 +518,14 @@ class AcsmCrashOrchestrator:
                 f"FINISH only valid in VERIFIED (now {self.state.value})",
             )
         self._advance(AcsmCrashState.DONE)
+
+        # Entitlement consume — ACSM clear + verify both succeeded.
+        # The grant counts the use NOW (not on BLOCKED_FOR_SAFETY,
+        # which represents a refusal to perform the service).
+        if self.entitlement is not None:
+            op_ref = f"acsm-{self.data.vin or 'no-vin'}-{self.data.backup_ref or 'no-bak'}"
+            self.entitlement.consume(vin=self.data.vin, operation_ref=op_ref)
+
         return AcsmCrashPrompt(
             state=self.state,
             title="انتهت العملية 🎉",

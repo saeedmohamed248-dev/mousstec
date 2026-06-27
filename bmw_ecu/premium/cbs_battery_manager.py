@@ -34,7 +34,10 @@ import abc
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from ..services.entitlement_guard import AbstractEntitlementGuard
 
 from .safety_checks import (
     AbstractSafetyGate,
@@ -235,11 +238,16 @@ class CbsBatteryOrchestrator:
     def __init__(self, *, safety: AbstractSafetyGate,
                  provider: AbstractCbsServiceProvider,
                  data: Optional[CbsBatteryData] = None,
-                 state: CbsBatteryState = CbsBatteryState.IDLE) -> None:
+                 state: CbsBatteryState = CbsBatteryState.IDLE,
+                 entitlement: Optional["AbstractEntitlementGuard"] = None,
+                 ) -> None:
         self.safety = safety
         self.provider = provider
         self.data = data or CbsBatteryData()
         self.state = state
+        # Entitlement gate — check() at ENTER_BATTERY_INFO,
+        # consume() on FINISH.
+        self.entitlement = entitlement
 
     def _advance(self, to: CbsBatteryState) -> None:
         if to not in _ALLOWED[self.state]:
@@ -310,6 +318,13 @@ class CbsBatteryOrchestrator:
             raise IllegalCbsTransition(
                 f"ENTER_BATTERY_INFO only valid in IDLE (now {self.state.value})",
             )
+        # Entitlement gate — block unentitled sessions BEFORE any
+        # IBS / DDE interaction.
+        if self.entitlement is not None:
+            entitled, reason = self.entitlement.check()
+            if not entitled:
+                return self._fail("not_entitled", reason)
+
         self.data.vin = (payload.get("vin") or "").strip().upper()
         self.data.technician_id = (payload.get("technician_id") or "").strip()
         chassis = (payload.get("chassis") or "").strip().upper()
@@ -502,6 +517,12 @@ class CbsBatteryOrchestrator:
                 f"FINISH only valid in VERIFIED (now {self.state.value})",
             )
         self._advance(CbsBatteryState.DONE)
+
+        # Entitlement consume — battery registered + CBS counters reset.
+        if self.entitlement is not None:
+            op_ref = f"cbs-{self.data.vin or 'no-vin'}-{self.data.chassis or '?'}"
+            self.entitlement.consume(vin=self.data.vin, operation_ref=op_ref)
+
         return CbsBatteryPrompt(
             state=self.state,
             title="انتهت العملية 🎉",

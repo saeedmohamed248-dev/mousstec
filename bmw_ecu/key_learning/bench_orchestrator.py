@@ -47,9 +47,12 @@ from __future__ import annotations
 import enum
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..exceptions import IsnMismatch
+
+if TYPE_CHECKING:
+    from ..services.entitlement_guard import AbstractEntitlementGuard
 from .eeprom_dump import EepromDump, EepromParseError, parse_dump
 from .isn_extraction import extract_isn_from_dump
 from .key_generation import (
@@ -229,10 +232,18 @@ class BenchOrchestrator:
 
     def __init__(self, harness: AbstractSmartHarness,
                  *, data: Optional[BenchData] = None,
-                 state: BenchState = BenchState.IDLE) -> None:
+                 state: BenchState = BenchState.IDLE,
+                 entitlement: Optional["AbstractEntitlementGuard"] = None,
+                 ) -> None:
         self.harness = harness
         self.data = data or BenchData()
         self.state = state
+        # Optional entitlement gate. When set, the orchestrator calls
+        # entitlement.check() before advancing past IDLE — an unentitled
+        # tenant gets a structured `not_entitled` FAILED prompt — and
+        # entitlement.consume() on FINISH so the grant counts a use only
+        # AFTER the work succeeded on the bench.
+        self.entitlement = entitlement
 
     # ── State control ──────────────────────────────────────────
     def _advance(self, to: BenchState) -> None:
@@ -343,6 +354,13 @@ class BenchOrchestrator:
             family = ModuleFamily(family_raw)
         except ValueError:
             return self._fail("unknown_family", f"Unknown family {family_raw!r}")
+
+        # ── Entitlement gate (granular SaaS billing — sub-commit 1) ──
+        # Block unentitled sessions BEFORE any DB / hardware work.
+        if self.entitlement is not None:
+            entitled, reason = self.entitlement.check()
+            if not entitled:
+                return self._fail("not_entitled", reason)
 
         self.data.family = family
         self.data.vin = (payload.get("vin") or "").strip().upper()
@@ -684,6 +702,19 @@ class BenchOrchestrator:
         # For testability we skip awaiting; production overrides if
         # they need cleanup behaviour.
         self._advance(BenchState.DONE)
+
+        # ── Entitlement consume — bench session completed successfully,
+        # so the grant's usage counter ticks down by 1 now. Failures
+        # here are intentionally swallowed: the work succeeded on the
+        # bench, accounting can reconcile from the audit ledger.
+        if self.entitlement is not None:
+            op_ref = (
+                f"bench-{self.data.vin or 'no-vin'}-"
+                f"{self.data.family.value if self.data.family else '?'}-"
+                f"slot{self.data.chosen_slot if self.data.chosen_slot is not None else '?'}"
+            )
+            self.entitlement.consume(vin=self.data.vin, operation_ref=op_ref)
+
         return BenchPrompt(
             state=self.state,
             title="انتهت الجلسة 🎉",
