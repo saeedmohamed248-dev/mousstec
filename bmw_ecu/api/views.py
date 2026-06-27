@@ -139,19 +139,29 @@ async def _build(payload: dict[str, Any]) -> tuple[ApiOrchestrator, StrategyCont
     profile = KNOWN_PROFILES[profile_name]
     caps = WorkshopCapabilities(**(payload.get("capabilities") or {}))
 
-    cm = ConnectionManager()
-    transport_cfg = payload.get("transport") or {}
-    if transport_cfg:
-        cfg = TransportConfig(
-            kind=TransportKind(transport_cfg.get("kind", "doip")),
-            host=transport_cfg.get("host"),
-            port=int(transport_cfg.get("port", 13400)),
-            serial_port=transport_cfg.get("serial_port"),
-            channel=transport_cfg.get("channel"),
-        )
-        transport = await cm.connect(prefer=cfg)
+    # 🧪 Dev/demo simulator switch — when BMW_ECU_SIMULATOR is truthy we
+    # bypass real ENET/D-CAN hardware and talk to the in-process MockEcu so
+    # the Coding Room is fully clickable with no OBD interface attached.
+    # Default OFF → zero production impact (real transports unchanged).
+    import os as _os
+    if _os.environ.get("BMW_ECU_SIMULATOR", "").lower() in ("1", "true", "yes", "on"):
+        from ..mocks import MockEcu, MockTransport
+        transport = MockTransport(ecu=MockEcu(vin=vin))
+        await transport.open()
     else:
-        transport = await cm.connect()
+        cm = ConnectionManager()
+        transport_cfg = payload.get("transport") or {}
+        if transport_cfg:
+            cfg = TransportConfig(
+                kind=TransportKind(transport_cfg.get("kind", "doip")),
+                host=transport_cfg.get("host"),
+                port=int(transport_cfg.get("port", 13400)),
+                serial_port=transport_cfg.get("serial_port"),
+                channel=transport_cfg.get("channel"),
+            )
+            transport = await cm.connect(prefer=cfg)
+        else:
+            transport = await cm.connect()
 
     ecu_addr = profile.uds_isn_did >> 8
     client = UdsClient(transport, ecu_addr=ecu_addr, session_name="api")
@@ -163,7 +173,12 @@ async def _build(payload: dict[str, Any]) -> tuple[ApiOrchestrator, StrategyCont
         return int.from_bytes(data, "big") / 100.0
 
     battery = BatteryMonitor(reader=voltage_reader)
-    store = BackupStore(Path("/var/lib/mousstec/bmw_ecu/backups"))
+    # Backup root is env-overridable so dev/macOS (no /var/lib write access)
+    # and tests can point it at a writable dir. Production default unchanged.
+    import os as _os2
+    _backup_root = _os2.environ.get(
+        "BMW_ECU_BACKUP_ROOT", "/var/lib/mousstec/bmw_ecu/backups")
+    store = BackupStore(Path(_backup_root))
     preflight = PreflightGate(battery=battery, store=store)
 
     # Strategies. Smart Box is optional — only instantiate if capabilities

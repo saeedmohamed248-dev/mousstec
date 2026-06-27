@@ -103,6 +103,8 @@ class CodingOrchestrator:
 
         # 2. Dispatch on action.
         try:
+            if action == "connect_read":
+                return await self._connect_read(ctx, coding_request, entitlement)
             if action == "list_features":
                 return await self._list_features(ctx, coding_request, entitlement)
             if action == "apply_feature":
@@ -125,6 +127,65 @@ class CodingOrchestrator:
                 outcome="error",
                 entitlement=self._entitlement_dict(entitlement),
             )
+
+    # --- Action: connect_read --------------------------------------------
+    async def _connect_read(self, ctx: StrategyContext,
+                            req: dict[str, Any],
+                            entitlement: CodingEntitlement) -> CodingResponse:
+        """The real-world "اتصال وقراءة / Connect & Read" step.
+
+        Reads the live VIN off the car (degrades to the session VIN if the
+        ECU read fails), assesses whether the target module is OPEN or
+        LOCKED, and hands back a step-by-step guided procedure + pinout.
+        """
+        from ..coding.guided_connect import assess_connection
+
+        # Read the live VIN from the car (DID 0xF190). Non-fatal on failure —
+        # a freshly-removed/bench module may not answer yet.
+        live_vin = ctx.vin
+        try:
+            from ..uds.client import UdsClient
+            client = UdsClient(ctx.transport,
+                               ecu_addr=ctx.profile.uds_isn_did >> 8,
+                               session_name="coding_connect")
+            raw = await client.read_data_by_identifier(0xF190)
+            decoded = raw.decode("ascii", "ignore").strip("\x00 ").strip()
+            if decoded:
+                live_vin = decoded
+        except Exception:
+            pass  # keep session VIN
+
+        chassis = req.get("chassis") or (
+            ctx.profile.chassis[0] if ctx.profile.chassis else ""
+        )
+        assessment = await assess_connection(
+            profile=ctx.profile, vin=live_vin, chassis=chassis,
+        )
+
+        required = "load_features" if not assessment.locked else "follow_pinout_steps"
+        return CodingResponse(
+            chatbot=ChatbotPayload(
+                chatbot_message=(
+                    f"{assessment.headline_ar}\n{assessment.headline_en}"
+                ),
+                required_action=required,
+                severity="info" if not assessment.locked else "warning",
+                visual_aid_url=assessment.pinout_diagram_url,
+                diagnostics={
+                    "vin": assessment.vin,
+                    "ecu_name": assessment.ecu_name,
+                    "chassis": assessment.chassis,
+                    "engine": assessment.engine,
+                    "protection": assessment.protection,
+                    "locked": assessment.locked,
+                    "cable": assessment.cable,
+                    "guidance": assessment.to_json(),
+                },
+            ),
+            outcome="module_locked" if assessment.locked else "connected",
+            entitlement=self._entitlement_dict(entitlement),
+            next_endpoint="/api/ecu/execute",
+        )
 
     # --- Action: list_features -------------------------------------------
     async def _list_features(self, ctx: StrategyContext,

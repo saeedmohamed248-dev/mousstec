@@ -211,3 +211,47 @@ body {
 }
 #safety-confirm { background: var(--c-danger); color: #fff; border-color: var(--c-danger); }
 #safety-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* --- Guided connect / pinout panel ------------------------------------- */
+.cr-guidance {
+  border: 1px solid var(--c-border); border-radius: var(--radius);
+  background: #f8fafc; margin: 0 12px 12px; overflow: hidden;
+}
+.cr-guidance[hidden] { display: none !important; }
+.cr-guidance-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: #0f172a; color: #e2e8f0;
+}
+.cr-guidance-head h3 { margin: 0; font-size: 14px; flex: 1; }
+.cr-guidance-head button {
+  background: transparent; border: 0; color: #94a3b8; cursor: pointer;
+  font-size: 16px; line-height: 1;
+}
+.cr-guidance-badge {
+  font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+}
+.cr-guidance-badge.open   { background: #16a34a; color: #fff; }
+.cr-guidance-badge.locked { background: #dc2626; color: #fff; }
+.cr-guidance-steps { margin: 0; padding: 12px 28px; }
+.cr-guidance-steps li { margin-bottom: 10px; line-height: 1.55; }
+.cr-guidance-steps .en {
+  display: block; color: var(--c-text-muted); font-family: var(--font-en);
+  font-size: 12px; margin-top: 2px;
+}
+.cr-guidance-pinout { margin: 0; padding: 0 14px 14px; }
+.cr-guidance-pinout[hidden] { display: none !important; }
+.cr-guidance-pinout img {
+  width: 100%; max-width: 440px; border-radius: 10px; display: block;
+}
+.cr-guidance-callouts {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+}
+.cr-callout {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid var(--c-border); border-radius: 999px;
+  padding: 3px 10px; font-size: 12px; font-family: var(--font-en);
+}
+.cr-callout-dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  border: 1px solid rgba(0,0,0,0.2);
+}

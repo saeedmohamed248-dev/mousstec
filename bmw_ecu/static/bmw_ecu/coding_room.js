@@ -178,6 +178,79 @@
     document.getElementById("apply-btn").disabled = (n === 0);
   }
 
+  // --- Guided connect / pinout rendering ---------------------------------
+  function renderGuidance(g, locked) {
+    const panel = document.getElementById("guidance-panel");
+    const badge = document.getElementById("guidance-badge");
+    const title = document.getElementById("guidance-title");
+    const steps = document.getElementById("guidance-steps");
+    const fig = document.getElementById("guidance-pinout");
+    const img = document.getElementById("guidance-pinout-img");
+    const callouts = document.getElementById("guidance-callouts");
+
+    badge.textContent = locked ? "🔒 LOCKED" : "✅ OPEN";
+    badge.className = "cr-guidance-badge " + (locked ? "locked" : "open");
+    title.textContent = locked
+      ? "الكنترول مقفول — اتبع الخطوات / Locked — follow the steps"
+      : "الكنترول مفتوح — جاهز للتكويد / Open — ready to code";
+
+    steps.innerHTML = "";
+    (g.steps || []).forEach((s) => {
+      const li = document.createElement("li");
+      li.appendChild(document.createTextNode(s.ar));
+      const en = document.createElement("span");
+      en.className = "en";
+      en.textContent = s.en;
+      li.appendChild(en);
+      steps.appendChild(li);
+    });
+
+    if (g.pinout_diagram_url) {
+      img.src = g.pinout_diagram_url;
+      callouts.innerHTML = "";
+      (g.pinout_callouts || []).forEach((c) => {
+        const chip = document.createElement("span");
+        chip.className = "cr-callout";
+        const dot = document.createElement("span");
+        dot.className = "cr-callout-dot";
+        dot.style.background = c.color || "#999";
+        chip.appendChild(dot);
+        chip.appendChild(document.createTextNode(
+          "Pin " + c.pin + " · " + c.label));
+        callouts.appendChild(chip);
+      });
+      fig.hidden = false;
+    } else {
+      fig.hidden = true;
+    }
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function connectRead() {
+    pushBubble("🔌 ببدأ الاتصال بالسيارة وقراءة الكنترول…\n"
+             + "Connecting and reading the module…", "user");
+    try {
+      const data = await callExecute({
+        action: "connect_read", chassis: chassis(),
+      });
+      pushBubble(data.chatbot_message || "تم", "bot");
+      const diag = (data.diagnostics) || {};
+      const g = diag.guidance || {};
+      const locked = !!diag.locked;
+      renderGuidance(g, locked);
+      // OPEN module → unlock the Load features button; LOCKED → keep gated
+      // until the technician finishes the bench procedure.
+      document.getElementById("load-features-btn").disabled = locked;
+      if (diag.vin) {
+        const el = document.getElementById("vin-input");
+        if (el && !el.value.trim()) el.value = diag.vin;
+      }
+    } catch (e) {
+      pushBubble("خطأ في الاتصال: " + e.message, "error");
+    }
+  }
+
   // --- Actions -----------------------------------------------------------
   async function loadFeatures() {
     pushBubble("⏳ بحمّل قائمة الميزات للـ " + chassis() + "…", "user");
@@ -257,9 +330,18 @@
 
   // --- Wire up -----------------------------------------------------------
   function init() {
-    pushBubble("مرحباً 👋 جاهز نبدأ. حدّد VIN والشاسيه واضغط Load.\n"
-             + "Welcome — set VIN and chassis, then Load.", "bot");
+    pushBubble("مرحباً 👋 وصّل كابل الـ ENET في فيشة OBD، حدّد البروفايل "
+             + "والشاسيه، واضغط «🔌 Connect & Read» علشان نقرا الكنترول "
+             + "ونقولك تعمل إيه بالظبط.\n"
+             + "Welcome — plug the ENET cable into OBD, set profile/chassis, "
+             + "then press “🔌 Connect & Read”.", "bot");
 
+    document.getElementById("connect-btn")
+            .addEventListener("click", connectRead);
+    document.getElementById("guidance-close")
+            .addEventListener("click", () => {
+              document.getElementById("guidance-panel").hidden = true;
+            });
     document.getElementById("load-features-btn")
             .addEventListener("click", loadFeatures);
     document.getElementById("apply-btn")

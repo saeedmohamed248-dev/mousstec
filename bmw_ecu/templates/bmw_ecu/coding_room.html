@@ -33,7 +33,8 @@
         <option value="F36">F36</option>
       </select>
     </label>
-    <button id="load-features-btn" type="button">📋 Load features</button>
+    <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
+    <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
 
@@ -41,6 +42,20 @@
 
   <!-- LEFT: chatbot conversation -->
   <section class="cr-chat" aria-label="Chatbot conversation">
+    <!-- Guided connect/read procedure panel (hidden until Connect) -->
+    <div id="guidance-panel" class="cr-guidance" hidden>
+      <div class="cr-guidance-head">
+        <span id="guidance-badge" class="cr-guidance-badge">—</span>
+        <h3 id="guidance-title">إجراءات التوصيل / Connection steps</h3>
+        <button id="guidance-close" type="button" aria-label="close">✕</button>
+      </div>
+      <ol id="guidance-steps" class="cr-guidance-steps"></ol>
+      <figure id="guidance-pinout" class="cr-guidance-pinout" hidden>
+        <img id="guidance-pinout-img" alt="ECU pinout diagram">
+        <figcaption id="guidance-callouts" class="cr-guidance-callouts"></figcaption>
+      </figure>
+    </div>
+
     <div id="chat-log" class="cr-chat-log" role="log" aria-live="polite"></div>
     <form id="chat-form" class="cr-chat-input">
       <input id="chat-input" type="text" autocomplete="off"
