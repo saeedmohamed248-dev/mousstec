@@ -20,6 +20,14 @@ from django_tenants.utils import get_tenant_domain_model, get_tenant_model
 
 
 def _build_tenant(schema_name: str, domain: str):
+    """Provision a tenant + domain for tests.
+
+    Mousstec's tenant orchestrator listens on Client post_save and AUTO-creates
+    a Domain at `<schema-with-hyphens>.<BASE_DOMAIN>` (e.g.
+    'test-bmw-ecu.mousstec.com'). If our requested `domain` matches that
+    auto-created one, we just look it up. Otherwise we add ours as a
+    secondary domain so callers can override for special cases.
+    """
     TenantModel = get_tenant_model()
     DomainModel = get_tenant_domain_model()
     t = TenantModel(
@@ -30,7 +38,13 @@ def _build_tenant(schema_name: str, domain: str):
     )
     t.auto_create_schema = True
     t.save(verbosity=0)
-    d = DomainModel(tenant=t, domain=domain, is_primary=True)
+
+    # Was a Domain already auto-created (orchestrator signal)?
+    existing = DomainModel.objects.filter(domain=domain).first()
+    if existing is not None:
+        return t, existing
+    # No collision — register the requested domain ourselves.
+    d = DomainModel(tenant=t, domain=domain, is_primary=False)
     d.save()
     return t, d
 
@@ -80,7 +94,7 @@ _MODULE_DOMAIN = None
 
 
 def setup_module_tenant(schema_name: str = "test_bmw_ecu",
-                        domain: str = "test-bmw-ecu.test.com"):
+                        domain: str = "test-bmw-ecu.mousstec.com"):
     """Call from a test module's setUpModule() to provision the tenant once."""
     global _MODULE_TENANT, _MODULE_DOMAIN
     connection.set_schema_to_public()
