@@ -1,0 +1,587 @@
+{% load static %}<!DOCTYPE html>
+<html lang="{{ lang }}" dir="{% if lang == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if lang == 'ar' %}باقات Mouss Tec — BMW Coding & Repair{% else %}Mouss Tec Packages — BMW Coding & Repair{% endif %}</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-start: #050b14;
+      --bg-mid:   #0a1929;
+      --accent:   #00d4ff;
+      --accent-2: #6366f1;
+      --gold:     #fbbf24;
+      --emerald:  #10b981;
+      --rose:     #f43f5e;
+      --slate-text: #e6f1ff;
+      --slate-muted: #8b9dc3;
+      --card-bg: rgba(15, 30, 50, 0.65);
+      --card-border: rgba(0, 212, 255, 0.18);
+    }
+    html, body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(99,102,241,0.16) 0%, transparent 40%),
+        radial-gradient(circle at bottom left, rgba(0,212,255,0.12) 0%, transparent 50%),
+        linear-gradient(180deg, var(--bg-mid) 0%, var(--bg-start) 100%);
+      color: var(--slate-text);
+      font-family: {% if lang == 'ar' %}'Cairo'{% else %}'Inter'{% endif %}, system-ui, sans-serif;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 28px;
+      background: rgba(10, 25, 41, 0.7);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar .brand {
+      font-size: 1.25rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .topbar .actions { display: flex; gap: 10px; align-items: center; }
+    .topbar a, .topbar button {
+      color: var(--slate-muted); background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 8px 14px; border-radius: 10px;
+      font-family: inherit; font-size: 0.85rem; font-weight: 700;
+      text-decoration: none; cursor: pointer; transition: 0.2s;
+    }
+    .topbar a:hover, .topbar button:hover {
+      color: var(--accent); border-color: var(--accent);
+      background: rgba(0,212,255,0.08);
+    }
+    .topbar .wallet {
+      background: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(16,185,129,0.06));
+      border-color: rgba(16,185,129,0.35);
+      color: var(--emerald); font-weight: 800; font-size: 0.95rem;
+    }
+    .topbar .wallet i { margin-{% if lang == 'ar' %}left{% else %}right{% endif %}: 6px; }
+
+    /* ── Hero ────────────────────────────────────────────────────── */
+    .hero {
+      max-width: 1180px; margin: 60px auto 30px; padding: 0 24px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 3.2vw, 2.8rem); font-weight: 900;
+      background: linear-gradient(135deg, #fff 0%, #00d4ff 60%, #6366f1 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 14px; line-height: 1.25;
+    }
+    .hero p {
+      color: var(--slate-muted); font-size: 1.05rem; line-height: 1.8;
+      max-width: 680px; margin: 0 auto;
+    }
+
+    /* ── Grid ────────────────────────────────────────────────────── */
+    .grid {
+      max-width: 1180px; margin: 40px auto 80px; padding: 0 24px;
+      display: grid; gap: 22px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .card {
+      position: relative; padding: 28px 24px 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 22px; overflow: hidden;
+      transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+      display: flex; flex-direction: column;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 20px 50px -20px rgba(0,212,255,0.4);
+    }
+    .card.featured {
+      border-color: var(--gold);
+      background:
+        linear-gradient(180deg, rgba(251,191,36,0.06) 0%, transparent 50%),
+        var(--card-bg);
+      box-shadow: 0 12px 40px -16px rgba(251,191,36,0.45);
+    }
+    .card.featured:hover {
+      box-shadow: 0 22px 60px -16px rgba(251,191,36,0.65);
+    }
+    .badge-featured {
+      position: absolute; top: 14px; {% if lang == 'ar' %}left{% else %}right{% endif %}: 14px;
+      background: linear-gradient(135deg, var(--gold), #f97316);
+      color: #1a1a1a; padding: 5px 12px; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 900; letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .card .name {
+      font-size: 1.3rem; font-weight: 900; color: #fff; margin-bottom: 6px;
+    }
+    .card .code { font-size: 0.75rem; color: var(--slate-muted); font-family: monospace; margin-bottom: 14px; }
+    .card .desc { color: var(--slate-muted); font-size: 0.88rem; line-height: 1.7; margin-bottom: 20px; min-height: 56px; }
+
+    .card .price {
+      display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px;
+    }
+    .card .price .num {
+      font-size: 2.5rem; font-weight: 900; color: #fff;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .card .price .cur { font-size: 1rem; color: var(--slate-muted); }
+    .card .meta {
+      color: var(--slate-muted); font-size: 0.78rem; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .card .meta .pill {
+      background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.25);
+      color: var(--accent); padding: 3px 10px; border-radius: 999px;
+      font-weight: 700; font-size: 0.7rem;
+    }
+
+    .feat-list {
+      list-style: none; padding: 0; margin: 0 0 22px;
+      display: flex; flex-direction: column; gap: 8px;
+      flex-grow: 1;
+    }
+    .feat-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      color: var(--slate-text); font-size: 0.86rem; line-height: 1.5;
+    }
+    .feat-list li i {
+      color: var(--emerald); margin-top: 3px; flex-shrink: 0;
+    }
+
+    .cta {
+      width: 100%; padding: 13px 18px; border: none; border-radius: 14px;
+      font-family: inherit; font-size: 0.95rem; font-weight: 800;
+      cursor: pointer; transition: all 0.2s;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px -8px rgba(0,212,255,0.55);
+    }
+    .cta:disabled {
+      opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none;
+    }
+    .cta.featured-cta {
+      background: linear-gradient(135deg, var(--gold), #f97316);
+      color: #111;
+    }
+    .cta.success-state {
+      background: linear-gradient(135deg, var(--emerald), #059669);
+    }
+
+    /* ── Empty / loading / error states ─────────────────────────── */
+    .state-msg {
+      grid-column: 1 / -1;
+      text-align: center; padding: 60px 20px;
+      color: var(--slate-muted);
+    }
+    .state-msg i { font-size: 2.5rem; opacity: 0.7; margin-bottom: 14px; display: block; }
+    .state-msg h3 { color: var(--slate-text); margin-bottom: 8px; font-weight: 800; }
+    .state-msg p { font-size: 0.9rem; line-height: 1.7; max-width: 480px; margin: 0 auto; }
+
+    .skel {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 0%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* ── Toast / confirm dialog ─────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px;
+      {% if lang == 'ar' %}left{% else %}right{% endif %}: 24px;
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      padding: 14px 20px; border-radius: 14px;
+      box-shadow: 0 18px 50px -12px rgba(0,0,0,0.6);
+      color: var(--slate-text); font-size: 0.9rem; font-weight: 700;
+      transform: translateY(20px); opacity: 0; transition: all 0.25s ease;
+      z-index: 100; max-width: 380px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.ok    { border-color: rgba(16,185,129,0.5); }
+    .toast.err   { border-color: rgba(244,63,94,0.5); }
+    .toast.warn  { border-color: rgba(251,191,36,0.5); }
+
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(2, 8, 16, 0.78);
+      backdrop-filter: blur(6px);
+      display: none; align-items: center; justify-content: center;
+      z-index: 90; padding: 20px;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: linear-gradient(180deg, #0e1d33 0%, #08121f 100%);
+      border: 1px solid var(--card-border);
+      border-radius: 22px; padding: 26px;
+      max-width: 460px; width: 100%;
+      box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+    }
+    .modal h3 {
+      font-size: 1.15rem; font-weight: 900; color: #fff; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal h3 i { color: var(--accent); }
+    .modal p { color: var(--slate-muted); font-size: 0.92rem; line-height: 1.7; margin-bottom: 22px; }
+    .modal .stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      background: rgba(0,0,0,0.25); border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 22px;
+    }
+    .modal .stats div { font-size: 0.82rem; }
+    .modal .stats div .label { display: block; color: var(--slate-muted); margin-bottom: 4px; font-weight: 700; }
+    .modal .stats div .val { color: #fff; font-weight: 800; font-size: 1rem; }
+    .modal .row { display: flex; gap: 10px; }
+    .modal .row button { flex: 1; }
+    .btn-cancel {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--slate-muted); padding: 12px 18px;
+      border-radius: 12px; font-family: inherit; font-size: 0.92rem;
+      font-weight: 800; cursor: pointer; transition: 0.2s;
+    }
+    .btn-cancel:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+  </style>
+</head>
+<body data-lang="{{ lang }}">
+
+<div class="topbar">
+  <div class="brand">
+    <i class="fa-solid fa-microchip"></i>
+    <span data-i18n="brand">Mouss Tec</span>
+  </div>
+  <div class="actions">
+    <span id="walletDisplay" class="wallet">
+      <i class="fa-solid fa-wallet"></i>
+      <span id="walletAmount">…</span>
+      <span data-i18n="egp">EGP</span>
+    </span>
+    <button id="langToggle" type="button">
+      <i class="fa-solid fa-language"></i>
+      <span>{% if lang == 'ar' %}English{% else %}العربية{% endif %}</span>
+    </button>
+    <a href="/"><i class="fa-solid fa-home"></i> <span data-i18n="home">Home</span></a>
+  </div>
+</div>
+
+<div class="hero">
+  <h1 data-i18n="hero_title">
+    {% if lang == 'ar' %}باقات BMW Coding & Repair للورش المحترفة{% else %}BMW Coding & Repair Packages for Pro Workshops{% endif %}
+  </h1>
+  <p data-i18n="hero_sub">
+    {% if lang == 'ar' %}اختار الباقة اللي تناسب ورشتك. اشترك مباشرةً من رصيد المحفظة وابدأ التشغيل في ثواني.{% else %}Pick the bundle that fits your shop. Subscribe with one click using your in-platform wallet — instant activation.{% endif %}
+  </p>
+</div>
+
+<div id="grid" class="grid" aria-live="polite">
+  <div class="state-msg" id="loadingState">
+    <i class="fa-solid fa-circle-notch fa-spin"></i>
+    <h3 data-i18n="loading_title">{% if lang == 'ar' %}جاري تحميل الباقات…{% else %}Loading packages…{% endif %}</h3>
+  </div>
+</div>
+
+<!-- ── Confirm modal ─────────────────────────────────────────── -->
+<div class="modal-backdrop" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3><i class="fa-solid fa-circle-check"></i> <span id="confirmTitle"></span></h3>
+    <p id="confirmDesc"></p>
+    <div class="stats">
+      <div>
+        <span class="label" data-i18n="m_price">{% if lang == 'ar' %}السعر{% else %}Price{% endif %}</span>
+        <span class="val" id="confirmPrice"></span>
+      </div>
+      <div>
+        <span class="label" data-i18n="m_wallet_after">{% if lang == 'ar' %}الرصيد بعد الاشتراك{% else %}Wallet after{% endif %}</span>
+        <span class="val" id="confirmAfter"></span>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn-cancel" id="confirmCancel" data-i18n="m_cancel">
+        {% if lang == 'ar' %}إلغاء{% else %}Cancel{% endif %}
+      </button>
+      <button type="button" class="cta" id="confirmGo">
+        <i class="fa-solid fa-bolt"></i>
+        <span data-i18n="m_confirm">{% if lang == 'ar' %}تأكيد الاشتراك{% else %}Confirm Subscribe{% endif %}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  const lang = document.body.dataset.lang || "ar";
+  const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+  // ─── i18n strings ────────────────────────────────────────────
+  const T = {
+    ar: {
+      duration_days: (n) => `${n} يوم`,
+      unlimited_time: "غير محدد بزمن",
+      usage_n: (n) => `${n} استخدام`,
+      unlimited_usage: "استخدام غير محدود",
+      features_title: "المميزات المضمّنة",
+      cta_subscribe: "اشترك من المحفظة",
+      cta_owned: "✓ مشترك حالياً",
+      cta_insuff: "اشحن المحفظة أولاً",
+      empty: "مفيش باقات متاحة دلوقتي",
+      empty_sub: "تواصل مع إدارة Mouss Tec لتفعيل خطة مناسبة لورشتك.",
+      toast_ok: "✅ تم الاشتراك بنجاح",
+      toast_err: "❌ حصل خطأ — جرّب تاني",
+      toast_insuff: "💳 رصيدك أقل من السعر",
+      confirm_title: "تأكيد الاشتراك",
+      confirm_desc: (name) => `هتشترك في باقة «${name}». المبلغ هيتخصم فوراً من رصيد المحفظة.`,
+      featured: "الأكثر طلباً",
+      currency: "ج.م",
+    },
+    en: {
+      duration_days: (n) => `${n} day${n === 1 ? "" : "s"}`,
+      unlimited_time: "Unlimited time",
+      usage_n: (n) => `${n} use${n === 1 ? "" : "s"}`,
+      unlimited_usage: "Unlimited usage",
+      features_title: "Included features",
+      cta_subscribe: "Subscribe via Wallet",
+      cta_owned: "✓ Subscribed",
+      cta_insuff: "Top up wallet first",
+      empty: "No packages available right now",
+      empty_sub: "Contact Mouss Tec management to activate a tailored plan for your workshop.",
+      toast_ok: "✅ Subscription activated",
+      toast_err: "❌ Something went wrong — try again",
+      toast_insuff: "💳 Wallet balance is below the price",
+      confirm_title: "Confirm subscription",
+      confirm_desc: (name) => `You are about to subscribe to “${name}”. The price will be deducted from your wallet immediately.`,
+      featured: "Most popular",
+      currency: "EGP",
+    },
+  }[lang];
+
+  const grid     = document.getElementById("grid");
+  const walletEl = document.getElementById("walletAmount");
+  const toastEl  = document.getElementById("toast");
+
+  const modal     = document.getElementById("confirmModal");
+  const mTitle    = document.getElementById("confirmTitle");
+  const mDesc     = document.getElementById("confirmDesc");
+  const mPrice    = document.getElementById("confirmPrice");
+  const mAfter    = document.getElementById("confirmAfter");
+  const mCancel   = document.getElementById("confirmCancel");
+  const mGo       = document.getElementById("confirmGo");
+
+  let walletBalance = null;
+  let pendingPackage = null;
+
+  document.getElementById("langToggle").addEventListener("click", () => {
+    const next = (lang === "ar") ? "en" : "ar";
+    location.href = `?lang=${next}`;
+  });
+
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  function formatEGP(value) {
+    if (value == null) return "—";
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    return n.toLocaleString(lang === "ar" ? "ar-EG" : "en-US", {
+      minimumFractionDigits: 0, maximumFractionDigits: 2,
+    });
+  }
+
+  function showToast(text, kind) {
+    toastEl.textContent = text;
+    toastEl.className = `toast show ${kind || ""}`;
+    setTimeout(() => { toastEl.classList.remove("show"); }, 3800);
+  }
+
+  function billingPills(p) {
+    const out = [];
+    if (p.billing_mode === "time" || p.billing_mode === "hybrid") {
+      out.push(p.default_duration_days > 0
+        ? T.duration_days(p.default_duration_days)
+        : T.unlimited_time);
+    }
+    if (p.billing_mode === "usage" || p.billing_mode === "hybrid") {
+      out.push(p.default_usage_quota > 0
+        ? T.usage_n(p.default_usage_quota)
+        : T.unlimited_usage);
+    }
+    if (p.billing_mode === "unlimited") {
+      out.push(T.unlimited_time);
+      out.push(T.unlimited_usage);
+    }
+    return out.map(s => `<span class="pill">${escHtml(s)}</span>`).join("");
+  }
+
+  function renderCard(p, ownedCodes) {
+    const owned = ownedCodes.has(p.code);
+    const price = Number(p.price_egp);
+    const canAfford = walletBalance == null || Number(walletBalance) >= price;
+    let ctaClass = "cta";
+    let ctaText = T.cta_subscribe;
+    let ctaDisabled = false;
+    if (p.is_featured && !owned && canAfford) ctaClass += " featured-cta";
+    if (owned)        { ctaClass += " success-state"; ctaText = T.cta_owned; ctaDisabled = true; }
+    else if (!canAfford) { ctaText = T.cta_insuff; ctaDisabled = true; }
+
+    const features = (p.feature_names || p.feature_codes || []).map(f =>
+      `<li><i class="fa-solid fa-circle-check"></i><span>${escHtml(f)}</span></li>`
+    ).join("");
+
+    return `
+      <article class="card ${p.is_featured ? "featured" : ""}">
+        ${p.is_featured ? `<span class="badge-featured">${escHtml(T.featured)}</span>` : ""}
+        <div class="name">${escHtml(p.name)}</div>
+        <div class="code">${escHtml(p.code)}</div>
+        <div class="desc">${escHtml(p.description || "")}</div>
+
+        <div class="price">
+          <span class="num">${formatEGP(p.price_egp)}</span>
+          <span class="cur">${escHtml(T.currency)}</span>
+        </div>
+        <div class="meta">${billingPills(p)}</div>
+
+        <ul class="feat-list">
+          ${features}
+        </ul>
+
+        <button type="button" class="${ctaClass}"
+                data-pkg-code="${escHtml(p.code)}"
+                data-pkg-name="${escHtml(p.name)}"
+                data-pkg-price="${escHtml(String(p.price_egp))}"
+                ${ctaDisabled ? "disabled" : ""}>
+          ${ctaDisabled ? "" : '<i class="fa-solid fa-bolt"></i>'}
+          <span>${escHtml(ctaText)}</span>
+        </button>
+      </article>`;
+  }
+
+  function renderEmpty() {
+    grid.innerHTML = `
+      <div class="state-msg">
+        <i class="fa-regular fa-folder-open"></i>
+        <h3>${escHtml(T.empty)}</h3>
+        <p>${escHtml(T.empty_sub)}</p>
+      </div>`;
+  }
+
+  async function fetchPackages() {
+    const resp = await fetch("/api/ecu/storefront/packages/", {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  }
+
+  async function fetchOwnedCodes() {
+    // The grants endpoint is super-admin only. The storefront uses a
+    // best-effort GET that returns 403/empty for non-admins — failure
+    // is fine; we just won't mark owned packages.
+    return new Set();
+  }
+
+  async function init() {
+    try {
+      const data = await fetchPackages();
+      walletBalance = data.wallet_balance_egp;
+      walletEl.textContent = walletBalance == null ? "—" : formatEGP(walletBalance);
+
+      const owned = await fetchOwnedCodes();
+      const rows = data.results || [];
+      if (!rows.length) { renderEmpty(); return; }
+
+      grid.innerHTML = rows.map(p => renderCard(p, owned)).join("");
+      wireCardButtons();
+    } catch (err) {
+      console.error("[storefront] load failed:", err);
+      grid.innerHTML = `
+        <div class="state-msg">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--rose)"></i>
+          <h3>${escHtml(T.toast_err)}</h3>
+        </div>`;
+    }
+  }
+
+  function wireCardButtons() {
+    grid.querySelectorAll("button[data-pkg-code]").forEach(btn => {
+      if (btn.disabled) return;
+      btn.addEventListener("click", () => {
+        pendingPackage = {
+          code:  btn.dataset.pkgCode,
+          name:  btn.dataset.pkgName,
+          price: Number(btn.dataset.pkgPrice),
+        };
+        mTitle.textContent = T.confirm_title;
+        mDesc.textContent  = T.confirm_desc(pendingPackage.name);
+        mPrice.textContent = `${formatEGP(pendingPackage.price)} ${T.currency}`;
+        const after = (walletBalance == null) ? "—"
+          : `${formatEGP(Number(walletBalance) - pendingPackage.price)} ${T.currency}`;
+        mAfter.textContent = after;
+        modal.classList.add("show");
+      });
+    });
+  }
+
+  mCancel.addEventListener("click", () => modal.classList.remove("show"));
+  modal.addEventListener("click", e => { if (e.target === modal) modal.classList.remove("show"); });
+
+  mGo.addEventListener("click", async () => {
+    if (!pendingPackage) return;
+    mGo.disabled = true;
+    try {
+      const resp = await fetch("/api/ecu/subscribe/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": CSRF,
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({ package_code: pendingPackage.code }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok && data.ok) {
+        walletBalance = data.wallet_after_egp;
+        walletEl.textContent = formatEGP(walletBalance);
+        showToast(T.toast_ok, "ok");
+        modal.classList.remove("show");
+        // Refresh cards so the purchased package now shows "Subscribed".
+        setTimeout(init, 350);
+      } else if (resp.status === 402) {
+        showToast(T.toast_insuff, "warn");
+      } else {
+        showToast(data.detail || T.toast_err, "err");
+      }
+    } catch (err) {
+      console.error("[storefront] subscribe failed:", err);
+      showToast(T.toast_err, "err");
+    } finally {
+      mGo.disabled = false;
+      pendingPackage = null;
+    }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

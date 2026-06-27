@@ -14,6 +14,21 @@ from django.views.decorators.http import require_GET
 
 @login_required
 @require_GET
+def storefront(request):
+    """Pricing-page UI — bilingual SaaS cards backed by the granular
+    SubscriptionPackage catalog.
+
+    The page bootstraps with no server-rendered package data (the JS
+    fetches /api/ecu/storefront/packages/ on load) so a future admin
+    edit on a package doesn't require a hard refresh of cached HTML
+    fragments. Default language is Arabic; ?lang=en flips to English.
+    """
+    lang = "en" if request.GET.get("lang") == "en" else "ar"
+    return render(request, "bmw_ecu/storefront.html", {"lang": lang})
+
+
+@login_required
+@require_GET
 def coding_room(request):
     """Render the Coding & Retrofit room.
 
