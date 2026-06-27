@@ -62,6 +62,12 @@ INITIAL_FEATURES: list[tuple[str, str, str, str, str, int]] = [
      "مساعد إصلاح ذكي: يحلل الأكواد والأعراض والبيانات الحية، يقترح "
      "الأسباب الأرجح مع نسبة ثقة، ويراجع نفسه (Generator + Verifier) "
      "قبل ما يأكّد أي حل.", 960),
+    # ── ECU flashing / firmware ────────────────────────────────────────
+    ("ecu_flashing", "ECU Flashing (DME / FEM-BDC / KOMBI / EGS)",
+     "flash", "flash",
+     "تحديث سوفت وير الوحدات بأمان: فحص جهد وبطارية، نسخة احتياطية "
+     "إجبارية قبل أي مسح، ورجوع أوتوماتيك (rollback) لو فشل أي بلوك — "
+     "عشان الوحدة ما تبوّظش.", 970),
 ]
 
 # (code, name, description, billing_mode, duration_days, usage_quota, price_egp, sort_order, is_featured, feature_codes)
@@ -99,7 +105,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "FRM3 BDM recovery + FEM/BDC repair + Airbag crash clear. للورش المتخصصة.",
         "usage", 0, 10, 6000, 40, False,
         ["frm_repair", "bdc_repair", "acsm_crash_reset", "diagnostic_room",
-         "ai_repair_assistant"],
+         "ai_repair_assistant", "ecu_flashing"],
     ),
     (
         "pkg_full_suite",
@@ -114,7 +120,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
             "acsm_crash_reset", "cbs_battery_manager",
             "diagnostic_room", "full_system_scan", "live_data_stream",
             "service_resets", "bidirectional_tests", "tpms_service",
-            "ai_repair_assistant",
+            "ai_repair_assistant", "ecu_flashing",
         ],
     ),
 ]
