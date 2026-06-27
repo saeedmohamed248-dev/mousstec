@@ -40,6 +40,10 @@ INITIAL_FEATURES: list[tuple[str, str, str, str, str, int]] = [
     # ── Diagnostic ─────────────────────────────────────────────────────
     ("diagnostic_room", "Smart Diagnostics Room (AI)", "diagnostic", "coding",
      "Live OBD + ISTA test plans + AI chat assistant for the workshop bay.", 900),
+    ("full_system_scan", "Full-System Auto-Scan", "diagnostic", "coding",
+     "فحص شامل لكل وحدات السيارة + تقرير صحة بألوان (أخضر/أصفر/أحمر).", 910),
+    ("live_data_stream", "Live Data + Graphing", "diagnostic", "coding",
+     "بث حي لحساسات الموتور مع رسم بياني وتنبيه القيم خارج المدى الطبيعي.", 920),
 ]
 
 # (code, name, description, billing_mode, duration_days, usage_quota, price_egp, sort_order, is_featured, feature_codes)
@@ -49,7 +53,8 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "Starter — Diagnostics + Basic Coding",
         "أصغر باقة: تشخيص OBD ذكي + F-series coding أساسي. مناسبة للورش الجديدة.",
         "time", 30, 0, 1500, 10, False,
-        ["diagnostic_room", "f_series_coding", "cbs_battery_manager"],
+        ["diagnostic_room", "full_system_scan", "f_series_coding",
+         "cbs_battery_manager"],
     ),
     (
         "pkg_key_master",
@@ -65,7 +70,8 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "Coding كامل لكل الشاسيهات الحديثة (F, G) + battery registration.",
         "time", 30, 0, 2500, 30, False,
         ["f_series_coding", "g_series_coding", "e_series_coding",
-         "cbs_battery_manager", "diagnostic_room"],
+         "cbs_battery_manager", "diagnostic_room", "full_system_scan",
+         "live_data_stream"],
     ),
     (
         "pkg_repair_specialist",
@@ -85,7 +91,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
             "key_programming", "key_programming_fem",
             "egs_isn_reset", "dme_isn_clone",
             "acsm_crash_reset", "cbs_battery_manager",
-            "diagnostic_room",
+            "diagnostic_room", "full_system_scan", "live_data_stream",
         ],
     ),
 ]
