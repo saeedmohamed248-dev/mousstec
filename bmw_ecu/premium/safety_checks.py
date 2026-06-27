@@ -56,6 +56,31 @@ class SafetyViolation(Exception):
 
 
 @dataclass(frozen=True)
+class SafetyRequirement:
+    """Declarative pre-condition set that maps onto the SafetyGate
+    `require` dict. Shared by every procedure-driven feature (service
+    resets, bidirectional actuator tests, TPMS) so the safety vocabulary
+    lives in ONE place next to the gate that enforces it.
+
+    Only the fields a procedure actually cares about are set; the rest
+    fall back to the gate's defaults."""
+    voltage_min_v: float = 12.0
+    voltage_max_v: float = 14.8
+    gear_in: tuple[GearPosition, ...] = (GearPosition.P,)
+    ignition_in: tuple[IgnitionState, ...] = (IgnitionState.KOEO,)
+    forbidden_dtcs: tuple[str, ...] = ()
+
+    def to_require(self) -> dict:
+        return {
+            "voltage_min_v": self.voltage_min_v,
+            "voltage_max_v": self.voltage_max_v,
+            "gear_in": list(self.gear_in),
+            "ignition_in": list(self.ignition_in),
+            "forbidden_dtcs": tuple(self.forbidden_dtcs),
+        }
+
+
+@dataclass(frozen=True)
 class SafetyReport:
     """Outcome of a SafetyGate probe. `refusal_reasons` is the canonical
     list orchestrators iterate over — empty = OK, non-empty = block."""

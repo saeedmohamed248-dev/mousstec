@@ -48,6 +48,15 @@ INITIAL_FEATURES: list[tuple[str, str, str, str, str, int]] = [
      "service", "reset",
      "وظائف الصيانة اليومية: تصفير الزيت، صيانة فرامل اليد، معايرة "
      "الاستيرنج، حرق فلتر الديزل، وتأقلم بوابة الهواء.", 930),
+    ("bidirectional_tests", "Bidirectional Actuator Tests",
+     "service", "reset",
+     "تشغيل المُشغّلات للفحص: مروحة التبريد، طلمبة البنزين، البخاخات، "
+     "صمام الـ EGR، كلتش التكييف، الكلاكس، وقفل الأبواب — مع رجوع التحكم "
+     "للـ ECU دائماً.", 940),
+    ("tpms_service", "TPMS Sensor Read + Relearn",
+     "service", "reset",
+     "قراءة حساسات ضغط الإطارات (ضغط/حرارة/بطارية) وإعادة ربط كل حساس "
+     "بمكانه بعد تبديل الكاوتش أو الحساس.", 950),
 ]
 
 # (code, name, description, billing_mode, duration_days, usage_quota, price_egp, sort_order, is_featured, feature_codes)
@@ -58,6 +67,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "أصغر باقة: تشخيص OBD ذكي + F-series coding أساسي. مناسبة للورش الجديدة.",
         "time", 30, 0, 1500, 10, False,
         ["diagnostic_room", "full_system_scan", "service_resets",
+         "bidirectional_tests", "tpms_service",
          "f_series_coding", "cbs_battery_manager"],
     ),
     (
@@ -75,7 +85,8 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "time", 30, 0, 2500, 30, False,
         ["f_series_coding", "g_series_coding", "e_series_coding",
          "cbs_battery_manager", "diagnostic_room", "full_system_scan",
-         "live_data_stream", "service_resets"],
+         "live_data_stream", "service_resets", "bidirectional_tests",
+         "tpms_service"],
     ),
     (
         "pkg_repair_specialist",
@@ -96,7 +107,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
             "egs_isn_reset", "dme_isn_clone",
             "acsm_crash_reset", "cbs_battery_manager",
             "diagnostic_room", "full_system_scan", "live_data_stream",
-            "service_resets",
+            "service_resets", "bidirectional_tests", "tpms_service",
         ],
     ),
 ]

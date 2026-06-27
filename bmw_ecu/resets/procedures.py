@@ -24,7 +24,11 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 
-from ..premium.safety_checks import GearPosition, IgnitionState
+from ..premium.safety_checks import (
+    GearPosition,
+    IgnitionState,
+    SafetyRequirement,
+)
 
 
 class StepKind(str, enum.Enum):
@@ -51,24 +55,8 @@ class ResetStep:
         }
 
 
-@dataclass(frozen=True)
-class SafetyRequirement:
-    """Maps to the SafetyGate `require` dict. Only the fields a procedure
-    actually cares about are set; the rest fall back to gate defaults."""
-    voltage_min_v: float = 12.0
-    voltage_max_v: float = 14.8
-    gear_in: tuple[GearPosition, ...] = (GearPosition.P,)
-    ignition_in: tuple[IgnitionState, ...] = (IgnitionState.KOEO,)
-    forbidden_dtcs: tuple[str, ...] = ()
-
-    def to_require(self) -> dict:
-        return {
-            "voltage_min_v": self.voltage_min_v,
-            "voltage_max_v": self.voltage_max_v,
-            "gear_in": list(self.gear_in),
-            "ignition_in": list(self.ignition_in),
-            "forbidden_dtcs": tuple(self.forbidden_dtcs),
-        }
+# SafetyRequirement now lives in premium.safety_checks (shared home);
+# imported above and re-exported via resets/__init__ for compatibility.
 
 
 @dataclass(frozen=True)
