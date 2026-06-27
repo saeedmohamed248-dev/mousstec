@@ -44,6 +44,10 @@ INITIAL_FEATURES: list[tuple[str, str, str, str, str, int]] = [
      "فحص شامل لكل وحدات السيارة + تقرير صحة بألوان (أخضر/أصفر/أحمر).", 910),
     ("live_data_stream", "Live Data + Graphing", "diagnostic", "coding",
      "بث حي لحساسات الموتور مع رسم بياني وتنبيه القيم خارج المدى الطبيعي.", 920),
+    ("service_resets", "Service Functions (Oil/EPB/SAS/DPF/Throttle)",
+     "service", "reset",
+     "وظائف الصيانة اليومية: تصفير الزيت، صيانة فرامل اليد، معايرة "
+     "الاستيرنج، حرق فلتر الديزل، وتأقلم بوابة الهواء.", 930),
 ]
 
 # (code, name, description, billing_mode, duration_days, usage_quota, price_egp, sort_order, is_featured, feature_codes)
@@ -53,8 +57,8 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "Starter — Diagnostics + Basic Coding",
         "أصغر باقة: تشخيص OBD ذكي + F-series coding أساسي. مناسبة للورش الجديدة.",
         "time", 30, 0, 1500, 10, False,
-        ["diagnostic_room", "full_system_scan", "f_series_coding",
-         "cbs_battery_manager"],
+        ["diagnostic_room", "full_system_scan", "service_resets",
+         "f_series_coding", "cbs_battery_manager"],
     ),
     (
         "pkg_key_master",
@@ -71,7 +75,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
         "time", 30, 0, 2500, 30, False,
         ["f_series_coding", "g_series_coding", "e_series_coding",
          "cbs_battery_manager", "diagnostic_room", "full_system_scan",
-         "live_data_stream"],
+         "live_data_stream", "service_resets"],
     ),
     (
         "pkg_repair_specialist",
@@ -92,6 +96,7 @@ INITIAL_PACKAGES: list[tuple[str, str, str, str, int, int, int, int, bool, list[
             "egs_isn_reset", "dme_isn_clone",
             "acsm_crash_reset", "cbs_battery_manager",
             "diagnostic_room", "full_system_scan", "live_data_stream",
+            "service_resets",
         ],
     ),
 ]
