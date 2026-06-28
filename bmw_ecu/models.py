@@ -135,6 +135,51 @@ class EcuPinoutDiagram(models.Model):
         return self.ecu_name
 
 
+class EcuHardwareProfile(models.Model):
+    """A board-revision-specific bench profile keyed on the live Hardware ID.
+
+    The dynamic hardware catalog ships a small bundled seed in code; this
+    table lets a workshop register confirmed real board revisions (pins,
+    images, steps) from the Django admin without a code change. Lookup is
+    DB-first, falling back to the bundled catalog.
+    """
+
+    hardware_id = models.CharField(max_length=32, unique=True,
+                                   help_text="Live HWEL / part number, e.g. 8606229")
+    ecu_name = models.CharField(max_length=64, help_text="Marketing name, e.g. MEVD17.2.9")
+    board_revision = models.CharField(max_length=64, help_text="e.g. Rev B (N20 pre-LCI)")
+    family = models.CharField(max_length=32, blank=True, help_text="MEVD17 | FEM | CAS ...")
+    protocol = models.CharField(max_length=32, blank=True, help_text="BootMode | BDM | JTAG")
+
+    power_pin = models.PositiveIntegerField(help_text="KL30 / +12V")
+    ground_pin = models.PositiveIntegerField(help_text="KL31 / GND")
+    boot_pin = models.PositiveIntegerField(null=True, blank=True,
+                                           help_text="Ground/probe to enter BSL/BDM")
+    can_h_pin = models.PositiveIntegerField(null=True, blank=True)
+    can_l_pin = models.PositiveIntegerField(null=True, blank=True)
+    k_line_pin = models.PositiveIntegerField(null=True, blank=True)
+
+    pcb_image_url = models.CharField(max_length=512, blank=True,
+                                     help_text="Full PCB photo for orientation")
+    boot_image_url = models.CharField(max_length=512, blank=True,
+                                      help_text="Close-up of the boot pad/pin")
+    callouts = models.JSONField(default=list, blank=True,
+                                help_text='[{"pin": 24, "label": "BOOT", "color": "yellow"}]')
+    physical_steps_ar = models.JSONField(default=list, blank=True,
+                                         help_text="Variant-specific steps (Arabic)")
+    physical_steps_en = models.JSONField(default=list, blank=True,
+                                         help_text="Variant-specific steps (English)")
+    notes = models.TextField(blank=True)
+    verified = models.BooleanField(default=False,
+                                   help_text="True once confirmed on real hardware")
+
+    class Meta:
+        verbose_name = "ECU Hardware Profile (bench)"
+
+    def __str__(self) -> str:
+        return f"{self.hardware_id} — {self.ecu_name} {self.board_revision}"
+
+
 class DiagnosticFeeCharge(models.Model):
     """Pay-Per-Success ledger: 450 EGP per unlocked VIN.
 

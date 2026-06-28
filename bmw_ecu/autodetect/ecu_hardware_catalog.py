@@ -150,5 +150,25 @@ def get_hardware_profile(hardware_id: str) -> Optional[HardwareProfile]:
     return best
 
 
+def get_hardware_profile_db_first(hardware_id: str) -> Optional[HardwareProfile]:
+    """DB-first resolve: a workshop-registered row (Django admin) wins over
+    the bundled seed; otherwise fall back to the in-memory catalog.
+
+    The DB hop is best-effort — if Django isn't configured or the table is
+    absent it silently degrades to the bundled `get_hardware_profile`, so
+    pure-unit callers and tenant-less contexts still work.
+    """
+    if not hardware_id:
+        return None
+    try:
+        from .._db_hardware import fetch_hardware_profile
+        row = fetch_hardware_profile(hardware_id.strip())
+    except Exception:
+        row = None
+    if row is not None:
+        return row
+    return get_hardware_profile(hardware_id)
+
+
 def all_hardware_ids() -> list[str]:
     return sorted(_CATALOG)

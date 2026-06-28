@@ -6,6 +6,7 @@ from .ecu_hardware_catalog import (  # noqa: F401
     HardwareProfile,
     all_hardware_ids,
     get_hardware_profile,
+    get_hardware_profile_db_first,
     register_hardware_profile,
 )
 from .n20_auto_orchestrator import (  # noqa: F401

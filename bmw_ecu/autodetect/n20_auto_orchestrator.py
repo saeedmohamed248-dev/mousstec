@@ -30,7 +30,7 @@ from ..services.chatbot_translator import ChatbotPayload
 from ..uds.services import BmwDID, DiagSession
 from .ecu_hardware_catalog import (
     HardwareProfile,
-    get_hardware_profile,
+    get_hardware_profile_db_first,
 )
 
 log = get_logger(__name__)
@@ -86,7 +86,7 @@ _COLOR_AR = {
 
 class N20AutoOrchestrator:
     def __init__(self, *,
-                 catalog_lookup: Callable[[str], Optional[HardwareProfile]] = get_hardware_profile,
+                 catalog_lookup: Callable[[str], Optional[HardwareProfile]] = get_hardware_profile_db_first,
                  hw_id_did: int = BmwDID.HW_NUMBER,
                  sw_ver_did: int = BmwDID.SW_VERSION,
                  tprot_did: int = TPROT_STATUS_DID) -> None:

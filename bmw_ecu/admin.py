@@ -2,8 +2,9 @@ from django.contrib import admin
 
 from .models import (
     BmwEcuSettlement, CodingEntitlementHold, DiagnosticFeeCharge,
-    EcuBackupRef, EcuPinoutDiagram, EcuSession, EcuStateChange,
-    ExecutionAttempt, GiftCredit, GiftCreditUsage, WizardSession,
+    EcuBackupRef, EcuHardwareProfile, EcuPinoutDiagram, EcuSession,
+    EcuStateChange, ExecutionAttempt, GiftCredit, GiftCreditUsage,
+    WizardSession,
 )
 
 
@@ -82,6 +83,14 @@ class WizardSessionAdmin(admin.ModelAdmin):
 class EcuPinoutDiagramAdmin(admin.ModelAdmin):
     list_display = ("ecu_name", "image_url")
     search_fields = ("ecu_name",)
+
+
+@admin.register(EcuHardwareProfile)
+class EcuHardwareProfileAdmin(admin.ModelAdmin):
+    list_display = ("hardware_id", "ecu_name", "board_revision", "boot_pin",
+                    "verified")
+    list_filter = ("family", "protocol", "verified")
+    search_fields = ("hardware_id", "ecu_name", "board_revision")
 
 
 @admin.register(EcuSession)
