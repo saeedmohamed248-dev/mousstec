@@ -40,6 +40,7 @@
     </label>
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
     <button id="autodetect-btn" type="button">🤖 Auto-Detect</button>
+    <button id="smart-btn" type="button">🚀 Smart Flow</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -144,11 +145,117 @@
   </div>
 </div>
 
+<!-- Smart Auto-Detect (UniversalSmartOrchestrator) — Plug-&-Play guided flow
+     with auto-backup & rollback. Self-contained: drives /api/ecu/smart/step. -->
+<div id="smart-modal" class="cr-modal" hidden>
+  <div class="cr-modal-body">
+    <div id="smart-progress" class="cr-smart-progress"><span></span></div>
+    <h3 id="smart-title">🚀 Smart Auto-Detect</h3>
+    <p id="smart-body">هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل.
+       <span class="en">We detect the car and auto-backup before any write.</span></p>
+    <div id="smart-pinout" class="cr-smart-pinout" hidden></div>
+    <div id="smart-actions" class="cr-modal-actions"></div>
+    <button id="smart-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+  </div>
+</div>
+
 <script>
   window.BMW_ECU_CFG = {
     executeUrl: "{% url 'bmw_ecu:bmw_ecu_api:execute' %}",
+    smartUrl: "{% url 'bmw_ecu:bmw_ecu_api:smart_step' %}",
     csrfToken: "{{ csrf_token }}",
   };
+</script>
+<script>
+(function () {
+  "use strict";
+  var CFG = window.BMW_ECU_CFG || {};
+  var sessionId = null;
+  var modal   = document.getElementById("smart-modal");
+  var elTitle = document.getElementById("smart-title");
+  var elBody  = document.getElementById("smart-body");
+  var elAct   = document.getElementById("smart-actions");
+  var elProg  = document.querySelector("#smart-progress span");
+  var elPin   = document.getElementById("smart-pinout");
+
+  function transportFromChassis() {
+    // ENET/DoIP for F/G-series; K+DCAN for R/E-series (incl. Mini R5x).
+    var ch = (document.getElementById("chassis-input") || {}).value || "";
+    return /^R|^E/.test(ch) ? "kdcan" : "doip";
+  }
+
+  async function step(event, payload) {
+    var body = { event: event, payload: payload || {} };
+    if (sessionId) {
+      body.session_id = sessionId;
+    } else {
+      // First call: tell the server what we're working on.
+      body.vin = (document.getElementById("vin-input") || {}).value || "";
+      body.profile_name =
+        (document.getElementById("profile-input") || {}).value || "MEVD17_2_2_N18";
+      var kind = transportFromChassis();
+      body.transport = { kind: kind };
+      body.sim = { transport_kind: kind };
+    }
+    elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
+    var res = await fetch(CFG.smartUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "X-CSRFToken": CFG.csrfToken || "" },
+      body: JSON.stringify(body),
+    });
+    var data = await res.json();
+    if (!res.ok) {
+      render({ title_ar: "خطأ", title_en: "Error",
+               body_ar: (data && (data.detail || data.error)) || "request failed",
+               body_en: "", actions: [], progress_pct: 0, is_error: true });
+      return;
+    }
+    sessionId = data.session_id;
+    render(data.prompt);
+  }
+
+  function render(p) {
+    elProg.style.width = (p.progress_pct || 0) + "%";
+    elTitle.textContent = p.title_ar || p.title_en || "";
+    elBody.innerHTML =
+      (p.body_ar || "") + (p.body_en ? '<br><span class="en">' + p.body_en + "</span>" : "");
+    // Confirmed bench pinout (only ever shown when the catalog actually has it).
+    if (p.payload && p.payload.has_pinout && p.payload.pinout) {
+      elPin.hidden = false;
+      elPin.textContent = "📍 Pinout: " + JSON.stringify(p.payload.pinout);
+    } else {
+      elPin.hidden = true;
+    }
+    elAct.innerHTML = "";
+    (p.actions || []).forEach(function (a) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "cr-smart-act cr-smart-" + (a.style || "default");
+      btn.textContent = a.label_ar || a.label_en || a.event;
+      btn.addEventListener("click", function () {
+        var extra = {};
+        // The only event that needs data is CODE (feature options). The full
+        // coding map is produced upstream; here we just pass an empty set so
+        // the simulator/flow advances. Real coding bytes go via raw_coding_hex.
+        step(a.event, extra);
+      });
+      elAct.appendChild(btn);
+    });
+  }
+
+  function open() {
+    sessionId = null;
+    modal.hidden = false;
+    step("start");
+  }
+  function close() { modal.hidden = true; }
+
+  var openBtn = document.getElementById("smart-btn");
+  if (openBtn) openBtn.addEventListener("click", open);
+  var closeBtn = document.getElementById("smart-close");
+  if (closeBtn) closeBtn.addEventListener("click", close);
+})();
 </script>
 <script src="{% static 'bmw_ecu/coding_room.js' %}?v=7" defer></script>
 </body>
