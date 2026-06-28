@@ -103,6 +103,8 @@ class CodingOrchestrator:
 
         # 2. Dispatch on action.
         try:
+            if action == "auto_detect":
+                return await self._auto_detect(ctx, coding_request, entitlement)
             if action == "connect_read":
                 return await self._connect_read(ctx, coding_request, entitlement)
             if action == "list_features":
@@ -127,6 +129,28 @@ class CodingOrchestrator:
                 outcome="error",
                 entitlement=self._entitlement_dict(entitlement),
             )
+
+    # --- Action: auto_detect ---------------------------------------------
+    async def _auto_detect(self, ctx: StrategyContext,
+                           req: dict[str, Any],
+                           entitlement: CodingEntitlement) -> CodingResponse:
+        """Dynamic, data-driven auto-detect: silently probe the live Hardware
+        ID + TPROT over UDS, then yield either the standard OBD flow or a
+        board-revision-specific bench procedure pulled from the catalog."""
+        from ..autodetect import N20AutoOrchestrator
+        from ..uds.client import UdsClient
+
+        client = UdsClient(ctx.transport,
+                           ecu_addr=ctx.profile.uds_isn_did >> 8,
+                           session_name="auto_detect")
+        payload = await N20AutoOrchestrator().run(client, vin=ctx.vin)
+        outcome = payload.diagnostics.get("flow", "auto_detect")
+        return CodingResponse(
+            chatbot=payload,
+            outcome=outcome,
+            entitlement=self._entitlement_dict(entitlement),
+            next_endpoint="/api/ecu/execute",
+        )
 
     # --- Action: connect_read --------------------------------------------
     async def _connect_read(self, ctx: StrategyContext,
