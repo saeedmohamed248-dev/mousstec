@@ -14,7 +14,19 @@ To use this subsystem against a physical ECU:
 from __future__ import annotations
 
 import abc
-from typing import Final
+import importlib
+import os
+from typing import Final, Optional
+
+
+class SeedKeyUnavailable(RuntimeError):
+    """No licensed seed-key provider is installed for this ECU family.
+
+    Raised at key-computation time (never at connect time) so that read-only
+    flows still work — only the security-gated steps (ISN read, key write,
+    flash) fail, and they fail loudly instead of bricking a car with a fake
+    key.
+    """
 
 
 class AbstractSeedKeyProvider(abc.ABC):
@@ -50,3 +62,84 @@ class MockSeedKeyProvider(AbstractSeedKeyProvider):
             raise ValueError("Empty seed")
         mask = self._XOR_MASK[: len(seed)]
         return bytes(s ^ m for s, m in zip(seed, mask))
+
+
+class UnavailableSeedKeyProvider(AbstractSeedKeyProvider):
+    """Safe placeholder for a real ECU family with no licensed provider.
+
+    It carries the correct family + security level (so connect/seed-request
+    behaviour is realistic) but REFUSES to invent a key. This is what keeps
+    us from silently sending a wrong key to a real immobiliser.
+    """
+
+    def __init__(self, family: str, security_level: int = 0x01) -> None:
+        self.ecu_family = family
+        self.security_level = security_level
+
+    def compute_key(self, seed: bytes, *, vin: str | None = None) -> bytes:
+        raise SeedKeyUnavailable(
+            f"No licensed seed-key provider registered for ECU family "
+            f"'{self.ecu_family}'. Install one and register it via "
+            f"bmw_ecu.uds.register_seed_key_provider(...). Refusing to "
+            f"compute a fake key against real hardware."
+        )
+
+
+# --- Provider registry ------------------------------------------------------
+# Real, licensed providers self-register here at startup (typically from a
+# private backend module named in BMW_ECU_SEEDKEY_BACKEND). Nothing
+# proprietary ships in this repo.
+_REGISTRY: dict[str, AbstractSeedKeyProvider] = {}
+_BACKEND_LOADED = False
+
+
+def register_seed_key_provider(provider: AbstractSeedKeyProvider, *,
+                               family: Optional[str] = None) -> None:
+    """Register a licensed provider for an ECU family (e.g. 'FEM', 'MEVD17')."""
+    fam = (family or getattr(provider, "ecu_family", "") or "").upper()
+    if not fam:
+        raise ValueError("Provider has no ecu_family and none was supplied")
+    _REGISTRY[fam] = provider
+
+
+def get_seed_key_provider(family: str) -> Optional[AbstractSeedKeyProvider]:
+    return _REGISTRY.get((family or "").upper())
+
+
+def load_backend_from_env() -> None:
+    """Import the private seed-key backend module named in the environment.
+
+    Set BMW_ECU_SEEDKEY_BACKEND=your_package.seedkey_backend ; that module is
+    expected to call register_seed_key_provider(...) at import time. Idempotent
+    and never raises — a missing/broken backend just leaves the registry empty
+    so we fall back to UnavailableSeedKeyProvider (loud refusal on use).
+    """
+    global _BACKEND_LOADED
+    if _BACKEND_LOADED:
+        return
+    _BACKEND_LOADED = True
+    mod = os.environ.get("BMW_ECU_SEEDKEY_BACKEND", "").strip()
+    if not mod:
+        return
+    try:
+        importlib.import_module(mod)
+    except Exception:  # noqa: BLE001 — never let a backend import kill a request
+        pass
+
+
+def resolve_seed_key_provider(*, family: str = "", security_level: int = 0x01,
+                              simulator: bool = False
+                              ) -> AbstractSeedKeyProvider:
+    """Pick the right provider for this run.
+
+      • simulator ON  → MockSeedKeyProvider (pairs with MockEcu).
+      • real hardware → a registered licensed provider for `family`, else an
+        UnavailableSeedKeyProvider that refuses to fake a key.
+    """
+    if simulator:
+        return MockSeedKeyProvider()
+    load_backend_from_env()
+    provider = get_seed_key_provider(family)
+    if provider is not None:
+        return provider
+    return UnavailableSeedKeyProvider(family or "UNKNOWN", security_level)

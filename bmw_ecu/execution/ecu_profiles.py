@@ -33,6 +33,11 @@ class EcuProfile:
     boot_pin: int | None = None              # Connector pin number to ground for BSL
     known_software_exploit_ids: tuple[str, ...] = field(default_factory=tuple)
     requires_bench: bool = False             # True → SoftwareOnly will not be offered
+    # Seed-Key + ISN identity used to pick the RIGHT (licensed) provider and
+    # the correct unlock level for this family. There is intentionally no
+    # built-in crypto — see uds/seed_key_providers.py.
+    seed_key_family: str = ""                # "FEM" | "MEVD17" | "CAS" | ...
+    isn_security_level: int = 0x01           # UDS 0x27 sub-function for ISN access
 
     def supports_software_only(self) -> bool:
         return (
@@ -56,6 +61,8 @@ KNOWN_PROFILES: dict[str, EcuProfile] = {
         boot_pin=24,
         known_software_exploit_ids=(),       # ISN write needs BDM on production fw
         requires_bench=True,
+        seed_key_family="MEVD17",
+        isn_security_level=0x01,
     ),
     "FEM_F30": EcuProfile(
         name="FEM_F30",
@@ -66,6 +73,8 @@ KNOWN_PROFILES: dict[str, EcuProfile] = {
         boot_pin=18,
         known_software_exploit_ids=("FEM_PRE_2014_PRGSESS_BYPASS",),
         requires_bench=False,
+        seed_key_family="FEM",
+        isn_security_level=0x05,
     ),
     "FEM_F30_POST_2014": EcuProfile(
         name="FEM_F30_POST_2014",
@@ -76,6 +85,8 @@ KNOWN_PROFILES: dict[str, EcuProfile] = {
         boot_pin=18,
         known_software_exploit_ids=(),
         requires_bench=False,                # bench-optional; tech-guided viable
+        seed_key_family="FEM",
+        isn_security_level=0x05,
     ),
 }
 

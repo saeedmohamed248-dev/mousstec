@@ -48,11 +48,17 @@ from .isn_extraction import (
     extract_isn_from_dump,
 )
 from .key_generation import (
+    AbstractKeyGenBackend,
     KeyFob,
+    KeyGenUnavailable,
     KeySlotState,
+    LocalStubKeyGen,
     allocate_key_slot,
     generate_key_fob,
+    generate_working_key_fob,
     KeyAllocationError,
+    register_keygen_backend,
+    resolve_keygen_backend,
 )
 
 __all__ = [
@@ -78,5 +84,11 @@ __all__ = [
     "KeySlotState",
     "allocate_key_slot",
     "generate_key_fob",
+    "generate_working_key_fob",
     "KeyAllocationError",
+    "AbstractKeyGenBackend",
+    "LocalStubKeyGen",
+    "KeyGenUnavailable",
+    "register_keygen_backend",
+    "resolve_keygen_backend",
 ]

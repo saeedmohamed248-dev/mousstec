@@ -21,8 +21,12 @@ class SecurityAccess:
         self.client = client
         self.provider = provider
 
-    async def unlock(self, *, vin: str | None = None) -> None:
-        lvl = self.provider.security_level
+    async def unlock(self, *, vin: str | None = None,
+                     level: int | None = None) -> None:
+        # `level` overrides the provider's default — needed because one ECU
+        # family exposes several security levels (e.g. FEM ISN access at 0x05
+        # vs coding at 0x03). Falls back to the provider's own level.
+        lvl = level if level is not None else self.provider.security_level
 
         # Step 1: request seed
         seed_resp = await self.client.raw_request(bytes([SID.SECURITY_ACCESS, lvl]))

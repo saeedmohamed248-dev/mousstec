@@ -45,7 +45,6 @@ from ..logging_setup import get_logger
 from ..safety import BackupStore, BatteryMonitor, PreflightGate
 from ..uds.client import UdsClient
 from ..uds.security_access import SecurityAccess
-from ..uds.seed_key_providers import MockSeedKeyProvider
 from .orchestrator import ApiOrchestrator
 from ..services.billing_gate import LocalBillingGate
 from ..services.chatbot_translator import translate_exception
@@ -144,7 +143,9 @@ async def _build(payload: dict[str, Any]) -> tuple[ApiOrchestrator, StrategyCont
     # the Coding Room is fully clickable with no OBD interface attached.
     # Default OFF → zero production impact (real transports unchanged).
     import os as _os
-    if _os.environ.get("BMW_ECU_SIMULATOR", "").lower() in ("1", "true", "yes", "on"):
+    _simulator = _os.environ.get("BMW_ECU_SIMULATOR", "").lower() in (
+        "1", "true", "yes", "on")
+    if _simulator:
         from ..mocks import MockEcu, MockTransport
         transport = MockTransport(ecu=MockEcu(vin=vin))
         await transport.open()
@@ -165,7 +166,16 @@ async def _build(payload: dict[str, Any]) -> tuple[ApiOrchestrator, StrategyCont
 
     ecu_addr = profile.uds_isn_did >> 8
     client = UdsClient(transport, ecu_addr=ecu_addr, session_name="api")
-    security = SecurityAccess(client, MockSeedKeyProvider())
+    # Pick the seed-key provider for THIS ECU family. On the simulator we use
+    # the Mock (pairs with MockEcu); on real hardware we use a registered
+    # licensed provider, or an Unavailable one that refuses to fake a key.
+    from ..uds import resolve_seed_key_provider
+    provider = resolve_seed_key_provider(
+        family=profile.seed_key_family,
+        security_level=profile.isn_security_level,
+        simulator=_simulator,
+    )
+    security = SecurityAccess(client, provider)
 
     async def voltage_reader() -> float:
         # Read DID 0xF40C → 2 bytes centivolts.

@@ -14,7 +14,10 @@ KeyGen" can later replace the local stub without touching call sites.
 """
 from __future__ import annotations
 
+import abc
 import hashlib
+import importlib
+import os
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -24,6 +27,10 @@ from typing import Iterable, Optional
 
 class KeyAllocationError(RuntimeError):
     """Raised when no slot can be allocated for the requested module."""
+
+
+class KeyGenUnavailable(RuntimeError):
+    """A real working key was requested but no real KeyGen backend exists."""
 
 
 class KeySlotState(str, Enum):
@@ -85,6 +92,9 @@ class KeyFob:
     fcc_id: str         # 12-char hex, what dealer software calls the remote ID
     payload: bytes      # 32-byte block ready to flash into the slot
     created: datetime = field(default_factory=datetime.utcnow)
+    # False = a deterministic STUB payload (will NOT start a real car). True
+    # only when a licensed/cloud KeyGen produced a working immobiliser key.
+    real: bool = False
 
 
 def generate_key_fob(*, isn: bytes, slot_index: int, family_code: str,
@@ -122,4 +132,77 @@ def generate_key_fob(*, isn: bytes, slot_index: int, family_code: str,
         slot_index=slot_index,
         fcc_id=fcc_id,
         payload=payload,
+        real=False,            # stub payload — not a working immobiliser key
     )
+
+
+# --- Pluggable KeyGen backend (#3) -----------------------------------------
+# The real cryptographic derivation of a working key from (ISN, slot) is
+# proprietary and is NOT shipped here. We expose a clean seam so a licensed /
+# cloud "Mousstec KeyGen" can be registered without touching call sites; until
+# then the local stub returns a deterministic NON-working payload (real=False).
+class AbstractKeyGenBackend(abc.ABC):
+    produces_real_keys: bool = False
+
+    @abc.abstractmethod
+    def generate(self, *, isn: bytes, slot_index: int, family_code: str,
+                 seed: Optional[bytes] = None) -> KeyFob: ...
+
+
+class LocalStubKeyGen(AbstractKeyGenBackend):
+    """Deterministic SHA-256 stub. Useful for tests/idempotency only."""
+    produces_real_keys = False
+
+    def generate(self, *, isn: bytes, slot_index: int, family_code: str,
+                 seed: Optional[bytes] = None) -> KeyFob:
+        return generate_key_fob(isn=isn, slot_index=slot_index,
+                                family_code=family_code, seed=seed)
+
+
+_KEYGEN_BACKEND: Optional[AbstractKeyGenBackend] = None
+_KEYGEN_LOADED = False
+
+
+def register_keygen_backend(backend: AbstractKeyGenBackend) -> None:
+    global _KEYGEN_BACKEND
+    _KEYGEN_BACKEND = backend
+
+
+def _load_keygen_from_env() -> None:
+    global _KEYGEN_LOADED
+    if _KEYGEN_LOADED:
+        return
+    _KEYGEN_LOADED = True
+    mod = os.environ.get("BMW_ECU_KEYGEN_BACKEND", "").strip()
+    if not mod:
+        return
+    try:
+        importlib.import_module(mod)  # expected to call register_keygen_backend
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def resolve_keygen_backend() -> AbstractKeyGenBackend:
+    _load_keygen_from_env()
+    return _KEYGEN_BACKEND or LocalStubKeyGen()
+
+
+def generate_working_key_fob(*, isn: bytes, slot_index: int, family_code: str,
+                             seed: Optional[bytes] = None,
+                             allow_stub: bool = False) -> KeyFob:
+    """Produce a key fob that is REQUIRED to be a real working key.
+
+    Refuses to hand back a stub payload (which would never start the car)
+    unless `allow_stub=True` is passed deliberately for bench/testing.
+    """
+    backend = resolve_keygen_backend()
+    fob = backend.generate(isn=isn, slot_index=slot_index,
+                           family_code=family_code, seed=seed)
+    if not fob.real and not allow_stub:
+        raise KeyGenUnavailable(
+            "No real KeyGen backend registered — refusing to emit a stub key "
+            "that won't start the car. Register one via "
+            "register_keygen_backend(...) or pass allow_stub=True for bench "
+            "testing."
+        )
+    return fob

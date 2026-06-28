@@ -18,6 +18,7 @@ from .flash_provider import (  # noqa: F401
     FlashTransportError,
     MockFlashProvider,
 )
+from .uds_flash_provider import UdsFlashProvider  # noqa: F401
 from .flash_orchestrator import (  # noqa: F401
     FlashData,
     FlashEvent,
