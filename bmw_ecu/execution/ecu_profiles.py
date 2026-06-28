@@ -64,6 +64,27 @@ KNOWN_PROFILES: dict[str, EcuProfile] = {
         seed_key_family="MEVD17",
         isn_security_level=0x01,
     ),
+    "MEVD17_2_2_N18": EcuProfile(
+        name="MEVD17_2_2_N18",
+        # Mini Cooper S / JCW, N18 turbo. Same Bosch MEVD17 family + Tricore
+        # core as the N20 DME, so it routes through the identical seed-key
+        # family and ISN security level — only the chassis/engine identity
+        # differs. R56 (hatch) is the headline car; the N18 also appears in
+        # R55/R57/R58/R59/R60/R61, so they are all selectable here.
+        chassis=("R56", "R55", "R57", "R58", "R59", "R60", "R61"),
+        engine="N18",
+        chip="Tricore TC1797",
+        protection=ProtectionLevel.HIGH,
+        uds_isn_did=0xF1A0,
+        # boot_pin intentionally LEFT None — the confirmed N18 board boot pin
+        # is not in hand. Register it from Django admin (EcuHardwareProfile)
+        # once verified; never guess a bench pin against a real board.
+        boot_pin=None,
+        known_software_exploit_ids=(),       # ISN write needs bench on prod fw
+        requires_bench=True,
+        seed_key_family="MEVD17",
+        isn_security_level=0x01,
+    ),
     "FEM_F30": EcuProfile(
         name="FEM_F30",
         chassis=("F30", "F32", "F36", "F20", "F22"),

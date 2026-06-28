@@ -22,6 +22,7 @@
         <option value="FEM_F30" {% if profile_name == "FEM_F30" %}selected{% endif %}>FEM_F30</option>
         <option value="FEM_F30_POST_2014" {% if profile_name == "FEM_F30_POST_2014" %}selected{% endif %}>FEM_F30 (post-2014)</option>
         <option value="MEVD17_2_9" {% if profile_name == "MEVD17_2_9" %}selected{% endif %}>MEVD17_2_9 (N20)</option>
+        <option value="MEVD17_2_2_N18" {% if profile_name == "MEVD17_2_2_N18" %}selected{% endif %}>MEVD17_2_2 (Mini N18)</option>
       </select>
     </label>
     <label>Chassis:
@@ -31,6 +32,10 @@
         <option value="F30" {% if chassis == "F30" %}selected{% endif %}>F30</option>
         <option value="F32">F32</option>
         <option value="F36">F36</option>
+        <option value="R56" {% if chassis == "R56" %}selected{% endif %}>R56 (Mini)</option>
+        <option value="R55">R55 (Mini)</option>
+        <option value="R57">R57 (Mini)</option>
+        <option value="R60">R60 (Mini)</option>
       </select>
     </label>
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>

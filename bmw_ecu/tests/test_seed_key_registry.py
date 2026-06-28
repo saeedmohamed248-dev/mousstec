@@ -78,6 +78,32 @@ class ProfileWiringTests(unittest.TestCase):
         dme = KNOWN_PROFILES["MEVD17_2_9"]
         self.assertEqual(dme.seed_key_family, "MEVD17")
 
+    def test_mini_n18_routes_through_mevd17_family(self) -> None:
+        # Mini Cooper S R56 (N18) shares the MEVD17 seed-key family + level
+        # 0x01 with the N20 DME, so the SAME licensed provider unlocks both.
+        from bmw_ecu.execution.ecu_profiles import KNOWN_PROFILES
+        n18 = KNOWN_PROFILES["MEVD17_2_2_N18"]
+        self.assertEqual(n18.seed_key_family, "MEVD17")
+        self.assertEqual(n18.isn_security_level, 0x01)
+        self.assertEqual(n18.engine, "N18")
+        self.assertIn("R56", n18.chassis)
+        # No fabricated bench pin shipped for the N18 board.
+        self.assertIsNone(n18.boot_pin)
+
+    def test_mini_n18_isn_refuses_fake_key_on_real_hw(self) -> None:
+        # Without a licensed MEVD17 provider, ISN read on a real Mini must
+        # refuse — never fake a key into the immobiliser.
+        from bmw_ecu.execution.ecu_profiles import KNOWN_PROFILES
+        n18 = KNOWN_PROFILES["MEVD17_2_2_N18"]
+        p = resolve_seed_key_provider(
+            family=n18.seed_key_family,
+            security_level=n18.isn_security_level,
+            simulator=False,
+        )
+        self.assertIsInstance(p, UnavailableSeedKeyProvider)
+        with self.assertRaises(SeedKeyUnavailable):
+            p.compute_key(b"\x11\x22\x33\x44")
+
 
 if __name__ == "__main__":
     unittest.main()
