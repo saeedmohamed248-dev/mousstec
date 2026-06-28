@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMW Coding Room — Mousstec</title>
-<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=4">
+<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=6">
 </head>
 <body data-vin="{{ vin }}"
       data-profile="{{ profile_name }}"
@@ -132,6 +132,6 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'bmw_ecu/coding_room.js' %}?v=4" defer></script>
+<script src="{% static 'bmw_ecu/coding_room.js' %}?v=6" defer></script>
 </body>
 </html>

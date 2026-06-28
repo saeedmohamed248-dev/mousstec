@@ -20,7 +20,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from bmw_ecu.coding.guided_connect import assess_connection
+from bmw_ecu.coding.guided_connect import (
+    LiveIdentifier, LiveRead, assess_connection, read_live,
+)
 from bmw_ecu.execution.ecu_profiles import KNOWN_PROFILES
 
 
@@ -126,6 +128,75 @@ class AssessLockedCanModuleTests(unittest.TestCase):
         self.assertIn("CAN", joined)
 
 
+# --- Real live read --------------------------------------------------------
+class ReadLiveTests(unittest.TestCase):
+    """read_live() actually talks UDS to the (mock) ECU and collects data."""
+    def _client(self, ecu):
+        from bmw_ecu.mocks import MockTransport
+        from bmw_ecu.uds import UdsClient
+
+        async def go():
+            transport = MockTransport(ecu)
+            await transport.open()
+            return await read_live(
+                UdsClient(transport, ecu_addr=0x40, session_name="t"))
+        return asyncio.run(go())
+
+    def test_reachable_ecu_returns_vin_and_battery(self) -> None:
+        from bmw_ecu.mocks import MockEcu
+        live = self._client(MockEcu(vin="WBA3A5C50DF000077", battery_volts=13.4))
+        self.assertTrue(live.reachable)
+        self.assertTrue(live.session_ok)
+        by_did = {i.did: i for i in live.identifiers}
+        self.assertIn(0xF190, by_did)
+        self.assertEqual(by_did[0xF190].value, "WBA3A5C50DF000077")
+        self.assertIn(0xF40C, by_did)
+        self.assertEqual(by_did[0xF40C].value, "13.4 V")
+
+    def test_dead_ecu_is_not_reachable(self) -> None:
+        # A transport whose ECU raises on every request → nothing answers.
+        class DeadTransport:
+            async def open(self): pass
+            async def request(self, *a, **k): raise TimeoutError("no reply")
+            async def recv(self, *a, **k): raise TimeoutError("no reply")
+
+        from bmw_ecu.uds import UdsClient
+
+        async def go():
+            return await read_live(
+                UdsClient(DeadTransport(), ecu_addr=0x40, session_name="t"))
+        live = asyncio.run(go())
+        self.assertFalse(live.reachable)
+        self.assertFalse(live.session_ok)
+        self.assertEqual(live.identifiers, [])
+
+
+class AssessWithLiveReadTests(unittest.TestCase):
+    def test_not_reachable_gives_not_connected_verdict(self) -> None:
+        live = LiveRead(reachable=False)
+        a = asyncio.run(assess_connection(
+            profile=KNOWN_PROFILES["FEM_F30"], vin="WBA0", chassis="F30",
+            live=live))
+        self.assertFalse(a.reachable)
+        # No fake open/locked claim; steps tell the tech to check the cable.
+        joined = " ".join(s.ar for s in a.steps)
+        self.assertIn("الكونتاكت", joined)
+
+    def test_reachable_surfaces_real_identifiers_and_live_vin(self) -> None:
+        live = LiveRead(reachable=True, session_ok=True, identifiers=[
+            LiveIdentifier(0xF190, "VIN", "VIN", "WBA_LIVE_VIN_001", "00"),
+            LiveIdentifier(0xF195, "SW", "Software version", "SW_42", "01"),
+        ])
+        a = asyncio.run(assess_connection(
+            profile=KNOWN_PROFILES["FEM_F30"], vin="SESSION_VIN", chassis="F30",
+            live=live))
+        self.assertTrue(a.reachable)
+        # Live VIN wins over the session VIN.
+        self.assertEqual(a.vin, "WBA_LIVE_VIN_001")
+        self.assertEqual(len(a.identifiers), 2)
+        self.assertEqual(a.identifiers[0]["did"], "0xF190")
+
+
 # --- Orchestrator integration (no DB) — stub the billing gate ---------------
 class _StubGate:
     """Minimal AbstractBillingGate stand-in: always entitled, no DB."""
@@ -180,6 +251,37 @@ class ConnectReadOrchestratorTests(unittest.TestCase):
         self.assertFalse(body["diagnostics"]["locked"])
         self.assertEqual(body["diagnostics"]["cable"], "enet")
         self.assertIn("steps", body["diagnostics"]["guidance"])
+
+    def test_reachable_module_surfaces_live_identifiers(self) -> None:
+        body = self._run("FEM_F30")
+        self.assertEqual(body["outcome"], "connected")
+        self.assertTrue(body["diagnostics"]["reachable"])
+        # The MockEcu answers VIN + battery → real data surfaces.
+        idents = body["diagnostics"]["identifiers"]
+        self.assertTrue(idents)
+        dids = {i["did"] for i in idents}
+        self.assertIn("0xF190", dids)
+        self.assertIn("📟", body["chatbot_message"])
+
+    def test_dead_ecu_returns_not_connected(self) -> None:
+        from bmw_ecu.api.coding_orchestrator import CodingOrchestrator
+
+        class DeadTransport:
+            async def open(self): pass
+            async def request(self, *a, **k): raise TimeoutError("no reply")
+            async def recv(self, *a, **k): raise TimeoutError("no reply")
+
+        async def go():
+            ctx = self._ctx("FEM_F30")
+            ctx.transport = DeadTransport()
+            orch = CodingOrchestrator(billing=_StubGate())
+            resp = await orch.run(
+                ctx=ctx, coding_request={"action": "connect_read", "chassis": "F30"})
+            return resp.to_json()
+
+        body = asyncio.run(go())
+        self.assertEqual(body["outcome"], "not_connected")
+        self.assertFalse(body["diagnostics"]["reachable"])
 
     def test_locked_module_returns_module_locked_with_wiring(self) -> None:
         body = self._run("MEVD17_2_9")

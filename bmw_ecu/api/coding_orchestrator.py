@@ -134,39 +134,72 @@ class CodingOrchestrator:
                             entitlement: CodingEntitlement) -> CodingResponse:
         """The real-world "اتصال وقراءة / Connect & Read" step.
 
-        Reads the live VIN off the car (degrades to the session VIN if the
-        ECU read fails), assesses whether the target module is OPEN or
-        LOCKED, and hands back a step-by-step guided procedure + pinout.
-        """
-        from ..coding.guided_connect import assess_connection
+        This actually TALKS to the ECU: opens an extended diagnostic session
+        and reads the live identifiers (VIN, software/hardware numbers,
+        serial, programming date, battery) — read-only, no security unlock.
+        Then:
 
-        # Read the live VIN from the car (DID 0xF190). Non-fatal on failure —
-        # a freshly-removed/bench module may not answer yet.
-        live_vin = ctx.vin
+          • If the ECU answered nothing → NOT_CONNECTED. We tell the tech to
+            check the cable/ignition/wiring instead of faking a verdict.
+          • If it answered → we surface the *real* pulled data and decide
+            OPEN vs LOCKED from the module's capability profile (we can't use
+            unlock success because the seed-key provider is a mock).
+        """
+        from ..coding.guided_connect import assess_connection, read_live
+        from ..uds.client import UdsClient
+
+        # Read the ECU for real. Any hardware error degrades to "not reachable"
+        # inside read_live, so this never raises out of here.
+        client = UdsClient(ctx.transport,
+                           ecu_addr=ctx.profile.uds_isn_did >> 8,
+                           session_name="coding_connect")
         try:
-            from ..uds.client import UdsClient
-            client = UdsClient(ctx.transport,
-                               ecu_addr=ctx.profile.uds_isn_did >> 8,
-                               session_name="coding_connect")
-            raw = await client.read_data_by_identifier(0xF190)
-            decoded = raw.decode("ascii", "ignore").strip("\x00 ").strip()
-            if decoded:
-                live_vin = decoded
-        except Exception:
-            pass  # keep session VIN
+            live = await read_live(client)
+        except Exception as e:
+            from ..coding.guided_connect import LiveRead
+            live = LiveRead(reachable=False, notes=[f"read_live: {e}"])
 
         chassis = req.get("chassis") or (
             ctx.profile.chassis[0] if ctx.profile.chassis else ""
         )
         assessment = await assess_connection(
-            profile=ctx.profile, vin=live_vin, chassis=chassis,
+            profile=ctx.profile, vin=ctx.vin, chassis=chassis, live=live,
         )
+
+        # --- ECU not on the wire: stop here, no open/locked claim. ----------
+        if not assessment.reachable:
+            return CodingResponse(
+                chatbot=ChatbotPayload(
+                    chatbot_message=(
+                        f"{assessment.headline_ar}\n{assessment.headline_en}"
+                    ),
+                    required_action="check_connection",
+                    severity="error",
+                    diagnostics={
+                        "vin": assessment.vin,
+                        "ecu_name": assessment.ecu_name,
+                        "reachable": False,
+                        "live": live.to_json(),
+                        "guidance": assessment.to_json(),
+                    },
+                ),
+                outcome="not_connected",
+                entitlement=self._entitlement_dict(entitlement),
+                next_endpoint="/api/ecu/execute",
+            )
+
+        # --- Reachable: build a human summary of the REAL data we pulled. ---
+        read_lines_ar = "\n".join(
+            f"• {i['name_ar']}: {i['value']}" for i in assessment.identifiers
+        )
+        read_block = f"\n\n📟 اللي قريته من الكنترول:\n{read_lines_ar}" if read_lines_ar else ""
 
         required = "load_features" if not assessment.locked else "follow_pinout_steps"
         return CodingResponse(
             chatbot=ChatbotPayload(
                 chatbot_message=(
                     f"{assessment.headline_ar}\n{assessment.headline_en}"
+                    f"{read_block}"
                 ),
                 required_action=required,
                 severity="info" if not assessment.locked else "warning",
@@ -178,7 +211,10 @@ class CodingOrchestrator:
                     "engine": assessment.engine,
                     "protection": assessment.protection,
                     "locked": assessment.locked,
+                    "reachable": True,
                     "cable": assessment.cable,
+                    "identifiers": assessment.identifiers,
+                    "live": live.to_json(),
                     "guidance": assessment.to_json(),
                 },
             ),

@@ -35,6 +35,7 @@ from ..execution.ecu_profiles import EcuProfile, ProtectionLevel
 from ..execution.interactive_guided.pinout_repository import (
     PinoutDiagram, PinoutRepository,
 )
+from ..uds.services import DiagSession
 
 
 # --- Standard OBD-II (SAE J1962) connector — the plug on the tech's cable ----
@@ -74,6 +75,106 @@ class GuidedStep:
 
 
 @dataclass
+class LiveIdentifier:
+    """One real value pulled off the ECU during Connect & Read."""
+    did: int
+    name_ar: str
+    name_en: str
+    value: str
+    raw_hex: str
+
+    def to_json(self) -> dict[str, Any]:
+        d = asdict(self)
+        d["did"] = f"0x{self.did:04X}"
+        return d
+
+
+@dataclass
+class LiveRead:
+    """Result of actually talking to the ECU (not a canned message).
+
+    `reachable` is True when the ECU answered *anything* — either an extended
+    diagnostic session was accepted, or at least one identifier came back.
+    When it's False, the module simply isn't on the wire (cable off, ignition
+    off, wrong pins on the bench) and we must NOT pretend to know open/locked.
+    """
+    reachable: bool
+    identifiers: list[LiveIdentifier] = field(default_factory=list)
+    session_ok: bool = False
+    notes: list[str] = field(default_factory=list)
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "reachable": self.reachable,
+            "session_ok": self.session_ok,
+            "identifiers": [i.to_json() for i in self.identifiers],
+            "notes": list(self.notes),
+        }
+
+
+# DIDs we try to pull on every real connect, in display order.
+# (did, name_ar, name_en, decode_kind)
+_LIVE_DIDS: list[tuple[int, str, str, str]] = [
+    (0xF190, "رقم الشاسيه (VIN)", "VIN", "ascii"),
+    (0xF195, "إصدار السوفت وير", "Software version", "ascii"),
+    (0xF191, "رقم الهاردوير", "Hardware number", "ascii"),
+    (0xF18C, "السيريال", "ECU serial", "ascii"),
+    (0xF199, "تاريخ البرمجة", "Programming date", "hex"),
+    (0xF40C, "فولت البطارية", "Battery voltage", "volts"),
+]
+
+
+def _decode_value(raw: bytes, kind: str) -> str:
+    if not raw:
+        return ""
+    if kind == "volts":
+        if len(raw) >= 2:
+            return f"{int.from_bytes(raw[:2], 'big') / 100:.1f} V"
+        return raw.hex()
+    if kind == "ascii":
+        s = raw.decode("ascii", "ignore").strip("\x00 ").strip()
+        return s or raw.hex()
+    return raw.hex()
+
+
+async def read_live(client, *,
+                    did_list: Optional[list[tuple[int, str, str, str]]] = None
+                    ) -> LiveRead:
+    """Actually read the ECU over UDS. Hardware errors degrade gracefully.
+
+    `client` is a UdsClient already bound to the right ECU address/transport.
+    We open an EXTENDED session (read-only, no security) and read each known
+    identifier, collecting whatever responds. Nothing here writes or unlocks.
+    """
+    dids = did_list or _LIVE_DIDS
+    idents: list[LiveIdentifier] = []
+    notes: list[str] = []
+
+    session_ok = False
+    try:
+        await client.diagnostic_session_control(DiagSession.EXTENDED)
+        session_ok = True
+    except Exception as e:  # timeout / NRC / transport down
+        notes.append(f"extended_session: {e}")
+
+    for did, name_ar, name_en, kind in dids:
+        try:
+            raw = await client.read_data_by_identifier(did)
+        except Exception:
+            continue  # this DID not supported by this ECU — skip silently
+        if not raw:
+            continue
+        idents.append(LiveIdentifier(
+            did=did, name_ar=name_ar, name_en=name_en,
+            value=_decode_value(raw, kind), raw_hex=raw.hex(),
+        ))
+
+    reachable = session_ok or bool(idents)
+    return LiveRead(reachable=reachable, identifiers=idents,
+                    session_ok=session_ok, notes=notes)
+
+
+@dataclass
 class ConnectAssessment:
     """The verdict returned to the frontend after Connect & Read."""
     vin: str
@@ -85,11 +186,13 @@ class ConnectAssessment:
     cable: str                            # "enet" | "dcan_bench"
     headline_ar: str
     headline_en: str
+    reachable: bool = True
     pinout_diagram_url: Optional[str] = None
     pinout_callouts: list[dict] = field(default_factory=list)
     wiring: list[WireConnection] = field(default_factory=list)
     boot_pin: Optional[int] = None
     steps: list[GuidedStep] = field(default_factory=list)
+    identifiers: list[dict] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         d = asdict(self)
@@ -156,6 +259,33 @@ _COLOR_AR = {
 
 
 # --- step builders ----------------------------------------------------------
+def _not_connected_steps() -> list[GuidedStep]:
+    """The ECU answered nothing — tell the tech how to get it on the wire."""
+    return [
+        GuidedStep(
+            1,
+            "الكنترول مردّش ❌ — يعني لسه مش واصل. اتأكد إن الكونتاكت ON "
+            "(المفتاح على وضع التشغيل من غير ما تدوّر الموتور).",
+            "The ECU didn't answer ❌ — it's not on the bus yet. Make sure "
+            "ignition is ON (key in run position, engine not cranked).",
+        ),
+        GuidedStep(
+            2,
+            "اتأكد إن كابل الاي نت / الـ OBD داخل صح في فيشة الأعطال "
+            "(J1962) لحد ما يثبت، وإن البطارية فولتها كويس (أعلى من 12 فولت).",
+            "Check the ENET / OBD cable is fully seated in the OBD-II "
+            "(J1962) port and the battery is healthy (above 12 V).",
+        ),
+        GuidedStep(
+            3,
+            "لو شغّال على bench: راجع توصيل الباور (12V) والأرضي وأطراف "
+            "الاتصال على الكنترول، وبعدين اضغط «🔌 Connect & Read» تاني.",
+            "If on the bench: re-check the 12V, ground and comms pins on the "
+            "module, then press “🔌 Connect & Read” again.",
+        ),
+    ]
+
+
 def _open_steps() -> list[GuidedStep]:
     return [
         GuidedStep(
@@ -274,8 +404,51 @@ async def assess_connection(
     vin: str,
     chassis: str = "",
     pinout_repo: Optional[PinoutRepository] = None,
+    live: Optional[LiveRead] = None,
 ) -> ConnectAssessment:
-    """Decide OPEN vs LOCKED and build the matching guided procedure."""
+    """Decide OPEN vs LOCKED and build the matching guided procedure.
+
+    `live` is the result of an actual UDS read. When supplied and the ECU was
+    NOT reachable, we return a NOT_CONNECTED verdict (check cable/ignition)
+    instead of pretending to know whether it's open or locked. When the ECU
+    IS reachable, the real identifiers it returned are attached so the UI can
+    show the technician the module's actual number and data. When `live` is
+    None we keep the original static (capability-only) behaviour so the unit
+    tests and any caller without hardware still work unchanged.
+    """
+    chassis = chassis or (profile.chassis[0] if profile.chassis else "")
+    identifiers = [i.to_json() for i in live.identifiers] if live else []
+
+    # Real read, but nothing answered → don't fake an open/locked verdict.
+    if live is not None and not live.reachable:
+        return ConnectAssessment(
+            vin=vin,
+            ecu_name=profile.name,
+            chassis=chassis,
+            engine=profile.engine,
+            protection=ProtectionLevel(profile.protection).name,
+            locked=False,
+            reachable=False,
+            cable="enet",
+            headline_ar=(
+                f"معرفتش أوصل للكنترول {profile.name} ❌ — الكنترول مردّش. "
+                "اتأكد من الكابل والكونتاكت والتوصيلات وجرّب تاني."
+            ),
+            headline_en=(
+                f"Couldn't reach {profile.name} ❌ — the ECU didn't answer. "
+                "Check the cable, ignition and wiring, then try again."
+            ),
+            steps=_not_connected_steps(),
+            identifiers=identifiers,
+        )
+
+    # If we actually read a live VIN, prefer it over the session VIN.
+    if live is not None:
+        for ident in live.identifiers:
+            if ident.did == 0xF190 and ident.value:
+                vin = ident.value
+                break
+
     repo = pinout_repo or PinoutRepository()
     diagram = await repo.get(profile.name)
     # Variant profiles (e.g. FEM_F30_POST_2014) share a physical connector
@@ -321,10 +494,11 @@ async def assess_connection(
     return ConnectAssessment(
         vin=vin,
         ecu_name=profile.name,
-        chassis=chassis or (profile.chassis[0] if profile.chassis else ""),
+        chassis=chassis,
         engine=profile.engine,
         protection=ProtectionLevel(profile.protection).name,
         locked=not open_module,
+        reachable=True,
         cable=cable,
         headline_ar=headline_ar,
         headline_en=headline_en,
@@ -333,4 +507,5 @@ async def assess_connection(
         wiring=wiring,
         boot_pin=boot,
         steps=steps,
+        identifiers=identifiers,
     )

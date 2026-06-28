@@ -179,8 +179,31 @@
   }
 
   // --- Guided connect / pinout rendering ---------------------------------
-  function renderGuidance(g, locked) {
+  // Fallback: if the guidance panel DOM is missing (e.g. a stale cached
+  // page), still hand the technician the wiring + steps as a chat bubble so
+  // the procedure is never lost behind a cache problem.
+  function renderGuidanceBubble(g, locked) {
+    const lines = [];
+    lines.push(locked ? "🔒 الكنترول مقفول — إجراءات الـ bench:"
+                      : "✅ الكنترول مفتوح — جاهز للتكويد.");
+    (g.wiring || []).forEach((w) => {
+      lines.push("• OBD " + w.obd_pin + " → ECU " + w.ecu_pin
+                 + " (" + (w.label_ar || w.function) + ")");
+    });
+    (g.steps || []).forEach((s) => {
+      lines.push((s.n != null ? s.n + ". " : "• ") + s.ar);
+    });
+    pushBubble(lines.join("\n"), "bot");
+  }
+
+  function renderGuidance(g, locked, state) {
+    const disconnected = state === "disconnected";
     const panel = document.getElementById("guidance-panel");
+    // No panel in the DOM → stale/old page. Use the chat-bubble fallback.
+    if (!panel) {
+      renderGuidanceBubble(g, locked);
+      return;
+    }
     const badge = document.getElementById("guidance-badge");
     const title = document.getElementById("guidance-title");
     const steps = document.getElementById("guidance-steps");
@@ -190,74 +213,91 @@
     const wiring = document.getElementById("guidance-wiring");
     const wiringBody = document.getElementById("guidance-wiring-body");
 
-    badge.textContent = locked ? "🔒 LOCKED" : "✅ OPEN";
-    badge.className = "cr-guidance-badge " + (locked ? "locked" : "open");
-    title.textContent = locked
-      ? "الكنترول مقفول — اتبع الخطوات / Locked — follow the steps"
-      : "الكنترول مفتوح — جاهز للتكويد / Open — ready to code";
+    if (badge) {
+      badge.textContent = disconnected
+        ? "❌ NOT CONNECTED"
+        : (locked ? "🔒 LOCKED" : "✅ OPEN");
+      badge.className = "cr-guidance-badge "
+        + (disconnected ? "disconnected" : (locked ? "locked" : "open"));
+    }
+    if (title) {
+      title.textContent = disconnected
+        ? "الكنترول مردّش — راجع التوصيل / No reply — check the connection"
+        : (locked
+          ? "الكنترول مقفول — اتبع الخطوات / Locked — follow the steps"
+          : "الكنترول مفتوح — جاهز للتكويد / Open — ready to code");
+    }
 
-    steps.innerHTML = "";
-    (g.steps || []).forEach((s) => {
-      const li = document.createElement("li");
-      li.appendChild(document.createTextNode(s.ar));
-      const en = document.createElement("span");
-      en.className = "en";
-      en.textContent = s.en;
-      li.appendChild(en);
-      steps.appendChild(li);
-    });
-
-    if (g.pinout_diagram_url) {
-      img.src = g.pinout_diagram_url;
-      callouts.innerHTML = "";
-      (g.pinout_callouts || []).forEach((c) => {
-        const chip = document.createElement("span");
-        chip.className = "cr-callout";
-        const dot = document.createElement("span");
-        dot.className = "cr-callout-dot";
-        dot.style.background = c.color || "#999";
-        chip.appendChild(dot);
-        chip.appendChild(document.createTextNode(
-          "Pin " + c.pin + " · " + c.label));
-        callouts.appendChild(chip);
+    if (steps) {
+      steps.innerHTML = "";
+      (g.steps || []).forEach((s) => {
+        const li = document.createElement("li");
+        li.appendChild(document.createTextNode(s.ar));
+        const en = document.createElement("span");
+        en.className = "en";
+        en.textContent = s.en;
+        li.appendChild(en);
+        steps.appendChild(li);
       });
-      fig.hidden = false;
-    } else {
-      fig.hidden = true;
+    }
+
+    if (fig && img) {
+      if (g.pinout_diagram_url) {
+        img.src = g.pinout_diagram_url;
+        if (callouts) {
+          callouts.innerHTML = "";
+          (g.pinout_callouts || []).forEach((c) => {
+            const chip = document.createElement("span");
+            chip.className = "cr-callout";
+            const dot = document.createElement("span");
+            dot.className = "cr-callout-dot";
+            dot.style.background = c.color || "#999";
+            chip.appendChild(dot);
+            chip.appendChild(document.createTextNode(
+              "Pin " + c.pin + " · " + c.label));
+            callouts.appendChild(chip);
+          });
+        }
+        fig.hidden = false;
+      } else {
+        fig.hidden = true;
+      }
     }
 
     // Explicit OBD-pin → ECU-pin wiring map (bench/locked only).
-    wiringBody.innerHTML = "";
-    const wires = g.wiring || [];
-    if (wires.length > 0) {
-      wires.forEach((w) => {
-        const row = document.createElement("div");
-        row.className = "cr-wire";
-        const dot = document.createElement("span");
-        dot.className = "cr-callout-dot";
-        dot.style.background = w.color || "#999";
-        const obd = document.createElement("span");
-        obd.className = "cr-wire-pin obd";
-        obd.textContent = "OBD " + w.obd_pin;
-        const arrow = document.createElement("span");
-        arrow.className = "cr-wire-arrow";
-        arrow.textContent = "→";
-        const ecu = document.createElement("span");
-        ecu.className = "cr-wire-pin ecu";
-        ecu.textContent = "ECU " + w.ecu_pin;
-        const lbl = document.createElement("span");
-        lbl.className = "cr-wire-label";
-        lbl.textContent = w.label_ar + " · " + w.label_en;
-        row.appendChild(dot);
-        row.appendChild(obd);
-        row.appendChild(arrow);
-        row.appendChild(ecu);
-        row.appendChild(lbl);
-        wiringBody.appendChild(row);
-      });
-      wiring.hidden = false;
-    } else {
-      wiring.hidden = true;
+    if (wiring && wiringBody) {
+      wiringBody.innerHTML = "";
+      const wires = g.wiring || [];
+      if (wires.length > 0) {
+        wires.forEach((w) => {
+          const row = document.createElement("div");
+          row.className = "cr-wire";
+          const dot = document.createElement("span");
+          dot.className = "cr-callout-dot";
+          dot.style.background = w.color || "#999";
+          const obd = document.createElement("span");
+          obd.className = "cr-wire-pin obd";
+          obd.textContent = "OBD " + w.obd_pin;
+          const arrow = document.createElement("span");
+          arrow.className = "cr-wire-arrow";
+          arrow.textContent = "→";
+          const ecu = document.createElement("span");
+          ecu.className = "cr-wire-pin ecu";
+          ecu.textContent = "ECU " + w.ecu_pin;
+          const lbl = document.createElement("span");
+          lbl.className = "cr-wire-label";
+          lbl.textContent = w.label_ar + " · " + w.label_en;
+          row.appendChild(dot);
+          row.appendChild(obd);
+          row.appendChild(arrow);
+          row.appendChild(ecu);
+          row.appendChild(lbl);
+          wiringBody.appendChild(row);
+        });
+        wiring.hidden = false;
+      } else {
+        wiring.hidden = true;
+      }
     }
 
     panel.hidden = false;
@@ -274,7 +314,17 @@
       pushBubble(data.chatbot_message || "تم", "bot");
       const diag = (data.diagnostics) || {};
       const g = diag.guidance || {};
+      const reachable = diag.reachable !== false;
       const locked = !!diag.locked;
+
+      // ECU didn't answer → don't claim open/locked; show how to reconnect
+      // and keep Load features disabled.
+      if (!reachable) {
+        renderGuidance(g, false, "disconnected");
+        document.getElementById("load-features-btn").disabled = true;
+        return;
+      }
+
       renderGuidance(g, locked);
       // OPEN module → unlock the Load features button; LOCKED → keep gated
       // until the technician finishes the bench procedure.

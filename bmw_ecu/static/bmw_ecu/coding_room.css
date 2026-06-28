@@ -232,6 +232,7 @@ body {
 }
 .cr-guidance-badge.open   { background: #16a34a; color: #fff; }
 .cr-guidance-badge.locked { background: #dc2626; color: #fff; }
+.cr-guidance-badge.disconnected { background: #6b7280; color: #fff; }
 .cr-guidance-steps { margin: 0; padding: 12px 28px; }
 .cr-guidance-steps li { margin-bottom: 10px; line-height: 1.55; }
 .cr-guidance-steps .en {
