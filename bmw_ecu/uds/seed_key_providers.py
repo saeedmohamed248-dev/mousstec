@@ -118,12 +118,20 @@ def load_backend_from_env() -> None:
     if _BACKEND_LOADED:
         return
     _BACKEND_LOADED = True
+    # 1) A private python backend module that self-registers providers.
     mod = os.environ.get("BMW_ECU_SEEDKEY_BACKEND", "").strip()
-    if not mod:
-        return
+    if mod:
+        try:
+            importlib.import_module(mod)
+        except Exception:  # noqa: BLE001 — never let a backend import kill a request
+            pass
+    # 2) A native factory DLL (EDIABAS/E-Sys) wired via ctypes from env vars.
+    #    Lazy-imported to avoid a hard ctypes dependency at import time and to
+    #    keep this module free of any native-binding code.
     try:
-        importlib.import_module(mod)
-    except Exception:  # noqa: BLE001 — never let a backend import kill a request
+        from .dll_seed_key import register_dll_seed_key_provider_from_env
+        register_dll_seed_key_provider_from_env()
+    except Exception:  # noqa: BLE001 — env DLL wiring must never break a request
         pass
 
 
