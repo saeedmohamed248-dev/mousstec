@@ -60,71 +60,31 @@ class HardwareProfile:
         return d
 
 
-# ── Seed catalog — at least two N20 MEVD17.2.9 revisions ────────────────────
-# Values marked verified=False are conservative placeholders to be confirmed
-# per board on real hardware before production use.
+# ── Catalog — EMPTY BY DESIGN (safety rule: NO guessed pins) ────────────────
+# We deliberately ship NO bundled pin/boot data. Bench pinouts are physical
+# wiring maps where a wrong pin can destroy an ECU, so the catalog stays empty
+# until a workshop enters *verified, real-world* values via the Django admin
+# (EcuHardwareProfile → resolved here through `get_hardware_profile_db_first`).
+#
+# The previous seed carried `verified=False` placeholder pins (87/88/24/31/63
+# for MEVD17.2.9 N20). Those were unconfirmed guesses and were removed so they
+# can never be shown to a technician. Re-add data ONLY when confirmed on a real
+# board — and only via the admin/DB, never hardcoded here.
 _CATALOG: dict[str, HardwareProfile] = {}
 
 
 def register_hardware_profile(profile: HardwareProfile) -> None:
+    """Register a CONFIRMED board profile at runtime.
+
+    Intended for a private/cloud backend that holds verified pinouts. The
+    bundled catalog itself ships empty — never seed unverified pins here.
+    """
     _CATALOG[profile.hardware_id] = profile
 
 
 def _seed() -> None:
-    register_hardware_profile(HardwareProfile(
-        hardware_id="8606229",
-        ecu_name="MEVD17.2.9",
-        board_revision="Rev B (N20 pre-LCI)",
-        family="MEVD17",
-        protocol="BootMode",
-        pinout=BenchPinout(
-            power_pin=87, ground_pin=88, boot_pin=24,
-            can_h_pin=None, can_l_pin=None, k_line_pin=63,
-            pcb_image_url="/static/bmw_ecu/hw/mevd17_29_8606229_pcb.jpg",
-            boot_image_url="/static/bmw_ecu/hw/mevd17_29_8606229_boot.jpg",
-            callouts=[
-                {"pin": 87, "label": "12V (KL30)", "color": "red"},
-                {"pin": 88, "label": "GND (KL31)", "color": "black"},
-                {"pin": 24, "label": "BOOT (ground on power-up)", "color": "yellow"},
-                {"pin": 63, "label": "K-Line", "color": "green"},
-            ],
-        ),
-        physical_steps_ar=[
-            "البورده دي البوت بتاعها قُرب طرف الموصّل الكبير — بِن 24.",
-        ],
-        physical_steps_en=[
-            "On this board the boot pad sits near the large connector edge — pin 24.",
-        ],
-        notes="N20 pre-LCI. Confirm boot pad before grounding.",
-        verified=False,
-    ))
-    register_hardware_profile(HardwareProfile(
-        hardware_id="8623136",
-        ecu_name="MEVD17.2.9",
-        board_revision="Rev D (N20 LCI)",
-        family="MEVD17",
-        protocol="BootMode",
-        pinout=BenchPinout(
-            power_pin=87, ground_pin=88, boot_pin=31,
-            can_h_pin=None, can_l_pin=None, k_line_pin=63,
-            pcb_image_url="/static/bmw_ecu/hw/mevd17_29_8623136_pcb.jpg",
-            boot_image_url="/static/bmw_ecu/hw/mevd17_29_8623136_boot.jpg",
-            callouts=[
-                {"pin": 87, "label": "12V (KL30)", "color": "red"},
-                {"pin": 88, "label": "GND (KL31)", "color": "black"},
-                {"pin": 31, "label": "BOOT (ground on power-up)", "color": "yellow"},
-                {"pin": 63, "label": "K-Line", "color": "green"},
-            ],
-        ),
-        physical_steps_ar=[
-            "نسخة الـ LCI: مكان البوت اتغيّر لـ بِن 31 — متبصّش على مخطط الـ Rev B.",
-        ],
-        physical_steps_en=[
-            "LCI board: the boot point moved to pin 31 — do NOT use the Rev B map.",
-        ],
-        notes="N20 LCI. Boot pin differs from Rev B.",
-        verified=False,
-    ))
+    """No-op: the bundled catalog ships empty (no guessed pins). See above."""
+    return None
 
 
 _seed()

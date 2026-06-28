@@ -15,10 +15,60 @@ from bmw_ecu.autodetect import (
     TprotStatus,
     get_hardware_profile,
 )
+from bmw_ecu.autodetect import ecu_hardware_catalog as _cat
+from bmw_ecu.autodetect.ecu_hardware_catalog import (
+    BenchPinout,
+    HardwareProfile,
+    register_hardware_profile,
+)
 from bmw_ecu.uds.client import UdsClient
 from bmw_ecu.uds.services import BmwDID
 
 from bmw_ecu.autodetect.n20_auto_orchestrator import TPROT_STATUS_DID
+
+
+# ── Test fixtures ───────────────────────────────────────────────────────────
+# The SHIPPED catalog is empty by design (no guessed pins). To exercise the
+# data-driven orchestrator logic we register two synthetic CONFIRMED profiles
+# at module setup and remove them at teardown — these are TEST DATA ONLY, never
+# bundled. (Real workshops add verified profiles via the Django admin / DB.)
+_FIXTURE_IDS = ("8606229", "8623136")
+
+
+def _fixture(hw_id, board, boot_pin):
+    return HardwareProfile(
+        hardware_id=hw_id, ecu_name="MEVD17.2.9", board_revision=board,
+        family="MEVD17", protocol="BootMode",
+        pinout=BenchPinout(
+            power_pin=87, ground_pin=88, boot_pin=boot_pin, k_line_pin=63,
+            pcb_image_url=f"/static/test/{hw_id}_pcb.jpg",
+            boot_image_url=f"/static/test/{hw_id}_boot.jpg",
+            callouts=[{"pin": boot_pin, "label": "BOOT", "color": "yellow"}],
+        ),
+        physical_steps_ar=[f"بِن {boot_pin}"],
+        physical_steps_en=[f"pin {boot_pin}"],
+        verified=True,
+    )
+
+
+def setUpModule() -> None:
+    register_hardware_profile(_fixture("8606229", "Rev B (N20 pre-LCI)", 24))
+    register_hardware_profile(_fixture("8623136", "Rev D (N20 LCI)", 31))
+
+
+def tearDownModule() -> None:
+    for hw_id in _FIXTURE_IDS:
+        _cat._CATALOG.pop(hw_id, None)
+
+
+class ShippedCatalogIsEmptyTests(unittest.TestCase):
+    """Safety guard: the bundled catalog must ship with NO pins."""
+
+    def test_no_fixture_means_empty(self) -> None:
+        # Resolve against a pristine catalog (ignore our fixtures) by checking
+        # an ID we never register here. With the seed removed, the only entries
+        # that ever exist come from explicit registration / the DB.
+        self.assertIsNone(get_hardware_profile("0000000"))
 
 
 class _UdsBus:

@@ -28,9 +28,16 @@ def tearDownModule() -> None:
 
 
 class HardwareCatalogDbTests(BmwEcuTenantTestCase):
-    def test_db_row_overrides_bundled_seed(self) -> None:
-        # "8606229" is bundled as Rev B with boot_pin 24. A workshop confirms
-        # a different real boot pin + image and registers it in the DB.
+    def test_bundled_catalog_ships_empty(self) -> None:
+        # SAFETY: the bundled catalog must contain NO guessed pins. The old
+        # placeholder seed (8606229 / 8623136) was removed, so the pure
+        # in-memory lookup resolves nothing — only the DB can supply pins.
+        self.assertIsNone(get_hardware_profile("8606229"))
+        self.assertIsNone(get_hardware_profile("8623136"))
+
+    def test_db_row_is_the_only_source_of_pins(self) -> None:
+        # With the seed gone, a confirmed DB row is the SOLE way a pinout
+        # becomes available — exactly the admin-driven path we enforce.
         EcuHardwareProfile.objects.create(
             hardware_id="8606229",
             ecu_name="MEVD17.2.9",
@@ -47,18 +54,15 @@ class HardwareCatalogDbTests(BmwEcuTenantTestCase):
         )
         prof = get_hardware_profile_db_first("8606229")
         self.assertIsNotNone(prof)
-        self.assertEqual(prof.pinout.boot_pin, 26)          # DB value, not 24
+        self.assertEqual(prof.pinout.boot_pin, 26)          # DB value
         self.assertTrue(prof.verified)
         self.assertEqual(prof.board_revision, "Rev B (confirmed on bench)")
-        # The bundled seed is untouched for the pure (non-DB) lookup.
-        self.assertEqual(get_hardware_profile("8606229").pinout.boot_pin, 24)
+        # Pure (non-DB) lookup still resolves nothing — no bundled pins.
+        self.assertIsNone(get_hardware_profile("8606229"))
 
-    def test_falls_back_to_bundled_when_db_empty(self) -> None:
-        # No DB row for this ID → bundled Rev D (boot_pin 31) answers.
-        prof = get_hardware_profile_db_first("8623136")
-        self.assertIsNotNone(prof)
-        self.assertEqual(prof.pinout.boot_pin, 31)
-        self.assertEqual(prof.board_revision, "Rev D (N20 LCI)")
+    def test_no_db_row_resolves_to_none(self) -> None:
+        # No DB row and no bundled seed → honest None (never a guessed pin).
+        self.assertIsNone(get_hardware_profile_db_first("8623136"))
 
     def test_db_adds_brand_new_hardware_id(self) -> None:
         # A board the bundled seed has never heard of becomes resolvable

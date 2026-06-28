@@ -34,6 +34,25 @@ def _client_ip(request) -> str:
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
 
 
+def _with_request_port(domain: str, request) -> str:
+    """Carry the incoming request's non-standard port onto a tenant domain.
+
+    The Domain model stores the bare host (``shop.localhost``) with no port.
+    In production the request arrives on 80/443 so nothing changes. But in
+    local dev the runserver is on :8000, and a cross-subdomain auto-login
+    redirect to the bare host lands on port 80 → ERR_CONNECTION_REFUSED.
+    We append the current request's port only when it's non-standard and the
+    target domain doesn't already carry one. Production is untouched.
+    """
+    if ':' in domain:
+        return domain
+    host = request.get_host()  # e.g. "auto-garage-test.localhost:8000"
+    port = host.rsplit(':', 1)[1] if ':' in host else ''
+    if port and port not in ('80', '443'):
+        return f"{domain}:{port}"
+    return domain
+
+
 def _throttle(key: str, limit: int, window: int) -> tuple[bool, int]:
     """Cache-backed sliding-window throttle.
 
@@ -486,7 +505,8 @@ def client_login_finder(request):
                         'error': 'خطأ في إعدادات نطاق الشركة. اتصل بالدعم.',
                     })
                 protocol = 'https' if request.is_secure() else request.scheme
-                target_url = f"{protocol}://{domain.domain}/auto-login/?token={token}"
+                host = _with_request_port(domain.domain, request)
+                target_url = f"{protocol}://{host}/auto-login/?token={token}"
                 return redirect(target_url)
 
             # مفيش user بنفس الإيميل في أي شركة — هاتي رسالة موحّدة

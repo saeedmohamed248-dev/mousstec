@@ -617,8 +617,9 @@
 
     document.getElementById("connect-btn")
             .addEventListener("click", connectRead);
-    document.getElementById("autodetect-btn")
-            .addEventListener("click", autoDetect);
+    // ⛔️ Old "Auto-Detect" button removed (safety): it surfaced UNVERIFIED
+    // placeholder bench pinouts. The Smart Flow path is the only sanctioned
+    // detect/code flow and never shows guessed pins.
     document.getElementById("guidance-close")
             .addEventListener("click", () => {
               document.getElementById("guidance-panel").hidden = true;
