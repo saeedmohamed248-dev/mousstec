@@ -296,3 +296,51 @@ body {
 .cr-wire-label {
   font-size: 12px; color: var(--c-text-muted); flex: 1; min-width: 120px;
 }
+
+/* --- Auto-Detect panel (dynamic hardware catalog) --------------------- */
+.cr-autodetect {
+  border: 1px solid var(--c-border); border-radius: var(--radius);
+  background: #f8fafc; margin: 0 12px 12px; overflow: hidden;
+}
+.cr-autodetect[hidden] { display: none !important; }
+.cr-guidance-badge.unknown { background: #d97706; color: #fff; }
+.cr-ad-hw {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 10px 14px; background: #eef2ff;
+  border-bottom: 1px solid var(--c-border);
+}
+.cr-ad-hw[hidden] { display: none !important; }
+.cr-ad-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  background: #fff; border: 1px solid var(--c-border); border-radius: 999px;
+  padding: 3px 10px; font-size: 12px; font-family: var(--font-en);
+}
+.cr-ad-chip b { color: #1e40af; font-size: 11px; text-transform: uppercase; }
+.cr-ad-steps { margin: 0; padding: 12px 14px; list-style: none; }
+.cr-ad-steps[hidden] { display: none !important; }
+.cr-ad-step {
+  border: 1px solid var(--c-border); border-radius: 10px; background: #fff;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.cr-ad-step.kind-confirm { background: #fefce8; border-color: #fde047; }
+.cr-ad-step.kind-action  { background: #f0fdf4; border-color: #86efac; }
+.cr-ad-step.kind-locate  { background: #eff6ff; border-color: #bfdbfe; }
+.cr-ad-step-head { display: flex; gap: 8px; align-items: flex-start; }
+.cr-ad-step-mark { font-size: 15px; line-height: 1.5; }
+.cr-ad-step-text { flex: 1; line-height: 1.55; }
+.cr-ad-step-text .en {
+  display: block; color: var(--c-text-muted); font-family: var(--font-en);
+  font-size: 12px; margin-top: 2px;
+}
+.cr-ad-wires { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 2px; }
+.cr-ad-fig { margin: 10px 0 2px; }
+.cr-ad-fig img {
+  width: 100%; max-width: 440px; border-radius: 10px; display: block;
+}
+.cr-ad-action-chip {
+  display: inline-block; margin-top: 8px; padding: 4px 12px;
+  border-radius: 999px; font-family: var(--font-en); font-weight: 700;
+  font-size: 12.5px; background: #16a34a; color: #fff;
+}
+.cr-ad-action-chip.act-bench_extract { background: #2563eb; }
+.cr-ad-action-chip.act-code_ecu      { background: #16a34a; }

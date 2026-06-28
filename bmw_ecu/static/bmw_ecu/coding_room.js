@@ -338,6 +338,198 @@
     }
   }
 
+  // --- Auto-Detect (dynamic hardware catalog) ----------------------------
+  // Silently probes the live Hardware ID + TPROT over UDS, then renders
+  // either "ready on OBD", a board-revision-specific bench sequence, or an
+  // honest "unknown hardware — report it" when the ID isn't in the catalog.
+  async function autoDetect() {
+    pushBubble("🤖 ببدأ التعرّف التلقائي على الكنترول (Hardware ID + الحماية)…\n"
+             + "Auto-detecting the module (live Hardware ID + protection)…",
+             "user");
+    try {
+      const data = await callExecute({
+        action: "auto_detect", chassis: chassis(),
+      });
+      pushBubble(data.chatbot_message || "تم", "bot");
+      const diag = (data.diagnostics) || {};
+      renderAutoDetect(diag);
+
+      // UNLOCKED → ready on OBD: unlock Load features. Otherwise gate it
+      // until the technician finishes the bench procedure.
+      const ready = diag.flow === "obd_direct";
+      document.getElementById("load-features-btn").disabled = !ready;
+
+      const probe = diag.probe || {};
+      if (diag.vin || probe.vin) {
+        const el = document.getElementById("vin-input");
+        const v = diag.vin || probe.vin;
+        if (el && !el.value.trim() && v) el.value = v;
+      }
+    } catch (e) {
+      pushBubble("خطأ في التعرّف التلقائي: " + e.message, "error");
+    }
+  }
+
+  // Fallback when the auto-detect DOM is missing (stale cached page): dump
+  // the whole sequence as a chat bubble so nothing is lost.
+  function renderAutoDetectBubble(diag) {
+    const lines = [];
+    const hw = diag.hardware || {};
+    if (hw.board_revision) {
+      lines.push("🔒 " + (hw.ecu_name || "") + " — " + hw.board_revision
+                 + " (HW " + hw.hardware_id + ")");
+    }
+    (diag.steps || []).forEach((s) => {
+      lines.push((s.n != null ? s.n + ". " : "• ") + s.ar);
+      (s.wires || []).forEach((w) => {
+        lines.push("    • ECU " + w.ecu_pin + " — "
+                   + (w.label_ar || w.function));
+      });
+    });
+    if (lines.length) pushBubble(lines.join("\n"), "bot");
+  }
+
+  function adStepHeadKind(kind) {
+    return ({
+      wiring: "🔌", locate: "📍", confirm: "✅", action: "🚀",
+      instruction: "•",
+    })[kind] || "•";
+  }
+
+  function renderAutoDetect(diag) {
+    const panel = document.getElementById("autodetect-panel");
+    if (!panel) { renderAutoDetectBubble(diag); return; }
+
+    const flow = diag.flow;
+    const probe = diag.probe || {};
+    const hw = diag.hardware || {};
+
+    const badge = document.getElementById("ad-badge");
+    const title = document.getElementById("ad-title");
+    const hwBox = document.getElementById("ad-hw");
+    const stepsEl = document.getElementById("ad-steps");
+
+    // Badge + title reflect the decision-engine verdict.
+    const verdict = ({
+      obd_direct:       ["open",    "✅ OPEN — OBD"],
+      bench:            ["locked",  "🔒 LOCKED — BENCH"],
+      unknown_hardware: ["unknown", "❓ UNKNOWN HW"],
+    })[flow] || ["unknown", "—"];
+    if (badge) {
+      badge.textContent = verdict[1];
+      badge.className = "cr-guidance-badge " + verdict[0];
+    }
+    if (title) {
+      title.textContent = ({
+        obd_direct:
+          "مفتوح — كوّد مباشرة على الـ OBD / Open — code directly over OBD",
+        bench:
+          "مقفول — اتبع خطوات البنش بالترتيب / Locked — follow the bench steps",
+        unknown_hardware:
+          "هاردوير مش معروف — ابعت الرقم لـ Mousstec / Unknown hardware — report the ID",
+      })[flow] || "Auto-Detect";
+    }
+
+    // Hardware identity strip (always show what we actually read).
+    if (hwBox) {
+      hwBox.innerHTML = "";
+      const rows = [];
+      const hid = hw.hardware_id || probe.hardware_id;
+      if (hid)               rows.push(["Hardware ID", hid]);
+      if (hw.ecu_name)       rows.push(["ECU", hw.ecu_name]);
+      if (hw.board_revision) rows.push(["Board", hw.board_revision]);
+      if (probe.sw_version)  rows.push(["SW", probe.sw_version]);
+      if (probe.tprot)       rows.push(["TPROT", probe.tprot]);
+      rows.forEach(([k, v]) => {
+        const chip = document.createElement("span");
+        chip.className = "cr-ad-chip";
+        const key = document.createElement("b");
+        key.textContent = k;
+        chip.appendChild(key);
+        chip.appendChild(document.createTextNode(" " + v));
+        hwBox.appendChild(chip);
+      });
+      hwBox.hidden = rows.length === 0;
+    }
+
+    // The ordered bench sequence (only present on the bench flow).
+    if (stepsEl) {
+      stepsEl.innerHTML = "";
+      (diag.steps || []).forEach((s) => stepsEl.appendChild(buildAdStep(s)));
+      stepsEl.hidden = (diag.steps || []).length === 0;
+    }
+
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function buildAdStep(s) {
+    const li = document.createElement("li");
+    li.className = "cr-ad-step kind-" + (s.kind || "instruction");
+
+    const head = document.createElement("div");
+    head.className = "cr-ad-step-head";
+    const mark = document.createElement("span");
+    mark.className = "cr-ad-step-mark";
+    mark.textContent = adStepHeadKind(s.kind);
+    head.appendChild(mark);
+    const txt = document.createElement("div");
+    txt.className = "cr-ad-step-text";
+    txt.appendChild(document.createTextNode(s.ar || ""));
+    const en = document.createElement("span");
+    en.className = "en";
+    en.textContent = s.en || "";
+    txt.appendChild(en);
+    head.appendChild(txt);
+    li.appendChild(head);
+
+    // Dynamic wiring rows (each ECU pin by colour) for kind=="wiring".
+    if (s.wires && s.wires.length) {
+      const wbox = document.createElement("div");
+      wbox.className = "cr-ad-wires";
+      s.wires.forEach((w) => {
+        const row = document.createElement("div");
+        row.className = "cr-wire";
+        const dot = document.createElement("span");
+        dot.className = "cr-callout-dot";
+        dot.style.background = w.color || "#999";
+        const ecu = document.createElement("span");
+        ecu.className = "cr-wire-pin ecu";
+        ecu.textContent = "ECU " + w.ecu_pin;
+        const lbl = document.createElement("span");
+        lbl.className = "cr-wire-label";
+        lbl.textContent = (w.label_ar || w.function)
+                          + (w.label_en ? " · " + w.label_en : "");
+        row.appendChild(dot);
+        row.appendChild(ecu);
+        row.appendChild(lbl);
+        wbox.appendChild(row);
+      });
+      li.appendChild(wbox);
+    }
+
+    // Per-board image (PCB photo / boot close-up).
+    if (s.image_url) {
+      const fig = document.createElement("figure");
+      fig.className = "cr-ad-fig";
+      const img = document.createElement("img");
+      img.src = s.image_url;
+      img.alt = s.en || s.ar || "ECU board";
+      img.loading = "lazy";
+      fig.appendChild(img);
+      li.appendChild(fig);
+    }
+
+    // Action chip (bench_extract / code_ecu) — a clear "do it now" marker.
+    if (s.action) {
+      const chip = document.createElement("span");
+      chip.className = "cr-ad-action-chip act-" + s.action;
+      chip.textContent = "▶ " + s.action;
+      li.appendChild(chip);
+    }
+    return li;
+  }
+
   // --- Actions -----------------------------------------------------------
   async function loadFeatures() {
     pushBubble("⏳ بحمّل قائمة الميزات للـ " + chassis() + "…", "user");
@@ -425,10 +617,18 @@
 
     document.getElementById("connect-btn")
             .addEventListener("click", connectRead);
+    document.getElementById("autodetect-btn")
+            .addEventListener("click", autoDetect);
     document.getElementById("guidance-close")
             .addEventListener("click", () => {
               document.getElementById("guidance-panel").hidden = true;
             });
+    const adClose = document.getElementById("ad-close");
+    if (adClose) {
+      adClose.addEventListener("click", () => {
+        document.getElementById("autodetect-panel").hidden = true;
+      });
+    }
     document.getElementById("load-features-btn")
             .addEventListener("click", loadFeatures);
     document.getElementById("apply-btn")

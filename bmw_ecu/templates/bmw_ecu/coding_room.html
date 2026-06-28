@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMW Coding Room — Mousstec</title>
-<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=6">
+<link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=7">
 </head>
 <body data-vin="{{ vin }}"
       data-profile="{{ profile_name }}"
@@ -34,6 +34,7 @@
       </select>
     </label>
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
+    <button id="autodetect-btn" type="button">🤖 Auto-Detect</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -67,6 +68,18 @@
         <div id="guidance-wiring-body" class="cr-guidance-wiring-body"></div>
       </div>
       <ol id="guidance-steps" class="cr-guidance-steps"></ol>
+    </div>
+
+    <!-- Dynamic Auto-Detect panel: live Hardware ID → board-specific bench
+         sequence pulled from the hardware catalog (hidden until Auto-Detect) -->
+    <div id="autodetect-panel" class="cr-autodetect" hidden>
+      <div class="cr-guidance-head">
+        <span id="ad-badge" class="cr-guidance-badge">—</span>
+        <h3 id="ad-title">التعرّف التلقائي / Auto-Detect</h3>
+        <button id="ad-close" type="button" aria-label="close">✕</button>
+      </div>
+      <div id="ad-hw" class="cr-ad-hw" hidden></div>
+      <ol id="ad-steps" class="cr-ad-steps" hidden></ol>
     </div>
 
     <div id="chat-log" class="cr-chat-log" role="log" aria-live="polite"></div>
@@ -132,6 +145,6 @@
     csrfToken: "{{ csrf_token }}",
   };
 </script>
-<script src="{% static 'bmw_ecu/coding_room.js' %}?v=6" defer></script>
+<script src="{% static 'bmw_ecu/coding_room.js' %}?v=7" defer></script>
 </body>
 </html>
