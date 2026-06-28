@@ -154,6 +154,16 @@
     <p id="smart-body">هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل.
        <span class="en">We detect the car and auto-backup before any write.</span></p>
     <div id="smart-pinout" class="cr-smart-pinout" hidden></div>
+    <div class="cr-smart-fields">
+      <label>Coding DID (hex)
+        <input id="smart-coding-did" type="text" autocomplete="off"
+               placeholder="مثال 0xC200 — لازم للنسخة الاحتياطية والتكويد">
+      </label>
+      <label>Raw coding bytes (hex)
+        <input id="smart-raw-hex" type="text" autocomplete="off"
+               placeholder="من E-Sys / الأداة المرخّصة — لو فاضي مش هنخمّن">
+      </label>
+    </div>
     <div id="smart-actions" class="cr-modal-actions"></div>
     <button id="smart-close" type="button" class="cr-smart-close">إغلاق / Close</button>
   </div>
@@ -184,6 +194,13 @@
     return /^R|^E/.test(ch) ? "kdcan" : "doip";
   }
 
+  function codingDid() {
+    var s = ((document.getElementById("smart-coding-did") || {}).value || "").trim();
+    if (!s) return null;
+    var n = parseInt(s, 16);              // accepts "C200" and "0xC200"
+    return isNaN(n) ? null : n;
+  }
+
   async function step(event, payload) {
     var body = { event: event, payload: payload || {} };
     if (sessionId) {
@@ -197,6 +214,10 @@
       body.transport = { kind: kind };
       body.sim = { transport_kind: kind };
     }
+    // The coding-region DID can be supplied on any step (needed for backup
+    // and coding). Sent only when the tech actually typed one — never guessed.
+    var did = codingDid();
+    if (did !== null) body.coding_did = did;
     elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
     var res = await fetch(CFG.smartUrl, {
       method: "POST",
@@ -235,9 +256,14 @@
       btn.textContent = a.label_ar || a.label_en || a.event;
       btn.addEventListener("click", function () {
         var extra = {};
-        // The only event that needs data is CODE (feature options). The full
-        // coding map is produced upstream; here we just pass an empty set so
-        // the simulator/flow advances. Real coding bytes go via raw_coding_hex.
+        if (a.event === "code") {
+          // Real coding needs exact bytes from E-Sys / the licensed tool.
+          // If the tech pasted them, forward them; the server refuses to
+          // fabricate coding bytes when this is empty (on real hardware).
+          var hex = ((document.getElementById("smart-raw-hex") || {}).value || "")
+                      .replace(/\s+/g, "");
+          extra = { options: hex ? { raw_coding_hex: hex } : {} };
+        }
         step(a.event, extra);
       });
       elAct.appendChild(btn);

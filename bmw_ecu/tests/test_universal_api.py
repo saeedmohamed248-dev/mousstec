@@ -269,5 +269,88 @@ class RealProviderTests(unittest.TestCase):
         self.assertIsNone(_run(io2.bench_pinout()))
 
 
+class _FakeKind:
+    def __init__(self, value): self.value = value
+
+
+class _FakeTransport:
+    def __init__(self, value="doip"):
+        self.kind = _FakeKind(value)
+        self.closed = False
+    async def close(self): self.closed = True
+
+
+class _FakeCM:
+    """Records how connect() was called so we can assert auto-detect vs prefer."""
+    last_prefer = "unset"
+
+    def __init__(self): pass
+
+    async def connect(self, prefer=None):
+        _FakeCM.last_prefer = prefer
+        kind = prefer.kind.value if prefer is not None else "doip"
+        return _FakeTransport(kind)
+
+
+class RealBuildTests(SimpleTestCase):
+    """`_build_io` wiring for the LIVE path (transport mocked, no hardware)."""
+
+    def setUp(self):
+        import bmw_ecu.api.smart_views as sv
+        self.sv = sv
+        self._cm = sv.ConnectionManager
+        self._resolve = sv.resolve_seed_key_provider
+        sv.ConnectionManager = _FakeCM
+        sv.resolve_seed_key_provider = lambda **kw: object()
+        _FakeCM.last_prefer = "unset"
+
+    def tearDown(self):
+        self.sv.ConnectionManager = self._cm
+        self.sv.resolve_seed_key_provider = self._resolve
+
+    def _record(self, **kw):
+        from bmw_ecu.universal import SmartSessionRecord
+        base = dict(session_id="r1", profile_name="MEVD17_2_2_N18",
+                    simulator=False, transport={}, sim={})
+        base.update(kw)
+        return SmartSessionRecord(**base)
+
+    def test_bare_kind_falls_back_to_autodetect(self):
+        # UI sends {"kind":"doip"} with no host → must NOT force a hostless
+        # DoIP config (that raises); must auto-detect instead.
+        rec = self._record(transport={"kind": "doip"})
+        io, cleanup = _run(self.sv._build_io(rec, {}))
+        self.assertIsNone(_FakeCM.last_prefer)          # auto-detect path
+        self.assertIsInstance(io, RealUniversalEcuIo)
+        _run(cleanup())
+
+    def test_explicit_host_uses_prefer(self):
+        rec = self._record(transport={"kind": "doip", "host": "169.254.255.0"})
+        io, cleanup = _run(self.sv._build_io(rec, {}))
+        self.assertIsNotNone(_FakeCM.last_prefer)
+        self.assertEqual(_FakeCM.last_prefer.host, "169.254.255.0")
+        _run(cleanup())
+
+    def test_coding_did_propagates_to_real_io(self):
+        rec = self._record(transport={"kind": "doip"}, sim={"coding_did": 0xC200})
+        io, cleanup = _run(self.sv._build_io(rec, {}))
+        self.assertEqual(io._coding_did, 0xC200)
+        _run(cleanup())
+
+    def test_cleanup_closes_transport(self):
+        rec = self._record(transport={"kind": "doip"})
+        io, cleanup = _run(self.sv._build_io(rec, {}))
+        _run(cleanup())  # should close without raising
+
+
+class UrlAliasTests(SimpleTestCase):
+    def test_smart_detect_alias_resolves_to_same_view(self):
+        from django.urls import reverse
+        self.assertEqual(reverse("bmw_ecu:bmw_ecu_api:smart_detect"),
+                         "/api/ecu/smart-detect/")
+        self.assertEqual(reverse("bmw_ecu:bmw_ecu_api:smart_step"),
+                         "/api/ecu/smart/step")
+
+
 if __name__ == "__main__":
     unittest.main()

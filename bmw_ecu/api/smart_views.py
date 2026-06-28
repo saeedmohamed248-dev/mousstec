@@ -119,8 +119,10 @@ async def _drive(session_id: str, event: str, body: dict[str, Any],
             transport=body.get("transport") or {},
             sim=body.get("sim") or {},
         )
-        if body.get("coding_did") is not None:
-            record.sim["coding_did"] = body["coding_did"]
+    # The coding-region DID may be supplied on any call (the tech often only
+    # has it once E-Sys is open) — never guessed server-side.
+    if body.get("coding_did") is not None:
+        record.sim["coding_did"] = body["coding_did"]
 
     io, cleanup = await _build_io(record, body)
     try:
@@ -175,7 +177,15 @@ async def _build_io(record: SmartSessionRecord, body: dict[str, Any]):
     profile = KNOWN_PROFILES[record.profile_name]
     cm = ConnectionManager()
     cfg_raw = record.transport or {}
-    if cfg_raw:
+    # Only force a specific transport when the caller gave us enough to address
+    # it (a DoIP host, a serial port, or a CAN channel). The bare {"kind":...}
+    # the UI sends is NOT enough — DoIPTransport needs a host — so we fall back
+    # to ConnectionManager auto-detect, which uses the standard BMW ENET
+    # link-local (BMW_ECU_DOIP_HOST or 169.254.255.0). This is what makes the
+    # "Smart Flow" button actually connect to an F30 over ENET with no typing.
+    has_address = bool(
+        cfg_raw.get("host") or cfg_raw.get("serial_port") or cfg_raw.get("channel"))
+    if has_address:
         cfg = TransportConfig(
             kind=TransportKind(cfg_raw.get("kind", "doip")),
             host=cfg_raw.get("host"),

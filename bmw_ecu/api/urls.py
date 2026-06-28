@@ -10,6 +10,8 @@ urlpatterns = [
 
     # ── Smart Auto-Detect (UniversalSmartOrchestrator, persistent session)
     path("smart/step", smart_views.smart_step, name="smart_step"),
+    # Friendly alias matching the product spec name; same handler.
+    path("smart-detect/", smart_views.smart_step, name="smart_detect"),
 
     # ── Storefront-facing endpoints (tenant subdomain, any logged-in user)
     path("storefront/packages/", subscribe.list_active_packages,
