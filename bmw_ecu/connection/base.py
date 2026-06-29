@@ -27,6 +27,17 @@ class TransportConfig:
     serial_port: Optional[str] = None
     channel: Optional[str] = None
     bitrate: int = 500_000
+    # CAN (K+DCAN over a python-can serial adapter, and SocketCAN)
+    # `can_interface` is the python-can bustype. For a USB serial CAN adapter
+    # (CANable / Lawicel) use "slcan"; for Linux native use "socketcan".
+    can_interface: str = "slcan"
+    # ISO-TP 11-bit diagnostic CAN IDs. These are PER-ECU and MUST be supplied
+    # explicitly (from the workshop / EcuHardwareProfile) — we never guess CAN
+    # arbitration IDs. `source_addr`/`target_addr` below are the DoIP logical
+    # addresses and are NOT valid CAN IDs, so the CAN path requires these two.
+    can_tx_id: Optional[int] = None   # tester → ECU request frame ID
+    can_rx_id: Optional[int] = None   # ECU → tester response frame ID
+    can_extended_id: bool = False     # 29-bit addressing if True
     # Common
     source_addr: int = 0x0EF1   # tester (BMW convention)
     target_addr: int = 0x10     # broadcast functional addressing

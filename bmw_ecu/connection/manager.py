@@ -86,11 +86,20 @@ class ConnectionManager:
                 kind=TransportKind.SOCKETCAN, channel="can0",
             ))
 
-        # K+DCAN — env-driven, since the serial port name is OS-specific.
+        # K+DCAN / D-CAN over a python-can serial adapter (CANable/slcan).
+        # Env-driven, since the serial port name and per-ECU CAN IDs are
+        # site-specific. We require explicit CAN IDs — never guessed.
         kdcan_port = os.environ.get("BMW_ECU_KDCAN_PORT")
-        if kdcan_port:
+        tx_env = os.environ.get("BMW_ECU_CAN_TX_ID")
+        rx_env = os.environ.get("BMW_ECU_CAN_RX_ID")
+        if kdcan_port and tx_env and rx_env:
             candidates.append(TransportConfig(
-                kind=TransportKind.KDCAN, serial_port=kdcan_port,
+                kind=TransportKind.KDCAN,
+                serial_port=kdcan_port,
+                can_interface=os.environ.get("BMW_ECU_CAN_INTERFACE", "slcan"),
+                can_tx_id=int(tx_env, 0),
+                can_rx_id=int(rx_env, 0),
+                bitrate=int(os.environ.get("BMW_ECU_CAN_BITRATE", "500000"), 0),
             ))
 
         return candidates
