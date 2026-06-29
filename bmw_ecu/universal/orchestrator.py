@@ -119,6 +119,7 @@ class UData:
     backup_sha256: str = ""
     backup_size: int = 0
     rolled_back: bool = False
+    dtcs_cleared: bool = False
     coded_options: int = 0
     error_code: str = ""
     error_detail: str = ""
@@ -375,15 +376,21 @@ class UniversalSmartOrchestrator:
         if self.state != UState.BACKED_UP:
             raise IllegalUTransition(f"CODE only valid in BACKED_UP (now {self.state.value})")
         options = payload.get("options") or {}
+        # CLEAR_DTCS_PRE_CODING: wipe stored faults first so coding starts from a
+        # clean baseline. Runs only AFTER a backup exists (rollback stays safe).
+        clear = await self.io.clear_dtcs()
+        self.data.dtcs_cleared = bool(clear.get("cleared"))
         result = await self.io.code_dme(options)
         self.data.coded_options = int(result.get("coded_options", 0))
         self._advance(UState.CODED)
         return UPrompt(
             state=self.state,
             title_ar="الـ DME اتكوّد ✅", title_en="DME coded ✅",
-            body_ar=(f"اتطبّق {self.data.coded_options} خيار. اضغط SYNC عشان "
+            body_ar=(f"{'اتمسحت الأعطال (DTCs) و' if self.data.dtcs_cleared else ''}"
+                     f"اتطبّق {self.data.coded_options} خيار. اضغط SYNC عشان "
                      f"نزامن وحدة {self.data.body_module}."),
-            body_en=(f"Applied {self.data.coded_options} option(s). Press SYNC "
+            body_en=(f"{'Cleared DTCs and ' if self.data.dtcs_cleared else ''}"
+                     f"applied {self.data.coded_options} option(s). Press SYNC "
                      f"to sync the {self.data.body_module}."),
             expects="SYNC",
             progress_pct=_PROGRESS[self.state],
@@ -391,7 +398,7 @@ class UniversalSmartOrchestrator:
                              f"🔗 زامن {self.data.body_module}",
                              f"🔗 Sync {self.data.body_module}", "primary")]
                      + self._rollback_action(),
-            payload={"coded": result},
+            payload={"coded": result, "dtcs_cleared": self.data.dtcs_cleared},
         )
 
     # ── 3b. READY → EXTRACT (locked path) ────────────────────────────────

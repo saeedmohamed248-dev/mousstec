@@ -68,6 +68,18 @@ class UnlockedFlowTests(unittest.TestCase):
         self.assertLess(io.calls.index("read_coding_snapshot"),
                         io.calls.index("code_dme"))
 
+    def test_clear_dtcs_runs_after_backup_before_coding(self) -> None:
+        orch, io = self._orch()
+        _run(orch.handle("start"))
+        _run(orch.handle("backup"))
+        p = _run(orch.handle("code", {"options": {"a": 1}}))
+        self.assertTrue(p.payload["dtcs_cleared"])
+        # CLEAR_DTCS_PRE_CODING ordering: backup → clear DTCs → code.
+        self.assertLess(io.calls.index("read_coding_snapshot"),
+                        io.calls.index("clear_dtcs"))
+        self.assertLess(io.calls.index("clear_dtcs"),
+                        io.calls.index("code_dme"))
+
     def test_cannot_code_before_backup(self) -> None:
         orch, _ = self._orch()
         _run(orch.handle("start"))

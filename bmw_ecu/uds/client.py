@@ -62,6 +62,13 @@ class UdsClient:
             bytes([SID.WRITE_DATA_BY_IDENT, (did >> 8) & 0xFF, did & 0xFF]) + data
         )
 
+    async def clear_diagnostic_information(self, group: int = 0xFFFFFF) -> bytes:
+        """UDS 0x14 ClearDiagnosticInformation. Default group 0xFFFFFF = all DTCs."""
+        return await self.raw_request(bytes([
+            SID.CLEAR_DIAGNOSTIC_INFORMATION,
+            (group >> 16) & 0xFF, (group >> 8) & 0xFF, group & 0xFF,
+        ]))
+
     async def routine_control(self, sub_func: int, routine_id: int,
                               data: bytes = b"") -> bytes:
         return await self.raw_request(

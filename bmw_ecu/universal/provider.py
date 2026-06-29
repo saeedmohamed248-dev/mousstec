@@ -66,6 +66,12 @@ class AbstractUniversalEcuIo(abc.ABC):
         """Write a previously-saved snapshot back (rollback / restore)."""
 
     # --- the actual work --------------------------------------------------
+    async def clear_dtcs(self) -> dict[str, Any]:
+        """Clear stored DTCs (UDS 0x14) before coding so we start from a clean
+        fault baseline. Default no-op for providers that don't support it; the
+        real bridge overrides this with a live ClearDiagnosticInformation."""
+        return {"cleared": False, "supported": False}
+
     @abc.abstractmethod
     async def code_dme(self, options: dict[str, Any]) -> dict[str, Any]:
         """Apply coding (CAFD/VO/FDL) to the DME. Returns a summary."""
@@ -137,6 +143,10 @@ class MockUniversalEcuIo(AbstractUniversalEcuIo):
         self._maybe_fail("write_coding_snapshot")
         self.restored_with = bytes(data)
         self._live_snapshot = bytes(data)
+
+    async def clear_dtcs(self) -> dict[str, Any]:
+        self._maybe_fail("clear_dtcs")
+        return {"cleared": True, "supported": True}
 
     async def code_dme(self, options: dict[str, Any]) -> dict[str, Any]:
         self._maybe_fail("code_dme")

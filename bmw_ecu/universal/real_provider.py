@@ -164,6 +164,19 @@ class RealUniversalEcuIo(AbstractUniversalEcuIo):
             raise self._wrap("write_coding_snapshot", e) from e
 
     # -- the actual work ---------------------------------------------------
+    async def clear_dtcs(self) -> dict[str, Any]:
+        """Live ClearDiagnosticInformation (0x14, all DTCs) before coding.
+
+        Best-effort: a DME that rejects the clear (NRC) must not abort the
+        coding flow, so we report supported=False instead of raising. This is
+        a real wire operation — no fabricated success.
+        """
+        try:
+            await self._client.clear_diagnostic_information()
+        except _WIRE_ERRORS:
+            return {"cleared": False, "supported": False}
+        return {"cleared": True, "supported": True}
+
     async def code_dme(self, options: dict[str, Any]) -> dict[str, Any]:
         """Apply coding to the DME.
 
