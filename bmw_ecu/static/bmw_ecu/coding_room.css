@@ -195,6 +195,9 @@ body {
 .cr-modal-body {
   background: #fff; border-radius: var(--radius); padding: 24px;
   max-width: 520px; width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  /* Long bench-step prompts must not push the action buttons off-screen:
+     cap the height to the viewport and let the body scroll. */
+  max-height: 90vh; overflow-y: auto;
 }
 .cr-modal-body h3 { margin-top: 0; color: var(--c-danger); }
 .cr-modal-body ul { padding-right: 20px; padding-left: 0; }
@@ -204,7 +207,11 @@ body {
 .cr-consent .en { color: var(--c-text-muted); font-family: var(--font-en);
                   font-size: 12px; display: block; margin-top: 2px; }
 .cr-modal-actions { display: flex; gap: 8px; justify-content: flex-end;
-                    margin-top: 12px; }
+                    flex-wrap: wrap; margin-top: 12px;
+                    /* Keep the action buttons reachable even when the body
+                       scrolls — pin them to the bottom of the modal. */
+                    position: sticky; bottom: -24px; background: #fff;
+                    padding: 12px 0; }
 .cr-modal-actions button {
   padding: 10px 18px; border: 1px solid var(--c-border); border-radius: 8px;
   background: #fff; cursor: pointer; font-family: inherit;
