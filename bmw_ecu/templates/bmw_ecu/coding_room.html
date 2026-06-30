@@ -38,6 +38,14 @@
         <option value="R60">R60 (Mini)</option>
       </select>
     </label>
+    <label>Link:
+      <select id="transport-input" title="اختار نوع الوصلة / interface link">
+        <option value="auto" selected>Auto</option>
+        <option value="doip">DoIP / ENET (F·G)</option>
+        <option value="kdcan">K+DCAN / CAN (E·R)</option>
+        <option value="kline">K-Line (pre-2007 E)</option>
+      </select>
+    </label>
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
     <button id="smart-btn" type="button">🚀 Smart Flow</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
@@ -188,7 +196,12 @@
   var elPin   = document.getElementById("smart-pinout");
 
   function transportFromChassis() {
-    // ENET/DoIP for F/G-series; K+DCAN for R/E-series (incl. Mini R5x).
+    // Explicit Link override wins (the tech declares the bench link — e.g.
+    // K-Line for a pre-2007 E-series gateway, which the chassis prefix alone
+    // can't tell apart from a post-2007 D-CAN car). "Auto" falls back to the
+    // chassis heuristic: ENET/DoIP for F/G-series, K+DCAN for R/E-series.
+    var link = (document.getElementById("transport-input") || {}).value || "auto";
+    if (link !== "auto") return link;
     var ch = (document.getElementById("chassis-input") || {}).value || "";
     return /^R|^E/.test(ch) ? "kdcan" : "doip";
   }
