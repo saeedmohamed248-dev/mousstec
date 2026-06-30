@@ -98,11 +98,12 @@ def infer_topology(transport_kind: str) -> tuple[str, str]:
 
     ENET/DoIP  → modern F/G series, body coding lives in the FEM.
     K+DCAN     → older R/E series (incl. Mini R56), body coding in the CAS.
+    K-Line     → pre-2007 E-series (KWP2000 on pin 7), body coding in the CAS.
     """
     t = (transport_kind or "").lower()
     if t == "doip":
         return ("F/G-Series", "FEM")
-    if t in ("kdcan", "socketcan"):
+    if t in ("kdcan", "socketcan", "kline"):
         return ("R/E-Series", "CAS")
     return ("Unknown", "FEM")
 

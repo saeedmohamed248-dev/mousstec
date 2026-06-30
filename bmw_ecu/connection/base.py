@@ -15,6 +15,7 @@ class TransportKind(str, enum.Enum):
     DOIP = "doip"          # ENET cable (TCP/IP to OBD gateway)
     KDCAN = "kdcan"        # K+DCAN USB serial (E-series legacy)
     SOCKETCAN = "socketcan"  # Linux native CAN socket
+    KLINE = "kline"        # K-Line/KWP2000 serial (pre-2007 E-series, pin 7)
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,13 @@ class TransportConfig:
     can_tx_id: Optional[int] = None   # tester → ECU request frame ID
     can_rx_id: Optional[int] = None   # ECU → tester response frame ID
     can_extended_id: bool = False     # 29-bit addressing if True
+    # K-Line / KWP2000 (ISO 14230) over the FTDI serial line. The KWP target
+    # address of the gateway/ECU on pin 7 is PER-BENCH and MUST be supplied —
+    # we never guess KWP addresses. Source defaults to the BMW tester 0xF1.
+    kline_target_addr: Optional[int] = None  # gateway/ECU KWP address (required)
+    kline_source_addr: int = 0xF1            # tester KWP address (BMW convention)
+    kline_baudrate: int = 10400              # KWP2000 standard 10.4 kbaud
+    kline_fast_init: bool = True             # ISO 14230 fast init on open
     # Common
     source_addr: int = 0x0EF1   # tester (BMW convention)
     target_addr: int = 0x10     # broadcast functional addressing

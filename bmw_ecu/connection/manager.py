@@ -16,6 +16,7 @@ from ..logging_setup import get_logger
 from .base import AbstractTransport, TransportConfig, TransportKind
 from .doip import DoIPTransport
 from .kdcan import KDCANTransport
+from .kline import KLineTransport
 from .socketcan import SocketCANTransport
 
 log = get_logger(__name__)
@@ -67,6 +68,8 @@ class ConnectionManager:
             return SocketCANTransport(cfg)
         if cfg.kind is TransportKind.KDCAN:
             return KDCANTransport(cfg)
+        if cfg.kind is TransportKind.KLINE:
+            return KLineTransport(cfg)
         raise ValueError(f"Unknown transport kind: {cfg.kind}")
 
     @staticmethod
@@ -100,6 +103,23 @@ class ConnectionManager:
                 can_tx_id=int(tx_env, 0),
                 can_rx_id=int(rx_env, 0),
                 bitrate=int(os.environ.get("BMW_ECU_CAN_BITRATE", "500000"), 0),
+            ))
+
+        # K-Line / KWP2000 over the FTDI serial line (pre-2007 E-series
+        # gateway on pin 7). Env-driven: the serial port and the gateway's
+        # KWP target address are site-specific and the target is required —
+        # we never guess KWP addresses.
+        kline_port = os.environ.get("BMW_ECU_KLINE_PORT")
+        kline_target = os.environ.get("BMW_ECU_KLINE_TARGET")
+        if kline_port and kline_target:
+            candidates.append(TransportConfig(
+                kind=TransportKind.KLINE,
+                serial_port=kline_port,
+                kline_target_addr=int(kline_target, 0),
+                kline_source_addr=int(
+                    os.environ.get("BMW_ECU_KLINE_SOURCE", "0xF1"), 0),
+                kline_baudrate=int(
+                    os.environ.get("BMW_ECU_KLINE_BAUD", "10400"), 0),
             ))
 
         return candidates
