@@ -129,6 +129,35 @@ class FailureBranchTests(unittest.TestCase):
         self.assertEqual(p.payload["error_code"], "provider_error")
 
 
+class ZgwGatewayTests(unittest.TestCase):
+    def test_zgw_gateway_is_recorded_and_surfaced(self) -> None:
+        # A ZGW bench rig bridges OBD → PT-CAN; the flow must record it and
+        # tell the technician the read is gateway-routed, not direct OBD.
+        prov = MockDmeSwapProvider()
+        orch = DmeSwapOrchestrator(prov)
+        p = _run(orch.handle(SwapEvent.SELECT_PROFILE,
+                             {"profile_key": PKEY, "vin": VIN, "gateway": "zgw"}))
+        self.assertEqual(orch.data.gateway, "ZGW")
+        self.assertEqual(p.payload["gateway"], "ZGW")
+        self.assertIn("ZGW", p.body)
+
+    def test_no_gateway_defaults_to_direct_obd(self) -> None:
+        prov = MockDmeSwapProvider()
+        orch = DmeSwapOrchestrator(prov)
+        p = _run(orch.handle(SwapEvent.SELECT_PROFILE,
+                             {"profile_key": PKEY, "vin": VIN}))
+        self.assertEqual(orch.data.gateway, "")
+        self.assertIn("OBD", p.body)
+
+    def test_gateway_survives_snapshot_restore(self) -> None:
+        prov = MockDmeSwapProvider()
+        orch = DmeSwapOrchestrator(prov)
+        _run(orch.handle(SwapEvent.SELECT_PROFILE,
+                        {"profile_key": PKEY, "vin": VIN, "gateway": "ZGW"}))
+        resumed = DmeSwapOrchestrator.restore(MockDmeSwapProvider(), orch.snapshot())
+        self.assertEqual(resumed.data.gateway, "ZGW")
+
+
 class SerialisationTests(unittest.TestCase):
     def test_snapshot_restore_resumes_mid_flow(self) -> None:
         prov = MockDmeSwapProvider()

@@ -17,6 +17,7 @@ from bmw_ecu.universal import (
     UState,
     infer_topology,
 )
+from bmw_ecu.universal.orchestrator import describe_link
 
 
 def _run(coro):
@@ -32,6 +33,34 @@ class TopologyTests(unittest.TestCase):
 
     def test_unknown_is_safe_default(self) -> None:
         self.assertEqual(infer_topology("weird")[1], "FEM")
+
+    def test_describe_link_direct_vs_zgw_bridge(self) -> None:
+        # No gateway → plain transport label.
+        self.assertEqual(describe_link("kdcan", ""), "kdcan")
+        # ZGW bench rig → label says it's bridged through the gateway.
+        bridged = describe_link("kdcan", "zgw")
+        self.assertIn("ZGW", bridged)
+        self.assertIn("bridged", bridged)
+
+
+class ZgwTopologyTests(unittest.TestCase):
+    def _orch(self):
+        io = MockUniversalEcuIo(transport_kind="kdcan", dme_locked=False)
+        return UniversalSmartOrchestrator(io=io)
+
+    def test_start_records_gateway_and_surfaces_bridged_link(self) -> None:
+        orch = self._orch()
+        p = _run(orch.handle("start", {"gateway": "zgw"}))
+        self.assertEqual(orch.data.gateway, "ZGW")
+        self.assertEqual(p.payload["gateway"], "ZGW")
+        self.assertIn("bridged", p.payload["link"])
+
+    def test_gateway_survives_snapshot_restore(self) -> None:
+        orch = self._orch()
+        _run(orch.handle("start", {"gateway": "ZGW"}))
+        io2 = MockUniversalEcuIo(transport_kind="kdcan", dme_locked=False)
+        resumed = UniversalSmartOrchestrator.restore(io=io2, snapshot=orch.snapshot())
+        self.assertEqual(resumed.data.gateway, "ZGW")
 
 
 class UnlockedFlowTests(unittest.TestCase):

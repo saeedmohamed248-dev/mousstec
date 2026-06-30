@@ -107,11 +107,27 @@ def infer_topology(transport_kind: str) -> tuple[str, str]:
     return ("Unknown", "FEM")
 
 
+def describe_link(transport_kind: str, gateway: str) -> str:
+    """Human label for the physical path, accounting for a bench gateway.
+
+    A "ZGW" bench rig means the PC link (K+DCAN/CAN) lands on an E-series
+    central gateway (ZGW), which bridges OBD → PT-CAN and routes standard
+    E-series diagnostic frames to the DME and CAS. We surface that the link
+    is BRIDGED so the technician/UI knows frames are gateway-routed, not
+    direct-to-DME. The ZGW does not change which series/body module applies.
+    """
+    gw = (gateway or "").strip().upper()
+    if gw:
+        return f"{transport_kind} → {gw} gateway → PT-CAN (bridged)"
+    return transport_kind
+
+
 @dataclass
 class UData:
     vin: str = ""
     technician_id: str = ""
     transport_kind: str = ""
+    gateway: str = ""            # "" direct, or "ZGW" bench-rig central gateway
     series: str = ""
     body_module: str = ""        # "FEM" | "CAS"
     dme_family: str = "MEVD17"
@@ -262,11 +278,16 @@ class UniversalSmartOrchestrator:
         if self.state != UState.IDLE:
             raise IllegalUTransition(f"START only valid in IDLE (now {self.state.value})")
         self.data.technician_id = (payload.get("technician_id") or "").strip()
+        # Bench-rig topology: a "ZGW" gateway sits between the PC link and the
+        # DME/CAS. The PC still speaks the same transport (K+DCAN/CAN) — the
+        # gateway just bridges OBD → PT-CAN. Caller declares it; we never guess.
+        self.data.gateway = (payload.get("gateway") or "").strip().upper()
 
         transport = await self.io.detect_transport()
         vin = await self.io.read_vin()
         locked = await self.io.probe_dme_locked()
         series, body = infer_topology(transport)
+        link = describe_link(transport, self.data.gateway)
 
         detect = DetectResult(transport_kind=transport, vin=vin, dme_locked=locked)
         self.data.transport_kind = transport
@@ -278,14 +299,18 @@ class UniversalSmartOrchestrator:
         self._advance(UState.DETECTED)
         verdict_ar = "مقفول 🔒 (محتاج بنش)" if locked else "مفتوح ✅ (تكويد مباشر)"
         verdict_en = "LOCKED 🔒 (bench needed)" if locked else "OPEN ✅ (direct coding)"
+        gw_ar = (f" عن طريق جيتواي {self.data.gateway} (بنش ريج)"
+                 if self.data.gateway else "")
+        gw_en = (f" via the {self.data.gateway} gateway (bench rig)"
+                 if self.data.gateway else "")
         return UPrompt(
             state=self.state,
             title_ar=f"اتعرّفت على العربية — {series}",
             title_en=f"Vehicle detected — {series}",
-            body_ar=(f"الوصلة: {transport} → {series}، وحدة الجسم: {body}. "
+            body_ar=(f"الوصلة: {link}، وحدة الجسم: {body}{gw_ar}. "
                      f"الكنترول (DME {self.data.dme_family}) {verdict_ar}. "
                      f"اضغط BACKUP عشان ناخد نسخة احتياطية الأول."),
-            body_en=(f"Link: {transport} → {series}, body module: {body}. "
+            body_en=(f"Link: {link}, body module: {body}{gw_en}. "
                      f"DME {self.data.dme_family} is {verdict_en}. "
                      f"Press BACKUP first to save a restore point."),
             expects="BACKUP",
@@ -293,7 +318,8 @@ class UniversalSmartOrchestrator:
             actions=[UAction(UEvent.BACKUP.value, "📦 نسخة احتياطية",
                              "📦 Auto-Backup", "primary")],
             payload={"detect": detect.to_json(), "series": series,
-                     "body_module": body},
+                     "body_module": body, "gateway": self.data.gateway,
+                     "link": link},
         )
 
     # ── 2. BACKUP — mandatory, before any write ──────────────────────────
@@ -521,6 +547,7 @@ class UniversalSmartOrchestrator:
                 "vin": self.data.vin,
                 "technician_id": self.data.technician_id,
                 "transport_kind": self.data.transport_kind,
+                "gateway": self.data.gateway,
                 "series": self.data.series,
                 "body_module": self.data.body_module,
                 "dme_family": self.data.dme_family,
@@ -544,6 +571,7 @@ class UniversalSmartOrchestrator:
             vin=s.get("vin", ""),
             technician_id=s.get("technician_id", ""),
             transport_kind=s.get("transport_kind", ""),
+            gateway=s.get("gateway", ""),
             series=s.get("series", ""),
             body_module=s.get("body_module", ""),
             dme_family=s.get("dme_family", "MEVD17"),

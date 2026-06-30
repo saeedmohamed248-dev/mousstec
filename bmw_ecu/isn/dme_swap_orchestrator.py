@@ -248,6 +248,7 @@ class SwapData:
     profile_key: str = ""
     vin: str = ""
     technician_id: str = ""
+    gateway: str = ""            # "" direct OBD, or "ZGW" bench-rig gateway
     cas_isn_hex: str = ""
     backup_ref: str = ""
     error_code: str = ""
@@ -348,21 +349,28 @@ class DmeSwapOrchestrator:
         self.data.profile_key = key
         self.data.vin = (payload.get("vin") or "").strip().upper()
         self.data.technician_id = (payload.get("technician_id") or "").strip()
+        # Bench-rig path: a "ZGW" central gateway bridges the K+DCAN OBD link to
+        # PT-CAN and routes standard E-series frames to the DME + CAS. Declared
+        # by the caller; the real provider holds the actual ZGW/DME/CAS routing.
+        self.data.gateway = (payload.get("gateway") or "").strip().upper()
         self._advance(SwapState.PROFILE_SELECTED)
         p = self.profile
+        via = (f" عن طريق جيتواي {self.data.gateway} (بنش ريج → PT-CAN)"
+               if self.data.gateway else " على الفيشة OBD")
         return SwapPrompt(
             state=self.state,
             title=f"تم اختيار {p.label_ar}",
             body=(
                 f"العربية: {p.chassis} / المناعة: {p.cas_family}. الكنترول المستعمل "
                 f"محتاج ISN العربية دي. اضغط READ_CAS_ISN عشان نقرا الـ ISN الأصلي من "
-                f"الـ CAS بتاع العربية (على الفيشة OBD)."
+                f"الـ CAS بتاع العربية{via}."
             ),
             expects="READ_CAS_ISN",
             progress_pct=_PROGRESS[self.state],
             payload={
                 "chassis": p.chassis, "cas_family": p.cas_family,
                 "dme_name": p.dme_name, "requires_bench": p.requires_bench,
+                "gateway": self.data.gateway,
             },
         )
 
@@ -520,6 +528,7 @@ class DmeSwapOrchestrator:
                 "profile_key": self.data.profile_key,
                 "vin": self.data.vin,
                 "technician_id": self.data.technician_id,
+                "gateway": self.data.gateway,
                 "cas_isn_hex": self.data.cas_isn_hex,
                 "backup_ref": self.data.backup_ref,
                 "error_code": self.data.error_code,
@@ -535,6 +544,7 @@ class DmeSwapOrchestrator:
             profile_key=s.get("profile_key", ""),
             vin=s.get("vin", ""),
             technician_id=s.get("technician_id", ""),
+            gateway=s.get("gateway", ""),
             cas_isn_hex=s.get("cas_isn_hex", ""),
             backup_ref=s.get("backup_ref", ""),
             error_code=s.get("error_code", ""),
