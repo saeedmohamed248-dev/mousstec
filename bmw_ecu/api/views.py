@@ -141,10 +141,10 @@ async def _build(payload: dict[str, Any]) -> tuple[ApiOrchestrator, StrategyCont
     # 🧪 Dev/demo simulator switch — when BMW_ECU_SIMULATOR is truthy we
     # bypass real ENET/D-CAN hardware and talk to the in-process MockEcu so
     # the Coding Room is fully clickable with no OBD interface attached.
-    # Default OFF → zero production impact (real transports unchanged).
-    import os as _os
-    _simulator = _os.environ.get("BMW_ECU_SIMULATOR", "").lower() in (
-        "1", "true", "yes", "on")
+    # Default OFF. The BMW_ECU_REQUIRE_HARDWARE production lock forces this
+    # False no matter what, so a real bench never gets faked data.
+    from .runtime_mode import simulator_enabled
+    _simulator = simulator_enabled()
     if _simulator:
         from ..mocks import MockEcu, MockTransport
         transport = MockTransport(ecu=MockEcu(vin=vin))

@@ -40,8 +40,10 @@ from rest_framework.response import Response
 
 from ..connection.base import TransportConfig, TransportKind
 from ..connection.manager import ConnectionManager
+from ..exceptions import NoInterfaceDetected
 from ..execution import KNOWN_PROFILES
 from ..logging_setup import get_logger
+from .runtime_mode import simulator_enabled
 from ..safety import BackupStore
 from ..uds import resolve_seed_key_provider
 from ..uds.client import UdsClient
@@ -60,8 +62,9 @@ _DEFAULT_PROFILE = "MEVD17_2_2_N18"
 
 
 def _is_simulator() -> bool:
-    return os.environ.get("BMW_ECU_SIMULATOR", "").lower() in (
-        "1", "true", "yes", "on")
+    # Single source of truth; honors the BMW_ECU_REQUIRE_HARDWARE production
+    # lock so a stale SIMULATOR flag can never silently serve fake data.
+    return simulator_enabled()
 
 
 def _backup_store() -> BackupStore:
@@ -93,6 +96,20 @@ def smart_step(request: Request) -> Response:
     except KeyError as e:
         return Response({"error": "unknown_profile", "detail": str(e)},
                         status=status.HTTP_400_BAD_REQUEST)
+    except NoInterfaceDetected as e:
+        # Honest hardware failure — NOT a crash, and NEVER a silent Mock.
+        # The bench is wired but no interface answered (e.g. the blue FTDI
+        # cable isn't a real CAN adapter, or the CANable/ENET isn't up yet).
+        log.warning("smart_step: no interface", extra={"detail": str(e)})
+        return Response(
+            {"error": "hardware_not_found",
+             "detail_ar": "مفيش جهاز/واجهة بترد. اتأكد إن الـ CANable أو ENET "
+                          "متوصّل وإن الاجنشن ON. النظام مش هيشتغل بالمحاكاة.",
+             "detail_en": "No ECU interface responded. Check the CANable/ENET "
+                          "link and that ignition is ON. The system will not "
+                          "fall back to simulation.",
+             "detail": str(e)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except Exception as e:  # pragma: no cover - defensive top-level guard
         log.exception("smart_step crashed")
         return Response({"error": "internal", "detail": repr(e)},
