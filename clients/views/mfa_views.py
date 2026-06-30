@@ -28,7 +28,9 @@ from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from clients.models import Client, Domain
-from clients.views.auth_views import _client_ip, _throttle, ADMIN_URL, User
+from clients.views.auth_views import (
+    _client_ip, _throttle, _with_request_port, ADMIN_URL, User,
+)
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -248,7 +250,13 @@ def mfa_challenge(request):
             ctx['error'] = 'خطأ في إعدادات نطاق الشركة.'
             return render(request, 'clients/mfa_challenge.html', ctx)
 
+        # Carry the request's non-standard port (dev :8000) onto the bare
+        # tenant host, exactly like the password-only login flow. Without this
+        # the cross-subdomain auto-login redirect drops to port 80 and fails
+        # with ERR_CONNECTION_REFUSED in local dev. Production (80/443) is
+        # untouched.
         protocol = 'https' if request.is_secure() else request.scheme
-        return redirect(f"{protocol}://{domain.domain}/auto-login/?token={auto_token}")
+        host = _with_request_port(domain.domain, request)
+        return redirect(f"{protocol}://{host}/auto-login/?token={auto_token}")
 
     return render(request, 'clients/mfa_challenge.html', ctx)
