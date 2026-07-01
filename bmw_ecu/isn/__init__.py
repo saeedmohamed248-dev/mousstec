@@ -11,10 +11,23 @@ from .isn_map import (  # noqa: F401
     isn_spec_for_profile,
     register_isn_spec,
 )
+from .dme_swap_orchestrator import (  # noqa: F401
+    AbstractDmeSwapProvider,
+    DmeSwapOrchestrator,
+    DME_SWAP_PROFILES,
+    MockDmeSwapProvider,
+    SwapEvent,
+    SwapState,
+    get_dme_swap_profile,
+)
 from .dme_swap_real_provider import (  # noqa: F401
     RealDmeSwapProvider,
     SwapAddressConfig,
     SwapBenchHarness,
     SwapProviderError,
     swap_address_config_from_env,
+)
+from .swap_session import (  # noqa: F401
+    SwapSessionRecord,
+    SwapSessionStore,
 )

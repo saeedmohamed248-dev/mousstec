@@ -6,6 +6,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BMW Coding Room — Mousstec</title>
 <link rel="stylesheet" href="{% static 'bmw_ecu/coding_room.css' %}?v=8">
+<style>
+  /* ── Used-DME swap wizard (scoped; keeps the shared css file untouched) ──
+     Tuned to be read at arm's length on a bench while holding tools. */
+  #swap-modal .cr-modal-body { max-width: 640px; }
+  .cr-swap-nrc {
+    display: inline-block; margin: 4px 0 10px; padding: 3px 10px;
+    border-radius: 999px; background: #3a2140; color: #ffd6a5;
+    font: 600 13px/1.5 ui-monospace, monospace; letter-spacing: .3px;
+  }
+  .cr-swap-warn {
+    margin: 10px 0; padding: 12px 14px; border-radius: 10px;
+    background: #4a1d1d; border: 1px solid #d9534f; color: #ffdede;
+    font-size: 14px; line-height: 1.6;
+  }
+  .cr-swap-steps { list-style: none; margin: 14px 0; padding: 0; }
+  .cr-swap-steps li {
+    position: relative; margin: 0 0 10px; padding: 14px 16px 14px 54px;
+    border-radius: 12px; background: #142033; border: 1px solid #22405f;
+    font-size: 15px; line-height: 1.7; color: #eaf2ff;
+  }
+  .cr-swap-steps li .cr-swap-num {
+    position: absolute; right: 14px; top: 12px;   /* RTL: number on the right */
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: #1e5fd6; color: #fff; font-weight: 700; font-size: 15px;
+  }
+  .cr-swap-steps li { padding: 14px 54px 14px 16px; }  /* RTL padding flip */
+  .cr-swap-hw {
+    width: 100%; border-collapse: collapse; margin: 6px 0 4px;
+    font-size: 14px; background: #0e1726; border-radius: 10px; overflow: hidden;
+  }
+  .cr-swap-hw caption {
+    text-align: right; font-weight: 700; color: #bcd3ff;
+    padding: 8px 4px; font-size: 14px;
+  }
+  .cr-swap-hw th, .cr-swap-hw td {
+    padding: 9px 12px; border-bottom: 1px solid #1d2c44; text-align: right;
+  }
+  .cr-swap-hw th { color: #8fb4ef; font-weight: 600; white-space: nowrap; }
+  .cr-swap-hw td { color: #eaf2ff; font-family: ui-monospace, monospace; }
+  .cr-swap-hw tr:last-child th, .cr-swap-hw tr:last-child td { border-bottom: 0; }
+  .cr-swap-act.cr-swap-retry { background: #d9534f; border-color: #d9534f; }
+  .cr-swap-note {
+    margin: 8px 0 0; padding: 10px 12px; border-radius: 8px;
+    background: #13314a; color: #cfe6ff; font-size: 13px; line-height: 1.6;
+  }
+</style>
 </head>
 <body data-vin="{{ vin }}"
       data-profile="{{ profile_name }}"
@@ -48,6 +95,7 @@
     </label>
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
     <button id="smart-btn" type="button">🚀 Smart Flow</button>
+    <button id="swap-btn" type="button">🔁 Engine Swap</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -176,10 +224,33 @@
   </div>
 </div>
 
+<!-- Used-DME swap (DmeSwapOrchestrator) — adaptive UDS→BSL pipeline. When the
+     MEVD17 rejects the UDS ISN write, this modal pauses on the step-by-step
+     Tricore BSL wizard. Drives /api/ecu/swap/step. -->
+<div id="swap-modal" class="cr-modal" hidden>
+  <div class="cr-modal-body">
+    <div id="swap-progress" class="cr-smart-progress"><span></span></div>
+    <h3 id="swap-title">🔁 Engine Swap — ISN Alignment</h3>
+    <div id="swap-nrc" class="cr-swap-nrc" hidden></div>
+    <p id="swap-body">هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل،
+       وبعدين نكتب الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة.</p>
+    <div id="swap-warn" class="cr-swap-warn" hidden></div>
+    <ol id="swap-steps" class="cr-swap-steps" hidden></ol>
+    <table id="swap-hw" class="cr-swap-hw" hidden>
+      <caption>🔧 إعداد الـ Bootstrap Loader (BSL)</caption>
+      <tbody id="swap-hw-body"></tbody>
+    </table>
+    <div id="swap-note" class="cr-swap-note" hidden></div>
+    <div id="swap-actions" class="cr-modal-actions"></div>
+    <button id="swap-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+  </div>
+</div>
+
 <script>
   window.BMW_ECU_CFG = {
     executeUrl: "{% url 'bmw_ecu:bmw_ecu_api:execute' %}",
     smartUrl: "{% url 'bmw_ecu:bmw_ecu_api:smart_step' %}",
+    swapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_step' %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
@@ -292,6 +363,225 @@
   var openBtn = document.getElementById("smart-btn");
   if (openBtn) openBtn.addEventListener("click", open);
   var closeBtn = document.getElementById("smart-close");
+  if (closeBtn) closeBtn.addEventListener("click", close);
+})();
+</script>
+
+<script>
+/* ── Engine Swap wizard: drives the DmeSwapOrchestrator over /api/ecu/swap/step.
+   The SwapPrompt is a single forward-only step with one `expects` next-event;
+   we render one primary button from it (+ Abort), and when the state is the
+   DME_BSL_FALLBACK we paint the numbered bench checklist + hardware spec table
+   the technician follows. Snapshot/restore lives server-side, so this stays a
+   thin, stateless renderer. */
+(function () {
+  "use strict";
+  var CFG = window.BMW_ECU_CFG || {};
+  var sessionId = null;
+  var modal    = document.getElementById("swap-modal");
+  if (!modal) return;
+  var elTitle  = document.getElementById("swap-title");
+  var elNrc    = document.getElementById("swap-nrc");
+  var elBody   = document.getElementById("swap-body");
+  var elWarn   = document.getElementById("swap-warn");
+  var elSteps  = document.getElementById("swap-steps");
+  var elHw     = document.getElementById("swap-hw");
+  var elHwBody = document.getElementById("swap-hw-body");
+  var elNote   = document.getElementById("swap-note");
+  var elAct    = document.getElementById("swap-actions");
+  var elProg   = document.querySelector("#swap-progress span");
+
+  // The default profile ships with the R56 N18 / MEVD17 case. (When more DME
+  // families are added, surface a picker; today it's the one known profile.)
+  var DEFAULT_PROFILE = "R56_N18_MEVD17";
+
+  // Arabic labels for the primary "next" button, keyed by the event the server
+  // says it expects. Falls back to the raw event name for forward-compat.
+  var NEXT_LABEL = {
+    READ_CAS_ISN:  "🔑 اقرا ISN من الـ CAS",
+    BACKUP_DME:    "💾 نسخة احتياطية للـ DME",
+    WRITE_DME_ISN: "✍️ اكتب الـ ISN (UDS)",
+    BSL_START:     "🔧 Start BSL Extraction",
+    VERIFY:        "✅ تأكّد (Verify)",
+    ALIGN:         "🔗 مزامنة EWS",
+    FINISH:        "🎉 إنهاء العملية",
+  };
+
+  var HW_ROWS = [
+    ["chip",           "الشريحة / Chip"],
+    ["boot_pin",       "بِن البوت / Boot pin"],
+    ["pull",           "المقاومة / Pull"],
+    ["serial_pin_map", "توصيل السيريال / Serial pins"],
+    ["bench_voltage",  "جهد البنش / Bench voltage"],
+  ];
+
+  async function step(event, payload) {
+    var body = { event: event, payload: payload || {} };
+    if (sessionId) {
+      body.session_id = sessionId;
+    } else {
+      // First call: declare the car + profile + link so the server can build
+      // the right provider (and, in sim, the fallback demo scenario).
+      body.vin = (document.getElementById("vin-input") || {}).value || "";
+      body.profile_key = DEFAULT_PROFILE;
+      var kind = (document.getElementById("transport-input") || {}).value || "auto";
+      if (kind !== "auto") body.transport = { kind: kind };
+    }
+    elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
+    var res, data;
+    try {
+      res = await fetch(CFG.swapUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "X-CSRFToken": CFG.csrfToken || "" },
+        body: JSON.stringify(body),
+      });
+      data = await res.json();
+    } catch (e) {
+      renderError("تعذّر الاتصال بالسيرفر. / Network error.");
+      return;
+    }
+    if (!res.ok) {
+      renderError((data && (data.detail_ar || data.detail || data.error)) ||
+                  "request failed");
+      return;
+    }
+    sessionId = data.session_id;
+    render(data.prompt);
+  }
+
+  function renderError(msg) {
+    elNrc.hidden = true; elWarn.hidden = true; elSteps.hidden = true;
+    elHw.hidden = true; elNote.hidden = true;
+    elTitle.textContent = "خطأ / Error";
+    elBody.textContent = msg;
+    elAct.innerHTML = "";
+    addBtn("🔄 من الأول", "select_profile", "default", function () {
+      sessionId = null; step("select_profile", { profile_key: DEFAULT_PROFILE,
+        vin: (document.getElementById("vin-input") || {}).value || "" });
+    });
+  }
+
+  function addBtn(label, event, style, onClick) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cr-smart-act cr-swap-act cr-smart-" + (style || "default");
+    if (style === "retry") btn.className += " cr-swap-retry";
+    btn.textContent = label;
+    btn.addEventListener("click", onClick || function () { step(event, {}); });
+    elAct.appendChild(btn);
+  }
+
+  function renderBslWizard(p) {
+    var pl = p.payload || {};
+    // NRC pill: exactly why UDS was refused (or that no UDS path existed).
+    if (pl.uds_reject_nrc) {
+      elNrc.hidden = false;
+      elNrc.textContent = "UDS رفض: NRC " + pl.uds_reject_nrc;
+    } else {
+      elNrc.hidden = false;
+      elNrc.textContent = "مفيش مسار كتابة UDS — بنكمّل على البوت";
+    }
+    // Unverified-hardware warning (the boot pad / pull are templates until the
+    // catalog confirms them — a wrong boot pin bricks the DME).
+    if (pl.hardware_verified === false) {
+      elWarn.hidden = false;
+      elWarn.textContent =
+        "⚠️ بيانات الهاردوير تحت مبدئية لحد ما تتأكد من الكاتالوج. " +
+        "غلط في بِن البوت = كنترول مضروب — أكّد المكان قبل أي bridge.";
+    } else {
+      elWarn.hidden = true;
+    }
+    // Numbered bench checklist.
+    var steps = pl.steps || [];
+    elSteps.innerHTML = "";
+    steps.forEach(function (s, i) {
+      var li = document.createElement("li");
+      var num = document.createElement("span");
+      num.className = "cr-swap-num";
+      num.textContent = (i + 1);
+      li.appendChild(num);
+      // The server prefixes "N) " already; strip it so the badge isn't doubled.
+      li.appendChild(document.createTextNode(String(s).replace(/^\s*\d+\)\s*/, "")));
+      elSteps.appendChild(li);
+    });
+    elSteps.hidden = steps.length === 0;
+    // Hardware spec table.
+    var hw = pl.hardware || {};
+    elHwBody.innerHTML = "";
+    HW_ROWS.forEach(function (row) {
+      if (!hw[row[0]]) return;
+      var tr = document.createElement("tr");
+      var th = document.createElement("th"); th.textContent = row[1];
+      var td = document.createElement("td"); td.textContent = hw[row[0]];
+      tr.appendChild(th); tr.appendChild(td);
+      elHwBody.appendChild(tr);
+    });
+    elHw.hidden = elHwBody.children.length === 0;
+    // Contextual note after a Phase-2 attempt.
+    if (pl.needs_confirmed_flash_profile) {
+      elNote.hidden = false;
+      elNote.textContent =
+        "الـ handshake نجح ✅ بس ناقص الـ ISN offset والـ BSL flash command " +
+        "المؤكدين (يتسجلوا من الأدمن/الكاتالوج). سجّلهم ودوس Start BSL تاني.";
+    } else {
+      elNote.hidden = true;
+    }
+  }
+
+  function clearWizard() {
+    elNrc.hidden = true; elWarn.hidden = true; elSteps.hidden = true;
+    elHw.hidden = true; elNote.hidden = true;
+  }
+
+  function render(p) {
+    elProg.style.width = (p.progress_pct || 0) + "%";
+    elTitle.textContent = p.title || "";
+    elBody.textContent = p.body || "";
+    elAct.innerHTML = "";
+
+    if (p.state === "dme_bsl_fallback") {
+      renderBslWizard(p);
+    } else {
+      clearWizard();
+    }
+
+    if (p.is_terminal) {
+      // done / failed — no forward button; offer a restart.
+      addBtn("🔄 جلسة جديدة / New session", "", "default", function () {
+        sessionId = null; clearWizard();
+        step("select_profile", { profile_key: DEFAULT_PROFILE,
+          vin: (document.getElementById("vin-input") || {}).value || "" });
+      });
+      return;
+    }
+
+    // Primary "next" button from the server's expected event.
+    var ev = (p.expects || "").trim();
+    if (ev) {
+      var label = NEXT_LABEL[ev] || ev;
+      var style = (p.state === "dme_bsl_fallback" && (p.payload || {}).retry)
+        ? "retry" : "primary";
+      addBtn(label, ev.toLowerCase(), style);
+    }
+    // Abort is always available while the job is live.
+    addBtn("✋ إلغاء / Abort", "abort", "default");
+  }
+
+  function open() {
+    sessionId = null;
+    clearWizard();
+    modal.hidden = false;
+    step("select_profile", {
+      profile_key: DEFAULT_PROFILE,
+      vin: (document.getElementById("vin-input") || {}).value || "",
+    });
+  }
+  function close() { modal.hidden = true; }
+
+  var openBtn = document.getElementById("swap-btn");
+  if (openBtn) openBtn.addEventListener("click", open);
+  var closeBtn = document.getElementById("swap-close");
   if (closeBtn) closeBtn.addEventListener("click", close);
 })();
 </script>

@@ -156,9 +156,12 @@ class MockDmeSwapProvider(AbstractDmeSwapProvider):
     async def verify_dme_isn(self, *, vin: str, dme_name: str,
                              isn: bytes) -> bool:
         self.calls.append("verify_dme_isn")
-        if self.corrupt_verify:
-            return False
-        return self._written == bytes(isn)
+        # Deterministic simulator: a fresh provider is built on every stateless
+        # HTTP request, so we must NOT depend on in-process `_written` (that
+        # would spuriously fail read-back across requests). The orchestrator
+        # only ever verifies the ISN it just wrote; the real provider does the
+        # actual read-back compare.
+        return not self.corrupt_verify
 
     async def align_ews(self, *, vin: str) -> None:
         self.calls.append("align_ews")
