@@ -179,19 +179,68 @@ class DmeSwapProfile:
     dme_name: str              # e.g. "MEVD17_2_2"
     dme_family: str            # e.g. "MEVD17"
     cas_family: str            # "CAS3" | "CAS3+"
-    requires_bench: bool       # MEVD17 used-DME ISN write is bench-only
+    requires_bench: bool       # used-DME ISN write is bench-only (no clean UDS)
     label_ar: str
     label_en: str
+    # The MCU family — a PUBLIC platform fact (not a proprietary offset). It
+    # only gates workflow: `tricore_bsl` says whether the no-external-device
+    # Tricore Bootstrap-Loader fallback (25ms fast-init + 0x55 handshake on the
+    # boot pad) even applies. It is True ONLY for Bosch MEVD17 (Infineon
+    # TriCore) — the family the BSL stack was built and (as a template)
+    # registered for. Siemens MSV/MSD DMEs use different processors and boot
+    # procedures, so they route to an honest "bench/BDM programmer required"
+    # halt instead of being shown TriCore boot-pin steps that could brick them.
+    processor: str = "confirm per board"
+    tricore_bsl: bool = False
 
 
-# A small starter set. R56 N18 is the user's case. These describe the
-# WORKFLOW only (which tool path) — never guessed pins or DIDs.
+# The workshop-facing catalog. These describe the WORKFLOW only — which
+# immobilizer, which tool path, which MCU family — NOT guessed pins, DIDs, ISN
+# offsets, or BSL command sequences (those stay confirmed-data-gated in
+# isn_map / BslFlashProfile, verified=False until registered per board).
+#
+# The engine↔DME↔immobilizer↔MCU associations below are public BMW platform
+# facts. `tricore_bsl=True` is set ONLY for Bosch MEVD17 (Infineon TriCore);
+# every Siemens DME is `tricore_bsl=False` (bench/BDM path) — enabling a real
+# BSL path for them would require a confirmed per-board BslHardwareProfile,
+# which we do not have and will not fabricate.
 DME_SWAP_PROFILES: dict[str, DmeSwapProfile] = {
+    # ── Bosch MEVD17 (Infineon TriCore) — the TriCore BSL fallback applies ──
     "R56_N18_MEVD17": DmeSwapProfile(
         chassis="R56", dme_name="MEVD17_2_2", dme_family="MEVD17",
         cas_family="CAS3+", requires_bench=True,
-        label_ar="ميني R56 N18 — DME MEVD17.2 (كتابة ISN على البنش)",
-        label_en="MINI R56 N18 — DME MEVD17.2 (bench ISN write)",
+        processor="Infineon TriCore (Bosch MEVD17.2)", tricore_bsl=True,
+        label_ar="ميني R56 N18 — DME MEVD17.2 (Bosch TriCore)",
+        label_en="MINI R56 N18 — DME MEVD17.2 (Bosch TriCore)",
+    ),
+    "E8X_E9X_N55_MEVD172": DmeSwapProfile(
+        chassis="E82/E90", dme_name="MEVD17_2", dme_family="MEVD17",
+        cas_family="CAS3+", requires_bench=True,
+        processor="Infineon TriCore (Bosch MEVD17.2)", tricore_bsl=True,
+        label_ar="E82/E90 N55 — DME MEVD17.2 (Bosch TriCore)",
+        label_en="E82/E90 N55 — DME MEVD17.2 (Bosch TriCore)",
+    ),
+    # ── Siemens (non-TriCore) — bench/BDM programmer path, NO boot-pin wizard ─
+    "E60_E90_N52_MSV80": DmeSwapProfile(
+        chassis="E60/E90", dme_name="MSV80", dme_family="MSV80",
+        cas_family="CAS3", requires_bench=True,
+        processor="Siemens MSV80 (non-TriCore)", tricore_bsl=False,
+        label_ar="E60/E90 N52 — DME MSV80 (بنش/BDM)",
+        label_en="E60/E90 N52 — DME MSV80 (bench/BDM)",
+    ),
+    "E9X_N54_MSD80": DmeSwapProfile(
+        chassis="E9X/E60", dme_name="MSD80", dme_family="MSD80",
+        cas_family="CAS3/CAS3+", requires_bench=True,
+        processor="Siemens MSD80 (confirm MCU per board)", tricore_bsl=False,
+        label_ar="E9X N54/N53 — DME MSD80 (بنش/BDM)",
+        label_en="E9X N54/N53 — DME MSD80 (bench/BDM)",
+    ),
+    "E9X_N54_MSD81": DmeSwapProfile(
+        chassis="E9X", dme_name="MSD81", dme_family="MSD81",
+        cas_family="CAS3+", requires_bench=True,
+        processor="Siemens MSD81 (confirm MCU per board)", tricore_bsl=False,
+        label_ar="E9X N54/N53 — DME MSD81 (بنش/BDM)",
+        label_en="E9X N54/N53 — DME MSD81 (bench/BDM)",
     ),
 }
 
@@ -510,8 +559,24 @@ class DmeSwapOrchestrator:
         except DmeUdsWriteRejected as e:
             # The DME refused the UDS write (e.g. NRC 0x33 Security Access
             # Denied / 0x22 Conditions Not Correct). Do NOT crash or fail the
-            # job — divert continuously to the guided BSL fallback wizard.
+            # job — but the *right* fallback depends on the DME's processor.
             self.data.uds_reject_nrc = (f"0x{e.nrc:02X}" if e.nrc is not None else "")
+            if not p.tricore_bsl:
+                # Siemens MSV/MSD (non-TriCore) etc.: the no-external-device
+                # Tricore boot-pin path does NOT apply. Showing TriCore steps
+                # here would be wrong and could brick the board — so we halt
+                # honestly and point to the confirmed bench/BDM programmer.
+                nrc = (f"NRC {self.data.uds_reject_nrc}"
+                       if self.data.uds_reject_nrc else "no UDS write path")
+                return self._fail(
+                    "bench_write_required",
+                    f"الكتابة عبر UDS مرفوضة ({nrc}). الكنترول ده "
+                    f"({p.dme_name} — {p.processor}) مش من عيلة TriCore اللي ليها "
+                    "مسار البوت المباشر، فمفيش fallback من غير جهاز خارجي. كتابة "
+                    "الـ ISN لازم تتعمل على بنش/BDM programmer مؤكد "
+                    "(Xprog/KESS/Trasdata). وصّل البنش وأعد المحاولة.")
+            # Bosch MEVD17 (Infineon TriCore): divert continuously to the guided
+            # no-external-device BSL fallback wizard.
             self._advance(SwapState.DME_BSL_FALLBACK)
             return self._bsl_wizard_prompt(p, e)
         self._advance(SwapState.DME_ISN_WRITTEN)

@@ -251,6 +251,66 @@ class BslFallbackTests(unittest.TestCase):
         self.assertEqual(p.payload["path"], "bsl")
 
 
+class UniversalCatalogTests(unittest.TestCase):
+    """The picker is a universal imported-engine tool now — but only Bosch
+    MEVD17 (Infineon TriCore) may use the no-external-device BSL fallback.
+    Every Siemens DME must route to an honest bench/BDM halt, never a TriCore
+    boot-pin wizard that could brick a board it was never built for."""
+
+    EXPECTED_TRICORE = {
+        "R56_N18_MEVD17": True,
+        "E8X_E9X_N55_MEVD172": True,
+        "E60_E90_N52_MSV80": False,
+        "E9X_N54_MSD80": False,
+        "E9X_N54_MSD81": False,
+    }
+
+    def test_catalog_has_expected_keys_and_tricore_flags(self) -> None:
+        # Every advertised profile is present with the correct BSL gate.
+        for key, tricore in self.EXPECTED_TRICORE.items():
+            self.assertIn(key, DME_SWAP_PROFILES, f"missing profile {key!r}")
+            self.assertEqual(
+                DME_SWAP_PROFILES[key].tricore_bsl, tricore,
+                f"{key} tricore_bsl should be {tricore}")
+        # No stray extra profiles slipped in unreviewed.
+        self.assertEqual(set(DME_SWAP_PROFILES), set(self.EXPECTED_TRICORE))
+
+    def test_every_profile_is_bench_only(self) -> None:
+        # A used-DME ISN write is never a clean OBD job for any of these.
+        for key, prof in DME_SWAP_PROFILES.items():
+            self.assertTrue(prof.requires_bench, f"{key} must be bench-only")
+
+    def test_siemens_uds_reject_halts_bench_required_not_bsl(self) -> None:
+        # A Siemens (non-TriCore) DME that rejects the UDS write must NOT be
+        # diverted into the TriCore BSL wizard — it halts honestly, pointing at
+        # a confirmed bench/BDM programmer.
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33)
+        orch = DmeSwapOrchestrator(prov)
+        _run(orch.handle(SwapEvent.SELECT_PROFILE,
+                         {"profile_key": "E9X_N54_MSD80", "vin": VIN}))
+        _run(orch.handle(SwapEvent.READ_CAS_ISN))
+        _run(orch.handle(SwapEvent.BACKUP_DME))
+        p = _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        self.assertEqual(orch.state, SwapState.FAILED)
+        self.assertNotEqual(orch.state, SwapState.DME_BSL_FALLBACK)
+        self.assertEqual(p.payload["error_code"], "bench_write_required")
+        self.assertTrue(p.is_error)
+        # Never fired a BSL write on a board the wizard wasn't built for.
+        self.assertNotIn("bsl_write_dme_isn", prov.calls)
+
+    def test_bosch_mevd17_uds_reject_still_offers_bsl_wizard(self) -> None:
+        # The gate must not over-fire: MEVD17 keeps its BSL fallback.
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33)
+        orch = DmeSwapOrchestrator(prov)
+        _run(orch.handle(SwapEvent.SELECT_PROFILE,
+                         {"profile_key": "E8X_E9X_N55_MEVD172", "vin": VIN}))
+        _run(orch.handle(SwapEvent.READ_CAS_ISN))
+        _run(orch.handle(SwapEvent.BACKUP_DME))
+        p = _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        self.assertEqual(orch.state, SwapState.DME_BSL_FALLBACK)
+        self.assertEqual(p.expects, "BSL_START")
+
+
 class SerialisationTests(unittest.TestCase):
     def test_snapshot_restore_resumes_mid_flow(self) -> None:
         prov = MockDmeSwapProvider()

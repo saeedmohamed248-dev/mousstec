@@ -10,6 +10,14 @@
   /* ── Used-DME swap wizard (scoped; keeps the shared css file untouched) ──
      Tuned to be read at arm's length on a bench while holding tools. */
   #swap-modal .cr-modal-body { max-width: 640px; }
+  .cr-swap-pick {
+    display: block; margin: 4px 0 10px; font-size: 13px; color: #bcd3ff;
+  }
+  .cr-swap-pick select {
+    display: block; width: 100%; margin-top: 5px; padding: 9px 10px;
+    border-radius: 8px; background: #0e1726; color: #eaf2ff;
+    border: 1px solid #22405f; font-size: 14px;
+  }
   .cr-swap-nrc {
     display: inline-block; margin: 4px 0 10px; padding: 3px 10px;
     border-radius: 999px; background: #3a2140; color: #ffd6a5;
@@ -231,6 +239,15 @@
   <div class="cr-modal-body">
     <div id="swap-progress" class="cr-smart-progress"><span></span></div>
     <h3 id="swap-title">🔁 Engine Swap — ISN Alignment</h3>
+    <label class="cr-swap-pick">الكنترول / DME profile:
+      <select id="swap-profile-input" title="اختار موديل الكنترول / choose the used DME">
+        {% for sp in swap_profiles %}
+        <option value="{{ sp.key }}"{% if forloop.first %} selected{% endif %}>{{ sp.label_ar }}</option>
+        {% empty %}
+        <option value="R56_N18_MEVD17" selected>MINI R56 N18 — MEVD17.2</option>
+        {% endfor %}
+      </select>
+    </label>
     <div id="swap-nrc" class="cr-swap-nrc" hidden></div>
     <p id="swap-body">هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل،
        وبعدين نكتب الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة.</p>
@@ -391,9 +408,13 @@
   var elAct    = document.getElementById("swap-actions");
   var elProg   = document.querySelector("#swap-progress span");
 
-  // The default profile ships with the R56 N18 / MEVD17 case. (When more DME
-  // families are added, surface a picker; today it's the one known profile.)
-  var DEFAULT_PROFILE = "R56_N18_MEVD17";
+  // The DME profile comes from the server-populated picker (DME_SWAP_PROFILES).
+  // Fallback keeps the flow working if the <select> is somehow absent.
+  var FALLBACK_PROFILE = "R56_N18_MEVD17";
+  function selectedProfile() {
+    return ((document.getElementById("swap-profile-input") || {}).value
+            || FALLBACK_PROFILE);
+  }
 
   // Arabic labels for the primary "next" button, keyed by the event the server
   // says it expects. Falls back to the raw event name for forward-compat.
@@ -423,7 +444,7 @@
       // First call: declare the car + profile + link so the server can build
       // the right provider (and, in sim, the fallback demo scenario).
       body.vin = (document.getElementById("vin-input") || {}).value || "";
-      body.profile_key = DEFAULT_PROFILE;
+      body.profile_key = selectedProfile();
       var kind = (document.getElementById("transport-input") || {}).value || "auto";
       if (kind !== "auto") body.transport = { kind: kind };
     }
@@ -457,7 +478,7 @@
     elBody.textContent = msg;
     elAct.innerHTML = "";
     addBtn("🔄 من الأول", "select_profile", "default", function () {
-      sessionId = null; step("select_profile", { profile_key: DEFAULT_PROFILE,
+      sessionId = null; step("select_profile", { profile_key: selectedProfile(),
         vin: (document.getElementById("vin-input") || {}).value || "" });
     });
   }
@@ -550,7 +571,7 @@
       // done / failed — no forward button; offer a restart.
       addBtn("🔄 جلسة جديدة / New session", "", "default", function () {
         sessionId = null; clearWizard();
-        step("select_profile", { profile_key: DEFAULT_PROFILE,
+        step("select_profile", { profile_key: selectedProfile(),
           vin: (document.getElementById("vin-input") || {}).value || "" });
       });
       return;
@@ -573,7 +594,7 @@
     clearWizard();
     modal.hidden = false;
     step("select_profile", {
-      profile_key: DEFAULT_PROFILE,
+      profile_key: selectedProfile(),
       vin: (document.getElementById("vin-input") || {}).value || "",
     });
   }

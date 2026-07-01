@@ -37,10 +37,27 @@ def coding_room(request):
         profile_name  — ECU profile (default FEM_F30).
         chassis       — F30 / G20 / … (drives initial feature filter).
     """
+    # Used-DME swap catalog for the "Engine Swap" picker. Workflow metadata
+    # only (chassis / DME / immobilizer / MCU) — no proprietary offsets. The
+    # picker is populated server-side so adding a profile needs no JS change.
+    from .isn import DME_SWAP_PROFILES
+    swap_profiles = [
+        {
+            "key": key,
+            "label_ar": p.label_ar,
+            "label_en": p.label_en,
+            "chassis": p.chassis,
+            "dme_family": p.dme_family,
+            "tricore_bsl": p.tricore_bsl,
+        }
+        for key, p in DME_SWAP_PROFILES.items()
+    ]
+
     context = {
         "vin": request.GET.get("vin", ""),
         "profile_name": request.GET.get("profile_name", "FEM_F30"),
         "chassis": request.GET.get("chassis", "F30"),
+        "swap_profiles": swap_profiles,
     }
     return render(request, "bmw_ecu/coding_room.html", context)
 
