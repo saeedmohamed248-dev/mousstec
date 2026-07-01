@@ -133,6 +133,7 @@ class Command(BaseCommand):
             "0xC1. Read-only: no writes, no ISN, no flash.\n"
         )
 
+        self._port_error = None
         hits = asyncio.run(self._scan(port, targets, source, baud, timeout, opts["first"]))
 
         self.stdout.write("")
@@ -147,6 +148,27 @@ class Command(BaseCommand):
                 "Put the answering address in your .env and restart the server:")
             self.stdout.write(self.style.HTTP_INFO(
                 f"    BMW_ECU_KLINE_TARGET=0x{best:02X}"))
+        elif self._port_error is not None:
+            # We never reached the bus — the serial port refused configuration.
+            self.stdout.write(self.style.ERROR(
+                "SERIAL PORT COULD NOT BE CONFIGURED — the scan never reached "
+                "the K-Line bus."))
+            self.stdout.write(f"    {self._port_error}")
+            self.stdout.write("")
+            self.stdout.write(
+                "This is a driver/OS layer failure, NOT a wiring or address "
+                "problem. errno 22 (EINVAL) on tcsetattr means the OS cannot set "
+                "the serial line parameters for this cable. Verify at the OS "
+                "level (no Python):")
+            self.stdout.write(self.style.HTTP_INFO(
+                f"    stty -f {port} 9600      # macOS"))
+            self.stdout.write(self.style.HTTP_INFO(
+                f"    stty -F {port} 9600      # Linux"))
+            self.stdout.write(
+                "If that also fails, the cable's FTDI chip cannot be driven by "
+                "this machine (commonly a counterfeit FT232R + built-in driver). "
+                "Test the same cable on Linux (ftdi_sio) or swap to a "
+                "known-genuine FTDI / ENET interface.")
         else:
             self.stdout.write(self.style.ERROR(
                 "No address answered. Check: cable/port, ignition ON, JBBFE "
@@ -176,19 +198,46 @@ class Command(BaseCommand):
     async def _scan(self, port, targets, source, baud, timeout, stop_first):
         hits = []
         for addr in targets:
-            ok, detail = await self._probe(port, addr, source, baud, timeout)
-            if ok:
+            status, detail = await self._probe(port, addr, source, baud, timeout)
+            if status == "answered":
                 self.stdout.write(self.style.SUCCESS(
                     f"  0x{addr:02X}  ANSWERED (0xC1)  {detail}"))
                 hits.append(addr)
                 if stop_first:
                     break
-            else:
+            elif status == "port_error":
+                # The serial port itself could not be opened/configured. This
+                # is NOT per-address silence — it is identical for every target,
+                # so probing the rest is pointless. Abort and surface it loudly.
+                self.stdout.write(self.style.ERROR(
+                    f"  0x{addr:02X}  PORT ERROR    {detail}"))
+                self._port_error = detail
+                break
+            elif status == "silent":
                 self.stdout.write(f"  0x{addr:02X}  no response   {detail}")
+            else:  # "other" — something replied but not a clean 0xC1
+                self.stdout.write(self.style.WARNING(
+                    f"  0x{addr:02X}  unexpected    {detail}"))
         return hits
+
+    # Port-configuration / driver-level failures. These come from the OS or the
+    # cable driver, are identical for every target, and mean we never reached
+    # the bus at all — as opposed to TransportTimeout, which is genuine silence.
+    @staticmethod
+    def _port_error_types():
+        import termios
+        import serial  # type: ignore
+        return (OSError, termios.error, serial.SerialException)
 
     async def _probe(self, port, target, source, baud, timeout):
         """One non-destructive StartCommunication against `target`.
+
+        Returns (status, detail) where status is:
+          "answered"   - positive 0xC1 StartCommunication response
+          "silent"     - no bytes back within timeout (genuine bus silence)
+          "port_error" - serial port could not be opened/configured (driver/OS;
+                         identical for every address, so the scan aborts)
+          "other"      - something replied but not a clean 0xC1
 
         Owns its own serial handle and always closes it, sidestepping the
         KLineTransport.open() leak when _fast_init raises.
@@ -212,7 +261,7 @@ class Command(BaseCommand):
 
         loop = asyncio.get_running_loop()
 
-        def _do() -> str:
+        def _do() -> None:
             ser = serial.Serial(
                 port=port,
                 baudrate=baud,
@@ -225,15 +274,20 @@ class Command(BaseCommand):
             try:
                 # Reuse the production handshake for byte-identical timing/framing.
                 transport._fast_init(ser, serial)
-                return ""
             finally:
                 try:
                     ser.close()
                 except Exception:
                     pass
 
+        from ...exceptions import TransportTimeout
+
         try:
             await loop.run_in_executor(None, _do)
-            return True, ""
-        except Exception as e:  # noqa: BLE001 - probe: any failure = "no answer"
-            return False, f"({type(e).__name__}: {e})"
+            return "answered", ""
+        except TransportTimeout as e:
+            return "silent", f"({type(e).__name__}: {e})"
+        except self._port_error_types() as e:  # noqa: BLE001
+            return "port_error", f"({type(e).__name__}: {e})"
+        except Exception as e:  # noqa: BLE001 - responded, but not a clean 0xC1
+            return "other", f"({type(e).__name__}: {e})"
