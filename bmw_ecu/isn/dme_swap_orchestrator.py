@@ -75,6 +75,19 @@ class AbstractDmeSwapProvider(abc.ABC):
     async def align_ews(self, *, vin: str) -> None:
         """EWS align DME↔CAS over OBD (RoutineControl)."""
 
+    async def bsl_write_dme_isn(self, *, vin: str, dme_name: str, dme_family: str,
+                                isn: bytes) -> None:
+        """Phase 2: write the ISN over the chip's Bootstrap Loader (no external
+        programmer). Default providers don't support BSL; override to enable.
+
+        Raises (orchestrator-handled, never a hard crash):
+          • BslHandshakeFailed  — physical boot setup wrong; tech fixes + retries
+          • BslNotConfigured    — boot link OK but confirmed flash profile missing
+        """
+        from .tricore_bsl import BslNotConfigured
+        raise BslNotConfigured(
+            f"{type(self).__name__} has no BSL fallback wired for {dme_family}.")
+
 
 class MockDmeSwapProvider(AbstractDmeSwapProvider):
     """Deterministic in-memory provider for tests and the clickable demo.
@@ -90,13 +103,21 @@ class MockDmeSwapProvider(AbstractDmeSwapProvider):
     def __init__(self, *, isn: Optional[bytes] = None,
                  fail_read: bool = False, fail_backup: bool = False,
                  fail_write: bool = False, corrupt_verify: bool = False,
-                 fail_align: bool = False) -> None:
+                 fail_align: bool = False,
+                 uds_reject_nrc: Optional[int] = None,
+                 bsl_handshake_fail: bool = False,
+                 bsl_not_configured: bool = False) -> None:
         self._isn = isn or self.DEMO_ISN
         self.fail_read = fail_read
         self.fail_backup = fail_backup
         self.fail_write = fail_write
         self.corrupt_verify = corrupt_verify
         self.fail_align = fail_align
+        # Fallback simulation: make the Phase-1 UDS write report an NRC so the
+        # orchestrator diverts to the BSL wizard; then drive the Phase-2 result.
+        self.uds_reject_nrc = uds_reject_nrc
+        self.bsl_handshake_fail = bsl_handshake_fail
+        self.bsl_not_configured = bsl_not_configured
         self.calls: list[str] = []
         self._written: Optional[bytes] = None
 
@@ -115,8 +136,21 @@ class MockDmeSwapProvider(AbstractDmeSwapProvider):
     async def write_dme_isn(self, *, vin: str, dme_name: str, isn: bytes,
                             requires_bench: bool) -> None:
         self.calls.append("write_dme_isn")
+        if self.uds_reject_nrc is not None:
+            # Phase-1 UDS attempt rejected → orchestrator diverts to BSL.
+            raise DmeUdsWriteRejected(nrc=self.uds_reject_nrc)
         if self.fail_write:
             raise RuntimeError("ISN write rejected by DME")
+        self._written = bytes(isn)
+
+    async def bsl_write_dme_isn(self, *, vin: str, dme_name: str,
+                                dme_family: str, isn: bytes) -> None:
+        self.calls.append("bsl_write_dme_isn")
+        from .tricore_bsl import BslHandshakeFailed, BslNotConfigured
+        if self.bsl_handshake_fail:
+            raise BslHandshakeFailed("mock: no boot handshake")
+        if self.bsl_not_configured:
+            raise BslNotConfigured("mock: no confirmed flash profile")
         self._written = bytes(isn)
 
     async def verify_dme_isn(self, *, vin: str, dme_name: str,
@@ -171,6 +205,7 @@ class SwapState(str, enum.Enum):
     PROFILE_SELECTED = "profile_selected"
     CAS_ISN_READ     = "cas_isn_read"
     DME_BACKED_UP    = "dme_backed_up"
+    DME_BSL_FALLBACK = "dme_bsl_fallback"   # UDS write rejected → guided BSL setup
     DME_ISN_WRITTEN  = "dme_isn_written"
     VERIFIED         = "verified"
     ALIGNED          = "aligned"
@@ -182,7 +217,15 @@ _ALLOWED: dict[SwapState, set[SwapState]] = {
     SwapState.IDLE:             {SwapState.PROFILE_SELECTED, SwapState.FAILED},
     SwapState.PROFILE_SELECTED: {SwapState.CAS_ISN_READ,    SwapState.FAILED},
     SwapState.CAS_ISN_READ:     {SwapState.DME_BACKED_UP,   SwapState.FAILED},
-    SwapState.DME_BACKED_UP:    {SwapState.DME_ISN_WRITTEN, SwapState.FAILED},
+    # After backup the write is attempted over UDS first; an NRC rejection
+    # diverts to the BSL fallback wizard instead of failing the whole job.
+    SwapState.DME_BACKED_UP:    {SwapState.DME_ISN_WRITTEN,
+                                 SwapState.DME_BSL_FALLBACK, SwapState.FAILED},
+    # The BSL wizard is a paused, re-enterable state: the tech can fire BSL_START
+    # repeatedly (fix wiring / register the confirmed profile) until the write
+    # lands, without ever leaving the job in a crashed state.
+    SwapState.DME_BSL_FALLBACK: {SwapState.DME_BSL_FALLBACK,
+                                 SwapState.DME_ISN_WRITTEN, SwapState.FAILED},
     SwapState.DME_ISN_WRITTEN:  {SwapState.VERIFIED,        SwapState.FAILED},
     SwapState.VERIFIED:         {SwapState.ALIGNED,         SwapState.FAILED},
     SwapState.ALIGNED:          {SwapState.DONE,            SwapState.FAILED},
@@ -195,11 +238,25 @@ class IllegalSwapTransition(Exception):
     pass
 
 
+class DmeUdsWriteRejected(Exception):
+    """Phase-1 UDS ISN write was refused by the DME. Carries the NRC (if the
+    DME answered one) so the orchestrator can divert to the BSL fallback
+    instead of treating it as a hard failure. `nrc` is None when there simply
+    is no usable UDS write path (so BSL is the only option)."""
+
+    def __init__(self, nrc: Optional[int] = None, reason: str = "") -> None:
+        super().__init__(reason or (f"UDS ISN write rejected (NRC 0x{nrc:02X})"
+                                    if nrc is not None else "No UDS ISN write path"))
+        self.nrc = nrc
+        self.reason = reason
+
+
 class SwapEvent(str, enum.Enum):
     SELECT_PROFILE = "select_profile"
     READ_CAS_ISN   = "read_cas_isn"
     BACKUP_DME     = "backup_dme"
     WRITE_DME_ISN  = "write_dme_isn"
+    BSL_START      = "bsl_start"      # "Start BSL Extraction" button (Phase 2)
     VERIFY         = "verify"
     ALIGN          = "align"
     FINISH         = "finish"
@@ -211,6 +268,7 @@ _PROGRESS = {
     SwapState.PROFILE_SELECTED: 12,
     SwapState.CAS_ISN_READ: 30,
     SwapState.DME_BACKED_UP: 50,
+    SwapState.DME_BSL_FALLBACK: 60,
     SwapState.DME_ISN_WRITTEN: 70,
     SwapState.VERIFIED: 85,
     SwapState.ALIGNED: 95,
@@ -251,6 +309,7 @@ class SwapData:
     gateway: str = ""            # "" direct OBD, or "ZGW" bench-rig gateway
     cas_isn_hex: str = ""
     backup_ref: str = ""
+    uds_reject_nrc: str = ""      # hex NRC that triggered the BSL fallback
     error_code: str = ""
     error_detail: str = ""
 
@@ -330,6 +389,8 @@ class DmeSwapOrchestrator:
             return await self._backup_dme()
         if event == SwapEvent.WRITE_DME_ISN:
             return await self._write_dme_isn()
+        if event == SwapEvent.BSL_START:
+            return await self._bsl_start()
         if event == SwapEvent.VERIFY:
             return await self._verify()
         if event == SwapEvent.ALIGN:
@@ -429,7 +490,7 @@ class DmeSwapOrchestrator:
             payload={"backup_ref": ref},
         )
 
-    # ── 4. WRITE_DME_ISN ──────────────────────────────────────
+    # ── 4. WRITE_DME_ISN — Phase 1 (UDS), auto-fallback to BSL on NRC ──
     async def _write_dme_isn(self) -> SwapPrompt:
         if self.state != SwapState.DME_BACKED_UP:
             raise IllegalSwapTransition(
@@ -438,20 +499,140 @@ class DmeSwapOrchestrator:
             return self._fail("no_backup", "Refusing to write ISN without a backup.")
         p = self.profile
         isn = bytes.fromhex(self.data.cas_isn_hex)
-        await self.provider.write_dme_isn(
-            vin=self.data.vin, dme_name=p.dme_name, isn=isn,
-            requires_bench=p.requires_bench)
+        try:
+            # Phase 1: attempt the write over UDS (programming session).
+            await self.provider.write_dme_isn(
+                vin=self.data.vin, dme_name=p.dme_name, isn=isn,
+                requires_bench=p.requires_bench)
+        except DmeUdsWriteRejected as e:
+            # The DME refused the UDS write (e.g. NRC 0x33 Security Access
+            # Denied / 0x22 Conditions Not Correct). Do NOT crash or fail the
+            # job — divert continuously to the guided BSL fallback wizard.
+            self.data.uds_reject_nrc = (f"0x{e.nrc:02X}" if e.nrc is not None else "")
+            self._advance(SwapState.DME_BSL_FALLBACK)
+            return self._bsl_wizard_prompt(p, e)
         self._advance(SwapState.DME_ISN_WRITTEN)
         return SwapPrompt(
             state=self.state,
-            title="اتكتب الـ ISN في الكنترول ✍️",
+            title="اتكتب الـ ISN في الكنترول ✍️ (UDS)",
             body=(
-                "تمت كتابة ISN العربية في الـ DME المستعمل. اضغط VERIFY عشان نقرا الـ ISN "
-                "تاني من الكنترول ونتأكد إنه مطابق."
+                "تمت كتابة ISN العربية في الـ DME المستعمل عن طريق UDS. اضغط VERIFY "
+                "عشان نقرا الـ ISN تاني من الكنترول ونتأكد إنه مطابق."
             ),
             expects="VERIFY",
             progress_pct=_PROGRESS[self.state],
-            payload={"requires_bench": p.requires_bench},
+            payload={"requires_bench": p.requires_bench, "path": "uds"},
+        )
+
+    # ── 4b. BSL fallback wizard (paused, interactive, no external device) ──
+    def _bsl_wizard_prompt(self, p: DmeSwapProfile,
+                           e: DmeUdsWriteRejected) -> SwapPrompt:
+        """Surface the step-by-step Tricore BSL setup. Hardware specifics come
+        from the confirmed BslHardwareProfile (NOT guessed here); unconfirmed
+        values are shown with a clear warning the tech must verify."""
+        from .tricore_bsl import get_bsl_profile
+        hw = get_bsl_profile(p.dme_family)
+        nrc_note = (f" (الـ DME رفض الكتابة عبر UDS برد NRC {self.data.uds_reject_nrc})"
+                    if self.data.uds_reject_nrc else
+                    " (مفيش مسار كتابة UDS متاح للكنترول ده)")
+        warn = ("" if (hw and hw.verified) else
+                "\n\n⚠️ القيم التحت دي **مبدئية** لحد ما تتأكد من توثيق البورده. غلط في "
+                "تحديد الـ boot pin = كنترول مضروب. أكّد المكان قبل ما تعمل bridge.")
+        chip = hw.chip if hw else "Infineon TriCore (confirm)"
+        boot = hw.boot_pin_label if hw else "boot-config pin (confirm)"
+        pull = hw.pull if hw else "1kΩ to GND (confirm)"
+        pins = hw.serial_pin_map if hw else "FTDI TX/RX/GND → board (confirm)"
+        volts = hw.bench_voltage if hw else "12V"
+        steps = [
+            "1) افصل الكهرباء تماماً وافتح علبة الـ DME (MEVD17) بأمان — اشتغل على "
+            "ESD mat والكنترول مفصول.",
+            f"2) اعمل bridge لـ {boot} للأرضي عن طريق مقاومة {pull} على شريحة {chip}.",
+            f"3) وصّل سيريال الـ FTDI على بوردة الـ DME: {pins}، وبعدين نوّر "
+            f"الكنترول بـ {volts} على البنش.",
+            "4) اضغط «Start BSL Extraction» — النظام هيعمل fast-init 25ms ويتأكد "
+            "من رد المعالج (0x55 handshake) قبل أي كتابة.",
+        ]
+        return SwapPrompt(
+            state=SwapState.DME_BSL_FALLBACK,
+            title="الكتابة عبر UDS مرفوضة — تحوّلنا لوضع البوت (BSL) 🔌",
+            body=(
+                f"الكنترول المستعمل مرفض كتابة الـ ISN عبر UDS{nrc_note}. مفيش مشكلة — "
+                "هنكتبها عبر الـ Bootstrap Loader بتاع المعالج بنفس كابل الـ FTDI، من "
+                f"غير أي جهاز خارجي. اتبع الخطوات بالترتيب:{warn}\n\n"
+                + "\n".join(steps)
+            ),
+            expects="BSL_START",
+            progress_pct=_PROGRESS[SwapState.DME_BSL_FALLBACK],
+            payload={
+                "path": "bsl",
+                "uds_reject_nrc": self.data.uds_reject_nrc,
+                "dme_family": p.dme_family,
+                "hardware_verified": bool(hw and hw.verified),
+                "steps": steps,
+                "hardware": {
+                    "chip": chip, "boot_pin": boot, "pull": pull,
+                    "serial_pin_map": pins, "bench_voltage": volts,
+                },
+            },
+            is_terminal=False,
+        )
+
+    # ── 4c. BSL_START — fire the Tricore BSL stack (Phase 2) ──────────────
+    async def _bsl_start(self) -> SwapPrompt:
+        if self.state != SwapState.DME_BSL_FALLBACK:
+            raise IllegalSwapTransition(
+                f"BSL_START only valid in DME_BSL_FALLBACK (now {self.state.value})")
+        from .tricore_bsl import BslHandshakeFailed, BslNotConfigured
+        p = self.profile
+        isn = bytes.fromhex(self.data.cas_isn_hex)
+        try:
+            await self.provider.bsl_write_dme_isn(
+                vin=self.data.vin, dme_name=p.dme_name,
+                dme_family=p.dme_family, isn=isn)
+        except BslHandshakeFailed as e:
+            # Physical setup wrong — stay in the wizard, ask to fix wiring/retry.
+            return SwapPrompt(
+                state=SwapState.DME_BSL_FALLBACK,
+                title="المعالج مردّش على الـ handshake ✋",
+                body=(
+                    f"{e}\n\nراجع: الـ boot pin متوصّل صح للأرضي؟ سيريال الـ FTDI "
+                    "(TX/RX) مظبوط؟ في 12V على البنش؟ صلّح ودوس «Start BSL "
+                    "Extraction» تاني."
+                ),
+                expects="BSL_START",
+                progress_pct=_PROGRESS[SwapState.DME_BSL_FALLBACK],
+                payload={"path": "bsl", "retry": True},
+                is_error=True,
+            )
+        except BslNotConfigured as e:
+            # Boot link is up but the confirmed ISN flash profile is missing. We
+            # refuse to write a guessed offset — stay paused, ask for the data.
+            return SwapPrompt(
+                state=SwapState.DME_BSL_FALLBACK,
+                title="البوت تمام — ناقص بيانات الـ ISN المؤكدة 📋",
+                body=(
+                    f"{e}\n\nاتصل الـ handshake بنجاح، بس محتاجين الـ ISN offset "
+                    "والـ BSL flash command المؤكدين للبورده دي (يتسجلوا من الأدمن/"
+                    "الكاتالوج). سجّلهم ودوس «Start BSL Extraction» تاني — مش "
+                    "هنكتب على offset مخمّن."
+                ),
+                expects="BSL_START",
+                progress_pct=_PROGRESS[SwapState.DME_BSL_FALLBACK],
+                payload={"path": "bsl", "needs_confirmed_flash_profile": True},
+                is_error=False,
+            )
+        # BSL write succeeded.
+        self._advance(SwapState.DME_ISN_WRITTEN)
+        return SwapPrompt(
+            state=self.state,
+            title="اتكتب الـ ISN عبر البوت (BSL) ✍️",
+            body=(
+                "تمت كتابة ISN العربية في الـ DME عن طريق الـ Bootstrap Loader. "
+                "فك توصيلات البنش ورجّع الكنترول، وبعدين اضغط VERIFY للتأكد."
+            ),
+            expects="VERIFY",
+            progress_pct=_PROGRESS[self.state],
+            payload={"requires_bench": p.requires_bench, "path": "bsl"},
         )
 
     # ── 5. VERIFY ─────────────────────────────────────────────
@@ -531,6 +712,7 @@ class DmeSwapOrchestrator:
                 "gateway": self.data.gateway,
                 "cas_isn_hex": self.data.cas_isn_hex,
                 "backup_ref": self.data.backup_ref,
+                "uds_reject_nrc": self.data.uds_reject_nrc,
                 "error_code": self.data.error_code,
                 "error_detail": self.data.error_detail,
             },
@@ -547,6 +729,7 @@ class DmeSwapOrchestrator:
             gateway=s.get("gateway", ""),
             cas_isn_hex=s.get("cas_isn_hex", ""),
             backup_ref=s.get("backup_ref", ""),
+            uds_reject_nrc=s.get("uds_reject_nrc", ""),
             error_code=s.get("error_code", ""),
             error_detail=s.get("error_detail", ""),
         )

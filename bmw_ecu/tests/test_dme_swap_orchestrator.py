@@ -158,6 +158,99 @@ class ZgwGatewayTests(unittest.TestCase):
         self.assertEqual(resumed.data.gateway, "ZGW")
 
 
+def _drive_to_backed_up(orch: DmeSwapOrchestrator) -> None:
+    _run(orch.handle(SwapEvent.SELECT_PROFILE, {"profile_key": PKEY, "vin": VIN}))
+    _run(orch.handle(SwapEvent.READ_CAS_ISN))
+    _run(orch.handle(SwapEvent.BACKUP_DME))
+
+
+class BslFallbackTests(unittest.TestCase):
+    """Adaptive pipeline: a UDS write rejection (NRC) must NOT crash the job —
+    it transitions continuously to the guided BSL wizard, which stays paused and
+    re-enterable until the write lands."""
+
+    def test_uds_nrc_transitions_to_bsl_wizard(self) -> None:
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33)
+        orch = DmeSwapOrchestrator(prov)
+        _drive_to_backed_up(orch)
+        p = _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        # No crash, no FAILED — we are paused in the BSL wizard.
+        self.assertEqual(orch.state, SwapState.DME_BSL_FALLBACK)
+        self.assertFalse(p.is_error)
+        self.assertFalse(p.is_terminal)
+        self.assertEqual(p.expects, "BSL_START")
+        self.assertEqual(p.payload["path"], "bsl")
+        self.assertEqual(p.payload["uds_reject_nrc"], "0x33")
+        self.assertEqual(orch.data.uds_reject_nrc, "0x33")
+        # The 4-step wizard is surfaced with hardware fields.
+        self.assertEqual(len(p.payload["steps"]), 4)
+        self.assertIn("hardware", p.payload)
+        # MEVD17 profile ships unverified → the tech is warned.
+        self.assertFalse(p.payload["hardware_verified"])
+        self.assertIn("⚠️", p.body)
+
+    def test_bsl_not_configured_stays_paused_asking_for_data(self) -> None:
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33, bsl_not_configured=True)
+        orch = DmeSwapOrchestrator(prov)
+        _drive_to_backed_up(orch)
+        _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        p = _run(orch.handle(SwapEvent.BSL_START))
+        # Refused to write a guessed offset — still paused, NOT an error state.
+        self.assertEqual(orch.state, SwapState.DME_BSL_FALLBACK)
+        self.assertFalse(p.is_error)
+        self.assertTrue(p.payload.get("needs_confirmed_flash_profile"))
+        self.assertEqual(p.expects, "BSL_START")
+
+    def test_bsl_handshake_failure_allows_retry(self) -> None:
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x22, bsl_handshake_fail=True)
+        orch = DmeSwapOrchestrator(prov)
+        _drive_to_backed_up(orch)
+        _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        p = _run(orch.handle(SwapEvent.BSL_START))
+        # Physical setup wrong → stay paused, flagged as an error, retry allowed.
+        self.assertEqual(orch.state, SwapState.DME_BSL_FALLBACK)
+        self.assertTrue(p.is_error)
+        self.assertTrue(p.payload.get("retry"))
+        self.assertEqual(p.expects, "BSL_START")
+
+    def test_bsl_success_completes_the_swap(self) -> None:
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33, bsl_handshake_fail=True)
+        orch = DmeSwapOrchestrator(prov)
+        _drive_to_backed_up(orch)
+        _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        # First BSL_START fails the handshake (bad wiring); tech fixes it…
+        _run(orch.handle(SwapEvent.BSL_START))
+        prov.bsl_handshake_fail = False
+        # …and retries: the BSL write now lands and the job continues to DONE.
+        p = _run(orch.handle(SwapEvent.BSL_START))
+        self.assertEqual(orch.state, SwapState.DME_ISN_WRITTEN)
+        self.assertEqual(p.payload["path"], "bsl")
+        _run(orch.handle(SwapEvent.VERIFY))
+        _run(orch.handle(SwapEvent.ALIGN))
+        final = _run(orch.handle(SwapEvent.FINISH))
+        self.assertEqual(orch.state, SwapState.DONE)
+        self.assertTrue(final.is_terminal)
+        # The whole path is recorded: UDS write attempted, then BSL write.
+        self.assertIn("write_dme_isn", prov.calls)
+        self.assertIn("bsl_write_dme_isn", prov.calls)
+
+    def test_bsl_fallback_state_survives_snapshot_restore(self) -> None:
+        prov = MockDmeSwapProvider(uds_reject_nrc=0x33)
+        orch = DmeSwapOrchestrator(prov)
+        _drive_to_backed_up(orch)
+        _run(orch.handle(SwapEvent.WRITE_DME_ISN))
+        snap = orch.snapshot()
+        self.assertEqual(snap["state"], SwapState.DME_BSL_FALLBACK.value)
+        self.assertEqual(snap["data"]["uds_reject_nrc"], "0x33")
+        # Resume the paused wizard in a fresh process and fire BSL_START.
+        resumed = DmeSwapOrchestrator.restore(MockDmeSwapProvider(), snap)
+        self.assertEqual(resumed.state, SwapState.DME_BSL_FALLBACK)
+        self.assertEqual(resumed.data.uds_reject_nrc, "0x33")
+        p = _run(resumed.handle(SwapEvent.BSL_START))
+        self.assertEqual(resumed.state, SwapState.DME_ISN_WRITTEN)
+        self.assertEqual(p.payload["path"], "bsl")
+
+
 class SerialisationTests(unittest.TestCase):
     def test_snapshot_restore_resumes_mid_flow(self) -> None:
         prov = MockDmeSwapProvider()
