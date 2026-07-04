@@ -125,6 +125,9 @@ class BenchData:
     family: Optional[ModuleFamily] = None
     vin: str = ""
     technician_id: str = ""
+    # True when the technician is adopting a second-hand key from another
+    # car — the flow virginizes it before burning the new slot.
+    used_key: bool = False
     measured_voltage_v: float = 0.0
     raw_dump: bytes = b""
     parsed_dump_chip: str = ""        # so the chatbot can echo the chip family
@@ -336,7 +339,7 @@ class BenchOrchestrator:
         if event == BenchEvent.PICK_KEY_SLOT:
             return self._pick_slot(payload)
         if event == BenchEvent.BURN_KEY:
-            return self._burn_key(payload)
+            return await self._burn_key(payload)
         if event == BenchEvent.VERIFY:
             return self._verify()
         if event == BenchEvent.FINISH:
@@ -365,13 +368,26 @@ class BenchOrchestrator:
         self.data.family = family
         self.data.vin = (payload.get("vin") or "").strip().upper()
         self.data.technician_id = (payload.get("technician_id") or "").strip()
+        self.data.used_key = bool(payload.get("used_key"))
         self._advance(BenchState.PROFILE_SELECTED)
 
         profile = self.profile
+        notes = list(profile.notes)
+        used_key_line = ""
+        if self.data.used_key:
+            used_key_line = (
+                "⚠️ مفتاح مستعمل: قبل ما نكتب الـ slot الجديد هنفرّغ المفتاح "
+                "(virginize) من تكويد عربيته القديمة عشان العربية دي تقبله.\n"
+            )
+            notes.append(
+                "المفتاح المستعمل هيتفرّغ من تكويده القديم تلقائيًا في خطوة "
+                "BURN_KEY قبل الكتابة.",
+            )
         return BenchPrompt(
             state=self.state,
             title=f"تم اختيار {profile.label}",
             body=(
+                f"{used_key_line}"
                 f"اوصل الـ Smart Harness على {profile.label} حسب الـ pinout "
                 f"تحت. لما تتأكد كل سلك في مكانه الصح، ابعت CONFIRM_WIRING."
             ),
@@ -381,7 +397,8 @@ class BenchOrchestrator:
             payload={
                 "family": profile.family.value,
                 "read_flow": profile.read_flow.value,
-                "notes": list(profile.notes),
+                "used_key": self.data.used_key,
+                "notes": notes,
             },
         )
 
@@ -620,7 +637,7 @@ class BenchOrchestrator:
         )
 
     # ── 8. BURN_KEY ────────────────────────────────────────────
-    def _burn_key(self, payload: dict) -> BenchPrompt:
+    async def _burn_key(self, payload: dict) -> BenchPrompt:
         if self.state != BenchState.KEY_SLOT_PICKED:
             raise IllegalBenchTransition(
                 f"BURN_KEY only valid in KEY_SLOT_PICKED (now {self.state.value})",
@@ -629,13 +646,30 @@ class BenchOrchestrator:
         if self.data.chosen_slot is None:
             raise IllegalBenchTransition("internal: chosen_slot missing")
 
+        isn = bytes.fromhex(self.data.isn_hex)
+
+        # Used key: wipe its previous immobiliser binding BEFORE we burn the
+        # new slot, otherwise the module rejects a fob that is still married
+        # to another car. A wipe failure raises HarnessFailure → handle()
+        # turns it into a clean FAILED prompt.
+        virginized = False
+        if self.data.used_key:
+            await self.harness.virginize_key(
+                isn=isn, family_code=profile.family.value,
+            )
+            virginized = True
+            self.data.notes.append(
+                f"مفتاح مستعمل اتفرّغ من تكويده القديم قبل الكتابة على slot "
+                f"{self.data.chosen_slot}.",
+            )
+
         # Tests may pin the seed for deterministic fob bytes; production
         # leaves it None so the OS RNG picks a fresh 16-byte seed.
         seed_hex = payload.get("seed_hex") or ""
         seed = bytes.fromhex(seed_hex) if seed_hex else None
 
         fob = generate_key_fob(
-            isn=bytes.fromhex(self.data.isn_hex),
+            isn=isn,
             slot_index=self.data.chosen_slot,
             family_code=profile.family.value,
             seed=seed,
@@ -645,15 +679,20 @@ class BenchOrchestrator:
             "slot_index": fob.slot_index,
             "fcc_id": fob.fcc_id,
             "payload_hex": fob.payload.hex().upper(),
+            "virginized_used_key": virginized,
         }
         self._advance(BenchState.KEY_BURNED)
+        virgin_line = (
+            "المفتاح المستعمل اتفرّغ من تكويده القديم و"
+            if virginized else ""
+        )
         return BenchPrompt(
             state=self.state,
             title=f"تم توليد المفتاح — FCC ID {fob.fcc_id}",
             body=(
-                f"الـ payload (32 byte) جاهز للكتابة في slot {fob.slot_index}. "
-                f"دلوقتي اضغط VERIFY عشان نقرأ نفس الـ slot ونتأكد إن الكتابة "
-                f"اتأكدت من الموديول."
+                f"{virgin_line}الـ payload (32 byte) جاهز للكتابة في slot "
+                f"{fob.slot_index}. دلوقتي اضغط VERIFY عشان نقرأ نفس الـ slot "
+                f"ونتأكد إن الكتابة اتأكدت من الموديول."
             ),
             expects="VERIFY",
             progress_pct=_PROGRESS[self.state],
@@ -738,6 +777,7 @@ class BenchOrchestrator:
                 "family": self.data.family.value if self.data.family else None,
                 "vin": self.data.vin,
                 "technician_id": self.data.technician_id,
+                "used_key": self.data.used_key,
                 "measured_voltage_v": self.data.measured_voltage_v,
                 "raw_dump_hex": self.data.raw_dump.hex(),
                 "parsed_dump_chip": self.data.parsed_dump_chip,
@@ -759,6 +799,7 @@ class BenchOrchestrator:
             family=ModuleFamily(family_raw) if family_raw else None,
             vin=s.get("vin", ""),
             technician_id=s.get("technician_id", ""),
+            used_key=bool(s.get("used_key", False)),
             measured_voltage_v=float(s.get("measured_voltage_v") or 0.0),
             raw_dump=bytes.fromhex(s.get("raw_dump_hex") or ""),
             parsed_dump_chip=s.get("parsed_dump_chip", ""),

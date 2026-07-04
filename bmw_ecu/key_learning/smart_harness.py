@@ -81,6 +81,23 @@ class AbstractSmartHarness(abc.ABC):
     @abc.abstractmethod
     async def can_recv_raw(self, *, timeout_s: float = 1.0) -> bytes: ...
 
+    # ── Used-key preparation ────────────────────────────────────────
+    async def virginize_key(self, *, isn: bytes, family_code: str) -> None:
+        """Wipe a second-hand key's previous immobiliser binding so it can
+        be re-learned to THIS car.
+
+        A used key still carries the ISN it was married to on its old
+        vehicle; writing a fresh slot on top of a live binding is rejected
+        by the module. Clearing (virginizing) the transponder first lets
+        the same physical fob be adopted by the new car.
+
+        Concrete by design (NOT abstract) so existing harnesses keep
+        working unchanged: harnesses that model this step externally
+        inherit the no-op; the Mousstec Breakout Box overrides it with the
+        real transponder wipe. Raise HarnessFailure if the key can't be
+        cleared."""
+        return None
+
 
 # ─────────────────────────────────────────────────────────────────────
 # Mock — pure-Python, deterministic. Tests configure it with an EEPROM
@@ -122,6 +139,10 @@ class MockSmartHarness(AbstractSmartHarness):
         # CAN reply queue — tests preload UDS responses in order.
         self._can_rx_queue: list[bytes] = []
         self.can_tx_log: list[tuple[int, bytes]] = []
+
+        # Used-key virginize audit + failure toggle for tests.
+        self.virginize_calls: list[tuple[bytes, str]] = []
+        self.virginize_should_fail: bool = False
 
     # ── Tester helpers ──────────────────────────────────────────
     def queue_can_reply(self, frame: bytes) -> None:
@@ -178,3 +199,10 @@ class MockSmartHarness(AbstractSmartHarness):
         if not self._can_rx_queue:
             raise HarnessFailure("can_recv_raw: queue empty (test forgot to enqueue)")
         return self._can_rx_queue.pop(0)
+
+    async def virginize_key(self, *, isn: bytes, family_code: str) -> None:
+        self.virginize_calls.append((isn, family_code))
+        if self.virginize_should_fail:
+            raise HarnessFailure(
+                "virginize_key: used key rejected the wipe — try a different fob",
+            )

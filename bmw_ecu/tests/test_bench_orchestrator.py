@@ -412,6 +412,84 @@ class OrchestratorFemFlowTests(unittest.TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Used-key (second-hand key) flow
+# ─────────────────────────────────────────────────────────────────────
+class UsedKeyFlowTests(unittest.TestCase):
+    ISN = bytes(range(0x10, 0x30))
+    SEED = bytes.fromhex("DEADBEEFCAFEBABE0102030405060708")
+
+    def setUp(self) -> None:
+        self.dump = build_test_dump(chip="M35080", isn=self.ISN)
+        self.harness = MockSmartHarness(eeprom_payload=self.dump)
+        self.orch = BenchOrchestrator(self.harness)
+
+    def _drive_to_slot(self, *, used_key: bool) -> None:
+        _run(self.orch.handle(BenchEvent.SELECT_PROFILE,
+                              {"family": "CAS3", "used_key": used_key}))
+        _run(self.orch.handle(BenchEvent.CONFIRM_WIRING))
+        _run(self.orch.handle(BenchEvent.POWER_ON))
+        _run(self.orch.handle(BenchEvent.ENTER_BENCH))
+        _run(self.orch.handle(BenchEvent.DUMP_NOW))
+        _run(self.orch.handle(BenchEvent.EXTRACT_ISN))
+        _run(self.orch.handle(BenchEvent.PICK_KEY_SLOT))
+
+    def test_used_key_flag_stored_and_echoed_on_select(self) -> None:
+        prompt = _run(self.orch.handle(BenchEvent.SELECT_PROFILE,
+                                       {"family": "CAS3", "used_key": True}))
+        self.assertTrue(self.orch.data.used_key)
+        self.assertTrue(prompt.payload["used_key"])
+
+    def test_new_key_does_not_virginize(self) -> None:
+        self._drive_to_slot(used_key=False)
+        prompt = _run(self.orch.handle(BenchEvent.BURN_KEY,
+                                       {"seed_hex": self.SEED.hex()}))
+        self.assertEqual(self.harness.virginize_calls, [])
+        self.assertFalse(prompt.payload["virginized_used_key"])
+        self.assertEqual(self.orch.state, BenchState.KEY_BURNED)
+
+    def test_used_key_is_virginized_before_burn(self) -> None:
+        self._drive_to_slot(used_key=True)
+        prompt = _run(self.orch.handle(BenchEvent.BURN_KEY,
+                                       {"seed_hex": self.SEED.hex()}))
+        # virginize_key called exactly once, with the extracted ISN + family.
+        self.assertEqual(len(self.harness.virginize_calls), 1)
+        isn_arg, family_arg = self.harness.virginize_calls[0]
+        self.assertEqual(isn_arg, self.ISN)
+        self.assertEqual(family_arg, "CAS3")
+        self.assertTrue(prompt.payload["virginized_used_key"])
+        self.assertEqual(self.orch.state, BenchState.KEY_BURNED)
+
+    def test_used_key_produces_same_payload_as_new_key(self) -> None:
+        # Virginizing the fob must not change the burned payload — it only
+        # clears the old binding first.
+        self._drive_to_slot(used_key=True)
+        used = _run(self.orch.handle(BenchEvent.BURN_KEY,
+                                     {"seed_hex": self.SEED.hex()}))
+        fresh = generate_key_fob(isn=self.ISN, slot_index=0,
+                                 family_code="CAS3", seed=self.SEED)
+        self.assertEqual(used.payload["payload_hex"], fresh.payload.hex().upper())
+
+    def test_virginize_failure_marks_failed(self) -> None:
+        self.harness.virginize_should_fail = True
+        self._drive_to_slot(used_key=True)
+        prompt = _run(self.orch.handle(BenchEvent.BURN_KEY,
+                                       {"seed_hex": self.SEED.hex()}))
+        self.assertEqual(self.orch.state, BenchState.FAILED)
+        self.assertEqual(prompt.payload["error_code"], "harness_failure")
+
+    def test_used_key_survives_snapshot_restore(self) -> None:
+        self._drive_to_slot(used_key=True)
+        snap = self.orch.snapshot()
+        self.assertTrue(snap["data"]["used_key"])
+        restored = BenchOrchestrator.restore(
+            MockSmartHarness(eeprom_payload=self.dump), snap)
+        self.assertTrue(restored.data.used_key)
+        prompt = _run(restored.handle(BenchEvent.BURN_KEY,
+                                      {"seed_hex": self.SEED.hex()}))
+        self.assertTrue(prompt.payload["virginized_used_key"])
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Snapshot / restore
 # ─────────────────────────────────────────────────────────────────────
 class SnapshotRestoreTests(unittest.TestCase):
