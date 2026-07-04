@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import smart_views, subscribe, swap_views, views
+from . import key_views, smart_views, subscribe, swap_views, views
 
 app_name = "bmw_ecu_api"
 
@@ -15,6 +15,9 @@ urlpatterns = [
 
     # ── Used-DME swap (DmeSwapOrchestrator, persistent session, BSL fallback)
     path("swap/step", swap_views.swap_step, name="swap_step"),
+
+    # ── Key programming (BenchOrchestrator, persistent session, used-key path)
+    path("key/step", key_views.key_step, name="key_step"),
 
     # ── Storefront-facing endpoints (tenant subdomain, any logged-in user)
     path("storefront/packages/", subscribe.list_active_packages,

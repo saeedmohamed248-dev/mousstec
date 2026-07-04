@@ -60,6 +60,31 @@
     margin: 8px 0 0; padding: 10px 12px; border-radius: 8px;
     background: #13314a; color: #cfe6ff; font-size: 13px; line-height: 1.6;
   }
+  /* ── Key Coding wizard (scoped) ── */
+  #key-modal .cr-modal-body { max-width: 620px; }
+  .cr-key-used {
+    display: flex; align-items: center; gap: 8px; margin: 4px 0 10px;
+    font-size: 14px; color: #ffd6a5; cursor: pointer;
+  }
+  .cr-key-used input { width: 17px; height: 17px; accent-color: #1e5fd6; }
+  .cr-key-pins {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;
+  }
+  .cr-key-pins .cr-key-pin {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border-radius: 999px;
+    background: #0e1726; border: 1px solid #22405f;
+    font: 600 13px/1.4 ui-monospace, monospace; color: #eaf2ff;
+  }
+  .cr-key-pins .cr-key-pin b { color: #8fb4ef; }
+  .cr-key-fob {
+    margin: 10px 0; padding: 12px 14px; border-radius: 10px;
+    background: #16351f; border: 1px solid #2e7d46; color: #d7ffe2;
+    font-size: 14px; line-height: 1.7;
+  }
+  .cr-key-fob code {
+    font-family: ui-monospace, monospace; color: #a5ffd0; word-break: break-all;
+  }
 </style>
 </head>
 <body data-vin="{{ vin }}"
@@ -104,6 +129,7 @@
     <button id="connect-btn" type="button">🔌 Connect &amp; Read</button>
     <button id="smart-btn" type="button">🚀 Smart Flow</button>
     <button id="swap-btn" type="button">🔁 Engine Swap</button>
+    <button id="key-btn" type="button">🔑 Key Coding</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -263,11 +289,43 @@
   </div>
 </div>
 
+<!-- ── Key Coding wizard modal. Drives the BenchOrchestrator over
+     /api/ecu/key/step. A forward-only bench flow: pick the immobiliser
+     module, wire the Smart Harness, power up, read the ISN, pick a free
+     slot, burn + verify. Tick "used key" to adopt a second-hand fob (the
+     server virginizes its old binding before the burn). -->
+<div id="key-modal" class="cr-modal" hidden>
+  <div class="cr-modal-body">
+    <div id="key-progress" class="cr-smart-progress"><span></span></div>
+    <h3 id="key-title">🔑 تكويد مفتاح / Key Coding</h3>
+    <label class="cr-swap-pick">الموديول / Immobiliser module:
+      <select id="key-family-input" title="اختار نوع الموديول / choose the module family">
+        <option value="CAS3" selected>CAS3 — E-series 2007-2010 (R56 MINI)</option>
+        <option value="CAS3+">CAS3+ — E-series 2010+</option>
+        <option value="FEM">FEM — F-series 2011-2018 (F56 MINI)</option>
+        <option value="BDC">BDC — G-series 2017+</option>
+      </select>
+    </label>
+    <label class="cr-key-used">
+      <input type="checkbox" id="key-used-input">
+      مفتاح مستعمل من عربية تانية / Used key from another car
+    </label>
+    <p id="key-body">اختار الموديول، وعلّم «مفتاح مستعمل» لو المفتاح جاي من عربية
+       تانية، وابدأ. هنمشي خطوة بخطوة: توصيل الهارنس ← طاقة ← قراءة ISN ←
+       اختيار slot ← كتابة وتأكيد.</p>
+    <div id="key-pins" class="cr-key-pins" hidden></div>
+    <div id="key-fob" class="cr-key-fob" hidden></div>
+    <div id="key-actions" class="cr-modal-actions"></div>
+    <button id="key-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+  </div>
+</div>
+
 <script>
   window.BMW_ECU_CFG = {
     executeUrl: "{% url 'bmw_ecu:bmw_ecu_api:execute' %}",
     smartUrl: "{% url 'bmw_ecu:bmw_ecu_api:smart_step' %}",
     swapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_step' %}",
+    keyUrl: "{% url 'bmw_ecu:bmw_ecu_api:key_step' %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
@@ -603,6 +661,156 @@
   var openBtn = document.getElementById("swap-btn");
   if (openBtn) openBtn.addEventListener("click", open);
   var closeBtn = document.getElementById("swap-close");
+  if (closeBtn) closeBtn.addEventListener("click", close);
+})();
+</script>
+
+<script>
+/* ── Key Coding wizard: drives the BenchOrchestrator over /api/ecu/key/step.
+   Each BenchPrompt carries the next event in `expects` (UPPER_CASE); we render
+   one primary button that POSTs it back (lower-cased), plus Abort. The first
+   call sends the picked module family + VIN + used-key flag. Snapshot/restore
+   lives server-side, so this stays a thin, stateless renderer. */
+(function () {
+  "use strict";
+  var CFG = window.BMW_ECU_CFG || {};
+  var sessionId = null;
+  var modal   = document.getElementById("key-modal");
+  if (!modal) return;
+  var elTitle = document.getElementById("key-title");
+  var elBody  = document.getElementById("key-body");
+  var elPins  = document.getElementById("key-pins");
+  var elFob   = document.getElementById("key-fob");
+  var elAct   = document.getElementById("key-actions");
+  var elProg  = document.querySelector("#key-progress span");
+
+  function family()  { return (document.getElementById("key-family-input") || {}).value || "CAS3"; }
+  function usedKey() { return !!(document.getElementById("key-used-input") || {}).checked; }
+  function vin()     { return (document.getElementById("vin-input") || {}).value || ""; }
+
+  // Arabic labels for the primary "next" button, keyed by the expected event.
+  var NEXT_LABEL = {
+    CONFIRM_WIRING: "🔌 أكّدت التوصيل",
+    POWER_ON:       "⚡ شغّل الطاقة 12V",
+    ENTER_BENCH:    "🛠️ ادخل Bench Mode",
+    DUMP_NOW:       "📥 اقرا الموديول",
+    EXTRACT_ISN:    "🔑 استخرج الـ ISN",
+    PICK_KEY_SLOT:  "🎯 اختار slot فاضي",
+    BURN_KEY:       "✍️ اكتب المفتاح",
+    VERIFY:         "✅ تأكّد (Verify)",
+    FINISH:         "🎉 إنهاء العملية",
+  };
+
+  async function step(event, payload) {
+    var body = { event: event, payload: payload || {} };
+    if (sessionId) {
+      body.session_id = sessionId;
+    } else {
+      // First call: declare the module + car + used-key flag.
+      body.family = family();
+      body.vin = vin();
+      body.used_key = usedKey();
+    }
+    elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
+    var res, data;
+    try {
+      res = await fetch(CFG.keyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "X-CSRFToken": CFG.csrfToken || "" },
+        body: JSON.stringify(body),
+      });
+      data = await res.json();
+    } catch (e) {
+      renderError("تعذّر الاتصال بالسيرفر. / Network error.");
+      return;
+    }
+    if (!res.ok) {
+      renderError((data && (data.detail_ar || data.detail || data.error)) ||
+                  "request failed");
+      return;
+    }
+    sessionId = data.session_id;
+    render(data.prompt);
+  }
+
+  function addBtn(label, event, style, onClick) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "cr-smart-act cr-swap-act cr-smart-" + (style || "default");
+    btn.textContent = label;
+    btn.addEventListener("click", onClick || function () { step(event, {}); });
+    elAct.appendChild(btn);
+  }
+
+  function renderError(msg) {
+    elPins.hidden = true; elFob.hidden = true;
+    elTitle.textContent = "خطأ / Error";
+    elBody.textContent = msg;
+    elAct.innerHTML = "";
+    addBtn("🔄 من الأول / Restart", "", "default", function () { open(); });
+  }
+
+  function renderPins(pins) {
+    elPins.innerHTML = "";
+    (pins || []).forEach(function (row) {
+      var chip = document.createElement("span");
+      chip.className = "cr-key-pin";
+      var b = document.createElement("b");
+      b.textContent = row.label;
+      chip.appendChild(b);
+      chip.appendChild(document.createTextNode("→ pin " + row.pin));
+      elPins.appendChild(chip);
+    });
+    elPins.hidden = (pins || []).length === 0;
+  }
+
+  function renderFob(pl) {
+    if (!pl || !pl.fcc_id) { elFob.hidden = true; return; }
+    elFob.innerHTML = "";
+    var line = document.createElement("div");
+    line.innerHTML = "🔑 المفتاح اتولّد — FCC ID <code>" + pl.fcc_id +
+                     "</code> على slot " + pl.slot_index;
+    elFob.appendChild(line);
+    if (pl.virginized_used_key) {
+      var v = document.createElement("div");
+      v.textContent = "♻️ المفتاح المستعمل اتفرّغ من تكويده القديم قبل الكتابة.";
+      elFob.appendChild(v);
+    }
+    elFob.hidden = false;
+  }
+
+  function render(p) {
+    elProg.style.width = (p.progress_pct || 0) + "%";
+    elTitle.textContent = p.title || "";
+    elBody.textContent = p.body || "";
+    elAct.innerHTML = "";
+
+    renderPins(p.pin_callouts);
+    // Show the generated fob once it exists (KEY_BURNED onward).
+    renderFob(p.payload);
+
+    if (p.is_terminal) {
+      addBtn("🔄 جلسة جديدة / New session", "", "default", function () { open(); });
+      return;
+    }
+
+    var ev = (p.expects || "").trim();
+    if (ev) addBtn(NEXT_LABEL[ev] || ev, ev.toLowerCase(), "primary");
+    addBtn("✋ إلغاء / Abort", "abort", "default");
+  }
+
+  function open() {
+    sessionId = null;
+    elPins.hidden = true; elFob.hidden = true;
+    modal.hidden = false;
+    step("select_profile");
+  }
+  function close() { modal.hidden = true; }
+
+  var openBtn = document.getElementById("key-btn");
+  if (openBtn) openBtn.addEventListener("click", open);
+  var closeBtn = document.getElementById("key-close");
   if (closeBtn) closeBtn.addEventListener("click", close);
 })();
 </script>
