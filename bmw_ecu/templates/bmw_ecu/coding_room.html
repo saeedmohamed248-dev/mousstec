@@ -403,9 +403,12 @@
       <input type="checkbox" id="diag-read-fa"> اقرا الـ FA من العربية عبر الكابل
     </label>
     <ol id="diag-actions" class="cr-diag-actions" hidden></ol>
+    <div id="diag-fa-plan" class="cr-diag-fa" hidden></div>
     <div id="diag-msg" class="cr-diag-msg" hidden></div>
     <div class="cr-modal-actions">
       <button id="diag-run" type="button" class="cr-smart-act cr-smart-primary">🔁 إعادة الفحص / Re-run</button>
+      <button id="diag-fa-update" type="button" class="cr-smart-act cr-smart-default" hidden>✍️ حدّث الـ FA</button>
+      <button id="diag-fa-commit" type="button" class="cr-smart-act cr-swap-retry" hidden>✅ أكّد الكتابة</button>
     </div>
     <button id="diag-close" type="button" class="cr-smart-close">إغلاق / Close</button>
   </div>
@@ -419,6 +422,8 @@
     keyUrl: "{% url 'bmw_ecu:bmw_ecu_api:key_step' %}",
     diagSwapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_diagnose' %}",
     cablePingUrl: "{% url 'bmw_ecu:bmw_ecu_api:cable_ping' %}",
+    faPlanUrl: "{% url 'bmw_ecu:bmw_ecu_api:fa_plan' %}",
+    faWriteUrl: "{% url 'bmw_ecu:bmw_ecu_api:fa_write' %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
@@ -923,7 +928,11 @@
   var elSummary = document.getElementById("diag-summary");
   var elFa      = document.getElementById("diag-fa");
   var elActions = document.getElementById("diag-actions");
+  var elFaPlan  = document.getElementById("diag-fa-plan");
   var elMsg     = document.getElementById("diag-msg");
+  var btnFaUpd  = document.getElementById("diag-fa-update");
+  var btnFaCommit = document.getElementById("diag-fa-commit");
+  var lastFa = null;          // last FA block from a diagnose response
 
   function profile() {
     return (document.getElementById("profile-input") || {}).value || "MEVD17_2_2_N18";
@@ -931,7 +940,8 @@
 
   async function run() {
     elMsg.hidden = true; elActions.hidden = true; elSim.hidden = true;
-    elFa.hidden = true;
+    elFa.hidden = true; elFaPlan.hidden = true;
+    btnFaUpd.hidden = true; btnFaCommit.hidden = true; lastFa = null;
     elVerdict.className = "cr-diag-verdict";
     elVerdict.textContent = "";
     elSummary.textContent = "… بشخّص / diagnosing";
@@ -990,6 +1000,10 @@
 
     // Show the FA read from the car (or pasted), if any.
     var fa = data.fa || {};
+    lastFa = fa.raw ? fa : null;
+    // Offer the FA update only when the diagnosis found an engine mismatch
+    // and we actually have the FA text to transform.
+    btnFaUpd.hidden = !(d.fa_engine_mismatch && lastFa);
     if (fa.raw) {
       elFa.innerHTML = "";
       var head = document.createElement("div");
@@ -1029,9 +1043,64 @@
     elActions.hidden = (d.actions || []).length === 0;
   }
 
+  // --- FA engine update (preview → confirm) ------------------------------
+  function actualEngine() {
+    // The fitted DME's engine = the header profile's engine, N18 for R56.
+    return /N18/i.test(profile()) ? "N18" : "";
+  }
+
+  async function faPost(url, extra) {
+    var body = {
+      fa_raw: (lastFa && lastFa.raw) || "",
+      to_engine: actualEngine(),
+    };
+    for (var k in (extra || {})) body[k] = extra[k];
+    var res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+                 "X-CSRFToken": CFG.csrfToken || "" },
+      body: JSON.stringify(body),
+    });
+    return { ok: res.ok, data: await res.json().catch(function () { return {}; }) };
+  }
+
+  function showPlan(plan, msg, kind) {
+    elFaPlan.hidden = false;
+    elFaPlan.innerHTML =
+      "<b>FA update</b> " + (plan.from_engine || "?") + " → " + (plan.to_engine || "?") +
+      "<br>type: " + (plan.old_type_code || "?") + " → " + (plan.new_type_code || "?") +
+      "<br>" + (msg || "");
+  }
+
+  async function planFa() {
+    elFaPlan.hidden = true; elMsg.hidden = true;
+    var r = await faPost(CFG.faPlanUrl, {});
+    if (!r.ok) {
+      elMsg.hidden = false;
+      elMsg.textContent = (r.data.detail_ar || r.data.detail || r.data.error || "خطأ");
+      return;
+    }
+    showPlan(r.data.plan, "راجع الخطة واضغط ✅ أكّد الكتابة.");
+    btnFaCommit.hidden = false;
+  }
+
+  async function commitFa() {
+    var r = await faPost(CFG.faWriteUrl, { confirm: true });
+    if (!r.ok) {
+      elMsg.hidden = false;
+      elMsg.textContent = (r.data.detail_ar || r.data.detail || r.data.error || "خطأ");
+      return;
+    }
+    var sim = r.data.simulated ? " (محاكاة)" : "";
+    showPlan(r.data.plan || {}, (r.data.verified ? "✅ اتكتب واتأكد" : "اتكتب") + sim);
+    btnFaCommit.hidden = true;
+  }
+
   document.getElementById("diag-swap-btn")
           .addEventListener("click", function () { modal.hidden = false; run(); });
   document.getElementById("diag-run").addEventListener("click", run);
+  btnFaUpd.addEventListener("click", planFa);
+  btnFaCommit.addEventListener("click", commitFa);
   document.getElementById("diag-close")
           .addEventListener("click", function () { modal.hidden = true; });
 })();

@@ -1,7 +1,7 @@
 from django.urls import path
 
 from . import (
-    cable_views, diagnose_views, key_views, smart_views, subscribe,
+    cable_views, diagnose_views, fa_views, key_views, smart_views, subscribe,
     swap_views, views,
 )
 
@@ -27,6 +27,10 @@ urlpatterns = [
 
     # ── Cable connectivity check (CANable/D-CAN Tester-Present probe)
     path("cable/ping", cable_views.cable_ping, name="cable_ping"),
+
+    # ── FA engine change (catalog-gated): preview + guarded write
+    path("fa/plan", fa_views.fa_plan, name="fa_plan"),
+    path("fa/write", fa_views.fa_write, name="fa_write"),
 
     # ── Storefront-facing endpoints (tenant subdomain, any logged-in user)
     path("storefront/packages/", subscribe.list_active_packages,
