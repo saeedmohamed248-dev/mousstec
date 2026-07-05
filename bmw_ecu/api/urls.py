@@ -1,6 +1,9 @@
 from django.urls import path
 
-from . import diagnose_views, key_views, smart_views, subscribe, swap_views, views
+from . import (
+    cable_views, diagnose_views, key_views, smart_views, subscribe,
+    swap_views, views,
+)
 
 app_name = "bmw_ecu_api"
 
@@ -21,6 +24,9 @@ urlpatterns = [
 
     # ── Engine-swap Auto-Diagnose (single-shot ISN mismatch + FA engine)
     path("diagnose/swap", diagnose_views.swap_diagnose, name="swap_diagnose"),
+
+    # ── Cable connectivity check (CANable/D-CAN Tester-Present probe)
+    path("cable/ping", cable_views.cable_ping, name="cable_ping"),
 
     # ── Storefront-facing endpoints (tenant subdomain, any logged-in user)
     path("storefront/packages/", subscribe.list_active_packages,

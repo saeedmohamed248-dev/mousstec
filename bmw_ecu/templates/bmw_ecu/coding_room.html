@@ -121,6 +121,16 @@
     margin: 10px 0; padding: 12px 14px; border-radius: 10px;
     background: #4a1d1d; border: 1px solid #d9534f; color: #ffdede; font-size: 14px;
   }
+  /* ── Cable status pill (header) ── */
+  .cr-cable-status {
+    display: inline-block; margin: 0 6px; padding: 4px 11px;
+    border-radius: 999px; font: 600 12px/1.5 ui-monospace, monospace;
+    vertical-align: middle;
+  }
+  .cr-cable-status.ok   { background: #16351f; color: #a5ffd0; border: 1px solid #2e7d46; }
+  .cr-cable-status.warn { background: #4a3a1d; color: #ffd6a5; border: 1px solid #d9a534; }
+  .cr-cable-status.bad  { background: #4a1d1d; color: #ffdede; border: 1px solid #d9534f; }
+  .cr-cable-status.busy { background: #13314a; color: #a5d0ff; border: 1px solid #2b5580; }
 </style>
 </head>
 <body data-vin="{{ vin }}"
@@ -167,6 +177,8 @@
     <button id="swap-btn" type="button">🔁 Engine Swap</button>
     <button id="key-btn" type="button">🔑 Key Coding</button>
     <button id="diag-swap-btn" type="button">🔍 Auto-Diagnose</button>
+    <button id="cable-btn" type="button">🔌 Test Cable</button>
+    <span id="cable-status" class="cr-cable-status" hidden></span>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -383,6 +395,7 @@
     swapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_step' %}",
     keyUrl: "{% url 'bmw_ecu:bmw_ecu_api:key_step' %}",
     diagSwapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_diagnose' %}",
+    cablePingUrl: "{% url 'bmw_ecu:bmw_ecu_api:cable_ping' %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
@@ -979,6 +992,55 @@
   document.getElementById("diag-run").addEventListener("click", run);
   document.getElementById("diag-close")
           .addEventListener("click", function () { modal.hidden = true; });
+})();
+</script>
+
+<script>
+/* ── Test Cable: POST /api/ecu/cable/ping. Opens the CANable and sends one
+   Tester-Present; paints a header pill with the link status. No crypto,
+   works over the bare adapter. serial_port + CAN IDs come from server env
+   (or can be sent in the body). */
+(function () {
+  "use strict";
+  var CFG = window.BMW_ECU_CFG || {};
+  var btn  = document.getElementById("cable-btn");
+  var pill = document.getElementById("cable-status");
+  if (!btn || !pill) return;
+
+  function setPill(kind, text) {
+    pill.hidden = false;
+    pill.className = "cr-cable-status " + kind;
+    pill.textContent = text;
+  }
+
+  async function ping() {
+    setPill("busy", "… بختبر / testing");
+    var data;
+    try {
+      var res = await fetch(CFG.cablePingUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "X-CSRFToken": CFG.csrfToken || "" },
+        body: JSON.stringify({}),   // serial_port + CAN IDs from server env
+      });
+      data = await res.json();
+      if (!res.ok) {
+        setPill("bad", (data && (data.detail_ar || data.detail || data.error)) || "خطأ");
+        return;
+      }
+    } catch (e) {
+      setPill("bad", "تعذّر الاتصال بالسيرفر");
+      return;
+    }
+    var sim = data.simulated ? " (محاكاة)" : "";
+    if (data.ecu_answered)      setPill("ok",   "🔌 الكابل والعربية ✅" + sim);
+    else if (data.adapter_ok)   setPill("warn", "🔌 أدابتر OK، مفيش رد عربية" + sim);
+    else                        setPill("bad",  "❌ الأدابتر مافتحش" + sim);
+    // Full bilingual detail on hover.
+    pill.title = (data.detail_ar || "") + "\n" + (data.detail_en || "");
+  }
+
+  btn.addEventListener("click", ping);
 })();
 </script>
 <script src="{% static 'bmw_ecu/coding_room.js' %}?v=8" defer></script>
