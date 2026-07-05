@@ -1,7 +1,15 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Field CLI generated per-machine (setup_field.sh / .bat)
+/field
+/field.bat
+/field.env
+/field.env.bat
+fa_catalog.json
 
 # Secrets & environment
 .env

@@ -15,6 +15,28 @@ pip install python-can can-isotp pyserial
 
 4. المشروع على اللابتوب (`git clone` للـ branch)، وتشتغل من جوّه فولدر المشروع.
 
+## أسهل طريقة: سكربت setup واحد
+
+بدل ما تعمل venv وتثبيت بإيدك، شغّل سكربت واحد من جوّه فولدر المشروع:
+
+```bash
+# Linux / macOS / WSL
+bash bmw_ecu/scripts/setup_field.sh
+
+# Windows
+bmw_ecu\scripts\setup_field.bat
+```
+
+بيعمل `.venv`، يثبّت الـ 3 مكتبات، يعمل `field.env` (تملأه)، ويدّيك اختصار
+`./field` تكتب بيه `./field ping` بدل الأمر الطويل. بعدها:
+
+```bash
+# 1) عدّل field.env بقيم عربيتك (port + CAN IDs)
+./field ping          # اتأكد الوصلة
+./field read-fa       # اقرا الـ FA
+./field diagnose --engine N18 --bench
+```
+
 ## توصيل الكابل بالـ OBD (D-CAN)
 
 | CANable | فيشة OBD |
