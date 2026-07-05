@@ -85,6 +85,42 @@
   .cr-key-fob code {
     font-family: ui-monospace, monospace; color: #a5ffd0; word-break: break-all;
   }
+  /* ── Auto-Diagnose (engine swap) ── */
+  #diag-modal .cr-modal-body { max-width: 640px; }
+  .cr-diag-sim {
+    display: inline-block; margin: 0 0 10px; padding: 3px 10px;
+    border-radius: 999px; background: #3a2140; color: #ffd6a5;
+    font: 600 12px/1.5 ui-monospace, monospace;
+  }
+  .cr-diag-verdict {
+    margin: 6px 0; padding: 12px 14px; border-radius: 10px;
+    font-size: 17px; font-weight: 700; line-height: 1.6;
+  }
+  .cr-diag-verdict.bad  { background: #4a1d1d; border: 1px solid #d9534f; color: #ffdede; }
+  .cr-diag-verdict.warn { background: #4a3a1d; border: 1px solid #d9a534; color: #fff0d6; }
+  .cr-diag-verdict.good { background: #16351f; border: 1px solid #2e7d46; color: #d7ffe2; }
+  .cr-diag-summary { margin: 8px 0; font-size: 14px; color: #cfe0ff; line-height: 1.7; }
+  .cr-diag-actions { list-style: none; margin: 12px 0; padding: 0; }
+  .cr-diag-actions li {
+    margin: 0 0 10px; padding: 12px 14px; border-radius: 12px;
+    background: #142033; border: 1px solid #22405f; line-height: 1.7;
+  }
+  .cr-diag-actions .cr-diag-head {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 15px; font-weight: 700; color: #eaf2ff;
+  }
+  .cr-diag-tag {
+    padding: 2px 9px; border-radius: 999px; font: 600 12px/1.5 ui-monospace, monospace;
+  }
+  .cr-diag-tag.obd   { background: #13314a; color: #a5d0ff; }
+  .cr-diag-tag.bench { background: #4a3a1d; color: #ffd6a5; }
+  .cr-diag-tag.bot   { background: #16351f; color: #a5ffd0; }
+  .cr-diag-tag.manual{ background: #3a2140; color: #ffc0d6; }
+  .cr-diag-actions .cr-diag-detail { margin: 6px 0 0; font-size: 13px; color: #bcd3ff; }
+  .cr-diag-msg {
+    margin: 10px 0; padding: 12px 14px; border-radius: 10px;
+    background: #4a1d1d; border: 1px solid #d9534f; color: #ffdede; font-size: 14px;
+  }
 </style>
 </head>
 <body data-vin="{{ vin }}"
@@ -130,6 +166,7 @@
     <button id="smart-btn" type="button">🚀 Smart Flow</button>
     <button id="swap-btn" type="button">🔁 Engine Swap</button>
     <button id="key-btn" type="button">🔑 Key Coding</button>
+    <button id="diag-swap-btn" type="button">🔍 Auto-Diagnose</button>
     <button id="load-features-btn" type="button" disabled>📋 Load features</button>
   </div>
 </header>
@@ -320,12 +357,32 @@
   </div>
 </div>
 
+<!-- ── Auto-Diagnose (engine swap) result modal. Single-shot POST to
+     /api/ecu/diagnose/swap. Shows whether the car will start, the root
+     cause (ISN mismatch / FA engine), and a ranked action list tagging
+     each step OBD-vs-bench and whether the bot can drive it now. -->
+<div id="diag-modal" class="cr-modal" hidden>
+  <div class="cr-modal-body">
+    <h3 id="diag-title">🔍 Auto-Diagnose — Engine Swap</h3>
+    <div id="diag-sim" class="cr-diag-sim" hidden>⚙️ نتيجة محاكاة / simulated result</div>
+    <div id="diag-verdict" class="cr-diag-verdict"></div>
+    <p id="diag-summary" class="cr-diag-summary"></p>
+    <ol id="diag-actions" class="cr-diag-actions" hidden></ol>
+    <div id="diag-msg" class="cr-diag-msg" hidden></div>
+    <div class="cr-modal-actions">
+      <button id="diag-run" type="button" class="cr-smart-act cr-smart-primary">🔁 إعادة الفحص / Re-run</button>
+    </div>
+    <button id="diag-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+  </div>
+</div>
+
 <script>
   window.BMW_ECU_CFG = {
     executeUrl: "{% url 'bmw_ecu:bmw_ecu_api:execute' %}",
     smartUrl: "{% url 'bmw_ecu:bmw_ecu_api:smart_step' %}",
     swapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_step' %}",
     keyUrl: "{% url 'bmw_ecu:bmw_ecu_api:key_step' %}",
+    diagSwapUrl: "{% url 'bmw_ecu:bmw_ecu_api:swap_diagnose' %}",
     csrfToken: "{{ csrf_token }}",
   };
 </script>
@@ -812,6 +869,116 @@
   if (openBtn) openBtn.addEventListener("click", open);
   var closeBtn = document.getElementById("key-close");
   if (closeBtn) closeBtn.addEventListener("click", close);
+})();
+</script>
+
+<script>
+/* ── Auto-Diagnose (engine swap): single-shot POST to /api/ecu/diagnose/swap.
+   Renders the verdict (will it start?), the root cause, and the ranked
+   action list — each tagged OBD/bench and bot/manual. Uses the header's
+   profile picker as the fitted DME's profile. */
+(function () {
+  "use strict";
+  var CFG = window.BMW_ECU_CFG || {};
+  var modal   = document.getElementById("diag-modal");
+  if (!modal) return;
+  var elSim     = document.getElementById("diag-sim");
+  var elVerdict = document.getElementById("diag-verdict");
+  var elSummary = document.getElementById("diag-summary");
+  var elActions = document.getElementById("diag-actions");
+  var elMsg     = document.getElementById("diag-msg");
+
+  function profile() {
+    return (document.getElementById("profile-input") || {}).value || "MEVD17_2_2_N18";
+  }
+
+  async function run() {
+    elMsg.hidden = true; elActions.hidden = true; elSim.hidden = true;
+    elVerdict.className = "cr-diag-verdict";
+    elVerdict.textContent = "";
+    elSummary.textContent = "… بشخّص / diagnosing";
+    var body = {
+      profile_name: profile(),
+      // If a real scan already read these, the UI can inject them here.
+      cas_isn_hex: (document.getElementById("diag-cas-isn") || {}).value || "",
+      dme_isn_hex: (document.getElementById("diag-dme-isn") || {}).value || "",
+      fa_engine:   (document.getElementById("diag-fa-engine") || {}).value || "",
+    };
+    var res, data;
+    try {
+      res = await fetch(CFG.diagSwapUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+                   "X-CSRFToken": CFG.csrfToken || "" },
+        body: JSON.stringify(body),
+      });
+      data = await res.json();
+    } catch (e) {
+      showMsg("تعذّر الاتصال بالسيرفر. / Network error.");
+      return;
+    }
+    if (!res.ok) {
+      showMsg((data && (data.detail_ar || data.detail || data.error)) || "request failed");
+      return;
+    }
+    render(data);
+  }
+
+  function showMsg(m) {
+    elSummary.textContent = ""; elVerdict.textContent = "";
+    elVerdict.className = "cr-diag-verdict";
+    elActions.hidden = true;
+    elMsg.hidden = false; elMsg.textContent = m;
+  }
+
+  function render(data) {
+    var d = data.diagnosis || {};
+    elSim.hidden = !data.simulated;
+
+    if (d.isn_mismatch) {
+      elVerdict.className = "cr-diag-verdict bad";
+      elVerdict.textContent = "🔴 مش هتدور — اختلاف ISN (تغيير كمبيوتر) / Won't start — ISN mismatch";
+    } else if (d.isn_unconfirmed) {
+      elVerdict.className = "cr-diag-verdict warn";
+      elVerdict.textContent = "🟠 الـ ISN مش متأكد منه / ISN unconfirmed";
+    } else {
+      elVerdict.className = "cr-diag-verdict good";
+      elVerdict.textContent = "🟢 الإيموبيلايزر سليم / Immobiliser OK";
+    }
+
+    elSummary.textContent = d.summary_ar || d.summary_en || "";
+
+    elActions.innerHTML = "";
+    (d.actions || []).forEach(function (a) {
+      var li = document.createElement("li");
+      var head = document.createElement("div");
+      head.className = "cr-diag-head";
+      head.appendChild(document.createTextNode(a.title_ar || a.title_en));
+      var loc = document.createElement("span");
+      loc.className = "cr-diag-tag " + (a.where === "bench" ? "bench" : "obd");
+      loc.textContent = a.where === "bench" ? "🔧 بنش / bench" : "🔌 OBD";
+      head.appendChild(loc);
+      var who = document.createElement("span");
+      who.className = "cr-diag-tag " + (a.bot_can_do ? "bot" : "manual");
+      who.textContent = a.bot_can_do ? "🤖 البوت يعملها" : "✋ يدوي / manual";
+      head.appendChild(who);
+      li.appendChild(head);
+      if (a.detail_ar || a.detail_en) {
+        var det = document.createElement("p");
+        det.className = "cr-diag-detail";
+        det.textContent = a.detail_ar || a.detail_en;
+        li.appendChild(det);
+      }
+      elActions.appendChild(li);
+    });
+    elActions.hidden = (d.actions || []).length === 0;
+  }
+
+  document.getElementById("diag-swap-btn")
+          .addEventListener("click", function () { modal.hidden = false; run(); });
+  document.getElementById("diag-run").addEventListener("click", run);
+  document.getElementById("diag-close")
+          .addEventListener("click", function () { modal.hidden = true; });
 })();
 </script>
 <script src="{% static 'bmw_ecu/coding_room.js' %}?v=8" defer></script>
