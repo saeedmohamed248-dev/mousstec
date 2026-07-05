@@ -80,6 +80,27 @@ class SimulatorDiagnoseTests(_Base):
     def test_unknown_profile_400(self) -> None:
         self._post({"profile_name": "NOPE_9000"}, expect=400)
 
+    def test_pasted_fa_is_parsed_and_returned(self) -> None:
+        out = self._post({
+            "profile_name": "MEVD17_2_2_N18",
+            "fa_raw": "3F30-N14-S205A-S322A",
+        })
+        fa = out["fa"]
+        self.assertEqual(fa["type_code"], "3F30")
+        self.assertEqual(fa["engine"], "N14")        # explicit token read
+        self.assertIn("S205A", fa["options"])
+        # The FA engine (N14) vs the N18 profile → FA mismatch surfaces.
+        self.assertTrue(out["diagnosis"]["fa_engine_mismatch"])
+
+    def test_pasted_fa_without_engine_token_no_false_mismatch(self) -> None:
+        out = self._post({
+            "profile_name": "MEVD17_2_2_N18",
+            "fa_raw": "3F30-S205A-S322A",
+        })
+        self.assertEqual(out["fa"]["engine"], "")
+        # Unknown FA engine → the diagnosis must NOT claim a mismatch.
+        self.assertFalse(out["diagnosis"]["fa_engine_mismatch"])
+
 
 class HardwareLockDiagnoseTests(_Base):
     def test_no_simulator_no_facts_returns_503(self) -> None:

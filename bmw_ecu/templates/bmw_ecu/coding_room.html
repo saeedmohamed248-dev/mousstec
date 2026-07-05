@@ -121,6 +121,22 @@
     margin: 10px 0; padding: 12px 14px; border-radius: 10px;
     background: #4a1d1d; border: 1px solid #d9534f; color: #ffdede; font-size: 14px;
   }
+  .cr-diag-fa {
+    margin: 8px 0; padding: 10px 12px; border-radius: 10px;
+    background: #0e1726; border: 1px solid #22405f; color: #eaf2ff;
+    font: 13px/1.7 ui-monospace, monospace; word-break: break-all;
+  }
+  .cr-diag-fa b { color: #8fb4ef; }
+  .cr-diag-fa-input, .cr-diag-fa-read {
+    display: block; margin: 8px 0; font-size: 13px; color: #bcd3ff;
+  }
+  .cr-diag-fa-input textarea {
+    display: block; width: 100%; margin-top: 5px; padding: 8px 10px;
+    border-radius: 8px; background: #0e1726; color: #eaf2ff;
+    border: 1px solid #22405f; font: 13px ui-monospace, monospace; resize: vertical;
+  }
+  .cr-diag-fa-read { display: flex; align-items: center; gap: 8px; }
+  .cr-diag-fa-read input { width: 16px; height: 16px; accent-color: #1e5fd6; }
   /* ── Cable status pill (header) ── */
   .cr-cable-status {
     display: inline-block; margin: 0 6px; padding: 4px 11px;
@@ -379,6 +395,13 @@
     <div id="diag-sim" class="cr-diag-sim" hidden>⚙️ نتيجة محاكاة / simulated result</div>
     <div id="diag-verdict" class="cr-diag-verdict"></div>
     <p id="diag-summary" class="cr-diag-summary"></p>
+    <div id="diag-fa" class="cr-diag-fa" hidden></div>
+    <label class="cr-diag-fa-input">FA (الصق أو اقرا من الكابل):
+      <textarea id="diag-fa-raw" rows="2" placeholder="مثال: 3F30-N18-S1CBA-…"></textarea>
+    </label>
+    <label class="cr-diag-fa-read">
+      <input type="checkbox" id="diag-read-fa"> اقرا الـ FA من العربية عبر الكابل
+    </label>
     <ol id="diag-actions" class="cr-diag-actions" hidden></ol>
     <div id="diag-msg" class="cr-diag-msg" hidden></div>
     <div class="cr-modal-actions">
@@ -898,6 +921,7 @@
   var elSim     = document.getElementById("diag-sim");
   var elVerdict = document.getElementById("diag-verdict");
   var elSummary = document.getElementById("diag-summary");
+  var elFa      = document.getElementById("diag-fa");
   var elActions = document.getElementById("diag-actions");
   var elMsg     = document.getElementById("diag-msg");
 
@@ -907,6 +931,7 @@
 
   async function run() {
     elMsg.hidden = true; elActions.hidden = true; elSim.hidden = true;
+    elFa.hidden = true;
     elVerdict.className = "cr-diag-verdict";
     elVerdict.textContent = "";
     elSummary.textContent = "… بشخّص / diagnosing";
@@ -916,6 +941,8 @@
       cas_isn_hex: (document.getElementById("diag-cas-isn") || {}).value || "",
       dme_isn_hex: (document.getElementById("diag-dme-isn") || {}).value || "",
       fa_engine:   (document.getElementById("diag-fa-engine") || {}).value || "",
+      fa_raw:      (document.getElementById("diag-fa-raw") || {}).value || "",
+      read_fa:     !!(document.getElementById("diag-read-fa") || {}).checked,
     };
     var res, data;
     try {
@@ -960,6 +987,21 @@
     }
 
     elSummary.textContent = d.summary_ar || d.summary_en || "";
+
+    // Show the FA read from the car (or pasted), if any.
+    var fa = data.fa || {};
+    if (fa.raw) {
+      elFa.innerHTML = "";
+      var head = document.createElement("div");
+      head.innerHTML = "<b>FA</b> " +
+        (fa.type_code ? ("type " + fa.type_code + " · ") : "") +
+        (fa.engine ? ("موتور " + fa.engine) : "موتور غير محدّد من الـ FA");
+      elFa.appendChild(head);
+      var raw = document.createElement("div");
+      raw.textContent = fa.raw;
+      elFa.appendChild(raw);
+      elFa.hidden = false;
+    }
 
     elActions.innerHTML = "";
     (d.actions || []).forEach(function (a) {

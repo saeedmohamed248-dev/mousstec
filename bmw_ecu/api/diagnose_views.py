@@ -34,6 +34,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from asgiref.sync import async_to_sync
+
+from ..coding.fa_engine import engine_from_vo
+from ..coding.fa_vo import parse_fa
 from ..logging_setup import get_logger
 from ..repair.swap_diagnosis import diagnose_engine_swap
 from .runtime_mode import simulator_enabled
@@ -66,6 +70,44 @@ def _profile_facts(profile_name: str) -> tuple[str, bool]:
             bool(getattr(profile, "requires_bench", False)))
 
 
+def _fa_block(raw: str) -> dict[str, Any]:
+    """Parse a raw FA string into a display block + derived engine."""
+    vo = parse_fa(raw)
+    return {
+        "raw": raw,
+        "type_code": vo.type_code,
+        "options": sorted(vo.options),
+        "engine": engine_from_vo(vo),   # "" when not derivable — never guessed
+    }
+
+
+async def _read_fa_over_cable(body: dict[str, Any]) -> str:
+    """Best-effort live FA read over the CANable via the existing VCM reader.
+
+    Uses `read_vo_from_vcm` (UDS ReadDataByIdentifier — no SecurityAccess).
+    Returns the raw FA string, or "" if the car returned nothing on the
+    known gateway DIDs (on R56 the FA lives in the CAS, so this may miss and
+    the caller falls back to a pasted FA — never a fabricated one)."""
+    from ..connection.cable import cable_config_from_request
+    from ..connection.kdcan import KDCANTransport
+    from ..coding.vo_parser import read_vo_from_vcm
+    from ..uds.client import UdsClient
+
+    cfg = cable_config_from_request(body)
+    transport = KDCANTransport(cfg)
+    await transport.open()
+    try:
+        client = UdsClient(transport, ecu_addr=(cfg.can_rx_id or 0x40),
+                           session_name="fa")
+        vo = await read_vo_from_vcm(client)
+        return vo.raw or ""
+    finally:
+        try:
+            await transport.close()
+        except Exception:  # pragma: no cover
+            pass
+
+
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -83,26 +125,48 @@ def swap_diagnose(request: Request) -> Response:
     dme_isn = _hex_to_isn(body.get("dme_isn_hex"))
     fa_engine = (body.get("fa_engine") or "").strip()
 
-    facts_supplied = bool(cas_isn and dme_isn and fa_engine)
+    # ── FA: pasted, read live over the cable, or (simulator) demo ──────────
+    fa_raw = (body.get("fa_raw") or "").strip()
+    fa: dict[str, Any] = {}
+    if not fa_raw and body.get("read_fa") and not simulator_enabled():
+        try:
+            fa_raw = async_to_sync(_read_fa_over_cable)(body)
+        except Exception as e:  # honest fallback — never fabricate an FA
+            log.info("live FA read failed", extra={"err": str(e)})
+            return Response(
+                {"error": "fa_read_failed",
+                 "detail_ar": "معرفتش أقرا الـ FA من العربية عبر الكابل "
+                              f"({e}). الصق الـ FA يدوي في الحقل fa_raw.",
+                 "detail_en": "Couldn't read the FA over the cable "
+                              f"({e}). Paste the FA into fa_raw instead."},
+                status=status.HTTP_502_BAD_GATEWAY)
+    if fa_raw:
+        fa = _fa_block(fa_raw)
+        if not fa_engine:
+            fa_engine = fa.get("engine", "")
+
+    # The ISN pair is what decides start; fa_engine is a secondary signal the
+    # diagnosis tolerates as empty (no false mismatch).
+    isn_pair_supplied = bool(cas_isn and dme_isn)
     simulated = False
 
-    if not facts_supplied:
+    if not isn_pair_supplied:
         if not simulator_enabled():
             return Response(
                 {"error": "read_layer_unavailable",
-                 "detail_ar": "قراية الـ ISN/FA الحية لسه مش موصّلة على السيرفر "
-                              "ده. ابعت الحقائق (cas_isn_hex, dme_isn_hex, "
-                              "fa_engine) أو شغّل الوضع التجريبي "
-                              "(BMW_ECU_SIMULATOR=1).",
-                 "detail_en": "Live ISN/FA read isn't wired on this server. "
-                              "Supply the facts (cas_isn_hex, dme_isn_hex, "
-                              "fa_engine) or enable the simulator."},
+                 "detail_ar": "قراية الـ ISN الحية لسه مش موصّلة على السيرفر "
+                              "ده. ابعت (cas_isn_hex, dme_isn_hex) أو شغّل "
+                              "الوضع التجريبي (BMW_ECU_SIMULATOR=1).",
+                 "detail_en": "Live ISN read isn't wired on this server. "
+                              "Supply (cas_isn_hex, dme_isn_hex) or enable "
+                              "the simulator."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE)
         # Simulator: fill the demo swap scenario.
         simulated = True
         cas_isn = cas_isn or _SIM_CAS_ISN
         dme_isn = dme_isn or _SIM_DME_ISN
-        fa_engine = fa_engine or _SIM_FA_ENGINE
+        if not fa_engine:
+            fa_engine = _SIM_FA_ENGINE
 
     diag = diagnose_engine_swap(
         cas_isn=cas_isn,
@@ -111,4 +175,5 @@ def swap_diagnose(request: Request) -> Response:
         dme_reported_engine=engine,
         dme_requires_bench=requires_bench,
     )
-    return Response({"simulated": simulated, "diagnosis": diag.to_dict()})
+    return Response({"simulated": simulated, "diagnosis": diag.to_dict(),
+                     "fa": fa})
