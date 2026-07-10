@@ -161,6 +161,17 @@ def remove_from_global_b2b_marketplace(sender, instance, **kwargs):
 
 
 # =====================================================================
+# 🛒 6.5 FixIt Website Sync — أي حركة مخزون تتبعت للموقع الإلكتروني
+# =====================================================================
+@receiver(post_save, sender=Inventory)
+@receiver(post_delete, sender=Inventory)
+def sync_stock_to_fixit_website(sender, instance, **kwargs):
+    from .services import fixit_sync
+    if fixit_sync.is_enabled():
+        fixit_sync.push_stock(instance.product)
+
+
+# =====================================================================
 # 📋 7. Audit Trail → AuditService
 # =====================================================================
 def _audit_pre_save(sender, instance, **kwargs):
