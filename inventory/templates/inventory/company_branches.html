@@ -1,36 +1,36 @@
 {% extends "inventory/_base_portal.html" %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}لوحة الشركة — كل الفروع | {{ tenant.name|default:"Mouss Tec" }}{% endblock %}
+{% block title %}{% trans "لوحة الشركة — كل الفروع" %} | {{ tenant.name|default:"Mouss Tec" }}{% endblock %}
 
 {% block content %}
-<div class="p-4 md:p-6 max-w-7xl mx-auto" dir="rtl">
+<div class="p-4 md:p-6 max-w-7xl mx-auto">
 
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-extrabold text-slate-800">🏢 نظرة عامة على الفروع</h1>
-      <p class="text-sm text-slate-500 mt-1">ملخص اليوم — {{ today }}</p>
+      <h1 class="text-2xl font-extrabold text-slate-800">🏢 {% trans "نظرة عامة على الفروع" %}</h1>
+      <p class="text-sm text-slate-500 mt-1">{% trans "ملخص اليوم" %} — {{ today }}</p>
     </div>
     <a href="{% url 'inventory:dashboard' %}"
-       class="text-sm text-purple-600 hover:text-purple-800 font-bold">&larr; لوحتي</a>
+       class="text-sm text-purple-600 hover:text-purple-800 font-bold">&larr; {% trans "لوحتي" %}</a>
   </div>
 
   <!-- Totals cards -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-      <p class="text-xs text-slate-500 mb-1">مبيعات اليوم</p>
+      <p class="text-xs text-slate-500 mb-1">{% trans "مبيعات اليوم" %}</p>
       <p class="text-xl font-extrabold text-emerald-600">{{ totals.sales|floatformat:2 }}</p>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-      <p class="text-xs text-slate-500 mb-1">مصروفات اليوم</p>
+      <p class="text-xs text-slate-500 mb-1">{% trans "مصروفات اليوم" %}</p>
       <p class="text-xl font-extrabold text-red-500">{{ totals.expenses|floatformat:2 }}</p>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-      <p class="text-xs text-slate-500 mb-1">إجمالي الخزائن</p>
+      <p class="text-xs text-slate-500 mb-1">{% trans "إجمالي الخزائن" %}</p>
       <p class="text-xl font-extrabold text-slate-800">{{ totals.treasury_balance|floatformat:2 }}</p>
     </div>
     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-      <p class="text-xs text-slate-500 mb-1">الحضور</p>
+      <p class="text-xs text-slate-500 mb-1">{% trans "الحضور" %}</p>
       <p class="text-xl font-extrabold text-blue-600">{{ totals.present }} / {{ totals.employees_total }}</p>
     </div>
   </div>
@@ -40,14 +40,14 @@
     <table class="w-full text-sm text-right">
       <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
         <tr>
-          <th class="px-4 py-3 font-semibold">الفرع</th>
-          <th class="px-4 py-3 font-semibold">مبيعات</th>
-          <th class="px-4 py-3 font-semibold">فواتير</th>
-          <th class="px-4 py-3 font-semibold">صافي الربح</th>
-          <th class="px-4 py-3 font-semibold">مصروفات</th>
-          <th class="px-4 py-3 font-semibold">الخزينة</th>
-          <th class="px-4 py-3 font-semibold">حاضر</th>
-          <th class="px-4 py-3 font-semibold">غائب</th>
+          <th class="px-4 py-3 font-semibold">{% trans "الفرع" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "مبيعات" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "فواتير" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "صافي الربح" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "مصروفات" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "الخزينة" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "حاضر" %}</th>
+          <th class="px-4 py-3 font-semibold">{% trans "غائب" %}</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100">
@@ -72,13 +72,13 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">لا توجد فروع بعد.</td></tr>
+        <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">{% trans "لا توجد فروع بعد." %}</td></tr>
         {% endfor %}
       </tbody>
       {% if branches %}
       <tfoot class="bg-slate-50 font-extrabold text-slate-800">
         <tr>
-          <td class="px-4 py-3">الإجمالي</td>
+          <td class="px-4 py-3">{% trans "الإجمالي" %}</td>
           <td class="px-4 py-3 text-emerald-700">{{ totals.sales|floatformat:2 }}</td>
           <td class="px-4 py-3">{{ totals.invoices_count }}</td>
           <td class="px-4 py-3 {% if totals.net_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}">{{ totals.net_profit|floatformat:2 }}</td>
@@ -92,6 +92,6 @@
     </table>
   </div>
 
-  <p class="text-xs text-slate-400 mt-3">💡 مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين.</p>
+  <p class="text-xs text-slate-400 mt-3">💡 {% trans "مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين." %}</p>
 </div>
 {% endblock %}

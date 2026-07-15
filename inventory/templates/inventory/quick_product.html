@@ -1,70 +1,71 @@
 {% extends "inventory/_base_portal.html" %}
-{% block title %}📦 إضافة قطعة جديدة{% endblock %}
+{% load i18n %}
+{% block title %}📦 {% trans "إضافة قطعة جديدة" %}{% endblock %}
 
 {% block content %}
 <header class="flex items-center justify-between mb-5">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-amber-400"><i class="fas fa-boxes-stacked"></i></span>
-    إضافة قطعة جديدة (مع رصيد البداية)
+    {% trans "إضافة قطعة جديدة (مع رصيد البداية)" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:product_list' %}" class="text-xs font-bold text-slate-400 hover:text-amber-300"><i class="fas fa-list ml-1"></i>قائمة القطع</a>
+  <a href="{% url 'inventory:product_list' %}" class="text-xs font-bold text-slate-400 hover:text-amber-300"><i class="fas fa-list me-1"></i>{% trans "قائمة القطع" %}</a>
 </header>
 
 <form id="quick-form" class="bg-slate-800/60 backdrop-blur rounded-2xl p-6 border border-slate-700/50 space-y-5 max-w-3xl mx-auto">
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">رقم القطعة (SKU) *</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "رقم القطعة (SKU)" %} *</label>
       <input name="part_number" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">اسم القطعة *</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم القطعة" %} *</label>
       <input name="name" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">الماركة</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label>
       <input name="brand" value="BMW" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">التوافق (موديل/شاسيه)</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "التوافق (موديل/شاسيه)" %}</label>
       <input name="car_model" placeholder="F30 / N52 / X5" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">سعر التكلفة</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر التكلفة" %}</label>
       <input name="purchase_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">سعر البيع *</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع" %} *</label>
       <input name="retail_price" type="number" step="0.01" min="0" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div class="sm:col-span-2">
-      <label class="block text-xs font-bold text-slate-300 mb-1">صورة القطعة</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "صورة القطعة" %}</label>
       <div class="flex items-center gap-3">
         <label class="flex-1 cursor-pointer bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 border-dashed hover:border-amber-400 text-slate-400 text-sm flex items-center gap-2">
           <i class="fas fa-camera text-amber-400"></i>
-          <span id="img-name">اختر صورة (JPG/PNG · حتى 5 ميجا)</span>
+          <span id="img-name">{% trans "اختر صورة (JPG/PNG · حتى 5 ميجا)" %}</span>
           <input name="image" type="file" accept="image/*" class="hidden" id="img-input">
         </label>
-        <img id="img-preview" class="w-16 h-16 rounded-lg object-cover border border-slate-700 hidden" alt="معاينة">
+        <img id="img-preview" class="w-16 h-16 rounded-lg object-cover border border-slate-700 hidden" alt="{% trans 'معاينة' %}">
       </div>
     </div>
   </div>
 
   <div class="bg-gradient-to-br from-emerald-900/30 to-amber-900/20 rounded-xl p-4 border border-emerald-500/30">
-    <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-warehouse"></i> رصيد البداية للمخزون</h3>
+    <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-warehouse"></i> {% trans "رصيد البداية للمخزون" %}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
-        <label class="block text-xs font-bold text-slate-300 mb-1">كمية البداية</label>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "كمية البداية" %}</label>
         <input name="starting_qty" type="number" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
-        <p class="text-xs text-slate-500 mt-1">يُسجَّل تلقائياً كحركة "تسوية جرد" في سجل المخزون.</p>
+        <p class="text-xs text-slate-500 mt-1">{% trans 'يُسجَّل تلقائياً كحركة "تسوية جرد" في سجل المخزون.' %}</p>
       </div>
       <div>
-        <label class="block text-xs font-bold text-slate-300 mb-1">حد التنبيه (Reorder)</label>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حد التنبيه (Reorder)" %}</label>
         <input name="min_stock_level" type="number" min="0" value="2" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
       </div>
       {% if branches %}
       <div class="sm:col-span-2">
-        <label class="block text-xs font-bold text-slate-300 mb-1">الفرع</label>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
         <select name="branch_id" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
           {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
         </select>
@@ -74,7 +75,7 @@
   </div>
 
   <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
-    <i class="fas fa-bolt"></i> حفظ القطعة وتسجيل المخزون
+    <i class="fas fa-bolt"></i> {% trans "حفظ القطعة وتسجيل المخزون" %}
   </button>
   <p id="msg" class="text-sm text-center"></p>
 </form>
@@ -95,7 +96,7 @@ imgInput.addEventListener('change', () => {
     imgPreview.src = URL.createObjectURL(f);
     imgPreview.classList.remove('hidden');
   } else {
-    imgName.textContent = 'اختر صورة (JPG/PNG · حتى 5 ميجا)';
+    imgName.textContent = '{% trans "اختر صورة (JPG/PNG · حتى 5 ميجا)" %}';
     imgPreview.classList.add('hidden');
   }
 });
@@ -103,21 +104,21 @@ document.getElementById('quick-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
   const msg = document.getElementById('msg');
-  msg.className = 'text-sm text-center text-slate-300'; msg.textContent = 'جارٍ الحفظ...';
+  msg.className = 'text-sm text-center text-slate-300'; msg.textContent = '{% trans "جارٍ الحفظ..." %}';
   try {
     const r = await fetch(URL_CREATE, { method:'POST', headers:{'X-CSRFToken':csrf}, body: new FormData(e.target) });
     const data = await r.json();
-    if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || 'فشل الحفظ.'; btn.disabled = false; return; }
+    if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || '{% trans "فشل الحفظ." %}'; btn.disabled = false; return; }
     msg.className = 'text-sm text-center text-emerald-400 font-bold';
-    msg.textContent = `تم! قطعة #${data.product_id} (${data.sku}) · مخزون افتتاحي: ${data.stock}`;
+    msg.textContent = `{% trans "تم! قطعة" %} #${data.product_id} (${data.sku}) · {% trans "مخزون افتتاحي" %}: ${data.stock}`;
     e.target.reset();
     e.target.querySelector('[name=brand]').value = 'BMW';
     e.target.querySelector('[name=min_stock_level]').value = '2';
     imgPreview.classList.add('hidden');
-    imgName.textContent = 'اختر صورة (JPG/PNG · حتى 5 ميجا)';
+    imgName.textContent = '{% trans "اختر صورة (JPG/PNG · حتى 5 ميجا)" %}';
     btn.disabled = false;
     e.target.querySelector('[name=part_number]').focus();
-  } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = 'خطأ في الشبكة.'; btn.disabled = false; }
+  } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = '{% trans "خطأ في الشبكة." %}'; btn.disabled = false; }
 });
 </script>
 {% endblock %}

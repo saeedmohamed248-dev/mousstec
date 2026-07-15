@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 18:34+0300\n"
+"POT-Creation-Date: 2026-07-15 18:42+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
 #: clients/apps.py:67
 msgid "🏢 الإدارة المركزية (Mouss Tec Ecosystem)"
 msgstr ""
@@ -1226,13 +1227,15 @@ msgstr ""
 
 #: clients/models/marketplace_b2b.py:35 clients/models/marketplace_b2b.py:372
 #: clients/models/marketplace_b2b.py:723 inventory/models/catalog.py:24
+#: inventory/templates/inventory/quick_product.html:22
 msgid "اسم القطعة"
-msgstr ""
+msgstr "Part name"
 
 #: clients/models/marketplace_b2b.py:36 clients/models/marketplace_b2b.py:314
 #: clients/models/marketplace_b2b.py:712 inventory/models/catalog.py:26
+#: inventory/templates/inventory/quick_product.html:26
 msgid "الماركة"
-msgstr ""
+msgstr "Brand"
 
 #: clients/models/marketplace_b2b.py:37 clients/models/marketplace_b2b.py:86
 #: hr/admin.py:156 hr/admin.py:380 hr/models.py:415 hr/models.py:476
@@ -2314,8 +2317,9 @@ msgid "موظف دعم"
 msgstr ""
 
 #: clients/models/support.py:36
+#: inventory/templates/inventory/company_branches.html:44
 msgid "مبيعات"
-msgstr ""
+msgstr "Sales"
 
 #: clients/models/support.py:37
 msgid "محاسبة ومالية"
@@ -3196,8 +3200,9 @@ msgid "معلوماتي"
 msgstr ""
 
 #: diagnostics_catalog/models.py:19
+#: inventory/templates/inventory/product_list.html:67
 msgid "منخفض"
-msgstr ""
+msgstr "Low"
 
 #: diagnostics_catalog/models.py:20
 msgid "متوسط"
@@ -3383,9 +3388,9 @@ msgstr ""
 msgid "تفعيل هذا الخيار يعني أن تصميمات الموظف تُعتمد فوراً بدون مراجعة المدير."
 msgstr ""
 
-#: hr/admin.py:115
+#: hr/admin.py:115 inventory/templates/inventory/product_list.html:42
 msgid "الاسم"
-msgstr ""
+msgstr "Name"
 
 #: hr/admin.py:130 hr/models.py:319
 msgid "أيام العمل"
@@ -3747,17 +3752,17 @@ msgstr ""
 msgid "تعيينات الورديات"
 msgstr ""
 
-#: hr/models.py:367
+#: hr/models.py:367 inventory/templates/inventory/company_branches.html:49
 msgid "حاضر"
-msgstr ""
+msgstr "Present"
 
 #: hr/models.py:368 inventory/models/diagnostics.py:429
 msgid "متأخر"
 msgstr ""
 
-#: hr/models.py:369
+#: hr/models.py:369 inventory/templates/inventory/company_branches.html:50
 msgid "غائب"
-msgstr ""
+msgstr "Absent"
 
 #: hr/models.py:370
 msgid "إجازة / إذن"
@@ -4469,8 +4474,9 @@ msgid "طرح في سوق Mouss Tec العام"
 msgstr ""
 
 #: inventory/models/catalog.py:50
+#: inventory/templates/inventory/quick_product.html:42
 msgid "صورة القطعة"
-msgstr ""
+msgstr "Part image"
 
 #: inventory/models/catalog.py:52
 msgid "البدائل المتوافقة"
@@ -4491,10 +4497,12 @@ msgstr ""
 #: inventory/models/catalog.py:76 inventory/models/catalog.py:180
 #: inventory/models/catalog.py:210 inventory/models/finance.py:26
 #: inventory/models/finance.py:126 inventory/models/invoices.py:79
-#: printing/models.py:81 printing/models.py:146 printing/models.py:258
-#: printing/models.py:510 printing/models.py:542
+#: inventory/templates/inventory/company_branches.html:43
+#: inventory/templates/inventory/quick_product.html:68 printing/models.py:81
+#: printing/models.py:146 printing/models.py:258 printing/models.py:510
+#: printing/models.py:542
 msgid "الفرع"
-msgstr ""
+msgstr "Branch"
 
 #: inventory/models/catalog.py:78
 msgid "مكان الرف"
@@ -5560,10 +5568,11 @@ msgstr ""
 msgid "مرجع المزاد المالي (Escrow)"
 msgstr ""
 
-#: inventory/models/invoices.py:34 printing/models.py:267
-#: printing/models.py:396 printing/models.py:800
+#: inventory/models/invoices.py:34
+#: inventory/templates/inventory/company_branches.html:81
+#: printing/models.py:267 printing/models.py:396 printing/models.py:800
 msgid "الإجمالي"
-msgstr ""
+msgstr "Total"
 
 #: inventory/models/invoices.py:35 inventory/models/invoices.py:93
 #: printing/models.py:269
@@ -5651,8 +5660,10 @@ msgid "الإجمالي النهائي"
 msgstr ""
 
 #: inventory/models/invoices.py:149
+#: inventory/templates/inventory/product_list.html:45
+#: inventory/templates/inventory/quick_product.html:38
 msgid "سعر البيع"
-msgstr ""
+msgstr "Sale price"
 
 #: inventory/models/invoices.py:153
 msgid "تم استلام القطعة التالفة؟"
@@ -5831,8 +5842,9 @@ msgid "منتجات"
 msgstr ""
 
 #: inventory/models/operations.py:66
+#: inventory/templates/inventory/company_branches.html:45
 msgid "فواتير"
-msgstr ""
+msgstr "Invoices"
 
 #: inventory/models/operations.py:67
 msgid "موردين"
@@ -6134,6 +6146,218 @@ msgstr "Change password"
 #: inventory/templates/inventory/_base_portal.html:62
 msgid "خروج"
 msgstr "Logout"
+
+#: inventory/templates/inventory/company_branches.html:4
+#, fuzzy
+#| msgid "لوحة التحكم الكاملة"
+msgid "لوحة الشركة — كل الفروع"
+msgstr "Full control panel"
+
+#: inventory/templates/inventory/company_branches.html:11
+msgid "نظرة عامة على الفروع"
+msgstr "Branches Overview"
+
+#: inventory/templates/inventory/company_branches.html:12
+msgid "ملخص اليوم"
+msgstr "Today's summary"
+
+#: inventory/templates/inventory/company_branches.html:15
+msgid "لوحتي"
+msgstr "My dashboard"
+
+#: inventory/templates/inventory/company_branches.html:21
+msgid "مبيعات اليوم"
+msgstr "Today's sales"
+
+#: inventory/templates/inventory/company_branches.html:25
+msgid "مصروفات اليوم"
+msgstr "Today's expenses"
+
+#: inventory/templates/inventory/company_branches.html:29
+msgid "إجمالي الخزائن"
+msgstr "Total treasuries"
+
+#: inventory/templates/inventory/company_branches.html:33
+msgid "الحضور"
+msgstr "Attendance"
+
+#: inventory/templates/inventory/company_branches.html:46
+msgid "صافي الربح"
+msgstr "Net profit"
+
+#: inventory/templates/inventory/company_branches.html:47
+msgid "مصروفات"
+msgstr "Expenses"
+
+#: inventory/templates/inventory/company_branches.html:48
+#: printing/models.py:561
+msgid "الخزينة"
+msgstr "Treasury"
+
+#: inventory/templates/inventory/company_branches.html:75
+msgid "لا توجد فروع بعد."
+msgstr "No branches yet."
+
+#: inventory/templates/inventory/company_branches.html:95
+msgid "مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين."
+msgstr "Hover over the attendance/absence numbers to see employee names."
+
+#: inventory/templates/inventory/product_list.html:3
+#: inventory/templates/inventory/product_list.html:9
+msgid "القطع والمخزون"
+msgstr "Parts & Inventory"
+
+#: inventory/templates/inventory/product_list.html:12
+#: inventory/templates/inventory/quick_product.html:3
+msgid "إضافة قطعة جديدة"
+msgstr "Add New Part"
+
+#: inventory/templates/inventory/product_list.html:20
+msgid "ابحث بالاسم، SKU، الماركة، أو الموديل..."
+msgstr "Search by name, SKU, brand, or model..."
+
+#: inventory/templates/inventory/product_list.html:23
+#, fuzzy
+#| msgid "القطع"
+msgid "كل القطع"
+msgstr "Parts"
+
+#: inventory/templates/inventory/product_list.html:24
+msgid "تحت حد التنبيه"
+msgstr "Below reorder level"
+
+#: inventory/templates/inventory/product_list.html:25
+msgid "نفد المخزون"
+msgstr "Out of stock"
+
+#: inventory/templates/inventory/product_list.html:29
+msgid "إلغاء الفلاتر"
+msgstr "Clear filters"
+
+#: inventory/templates/inventory/product_list.html:30
+msgid "فلترة"
+msgstr "Filter"
+
+#: inventory/templates/inventory/product_list.html:40
+msgid "صورة"
+msgstr "Image"
+
+#: inventory/templates/inventory/product_list.html:43
+msgid "الماركة / الموديل"
+msgstr "Brand / Model"
+
+#: inventory/templates/inventory/product_list.html:44
+msgid "التكلفة"
+msgstr "Cost"
+
+#: inventory/templates/inventory/product_list.html:46
+msgid "المخزون"
+msgstr "Stock"
+
+#: inventory/templates/inventory/product_list.html:47
+msgid "إجراءات"
+msgstr "Actions"
+
+#: inventory/templates/inventory/product_list.html:66
+msgid "نفد"
+msgstr "Out"
+
+#: inventory/templates/inventory/product_list.html:69
+msgid "حد التنبيه"
+msgstr "Reorder level"
+
+#: inventory/templates/inventory/product_list.html:73
+msgid "تعديل تفصيلي (Admin)"
+msgstr "Detailed edit (Admin)"
+
+#: inventory/templates/inventory/product_list.html:78
+msgid "لا توجد قطع مطابقة."
+msgstr "No matching parts."
+
+#: inventory/templates/inventory/product_list.html:78
+msgid "أضف قطعة جديدة ←"
+msgstr "Add a new part ←"
+
+#: inventory/templates/inventory/product_list.html:87
+#, python-format
+msgid "صفحة %(num)s من %(total)s"
+msgstr "Page %(num)s of %(total)s"
+
+#: inventory/templates/inventory/quick_product.html:9
+msgid "إضافة قطعة جديدة (مع رصيد البداية)"
+msgstr "Add New Part (with opening balance)"
+
+#: inventory/templates/inventory/quick_product.html:12
+#, fuzzy
+#| msgid "نقطة البيع"
+msgid "قائمة القطع"
+msgstr "POS"
+
+#: inventory/templates/inventory/quick_product.html:18
+msgid "رقم القطعة (SKU)"
+msgstr "Part number (SKU)"
+
+#: inventory/templates/inventory/quick_product.html:30
+msgid "التوافق (موديل/شاسيه)"
+msgstr "Compatibility (model/chassis)"
+
+#: inventory/templates/inventory/quick_product.html:34
+#, fuzzy
+#| msgid "تغيير اللغة"
+msgid "سعر التكلفة"
+msgstr "Change language"
+
+#: inventory/templates/inventory/quick_product.html:46
+#: inventory/templates/inventory/quick_product.html:99
+#: inventory/templates/inventory/quick_product.html:118
+msgid "اختر صورة (JPG/PNG · حتى 5 ميجا)"
+msgstr "Choose an image (JPG/PNG · up to 5MB)"
+
+#: inventory/templates/inventory/quick_product.html:49
+msgid "معاينة"
+msgstr "Preview"
+
+#: inventory/templates/inventory/quick_product.html:55
+msgid "رصيد البداية للمخزون"
+msgstr "Opening stock balance"
+
+#: inventory/templates/inventory/quick_product.html:58
+#, fuzzy
+#| msgid "نقطة البيع"
+msgid "كمية البداية"
+msgstr "POS"
+
+#: inventory/templates/inventory/quick_product.html:60
+msgid "يُسجَّل تلقائياً كحركة \"تسوية جرد\" في سجل المخزون."
+msgstr "Automatically recorded as a \"stock adjustment\" movement in the inventory log."
+
+#: inventory/templates/inventory/quick_product.html:63
+msgid "حد التنبيه (Reorder)"
+msgstr "Reorder level"
+
+#: inventory/templates/inventory/quick_product.html:78
+msgid "حفظ القطعة وتسجيل المخزون"
+msgstr "Save part & record stock"
+
+#: inventory/templates/inventory/quick_product.html:107
+msgid "جارٍ الحفظ..."
+msgstr "Saving..."
+
+#: inventory/templates/inventory/quick_product.html:111
+msgid "فشل الحفظ."
+msgstr "Save failed."
+
+#: inventory/templates/inventory/quick_product.html:113
+msgid "تم! قطعة"
+msgstr "Done! Part"
+
+#: inventory/templates/inventory/quick_product.html:113
+msgid "مخزون افتتاحي"
+msgstr "Opening stock"
+
+#: inventory/templates/inventory/quick_product.html:121
+msgid "خطأ في الشبكة."
+msgstr "Network error."
 
 #: printing/models.py:29
 msgid "فرع"
@@ -6569,10 +6793,6 @@ msgstr ""
 
 #: printing/models.py:548
 msgid "الخزائن"
-msgstr ""
-
-#: printing/models.py:561
-msgid "الخزينة"
 msgstr ""
 
 #: printing/models.py:565
