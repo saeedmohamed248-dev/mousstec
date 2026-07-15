@@ -301,6 +301,7 @@ class InvoiceService:
                             debit=base_commission,
                             credit=Decimal('0'),
                             sale_invoice=instance,
+                            branch=instance.branch,
                         )
                         debit_entry.clean()
                         debit_entry.save()
@@ -311,6 +312,7 @@ class InvoiceService:
                             debit=Decimal('0'),
                             credit=base_commission,
                             sale_invoice=instance,
+                            branch=instance.branch,
                         )
                         credit_entry.clean()
                         credit_entry.save()

@@ -146,6 +146,9 @@ class TreasuryService:
         instance = financial_transaction
         ref = f"FT-{instance.pk}"
         user = AuditService.get_request_user()
+        # Branch dimension for the journal lines — every posting is tagged to the
+        # treasury's branch so we can produce a per-branch trial balance / P&L.
+        branch = instance.treasury.branch if instance.treasury_id else None
 
         try:
             # Savepoint: both legs of the double-entry are all-or-nothing, and we
@@ -166,6 +169,7 @@ class TreasuryService:
                         credit=Decimal('0'),
                         financial_transaction=instance,
                         sale_invoice=instance.sale_invoice,
+                        branch=branch,
                         created_by=user,
                     )
                     # Credit: Revenue
@@ -185,6 +189,7 @@ class TreasuryService:
                         credit=instance.amount,
                         financial_transaction=instance,
                         sale_invoice=instance.sale_invoice,
+                        branch=branch,
                         created_by=user,
                     )
                 else:  # out
@@ -211,6 +216,7 @@ class TreasuryService:
                         credit=Decimal('0'),
                         financial_transaction=instance,
                         purchase_invoice=instance.purchase_invoice,
+                        branch=branch,
                         created_by=user,
                     )
                     # Credit: Cash
@@ -225,6 +231,7 @@ class TreasuryService:
                         credit=instance.amount,
                         financial_transaction=instance,
                         purchase_invoice=instance.purchase_invoice,
+                        branch=branch,
                         created_by=user,
                     )
 

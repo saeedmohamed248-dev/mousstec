@@ -83,12 +83,12 @@ class ChartOfAccountAdmin(admin.ModelAdmin):
 # =====================================================================
 @admin.register(AccountingEntry)
 class AccountingEntryAdmin(admin.ModelAdmin):
-    list_display = ('entry_date', 'reference', 'account', 'description_short', 'debit_display', 'credit_display', 'linked_doc')
-    list_filter = ('account__account_type', 'entry_date')
+    list_display = ('entry_date', 'reference', 'branch', 'account', 'description_short', 'debit_display', 'credit_display', 'linked_doc')
+    list_filter = ('account__account_type', 'branch', 'entry_date')
     search_fields = ('reference', 'description', 'account__name')
     date_hierarchy = 'entry_date'
     autocomplete_fields = ['account']
-    readonly_fields = ('entry_date', 'reference', 'description', 'account', 'debit', 'credit',
+    readonly_fields = ('entry_date', 'reference', 'description', 'account', 'branch', 'debit', 'credit',
                        'sale_invoice', 'purchase_invoice', 'financial_transaction', 'created_by')
 
     def has_module_permission(self, request):

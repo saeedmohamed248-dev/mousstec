@@ -576,6 +576,77 @@ class ReportingService:
         return {'today': today, 'branches': branches_out, 'totals': totals}
 
     @staticmethod
+    def branch_pnl(date_from=None, date_to=None):
+        """
+        Per-branch profit & loss straight from the branch-tagged ledger.
+
+        Revenue and expense are read off AccountingEntry rows grouped by their
+        `branch` dimension (the shared-chart + branch-tag model): for revenue
+        accounts the balance is credit − debit, for expense accounts it is
+        debit − credit. Net = revenue − expenses.
+
+        Entries with no branch (branch IS NULL) are grouped under a synthetic
+        "غير مخصّص" (unassigned) row so the consolidated totals still tie out to
+        the full ledger — nothing is silently dropped.
+
+        Returns: {'branches': [{branch_id, branch_name, revenue, expenses,
+                  net}], 'totals': {revenue, expenses, net}}
+        """
+        from inventory.models import Branch, AccountingEntry
+
+        qs = AccountingEntry.objects.select_related('account', 'branch')
+        if date_from is not None:
+            qs = qs.filter(entry_date__gte=date_from)
+        if date_to is not None:
+            qs = qs.filter(entry_date__lte=date_to)
+
+        rows = (
+            qs.values('branch', 'account__account_type')
+              .annotate(d=Sum('debit'), c=Sum('credit'))
+        )
+
+        agg = {}  # branch_id (or None) -> {'revenue', 'expenses'}
+        for r in rows:
+            bid = r['branch']
+            atype = r['account__account_type']
+            d = r['d'] or Decimal('0')
+            c = r['c'] or Decimal('0')
+            bucket = agg.setdefault(bid, {'revenue': Decimal('0'), 'expenses': Decimal('0')})
+            if atype == 'revenue':
+                bucket['revenue'] += (c - d)
+            elif atype == 'expense':
+                bucket['expenses'] += (d - c)
+
+        names = {b.pk: b.name for b in Branch.objects.all()}
+
+        branches_out = []
+        totals = {'revenue': Decimal('0'), 'expenses': Decimal('0'), 'net': Decimal('0')}
+        # Emit a row for every branch that has ledger activity, plus the NULL
+        # bucket last if present.
+        ordered_ids = sorted(
+            (bid for bid in agg if bid is not None),
+            key=lambda bid: names.get(bid, ''),
+        )
+        if None in agg:
+            ordered_ids.append(None)
+
+        for bid in ordered_ids:
+            bucket = agg[bid]
+            net = bucket['revenue'] - bucket['expenses']
+            branches_out.append({
+                'branch_id': bid,
+                'branch_name': names.get(bid, 'غير مخصّص') if bid is not None else 'غير مخصّص',
+                'revenue': bucket['revenue'],
+                'expenses': bucket['expenses'],
+                'net': net,
+            })
+            totals['revenue'] += bucket['revenue']
+            totals['expenses'] += bucket['expenses']
+            totals['net'] += net
+
+        return {'branches': branches_out, 'totals': totals}
+
+    @staticmethod
     def _search_invoice(q, SaleInvoice):
         """Search for a specific invoice by ID."""
         inv_match = re.search(r'(?:فاتور[ةه]|inv|invoice)\s*(?:رقم|#|no)?\s*#?(\d+)', q, re.IGNORECASE)

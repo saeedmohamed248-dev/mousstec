@@ -118,6 +118,13 @@ class AccountingEntry(models.Model):
     reference = models.CharField(max_length=100, db_index=True, verbose_name=_("المرجع"))
     description = models.CharField(max_length=255, verbose_name=_("البيان"))
     account = models.ForeignKey(ChartOfAccount, on_delete=models.PROTECT, related_name='entries', verbose_name=_("الحساب"))
+    # Branch dimension on each journal line — the chart of accounts stays
+    # company-wide (shared), while every posting is tagged to its branch so we
+    # can produce a per-branch P&L / trial balance AND a consolidated view.
+    branch = models.ForeignKey(
+        Branch, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='accounting_entries', db_index=True, verbose_name=_("الفرع"),
+    )
     debit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_("مدين"))
     credit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_("دائن"))
     sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='accounting_entries')
