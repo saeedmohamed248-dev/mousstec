@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 18:42+0300\n"
+"POT-Creation-Date: 2026-07-15 18:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3550,9 +3550,9 @@ msgstr ""
 msgid "الإدارة العامة"
 msgstr ""
 
-#: hr/models.py:147
+#: hr/models.py:147 inventory/templates/inventory/dashboard.html:348
 msgid "الموارد البشرية"
-msgstr ""
+msgstr "Human resources"
 
 #: hr/models.py:148
 msgid "المحاسبة"
@@ -4006,9 +4006,9 @@ msgstr ""
 msgid "محسوب"
 msgstr ""
 
-#: hr/models.py:657
+#: hr/models.py:657 inventory/templates/inventory/dashboard.html:191
 msgid "مصروف"
-msgstr ""
+msgstr "Expense"
 
 #: hr/models.py:662
 msgid "الشهر"
@@ -6136,6 +6136,7 @@ msgid "تغيير اللغة"
 msgstr "Change language"
 
 #: inventory/templates/inventory/_base_portal.html:59
+#: inventory/templates/inventory/dashboard.html:408
 msgid "لوحة التحكم الكاملة"
 msgstr "Full control panel"
 
@@ -6148,12 +6149,11 @@ msgid "خروج"
 msgstr "Logout"
 
 #: inventory/templates/inventory/company_branches.html:4
-#, fuzzy
-#| msgid "لوحة التحكم الكاملة"
 msgid "لوحة الشركة — كل الفروع"
-msgstr "Full control panel"
+msgstr "Company Dashboard — All Branches"
 
 #: inventory/templates/inventory/company_branches.html:11
+#: inventory/templates/inventory/dashboard.html:291
 msgid "نظرة عامة على الفروع"
 msgstr "Branches Overview"
 
@@ -6202,6 +6202,229 @@ msgstr "No branches yet."
 msgid "مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين."
 msgstr "Hover over the attendance/absence numbers to see employee names."
 
+#: inventory/templates/inventory/dashboard.html:4
+msgid "لوحة التحكم"
+msgstr "Dashboard"
+
+#: inventory/templates/inventory/dashboard.html:43
+msgid "وضع المشرف الأعلى (Superuser)"
+msgstr "Superuser mode"
+
+#: inventory/templates/inventory/dashboard.html:44
+msgid "لديك صلاحية الوصول للوحة التحكم الكاملة وكل الجداول."
+msgstr "You have access to the full control panel and all tables."
+
+#: inventory/templates/inventory/dashboard.html:48
+msgid "لوحة التحكم الكاملة (Django Admin)"
+msgstr "Full control panel (Django Admin)"
+
+#: inventory/templates/inventory/dashboard.html:71
+msgid "انتهت مدتك التجريبية اليوم!"
+msgstr "Your trial ended today!"
+
+#: inventory/templates/inventory/dashboard.html:73
+msgid "باقي يوم واحد فقط على انتهاء التجربة"
+msgstr "Only one day left before your trial ends"
+
+#: inventory/templates/inventory/dashboard.html:75
+#, python-format
+msgid "باقي %(d)s أيام على انتهاء المدة التجريبية"
+msgstr "%(d)s days left before your trial ends"
+
+#: inventory/templates/inventory/dashboard.html:78
+msgid "اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء"
+msgstr "Subscribe now and get 5 extra free days as a loyalty bonus"
+
+#: inventory/templates/inventory/dashboard.html:85
+msgid "اشترك الآن"
+msgstr "Subscribe now"
+
+#: inventory/templates/inventory/dashboard.html:95
+#, python-format
+msgid "باقي %(d)s أيام على انتهاء اشتراكك"
+msgstr "%(d)s days left before your subscription ends"
+
+#: inventory/templates/inventory/dashboard.html:96
+msgid "جدد الآن واحصل على 5 أيام مجانية إضافية"
+msgstr "Renew now and get 5 extra free days"
+
+#: inventory/templates/inventory/dashboard.html:101
+msgid "تجديد الاشتراك"
+msgstr "Renew subscription"
+
+#: inventory/templates/inventory/dashboard.html:121
+msgid "باقتك الحالية"
+msgstr "Your current plan"
+
+#: inventory/templates/inventory/dashboard.html:127 printing/models.py:30
+msgid "الفروع"
+msgstr "Branches"
+
+#: inventory/templates/inventory/dashboard.html:131
+msgid "المستخدمون"
+msgstr "Users"
+
+#: inventory/templates/inventory/dashboard.html:135
+msgid "تقييم السوق"
+msgstr "Market rating"
+
+#: inventory/templates/inventory/dashboard.html:140
+msgid "ترقية الباقة"
+msgstr "Upgrade plan"
+
+#: inventory/templates/inventory/dashboard.html:155
+msgid "إحصائيات اليوم"
+msgstr "Today's stats"
+
+#: inventory/templates/inventory/dashboard.html:163
+msgid "اليوم"
+msgstr "Today"
+
+#: inventory/templates/inventory/dashboard.html:166
+msgid "إجمالي المبيعات (ج.م)"
+msgstr "Total sales (EGP)"
+
+#: inventory/templates/inventory/dashboard.html:174
+msgid "صافي"
+msgstr "Net"
+
+#: inventory/templates/inventory/dashboard.html:183
+msgid "صافي الربح (ج.م)"
+msgstr "Net profit (EGP)"
+
+#: inventory/templates/inventory/dashboard.html:200
+msgid "إجمالي المصروفات (ج.م)"
+msgstr "Total expenses (EGP)"
+
+#: inventory/templates/inventory/dashboard.html:209
+#, python-format
+msgid "%(n)s خزينة"
+msgstr "%(n)s treasuries"
+
+#: inventory/templates/inventory/dashboard.html:218
+msgid "إجمالي الخزينة (ج.م)"
+msgstr "Total treasury (EGP)"
+
+#: inventory/templates/inventory/dashboard.html:226
+msgid "فاتورة"
+msgstr "Invoice"
+
+#: inventory/templates/inventory/dashboard.html:229
+msgid "فواتير صادرة اليوم"
+msgstr "Invoices issued today"
+
+#: inventory/templates/inventory/dashboard.html:237
+#: inventory/templates/inventory/dashboard.html:261
+msgid "مخزون"
+msgstr "Stock"
+
+#: inventory/templates/inventory/dashboard.html:240
+#: inventory/templates/inventory/dashboard.html:264
+msgid "صنف تحت الحد الأدنى"
+msgstr "Items below minimum"
+
+#: inventory/templates/inventory/dashboard.html:253
+msgid "ملخص المخزون"
+msgstr "Stock summary"
+
+#: inventory/templates/inventory/dashboard.html:275
+msgid "الوصول السريع"
+msgstr "Quick access"
+
+#: inventory/templates/inventory/dashboard.html:283
+msgid "نقطة بيع سريعة"
+msgstr "Quick point of sale"
+
+#: inventory/templates/inventory/dashboard.html:299
+msgid "أمر شغل جديد"
+msgstr "New job card"
+
+#: inventory/templates/inventory/dashboard.html:307
+msgid "ورشة الفنيين"
+msgstr "Technicians workshop"
+
+#: inventory/templates/inventory/dashboard.html:316
+msgid "تشخيص الأعطال"
+msgstr "Fault diagnostics"
+
+#: inventory/templates/inventory/dashboard.html:324
+msgid "غرفة التشخيص"
+msgstr "Diagnostics room"
+
+#: inventory/templates/inventory/dashboard.html:332
+msgid "أطلس الإصلاح"
+msgstr "Repair atlas"
+
+#: inventory/templates/inventory/dashboard.html:339
+msgid "غرفة التكويدات"
+msgstr "Coding room"
+
+#: inventory/templates/inventory/dashboard.html:356
+msgid "إضافة قطعة"
+msgstr "Add part"
+
+#: inventory/templates/inventory/dashboard.html:364
+msgid "تسجيل مصروف"
+msgstr "Record expense"
+
+#: inventory/templates/inventory/dashboard.html:373
+msgid "إدارة طلبات التسعير"
+msgstr "Manage quote requests"
+
+#: inventory/templates/inventory/dashboard.html:383
+msgid "احتفاظ بالعملاء"
+msgstr "Customer retention"
+
+#: inventory/templates/inventory/dashboard.html:392
+msgid "مراجعة بطاقات العملاء"
+msgstr "Review customer cards"
+
+#: inventory/templates/inventory/dashboard.html:400
+msgid "صرف عمولات"
+msgstr "Pay commissions"
+
+#: inventory/templates/inventory/dashboard.html:414
+msgid "اشتراكي"
+msgstr "My subscription"
+
+#: inventory/templates/inventory/dashboard.html:428
+msgid "تنبيه: أصناف تحت الحد الأدنى"
+msgstr "Alert: items below minimum level"
+
+#: inventory/templates/inventory/dashboard.html:443
+#, python-format
+msgid "الحد: %(lvl)s"
+msgstr "Min: %(lvl)s"
+
+#: inventory/templates/inventory/dashboard.html:464
+msgid "ثبّت Mouss Tec على جهازك"
+msgstr "Install Mouss Tec on your device"
+
+#: inventory/templates/inventory/dashboard.html:465
+msgid "اشتغل بدون نت واستلم اشعارات فورية"
+msgstr "Work offline and receive instant notifications"
+
+#: inventory/templates/inventory/dashboard.html:469
+msgid "لاحقاً"
+msgstr "Later"
+
+#: inventory/templates/inventory/dashboard.html:471
+msgid "تثبيت"
+msgstr "Install"
+
+#: inventory/templates/inventory/dashboard.html:497
+msgid "لتثبيت التطبيق:"
+msgstr "To install the app:"
+
+#: inventory/templates/inventory/dashboard.html:498
+msgid ""
+"Chrome: اضغط على النقاط الثلاث (⋮) في اعلى المتصفح ثم اختر «تثبيت التطبيق»"
+msgstr "Chrome: tap the three dots (⋮) at the top of the browser, then choose «Install app»"
+
+#: inventory/templates/inventory/dashboard.html:499
+msgid "Safari (iPhone): اضغط على زر المشاركة ثم «اضافة الى الشاشة الرئيسية»"
+msgstr "Safari (iPhone): tap the Share button, then «Add to Home Screen»"
+
 #: inventory/templates/inventory/product_list.html:3
 #: inventory/templates/inventory/product_list.html:9
 msgid "القطع والمخزون"
@@ -6217,10 +6440,8 @@ msgid "ابحث بالاسم، SKU، الماركة، أو الموديل..."
 msgstr "Search by name, SKU, brand, or model..."
 
 #: inventory/templates/inventory/product_list.html:23
-#, fuzzy
-#| msgid "القطع"
 msgid "كل القطع"
-msgstr "Parts"
+msgstr "All parts"
 
 #: inventory/templates/inventory/product_list.html:24
 msgid "تحت حد التنبيه"
@@ -6288,10 +6509,8 @@ msgid "إضافة قطعة جديدة (مع رصيد البداية)"
 msgstr "Add New Part (with opening balance)"
 
 #: inventory/templates/inventory/quick_product.html:12
-#, fuzzy
-#| msgid "نقطة البيع"
 msgid "قائمة القطع"
-msgstr "POS"
+msgstr "Parts list"
 
 #: inventory/templates/inventory/quick_product.html:18
 msgid "رقم القطعة (SKU)"
@@ -6302,10 +6521,8 @@ msgid "التوافق (موديل/شاسيه)"
 msgstr "Compatibility (model/chassis)"
 
 #: inventory/templates/inventory/quick_product.html:34
-#, fuzzy
-#| msgid "تغيير اللغة"
 msgid "سعر التكلفة"
-msgstr "Change language"
+msgstr "Cost price"
 
 #: inventory/templates/inventory/quick_product.html:46
 #: inventory/templates/inventory/quick_product.html:99
@@ -6322,10 +6539,8 @@ msgid "رصيد البداية للمخزون"
 msgstr "Opening stock balance"
 
 #: inventory/templates/inventory/quick_product.html:58
-#, fuzzy
-#| msgid "نقطة البيع"
 msgid "كمية البداية"
-msgstr "POS"
+msgstr "Opening quantity"
 
 #: inventory/templates/inventory/quick_product.html:60
 msgid "يُسجَّل تلقائياً كحركة \"تسوية جرد\" في سجل المخزون."
@@ -6361,10 +6576,6 @@ msgstr "Network error."
 
 #: printing/models.py:29
 msgid "فرع"
-msgstr ""
-
-#: printing/models.py:30
-msgid "الفروع"
 msgstr ""
 
 #: printing/models.py:39
