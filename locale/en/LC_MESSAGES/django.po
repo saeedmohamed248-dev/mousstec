@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:05+0300\n"
+"POT-Creation-Date: 2026-07-15 23:18+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -596,6 +596,7 @@ msgstr ""
 #: clients/models/design_store.py:436 clients/models/design_store.py:553
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
 #: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
+#: inventory/templates/inventory/job_card_create.html:69
 #: inventory/templates/inventory/lightning_pos.html:61
 #: inventory/templates/inventory/sale_invoice_list.html:48
 #: printing/models.py:188 printing/models.py:257
@@ -795,6 +796,7 @@ msgstr ""
 #: clients/models/design_store.py:684 inventory/models/catalog.py:151
 #: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
 #: inventory/models/invoices.py:148
+#: inventory/templates/inventory/job_card_create.html:109
 #: inventory/templates/inventory/lightning_pos.html:47 printing/models.py:391
 #: printing/models.py:796
 msgid "الكمية"
@@ -943,8 +945,9 @@ msgid "تجزئة"
 msgstr ""
 
 #: clients/models/design_store.py:789
+#: inventory/templates/inventory/job_card_create.html:172
 msgid "خدمات"
-msgstr ""
+msgstr "Services"
 
 #: clients/models/design_store.py:790
 msgid "مناسبات"
@@ -1236,6 +1239,7 @@ msgstr "Part name"
 
 #: clients/models/marketplace_b2b.py:36 clients/models/marketplace_b2b.py:314
 #: clients/models/marketplace_b2b.py:712 inventory/models/catalog.py:26
+#: inventory/templates/inventory/job_card_create.html:89
 #: inventory/templates/inventory/quick_product.html:26
 msgid "الماركة"
 msgstr "Brand"
@@ -1520,8 +1524,9 @@ msgstr ""
 
 #: clients/models/marketplace_b2b.py:378 clients/models/marketplace_b2b.py:714
 #: inventory/models/customers.py:92
+#: inventory/templates/inventory/job_card_create.html:90
 msgid "الموديل"
-msgstr ""
+msgstr "Model"
 
 #: clients/models/marketplace_b2b.py:379
 msgid "مثال: 320i, X5, Cooper S, F30"
@@ -2409,9 +2414,11 @@ msgstr ""
 msgid "اسم المرسل"
 msgstr ""
 
-#: clients/models/support.py:103 printing/models.py:24 printing/models.py:40
+#: clients/models/support.py:103
+#: inventory/templates/inventory/job_card_create.html:77 printing/models.py:24
+#: printing/models.py:40
 msgid "الهاتف"
-msgstr ""
+msgstr "Phone"
 
 #: clients/models/support.py:105
 msgid "الرسالة"
@@ -4498,6 +4505,7 @@ msgid "سجل تاريخ الأسعار"
 msgstr ""
 
 #: inventory/models/catalog.py:75 inventory/models/catalog.py:148
+#: inventory/templates/inventory/job_card_create.html:109
 #: inventory/templates/inventory/lightning_pos.html:46
 msgid "القطعة"
 msgstr "Part"
@@ -4506,6 +4514,7 @@ msgstr "Part"
 #: inventory/models/catalog.py:210 inventory/models/finance.py:26
 #: inventory/models/finance.py:126 inventory/models/invoices.py:79
 #: inventory/templates/inventory/company_branches.html:43
+#: inventory/templates/inventory/job_card_create.html:32
 #: inventory/templates/inventory/lightning_pos.html:21
 #: inventory/templates/inventory/quick_product.html:68 printing/models.py:81
 #: printing/models.py:146 printing/models.py:258 printing/models.py:510
@@ -4795,12 +4804,14 @@ msgid "المالك"
 msgstr ""
 
 #: inventory/models/customers.py:89
+#: inventory/templates/inventory/job_card_create.html:86
 msgid "رقم الشاسيه (VIN)"
-msgstr ""
+msgstr "Chassis number (VIN)"
 
 #: inventory/models/customers.py:90
+#: inventory/templates/inventory/job_card_create.html:87
 msgid "رقم اللوحة"
-msgstr ""
+msgstr "Plate number"
 
 #: inventory/models/customers.py:93
 msgid "لون السيارة"
@@ -4872,6 +4883,7 @@ msgstr ""
 
 #: inventory/models/diagnostics.py:40 inventory/models/diagnostics.py:447
 #: inventory/models/invoices.py:75
+#: inventory/templates/inventory/job_card_create.html:83
 #: inventory/templates/inventory/sale_invoice_list.html:49
 msgid "المركبة"
 msgstr "Vehicle"
@@ -5583,6 +5595,7 @@ msgstr ""
 
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
+#: inventory/templates/inventory/job_card_create.html:174
 #: inventory/templates/inventory/lightning_pos.html:48
 #: inventory/templates/inventory/sale_invoice_list.html:52
 #: printing/models.py:267 printing/models.py:396 printing/models.py:800
@@ -5742,16 +5755,18 @@ msgid "نهاية العمل الفعلي"
 msgstr ""
 
 #: inventory/models/invoices.py:273
+#: inventory/templates/inventory/job_card_create.html:228
 msgid "ممتاز"
-msgstr ""
+msgstr "Excellent"
 
 #: inventory/models/invoices.py:273
 msgid "يحتاج متابعة"
 msgstr ""
 
 #: inventory/models/invoices.py:273
+#: inventory/templates/inventory/job_card_create.html:228
 msgid "تغيير فوري"
-msgstr ""
+msgstr "Replace now"
 
 #: inventory/models/invoices.py:274
 msgid "أمر الشغل"
@@ -5762,24 +5777,29 @@ msgid "السيارة"
 msgstr ""
 
 #: inventory/models/invoices.py:277
+#: inventory/templates/inventory/job_card_create.html:223
 msgid "الفرامل"
-msgstr ""
+msgstr "Brakes"
 
 #: inventory/models/invoices.py:278
+#: inventory/templates/inventory/job_card_create.html:224
 msgid "زيت المحرك"
-msgstr ""
+msgstr "Engine oil"
 
 #: inventory/models/invoices.py:279
+#: inventory/templates/inventory/job_card_create.html:225
 msgid "الإطارات"
-msgstr ""
+msgstr "Tires"
 
 #: inventory/models/invoices.py:280
+#: inventory/templates/inventory/job_card_create.html:226
 msgid "البطارية"
-msgstr ""
+msgstr "Battery"
 
 #: inventory/models/invoices.py:281
+#: inventory/templates/inventory/job_card_create.html:144
 msgid "ملاحظات الفني"
-msgstr ""
+msgstr "Technician notes"
 
 #: inventory/models/invoices.py:282
 msgid "صورة إثبات التلف"
@@ -6145,6 +6165,7 @@ msgid "الفواتير"
 msgstr "Invoices"
 
 #: inventory/templates/inventory/_base_portal.html:42
+#: inventory/templates/inventory/job_card_create.html:101
 msgid "القطع"
 msgstr "Parts"
 
@@ -6332,6 +6353,7 @@ msgstr "Invoices issued today"
 
 #: inventory/templates/inventory/dashboard.html:237
 #: inventory/templates/inventory/dashboard.html:261
+#: inventory/templates/inventory/job_card_create.html:292
 #: inventory/templates/inventory/lightning_pos.html:124
 msgid "مخزون"
 msgstr "Stock"
@@ -6354,6 +6376,8 @@ msgid "نقطة بيع سريعة"
 msgstr "Quick point of sale"
 
 #: inventory/templates/inventory/dashboard.html:299
+#: inventory/templates/inventory/job_card_create.html:3
+#: inventory/templates/inventory/job_card_create.html:26
 #: inventory/templates/inventory/sale_invoice_list.html:14
 msgid "أمر شغل جديد"
 msgstr "New job card"
@@ -6445,6 +6469,194 @@ msgstr "Chrome: tap the three dots (⋮) at the top of the browser, then choose 
 msgid "Safari (iPhone): اضغط على زر المشاركة ثم «اضافة الى الشاشة الرئيسية»"
 msgstr "Safari (iPhone): tap the Share button, then «Add to Home Screen»"
 
+#: inventory/templates/inventory/job_card_create.html:45
+msgid "فاتورة قطع غيار فقط"
+msgstr "Parts-only invoice"
+
+#: inventory/templates/inventory/job_card_create.html:46
+msgid "بيع قطع للعميل بدون فحص أو خدمات صيانة."
+msgstr "Sell parts to the customer without inspection or maintenance services."
+
+#: inventory/templates/inventory/job_card_create.html:54
+msgid "أمر شغل وصيانة"
+msgstr "Job card & maintenance"
+
+#: inventory/templates/inventory/job_card_create.html:55
+msgid "قطع + مصنعيات + فحص DVI كامل للمركبة."
+msgstr "Parts + labor + full vehicle DVI inspection."
+
+#: inventory/templates/inventory/job_card_create.html:71
+msgid "ابحث بالاسم أو رقم الهاتف..."
+msgstr "Search by name or phone number..."
+
+#: inventory/templates/inventory/job_card_create.html:76 printing/models.py:39
+msgid "اسم العميل"
+msgstr "Customer name"
+
+#: inventory/templates/inventory/job_card_create.html:79
+msgid "سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً."
+msgstr "A new customer will be created, or the invoice linked to an existing one automatically."
+
+#: inventory/templates/inventory/job_card_create.html:88
+msgid "العداد (كم)"
+msgstr "Odometer (km)"
+
+#: inventory/templates/inventory/job_card_create.html:92
+msgid "اختياري — اتركه فارغاً للبيع بدون ربط مركبة."
+msgstr "Optional — leave empty to sell without linking a vehicle."
+
+#: inventory/templates/inventory/job_card_create.html:103
+msgid "SKU أو باركود أو اسم..."
+msgstr "SKU, barcode, or name..."
+
+#: inventory/templates/inventory/job_card_create.html:109
+#: inventory/templates/inventory/job_card_create.html:126
+#: inventory/templates/inventory/lightning_pos.html:47
+msgid "السعر"
+msgstr "Price"
+
+#: inventory/templates/inventory/job_card_create.html:110
+#: inventory/templates/inventory/job_card_create.html:312
+msgid "لم تتم إضافة قطع"
+msgstr "No parts added"
+
+#: inventory/templates/inventory/job_card_create.html:116
+msgid "المصنعيات / الخدمات"
+msgstr "Labor / Services"
+
+#: inventory/templates/inventory/job_card_create.html:119
+msgid "— اختر خدمة من الكتالوج —"
+msgstr "— Choose a service from the catalog —"
+
+#: inventory/templates/inventory/job_card_create.html:120
+msgid "ج.م"
+msgstr "EGP"
+
+#: inventory/templates/inventory/job_card_create.html:126
+msgid "الخدمة"
+msgstr "Service"
+
+#: inventory/templates/inventory/job_card_create.html:127
+#: inventory/templates/inventory/job_card_create.html:348
+msgid "لم تُضَف خدمات"
+msgstr "No services added"
+
+#: inventory/templates/inventory/job_card_create.html:138
+msgid "فحص المركبة (DVI)"
+msgstr "Vehicle inspection (DVI)"
+
+#: inventory/templates/inventory/job_card_create.html:139
+msgid "يُحفظ فقط إذا تم ربط مركبة."
+msgstr "Saved only if a vehicle is linked."
+
+#: inventory/templates/inventory/job_card_create.html:149
+msgid "الشكوى والإجمالي"
+msgstr "Complaint & total"
+
+#: inventory/templates/inventory/job_card_create.html:150
+msgid "شكوى العميل / ملاحظات"
+msgstr "Customer complaint / notes"
+
+#: inventory/templates/inventory/job_card_create.html:153
+#: inventory/templates/inventory/lightning_pos.html:75
+msgid "خصم"
+msgstr "Discount"
+
+#: inventory/templates/inventory/job_card_create.html:154
+msgid "مصنعية إضافية"
+msgstr "Extra labor"
+
+#: inventory/templates/inventory/job_card_create.html:155
+msgid "ضريبة"
+msgstr "Tax"
+
+#: inventory/templates/inventory/job_card_create.html:160
+msgid "الخزنة (للسداد)"
+msgstr "Treasury (for payment)"
+
+#: inventory/templates/inventory/job_card_create.html:162
+#: inventory/templates/inventory/lightning_pos.html:71
+msgid "— تأجيل الدفع (آجل) —"
+msgstr "— Defer payment (credit) —"
+
+#: inventory/templates/inventory/job_card_create.html:166
+msgid "المدفوع الآن"
+msgstr "Paid now"
+
+#: inventory/templates/inventory/job_card_create.html:167
+#: inventory/templates/inventory/sale_invoice_list.html:53
+msgid "المتبقي"
+msgstr "Remaining"
+
+#: inventory/templates/inventory/job_card_create.html:171
+#: inventory/templates/inventory/sale_invoice_list.html:65
+msgid "قطع"
+msgstr "Parts"
+
+#: inventory/templates/inventory/job_card_create.html:173
+msgid "ضريبة تقديرية"
+msgstr "Estimated tax"
+
+#: inventory/templates/inventory/job_card_create.html:175
+msgid "دفع كامل الإجمالي ⏎"
+msgstr "Pay the full total ⏎"
+
+#: inventory/templates/inventory/job_card_create.html:179
+msgid "حفظ أمر الشغل"
+msgstr "Save job card"
+
+#: inventory/templates/inventory/job_card_create.html:228
+msgid "متابعة"
+msgstr "Follow up"
+
+#: inventory/templates/inventory/job_card_create.html:261
+#: inventory/templates/inventory/job_card_create.html:294
+#: inventory/templates/inventory/lightning_pos.html:126
+msgid "لا توجد نتائج"
+msgstr "No results"
+
+#: inventory/templates/inventory/job_card_create.html:266
+msgid "تم ربط العميل"
+msgstr "Customer linked"
+
+#: inventory/templates/inventory/job_card_create.html:270
+msgid "لا توجد مركبات مسجلة — أدخل واحدة جديدة بالأسفل."
+msgstr "No registered vehicles — enter a new one below."
+
+#: inventory/templates/inventory/job_card_create.html:297
+msgid "بدون مخزون."
+msgstr "Out of stock."
+
+#: inventory/templates/inventory/job_card_create.html:299
+msgid "وصلت الحد الأقصى."
+msgstr "Reached the maximum."
+
+#: inventory/templates/inventory/job_card_create.html:384
+#: inventory/templates/inventory/quick_expense.html:89
+#: inventory/templates/inventory/quick_product.html:107
+msgid "جارٍ الحفظ..."
+msgstr "Saving..."
+
+#: inventory/templates/inventory/job_card_create.html:414
+#: inventory/templates/inventory/quick_product.html:111
+msgid "فشل الحفظ."
+msgstr "Save failed."
+
+#: inventory/templates/inventory/job_card_create.html:415
+msgid "تم! أمر الشغل"
+msgstr "Done! Job card"
+
+#: inventory/templates/inventory/job_card_create.html:415
+msgid "جارٍ فتح الطباعة"
+msgstr "Opening print"
+
+#: inventory/templates/inventory/job_card_create.html:419
+#: inventory/templates/inventory/lightning_pos.html:206
+#: inventory/templates/inventory/quick_expense.html:99
+#: inventory/templates/inventory/quick_product.html:121
+msgid "خطأ في الشبكة."
+msgstr "Network error."
+
 #: inventory/templates/inventory/lightning_pos.html:34
 msgid "ابحث برقم القطعة (SKU) أو الباركود أو الاسم..."
 msgstr "Search by part number (SKU), barcode, or name..."
@@ -6452,10 +6664,6 @@ msgstr "Search by part number (SKU), barcode, or name..."
 #: inventory/templates/inventory/lightning_pos.html:41
 msgid "السلة"
 msgstr "Cart"
-
-#: inventory/templates/inventory/lightning_pos.html:47
-msgid "السعر"
-msgstr "Price"
 
 #: inventory/templates/inventory/lightning_pos.html:52
 msgid "السلة فارغة — ابدأ بالبحث عن قطعة"
@@ -6476,14 +6684,6 @@ msgstr "Leave them empty to sell as a \"cash customer\"."
 #: inventory/templates/inventory/lightning_pos.html:68
 msgid "الدفع"
 msgstr "Payment"
-
-#: inventory/templates/inventory/lightning_pos.html:71
-msgid "— تأجيل الدفع (آجل) —"
-msgstr "— Defer payment (credit) —"
-
-#: inventory/templates/inventory/lightning_pos.html:75
-msgid "خصم"
-msgstr "Discount"
 
 #: inventory/templates/inventory/lightning_pos.html:81
 msgid "عدد القطع"
@@ -6508,10 +6708,6 @@ msgstr "Available in other branches"
 #: inventory/templates/inventory/lightning_pos.html:117
 msgid "أظهر"
 msgstr "Show"
-
-#: inventory/templates/inventory/lightning_pos.html:126
-msgid "لا توجد نتائج"
-msgstr "No results"
 
 #: inventory/templates/inventory/lightning_pos.html:133
 msgid "جارِ التحميل"
@@ -6548,12 +6744,6 @@ msgstr "Done! Invoice"
 #: inventory/templates/inventory/lightning_pos.html:202
 msgid "جارٍ الطباعة"
 msgstr "Printing"
-
-#: inventory/templates/inventory/lightning_pos.html:206
-#: inventory/templates/inventory/quick_expense.html:99
-#: inventory/templates/inventory/quick_product.html:121
-msgid "خطأ في الشبكة."
-msgstr "Network error."
 
 #: inventory/templates/inventory/product_list.html:3
 #: inventory/templates/inventory/product_list.html:9
@@ -6687,11 +6877,6 @@ msgstr "e.g., buying coffee for customers"
 msgid "تسجيل المصروف"
 msgstr "Record the expense"
 
-#: inventory/templates/inventory/quick_expense.html:89
-#: inventory/templates/inventory/quick_product.html:107
-msgid "جارٍ الحفظ..."
-msgstr "Saving..."
-
 #: inventory/templates/inventory/quick_expense.html:93
 msgid "فشل التسجيل."
 msgstr "Recording failed."
@@ -6754,10 +6939,6 @@ msgstr "Reorder level"
 msgid "حفظ القطعة وتسجيل المخزون"
 msgstr "Save part & record stock"
 
-#: inventory/templates/inventory/quick_product.html:111
-msgid "فشل الحفظ."
-msgstr "Save failed."
-
 #: inventory/templates/inventory/quick_product.html:113
 msgid "تم! قطعة"
 msgstr "Done! Part"
@@ -6787,17 +6968,9 @@ msgstr "— All statuses —"
 msgid "— كل الأنواع —"
 msgstr "— All types —"
 
-#: inventory/templates/inventory/sale_invoice_list.html:53
-msgid "المتبقي"
-msgstr "Remaining"
-
 #: inventory/templates/inventory/sale_invoice_list.html:65
 msgid "صيانة"
 msgstr "Maintenance"
-
-#: inventory/templates/inventory/sale_invoice_list.html:65
-msgid "قطع"
-msgstr "Parts"
 
 #: inventory/templates/inventory/sale_invoice_list.html:77
 msgid "طباعة A4"
@@ -6817,10 +6990,6 @@ msgstr "Create a new job card ←"
 
 #: printing/models.py:29
 msgid "فرع"
-msgstr ""
-
-#: printing/models.py:39
-msgid "اسم العميل"
 msgstr ""
 
 #: printing/models.py:41
