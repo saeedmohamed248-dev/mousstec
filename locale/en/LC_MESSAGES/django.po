@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:41+0300\n"
+"POT-Creation-Date: 2026-07-15 23:54+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -597,6 +597,7 @@ msgstr ""
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
 #: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
 #: inventory/templates/inventory/job_card_create.html:69
+#: inventory/templates/inventory/job_card_review.html:320
 #: inventory/templates/inventory/lightning_pos.html:61
 #: inventory/templates/inventory/sale_invoice_list.html:48
 #: printing/models.py:188 printing/models.py:257
@@ -797,6 +798,8 @@ msgstr ""
 #: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
 #: inventory/models/invoices.py:148
 #: inventory/templates/inventory/job_card_create.html:109
+#: inventory/templates/inventory/job_card_review.html:341
+#: inventory/templates/inventory/job_card_review.html:458
 #: inventory/templates/inventory/lightning_pos.html:47 printing/models.py:391
 #: printing/models.py:796
 msgid "الكمية"
@@ -1553,8 +1556,9 @@ msgid "رقم القطعة الأصلي (OEM)"
 msgstr ""
 
 #: clients/models/marketplace_b2b.py:389 clients/models/tenancy.py:726
+#: inventory/templates/inventory/job_card_review.html:799
 msgid "السعر (ج.م)"
-msgstr ""
+msgstr "Price (EGP)"
 
 #: clients/models/marketplace_b2b.py:392
 msgid "فترة الضمان (يوم)"
@@ -2234,6 +2238,8 @@ msgid "أحداث المنصة"
 msgstr ""
 
 #: clients/models/monitoring.py:99
+#: inventory/templates/inventory/job_card_review.html:922
+#: inventory/templates/inventory/job_card_review.html:946
 #: inventory/templates/inventory/retention_crm.html:424
 #: inventory/templates/inventory/retention_crm.html:455
 #: inventory/templates/inventory/retention_crm.html:551
@@ -4519,6 +4525,8 @@ msgstr ""
 
 #: inventory/models/catalog.py:75 inventory/models/catalog.py:148
 #: inventory/templates/inventory/job_card_create.html:109
+#: inventory/templates/inventory/job_card_review.html:340
+#: inventory/templates/inventory/job_card_review.html:457
 #: inventory/templates/inventory/lightning_pos.html:46
 msgid "القطعة"
 msgstr "Part"
@@ -4900,6 +4908,7 @@ msgstr ""
 #: inventory/models/diagnostics.py:40 inventory/models/diagnostics.py:447
 #: inventory/models/invoices.py:75
 #: inventory/templates/inventory/job_card_create.html:83
+#: inventory/templates/inventory/job_card_review.html:322
 #: inventory/templates/inventory/sale_invoice_list.html:49
 msgid "المركبة"
 msgstr "Vehicle"
@@ -5028,8 +5037,9 @@ msgid "بطاقة الإصلاح"
 msgstr ""
 
 #: inventory/models/diagnostics.py:156 inventory/models/organization.py:108
+#: inventory/templates/inventory/job_card_review.html:506
 msgid "الفني"
-msgstr ""
+msgstr "Technician"
 
 #: inventory/models/diagnostics.py:159
 msgid "عنوان المهمة"
@@ -5158,8 +5168,9 @@ msgid "الطلب الأصلي"
 msgstr ""
 
 #: inventory/models/diagnostics.py:296 inventory/models/invoices.py:26
+#: inventory/templates/inventory/job_card_review.html:940
 msgid "المورد"
-msgstr ""
+msgstr "Supplier"
 
 #: inventory/models/diagnostics.py:299
 msgid "وقت إرسال الطلب"
@@ -5616,6 +5627,7 @@ msgstr ""
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
 #: inventory/templates/inventory/job_card_create.html:174
+#: inventory/templates/inventory/job_card_review.html:941
 #: inventory/templates/inventory/lightning_pos.html:48
 #: inventory/templates/inventory/sale_invoice_list.html:52
 #: printing/models.py:267 printing/models.py:396 printing/models.py:800
@@ -5709,6 +5721,7 @@ msgid "الإجمالي النهائي"
 msgstr ""
 
 #: inventory/models/invoices.py:149
+#: inventory/templates/inventory/job_card_review.html:674
 #: inventory/templates/inventory/product_list.html:45
 #: inventory/templates/inventory/quick_product.html:38
 msgid "سعر البيع"
@@ -5739,8 +5752,10 @@ msgid "افصلها لو الجزء استُخدم للفحص فقط أو كان
 msgstr ""
 
 #: inventory/models/invoices.py:177 inventory/models/invoices.py:259
+#: inventory/templates/inventory/job_card_review.html:460
+#: inventory/templates/inventory/job_card_review.html:508
 msgid "ملاحظة المحاسب"
-msgstr ""
+msgstr "Accountant note"
 
 #: inventory/models/invoices.py:178
 msgid "اختياري — تظهر للمراجعة الداخلية فقط."
@@ -6217,6 +6232,7 @@ msgid "عميل بدون اسم"
 msgstr "Unnamed customer"
 
 #: inventory/templates/inventory/_nudge_card.html:11
+#: inventory/templates/inventory/job_card_review.html:791
 msgid "— لا يوجد رقم —"
 msgstr "— No number —"
 
@@ -6322,6 +6338,11 @@ msgstr "Balance"
 
 #: inventory/templates/inventory/commission_dashboard.html:92
 #: inventory/templates/inventory/job_card_create.html:120
+#: inventory/templates/inventory/job_card_review.html:566
+#: inventory/templates/inventory/job_card_review.html:643
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+#: inventory/templates/inventory/job_card_review.html:941
 msgid "ج.م"
 msgstr "EGP"
 
@@ -6770,6 +6791,7 @@ msgstr "SKU, barcode, or name..."
 
 #: inventory/templates/inventory/job_card_create.html:109
 #: inventory/templates/inventory/job_card_create.html:126
+#: inventory/templates/inventory/job_card_review.html:507
 #: inventory/templates/inventory/lightning_pos.html:47
 msgid "السعر"
 msgstr "Price"
@@ -6788,6 +6810,7 @@ msgid "— اختر خدمة من الكتالوج —"
 msgstr "— Choose a service from the catalog —"
 
 #: inventory/templates/inventory/job_card_create.html:126
+#: inventory/templates/inventory/job_card_review.html:505
 msgid "الخدمة"
 msgstr "Service"
 
@@ -6911,6 +6934,273 @@ msgstr "Opening print"
 #: inventory/templates/inventory/quick_product.html:121
 msgid "خطأ في الشبكة."
 msgstr "Network error."
+
+#: inventory/templates/inventory/job_card_review.html:6
+#: inventory/templates/inventory/job_card_review.html:315
+msgid "مراجعة بطاقة العميل"
+msgstr "Customer job card review"
+
+#: inventory/templates/inventory/job_card_review.html:316
+msgid "المحاسبة / المبيعات"
+msgstr "Accounting / Sales"
+
+#: inventory/templates/inventory/job_card_review.html:319
+msgid "مراجع"
+msgstr "Reviewer"
+
+#: inventory/templates/inventory/job_card_review.html:338
+msgid "طلب تسعير من الموردين"
+msgstr "Request quotes from suppliers"
+
+#: inventory/templates/inventory/job_card_review.html:346
+msgid "إغلاق"
+msgstr "Close"
+
+#: inventory/templates/inventory/job_card_review.html:359
+msgid "أدلة التشخيص الذكي"
+msgstr "AI diagnostic evidence"
+
+#: inventory/templates/inventory/job_card_review.html:360
+msgid "تقرير"
+msgstr "reports"
+
+#: inventory/templates/inventory/job_card_review.html:367
+msgid "شدة"
+msgstr "Severity"
+
+#: inventory/templates/inventory/job_card_review.html:369
+msgid "المهندس"
+msgstr "Engineer"
+
+#: inventory/templates/inventory/job_card_review.html:398
+msgid "سجلات عمل الفنيين"
+msgstr "Technician work logs"
+
+#: inventory/templates/inventory/job_card_review.html:399
+msgid "مهمة"
+msgstr "tasks"
+
+#: inventory/templates/inventory/job_card_review.html:406
+msgid "د"
+msgstr "min"
+
+#: inventory/templates/inventory/job_card_review.html:434
+msgid "قطع مقترحة من تحليل الـ DTCs"
+msgstr "Parts suggested from DTC analysis"
+
+#: inventory/templates/inventory/job_card_review.html:437
+msgid "تحديث"
+msgstr "Refresh"
+
+#: inventory/templates/inventory/job_card_review.html:441
+#: inventory/templates/inventory/job_card_review.html:705
+msgid "جاري استخراج القطع من تحليل الـ AI..."
+msgstr "Extracting parts from AI analysis..."
+
+#: inventory/templates/inventory/job_card_review.html:450
+msgid "القطع المستخدمة — حدّد ما يُحاسَب عليه العميل"
+msgstr "Parts used — select what the customer is billed for"
+
+#: inventory/templates/inventory/job_card_review.html:456
+#: inventory/templates/inventory/job_card_review.html:504
+msgid "يُحاسب؟"
+msgstr "Billable?"
+
+#: inventory/templates/inventory/job_card_review.html:459
+msgid "السعر الإجمالي"
+msgstr "Total price"
+
+#: inventory/templates/inventory/job_card_review.html:484
+msgid "مثال: ضمان، قطعة تشخيص فقط..."
+msgstr "e.g. warranty, diagnostic part only..."
+
+#: inventory/templates/inventory/job_card_review.html:491
+msgid "— لا توجد قطع على هذه البطاقة —"
+msgstr "— No parts on this job card —"
+
+#: inventory/templates/inventory/job_card_review.html:498
+msgid "الخدمات / المصنعيات"
+msgstr "Services / Labor"
+
+#: inventory/templates/inventory/job_card_review.html:533
+msgid "ملاحظة اختيارية..."
+msgstr "Optional note..."
+
+#: inventory/templates/inventory/job_card_review.html:540
+msgid "— لا توجد خدمات على هذه البطاقة —"
+msgstr "— No services on this job card —"
+
+#: inventory/templates/inventory/job_card_review.html:550
+msgid "ملخص الفاتورة النهائي"
+msgstr "Final invoice summary"
+
+#: inventory/templates/inventory/job_card_review.html:553
+msgid "إجمالي القطع المحاسَب عليها"
+msgstr "Total billable parts"
+
+#: inventory/templates/inventory/job_card_review.html:557
+msgid "إجمالي الخدمات"
+msgstr "Total services"
+
+#: inventory/templates/inventory/job_card_review.html:561
+msgid "المستبعد من الفاتورة"
+msgstr "Excluded from invoice"
+
+#: inventory/templates/inventory/job_card_review.html:565
+msgid "الإجمالي للعميل"
+msgstr "Total for customer"
+
+#: inventory/templates/inventory/job_card_review.html:570
+msgid "احفظ قرار المراجعة"
+msgstr "Save review decision"
+
+#: inventory/templates/inventory/job_card_review.html:575
+msgid "اطبع البطاقة التفصيلية"
+msgstr "Print detailed card"
+
+#: inventory/templates/inventory/job_card_review.html:582
+msgid "تقرير AI للعميل"
+msgstr "AI report for customer"
+
+#: inventory/templates/inventory/job_card_review.html:622
+msgid "غير موجود في الكاتالوج"
+msgstr "Not in catalogue"
+
+#: inventory/templates/inventory/job_card_review.html:626
+msgid "غير متوفر"
+msgstr "Out of stock"
+
+#: inventory/templates/inventory/job_card_review.html:627
+msgid "طلب توريد مطلوب"
+msgstr "Supply order required"
+
+#: inventory/templates/inventory/job_card_review.html:634
+msgid "متوفر"
+msgstr "In stock"
+
+#: inventory/templates/inventory/job_card_review.html:654
+msgid "أضف للبطاقة"
+msgstr "Add to card"
+
+#: inventory/templates/inventory/job_card_review.html:661
+#: inventory/templates/inventory/job_card_review.html:860
+#: inventory/templates/inventory/job_card_review.html:880
+msgid "اطلب من المورد"
+msgstr "Order from supplier"
+
+#: inventory/templates/inventory/job_card_review.html:673
+msgid "احتمالية"
+msgstr "Probability"
+
+#: inventory/templates/inventory/job_card_review.html:675
+msgid "من"
+msgstr "from"
+
+#: inventory/templates/inventory/job_card_review.html:690
+msgid "الـ AI لم يقترح قطعاً عالية الاحتمالية لهذه الأكواد."
+msgstr "AI did not suggest high-probability parts for these codes."
+
+#: inventory/templates/inventory/job_card_review.html:694
+msgid "قطعة مقترحة (مرتّبة حسب الاحتمالية)"
+msgstr "suggested parts (sorted by probability)"
+
+#: inventory/templates/inventory/job_card_review.html:712
+msgid "فشل الاتصال"
+msgstr "Connection failed"
+
+#: inventory/templates/inventory/job_card_review.html:735
+msgid "فشل الإضافة"
+msgstr "Failed to add"
+
+#: inventory/templates/inventory/job_card_review.html:739
+msgid "أُضيفت"
+msgstr "Added"
+
+#: inventory/templates/inventory/job_card_review.html:746
+#: inventory/templates/inventory/job_card_review.html:881
+msgid "خطأ في الاتصال"
+msgstr "Connection error"
+
+#: inventory/templates/inventory/job_card_review.html:779
+msgid "أرسل"
+msgstr "Send"
+
+#: inventory/templates/inventory/job_card_review.html:781
+msgid "رقم الهاتف غير مسجل"
+msgstr "Phone number not registered"
+
+#: inventory/templates/inventory/job_card_review.html:782
+msgid "بدون رقم"
+msgstr "No number"
+
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+msgid "يوم"
+msgstr "days"
+
+#: inventory/templates/inventory/job_card_review.html:796
+msgid "عدّل العرض"
+msgstr "Edit quote"
+
+#: inventory/templates/inventory/job_card_review.html:796
+msgid "سجّل الرد"
+msgstr "Log response"
+
+#: inventory/templates/inventory/job_card_review.html:801
+msgid "أيام"
+msgstr "days"
+
+#: inventory/templates/inventory/job_card_review.html:804
+msgid "احفظ"
+msgstr "Save"
+
+#: inventory/templates/inventory/job_card_review.html:808
+msgid "تحويل إلى أمر شراء (Draft)"
+msgstr "Convert to purchase order (Draft)"
+
+#: inventory/templates/inventory/job_card_review.html:809
+msgid "اعتمد"
+msgstr "Approve"
+
+#: inventory/templates/inventory/job_card_review.html:837
+msgid "رقم القطعة غير متاح."
+msgstr "Part number unavailable."
+
+#: inventory/templates/inventory/job_card_review.html:858
+msgid "فشل إنشاء الطلب"
+msgstr "Failed to create request"
+
+#: inventory/templates/inventory/job_card_review.html:870
+msgid "لا يوجد موردين مسجّلين بعد — أضف موردين من شاشة الشراء."
+msgstr "No suppliers registered yet — add suppliers from the purchasing screen."
+
+#: inventory/templates/inventory/job_card_review.html:890
+msgid "أدخل سعراً صحيحاً."
+msgstr "Enter a valid price."
+
+#: inventory/templates/inventory/job_card_review.html:907
+msgid "فشل الحفظ"
+msgstr "Failed to save"
+
+#: inventory/templates/inventory/job_card_review.html:927
+msgid "سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟"
+msgstr "A Draft purchase order will be created for this supplier. Sure?"
+
+#: inventory/templates/inventory/job_card_review.html:935
+msgid "فشل الاعتماد"
+msgstr "Failed to approve"
+
+#: inventory/templates/inventory/job_card_review.html:939
+msgid "تم إنشاء أمر شراء Draft"
+msgstr "Draft purchase order created"
+
+#: inventory/templates/inventory/job_card_review.html:942
+msgid "في حالة"
+msgstr "in status"
+
+#: inventory/templates/inventory/job_card_review.html:942
+msgid "افتح شاشة المخزون لتسجيل الاستلام."
+msgstr "Open the inventory screen to record receipt."
 
 #: inventory/templates/inventory/lightning_pos.html:34
 msgid "ابحث برقم القطعة (SKU) أو الباركود أو الاسم..."
