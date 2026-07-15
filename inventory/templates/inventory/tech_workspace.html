@@ -1,6 +1,6 @@
 {% extends 'inventory/_base_portal.html' %}
-{% load static %}
-{% block title %}ورشة الفنيين — Tech Workspace{% endblock %}
+{% load static i18n %}
+{% block title %}{% trans "ورشة الفنيين" %}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -22,10 +22,10 @@
     <div>
       <h1 class="text-2xl md:text-3xl font-black text-white">
         <i class="fas fa-wrench text-emerald-400 ml-2"></i>
-        ورشة الفنيين
+        {% trans "ورشة الفنيين" %}
       </h1>
       <p class="text-sm text-slate-400 mt-1">
-        أهلاً {{ profile.user.get_full_name|default:profile.user.username }} —
+        {% trans "أهلاً" %} {{ profile.user.get_full_name|default:profile.user.username }} —
         <span class="text-emerald-300">{{ profile.get_role_display }}</span>
         {% if profile.branch %} · {{ profile.branch.name }}{% endif %}
       </p>
@@ -35,20 +35,20 @@
     <div class="flex items-center gap-2">
       <div class="text-xs text-slate-400 text-left">
         {% if last_checkin %}
-          آخر تسجيل:
+          {% trans "آخر تسجيل" %}:
           <span class="text-slate-200 font-bold">{{ last_checkin.get_event_type_display }}</span>
           <br>{{ last_checkin.occurred_at|date:"H:i — d/m" }}
         {% else %}
-          لم يتم تسجيل حضور اليوم
+          {% trans "لم يتم تسجيل حضور اليوم" %}
         {% endif %}
       </div>
       <button id="btn-checkin"
         class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition">
-        <i class="fas fa-location-crosshairs ml-1"></i>تسجيل حضور
+        <i class="fas fa-location-crosshairs ml-1"></i>{% trans "تسجيل حضور" %}
       </button>
       <button id="btn-checkout"
         class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold transition">
-        <i class="fas fa-right-from-bracket ml-1"></i>انصراف
+        <i class="fas fa-right-from-bracket ml-1"></i>{% trans "انصراف" %}
       </button>
     </div>
   </div>
@@ -56,19 +56,19 @@
   <!-- Stat strip -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400">قيد التنفيذ</div>
+      <div class="text-xs text-slate-400">{% trans "قيد التنفيذ" %}</div>
       <div class="text-2xl font-black text-amber-300 mt-1">{{ my_open_logs|length }}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400">اكتمل اليوم</div>
+      <div class="text-xs text-slate-400">{% trans "اكتمل اليوم" %}</div>
       <div class="text-2xl font-black text-emerald-300 mt-1">{{ completed_today }}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400">بطاقات نشطة بالفرع</div>
+      <div class="text-xs text-slate-400">{% trans "بطاقات نشطة بالفرع" %}</div>
       <div class="text-2xl font-black text-indigo-300 mt-1">{{ job_cards|length }}</div>
     </div>
     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-      <div class="text-xs text-slate-400">العمولات المُحتسبة</div>
+      <div class="text-xs text-slate-400">{% trans "العمولات المُحتسبة" %}</div>
       <div class="text-2xl font-black text-purple-300 mt-1">{{ profile.commission_balance }}</div>
     </div>
   </div>
@@ -78,7 +78,7 @@
     <!-- LEFT: my active timers -->
     <div class="lg:col-span-2 space-y-4">
       <h2 class="text-lg font-bold text-white mb-2">
-        <i class="fas fa-stopwatch text-amber-400 ml-2"></i>المهام الجارية
+        <i class="fas fa-stopwatch text-amber-400 ml-2"></i>{% trans "المهام الجارية" %}
       </h2>
 
       {% if my_open_logs %}
@@ -99,12 +99,12 @@
               {% endif %}
               {% if log.needs_extra_parts %}
                 <span class="chip bg-rose-500/15 text-rose-300 mt-2">
-                  <i class="fas fa-exclamation-triangle"></i> قطع إضافية: {{ log.extra_parts_note|truncatechars:60 }}
+                  <i class="fas fa-exclamation-triangle"></i> {% trans "قطع إضافية" %}: {{ log.extra_parts_note|truncatechars:60 }}
                 </span>
               {% endif %}
             </div>
             <div class="text-right">
-              <div class="text-xs text-slate-400">المدة</div>
+              <div class="text-xs text-slate-400">{% trans "المدة" %}</div>
               <div class="font-mono text-2xl font-black text-emerald-300 timer-display">--:--</div>
               <div class="text-xs mt-1">
                 <span class="chip
@@ -120,25 +120,25 @@
           <div class="flex flex-wrap gap-2 mt-3">
             {% if log.status == 'open' %}
               <button class="btn-pause px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">
-                <i class="fas fa-pause"></i> إيقاف مؤقت
+                <i class="fas fa-pause"></i> {% trans "إيقاف مؤقت" %}
               </button>
             {% elif log.status == 'paused' %}
               <button class="btn-resume px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
-                <i class="fas fa-play"></i> استئناف
+                <i class="fas fa-play"></i> {% trans "استئناف" %}
               </button>
             {% endif %}
             <button class="btn-complete px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">
-              <i class="fas fa-check"></i> إنهاء
+              <i class="fas fa-check"></i> {% trans "إنهاء" %}
             </button>
-            <button class="btn-flag px-3 py-1.5 rounded-lg bg-rose-700/40 hover:bg-rose-600/40 text-rose-200 text-xs font-bold border border-rose-700/50">
-              <i class="fas fa-flag"></i> {{ log.needs_extra_parts|yesno:"إلغاء طلب,طلب قطع إضافية" }}
+            <button class="btn-flag px-3 py-1.5 rounded-lg bg-rose-700/40 hover:bg-rose-600/40 text-rose-200 text-xs font-bold border border-rose-700/50" data-needs="{{ log.needs_extra_parts|yesno:'1,0' }}">
+              <i class="fas fa-flag"></i> {% if log.needs_extra_parts %}{% trans "إلغاء طلب" %}{% else %}{% trans "طلب قطع إضافية" %}{% endif %}
             </button>
             <label class="btn-upload px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-600/60 text-slate-100 text-xs font-bold cursor-pointer">
-              <i class="fas fa-camera"></i> صورة قبل
+              <i class="fas fa-camera"></i> {% trans "صورة قبل" %}
               <input type="file" accept="image/*" capture="environment" class="hidden" data-kind="before">
             </label>
             <label class="btn-upload px-3 py-1.5 rounded-lg bg-slate-700/60 hover:bg-slate-600/60 text-slate-100 text-xs font-bold cursor-pointer">
-              <i class="fas fa-camera"></i> صورة بعد
+              <i class="fas fa-camera"></i> {% trans "صورة بعد" %}
               <input type="file" accept="image/*" capture="environment" class="hidden" data-kind="after">
             </label>
           </div>
@@ -146,7 +146,7 @@
         {% endfor %}
       {% else %}
         <div class="bg-slate-900/60 border border-dashed border-slate-700 rounded-2xl p-8 text-center text-slate-400">
-          لا توجد مهام جارية. اختر بطاقة من القائمة لبدء العمل.
+          {% trans "لا توجد مهام جارية. اختر بطاقة من القائمة لبدء العمل." %}
         </div>
       {% endif %}
     </div>
@@ -154,7 +154,7 @@
     <!-- RIGHT: active job cards to claim -->
     <div>
       <h2 class="text-lg font-bold text-white mb-2">
-        <i class="fas fa-clipboard-list text-indigo-400 ml-2"></i>بطاقات نشطة
+        <i class="fas fa-clipboard-list text-indigo-400 ml-2"></i>{% trans "بطاقات نشطة" %}
       </h2>
       <div class="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
         {% for jc in job_cards %}
@@ -172,11 +172,11 @@
           <button class="btn-start mt-2 w-full px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
                   data-job-id="{{ jc.id }}"
                   data-job-title="{{ jc.customer.name|escapejs }}">
-            <i class="fas fa-play"></i> بدء مهمة جديدة
+            <i class="fas fa-play"></i> {% trans "بدء مهمة جديدة" %}
           </button>
         </div>
         {% empty %}
-        <div class="text-slate-500 text-sm text-center py-6">لا توجد بطاقات نشطة.</div>
+        <div class="text-slate-500 text-sm text-center py-6">{% trans "لا توجد بطاقات نشطة." %}</div>
         {% endfor %}
       </div>
     </div>
@@ -217,13 +217,13 @@
   // ---- Start a new RepairLog from a job card -----------------------------
   document.querySelectorAll('.btn-start').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const title = prompt('ما هي المهمة؟ (مثال: تغيير ووتر بومب)');
+      const title = prompt('{% trans "ما هي المهمة؟ (مثال: تغيير ووتر بومب)" %}');
       if (!title) return;
       const r = await api("{% url 'inventory:repair_log_start' %}", {
         body: JSON.stringify({ job_card_id: btn.dataset.jobId, task_title: title }),
       });
       if (r.ok) location.reload();
-      else alert('فشل بدء المهمة: ' + (r.error || ''));
+      else alert('{% trans "فشل بدء المهمة" %}: ' + (r.error || ''));
     });
   });
 
@@ -240,15 +240,15 @@
       if (r.ok) location.reload(); else alert(r.error);
     });
     card.querySelector('.btn-complete')?.addEventListener('click', async () => {
-      const notes = prompt('ملاحظات ختامية (اختياري):') || '';
+      const notes = prompt('{% trans "ملاحظات ختامية (اختياري):" %}') || '';
       const r = await api(`/system/api/repair-log/${id}/complete/`, {
         body: JSON.stringify({ tech_notes: notes }),
       });
       if (r.ok) location.reload(); else alert(r.error);
     });
     card.querySelector('.btn-flag')?.addEventListener('click', async () => {
-      const need = card.querySelector('.btn-flag').textContent.includes('طلب قطع');
-      const note = need ? (prompt('وصف القطع المطلوبة:') || '') : '';
+      const need = card.querySelector('.btn-flag').dataset.needs !== '1';
+      const note = need ? (prompt('{% trans "وصف القطع المطلوبة:" %}') || '') : '';
       if (need && !note) return;
       const r = await api(`/system/api/repair-log/${id}/flag-extra-parts/`, {
         body: JSON.stringify({ needs_extra_parts: need, extra_parts_note: note }),
@@ -265,15 +265,15 @@
           method: 'POST', body: fd, credentials: 'same-origin',
           headers: { 'X-CSRFToken': CSRF },
         }).then(x => x.json()).catch(() => ({ ok: false }));
-        if (r.ok) alert('✅ تم رفع الصورة');
-        else alert('فشل الرفع: ' + (r.error || ''));
+        if (r.ok) alert('✅ {% trans "تم رفع الصورة" %}');
+        else alert('{% trans "فشل الرفع" %}: ' + (r.error || ''));
       });
     });
   });
 
   // ---- GPS check-in / check-out ------------------------------------------
   async function geoCheckin(eventType) {
-    if (!navigator.geolocation) return alert('المتصفح لا يدعم GPS');
+    if (!navigator.geolocation) return alert('{% trans "المتصفح لا يدعم GPS" %}');
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const body = JSON.stringify({
         event_type: eventType,
@@ -283,13 +283,13 @@
       });
       const r = await api("{% url 'inventory:attendance_checkin' %}", { body });
       if (r.ok) {
-        alert(`✅ تم تسجيل ${eventType === 'in' ? 'الحضور' : 'الانصراف'} الساعة ${new Date(r.occurred_at).toLocaleTimeString('ar-EG')}`);
+        alert(`✅ {% trans "تم تسجيل" %} ${eventType === 'in' ? '{% trans "الحضور" %}' : '{% trans "الانصراف" %}'} {% trans "الساعة" %} ${new Date(r.occurred_at).toLocaleTimeString('ar-EG')}`);
         location.reload();
       } else {
-        alert('فشل التسجيل: ' + (r.error || ''));
+        alert('{% trans "فشل التسجيل" %}: ' + (r.error || ''));
       }
     }, (err) => {
-      alert('تعذر الحصول على الموقع: ' + err.message);
+      alert('{% trans "تعذر الحصول على الموقع" %}: ' + err.message);
     }, { enableHighAccuracy: true, timeout: 12000 });
   }
   document.getElementById('btn-checkin')?.addEventListener('click',  () => geoCheckin('in'));

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:18+0300\n"
+"POT-Creation-Date: 2026-07-15 23:30+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2342,8 +2342,10 @@ msgid "المستخدم"
 msgstr ""
 
 #: clients/models/support.py:52
+#: inventory/templates/inventory/commission_dashboard.html:108
+#: inventory/templates/inventory/hr_workspace.html:113
 msgid "الدور"
-msgstr ""
+msgstr "Role"
 
 #: clients/models/support.py:53
 msgid "صلاحية الحذف النهائي؟"
@@ -3564,8 +3566,9 @@ msgid "الإدارة العامة"
 msgstr ""
 
 #: hr/models.py:147 inventory/templates/inventory/dashboard.html:348
+#: inventory/templates/inventory/hr_workspace.html:4
 msgid "الموارد البشرية"
-msgstr "Human resources"
+msgstr "Human Resources"
 
 #: hr/models.py:148
 msgid "المحاسبة"
@@ -3700,9 +3703,10 @@ msgstr ""
 msgid "إذا مُفعّل: تصميمات هذا الموظف تُعتمد فوراً بدون مراجعة المدير المباشر"
 msgstr ""
 
-#: hr/models.py:242
+#: hr/models.py:242 inventory/templates/inventory/commission_dashboard.html:45
+#: inventory/templates/inventory/commission_dashboard.html:131
 msgid "موظف"
-msgstr ""
+msgstr "employees"
 
 #: hr/models.py:243
 msgid "الموظفون"
@@ -3741,9 +3745,12 @@ msgid "ورديات العمل"
 msgstr ""
 
 #: hr/models.py:336 hr/models.py:376 hr/models.py:465 hr/models.py:527
-#: hr/models.py:718 inventory/models/organization.py:128 printing/models.py:624
+#: hr/models.py:718 inventory/models/organization.py:128
+#: inventory/templates/inventory/commission_dashboard.html:107
+#: inventory/templates/inventory/hr_workspace.html:78
+#: inventory/templates/inventory/hr_workspace.html:112 printing/models.py:624
 msgid "الموظف"
-msgstr ""
+msgstr "Employee"
 
 #: hr/models.py:340 hr/models.py:381
 msgid "الوردية"
@@ -3787,6 +3794,7 @@ msgstr ""
 
 #: hr/models.py:378 inventory/models/finance.py:65
 #: inventory/models/invoices.py:33 inventory/models/invoices.py:80
+#: inventory/templates/inventory/hr_workspace.html:65
 #: inventory/templates/inventory/sale_invoice_list.html:47
 #: printing/models.py:185 printing/models.py:566
 msgid "التاريخ"
@@ -4513,7 +4521,9 @@ msgstr "Part"
 #: inventory/models/catalog.py:76 inventory/models/catalog.py:180
 #: inventory/models/catalog.py:210 inventory/models/finance.py:26
 #: inventory/models/finance.py:126 inventory/models/invoices.py:79
+#: inventory/templates/inventory/commission_dashboard.html:109
 #: inventory/templates/inventory/company_branches.html:43
+#: inventory/templates/inventory/hr_workspace.html:114
 #: inventory/templates/inventory/job_card_create.html:32
 #: inventory/templates/inventory/lightning_pos.html:21
 #: inventory/templates/inventory/quick_product.html:68 printing/models.py:81
@@ -4988,10 +4998,11 @@ msgstr ""
 msgid "صور التشخيص"
 msgstr ""
 
-#: inventory/models/diagnostics.py:143 printing/models.py:250
+#: inventory/models/diagnostics.py:143
+#: inventory/templates/inventory/tech_workspace.html:59 printing/models.py:250
 #: smart_diagnostics/models.py:67 smart_diagnostics/models.py:180
 msgid "قيد التنفيذ"
-msgstr ""
+msgstr "In progress"
 
 #: inventory/models/diagnostics.py:144
 msgid "متوقف مؤقتاً"
@@ -5065,6 +5076,8 @@ msgstr ""
 #: inventory/models/diagnostics.py:194 inventory/models/finance.py:27
 #: inventory/models/finance.py:58 inventory/models/invoices.py:67
 #: inventory/models/organization.py:130
+#: inventory/templates/inventory/hr_workspace.html:70
+#: inventory/templates/inventory/hr_workspace.html:115
 #: inventory/templates/inventory/sale_invoice_list.html:50
 #: printing/models.py:562
 msgid "النوع"
@@ -6104,12 +6117,17 @@ msgid "سجل حضور وإنتاجية الفنيين"
 msgstr ""
 
 #: inventory/models/organization.py:124
+#: inventory/templates/inventory/hr_workspace.html:73
+#: inventory/templates/inventory/hr_workspace.html:135
 msgid "حضور"
-msgstr ""
+msgstr "Check-in"
 
 #: inventory/models/organization.py:124
+#: inventory/templates/inventory/hr_workspace.html:74
+#: inventory/templates/inventory/hr_workspace.html:139
+#: inventory/templates/inventory/tech_workspace.html:51
 msgid "انصراف"
-msgstr ""
+msgstr "Check out"
 
 #: inventory/models/organization.py:131
 msgid "اللحظة الزمنية"
@@ -6148,6 +6166,7 @@ msgid "بوابة Mouss Tec"
 msgstr "Mouss Tec Portal"
 
 #: inventory/templates/inventory/_base_portal.html:38
+#: inventory/templates/inventory/hr_workspace.html:35
 #: inventory/templates/inventory/quick_expense.html:12
 msgid "الرئيسية"
 msgstr "Home"
@@ -6186,6 +6205,94 @@ msgstr "Change password"
 msgid "خروج"
 msgstr "Logout"
 
+#: inventory/templates/inventory/commission_dashboard.html:3
+#: inventory/templates/inventory/commission_dashboard.html:145
+msgid "صرف العمولات"
+msgstr "Pay commissions"
+
+#: inventory/templates/inventory/commission_dashboard.html:12
+msgid "صرف العمولات المستحقة"
+msgstr "Pay outstanding commissions"
+
+#: inventory/templates/inventory/commission_dashboard.html:15
+msgid ""
+"اختر الموظفين والخزنة، ودوس \"صرف العمولات\" — كل عملية بتتسجل في الحركات "
+"المالية."
+msgstr "Select employees and a treasury, then click «Pay commissions» — every transaction is recorded in the financial ledger."
+
+#: inventory/templates/inventory/commission_dashboard.html:19
+msgid "رجوع للوحة التحكم"
+msgstr "Back to dashboard"
+
+#: inventory/templates/inventory/commission_dashboard.html:49
+msgid "إجمالي العمولات المستحقة (ج.م)"
+msgstr "Total outstanding commissions (EGP)"
+
+#: inventory/templates/inventory/commission_dashboard.html:59
+msgid "خزائن متاحة للصرف"
+msgstr "Treasuries available for payout"
+
+#: inventory/templates/inventory/commission_dashboard.html:69
+msgid "كل عملية صرف مربوطة بحركة مالية في الخزنة وموظف معرّف — للـ audit trail."
+msgstr "Every payout is tied to a treasury transaction and a defined employee — for the audit trail."
+
+#: inventory/templates/inventory/commission_dashboard.html:83
+msgid "صرف من خزنة"
+msgstr "Pay from treasury"
+
+#: inventory/templates/inventory/commission_dashboard.html:87
+#: inventory/templates/inventory/quick_expense.html:25
+msgid "— اختر الخزنة —"
+msgstr "— Choose treasury —"
+
+#: inventory/templates/inventory/commission_dashboard.html:91
+#: printing/models.py:29
+msgid "فرع"
+msgstr "Branch"
+
+#: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/quick_expense.html:26
+msgid "رصيد"
+msgstr "Balance"
+
+#: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/job_card_create.html:120
+msgid "ج.م"
+msgstr "EGP"
+
+#: inventory/templates/inventory/commission_dashboard.html:110
+msgid "المستحق (ج.م)"
+msgstr "Due (EGP)"
+
+#: inventory/templates/inventory/commission_dashboard.html:131
+msgid "المحدد"
+msgstr "Selected"
+
+#: inventory/templates/inventory/commission_dashboard.html:154
+msgid "مفيش عمولات مستحقة دلوقتي"
+msgstr "No outstanding commissions right now"
+
+#: inventory/templates/inventory/commission_dashboard.html:155
+msgid ""
+"كل الموظفين رصيد عمولتهم = 0. لما تتراكم عمولات على فاتورة بيع، هتبان هنا."
+msgstr "All employees have a 0 commission balance. When commissions accrue on a sales invoice, they'll appear here."
+
+#: inventory/templates/inventory/commission_dashboard.html:180
+msgid "اختر الخزنة أولاً."
+msgstr "Choose the treasury first."
+
+#: inventory/templates/inventory/commission_dashboard.html:181
+msgid "اختر موظف واحد على الأقل."
+msgstr "Choose at least one employee."
+
+#: inventory/templates/inventory/commission_dashboard.html:182
+msgid "متأكد إنك تصرف عمولات"
+msgstr "Are you sure you want to pay commissions for"
+
+#: inventory/templates/inventory/commission_dashboard.html:182
+msgid "موظف؟ العملية مش هتقدر تـ undo."
+msgstr "employees? This action cannot be undone."
+
 #: inventory/templates/inventory/company_branches.html:4
 msgid "لوحة الشركة — كل الفروع"
 msgstr "Company Dashboard — All Branches"
@@ -6216,8 +6323,9 @@ msgid "إجمالي الخزائن"
 msgstr "Total treasuries"
 
 #: inventory/templates/inventory/company_branches.html:33
+#: inventory/templates/inventory/tech_workspace.html:286
 msgid "الحضور"
-msgstr "Attendance"
+msgstr "check-in"
 
 #: inventory/templates/inventory/company_branches.html:46
 msgid "صافي الربح"
@@ -6383,8 +6491,10 @@ msgid "أمر شغل جديد"
 msgstr "New job card"
 
 #: inventory/templates/inventory/dashboard.html:307
+#: inventory/templates/inventory/tech_workspace.html:3
+#: inventory/templates/inventory/tech_workspace.html:25
 msgid "ورشة الفنيين"
-msgstr "Technicians workshop"
+msgstr "Tech Workspace"
 
 #: inventory/templates/inventory/dashboard.html:316
 msgid "تشخيص الأعطال"
@@ -6469,6 +6579,90 @@ msgstr "Chrome: tap the three dots (⋮) at the top of the browser, then choose 
 msgid "Safari (iPhone): اضغط على زر المشاركة ثم «اضافة الى الشاشة الرئيسية»"
 msgstr "Safari (iPhone): tap the Share button, then «Add to Home Screen»"
 
+#: inventory/templates/inventory/hr_workspace.html:4
+msgid "الحضور والانصراف"
+msgstr "Attendance"
+
+#: inventory/templates/inventory/hr_workspace.html:28
+msgid "لوحة الموارد البشرية"
+msgstr "HR Dashboard"
+
+#: inventory/templates/inventory/hr_workspace.html:31
+msgid "الحضور والانصراف المُسجّل بالـ GPS — للمراجعة وكشف رواتب الفترة."
+msgstr "GPS-logged attendance — for review and period payroll."
+
+#: inventory/templates/inventory/hr_workspace.html:42
+msgid "إجمالي الموظفين"
+msgstr "Total employees"
+
+#: inventory/templates/inventory/hr_workspace.html:47
+msgid "داخل العمل الآن"
+msgstr "Currently at work"
+
+#: inventory/templates/inventory/hr_workspace.html:52
+msgid "تسجيلات حضور اليوم"
+msgstr "Today's check-ins"
+
+#: inventory/templates/inventory/hr_workspace.html:56
+msgid "تسجيلات انصراف اليوم"
+msgstr "Today's check-outs"
+
+#: inventory/templates/inventory/hr_workspace.html:72
+msgid "— كل الحركات —"
+msgstr "— All movements —"
+
+#: inventory/templates/inventory/hr_workspace.html:80
+msgid "— الكل —"
+msgstr "— All —"
+
+#: inventory/templates/inventory/hr_workspace.html:90
+msgid "تصفية"
+msgstr "Filter"
+
+#: inventory/templates/inventory/hr_workspace.html:93
+msgid "مسح"
+msgstr "Clear"
+
+#: inventory/templates/inventory/hr_workspace.html:103
+msgid "سجل"
+msgstr "Log"
+
+#: inventory/templates/inventory/hr_workspace.html:105
+msgid "حركة"
+msgstr "movements"
+
+#: inventory/templates/inventory/hr_workspace.html:116
+msgid "الوقت"
+msgstr "Time"
+
+#: inventory/templates/inventory/hr_workspace.html:117
+msgid "إحداثيات GPS"
+msgstr "GPS coordinates"
+
+#: inventory/templates/inventory/hr_workspace.html:118
+msgid "الدقة (م)"
+msgstr "Accuracy (m)"
+
+#: inventory/templates/inventory/hr_workspace.html:119
+msgid "الخريطة"
+msgstr "Map"
+
+#: inventory/templates/inventory/hr_workspace.html:151
+msgid "م"
+msgstr "m"
+
+#: inventory/templates/inventory/hr_workspace.html:158
+msgid "فتح الموقع"
+msgstr "Open location"
+
+#: inventory/templates/inventory/hr_workspace.html:166
+msgid "لا توجد حركات حضور في هذا التاريخ بالتصفية الحالية."
+msgstr "No attendance records for this date with the current filter."
+
+#: inventory/templates/inventory/hr_workspace.html:177
+msgid "عرض أول 300 حركة فقط — استخدم التصفية لتضييق النطاق."
+msgstr "Showing first 300 movements only — use filters to narrow the range."
+
 #: inventory/templates/inventory/job_card_create.html:45
 msgid "فاتورة قطع غيار فقط"
 msgstr "Parts-only invoice"
@@ -6527,10 +6721,6 @@ msgstr "Labor / Services"
 #: inventory/templates/inventory/job_card_create.html:119
 msgid "— اختر خدمة من الكتالوج —"
 msgstr "— Choose a service from the catalog —"
-
-#: inventory/templates/inventory/job_card_create.html:120
-msgid "ج.م"
-msgstr "EGP"
 
 #: inventory/templates/inventory/job_card_create.html:126
 msgid "الخدمة"
@@ -6837,14 +7027,6 @@ msgstr "Quick expense recording"
 msgid "الخزنة (يُخصم منها)"
 msgstr "Treasury (deducted from)"
 
-#: inventory/templates/inventory/quick_expense.html:25
-msgid "— اختر الخزنة —"
-msgstr "— Choose treasury —"
-
-#: inventory/templates/inventory/quick_expense.html:26
-msgid "رصيد"
-msgstr "Balance"
-
 #: inventory/templates/inventory/quick_expense.html:31
 msgid "البند / التصنيف"
 msgstr "Item / Category"
@@ -6988,9 +7170,137 @@ msgstr "No matching invoices."
 msgid "أنشئ أمر شغل جديد ←"
 msgstr "Create a new job card ←"
 
-#: printing/models.py:29
-msgid "فرع"
-msgstr ""
+#: inventory/templates/inventory/tech_workspace.html:28
+msgid "أهلاً"
+msgstr "Welcome"
+
+#: inventory/templates/inventory/tech_workspace.html:38
+msgid "آخر تسجيل"
+msgstr "Last record"
+
+#: inventory/templates/inventory/tech_workspace.html:42
+msgid "لم يتم تسجيل حضور اليوم"
+msgstr "No attendance recorded today"
+
+#: inventory/templates/inventory/tech_workspace.html:47
+msgid "تسجيل حضور"
+msgstr "Check in"
+
+#: inventory/templates/inventory/tech_workspace.html:63
+msgid "اكتمل اليوم"
+msgstr "Completed today"
+
+#: inventory/templates/inventory/tech_workspace.html:67
+msgid "بطاقات نشطة بالفرع"
+msgstr "Active cards in branch"
+
+#: inventory/templates/inventory/tech_workspace.html:71
+msgid "العمولات المُحتسبة"
+msgstr "Accrued commissions"
+
+#: inventory/templates/inventory/tech_workspace.html:81
+msgid "المهام الجارية"
+msgstr "Ongoing tasks"
+
+#: inventory/templates/inventory/tech_workspace.html:102
+msgid "قطع إضافية"
+msgstr "Extra parts"
+
+#: inventory/templates/inventory/tech_workspace.html:107
+msgid "المدة"
+msgstr "Duration"
+
+#: inventory/templates/inventory/tech_workspace.html:123
+msgid "إيقاف مؤقت"
+msgstr "Pause"
+
+#: inventory/templates/inventory/tech_workspace.html:127
+msgid "استئناف"
+msgstr "Resume"
+
+#: inventory/templates/inventory/tech_workspace.html:131
+msgid "إنهاء"
+msgstr "Finish"
+
+#: inventory/templates/inventory/tech_workspace.html:134
+msgid "إلغاء طلب"
+msgstr "Cancel request"
+
+#: inventory/templates/inventory/tech_workspace.html:134
+msgid "طلب قطع إضافية"
+msgstr "Request extra parts"
+
+#: inventory/templates/inventory/tech_workspace.html:137
+msgid "صورة قبل"
+msgstr "Before photo"
+
+#: inventory/templates/inventory/tech_workspace.html:141
+msgid "صورة بعد"
+msgstr "After photo"
+
+#: inventory/templates/inventory/tech_workspace.html:149
+msgid "لا توجد مهام جارية. اختر بطاقة من القائمة لبدء العمل."
+msgstr "No ongoing tasks. Pick a card from the list to start working."
+
+#: inventory/templates/inventory/tech_workspace.html:157
+msgid "بطاقات نشطة"
+msgstr "Active cards"
+
+#: inventory/templates/inventory/tech_workspace.html:175
+msgid "بدء مهمة جديدة"
+msgstr "Start new task"
+
+#: inventory/templates/inventory/tech_workspace.html:179
+msgid "لا توجد بطاقات نشطة."
+msgstr "No active cards."
+
+#: inventory/templates/inventory/tech_workspace.html:220
+msgid "ما هي المهمة؟ (مثال: تغيير ووتر بومب)"
+msgstr "What is the task? (e.g. replace water pump)"
+
+#: inventory/templates/inventory/tech_workspace.html:226
+msgid "فشل بدء المهمة"
+msgstr "Failed to start the task"
+
+#: inventory/templates/inventory/tech_workspace.html:243
+msgid "ملاحظات ختامية (اختياري):"
+msgstr "Closing notes (optional):"
+
+#: inventory/templates/inventory/tech_workspace.html:251
+msgid "وصف القطع المطلوبة:"
+msgstr "Describe the required parts:"
+
+#: inventory/templates/inventory/tech_workspace.html:268
+msgid "تم رفع الصورة"
+msgstr "Image uploaded"
+
+#: inventory/templates/inventory/tech_workspace.html:269
+msgid "فشل الرفع"
+msgstr "Upload failed"
+
+#: inventory/templates/inventory/tech_workspace.html:276
+msgid "المتصفح لا يدعم GPS"
+msgstr "Your browser does not support GPS"
+
+#: inventory/templates/inventory/tech_workspace.html:286
+msgid "تم تسجيل"
+msgstr "Recorded"
+
+#: inventory/templates/inventory/tech_workspace.html:286
+msgid "الانصراف"
+msgstr "check-out"
+
+#: inventory/templates/inventory/tech_workspace.html:286
+msgid "الساعة"
+msgstr "at"
+
+#: inventory/templates/inventory/tech_workspace.html:289
+msgid "فشل التسجيل"
+msgstr "Registration failed"
+
+#: inventory/templates/inventory/tech_workspace.html:292
+msgid "تعذر الحصول على الموقع"
+msgstr "Could not get location"
 
 #: printing/models.py:41
 msgid "واتساب"
