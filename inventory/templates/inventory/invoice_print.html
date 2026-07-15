@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>فاتورة صيانة #{{ invoice.id }}</title>
+    <title>{% trans "فاتورة صيانة" %} #{{ invoice.id }}</title>
     <style>
         /* ================= ألوان وخطوط الهوية ================= */
         :root {
@@ -165,58 +165,58 @@
 
     <div class="invoice-box">
         {% if invoice.status == 'draft' or invoice.status == 'quotation' %}
-        <div class="watermark">مسودة غير نهائية</div>
+        <div class="watermark">{% trans "مسودة غير نهائية" %}</div>
         {% endif %}
 
         <div class="header">
             <div class="logo-section">
-                <h1>{{ invoice.branch.name|default:"مركز الصيانة الفني" }}</h1>
-                <p>المركز المعتمد لخدمات السيارات المتقدمة</p>
-                <p>تليفون: {{ invoice.branch.phone|default:"غير مدرج" }}</p>
+                <h1>{% if invoice.branch.name %}{{ invoice.branch.name }}{% else %}{% trans "مركز الصيانة الفني" %}{% endif %}</h1>
+                <p>{% trans "المركز المعتمد لخدمات السيارات المتقدمة" %}</p>
+                <p>{% trans "تليفون" %}: {% if invoice.branch.phone %}{{ invoice.branch.phone }}{% else %}{% trans "غير مدرج" %}{% endif %}</p>
                 <div class="barcode-box">*INV-{{ invoice.id }}*</div>
             </div>
             <div class="invoice-details">
-                <h2>وثيقة {{ invoice.get_invoice_type_display }}</h2>
+                <h2>{% trans "وثيقة" %} {{ invoice.get_invoice_type_display }}</h2>
                 <span class="invoice-badge {% if invoice.status == 'posted' %}badge-posted{% else %}badge-draft{% endif %}">
-                    {% if invoice.status == 'posted' %}🔒 معتمدة ونهائية{% else %}📝 مسودة (تحت المراجعة){% endif %}
+                    {% if invoice.status == 'posted' %}🔒 {% trans "معتمدة ونهائية" %}{% else %}📝 {% trans "مسودة (تحت المراجعة)" %}{% endif %}
                 </span>
-                <p style="margin: 5px 0 0;"><strong>الرقم المرجعي:</strong> #{{ invoice.id }}</p>
-                <p style="margin: 0;"><strong>التاريخ:</strong> {{ invoice.date_created|date:"Y-m-d h:i A" }}</p>
-                <p style="margin: 0;"><strong>توجيه الإدارة:</strong> {{ request.user.get_full_name|default:request.user.username|default:"آلي" }}</p>
+                <p style="margin: 5px 0 0;"><strong>{% trans "الرقم المرجعي" %}:</strong> #{{ invoice.id }}</p>
+                <p style="margin: 0;"><strong>{% trans "التاريخ" %}:</strong> {{ invoice.date_created|date:"Y-m-d h:i A" }}</p>
+                <p style="margin: 0;"><strong>{% trans "توجيه الإدارة" %}:</strong> {% if request.user.get_full_name %}{{ request.user.get_full_name }}{% elif request.user.username %}{{ request.user.username }}{% else %}{% trans "آلي" %}{% endif %}</p>
             </div>
         </div>
 
         <div class="info-grid">
             <div class="info-card">
-                <h4>👤 بيانات العميل</h4>
-                <div class="info-row"><span>الاسم:</span> <span>{{ invoice.customer.name }}</span></div>
-                <div class="info-row"><span>رقم الهاتف:</span> <span style="direction: ltr;">{{ invoice.customer.phone }}</span></div>
-                <div class="info-row"><span>الرقم الضريبي:</span> <span>{{ invoice.customer.tax_id|default:"غير مسجل" }}</span></div>
+                <h4>👤 {% trans "بيانات العميل" %}</h4>
+                <div class="info-row"><span>{% trans "الاسم" %}:</span> <span>{{ invoice.customer.name }}</span></div>
+                <div class="info-row"><span>{% trans "رقم الهاتف" %}:</span> <span style="direction: ltr;">{{ invoice.customer.phone }}</span></div>
+                <div class="info-row"><span>{% trans "الرقم الضريبي" %}:</span> <span>{% if invoice.customer.tax_id %}{{ invoice.customer.tax_id }}{% else %}{% trans "غير مسجل" %}{% endif %}</span></div>
             </div>
             
             {% if invoice.vehicle %}
             <div class="info-card">
-                <h4>🚘 بيانات المركبة</h4>
-                <div class="info-row"><span>الشاسيه (VIN):</span> <span style="font-family: monospace; font-size: 12px;">{{ invoice.vehicle.chassis_number }}</span></div>
-                <div class="info-row"><span>رقم اللوحة:</span> <span>{{ invoice.vehicle.car_plate|default:"-" }}</span></div>
-                <div class="info-row"><span>الموديل:</span> <span>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name|default:"" }}</span></div>
-                <div class="info-row"><span>قراءة العداد:</span> <span>{{ invoice.mileage|default:"غير مسجل" }} كم</span></div>
+                <h4>🚘 {% trans "بيانات المركبة" %}</h4>
+                <div class="info-row"><span>{% trans "الشاسيه (VIN)" %}:</span> <span style="font-family: monospace; font-size: 12px;">{{ invoice.vehicle.chassis_number }}</span></div>
+                <div class="info-row"><span>{% trans "رقم اللوحة" %}:</span> <span>{{ invoice.vehicle.car_plate|default:"-" }}</span></div>
+                <div class="info-row"><span>{% trans "الموديل" %}:</span> <span>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name|default:"" }}</span></div>
+                <div class="info-row"><span>{% trans "قراءة العداد" %}:</span> <span>{% if invoice.mileage %}{{ invoice.mileage }}{% else %}{% trans "غير مسجل" %}{% endif %} {% trans "كم" %}</span></div>
             </div>
             {% endif %}
         </div>
 
-        <h3 class="section-title">📦 منصرف قطع الغيار والمكونات</h3>
+        <h3 class="section-title">📦 {% trans "منصرف قطع الغيار والمكونات" %}</h3>
         <table>
             <thead>
                 <tr>
                     <th width="5%">#</th>
-                    <th width="15%">رقم القطعة (P/N)</th>
-                    <th width="30%">البيان</th>
-                    <th width="10%" class="td-center">الحالة</th>
-                    <th width="12%" class="td-center">تاريخ الضمان</th>
-                    <th width="8%" class="td-center">الكمية</th>
-                    <th width="10%">السعر</th>
-                    <th width="10%">الإجمالي</th>
+                    <th width="15%">{% trans "رقم القطعة (P/N)" %}</th>
+                    <th width="30%">{% trans "البيان" %}</th>
+                    <th width="10%" class="td-center">{% trans "الحالة" %}</th>
+                    <th width="12%" class="td-center">{% trans "تاريخ الضمان" %}</th>
+                    <th width="8%" class="td-center">{% trans "الكمية" %}</th>
+                    <th width="10%">{% trans "السعر" %}</th>
+                    <th width="10%">{% trans "الإجمالي" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -227,35 +227,35 @@
                     <td>{{ item.product.name }}</td>
                     <td class="td-center">
                         {% if item.product.condition == 'used' %}
-                            <span class="part-badge badge-scrap">استيراد/تقطيع</span>
+                            <span class="part-badge badge-scrap">{% trans "استيراد/تقطيع" %}</span>
                         {% else %}
-                            <span class="part-badge badge-new">جديد</span>
+                            <span class="part-badge badge-new">{% trans "جديد" %}</span>
                         {% endif %}
                     </td>
                     <td class="td-center">
-                        {{ item.warranty_end_date|date:"Y-m-d"|default:"لا يوجد ضمان" }}
+                        {% if item.warranty_end_date %}{{ item.warranty_end_date|date:"Y-m-d" }}{% else %}{% trans "لا يوجد ضمان" %}{% endif %}
                     </td>
                     <td class="td-center">{{ item.quantity }}</td>
-                    <td>{{ item.unit_price }} ج.م</td>
-                    <td><strong>{{ item.total_price }} ج.م</strong></td>
+                    <td>{{ item.unit_price }} {% trans "ج.م" %}</td>
+                    <td><strong>{{ item.total_price }} {% trans "ج.م" %}</strong></td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="td-center" style="padding: 15px; color: #64748b;">لا توجد قطع غيار منصرفة في هذه الفاتورة.</td>
+                    <td colspan="8" class="td-center" style="padding: 15px; color: #64748b;">{% trans "لا توجد قطع غيار منصرفة في هذه الفاتورة." %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
         {% if invoice.service_items.exists %}
-        <h3 class="section-title">🛠️ أجور اليد والخدمات الفنية</h3>
+        <h3 class="section-title">🛠️ {% trans "أجور اليد والخدمات الفنية" %}</h3>
         <table>
             <thead>
                 <tr>
                     <th width="5%">#</th>
-                    <th width="65%">وصف الخدمة / الصيانة المنفذة</th>
-                    <th width="15%" class="td-center">الفني المختص</th>
-                    <th width="15%">القيمة (ج.م)</th>
+                    <th width="65%">{% trans "وصف الخدمة / الصيانة المنفذة" %}</th>
+                    <th width="15%" class="td-center">{% trans "الفني المختص" %}</th>
+                    <th width="15%">{% trans "القيمة (ج.م)" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -263,8 +263,8 @@
                 <tr>
                     <td class="td-center">{{ forloop.counter }}</td>
                     <td>{{ srv.service.name }}</td>
-                    <td class="td-center">{{ srv.technician.user.get_full_name|default:"فريق الصيانة" }}</td>
-                    <td><strong>{{ srv.price }} ج.م</strong></td>
+                    <td class="td-center">{% if srv.technician.user.get_full_name %}{{ srv.technician.user.get_full_name }}{% else %}{% trans "فريق الصيانة" %}{% endif %}</td>
+                    <td><strong>{{ srv.price }} {% trans "ج.م" %}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -273,19 +273,19 @@
 
         {% if invoice.ai_recommendations %}
         <div class="ai-predictive-box">
-            <strong style="color: #7e22ce;"><i class="fas fa-robot"></i> تحليل Mouss Tec Copilot للصيانة الوقائية:</strong> <br>
+            <strong style="color: #7e22ce;"><i class="fas fa-robot"></i> {% trans "تحليل Mouss Tec Copilot للصيانة الوقائية" %}:</strong> <br>
             {{ invoice.ai_recommendations }}
         </div>
         {% elif invoice.notes %}
         <div style="margin-bottom: 15px; padding: 12px; background-color: #fef3c7; border-right: 4px solid #f59e0b; border-radius: 4px; font-size: 12px; position:relative; z-index:1;">
-            <strong style="color: #b45309;">توصيات المهندس المختص / شكوى العميل:</strong> <br>
+            <strong style="color: #b45309;">{% trans "توصيات المهندس المختص / شكوى العميل" %}:</strong> <br>
             {{ invoice.notes|linebreaksbr }}
         </div>
         {% endif %}
 
         {% if invoice.inspection_report and invoice.inspection_report.attachment %}
         <div class="visual-proof">
-            <strong>✅ فحص Mouss Tec المرئي (AI Vision Assurance):</strong> تم إرفاق صور رقمية عالية الدقة تثبت حالة القطع التالفة المستخرجة من سيارتكم. (امسح رمز الجواز الرقمي أدناه لعرض التقرير الكامل).
+            <strong>✅ {% trans "فحص Mouss Tec المرئي (AI Vision Assurance)" %}:</strong> {% trans "تم إرفاق صور رقمية عالية الدقة تثبت حالة القطع التالفة المستخرجة من سيارتكم. (امسح رمز الجواز الرقمي أدناه لعرض التقرير الكامل)." %}
         </div>
         {% endif %}
 
@@ -295,73 +295,73 @@
                 <div class="qr-section">
                     {% if invoice.vehicle %}
                     <img src="{% url 'inventory:vehicle_qr' invoice.vehicle.chassis_number %}" alt="Vehicle QR">
-                    <p>جواز السفر الرقمي<br>(السجل التاريخي للسيارة)</p>
+                    <p>{% trans "جواز السفر الرقمي" %}<br>{% trans "(السجل التاريخي للسيارة)" %}</p>
                     {% else %}
-                    <div style="width:80px; height:80px; background:#e2e8f0; margin:auto; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px;">غير متاح</div>
+                    <div style="width:80px; height:80px; background:#e2e8f0; margin:auto; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:10px;">{% trans "غير متاح" %}</div>
                     {% endif %}
                 </div>
                 
                 {% if invoice.due_amount > 0 and invoice.payment_link_qr %}
                 <div class="qr-section qr-payment">
                     <img src="{{ invoice.payment_link_qr.url }}" alt="Pay Online QR">
-                    <p style="color: var(--success-color);">امسح للتحصيل الرقمي<br>(Visa / Apple Pay)</p>
+                    <p style="color: var(--success-color);">{% trans "امسح للتحصيل الرقمي" %}<br>(Visa / Apple Pay)</p>
                 </div>
                 {% endif %}
             </div>
 
             <div class="totals-box">
                 <div class="totals-row">
-                    <span>إجمالي قطع الغيار:</span>
-                    <span>{{ invoice.total_cost|default:"0.00" }} ج.م</span>
+                    <span>{% trans "إجمالي قطع الغيار" %}:</span>
+                    <span>{{ invoice.total_cost|default:"0.00" }} {% trans "ج.م" %}</span>
                 </div>
                 
                 <div class="totals-row">
-                    <span>صافي أرباح الخدمات والمصنعيات:</span>
-                    <span>{{ invoice.net_profit|default:"0.00" }} ج.م</span>
+                    <span>{% trans "صافي أرباح الخدمات والمصنعيات" %}:</span>
+                    <span>{{ invoice.net_profit|default:"0.00" }} {% trans "ج.م" %}</span>
                 </div>
                 
                 {% if invoice.discount > 0 %}
                 <div class="totals-row discount">
-                    <span>الخصم الممنوح:</span>
-                    <span>- {{ invoice.discount }} ج.م</span>
+                    <span>{% trans "الخصم الممنوح" %}:</span>
+                    <span>- {{ invoice.discount }} {% trans "ج.م" %}</span>
                 </div>
                 {% endif %}
 
                 {% if invoice.total_core_charge > 0 %}
                 <div class="totals-row core-charge">
-                    <span>تأمين التوالف (Core Charge)*:</span>
-                    <span>+ {{ invoice.total_core_charge }} ج.م</span>
+                    <span>{% trans "تأمين التوالف (Core Charge)" %}*:</span>
+                    <span>+ {{ invoice.total_core_charge }} {% trans "ج.م" %}</span>
                 </div>
                 {% endif %}
                 
                 {% if invoice.tax_percentage > 0 %}
                 <div class="totals-row">
-                    <span>ضريبة القيمة المضافة ({{ invoice.tax_percentage }}%):</span>
-                    <span>مشمولة الإجمالي</span>
+                    <span>{% trans "ضريبة القيمة المضافة" %} ({{ invoice.tax_percentage }}%):</span>
+                    <span>{% trans "مشمولة الإجمالي" %}</span>
                 </div>
                 {% endif %}
                 
                 <div class="totals-row grand-total">
-                    <span>الإجمالي النهائي المستحق:</span>
-                    <span>{{ invoice.total_amount }} ج.م</span>
+                    <span>{% trans "الإجمالي النهائي المستحق" %}:</span>
+                    <span>{{ invoice.total_amount }} {% trans "ج.م" %}</span>
                 </div>
 
                 <div class="totals-row" style="color: #16a34a; font-weight:bold;">
-                    <span>المبلغ المسدد (مقدم):</span>
-                    <span>{{ invoice.paid_amount }} ج.م</span>
+                    <span>{% trans "المبلغ المسدد (مقدم)" %}:</span>
+                    <span>{{ invoice.paid_amount }} {% trans "ج.م" %}</span>
                 </div>
 
                 {% if invoice.due_amount > 0 %}
                 <div class="totals-row due">
-                    <span>المديونية المتبقية:</span>
-                    <span>{{ invoice.due_amount }} ج.م</span>
+                    <span>{% trans "المديونية المتبقية" %}:</span>
+                    <span>{{ invoice.due_amount }} {% trans "ج.م" %}</span>
                 </div>
                 {% endif %}
 
                 {% if invoice.customer.loyalty_points %}
                 <div class="loyalty-banner">
-                    <span>🎁 رصيد النقاط التراكمي لسيارتكم:</span>
-                    <span style="font-size: 16px;">{{ invoice.customer.loyalty_points }} نقطة</span>
+                    <span>🎁 {% trans "رصيد النقاط التراكمي لسيارتكم" %}:</span>
+                    <span style="font-size: 16px;">{{ invoice.customer.loyalty_points }} {% trans "نقطة" %}</span>
                 </div>
                 {% endif %}
             </div>
@@ -369,20 +369,20 @@
 
         <div class="footer">
             <div style="width: 60%;">
-                <strong style="color: var(--primary-color);">الأحكام والشروط القانونية:</strong>
+                <strong style="color: var(--primary-color);">{% trans "الأحكام والشروط القانونية" %}:</strong>
                 <ul style="margin: 5px 0; padding-right: 20px;">
-                    <li>يسري الضمان المسجل أمام كل قطعة بناءً على فاتورة الشراء وتاريخها.</li>
-                    <li>* (تأمين التوالف): يتم استرداد هذا المبلغ بالكامل عبر المنصة فور تسليم القطعة التالفة القديمة.</li>
-                    <li>المؤسسة غير مسؤولة عن المتعلقات الشخصية المتروكة داخل المركبة.</li>
+                    <li>{% trans "يسري الضمان المسجل أمام كل قطعة بناءً على فاتورة الشراء وتاريخها." %}</li>
+                    <li>{% trans "* (تأمين التوالف): يتم استرداد هذا المبلغ بالكامل عبر المنصة فور تسليم القطعة التالفة القديمة." %}</li>
+                    <li>{% trans "المؤسسة غير مسؤولة عن المتعلقات الشخصية المتروكة داخل المركبة." %}</li>
                 </ul>
             </div>
             <div style="width: 35%; display: flex; justify-content: flex-end;">
                 <div class="signature-box">
                     {% if invoice.customer_signature %}
-                        <img src="{{ invoice.customer_signature.url }}" alt="توقيع العميل" style="max-height: 50px;">
-                        <span style="font-size: 10px; color: #10b981; margin-top: 5px;">موثق إلكترونياً ✅</span>
+                        <img src="{{ invoice.customer_signature.url }}" alt="{% trans 'توقيع العميل' %}" style="max-height: 50px;">
+                        <span style="font-size: 10px; color: #10b981; margin-top: 5px;">{% trans "موثق إلكترونياً" %} ✅</span>
                     {% else %}
-                        <span>توقيع العميل بالاستلام<br><small>(إلكتروني / يدوي)</small></span>
+                        <span>{% trans "توقيع العميل بالاستلام" %}<br><small>{% trans "(إلكتروني / يدوي)" %}</small></span>
                     {% endif %}
                 </div>
             </div>
@@ -393,8 +393,8 @@
         </div>
 
         <div class="action-buttons">
-            <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> طباعة الوثيقة الرسمية</button>
-            <a href="{% url 'admin:inventory_saleinvoice_changelist' %}" style="display: inline-block; margin-right: 15px; color: #64748b; text-decoration: none; font-weight: bold; font-family: 'Cairo', sans-serif;">العودة للوحة التحكم</a>
+            <button class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> {% trans "طباعة الوثيقة الرسمية" %}</button>
+            <a href="{% url 'admin:inventory_saleinvoice_changelist' %}" style="display: inline-block; margin-right: 15px; color: #64748b; text-decoration: none; font-weight: bold; font-family: 'Cairo', sans-serif;">{% trans "العودة للوحة التحكم" %}</a>
         </div>
     </div>
 

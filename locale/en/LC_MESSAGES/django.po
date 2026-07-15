@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:54+0300\n"
+"POT-Creation-Date: 2026-07-16 00:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -797,6 +797,7 @@ msgstr ""
 #: clients/models/design_store.py:684 inventory/models/catalog.py:151
 #: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
 #: inventory/models/invoices.py:148
+#: inventory/templates/inventory/invoice_print.html:217
 #: inventory/templates/inventory/job_card_create.html:109
 #: inventory/templates/inventory/job_card_review.html:341
 #: inventory/templates/inventory/job_card_review.html:458
@@ -1231,8 +1232,9 @@ msgid "التاجر"
 msgstr ""
 
 #: clients/models/marketplace_b2b.py:34
+#: inventory/templates/inventory/invoice_print.html:213
 msgid "رقم القطعة (P/N)"
-msgstr ""
+msgstr "Part number (P/N)"
 
 #: clients/models/marketplace_b2b.py:35 clients/models/marketplace_b2b.py:372
 #: clients/models/marketplace_b2b.py:723 inventory/models/catalog.py:24
@@ -1253,6 +1255,7 @@ msgstr "Brand"
 #: hr/models.py:933 inventory/models/catalog.py:27
 #: inventory/models/catalog.py:153 inventory/models/diagnostics.py:167
 #: inventory/models/invoices.py:36 inventory/models/operations.py:71
+#: inventory/templates/inventory/invoice_print.html:215
 #: inventory/templates/inventory/sale_invoice_list.html:51
 #: printing/models.py:259 printing/models.py:718
 msgid "الحالة"
@@ -1425,8 +1428,9 @@ msgstr "Amount"
 
 #: clients/models/marketplace_b2b.py:221 inventory/models/finance.py:64
 #: inventory/models/finance.py:119
+#: inventory/templates/inventory/invoice_print.html:214
 msgid "البيان"
-msgstr ""
+msgstr "Description"
 
 #: clients/models/marketplace_b2b.py:225
 msgid "حركة مالية (Escrow)"
@@ -1527,6 +1531,7 @@ msgstr ""
 
 #: clients/models/marketplace_b2b.py:378 clients/models/marketplace_b2b.py:714
 #: inventory/models/customers.py:92
+#: inventory/templates/inventory/invoice_print.html:202
 #: inventory/templates/inventory/job_card_create.html:90
 msgid "الموديل"
 msgstr "Model"
@@ -1962,8 +1967,9 @@ msgid "جواز سفر"
 msgstr ""
 
 #: clients/models/marketplace_c2c.py:185 inventory/models/catalog.py:22
+#: inventory/templates/inventory/invoice_print.html:232
 msgid "جديد"
-msgstr ""
+msgstr "New"
 
 #: clients/models/marketplace_c2c.py:186
 msgid "أساسي"
@@ -2483,8 +2489,9 @@ msgstr ""
 
 #: clients/models/tenancy.py:45 inventory/models/catalog.py:134
 #: inventory/models/customers.py:23
+#: inventory/templates/inventory/invoice_print.html:193
 msgid "رقم الهاتف"
-msgstr ""
+msgstr "Phone number"
 
 #: clients/models/tenancy.py:46
 msgid "البريد الإلكتروني للإدارة"
@@ -3414,7 +3421,8 @@ msgstr ""
 msgid "تفعيل هذا الخيار يعني أن تصميمات الموظف تُعتمد فوراً بدون مراجعة المدير."
 msgstr ""
 
-#: hr/admin.py:115 inventory/templates/inventory/product_list.html:42
+#: hr/admin.py:115 inventory/templates/inventory/invoice_print.html:192
+#: inventory/templates/inventory/product_list.html:42
 msgid "الاسم"
 msgstr "Name"
 
@@ -3806,6 +3814,7 @@ msgstr ""
 #: hr/models.py:378 inventory/models/finance.py:65
 #: inventory/models/invoices.py:33 inventory/models/invoices.py:80
 #: inventory/templates/inventory/hr_workspace.html:65
+#: inventory/templates/inventory/invoice_print.html:184
 #: inventory/templates/inventory/sale_invoice_list.html:47
 #: printing/models.py:185 printing/models.py:566
 msgid "التاريخ"
@@ -4443,8 +4452,9 @@ msgid "📦 إدارة المخزن والورشة (Mouss Tec Engine)"
 msgstr ""
 
 #: inventory/models/catalog.py:22
+#: inventory/templates/inventory/invoice_print.html:230
 msgid "استيراد/تقطيع"
-msgstr ""
+msgstr "Import / salvage"
 
 #: inventory/models/catalog.py:22
 msgid "تالف للتجديد"
@@ -4634,8 +4644,9 @@ msgid "اسم المورد / الشركة"
 msgstr ""
 
 #: inventory/models/catalog.py:135 inventory/models/customers.py:25
+#: inventory/templates/inventory/invoice_print.html:194
 msgid "الرقم الضريبي"
-msgstr ""
+msgstr "Tax number"
 
 #: inventory/models/catalog.py:136
 msgid "تفاصيل الشركة / العنوان"
@@ -4832,6 +4843,7 @@ msgid "رقم الشاسيه (VIN)"
 msgstr "Chassis number (VIN)"
 
 #: inventory/models/customers.py:90
+#: inventory/templates/inventory/invoice_print.html:201
 #: inventory/templates/inventory/job_card_create.html:87
 msgid "رقم اللوحة"
 msgstr "Plate number"
@@ -5626,6 +5638,7 @@ msgstr ""
 
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
+#: inventory/templates/inventory/invoice_print.html:219
 #: inventory/templates/inventory/job_card_create.html:174
 #: inventory/templates/inventory/job_card_review.html:941
 #: inventory/templates/inventory/lightning_pos.html:48
@@ -6258,6 +6271,7 @@ msgid "آخر صيانة"
 msgstr "Last service"
 
 #: inventory/templates/inventory/_nudge_card.html:34
+#: inventory/templates/inventory/invoice_print.html:203
 msgid "كم"
 msgstr "km"
 
@@ -6337,6 +6351,16 @@ msgid "رصيد"
 msgstr "Balance"
 
 #: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/invoice_print.html:239
+#: inventory/templates/inventory/invoice_print.html:240
+#: inventory/templates/inventory/invoice_print.html:267
+#: inventory/templates/inventory/invoice_print.html:315
+#: inventory/templates/inventory/invoice_print.html:320
+#: inventory/templates/inventory/invoice_print.html:326
+#: inventory/templates/inventory/invoice_print.html:333
+#: inventory/templates/inventory/invoice_print.html:346
+#: inventory/templates/inventory/invoice_print.html:351
+#: inventory/templates/inventory/invoice_print.html:357
 #: inventory/templates/inventory/job_card_create.html:120
 #: inventory/templates/inventory/job_card_review.html:566
 #: inventory/templates/inventory/job_card_review.html:643
@@ -6749,6 +6773,239 @@ msgstr "No attendance records for this date with the current filter."
 msgid "عرض أول 300 حركة فقط — استخدم التصفية لتضييق النطاق."
 msgstr "Showing first 300 movements only — use filters to narrow the range."
 
+#: inventory/templates/inventory/invoice_print.html:6
+msgid "فاتورة صيانة"
+msgstr "Maintenance invoice"
+
+#: inventory/templates/inventory/invoice_print.html:168
+msgid "مسودة غير نهائية"
+msgstr "Non-final draft"
+
+#: inventory/templates/inventory/invoice_print.html:173
+msgid "مركز الصيانة الفني"
+msgstr "Technical Service Center"
+
+#: inventory/templates/inventory/invoice_print.html:174
+msgid "المركز المعتمد لخدمات السيارات المتقدمة"
+msgstr "The certified center for advanced automotive services"
+
+#: inventory/templates/inventory/invoice_print.html:175
+msgid "تليفون"
+msgstr "Phone"
+
+#: inventory/templates/inventory/invoice_print.html:175
+msgid "غير مدرج"
+msgstr "Not listed"
+
+#: inventory/templates/inventory/invoice_print.html:179
+msgid "وثيقة"
+msgstr "Document"
+
+#: inventory/templates/inventory/invoice_print.html:181
+msgid "معتمدة ونهائية"
+msgstr "Approved and final"
+
+#: inventory/templates/inventory/invoice_print.html:181
+msgid "مسودة (تحت المراجعة)"
+msgstr "Draft (under review)"
+
+#: inventory/templates/inventory/invoice_print.html:183
+msgid "الرقم المرجعي"
+msgstr "Reference number"
+
+#: inventory/templates/inventory/invoice_print.html:185
+msgid "توجيه الإدارة"
+msgstr "Issued by"
+
+#: inventory/templates/inventory/invoice_print.html:185
+msgid "آلي"
+msgstr "Automatic"
+
+#: inventory/templates/inventory/invoice_print.html:191
+msgid "بيانات العميل"
+msgstr "Customer details"
+
+#: inventory/templates/inventory/invoice_print.html:194
+#: inventory/templates/inventory/invoice_print.html:203
+msgid "غير مسجل"
+msgstr "Not registered"
+
+#: inventory/templates/inventory/invoice_print.html:199
+msgid "بيانات المركبة"
+msgstr "Vehicle details"
+
+#: inventory/templates/inventory/invoice_print.html:200
+msgid "الشاسيه (VIN)"
+msgstr "Chassis (VIN)"
+
+#: inventory/templates/inventory/invoice_print.html:203
+msgid "قراءة العداد"
+msgstr "Odometer reading"
+
+#: inventory/templates/inventory/invoice_print.html:208
+msgid "منصرف قطع الغيار والمكونات"
+msgstr "Spare parts & components issued"
+
+#: inventory/templates/inventory/invoice_print.html:216
+msgid "تاريخ الضمان"
+msgstr "Warranty date"
+
+#: inventory/templates/inventory/invoice_print.html:218
+#: inventory/templates/inventory/job_card_create.html:109
+#: inventory/templates/inventory/job_card_create.html:126
+#: inventory/templates/inventory/job_card_review.html:507
+#: inventory/templates/inventory/lightning_pos.html:47
+msgid "السعر"
+msgstr "Price"
+
+#: inventory/templates/inventory/invoice_print.html:236
+msgid "لا يوجد ضمان"
+msgstr "No warranty"
+
+#: inventory/templates/inventory/invoice_print.html:244
+msgid "لا توجد قطع غيار منصرفة في هذه الفاتورة."
+msgstr "No spare parts issued on this invoice."
+
+#: inventory/templates/inventory/invoice_print.html:251
+msgid "أجور اليد والخدمات الفنية"
+msgstr "Labor & technical services"
+
+#: inventory/templates/inventory/invoice_print.html:256
+msgid "وصف الخدمة / الصيانة المنفذة"
+msgstr "Service / maintenance description"
+
+#: inventory/templates/inventory/invoice_print.html:257
+msgid "الفني المختص"
+msgstr "Assigned technician"
+
+#: inventory/templates/inventory/invoice_print.html:258
+msgid "القيمة (ج.م)"
+msgstr "Value (EGP)"
+
+#: inventory/templates/inventory/invoice_print.html:266
+msgid "فريق الصيانة"
+msgstr "Maintenance team"
+
+#: inventory/templates/inventory/invoice_print.html:276
+msgid "تحليل Mouss Tec Copilot للصيانة الوقائية"
+msgstr "Mouss Tec Copilot preventive-maintenance analysis"
+
+#: inventory/templates/inventory/invoice_print.html:281
+msgid "توصيات المهندس المختص / شكوى العميل"
+msgstr "Assigned engineer's recommendations / customer complaint"
+
+#: inventory/templates/inventory/invoice_print.html:288
+msgid "فحص Mouss Tec المرئي (AI Vision Assurance)"
+msgstr "Mouss Tec visual inspection (AI Vision Assurance)"
+
+#: inventory/templates/inventory/invoice_print.html:288
+msgid ""
+"تم إرفاق صور رقمية عالية الدقة تثبت حالة القطع التالفة المستخرجة من سيارتكم. "
+"(امسح رمز الجواز الرقمي أدناه لعرض التقرير الكامل)."
+msgstr "High-resolution digital photos have been attached proving the condition of the faulty parts removed from your car. (Scan the digital passport code below to view the full report)."
+
+#: inventory/templates/inventory/invoice_print.html:298
+msgid "جواز السفر الرقمي"
+msgstr "Digital passport"
+
+#: inventory/templates/inventory/invoice_print.html:298
+msgid "(السجل التاريخي للسيارة)"
+msgstr "(The car's service history)"
+
+#: inventory/templates/inventory/invoice_print.html:300
+msgid "غير متاح"
+msgstr "Not available"
+
+#: inventory/templates/inventory/invoice_print.html:307
+msgid "امسح للتحصيل الرقمي"
+msgstr "Scan for digital payment"
+
+#: inventory/templates/inventory/invoice_print.html:314
+msgid "إجمالي قطع الغيار"
+msgstr "Total spare parts"
+
+#: inventory/templates/inventory/invoice_print.html:319
+msgid "صافي أرباح الخدمات والمصنعيات"
+msgstr "Net profit of services & labor"
+
+#: inventory/templates/inventory/invoice_print.html:325
+msgid "الخصم الممنوح"
+msgstr "Discount granted"
+
+#: inventory/templates/inventory/invoice_print.html:332
+msgid "تأمين التوالف (Core Charge)"
+msgstr "Core charge deposit"
+
+#: inventory/templates/inventory/invoice_print.html:339
+msgid "ضريبة القيمة المضافة"
+msgstr "Value-added tax (VAT)"
+
+#: inventory/templates/inventory/invoice_print.html:340
+msgid "مشمولة الإجمالي"
+msgstr "Included in total"
+
+#: inventory/templates/inventory/invoice_print.html:345
+msgid "الإجمالي النهائي المستحق"
+msgstr "Final amount due"
+
+#: inventory/templates/inventory/invoice_print.html:350
+msgid "المبلغ المسدد (مقدم)"
+msgstr "Amount paid (advance)"
+
+#: inventory/templates/inventory/invoice_print.html:356
+msgid "المديونية المتبقية"
+msgstr "Remaining balance"
+
+#: inventory/templates/inventory/invoice_print.html:363
+msgid "رصيد النقاط التراكمي لسيارتكم"
+msgstr "Your car's accumulated points balance"
+
+#: inventory/templates/inventory/invoice_print.html:364
+msgid "نقطة"
+msgstr "points"
+
+#: inventory/templates/inventory/invoice_print.html:372
+msgid "الأحكام والشروط القانونية"
+msgstr "Legal terms & conditions"
+
+#: inventory/templates/inventory/invoice_print.html:374
+msgid "يسري الضمان المسجل أمام كل قطعة بناءً على فاتورة الشراء وتاريخها."
+msgstr "The warranty recorded next to each part applies based on the purchase invoice and its date."
+
+#: inventory/templates/inventory/invoice_print.html:375
+msgid ""
+"* (تأمين التوالف): يتم استرداد هذا المبلغ بالكامل عبر المنصة فور تسليم "
+"القطعة التالفة القديمة."
+msgstr "* (Core charge): this amount is fully refunded via the platform upon returning the old faulty part."
+
+#: inventory/templates/inventory/invoice_print.html:376
+msgid "المؤسسة غير مسؤولة عن المتعلقات الشخصية المتروكة داخل المركبة."
+msgstr "The establishment is not responsible for personal belongings left inside the vehicle."
+
+#: inventory/templates/inventory/invoice_print.html:382
+msgid "توقيع العميل"
+msgstr "Customer signature"
+
+#: inventory/templates/inventory/invoice_print.html:383
+msgid "موثق إلكترونياً"
+msgstr "Electronically verified"
+
+#: inventory/templates/inventory/invoice_print.html:385
+msgid "توقيع العميل بالاستلام"
+msgstr "Customer signature on receipt"
+
+#: inventory/templates/inventory/invoice_print.html:385
+msgid "(إلكتروني / يدوي)"
+msgstr "(Electronic / manual)"
+
+#: inventory/templates/inventory/invoice_print.html:396
+msgid "طباعة الوثيقة الرسمية"
+msgstr "Print official document"
+
+#: inventory/templates/inventory/invoice_print.html:397
+msgid "العودة للوحة التحكم"
+msgstr "Back to dashboard"
+
 #: inventory/templates/inventory/job_card_create.html:45
 msgid "فاتورة قطع غيار فقط"
 msgstr "Parts-only invoice"
@@ -6788,13 +7045,6 @@ msgstr "Optional — leave empty to sell without linking a vehicle."
 #: inventory/templates/inventory/job_card_create.html:103
 msgid "SKU أو باركود أو اسم..."
 msgstr "SKU, barcode, or name..."
-
-#: inventory/templates/inventory/job_card_create.html:109
-#: inventory/templates/inventory/job_card_create.html:126
-#: inventory/templates/inventory/job_card_review.html:507
-#: inventory/templates/inventory/lightning_pos.html:47
-msgid "السعر"
-msgstr "Price"
 
 #: inventory/templates/inventory/job_card_create.html:110
 #: inventory/templates/inventory/job_card_create.html:312
