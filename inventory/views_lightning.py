@@ -160,6 +160,7 @@ def product_quick_search(request):
             "price": float(p.retail_price or 0),
             "stock": stock,
             "other_stock": other_stock,
+            "image": p.image.url if p.image else None,
         })
     return _json_response_safe({"results": results})
 
@@ -374,6 +375,10 @@ def quick_product_create(request):
     if Product.objects.filter(part_number=sku).exists():
         return _json_response_safe({"error": f"رقم القطعة '{sku}' موجود مسبقاً."}, status=409)
 
+    image = request.FILES.get("image")
+    if image and image.size > 5 * 1024 * 1024:
+        return _json_response_safe({"error": "حجم الصورة يتجاوز 5 ميجابايت."}, status=400)
+
     try:
         with transaction.atomic():
             product = Product.objects.create(
@@ -386,6 +391,7 @@ def quick_product_create(request):
                 retail_price=retail,
                 average_cost=cost,
                 min_stock_level=int(request.POST.get("min_stock_level") or 2),
+                image=image,
             )
 
             if starting_qty > 0 and branch is not None:

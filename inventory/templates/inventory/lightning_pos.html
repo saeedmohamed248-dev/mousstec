@@ -115,10 +115,13 @@ async function doSearch(q) {
     const otherBadge = (p.stock <= 0 && (p.other_stock || 0) > 0)
       ? `<button onclick='event.stopPropagation(); showBranches(${p.id})' class="mt-1 text-xs text-amber-400 hover:text-amber-300 underline">متاح في فروع أخرى (${p.other_stock}) — أظهر</button>`
       : '';
+    const thumb = p.image
+      ? `<img src="${p.image}" alt="" loading="lazy" class="w-12 h-12 rounded-lg object-cover border border-slate-700 shrink-0">`
+      : `<span class="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 shrink-0 flex items-center justify-center text-slate-600"><i class="fas fa-image"></i></span>`;
     return `
     <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${JSON.stringify(p)})'>
-      <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p>${otherBadge}<div id="branches-${p.id}"></div></div>
-      <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
+      <div class="flex items-center gap-3 min-w-0">${thumb}<div class="min-w-0"><p class="font-bold text-white truncate">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p>${otherBadge}<div id="branches-${p.id}"></div></div></div>
+      <span class="text-emerald-400 font-bold shrink-0 ms-2">${p.price.toFixed(2)}</span>
     </div>`; }).join('') || '<p class="text-xs text-slate-500 text-center py-4">لا توجد نتائج</p>';
 }
 

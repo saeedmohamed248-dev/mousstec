@@ -36,6 +36,7 @@
     <table class="w-full text-sm">
       <thead class="bg-slate-900/60 text-slate-400 text-xs">
         <tr>
+          <th class="text-center py-3 px-3">صورة</th>
           <th class="text-right py-3 px-4">SKU</th>
           <th class="text-right py-3 px-4">الاسم</th>
           <th class="text-right py-3 px-4">الماركة / الموديل</th>
@@ -48,6 +49,13 @@
       <tbody>
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-2 px-3 text-center">
+            {% if row.product.image %}
+            <img src="{{ row.product.image.url }}" alt="{{ row.product.name }}" loading="lazy" class="w-11 h-11 rounded-lg object-cover border border-slate-700 inline-block">
+            {% else %}
+            <span class="w-11 h-11 rounded-lg bg-slate-900 border border-slate-700 inline-flex items-center justify-center text-slate-600"><i class="fas fa-image"></i></span>
+            {% endif %}
+          </td>
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
           <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
@@ -66,7 +74,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center py-12 text-slate-600">لا توجد قطع مطابقة. <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">أضف قطعة جديدة ←</a></td></tr>
+        <tr><td colspan="8" class="text-center py-12 text-slate-600">لا توجد قطع مطابقة. <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">أضف قطعة جديدة ←</a></td></tr>
         {% endfor %}
       </tbody>
     </table>

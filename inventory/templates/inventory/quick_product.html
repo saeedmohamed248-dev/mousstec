@@ -37,6 +37,17 @@
       <label class="block text-xs font-bold text-slate-300 mb-1">سعر البيع *</label>
       <input name="retail_price" type="number" step="0.01" min="0" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-bold text-slate-300 mb-1">صورة القطعة</label>
+      <div class="flex items-center gap-3">
+        <label class="flex-1 cursor-pointer bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 border-dashed hover:border-amber-400 text-slate-400 text-sm flex items-center gap-2">
+          <i class="fas fa-camera text-amber-400"></i>
+          <span id="img-name">اختر صورة (JPG/PNG · حتى 5 ميجا)</span>
+          <input name="image" type="file" accept="image/*" class="hidden" id="img-input">
+        </label>
+        <img id="img-preview" class="w-16 h-16 rounded-lg object-cover border border-slate-700 hidden" alt="معاينة">
+      </div>
+    </div>
   </div>
 
   <div class="bg-gradient-to-br from-emerald-900/30 to-amber-900/20 rounded-xl p-4 border border-emerald-500/30">
@@ -73,6 +84,21 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URL_CREATE = "{% url 'inventory:quick_product_create' %}";
+
+const imgInput = document.getElementById('img-input');
+const imgPreview = document.getElementById('img-preview');
+const imgName = document.getElementById('img-name');
+imgInput.addEventListener('change', () => {
+  const f = imgInput.files[0];
+  if (f) {
+    imgName.textContent = f.name;
+    imgPreview.src = URL.createObjectURL(f);
+    imgPreview.classList.remove('hidden');
+  } else {
+    imgName.textContent = 'اختر صورة (JPG/PNG · حتى 5 ميجا)';
+    imgPreview.classList.add('hidden');
+  }
+});
 document.getElementById('quick-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
@@ -87,6 +113,8 @@ document.getElementById('quick-form').addEventListener('submit', async (e) => {
     e.target.reset();
     e.target.querySelector('[name=brand]').value = 'BMW';
     e.target.querySelector('[name=min_stock_level]').value = '2';
+    imgPreview.classList.add('hidden');
+    imgName.textContent = 'اختر صورة (JPG/PNG · حتى 5 ميجا)';
     btn.disabled = false;
     e.target.querySelector('[name=part_number]').focus();
   } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = 'خطأ في الشبكة.'; btn.disabled = false; }
