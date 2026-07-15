@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>💚 الاحتفاظ بالعملاء — Retention CRM</title>
+<title>💚 {% trans "الاحتفاظ بالعملاء" %} — Retention CRM</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -278,20 +278,20 @@ body {
 <div class="shell">
 
     <div class="topbar">
-        <h1>💚 الاحتفاظ بالعملاء — Retention CRM</h1>
+        <h1>💚 {% trans "الاحتفاظ بالعملاء" %} — Retention CRM</h1>
 
         <div class="search-wrap">
             <i class="fa-solid fa-magnifying-glass icon"></i>
             <input type="text" id="searchInput" autocomplete="off"
-                   placeholder="ابحث بالاسم، الهاتف، اللوحة، أو VIN..."
-                   aria-label="بحث">
+                   placeholder="{% trans 'ابحث بالاسم، الهاتف، اللوحة، أو VIN...' %}"
+                   aria-label="{% trans 'بحث' %}">
             <div class="search-results" id="searchResults"></div>
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;">
-            <span class="meta">المسؤول: {{ reviewer_name }}</span>
+            <span class="meta">{% trans "المسؤول" %}: {{ reviewer_name }}</span>
             <button class="refresh-btn" id="btnRefresh">
-                <i class="fa-solid fa-rotate"></i> أعد حساب التذكيرات
+                <i class="fa-solid fa-rotate"></i> {% trans "أعد حساب التذكيرات" %}
             </button>
         </div>
     </div>
@@ -299,45 +299,45 @@ body {
     {# KPI strip #}
     <div class="kpi-strip">
         <div class="kpi actionable">
-            <div class="label">🚨 سيارات تحتاج تواصل الآن</div>
+            <div class="label">🚨 {% trans "سيارات تحتاج تواصل الآن" %}</div>
             <div class="value">{{ kpi_total_actionable }}</div>
-            <div class="sub">متأخرة + مستحقة</div>
+            <div class="sub">{% trans "متأخرة + مستحقة" %}</div>
         </div>
         <div class="kpi customers">
-            <div class="label">👥 عملاء متفرّدون مستحقون</div>
+            <div class="label">👥 {% trans "عملاء متفرّدون مستحقون" %}</div>
             <div class="value">{{ kpi_unique_customers }}</div>
-            <div class="sub">عميل واحد قد يملك أكثر من سيارة</div>
+            <div class="sub">{% trans "عميل واحد قد يملك أكثر من سيارة" %}</div>
         </div>
         <div class="kpi sent">
-            <div class="label">📤 تذكيرات أُرسلت اليوم</div>
+            <div class="label">📤 {% trans "تذكيرات أُرسلت اليوم" %}</div>
             <div class="value">{{ kpi_sent_today }}</div>
-            <div class="sub">عبر WhatsApp</div>
+            <div class="sub">{% trans "عبر WhatsApp" %}</div>
         </div>
     </div>
 
     {# Overdue band #}
     <div class="section">
         <div class="section-head overdue">
-            <h2>🔴 متأخر — تواصل عاجل</h2>
+            <h2>🔴 {% trans "متأخر — تواصل عاجل" %}</h2>
             <span class="count">{{ overdue_nudges|length }}</span>
         </div>
         {% for n in overdue_nudges %}
             {% include 'inventory/_nudge_card.html' with nudge=n urgency='overdue' %}
         {% empty %}
-            <div class="empty">لا يوجد عملاء متأخرون 🎉</div>
+            <div class="empty">{% trans "لا يوجد عملاء متأخرون" %} 🎉</div>
         {% endfor %}
     </div>
 
     {# Due band #}
     <div class="section">
         <div class="section-head due">
-            <h2>🟡 مستحق الآن — حدّد موعد</h2>
+            <h2>🟡 {% trans "مستحق الآن — حدّد موعد" %}</h2>
             <span class="count">{{ due_nudges|length }}</span>
         </div>
         {% for n in due_nudges %}
             {% include 'inventory/_nudge_card.html' with nudge=n urgency='due' %}
         {% empty %}
-            <div class="empty">لا توجد صيانات مستحقة في الـ 14 يوم القادمة.</div>
+            <div class="empty">{% trans "لا توجد صيانات مستحقة في الـ 14 يوم القادمة." %}</div>
         {% endfor %}
     </div>
 
@@ -345,8 +345,8 @@ body {
     {% if upcoming_nudges %}
     <div class="section">
         <div class="section-head upcoming">
-            <h2>🔵 قريباً — بقي ≤ 45 يوم</h2>
-            <span class="count">{{ upcoming_nudges|length }} (آخر 100)</span>
+            <h2>🔵 {% trans "قريباً — بقي ≤ 45 يوم" %}</h2>
+            <span class="count">{{ upcoming_nudges|length }} ({% trans "آخر 100" %})</span>
         </div>
         {% for n in upcoming_nudges %}
             {% include 'inventory/_nudge_card.html' with nudge=n urgency='upcoming' %}
@@ -359,17 +359,17 @@ body {
 {# ─ WhatsApp preview modal ─ #}
 <div id="waModal" class="modal-backdrop">
     <div class="modal">
-        <h3><i class="fa-brands fa-whatsapp"></i> معاينة الرسالة قبل الإرسال</h3>
+        <h3><i class="fa-brands fa-whatsapp"></i> {% trans "معاينة الرسالة قبل الإرسال" %}</h3>
         <div class="modal-meta">
-            إلى: <strong id="modalCustomer">—</strong>
+            {% trans "إلى" %}: <strong id="modalCustomer">—</strong>
             · <span id="modalVehicle">—</span>
         </div>
         <div class="preview-body" id="modalBody">—</div>
         <div class="modal-actions">
             <a id="modalSendLink" class="send" target="_blank" rel="noopener">
-                <i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل
+                <i class="fa-brands fa-whatsapp"></i> {% trans "افتح WhatsApp وأرسل" %}
             </a>
-            <button class="cancel" id="modalCancel">إلغاء</button>
+            <button class="cancel" id="modalCancel">{% trans "إلغاء" %}</button>
         </div>
     </div>
 </div>
@@ -404,8 +404,8 @@ body {
                 const data = await resp.json();
                 if (!resp.ok || !data.ok) {
                     showToast(data.error === 'no_customer_phone'
-                        ? 'لا يوجد رقم هاتف لهذا العميل'
-                        : (data.error || 'فشل التحضير'), 'error');
+                        ? '{% trans "لا يوجد رقم هاتف لهذا العميل" %}'
+                        : (data.error || '{% trans "فشل التحضير" %}'), 'error');
                     btn.disabled = false; btn.innerHTML = orig;
                     return;
                 }
@@ -419,9 +419,9 @@ body {
                 // Mark the card as "sent" in the UI now (server already stamped)
                 const card = btn.closest('.nudge-card');
                 card.classList.add('sent');
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> أُرسل';
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> {% trans "أُرسل" %}';
             } catch (err) {
-                showToast(`خطأ: ${err.message}`, 'error');
+                showToast(`{% trans "خطأ" %}: ${err.message}`, 'error');
                 btn.disabled = false; btn.innerHTML = orig;
             }
         });
@@ -437,7 +437,7 @@ body {
     // ── Dismiss ──
     document.querySelectorAll('.btn.dismiss[data-nudge-id]').forEach(btn => {
         btn.addEventListener('click', async () => {
-            if (!confirm('سيتم تجاهل هذا التذكير لهذه الدورة. متابعة؟')) return;
+            if (!confirm('{% trans "سيتم تجاهل هذا التذكير لهذه الدورة. متابعة؟" %}')) return;
             const nid = btn.dataset.nudgeId;
             try {
                 const resp = await fetch(`/system/crm/nudge/${nid}/dismiss/`, {
@@ -446,13 +446,13 @@ body {
                 });
                 const data = await resp.json();
                 if (!resp.ok || !data.ok) {
-                    showToast(data.error || 'فشل', 'error');
+                    showToast(data.error || '{% trans "فشل" %}', 'error');
                     return;
                 }
                 btn.closest('.nudge-card').style.display = 'none';
-                showToast('تم التجاهل');
+                showToast('{% trans "تم التجاهل" %}');
             } catch (err) {
-                showToast(`خطأ: ${err.message}`, 'error');
+                showToast(`{% trans "خطأ" %}: ${err.message}`, 'error');
             }
         });
     });
@@ -472,19 +472,19 @@ body {
     function renderResults(data) {
         if (!data.results || !data.results.length) {
             searchResults.innerHTML =
-                '<div class="empty-search">لا توجد نتائج مطابقة.</div>';
+                '<div class="empty-search">{% trans "لا توجد نتائج مطابقة." %}</div>';
             searchResults.classList.add('visible');
             return;
         }
         searchResults.innerHTML = data.results.map(r => `
             <a class="row" href="${escapeHtml(r.passport_url)}" target="_blank">
                 <div class="who">
-                    <span>${escapeHtml(r.customer_name) || '— بدون اسم —'}</span>
+                    <span>${escapeHtml(r.customer_name) || '{% trans "— بدون اسم —" %}'}</span>
                     <span class="phone">${escapeHtml(r.customer_phone) || '—'}</span>
                 </div>
                 <div class="veh">
                     ${escapeHtml(r.brand)} ${escapeHtml(r.model)}
-                    ${r.plate ? '· لوحة ' + escapeHtml(r.plate) : ''}
+                    ${r.plate ? '· {% trans "لوحة" %} ' + escapeHtml(r.plate) : ''}
                     <span class="vin">${escapeHtml(r.vin.slice(-8))}</span>
                 </div>
             </a>
@@ -509,7 +509,7 @@ body {
                 renderResults(data);
             } catch (err) {
                 searchResults.innerHTML =
-                    '<div class="empty-search">خطأ في الاتصال.</div>';
+                    '<div class="empty-search">{% trans "خطأ في الاتصال." %}</div>';
                 searchResults.classList.add('visible');
             }
         }, 240);
@@ -528,10 +528,10 @@ body {
     // ── On-demand bulk refresh ──
     const refreshBtn = document.getElementById('btnRefresh');
     refreshBtn.addEventListener('click', async () => {
-        if (!confirm('سيتم إعادة حساب كل التذكيرات للشركة. متابعة؟')) return;
+        if (!confirm('{% trans "سيتم إعادة حساب كل التذكيرات للشركة. متابعة؟" %}')) return;
         refreshBtn.disabled = true;
         const orig = refreshBtn.innerHTML;
-        refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحساب...';
+        refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> {% trans "جاري الحساب..." %}';
         try {
             const resp = await fetch('/system/crm/retention/refresh/', {
                 method: 'POST',
@@ -539,16 +539,16 @@ body {
             });
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
-                showToast(data.error || 'فشل التحديث', 'error');
+                showToast(data.error || '{% trans "فشل التحديث" %}', 'error');
                 refreshBtn.disabled = false; refreshBtn.innerHTML = orig;
                 return;
             }
             showToast(
-                `✓ تم فحص ${data.vehicles_scanned} مركبة (${data.vehicles_nudged} لها تذكيرات)`,
+                `✓ {% trans "تم فحص" %} ${data.vehicles_scanned} {% trans "مركبة" %} (${data.vehicles_nudged} {% trans "لها تذكيرات" %})`,
             );
             setTimeout(() => window.location.reload(), 1200);
         } catch (err) {
-            showToast(`خطأ: ${err.message}`, 'error');
+            showToast(`{% trans "خطأ" %}: ${err.message}`, 'error');
             refreshBtn.disabled = false; refreshBtn.innerHTML = orig;
         }
     });

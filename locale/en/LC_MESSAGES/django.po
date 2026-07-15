@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 23:30+0300\n"
+"POT-Creation-Date: 2026-07-15 23:41+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2233,9 +2233,13 @@ msgstr ""
 msgid "أحداث المنصة"
 msgstr ""
 
-#: clients/models/monitoring.py:99 smart_diagnostics/models.py:71
+#: clients/models/monitoring.py:99
+#: inventory/templates/inventory/retention_crm.html:424
+#: inventory/templates/inventory/retention_crm.html:455
+#: inventory/templates/inventory/retention_crm.html:551
+#: smart_diagnostics/models.py:71
 msgid "خطأ"
-msgstr ""
+msgstr "Error"
 
 #: clients/models/monitoring.py:100 diagnostics_catalog/models.py:21
 msgid "حرج"
@@ -2286,9 +2290,10 @@ msgid "تم الإرسال"
 msgstr ""
 
 #: clients/models/monitoring.py:158 inventory/models/operations.py:60
+#: inventory/templates/inventory/retention_crm.html:449
 #: smart_diagnostics/models.py:182
 msgid "فشل"
-msgstr ""
+msgstr "Failed"
 
 #: clients/models/monitoring.py:161 clients/models/support.py:104
 msgid "الموضوع"
@@ -4848,8 +4853,9 @@ msgid "الأعطال المتوقعة قريباً (AI)"
 msgstr ""
 
 #: inventory/models/customers.py:102
+#: inventory/templates/inventory/retention_crm.html:547
 msgid "مركبة"
-msgstr ""
+msgstr "vehicles"
 
 #: inventory/models/customers.py:103
 msgid "سجل المركبات"
@@ -5298,8 +5304,9 @@ msgid "تم إرسال تذكير"
 msgstr ""
 
 #: inventory/models/diagnostics.py:441
+#: inventory/templates/inventory/retention_crm.html:453
 msgid "تم التجاهل"
-msgstr ""
+msgstr "Dismissed"
 
 #: inventory/models/diagnostics.py:442
 msgid "تمت الصيانة"
@@ -6204,6 +6211,64 @@ msgstr "Change password"
 #: inventory/templates/inventory/_base_portal.html:62
 msgid "خروج"
 msgstr "Logout"
+
+#: inventory/templates/inventory/_nudge_card.html:7
+msgid "عميل بدون اسم"
+msgstr "Unnamed customer"
+
+#: inventory/templates/inventory/_nudge_card.html:11
+msgid "— لا يوجد رقم —"
+msgstr "— No number —"
+
+#: inventory/templates/inventory/_nudge_card.html:17
+#: inventory/templates/inventory/retention_crm.html:487
+msgid "لوحة"
+msgstr "plate"
+
+#: inventory/templates/inventory/_nudge_card.html:24
+msgid "أولوية عالية"
+msgstr "High priority"
+
+#: inventory/templates/inventory/_nudge_card.html:25
+msgid "أولوية متوسطة"
+msgstr "Medium priority"
+
+#: inventory/templates/inventory/_nudge_card.html:26
+msgid "أولوية منخفضة"
+msgstr "Low priority"
+
+#: inventory/templates/inventory/_nudge_card.html:32
+msgid "آخر صيانة"
+msgstr "Last service"
+
+#: inventory/templates/inventory/_nudge_card.html:34
+msgid "كم"
+msgstr "km"
+
+#: inventory/templates/inventory/_nudge_card.html:41
+#, python-format
+msgid "أُرسلت %(ago)s بواسطة"
+msgstr "Sent %(ago)s ago by"
+
+#: inventory/templates/inventory/_nudge_card.html:50
+msgid "افتح الجواز الصحي للمركبة"
+msgstr "Open vehicle health passport"
+
+#: inventory/templates/inventory/_nudge_card.html:51
+msgid "الجواز"
+msgstr "Passport"
+
+#: inventory/templates/inventory/_nudge_card.html:57
+msgid "أرسل تذكير"
+msgstr "Send reminder"
+
+#: inventory/templates/inventory/_nudge_card.html:60
+msgid "لا يوجد رقم هاتف"
+msgstr "No phone number"
+
+#: inventory/templates/inventory/_nudge_card.html:65
+msgid "تجاهل لهذه الدورة"
+msgstr "Dismiss for this cycle"
 
 #: inventory/templates/inventory/commission_dashboard.html:3
 #: inventory/templates/inventory/commission_dashboard.html:145
@@ -7128,6 +7193,139 @@ msgstr "Done! Part"
 #: inventory/templates/inventory/quick_product.html:113
 msgid "مخزون افتتاحي"
 msgstr "Opening stock"
+
+#: inventory/templates/inventory/retention_crm.html:6
+#: inventory/templates/inventory/retention_crm.html:281
+msgid "الاحتفاظ بالعملاء"
+msgstr "Customer Retention"
+
+#: inventory/templates/inventory/retention_crm.html:286
+msgid "ابحث بالاسم، الهاتف، اللوحة، أو VIN..."
+msgstr "Search by name, phone, plate, or VIN..."
+
+#: inventory/templates/inventory/retention_crm.html:287
+msgid "بحث"
+msgstr "Search"
+
+#: inventory/templates/inventory/retention_crm.html:292
+msgid "المسؤول"
+msgstr "In charge"
+
+#: inventory/templates/inventory/retention_crm.html:294
+msgid "أعد حساب التذكيرات"
+msgstr "Recalculate reminders"
+
+#: inventory/templates/inventory/retention_crm.html:302
+msgid "سيارات تحتاج تواصل الآن"
+msgstr "Cars needing contact now"
+
+#: inventory/templates/inventory/retention_crm.html:304
+msgid "متأخرة + مستحقة"
+msgstr "Overdue + due"
+
+#: inventory/templates/inventory/retention_crm.html:307
+msgid "عملاء متفرّدون مستحقون"
+msgstr "Unique customers due"
+
+#: inventory/templates/inventory/retention_crm.html:309
+msgid "عميل واحد قد يملك أكثر من سيارة"
+msgstr "One customer may own more than one car"
+
+#: inventory/templates/inventory/retention_crm.html:312
+msgid "تذكيرات أُرسلت اليوم"
+msgstr "Reminders sent today"
+
+#: inventory/templates/inventory/retention_crm.html:314
+msgid "عبر WhatsApp"
+msgstr "Via WhatsApp"
+
+#: inventory/templates/inventory/retention_crm.html:321
+msgid "متأخر — تواصل عاجل"
+msgstr "Overdue — urgent contact"
+
+#: inventory/templates/inventory/retention_crm.html:327
+msgid "لا يوجد عملاء متأخرون"
+msgstr "No overdue customers"
+
+#: inventory/templates/inventory/retention_crm.html:334
+msgid "مستحق الآن — حدّد موعد"
+msgstr "Due now — schedule appointment"
+
+#: inventory/templates/inventory/retention_crm.html:340
+msgid "لا توجد صيانات مستحقة في الـ 14 يوم القادمة."
+msgstr "No maintenance due in the next 14 days."
+
+#: inventory/templates/inventory/retention_crm.html:348
+msgid "قريباً — بقي ≤ 45 يوم"
+msgstr "Soon — ≤ 45 days left"
+
+#: inventory/templates/inventory/retention_crm.html:349
+msgid "آخر 100"
+msgstr "last 100"
+
+#: inventory/templates/inventory/retention_crm.html:362
+msgid "معاينة الرسالة قبل الإرسال"
+msgstr "Preview message before sending"
+
+#: inventory/templates/inventory/retention_crm.html:364
+msgid "إلى"
+msgstr "To"
+
+#: inventory/templates/inventory/retention_crm.html:370
+msgid "افتح WhatsApp وأرسل"
+msgstr "Open WhatsApp and send"
+
+#: inventory/templates/inventory/retention_crm.html:372
+msgid "إلغاء"
+msgstr "Cancel"
+
+#: inventory/templates/inventory/retention_crm.html:407
+msgid "لا يوجد رقم هاتف لهذا العميل"
+msgstr "No phone number for this customer"
+
+#: inventory/templates/inventory/retention_crm.html:408
+msgid "فشل التحضير"
+msgstr "Preparation failed"
+
+#: inventory/templates/inventory/retention_crm.html:422
+msgid "أُرسل"
+msgstr "Sent"
+
+#: inventory/templates/inventory/retention_crm.html:440
+msgid "سيتم تجاهل هذا التذكير لهذه الدورة. متابعة؟"
+msgstr "This reminder will be dismissed for this cycle. Continue?"
+
+#: inventory/templates/inventory/retention_crm.html:475
+msgid "لا توجد نتائج مطابقة."
+msgstr "No matching results."
+
+#: inventory/templates/inventory/retention_crm.html:482
+msgid "— بدون اسم —"
+msgstr "— No name —"
+
+#: inventory/templates/inventory/retention_crm.html:512
+msgid "خطأ في الاتصال."
+msgstr "Connection error."
+
+#: inventory/templates/inventory/retention_crm.html:531
+msgid "سيتم إعادة حساب كل التذكيرات للشركة. متابعة؟"
+msgstr "All reminders for the company will be recalculated. Continue?"
+
+#: inventory/templates/inventory/retention_crm.html:534
+msgid "جاري الحساب..."
+msgstr "Calculating..."
+
+#: inventory/templates/inventory/retention_crm.html:542
+msgid "فشل التحديث"
+msgstr "Update failed"
+
+#: inventory/templates/inventory/retention_crm.html:547
+msgid "تم فحص"
+msgstr "Scanned"
+
+#: inventory/templates/inventory/retention_crm.html:547
+msgid "لها تذكيرات"
+msgstr "have reminders"
 
 #: inventory/templates/inventory/sale_invoice_list.html:3
 #: inventory/templates/inventory/sale_invoice_list.html:9
