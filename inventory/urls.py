@@ -16,6 +16,7 @@ urlpatterns = [
     # 📊 1. واجهات المستخدم الرئيسية للفرع (Dashboards & Experiences)
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
+    path('company-branches/', views.company_branches_dashboard, name='company_branches_dashboard'),
 
     # 💸 Commission payout dashboard (DMS Backlog #5)
     path('commissions/', views.commission_dashboard, name='commission_dashboard'),

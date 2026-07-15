@@ -15,7 +15,7 @@ from decimal import Decimal
 from datetime import timedelta
 
 from django.db import connection
-from django.db.models import Sum, F, Q
+from django.db.models import Sum, F, Q, Count
 from django.utils import timezone
 
 logger = logging.getLogger('mouss_tec_core')
@@ -465,6 +465,115 @@ class ReportingService:
                 'branches': branches,
             })
         return results
+
+    # ------------------------------------------------------------------
+    # Company-wide, per-branch overview (لوحة الشركة — ملخص كل الفروع)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def company_overview():
+        """
+        One-glance company dashboard: a row per branch with today's sales,
+        expenses, treasury balance and staff attendance, plus a totals row.
+
+        Attendance rule: an employee is "present" if their LATEST attendance
+        event today is a check-in ('in'); anyone who never checked in (or whose
+        last event is 'out') counts as absent.
+
+        Returns: {'today', 'branches': [...], 'totals': {...}}
+        """
+        from inventory.models import (
+            Branch, SaleInvoice, FinancialTransaction, Treasury,
+            EmployeeProfile, AttendanceCheckIn,
+        )
+
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today = now.date()
+
+        def _by_branch(qs, branch_key, **aggs):
+            out = {}
+            for row in qs.values(branch_key).annotate(**aggs):
+                out[row[branch_key]] = row
+            return out
+
+        sales = _by_branch(
+            SaleInvoice.objects.filter(status='posted', date_created__gte=today_start),
+            'branch',
+            s=Sum('total_amount'), p=Sum('net_profit'), c=Count('id'),
+        )
+        expenses = _by_branch(
+            FinancialTransaction.objects.filter(
+                transaction_type='out', date__gte=today_start,
+            ),
+            'treasury__branch',
+            s=Sum('amount'),
+        )
+        treasuries = _by_branch(
+            Treasury.objects.filter(is_active=True),
+            'branch',
+            s=Sum('balance'),
+        )
+
+        # Staff roster per branch (only branch-assigned employees are attributable
+        # to a branch; unassigned/admin users are excluded from attendance rows).
+        roster = {}
+        emp_names = {}
+        for emp in EmployeeProfile.objects.filter(branch__isnull=False).select_related('user', 'branch'):
+            roster.setdefault(emp.branch_id, []).append(emp.pk)
+            emp_names[emp.pk] = (
+                (emp.user.get_full_name() or emp.user.username) if emp.user_id else f'#{emp.pk}'
+            )
+
+        # Latest attendance event today per employee (asc order → last wins).
+        last_event = {}
+        for ci in (AttendanceCheckIn.objects
+                   .filter(occurred_at__gte=today_start)
+                   .order_by('occurred_at')
+                   .values('employee_id', 'event_type')):
+            last_event[ci['employee_id']] = ci['event_type']
+
+        branches_out = []
+        totals = {
+            'sales': Decimal('0'), 'invoices_count': 0, 'net_profit': Decimal('0'),
+            'expenses': Decimal('0'), 'treasury_balance': Decimal('0'),
+            'employees_total': 0, 'present': 0, 'absent': 0,
+        }
+
+        for b in Branch.objects.all().order_by('name'):
+            emp_ids = roster.get(b.pk, [])
+            present_names, absent_names = [], []
+            for eid in emp_ids:
+                if last_event.get(eid) == 'in':
+                    present_names.append(emp_names.get(eid, f'#{eid}'))
+                else:
+                    absent_names.append(emp_names.get(eid, f'#{eid}'))
+
+            s = sales.get(b.pk, {})
+            row = {
+                'branch_id': b.pk,
+                'branch_name': b.name,
+                'sales': s.get('s') or Decimal('0'),
+                'invoices_count': s.get('c') or 0,
+                'net_profit': s.get('p') or Decimal('0'),
+                'expenses': (expenses.get(b.pk, {}) or {}).get('s') or Decimal('0'),
+                'treasury_balance': (treasuries.get(b.pk, {}) or {}).get('s') or Decimal('0'),
+                'employees_total': len(emp_ids),
+                'present': len(present_names),
+                'absent': len(absent_names),
+                'present_names': present_names,
+                'absent_names': absent_names,
+            }
+            branches_out.append(row)
+            totals['sales'] += row['sales']
+            totals['invoices_count'] += row['invoices_count']
+            totals['net_profit'] += row['net_profit']
+            totals['expenses'] += row['expenses']
+            totals['treasury_balance'] += row['treasury_balance']
+            totals['employees_total'] += row['employees_total']
+            totals['present'] += row['present']
+            totals['absent'] += row['absent']
+
+        return {'today': today, 'branches': branches_out, 'totals': totals}
 
     @staticmethod
     def _search_invoice(q, SaleInvoice):

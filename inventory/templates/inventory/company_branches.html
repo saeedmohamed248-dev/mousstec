@@ -1,0 +1,97 @@
+{% extends "inventory/_base_portal.html" %}
+{% load static %}
+
+{% block title %}لوحة الشركة — كل الفروع | {{ tenant.name|default:"Mouss Tec" }}{% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6 max-w-7xl mx-auto" dir="rtl">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-800">🏢 نظرة عامة على الفروع</h1>
+      <p class="text-sm text-slate-500 mt-1">ملخص اليوم — {{ today }}</p>
+    </div>
+    <a href="{% url 'inventory:dashboard' %}"
+       class="text-sm text-purple-600 hover:text-purple-800 font-bold">&larr; لوحتي</a>
+  </div>
+
+  <!-- Totals cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+      <p class="text-xs text-slate-500 mb-1">مبيعات اليوم</p>
+      <p class="text-xl font-extrabold text-emerald-600">{{ totals.sales|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+      <p class="text-xs text-slate-500 mb-1">مصروفات اليوم</p>
+      <p class="text-xl font-extrabold text-red-500">{{ totals.expenses|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+      <p class="text-xs text-slate-500 mb-1">إجمالي الخزائن</p>
+      <p class="text-xl font-extrabold text-slate-800">{{ totals.treasury_balance|floatformat:2 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+      <p class="text-xs text-slate-500 mb-1">الحضور</p>
+      <p class="text-xl font-extrabold text-blue-600">{{ totals.present }} / {{ totals.employees_total }}</p>
+    </div>
+  </div>
+
+  <!-- Per-branch table -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
+    <table class="w-full text-sm text-right">
+      <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+        <tr>
+          <th class="px-4 py-3 font-semibold">الفرع</th>
+          <th class="px-4 py-3 font-semibold">مبيعات</th>
+          <th class="px-4 py-3 font-semibold">فواتير</th>
+          <th class="px-4 py-3 font-semibold">صافي الربح</th>
+          <th class="px-4 py-3 font-semibold">مصروفات</th>
+          <th class="px-4 py-3 font-semibold">الخزينة</th>
+          <th class="px-4 py-3 font-semibold">حاضر</th>
+          <th class="px-4 py-3 font-semibold">غائب</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for b in branches %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3 font-bold text-slate-800">{{ b.branch_name }}</td>
+          <td class="px-4 py-3 text-emerald-600 font-semibold">{{ b.sales|floatformat:2 }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ b.invoices_count }}</td>
+          <td class="px-4 py-3 {% if b.net_profit >= 0 %}text-emerald-600{% else %}text-red-500{% endif %} font-semibold">{{ b.net_profit|floatformat:2 }}</td>
+          <td class="px-4 py-3 text-red-500 font-semibold">{{ b.expenses|floatformat:2 }}</td>
+          <td class="px-4 py-3 {% if b.treasury_balance < 0 %}text-red-500{% else %}text-slate-700{% endif %} font-semibold">{{ b.treasury_balance|floatformat:2 }}</td>
+          <td class="px-4 py-3">
+            <span class="text-blue-600 font-bold" title="{{ b.present_names|join:'، ' }}">{{ b.present }}</span>
+            <span class="text-slate-400 text-xs">/ {{ b.employees_total }}</span>
+          </td>
+          <td class="px-4 py-3">
+            {% if b.absent %}
+              <span class="text-amber-600 font-bold" title="{{ b.absent_names|join:'، ' }}">{{ b.absent }}</span>
+            {% else %}
+              <span class="text-slate-300">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">لا توجد فروع بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if branches %}
+      <tfoot class="bg-slate-50 font-extrabold text-slate-800">
+        <tr>
+          <td class="px-4 py-3">الإجمالي</td>
+          <td class="px-4 py-3 text-emerald-700">{{ totals.sales|floatformat:2 }}</td>
+          <td class="px-4 py-3">{{ totals.invoices_count }}</td>
+          <td class="px-4 py-3 {% if totals.net_profit >= 0 %}text-emerald-700{% else %}text-red-600{% endif %}">{{ totals.net_profit|floatformat:2 }}</td>
+          <td class="px-4 py-3 text-red-600">{{ totals.expenses|floatformat:2 }}</td>
+          <td class="px-4 py-3">{{ totals.treasury_balance|floatformat:2 }}</td>
+          <td class="px-4 py-3 text-blue-700">{{ totals.present }}</td>
+          <td class="px-4 py-3 text-amber-700">{{ totals.absent }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+
+  <p class="text-xs text-slate-400 mt-3">💡 مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين.</p>
+</div>
+{% endblock %}

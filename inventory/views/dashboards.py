@@ -122,6 +122,32 @@ def branch_dashboard(request):
     })
 
 
+@login_required(login_url='/login/')
+@tenant_required
+def company_branches_dashboard(request):
+    """
+    🏢 Company-wide, all-branch overview for the owner/admin.
+    One row per branch: today's sales, expenses, treasury, and who's
+    present/absent. Restricted to admins/managers/superusers.
+    """
+    is_admin = request.user.is_superuser or (
+        hasattr(request.user, 'employee_profile')
+        and request.user.employee_profile.role in ('admin', 'manager')
+    )
+    if not is_admin:
+        return HttpResponseForbidden("هذه اللوحة متاحة لمدير الشركة فقط.")
+
+    from inventory.services.reporting_service import ReportingService
+    overview = ReportingService.company_overview()
+
+    return render(request, 'inventory/company_branches.html', {
+        'overview': overview,
+        'branches': overview['branches'],
+        'totals': overview['totals'],
+        'today': overview['today'],
+    })
+
+
 def solutions_tour(request):
     return render(request, 'inventory/solutions.html')
 

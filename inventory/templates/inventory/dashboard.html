@@ -284,6 +284,14 @@
             </a>
             {% endif %}
 
+            {# 🏢 Company overview — all-branch summary (owner/admin/manager only) #}
+            {% if is_super or role == 'admin' or role == 'manager' %}
+            <a href="{% url 'inventory:company_branches_dashboard' %}" class="card-hover bg-gradient-to-b from-blue-900/30 to-slate-900/60 border border-blue-500/40 hover:border-blue-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 text-xl"><i class="fas fa-building"></i></div>
+                <span class="text-xs font-black text-slate-300">🏢 نظرة عامة على الفروع</span>
+            </a>
+            {% endif %}
+
             {# 📋 Job Card create — RBAC: sales / cashier / accountant / admin / manager (front-desk + finance) #}
             {% if is_super or role == 'sales' or role == 'cashier' or role == 'accountant' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:job_card_create' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
