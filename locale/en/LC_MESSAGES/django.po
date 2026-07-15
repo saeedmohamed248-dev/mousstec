@@ -1,0 +1,6887 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-15 18:34+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: clients/apps.py:67
+msgid "🏢 الإدارة المركزية (Mouss Tec Ecosystem)"
+msgstr ""
+
+#: clients/migrations/0007_update_plan_choice_labels.py:17
+msgid "باقة الصانع - لمراكز الصيانة وتجار قطع الغيار"
+msgstr ""
+
+#: clients/migrations/0007_update_plan_choice_labels.py:18
+msgid "باقة المركز - لمراكز الصيانة وتجار قطع الغيار الشامل"
+msgstr ""
+
+#: clients/migrations/0007_update_plan_choice_labels.py:19
+msgid "باقة الشبكة - لتجار القطع والشركات الكبيرة"
+msgstr ""
+
+#: clients/migrations/0007_update_plan_choice_labels.py:23
+#: clients/migrations/0008_update_plan_names_silver_gold_empire.py:23
+#: clients/models/tenancy.py:96 clients/models/tenancy.py:440
+#: clients/models/tenancy.py:749 hr/models.py:929
+msgid "الباقة"
+msgstr ""
+
+#: clients/migrations/0008_update_plan_names_silver_gold_empire.py:17
+#: clients/models/tenancy.py:88
+msgid "باقة سيلفر — لمراكز الصيانة وتجار قطع الغيار"
+msgstr ""
+
+#: clients/migrations/0008_update_plan_names_silver_gold_empire.py:18
+#: clients/models/tenancy.py:89
+msgid "باقة جولد — لمراكز الصيانة وتجار قطع الغيار الشامل"
+msgstr ""
+
+#: clients/migrations/0008_update_plan_names_silver_gold_empire.py:19
+#: clients/models/tenancy.py:90
+msgid "باقة Empire — لتجار القطع والشركات الكبيرة"
+msgstr ""
+
+#: clients/models/billing.py:37
+msgid "اشتراك SaaS"
+msgstr ""
+
+#: clients/models/billing.py:38
+msgid "قطع غيار"
+msgstr ""
+
+#: clients/models/billing.py:39 clients/models/design_store.py:104
+msgid "باقة تصاميم"
+msgstr ""
+
+#: clients/models/billing.py:40
+msgid "ترقية تشخيص"
+msgstr ""
+
+#: clients/models/billing.py:41
+msgid "إضافة (موظف/فرع/خزينة)"
+msgstr ""
+
+#: clients/models/billing.py:42
+msgid "شحن تشخيص (30 استخدام)"
+msgstr ""
+
+#: clients/models/billing.py:43 clients/models/tenancy.py:1063
+msgid "شحن تصاميم للشركة"
+msgstr ""
+
+#: clients/models/billing.py:46 clients/models/design_store.py:141
+#: clients/models/tenancy.py:1042
+msgid "فودافون كاش"
+msgstr ""
+
+#: clients/models/billing.py:47 clients/models/design_store.py:142
+#: clients/models/tenancy.py:1043
+msgid "إنستاباي"
+msgstr ""
+
+#: clients/models/billing.py:50 clients/models/design_store.py:653
+msgid "في انتظار المراجعة"
+msgstr ""
+
+#: clients/models/billing.py:51
+msgid "تم التأكيد"
+msgstr ""
+
+#: clients/models/billing.py:52 clients/models/marketplace_b2b.py:354
+#: clients/models/marketplace_c2c.py:178 clients/models/marketplace_c2c.py:368
+#: hr/models.py:459 hr/models.py:519 hr/models.py:835
+#: inventory/models/operations.py:102 printing/models.py:682
+msgid "مرفوض"
+msgstr ""
+
+#: clients/models/billing.py:58
+msgid "PK of the related DesignPurchase / PartOrder / PlatformInvoice / etc."
+msgstr ""
+
+#: clients/models/billing.py:62 clients/models/design_store.py:156
+msgid "رقم المرسل"
+msgstr ""
+
+#: clients/models/billing.py:63
+msgid "رقم العملية / Reference"
+msgstr ""
+
+#: clients/models/billing.py:65
+msgid "سكرين شوت التحويل"
+msgstr ""
+
+#: clients/models/billing.py:73
+msgid "Phone to call back for clarification."
+msgstr ""
+
+#: clients/models/billing.py:75 inventory/models/diagnostics.py:511
+#: printing/models.py:200
+msgid "ملاحظات العميل"
+msgstr ""
+
+#: clients/models/billing.py:81 hr/models.py:983
+msgid "ملاحظات الأدمن"
+msgstr ""
+
+#: clients/models/billing.py:86
+msgid "إيصال دفع يدوي"
+msgstr ""
+
+#: clients/models/billing.py:87
+msgid "💵 إيصالات الدفع اليدوي (فودافون/إنستاباي)"
+msgstr ""
+
+#: clients/models/design_store.py:34
+msgid "🥉 Starter — 25 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:35
+msgid "🥈 Pro — 50 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:36
+msgid "🥇 Business — 100 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:37
+msgid "💎 Studio — 250 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:40
+msgid "🎯 باقة 50 تصميم — 25 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:41
+msgid "🎯 باقة 100 تصميم — 35 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:42
+msgid "🎯 باقة 500 تصميم — 150 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:45
+msgid "🏢 باقة الشركات 1000 تصميم — 250 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:46
+msgid "🏢 باقة الشركات 2500 تصميم — 500 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:47
+msgid "🏢 باقة الشركات 5000 تصميم — 900 ج.م"
+msgstr ""
+
+#: clients/models/design_store.py:50
+msgid "🎨 باقة 15 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:51
+msgid "🎨 باقة 25 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:52
+msgid "🎨 باقة 50 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:53
+msgid "🎨 باقة 100 تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:56
+msgid "🎯 باقة 10 تصاميم — عميل"
+msgstr ""
+
+#: clients/models/design_store.py:57
+msgid "🎯 باقة 20 تصميم — عميل"
+msgstr ""
+
+#: clients/models/design_store.py:58
+msgid "🎯 باقة 50 تصميم — عميل"
+msgstr ""
+
+#: clients/models/design_store.py:59
+msgid "🏢 باقة 20 تصميم — مصمم/شركة"
+msgstr ""
+
+#: clients/models/design_store.py:60
+msgid "🏢 باقة 50 تصميم — مصمم/شركة"
+msgstr ""
+
+#: clients/models/design_store.py:61
+msgid "🏢 باقة 100 تصميم — مصمم/شركة"
+msgstr ""
+
+#: clients/models/design_store.py:65
+msgid "عملاء أفراد"
+msgstr ""
+
+#: clients/models/design_store.py:66
+msgid "مصممين / شركات"
+msgstr ""
+
+#: clients/models/design_store.py:70
+msgid "الفئة المستهدفة"
+msgstr ""
+
+#: clients/models/design_store.py:71
+msgid "الاسم بالعربي"
+msgstr ""
+
+#: clients/models/design_store.py:72
+msgid "عدد التصاميم (عميل)"
+msgstr ""
+
+#: clients/models/design_store.py:73
+msgid "عدد التصاميم (مصمم)"
+msgstr ""
+
+#: clients/models/design_store.py:74
+msgid "نفس السعر لكن عدد أكبر للمصممين. 0 = نفس عدد العملاء"
+msgstr ""
+
+#: clients/models/design_store.py:75
+msgid "السعر بالجنيه"
+msgstr ""
+
+#: clients/models/design_store.py:81
+msgid "ملفات مصدر (PSD/SVG)"
+msgstr ""
+
+#: clients/models/design_store.py:82
+msgid "استخدام تجاري"
+msgstr ""
+
+#: clients/models/design_store.py:84
+msgid "إعادة توليد مجاني (2 محاولة)"
+msgstr ""
+
+#: clients/models/design_store.py:87
+msgid "أعلى دقة"
+msgstr ""
+
+#: clients/models/design_store.py:98 clients/models/design_store.py:283
+#: clients/models/marketplace_b2b.py:373 clients/models/tenancy.py:281
+#: printing/models.py:564 printing/models.py:793
+msgid "الوصف"
+msgstr ""
+
+#: clients/models/design_store.py:99
+msgid "شارة (مثل: الأكثر مبيعاً)"
+msgstr ""
+
+#: clients/models/design_store.py:105
+msgid "🎨 باقات تصاميم AI"
+msgstr ""
+
+#: clients/models/design_store.py:131 clients/models/tenancy.py:1034
+#: hr/models.py:912
+msgid "في انتظار الدفع"
+msgstr ""
+
+#: clients/models/design_store.py:132
+msgid "في انتظار تأكيد الدفع"
+msgstr ""
+
+#: clients/models/design_store.py:133 clients/models/tenancy.py:1035
+msgid "مدفوعة — جاهزة للاستخدام"
+msgstr ""
+
+#: clients/models/design_store.py:134
+msgid "مرفوضة"
+msgstr ""
+
+#: clients/models/design_store.py:135 clients/models/tenancy.py:1036
+msgid "تم استهلاكها بالكامل"
+msgstr ""
+
+#: clients/models/design_store.py:136 clients/models/tenancy.py:497
+#: clients/models/tenancy.py:1037
+msgid "مردودة"
+msgstr ""
+
+#: clients/models/design_store.py:137 clients/models/tenancy.py:1038
+msgid "منتهية الصلاحية"
+msgstr ""
+
+#: clients/models/design_store.py:140
+msgid "بطاقة ائتمان (Paymob)"
+msgstr ""
+
+#: clients/models/design_store.py:143
+msgid "دفع عند الاستلام"
+msgstr ""
+
+#: clients/models/design_store.py:144
+msgid "منحة من الإدارة"
+msgstr ""
+
+#: clients/models/design_store.py:159
+msgid "ينتهي في"
+msgstr ""
+
+#: clients/models/design_store.py:165
+msgid "شراء باقة تصاميم"
+msgstr ""
+
+#: clients/models/design_store.py:166
+msgid "🛒 مشتريات باقات التصاميم"
+msgstr ""
+
+#: clients/models/design_store.py:202
+msgid "لوجو / Brand Mark"
+msgstr ""
+
+#: clients/models/design_store.py:203 clients/models/design_store.py:664
+msgid "كارت بزنس"
+msgstr ""
+
+#: clients/models/design_store.py:204
+msgid "ورق رسمي"
+msgstr ""
+
+#: clients/models/design_store.py:205
+msgid "ختم"
+msgstr ""
+
+#: clients/models/design_store.py:206
+msgid "بوست سوشيال ميديا"
+msgstr ""
+
+#: clients/models/design_store.py:207
+msgid "ستوري / Reels"
+msgstr ""
+
+#: clients/models/design_store.py:208
+msgid "غلاف فيسبوك / يوتيوب"
+msgstr ""
+
+#: clients/models/design_store.py:209 clients/models/design_store.py:665
+msgid "فلاير"
+msgstr ""
+
+#: clients/models/design_store.py:210
+msgid "بوستر / إعلان"
+msgstr ""
+
+#: clients/models/design_store.py:211
+msgid "بنر / Roll-up"
+msgstr ""
+
+#: clients/models/design_store.py:212
+msgid "يافطة / كلادينج"
+msgstr ""
+
+#: clients/models/design_store.py:213 clients/models/design_store.py:673
+msgid "منيو"
+msgstr ""
+
+#: clients/models/design_store.py:214
+msgid "دعوة / كارت"
+msgstr ""
+
+#: clients/models/design_store.py:215
+msgid "شهادة"
+msgstr ""
+
+#: clients/models/design_store.py:216
+msgid "بروشور"
+msgstr ""
+
+#: clients/models/design_store.py:217
+msgid "فاتورة / نموذج"
+msgstr ""
+
+#: clients/models/design_store.py:218
+msgid "تيشرت / Merch"
+msgstr ""
+
+#: clients/models/design_store.py:219
+msgid "بنطلون / ملابس"
+msgstr ""
+
+#: clients/models/design_store.py:220
+msgid "عباية / جلابية"
+msgstr ""
+
+#: clients/models/design_store.py:221
+msgid "يونيفورم"
+msgstr ""
+
+#: clients/models/design_store.py:222
+msgid "كاب / طاقية"
+msgstr ""
+
+#: clients/models/design_store.py:223
+msgid "شنطة / حقيبة"
+msgstr ""
+
+#: clients/models/design_store.py:224
+msgid "حذاء / جزمة"
+msgstr ""
+
+#: clients/models/design_store.py:225
+msgid "تغليف / منتج"
+msgstr ""
+
+#: clients/models/design_store.py:226
+msgid "ليبل / ملصق"
+msgstr ""
+
+#: clients/models/design_store.py:227 clients/models/design_store.py:669
+msgid "ستيكر"
+msgstr ""
+
+#: clients/models/design_store.py:228
+msgid "تصميم ماج"
+msgstr ""
+
+#: clients/models/design_store.py:229
+msgid "Mockup منتج"
+msgstr ""
+
+#: clients/models/design_store.py:230
+msgid "بوستر فيلم"
+msgstr ""
+
+#: clients/models/design_store.py:231
+msgid "غلاف كتاب"
+msgstr ""
+
+#: clients/models/design_store.py:232
+msgid "غلاف ألبوم"
+msgstr ""
+
+#: clients/models/design_store.py:233
+msgid "Thumbnail يوتيوب"
+msgstr ""
+
+#: clients/models/design_store.py:234
+msgid "باترن / نقشة"
+msgstr ""
+
+#: clients/models/design_store.py:235
+msgid "رسم توضيحي"
+msgstr ""
+
+#: clients/models/design_store.py:236
+msgid "إنفوجرافيك"
+msgstr ""
+
+#: clients/models/design_store.py:237
+msgid "رسم سيارة / Wrap"
+msgstr ""
+
+#: clients/models/design_store.py:238 clients/models/design_store.py:675
+#: clients/models/design_store.py:792 clients/models/marketplace_b2b.py:1001
+#: clients/models/monitoring.py:74 hr/admin.py:110
+#: inventory/models/finance.py:42 printing/models.py:74
+msgid "أخرى"
+msgstr ""
+
+#: clients/models/design_store.py:278
+msgid "الباقة (فارغ = تصميم مجاني)"
+msgstr ""
+
+#: clients/models/design_store.py:279
+msgid "تصميم مجاني (تجربة)"
+msgstr ""
+
+#: clients/models/design_store.py:282 hr/models.py:844
+msgid "عنوان التصميم"
+msgstr ""
+
+#: clients/models/design_store.py:288
+msgid "المقاس"
+msgstr ""
+
+#: clients/models/design_store.py:289
+msgid "العرض (px)"
+msgstr ""
+
+#: clients/models/design_store.py:290
+msgid "الارتفاع (px)"
+msgstr ""
+
+#: clients/models/design_store.py:292
+msgid "وزن المنتج (اختياري — للـ packaging)"
+msgstr ""
+
+#: clients/models/design_store.py:309
+msgid "صورة مصغّرة (200px WebP)"
+msgstr ""
+
+#: clients/models/design_store.py:311
+msgid "معاينة (512px WebP)"
+msgstr ""
+
+#: clients/models/design_store.py:313
+msgid "تاريخ الحفظ المحلي"
+msgstr ""
+
+#: clients/models/design_store.py:314
+msgid "None = صورة قديمة قبل الـ persistence pipeline"
+msgstr ""
+
+#: clients/models/design_store.py:316
+msgid "حجم الصورة الأصلية (bytes)"
+msgstr ""
+
+#: clients/models/design_store.py:334
+msgid "تصميم للعميل"
+msgstr ""
+
+#: clients/models/design_store.py:335
+msgid "🖼️ تصاميم العملاء (AI Store)"
+msgstr ""
+
+#: clients/models/design_store.py:383 clients/models/design_store.py:577
+msgid "محتوى الرسالة"
+msgstr ""
+
+#: clients/models/design_store.py:384
+msgid "صورة مرفقة"
+msgstr ""
+
+#: clients/models/design_store.py:385
+msgid "تعديل تحسيني"
+msgstr ""
+
+#: clients/models/design_store.py:389
+msgid "رسالة تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:390
+msgid "💬 رسائل التصاميم (Chat)"
+msgstr ""
+
+#: clients/models/design_store.py:422
+msgid "تخطيط — لسه بنتكلم"
+msgstr ""
+
+#: clients/models/design_store.py:423
+msgid "اتولّد أول تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:424
+msgid "قيد التعديل"
+msgstr ""
+
+#: clients/models/design_store.py:425
+msgid "تم الاعتماد"
+msgstr ""
+
+#: clients/models/design_store.py:426
+msgid "متروك"
+msgstr ""
+
+#: clients/models/design_store.py:431
+msgid "رمز المحادثة"
+msgstr ""
+
+#: clients/models/design_store.py:436 clients/models/design_store.py:553
+#: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
+#: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
+#: printing/models.py:188 printing/models.py:257
+msgid "العميل"
+msgstr ""
+
+#: clients/models/design_store.py:446
+msgid "التصميم الحالي"
+msgstr ""
+
+#: clients/models/design_store.py:454
+msgid "لقطة من ملف البراند وقت بدء المحادثة"
+msgstr ""
+
+#: clients/models/design_store.py:471
+msgid "السياق المتراكم عبر التيرنات"
+msgstr ""
+
+#: clients/models/design_store.py:477
+msgid "المرحلة"
+msgstr ""
+
+#: clients/models/design_store.py:485
+msgid "مقفول حتى (advisory lock)"
+msgstr ""
+
+#: clients/models/design_store.py:490
+msgid "عدد التيرنات"
+msgstr ""
+
+#: clients/models/design_store.py:492
+msgid "عدد الصور المولّدة"
+msgstr ""
+
+#: clients/models/design_store.py:495
+msgid "التكلفة الإجمالية (credits)"
+msgstr ""
+
+#: clients/models/design_store.py:505
+msgid "💬 محادثة تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:506
+msgid "💬 محادثات التصاميم"
+msgstr ""
+
+#: clients/models/design_store.py:554
+msgid "المصمم AI"
+msgstr ""
+
+#: clients/models/design_store.py:555
+msgid "النظام"
+msgstr ""
+
+#: clients/models/design_store.py:558
+msgid "دردشة (بدون توليد)"
+msgstr ""
+
+#: clients/models/design_store.py:559
+msgid "توليد صورة جديدة"
+msgstr ""
+
+#: clients/models/design_store.py:560
+msgid "تعديل الصورة الحالية"
+msgstr ""
+
+#: clients/models/design_store.py:561
+msgid "رجوع للحالة السابقة"
+msgstr ""
+
+#: clients/models/design_store.py:562
+msgid "اعتماد التصميم"
+msgstr ""
+
+#: clients/models/design_store.py:563
+msgid "غير محدد"
+msgstr ""
+
+#: clients/models/design_store.py:569
+msgid "المحادثة"
+msgstr ""
+
+#: clients/models/design_store.py:572
+msgid "ترتيب التيرن"
+msgstr ""
+
+#: clients/models/design_store.py:573
+msgid "بداية من 1 — يـ increment على كل user message"
+msgstr ""
+
+#: clients/models/design_store.py:582
+msgid "النية المصنّفة"
+msgstr ""
+
+#: clients/models/design_store.py:586
+msgid "ثقة المصنِّف (0-1)"
+msgstr ""
+
+#: clients/models/design_store.py:596
+msgid "صورة التيرن"
+msgstr ""
+
+#: clients/models/design_store.py:602
+msgid "تكلفة الـ tokens"
+msgstr ""
+
+#: clients/models/design_store.py:606
+msgid "تكلفة الصورة"
+msgstr ""
+
+#: clients/models/design_store.py:610
+msgid "المحرك المستخدم"
+msgstr ""
+
+#: clients/models/design_store.py:611
+msgid "flux | ideogram | kontext | llm_only"
+msgstr ""
+
+#: clients/models/design_store.py:618
+msgid "التعديل على السياق هذا التيرن"
+msgstr ""
+
+#: clients/models/design_store.py:628
+msgid "💬 تيرن محادثة تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:629
+msgid "💬 تيرنات محادثات التصاميم"
+msgstr ""
+
+#: clients/models/design_store.py:654
+msgid "تم إرسال عرض سعر"
+msgstr ""
+
+#: clients/models/design_store.py:655
+msgid "تم نشره في السوق"
+msgstr ""
+
+#: clients/models/design_store.py:656
+msgid "العميل قبل العرض"
+msgstr ""
+
+#: clients/models/design_store.py:657
+msgid "قيد الطباعة"
+msgstr ""
+
+#: clients/models/design_store.py:658
+msgid "تم الشحن"
+msgstr ""
+
+#: clients/models/design_store.py:659 printing/models.py:252
+msgid "تم التسليم"
+msgstr ""
+
+#: clients/models/design_store.py:660 clients/models/marketplace_b2b.py:69
+#: clients/models/marketplace_b2b.py:538 hr/models.py:460 hr/models.py:522
+#: hr/models.py:911 inventory/models/catalog.py:147 printing/models.py:253
+msgid "ملغي"
+msgstr ""
+
+#: clients/models/design_store.py:663
+msgid "تيشرت"
+msgstr ""
+
+#: clients/models/design_store.py:666
+msgid "بوستر"
+msgstr ""
+
+#: clients/models/design_store.py:667
+msgid "بنر / ستاند"
+msgstr ""
+
+#: clients/models/design_store.py:668
+msgid "ماج"
+msgstr ""
+
+#: clients/models/design_store.py:670
+msgid "تغليف / علبة"
+msgstr ""
+
+#: clients/models/design_store.py:671
+msgid "قلم / هدايا"
+msgstr ""
+
+#: clients/models/design_store.py:672
+msgid "نوت بوك / أجندة"
+msgstr ""
+
+#: clients/models/design_store.py:674
+msgid "كارت دعوة"
+msgstr ""
+
+#: clients/models/design_store.py:683
+msgid "نوع المنتج"
+msgstr ""
+
+#: clients/models/design_store.py:684 inventory/models/catalog.py:151
+#: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
+#: inventory/models/invoices.py:148 printing/models.py:391
+#: printing/models.py:796
+msgid "الكمية"
+msgstr ""
+
+#: clients/models/design_store.py:685 printing/models.py:389
+msgid "العرض (سم)"
+msgstr ""
+
+#: clients/models/design_store.py:686
+msgid "الطول (سم)"
+msgstr ""
+
+#: clients/models/design_store.py:687
+msgid "نوع الورق / الخامة"
+msgstr ""
+
+#: clients/models/design_store.py:689
+msgid "ألوان كاملة"
+msgstr ""
+
+#: clients/models/design_store.py:690
+msgid "أبيض وأسود"
+msgstr ""
+
+#: clients/models/design_store.py:691
+msgid "ألوان محددة"
+msgstr ""
+
+#: clients/models/design_store.py:692
+msgid "الألوان"
+msgstr ""
+
+#: clients/models/design_store.py:693
+msgid "التشطيب"
+msgstr ""
+
+#: clients/models/design_store.py:694
+msgid "سوفت تاتش، لامع، مطفي، UV، إلخ"
+msgstr ""
+
+#: clients/models/design_store.py:695 clients/models/marketplace_b2b.py:726
+msgid "ملاحظات إضافية"
+msgstr ""
+
+#: clients/models/design_store.py:698
+msgid "عنوان التوصيل"
+msgstr ""
+
+#: clients/models/design_store.py:699
+msgid "رقم التواصل"
+msgstr ""
+
+#: clients/models/design_store.py:704
+msgid "السعر المقترح من المنصة"
+msgstr ""
+
+#: clients/models/design_store.py:705 clients/models/marketplace_c2c.py:326
+msgid "ملاحظات الإدارة"
+msgstr ""
+
+#: clients/models/design_store.py:710
+msgid "ملف PDF بمواصفات الطباعة"
+msgstr ""
+
+#: clients/models/design_store.py:711
+msgid "PDF بكل تفاصيل الطباعة (نص + لون + خامة + مقاسات) — يتولّد تلقائياً"
+msgstr ""
+
+#: clients/models/design_store.py:718
+msgid "طلب طباعة تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:719
+msgid "🖨️ طلبات طباعة تصاميم"
+msgstr ""
+
+#: clients/models/design_store.py:732 clients/models/tenancy.py:282
+#: printing/models.py:507
+msgid "التصنيف"
+msgstr ""
+
+#: clients/models/design_store.py:733
+msgid "البرومبت الأصلي من العميل"
+msgstr ""
+
+#: clients/models/design_store.py:734
+msgid "البرومبت المحسّن للـ AI"
+msgstr ""
+
+#: clients/models/design_store.py:738 clients/models/marketplace_c2c.py:394
+#: printing/models.py:197
+msgid "تقييم العميل (1-5)"
+msgstr ""
+
+#: clients/models/design_store.py:744
+msgid "سجل برومبت"
+msgstr ""
+
+#: clients/models/design_store.py:745
+msgid "🧠 سجلات تعلم البرومبت"
+msgstr ""
+
+#: clients/models/design_store.py:778
+msgid "موضة / ملابس"
+msgstr ""
+
+#: clients/models/design_store.py:779
+msgid "مطاعم / طعام"
+msgstr ""
+
+#: clients/models/design_store.py:780
+msgid "تكنولوجيا"
+msgstr ""
+
+#: clients/models/design_store.py:781
+msgid "تجميل"
+msgstr ""
+
+#: clients/models/design_store.py:782
+msgid "مجوهرات"
+msgstr ""
+
+#: clients/models/design_store.py:783
+msgid "أثاث / ديكور"
+msgstr ""
+
+#: clients/models/design_store.py:784
+msgid "تعليم"
+msgstr ""
+
+#: clients/models/design_store.py:785
+msgid "صحة / طب"
+msgstr ""
+
+#: clients/models/design_store.py:786 clients/models/tenancy.py:310
+msgid "سيارات"
+msgstr ""
+
+#: clients/models/design_store.py:787
+msgid "عقارات"
+msgstr ""
+
+#: clients/models/design_store.py:788
+msgid "تجزئة"
+msgstr ""
+
+#: clients/models/design_store.py:789
+msgid "خدمات"
+msgstr ""
+
+#: clients/models/design_store.py:790
+msgid "مناسبات"
+msgstr ""
+
+#: clients/models/design_store.py:791
+msgid "وكالة / استشارات"
+msgstr ""
+
+#: clients/models/design_store.py:796
+msgid "عصري بسيط"
+msgstr ""
+
+#: clients/models/design_store.py:797
+msgid "فاخر أنيق"
+msgstr ""
+
+#: clients/models/design_store.py:798
+msgid "جريء مرح"
+msgstr ""
+
+#: clients/models/design_store.py:799
+msgid "كلاسيكي تراثي"
+msgstr ""
+
+#: clients/models/design_store.py:800
+msgid "طبيعي عضوي"
+msgstr ""
+
+#: clients/models/design_store.py:801
+msgid "تقني مستقبلي"
+msgstr ""
+
+#: clients/models/design_store.py:802
+msgid "حرفي صناعة يدوية"
+msgstr ""
+
+#: clients/models/design_store.py:803
+msgid "شركاتي محترف"
+msgstr ""
+
+#: clients/models/design_store.py:807
+msgid "رسمي"
+msgstr ""
+
+#: clients/models/design_store.py:808
+msgid "غير رسمي / صديق"
+msgstr ""
+
+#: clients/models/design_store.py:809
+msgid "مرح / فكاهي"
+msgstr ""
+
+#: clients/models/design_store.py:810
+msgid "واثق / مرجعي"
+msgstr ""
+
+#: clients/models/design_store.py:811
+msgid "دافئ / إنساني"
+msgstr ""
+
+#: clients/models/design_store.py:812
+msgid "فاخر / حصري"
+msgstr ""
+
+#: clients/models/design_store.py:834
+msgid "اسم البراند"
+msgstr ""
+
+#: clients/models/design_store.py:836
+msgid "الاسم بالإنجليزي (اختياري)"
+msgstr ""
+
+#: clients/models/design_store.py:838
+msgid "الشعار / السلوجان"
+msgstr ""
+
+#: clients/models/design_store.py:839
+msgid "جملة قصيرة بتلخص رسالة البراند"
+msgstr ""
+
+#: clients/models/design_store.py:843
+msgid "اللون الرئيسي"
+msgstr ""
+
+#: clients/models/design_store.py:844
+msgid "لون البراند الأساسي — هيظهر في كل تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:846
+msgid "اللون الثانوي"
+msgstr ""
+
+#: clients/models/design_store.py:848
+msgid "لون التمييز (اختياري)"
+msgstr ""
+
+#: clients/models/design_store.py:854
+msgid "اللوجو"
+msgstr ""
+
+#: clients/models/design_store.py:855
+msgid "هيتستخدم كـ reference في كل تصميم تلقائياً"
+msgstr ""
+
+#: clients/models/design_store.py:860
+msgid "لوجو بديل (لون مختلف / monochrome)"
+msgstr ""
+
+#: clients/models/design_store.py:866
+msgid "المجال"
+msgstr ""
+
+#: clients/models/design_store.py:870
+msgid "الأسلوب البصري"
+msgstr ""
+
+#: clients/models/design_store.py:874
+msgid "نبرة البراند"
+msgstr ""
+
+#: clients/models/design_store.py:878
+msgid "الخط العربي المفضل"
+msgstr ""
+
+#: clients/models/design_store.py:882
+msgid "الخط الإنجليزي المفضل"
+msgstr ""
+
+#: clients/models/design_store.py:888
+msgid "ملاحظات أسلوب إضافية"
+msgstr ""
+
+#: clients/models/design_store.py:889
+msgid ""
+"أي تفاصيل عن أسلوب البراند بتحب الـ AI يتبعها — مثلاً 'استخدم زخارف إسلامية' "
+"أو 'تجنب الزهور'"
+msgstr ""
+
+#: clients/models/design_store.py:894
+msgid "نشط — يطبّق تلقائياً"
+msgstr ""
+
+#: clients/models/design_store.py:895
+msgid "لو معطّل، التصميمات الجديدة مش هتاخد ملف البراند تلقائياً"
+msgstr ""
+
+#: clients/models/design_store.py:897
+msgid "ضع اللوجو تلقائياً في كل تصميم"
+msgstr ""
+
+#: clients/models/design_store.py:899
+msgid "استخدم ألوان البراند تلقائياً"
+msgstr ""
+
+#: clients/models/design_store.py:903
+msgid "عدد التصميمات اللي استخدمت ملف البراند"
+msgstr ""
+
+#: clients/models/design_store.py:909
+msgid "ملف براند العميل"
+msgstr ""
+
+#: clients/models/design_store.py:910
+msgid "🎨 ملفات البراند"
+msgstr ""
+
+#: clients/models/design_store.py:952
+msgid "عميل سوق"
+msgstr ""
+
+#: clients/models/design_store.py:953
+msgid "شركة / تاجر"
+msgstr ""
+
+#: clients/models/design_store.py:954 clients/models/support.py:178
+msgid "زائر"
+msgstr ""
+
+#: clients/models/design_store.py:968
+msgid "الفكرة الخام كما كتبها المستخدم"
+msgstr ""
+
+#: clients/models/design_store.py:970
+msgid "المجال اللي حدده الـ LLM"
+msgstr ""
+
+#: clients/models/design_store.py:972
+msgid "الـ JSON Schema الديناميكي"
+msgstr ""
+
+#: clients/models/design_store.py:974
+msgid "اختيارات المستخدم"
+msgstr ""
+
+#: clients/models/design_store.py:976
+msgid "الـ Mega Prompt النهائي"
+msgstr ""
+
+#: clients/models/design_store.py:985
+msgid "هل التصميم ناجح؟ (feedback من المستخدم)"
+msgstr ""
+
+#: clients/models/design_store.py:990
+msgid "درجة الجودة (1-10) من Vision LLM"
+msgstr ""
+
+#: clients/models/design_store.py:992
+msgid "حكم الجودة"
+msgstr ""
+
+#: clients/models/design_store.py:995
+msgid "المشاكل المكتشفة"
+msgstr ""
+
+#: clients/models/design_store.py:997
+msgid "هل اتعاد توليده تلقائياً بسبب فشل Quality Gate؟"
+msgstr ""
+
+#: clients/models/design_store.py:999
+msgid "فئة العرض"
+msgstr ""
+
+#: clients/models/design_store.py:1002
+msgid "الـ subtype داخل الفئة"
+msgstr ""
+
+#: clients/models/design_store.py:1008
+msgid "سجل تعلم AI"
+msgstr ""
+
+#: clients/models/design_store.py:1009
+msgid "🌀 Data Flywheel — سجلات تعلم الذكاء"
+msgstr ""
+
+#: clients/models/diagnostics.py:40
+msgid "تجربة مجانية"
+msgstr ""
+
+#: clients/models/diagnostics.py:41
+msgid "Basic — 99 ج/شهر"
+msgstr ""
+
+#: clients/models/diagnostics.py:42
+msgid "Pro — 199 ج/شهر"
+msgstr ""
+
+#: clients/models/diagnostics.py:43
+msgid "Empire — 399 ج/شهر"
+msgstr ""
+
+#: clients/models/diagnostics.py:44
+msgid "منتهية"
+msgstr ""
+
+#: clients/models/diagnostics.py:90
+msgid "اشتراك تشخيص عميل"
+msgstr ""
+
+#: clients/models/diagnostics.py:91
+msgid "💎 اشتراكات تشخيص العملاء"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:28
+msgid "جديد (أصلي/بديل)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:29
+msgid "استيراد / تقطيع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:30
+msgid "تالف قابل للتجديد (Core)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:33 clients/models/marketplace_c2c.py:374
+msgid "التاجر"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:34
+msgid "رقم القطعة (P/N)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:35 clients/models/marketplace_b2b.py:372
+#: clients/models/marketplace_b2b.py:723 inventory/models/catalog.py:24
+msgid "اسم القطعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:36 clients/models/marketplace_b2b.py:314
+#: clients/models/marketplace_b2b.py:712 inventory/models/catalog.py:26
+msgid "الماركة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:37 clients/models/marketplace_b2b.py:86
+#: hr/admin.py:156 hr/admin.py:380 hr/models.py:415 hr/models.py:476
+#: hr/models.py:543 hr/models.py:626 hr/models.py:667 hr/models.py:861
+#: hr/models.py:933 inventory/models/catalog.py:27
+#: inventory/models/catalog.py:153 inventory/models/diagnostics.py:167
+#: inventory/models/invoices.py:36 inventory/models/operations.py:71
+#: printing/models.py:259 printing/models.py:718
+msgid "الحالة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:39
+msgid "سعر الجملة للمراكز"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:40 inventory/models/catalog.py:77
+msgid "الكمية المتاحة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:42
+msgid "مؤشر جودة AI"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:48
+msgid "آخر تحديث للمخزون"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:51
+msgid "صنف في السوق المركزي"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:52
+msgid "🛒 سوق التجار المركزي"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:63
+msgid "مفتوح لتلقي العروض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:64
+msgid "جاري الترسية الآلية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:65
+msgid "تم الترسية (الفلوس في الضمان)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:66
+msgid "تم الشحن / جاري الاستلام"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:67
+msgid "مكتمل (تم تحويل الأموال للتاجر)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:68
+msgid "متنازع عليه (صورة غير مطابقة)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:73
+msgid "المركز الطالب"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:74
+msgid "القطعة المطلوبة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:75
+msgid "الكمية المطلوبة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:76
+msgid "السعر المستهدف (مخفي)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:78
+msgid "ترسية آلية لأفضل عرض؟"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:82
+msgid "التاجر الفائز"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:83
+msgid "سعر الترسية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:84
+msgid "عمولة المنصة المحصلة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:88
+msgid "ينتهي العطاء في"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:91
+msgid "طلب شراء / مزاد عكسي"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:92
+msgid "⚖️ مزادات الـ Blind Bidding"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:182
+msgid "طلب المزاد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:183
+msgid "التاجر مقدم العرض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:185
+msgid "سعر العرض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:186
+msgid "حالة القطعة المعروضة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:187
+msgid "أيام التوصيل المتوقعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:190
+msgid "هل هو العرض الفائز؟"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:194 printing/models.py:737
+msgid "عرض سعر"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:195 clients/models/marketplace_c2c.py:401
+msgid "عروض أسعار التجار"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:206
+msgid "إيداع في المحفظة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:207
+msgid "تجميد أموال (دخول مزاد)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:208
+msgid "تحرير أموال (استلام البضاعة)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:209
+msgid "استرداد أموال (إلغاء/نزاع)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:210
+msgid "خصم عمولة المنصة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:211
+msgid "سحب للأرباح خارج المنصة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:215
+msgid "الشركة/المركز"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:216
+msgid "مرتبط بمزاد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:218
+msgid "نوع الحركة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:219 printing/models.py:563
+msgid "المبلغ"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:221 inventory/models/finance.py:64
+#: inventory/models/finance.py:119
+msgid "البيان"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:225
+msgid "حركة مالية (Escrow)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:226
+msgid "🏦 دفتر الأستاذ المالي (Ledger)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:309
+msgid "فترة الضمان يجب أن تكون بين 1 و 90 يوم"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:319
+msgid "Cached count of active listings"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:322
+msgid "ماركة سيارة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:323
+msgid "🏷️ ماركات السيارات"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:334
+msgid "جديد بالضمانة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:335
+msgid "مستعمل — ممتاز"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:336
+msgid "مستعمل — جيد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:337
+msgid "مستعمل — مقبول"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:338
+msgid "مجدد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:341 clients/models/monitoring.py:155
+#: hr/models.py:654 inventory/models/invoices.py:25 printing/models.py:248
+#: printing/models.py:679
+msgid "مسودة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:342 hr/models.py:236 hr/models.py:909
+#: inventory/models/catalog.py:51 inventory/models/finance.py:29
+#: inventory/models/finance.py:92 printing/models.py:25 printing/models.py:149
+msgid "نشط"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:343 clients/models/marketplace_b2b.py:864
+msgid "محجوز"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:344
+msgid "تم البيع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:345
+msgid "محذوف"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:352
+msgid "بانتظار موافقة الإدارة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:353 clients/models/marketplace_c2c.py:177
+#: hr/models.py:656 hr/models.py:834
+msgid "معتمد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:355
+msgid "معلق بواسطة الإدارة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:364
+msgid "البائع (عميل سوق)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:369
+msgid "البائع (شركة)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:374
+msgid "اوصف القطعة بالتفصيل: الحالة، أي عيوب، رقم القطعة الأصلي، إلخ"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:376 inventory/models/customers.py:91
+msgid "ماركة السيارة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:378 clients/models/marketplace_b2b.py:714
+#: inventory/models/customers.py:92
+msgid "الموديل"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:379
+msgid "مثال: 320i, X5, Cooper S, F30"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:380
+msgid "من سنة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:381
+msgid "إلى سنة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:383 clients/models/marketplace_b2b.py:719
+msgid "كود الموتور"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:384
+msgid "مثال: N13, N20, M54, K20A — حساس جداً لمطابقة قطع غيار محرك."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:386
+msgid "رقم القطعة الأصلي (OEM)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:389 clients/models/tenancy.py:726
+msgid "السعر (ج.م)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:392
+msgid "فترة الضمان (يوم)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:393
+msgid "بعد التسليم — كلما طالت الفترة زادت ثقة المشتري (الحد الأقصى 90 يوم)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:396
+msgid "المدينة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:401
+msgid "حالة المراجعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:407
+msgid "راجَعَها"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:417
+msgid "قطعة غيار معروضة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:418
+msgid "🛒 سوق قطع الغيار"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:530
+msgid "بانتظار الدفع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:531
+msgid "مدفوع — في الـ Escrow"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:532
+msgid "في الشحن"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:533
+msgid "تم التسليم — في فترة الضمان"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:534
+msgid "تم الإفراج — أُرسلت للبائع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:535
+msgid "طلب إرجاع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:536
+msgid "تم الإرجاع للمشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:537
+msgid "نزاع — قيد المراجعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:592
+msgid "تراجع المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:593
+msgid "مقاس / تركيب خطأ من المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:594
+msgid "القطعة معيبة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:595
+msgid "القطعة مختلفة عن المعروض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:596
+msgid "غير مطابق للوصف / الصور"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:597
+msgid "لم تصل"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:600 clients/models/marketplace_b2b.py:990
+msgid "المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:601 clients/models/marketplace_b2b.py:991
+msgid "البائع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:612
+msgid "طلب شراء قطعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:613
+msgid "📦 طلبات شراء قطع الغيار"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:690
+msgid "مفتوح — بانتظار عروض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:691 clients/models/marketplace_c2c.py:294
+msgid "تم قبول عرض"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:692
+msgid "تم الشراء"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:693
+msgid "ملغي بواسطة المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:694 clients/models/marketplace_c2c.py:296
+#: printing/models.py:683
+msgid "منتهي الصلاحية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:715
+msgid "مثال: F30, X5, Civic — مطلوب."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:716 inventory/models/catalog.py:30
+msgid "سنة الصنع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:717
+msgid "سنة واحدة محددة (مطلوبة)."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:720
+msgid "N13, N20, etc. اتركه فارغاً لو القطعة هيكلية أو مش متعلقة بالمحرك."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:725
+msgid "رقم OEM (اختياري)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:729
+msgid "الميزانية القصوى (ج.م) — اختياري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:737
+msgid "الطلب يختفي تلقائياً بعد 14 يوم."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:741
+msgid "طلب قطعة (Wanted)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:742
+msgid "🆘 طلبات القطع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:784
+msgid "مرسل — بانتظار رد المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:785
+msgid "قبله المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:786
+msgid "رفضه المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:787
+msgid "سحبه البائع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:817
+msgid "عرض على طلب قطعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:818
+msgid "عروض على طلبات القطع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:865
+msgid "تم التحويل للبائع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:866
+msgid "تم الرد للمشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:867
+msgid "مقسوم — جزئي"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:872 inventory/admin/b2b.py:146
+#: printing/models.py:372
+msgid "الطلب"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:879
+msgid "إجمالي المبلغ المحجوز عند الدفع."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:903
+msgid "حجز ضمان (Escrow Hold)"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:904
+msgid "💰 حجوزات الضمان"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:944
+msgid "e.g. v1.0, v1.1, v2.0"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:946
+msgid "إخلاء مسؤولية المنصة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:948
+msgid "النص القانوني الكامل بالعربية."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:950
+msgid "Optional English mirror for international buyers."
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:952
+msgid "هل هذه النسخة المعروضة حالياً للمشترين الجدد؟"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:957
+msgid "إخلاء مسؤولية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:958
+msgid "📜 وثائق إخلاء المسؤولية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:994
+msgid "لم تصل القطعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:995
+msgid "غير مطابقة للوصف"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:996
+msgid "وصلت تالفة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:997
+msgid "قطعة مختلفة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:998
+msgid "غير أصلية / تقليد"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:999
+msgid "سوء استخدام من المشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1000
+msgid "مشكلة في الدفع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1004 clients/models/support.py:78
+msgid "مفتوحة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1005 clients/models/marketplace_c2c.py:176
+#: hr/models.py:457 hr/models.py:833 inventory/models/operations.py:100
+msgid "قيد المراجعة"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1006
+msgid "محلولة — رد للمشتري"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1007
+msgid "محلولة — تحرير للبائع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1008
+msgid "محلولة — تسوية جزئية"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1009
+msgid "ملغاة من مقدّمها"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1026
+msgid "التفاصيل"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1044
+msgid "تذكرة نزاع"
+msgstr ""
+
+#: clients/models/marketplace_b2b.py:1045
+msgid "⚖️ تذاكر النزاعات"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:35
+msgid "فرد"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:36
+msgid "شركة / مؤسسة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:39 clients/models/tenancy.py:50
+msgid "🚗 سيارات — صيانة وقطع غيار"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:40
+msgid "🎨 طباعة وتصميم"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:44
+msgid "نوع العميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:45
+msgid "الاسم الكامل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:46 printing/models.py:43
+msgid "اسم الشركة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:47
+msgid "رقم الموبايل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:48 clients/models/support.py:102
+#: printing/models.py:42
+msgid "البريد الإلكتروني"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:49
+msgid "الوظيفة / المسمى"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:50 clients/models/marketplace_c2c.py:308
+#: clients/models/tenancy.py:53 clients/models/tenancy.py:315
+msgid "القطاع"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:51
+msgid "المدينة / المحافظة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:54
+msgid "كلمة المرور (مُشفّرة)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:57
+msgid "تم التحقق من الموبايل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:59
+msgid "آخر تسجيل دخول"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:62
+msgid "تصاميم مجانية (إجمالي)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:63
+msgid "فرد = 2 مجاني، شركة = 4 مجاني. يتم تعيينها تلقائياً عند التسجيل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:64
+msgid "تصاميم مجانية مستخدمة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:70
+msgid "محظور"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:76
+msgid "عميل السوق"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:77
+msgid "🛍️ عملاء سوق المناقصات"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:175
+msgid "لم يُقدَّم"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:181
+msgid "بطاقة رقم قومي"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:182
+msgid "جواز سفر"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:185 inventory/models/catalog.py:22
+msgid "جديد"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:186
+msgid "أساسي"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:187
+msgid "موثّق بالبريد"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:188
+msgid "هوية موثّقة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:189
+msgid "عمل موثّق"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:200
+msgid "نخزّن آخر 4 أرقام فقط — التطابق الكامل يتم وقت المراجعة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:229
+msgid "0–100. يُحسب تلقائياً من حالة المستندات."
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:236
+msgid "توثيق هوية مستخدم"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:237
+msgid "🛡️ توثيقات الهوية (KYC)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:291
+msgid "في انتظار موافقة الإدارة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:292
+msgid "مفتوح — في انتظار العروض"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:293
+msgid "جاري مراجعة العروض"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:295
+msgid "مكتمل — تم التقييم"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:297
+msgid "ملغي بواسطة العميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:298
+msgid "مرفوض من الإدارة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:301
+msgid "عادي — خلال أسبوع"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:302
+msgid "قريب — خلال 3 أيام"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:303
+msgid "عاجل — خلال 24 ساعة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:310
+msgid "عنوان الطلب"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:311
+msgid "تفاصيل الطلب"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:312
+msgid "درجة الاستعجال"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:315
+msgid "يريد صور مع العروض"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:316
+msgid "مدينة العميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:318
+msgid "الميزانية القصوى (اختياري — مخفي عن التجار)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:321
+msgid "صورة مرجعية 1"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:322
+msgid "صورة مرجعية 2"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:325
+msgid "موافقة الإدارة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:332
+msgid "عمولة المنصة (%)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:336
+msgid "ينتهي الطلب في"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:340
+msgid "طلب خدمة / مناقصة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:341
+msgid "🛍️ طلبات سوق العملاء"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:366
+msgid "في انتظار مراجعة العميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:367 printing/models.py:681
+msgid "مقبول"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:369
+msgid "تم سحبه من التاجر"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:373
+msgid "طلب الخدمة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:376
+msgid "السعر المقترح"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:377
+msgid "تفاصيل العرض"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:378
+msgid "أيام التنفيذ المتوقعة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:379
+msgid "مدة الضمان (أيام)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:382
+msgid "مدينة التاجر"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:383
+msgid "عنوان التاجر التفصيلي"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:386
+msgid "صورة 1"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:387
+msgid "صورة 2"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:388
+msgid "صورة 3"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:389
+msgid "ملف مرفق (PDF/Word)"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:395
+msgid "تعليق العميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:400
+msgid "عرض سعر تاجر"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:428
+msgid "معلومة"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:429
+msgid "نجاح / هدية"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:430
+msgid "تنبيه"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:431 clients/models/monitoring.py:98
+msgid "تحذير"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:438 printing/models.py:23
+msgid "العنوان"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:439
+msgid "النص"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:442
+msgid "Font Awesome class, e.g. fa-gift"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:444
+msgid "رابط اختياري للعميل ينقر عليه"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:455
+msgid "إشعار عميل"
+msgstr ""
+
+#: clients/models/marketplace_c2c.py:456
+msgid "🔔 إشعارات العملاء"
+msgstr ""
+
+#: clients/models/monitoring.py:48
+msgid "سجل زائر"
+msgstr ""
+
+#: clients/models/monitoring.py:49
+msgid "سجلات الزوار"
+msgstr ""
+
+#: clients/models/monitoring.py:66
+msgid "تسجيل شركة جديدة"
+msgstr ""
+
+#: clients/models/monitoring.py:67
+msgid "تسجيل دخول"
+msgstr ""
+
+#: clients/models/monitoring.py:68
+msgid "عملية دفع"
+msgstr ""
+
+#: clients/models/monitoring.py:69
+msgid "تفعيل اشتراك"
+msgstr ""
+
+#: clients/models/monitoring.py:70
+msgid "تعليق حساب"
+msgstr ""
+
+#: clients/models/monitoring.py:71
+msgid "تعليم احتيال"
+msgstr ""
+
+#: clients/models/monitoring.py:72
+msgid "إنشاء فاتورة"
+msgstr ""
+
+#: clients/models/monitoring.py:73
+msgid "خطأ في النظام"
+msgstr ""
+
+#: clients/models/monitoring.py:87
+msgid "حدث منصة"
+msgstr ""
+
+#: clients/models/monitoring.py:88
+msgid "أحداث المنصة"
+msgstr ""
+
+#: clients/models/monitoring.py:99 smart_diagnostics/models.py:71
+msgid "خطأ"
+msgstr ""
+
+#: clients/models/monitoring.py:100 diagnostics_catalog/models.py:21
+msgid "حرج"
+msgstr ""
+
+#: clients/models/monitoring.py:124
+msgid "سجل خطأ نظام"
+msgstr ""
+
+#: clients/models/monitoring.py:125
+msgid "سجلات أخطاء النظام"
+msgstr ""
+
+#: clients/models/monitoring.py:146
+msgid "كل الشركات"
+msgstr ""
+
+#: clients/models/monitoring.py:147
+msgid "الشركات النشطة فقط"
+msgstr ""
+
+#: clients/models/monitoring.py:148
+msgid "في الفترة التجريبية"
+msgstr ""
+
+#: clients/models/monitoring.py:149
+msgid "اشتراك ينتهي خلال 14 يوم"
+msgstr ""
+
+#: clients/models/monitoring.py:150
+msgid "شركات في خطر churn"
+msgstr ""
+
+#: clients/models/monitoring.py:151
+msgid "باقة محددة"
+msgstr ""
+
+#: clients/models/monitoring.py:152
+msgid "فلتر مخصص"
+msgstr ""
+
+#: clients/models/monitoring.py:156
+msgid "جاري الإرسال"
+msgstr ""
+
+#: clients/models/monitoring.py:157
+msgid "تم الإرسال"
+msgstr ""
+
+#: clients/models/monitoring.py:158 inventory/models/operations.py:60
+#: smart_diagnostics/models.py:182
+msgid "فشل"
+msgstr ""
+
+#: clients/models/monitoring.py:161 clients/models/support.py:104
+msgid "الموضوع"
+msgstr ""
+
+#: clients/models/monitoring.py:162
+msgid "نص الرسالة"
+msgstr ""
+
+#: clients/models/monitoring.py:200
+msgid "حملة بث"
+msgstr ""
+
+#: clients/models/monitoring.py:201
+msgid "حملات البث"
+msgstr ""
+
+#: clients/models/monitoring.py:224
+msgid "إخفاء بانر"
+msgstr ""
+
+#: clients/models/monitoring.py:225
+msgid "إخفاءات البانرات"
+msgstr ""
+
+#: clients/models/support.py:33
+msgid "المالك الأعلى"
+msgstr ""
+
+#: clients/models/support.py:34
+msgid "مدير تقني"
+msgstr ""
+
+#: clients/models/support.py:35 clients/models/support.py:179
+msgid "موظف دعم"
+msgstr ""
+
+#: clients/models/support.py:36
+msgid "مبيعات"
+msgstr ""
+
+#: clients/models/support.py:37
+msgid "محاسبة ومالية"
+msgstr ""
+
+#: clients/models/support.py:50 inventory/models/operations.py:29
+#: inventory/models/organization.py:37 inventory/models/organization.py:77
+#: printing/models.py:145
+msgid "المستخدم"
+msgstr ""
+
+#: clients/models/support.py:52
+msgid "الدور"
+msgstr ""
+
+#: clients/models/support.py:53
+msgid "صلاحية الحذف النهائي؟"
+msgstr ""
+
+#: clients/models/support.py:59
+msgid "دور موظف"
+msgstr ""
+
+#: clients/models/support.py:60
+msgid "أدوار موظفي الإدارة"
+msgstr ""
+
+#: clients/models/support.py:79
+msgid "جاري الحل"
+msgstr ""
+
+#: clients/models/support.py:80
+msgid "بانتظار رد العميل"
+msgstr ""
+
+#: clients/models/support.py:81 clients/models/support.py:144
+msgid "مغلقة"
+msgstr ""
+
+#: clients/models/support.py:84
+msgid "عادية"
+msgstr ""
+
+#: clients/models/support.py:85 inventory/models/diagnostics.py:372
+msgid "متوسطة"
+msgstr ""
+
+#: clients/models/support.py:86
+msgid "عاجلة"
+msgstr ""
+
+#: clients/models/support.py:87 hr/models.py:454
+msgid "طارئة"
+msgstr ""
+
+#: clients/models/support.py:90
+msgid "فورم اتصل بنا"
+msgstr ""
+
+#: clients/models/support.py:91
+msgid "شات خارج أوقات العمل"
+msgstr ""
+
+#: clients/models/support.py:92
+msgid "المساعد الذكي"
+msgstr ""
+
+#: clients/models/support.py:93
+msgid "بريد إلكتروني"
+msgstr ""
+
+#: clients/models/support.py:94
+msgid "مكالمة هاتفية"
+msgstr ""
+
+#: clients/models/support.py:99 clients/models/tenancy.py:748
+#: clients/models/tenancy.py:984 clients/models/tenancy.py:1139
+msgid "المستأجر"
+msgstr ""
+
+#: clients/models/support.py:101
+msgid "اسم المرسل"
+msgstr ""
+
+#: clients/models/support.py:103 printing/models.py:24 printing/models.py:40
+msgid "الهاتف"
+msgstr ""
+
+#: clients/models/support.py:105
+msgid "الرسالة"
+msgstr ""
+
+#: clients/models/support.py:115
+msgid "ملاحظات داخلية"
+msgstr ""
+
+#: clients/models/support.py:128
+msgid "تذكرة دعم"
+msgstr ""
+
+#: clients/models/support.py:129
+msgid "تذاكر الدعم"
+msgstr ""
+
+#: clients/models/support.py:142
+msgid "بانتظار رد"
+msgstr ""
+
+#: clients/models/support.py:143
+msgid "جارية"
+msgstr ""
+
+#: clients/models/support.py:164
+msgid "جلسة شات"
+msgstr ""
+
+#: clients/models/support.py:165
+msgid "جلسات الشات"
+msgstr ""
+
+#: clients/models/support.py:180
+msgid "بوت تلقائي"
+msgstr ""
+
+#: clients/models/support.py:181
+msgid "نظام"
+msgstr ""
+
+#: clients/models/tenancy.py:43
+msgid "اسم المركز/الشركة"
+msgstr ""
+
+#: clients/models/tenancy.py:44
+msgid "اسم المالك"
+msgstr ""
+
+#: clients/models/tenancy.py:45 inventory/models/catalog.py:134
+#: inventory/models/customers.py:23
+msgid "رقم الهاتف"
+msgstr ""
+
+#: clients/models/tenancy.py:46
+msgid "البريد الإلكتروني للإدارة"
+msgstr ""
+
+#: clients/models/tenancy.py:51
+msgid "🎨 طباعة وتصميم جرافيك"
+msgstr ""
+
+#: clients/models/tenancy.py:57
+msgid "مركز صيانة متكامل"
+msgstr ""
+
+#: clients/models/tenancy.py:58
+msgid "تاجر قطع غيار (مبيعات تجزئة وجملة)"
+msgstr ""
+
+#: clients/models/tenancy.py:59
+msgid "مستورد تقطيع وأنصاف (محرك الـ Scrap)"
+msgstr ""
+
+#: clients/models/tenancy.py:60
+msgid "توكيل شامل (صيانة + تجارة + استيراد)"
+msgstr ""
+
+#: clients/models/tenancy.py:62
+msgid "مطبعة (طباعة رقمية وأوفست)"
+msgstr ""
+
+#: clients/models/tenancy.py:63
+msgid "استوديو تصميم جرافيك"
+msgstr ""
+
+#: clients/models/tenancy.py:64
+msgid "مطبعة + تصميم (شامل)"
+msgstr ""
+
+#: clients/models/tenancy.py:66
+msgid "نوع النشاط"
+msgstr ""
+
+#: clients/models/tenancy.py:69
+msgid "الرصيد المتاح للسحب"
+msgstr ""
+
+#: clients/models/tenancy.py:70
+msgid "رصيد مجمد في الضمان (Escrow)"
+msgstr ""
+
+#: clients/models/tenancy.py:71
+msgid "عمولة Mouss Tec (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:74
+msgid "مشارك في سوق التجار (B2B)؟"
+msgstr ""
+
+#: clients/models/tenancy.py:75
+msgid "تاجر موثق (علامة زرقاء)"
+msgstr ""
+
+#: clients/models/tenancy.py:76
+msgid "السجل التجاري"
+msgstr ""
+
+#: clients/models/tenancy.py:79
+msgid "التقييم العام"
+msgstr ""
+
+#: clients/models/tenancy.py:80
+msgid "الصفقات الناجحة"
+msgstr ""
+
+#: clients/models/tenancy.py:81
+msgid "نسبة النزاعات (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:83
+msgid "مُحظر آلياً للاشتباه بالاحتيال"
+msgstr ""
+
+#: clients/models/tenancy.py:92
+msgid "Print Basic — للمطابع الصغيرة واستوديوهات التصميم"
+msgstr ""
+
+#: clients/models/tenancy.py:93
+msgid "Print Pro — للمطابع المتوسطة ومكاتب التصميم"
+msgstr ""
+
+#: clients/models/tenancy.py:94
+msgid "Print Enterprise — للمطابع الكبيرة ومجموعات التصميم"
+msgstr ""
+
+#: clients/models/tenancy.py:98
+msgid "الفروع المشمولة بالباقة"
+msgstr ""
+
+#: clients/models/tenancy.py:99
+msgid "المستخدمين المشمولين بالباقة"
+msgstr ""
+
+#: clients/models/tenancy.py:100
+msgid "حد كروت الصيانة الشهري"
+msgstr ""
+
+#: clients/models/tenancy.py:101
+msgid "حد أصناف المخزن"
+msgstr ""
+
+#: clients/models/tenancy.py:103
+msgid "الخزائن المشمولة بالباقة"
+msgstr ""
+
+#: clients/models/tenancy.py:105
+msgid "فروع إضافية مشتراة"
+msgstr ""
+
+#: clients/models/tenancy.py:106
+msgid "مستخدمين إضافيين مشتراة"
+msgstr ""
+
+#: clients/models/tenancy.py:107
+msgid "خزائن إضافية مشتراة"
+msgstr ""
+
+#: clients/models/tenancy.py:110
+msgid "فترة تجريبية"
+msgstr ""
+
+#: clients/models/tenancy.py:111
+msgid "نشط (مدفوع)"
+msgstr ""
+
+#: clients/models/tenancy.py:112
+msgid "معلق (لعدم الدفع)"
+msgstr ""
+
+#: clients/models/tenancy.py:113
+msgid "ملغي (محذوف سوفت)"
+msgstr ""
+
+#: clients/models/tenancy.py:115
+msgid "حالة الحساب"
+msgstr ""
+
+#: clients/models/tenancy.py:116
+msgid "نهاية الفترة التجريبية"
+msgstr ""
+
+#: clients/models/tenancy.py:117
+msgid "تاريخ انتهاء الاشتراك"
+msgstr ""
+
+#: clients/models/tenancy.py:119
+msgid "لوجو المركز"
+msgstr ""
+
+#: clients/models/tenancy.py:120
+msgid "اللون الأساسي للسيستم"
+msgstr ""
+
+#: clients/models/tenancy.py:123
+msgid "الاشتراك فعال؟"
+msgstr ""
+
+#: clients/models/tenancy.py:130
+msgid "الوصول لغرفة التشخيص (OBD)"
+msgstr ""
+
+#: clients/models/tenancy.py:134
+msgid "انتهاء صلاحية وصول OBD"
+msgstr ""
+
+#: clients/models/tenancy.py:135
+msgid "اتركها فارغة للوصول مدى الحياة."
+msgstr ""
+
+#: clients/models/tenancy.py:142
+msgid "شركة / مركز (عميل SaaS)"
+msgstr ""
+
+#: clients/models/tenancy.py:143
+msgid "شركات Mouss Tec Ecosystem"
+msgstr ""
+
+#: clients/models/tenancy.py:266
+msgid "🏛️ Core — أساسية"
+msgstr ""
+
+#: clients/models/tenancy.py:267
+msgid "🚗 Workshop — مراكز صيانة"
+msgstr ""
+
+#: clients/models/tenancy.py:268
+msgid "🎨 Printing — مطابع"
+msgstr ""
+
+#: clients/models/tenancy.py:269
+msgid "🛒 Marketplace — أسواق"
+msgstr ""
+
+#: clients/models/tenancy.py:270
+msgid "📊 Analytics — تقارير"
+msgstr ""
+
+#: clients/models/tenancy.py:271
+msgid "🔌 Integrations — تكاملات"
+msgstr ""
+
+#: clients/models/tenancy.py:272
+msgid "🛟 Support — دعم"
+msgstr ""
+
+#: clients/models/tenancy.py:276
+msgid "الكود البرمجي"
+msgstr ""
+
+#: clients/models/tenancy.py:277
+msgid "معرف فريد بـ snake_case — يتـ reference من Plan.entitlements"
+msgstr ""
+
+#: clients/models/tenancy.py:279
+msgid "الاسم بالعربية"
+msgstr ""
+
+#: clients/models/tenancy.py:280
+msgid "الاسم بالإنجليزية"
+msgstr ""
+
+#: clients/models/tenancy.py:286
+msgid "له حد رقمي؟"
+msgstr ""
+
+#: clients/models/tenancy.py:287
+msgid "True لو الـ feature لها monthly_limit أو quantitative cap"
+msgstr ""
+
+#: clients/models/tenancy.py:290 printing/models.py:509
+msgid "وحدة القياس"
+msgstr ""
+
+#: clients/models/tenancy.py:291
+msgid "مثلاً: 'تصميم/شهر' أو 'رسالة/شهر' — للعرض في الـ UI"
+msgstr ""
+
+#: clients/models/tenancy.py:294
+msgid "مفعّل"
+msgstr ""
+
+#: clients/models/tenancy.py:298
+msgid "ميزة"
+msgstr ""
+
+#: clients/models/tenancy.py:299
+msgid "💎 Feature Catalog — مرجع المزايا"
+msgstr ""
+
+#: clients/models/tenancy.py:311
+msgid "طباعة وتصميم"
+msgstr ""
+
+#: clients/models/tenancy.py:313
+msgid "المعرف"
+msgstr ""
+
+#: clients/models/tenancy.py:314
+msgid "اسم الباقة"
+msgstr ""
+
+#: clients/models/tenancy.py:317 clients/models/tenancy.py:651
+#: clients/models/tenancy.py:683
+msgid "السعر الشهري (ج.م)"
+msgstr ""
+
+#: clients/models/tenancy.py:318
+msgid "خصم ربع سنوي (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:319
+msgid "خصم نصف سنوي (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:320
+msgid "خصم سنوي (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:330
+msgid "حصة تصاميم AI شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:331
+msgid "عدد التصاميم المجانية التي تحصل عليها الشركة شهرياً مع الاشتراك"
+msgstr ""
+
+#: clients/models/tenancy.py:337
+msgid "حصة فحوصات التشخيص شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:338
+msgid "عدد الفحوصات الناجحة في صفحة التشخيص شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:343
+msgid "حصة أسئلة بوت التشخيص شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:344
+msgid "عدد أسئلة بوت التشخيص الذكي شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:350
+msgid "المميزات (عرض)"
+msgstr ""
+
+#: clients/models/tenancy.py:362 clients/models/tenancy.py:695
+msgid "الصلاحيات (entitlements)"
+msgstr ""
+
+#: clients/models/tenancy.py:363 clients/models/tenancy.py:696
+msgid "dict من feature_code → {enabled: bool, monthly_limit?: int}"
+msgstr ""
+
+#: clients/models/tenancy.py:370
+msgid "باقة اشتراك"
+msgstr ""
+
+#: clients/models/tenancy.py:371
+msgid "💎 باقات الاشتراك"
+msgstr ""
+
+#: clients/models/tenancy.py:384
+msgid "entitlements لازم تكون dict، مش list/string."
+msgstr ""
+
+#: clients/models/tenancy.py:442
+msgid "السعر الشهري"
+msgstr ""
+
+#: clients/models/tenancy.py:443
+msgid "الصلاحيات"
+msgstr ""
+
+#: clients/models/tenancy.py:448
+msgid "غيّر بواسطة"
+msgstr ""
+
+#: clients/models/tenancy.py:450
+msgid "سبب التغيير"
+msgstr ""
+
+#: clients/models/tenancy.py:451
+msgid "تاريخ الفعل"
+msgstr ""
+
+#: clients/models/tenancy.py:454
+msgid "revision باقة"
+msgstr ""
+
+#: clients/models/tenancy.py:455
+msgid "📜 سجل تعديلات الباقات"
+msgstr ""
+
+#: clients/models/tenancy.py:494
+msgid "مصدرة (لم تُدفع بعد)"
+msgstr ""
+
+#: clients/models/tenancy.py:495
+msgid "مدفوعة"
+msgstr ""
+
+#: clients/models/tenancy.py:496
+msgid "فشلت المعالجة"
+msgstr ""
+
+#: clients/models/tenancy.py:498 inventory/models/diagnostics.py:223
+msgid "ملغاة"
+msgstr ""
+
+#: clients/models/tenancy.py:503
+msgid "رقم الفاتورة"
+msgstr ""
+
+#: clients/models/tenancy.py:504
+msgid "auto-generated في save() بصيغة INV-YYYY-NNNNNN"
+msgstr ""
+
+#: clients/models/tenancy.py:509
+msgid "الشركة"
+msgstr ""
+
+#: clients/models/tenancy.py:514
+msgid "الاشتراك"
+msgstr ""
+
+#: clients/models/tenancy.py:518
+msgid "revision الباقة"
+msgstr ""
+
+#: clients/models/tenancy.py:519
+msgid "الإصدار اللي اتفوتر عليه — مهم للـ audit والـ legal"
+msgstr ""
+
+#: clients/models/tenancy.py:523 inventory/models/finance.py:182
+msgid "بداية الفترة"
+msgstr ""
+
+#: clients/models/tenancy.py:524 inventory/models/finance.py:183
+msgid "نهاية الفترة"
+msgstr ""
+
+#: clients/models/tenancy.py:525
+msgid "عدد الشهور"
+msgstr ""
+
+#: clients/models/tenancy.py:528
+msgid "الإجمالي قبل الخصم"
+msgstr ""
+
+#: clients/models/tenancy.py:529
+msgid "نسبة الخصم (%)"
+msgstr ""
+
+#: clients/models/tenancy.py:530
+msgid "قيمة الخصم"
+msgstr ""
+
+#: clients/models/tenancy.py:531
+msgid "الإجمالي المستحق"
+msgstr ""
+
+#: clients/models/tenancy.py:532 inventory/models/finance.py:59
+msgid "العملة"
+msgstr ""
+
+#: clients/models/tenancy.py:537
+msgid "نسخة المزايا وقت الفوترة"
+msgstr ""
+
+#: clients/models/tenancy.py:538
+msgid "immutable — للـ audit والـ legal لو حصل dispute"
+msgstr ""
+
+#: clients/models/tenancy.py:543
+msgid "بوابة الدفع"
+msgstr ""
+
+#: clients/models/tenancy.py:544 hr/models.py:957
+msgid "مرجع الدفع"
+msgstr ""
+
+#: clients/models/tenancy.py:545
+msgid "تاريخ الدفع"
+msgstr ""
+
+#: clients/models/tenancy.py:548
+msgid "تاريخ الإصدار"
+msgstr ""
+
+#: clients/models/tenancy.py:549 hr/models.py:237 hr/models.py:429
+#: printing/models.py:44 printing/models.py:109 printing/models.py:286
+#: printing/models.py:407
+msgid "ملاحظات"
+msgstr ""
+
+#: clients/models/tenancy.py:552
+msgid "أصدرها"
+msgstr ""
+
+#: clients/models/tenancy.py:556
+msgid "فاتورة منصة"
+msgstr ""
+
+#: clients/models/tenancy.py:557
+msgid "💸 فواتير المنصة (SaaS)"
+msgstr ""
+
+#: clients/models/tenancy.py:650 clients/models/tenancy.py:680
+#: clients/models/tenancy.py:724
+msgid "اسم الحزمة"
+msgstr ""
+
+#: clients/models/tenancy.py:653
+msgid "حد التوليد بالذكاء الاصطناعي"
+msgstr ""
+
+#: clients/models/tenancy.py:654
+msgid "حد رسائل واتساب"
+msgstr ""
+
+#: clients/models/tenancy.py:656
+msgid "مميزات الحزمة"
+msgstr ""
+
+#: clients/models/tenancy.py:661
+msgid "حزمة AI إضافية"
+msgstr ""
+
+#: clients/models/tenancy.py:662
+msgid "🤖 حزم AI Studio"
+msgstr ""
+
+#: clients/models/tenancy.py:688
+msgid "حصة فحوصات API الخارجية شهرياً"
+msgstr ""
+
+#: clients/models/tenancy.py:689
+msgid "بـ يـ refill diag_api_quota_remaining في 1st كل شهر"
+msgstr ""
+
+#: clients/models/tenancy.py:701
+msgid "مميزات الحزمة (للعرض على الـ pricing page)"
+msgstr ""
+
+#: clients/models/tenancy.py:708
+msgid "حزمة Smart Diagnostics"
+msgstr ""
+
+#: clients/models/tenancy.py:709
+msgid "🔧 حزم Smart Diagnostics (Add-ons)"
+msgstr ""
+
+#: clients/models/tenancy.py:729
+msgid "عدد الاستخدامات"
+msgstr ""
+
+#: clients/models/tenancy.py:730
+msgid "استخدام = فحص واحد أو سؤال بوت واحد"
+msgstr ""
+
+#: clients/models/tenancy.py:736
+msgid "حزمة شحن تشخيص"
+msgstr ""
+
+#: clients/models/tenancy.py:737
+msgid "🔍 حزم شحن التشخيص"
+msgstr ""
+
+#: clients/models/tenancy.py:750
+msgid "حزمة AI"
+msgstr ""
+
+#: clients/models/tenancy.py:754
+msgid "🔧 حزمة Smart Diagnostics"
+msgstr ""
+
+#: clients/models/tenancy.py:755
+msgid "اختياري — يفعّل ميزات التشخيص الذكي فوق الباقة الأساسية"
+msgstr ""
+
+#: clients/models/tenancy.py:758
+msgid "دورة الفوترة (أشهر)"
+msgstr ""
+
+#: clients/models/tenancy.py:766
+msgid "اشتراك مستأجر"
+msgstr ""
+
+#: clients/models/tenancy.py:767
+msgid "📋 اشتراكات المستأجرين"
+msgstr ""
+
+#: clients/models/tenancy.py:781
+msgid "السعر المثبت (snapshot)"
+msgstr ""
+
+#: clients/models/tenancy.py:782
+msgid "نسخة من Plan.monthly_price وقت الاشتراك/التجديد"
+msgstr ""
+
+#: clients/models/tenancy.py:786
+msgid "الصلاحيات المثبتة (snapshot)"
+msgstr ""
+
+#: clients/models/tenancy.py:787
+msgid "نسخة من Plan.entitlements وقت الاشتراك/التجديد"
+msgstr ""
+
+#: clients/models/tenancy.py:791
+msgid "تاريخ تثبيت الـ snapshot"
+msgstr ""
+
+#: clients/models/tenancy.py:796
+msgid "revision المرجعية"
+msgstr ""
+
+#: clients/models/tenancy.py:797
+msgid "للـ audit — أي إصدار من الـ plan كان وقت الـ snapshot"
+msgstr ""
+
+#: clients/models/tenancy.py:808
+msgid "حصة فحوصات الـ API المتبقية"
+msgstr ""
+
+#: clients/models/tenancy.py:809
+msgid ""
+"بـ تتدفع 1 لكل external API call يـ miss الـ cache. الـ refill شهرياً أو "
+"يدوياً."
+msgstr ""
+
+#: clients/models/tenancy.py:813
+msgid "إجمالي فحوصات API المستهلكة (lifetime)"
+msgstr ""
+
+#: clients/models/tenancy.py:826
+msgid "فحوصات التشخيص المستهلكة (الفترة الحالية)"
+msgstr ""
+
+#: clients/models/tenancy.py:830
+msgid "أسئلة بوت التشخيص المستهلكة (الفترة الحالية)"
+msgstr ""
+
+#: clients/models/tenancy.py:834
+msgid "رصيد شحن التشخيص (استخدامات إضافية)"
+msgstr ""
+
+#: clients/models/tenancy.py:835
+msgid "استخدامات إضافية فوق حصة الباقة الشهرية، تنزل عند انتهاء الحصة الشهرية."
+msgstr ""
+
+#: clients/models/tenancy.py:839
+msgid "بداية فترة حصة التشخيص الحالية"
+msgstr ""
+
+#: clients/models/tenancy.py:985
+msgid "تصاميم مهداه"
+msgstr ""
+
+#: clients/models/tenancy.py:986
+msgid "رسائل واتساب مهداه"
+msgstr ""
+
+#: clients/models/tenancy.py:987
+msgid "علامات مائية مهداه"
+msgstr ""
+
+#: clients/models/tenancy.py:991
+msgid "سبب الهدية"
+msgstr ""
+
+#: clients/models/tenancy.py:994
+msgid "تاريخ الانتهاء (اختياري)"
+msgstr ""
+
+#: clients/models/tenancy.py:998
+msgid "هدية رصيد AI"
+msgstr ""
+
+#: clients/models/tenancy.py:999
+msgid "🎁 هدايا رصيد AI Studio"
+msgstr ""
+
+#: clients/models/tenancy.py:1041
+msgid "Paymob (Visa/Mastercard)"
+msgstr ""
+
+#: clients/models/tenancy.py:1044
+msgid "منحة إدارية"
+msgstr ""
+
+#: clients/models/tenancy.py:1050
+msgid "إجمالي التصاميم"
+msgstr ""
+
+#: clients/models/tenancy.py:1051
+msgid "المستهلك"
+msgstr ""
+
+#: clients/models/tenancy.py:1052
+msgid "السعر المدفوع (ج.م)"
+msgstr ""
+
+#: clients/models/tenancy.py:1057
+msgid "ينتهي في (اختياري)"
+msgstr ""
+
+#: clients/models/tenancy.py:1064
+msgid "💳 شحنات تصاميم الشركات"
+msgstr ""
+
+#: clients/models/tenancy.py:1101
+msgid "النص الأصلي"
+msgstr ""
+
+#: clients/models/tenancy.py:1102
+msgid "البرومبت المحسّن"
+msgstr ""
+
+#: clients/models/tenancy.py:1106
+msgid "استُخدم لوجو؟"
+msgstr ""
+
+#: clients/models/tenancy.py:1109
+msgid "رابط التصميم"
+msgstr ""
+
+#: clients/models/tenancy.py:1114
+msgid "بعلامة مائية"
+msgstr ""
+
+#: clients/models/tenancy.py:1124
+msgid "جلسة AI Studio"
+msgstr ""
+
+#: clients/models/tenancy.py:1125
+msgid "💾 سجل جلسات AI Studio"
+msgstr ""
+
+#: clients/models/tenancy.py:1135
+msgid "توليد صورة بالذكاء الاصطناعي"
+msgstr ""
+
+#: clients/models/tenancy.py:1136
+msgid "إرسال رسالة واتساب"
+msgstr ""
+
+#: clients/models/tenancy.py:1137
+msgid "علامة مائية ذكية"
+msgstr ""
+
+#: clients/models/tenancy.py:1140 inventory/models/operations.py:30
+msgid "نوع العملية"
+msgstr ""
+
+#: clients/models/tenancy.py:1142
+msgid "بيانات إضافية"
+msgstr ""
+
+#: clients/models/tenancy.py:1145
+msgid "سجل استهلاك AI"
+msgstr ""
+
+#: clients/models/tenancy.py:1146
+msgid "📊 سجل استهلاك AI Studio"
+msgstr ""
+
+#: diagnostics_catalog/models.py:18
+msgid "معلوماتي"
+msgstr ""
+
+#: diagnostics_catalog/models.py:19
+msgid "منخفض"
+msgstr ""
+
+#: diagnostics_catalog/models.py:20
+msgid "متوسط"
+msgstr ""
+
+#: diagnostics_catalog/models.py:22
+msgid "فوري — أوقف السيارة"
+msgstr ""
+
+#: diagnostics_catalog/models.py:31
+msgid "Powertrain (P)"
+msgstr ""
+
+#: diagnostics_catalog/models.py:32
+msgid "Chassis (C)"
+msgstr ""
+
+#: diagnostics_catalog/models.py:33
+msgid "Body (B)"
+msgstr ""
+
+#: diagnostics_catalog/models.py:34
+msgid "Network/Comms (U)"
+msgstr ""
+
+#: diagnostics_catalog/models.py:39
+msgid "DTC Code"
+msgstr ""
+
+#: diagnostics_catalog/models.py:40
+msgid "e.g. P0301, U0100"
+msgstr ""
+
+#: diagnostics_catalog/models.py:43
+msgid "الوصف المختصر"
+msgstr ""
+
+#: diagnostics_catalog/models.py:44
+msgid "الوصف التفصيلي"
+msgstr ""
+
+#: diagnostics_catalog/models.py:49
+msgid "خطوات الفحص الموجَّه"
+msgstr ""
+
+#: diagnostics_catalog/models.py:54
+msgid "OEM parts المرجحة"
+msgstr ""
+
+#: diagnostics_catalog/models.py:55
+msgid "قائمة OEM part numbers محتمل ارتباطها بالعطل"
+msgstr ""
+
+#: diagnostics_catalog/models.py:60
+msgid "community | carmd | manual"
+msgstr ""
+
+#: diagnostics_catalog/models.py:64
+msgid "True = OBD2 generic؛ False = manufacturer-specific"
+msgstr ""
+
+#: diagnostics_catalog/models.py:70
+msgid "تعريف كود عطل (DTC)"
+msgstr ""
+
+#: diagnostics_catalog/models.py:71
+msgid "📚 DTC Catalog — مرجع الأكواد"
+msgstr ""
+
+#: diagnostics_catalog/models.py:84
+msgid "بيانات الـ VIN المفكوكة"
+msgstr ""
+
+#: diagnostics_catalog/models.py:93
+msgid "VIN decode cache"
+msgstr ""
+
+#: diagnostics_catalog/models.py:94
+msgid "🔐 VIN Decode Cache"
+msgstr ""
+
+#: diagnostics_catalog/models.py:108
+msgid "e.g. 'BMW|F30|2015|N20' — to differentiate same DTC across vehicles"
+msgstr ""
+
+#: diagnostics_catalog/models.py:115
+msgid "DTC external lookup cache"
+msgstr ""
+
+#: diagnostics_catalog/models.py:116
+msgid "🔐 DTC External Cache"
+msgstr ""
+
+#: diagnostics_catalog/models.py:130
+msgid "e.g. 'dtc_lookup', 'vin_decode'"
+msgstr ""
+
+#: diagnostics_catalog/models.py:136
+msgid "سعر مكالمة API"
+msgstr ""
+
+#: diagnostics_catalog/models.py:137
+msgid "💵 API Cost Rates"
+msgstr ""
+
+#: diagnostics_catalog/models.py:170
+msgid "اختياري — لو VIN متاح بنستخدمه كمفتاح أساسي."
+msgstr ""
+
+#: diagnostics_catalog/models.py:174
+msgid "MAC الـ Bluetooth أو IP الـ WiFi — fallback لو VIN مش موجود."
+msgstr ""
+
+#: diagnostics_catalog/models.py:178
+msgid "الكود اللي بيتبعت لـ ATSP — 1..9, A, B."
+msgstr ""
+
+#: diagnostics_catalog/models.py:183
+msgid "تقدير الزمن المُوفَّر بإعادة استخدام البروتوكول المحفوظ."
+msgstr ""
+
+#: diagnostics_catalog/models.py:185
+msgid "مرات إعادة استخدام البروتوكول دا."
+msgstr ""
+
+#: diagnostics_catalog/models.py:190
+msgid "ذاكرة بروتوكول عربية"
+msgstr ""
+
+#: diagnostics_catalog/models.py:191
+msgid "🧠 ذاكرة البروتوكولات"
+msgstr ""
+
+#: erp_core/settings.py:324
+msgid "Arabic"
+msgstr ""
+
+#: erp_core/settings.py:324
+msgid "English"
+msgstr ""
+
+#: hr/admin.py:30
+msgid "النطاق الجغرافي (Geofencing)"
+msgstr ""
+
+#: hr/admin.py:33
+msgid "متطلبات التحقق عند البصمة"
+msgstr ""
+
+#: hr/admin.py:37
+msgid "سياسات الحضور والخصم"
+msgstr ""
+
+#: hr/admin.py:44
+msgid "سياسات السلف"
+msgstr ""
+
+#: hr/admin.py:90 inventory/models/finance.py:120
+msgid "الحساب"
+msgstr ""
+
+#: hr/admin.py:93
+msgid "البيانات الوظيفية"
+msgstr ""
+
+#: hr/admin.py:96
+msgid "الهيكل الإداري"
+msgstr ""
+
+#: hr/admin.py:99
+msgid "المالي"
+msgstr ""
+
+#: hr/admin.py:102
+msgid "بصمة الوجه"
+msgstr ""
+
+#: hr/admin.py:106
+msgid "تفويض التصميم"
+msgstr ""
+
+#: hr/admin.py:108
+msgid "تفعيل هذا الخيار يعني أن تصميمات الموظف تُعتمد فوراً بدون مراجعة المدير."
+msgstr ""
+
+#: hr/admin.py:115
+msgid "الاسم"
+msgstr ""
+
+#: hr/admin.py:130 hr/models.py:319
+msgid "أيام العمل"
+msgstr ""
+
+#: hr/admin.py:170
+msgid "تسجيل الغياب لليوم (للموظفين بدون حضور)"
+msgstr ""
+
+#: hr/admin.py:191
+msgid "الموافقة على الإجازات المحددة"
+msgstr ""
+
+#: hr/admin.py:206
+msgid "رفض الإجازات المحددة"
+msgstr ""
+
+#: hr/admin.py:254
+msgid "الموافقة على السلف المحددة"
+msgstr ""
+
+#: hr/admin.py:274
+msgid "رفض السلف المحددة"
+msgstr ""
+
+#: hr/admin.py:321
+msgid "الفترة"
+msgstr ""
+
+#: hr/admin.py:327
+msgid "إنشاء / إعادة حساب الرواتب"
+msgstr ""
+
+#: hr/admin.py:343
+msgid "اعتماد الرواتب"
+msgstr ""
+
+#: hr/admin.py:353
+msgid "صرف الرواتب من الخزينة"
+msgstr ""
+
+#: hr/admin.py:394
+msgid "اعتماد التصاميم المحددة"
+msgstr ""
+
+#: hr/admin.py:411
+msgid "رفض التصاميم المحددة"
+msgstr ""
+
+#: hr/models.py:45
+msgid "خط العرض (Latitude)"
+msgstr ""
+
+#: hr/models.py:46
+msgid "إحداثية موقع الشركة/الورشة — خط العرض"
+msgstr ""
+
+#: hr/models.py:50
+msgid "خط الطول (Longitude)"
+msgstr ""
+
+#: hr/models.py:51
+msgid "إحداثية موقع الشركة/الورشة — خط الطول"
+msgstr ""
+
+#: hr/models.py:55
+msgid "نطاق السماح (متر)"
+msgstr ""
+
+#: hr/models.py:56
+msgid "المسافة القصوى المسموحة لتسجيل الحضور من الموقع (بالمتر)"
+msgstr ""
+
+#: hr/models.py:62
+msgid "فترة السماح (دقيقة)"
+msgstr ""
+
+#: hr/models.py:63
+msgid "عدد الدقائق المسموحة بعد بداية الوردية قبل احتساب التأخير"
+msgstr ""
+
+#: hr/models.py:67
+msgid "خصم التأخير لكل دقيقة (ج.م)"
+msgstr ""
+
+#: hr/models.py:68
+msgid ""
+"المبلغ المخصوم عن كل دقيقة تأخير بعد فترة السماح — 0 يعني تعطيل الخصم الدقيقي"
+msgstr ""
+
+#: hr/models.py:72
+msgid "نسبة خصم التأخير من اليومي (%)"
+msgstr ""
+
+#: hr/models.py:73
+msgid ""
+"النسبة المئوية المخصومة من أجر اليوم عند التأخير — بديل عن الخصم الدقيقي"
+msgstr ""
+
+#: hr/models.py:77
+msgid "خصم الغياب بدون إذن (عدد أيام)"
+msgstr ""
+
+#: hr/models.py:78
+msgid "عدد الأيام المخصومة من الراتب عند كل يوم غياب بدون إذن مسبق"
+msgstr ""
+
+#: hr/models.py:82
+msgid "أيام العمل الشهرية"
+msgstr ""
+
+#: hr/models.py:83
+msgid "عدد أيام العمل في الشهر — يُستخدم لحساب أجر اليوم"
+msgstr ""
+
+#: hr/models.py:89
+msgid "إلزام بصمة الوجه"
+msgstr ""
+
+#: hr/models.py:90
+msgid "إذا مُفعّل: لن يتمكن الموظف من تسجيل الحضور بدون التحقق من وجهه بالكاميرا"
+msgstr ""
+
+#: hr/models.py:94
+msgid "إلزام تحديد الموقع (GPS)"
+msgstr ""
+
+#: hr/models.py:95
+msgid "إذا مُفعّل: لن يتمكن الموظف من تسجيل الحضور بدون تفعيل الموقع الجغرافي"
+msgstr ""
+
+#: hr/models.py:99
+msgid "حد مطابقة الوجه"
+msgstr ""
+
+#: hr/models.py:100
+msgid "المسافة الأقصى للمطابقة (أقل = أدق). الافتراضي 0.45 — قيم بين 0.3 و 0.6"
+msgstr ""
+
+#: hr/models.py:106
+msgid "الحد الأقصى للسلفة (% من الراتب)"
+msgstr ""
+
+#: hr/models.py:107
+msgid "أقصى نسبة مسموحة من الراتب الأساسي كسلفة"
+msgstr ""
+
+#: hr/models.py:111
+msgid "أقصى عدد أقساط"
+msgstr ""
+
+#: hr/models.py:118 hr/models.py:119
+msgid "إعدادات الموارد البشرية"
+msgstr ""
+
+#: hr/models.py:146
+msgid "الإدارة العامة"
+msgstr ""
+
+#: hr/models.py:147
+msgid "الموارد البشرية"
+msgstr ""
+
+#: hr/models.py:148
+msgid "المحاسبة"
+msgstr ""
+
+#: hr/models.py:150
+msgid "الورشة / الصيانة"
+msgstr ""
+
+#: hr/models.py:151
+msgid "قطع الغيار"
+msgstr ""
+
+#: hr/models.py:152
+msgid "المخزن"
+msgstr ""
+
+#: hr/models.py:153
+msgid "الاستقبال"
+msgstr ""
+
+#: hr/models.py:155
+msgid "التصميم"
+msgstr ""
+
+#: hr/models.py:156
+msgid "الطباعة والتشطيب"
+msgstr ""
+
+#: hr/models.py:157
+msgid "المبيعات"
+msgstr ""
+
+#: hr/models.py:161
+msgid "دوام كامل"
+msgstr ""
+
+#: hr/models.py:162
+msgid "دوام جزئي"
+msgstr ""
+
+#: hr/models.py:163
+msgid "عقد مؤقت"
+msgstr ""
+
+#: hr/models.py:164
+msgid "مستقل (Freelance)"
+msgstr ""
+
+#: hr/models.py:170
+msgid "حساب المستخدم"
+msgstr ""
+
+#: hr/models.py:176
+msgid "الرقم الوظيفي"
+msgstr ""
+
+#: hr/models.py:177
+msgid "يُولّد تلقائياً إذا تُرك فارغاً"
+msgstr ""
+
+#: hr/models.py:181
+msgid "القسم"
+msgstr ""
+
+#: hr/models.py:184
+msgid "المسمى الوظيفي"
+msgstr ""
+
+#: hr/models.py:185
+msgid "مثال: فني ميكانيكا، مصمم جرافيك، مدير مبيعات"
+msgstr ""
+
+#: hr/models.py:189
+msgid "نوع التعاقد"
+msgstr ""
+
+#: hr/models.py:192
+msgid "تاريخ التعيين"
+msgstr ""
+
+#: hr/models.py:198
+msgid "المدير المباشر"
+msgstr ""
+
+#: hr/models.py:199
+msgid "المسؤول عن الموافقات والمراجعات لهذا الموظف"
+msgstr ""
+
+#: hr/models.py:202
+msgid "مدير موارد بشرية"
+msgstr ""
+
+#: hr/models.py:203
+msgid "صلاحية الموافقة على السلف وتعديل إعدادات HR"
+msgstr ""
+
+#: hr/models.py:209
+msgid "الراتب الأساسي (شهري)"
+msgstr ""
+
+#: hr/models.py:213
+msgid "أجر اليوم"
+msgstr ""
+
+#: hr/models.py:214
+msgid "يُحسب تلقائياً = الراتب / أيام العمل الشهرية. يمكن تعديله يدوياً."
+msgstr ""
+
+#: hr/models.py:220
+msgid "بصمة الوجه (Face Encoding)"
+msgstr ""
+
+#: hr/models.py:221
+msgid ""
+"بيانات الـ Face Embedding المُشفرة — تُنشأ من صورة الموظف عبر واجهة التسجيل"
+msgstr ""
+
+#: hr/models.py:225
+msgid "صورة بصمة الوجه"
+msgstr ""
+
+#: hr/models.py:226
+msgid "الصورة المرجعية المستخدمة لتوليد الـ Face Encoding"
+msgstr ""
+
+#: hr/models.py:232
+msgid "تفويض تلقائي (تخطي مراجعة المدير)"
+msgstr ""
+
+#: hr/models.py:233
+msgid "إذا مُفعّل: تصميمات هذا الموظف تُعتمد فوراً بدون مراجعة المدير المباشر"
+msgstr ""
+
+#: hr/models.py:242
+msgid "موظف"
+msgstr ""
+
+#: hr/models.py:243
+msgid "الموظفون"
+msgstr ""
+
+#: hr/models.py:313
+msgid "اسم الوردية"
+msgstr ""
+
+#: hr/models.py:314
+msgid "مثال: وردية صباحية، وردية مسائية"
+msgstr ""
+
+#: hr/models.py:316
+msgid "وقت البداية"
+msgstr ""
+
+#: hr/models.py:317
+msgid "وقت النهاية"
+msgstr ""
+
+#: hr/models.py:320
+msgid "قائمة أيام الأسبوع: [\"sat\",\"sun\",\"mon\",\"tue\",\"wed\",\"thu\"]"
+msgstr ""
+
+#: hr/models.py:322 printing/models.py:544
+msgid "نشطة"
+msgstr ""
+
+#: hr/models.py:325
+msgid "وردية عمل"
+msgstr ""
+
+#: hr/models.py:326
+msgid "ورديات العمل"
+msgstr ""
+
+#: hr/models.py:336 hr/models.py:376 hr/models.py:465 hr/models.py:527
+#: hr/models.py:718 inventory/models/organization.py:128 printing/models.py:624
+msgid "الموظف"
+msgstr ""
+
+#: hr/models.py:340 hr/models.py:381
+msgid "الوردية"
+msgstr ""
+
+#: hr/models.py:342
+msgid "سارية من"
+msgstr ""
+
+#: hr/models.py:343
+msgid "سارية حتى"
+msgstr ""
+
+#: hr/models.py:346
+msgid "تعيين وردية"
+msgstr ""
+
+#: hr/models.py:347
+msgid "تعيينات الورديات"
+msgstr ""
+
+#: hr/models.py:367
+msgid "حاضر"
+msgstr ""
+
+#: hr/models.py:368 inventory/models/diagnostics.py:429
+msgid "متأخر"
+msgstr ""
+
+#: hr/models.py:369
+msgid "غائب"
+msgstr ""
+
+#: hr/models.py:370
+msgid "إجازة / إذن"
+msgstr ""
+
+#: hr/models.py:371
+msgid "عطلة رسمية"
+msgstr ""
+
+#: hr/models.py:378 inventory/models/finance.py:65
+#: inventory/models/invoices.py:33 inventory/models/invoices.py:80
+#: printing/models.py:185 printing/models.py:566
+msgid "التاريخ"
+msgstr ""
+
+#: hr/models.py:385
+msgid "وقت الحضور"
+msgstr ""
+
+#: hr/models.py:386
+msgid "وقت الانصراف"
+msgstr ""
+
+#: hr/models.py:390
+msgid "بصمة الوجه مُوثقة"
+msgstr ""
+
+#: hr/models.py:394
+msgid "خط العرض عند الحضور"
+msgstr ""
+
+#: hr/models.py:398
+msgid "خط الطول عند الحضور"
+msgstr ""
+
+#: hr/models.py:401
+msgid "الموقع الجغرافي مُوثق"
+msgstr ""
+
+#: hr/models.py:405
+msgid "خط العرض عند الانصراف"
+msgstr ""
+
+#: hr/models.py:409
+msgid "خط الطول عند الانصراف"
+msgstr ""
+
+#: hr/models.py:418
+msgid "دقائق التأخير"
+msgstr ""
+
+#: hr/models.py:422
+msgid "ساعات العمل الفعلية"
+msgstr ""
+
+#: hr/models.py:426
+msgid "ساعات العمل الإضافية"
+msgstr ""
+
+#: hr/models.py:434
+msgid "سجل حضور"
+msgstr ""
+
+#: hr/models.py:435
+msgid "سجلات الحضور والانصراف"
+msgstr ""
+
+#: hr/models.py:450
+msgid "سنوية"
+msgstr ""
+
+#: hr/models.py:451
+msgid "مرضية"
+msgstr ""
+
+#: hr/models.py:452
+msgid "شخصية"
+msgstr ""
+
+#: hr/models.py:453
+msgid "بدون راتب"
+msgstr ""
+
+#: hr/models.py:458 hr/models.py:518
+msgid "موافق عليه"
+msgstr ""
+
+#: hr/models.py:468
+msgid "نوع الإجازة"
+msgstr ""
+
+#: hr/models.py:470
+msgid "من تاريخ"
+msgstr ""
+
+#: hr/models.py:471
+msgid "إلى تاريخ"
+msgstr ""
+
+#: hr/models.py:472 inventory/models/catalog.py:181
+msgid "السبب"
+msgstr ""
+
+#: hr/models.py:480
+msgid "تمت المراجعة بواسطة"
+msgstr ""
+
+#: hr/models.py:482 hr/models.py:871 inventory/models/operations.py:127
+msgid "ملاحظات المراجعة"
+msgstr ""
+
+#: hr/models.py:483 hr/models.py:872
+msgid "تاريخ المراجعة"
+msgstr ""
+
+#: hr/models.py:488
+msgid "طلب إجازة"
+msgstr ""
+
+#: hr/models.py:489
+msgid "طلبات الإجازات"
+msgstr ""
+
+#: hr/models.py:504
+msgid "تاريخ النهاية يجب أن يكون بعد تاريخ البداية."
+msgstr ""
+
+#: hr/models.py:517
+msgid "قيد الموافقة"
+msgstr ""
+
+#: hr/models.py:520
+msgid "جاري السداد"
+msgstr ""
+
+#: hr/models.py:521
+msgid "تم السداد بالكامل"
+msgstr ""
+
+#: hr/models.py:532
+msgid "مبلغ السلفة"
+msgstr ""
+
+#: hr/models.py:534
+msgid "سبب السلفة"
+msgstr ""
+
+#: hr/models.py:537
+msgid "عدد الأقساط"
+msgstr ""
+
+#: hr/models.py:538
+msgid "عدد الأشهر لتقسيط السلفة"
+msgstr ""
+
+#: hr/models.py:547
+msgid "الموافقة بواسطة"
+msgstr ""
+
+#: hr/models.py:549
+msgid "تاريخ الموافقة"
+msgstr ""
+
+#: hr/models.py:550
+msgid "سبب الرفض"
+msgstr ""
+
+#: hr/models.py:554
+msgid "المبلغ المتبقي"
+msgstr ""
+
+#: hr/models.py:557
+msgid "تاريخ الطلب"
+msgstr ""
+
+#: hr/models.py:560
+msgid "سلفة"
+msgstr ""
+
+#: hr/models.py:561
+msgid "السلف والعهد"
+msgstr ""
+
+#: hr/models.py:577
+#, python-format
+msgid ""
+"مبلغ السلفة (%(amount)s) يتجاوز الحد الأقصى المسموح (%(max)s ج.م — %(pct)s%% "
+"من الراتب)."
+msgstr ""
+
+#: hr/models.py:589
+#, python-format
+msgid "عدد الأقساط (%(count)s) يتجاوز الحد الأقصى (%(max)s)."
+msgstr ""
+
+#: hr/models.py:607
+msgid "مجدول"
+msgstr ""
+
+#: hr/models.py:608
+msgid "تم الخصم"
+msgstr ""
+
+#: hr/models.py:609
+msgid "مؤجل"
+msgstr ""
+
+#: hr/models.py:614
+msgid "السلفة"
+msgstr ""
+
+#: hr/models.py:616
+msgid "رقم القسط"
+msgstr ""
+
+#: hr/models.py:618
+msgid "مبلغ القسط"
+msgstr ""
+
+#: hr/models.py:621
+msgid "شهر الاستحقاق"
+msgstr ""
+
+#: hr/models.py:622
+msgid "أول يوم من الشهر المستحق فيه القسط"
+msgstr ""
+
+#: hr/models.py:631
+msgid "خُصم في كشف راتب"
+msgstr ""
+
+#: hr/models.py:635
+msgid "قسط سلفة"
+msgstr ""
+
+#: hr/models.py:636
+msgid "أقساط السلف"
+msgstr ""
+
+#: hr/models.py:655
+msgid "محسوب"
+msgstr ""
+
+#: hr/models.py:657
+msgid "مصروف"
+msgstr ""
+
+#: hr/models.py:662
+msgid "الشهر"
+msgstr ""
+
+#: hr/models.py:664
+msgid "السنة"
+msgstr ""
+
+#: hr/models.py:672
+msgid "إجمالي المرتبات قبل الخصم"
+msgstr ""
+
+#: hr/models.py:676 hr/models.py:773
+msgid "إجمالي الخصومات"
+msgstr ""
+
+#: hr/models.py:680
+msgid "صافي المرتبات"
+msgstr ""
+
+#: hr/models.py:683
+msgid "عدد الموظفين"
+msgstr ""
+
+#: hr/models.py:688
+msgid "أنشأها"
+msgstr ""
+
+#: hr/models.py:692
+msgid "اعتمدها"
+msgstr ""
+
+#: hr/models.py:695
+msgid "تاريخ الصرف"
+msgstr ""
+
+#: hr/models.py:698
+msgid "دورة رواتب"
+msgstr ""
+
+#: hr/models.py:699
+msgid "دورات الرواتب"
+msgstr ""
+
+#: hr/models.py:714
+msgid "دورة الرواتب"
+msgstr ""
+
+#: hr/models.py:723
+msgid "الراتب الأساسي"
+msgstr ""
+
+#: hr/models.py:727
+msgid "أيام الحضور"
+msgstr ""
+
+#: hr/models.py:728
+msgid "أيام الغياب بدون إذن"
+msgstr ""
+
+#: hr/models.py:729
+msgid "أيام التأخير"
+msgstr ""
+
+#: hr/models.py:730
+msgid "أيام الإجازة / الإذن"
+msgstr ""
+
+#: hr/models.py:731
+msgid "إجمالي دقائق التأخير"
+msgstr ""
+
+#: hr/models.py:734
+msgid "إجمالي ساعات العمل"
+msgstr ""
+
+#: hr/models.py:739
+msgid "خصم التأخير"
+msgstr ""
+
+#: hr/models.py:743
+msgid "خصم الغياب"
+msgstr ""
+
+#: hr/models.py:747
+msgid "خصم أقساط السلف"
+msgstr ""
+
+#: hr/models.py:751
+msgid "خصومات أخرى"
+msgstr ""
+
+#: hr/models.py:754
+msgid "ملاحظة الخصومات الأخرى"
+msgstr ""
+
+#: hr/models.py:760
+msgid "مكافآت / حوافز"
+msgstr ""
+
+#: hr/models.py:764
+msgid "بدل إضافي"
+msgstr ""
+
+#: hr/models.py:767
+msgid "ملاحظة المكافآت"
+msgstr ""
+
+#: hr/models.py:777
+msgid "إجمالي الإضافات"
+msgstr ""
+
+#: hr/models.py:781
+msgid "صافي الراتب"
+msgstr ""
+
+#: hr/models.py:787
+msgid "معرّف الحركة المالية"
+msgstr ""
+
+#: hr/models.py:788
+msgid "معرّف FinancialTransaction أو PrintTransaction المرتبطة"
+msgstr ""
+
+#: hr/models.py:794
+msgid "كشف راتب"
+msgstr ""
+
+#: hr/models.py:795
+msgid "كشوف الرواتب"
+msgstr ""
+
+#: hr/models.py:828
+msgid "يدوي بالكامل"
+msgstr ""
+
+#: hr/models.py:829
+msgid "مُنشأ بالذكاء الاصطناعي"
+msgstr ""
+
+#: hr/models.py:830
+msgid "مساعد بالذكاء الاصطناعي (AI + تعديل يدوي)"
+msgstr ""
+
+#: hr/models.py:836
+msgid "مطلوب تعديل"
+msgstr ""
+
+#: hr/models.py:842 hr/models.py:923 printing/models.py:184
+#: printing/models.py:374
+msgid "المصمم"
+msgstr ""
+
+#: hr/models.py:845
+msgid "الوصف / التفاصيل"
+msgstr ""
+
+#: hr/models.py:847 printing/models.py:406
+msgid "ملف التصميم"
+msgstr ""
+
+#: hr/models.py:851
+msgid "صورة معاينة"
+msgstr ""
+
+#: hr/models.py:855 printing/models.py:190
+msgid "نوع التنفيذ"
+msgstr ""
+
+#: hr/models.py:864
+msgid "اعتماد تلقائي"
+msgstr ""
+
+#: hr/models.py:865
+msgid "يُفعّل عند اعتماد التصميم تلقائياً بسبب تفويض المصمم"
+msgstr ""
+
+#: hr/models.py:869 inventory/models/operations.py:125
+msgid "المراجع"
+msgstr ""
+
+#: hr/models.py:876
+msgid "رقم الطلب المرتبط"
+msgstr ""
+
+#: hr/models.py:877
+msgid "رقم PrintOrder أو SaleInvoice المرتبط بالتصميم"
+msgstr ""
+
+#: hr/models.py:884
+msgid "تصميم مرفوع"
+msgstr ""
+
+#: hr/models.py:885
+msgid "التصاميم المرفوعة"
+msgstr ""
+
+#: hr/models.py:904
+msgid "أساسي — 100 تصميم AI شهرياً"
+msgstr ""
+
+#: hr/models.py:905
+msgid "احترافي — 300 تصميم AI شهرياً"
+msgstr ""
+
+#: hr/models.py:906
+msgid "غير محدود — تصاميم لا نهائية"
+msgstr ""
+
+#: hr/models.py:910
+msgid "منتهي"
+msgstr ""
+
+#: hr/models.py:915
+msgid "فيزا / بطاقة ائتمان"
+msgstr ""
+
+#: hr/models.py:916
+msgid "تفعيل يدوي من الأدمن"
+msgstr ""
+
+#: hr/models.py:917
+msgid "خصم من رصيد الشركة"
+msgstr ""
+
+#: hr/models.py:936
+msgid "تاريخ البدء"
+msgstr ""
+
+#: hr/models.py:939
+msgid "تاريخ الانتهاء"
+msgstr ""
+
+#: hr/models.py:942
+msgid "تجديد تلقائي"
+msgstr ""
+
+#: hr/models.py:943
+msgid "عند التفعيل: يتجدد الاشتراك تلقائياً عند انتهائه (يتطلب بطاقة محفوظة)"
+msgstr ""
+
+#: hr/models.py:949
+msgid "طريقة الدفع"
+msgstr ""
+
+#: hr/models.py:953
+msgid "المبلغ المدفوع"
+msgstr ""
+
+#: hr/models.py:958
+msgid "رقم العملية من بوابة الدفع أو ملاحظة التفعيل اليدوي"
+msgstr ""
+
+#: hr/models.py:962
+msgid "آخر 4 أرقام من البطاقة"
+msgstr ""
+
+#: hr/models.py:967
+msgid "عدد التصاميم المُنشأة بالـ AI"
+msgstr ""
+
+#: hr/models.py:970
+msgid "الحد الأقصى للتصاميم"
+msgstr ""
+
+#: hr/models.py:971
+msgid "0 يعني غير محدود"
+msgstr ""
+
+#: hr/models.py:977
+msgid "فعّله"
+msgstr ""
+
+#: hr/models.py:981
+msgid "ألغاه"
+msgstr ""
+
+#: hr/models.py:989
+msgid "اشتراك AI تصميم"
+msgstr ""
+
+#: hr/models.py:990
+msgid "اشتراكات AI التصميم"
+msgstr ""
+
+#: inventory/admin/b2b.py:153
+msgid "الحالة والنتيجة"
+msgstr ""
+
+#: inventory/admin/b2b.py:159
+msgid "عدد الموردين"
+msgstr ""
+
+#: inventory/admin/b2b.py:163
+msgid "تم اختيار مورد؟"
+msgstr ""
+
+#: inventory/admin/b2b.py:167
+msgid "إلغاء طلبات التسعير المختارة"
+msgstr ""
+
+#: inventory/admin/b2b.py:196
+msgid "ردّ المورد؟"
+msgstr ""
+
+#: inventory/admin/b2b.py:218
+msgid "الماركات"
+msgstr ""
+
+#: inventory/admin/catalog.py:77
+msgid "⚡ إدخال سريع — الحقول الأساسية"
+msgstr ""
+
+#: inventory/admin/catalog.py:86
+msgid ""
+"الحقول المطلوبة لإنشاء قطعة جديدة بسرعة. باقي الحقول تحت قسم \"الإعدادات "
+"المتقدمة\"."
+msgstr ""
+
+#: inventory/admin/catalog.py:88
+msgid "🛠️ الإعدادات المتقدمة (منظومة AI / B2B / المخزون التشغيلي)"
+msgstr ""
+
+#: inventory/admin/finance.py:110 inventory/models/finance.py:39
+msgid "رواتب وأجور"
+msgstr ""
+
+#: inventory/admin/finance.py:110
+msgid "عمولات موظفين"
+msgstr ""
+
+#: inventory/admin/finance.py:110
+msgid "سلف موظفين"
+msgstr ""
+
+#: inventory/admin/finance.py:111
+msgid "إيجار المحل"
+msgstr ""
+
+#: inventory/admin/finance.py:111
+msgid "كهرباء ومياه"
+msgstr ""
+
+#: inventory/admin/finance.py:111
+msgid "إنترنت واتصالات"
+msgstr ""
+
+#: inventory/admin/finance.py:112
+msgid "صيانة معدات وأجهزة"
+msgstr ""
+
+#: inventory/admin/finance.py:112
+msgid "أدوات ومستلزمات"
+msgstr ""
+
+#: inventory/admin/finance.py:113
+msgid "وقود ومحروقات"
+msgstr ""
+
+#: inventory/admin/finance.py:113
+msgid "نقل وشحن"
+msgstr ""
+
+#: inventory/admin/finance.py:114
+msgid "ضرائب ورسوم حكومية"
+msgstr ""
+
+#: inventory/admin/finance.py:114
+msgid "تأمينات اجتماعية"
+msgstr ""
+
+#: inventory/admin/finance.py:115
+msgid "دعاية وتسويق"
+msgstr ""
+
+#: inventory/admin/finance.py:115
+msgid "ضيافة ونثريات"
+msgstr ""
+
+#: inventory/admin/finance.py:116
+msgid "مصروفات قانونية ومحاسبية"
+msgstr ""
+
+#: inventory/admin/finance.py:116
+msgid "اشتراكات برمجيات"
+msgstr ""
+
+#: inventory/admin/finance.py:117
+msgid "مصروفات متنوعة"
+msgstr ""
+
+#: inventory/admin/organization.py:117 inventory/admin/organization.py:118
+msgid "صلاحيات وعمولات النظام"
+msgstr ""
+
+#: inventory/apps.py:114
+msgid "📦 إدارة المخزن والورشة (Mouss Tec Engine)"
+msgstr ""
+
+#: inventory/models/catalog.py:22
+msgid "استيراد/تقطيع"
+msgstr ""
+
+#: inventory/models/catalog.py:22
+msgid "تالف للتجديد"
+msgstr ""
+
+#: inventory/models/catalog.py:28
+msgid "كود المحرك"
+msgstr ""
+
+#: inventory/models/catalog.py:29
+msgid "الموديلات المتوافقة"
+msgstr ""
+
+#: inventory/models/catalog.py:31
+msgid "الباركود"
+msgstr ""
+
+#: inventory/models/catalog.py:33
+msgid "توافقية الشاسيه"
+msgstr ""
+
+#: inventory/models/catalog.py:34
+msgid "أكواد الأجزاء البديلة"
+msgstr ""
+
+#: inventory/models/catalog.py:36
+msgid "حد التنبيه الأساسي"
+msgstr ""
+
+#: inventory/models/catalog.py:37
+msgid "حد التنبيه الديناميكي (AI)"
+msgstr ""
+
+#: inventory/models/catalog.py:40
+msgid "فترة الضمان (بالأشهر)"
+msgstr ""
+
+#: inventory/models/catalog.py:42
+msgid "آخر سعر شراء"
+msgstr ""
+
+#: inventory/models/catalog.py:43
+msgid "سعر البيع (قطاعي)"
+msgstr ""
+
+#: inventory/models/catalog.py:44
+msgid "سعر البيع (جملة/B2B)"
+msgstr ""
+
+#: inventory/models/catalog.py:45
+msgid "متوسط التكلفة"
+msgstr ""
+
+#: inventory/models/catalog.py:47
+msgid "تأمين التالف/الكور"
+msgstr ""
+
+#: inventory/models/catalog.py:48
+msgid "طرح في سوق Mouss Tec العام"
+msgstr ""
+
+#: inventory/models/catalog.py:50
+msgid "صورة القطعة"
+msgstr ""
+
+#: inventory/models/catalog.py:52
+msgid "البدائل المتوافقة"
+msgstr ""
+
+#: inventory/models/catalog.py:54
+msgid "سعر السوق المقترح (AI)"
+msgstr ""
+
+#: inventory/models/catalog.py:72
+msgid "سجل تاريخ الأسعار"
+msgstr ""
+
+#: inventory/models/catalog.py:75 inventory/models/catalog.py:148
+msgid "القطعة"
+msgstr ""
+
+#: inventory/models/catalog.py:76 inventory/models/catalog.py:180
+#: inventory/models/catalog.py:210 inventory/models/finance.py:26
+#: inventory/models/finance.py:126 inventory/models/invoices.py:79
+#: printing/models.py:81 printing/models.py:146 printing/models.py:258
+#: printing/models.py:510 printing/models.py:542
+msgid "الفرع"
+msgstr ""
+
+#: inventory/models/catalog.py:78
+msgid "مكان الرف"
+msgstr ""
+
+#: inventory/models/catalog.py:94
+msgid "كود عملية التقطيع"
+msgstr ""
+
+#: inventory/models/catalog.py:95
+msgid "موديل سيارة التقطيع"
+msgstr ""
+
+#: inventory/models/catalog.py:96
+msgid "رقم الشاسيه الأصلي"
+msgstr ""
+
+#: inventory/models/catalog.py:97
+msgid "فرع التخزين"
+msgstr ""
+
+#: inventory/models/catalog.py:98
+msgid "تكلفة الشراء والاستيراد الكلية"
+msgstr ""
+
+#: inventory/models/catalog.py:99
+msgid "مستندات الإفراج الجمركي (PDF)"
+msgstr ""
+
+#: inventory/models/catalog.py:100
+msgid "رقم المحرك المفرج عنه"
+msgstr ""
+
+#: inventory/models/catalog.py:101
+msgid "تاريخ التفكيك"
+msgstr ""
+
+#: inventory/models/catalog.py:102
+msgid "تم التفكيك (إضافة للمخزن)"
+msgstr ""
+
+#: inventory/models/catalog.py:105
+msgid "عملية تقطيع / استيراد"
+msgstr ""
+
+#: inventory/models/catalog.py:106
+msgid "🚢 محرك التفكيك والإفراج الجمركي"
+msgstr ""
+
+#: inventory/models/catalog.py:111
+msgid "القطعة المستخرجة"
+msgstr ""
+
+#: inventory/models/catalog.py:112
+msgid "الكمية المستخرجة"
+msgstr ""
+
+#: inventory/models/catalog.py:113
+msgid "التكلفة التقديرية للقطعة"
+msgstr ""
+
+#: inventory/models/catalog.py:119
+msgid "اسم الخدمة / الصيانة"
+msgstr ""
+
+#: inventory/models/catalog.py:120
+msgid "سعر المصنعية الثابت"
+msgstr ""
+
+#: inventory/models/catalog.py:121
+msgid "الوقت التقديري (ساعات)"
+msgstr ""
+
+#: inventory/models/catalog.py:122
+msgid "نسبة عمولة الفني %"
+msgstr ""
+
+#: inventory/models/catalog.py:125
+msgid "خدمة صيانة"
+msgstr ""
+
+#: inventory/models/catalog.py:126
+msgid "كتالوج الخدمات والمصنعيات"
+msgstr ""
+
+#: inventory/models/catalog.py:133
+msgid "اسم المورد / الشركة"
+msgstr ""
+
+#: inventory/models/catalog.py:135 inventory/models/customers.py:25
+msgid "الرقم الضريبي"
+msgstr ""
+
+#: inventory/models/catalog.py:136
+msgid "تفاصيل الشركة / العنوان"
+msgstr ""
+
+#: inventory/models/catalog.py:137
+msgid "حساب المورد (مستحقاته)"
+msgstr ""
+
+#: inventory/models/catalog.py:139
+msgid "مورد"
+msgstr ""
+
+#: inventory/models/catalog.py:140
+msgid "سجل الموردين (SRM)"
+msgstr ""
+
+#: inventory/models/catalog.py:147
+msgid "قيد الانتظار"
+msgstr ""
+
+#: inventory/models/catalog.py:147
+msgid "في الطريق"
+msgstr ""
+
+#: inventory/models/catalog.py:147
+msgid "تم الاستلام"
+msgstr ""
+
+#: inventory/models/catalog.py:149
+msgid "من فرع"
+msgstr ""
+
+#: inventory/models/catalog.py:150
+msgid "إلى فرع"
+msgstr ""
+
+#: inventory/models/catalog.py:169
+msgid "بيع"
+msgstr ""
+
+#: inventory/models/catalog.py:170
+msgid "مرتجع بيع"
+msgstr ""
+
+#: inventory/models/catalog.py:171
+msgid "شراء"
+msgstr ""
+
+#: inventory/models/catalog.py:172
+msgid "مرتجع شراء"
+msgstr ""
+
+#: inventory/models/catalog.py:173
+msgid "تحويل صادر"
+msgstr ""
+
+#: inventory/models/catalog.py:174
+msgid "تحويل وارد"
+msgstr ""
+
+#: inventory/models/catalog.py:175
+msgid "تسوية جرد"
+msgstr ""
+
+#: inventory/models/catalog.py:176
+msgid "تقطيع / تالف"
+msgstr ""
+
+#: inventory/models/catalog.py:177
+msgid "تعديل يدوي"
+msgstr ""
+
+#: inventory/models/catalog.py:179 inventory/models/catalog.py:209
+#: inventory/models/operations.py:106
+msgid "المنتج"
+msgstr ""
+
+#: inventory/models/catalog.py:182
+msgid "التغيير في الكمية"
+msgstr ""
+
+#: inventory/models/catalog.py:183
+msgid "الكمية قبل"
+msgstr ""
+
+#: inventory/models/catalog.py:184
+msgid "الكمية بعد"
+msgstr ""
+
+#: inventory/models/catalog.py:185
+msgid "نوع المرجع"
+msgstr ""
+
+#: inventory/models/catalog.py:186
+msgid "رقم المرجع"
+msgstr ""
+
+#: inventory/models/catalog.py:187
+msgid "ملاحظة"
+msgstr ""
+
+#: inventory/models/catalog.py:192
+msgid "حركة مخزنية"
+msgstr ""
+
+#: inventory/models/catalog.py:193
+msgid "سجل حركات المخزون"
+msgstr ""
+
+#: inventory/models/catalog.py:206
+msgid "مخزون منخفض"
+msgstr ""
+
+#: inventory/models/catalog.py:207
+msgid "نفاد تام"
+msgstr ""
+
+#: inventory/models/catalog.py:211
+msgid "نوع التنبيه"
+msgstr ""
+
+#: inventory/models/catalog.py:212 printing/models.py:512
+msgid "الكمية الحالية"
+msgstr ""
+
+#: inventory/models/catalog.py:213
+msgid "حد الأمان"
+msgstr ""
+
+#: inventory/models/catalog.py:214
+msgid "تم الحل"
+msgstr ""
+
+#: inventory/models/catalog.py:219
+msgid "تنبيه مخزني"
+msgstr ""
+
+#: inventory/models/catalog.py:220
+msgid "تنبيهات نقص المخزون"
+msgstr ""
+
+#: inventory/models/customers.py:22
+msgid "اسم العميل أو الشركة"
+msgstr ""
+
+#: inventory/models/customers.py:24
+msgid "حساب شركة (B2B Fleet)"
+msgstr ""
+
+#: inventory/models/customers.py:26
+msgid "الرصيد / المديونية"
+msgstr ""
+
+#: inventory/models/customers.py:27
+msgid "نقاط الولاء"
+msgstr ""
+
+#: inventory/models/customers.py:50
+msgid "عميل / شركة"
+msgstr ""
+
+#: inventory/models/customers.py:51
+msgid "سجل العملاء والشركات (CRM)"
+msgstr ""
+
+#: inventory/models/customers.py:80
+msgid "بداية العقد"
+msgstr ""
+
+#: inventory/models/customers.py:81
+msgid "نهاية العقد"
+msgstr ""
+
+#: inventory/models/customers.py:82
+msgid "قيمة العقد السنوية"
+msgstr ""
+
+#: inventory/models/customers.py:83
+msgid "ساري المفعول"
+msgstr ""
+
+#: inventory/models/customers.py:84
+msgid "عقود صيانة الشركات (B2B)"
+msgstr ""
+
+#: inventory/models/customers.py:88
+msgid "المالك"
+msgstr ""
+
+#: inventory/models/customers.py:89
+msgid "رقم الشاسيه (VIN)"
+msgstr ""
+
+#: inventory/models/customers.py:90
+msgid "رقم اللوحة"
+msgstr ""
+
+#: inventory/models/customers.py:93
+msgid "لون السيارة"
+msgstr ""
+
+#: inventory/models/customers.py:94
+msgid "نوع الفتيس"
+msgstr ""
+
+#: inventory/models/customers.py:95
+msgid "آخر قراءة للعداد (كم)"
+msgstr ""
+
+#: inventory/models/customers.py:96
+msgid "موعد الصيانة المتوقع"
+msgstr ""
+
+#: inventory/models/customers.py:98
+msgid "مؤشر صحة المركبة بالـ AI (%)"
+msgstr ""
+
+#: inventory/models/customers.py:99
+msgid "الأعطال المتوقعة قريباً (AI)"
+msgstr ""
+
+#: inventory/models/customers.py:102
+msgid "مركبة"
+msgstr ""
+
+#: inventory/models/customers.py:103
+msgid "سجل المركبات"
+msgstr ""
+
+#: inventory/models/customers.py:108
+msgid "أكواد الأعطال المرصودة"
+msgstr ""
+
+#: inventory/models/customers.py:109
+msgid "فولتية البطارية"
+msgstr ""
+
+#: inventory/models/customers.py:110
+msgid "البيانات الخام من جهاز الفحص"
+msgstr ""
+
+#: inventory/models/customers.py:111
+msgid "تحذير: عطل حرج يتطلب تدخلاً فورياً"
+msgstr ""
+
+#: inventory/models/customers.py:113
+msgid "سجل الفحوصات الرقمية الحية (IoT)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:28
+msgid "فحص قبل الإصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:29
+msgid "فحص بعد الإصلاح / تأكيد جودة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:30
+msgid "فحص خارجي"
+msgstr ""
+
+#: inventory/models/diagnostics.py:36 inventory/models/diagnostics.py:229
+msgid "بطاقة الإصلاح المرتبطة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:40 inventory/models/diagnostics.py:447
+#: inventory/models/invoices.py:75
+msgid "المركبة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:46
+msgid "المهندس / الفني"
+msgstr ""
+
+#: inventory/models/diagnostics.py:49
+msgid "نوع الفحص"
+msgstr ""
+
+#: inventory/models/diagnostics.py:50
+msgid "وقت الفحص"
+msgstr ""
+
+#: inventory/models/diagnostics.py:52
+msgid "أكواد الأعطال (DTCs)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:53
+msgid "مصفوفة مثل: ['P0171', 'P0300']"
+msgstr ""
+
+#: inventory/models/diagnostics.py:54
+msgid "القراءات الحية (PIDs)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:55
+msgid "RPM, coolant_temp_c, maf_gs, ..."
+msgstr ""
+
+#: inventory/models/diagnostics.py:57
+msgid "معرّف جهاز المسح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:60
+msgid "درجة الخطورة (0-100)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:66
+msgid "OBD مباشر من الموبايل"
+msgstr ""
+
+#: inventory/models/diagnostics.py:67
+msgid "غرفة تشخيص الأعطال (Web Bluetooth)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:71
+msgid "مصدر التقرير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:74
+msgid "VIN المقروء من السيارة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:75
+msgid "VIN كما قرأه الـ ELM327 من السيارة — للتدقيق."
+msgstr ""
+
+#: inventory/models/diagnostics.py:78
+msgid "ملخص تحليل الذكاء الاصطناعي"
+msgstr ""
+
+#: inventory/models/diagnostics.py:79
+msgid "التحليل النهائي اللي هيشوفه مستشار الخدمة والعميل."
+msgstr ""
+
+#: inventory/models/diagnostics.py:84
+msgid "أنشأه"
+msgstr ""
+
+#: inventory/models/diagnostics.py:88
+msgid "تقرير OBD"
+msgstr ""
+
+#: inventory/models/diagnostics.py:89
+msgid "تقارير OBD التشخيصية"
+msgstr ""
+
+#: inventory/models/diagnostics.py:119
+msgid "التقرير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:122 inventory/models/diagnostics.py:195
+msgid "الصورة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:125
+msgid "وصف مختصر"
+msgstr ""
+
+#: inventory/models/diagnostics.py:128
+msgid "وقت الرفع"
+msgstr ""
+
+#: inventory/models/diagnostics.py:132
+msgid "صورة تشخيص"
+msgstr ""
+
+#: inventory/models/diagnostics.py:133
+msgid "صور التشخيص"
+msgstr ""
+
+#: inventory/models/diagnostics.py:143 printing/models.py:250
+#: smart_diagnostics/models.py:67 smart_diagnostics/models.py:180
+msgid "قيد التنفيذ"
+msgstr ""
+
+#: inventory/models/diagnostics.py:144
+msgid "متوقف مؤقتاً"
+msgstr ""
+
+#: inventory/models/diagnostics.py:145 inventory/models/operations.py:59
+#: smart_diagnostics/models.py:68
+msgid "مكتمل"
+msgstr ""
+
+#: inventory/models/diagnostics.py:146
+msgid "بانتظار قطع إضافية"
+msgstr ""
+
+#: inventory/models/diagnostics.py:151
+msgid "بطاقة الإصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:156 inventory/models/organization.py:108
+msgid "الفني"
+msgstr ""
+
+#: inventory/models/diagnostics.py:159
+msgid "عنوان المهمة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:160
+msgid "ملاحظات فنية"
+msgstr ""
+
+#: inventory/models/diagnostics.py:162
+msgid "وقت البدء"
+msgstr ""
+
+#: inventory/models/diagnostics.py:163
+msgid "وقت الانتهاء"
+msgstr ""
+
+#: inventory/models/diagnostics.py:164
+msgid "ثوانٍ توقف"
+msgstr ""
+
+#: inventory/models/diagnostics.py:168
+msgid "يحتاج قطع إضافية؟"
+msgstr ""
+
+#: inventory/models/diagnostics.py:169
+msgid "تفاصيل القطع المطلوبة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:172
+msgid "سجل إصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:173
+msgid "سجلات الإصلاح (Tech)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:189
+msgid "قبل الإصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:190
+msgid "بعد الإصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:191
+msgid "مشكلة/تحذير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:194 inventory/models/finance.py:27
+#: inventory/models/finance.py:58 inventory/models/invoices.py:67
+#: inventory/models/organization.py:130 printing/models.py:562
+msgid "النوع"
+msgstr ""
+
+#: inventory/models/diagnostics.py:196
+msgid "تعليق"
+msgstr ""
+
+#: inventory/models/diagnostics.py:200
+msgid "مرفق سجل إصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:201
+msgid "مرفقات سجلات الإصلاح"
+msgstr ""
+
+#: inventory/models/diagnostics.py:220
+msgid "مفتوح — في انتظار الردود"
+msgstr ""
+
+#: inventory/models/diagnostics.py:221
+msgid "تم استلام عروض"
+msgstr ""
+
+#: inventory/models/diagnostics.py:222
+msgid "تم تحويلها إلى أمر شراء"
+msgstr ""
+
+#: inventory/models/diagnostics.py:233
+msgid "فرع الطلب"
+msgstr ""
+
+#: inventory/models/diagnostics.py:238
+msgid "القطعة (إن وُجدت في الكاتالوج)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:239
+msgid "قد تكون فارغة لو الـ AI اقترح P/N مش موجود لدينا بعد."
+msgstr ""
+
+#: inventory/models/diagnostics.py:245
+msgid "رقم القطعة المطلوبة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:248
+msgid "اسم القطعة المطلوبة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:251
+msgid "ملاحظات للموردين"
+msgstr ""
+
+#: inventory/models/diagnostics.py:265
+msgid "العرض المُعتمد"
+msgstr ""
+
+#: inventory/models/diagnostics.py:270
+msgid "أمر الشراء الناتج"
+msgstr ""
+
+#: inventory/models/diagnostics.py:274
+msgid "طلب تسعير (RFQ)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:275
+msgid "طلبات التسعير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:292
+msgid "الطلب الأصلي"
+msgstr ""
+
+#: inventory/models/diagnostics.py:296 inventory/models/invoices.py:26
+msgid "المورد"
+msgstr ""
+
+#: inventory/models/diagnostics.py:299
+msgid "وقت إرسال الطلب"
+msgstr ""
+
+#: inventory/models/diagnostics.py:304
+msgid "السعر المعروض"
+msgstr ""
+
+#: inventory/models/diagnostics.py:307
+msgid "مدة التوريد (أيام)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:311
+msgid "ملاحظة المورد"
+msgstr ""
+
+#: inventory/models/diagnostics.py:315
+msgid "عرض تسعير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:316
+msgid "عروض الموردين"
+msgstr ""
+
+#: inventory/models/diagnostics.py:354
+msgid "زيت محرك"
+msgstr ""
+
+#: inventory/models/diagnostics.py:355
+msgid "فحمات فرامل"
+msgstr ""
+
+#: inventory/models/diagnostics.py:356
+msgid "بوجيهات"
+msgstr ""
+
+#: inventory/models/diagnostics.py:357
+msgid "مياه تبريد"
+msgstr ""
+
+#: inventory/models/diagnostics.py:358
+msgid "زيت فتيس"
+msgstr ""
+
+#: inventory/models/diagnostics.py:359
+msgid "سير الكاتينة / التيمنج"
+msgstr ""
+
+#: inventory/models/diagnostics.py:360
+msgid "فلتر هواء"
+msgstr ""
+
+#: inventory/models/diagnostics.py:361
+msgid "فلتر مكيف"
+msgstr ""
+
+#: inventory/models/diagnostics.py:362
+msgid "بطارية"
+msgstr ""
+
+#: inventory/models/diagnostics.py:363
+msgid "مساحات"
+msgstr ""
+
+#: inventory/models/diagnostics.py:364
+msgid "عام / صيانة دورية"
+msgstr ""
+
+#: inventory/models/diagnostics.py:371
+msgid "منخفضة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:373
+msgid "عالية — تجنّب التأخير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:376
+msgid "اسم القاعدة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:379
+msgid "نوع الصيانة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:382
+msgid "الفاصل الزمني (كم)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:383
+msgid "مثال: 10000 — اتركه فارغاً للقواعد الزمنية فقط."
+msgstr ""
+
+#: inventory/models/diagnostics.py:386
+msgid "الفاصل الزمني (أشهر)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:387
+msgid "مثال: 6 — اتركه فارغاً للقواعد المعتمدة على الكيلومترات فقط."
+msgstr ""
+
+#: inventory/models/diagnostics.py:393
+msgid "الماركات المنطبق عليها"
+msgstr ""
+
+#: inventory/models/diagnostics.py:394
+msgid "فارغة = تنطبق على كل الماركات. مثال: ['BMW','MINI']"
+msgstr ""
+
+#: inventory/models/diagnostics.py:398
+msgid "نص رسالة WhatsApp"
+msgstr ""
+
+#: inventory/models/diagnostics.py:399
+#, python-brace-format
+msgid "بمتغيرات: {customer}, {vehicle}, {rule}, {workshop}"
+msgstr ""
+
+#: inventory/models/diagnostics.py:405
+msgid "قاعدة تذكير صيانة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:406
+msgid "قواعد التذكير الدوري"
+msgstr ""
+
+#: inventory/models/diagnostics.py:430
+msgid "مستحق الآن"
+msgstr ""
+
+#: inventory/models/diagnostics.py:431
+msgid "قريباً"
+msgstr ""
+
+#: inventory/models/diagnostics.py:439 inventory/models/operations.py:55
+#: smart_diagnostics/models.py:179
+msgid "في الانتظار"
+msgstr ""
+
+#: inventory/models/diagnostics.py:440
+msgid "تم إرسال تذكير"
+msgstr ""
+
+#: inventory/models/diagnostics.py:441
+msgid "تم التجاهل"
+msgstr ""
+
+#: inventory/models/diagnostics.py:442
+msgid "تمت الصيانة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:451
+msgid "القاعدة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:479
+msgid "تذكير صيانة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:480
+msgid "تذكيرات الصيانة (CRM)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:501
+msgid "الفاتورة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:504
+msgid "رمز الرابط العام"
+msgstr ""
+
+#: inventory/models/diagnostics.py:509
+msgid "التقييم (1-5)"
+msgstr ""
+
+#: inventory/models/diagnostics.py:514
+msgid "استلمت السيارة بحالة جيدة"
+msgstr ""
+
+#: inventory/models/diagnostics.py:516
+msgid "توقيع رقمي"
+msgstr ""
+
+#: inventory/models/diagnostics.py:523
+msgid "تقييم وتوقيع عميل"
+msgstr ""
+
+#: inventory/models/diagnostics.py:524
+msgid "تقييمات وتوقيعات العملاء"
+msgstr ""
+
+#: inventory/models/finance.py:24
+msgid "كاش"
+msgstr ""
+
+#: inventory/models/finance.py:24
+msgid "حساب بنكي"
+msgstr ""
+
+#: inventory/models/finance.py:24
+msgid "فيزا"
+msgstr ""
+
+#: inventory/models/finance.py:24
+msgid "محفظة"
+msgstr ""
+
+#: inventory/models/finance.py:25
+msgid "اسم الخزنة/الحساب"
+msgstr ""
+
+#: inventory/models/finance.py:28
+msgid "الرصيد الأساسي"
+msgstr ""
+
+#: inventory/models/finance.py:32
+msgid "خزنة / حساب"
+msgstr ""
+
+#: inventory/models/finance.py:33
+msgid "الخزائن والحسابات"
+msgstr ""
+
+#: inventory/models/finance.py:40
+msgid "إيجار"
+msgstr ""
+
+#: inventory/models/finance.py:41
+msgid "مرافق"
+msgstr ""
+
+#: inventory/models/finance.py:44
+msgid "بند المصروف"
+msgstr ""
+
+#: inventory/models/finance.py:47
+msgid "مفتاح النظام"
+msgstr ""
+
+#: inventory/models/finance.py:48
+msgid "مفتاح ثابت للتعرف الآلي — مثلاً 'salaries' يفعّل قائمة الموظفين تلقائياً"
+msgstr ""
+
+#: inventory/models/finance.py:50
+msgid "بنود المصروفات"
+msgstr ""
+
+#: inventory/models/finance.py:54 printing/models.py:557
+msgid "إيداع / إيراد"
+msgstr ""
+
+#: inventory/models/finance.py:54 printing/models.py:558
+msgid "سحب / مصروف"
+msgstr ""
+
+#: inventory/models/finance.py:57
+msgid "الخزنة"
+msgstr ""
+
+#: inventory/models/finance.py:60
+msgid "سعر الصرف وقت العملية"
+msgstr ""
+
+#: inventory/models/finance.py:61
+msgid "المبلغ (بالعملة المحلية)"
+msgstr ""
+
+#: inventory/models/finance.py:63
+msgid "البند"
+msgstr ""
+
+#: inventory/models/finance.py:67
+msgid "الموظف (للرواتب/السلف)"
+msgstr ""
+
+#: inventory/models/finance.py:69
+msgid "فاتورة بيع"
+msgstr ""
+
+#: inventory/models/finance.py:70
+msgid "فاتورة شراء"
+msgstr ""
+
+#: inventory/models/finance.py:71
+msgid "دفعة من عميل"
+msgstr ""
+
+#: inventory/models/finance.py:72
+msgid "دفعة لمورد"
+msgstr ""
+
+#: inventory/models/finance.py:74
+msgid "الخزينة (حركات مالية)"
+msgstr ""
+
+#: inventory/models/finance.py:82
+msgid "أصول (Assets)"
+msgstr ""
+
+#: inventory/models/finance.py:83
+msgid "خصوم (Liabilities)"
+msgstr ""
+
+#: inventory/models/finance.py:84
+msgid "حقوق ملكية (Equity)"
+msgstr ""
+
+#: inventory/models/finance.py:85
+msgid "إيرادات (Revenue)"
+msgstr ""
+
+#: inventory/models/finance.py:86
+msgid "مصروفات (Expenses)"
+msgstr ""
+
+#: inventory/models/finance.py:88
+msgid "رقم الحساب"
+msgstr ""
+
+#: inventory/models/finance.py:89
+msgid "اسم الحساب"
+msgstr ""
+
+#: inventory/models/finance.py:90
+msgid "نوع الحساب"
+msgstr ""
+
+#: inventory/models/finance.py:91
+msgid "الحساب الأب"
+msgstr ""
+
+#: inventory/models/finance.py:93
+msgid "وصف"
+msgstr ""
+
+#: inventory/models/finance.py:96
+msgid "حساب محاسبي"
+msgstr ""
+
+#: inventory/models/finance.py:97
+msgid "دليل الحسابات (Chart of Accounts)"
+msgstr ""
+
+#: inventory/models/finance.py:117
+msgid "تاريخ القيد"
+msgstr ""
+
+#: inventory/models/finance.py:118
+msgid "المرجع"
+msgstr ""
+
+#: inventory/models/finance.py:128
+msgid "مدين"
+msgstr ""
+
+#: inventory/models/finance.py:129
+msgid "دائن"
+msgstr ""
+
+#: inventory/models/finance.py:136
+msgid "قيد محاسبي"
+msgstr ""
+
+#: inventory/models/finance.py:137
+msgid "القيود المحاسبية (Accounting Ledger)"
+msgstr ""
+
+#: inventory/models/finance.py:147
+msgid "القيد لا يمكن أن يكون مدين ودائن في نفس الوقت."
+msgstr ""
+
+#: inventory/models/finance.py:149
+msgid "القيد يجب أن يحتوي على قيمة مدينة أو دائنة."
+msgstr ""
+
+#: inventory/models/finance.py:179
+msgid "الخزينة / الحساب البنكي"
+msgstr ""
+
+#: inventory/models/finance.py:181
+msgid "تاريخ الكشف"
+msgstr ""
+
+#: inventory/models/finance.py:184
+msgid "الرصيد الافتتاحي"
+msgstr ""
+
+#: inventory/models/finance.py:185
+msgid "الرصيد الختامي"
+msgstr ""
+
+#: inventory/models/finance.py:187
+msgid "تمت المطابقة"
+msgstr ""
+
+#: inventory/models/finance.py:194
+msgid "كشف بنكي"
+msgstr ""
+
+#: inventory/models/finance.py:195
+msgid "🏦 كشوف البنوك"
+msgstr ""
+
+#: inventory/models/finance.py:205
+msgid "سحب (مدين)"
+msgstr ""
+
+#: inventory/models/finance.py:206
+msgid "إيداع (دائن)"
+msgstr ""
+
+#: inventory/models/finance.py:211
+msgid "مرجع البنك"
+msgstr ""
+
+#: inventory/models/finance.py:218
+msgid "الحركة المالية المطابقة"
+msgstr ""
+
+#: inventory/models/finance.py:222
+msgid "0-100 — ثقة المطابقة التلقائية"
+msgstr ""
+
+#: inventory/models/finance.py:229
+msgid "سطر كشف بنكي"
+msgstr ""
+
+#: inventory/models/finance.py:230
+msgid "سطور كشوف البنوك"
+msgstr ""
+
+#: inventory/models/invoices.py:25
+msgid "تم الاستلام (مقفولة)"
+msgstr ""
+
+#: inventory/models/invoices.py:27
+msgid "فرع الاستلام"
+msgstr ""
+
+#: inventory/models/invoices.py:28
+msgid "الدفع من خزنة"
+msgstr ""
+
+#: inventory/models/invoices.py:30
+msgid "شراء آمن عبر Mouss Tec"
+msgstr ""
+
+#: inventory/models/invoices.py:31
+msgid "مرجع المزاد المالي (Escrow)"
+msgstr ""
+
+#: inventory/models/invoices.py:34 printing/models.py:267
+#: printing/models.py:396 printing/models.py:800
+msgid "الإجمالي"
+msgstr ""
+
+#: inventory/models/invoices.py:35 inventory/models/invoices.py:93
+#: printing/models.py:269
+msgid "المدفوع"
+msgstr ""
+
+#: inventory/models/invoices.py:53
+msgid "سعر الشراء"
+msgstr ""
+
+#: inventory/models/invoices.py:58
+msgid "بيع قطع غيار"
+msgstr ""
+
+#: inventory/models/invoices.py:58
+msgid "صيانة شاملة"
+msgstr ""
+
+#: inventory/models/invoices.py:60
+msgid "عرض سعر (مسودة)"
+msgstr ""
+
+#: inventory/models/invoices.py:61
+msgid "قيد العمل بالمركز"
+msgstr ""
+
+#: inventory/models/invoices.py:62
+msgid "فحص الجودة (QA)"
+msgstr ""
+
+#: inventory/models/invoices.py:63 printing/models.py:251
+msgid "جاهز للتسليم"
+msgstr ""
+
+#: inventory/models/invoices.py:64
+msgid "تم التسليم والاعتماد"
+msgstr ""
+
+#: inventory/models/invoices.py:68
+msgid "فاتورة مرتجع؟"
+msgstr ""
+
+#: inventory/models/invoices.py:71
+msgid "الفاتورة الأصلية (للمرتجع)"
+msgstr ""
+
+#: inventory/models/invoices.py:73
+msgid "الحالة التشغيلية"
+msgstr ""
+
+#: inventory/models/invoices.py:77
+msgid "مخصوم من عقد الصيانة"
+msgstr ""
+
+#: inventory/models/invoices.py:81
+msgid "سداد على خزنة"
+msgstr ""
+
+#: inventory/models/invoices.py:83
+msgid "قراءة العداد (كم)"
+msgstr ""
+
+#: inventory/models/invoices.py:84
+msgid "ملاحظات وشكوى العميل"
+msgstr ""
+
+#: inventory/models/invoices.py:86
+msgid "مصنعية إضافية عامة"
+msgstr ""
+
+#: inventory/models/invoices.py:87
+msgid "خصم إجمالي"
+msgstr ""
+
+#: inventory/models/invoices.py:88
+msgid "ضريبة القيمة المضافة %"
+msgstr ""
+
+#: inventory/models/invoices.py:90
+msgid "إجمالي التوالف المستحقة"
+msgstr ""
+
+#: inventory/models/invoices.py:92 printing/models.py:714
+msgid "الإجمالي النهائي"
+msgstr ""
+
+#: inventory/models/invoices.py:149
+msgid "سعر البيع"
+msgstr ""
+
+#: inventory/models/invoices.py:153
+msgid "تم استلام القطعة التالفة؟"
+msgstr ""
+
+#: inventory/models/invoices.py:154
+msgid "تاريخ انتهاء الضمان"
+msgstr ""
+
+#: inventory/models/invoices.py:161
+msgid "بائع القطعة (للعمولة)"
+msgstr ""
+
+#: inventory/models/invoices.py:165
+msgid "العمولة المُحتسبة"
+msgstr ""
+
+#: inventory/models/invoices.py:172 inventory/models/invoices.py:255
+msgid "يُدرج في فاتورة العميل"
+msgstr ""
+
+#: inventory/models/invoices.py:173
+msgid "افصلها لو الجزء استُخدم للفحص فقط أو كان ضماناً."
+msgstr ""
+
+#: inventory/models/invoices.py:177 inventory/models/invoices.py:259
+msgid "ملاحظة المحاسب"
+msgstr ""
+
+#: inventory/models/invoices.py:178
+msgid "اختياري — تظهر للمراجعة الداخلية فقط."
+msgstr ""
+
+#: inventory/models/invoices.py:244
+msgid "الخدمة المنفذة"
+msgstr ""
+
+#: inventory/models/invoices.py:245
+msgid "الفني المنفذ"
+msgstr ""
+
+#: inventory/models/invoices.py:246
+msgid "قيمة المصنعية"
+msgstr ""
+
+#: inventory/models/invoices.py:247
+msgid "اتركه فارغاً ليتم ملؤه تلقائياً من كتالوج الخدمات"
+msgstr ""
+
+#: inventory/models/invoices.py:249
+msgid "ساعات العمل المُباعة"
+msgstr ""
+
+#: inventory/models/invoices.py:250
+msgid "بداية العمل الفعلي"
+msgstr ""
+
+#: inventory/models/invoices.py:251
+msgid "نهاية العمل الفعلي"
+msgstr ""
+
+#: inventory/models/invoices.py:273
+msgid "ممتاز"
+msgstr ""
+
+#: inventory/models/invoices.py:273
+msgid "يحتاج متابعة"
+msgstr ""
+
+#: inventory/models/invoices.py:273
+msgid "تغيير فوري"
+msgstr ""
+
+#: inventory/models/invoices.py:274
+msgid "أمر الشغل"
+msgstr ""
+
+#: inventory/models/invoices.py:275
+msgid "السيارة"
+msgstr ""
+
+#: inventory/models/invoices.py:277
+msgid "الفرامل"
+msgstr ""
+
+#: inventory/models/invoices.py:278
+msgid "زيت المحرك"
+msgstr ""
+
+#: inventory/models/invoices.py:279
+msgid "الإطارات"
+msgstr ""
+
+#: inventory/models/invoices.py:280
+msgid "البطارية"
+msgstr ""
+
+#: inventory/models/invoices.py:281
+msgid "ملاحظات الفني"
+msgstr ""
+
+#: inventory/models/invoices.py:282
+msgid "صورة إثبات التلف"
+msgstr ""
+
+#: inventory/models/invoices.py:283
+msgid "بصمة زمنية للفحص"
+msgstr ""
+
+#: inventory/models/invoices.py:284
+msgid "فحص رقمي وتوثيق مرئي"
+msgstr ""
+
+#: inventory/models/operations.py:24
+msgid "إنشاء"
+msgstr ""
+
+#: inventory/models/operations.py:25
+msgid "تعديل"
+msgstr ""
+
+#: inventory/models/operations.py:26
+msgid "حذف"
+msgstr ""
+
+#: inventory/models/operations.py:31
+msgid "الجدول"
+msgstr ""
+
+#: inventory/models/operations.py:32
+msgid "معرف السجل"
+msgstr ""
+
+#: inventory/models/operations.py:33
+msgid "وصف السجل"
+msgstr ""
+
+#: inventory/models/operations.py:34
+msgid "التغييرات (قبل/بعد)"
+msgstr ""
+
+#: inventory/models/operations.py:35
+msgid "عنوان IP"
+msgstr ""
+
+#: inventory/models/operations.py:38
+msgid "سجل مراجعة"
+msgstr ""
+
+#: inventory/models/operations.py:39
+msgid "سجل المراجعة والتدقيق (Audit Trail)"
+msgstr ""
+
+#: inventory/models/operations.py:56
+msgid "جاري الفحص"
+msgstr ""
+
+#: inventory/models/operations.py:57
+msgid "جاهز للمراجعة"
+msgstr ""
+
+#: inventory/models/operations.py:58
+msgid "جاري الاستيراد"
+msgstr ""
+
+#: inventory/models/operations.py:61
+msgid "تم التراجع"
+msgstr ""
+
+#: inventory/models/operations.py:64
+msgid "عملاء"
+msgstr ""
+
+#: inventory/models/operations.py:65
+msgid "منتجات"
+msgstr ""
+
+#: inventory/models/operations.py:66
+msgid "فواتير"
+msgstr ""
+
+#: inventory/models/operations.py:67
+msgid "موردين"
+msgstr ""
+
+#: inventory/models/operations.py:70
+msgid "نوع البيانات"
+msgstr ""
+
+#: inventory/models/operations.py:72
+msgid "الملف"
+msgstr ""
+
+#: inventory/models/operations.py:73
+msgid "اسم الملف"
+msgstr ""
+
+#: inventory/models/operations.py:74
+msgid "إجمالي الصفوف"
+msgstr ""
+
+#: inventory/models/operations.py:75
+msgid "صفوف صالحة"
+msgstr ""
+
+#: inventory/models/operations.py:76
+msgid "صفوف بها أخطاء"
+msgstr ""
+
+#: inventory/models/operations.py:77
+msgid "صفوف متعارضة"
+msgstr ""
+
+#: inventory/models/operations.py:78
+msgid "تقرير الفحص"
+msgstr ""
+
+#: inventory/models/operations.py:79
+msgid "تقرير التعارضات"
+msgstr ""
+
+#: inventory/models/operations.py:80
+msgid "السجلات المستوردة"
+msgstr ""
+
+#: inventory/models/operations.py:81
+msgid "نسخة احتياطية"
+msgstr ""
+
+#: inventory/models/operations.py:82 printing/models.py:567
+#: printing/models.py:728
+msgid "بواسطة"
+msgstr ""
+
+#: inventory/models/operations.py:87
+msgid "جلسة استيراد"
+msgstr ""
+
+#: inventory/models/operations.py:88
+msgid "جلسات الاستيراد الآمن"
+msgstr ""
+
+#: inventory/models/operations.py:101
+msgid "تمت الموافقة"
+msgstr ""
+
+#: inventory/models/operations.py:110
+msgid "حالة الطلب"
+msgstr ""
+
+#: inventory/models/operations.py:113
+msgid "السعر المطلوب"
+msgstr ""
+
+#: inventory/models/operations.py:117
+msgid "السعر المعتمد"
+msgstr ""
+
+#: inventory/models/operations.py:121
+msgid "طالب النشر"
+msgstr ""
+
+#: inventory/models/operations.py:133
+msgid "طلب نشر في السوق"
+msgstr ""
+
+#: inventory/models/operations.py:134
+msgid "طلبات النشر في السوق المركزي (B2B)"
+msgstr ""
+
+#: inventory/models/organization.py:20 printing/models.py:22
+msgid "اسم الفرع"
+msgstr ""
+
+#: inventory/models/organization.py:21
+msgid "الموقع"
+msgstr ""
+
+#: inventory/models/organization.py:22
+msgid "رقم تليفون الفرع"
+msgstr ""
+
+#: inventory/models/organization.py:38
+msgid "TOTP Secret (base32)"
+msgstr ""
+
+#: inventory/models/organization.py:39
+msgid "مفعّل؟"
+msgstr ""
+
+#: inventory/models/organization.py:41
+msgid "أكواد الاسترجاع"
+msgstr ""
+
+#: inventory/models/organization.py:47
+msgid "مصادقة ثنائية"
+msgstr ""
+
+#: inventory/models/organization.py:48
+msgid "المصادقة الثنائية"
+msgstr ""
+
+#: inventory/models/organization.py:56
+msgid "مدير عام (أدمن)"
+msgstr ""
+
+#: inventory/models/organization.py:57
+msgid "مدير فرع"
+msgstr ""
+
+#: inventory/models/organization.py:58
+msgid "مبيعات (Sales)"
+msgstr ""
+
+#: inventory/models/organization.py:59
+msgid "مهندس تشخيص (Engineer)"
+msgstr ""
+
+#: inventory/models/organization.py:60
+msgid "فني / ميكانيكي (Technician)"
+msgstr ""
+
+#: inventory/models/organization.py:61
+msgid "كاشير / استقبال (Cashier)"
+msgstr ""
+
+#: inventory/models/organization.py:62
+msgid "أمين مخزن"
+msgstr ""
+
+#: inventory/models/organization.py:63
+msgid "موارد بشرية (HR)"
+msgstr ""
+
+#: inventory/models/organization.py:78
+msgid "الفرع التابع له"
+msgstr ""
+
+#: inventory/models/organization.py:79
+msgid "الدور الوظيفي"
+msgstr ""
+
+#: inventory/models/organization.py:80
+msgid "صلاحية تعديل الفواتير المعتمدة؟"
+msgstr ""
+
+#: inventory/models/organization.py:81
+msgid "صلاحية رؤية أسعار التكلفة؟"
+msgstr ""
+
+#: inventory/models/organization.py:82
+msgid "Sales = False بشكل افتراضي — يرى أسعار البيع فقط"
+msgstr ""
+
+#: inventory/models/organization.py:84
+msgid "رصيد العمولات المستحقة"
+msgstr ""
+
+#: inventory/models/organization.py:86
+msgid "نسبة عمولة المبيعات %"
+msgstr ""
+
+#: inventory/models/organization.py:87
+msgid "تُطبَّق على هامش الربح للقطع التي يبيعها الموظف"
+msgstr ""
+
+#: inventory/models/organization.py:90
+msgid "آخر تسجيل حضور"
+msgstr ""
+
+#: inventory/models/organization.py:91
+msgid "آخر Lat"
+msgstr ""
+
+#: inventory/models/organization.py:92
+msgid "آخر Lng"
+msgstr ""
+
+#: inventory/models/organization.py:95
+msgid "ملف الموظف"
+msgstr ""
+
+#: inventory/models/organization.py:96
+msgid "ملفات الموظفين والصلاحيات"
+msgstr ""
+
+#: inventory/models/organization.py:109
+msgid "وقت تسجيل الدخول"
+msgstr ""
+
+#: inventory/models/organization.py:110
+msgid "وقت تسجيل الخروج"
+msgstr ""
+
+#: inventory/models/organization.py:111
+msgid "إجمالي ساعات الوردية"
+msgstr ""
+
+#: inventory/models/organization.py:113
+msgid "سجل حضور وإنتاجية الفنيين"
+msgstr ""
+
+#: inventory/models/organization.py:124
+msgid "حضور"
+msgstr ""
+
+#: inventory/models/organization.py:124
+msgid "انصراف"
+msgstr ""
+
+#: inventory/models/organization.py:131
+msgid "اللحظة الزمنية"
+msgstr ""
+
+#: inventory/models/organization.py:133
+msgid "Latitude"
+msgstr ""
+
+#: inventory/models/organization.py:134
+msgid "Longitude"
+msgstr ""
+
+#: inventory/models/organization.py:135
+msgid "دقة GPS (متر)"
+msgstr ""
+
+#: inventory/models/organization.py:140
+msgid "داخل حدود الفرع؟"
+msgstr ""
+
+#: inventory/models/organization.py:141
+msgid "سبب التنبيه"
+msgstr ""
+
+#: inventory/models/organization.py:144
+msgid "حركة حضور"
+msgstr ""
+
+#: inventory/models/organization.py:145
+msgid "سجل الحضور والانصراف (GPS)"
+msgstr ""
+
+#: inventory/templates/inventory/_base_portal.html:7
+msgid "بوابة Mouss Tec"
+msgstr "Mouss Tec Portal"
+
+#: inventory/templates/inventory/_base_portal.html:38
+msgid "الرئيسية"
+msgstr "Home"
+
+#: inventory/templates/inventory/_base_portal.html:39
+msgid "نقطة البيع"
+msgstr "POS"
+
+#: inventory/templates/inventory/_base_portal.html:40
+msgid "أمر شغل"
+msgstr "Job Card"
+
+#: inventory/templates/inventory/_base_portal.html:41
+msgid "الفواتير"
+msgstr "Invoices"
+
+#: inventory/templates/inventory/_base_portal.html:42
+msgid "القطع"
+msgstr "Parts"
+
+#: inventory/templates/inventory/_base_portal.html:54
+msgid "تغيير اللغة"
+msgstr "Change language"
+
+#: inventory/templates/inventory/_base_portal.html:59
+msgid "لوحة التحكم الكاملة"
+msgstr "Full control panel"
+
+#: inventory/templates/inventory/_base_portal.html:61
+msgid "تغيير كلمة السر"
+msgstr "Change password"
+
+#: inventory/templates/inventory/_base_portal.html:62
+msgid "خروج"
+msgstr "Logout"
+
+#: printing/models.py:29
+msgid "فرع"
+msgstr ""
+
+#: printing/models.py:30
+msgid "الفروع"
+msgstr ""
+
+#: printing/models.py:39
+msgid "اسم العميل"
+msgstr ""
+
+#: printing/models.py:41
+msgid "واتساب"
+msgstr ""
+
+#: printing/models.py:48
+msgid "عميل"
+msgstr ""
+
+#: printing/models.py:49
+msgid "العملاء"
+msgstr ""
+
+#: printing/models.py:66
+msgid "طابعة رقمية (Digital)"
+msgstr ""
+
+#: printing/models.py:67
+msgid "طابعة أوفست (Offset)"
+msgstr ""
+
+#: printing/models.py:68
+msgid "طابعة لارج فورمات (Wide/Large Format)"
+msgstr ""
+
+#: printing/models.py:69
+msgid "طابعة DTF"
+msgstr ""
+
+#: printing/models.py:70
+msgid "طابعة UV"
+msgstr ""
+
+#: printing/models.py:71
+msgid "طباعة حرارية (Sublimation)"
+msgstr ""
+
+#: printing/models.py:72
+msgid "ماكينة قص (Cutting Plotter)"
+msgstr ""
+
+#: printing/models.py:73
+msgid "ماكينة تغليف (Laminator)"
+msgstr ""
+
+#: printing/models.py:77
+msgid "اسم الماكينة"
+msgstr ""
+
+#: printing/models.py:78
+msgid "نوع الماكينة"
+msgstr ""
+
+#: printing/models.py:79
+msgid "الماركة / الشركة المصنعة"
+msgstr ""
+
+#: printing/models.py:80
+msgid "رقم الموديل"
+msgstr ""
+
+#: printing/models.py:82
+msgid "تعمل حالياً"
+msgstr ""
+
+#: printing/models.py:87
+msgid "استهلاك الكهرباء (kWh/ساعة)"
+msgstr ""
+
+#: printing/models.py:88
+msgid "استهلاك الماكينة بالكيلو وات في الساعة"
+msgstr ""
+
+#: printing/models.py:92
+msgid "سعر الكيلو وات (ج.م)"
+msgstr ""
+
+#: printing/models.py:93
+msgid "تكلفة الكيلو وات ساعة حسب شريحة الكهرباء"
+msgstr ""
+
+#: printing/models.py:97
+msgid "تكلفة العامل/الساعة (ج.م)"
+msgstr ""
+
+#: printing/models.py:101
+msgid "تكلفة حبر Cyan (ج.م/مل)"
+msgstr ""
+
+#: printing/models.py:102
+msgid "تكلفة حبر Magenta (ج.م/مل)"
+msgstr ""
+
+#: printing/models.py:103
+msgid "تكلفة حبر Yellow (ج.م/مل)"
+msgstr ""
+
+#: printing/models.py:104
+msgid "تكلفة حبر Black (ج.م/مل)"
+msgstr ""
+
+#: printing/models.py:107
+msgid "إجمالي ساعات التشغيل"
+msgstr ""
+
+#: printing/models.py:108
+msgid "موعد الصيانة القادمة"
+msgstr ""
+
+#: printing/models.py:113
+msgid "ماكينة طباعة"
+msgstr ""
+
+#: printing/models.py:114
+msgid "ماكينات الطباعة"
+msgstr ""
+
+#: printing/models.py:147
+msgid "التخصص"
+msgstr ""
+
+#: printing/models.py:147
+msgid "مثال: سوشيال ميديا، طباعة، ثري دي"
+msgstr ""
+
+#: printing/models.py:148
+msgid "أجر الساعة (ج.م)"
+msgstr ""
+
+#: printing/models.py:153
+msgid "مصمم"
+msgstr ""
+
+#: printing/models.py:154
+msgid "المصممين"
+msgstr ""
+
+#: printing/models.py:179
+msgid "⌨️ يدوي بالكامل"
+msgstr ""
+
+#: printing/models.py:180
+msgid "🤖 مُنشأ بالذكاء الاصطناعي"
+msgstr ""
+
+#: printing/models.py:181
+msgid "🧠 مساعد بالذكاء الاصطناعي (AI + تعديل يدوي)"
+msgstr ""
+
+#: printing/models.py:186
+msgid "عنوان العمل"
+msgstr ""
+
+#: printing/models.py:186
+msgid "مثال: بوستر افتتاح فرع جديد"
+msgstr ""
+
+#: printing/models.py:187
+msgid "تفاصيل"
+msgstr ""
+
+#: printing/models.py:191
+msgid "مدة العمل (ساعات)"
+msgstr ""
+
+#: printing/models.py:198
+msgid "تقييم العميل عبر واتساب أو مباشرة (1 = ضعيف، 5 = ممتاز)"
+msgstr ""
+
+#: printing/models.py:203
+msgid "صورة العمل"
+msgstr ""
+
+#: printing/models.py:208
+msgid "سجل عمل مصمم"
+msgstr ""
+
+#: printing/models.py:209
+msgid "سجلات أعمال المصممين"
+msgstr ""
+
+#: printing/models.py:226
+msgid "اسم البند"
+msgstr ""
+
+#: printing/models.py:227
+msgid "عدد مرات الاستخدام"
+msgstr ""
+
+#: printing/models.py:231
+msgid "نوع بند"
+msgstr ""
+
+#: printing/models.py:232
+msgid "أنواع البنود"
+msgstr ""
+
+#: printing/models.py:249
+msgid "مؤكد"
+msgstr ""
+
+#: printing/models.py:256
+msgid "رقم الطلب"
+msgstr ""
+
+#: printing/models.py:262
+msgid "تاريخ الإنشاء"
+msgstr ""
+
+#: printing/models.py:263
+msgid "موعد التسليم"
+msgstr ""
+
+#: printing/models.py:264
+msgid "تاريخ التسليم الفعلي"
+msgstr ""
+
+#: printing/models.py:268 printing/models.py:709
+msgid "الخصم"
+msgstr ""
+
+#: printing/models.py:274
+msgid "ملف المشروع"
+msgstr ""
+
+#: printing/models.py:275
+msgid "ملف التصميم الأصلي (PSD, AI, PDF, إلخ)"
+msgstr ""
+
+#: printing/models.py:279
+msgid "ملف إضافي 1"
+msgstr ""
+
+#: printing/models.py:283
+msgid "ملف إضافي 2"
+msgstr ""
+
+#: printing/models.py:289
+msgid "طلب طباعة"
+msgstr ""
+
+#: printing/models.py:290
+msgid "طلبات الطباعة"
+msgstr ""
+
+#: printing/models.py:367
+msgid "رول 60 سم"
+msgstr ""
+
+#: printing/models.py:367
+msgid "رول 90 سم"
+msgstr ""
+
+#: printing/models.py:368
+msgid "رول 120 سم"
+msgstr ""
+
+#: printing/models.py:368
+msgid "رول 150 سم"
+msgstr ""
+
+#: printing/models.py:369
+msgid "مقاس مخصص"
+msgstr ""
+
+#: printing/models.py:373
+msgid "الماكينة"
+msgstr ""
+
+#: printing/models.py:379
+msgid "نوع البند"
+msgstr ""
+
+#: printing/models.py:380
+msgid "مثال: تيشرت، كارت بزنس، بنر، ماج، فلاير"
+msgstr ""
+
+#: printing/models.py:383
+msgid "نوع البند (نص حر)"
+msgstr ""
+
+#: printing/models.py:384
+msgid "اكتب نوع البند — لو موجود قبل كده هيظهرلك autocomplete"
+msgstr ""
+
+#: printing/models.py:387
+msgid "وصف المهمة"
+msgstr ""
+
+#: printing/models.py:387
+msgid "مثال: طباعة 500 كارت بزنس، سوفت تاتش"
+msgstr ""
+
+#: printing/models.py:388
+msgid "مقاس الورق"
+msgstr ""
+
+#: printing/models.py:390
+msgid "الارتفاع (سم)"
+msgstr ""
+
+#: printing/models.py:392
+msgid "عدد النسخ"
+msgstr ""
+
+#: printing/models.py:395 printing/models.py:798
+msgid "سعر الوحدة"
+msgstr ""
+
+#: printing/models.py:399
+msgid "وقت التنفيذ الفعلي (ساعات)"
+msgstr ""
+
+#: printing/models.py:400
+msgid "حبر Cyan (مل)"
+msgstr ""
+
+#: printing/models.py:401
+msgid "حبر Magenta (مل)"
+msgstr ""
+
+#: printing/models.py:402
+msgid "حبر Yellow (مل)"
+msgstr ""
+
+#: printing/models.py:403
+msgid "حبر Black (مل)"
+msgstr ""
+
+#: printing/models.py:408
+msgid "مكتملة"
+msgstr ""
+
+#: printing/models.py:409
+msgid "تاريخ الإكمال"
+msgstr ""
+
+#: printing/models.py:412
+msgid "التكلفة الفعلية المحفوظة"
+msgstr ""
+
+#: printing/models.py:413
+msgid "صافي الربح المحفوظ"
+msgstr ""
+
+#: printing/models.py:416
+msgid "مهمة طباعة"
+msgstr ""
+
+#: printing/models.py:417
+msgid "مهام الطباعة"
+msgstr ""
+
+#: printing/models.py:497
+msgid "ورق"
+msgstr ""
+
+#: printing/models.py:498
+msgid "حبر"
+msgstr ""
+
+#: printing/models.py:499
+msgid "فينيل"
+msgstr ""
+
+#: printing/models.py:500
+msgid "بنر / فليكس"
+msgstr ""
+
+#: printing/models.py:501
+msgid "تغليف / لامينيشن"
+msgstr ""
+
+#: printing/models.py:502
+msgid "تغليف وتعبئة"
+msgstr ""
+
+#: printing/models.py:503
+msgid "خامات أخرى"
+msgstr ""
+
+#: printing/models.py:506
+msgid "اسم الخامة"
+msgstr ""
+
+#: printing/models.py:508
+msgid "كود الخامة"
+msgstr ""
+
+#: printing/models.py:509
+msgid "مثال: رول، ورقة، لتر، مل"
+msgstr ""
+
+#: printing/models.py:513
+msgid "الحد الأدنى"
+msgstr ""
+
+#: printing/models.py:514
+msgid "تكلفة الوحدة (ج.م)"
+msgstr ""
+
+#: printing/models.py:519
+msgid "خامة طباعة"
+msgstr ""
+
+#: printing/models.py:520
+msgid "خامات الطباعة"
+msgstr ""
+
+#: printing/models.py:541
+msgid "اسم الخزينة"
+msgstr ""
+
+#: printing/models.py:543
+msgid "الرصيد"
+msgstr ""
+
+#: printing/models.py:547
+msgid "خزينة"
+msgstr ""
+
+#: printing/models.py:548
+msgid "الخزائن"
+msgstr ""
+
+#: printing/models.py:561
+msgid "الخزينة"
+msgstr ""
+
+#: printing/models.py:565
+msgid "الطلب المرتبط"
+msgstr ""
+
+#: printing/models.py:570
+msgid "حركة مالية"
+msgstr ""
+
+#: printing/models.py:571
+msgid "الحركات المالية"
+msgstr ""
+
+#: printing/models.py:628
+msgid "مشاهدة الخزينة"
+msgstr ""
+
+#: printing/models.py:629
+msgid "إدارة الخزينة (إيداع/سحب)"
+msgstr ""
+
+#: printing/models.py:630
+msgid "مشاهدة الأرباح والتكاليف"
+msgstr ""
+
+#: printing/models.py:633
+msgid "إنشاء طلبات"
+msgstr ""
+
+#: printing/models.py:634
+msgid "تعديل طلبات"
+msgstr ""
+
+#: printing/models.py:635
+msgid "حذف طلبات"
+msgstr ""
+
+#: printing/models.py:636
+msgid "مشاهدة كل الطلبات"
+msgstr ""
+
+#: printing/models.py:639
+msgid "إدارة العملاء"
+msgstr ""
+
+#: printing/models.py:642
+msgid "مشاهدة ملفات المشاريع"
+msgstr ""
+
+#: printing/models.py:643
+msgid "رفع ملفات المشاريع"
+msgstr ""
+
+#: printing/models.py:646
+msgid "إدارة المخزون"
+msgstr ""
+
+#: printing/models.py:649
+msgid "مشاهدة أداء المصممين"
+msgstr ""
+
+#: printing/models.py:652
+msgid "استخدام AI Studio"
+msgstr ""
+
+#: printing/models.py:655
+msgid "مشاهدة التقارير"
+msgstr ""
+
+#: printing/models.py:658
+msgid "صلاحية موظف"
+msgstr ""
+
+#: printing/models.py:659
+msgid "صلاحيات الموظفين"
+msgstr ""
+
+#: printing/models.py:680
+msgid "تم الإرسال — في انتظار الرد"
+msgstr ""
+
+#: printing/models.py:684
+msgid "تحوّل لطلب"
+msgstr ""
+
+#: printing/models.py:689
+msgid "رقم العرض"
+msgstr ""
+
+#: printing/models.py:689
+msgid "يُولّد تلقائياً"
+msgstr ""
+
+#: printing/models.py:691
+msgid "العميل المسجل"
+msgstr ""
+
+#: printing/models.py:692
+msgid "اختياري — لو العميل مش مسجل، اكتب اسمه وتليفونه يدوياً"
+msgstr ""
+
+#: printing/models.py:694
+msgid "اسم العميل (لو غير مسجل)"
+msgstr ""
+
+#: printing/models.py:696
+msgid "تليفون العميل"
+msgstr ""
+
+#: printing/models.py:698
+msgid "واتساب العميل"
+msgstr ""
+
+#: printing/models.py:701
+msgid "عنوان العرض"
+msgstr ""
+
+#: printing/models.py:702
+msgid "مثال: تصميم لوجو + 500 كرت شخصي"
+msgstr ""
+
+#: printing/models.py:703
+msgid "ملاحظات / شروط"
+msgstr ""
+
+#: printing/models.py:707
+msgid "المجموع الفرعي"
+msgstr ""
+
+#: printing/models.py:712
+msgid "نسبة الضريبة %"
+msgstr ""
+
+#: printing/models.py:720
+msgid "صالح حتى"
+msgstr ""
+
+#: printing/models.py:720
+msgid "افتراضي: 7 أيام من تاريخ الإنشاء"
+msgstr ""
+
+#: printing/models.py:724
+msgid "توكن المشاركة"
+msgstr ""
+
+#: printing/models.py:730
+msgid "تاريخ الإرسال"
+msgstr ""
+
+#: printing/models.py:731
+msgid "تاريخ رد العميل"
+msgstr ""
+
+#: printing/models.py:734
+msgid "الطلب الناتج"
+msgstr ""
+
+#: printing/models.py:738
+msgid "عروض الأسعار"
+msgstr ""
+
+#: printing/models.py:792
+msgid "العرض"
+msgstr ""
+
+#: printing/models.py:794
+msgid "مثال: تصميم لوجو احترافي بـ 3 خيارات"
+msgstr ""
+
+#: printing/models.py:801
+msgid "الترتيب"
+msgstr ""
+
+#: printing/models.py:804
+msgid "بند عرض"
+msgstr ""
+
+#: printing/models.py:805
+msgid "بنود العرض"
+msgstr ""
+
+#: smart_diagnostics/admin.py:30
+msgid "التوكن"
+msgstr ""
+
+#: smart_diagnostics/admin.py:32
+msgid "🔁 تدوير التوكن (rotate)"
+msgstr ""
+
+#: smart_diagnostics/admin.py:42
+msgid "🛑 إيقاف الأجهزة المحددة"
+msgstr ""
+
+#: smart_diagnostics/admin.py:47
+msgid "✅ تفعيل الأجهزة المحددة"
+msgstr ""
+
+#: smart_diagnostics/admin.py:78
+msgid "✅ تأشير كـ تم الحل (الآن)"
+msgstr ""
+
+#: smart_diagnostics/models.py:39
+msgid "المركبة (اختياري — للأجهزة المثبتة دائماً)"
+msgstr ""
+
+#: smart_diagnostics/models.py:40
+msgid "اتركها فارغة لأجهزة الورشة المحمولة (ELM327 وأمثاله)."
+msgstr ""
+
+#: smart_diagnostics/models.py:44
+msgid "توكن الجهاز"
+msgstr ""
+
+#: smart_diagnostics/models.py:52
+msgid "جهاز فحص OBD"
+msgstr ""
+
+#: smart_diagnostics/models.py:53
+msgid "🔌 أجهزة الفحص الميدانية"
+msgstr ""
+
+#: smart_diagnostics/models.py:69
+msgid "تم الحجب — نفدت الحصة"
+msgstr ""
+
+#: smart_diagnostics/models.py:70
+msgid "تم الحجب — اشتراك غير مفعّل"
+msgstr ""
+
+#: smart_diagnostics/models.py:74
+msgid "Live OBD device"
+msgstr ""
+
+#: smart_diagnostics/models.py:75
+msgid "إدخال يدوي"
+msgstr ""
+
+#: smart_diagnostics/models.py:76
+msgid "REST API"
+msgstr ""
+
+#: smart_diagnostics/models.py:99
+msgid "جلسة فحص تشخيصي"
+msgstr ""
+
+#: smart_diagnostics/models.py:100
+msgid "🩺 جلسات الفحص التشخيصي"
+msgstr ""
+
+#: smart_diagnostics/models.py:123
+msgid "كود العطل"
+msgstr ""
+
+#: smart_diagnostics/models.py:128
+msgid "تاريخ الحل"
+msgstr ""
+
+#: smart_diagnostics/models.py:129
+msgid "ملاحظات الحل"
+msgstr ""
+
+#: smart_diagnostics/models.py:136
+msgid "سجل عطل"
+msgstr ""
+
+#: smart_diagnostics/models.py:137
+msgid "📖 الجواز الصحي للمركبة (Fault History)"
+msgstr ""
+
+#: smart_diagnostics/models.py:168
+msgid "إطار قياس حي"
+msgstr ""
+
+#: smart_diagnostics/models.py:169
+msgid "📊 Live Telemetry Frames"
+msgstr ""
+
+#: smart_diagnostics/models.py:181
+msgid "نجح"
+msgstr ""
+
+#: smart_diagnostics/models.py:183
+msgid "ألغي"
+msgstr ""
+
+#: smart_diagnostics/models.py:196
+msgid "تنفيذ خطة فحص"
+msgstr ""
+
+#: smart_diagnostics/models.py:197
+msgid "🧪 Interactive Test Plans"
+msgstr ""
+
+#: smart_diagnostics/models.py:230
+msgid "True = served من cache، مفيش تكلفة"
+msgstr ""
+
+#: smart_diagnostics/models.py:240
+msgid "سجل مكالمة API"
+msgstr ""
+
+#: smart_diagnostics/models.py:241
+msgid "💰 API Call Cost Log"
+msgstr ""
+
+#: templates/admin/login.html:23
+#, python-format
+msgid ""
+"You are authenticated as %(username)s, but are not authorized to access this "
+"page. Would you like to login to a different account?"
+msgstr ""
