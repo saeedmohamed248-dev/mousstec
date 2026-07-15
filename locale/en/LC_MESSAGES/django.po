@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 19:01+0300\n"
+"POT-Creation-Date: 2026-07-15 23:05+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -596,8 +596,9 @@ msgstr ""
 #: clients/models/design_store.py:436 clients/models/design_store.py:553
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
 #: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
-#: inventory/templates/inventory/lightning_pos.html:61 printing/models.py:188
-#: printing/models.py:257
+#: inventory/templates/inventory/lightning_pos.html:61
+#: inventory/templates/inventory/sale_invoice_list.html:48
+#: printing/models.py:188 printing/models.py:257
 msgid "العميل"
 msgstr "Customer"
 
@@ -1245,9 +1246,10 @@ msgstr "Brand"
 #: hr/models.py:933 inventory/models/catalog.py:27
 #: inventory/models/catalog.py:153 inventory/models/diagnostics.py:167
 #: inventory/models/invoices.py:36 inventory/models/operations.py:71
+#: inventory/templates/inventory/sale_invoice_list.html:51
 #: printing/models.py:259 printing/models.py:718
 msgid "الحالة"
-msgstr ""
+msgstr "Status"
 
 #: clients/models/marketplace_b2b.py:39
 msgid "سعر الجملة للمراكز"
@@ -1409,9 +1411,10 @@ msgstr ""
 msgid "نوع الحركة"
 msgstr ""
 
-#: clients/models/marketplace_b2b.py:219 printing/models.py:563
+#: clients/models/marketplace_b2b.py:219
+#: inventory/templates/inventory/quick_expense.html:17 printing/models.py:563
 msgid "المبلغ"
-msgstr ""
+msgstr "Amount"
 
 #: clients/models/marketplace_b2b.py:221 inventory/models/finance.py:64
 #: inventory/models/finance.py:119
@@ -3777,9 +3780,10 @@ msgstr ""
 
 #: hr/models.py:378 inventory/models/finance.py:65
 #: inventory/models/invoices.py:33 inventory/models/invoices.py:80
+#: inventory/templates/inventory/sale_invoice_list.html:47
 #: printing/models.py:185 printing/models.py:566
 msgid "التاريخ"
-msgstr ""
+msgstr "Date"
 
 #: hr/models.py:385
 msgid "وقت الحضور"
@@ -4868,8 +4872,9 @@ msgstr ""
 
 #: inventory/models/diagnostics.py:40 inventory/models/diagnostics.py:447
 #: inventory/models/invoices.py:75
+#: inventory/templates/inventory/sale_invoice_list.html:49
 msgid "المركبة"
-msgstr ""
+msgstr "Vehicle"
 
 #: inventory/models/diagnostics.py:46
 msgid "المهندس / الفني"
@@ -5047,9 +5052,11 @@ msgstr ""
 
 #: inventory/models/diagnostics.py:194 inventory/models/finance.py:27
 #: inventory/models/finance.py:58 inventory/models/invoices.py:67
-#: inventory/models/organization.py:130 printing/models.py:562
+#: inventory/models/organization.py:130
+#: inventory/templates/inventory/sale_invoice_list.html:50
+#: printing/models.py:562
 msgid "النوع"
-msgstr ""
+msgstr "Type"
 
 #: inventory/models/diagnostics.py:196
 msgid "تعليق"
@@ -5576,8 +5583,9 @@ msgstr ""
 
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
-#: inventory/templates/inventory/lightning_pos.html:48 printing/models.py:267
-#: printing/models.py:396 printing/models.py:800
+#: inventory/templates/inventory/lightning_pos.html:48
+#: inventory/templates/inventory/sale_invoice_list.html:52
+#: printing/models.py:267 printing/models.py:396 printing/models.py:800
 msgid "الإجمالي"
 msgstr "Total"
 
@@ -6120,6 +6128,7 @@ msgid "بوابة Mouss Tec"
 msgstr "Mouss Tec Portal"
 
 #: inventory/templates/inventory/_base_portal.html:38
+#: inventory/templates/inventory/quick_expense.html:12
 msgid "الرئيسية"
 msgstr "Home"
 
@@ -6345,6 +6354,7 @@ msgid "نقطة بيع سريعة"
 msgstr "Quick point of sale"
 
 #: inventory/templates/inventory/dashboard.html:299
+#: inventory/templates/inventory/sale_invoice_list.html:14
 msgid "أمر شغل جديد"
 msgstr "New job card"
 
@@ -6373,6 +6383,7 @@ msgid "إضافة قطعة"
 msgstr "Add part"
 
 #: inventory/templates/inventory/dashboard.html:364
+#: inventory/templates/inventory/quick_expense.html:3
 msgid "تسجيل مصروف"
 msgstr "Record expense"
 
@@ -6539,6 +6550,7 @@ msgid "جارٍ الطباعة"
 msgstr "Printing"
 
 #: inventory/templates/inventory/lightning_pos.html:206
+#: inventory/templates/inventory/quick_expense.html:99
 #: inventory/templates/inventory/quick_product.html:121
 msgid "خطأ في الشبكة."
 msgstr "Network error."
@@ -6570,10 +6582,12 @@ msgid "نفد المخزون"
 msgstr "Out of stock"
 
 #: inventory/templates/inventory/product_list.html:29
+#: inventory/templates/inventory/sale_invoice_list.html:35
 msgid "إلغاء الفلاتر"
 msgstr "Clear filters"
 
 #: inventory/templates/inventory/product_list.html:30
+#: inventory/templates/inventory/sale_invoice_list.html:36
 msgid "فلترة"
 msgstr "Filter"
 
@@ -6594,6 +6608,7 @@ msgid "المخزون"
 msgstr "Stock"
 
 #: inventory/templates/inventory/product_list.html:47
+#: inventory/templates/inventory/sale_invoice_list.html:54
 msgid "إجراءات"
 msgstr "Actions"
 
@@ -6606,6 +6621,7 @@ msgid "حد التنبيه"
 msgstr "Reorder level"
 
 #: inventory/templates/inventory/product_list.html:73
+#: inventory/templates/inventory/sale_invoice_list.html:80
 msgid "تعديل تفصيلي (Admin)"
 msgstr "Detailed edit (Admin)"
 
@@ -6618,9 +6634,75 @@ msgid "أضف قطعة جديدة ←"
 msgstr "Add a new part ←"
 
 #: inventory/templates/inventory/product_list.html:87
+#: inventory/templates/inventory/sale_invoice_list.html:94
 #, python-format
 msgid "صفحة %(num)s من %(total)s"
 msgstr "Page %(num)s of %(total)s"
+
+#: inventory/templates/inventory/quick_expense.html:9
+msgid "تسجيل مصروف سريع"
+msgstr "Quick expense recording"
+
+#: inventory/templates/inventory/quick_expense.html:23
+msgid "الخزنة (يُخصم منها)"
+msgstr "Treasury (deducted from)"
+
+#: inventory/templates/inventory/quick_expense.html:25
+msgid "— اختر الخزنة —"
+msgstr "— Choose treasury —"
+
+#: inventory/templates/inventory/quick_expense.html:26
+msgid "رصيد"
+msgstr "Balance"
+
+#: inventory/templates/inventory/quick_expense.html:31
+msgid "البند / التصنيف"
+msgstr "Item / Category"
+
+#: inventory/templates/inventory/quick_expense.html:33
+msgid "— بدون تصنيف —"
+msgstr "— No category —"
+
+#: inventory/templates/inventory/quick_expense.html:41
+msgid "الموظف المستلم للراتب"
+msgstr "Employee receiving salary"
+
+#: inventory/templates/inventory/quick_expense.html:44
+msgid "— اختر الموظف —"
+msgstr "— Choose employee —"
+
+#: inventory/templates/inventory/quick_expense.html:51
+msgid "سيُربط هذا المصروف بكشف حساب الموظف تلقائياً."
+msgstr "This expense will be linked to the employee's statement automatically."
+
+#: inventory/templates/inventory/quick_expense.html:55
+msgid "البيان / الملاحظات"
+msgstr "Statement / Notes"
+
+#: inventory/templates/inventory/quick_expense.html:56
+msgid "مثال: شراء قهوة للعملاء"
+msgstr "e.g., buying coffee for customers"
+
+#: inventory/templates/inventory/quick_expense.html:60
+msgid "تسجيل المصروف"
+msgstr "Record the expense"
+
+#: inventory/templates/inventory/quick_expense.html:89
+#: inventory/templates/inventory/quick_product.html:107
+msgid "جارٍ الحفظ..."
+msgstr "Saving..."
+
+#: inventory/templates/inventory/quick_expense.html:93
+msgid "فشل التسجيل."
+msgstr "Recording failed."
+
+#: inventory/templates/inventory/quick_expense.html:95
+msgid "تم تسجيل المصروف"
+msgstr "Expense recorded"
+
+#: inventory/templates/inventory/quick_expense.html:95
+msgid "رصيد الخزنة الجديد"
+msgstr "New treasury balance"
 
 #: inventory/templates/inventory/quick_product.html:9
 msgid "إضافة قطعة جديدة (مع رصيد البداية)"
@@ -6672,10 +6754,6 @@ msgstr "Reorder level"
 msgid "حفظ القطعة وتسجيل المخزون"
 msgstr "Save part & record stock"
 
-#: inventory/templates/inventory/quick_product.html:107
-msgid "جارٍ الحفظ..."
-msgstr "Saving..."
-
 #: inventory/templates/inventory/quick_product.html:111
 msgid "فشل الحفظ."
 msgstr "Save failed."
@@ -6687,6 +6765,55 @@ msgstr "Done! Part"
 #: inventory/templates/inventory/quick_product.html:113
 msgid "مخزون افتتاحي"
 msgstr "Opening stock"
+
+#: inventory/templates/inventory/sale_invoice_list.html:3
+#: inventory/templates/inventory/sale_invoice_list.html:9
+msgid "الفواتير وأوامر الشغل"
+msgstr "Invoices & Job Cards"
+
+#: inventory/templates/inventory/sale_invoice_list.html:13
+msgid "POS سريع"
+msgstr "Quick POS"
+
+#: inventory/templates/inventory/sale_invoice_list.html:23
+msgid "ابحث برقم الفاتورة، اسم العميل، أو الهاتف..."
+msgstr "Search by invoice number, customer name, or phone..."
+
+#: inventory/templates/inventory/sale_invoice_list.html:26
+msgid "— كل الحالات —"
+msgstr "— All statuses —"
+
+#: inventory/templates/inventory/sale_invoice_list.html:30
+msgid "— كل الأنواع —"
+msgstr "— All types —"
+
+#: inventory/templates/inventory/sale_invoice_list.html:53
+msgid "المتبقي"
+msgstr "Remaining"
+
+#: inventory/templates/inventory/sale_invoice_list.html:65
+msgid "صيانة"
+msgstr "Maintenance"
+
+#: inventory/templates/inventory/sale_invoice_list.html:65
+msgid "قطع"
+msgstr "Parts"
+
+#: inventory/templates/inventory/sale_invoice_list.html:77
+msgid "طباعة A4"
+msgstr "Print A4"
+
+#: inventory/templates/inventory/sale_invoice_list.html:78
+msgid "طباعة حرارية"
+msgstr "Thermal print"
+
+#: inventory/templates/inventory/sale_invoice_list.html:85
+msgid "لا توجد فواتير مطابقة."
+msgstr "No matching invoices."
+
+#: inventory/templates/inventory/sale_invoice_list.html:85
+msgid "أنشئ أمر شغل جديد ←"
+msgstr "Create a new job card ←"
 
 #: printing/models.py:29
 msgid "فرع"

@@ -1,35 +1,36 @@
 {% extends "inventory/_base_portal.html" %}
-{% block title %}💸 تسجيل مصروف{% endblock %}
+{% load i18n %}
+{% block title %}💸 {% trans "تسجيل مصروف" %}{% endblock %}
 
 {% block content %}
 <header class="flex items-center justify-between mb-5">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-rose-400"><i class="fas fa-money-bill-trend-up"></i></span>
-    تسجيل مصروف سريع
+    {% trans "تسجيل مصروف سريع" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-white"><i class="fas fa-home ml-1"></i>الرئيسية</a>
+  <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-white"><i class="fas fa-home ml-1"></i>{% trans "الرئيسية" %}</a>
 </header>
 
 <form id="exp-form" class="bg-slate-800/60 backdrop-blur rounded-2xl p-6 border border-slate-700/50 space-y-4 max-w-xl mx-auto">
   <div>
-    <label class="block text-xs font-bold text-slate-300 mb-1">المبلغ *</label>
+    <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المبلغ" %} *</label>
     <input name="amount" type="number" step="0.01" min="0.01" required
            class="w-full bg-slate-900 text-white text-2xl font-black px-3 py-3 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none text-center">
   </div>
 
   <div>
-    <label class="block text-xs font-bold text-slate-300 mb-1">الخزنة (يُخصم منها) *</label>
+    <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الخزنة (يُخصم منها)" %} *</label>
     <select name="treasury_id" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none">
-      <option value="">— اختر الخزنة —</option>
-      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }}) — رصيد: {{ t.balance|floatformat:2 }}</option>{% endfor %}
+      <option value="">{% trans "— اختر الخزنة —" %}</option>
+      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }}) — {% trans "رصيد" %}: {{ t.balance|floatformat:2 }}</option>{% endfor %}
     </select>
   </div>
 
   <div>
-    <label class="block text-xs font-bold text-slate-300 mb-1">البند / التصنيف</label>
+    <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "البند / التصنيف" %}</label>
     <select name="category_id" id="cat-select" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none">
-      <option value="" data-system-key="">— بدون تصنيف —</option>
+      <option value="" data-system-key="">{% trans "— بدون تصنيف —" %}</option>
       {% for c in categories %}<option value="{{ c.id }}" data-system-key="{{ c.system_key }}">{{ c.name }}</option>{% endfor %}
     </select>
   </div>
@@ -37,26 +38,26 @@
   <!-- 👥 Dynamic Employee picker — surfaces when 'salaries' category is selected -->
   <div id="emp-block" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
     <label class="block text-xs font-bold text-amber-300 mb-1">
-      <i class="fas fa-user-tie ml-1"></i>الموظف المستلم للراتب *
+      <i class="fas fa-user-tie ml-1"></i>{% trans "الموظف المستلم للراتب" %} *
     </label>
     <select name="employee_id" id="emp-select" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-amber-500/40 focus:border-amber-300 focus:outline-none">
-      <option value="">— اختر الموظف —</option>
+      <option value="">{% trans "— اختر الموظف —" %}</option>
       {% for e in salary_employees %}
         <option value="{{ e.id }}">
           {{ e.user.get_full_name|default:e.user.username }} ({{ e.get_role_display }}){% if e.branch %} — {{ e.branch.name }}{% endif %}
         </option>
       {% endfor %}
     </select>
-    <p class="text-xs text-amber-200/80 mt-1">سيُربط هذا المصروف بكشف حساب الموظف تلقائياً.</p>
+    <p class="text-xs text-amber-200/80 mt-1">{% trans "سيُربط هذا المصروف بكشف حساب الموظف تلقائياً." %}</p>
   </div>
 
   <div>
-    <label class="block text-xs font-bold text-slate-300 mb-1">البيان / الملاحظات</label>
-    <textarea name="description" rows="2" placeholder="مثال: شراء قهوة للعملاء" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none"></textarea>
+    <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "البيان / الملاحظات" %}</label>
+    <textarea name="description" rows="2" placeholder="{% trans 'مثال: شراء قهوة للعملاء' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none"></textarea>
   </div>
 
   <button type="submit" class="w-full bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
-    <i class="fas fa-minus-circle"></i> تسجيل المصروف
+    <i class="fas fa-minus-circle"></i> {% trans "تسجيل المصروف" %}
   </button>
   <p id="msg" class="text-sm text-center"></p>
 </form>
@@ -85,17 +86,17 @@ document.getElementById('exp-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
   const msg = document.getElementById('msg');
-  msg.className = 'text-sm text-center text-slate-300'; msg.textContent = 'جارٍ الحفظ...';
+  msg.className = 'text-sm text-center text-slate-300'; msg.textContent = '{% trans "جارٍ الحفظ..." %}';
   try {
     const r = await fetch(URL, { method:'POST', headers:{'X-CSRFToken':csrf}, body: new FormData(e.target) });
     const data = await r.json();
-    if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || 'فشل التسجيل.'; btn.disabled = false; return; }
+    if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || '{% trans "فشل التسجيل." %}'; btn.disabled = false; return; }
     msg.className = 'text-sm text-center text-emerald-400 font-bold';
-    msg.textContent = `تم تسجيل المصروف #${data.transaction_id} — رصيد الخزنة الجديد: ${data.new_balance.toFixed(2)}`;
+    msg.textContent = `{% trans "تم تسجيل المصروف" %} #${data.transaction_id} — {% trans "رصيد الخزنة الجديد" %}: ${data.new_balance.toFixed(2)}`;
     e.target.reset();
     btn.disabled = false;
     e.target.querySelector('[name=amount]').focus();
-  } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = 'خطأ في الشبكة.'; btn.disabled = false; }
+  } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = '{% trans "خطأ في الشبكة." %}'; btn.disabled = false; }
 });
 </script>
 {% endblock %}
