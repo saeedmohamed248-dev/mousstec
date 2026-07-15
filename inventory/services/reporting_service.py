@@ -375,6 +375,97 @@ class ReportingService:
         slow_items.sort(key=lambda x: x['stock_value'], reverse=True)
         return slow_items
 
+    # ------------------------------------------------------------------
+    # Cross-Branch Stock Lookup (توفر القطعة في باقي الفروع)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def cross_branch_stock(query=None, product_id=None, requesting_branch=None, limit=12):
+        """
+        Locate stock of a part across ALL branches.
+
+        Use case: a branch is out of a part and wants to know which other
+        branch has it. Given a search `query` (part_number / barcode / name)
+        OR an exact `product_id`, return each matching product with its
+        per-branch quantities.
+
+        `requesting_branch` (Branch or None) marks the caller's own branch so
+        the UI can separate "here" from "other branches"; it does NOT filter
+        results out.
+
+        Returns: [
+            {
+                'product_id', 'name', 'part_number', 'brand',
+                'here_qty': int,            # stock at requesting_branch (0 if none)
+                'other_qty': int,           # stock summed across the OTHER branches
+                'total_qty': int,
+                'branches': [               # only branches with qty > 0, sorted desc
+                    {'branch_id', 'branch_name', 'quantity', 'is_here'}
+                ],
+            }, ...
+        ]
+        """
+        from inventory.models import Product, Inventory
+
+        products = Product.objects.filter(is_active=True)
+        if product_id is not None:
+            products = products.filter(pk=product_id)
+        else:
+            q = (query or '').strip()
+            if len(q) < 2:
+                return []
+            products = products.filter(
+                Q(part_number__iexact=q)
+                | Q(barcode=q)
+                | Q(part_number__icontains=q)
+                | Q(name__icontains=q)
+            ).distinct()
+
+        products = list(products[:limit])
+        if not products:
+            return []
+
+        here_id = requesting_branch.pk if requesting_branch else None
+
+        # One query for all matching products' stock across every branch.
+        rows = (
+            Inventory.objects
+            .filter(product__in=products, quantity__gt=0)
+            .select_related('branch')
+            .values('product_id', 'branch_id', 'branch__name', 'quantity')
+        )
+        by_product = {}
+        for r in rows:
+            by_product.setdefault(r['product_id'], []).append(r)
+
+        results = []
+        for p in products:
+            branch_rows = sorted(
+                by_product.get(p.pk, []),
+                key=lambda r: r['quantity'], reverse=True,
+            )
+            branches = [
+                {
+                    'branch_id': r['branch_id'],
+                    'branch_name': r['branch__name'],
+                    'quantity': r['quantity'],
+                    'is_here': r['branch_id'] == here_id,
+                }
+                for r in branch_rows
+            ]
+            here_qty = sum(b['quantity'] for b in branches if b['is_here'])
+            total_qty = sum(b['quantity'] for b in branches)
+            results.append({
+                'product_id': p.pk,
+                'name': p.name,
+                'part_number': p.part_number,
+                'brand': p.brand,
+                'here_qty': here_qty,
+                'other_qty': total_qty - here_qty,
+                'total_qty': total_qty,
+                'branches': branches,
+            })
+        return results
+
     @staticmethod
     def _search_invoice(q, SaleInvoice):
         """Search for a specific invoice by ID."""

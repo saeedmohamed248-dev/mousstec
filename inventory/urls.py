@@ -42,6 +42,7 @@ urlpatterns = [
     # ⚡ Lightning POS — walk-in retail spare parts (no vehicle, no maintenance)
     path('lightning-pos/', views_lightning.lightning_pos, name='lightning_pos'),
     path('lightning-pos/search/', views_lightning.product_quick_search, name='lightning_pos_search'),
+    path('stock/branch-availability/', views_lightning.product_branch_availability, name='product_branch_availability'),
     path('lightning-pos/checkout/', views_lightning.lightning_pos_checkout, name='lightning_pos_checkout'),
 
     # 📦 Quick Product Entry — product + starting stock in one form

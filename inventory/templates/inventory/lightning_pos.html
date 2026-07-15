@@ -97,6 +97,7 @@ const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URLS = {
   search:   "{% url 'inventory:lightning_pos_search' %}",
   checkout: "{% url 'inventory:lightning_pos_checkout' %}",
+  availability: "{% url 'inventory:product_branch_availability' %}",
 };
 const cart = new Map();
 let searchTimer = null;
@@ -109,11 +110,32 @@ async function doSearch(q) {
   if (q.trim().length < 2) { $('results').innerHTML = ''; return; }
   const r = await fetch(URLS.search + '?q=' + encodeURIComponent(q));
   const data = await r.json();
-  $('results').innerHTML = (data.results || []).map(p => `
+  $('results').innerHTML = (data.results || []).map(p => {
+    // When this branch is out but other branches have it, offer a lookup.
+    const otherBadge = (p.stock <= 0 && (p.other_stock || 0) > 0)
+      ? `<button onclick='event.stopPropagation(); showBranches(${p.id})' class="mt-1 text-xs text-amber-400 hover:text-amber-300 underline">متاح في فروع أخرى (${p.other_stock}) — أظهر</button>`
+      : '';
+    return `
     <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${JSON.stringify(p)})'>
-      <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p></div>
+      <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p>${otherBadge}<div id="branches-${p.id}"></div></div>
       <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
-    </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">لا توجد نتائج</p>';
+    </div>`; }).join('') || '<p class="text-xs text-slate-500 text-center py-4">لا توجد نتائج</p>';
+}
+
+async function showBranches(productId) {
+  const box = $('branches-' + productId);
+  if (!box) return;
+  if (box.dataset.open === '1') { box.innerHTML = ''; box.dataset.open = '0'; return; }
+  box.innerHTML = '<p class="text-xs text-slate-500 mt-1">...جارِ التحميل</p>';
+  const r = await fetch(URLS.availability + '?product_id=' + encodeURIComponent(productId));
+  const data = await r.json();
+  const rows = (((data.results || [])[0] || {}).branches || []).filter(b => !b.is_here);
+  box.dataset.open = '1';
+  box.innerHTML = rows.length
+    ? '<div class="mt-1 space-y-1">' + rows.map(b =>
+        `<div class="flex justify-between text-xs bg-slate-800/60 rounded px-2 py-1"><span class="text-slate-300">${esc(b.branch_name)}</span><span class="text-emerald-400 font-bold">${b.quantity}</span></div>`
+      ).join('') + '</div>'
+    : '<p class="text-xs text-slate-500 mt-1">غير متاح في أي فرع آخر.</p>';
 }
 function addToCart(p) {
   if (p.stock <= 0) { flash('هذه القطعة بدون مخزون.', 'error'); return; }

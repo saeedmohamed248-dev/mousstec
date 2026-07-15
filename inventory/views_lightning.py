@@ -146,9 +146,12 @@ def product_quick_search(request):
     results = []
     for p in qs:
         stock_qs = p.inventory_set.all()
-        if branch is not None:
-            stock_qs = stock_qs.filter(branch=branch)
-        stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
+        here_qs = stock_qs.filter(branch=branch) if branch is not None else stock_qs
+        stock = here_qs.aggregate(s=Sum("quantity"))["s"] or 0
+        # Stock available in the OTHER branches — so a cashier whose branch is
+        # out of a part immediately sees it can be pulled from elsewhere.
+        other_qs = stock_qs.exclude(branch=branch) if branch is not None else stock_qs.none()
+        other_stock = other_qs.aggregate(s=Sum("quantity"))["s"] or 0
         results.append({
             "id": p.id,
             "sku": p.part_number,
@@ -156,7 +159,37 @@ def product_quick_search(request):
             "brand": p.brand,
             "price": float(p.retail_price or 0),
             "stock": stock,
+            "other_stock": other_stock,
         })
+    return _json_response_safe({"results": results})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_GET
+def product_branch_availability(request):
+    """
+    Per-branch availability for one part — powers the "متاح في أي فرع؟" popup.
+
+    Query params: ?product_id=<id>  OR  ?q=<part_number|name|barcode>
+    Returns each matching product with its stock broken down by branch.
+    """
+    from inventory.services.reporting_service import ReportingService
+
+    branch = _get_branch_for_user(request.user)
+    product_id = request.GET.get("product_id")
+    query = request.GET.get("q")
+    try:
+        product_id = int(product_id) if product_id else None
+    except (TypeError, ValueError):
+        product_id = None
+
+    if product_id is None and (not query or len(query.strip()) < 2):
+        return _json_response_safe({"results": []})
+
+    results = ReportingService.cross_branch_stock(
+        query=query, product_id=product_id, requesting_branch=branch,
+    )
     return _json_response_safe({"results": results})
 
 
