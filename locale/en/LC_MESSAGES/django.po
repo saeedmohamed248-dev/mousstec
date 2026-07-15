@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-15 18:57+0300\n"
+"POT-Creation-Date: 2026-07-15 19:01+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -596,9 +596,10 @@ msgstr ""
 #: clients/models/design_store.py:436 clients/models/design_store.py:553
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
 #: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
-#: printing/models.py:188 printing/models.py:257
+#: inventory/templates/inventory/lightning_pos.html:61 printing/models.py:188
+#: printing/models.py:257
 msgid "العميل"
-msgstr ""
+msgstr "Customer"
 
 #: clients/models/design_store.py:446
 msgid "التصميم الحالي"
@@ -792,10 +793,11 @@ msgstr ""
 
 #: clients/models/design_store.py:684 inventory/models/catalog.py:151
 #: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
-#: inventory/models/invoices.py:148 printing/models.py:391
+#: inventory/models/invoices.py:148
+#: inventory/templates/inventory/lightning_pos.html:47 printing/models.py:391
 #: printing/models.py:796
 msgid "الكمية"
-msgstr ""
+msgstr "Quantity"
 
 #: clients/models/design_store.py:685 printing/models.py:389
 msgid "العرض (سم)"
@@ -2875,8 +2877,9 @@ msgid "عدد الشهور"
 msgstr ""
 
 #: clients/models/tenancy.py:528
+#: inventory/templates/inventory/lightning_pos.html:82
 msgid "الإجمالي قبل الخصم"
-msgstr ""
+msgstr "Subtotal (before discount)"
 
 #: clients/models/tenancy.py:529
 msgid "نسبة الخصم (%)"
@@ -4491,13 +4494,15 @@ msgid "سجل تاريخ الأسعار"
 msgstr ""
 
 #: inventory/models/catalog.py:75 inventory/models/catalog.py:148
+#: inventory/templates/inventory/lightning_pos.html:46
 msgid "القطعة"
-msgstr ""
+msgstr "Part"
 
 #: inventory/models/catalog.py:76 inventory/models/catalog.py:180
 #: inventory/models/catalog.py:210 inventory/models/finance.py:26
 #: inventory/models/finance.py:126 inventory/models/invoices.py:79
 #: inventory/templates/inventory/company_branches.html:43
+#: inventory/templates/inventory/lightning_pos.html:21
 #: inventory/templates/inventory/quick_product.html:68 printing/models.py:81
 #: printing/models.py:146 printing/models.py:258 printing/models.py:510
 #: printing/models.py:542
@@ -5373,8 +5378,9 @@ msgid "سحب / مصروف"
 msgstr ""
 
 #: inventory/models/finance.py:57
+#: inventory/templates/inventory/lightning_pos.html:69
 msgid "الخزنة"
-msgstr ""
+msgstr "Treasury"
 
 #: inventory/models/finance.py:60
 msgid "سعر الصرف وقت العملية"
@@ -5570,14 +5576,16 @@ msgstr ""
 
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
-#: printing/models.py:267 printing/models.py:396 printing/models.py:800
+#: inventory/templates/inventory/lightning_pos.html:48 printing/models.py:267
+#: printing/models.py:396 printing/models.py:800
 msgid "الإجمالي"
 msgstr "Total"
 
 #: inventory/models/invoices.py:35 inventory/models/invoices.py:93
-#: printing/models.py:269
+#: inventory/templates/inventory/lightning_pos.html:76
+#: inventory/templates/inventory/lightning_pos.html:84 printing/models.py:269
 msgid "المدفوع"
-msgstr ""
+msgstr "Paid"
 
 #: inventory/models/invoices.py:53
 msgid "سعر الشراء"
@@ -6315,6 +6323,7 @@ msgstr "Invoices issued today"
 
 #: inventory/templates/inventory/dashboard.html:237
 #: inventory/templates/inventory/dashboard.html:261
+#: inventory/templates/inventory/lightning_pos.html:124
 msgid "مخزون"
 msgstr "Stock"
 
@@ -6424,6 +6433,115 @@ msgstr "Chrome: tap the three dots (⋮) at the top of the browser, then choose 
 #: inventory/templates/inventory/dashboard.html:499
 msgid "Safari (iPhone): اضغط على زر المشاركة ثم «اضافة الى الشاشة الرئيسية»"
 msgstr "Safari (iPhone): tap the Share button, then «Add to Home Screen»"
+
+#: inventory/templates/inventory/lightning_pos.html:34
+msgid "ابحث برقم القطعة (SKU) أو الباركود أو الاسم..."
+msgstr "Search by part number (SKU), barcode, or name..."
+
+#: inventory/templates/inventory/lightning_pos.html:41
+msgid "السلة"
+msgstr "Cart"
+
+#: inventory/templates/inventory/lightning_pos.html:47
+msgid "السعر"
+msgstr "Price"
+
+#: inventory/templates/inventory/lightning_pos.html:52
+msgid "السلة فارغة — ابدأ بالبحث عن قطعة"
+msgstr "Cart is empty — start by searching for a part"
+
+#: inventory/templates/inventory/lightning_pos.html:62
+msgid "اسم العميل (اختياري)"
+msgstr "Customer name (optional)"
+
+#: inventory/templates/inventory/lightning_pos.html:63
+msgid "رقم الهاتف (اختياري)"
+msgstr "Phone number (optional)"
+
+#: inventory/templates/inventory/lightning_pos.html:64
+msgid "اتركهما فارغين للبيع كـ \"عميل نقدي\"."
+msgstr "Leave them empty to sell as a \"cash customer\"."
+
+#: inventory/templates/inventory/lightning_pos.html:68
+msgid "الدفع"
+msgstr "Payment"
+
+#: inventory/templates/inventory/lightning_pos.html:71
+msgid "— تأجيل الدفع (آجل) —"
+msgstr "— Defer payment (credit) —"
+
+#: inventory/templates/inventory/lightning_pos.html:75
+msgid "خصم"
+msgstr "Discount"
+
+#: inventory/templates/inventory/lightning_pos.html:81
+msgid "عدد القطع"
+msgstr "Items count"
+
+#: inventory/templates/inventory/lightning_pos.html:83
+msgid "الإجمالي بعد الخصم"
+msgstr "Total (after discount)"
+
+#: inventory/templates/inventory/lightning_pos.html:85
+msgid "المتبقي على العميل"
+msgstr "Balance due"
+
+#: inventory/templates/inventory/lightning_pos.html:87
+msgid "اعتماد وطباعة"
+msgstr "Confirm & print"
+
+#: inventory/templates/inventory/lightning_pos.html:117
+msgid "متاح في فروع أخرى"
+msgstr "Available in other branches"
+
+#: inventory/templates/inventory/lightning_pos.html:117
+msgid "أظهر"
+msgstr "Show"
+
+#: inventory/templates/inventory/lightning_pos.html:126
+msgid "لا توجد نتائج"
+msgstr "No results"
+
+#: inventory/templates/inventory/lightning_pos.html:133
+msgid "جارِ التحميل"
+msgstr "Loading"
+
+#: inventory/templates/inventory/lightning_pos.html:142
+msgid "غير متاح في أي فرع آخر."
+msgstr "Not available in any other branch."
+
+#: inventory/templates/inventory/lightning_pos.html:145
+msgid "هذه القطعة بدون مخزون."
+msgstr "This part is out of stock."
+
+#: inventory/templates/inventory/lightning_pos.html:147
+msgid "وصلت الحد الأقصى للمخزون."
+msgstr "Reached the maximum stock."
+
+#: inventory/templates/inventory/lightning_pos.html:160
+msgid "السلة فارغة"
+msgstr "Cart is empty"
+
+#: inventory/templates/inventory/lightning_pos.html:190
+msgid "جارٍ الاعتماد..."
+msgstr "Confirming..."
+
+#: inventory/templates/inventory/lightning_pos.html:201
+msgid "فشل الاعتماد."
+msgstr "Confirmation failed."
+
+#: inventory/templates/inventory/lightning_pos.html:202
+msgid "تم! فاتورة"
+msgstr "Done! Invoice"
+
+#: inventory/templates/inventory/lightning_pos.html:202
+msgid "جارٍ الطباعة"
+msgstr "Printing"
+
+#: inventory/templates/inventory/lightning_pos.html:206
+#: inventory/templates/inventory/quick_product.html:121
+msgid "خطأ في الشبكة."
+msgstr "Network error."
 
 #: inventory/templates/inventory/product_list.html:3
 #: inventory/templates/inventory/product_list.html:9
@@ -6569,10 +6687,6 @@ msgstr "Done! Part"
 #: inventory/templates/inventory/quick_product.html:113
 msgid "مخزون افتتاحي"
 msgstr "Opening stock"
-
-#: inventory/templates/inventory/quick_product.html:121
-msgid "خطأ في الشبكة."
-msgstr "Network error."
 
 #: printing/models.py:29
 msgid "فرع"
