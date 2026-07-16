@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 14:35+0300\n"
+"POT-Creation-Date: 2026-07-16 14:40+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -276,9 +276,10 @@ msgstr ""
 
 #: clients/models/design_store.py:98 clients/models/design_store.py:283
 #: clients/models/marketplace_b2b.py:373 clients/models/tenancy.py:281
+#: inventory/templates/inventory/bank_reconciliation_detail.html:66
 #: printing/models.py:564 printing/models.py:793
 msgid "الوصف"
-msgstr ""
+msgstr "Description"
 
 #: clients/models/design_store.py:99
 msgid "شارة (مثل: الأكثر مبيعاً)"
@@ -1264,6 +1265,7 @@ msgstr "Brand"
 #: hr/models.py:933 inventory/models/catalog.py:27
 #: inventory/models/catalog.py:153 inventory/models/diagnostics.py:167
 #: inventory/models/invoices.py:36 inventory/models/operations.py:71
+#: inventory/templates/inventory/bank_reconciliation_detail.html:69
 #: inventory/templates/inventory/invoice_print.html:215
 #: inventory/templates/inventory/sale_invoice_list.html:51
 #: printing/models.py:259 printing/models.py:718
@@ -1431,6 +1433,7 @@ msgid "نوع الحركة"
 msgstr ""
 
 #: clients/models/marketplace_b2b.py:219
+#: inventory/templates/inventory/bank_reconciliation_detail.html:67
 #: inventory/templates/inventory/invoice_print_a4.html:90
 #: inventory/templates/inventory/invoice_print_detailed.html:234
 #: inventory/templates/inventory/quick_expense.html:17 printing/models.py:563
@@ -2321,6 +2324,7 @@ msgid "تم الإرسال"
 msgstr ""
 
 #: clients/models/monitoring.py:158 inventory/models/operations.py:60
+#: inventory/templates/inventory/bank_reconciliation_detail.html:115
 #: inventory/templates/inventory/retention_crm.html:449
 #: smart_diagnostics/models.py:182
 msgid "فشل"
@@ -2918,12 +2922,14 @@ msgid "الإصدار اللي اتفوتر عليه — مهم للـ audit و�
 msgstr ""
 
 #: clients/models/tenancy.py:523 inventory/models/finance.py:182
+#: inventory/templates/inventory/bank_reconciliation.html:96
 msgid "بداية الفترة"
-msgstr ""
+msgstr "Period start"
 
 #: clients/models/tenancy.py:524 inventory/models/finance.py:183
+#: inventory/templates/inventory/bank_reconciliation.html:100
 msgid "نهاية الفترة"
-msgstr ""
+msgstr "Period end"
 
 #: clients/models/tenancy.py:525
 msgid "عدد الشهور"
@@ -3476,9 +3482,9 @@ msgstr ""
 msgid "رفض السلف المحددة"
 msgstr ""
 
-#: hr/admin.py:321
+#: hr/admin.py:321 inventory/templates/inventory/bank_reconciliation.html:60
 msgid "الفترة"
-msgstr ""
+msgstr "Period"
 
 #: hr/admin.py:327
 msgid "إنشاء / إعادة حساب الرواتب"
@@ -3840,6 +3846,7 @@ msgstr ""
 
 #: hr/models.py:378 inventory/models/finance.py:65
 #: inventory/models/invoices.py:33 inventory/models/invoices.py:80
+#: inventory/templates/inventory/bank_reconciliation_detail.html:65
 #: inventory/templates/inventory/hr_workspace.html:65
 #: inventory/templates/inventory/invoice_print.html:184
 #: inventory/templates/inventory/sale_invoice_list.html:47
@@ -5370,9 +5377,11 @@ msgid "قريباً"
 msgstr "Soon"
 
 #: inventory/models/diagnostics.py:439 inventory/models/operations.py:55
+#: inventory/templates/inventory/bank_reconciliation.html:45
+#: inventory/templates/inventory/bank_reconciliation.html:64
 #: smart_diagnostics/models.py:179
 msgid "في الانتظار"
-msgstr ""
+msgstr "Pending"
 
 #: inventory/models/diagnostics.py:440
 msgid "تم إرسال تذكير"
@@ -5586,8 +5595,9 @@ msgid "تاريخ القيد"
 msgstr ""
 
 #: inventory/models/finance.py:118
+#: inventory/templates/inventory/bank_reconciliation_detail.html:68
 msgid "المرجع"
-msgstr ""
+msgstr "Reference"
 
 #: inventory/models/finance.py:128
 msgid "مدين"
@@ -5614,24 +5624,31 @@ msgid "القيد يجب أن يحتوي على قيمة مدينة أو دائ�
 msgstr ""
 
 #: inventory/models/finance.py:179
+#: inventory/templates/inventory/bank_reconciliation.html:91
 msgid "الخزينة / الحساب البنكي"
-msgstr ""
+msgstr "Treasury / bank account"
 
 #: inventory/models/finance.py:181
 msgid "تاريخ الكشف"
 msgstr ""
 
 #: inventory/models/finance.py:184
+#: inventory/templates/inventory/bank_reconciliation.html:106
+#: inventory/templates/inventory/bank_reconciliation_detail.html:46
 msgid "الرصيد الافتتاحي"
-msgstr ""
+msgstr "Opening balance"
 
 #: inventory/models/finance.py:185
+#: inventory/templates/inventory/bank_reconciliation.html:110
+#: inventory/templates/inventory/bank_reconciliation_detail.html:50
 msgid "الرصيد الختامي"
-msgstr ""
+msgstr "Closing balance"
 
 #: inventory/models/finance.py:187
+#: inventory/templates/inventory/bank_reconciliation.html:44
+#: inventory/templates/inventory/bank_reconciliation.html:64
 msgid "تمت المطابقة"
-msgstr ""
+msgstr "Reconciled"
 
 #: inventory/models/finance.py:194
 msgid "كشف بنكي"
@@ -6265,6 +6282,7 @@ msgid "بوابة Mouss Tec"
 msgstr "Mouss Tec Portal"
 
 #: inventory/templates/inventory/_base_portal.html:38
+#: inventory/templates/inventory/bank_reconciliation.html:38
 #: inventory/templates/inventory/hr_workspace.html:35
 #: inventory/templates/inventory/quick_expense.html:12
 msgid "الرئيسية"
@@ -6691,6 +6709,7 @@ msgid "الكمية المتوفرة"
 msgstr "Available quantity"
 
 #: inventory/templates/inventory/b2b_marketplace.html:198
+#: inventory/templates/inventory/bank_reconciliation.html:67
 #: inventory/templates/inventory/commission_dashboard.html:92
 #: inventory/templates/inventory/customer_feedback.html:74
 #: inventory/templates/inventory/invoice_print.html:239
@@ -6749,6 +6768,109 @@ msgstr "The RFQ was sent successfully! You will be notified when offers arrive."
 #: inventory/templates/inventory/b2b_marketplace.html:245
 msgid "خطأ في الاتصال بالخادم"
 msgstr "Server connection error"
+
+#: inventory/templates/inventory/bank_reconciliation.html:5
+#: inventory/templates/inventory/bank_reconciliation.html:33
+msgid "المطابقة البنكية"
+msgstr "Bank reconciliation"
+
+#: inventory/templates/inventory/bank_reconciliation.html:36
+msgid "رفع كشف جديد"
+msgstr "Upload new statement"
+
+#: inventory/templates/inventory/bank_reconciliation.html:43
+msgid "إجمالي الكشوف"
+msgstr "Total statements"
+
+#: inventory/templates/inventory/bank_reconciliation.html:48
+msgid "الكشوف"
+msgstr "Statements"
+
+#: inventory/templates/inventory/bank_reconciliation.html:67
+msgid "رصيد ختامي"
+msgstr "Closing balance"
+
+#: inventory/templates/inventory/bank_reconciliation.html:72
+msgid "فتح"
+msgstr "Open"
+
+#: inventory/templates/inventory/bank_reconciliation.html:80
+msgid "لا يوجد كشوف بنكية بعد"
+msgstr "No bank statements yet"
+
+#: inventory/templates/inventory/bank_reconciliation.html:81
+msgid "ارفع أول كشف من البنك لتبدأ المطابقة"
+msgstr "Upload your first bank statement to start reconciling"
+
+#: inventory/templates/inventory/bank_reconciliation.html:88
+msgid "رفع كشف بنكي"
+msgstr "Upload bank statement"
+
+#: inventory/templates/inventory/bank_reconciliation.html:92
+msgid "ID الخزينة"
+msgstr "Treasury ID"
+
+#: inventory/templates/inventory/bank_reconciliation.html:115
+msgid "ملف CSV من البنك"
+msgstr "Bank CSV file"
+
+#: inventory/templates/inventory/bank_reconciliation.html:117
+msgid "الأعمدة المتوقعة: date, description, amount, reference (اختياري)"
+msgstr "Expected columns: date, description, amount, reference (optional)"
+
+#: inventory/templates/inventory/bank_reconciliation.html:119
+msgid "رفع و استيراد"
+msgstr "Upload & import"
+
+#: inventory/templates/inventory/bank_reconciliation.html:132
+#: inventory/templates/inventory/tech_workspace.html:269
+msgid "فشل الرفع"
+msgstr "Upload failed"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:5
+msgid "تفاصيل المطابقة"
+msgstr "Reconciliation details"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:33
+msgid "كشف"
+msgstr "Statement"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:37
+#: inventory/templates/inventory/bank_reconciliation_detail.html:117
+msgid "مطابقة تلقائية للكل"
+msgstr "Auto-match all"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:39
+msgid "رجوع"
+msgstr "Back"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:54
+msgid "سطور مطابقة"
+msgstr "Matched lines"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:58
+msgid "غير مطابقة"
+msgstr "Unmatched"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:70
+msgid "الحركة المطابقة"
+msgstr "Matched transaction"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:84
+msgid "مطابق"
+msgstr "Matched"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:87
+msgid "غير مطابق"
+msgstr "Unmatched"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:99
+msgid "لا توجد سطور"
+msgstr "No lines"
+
+#: inventory/templates/inventory/bank_reconciliation_detail.html:108
+msgid "جاري المطابقة..."
+msgstr "Matching..."
 
 #: inventory/templates/inventory/commission_dashboard.html:3
 #: inventory/templates/inventory/commission_dashboard.html:145
@@ -8754,10 +8876,6 @@ msgstr "Describe the required parts:"
 #: inventory/templates/inventory/tech_workspace.html:268
 msgid "تم رفع الصورة"
 msgstr "Image uploaded"
-
-#: inventory/templates/inventory/tech_workspace.html:269
-msgid "فشل الرفع"
-msgstr "Upload failed"
 
 #: inventory/templates/inventory/tech_workspace.html:276
 msgid "المتصفح لا يدعم GPS"

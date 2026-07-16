@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>المطابقة البنكية | Mouss Tec</title>
+    <title>{% trans "المطابقة البنكية" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -30,22 +30,22 @@
 <body>
 
 <div class="topbar">
-    <h1><i class="fas fa-university"></i> المطابقة البنكية</h1>
+    <h1><i class="fas fa-university"></i> {% trans "المطابقة البنكية" %}</h1>
     <div>
         <button class="btn-primary" onclick="document.getElementById('uploadModal').classList.add('show')">
-            <i class="fas fa-upload"></i> رفع كشف جديد
+            <i class="fas fa-upload"></i> {% trans "رفع كشف جديد" %}
         </button>
-        <a href="/system/dashboard/" class="btn-outline mr-2"><i class="fas fa-home"></i> الرئيسية</a>
+        <a href="/system/dashboard/" class="btn-outline mr-2"><i class="fas fa-home"></i> {% trans "الرئيسية" %}</a>
     </div>
 </div>
 
 <div class="stats-grid">
-    <div class="stat"><div class="n">{{ stats.total }}</div><div class="l">إجمالي الكشوف</div></div>
-    <div class="stat"><div class="n" style="color:#10b981">{{ stats.reconciled }}</div><div class="l">تمت المطابقة</div></div>
-    <div class="stat"><div class="n" style="color:#f59e0b">{{ stats.pending }}</div><div class="l">في الانتظار</div></div>
+    <div class="stat"><div class="n">{{ stats.total }}</div><div class="l">{% trans "إجمالي الكشوف" %}</div></div>
+    <div class="stat"><div class="n" style="color:#10b981">{{ stats.reconciled }}</div><div class="l">{% trans "تمت المطابقة" %}</div></div>
+    <div class="stat"><div class="n" style="color:#f59e0b">{{ stats.pending }}</div><div class="l">{% trans "في الانتظار" %}</div></div>
 </div>
 
-<h3 style="font-weight:900; margin-bottom:14px;"><i class="fas fa-list"></i> الكشوف</h3>
+<h3 style="font-weight:900; margin-bottom:14px;"><i class="fas fa-list"></i> {% trans "الكشوف" %}</h3>
 
 {% if statements %}
 {% for s in statements %}
@@ -57,19 +57,19 @@
                 {{ s.treasury.name }}
             </h5>
             <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:8px;">
-                <i class="fas fa-calendar"></i> الفترة: {{ s.period_start }} → {{ s.period_end }}
+                <i class="fas fa-calendar"></i> {% trans "الفترة" %}: {{ s.period_start }} → {{ s.period_end }}
             </p>
             <div class="d-flex gap-2">
                 <span class="badge-status {% if s.is_reconciled %}badge-reconciled{% else %}badge-pending{% endif %}">
-                    {% if s.is_reconciled %}<i class="fas fa-check-circle"></i> تمت المطابقة{% else %}<i class="fas fa-clock"></i> في الانتظار{% endif %}
+                    {% if s.is_reconciled %}<i class="fas fa-check-circle"></i> {% trans "تمت المطابقة" %}{% else %}<i class="fas fa-clock"></i> {% trans "في الانتظار" %}{% endif %}
                 </span>
                 <span style="color:#94a3b8; font-size:0.85rem;">
-                    رصيد ختامي: <strong>{{ s.closing_balance }}</strong> ج.م
+                    {% trans "رصيد ختامي" %}: <strong>{{ s.closing_balance }}</strong> {% trans "ج.م" %}
                 </span>
             </div>
         </div>
         <a href="/system/bank-reconciliation/{{ s.pk }}/" class="btn-outline">
-            <i class="fas fa-eye"></i> فتح
+            <i class="fas fa-eye"></i> {% trans "فتح" %}
         </a>
     </div>
 </div>
@@ -77,46 +77,46 @@
 {% else %}
 <div class="card text-center" style="padding:60px;">
     <i class="fas fa-inbox" style="font-size:3rem; color:#475569; margin-bottom:16px;"></i>
-    <h4 style="color:#94a3b8;">لا يوجد كشوف بنكية بعد</h4>
-    <p style="color:#64748b;">ارفع أول كشف من البنك لتبدأ المطابقة</p>
+    <h4 style="color:#94a3b8;">{% trans "لا يوجد كشوف بنكية بعد" %}</h4>
+    <p style="color:#64748b;">{% trans "ارفع أول كشف من البنك لتبدأ المطابقة" %}</p>
 </div>
 {% endif %}
 
 <!-- Upload Modal -->
 <div class="modal-overlay" id="uploadModal" onclick="if(event.target===this)this.classList.remove('show')">
     <div class="modal-box">
-        <h3 style="font-weight:900; margin-bottom:18px;"><i class="fas fa-upload" style="color:#06b6d4"></i> رفع كشف بنكي</h3>
+        <h3 style="font-weight:900; margin-bottom:18px;"><i class="fas fa-upload" style="color:#06b6d4"></i> {% trans "رفع كشف بنكي" %}</h3>
         <form id="uploadForm" enctype="multipart/form-data">
             <div class="mb-3">
-                <label>الخزينة / الحساب البنكي *</label>
-                <input type="number" class="form-control" name="treasury_id" placeholder="ID الخزينة" required>
+                <label>{% trans "الخزينة / الحساب البنكي" %} *</label>
+                <input type="number" class="form-control" name="treasury_id" placeholder="{% trans "ID الخزينة" %}" required>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label>بداية الفترة</label>
+                    <label>{% trans "بداية الفترة" %}</label>
                     <input type="date" class="form-control" name="period_start" required>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label>نهاية الفترة</label>
+                    <label>{% trans "نهاية الفترة" %}</label>
                     <input type="date" class="form-control" name="period_end" required>
                 </div>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label>الرصيد الافتتاحي</label>
+                    <label>{% trans "الرصيد الافتتاحي" %}</label>
                     <input type="number" step="0.01" class="form-control" name="opening_balance" value="0" required>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label>الرصيد الختامي</label>
+                    <label>{% trans "الرصيد الختامي" %}</label>
                     <input type="number" step="0.01" class="form-control" name="closing_balance" value="0" required>
                 </div>
             </div>
             <div class="mb-3">
-                <label>ملف CSV من البنك *</label>
+                <label>{% trans "ملف CSV من البنك" %} *</label>
                 <input type="file" class="form-control" name="csv_file" accept=".csv" required>
-                <small style="color:#94a3b8;">الأعمدة المتوقعة: date, description, amount, reference (اختياري)</small>
+                <small style="color:#94a3b8;">{% trans "الأعمدة المتوقعة: date, description, amount, reference (اختياري)" %}</small>
             </div>
-            <button type="submit" class="btn-primary w-100"><i class="fas fa-upload"></i> رفع و استيراد</button>
+            <button type="submit" class="btn-primary w-100"><i class="fas fa-upload"></i> {% trans "رفع و استيراد" %}</button>
         </form>
     </div>
 </div>
@@ -129,7 +129,7 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
         const r = await fetch('/system/api/v1/bank/upload/', { method: 'POST', body: fd });
         const data = await r.json();
         if (data.redirect) window.location.href = data.redirect;
-        else alert(data.error || 'فشل الرفع');
+        else alert(data.error || '{% trans "فشل الرفع" %}');
     } catch (e) { alert(e.message); }
 });
 </script>

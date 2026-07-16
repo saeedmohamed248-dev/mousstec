@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>تفاصيل المطابقة | {{ statement.treasury.name }}</title>
+    <title>{% trans "تفاصيل المطابقة" %} | {{ statement.treasury.name }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -30,44 +30,44 @@
 <div class="topbar">
     <h1 style="font-size:1.4rem; font-weight:900; margin:0;">
         <i class="fas fa-university" style="color:#06b6d4"></i>
-        كشف {{ statement.treasury.name }}
+        {% trans "كشف" %} {{ statement.treasury.name }}
     </h1>
     <div>
         <button class="btn-primary" onclick="autoMatchAll()" id="autoMatchBtn">
-            <i class="fas fa-magic"></i> مطابقة تلقائية للكل
+            <i class="fas fa-magic"></i> {% trans "مطابقة تلقائية للكل" %}
         </button>
-        <a href="/system/bank-reconciliation/" class="btn-outline mr-2"><i class="fas fa-arrow-right"></i> رجوع</a>
+        <a href="/system/bank-reconciliation/" class="btn-outline mr-2"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
     </div>
 </div>
 
 <div class="summary">
     <div class="summary-card">
         <div class="n" style="color:#06b6d4">{{ statement.opening_balance }}</div>
-        <div class="l">الرصيد الافتتاحي</div>
+        <div class="l">{% trans "الرصيد الافتتاحي" %}</div>
     </div>
     <div class="summary-card">
         <div class="n" style="color:#10b981">{{ statement.closing_balance }}</div>
-        <div class="l">الرصيد الختامي</div>
+        <div class="l">{% trans "الرصيد الختامي" %}</div>
     </div>
     <div class="summary-card">
         <div class="n" style="color:#6ee7b7">{{ matched_count }}</div>
-        <div class="l">سطور مطابقة</div>
+        <div class="l">{% trans "سطور مطابقة" %}</div>
     </div>
     <div class="summary-card">
         <div class="n" style="color:#fca5a5">{{ unmatched_count }}</div>
-        <div class="l">غير مطابقة</div>
+        <div class="l">{% trans "غير مطابقة" %}</div>
     </div>
 </div>
 
 <table>
     <thead>
         <tr>
-            <th>التاريخ</th>
-            <th>الوصف</th>
-            <th>المبلغ</th>
-            <th>المرجع</th>
-            <th>الحالة</th>
-            <th>الحركة المطابقة</th>
+            <th>{% trans "التاريخ" %}</th>
+            <th>{% trans "الوصف" %}</th>
+            <th>{% trans "المبلغ" %}</th>
+            <th>{% trans "المرجع" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th>{% trans "الحركة المطابقة" %}</th>
         </tr>
     </thead>
     <tbody>
@@ -81,10 +81,10 @@
             <td style="color:#64748b; font-size:0.8rem;">{{ line.reference|default:"—" }}</td>
             <td>
                 {% if line.is_matched %}
-                <span class="badge-matched">✓ مطابق</span>
+                <span class="badge-matched">✓ {% trans "مطابق" %}</span>
                 <span class="badge-confidence">{{ line.match_confidence }}%</span>
                 {% else %}
-                <span class="badge-unmatched">✗ غير مطابق</span>
+                <span class="badge-unmatched">✗ {% trans "غير مطابق" %}</span>
                 {% endif %}
             </td>
             <td>
@@ -96,7 +96,7 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">لا توجد سطور</td></tr>
+        <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">{% trans "لا توجد سطور" %}</td></tr>
         {% endfor %}
     </tbody>
 </table>
@@ -105,16 +105,16 @@
 async function autoMatchAll() {
     const btn = document.getElementById('autoMatchBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المطابقة...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري المطابقة..." %}';
     try {
         const r = await fetch('/system/api/v1/bank/{{ statement.pk }}/auto-match/', { method: 'POST' });
         const data = await r.json();
         alert(data.message);
         location.reload();
     } catch (e) {
-        alert('فشل: ' + e.message);
+        alert('{% trans "فشل" %}: ' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-magic"></i> مطابقة تلقائية للكل';
+        btn.innerHTML = '<i class="fas fa-magic"></i> {% trans "مطابقة تلقائية للكل" %}';
     }
 }
 </script>
