@@ -765,5 +765,11 @@
   "مساعد التشخيص الذكي": "Smart diagnostic assistant",
   "أدخل كود العطل (مثال: P0300)...": "Enter the fault code (e.g. P0300)...",
   "ساعة": "hours",
-  "جاري التحليل...": "Analyzing..."
+  "جاري التحليل...": "Analyzing...",
+  "صلاحية مرفوضة": "Access denied",
+  "ليس لديك صلاحية للوصول": "You do not have access permission",
+  "هذه الصفحة مخصصة لـ": "This page is for",
+  "دورك الحالي": "Your current role",
+  "تواصل مع المدير لتغيير صلاحياتك.": "Contact the admin to change your permissions.",
+  "الصفحة السابقة": "Previous page"
 }

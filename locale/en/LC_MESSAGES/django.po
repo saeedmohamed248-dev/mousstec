@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 19:15+0300\n"
+"POT-Creation-Date: 2026-07-16 19:18+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6907,6 +6907,7 @@ msgid ""
 msgstr "Select employees and a treasury, then click «Pay commissions» — every transaction is recorded in the financial ledger."
 
 #: inventory/templates/inventory/commission_dashboard.html:19
+#: inventory/templates/inventory/forbidden.html:20
 msgid "رجوع للوحة التحكم"
 msgstr "Back to dashboard"
 
@@ -7357,6 +7358,30 @@ msgstr "Chrome: tap the three dots (⋮) at the top of the browser, then choose 
 #: inventory/templates/inventory/dashboard.html:499
 msgid "Safari (iPhone): اضغط على زر المشاركة ثم «اضافة الى الشاشة الرئيسية»"
 msgstr "Safari (iPhone): tap the Share button, then «Add to Home Screen»"
+
+#: inventory/templates/inventory/forbidden.html:3
+msgid "صلاحية مرفوضة"
+msgstr "Access denied"
+
+#: inventory/templates/inventory/forbidden.html:10
+msgid "ليس لديك صلاحية للوصول"
+msgstr "You do not have access permission"
+
+#: inventory/templates/inventory/forbidden.html:12
+msgid "هذه الصفحة مخصصة لـ"
+msgstr "This page is for"
+
+#: inventory/templates/inventory/forbidden.html:14
+msgid "دورك الحالي"
+msgstr "Your current role"
+
+#: inventory/templates/inventory/forbidden.html:16
+msgid "تواصل مع المدير لتغيير صلاحياتك."
+msgstr "Contact the admin to change your permissions."
+
+#: inventory/templates/inventory/forbidden.html:23
+msgid "الصفحة السابقة"
+msgstr "Previous page"
 
 #: inventory/templates/inventory/hr_workspace.html:4
 msgid "الحضور والانصراف"
