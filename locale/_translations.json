@@ -719,5 +719,20 @@
   "مطابق": "Matched",
   "غير مطابق": "Unmatched",
   "لا توجد سطور": "No lines",
-  "جاري المطابقة...": "Matching..."
+  "جاري المطابقة...": "Matching...",
+  "جواز السيارة الرقمي": "Digital car passport",
+  "طباعة سجل الصيانة": "Print service log",
+  "طباعة": "Print",
+  "مشاركة الرابط": "Share link",
+  "مشاركة": "Share",
+  "بدون لوحة": "No plate",
+  "صحة المركبة": "Vehicle health",
+  "الجواز الصحي": "Health passport",
+  "عطل مفتوح": "open fault",
+  "فعّل": "Enable",
+  "فحص لحظي ذكي": "smart instant scan",
+  "سجل الصيانة": "Service log",
+  "لا يوجد سجل صيانة لهذه المركبة حتى الآن": "No service history for this vehicle yet",
+  "تم النسخ": "Copied",
+  "انسخ الرابط:": "Copy the link:"
 }

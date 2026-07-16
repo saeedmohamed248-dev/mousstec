@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 14:40+0300\n"
+"POT-Creation-Date: 2026-07-16 15:04+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4880,6 +4880,7 @@ msgstr ""
 #: inventory/models/customers.py:88
 #: inventory/templates/inventory/vehicle_health_passport.html:335
 #: inventory/templates/inventory/vehicle_health_passport.html:505
+#: inventory/templates/inventory/vehicle_history.html:40
 msgid "المالك"
 msgstr "Owner"
 
@@ -6361,6 +6362,8 @@ msgstr "Last service"
 #: inventory/templates/inventory/invoice_print_a4.html:65
 #: inventory/templates/inventory/invoice_print_detailed.html:89
 #: inventory/templates/inventory/vehicle_health_passport.html:349
+#: inventory/templates/inventory/vehicle_history.html:46
+#: inventory/templates/inventory/vehicle_history.html:102
 msgid "كم"
 msgstr "km"
 
@@ -6587,6 +6590,7 @@ msgid "سوق B2B المركزي"
 msgstr "Central B2B Market"
 
 #: inventory/templates/inventory/b2b_marketplace.html:20
+#: inventory/templates/inventory/vehicle_history.html:23
 msgid "العودة"
 msgstr "Back"
 
@@ -6746,6 +6750,7 @@ msgstr "Available quantity"
 #: inventory/templates/inventory/statement_print.html:53
 #: inventory/templates/inventory/statement_print.html:99
 #: inventory/templates/inventory/vehicle_health_passport.html:454
+#: inventory/templates/inventory/vehicle_history.html:101
 msgid "ج.م"
 msgstr "EGP"
 
@@ -7020,6 +7025,7 @@ msgstr "Rate your service"
 #: inventory/templates/inventory/invoice_print_thermal.html:5
 #: inventory/templates/inventory/invoice_print_thermal.html:25
 #: inventory/templates/inventory/statement_print.html:76
+#: inventory/templates/inventory/vehicle_history.html:96
 msgid "فاتورة"
 msgstr "Invoice"
 
@@ -7679,6 +7685,7 @@ msgstr "Tax reg."
 
 #: inventory/templates/inventory/invoice_print_a4.html:65
 #: inventory/templates/inventory/invoice_print_detailed.html:89
+#: inventory/templates/inventory/vehicle_history.html:45
 msgid "العداد"
 msgstr "Odometer"
 
@@ -9013,6 +9020,67 @@ msgstr "Customer has no number — copy the link"
 #: inventory/templates/inventory/vehicle_health_passport.html:660
 msgid "تم نسخ الرابط"
 msgstr "Link copied"
+
+#: inventory/templates/inventory/vehicle_history.html:6
+#: inventory/templates/inventory/vehicle_history.html:18
+msgid "جواز السيارة الرقمي"
+msgstr "Digital car passport"
+
+#: inventory/templates/inventory/vehicle_history.html:21
+msgid "طباعة سجل الصيانة"
+msgstr "Print service log"
+
+#: inventory/templates/inventory/vehicle_history.html:21
+msgid "طباعة"
+msgstr "Print"
+
+#: inventory/templates/inventory/vehicle_history.html:22
+msgid "مشاركة الرابط"
+msgstr "Share link"
+
+#: inventory/templates/inventory/vehicle_history.html:22
+msgid "مشاركة"
+msgstr "Share"
+
+#: inventory/templates/inventory/vehicle_history.html:39
+msgid "بدون لوحة"
+msgstr "No plate"
+
+#: inventory/templates/inventory/vehicle_history.html:49
+msgid "صحة المركبة"
+msgstr "Vehicle health"
+
+#: inventory/templates/inventory/vehicle_history.html:69
+msgid "الجواز الصحي"
+msgstr "Health passport"
+
+#: inventory/templates/inventory/vehicle_history.html:71
+msgid "عطل مفتوح"
+msgstr "open fault"
+
+#: inventory/templates/inventory/vehicle_history.html:77
+msgid "فعّل"
+msgstr "Enable"
+
+#: inventory/templates/inventory/vehicle_history.html:77
+msgid "فحص لحظي ذكي"
+msgstr "smart instant scan"
+
+#: inventory/templates/inventory/vehicle_history.html:83
+msgid "سجل الصيانة"
+msgstr "Service log"
+
+#: inventory/templates/inventory/vehicle_history.html:112
+msgid "لا يوجد سجل صيانة لهذه المركبة حتى الآن"
+msgstr "No service history for this vehicle yet"
+
+#: inventory/templates/inventory/vehicle_history.html:131
+msgid "تم النسخ"
+msgstr "Copied"
+
+#: inventory/templates/inventory/vehicle_history.html:135
+msgid "انسخ الرابط:"
+msgstr "Copy the link:"
 
 #: printing/models.py:41
 msgid "واتساب"
