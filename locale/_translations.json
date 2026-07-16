@@ -756,5 +756,14 @@
   "إدارة كاش، بنوك، فيزا ومحافظ إلكترونية مع تسوية مالية آلية": "Manage cash, banks, Visa and e-wallets with automatic financial reconciliation",
   "متعدد الفروع": "Multi-branch",
   "إدارة مركزية لعدة فروع مع تحويلات مخزن وصلاحيات موظفين": "Central management of multiple branches with stock transfers and staff permissions",
-  "ابدأ تجربتك المجانية الآن": "Start your free trial now"
+  "ابدأ تجربتك المجانية الآن": "Start your free trial now",
+  "كشك الفنيين": "Technicians kiosk",
+  "تسجيل الوردية": "Shift attendance",
+  "سجّل دخولك لبدء تتبع ساعات العمل والإنتاجية": "Sign in to start tracking work hours and productivity",
+  "تسجيل دخول": "Clock in",
+  "تسجيل خروج": "Clock out",
+  "مساعد التشخيص الذكي": "Smart diagnostic assistant",
+  "أدخل كود العطل (مثال: P0300)...": "Enter the fault code (e.g. P0300)...",
+  "ساعة": "hours",
+  "جاري التحليل...": "Analyzing..."
 }

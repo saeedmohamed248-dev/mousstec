@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 19:13+0300\n"
+"POT-Creation-Date: 2026-07-16 19:15+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2227,8 +2227,9 @@ msgid "تسجيل شركة جديدة"
 msgstr ""
 
 #: clients/models/monitoring.py:67
+#: inventory/templates/inventory/mechanic_bay.html:36
 msgid "تسجيل دخول"
-msgstr ""
+msgstr "Clock in"
 
 #: clients/models/monitoring.py:68
 msgid "عملية دفع"
@@ -6593,6 +6594,7 @@ msgid "سوق B2B المركزي"
 msgstr "Central B2B Market"
 
 #: inventory/templates/inventory/b2b_marketplace.html:20
+#: inventory/templates/inventory/mechanic_bay.html:20
 #: inventory/templates/inventory/pos_fast.html:38
 #: inventory/templates/inventory/solutions.html:20
 #: inventory/templates/inventory/vehicle_history.html:23
@@ -6662,6 +6664,7 @@ msgstr "Search for the spare parts you need and compare prices from all verified
 #: inventory/templates/inventory/job_card_create.html:261
 #: inventory/templates/inventory/job_card_create.html:294
 #: inventory/templates/inventory/lightning_pos.html:126
+#: inventory/templates/inventory/mechanic_bay.html:77
 msgid "لا توجد نتائج"
 msgstr "No results"
 
@@ -8152,6 +8155,8 @@ msgstr "Added"
 
 #: inventory/templates/inventory/job_card_review.html:746
 #: inventory/templates/inventory/job_card_review.html:881
+#: inventory/templates/inventory/mechanic_bay.html:67
+#: inventory/templates/inventory/mechanic_bay.html:78
 #: inventory/templates/inventory/pos_fast.html:97
 msgid "خطأ في الاتصال"
 msgstr "Connection error"
@@ -8315,6 +8320,44 @@ msgstr "Done! Invoice"
 #: inventory/templates/inventory/lightning_pos.html:202
 msgid "جارٍ الطباعة"
 msgstr "Printing"
+
+#: inventory/templates/inventory/mechanic_bay.html:6
+#: inventory/templates/inventory/mechanic_bay.html:18
+msgid "كشك الفنيين"
+msgstr "Technicians kiosk"
+
+#: inventory/templates/inventory/mechanic_bay.html:32
+msgid "تسجيل الوردية"
+msgstr "Shift attendance"
+
+#: inventory/templates/inventory/mechanic_bay.html:33
+msgid "سجّل دخولك لبدء تتبع ساعات العمل والإنتاجية"
+msgstr "Sign in to start tracking work hours and productivity"
+
+#: inventory/templates/inventory/mechanic_bay.html:39
+msgid "تسجيل خروج"
+msgstr "Clock out"
+
+#: inventory/templates/inventory/mechanic_bay.html:47
+msgid "مساعد التشخيص الذكي"
+msgstr "Smart diagnostic assistant"
+
+#: inventory/templates/inventory/mechanic_bay.html:49
+msgid "أدخل كود العطل (مثال: P0300)..."
+msgstr "Enter the fault code (e.g. P0300)..."
+
+#: inventory/templates/inventory/mechanic_bay.html:51
+#: inventory/templates/inventory/vehicle_health_passport.html:445
+msgid "تشخيص"
+msgstr "diagnostics"
+
+#: inventory/templates/inventory/mechanic_bay.html:66
+msgid "ساعة"
+msgstr "hours"
+
+#: inventory/templates/inventory/mechanic_bay.html:72
+msgid "جاري التحليل..."
+msgstr "Analyzing..."
 
 #: inventory/templates/inventory/pos_fast.html:14
 msgid "نقطة البيع السريعة"
@@ -9066,10 +9109,6 @@ msgstr "Vehicle timeline"
 #: inventory/templates/inventory/vehicle_health_passport.html:422
 msgid "حدث"
 msgstr "events"
-
-#: inventory/templates/inventory/vehicle_health_passport.html:445
-msgid "تشخيص"
-msgstr "diagnostics"
 
 #: inventory/templates/inventory/vehicle_health_passport.html:446
 msgid "صور"
