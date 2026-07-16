@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 14:16+0300\n"
+"POT-Creation-Date: 2026-07-16 14:26+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -801,6 +801,7 @@ msgstr ""
 #: clients/models/design_store.py:684 inventory/models/catalog.py:151
 #: inventory/models/diagnostics.py:250 inventory/models/invoices.py:52
 #: inventory/models/invoices.py:148
+#: inventory/templates/inventory/b2b_marketplace.html:97
 #: inventory/templates/inventory/invoice_print.html:217
 #: inventory/templates/inventory/invoice_print_a4.html:72
 #: inventory/templates/inventory/invoice_print_detailed.html:212
@@ -1516,8 +1517,9 @@ msgstr ""
 
 #: clients/models/marketplace_b2b.py:353 clients/models/marketplace_c2c.py:177
 #: hr/models.py:656 hr/models.py:834
+#: inventory/templates/inventory/b2b_marketplace.html:174
 msgid "معتمد"
-msgstr ""
+msgstr "Verified"
 
 #: clients/models/marketplace_b2b.py:355
 msgid "معلق بواسطة الإدارة"
@@ -5252,8 +5254,9 @@ msgid "فحمات فرامل"
 msgstr ""
 
 #: inventory/models/diagnostics.py:356
+#: inventory/templates/inventory/b2b_marketplace.html:49
 msgid "بوجيهات"
-msgstr ""
+msgstr "Spark plugs"
 
 #: inventory/models/diagnostics.py:357
 msgid "مياه تبريد"
@@ -6481,6 +6484,189 @@ msgstr "Run a session in the \"Diagnostic Room\" then save it to the customer ca
 msgid "تم إصدار التقرير بواسطة"
 msgstr "Report issued by"
 
+#: inventory/templates/inventory/b2b_marketplace.html:6
+#: inventory/templates/inventory/b2b_marketplace.html:18
+msgid "سوق B2B المركزي"
+msgstr "Central B2B Market"
+
+#: inventory/templates/inventory/b2b_marketplace.html:20
+msgid "العودة"
+msgstr "Back"
+
+#: inventory/templates/inventory/b2b_marketplace.html:29
+msgid "ابحث في السوق المشترك"
+msgstr "Search the shared market"
+
+#: inventory/templates/inventory/b2b_marketplace.html:31
+msgid ""
+"ابحث برقم القطعة أو اسم المنتج للعثور على أفضل الأسعار من التجار المعتمدين"
+msgstr "Search by part number or product name to find the best prices from verified dealers"
+
+#: inventory/templates/inventory/b2b_marketplace.html:34
+msgid "رقم القطعة أو اسم المنتج (مثال: 11787589121 أو فلتر زيت)..."
+msgstr "Part number or product name (e.g. 11787589121 or oil filter)..."
+
+#: inventory/templates/inventory/b2b_marketplace.html:38
+#: inventory/templates/inventory/hr_workspace.html:93
+msgid "مسح"
+msgstr "Clear"
+
+#: inventory/templates/inventory/b2b_marketplace.html:41
+#: inventory/templates/inventory/retention_crm.html:287
+msgid "بحث"
+msgstr "Search"
+
+#: inventory/templates/inventory/b2b_marketplace.html:48
+msgid "فلاتر"
+msgstr "Filters"
+
+#: inventory/templates/inventory/b2b_marketplace.html:50
+msgid "فرامل"
+msgstr "Brakes"
+
+#: inventory/templates/inventory/b2b_marketplace.html:51
+msgid "زيوت"
+msgstr "Oils"
+
+#: inventory/templates/inventory/b2b_marketplace.html:52
+msgid "كويلات"
+msgstr "Coils"
+
+#: inventory/templates/inventory/b2b_marketplace.html:53
+msgid "سيور"
+msgstr "Belts"
+
+#: inventory/templates/inventory/b2b_marketplace.html:60
+msgid "جاري البحث في السوق المركزي..."
+msgstr "Searching the central market..."
+
+#: inventory/templates/inventory/b2b_marketplace.html:70
+msgid "مرحباً بك في السوق المركزي"
+msgstr "Welcome to the central market"
+
+#: inventory/templates/inventory/b2b_marketplace.html:71
+msgid ""
+"ابحث عن قطع الغيار التي تحتاجها وقارن الأسعار من جميع التجار المعتمدين في "
+"شبكة Mouss Tec"
+msgstr "Search for the spare parts you need and compare prices from all verified dealers in the Mouss Tec network"
+
+#: inventory/templates/inventory/b2b_marketplace.html:77
+#: inventory/templates/inventory/job_card_create.html:261
+#: inventory/templates/inventory/job_card_create.html:294
+#: inventory/templates/inventory/lightning_pos.html:126
+msgid "لا توجد نتائج"
+msgstr "No results"
+
+#: inventory/templates/inventory/b2b_marketplace.html:78
+msgid ""
+"لم يتم العثور على منتجات مطابقة. يمكنك طلب تسعير من التجار عبر مزاد عكسي."
+msgstr "No matching products found. You can request a quote from dealers via a reverse auction."
+
+#: inventory/templates/inventory/b2b_marketplace.html:80
+msgid "طلب مزاد عكسي (RFQ)"
+msgstr "Request reverse auction (RFQ)"
+
+#: inventory/templates/inventory/b2b_marketplace.html:90
+msgid "مزاد عكسي"
+msgstr "Reverse auction"
+
+#: inventory/templates/inventory/b2b_marketplace.html:93
+msgid "أرسل طلب تسعير للتجار المعتمدين. سيتم إخطارك عند ورود العروض."
+msgstr "Send a quote request to verified dealers. You will be notified when offers arrive."
+
+#: inventory/templates/inventory/b2b_marketplace.html:95
+msgid "رقم القطعة أو الوصف..."
+msgstr "Part number or description..."
+
+#: inventory/templates/inventory/b2b_marketplace.html:98
+msgid "السعر المستهدف (اختياري)"
+msgstr "Target price (optional)"
+
+#: inventory/templates/inventory/b2b_marketplace.html:101
+msgid "إرسال طلب التسعير"
+msgstr "Send quote request"
+
+#: inventory/templates/inventory/b2b_marketplace.html:157
+msgid "حدث خطأ في الاتصال بالسوق المركزي"
+msgstr "An error occurred connecting to the central market"
+
+#: inventory/templates/inventory/b2b_marketplace.html:167
+msgid "نتائج البحث عن"
+msgstr "Search results for"
+
+#: inventory/templates/inventory/b2b_marketplace.html:167
+msgid "عرض واحد"
+msgstr "1 offer"
+
+#: inventory/templates/inventory/b2b_marketplace.html:167
+msgid "عرض"
+msgstr "offers"
+
+#: inventory/templates/inventory/b2b_marketplace.html:175
+msgid "غير معتمد"
+msgstr "Unverified"
+
+#: inventory/templates/inventory/b2b_marketplace.html:189
+msgid "الكمية المتوفرة"
+msgstr "Available quantity"
+
+#: inventory/templates/inventory/b2b_marketplace.html:198
+#: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/invoice_print.html:239
+#: inventory/templates/inventory/invoice_print.html:240
+#: inventory/templates/inventory/invoice_print.html:267
+#: inventory/templates/inventory/invoice_print.html:315
+#: inventory/templates/inventory/invoice_print.html:320
+#: inventory/templates/inventory/invoice_print.html:326
+#: inventory/templates/inventory/invoice_print.html:333
+#: inventory/templates/inventory/invoice_print.html:346
+#: inventory/templates/inventory/invoice_print.html:351
+#: inventory/templates/inventory/invoice_print.html:357
+#: inventory/templates/inventory/invoice_print_a4.html:106
+#: inventory/templates/inventory/invoice_print_a4.html:108
+#: inventory/templates/inventory/invoice_print_a4.html:109
+#: inventory/templates/inventory/invoice_print_a4.html:110
+#: inventory/templates/inventory/invoice_print_a4.html:111
+#: inventory/templates/inventory/invoice_print_detailed.html:251
+#: inventory/templates/inventory/invoice_print_detailed.html:253
+#: inventory/templates/inventory/invoice_print_detailed.html:254
+#: inventory/templates/inventory/invoice_print_detailed.html:255
+#: inventory/templates/inventory/invoice_print_detailed.html:256
+#: inventory/templates/inventory/invoice_print_thermal.html:55
+#: inventory/templates/inventory/invoice_print_thermal.html:56
+#: inventory/templates/inventory/invoice_print_thermal.html:57
+#: inventory/templates/inventory/job_card_create.html:120
+#: inventory/templates/inventory/job_card_review.html:566
+#: inventory/templates/inventory/job_card_review.html:643
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+#: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/statement_print.html:53
+#: inventory/templates/inventory/statement_print.html:99
+#: inventory/templates/inventory/vehicle_health_passport.html:454
+msgid "ج.م"
+msgstr "EGP"
+
+#: inventory/templates/inventory/b2b_marketplace.html:199
+msgid "سعر الجملة"
+msgstr "Wholesale price"
+
+#: inventory/templates/inventory/b2b_marketplace.html:226
+msgid "يرجى إدخال رقم القطعة أو الوصف"
+msgstr "Please enter the part number or description"
+
+#: inventory/templates/inventory/b2b_marketplace.html:230
+msgid "جاري الإرسال..."
+msgstr "Sending..."
+
+#: inventory/templates/inventory/b2b_marketplace.html:242
+msgid "تم إرسال طلب التسعير بنجاح! سيتم إخطارك عند ورود العروض."
+msgstr "The RFQ was sent successfully! You will be notified when offers arrive."
+
+#: inventory/templates/inventory/b2b_marketplace.html:245
+msgid "خطأ في الاتصال بالخادم"
+msgstr "Server connection error"
+
 #: inventory/templates/inventory/commission_dashboard.html:3
 #: inventory/templates/inventory/commission_dashboard.html:145
 msgid "صرف العمولات"
@@ -6530,42 +6716,6 @@ msgstr "Branch"
 #: inventory/templates/inventory/quick_expense.html:26
 msgid "رصيد"
 msgstr "Balance"
-
-#: inventory/templates/inventory/commission_dashboard.html:92
-#: inventory/templates/inventory/invoice_print.html:239
-#: inventory/templates/inventory/invoice_print.html:240
-#: inventory/templates/inventory/invoice_print.html:267
-#: inventory/templates/inventory/invoice_print.html:315
-#: inventory/templates/inventory/invoice_print.html:320
-#: inventory/templates/inventory/invoice_print.html:326
-#: inventory/templates/inventory/invoice_print.html:333
-#: inventory/templates/inventory/invoice_print.html:346
-#: inventory/templates/inventory/invoice_print.html:351
-#: inventory/templates/inventory/invoice_print.html:357
-#: inventory/templates/inventory/invoice_print_a4.html:106
-#: inventory/templates/inventory/invoice_print_a4.html:108
-#: inventory/templates/inventory/invoice_print_a4.html:109
-#: inventory/templates/inventory/invoice_print_a4.html:110
-#: inventory/templates/inventory/invoice_print_a4.html:111
-#: inventory/templates/inventory/invoice_print_detailed.html:251
-#: inventory/templates/inventory/invoice_print_detailed.html:253
-#: inventory/templates/inventory/invoice_print_detailed.html:254
-#: inventory/templates/inventory/invoice_print_detailed.html:255
-#: inventory/templates/inventory/invoice_print_detailed.html:256
-#: inventory/templates/inventory/invoice_print_thermal.html:55
-#: inventory/templates/inventory/invoice_print_thermal.html:56
-#: inventory/templates/inventory/invoice_print_thermal.html:57
-#: inventory/templates/inventory/job_card_create.html:120
-#: inventory/templates/inventory/job_card_review.html:566
-#: inventory/templates/inventory/job_card_review.html:643
-#: inventory/templates/inventory/job_card_review.html:785
-#: inventory/templates/inventory/job_card_review.html:920
-#: inventory/templates/inventory/job_card_review.html:941
-#: inventory/templates/inventory/statement_print.html:53
-#: inventory/templates/inventory/statement_print.html:99
-#: inventory/templates/inventory/vehicle_health_passport.html:454
-msgid "ج.م"
-msgstr "EGP"
 
 #: inventory/templates/inventory/commission_dashboard.html:110
 msgid "المستحق (ج.م)"
@@ -6929,10 +7079,6 @@ msgstr "— All —"
 #: inventory/templates/inventory/hr_workspace.html:90
 msgid "تصفية"
 msgstr "Filter"
-
-#: inventory/templates/inventory/hr_workspace.html:93
-msgid "مسح"
-msgstr "Clear"
 
 #: inventory/templates/inventory/hr_workspace.html:103
 msgid "سجل"
@@ -7490,12 +7636,6 @@ msgstr "Save job card"
 #: inventory/templates/inventory/job_card_create.html:228
 msgid "متابعة"
 msgstr "Follow up"
-
-#: inventory/templates/inventory/job_card_create.html:261
-#: inventory/templates/inventory/job_card_create.html:294
-#: inventory/templates/inventory/lightning_pos.html:126
-msgid "لا توجد نتائج"
-msgstr "No results"
 
 #: inventory/templates/inventory/job_card_create.html:266
 msgid "تم ربط العميل"
@@ -8080,10 +8220,6 @@ msgstr "Customer Retention"
 #: inventory/templates/inventory/retention_crm.html:286
 msgid "ابحث بالاسم، الهاتف، اللوحة، أو VIN..."
 msgstr "Search by name, phone, plate, or VIN..."
-
-#: inventory/templates/inventory/retention_crm.html:287
-msgid "بحث"
-msgstr "Search"
 
 #: inventory/templates/inventory/retention_crm.html:292
 msgid "المسؤول"
