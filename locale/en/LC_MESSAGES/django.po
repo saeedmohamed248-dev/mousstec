@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 15:04+0300\n"
+"POT-Creation-Date: 2026-07-16 15:18+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5717,6 +5717,7 @@ msgstr ""
 #: inventory/templates/inventory/job_card_create.html:174
 #: inventory/templates/inventory/job_card_review.html:941
 #: inventory/templates/inventory/lightning_pos.html:48
+#: inventory/templates/inventory/pos_fast.html:71
 #: inventory/templates/inventory/sale_invoice_list.html:52
 #: printing/models.py:267 printing/models.py:396 printing/models.py:800
 msgid "الإجمالي"
@@ -6290,6 +6291,7 @@ msgid "الرئيسية"
 msgstr "Home"
 
 #: inventory/templates/inventory/_base_portal.html:39
+#: inventory/templates/inventory/pos_fast.html:35
 msgid "نقطة البيع"
 msgstr "POS"
 
@@ -6590,6 +6592,7 @@ msgid "سوق B2B المركزي"
 msgstr "Central B2B Market"
 
 #: inventory/templates/inventory/b2b_marketplace.html:20
+#: inventory/templates/inventory/pos_fast.html:38
 #: inventory/templates/inventory/vehicle_history.html:23
 msgid "العودة"
 msgstr "Back"
@@ -6614,6 +6617,7 @@ msgid "مسح"
 msgstr "Clear"
 
 #: inventory/templates/inventory/b2b_marketplace.html:41
+#: inventory/templates/inventory/pos_fast.html:53
 #: inventory/templates/inventory/retention_crm.html:287
 msgid "بحث"
 msgstr "Search"
@@ -6745,6 +6749,11 @@ msgstr "Available quantity"
 #: inventory/templates/inventory/job_card_review.html:785
 #: inventory/templates/inventory/job_card_review.html:920
 #: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/pos_fast.html:72
+#: inventory/templates/inventory/pos_fast.html:94
+#: inventory/templates/inventory/pos_fast.html:104
+#: inventory/templates/inventory/pos_fast.html:105
+#: inventory/templates/inventory/pos_fast.html:106
 #: inventory/templates/inventory/rfq_management.html:291
 #: inventory/templates/inventory/rfq_management.html:379
 #: inventory/templates/inventory/statement_print.html:53
@@ -8140,6 +8149,7 @@ msgstr "Added"
 
 #: inventory/templates/inventory/job_card_review.html:746
 #: inventory/templates/inventory/job_card_review.html:881
+#: inventory/templates/inventory/pos_fast.html:97
 msgid "خطأ في الاتصال"
 msgstr "Connection error"
 
@@ -8282,6 +8292,8 @@ msgid "وصلت الحد الأقصى للمخزون."
 msgstr "Reached the maximum stock."
 
 #: inventory/templates/inventory/lightning_pos.html:160
+#: inventory/templates/inventory/pos_fast.html:67
+#: inventory/templates/inventory/pos_fast.html:104
 msgid "السلة فارغة"
 msgstr "Cart is empty"
 
@@ -8300,6 +8312,38 @@ msgstr "Done! Invoice"
 #: inventory/templates/inventory/lightning_pos.html:202
 msgid "جارٍ الطباعة"
 msgstr "Printing"
+
+#: inventory/templates/inventory/pos_fast.html:14
+msgid "نقطة البيع السريعة"
+msgstr "Fast POS"
+
+#: inventory/templates/inventory/pos_fast.html:49
+msgid "امسح الباركود أو ابحث باسم القطعة..."
+msgstr "Scan the barcode or search by part name..."
+
+#: inventory/templates/inventory/pos_fast.html:58
+msgid "امسح الباركود أو ابحث عن قطعة غيار"
+msgstr "Scan the barcode or search for a spare part"
+
+#: inventory/templates/inventory/pos_fast.html:65
+msgid "سلة الفاتورة"
+msgstr "Invoice cart"
+
+#: inventory/templates/inventory/pos_fast.html:75
+msgid "اعتماد الفاتورة"
+msgstr "Confirm invoice"
+
+#: inventory/templates/inventory/pos_fast.html:93
+msgid "المتاح"
+msgstr "Available"
+
+#: inventory/templates/inventory/pos_fast.html:117
+msgid "تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال."
+msgstr "Invoice saved locally. It will be synced when the connection is restored."
+
+#: inventory/templates/inventory/pos_fast.html:121
+msgid "سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي."
+msgstr "This button will be connected to the automatic invoicing system."
 
 #: inventory/templates/inventory/product_list.html:3
 #: inventory/templates/inventory/product_list.html:9

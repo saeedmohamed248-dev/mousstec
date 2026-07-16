@@ -734,5 +734,13 @@
   "سجل الصيانة": "Service log",
   "لا يوجد سجل صيانة لهذه المركبة حتى الآن": "No service history for this vehicle yet",
   "تم النسخ": "Copied",
-  "انسخ الرابط:": "Copy the link:"
+  "انسخ الرابط:": "Copy the link:",
+  "نقطة البيع السريعة": "Fast POS",
+  "امسح الباركود أو ابحث باسم القطعة...": "Scan the barcode or search by part name...",
+  "امسح الباركود أو ابحث عن قطعة غيار": "Scan the barcode or search for a spare part",
+  "سلة الفاتورة": "Invoice cart",
+  "اعتماد الفاتورة": "Confirm invoice",
+  "المتاح": "Available",
+  "تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.": "Invoice saved locally. It will be synced when the connection is restored.",
+  "سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.": "This button will be connected to the automatic invoicing system."
 }
