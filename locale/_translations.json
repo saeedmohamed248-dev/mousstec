@@ -742,5 +742,19 @@
   "اعتماد الفاتورة": "Confirm invoice",
   "المتاح": "Available",
   "تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.": "Invoice saved locally. It will be synced when the connection is restored.",
-  "سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.": "This button will be connected to the automatic invoicing system."
+  "سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.": "This button will be connected to the automatic invoicing system.",
+  "جولة الحلول": "Solutions tour",
+  "حلول": "Solutions",
+  "المتكاملة": "integrated",
+  "منصة سحابية شاملة لإدارة مراكز صيانة السيارات وتجارة قطع الغيار بتقنيات الذكاء الاصطناعي": "A comprehensive cloud platform for managing car service centers and spare-parts trading with AI technologies",
+  "واجهة كاشير فورية بالباركود مع دعم الفواتير الحرارية وA4": "Instant barcode cashier interface with thermal and A4 invoice support",
+  "ذكاء اصطناعي": "Artificial intelligence",
+  "تشخيص أعطال بالـ AI، مسح فواتير بالكاميرا، وتوقع الصيانة الاستباقية": "AI fault diagnosis, camera invoice scanning, and predictive maintenance forecasting",
+  "مزادات عكسية ومحافظ ضمان مالية لتبادل قطع الغيار بين المراكز والتجار": "Reverse auctions and financial escrow wallets for trading spare parts between centers and dealers",
+  "تاريخ صيانة كامل لكل مركبة مع QR Code لرفع قيمتها السوقية": "Full service history for every vehicle with a QR code to raise its market value",
+  "خزائن متعددة": "Multiple treasuries",
+  "إدارة كاش، بنوك، فيزا ومحافظ إلكترونية مع تسوية مالية آلية": "Manage cash, banks, Visa and e-wallets with automatic financial reconciliation",
+  "متعدد الفروع": "Multi-branch",
+  "إدارة مركزية لعدة فروع مع تحويلات مخزن وصلاحيات موظفين": "Central management of multiple branches with stock transfers and staff permissions",
+  "ابدأ تجربتك المجانية الآن": "Start your free trial now"
 }

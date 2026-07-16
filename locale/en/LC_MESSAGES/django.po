@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 15:18+0300\n"
+"POT-Creation-Date: 2026-07-16 19:13+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6588,11 +6588,13 @@ msgstr "Report issued by"
 
 #: inventory/templates/inventory/b2b_marketplace.html:6
 #: inventory/templates/inventory/b2b_marketplace.html:18
+#: inventory/templates/inventory/solutions.html:50
 msgid "سوق B2B المركزي"
 msgstr "Central B2B Market"
 
 #: inventory/templates/inventory/b2b_marketplace.html:20
 #: inventory/templates/inventory/pos_fast.html:38
+#: inventory/templates/inventory/solutions.html:20
 #: inventory/templates/inventory/vehicle_history.html:23
 msgid "العودة"
 msgstr "Back"
@@ -7252,6 +7254,7 @@ msgid "الوصول السريع"
 msgstr "Quick access"
 
 #: inventory/templates/inventory/dashboard.html:283
+#: inventory/templates/inventory/solutions.html:40
 msgid "نقطة بيع سريعة"
 msgstr "Quick point of sale"
 
@@ -8763,6 +8766,70 @@ msgstr "No matching invoices."
 msgid "أنشئ أمر شغل جديد ←"
 msgstr "Create a new job card ←"
 
+#: inventory/templates/inventory/solutions.html:6
+msgid "جولة الحلول"
+msgstr "Solutions tour"
+
+#: inventory/templates/inventory/solutions.html:26
+msgid "حلول"
+msgstr "Solutions"
+
+#: inventory/templates/inventory/solutions.html:26
+msgid "المتكاملة"
+msgstr "integrated"
+
+#: inventory/templates/inventory/solutions.html:27
+msgid ""
+"منصة سحابية شاملة لإدارة مراكز صيانة السيارات وتجارة قطع الغيار بتقنيات "
+"الذكاء الاصطناعي"
+msgstr "A comprehensive cloud platform for managing car service centers and spare-parts trading with AI technologies"
+
+#: inventory/templates/inventory/solutions.html:41
+msgid "واجهة كاشير فورية بالباركود مع دعم الفواتير الحرارية وA4"
+msgstr "Instant barcode cashier interface with thermal and A4 invoice support"
+
+#: inventory/templates/inventory/solutions.html:45
+msgid "ذكاء اصطناعي"
+msgstr "Artificial intelligence"
+
+#: inventory/templates/inventory/solutions.html:46
+msgid "تشخيص أعطال بالـ AI، مسح فواتير بالكاميرا، وتوقع الصيانة الاستباقية"
+msgstr "AI fault diagnosis, camera invoice scanning, and predictive maintenance forecasting"
+
+#: inventory/templates/inventory/solutions.html:51
+msgid "مزادات عكسية ومحافظ ضمان مالية لتبادل قطع الغيار بين المراكز والتجار"
+msgstr "Reverse auctions and financial escrow wallets for trading spare parts between centers and dealers"
+
+#: inventory/templates/inventory/solutions.html:55
+#: inventory/templates/inventory/vehicle_history.html:6
+#: inventory/templates/inventory/vehicle_history.html:18
+msgid "جواز السيارة الرقمي"
+msgstr "Digital car passport"
+
+#: inventory/templates/inventory/solutions.html:56
+msgid "تاريخ صيانة كامل لكل مركبة مع QR Code لرفع قيمتها السوقية"
+msgstr "Full service history for every vehicle with a QR code to raise its market value"
+
+#: inventory/templates/inventory/solutions.html:60
+msgid "خزائن متعددة"
+msgstr "Multiple treasuries"
+
+#: inventory/templates/inventory/solutions.html:61
+msgid "إدارة كاش، بنوك، فيزا ومحافظ إلكترونية مع تسوية مالية آلية"
+msgstr "Manage cash, banks, Visa and e-wallets with automatic financial reconciliation"
+
+#: inventory/templates/inventory/solutions.html:65
+msgid "متعدد الفروع"
+msgstr "Multi-branch"
+
+#: inventory/templates/inventory/solutions.html:66
+msgid "إدارة مركزية لعدة فروع مع تحويلات مخزن وصلاحيات موظفين"
+msgstr "Central management of multiple branches with stock transfers and staff permissions"
+
+#: inventory/templates/inventory/solutions.html:73
+msgid "ابدأ تجربتك المجانية الآن"
+msgstr "Start your free trial now"
+
 #: inventory/templates/inventory/statement_print.html:5
 #: inventory/templates/inventory/statement_print.html:38
 msgid "كشف حساب"
@@ -9064,11 +9131,6 @@ msgstr "Customer has no number — copy the link"
 #: inventory/templates/inventory/vehicle_health_passport.html:660
 msgid "تم نسخ الرابط"
 msgstr "Link copied"
-
-#: inventory/templates/inventory/vehicle_history.html:6
-#: inventory/templates/inventory/vehicle_history.html:18
-msgid "جواز السيارة الرقمي"
-msgstr "Digital car passport"
 
 #: inventory/templates/inventory/vehicle_history.html:21
 msgid "طباعة سجل الصيانة"
