@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 14:26+0300\n"
+"POT-Creation-Date: 2026-07-16 14:31+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -597,6 +597,7 @@ msgstr ""
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
 #: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
 #: inventory/templates/inventory/ai_diag_print.html:333
+#: inventory/templates/inventory/customer_feedback.html:60
 #: inventory/templates/inventory/invoice_print_thermal.html:30
 #: inventory/templates/inventory/job_card_create.html:69
 #: inventory/templates/inventory/job_card_review.html:320
@@ -2107,9 +2108,11 @@ msgstr ""
 msgid "في انتظار مراجعة العميل"
 msgstr ""
 
-#: clients/models/marketplace_c2c.py:367 printing/models.py:681
+#: clients/models/marketplace_c2c.py:367
+#: inventory/templates/inventory/customer_feedback.html:147
+#: printing/models.py:681
 msgid "مقبول"
-msgstr ""
+msgstr "Fair"
 
 #: clients/models/marketplace_c2c.py:369
 msgid "تم سحبه من التاجر"
@@ -4951,6 +4954,7 @@ msgstr ""
 #: inventory/models/diagnostics.py:40 inventory/models/diagnostics.py:447
 #: inventory/models/invoices.py:75
 #: inventory/templates/inventory/ai_diag_print.html:340
+#: inventory/templates/inventory/customer_feedback.html:65
 #: inventory/templates/inventory/job_card_create.html:83
 #: inventory/templates/inventory/job_card_review.html:322
 #: inventory/templates/inventory/sale_invoice_list.html:49
@@ -5678,6 +5682,7 @@ msgstr ""
 
 #: inventory/models/invoices.py:34
 #: inventory/templates/inventory/company_branches.html:81
+#: inventory/templates/inventory/customer_feedback.html:73
 #: inventory/templates/inventory/invoice_print.html:219
 #: inventory/templates/inventory/invoice_print_a4.html:72
 #: inventory/templates/inventory/invoice_print_detailed.html:212
@@ -5852,6 +5857,7 @@ msgid "نهاية العمل الفعلي"
 msgstr ""
 
 #: inventory/models/invoices.py:273
+#: inventory/templates/inventory/customer_feedback.html:147
 #: inventory/templates/inventory/job_card_create.html:228
 msgid "ممتاز"
 msgstr "Excellent"
@@ -6507,6 +6513,7 @@ msgid "رقم القطعة أو اسم المنتج (مثال: 11787589121 أو 
 msgstr "Part number or product name (e.g. 11787589121 or oil filter)..."
 
 #: inventory/templates/inventory/b2b_marketplace.html:38
+#: inventory/templates/inventory/customer_feedback.html:118
 #: inventory/templates/inventory/hr_workspace.html:93
 msgid "مسح"
 msgstr "Clear"
@@ -6612,6 +6619,7 @@ msgstr "Available quantity"
 
 #: inventory/templates/inventory/b2b_marketplace.html:198
 #: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/customer_feedback.html:74
 #: inventory/templates/inventory/invoice_print.html:239
 #: inventory/templates/inventory/invoice_print.html:240
 #: inventory/templates/inventory/invoice_print.html:267
@@ -6805,6 +6813,105 @@ msgstr "No branches yet."
 msgid "مرّر المؤشر فوق أرقام الحضور/الغياب لعرض أسماء الموظفين."
 msgstr "Hover over the attendance/absence numbers to see employee names."
 
+#: inventory/templates/inventory/customer_feedback.html:6
+msgid "تقييم خدمتك"
+msgstr "Rate your service"
+
+#: inventory/templates/inventory/customer_feedback.html:31
+#: inventory/templates/inventory/dashboard.html:226
+#: inventory/templates/inventory/invoice_print_a4.html:5
+#: inventory/templates/inventory/invoice_print_thermal.html:5
+#: inventory/templates/inventory/invoice_print_thermal.html:25
+#: inventory/templates/inventory/statement_print.html:76
+msgid "فاتورة"
+msgstr "Invoice"
+
+#: inventory/templates/inventory/customer_feedback.html:40
+msgid "شكراً لك على تقييمك!"
+msgstr "Thank you for your feedback!"
+
+#: inventory/templates/inventory/customer_feedback.html:42
+msgid "تم استلام تقييمك بتاريخ"
+msgstr "Your feedback was received on"
+
+#: inventory/templates/inventory/customer_feedback.html:43
+msgid "نُقدّر ثقتك بنا"
+msgstr "We appreciate your trust"
+
+#: inventory/templates/inventory/customer_feedback.html:53
+msgid "كيف كانت تجربتك معنا؟"
+msgstr "How was your experience with us?"
+
+#: inventory/templates/inventory/customer_feedback.html:55
+msgid "رأيك يساعدنا نقدّم خدمة أفضل"
+msgstr "Your opinion helps us provide better service"
+
+#: inventory/templates/inventory/customer_feedback.html:81
+msgid "تقييمك من 5"
+msgstr "Your rating out of 5"
+
+#: inventory/templates/inventory/customer_feedback.html:87
+msgid "اضغط على عدد النجوم"
+msgstr "Tap the number of stars"
+
+#: inventory/templates/inventory/customer_feedback.html:93
+msgid "تعليقك (اختياري)"
+msgstr "Your comment (optional)"
+
+#: inventory/templates/inventory/customer_feedback.html:96
+msgid "شاركنا أي ملاحظة..."
+msgstr "Share any note with us..."
+
+#: inventory/templates/inventory/customer_feedback.html:104
+msgid "أُقرّ باستلام السيارة بحالة جيدة"
+msgstr "I acknowledge receiving the car in good condition"
+
+#: inventory/templates/inventory/customer_feedback.html:106
+msgid "يُعتبر هذا توقيعاً رقمياً يثبت استلام السيارة بعد إتمام الإصلاح بنجاح."
+msgstr "This is considered a digital signature confirming receipt of the car after the repair is successfully completed."
+
+#: inventory/templates/inventory/customer_feedback.html:115
+msgid "توقيع رقمي (اختياري)"
+msgstr "Digital signature (optional)"
+
+#: inventory/templates/inventory/customer_feedback.html:122
+msgid "وقّع بإصبعك على الشاشة"
+msgstr "Sign with your finger on the screen"
+
+#: inventory/templates/inventory/customer_feedback.html:127
+#: inventory/templates/inventory/customer_feedback.html:248
+#: inventory/templates/inventory/customer_feedback.html:252
+msgid "إرسال التقييم"
+msgstr "Submit rating"
+
+#: inventory/templates/inventory/customer_feedback.html:147
+msgid "سيئ"
+msgstr "Poor"
+
+#: inventory/templates/inventory/customer_feedback.html:147
+msgid "جيد"
+msgstr "Good"
+
+#: inventory/templates/inventory/customer_feedback.html:147
+msgid "استثنائي"
+msgstr "Exceptional"
+
+#: inventory/templates/inventory/customer_feedback.html:220
+msgid "اختر تقييماً أولاً."
+msgstr "Please choose a rating first."
+
+#: inventory/templates/inventory/customer_feedback.html:222
+msgid "جارٍ الإرسال..."
+msgstr "Sending..."
+
+#: inventory/templates/inventory/customer_feedback.html:246
+msgid "فشل الإرسال"
+msgstr "Submission failed"
+
+#: inventory/templates/inventory/customer_feedback.html:251
+msgid "خطأ في الشبكة"
+msgstr "Network error"
+
 #: inventory/templates/inventory/dashboard.html:4
 msgid "لوحة التحكم"
 msgstr "Dashboard"
@@ -6907,14 +7014,6 @@ msgstr "%(n)s treasuries"
 #: inventory/templates/inventory/dashboard.html:218
 msgid "إجمالي الخزينة (ج.م)"
 msgstr "Total treasury (EGP)"
-
-#: inventory/templates/inventory/dashboard.html:226
-#: inventory/templates/inventory/invoice_print_a4.html:5
-#: inventory/templates/inventory/invoice_print_thermal.html:5
-#: inventory/templates/inventory/invoice_print_thermal.html:25
-#: inventory/templates/inventory/statement_print.html:76
-msgid "فاتورة"
-msgstr "Invoice"
 
 #: inventory/templates/inventory/dashboard.html:229
 msgid "فواتير صادرة اليوم"
