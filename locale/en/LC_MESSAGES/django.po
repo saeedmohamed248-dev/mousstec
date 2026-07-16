@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 00:02+0300\n"
+"POT-Creation-Date: 2026-07-16 13:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -950,6 +950,7 @@ msgstr ""
 
 #: clients/models/design_store.py:789
 #: inventory/templates/inventory/job_card_create.html:172
+#: inventory/templates/inventory/vehicle_health_passport.html:444
 msgid "خدمات"
 msgstr "Services"
 
@@ -2249,6 +2250,7 @@ msgstr ""
 #: inventory/templates/inventory/retention_crm.html:424
 #: inventory/templates/inventory/retention_crm.html:455
 #: inventory/templates/inventory/retention_crm.html:551
+#: inventory/templates/inventory/vehicle_health_passport.html:638
 #: smart_diagnostics/models.py:71
 msgid "خطأ"
 msgstr "Error"
@@ -2434,8 +2436,9 @@ msgid "اسم المرسل"
 msgstr ""
 
 #: clients/models/support.py:103
-#: inventory/templates/inventory/job_card_create.html:77 printing/models.py:24
-#: printing/models.py:40
+#: inventory/templates/inventory/job_card_create.html:77
+#: inventory/templates/inventory/vehicle_health_passport.html:509
+#: printing/models.py:24 printing/models.py:40
 msgid "الهاتف"
 msgstr "Phone"
 
@@ -3423,6 +3426,7 @@ msgstr ""
 
 #: hr/admin.py:115 inventory/templates/inventory/invoice_print.html:192
 #: inventory/templates/inventory/product_list.html:42
+#: inventory/templates/inventory/vehicle_health_passport.html:508
 msgid "الاسم"
 msgstr "Name"
 
@@ -3796,8 +3800,9 @@ msgid "حاضر"
 msgstr "Present"
 
 #: hr/models.py:368 inventory/models/diagnostics.py:429
+#: inventory/templates/inventory/vehicle_health_passport.html:409
 msgid "متأخر"
-msgstr ""
+msgstr "Overdue"
 
 #: hr/models.py:369 inventory/templates/inventory/company_branches.html:50
 msgid "غائب"
@@ -4802,8 +4807,9 @@ msgid "الرصيد / المديونية"
 msgstr ""
 
 #: inventory/models/customers.py:27
+#: inventory/templates/inventory/vehicle_health_passport.html:510
 msgid "نقاط الولاء"
-msgstr ""
+msgstr "Loyalty points"
 
 #: inventory/models/customers.py:50
 msgid "عميل / شركة"
@@ -4834,8 +4840,10 @@ msgid "عقود صيانة الشركات (B2B)"
 msgstr ""
 
 #: inventory/models/customers.py:88
+#: inventory/templates/inventory/vehicle_health_passport.html:335
+#: inventory/templates/inventory/vehicle_health_passport.html:505
 msgid "المالك"
-msgstr ""
+msgstr "Owner"
 
 #: inventory/models/customers.py:89
 #: inventory/templates/inventory/job_card_create.html:86
@@ -5045,8 +5053,9 @@ msgid "بانتظار قطع إضافية"
 msgstr ""
 
 #: inventory/models/diagnostics.py:151
+#: inventory/templates/inventory/vehicle_health_passport.html:451
 msgid "بطاقة الإصلاح"
-msgstr ""
+msgstr "Repair card"
 
 #: inventory/models/diagnostics.py:156 inventory/models/organization.py:108
 #: inventory/templates/inventory/job_card_review.html:506
@@ -5314,8 +5323,9 @@ msgid "مستحق الآن"
 msgstr ""
 
 #: inventory/models/diagnostics.py:431
+#: inventory/templates/inventory/vehicle_health_passport.html:411
 msgid "قريباً"
-msgstr ""
+msgstr "Soon"
 
 #: inventory/models/diagnostics.py:439 inventory/models/operations.py:55
 #: smart_diagnostics/models.py:179
@@ -5509,8 +5519,9 @@ msgid "اسم الحساب"
 msgstr ""
 
 #: inventory/models/finance.py:90
+#: inventory/templates/inventory/vehicle_health_passport.html:512
 msgid "نوع الحساب"
-msgstr ""
+msgstr "Account type"
 
 #: inventory/models/finance.py:91
 msgid "الحساب الأب"
@@ -6251,6 +6262,7 @@ msgstr "— No number —"
 
 #: inventory/templates/inventory/_nudge_card.html:17
 #: inventory/templates/inventory/retention_crm.html:487
+#: inventory/templates/inventory/vehicle_health_passport.html:333
 msgid "لوحة"
 msgstr "plate"
 
@@ -6272,6 +6284,7 @@ msgstr "Last service"
 
 #: inventory/templates/inventory/_nudge_card.html:34
 #: inventory/templates/inventory/invoice_print.html:203
+#: inventory/templates/inventory/vehicle_health_passport.html:349
 msgid "كم"
 msgstr "km"
 
@@ -6367,6 +6380,7 @@ msgstr "Balance"
 #: inventory/templates/inventory/job_card_review.html:785
 #: inventory/templates/inventory/job_card_review.html:920
 #: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/vehicle_health_passport.html:454
 msgid "ج.م"
 msgstr "EGP"
 
@@ -7118,6 +7132,7 @@ msgstr "Remaining"
 
 #: inventory/templates/inventory/job_card_create.html:171
 #: inventory/templates/inventory/sale_invoice_list.html:65
+#: inventory/templates/inventory/vehicle_health_passport.html:443
 msgid "قطع"
 msgstr "Parts"
 
@@ -7808,14 +7823,18 @@ msgid "معاينة الرسالة قبل الإرسال"
 msgstr "Preview message before sending"
 
 #: inventory/templates/inventory/retention_crm.html:364
+#: inventory/templates/inventory/vehicle_health_passport.html:566
 msgid "إلى"
 msgstr "To"
 
 #: inventory/templates/inventory/retention_crm.html:370
+#: inventory/templates/inventory/vehicle_health_passport.html:579
+#: inventory/templates/inventory/vehicle_health_passport.html:628
 msgid "افتح WhatsApp وأرسل"
 msgstr "Open WhatsApp and send"
 
 #: inventory/templates/inventory/retention_crm.html:372
+#: inventory/templates/inventory/vehicle_health_passport.html:581
 msgid "إلغاء"
 msgstr "Cancel"
 
@@ -7824,6 +7843,7 @@ msgid "لا يوجد رقم هاتف لهذا العميل"
 msgstr "No phone number for this customer"
 
 #: inventory/templates/inventory/retention_crm.html:408
+#: inventory/templates/inventory/vehicle_health_passport.html:615
 msgid "فشل التحضير"
 msgstr "Preparation failed"
 
@@ -8039,6 +8059,119 @@ msgstr "Registration failed"
 #: inventory/templates/inventory/tech_workspace.html:292
 msgid "تعذر الحصول على الموقع"
 msgstr "Could not get location"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:6
+msgid "جواز السيارة الصحي"
+msgstr "Vehicle health passport"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:317
+msgid "شارك الجواز مع العميل"
+msgstr "Share passport with customer"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:342
+msgid "عدد الزيارات"
+msgstr "Visit count"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:346
+msgid "آخر قراءة عداد"
+msgstr "Last odometer reading"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:353
+msgid "أول زيارة"
+msgstr "First visit"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:359
+msgid "آخر زيارة"
+msgstr "Last visit"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:378
+msgid "صحة السيارة"
+msgstr "Vehicle health"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:394
+msgid "تذكيرات الصيانة الذكية"
+msgstr "Smart maintenance reminders"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:395
+msgid "توصية"
+msgstr "recommendations"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:410
+msgid "مستحق"
+msgstr "Due"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:421
+msgid "الخط الزمني للسيارة"
+msgstr "Vehicle timeline"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:422
+msgid "حدث"
+msgstr "events"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:445
+msgid "تشخيص"
+msgstr "diagnostics"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:446
+msgid "صور"
+msgstr "photos"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:456
+msgid "افتح البطاقة"
+msgstr "Open card"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:474
+msgid "جلسة تشخيص بدون بطاقة"
+msgstr "Diagnostic session without a card"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:495
+msgid "لا يوجد سجل لهذه السيارة بعد."
+msgstr "No records for this car yet."
+
+#: inventory/templates/inventory/vehicle_health_passport.html:512
+msgid "شركة B2B"
+msgstr "B2B company"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:519
+msgid "أكثر الأكواد تكراراً"
+msgstr "Most frequent codes"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:528
+msgid "لم يتم رصد أي أكواد بعد."
+msgstr "No codes detected yet."
+
+#: inventory/templates/inventory/vehicle_health_passport.html:534
+msgid "القطع الأكثر استبدالاً"
+msgstr "Most replaced parts"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:543
+msgid "لا توجد قطع مسجّلة."
+msgstr "No parts recorded."
+
+#: inventory/templates/inventory/vehicle_health_passport.html:550
+msgid "تنبؤات AI"
+msgstr "AI predictions"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:564
+msgid "شارك الجواز الصحي للسيارة"
+msgstr "Share the vehicle health passport"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:572
+msgid "انسخ"
+msgstr "Copy"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:607
+msgid "جاري التحضير..."
+msgstr "Preparing..."
+
+#: inventory/templates/inventory/vehicle_health_passport.html:634
+msgid "العميل بدون رقم — انسخ الرابط"
+msgstr "Customer has no number — copy the link"
+
+#: inventory/templates/inventory/vehicle_health_passport.html:657
+#: inventory/templates/inventory/vehicle_health_passport.html:660
+msgid "تم نسخ الرابط"
+msgstr "Link copied"
 
 #: printing/models.py:41
 msgid "واتساب"
