@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 14:31+0300\n"
+"POT-Creation-Date: 2026-07-16 14:35+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1574,6 +1574,7 @@ msgid "رقم القطعة الأصلي (OEM)"
 msgstr ""
 
 #: clients/models/marketplace_b2b.py:389 clients/models/tenancy.py:726
+#: inventory/templates/inventory/_rfq_card.html:32
 #: inventory/templates/inventory/job_card_review.html:799
 msgid "السعر (ج.م)"
 msgstr "Price (EGP)"
@@ -2264,6 +2265,8 @@ msgstr ""
 #: inventory/templates/inventory/retention_crm.html:424
 #: inventory/templates/inventory/retention_crm.html:455
 #: inventory/templates/inventory/retention_crm.html:551
+#: inventory/templates/inventory/rfq_management.html:354
+#: inventory/templates/inventory/rfq_management.html:382
 #: inventory/templates/inventory/vehicle_health_passport.html:638
 #: smart_diagnostics/models.py:71
 msgid "خطأ"
@@ -2886,8 +2889,9 @@ msgid "فشلت المعالجة"
 msgstr ""
 
 #: clients/models/tenancy.py:498 inventory/models/diagnostics.py:223
+#: inventory/templates/inventory/rfq_management.html:238
 msgid "ملغاة"
-msgstr ""
+msgstr "Cancelled"
 
 #: clients/models/tenancy.py:503
 msgid "رقم الفاتورة"
@@ -4570,12 +4574,14 @@ msgstr "Part"
 #: inventory/models/catalog.py:76 inventory/models/catalog.py:180
 #: inventory/models/catalog.py:210 inventory/models/finance.py:26
 #: inventory/models/finance.py:126 inventory/models/invoices.py:79
+#: inventory/templates/inventory/_rfq_card.html:14
 #: inventory/templates/inventory/commission_dashboard.html:109
 #: inventory/templates/inventory/company_branches.html:43
 #: inventory/templates/inventory/hr_workspace.html:114
 #: inventory/templates/inventory/job_card_create.html:32
 #: inventory/templates/inventory/lightning_pos.html:21
-#: inventory/templates/inventory/quick_product.html:68 printing/models.py:81
+#: inventory/templates/inventory/quick_product.html:68
+#: inventory/templates/inventory/rfq_management.html:219 printing/models.py:81
 #: printing/models.py:146 printing/models.py:258 printing/models.py:510
 #: printing/models.py:542
 msgid "الفرع"
@@ -5169,8 +5175,9 @@ msgid "مفتوح — في انتظار الردود"
 msgstr ""
 
 #: inventory/models/diagnostics.py:221
+#: inventory/templates/inventory/rfq_management.html:230
 msgid "تم استلام عروض"
-msgstr ""
+msgstr "Quotes received"
 
 #: inventory/models/diagnostics.py:222
 msgid "تم تحويلها إلى أمر شراء"
@@ -5221,7 +5228,9 @@ msgid "الطلب الأصلي"
 msgstr ""
 
 #: inventory/models/diagnostics.py:296 inventory/models/invoices.py:26
+#: inventory/templates/inventory/_rfq_card.html:31
 #: inventory/templates/inventory/job_card_review.html:940
+#: inventory/templates/inventory/rfq_management.html:286
 msgid "المورد"
 msgstr "Supplier"
 
@@ -6300,6 +6309,7 @@ msgid "عميل بدون اسم"
 msgstr "Unnamed customer"
 
 #: inventory/templates/inventory/_nudge_card.html:11
+#: inventory/templates/inventory/_rfq_card.html:46
 #: inventory/templates/inventory/job_card_review.html:791
 msgid "— لا يوجد رقم —"
 msgstr "— No number —"
@@ -6360,6 +6370,69 @@ msgstr "No phone number"
 #: inventory/templates/inventory/_nudge_card.html:65
 msgid "تجاهل لهذه الدورة"
 msgstr "Dismiss for this cycle"
+
+#: inventory/templates/inventory/_rfq_card.html:13
+msgid "طلب"
+msgstr "Requested by"
+
+#: inventory/templates/inventory/_rfq_card.html:15
+#: inventory/templates/inventory/job_card_review.html:622
+msgid "غير موجود في الكاتالوج"
+msgstr "Not in catalogue"
+
+#: inventory/templates/inventory/_rfq_card.html:19
+#: inventory/templates/inventory/_rfq_card.html:83
+#: inventory/templates/inventory/rfq_management.html:282
+msgid "كمية"
+msgstr "Qty"
+
+#: inventory/templates/inventory/_rfq_card.html:33
+#: inventory/templates/inventory/_rfq_card.html:74
+#: inventory/templates/inventory/job_card_review.html:801
+msgid "أيام"
+msgstr "days"
+
+#: inventory/templates/inventory/_rfq_card.html:34
+msgid "إجراء"
+msgstr "Action"
+
+#: inventory/templates/inventory/_rfq_card.html:54
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+msgid "يوم"
+msgstr "days"
+
+#: inventory/templates/inventory/_rfq_card.html:62
+msgid "القطعة مش في الكاتالوج — أضفها من شاشة المنتجات أولاً"
+msgstr "The part is not in the catalog — add it from the products screen first"
+
+#: inventory/templates/inventory/_rfq_card.html:63
+msgid "اعتمد + PO"
+msgstr "Approve + PO"
+
+#: inventory/templates/inventory/_rfq_card.html:66
+msgid "سُجِّل"
+msgstr "Logged"
+
+#: inventory/templates/inventory/_rfq_card.html:71
+#: inventory/templates/inventory/invoice_print.html:218
+#: inventory/templates/inventory/invoice_print_a4.html:72
+#: inventory/templates/inventory/invoice_print_detailed.html:212
+#: inventory/templates/inventory/job_card_create.html:109
+#: inventory/templates/inventory/job_card_create.html:126
+#: inventory/templates/inventory/job_card_review.html:507
+#: inventory/templates/inventory/lightning_pos.html:47
+msgid "السعر"
+msgstr "Price"
+
+#: inventory/templates/inventory/_rfq_card.html:78
+#: inventory/templates/inventory/job_card_review.html:804
+msgid "احفظ"
+msgstr "Save"
+
+#: inventory/templates/inventory/_rfq_card.html:84
+msgid "إرسال WhatsApp مباشر"
+msgstr "Send WhatsApp directly"
 
 #: inventory/templates/inventory/ai_diag_print.html:6
 #: inventory/templates/inventory/ai_diag_print.html:308
@@ -6649,6 +6722,8 @@ msgstr "Available quantity"
 #: inventory/templates/inventory/job_card_review.html:785
 #: inventory/templates/inventory/job_card_review.html:920
 #: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/rfq_management.html:291
+#: inventory/templates/inventory/rfq_management.html:379
 #: inventory/templates/inventory/statement_print.html:53
 #: inventory/templates/inventory/statement_print.html:99
 #: inventory/templates/inventory/vehicle_health_passport.html:454
@@ -7082,6 +7157,7 @@ msgid "تسجيل مصروف"
 msgstr "Record expense"
 
 #: inventory/templates/inventory/dashboard.html:373
+#: inventory/templates/inventory/rfq_management.html:6
 msgid "إدارة طلبات التسعير"
 msgstr "Manage quote requests"
 
@@ -7299,16 +7375,6 @@ msgstr "Spare parts & components issued"
 #: inventory/templates/inventory/invoice_print.html:216
 msgid "تاريخ الضمان"
 msgstr "Warranty date"
-
-#: inventory/templates/inventory/invoice_print.html:218
-#: inventory/templates/inventory/invoice_print_a4.html:72
-#: inventory/templates/inventory/invoice_print_detailed.html:212
-#: inventory/templates/inventory/job_card_create.html:109
-#: inventory/templates/inventory/job_card_create.html:126
-#: inventory/templates/inventory/job_card_review.html:507
-#: inventory/templates/inventory/lightning_pos.html:47
-msgid "السعر"
-msgstr "Price"
 
 #: inventory/templates/inventory/invoice_print.html:236
 msgid "لا يوجد ضمان"
@@ -7893,10 +7959,6 @@ msgstr "Print detailed card"
 msgid "تقرير AI للعميل"
 msgstr "AI report for customer"
 
-#: inventory/templates/inventory/job_card_review.html:622
-msgid "غير موجود في الكاتالوج"
-msgstr "Not in catalogue"
-
 #: inventory/templates/inventory/job_card_review.html:626
 msgid "غير متوفر"
 msgstr "Out of stock"
@@ -7964,11 +8026,6 @@ msgstr "Phone number not registered"
 msgid "بدون رقم"
 msgstr "No number"
 
-#: inventory/templates/inventory/job_card_review.html:785
-#: inventory/templates/inventory/job_card_review.html:920
-msgid "يوم"
-msgstr "days"
-
 #: inventory/templates/inventory/job_card_review.html:796
 msgid "عدّل العرض"
 msgstr "Edit quote"
@@ -7976,14 +8033,6 @@ msgstr "Edit quote"
 #: inventory/templates/inventory/job_card_review.html:796
 msgid "سجّل الرد"
 msgstr "Log response"
-
-#: inventory/templates/inventory/job_card_review.html:801
-msgid "أيام"
-msgstr "days"
-
-#: inventory/templates/inventory/job_card_review.html:804
-msgid "احفظ"
-msgstr "Save"
 
 #: inventory/templates/inventory/job_card_review.html:808
 msgid "تحويل إلى أمر شراء (Draft)"
@@ -8010,6 +8059,7 @@ msgid "أدخل سعراً صحيحاً."
 msgstr "Enter a valid price."
 
 #: inventory/templates/inventory/job_card_review.html:907
+#: inventory/templates/inventory/rfq_management.html:347
 msgid "فشل الحفظ"
 msgstr "Failed to save"
 
@@ -8018,6 +8068,7 @@ msgid "سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟
 msgstr "A Draft purchase order will be created for this supplier. Sure?"
 
 #: inventory/templates/inventory/job_card_review.html:935
+#: inventory/templates/inventory/rfq_management.html:375
 msgid "فشل الاعتماد"
 msgstr "Failed to approve"
 
@@ -8444,6 +8495,63 @@ msgstr "Scanned"
 #: inventory/templates/inventory/retention_crm.html:547
 msgid "لها تذكيرات"
 msgstr "have reminders"
+
+#: inventory/templates/inventory/rfq_management.html:216
+msgid "برج التحكم — إدارة طلبات التسعير"
+msgstr "Control tower — RFQ management"
+
+#: inventory/templates/inventory/rfq_management.html:218
+msgid "مدير المخزون"
+msgstr "Inventory manager"
+
+#: inventory/templates/inventory/rfq_management.html:226
+#: inventory/templates/inventory/rfq_management.html:260
+msgid "في انتظار الردود"
+msgstr "Awaiting responses"
+
+#: inventory/templates/inventory/rfq_management.html:234
+msgid "تم تحويلها لـ PO"
+msgstr "Converted to PO"
+
+#: inventory/templates/inventory/rfq_management.html:246
+msgid "تم استلام عروض — جاهزة للاعتماد"
+msgstr "Quotes received — ready for approval"
+
+#: inventory/templates/inventory/rfq_management.html:253
+msgid "لا توجد عروض بانتظار الاعتماد حالياً."
+msgstr "No quotes awaiting approval right now."
+
+#: inventory/templates/inventory/rfq_management.html:267
+msgid "لا توجد طلبات مفتوحة. أنشئ طلباً من شاشة مراجعة بطاقة العميل."
+msgstr "No open requests. Create one from the customer job-card review screen."
+
+#: inventory/templates/inventory/rfq_management.html:275
+msgid "تم تحويلها لأوامر شراء"
+msgstr "Converted to purchase orders"
+
+#: inventory/templates/inventory/rfq_management.html:276
+msgid "آخر 25"
+msgstr "last 25"
+
+#: inventory/templates/inventory/rfq_management.html:295
+msgid "افتح PO"
+msgstr "Open PO"
+
+#: inventory/templates/inventory/rfq_management.html:329
+msgid "أدخل سعراً صحيحاً"
+msgstr "Enter a valid price"
+
+#: inventory/templates/inventory/rfq_management.html:351
+msgid "تم حفظ العرض"
+msgstr "Quote saved"
+
+#: inventory/templates/inventory/rfq_management.html:364
+msgid "سيتم إنشاء أمر شراء Draft لهذا المورد. متابعة؟"
+msgstr "A draft purchase order will be created for this supplier. Continue?"
+
+#: inventory/templates/inventory/rfq_management.html:379
+msgid "تم إنشاؤه"
+msgstr "Created"
 
 #: inventory/templates/inventory/sale_invoice_list.html:3
 #: inventory/templates/inventory/sale_invoice_list.html:9
