@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 15:57+0300\n"
+"POT-Creation-Date: 2026-07-18 20:31+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -85,14 +85,14 @@ msgid "شحن تصاميم للشركة"
 msgstr ""
 
 #: clients/models/billing.py:46 clients/models/design_store.py:141
-#: clients/models/tenancy.py:1042
+#: clients/models/tenancy.py:1042 clients/templates/clients/pricing.html:228
 msgid "فودافون كاش"
-msgstr ""
+msgstr "Vodafone Cash"
 
 #: clients/models/billing.py:47 clients/models/design_store.py:142
-#: clients/models/tenancy.py:1043
+#: clients/models/tenancy.py:1043 clients/templates/clients/pricing.html:247
 msgid "إنستاباي"
-msgstr ""
+msgstr "InstaPay"
 
 #: clients/models/billing.py:50 clients/models/design_store.py:653
 msgid "في انتظار المراجعة"
@@ -333,9 +333,9 @@ msgstr ""
 msgid "منحة من الإدارة"
 msgstr ""
 
-#: clients/models/design_store.py:159
+#: clients/models/design_store.py:159 clients/templates/clients/pricing.html:62
 msgid "ينتهي في"
-msgstr ""
+msgstr "ends on"
 
 #: clients/models/design_store.py:165
 msgid "شراء باقة تصاميم"
@@ -3777,6 +3777,7 @@ msgid "دخول"
 msgstr "Login"
 
 #: clients/templates/clients/features.html:510
+#: clients/templates/clients/pricing.html:289
 #: clients/templates/clients/print_landing.html:346
 msgid "جميع الحقوق محفوظة"
 msgstr "All rights reserved"
@@ -4289,6 +4290,270 @@ msgstr "Your accounts"
 msgid "محمية ومشفرة بالكامل"
 msgstr "fully protected and encrypted"
 
+#: clients/templates/clients/pricing.html:7
+msgid "باقات Mouss Tec | اختر خطتك"
+msgstr "Mouss Tec Packages | Choose Your Plan"
+
+#: clients/templates/clients/pricing.html:38
+msgid "العودة للرئيسية"
+msgstr "Back to home"
+
+#: clients/templates/clients/pricing.html:47
+msgid "اسعار شفافة بدون مفاجآت"
+msgstr "Transparent pricing with no surprises"
+
+#: clients/templates/clients/pricing.html:50
+msgid "اختر الباقة المناسبة"
+msgstr "Choose the right package"
+
+#: clients/templates/clients/pricing.html:51
+msgid "لنشاطك"
+msgstr "for your business"
+
+#: clients/templates/clients/pricing.html:54
+msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير."
+msgstr "All packages include the full accounting system, smart reports, and invoices."
+
+#: clients/templates/clients/pricing.html:54
+#: clients/templates/clients/pricing.html:172
+#: clients/templates/clients/pricing.html:281
+msgid "جرّب مجاناً"
+msgstr "Try free"
+
+#: clients/templates/clients/pricing.html:54
+msgid "ايام ثم اختر باقتك."
+msgstr "days then choose your package."
+
+#: clients/templates/clients/pricing.html:60
+msgid "تجديد اشتراك"
+msgstr "Subscription renewal"
+
+#: clients/templates/clients/pricing.html:80
+msgid "باقات السيارات والورش"
+msgstr "Automotive and workshop packages"
+
+#: clients/templates/clients/pricing.html:84
+#: clients/templates/clients/print_landing.html:280
+msgid "باقات المطابع والتصميم"
+msgstr "Print and design packages"
+
+#: clients/templates/clients/pricing.html:99
+msgid "شهري"
+msgstr "Monthly"
+
+#: clients/templates/clients/pricing.html:102
+msgid "ربع سنوي"
+msgstr "Quarterly"
+
+#: clients/templates/clients/pricing.html:102
+#: clients/templates/clients/pricing.html:105
+#: clients/templates/clients/pricing.html:108
+msgid "وفّر"
+msgstr "Save"
+
+#: clients/templates/clients/pricing.html:105
+msgid "نصف سنوي"
+msgstr "Semi-annual"
+
+#: clients/templates/clients/pricing.html:108
+msgid "سنوي"
+msgstr "Annual"
+
+#: clients/templates/clients/pricing.html:126
+msgid "الاكثر طلباً"
+msgstr "Most popular"
+
+#: clients/templates/clients/pricing.html:141
+#: clients/templates/clients/pricing.html:308
+msgid "جنيه / شهر"
+msgstr "EGP / month"
+
+#: clients/templates/clients/pricing.html:146
+#: inventory/templates/inventory/commission_dashboard.html:91
+#: printing/models.py:29
+msgid "فرع"
+msgstr "Branch"
+
+#: clients/templates/clients/pricing.html:146 printing/models.py:547
+msgid "خزينة"
+msgstr "cash box"
+
+#: clients/templates/clients/pricing.html:147
+msgid "مستخدم"
+msgstr "users"
+
+#: clients/templates/clients/pricing.html:149
+msgid "تصميم AI/شهر"
+msgstr "AI designs/month"
+
+#: clients/templates/clients/pricing.html:157
+msgid "اضافة موظف/فرع/خزينة"
+msgstr "Add employee/branch/cash box"
+
+#: clients/templates/clients/pricing.html:157
+#: clients/templates/clients/pricing.html:193
+#: clients/templates/clients/print_landing.html:287
+#: clients/templates/clients/print_landing.html:301
+#: clients/templates/clients/print_landing.html:315
+msgid "ج.م/شهر"
+msgstr "EGP/month"
+
+#: clients/templates/clients/pricing.html:163
+msgid "تجديد"
+msgstr "Renew"
+
+#: clients/templates/clients/pricing.html:163
+msgid "اختر"
+msgstr "Choose"
+
+#: clients/templates/clients/pricing.html:172
+msgid "ايام"
+msgstr "days"
+
+#: clients/templates/clients/pricing.html:180
+msgid "لا توجد باقات متاحة حالياً لهذا القطاع."
+msgstr "No packages are available right now for this sector."
+
+#: clients/templates/clients/pricing.html:190
+msgid "نظام الاضافات المرنة"
+msgstr "Flexible add-ons system"
+
+#: clients/templates/clients/pricing.html:193
+msgid "اضف موظفين او فروع او خزائن اضافية في اي وقت بـ"
+msgstr "Add extra employees, branches, or cash boxes at any time for"
+
+#: clients/templates/clients/pricing.html:193
+msgid "للاضافة الواحدة."
+msgstr "per addition."
+
+#: clients/templates/clients/pricing.html:194
+msgid ""
+"النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع "
+"فقط على الايام الفعلية."
+msgstr "The system calculates the cost automatically in proportion to the days remaining in your subscription — pay only for the actual days."
+
+#: clients/templates/clients/pricing.html:201
+msgid "مكافأة الولاء"
+msgstr "Loyalty bonus"
+
+#: clients/templates/clients/pricing.html:202
+msgid "التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!"
+msgstr "Renewing before the subscription ends gives you 5 extra free days automatically!"
+
+#: clients/templates/clients/pricing.html:211
+#: inventory/templates/inventory/dashboard.html:85
+msgid "اشترك الآن"
+msgstr "Subscribe now"
+
+#: clients/templates/clients/pricing.html:216
+msgid "المبلغ المطلوب"
+msgstr "Amount due"
+
+#: clients/templates/clients/pricing.html:217
+msgid "ج.م / شهر"
+msgstr "EGP / month"
+
+#: clients/templates/clients/pricing.html:221
+msgid "اختر طريقة الدفع المناسبة لك"
+msgstr "Choose the payment method that suits you"
+
+#: clients/templates/clients/pricing.html:229
+msgid "حوّل وارفع سكرين شوت — تفعيل فوري بعد المراجعة"
+msgstr "Transfer and upload a screenshot — instant activation after review"
+
+#: clients/templates/clients/pricing.html:233
+msgid "رقم التحويل"
+msgstr "Transfer number"
+
+#: clients/templates/clients/pricing.html:238
+msgid "ادفع بفودافون كاش"
+msgstr "Pay with Vodafone Cash"
+
+#: clients/templates/clients/pricing.html:238
+#: clients/templates/clients/pricing.html:257
+msgid "ارفع الإيصال"
+msgstr "upload the receipt"
+
+#: clients/templates/clients/pricing.html:248
+msgid "حوّل عن طريق InstaPay وارفع سكرين شوت العملية"
+msgstr "Transfer via InstaPay and upload a screenshot of the transaction"
+
+#: clients/templates/clients/pricing.html:252
+msgid "عنوان InstaPay"
+msgstr "InstaPay address"
+
+#: clients/templates/clients/pricing.html:257
+msgid "ادفع بإنستاباي"
+msgstr "Pay with InstaPay"
+
+#: clients/templates/clients/pricing.html:266
+msgid "بطاقة فيزا / ماستركارد"
+msgstr "Visa / Mastercard"
+
+#: clients/templates/clients/pricing.html:267
+#: clients/templates/clients/pricing.html:269
+#: clients/templates/clients/pricing.html:272
+#: inventory/models/diagnostics.py:431
+#: inventory/templates/inventory/vehicle_health_passport.html:411
+msgid "قريباً"
+msgstr "Soon"
+
+#: clients/templates/clients/pricing.html:267
+msgid "تحت التطوير"
+msgstr "under development"
+
+#: clients/templates/clients/pricing.html:272
+msgid "استخدم فودافون كاش الآن"
+msgstr "use Vodafone Cash now"
+
+#: clients/templates/clients/pricing.html:279
+msgid "مش متأكد؟"
+msgstr "Not sure?"
+
+#: clients/templates/clients/pricing.html:281
+msgid "ايام بدون دفع"
+msgstr "days with no payment"
+
+#: clients/templates/clients/pricing.html:309
+msgid "جنيه / 3 شهور"
+msgstr "EGP / 3 months"
+
+#: clients/templates/clients/pricing.html:310
+msgid "جنيه / 6 شهور"
+msgstr "EGP / 6 months"
+
+#: clients/templates/clients/pricing.html:311
+msgid "جنيه / سنة"
+msgstr "EGP / year"
+
+#: clients/templates/clients/pricing.html:344
+msgid "جنيه / "
+msgstr "EGP / "
+
+#: clients/templates/clients/pricing.html:350
+#: inventory/templates/inventory/invoice_print_thermal.html:54
+#: inventory/templates/inventory/job_card_create.html:153
+#: inventory/templates/inventory/lightning_pos.html:75
+msgid "خصم"
+msgstr "Discount"
+
+#: clients/templates/clients/pricing.html:350
+msgid "وفّرت"
+msgstr "Saved"
+
+#: clients/templates/clients/pricing.html:350
+msgid "جنيه"
+msgstr "EGP"
+
+#: clients/templates/clients/pricing.html:370
+msgid "تم النسخ!"
+msgstr "Copied!"
+
+#: clients/templates/clients/pricing.html:388
+#: clients/templates/clients/pricing.html:418
+msgid "انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى."
+msgstr "Your security session has expired. Refresh the page and try again."
+
 #: clients/templates/clients/print_landing.html:7
 msgid "Mousstec Print | برنامج إدارة المطابع واستوديوهات التصميم"
 msgstr "Mousstec Print | Management Software for Print Shops and Design Studios"
@@ -4580,19 +4845,9 @@ msgstr "Try one free design with no payment registration"
 msgid "ادخل متجر التصميم"
 msgstr "Enter the design store"
 
-#: clients/templates/clients/print_landing.html:280
-msgid "باقات المطابع والتصميم"
-msgstr "Print and design packages"
-
 #: clients/templates/clients/print_landing.html:281
 msgid "اختار الباقة المناسبة لحجم شغلك."
 msgstr "Choose the right package for the size of your business."
-
-#: clients/templates/clients/print_landing.html:287
-#: clients/templates/clients/print_landing.html:301
-#: clients/templates/clients/print_landing.html:315
-msgid "ج.م/شهر"
-msgstr "EGP/month"
 
 #: clients/templates/clients/print_landing.html:288
 msgid "للمطابع الصغيرة واستوديوهات التصميم"
@@ -6781,11 +7036,6 @@ msgstr ""
 msgid "مستحق الآن"
 msgstr ""
 
-#: inventory/models/diagnostics.py:431
-#: inventory/templates/inventory/vehicle_health_passport.html:411
-msgid "قريباً"
-msgstr "Soon"
-
 #: inventory/models/diagnostics.py:439 inventory/models/operations.py:55
 #: inventory/templates/inventory/bank_reconciliation.html:45
 #: inventory/templates/inventory/bank_reconciliation.html:64
@@ -8276,11 +8526,6 @@ msgstr "Pay from treasury"
 msgid "— اختر الخزنة —"
 msgstr "— Choose treasury —"
 
-#: inventory/templates/inventory/commission_dashboard.html:91
-#: printing/models.py:29
-msgid "فرع"
-msgstr "Branch"
-
 #: inventory/templates/inventory/commission_dashboard.html:92
 #: inventory/templates/inventory/quick_expense.html:26
 msgid "رصيد"
@@ -8506,10 +8751,6 @@ msgstr "%(d)s days left before your trial ends"
 #: inventory/templates/inventory/dashboard.html:78
 msgid "اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء"
 msgstr "Subscribe now and get 5 extra free days as a loyalty bonus"
-
-#: inventory/templates/inventory/dashboard.html:85
-msgid "اشترك الآن"
-msgstr "Subscribe now"
 
 #: inventory/templates/inventory/dashboard.html:95
 #, python-format
@@ -9190,12 +9431,6 @@ msgstr "Internal technical report"
 #: inventory/templates/inventory/invoice_print_thermal.html:5
 msgid "حرارية"
 msgstr "Thermal"
-
-#: inventory/templates/inventory/invoice_print_thermal.html:54
-#: inventory/templates/inventory/job_card_create.html:153
-#: inventory/templates/inventory/lightning_pos.html:75
-msgid "خصم"
-msgstr "Discount"
 
 #: inventory/templates/inventory/invoice_print_thermal.html:62
 msgid "شكراً لتعاملكم معنا"
@@ -10994,10 +11229,6 @@ msgstr ""
 
 #: printing/models.py:541
 msgid "اسم الخزينة"
-msgstr ""
-
-#: printing/models.py:547
-msgid "خزينة"
 msgstr ""
 
 #: printing/models.py:548
