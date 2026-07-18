@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 20:31+0300\n"
+"POT-Creation-Date: 2026-07-18 20:42+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1987,6 +1987,7 @@ msgid "جواز سفر"
 msgstr ""
 
 #: clients/models/marketplace_c2c.py:185
+#: clients/templates/clients/auto_landing.html:104
 #: clients/templates/clients/landing.html:142
 #: clients/templates/clients/print_landing.html:71
 #: inventory/models/catalog.py:22
@@ -3266,10 +3267,213 @@ msgstr ""
 msgid "📊 سجل استهلاك AI Studio"
 msgstr ""
 
-#: clients/templates/clients/features.html:7
-msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
-msgstr "Mouss Tec Features | Management System for Service Centers and Spare Parts Dealers"
+#: clients/templates/clients/auto_landing.html:7
+msgid "Mousstec Auto | برنامج إدارة مراكز الصيانة وقطع الغيار"
+msgstr "Mousstec Auto | Software for Managing Maintenance Centers and Spare-Parts Dealers"
 
+#: clients/templates/clients/auto_landing.html:8
+msgid ""
+"برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار — فواتير، "
+"مخزون، كروت صيانة، تقارير أرباح."
+msgstr "Online accounting software for car maintenance centers and spare-parts dealers — invoices, inventory, maintenance cards, profit reports."
+
+#: clients/templates/clients/auto_landing.html:40
+#: clients/templates/clients/auto_landing.html:209
+#: clients/templates/clients/features.html:34
+#: clients/templates/clients/landing.html:105
+#: clients/templates/clients/print_landing.html:42
+#: clients/templates/clients/print_landing.html:349
+msgid "الباقات"
+msgstr "Plans"
+
+#: clients/templates/clients/auto_landing.html:43
+#: clients/templates/clients/features.html:501
+#: clients/templates/clients/landing.html:108
+#: clients/templates/clients/print_landing.html:45
+msgid "دخول"
+msgstr "Login"
+
+#: clients/templates/clients/auto_landing.html:46
+#: clients/templates/clients/print_landing.html:48
+#: clients/templates/clients/print_landing.html:295
+#: clients/templates/clients/print_landing.html:310
+msgid "ابدأ مجانا"
+msgstr "Start free"
+
+#: clients/templates/clients/auto_landing.html:56
+msgid "لمراكز الصيانة وتجار قطع الغيار"
+msgstr "For maintenance centers and spare-parts dealers"
+
+#: clients/templates/clients/auto_landing.html:59
+msgid "أدِر شركتك أو مركز الصيانة"
+msgstr "Manage your company or maintenance center"
+
+#: clients/templates/clients/auto_landing.html:60
+msgid "من الموبايل"
+msgstr "from your mobile"
+
+#: clients/templates/clients/auto_landing.html:63
+msgid ""
+"فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، "
+"وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا."
+msgstr "Sales and purchase invoices, spare-parts inventory, maintenance cards, customer and supplier account statements, and your profit reports moment by moment. Start free for 7 days with all features."
+
+#: clients/templates/clients/auto_landing.html:67
+#: clients/templates/clients/print_landing.html:76
+msgid "سجّل مجاناً — 7 أيام بكل المزايا"
+msgstr "Sign up free — 7 days with all features"
+
+#: clients/templates/clients/auto_landing.html:76
+msgid "مركز صيانة"
+msgstr "maintenance centers"
+
+#: clients/templates/clients/auto_landing.html:80
+msgid "فاتورة شهريا"
+msgstr "invoices monthly"
+
+#: clients/templates/clients/auto_landing.html:84
+#: clients/templates/clients/print_landing.html:93
+msgid "وقت التشغيل"
+msgstr "uptime"
+
+#: clients/templates/clients/auto_landing.html:88
+msgid "تشفير البيانات"
+msgstr "data encryption"
+
+#: clients/templates/clients/auto_landing.html:97
+msgid "كل اللي تحتاجه في مكان واحد"
+msgstr "Everything you need in one place"
+
+#: clients/templates/clients/auto_landing.html:98
+msgid ""
+"أدوات متكاملة لإدارة مركز الصيانة ومحل قطع الغيار — من أول الفاتورة لآخر "
+"تقرير أرباح."
+msgstr "Integrated tools to manage the maintenance center and the spare-parts shop — from the first invoice to the last profit report."
+
+#: clients/templates/clients/auto_landing.html:108
+msgid "دعم فني بالذكاء الاصطناعي (RAG)"
+msgstr "AI technical support (RAG)"
+
+#: clients/templates/clients/auto_landing.html:109
+msgid ""
+"مساعد ذكي مدرَّب على قاعدة معرفتك وكتالوجات الصيانة — إجابات فورية بالعربي عن "
+"أي عطل أو قطعة، بدون انتظار توكيلات الخارج."
+msgstr "A smart assistant trained on your knowledge base and maintenance catalogs — instant answers in Arabic about any fault or part, with no waiting for overseas agencies."
+
+#: clients/templates/clients/auto_landing.html:117
+msgid "تشخيص OBD مباشر من المتصفح (PWA)"
+msgstr "Live OBD diagnostics from the browser (PWA)"
+
+#: clients/templates/clients/auto_landing.html:118
+msgid ""
+"اقرأ أكواد الأعطال وبيانات المحرك لحظياً بدون تنزيل برامج أو شراء جهاز إضافي "
+"— يعمل أوفلاين ويُزامن آلياً."
+msgstr "Read fault codes and engine data in real time with no software download or extra device purchase — works offline and syncs automatically."
+
+#: clients/templates/clients/auto_landing.html:126
+msgid "سوق قطع غيار P2P بضمان Escrow"
+msgstr "P2P spare-parts marketplace with Escrow guarantee"
+
+#: clients/templates/clients/auto_landing.html:127
+msgid ""
+"بيع واشترِ قطع غيار من تجار موثقين — الفلوس مجمّدة في الضمان حتى يتأكد "
+"المشتري، ومؤشرات ثقة لكل بائع."
+msgstr "Buy and sell spare parts from verified dealers — funds are frozen in escrow until the buyer confirms, with trust indicators for each seller."
+
+#: clients/templates/clients/auto_landing.html:134
+msgid "محاسبة بالقيد المزدوج"
+msgstr "Double-entry accounting"
+
+#: clients/templates/clients/auto_landing.html:134
+#: clients/templates/clients/print_landing.html:134
+msgid "عزل تام للبيانات"
+msgstr "Complete data isolation"
+
+#: clients/templates/clients/auto_landing.html:135
+msgid ""
+"قيود مزدوجة معتمدة محاسبياً + كل شركة في schema منفصل تماماً — أمان بنكي "
+"ومطابقة لأعلى المعايير الدولية (Multi-tenant Isolation)."
+msgstr "Certified double-entry bookkeeping + each company in a fully separate schema — bank-grade security compliant with the highest international standards (Multi-tenant Isolation)."
+
+#: clients/templates/clients/auto_landing.html:142
+#: clients/templates/clients/landing.html:476
+msgid "فواتير بيع وشراء"
+msgstr "Sales and purchase invoices"
+
+#: clients/templates/clients/auto_landing.html:143
+msgid ""
+"اصدر فاتورتك في ثواني — دعم الباركود، الطباعة الحرارية و A4، ومشاركة واتساب."
+msgstr "Issue your invoice in seconds — barcode support, thermal and A4 printing, and WhatsApp sharing."
+
+#: clients/templates/clients/auto_landing.html:150
+msgid "مخزون قطع غيار"
+msgstr "Spare-parts inventory"
+
+#: clients/templates/clients/auto_landing.html:151
+msgid ""
+"تتبع الكميات لحظيا، تنبيهات النقص، جرد بالموبايل، ومطابقة أرقام القطع OEM."
+msgstr "Track quantities in real time, low-stock alerts, mobile stocktaking, and OEM part-number matching."
+
+#: clients/templates/clients/auto_landing.html:158
+msgid "كروت صيانة"
+msgstr "Maintenance cards"
+
+#: clients/templates/clients/auto_landing.html:159
+msgid ""
+"كرت صيانة لكل سيارة بالشاسيه واللوحة — تاريخ كامل وتوقيع رقمي من العميل."
+msgstr "A maintenance card for each car by chassis and plate — full history and a digital signature from the customer."
+
+#: clients/templates/clients/auto_landing.html:166
+#: clients/templates/clients/landing.html:489
+#: clients/templates/clients/print_landing.html:174
+msgid "خزينة ومصروفات"
+msgstr "Treasury and expenses"
+
+#: clients/templates/clients/auto_landing.html:167
+msgid "ادارة الإيداع والسحب، مصروفات تشغيلية، كشف حساب عملاء وموردين."
+msgstr "Manage deposits and withdrawals, operating expenses, and customer and supplier account statements."
+
+#: clients/templates/clients/auto_landing.html:174
+msgid "إدارة الفنيين"
+msgstr "Technician management"
+
+#: clients/templates/clients/auto_landing.html:175
+msgid "تسجيل ورديات، توزيع المهام، ومتابعة إنتاجية كل فني من لوحة التحكم."
+msgstr "Log shifts, distribute tasks, and monitor the productivity of each technician from the dashboard."
+
+#: clients/templates/clients/auto_landing.html:182
+msgid "تقارير أرباح لحظية"
+msgstr "Real-time profit reports"
+
+#: clients/templates/clients/auto_landing.html:183
+msgid "تقرير أرباح وخسائر، أربحية كل صنف، وحركة المخزون — متاحة 24/7."
+msgstr "Profit-and-loss report, profitability of each item, and inventory movement — available 24/7."
+
+#: clients/templates/clients/auto_landing.html:194
+#: clients/templates/clients/print_landing.html:334
+msgid "جاهز تبدأ؟"
+msgstr "Ready to start?"
+
+#: clients/templates/clients/auto_landing.html:195
+#: clients/templates/clients/print_landing.html:335
+msgid ""
+"سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات "
+"دفع."
+msgstr "Sign up now and use the system free for 7 days with all the features of the top package — no payment details."
+
+#: clients/templates/clients/auto_landing.html:197
+#: clients/templates/clients/print_landing.html:337
+msgid "ابدأ الآن مجانا"
+msgstr "Start now for free"
+
+#: clients/templates/clients/auto_landing.html:206
+#: clients/templates/clients/features.html:510
+#: clients/templates/clients/pricing.html:289
+#: clients/templates/clients/print_landing.html:346
+msgid "جميع الحقوق محفوظة"
+msgstr "All rights reserved"
+
+#: clients/templates/clients/auto_landing.html:208
 #: clients/templates/clients/features.html:33
 #: clients/templates/clients/print_landing.html:348
 #: inventory/templates/inventory/_base_portal.html:38
@@ -3279,12 +3483,14 @@ msgstr "Mouss Tec Features | Management System for Service Centers and Spare Par
 msgid "الرئيسية"
 msgstr "Home"
 
-#: clients/templates/clients/features.html:34
-#: clients/templates/clients/landing.html:105
-#: clients/templates/clients/print_landing.html:42
-#: clients/templates/clients/print_landing.html:349
-msgid "الباقات"
-msgstr "Plans"
+#: clients/templates/clients/auto_landing.html:210
+#: clients/templates/clients/print_landing.html:350
+msgid "تسجيل الدخول"
+msgstr "Log in"
+
+#: clients/templates/clients/features.html:7
+msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
+msgstr "Mouss Tec Features | Management System for Service Centers and Spare Parts Dealers"
 
 #: clients/templates/clients/features.html:35
 #: clients/templates/clients/landing.html:102
@@ -3770,18 +3976,6 @@ msgstr "Start your free trial today and see how we can help you run your center 
 msgid "ابدأ مجاناً"
 msgstr "Start for free"
 
-#: clients/templates/clients/features.html:501
-#: clients/templates/clients/landing.html:108
-#: clients/templates/clients/print_landing.html:45
-msgid "دخول"
-msgstr "Login"
-
-#: clients/templates/clients/features.html:510
-#: clients/templates/clients/pricing.html:289
-#: clients/templates/clients/print_landing.html:346
-msgid "جميع الحقوق محفوظة"
-msgstr "All rights reserved"
-
 #: clients/templates/clients/landing.html:7
 msgid "برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم"
 msgstr "Online accounting software for maintenance centers, print shops and design studios"
@@ -4213,10 +4407,6 @@ msgstr "Certified accounting · each company in a separate schema"
 msgid "فوترة ذكية"
 msgstr "Smart invoicing"
 
-#: clients/templates/clients/landing.html:476
-msgid "فواتير بيع وشراء"
-msgstr "Sales and purchase invoices"
-
 #: clients/templates/clients/landing.html:477
 msgid "إصدار فاتورة · طباعة · إرسال واتساب"
 msgstr "Issue invoice · print · send WhatsApp"
@@ -4224,11 +4414,6 @@ msgstr "Issue invoice · print · send WhatsApp"
 #: clients/templates/clients/landing.html:486
 msgid "خزينة وحسابات"
 msgstr "Treasury and accounts"
-
-#: clients/templates/clients/landing.html:489
-#: clients/templates/clients/print_landing.html:174
-msgid "خزينة ومصروفات"
-msgstr "Treasury and expenses"
 
 #: clients/templates/clients/landing.html:490
 msgid "رصيد الخزنة · بنود المصروفات · تقرير شهري"
@@ -4564,12 +4749,6 @@ msgid ""
 "تلقائي، تتبع ماكينات، وحساب التكلفة الفعلية."
 msgstr "Online accounting software for print shops and design studios — print orders, automatic pricing, machine tracking, and actual cost calculation."
 
-#: clients/templates/clients/print_landing.html:48
-#: clients/templates/clients/print_landing.html:295
-#: clients/templates/clients/print_landing.html:310
-msgid "ابدأ مجانا"
-msgstr "Start free"
-
 #: clients/templates/clients/print_landing.html:58
 msgid "للمطابع واستوديوهات التصميم"
 msgstr "For print shops and design studios"
@@ -4592,10 +4771,6 @@ msgstr "Print orders, automatic pricing, machine tracking, designer work log, ac
 msgid "توليد تصاميم بالذكاء الاصطناعي"
 msgstr "AI-powered design generation"
 
-#: clients/templates/clients/print_landing.html:76
-msgid "سجّل مجاناً — 7 أيام بكل المزايا"
-msgstr "Sign up free — 7 days with all features"
-
 #: clients/templates/clients/print_landing.html:85
 msgid "مطبعة واستوديو"
 msgstr "print shops and studios"
@@ -4603,10 +4778,6 @@ msgstr "print shops and studios"
 #: clients/templates/clients/print_landing.html:89
 msgid "طلب طباعة شهريا"
 msgstr "print orders monthly"
-
-#: clients/templates/clients/print_landing.html:93
-msgid "وقت التشغيل"
-msgstr "uptime"
 
 #: clients/templates/clients/print_landing.html:97
 msgid "ذكاء اصطناعي مدمج"
@@ -4643,10 +4814,6 @@ msgstr "Sell your designs to customers through our platform — the commission i
 #: clients/templates/clients/print_landing.html:134
 msgid "محاسبة قيد مزدوج"
 msgstr "Double-entry accounting"
-
-#: clients/templates/clients/print_landing.html:134
-msgid "عزل تام للبيانات"
-msgstr "Complete data isolation"
 
 #: clients/templates/clients/print_landing.html:135
 msgid ""
@@ -4912,24 +5079,6 @@ msgstr "Priority technical support"
 #: clients/templates/clients/print_landing.html:323
 msgid "تواصل معنا"
 msgstr "Contact us"
-
-#: clients/templates/clients/print_landing.html:334
-msgid "جاهز تبدأ؟"
-msgstr "Ready to start?"
-
-#: clients/templates/clients/print_landing.html:335
-msgid ""
-"سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات "
-"دفع."
-msgstr "Sign up now and use the system free for 7 days with all the features of the top package — no payment details."
-
-#: clients/templates/clients/print_landing.html:337
-msgid "ابدأ الآن مجانا"
-msgstr "Start now for free"
-
-#: clients/templates/clients/print_landing.html:350
-msgid "تسجيل الدخول"
-msgstr "Log in"
 
 #: diagnostics_catalog/models.py:18
 msgid "معلوماتي"
