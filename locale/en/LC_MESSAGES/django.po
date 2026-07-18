@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-16 19:18+0300\n"
+"POT-Creation-Date: 2026-07-18 15:19+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -946,8 +946,9 @@ msgid "صحة / طب"
 msgstr ""
 
 #: clients/models/design_store.py:786 clients/models/tenancy.py:310
+#: clients/templates/clients/landing.html:238
 msgid "سيارات"
-msgstr ""
+msgstr "Cars"
 
 #: clients/models/design_store.py:787
 msgid "عقارات"
@@ -1983,7 +1984,8 @@ msgstr ""
 msgid "جواز سفر"
 msgstr ""
 
-#: clients/models/marketplace_c2c.py:185 inventory/models/catalog.py:22
+#: clients/models/marketplace_c2c.py:185
+#: clients/templates/clients/landing.html:142 inventory/models/catalog.py:22
 #: inventory/templates/inventory/invoice_print.html:232
 msgid "جديد"
 msgstr "New"
@@ -2776,9 +2778,9 @@ msgstr ""
 msgid "💎 Feature Catalog — مرجع المزايا"
 msgstr ""
 
-#: clients/models/tenancy.py:311
+#: clients/models/tenancy.py:311 clients/templates/clients/landing.html:258
 msgid "طباعة وتصميم"
-msgstr ""
+msgstr "Printing and design"
 
 #: clients/models/tenancy.py:313
 msgid "المعرف"
@@ -3259,6 +3261,533 @@ msgstr ""
 #: clients/models/tenancy.py:1146
 msgid "📊 سجل استهلاك AI Studio"
 msgstr ""
+
+#: clients/templates/clients/landing.html:7
+msgid "برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم"
+msgstr "Online accounting software for maintenance centers, print shops and design studios"
+
+#: clients/templates/clients/landing.html:8
+msgid ""
+"برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار والمطابع "
+"واستوديوهات التصميم — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباح من "
+"أي مكان."
+msgstr "Online accounting software for car maintenance centers, spare-parts dealers, print shops and design studios — invoices, inventory, treasury, customers, suppliers, and profit reports from anywhere."
+
+#: clients/templates/clients/landing.html:96
+msgid "السوق"
+msgstr "Marketplace"
+
+#: clients/templates/clients/landing.html:102
+msgid "المميزات"
+msgstr "Features"
+
+#: clients/templates/clients/landing.html:105
+msgid "الباقات"
+msgstr "Plans"
+
+#: clients/templates/clients/landing.html:108
+msgid "دخول"
+msgstr "Login"
+
+#: clients/templates/clients/landing.html:121
+msgid "منصة"
+msgstr "Platform"
+
+#: clients/templates/clients/landing.html:122
+msgid "شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد"
+msgstr "Your company + your marketplace + your AI in one place"
+
+#: clients/templates/clients/landing.html:125
+msgid ""
+"إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio "
+"للتصاميم — كله من نظام واحد."
+msgstr "Manage your entire company + connect with new customers every day + use AI Studio for designs — all from one system."
+
+#: clients/templates/clients/landing.html:130
+msgid "أنت مين؟ اختار اللي يناسبك"
+msgstr "Who are you? Choose what suits you"
+
+#: clients/templates/clients/landing.html:138
+msgid "متجر تصاميم AI الفوري"
+msgstr "Instant AI designs store"
+
+#: clients/templates/clients/landing.html:139
+msgid "25 تصميم بـ 32 جنيه — لوجو، فلاير، تيشرت، أي تصميم تتخيله"
+msgstr "25 designs for 32 EGP — logo, flyer, t-shirt, any design you imagine"
+
+#: clients/templates/clients/landing.html:150
+msgid "عميل عاوز يطلب"
+msgstr "A customer who wants to order"
+
+#: clients/templates/clients/landing.html:152
+msgid "قطعة، صيانة، تصميم، أو طباعة"
+msgstr "A part, maintenance, a design, or printing"
+
+#: clients/templates/clients/landing.html:157
+msgid "صاحب شركة أو مركز"
+msgstr "A company or center owner"
+
+#: clients/templates/clients/landing.html:159
+msgid "سجّل شركتك واستخدم النظام كامل"
+msgstr "Register your company and use the full system"
+
+#: clients/templates/clients/landing.html:164
+msgid "عندي حساب"
+msgstr "I have an account"
+
+#: clients/templates/clients/landing.html:166
+msgid "ادخل على حسابك مباشرة"
+msgstr "Log in to your account directly"
+
+#: clients/templates/clients/landing.html:177
+msgid "للشركات والمراكز"
+msgstr "For companies and centers"
+
+#: clients/templates/clients/landing.html:177
+msgid "سجّل واستخدم نظام Mouss Tec"
+msgstr "Register and use the Mouss Tec system"
+
+#: clients/templates/clients/landing.html:178
+msgid "إدارة كاملة لشركتك — اختار قطاعك:"
+msgstr "Full management for your company — choose your sector:"
+
+#: clients/templates/clients/landing.html:184
+msgid "مراكز الصيانة وقطع الغيار"
+msgstr "Maintenance centers and spare parts"
+
+#: clients/templates/clients/landing.html:185
+msgid ""
+"فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير "
+"أرباح"
+msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, profit reports"
+
+#: clients/templates/clients/landing.html:187
+msgid "فواتير بيع وشراء + طباعة وواتساب"
+msgstr "Sales and purchase invoices + printing and WhatsApp"
+
+#: clients/templates/clients/landing.html:188
+msgid "مخزون وقطع غيار + باركود"
+msgstr "Inventory and spare parts + barcode"
+
+#: clients/templates/clients/landing.html:189
+msgid "كروت صيانة + تتبع المركبات"
+msgstr "Service cards + vehicle tracking"
+
+#: clients/templates/clients/landing.html:190
+msgid "خزينة ومصروفات + تقارير أرباح"
+msgstr "Treasury and expenses + profit reports"
+
+#: clients/templates/clients/landing.html:193
+#: clients/templates/clients/landing.html:208
+msgid "اعرف أكتر وابدأ مجاناً"
+msgstr "Learn more and start for free"
+
+#: clients/templates/clients/landing.html:199
+msgid "المطابع واستوديوهات التصميم"
+msgstr "Print shops and design studios"
+
+#: clients/templates/clients/landing.html:200
+msgid ""
+"طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية"
+msgstr "Print orders, machine tracking, designers work log, real operating-cost calculation"
+
+#: clients/templates/clients/landing.html:202
+msgid "طلبات طباعة + تسعير تلقائي"
+msgstr "Print orders + automatic pricing"
+
+#: clients/templates/clients/landing.html:203
+msgid "ماكينات + حساب تكلفة CMYK"
+msgstr "Machines + CMYK cost calculation"
+
+#: clients/templates/clients/landing.html:204
+msgid "سجل أعمال المصممين + تقييمات"
+msgstr "Designers work log + ratings"
+
+#: clients/templates/clients/landing.html:205
+msgid "مخزون خامات + خزينة ومصروفات"
+msgstr "Materials inventory + treasury and expenses"
+
+#: clients/templates/clients/landing.html:219
+msgid "جديد — مجاني للعملاء"
+msgstr "New — free for customers"
+
+#: clients/templates/clients/landing.html:222
+msgid "السوق المفتوح"
+msgstr "The open marketplace"
+
+#: clients/templates/clients/landing.html:223
+msgid "— اطلب واستلم عروض"
+msgstr "— request and receive offers"
+
+#: clients/templates/clients/landing.html:226
+msgid "محتاج صيانة لعربيتك أو تصميم لشركتك؟"
+msgstr "Need maintenance for your car or a design for your company?"
+
+#: clients/templates/clients/landing.html:226
+msgid "اكتب طلبك بكلمتين"
+msgstr "Write your request in a few words"
+
+#: clients/templates/clients/landing.html:226
+msgid "،"
+msgstr ","
+
+#: clients/templates/clients/landing.html:227
+msgid "وأفضل التجار والمطابع المسجلين في Mouss Tec هيتنافسوا يقدموا لك عروض —"
+msgstr "and the best merchants and print shops registered in Mouss Tec will compete to give you offers —"
+
+#: clients/templates/clients/landing.html:228
+msgid "أنت تختار الأرخص والأقرب والأفضل"
+msgstr "You choose the cheapest, closest and best"
+
+#: clients/templates/clients/landing.html:240
+msgid "محتاج قطعة أو صيانة لعربيتك؟"
+msgstr "Need a part or maintenance for your car?"
+
+#: clients/templates/clients/landing.html:242
+msgid ""
+"اطلب قطعة غيار، فحص شامل، صيانة دورية، أو تشخيص أعطال — وكل مراكز الصيانة "
+"المعتمدة هتقدمك عروض في دقائق."
+msgstr "Request a spare part, full inspection, periodic maintenance, or fault diagnosis — and all approved maintenance centers will send you offers in minutes."
+
+#: clients/templates/clients/landing.html:245
+msgid "هويتك مخفية — مفيش مكالمات إزعاج"
+msgstr "Your identity is hidden — no nuisance calls"
+
+#: clients/templates/clients/landing.html:246
+msgid "توفير حتى"
+msgstr "Save up to"
+
+#: clients/templates/clients/landing.html:246
+msgid "على متوسط السوق"
+msgstr "off the market average"
+
+#: clients/templates/clients/landing.html:247
+msgid "تقييمات حقيقية + ضمان على كل عرض"
+msgstr "Real ratings + warranty on every offer"
+
+#: clients/templates/clients/landing.html:250
+msgid "اطلب الآن مجاناً"
+msgstr "Order now for free"
+
+#: clients/templates/clients/landing.html:260
+msgid "محتاج لوجو أو طباعة لبراندك؟"
+msgstr "Need a logo or printing for your brand?"
+
+#: clients/templates/clients/landing.html:262
+msgid ""
+"لوجو، كروت بزنس، فلاير، بوستر، تيشرتات، ماجات — اطلب اللي تتخيله، شوف عينات "
+"قبل الاختيار، واطبع باللي يناسبك."
+msgstr "Logo, business cards, flyer, poster, t-shirts, mugs — request what you imagine, see samples before choosing, and print with what suits you."
+
+#: clients/templates/clients/landing.html:265
+msgid "شوف عينات تصميم قبل الموافقة"
+msgstr "See design samples before approval"
+
+#: clients/templates/clients/landing.html:266
+msgid "تسليم"
+msgstr "Delivery"
+
+#: clients/templates/clients/landing.html:266
+msgid "خلال 48 ساعة"
+msgstr "within 48 hours"
+
+#: clients/templates/clients/landing.html:267
+msgid "مطبعة ومصمم معتمد"
+msgstr "approved print shops and designers"
+
+#: clients/templates/clients/landing.html:270
+msgid "صمم وأطبع الآن"
+msgstr "Design and print now"
+
+#: clients/templates/clients/landing.html:278
+msgid "إزاي يشتغل؟"
+msgstr "How does it work?"
+
+#: clients/templates/clients/landing.html:282
+msgid "سجّل برقم موبايلك"
+msgstr "Register with your mobile number"
+
+#: clients/templates/clients/landing.html:282
+msgid "ثانية فقط"
+msgstr "seconds only"
+
+#: clients/templates/clients/landing.html:286
+msgid "اكتب اللي محتاجه"
+msgstr "Write what you need"
+
+#: clients/templates/clients/landing.html:286
+msgid "بتفاصيلك أنت"
+msgstr "in your own details"
+
+#: clients/templates/clients/landing.html:290
+msgid "استلم عروض من التجار"
+msgstr "Receive offers from merchants"
+
+#: clients/templates/clients/landing.html:290
+msgid "في خلال دقائق"
+msgstr "within minutes"
+
+#: clients/templates/clients/landing.html:294
+msgid "اختار الأفضل وادفع"
+msgstr "Choose the best and pay"
+
+#: clients/templates/clients/landing.html:294
+msgid "بأمان كامل"
+msgstr "with full security"
+
+#: clients/templates/clients/landing.html:310
+msgid "للمطابع المشتركة"
+msgstr "for subscribed print shops"
+
+#: clients/templates/clients/landing.html:313
+msgid "صمم احترافياً بـ"
+msgstr "Design professionally with"
+
+#: clients/templates/clients/landing.html:314
+msgid "الذكاء الاصطناعي"
+msgstr "artificial intelligence"
+
+#: clients/templates/clients/landing.html:317
+msgid "اكتب اللي عاوزه بالعربي"
+msgstr "Write what you want in Arabic"
+
+#: clients/templates/clients/landing.html:317
+msgid "كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم"
+msgstr "A business card for a print shop called Al-Nour, luxurious gold and black"
+
+#: clients/templates/clients/landing.html:318
+msgid ""
+"والـ AI يولّد التصميم بأحدث محركات FLUX و Ideogram في دقائق. ارفع لوجو الشركة "
+"وهيدمجه تلقائياً."
+msgstr "and the AI generates the design with the latest FLUX and Ideogram engines in minutes. Upload the company logo and it will merge it automatically."
+
+#: clients/templates/clients/landing.html:321
+msgid "دمج لوجو الشركة في التصميم"
+msgstr "Merge the company logo into the design"
+
+#: clients/templates/clients/landing.html:322
+msgid "علامة مائية تلقائية لحماية تصميمك"
+msgstr "Automatic watermark to protect your design"
+
+#: clients/templates/clients/landing.html:323
+msgid "سجل كل التصاميم — ترجعله أي وقت"
+msgstr "A log of all designs — return to it anytime"
+
+#: clients/templates/clients/landing.html:324
+msgid "ربط مباشر بفواتير العملاء"
+msgstr "Direct link to customer invoices"
+
+#: clients/templates/clients/landing.html:328
+msgid "ابدأ تجربتك مع AI Studio"
+msgstr "Start your trial with AI Studio"
+
+#: clients/templates/clients/landing.html:331
+msgid "الباقات والأسعار"
+msgstr "Plans and pricing"
+
+#: clients/templates/clients/landing.html:344
+msgid "سجل التصاميم"
+msgstr "Designs log"
+
+#: clients/templates/clients/landing.html:345
+msgid ""
+"كل تصميم بيتحفظ بالـ prompt والـ category — ترجع لأي تصميم وتحمّله أو تعدّله"
+msgstr "Every design is saved with its prompt and category — go back to any design to download or edit it"
+
+#: clients/templates/clients/landing.html:356
+msgid "تصاميم هدية"
+msgstr "gift designs"
+
+#: clients/templates/clients/landing.html:357
+msgid ""
+"كل شركة جديدة تتسجل تاخد 10 تصاميم + 5 رسائل واتساب + 5 علامات مائية مجاناً"
+msgstr "Every new company that registers gets 10 designs + 5 WhatsApp messages + 5 watermarks free"
+
+#: clients/templates/clients/landing.html:368
+msgid "إرسال مباشر للعميل"
+msgstr "Direct sending to the customer"
+
+#: clients/templates/clients/landing.html:369
+msgid "بعد ما تخلص التصميم، اضغط زرار"
+msgstr "After you finish the design, press the button"
+
+#: clients/templates/clients/landing.html:369
+msgid "إرسال للعميل"
+msgstr "Send to customer"
+
+#: clients/templates/clients/landing.html:369
+msgid "وهيوصله على واتساب فوراً"
+msgstr "and it will reach them on WhatsApp instantly"
+
+#: clients/templates/clients/landing.html:382
+msgid "للشركات والتجار"
+msgstr "For companies and merchants"
+
+#: clients/templates/clients/landing.html:385
+msgid "سوق B2B بين الشركات"
+msgstr "B2B marketplace between companies"
+
+#: clients/templates/clients/landing.html:388
+msgid "مطبعة محتاجة 10,000 تيشرت من مصنع؟ ورشة محتاجة شحنة قطع غيار؟"
+msgstr "A print shop needs 10,000 t-shirts from a factory? A workshop needs a spare-parts shipment?"
+
+#: clients/templates/clients/landing.html:389
+msgid "اطلب من تجار تانيين"
+msgstr "Order from other merchants"
+
+#: clients/templates/clients/landing.html:389
+msgid "داخل المنصة بنفس نظام المناقصات المجهولة."
+msgstr "inside the platform with the same anonymous tender system."
+
+#: clients/templates/clients/landing.html:397
+msgid "صفقات آمنة"
+msgstr "Secure deals"
+
+#: clients/templates/clients/landing.html:398
+msgid "ضمان Escrow حتى التسليم"
+msgstr "Escrow guarantee until delivery"
+
+#: clients/templates/clients/landing.html:402
+msgid "إشعارات فورية"
+msgstr "Instant notifications"
+
+#: clients/templates/clients/landing.html:403
+msgid "كل طلب جديد يوصلك في ثوان"
+msgstr "Every new order reaches you in seconds"
+
+#: clients/templates/clients/landing.html:407
+msgid "نمو حقيقي"
+msgstr "Real growth"
+
+#: clients/templates/clients/landing.html:408
+msgid "اوصل لعملاء جدد بدون تسويق"
+msgstr "Reach new customers without marketing"
+
+#: clients/templates/clients/landing.html:416
+msgid "مميزات مشتركة في كل القطاعات"
+msgstr "Shared features across all sectors"
+
+#: clients/templates/clients/landing.html:417
+msgid ""
+"منصة بمعايير عالمية: ذكاء اصطناعي، PWA، Escrow، ومحاسبة مزدوجة — كل ده في "
+"مكان واحد."
+msgstr "A platform with global standards: artificial intelligence, PWA, Escrow, and double-entry accounting — all in one place."
+
+#: clients/templates/clients/landing.html:427
+msgid "دعم ذكي بالـ RAG"
+msgstr "Smart support with RAG"
+
+#: clients/templates/clients/landing.html:428
+msgid "مساعد عربي مدرَّب على بياناتك — رد فوري 24/7"
+msgstr "An Arabic assistant trained on your data — instant reply 24/7"
+
+#: clients/templates/clients/landing.html:438
+msgid "تشخيص OBD مباشر"
+msgstr "Live OBD diagnostics"
+
+#: clients/templates/clients/landing.html:439
+msgid "من المتصفح · بدون أجهزة إضافية · يعمل أوفلاين"
+msgstr "From the browser · no extra devices · works offline"
+
+#: clients/templates/clients/landing.html:449
+msgid "سوق P2P بضمان"
+msgstr "P2P marketplace with guarantee"
+
+#: clients/templates/clients/landing.html:450
+msgid "مؤشرات ثقة · تجار موثقين"
+msgstr "Trust indicators · verified merchants"
+
+#: clients/templates/clients/landing.html:460
+msgid "قيد مزدوج · عزل تام"
+msgstr "Double entry · full isolation"
+
+#: clients/templates/clients/landing.html:461
+msgid "محاسبة معتمدة · كل شركة في schema مستقل"
+msgstr "Certified accounting · each company in a separate schema"
+
+#: clients/templates/clients/landing.html:473
+msgid "فوترة ذكية"
+msgstr "Smart invoicing"
+
+#: clients/templates/clients/landing.html:476
+msgid "فواتير بيع وشراء"
+msgstr "Sales and purchase invoices"
+
+#: clients/templates/clients/landing.html:477
+msgid "إصدار فاتورة · طباعة · إرسال واتساب"
+msgstr "Issue invoice · print · send WhatsApp"
+
+#: clients/templates/clients/landing.html:486
+msgid "خزينة وحسابات"
+msgstr "Treasury and accounts"
+
+#: clients/templates/clients/landing.html:489
+msgid "خزينة ومصروفات"
+msgstr "Treasury and expenses"
+
+#: clients/templates/clients/landing.html:490
+msgid "رصيد الخزنة · بنود المصروفات · تقرير شهري"
+msgstr "Treasury balance · expense items · monthly report"
+
+#: clients/templates/clients/landing.html:499
+msgid "مخزون ذكي"
+msgstr "Smart inventory"
+
+#: clients/templates/clients/landing.html:502 printing/models.py:646
+msgid "إدارة المخزون"
+msgstr "Inventory management"
+
+#: clients/templates/clients/landing.html:503
+msgid "باركود · جرد · تنبيه نفاد · تحويل بين الفروع"
+msgstr "Barcode · stocktake · out-of-stock alert · transfer between branches"
+
+#: clients/templates/clients/landing.html:512
+msgid "تقارير لحظية"
+msgstr "Real-time reports"
+
+#: clients/templates/clients/landing.html:515
+msgid "تقارير وأرباح"
+msgstr "Reports and profits"
+
+#: clients/templates/clients/landing.html:516
+msgid "أرباح يومية · كشف حساب · تحليل المبيعات"
+msgstr "Daily profits · account statement · sales analysis"
+
+#: clients/templates/clients/landing.html:524
+msgid "استكشف جميع المميزات"
+msgstr "Explore all features"
+
+#: clients/templates/clients/landing.html:533
+msgid "نبض السوق"
+msgstr "Market pulse"
+
+#: clients/templates/clients/landing.html:533
+msgid "متصل وآمن"
+msgstr "Connected and secure"
+
+#: clients/templates/clients/landing.html:574
+msgid "حالة النظام"
+msgstr "System status"
+
+#: clients/templates/clients/landing.html:574
+msgid "شغّال ومتصل 24/7"
+msgstr "Running and connected 24/7"
+
+#: clients/templates/clients/landing.html:575
+msgid "سيارات + طباعة"
+msgstr "Cars + printing"
+
+#: clients/templates/clients/landing.html:575
+msgid "منصة واحدة لكل الأنشطة"
+msgstr "one platform for all activities"
+
+#: clients/templates/clients/landing.html:576
+msgid "حساباتك"
+msgstr "Your accounts"
+
+#: clients/templates/clients/landing.html:576
+msgid "محمية ومشفرة بالكامل"
+msgstr "fully protected and encrypted"
 
 #: diagnostics_catalog/models.py:18
 msgid "معلوماتي"
@@ -9714,10 +10243,6 @@ msgstr ""
 
 #: printing/models.py:643
 msgid "رفع ملفات المشاريع"
-msgstr ""
-
-#: printing/models.py:646
-msgid "إدارة المخزون"
 msgstr ""
 
 #: printing/models.py:649
