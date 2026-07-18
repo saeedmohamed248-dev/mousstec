@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 15:19+0300\n"
+"POT-Creation-Date: 2026-07-18 15:44+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3262,6 +3262,516 @@ msgstr ""
 msgid "📊 سجل استهلاك AI Studio"
 msgstr ""
 
+#: clients/templates/clients/features.html:7
+msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
+msgstr "Mouss Tec Features | Management System for Service Centers and Spare Parts Dealers"
+
+#: clients/templates/clients/features.html:33
+#: inventory/templates/inventory/_base_portal.html:38
+#: inventory/templates/inventory/bank_reconciliation.html:38
+#: inventory/templates/inventory/hr_workspace.html:35
+#: inventory/templates/inventory/quick_expense.html:12
+msgid "الرئيسية"
+msgstr "Home"
+
+#: clients/templates/clients/features.html:34
+#: clients/templates/clients/landing.html:105
+msgid "الباقات"
+msgstr "Plans"
+
+#: clients/templates/clients/features.html:35
+#: clients/templates/clients/landing.html:102
+msgid "المميزات"
+msgstr "Features"
+
+#: clients/templates/clients/features.html:44
+msgid "جميع المميزات التي تحتاجها"
+msgstr "All the features you need"
+
+#: clients/templates/clients/features.html:47
+#: clients/templates/clients/features.html:510
+msgid "نظام إدارة ورش ذكي"
+msgstr "Smart Workshop Management System"
+
+#: clients/templates/clients/features.html:48
+msgid "متكامل"
+msgstr "Integrated"
+
+#: clients/templates/clients/features.html:51
+msgid ""
+"من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه "
+"لإدارة مركزك بكفاءة"
+msgstr "From invoices and inventory to financial reports and AI — everything you need to run your center efficiently"
+
+#: clients/templates/clients/features.html:54
+msgid "ابدأ تجربتك المجانية"
+msgstr "Start your free trial"
+
+#: clients/templates/clients/features.html:61
+#: inventory/templates/inventory/_base_portal.html:41
+msgid "الفواتير"
+msgstr "Invoices"
+
+#: clients/templates/clients/features.html:64
+#: inventory/templates/inventory/product_list.html:46
+msgid "المخزون"
+msgstr "Stock"
+
+#: clients/templates/clients/features.html:67 hr/models.py:148
+msgid "المحاسبة"
+msgstr "Accounting"
+
+#: clients/templates/clients/features.html:70
+msgid "التقارير"
+msgstr "Reports"
+
+#: clients/templates/clients/features.html:73
+#: clients/templates/clients/features.html:299
+#: clients/templates/clients/landing.html:314
+msgid "الذكاء الاصطناعي"
+msgstr "artificial intelligence"
+
+#: clients/templates/clients/features.html:87
+#: clients/templates/clients/features.html:430
+msgid "الفواتير والمبيعات"
+msgstr "Invoices and Sales"
+
+#: clients/templates/clients/features.html:88
+msgid "إنشاء وإدارة فواتير احترافية بسهولة"
+msgstr "Create and manage professional invoices easily"
+
+#: clients/templates/clients/features.html:92
+msgid ""
+"نظام فواتير متطور يدعم المبيعات والمشتريات والمذكرات الدائنة والمدينة مع "
+"حسابات ضريبية دقيقة وترقيم آلي منظم."
+msgstr "An advanced invoicing system supporting sales, purchases, and credit and debit notes with accurate tax calculations and organized automatic numbering."
+
+#: clients/templates/clients/features.html:99
+msgid "فواتير ذكية"
+msgstr "Smart invoices"
+
+#: clients/templates/clients/features.html:100
+msgid "ترقيم تلقائي، توقيع رقمي، وطباعة احترافية"
+msgstr "Automatic numbering, digital signature, and professional printing"
+
+#: clients/templates/clients/features.html:104
+msgid "حسابات ضريبية دقيقة"
+msgstr "Accurate tax calculations"
+
+#: clients/templates/clients/features.html:105
+msgid "حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات"
+msgstr "Automatic VAT calculation and exemption support"
+
+#: clients/templates/clients/features.html:109
+msgid "تصدير PDF"
+msgstr "PDF export"
+
+#: clients/templates/clients/features.html:110
+msgid "حفظ وطباعة وإرسال الفواتير بصيغة احترافية"
+msgstr "Save, print, and send invoices in a professional format"
+
+#: clients/templates/clients/features.html:114
+msgid "مذكرات دائنة ومدينة"
+msgstr "Credit and debit notes"
+
+#: clients/templates/clients/features.html:115
+msgid "إدارة المردات والتعديلات بسهولة"
+msgstr "Manage returns and adjustments easily"
+
+#: clients/templates/clients/features.html:119
+msgid "العملاء والموردين"
+msgstr "Customers and Suppliers"
+
+#: clients/templates/clients/features.html:120
+msgid "إدارة بيانات العملاء والموردين بشكل منظم"
+msgstr "Manage customer and supplier data in an organized way"
+
+#: clients/templates/clients/features.html:124
+msgid "سجل كامل"
+msgstr "Complete log"
+
+#: clients/templates/clients/features.html:125
+msgid "تتبع كل عملية بيع مع تاريخ وساعة دقيقة"
+msgstr "Track every sale with exact date and time"
+
+#: clients/templates/clients/features.html:140
+#: clients/templates/clients/features.html:436
+#: clients/templates/clients/landing.html:502 printing/models.py:646
+msgid "إدارة المخزون"
+msgstr "Inventory management"
+
+#: clients/templates/clients/features.html:141
+msgid "تتبع قطعك وأصنافك بدقة"
+msgstr "Track your parts and items accurately"
+
+#: clients/templates/clients/features.html:145
+msgid ""
+"نظام مخزون متقدم يتابع الرصيد الحالي، يحذرك من الأصناف الناقصة، ويدعم "
+"التصنيفات المتعددة والباركود."
+msgstr "An advanced inventory system that tracks current balance, warns you of low items, and supports multiple categories and barcodes."
+
+#: clients/templates/clients/features.html:152
+msgid "دعم الباركود"
+msgstr "Barcode support"
+
+#: clients/templates/clients/features.html:153
+msgid "مسح الأصناف بسهولة عند البيع والشراء"
+msgstr "Scan items easily when selling and buying"
+
+#: clients/templates/clients/features.html:157
+msgid "تحليل الرصيد"
+msgstr "Balance analysis"
+
+#: clients/templates/clients/features.html:158
+msgid "معرفة أعلى وأقل الأصناف مبيعاً"
+msgstr "Know the best and worst selling items"
+
+#: clients/templates/clients/features.html:162
+msgid "تنبيهات ناقص"
+msgstr "Low stock alerts"
+
+#: clients/templates/clients/features.html:163
+msgid "إخطار تلقائي عند انخفاض الأصناف"
+msgstr "Automatic notification when items run low"
+
+#: clients/templates/clients/features.html:167
+msgid "تصنيفات متعددة"
+msgstr "Multiple categories"
+
+#: clients/templates/clients/features.html:168
+msgid "تنظيم الأصناف حسب الفئات والماركات"
+msgstr "Organize items by categories and brands"
+
+#: clients/templates/clients/features.html:172
+msgid "تحويل بين الفروع"
+msgstr "Transfer between branches"
+
+#: clients/templates/clients/features.html:173
+msgid "نقل الأصناف بين المستودعات بسهولة"
+msgstr "Move items between warehouses easily"
+
+#: clients/templates/clients/features.html:177
+msgid "تاريخ الحركات"
+msgstr "Movement history"
+
+#: clients/templates/clients/features.html:178
+msgid "معرفة من أخذ وأعطى كل صنف"
+msgstr "Know who took and gave each item"
+
+#: clients/templates/clients/features.html:193
+msgid "المحاسبة الثنائية"
+msgstr "Double-entry accounting"
+
+#: clients/templates/clients/features.html:194
+msgid "دفاتر احترافية معتمدة"
+msgstr "Professional certified ledgers"
+
+#: clients/templates/clients/features.html:198
+msgid ""
+"نظام محاسبة متقدم يتبع معايير المحاسبة الدولية مع دعم حسابات مقابلة وموازنات "
+"شاملة."
+msgstr "An advanced accounting system that follows international accounting standards with support for contra accounts and comprehensive balances."
+
+#: clients/templates/clients/features.html:205
+msgid "القيد المزدوج"
+msgstr "Double entry"
+
+#: clients/templates/clients/features.html:206
+msgid "كل عملية بحساب مدين ودائن متوازن"
+msgstr "Every transaction with a balanced debit and credit account"
+
+#: clients/templates/clients/features.html:210
+msgid "خطة الحسابات"
+msgstr "Chart of accounts"
+
+#: clients/templates/clients/features.html:211
+msgid "قائمة حسابات مخصصة لنشاطك"
+msgstr "A custom account list for your business"
+
+#: clients/templates/clients/features.html:215
+msgid "القيود اليومية"
+msgstr "Journal entries"
+
+#: clients/templates/clients/features.html:216
+msgid "تسجيل كل حركة مالية تفصيلياً"
+msgstr "Record every financial movement in detail"
+
+#: clients/templates/clients/features.html:220
+msgid "المقابلات"
+msgstr "Reconciliations"
+
+#: clients/templates/clients/features.html:221
+msgid "إغلاق الحسابات والتسويات التلقائية"
+msgstr "Automatic account closing and settlements"
+
+#: clients/templates/clients/features.html:225
+msgid "الخسائر والأرباح"
+msgstr "Profit and loss"
+
+#: clients/templates/clients/features.html:226
+msgid "حساب صافي ربحك بدقة شهرية وسنوية"
+msgstr "Calculate your net profit accurately monthly and yearly"
+
+#: clients/templates/clients/features.html:230
+msgid "الميزانية"
+msgstr "Balance sheet"
+
+#: clients/templates/clients/features.html:231
+msgid "عرض الأصول والخصوم وحقوق الملك"
+msgstr "Display assets, liabilities, and equity"
+
+#: clients/templates/clients/features.html:246
+msgid "التقارير الذكية"
+msgstr "Smart reports"
+
+#: clients/templates/clients/features.html:247
+msgid "بيانات وتحليلات فورية"
+msgstr "Instant data and analytics"
+
+#: clients/templates/clients/features.html:251
+msgid "نظام تقارير متطور يعطيك رؤية شاملة عن نشاطك مع رسوم بيانية وتصدير سهل."
+msgstr "An advanced reporting system that gives you a comprehensive view of your business with charts and easy export."
+
+#: clients/templates/clients/features.html:258
+msgid "المبيعات والإيرادات"
+msgstr "Sales and revenue"
+
+#: clients/templates/clients/features.html:259
+msgid "تحليل مفصل للمبيعات اليومية والشهرية"
+msgstr "Detailed analysis of daily and monthly sales"
+
+#: clients/templates/clients/features.html:263
+msgid "الأرباح والخسائر"
+msgstr "Profits and losses"
+
+#: clients/templates/clients/features.html:264
+msgid "رؤية واضحة لصافي ربحك"
+msgstr "A clear view of your net profit"
+
+#: clients/templates/clients/features.html:268
+#: clients/templates/clients/features.html:448
+msgid "التقارير المالية"
+msgstr "Financial reports"
+
+#: clients/templates/clients/features.html:269
+msgid "ميزانية وحسابات وتحليلات مفصلة"
+msgstr "Detailed budget, accounts, and analytics"
+
+#: clients/templates/clients/features.html:273
+msgid "الأداء العاملين"
+msgstr "Employee performance"
+
+#: clients/templates/clients/features.html:274
+msgid "معرفة من يبيع الأكثر"
+msgstr "Know who sells the most"
+
+#: clients/templates/clients/features.html:278
+msgid "التصدير"
+msgstr "Export"
+
+#: clients/templates/clients/features.html:279
+msgid "حفظ التقارير بصيغ Excel و PDF"
+msgstr "Save reports in Excel and PDF formats"
+
+#: clients/templates/clients/features.html:283
+msgid "فترات زمنية"
+msgstr "Time periods"
+
+#: clients/templates/clients/features.html:284
+msgid "مقارنة يومي وشهري وسنوي"
+msgstr "Compare daily, monthly, and yearly"
+
+#: clients/templates/clients/features.html:300
+msgid "تشخيص وتوصيات ذكية"
+msgstr "Smart diagnostics and recommendations"
+
+#: clients/templates/clients/features.html:304
+msgid ""
+"مساعد ذكي يحلل بياناتك ويعطيك توصيات بناءً على الذكاء الاصطناعي لتحسين أداء "
+"مركزك."
+msgstr "A smart assistant that analyzes your data and gives you recommendations based on AI to improve your center performance."
+
+#: clients/templates/clients/features.html:311
+msgid "مساعد الأسئلة"
+msgstr "Question assistant"
+
+#: clients/templates/clients/features.html:312
+msgid "اسأل الـ AI أي سؤال عن فاتورة أو مصروف"
+msgstr "Ask the AI any question about an invoice or expense"
+
+#: clients/templates/clients/features.html:316
+msgid "التوصيات"
+msgstr "Recommendations"
+
+#: clients/templates/clients/features.html:317
+msgid "اقتراحات لتحسين المبيعات والأرباح"
+msgstr "Suggestions to improve sales and profits"
+
+#: clients/templates/clients/features.html:321
+msgid "التحذيرات الذكية"
+msgstr "Smart warnings"
+
+#: clients/templates/clients/features.html:322
+msgid "التنبيه لأنماط مشبوهة أو عمليات غير معتادة"
+msgstr "Alerts for suspicious patterns or unusual operations"
+
+#: clients/templates/clients/features.html:326
+msgid "التعليم والمساعدة"
+msgstr "Education and help"
+
+#: clients/templates/clients/features.html:327
+msgid "تعلم كيفية استخدام الفاتورة والمبيعات"
+msgstr "Learn how to use invoicing and sales"
+
+#: clients/templates/clients/features.html:331
+msgid "التنبؤات"
+msgstr "Predictions"
+
+#: clients/templates/clients/features.html:332
+msgid "توقع المبيعات والأصناف الشهيرة"
+msgstr "Predict sales and popular items"
+
+#: clients/templates/clients/features.html:336
+msgid "الأتمتة"
+msgstr "Automation"
+
+#: clients/templates/clients/features.html:337
+msgid "تشغيل تلقائي للعمليات المتكررة"
+msgstr "Automatic execution of repetitive tasks"
+
+#: clients/templates/clients/features.html:347
+msgid "مميزات إضافية"
+msgstr "Additional features"
+
+#: clients/templates/clients/features.html:348
+msgid "كل ما تحتاجه لإدارة مركزك بسهولة"
+msgstr "Everything you need to manage your center easily"
+
+#: clients/templates/clients/features.html:356
+msgid "تطبيق موبايل"
+msgstr "Mobile app"
+
+#: clients/templates/clients/features.html:357
+msgid "استخدم الباركود والفواتير من أي مكان"
+msgstr "Use barcodes and invoices from anywhere"
+
+#: clients/templates/clients/features.html:365
+msgid "أمان عالي"
+msgstr "High security"
+
+#: clients/templates/clients/features.html:366
+msgid "تشفير البيانات والنسخ الاحتياطية التلقائية"
+msgstr "Data encryption and automatic backups"
+
+#: clients/templates/clients/features.html:374
+msgid "إدارة الموظفين"
+msgstr "Employee management"
+
+#: clients/templates/clients/features.html:375
+msgid "أدوار وصلاحيات مختلفة لكل موظف"
+msgstr "Different roles and permissions for each employee"
+
+#: clients/templates/clients/features.html:383
+msgid "دعم 24/7"
+msgstr "24/7 support"
+
+#: clients/templates/clients/features.html:384
+msgid "فريق دعم متاح لمساعدتك دائماً"
+msgstr "A support team available to help you always"
+
+#: clients/templates/clients/features.html:392
+msgid "تحديثات مستمرة"
+msgstr "Continuous updates"
+
+#: clients/templates/clients/features.html:393
+msgid "ميزات جديدة وتحسينات شهرية"
+msgstr "New features and monthly improvements"
+
+#: clients/templates/clients/features.html:401
+msgid "خوادم موثوقة"
+msgstr "Reliable servers"
+
+#: clients/templates/clients/features.html:402
+msgid "توفر"
+msgstr "Availability"
+
+#: clients/templates/clients/features.html:402
+msgid "مع سرعة عالية"
+msgstr "with high speed"
+
+#: clients/templates/clients/features.html:414
+msgid "مقارنة الباقات"
+msgstr "Compare plans"
+
+#: clients/templates/clients/features.html:415
+msgid "اختر الباقة المناسبة لنشاطك"
+msgstr "Choose the right plan for your business"
+
+#: clients/templates/clients/features.html:422
+msgid "المميزة"
+msgstr "Feature"
+
+#: clients/templates/clients/features.html:423
+msgid "سيلفر"
+msgstr "Silver"
+
+#: clients/templates/clients/features.html:424
+msgid "جولد"
+msgstr "Gold"
+
+#: clients/templates/clients/features.html:442
+msgid "الحسابات الثنائية"
+msgstr "Double-entry accounts"
+
+#: clients/templates/clients/features.html:454
+#: inventory/templates/inventory/b2b_marketplace.html:6
+#: inventory/templates/inventory/b2b_marketplace.html:18
+#: inventory/templates/inventory/solutions.html:50
+msgid "سوق B2B المركزي"
+msgstr "Central B2B Market"
+
+#: clients/templates/clients/features.html:460
+msgid "تشخيص الـ AI"
+msgstr "AI diagnostics"
+
+#: clients/templates/clients/features.html:466 hr/models.py:683
+msgid "عدد الموظفين"
+msgstr "Number of employees"
+
+#: clients/templates/clients/features.html:469
+#: clients/templates/clients/features.html:475
+msgid "غير محدود"
+msgstr "Unlimited"
+
+#: clients/templates/clients/features.html:472
+msgid "عدد الفروع"
+msgstr "Number of branches"
+
+#: clients/templates/clients/features.html:478
+msgid "الدعم الأولوي"
+msgstr "Priority support"
+
+#: clients/templates/clients/features.html:492
+msgid "جاهز لتجربة Mouss Tec؟"
+msgstr "Ready to try Mouss Tec?"
+
+#: clients/templates/clients/features.html:494
+msgid "ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تدير مركزك بكفاءة"
+msgstr "Start your free trial today and see how we can help you run your center efficiently"
+
+#: clients/templates/clients/features.html:498
+msgid "ابدأ مجاناً"
+msgstr "Start for free"
+
+#: clients/templates/clients/features.html:501
+#: clients/templates/clients/landing.html:108
+msgid "دخول"
+msgstr "Login"
+
+#: clients/templates/clients/features.html:510
+msgid "جميع الحقوق محفوظة"
+msgstr "All rights reserved"
+
 #: clients/templates/clients/landing.html:7
 msgid "برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم"
 msgstr "Online accounting software for maintenance centers, print shops and design studios"
@@ -3276,18 +3786,6 @@ msgstr "Online accounting software for car maintenance centers, spare-parts deal
 #: clients/templates/clients/landing.html:96
 msgid "السوق"
 msgstr "Marketplace"
-
-#: clients/templates/clients/landing.html:102
-msgid "المميزات"
-msgstr "Features"
-
-#: clients/templates/clients/landing.html:105
-msgid "الباقات"
-msgstr "Plans"
-
-#: clients/templates/clients/landing.html:108
-msgid "دخول"
-msgstr "Login"
 
 #: clients/templates/clients/landing.html:121
 msgid "منصة"
@@ -3543,10 +4041,6 @@ msgstr "for subscribed print shops"
 msgid "صمم احترافياً بـ"
 msgstr "Design professionally with"
 
-#: clients/templates/clients/landing.html:314
-msgid "الذكاء الاصطناعي"
-msgstr "artificial intelligence"
-
 #: clients/templates/clients/landing.html:317
 msgid "اكتب اللي عاوزه بالعربي"
 msgstr "Write what you want in Arabic"
@@ -3732,10 +4226,6 @@ msgstr "Treasury balance · expense items · monthly report"
 #: clients/templates/clients/landing.html:499
 msgid "مخزون ذكي"
 msgstr "Smart inventory"
-
-#: clients/templates/clients/landing.html:502 printing/models.py:646
-msgid "إدارة المخزون"
-msgstr "Inventory management"
 
 #: clients/templates/clients/landing.html:503
 msgid "باركود · جرد · تنبيه نفاد · تحويل بين الفروع"
@@ -4150,10 +4640,6 @@ msgstr ""
 #: inventory/templates/inventory/hr_workspace.html:4
 msgid "الموارد البشرية"
 msgstr "Human Resources"
-
-#: hr/models.py:148
-msgid "المحاسبة"
-msgstr ""
 
 #: hr/models.py:150
 msgid "الورشة / الصيانة"
@@ -4635,10 +5121,6 @@ msgstr ""
 
 #: hr/models.py:680
 msgid "صافي المرتبات"
-msgstr ""
-
-#: hr/models.py:683
-msgid "عدد الموظفين"
 msgstr ""
 
 #: hr/models.py:688
@@ -6813,13 +7295,6 @@ msgstr ""
 msgid "بوابة Mouss Tec"
 msgstr "Mouss Tec Portal"
 
-#: inventory/templates/inventory/_base_portal.html:38
-#: inventory/templates/inventory/bank_reconciliation.html:38
-#: inventory/templates/inventory/hr_workspace.html:35
-#: inventory/templates/inventory/quick_expense.html:12
-msgid "الرئيسية"
-msgstr "Home"
-
 #: inventory/templates/inventory/_base_portal.html:39
 #: inventory/templates/inventory/pos_fast.html:35
 msgid "نقطة البيع"
@@ -6828,10 +7303,6 @@ msgstr "POS"
 #: inventory/templates/inventory/_base_portal.html:40
 msgid "أمر شغل"
 msgstr "Job Card"
-
-#: inventory/templates/inventory/_base_portal.html:41
-msgid "الفواتير"
-msgstr "Invoices"
 
 #: inventory/templates/inventory/_base_portal.html:42
 #: inventory/templates/inventory/job_card_create.html:101
@@ -7115,12 +7586,6 @@ msgstr "Run a session in the \"Diagnostic Room\" then save it to the customer ca
 #: inventory/templates/inventory/ai_diag_print.html:426
 msgid "تم إصدار التقرير بواسطة"
 msgstr "Report issued by"
-
-#: inventory/templates/inventory/b2b_marketplace.html:6
-#: inventory/templates/inventory/b2b_marketplace.html:18
-#: inventory/templates/inventory/solutions.html:50
-msgid "سوق B2B المركزي"
-msgstr "Central B2B Market"
 
 #: inventory/templates/inventory/b2b_marketplace.html:20
 #: inventory/templates/inventory/mechanic_bay.html:20
@@ -8988,10 +9453,6 @@ msgstr "Brand / Model"
 #: inventory/templates/inventory/product_list.html:44
 msgid "التكلفة"
 msgstr "Cost"
-
-#: inventory/templates/inventory/product_list.html:46
-msgid "المخزون"
-msgstr "Stock"
 
 #: inventory/templates/inventory/product_list.html:47
 #: inventory/templates/inventory/sale_invoice_list.html:54
