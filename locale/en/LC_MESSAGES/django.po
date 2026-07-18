@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 15:44+0300\n"
+"POT-Creation-Date: 2026-07-18 15:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -259,12 +259,14 @@ msgid "السعر بالجنيه"
 msgstr ""
 
 #: clients/models/design_store.py:81
+#: clients/templates/clients/print_landing.html:226
 msgid "ملفات مصدر (PSD/SVG)"
-msgstr ""
+msgstr "Source files (PSD/SVG)"
 
 #: clients/models/design_store.py:82
+#: clients/templates/clients/print_landing.html:258
 msgid "استخدام تجاري"
-msgstr ""
+msgstr "Commercial use"
 
 #: clients/models/design_store.py:84
 msgid "إعادة توليد مجاني (2 محاولة)"
@@ -1985,7 +1987,9 @@ msgid "جواز سفر"
 msgstr ""
 
 #: clients/models/marketplace_c2c.py:185
-#: clients/templates/clients/landing.html:142 inventory/models/catalog.py:22
+#: clients/templates/clients/landing.html:142
+#: clients/templates/clients/print_landing.html:71
+#: inventory/models/catalog.py:22
 #: inventory/templates/inventory/invoice_print.html:232
 msgid "جديد"
 msgstr "New"
@@ -3267,6 +3271,7 @@ msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة و
 msgstr "Mouss Tec Features | Management System for Service Centers and Spare Parts Dealers"
 
 #: clients/templates/clients/features.html:33
+#: clients/templates/clients/print_landing.html:348
 #: inventory/templates/inventory/_base_portal.html:38
 #: inventory/templates/inventory/bank_reconciliation.html:38
 #: inventory/templates/inventory/hr_workspace.html:35
@@ -3276,6 +3281,8 @@ msgstr "Home"
 
 #: clients/templates/clients/features.html:34
 #: clients/templates/clients/landing.html:105
+#: clients/templates/clients/print_landing.html:42
+#: clients/templates/clients/print_landing.html:349
 msgid "الباقات"
 msgstr "Plans"
 
@@ -3765,10 +3772,12 @@ msgstr "Start for free"
 
 #: clients/templates/clients/features.html:501
 #: clients/templates/clients/landing.html:108
+#: clients/templates/clients/print_landing.html:45
 msgid "دخول"
 msgstr "Login"
 
 #: clients/templates/clients/features.html:510
+#: clients/templates/clients/print_landing.html:346
 msgid "جميع الحقوق محفوظة"
 msgstr "All rights reserved"
 
@@ -4216,6 +4225,7 @@ msgid "خزينة وحسابات"
 msgstr "Treasury and accounts"
 
 #: clients/templates/clients/landing.html:489
+#: clients/templates/clients/print_landing.html:174
 msgid "خزينة ومصروفات"
 msgstr "Treasury and expenses"
 
@@ -4278,6 +4288,393 @@ msgstr "Your accounts"
 #: clients/templates/clients/landing.html:576
 msgid "محمية ومشفرة بالكامل"
 msgstr "fully protected and encrypted"
+
+#: clients/templates/clients/print_landing.html:7
+msgid "Mousstec Print | برنامج إدارة المطابع واستوديوهات التصميم"
+msgstr "Mousstec Print | Management Software for Print Shops and Design Studios"
+
+#: clients/templates/clients/print_landing.html:8
+msgid ""
+"برنامج حسابات أونلاين للمطابع واستوديوهات التصميم — طلبات طباعة، تسعير "
+"تلقائي، تتبع ماكينات، وحساب التكلفة الفعلية."
+msgstr "Online accounting software for print shops and design studios — print orders, automatic pricing, machine tracking, and actual cost calculation."
+
+#: clients/templates/clients/print_landing.html:48
+#: clients/templates/clients/print_landing.html:295
+#: clients/templates/clients/print_landing.html:310
+msgid "ابدأ مجانا"
+msgstr "Start free"
+
+#: clients/templates/clients/print_landing.html:58
+msgid "للمطابع واستوديوهات التصميم"
+msgstr "For print shops and design studios"
+
+#: clients/templates/clients/print_landing.html:61
+msgid "أدِر مطبعتك"
+msgstr "Run your print shop"
+
+#: clients/templates/clients/print_landing.html:62
+msgid "باحترافية كاملة"
+msgstr "with full professionalism"
+
+#: clients/templates/clients/print_landing.html:65
+msgid ""
+"طلبات طباعة، تسعير تلقائي، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة "
+"التشغيل الفعلية، خزينة ومصروفات."
+msgstr "Print orders, automatic pricing, machine tracking, designer work log, actual operating cost calculation, cash box and expenses."
+
+#: clients/templates/clients/print_landing.html:71
+msgid "توليد تصاميم بالذكاء الاصطناعي"
+msgstr "AI-powered design generation"
+
+#: clients/templates/clients/print_landing.html:76
+msgid "سجّل مجاناً — 7 أيام بكل المزايا"
+msgstr "Sign up free — 7 days with all features"
+
+#: clients/templates/clients/print_landing.html:85
+msgid "مطبعة واستوديو"
+msgstr "print shops and studios"
+
+#: clients/templates/clients/print_landing.html:89
+msgid "طلب طباعة شهريا"
+msgstr "print orders monthly"
+
+#: clients/templates/clients/print_landing.html:93
+msgid "وقت التشغيل"
+msgstr "uptime"
+
+#: clients/templates/clients/print_landing.html:97
+msgid "ذكاء اصطناعي مدمج"
+msgstr "built-in AI"
+
+#: clients/templates/clients/print_landing.html:106
+msgid "أدوات المطبعة الذكية"
+msgstr "Smart print shop tools"
+
+#: clients/templates/clients/print_landing.html:107
+msgid "كل ما تحتاجه لإدارة المطبعة أو الاستوديو — من الطلب للتسليم."
+msgstr "Everything you need to run the print shop or studio — from order to delivery."
+
+#: clients/templates/clients/print_landing.html:117
+msgid "دعم العملاء بالذكاء الاصطناعي (RAG)"
+msgstr "AI customer support (RAG)"
+
+#: clients/templates/clients/print_landing.html:118
+msgid ""
+"مساعد ذكي يرد على عملاء المطبعة فوراً 24/7 — معرفة كاملة بكتالوجك وأسعارك "
+"وأوقات التسليم."
+msgstr "A smart assistant that replies to print shop customers instantly 24/7 — full knowledge of your catalog, prices, and delivery times."
+
+#: clients/templates/clients/print_landing.html:126
+msgid "سوق تصاميم بضمان دفع آمن"
+msgstr "Design marketplace with secure payment guarantee"
+
+#: clients/templates/clients/print_landing.html:127
+msgid ""
+"بيع تصاميمك للعملاء عبر منصتنا — العمولة تُحتجز في Escrow ولا تُحوَّل إلا بعد "
+"رضا العميل، مع مؤشرات ثقة لكل مصمم."
+msgstr "Sell your designs to customers through our platform — the commission is held in Escrow and released only after customer satisfaction, with trust indicators for each designer."
+
+#: clients/templates/clients/print_landing.html:134
+msgid "محاسبة قيد مزدوج"
+msgstr "Double-entry accounting"
+
+#: clients/templates/clients/print_landing.html:134
+msgid "عزل تام للبيانات"
+msgstr "Complete data isolation"
+
+#: clients/templates/clients/print_landing.html:135
+msgid ""
+"قيود مزدوجة معتمدة + كل مطبعة في schema منفصل — أمان بنكي ومطابق لمعايير الـ "
+"Multi-tenant SaaS العالمية."
+msgstr "Certified double entries + each print shop in a separate schema — bank-grade security compliant with global Multi-tenant SaaS standards."
+
+#: clients/templates/clients/print_landing.html:142
+#: clients/templates/clients/print_landing.html:292
+msgid "طلبات طباعة"
+msgstr "Print orders"
+
+#: clients/templates/clients/print_landing.html:143
+msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
+msgstr "Create a print order with sizes, quantities, and copies — pricing is calculated automatically."
+
+#: clients/templates/clients/print_landing.html:150
+msgid "تتبع الماكينات"
+msgstr "Machine tracking"
+
+#: clients/templates/clients/print_landing.html:151
+msgid "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها."
+msgstr "Log each machine with its electricity and ink consumption — the hourly cost is calculated automatically."
+
+#: clients/templates/clients/print_landing.html:158
+msgid "سجل المصممين"
+msgstr "Designer log"
+
+#: clients/templates/clients/print_landing.html:159
+msgid "تتبع أعمال كل مصمم، ساعات العمل، نوع التنفيذ (يدوي/AI)، وتقييم العميل."
+msgstr "Track each designer work, working hours, execution type (manual/AI), and customer rating."
+
+#: clients/templates/clients/print_landing.html:166
+msgid "مخزون خامات"
+msgstr "Raw material inventory"
+
+#: clients/templates/clients/print_landing.html:167
+msgid "ورق، أحبار، فينيل، بانر — تتبع الكميات وتنبيهات النقص وقيمة المخزون."
+msgstr "Paper, inks, vinyl, banner — track quantities, low-stock alerts, and inventory value."
+
+#: clients/templates/clients/print_landing.html:175
+msgid "إيداع وسحب، مصروفات تشغيلية، ومتابعة المدفوعات لكل طلب."
+msgstr "Deposits and withdrawals, operating expenses, and payment tracking for each order."
+
+#: clients/templates/clients/print_landing.html:184
+msgid ""
+"توليد تصاميم بالذكاء الاصطناعي، علامة مائية ذكية، وإرسال تلقائي للعميل "
+"بالواتساب."
+msgstr "AI design generation, smart watermark, and automatic delivery to the customer via WhatsApp."
+
+#: clients/templates/clients/print_landing.html:196
+msgid "متجر التصميم بالذكاء الاصطناعي"
+msgstr "AI design store"
+
+#: clients/templates/clients/print_landing.html:198
+msgid "صمّم بالذكاء الاصطناعي"
+msgstr "Design with AI"
+
+#: clients/templates/clients/print_landing.html:199
+msgid ""
+"اختار باقتك، ولّد تصاميم احترافية بالـ AI، واطبعها مباشرة. تصميم واحد مجاني "
+"للتجربة."
+msgstr "Choose your package, generate professional designs with AI, and print them directly. One free design to try."
+
+#: clients/templates/clients/print_landing.html:204
+msgid "باقات العملاء"
+msgstr "Customer packages"
+
+#: clients/templates/clients/print_landing.html:205
+msgid "للأفراد والشركات اللي عايزين تصاميم جاهزة"
+msgstr "For individuals and companies who want ready-made designs"
+
+#: clients/templates/clients/print_landing.html:212
+#: clients/templates/clients/print_landing.html:246
+#: clients/templates/clients/print_landing.html:299
+msgid "الأكثر طلبا"
+msgstr "Most popular"
+
+#: clients/templates/clients/print_landing.html:214
+#: clients/templates/clients/print_landing.html:248
+msgid "تصميم"
+msgstr "designs"
+
+#: clients/templates/clients/print_landing.html:215
+#: clients/templates/clients/print_landing.html:249
+#: inventory/templates/inventory/b2b_marketplace.html:198
+#: inventory/templates/inventory/bank_reconciliation.html:67
+#: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/customer_feedback.html:74
+#: inventory/templates/inventory/invoice_print.html:239
+#: inventory/templates/inventory/invoice_print.html:240
+#: inventory/templates/inventory/invoice_print.html:267
+#: inventory/templates/inventory/invoice_print.html:315
+#: inventory/templates/inventory/invoice_print.html:320
+#: inventory/templates/inventory/invoice_print.html:326
+#: inventory/templates/inventory/invoice_print.html:333
+#: inventory/templates/inventory/invoice_print.html:346
+#: inventory/templates/inventory/invoice_print.html:351
+#: inventory/templates/inventory/invoice_print.html:357
+#: inventory/templates/inventory/invoice_print_a4.html:106
+#: inventory/templates/inventory/invoice_print_a4.html:108
+#: inventory/templates/inventory/invoice_print_a4.html:109
+#: inventory/templates/inventory/invoice_print_a4.html:110
+#: inventory/templates/inventory/invoice_print_a4.html:111
+#: inventory/templates/inventory/invoice_print_detailed.html:251
+#: inventory/templates/inventory/invoice_print_detailed.html:253
+#: inventory/templates/inventory/invoice_print_detailed.html:254
+#: inventory/templates/inventory/invoice_print_detailed.html:255
+#: inventory/templates/inventory/invoice_print_detailed.html:256
+#: inventory/templates/inventory/invoice_print_thermal.html:55
+#: inventory/templates/inventory/invoice_print_thermal.html:56
+#: inventory/templates/inventory/invoice_print_thermal.html:57
+#: inventory/templates/inventory/job_card_create.html:120
+#: inventory/templates/inventory/job_card_review.html:566
+#: inventory/templates/inventory/job_card_review.html:643
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+#: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/pos_fast.html:72
+#: inventory/templates/inventory/pos_fast.html:94
+#: inventory/templates/inventory/pos_fast.html:104
+#: inventory/templates/inventory/pos_fast.html:105
+#: inventory/templates/inventory/pos_fast.html:106
+#: inventory/templates/inventory/rfq_management.html:291
+#: inventory/templates/inventory/rfq_management.html:379
+#: inventory/templates/inventory/statement_print.html:53
+#: inventory/templates/inventory/statement_print.html:99
+#: inventory/templates/inventory/vehicle_health_passport.html:454
+#: inventory/templates/inventory/vehicle_history.html:101
+msgid "ج.م"
+msgstr "EGP"
+
+#: clients/templates/clients/print_landing.html:216
+#: clients/templates/clients/print_landing.html:250
+msgid "دفعة واحدة"
+msgstr "One-time payment"
+
+#: clients/templates/clients/print_landing.html:218
+msgid "تصميم بالذكاء الاصطناعي"
+msgstr "AI designs"
+
+#: clients/templates/clients/print_landing.html:219
+msgid "إعادة توليد لكل تصميم"
+msgstr "regenerations per design"
+
+#: clients/templates/clients/print_landing.html:221
+msgid "تحميل"
+msgstr "Download"
+
+#: clients/templates/clients/print_landing.html:221
+msgid "إرسال واتساب"
+msgstr "WhatsApp delivery"
+
+#: clients/templates/clients/print_landing.html:223
+msgid "تحميل بجودة"
+msgstr "Download at quality"
+
+#: clients/templates/clients/print_landing.html:229
+#: clients/templates/clients/print_landing.html:261
+msgid "اشترِ الآن"
+msgstr "Buy now"
+
+#: clients/templates/clients/print_landing.html:232
+msgid "مفيش باقات عملاء مفعّلة حالياً."
+msgstr "No customer packages are active right now."
+
+#: clients/templates/clients/print_landing.html:238
+msgid "باقات المصممين"
+msgstr "Designer packages"
+
+#: clients/templates/clients/print_landing.html:239
+msgid "للمصممين المحترفين والاستوديوهات"
+msgstr "For professional designers and studios"
+
+#: clients/templates/clients/print_landing.html:252
+msgid "تصميم AI"
+msgstr "AI designs"
+
+#: clients/templates/clients/print_landing.html:253
+msgid "إعادة توليد"
+msgstr "regenerations"
+
+#: clients/templates/clients/print_landing.html:255
+msgid "ملفات مصدر"
+msgstr "Source files"
+
+#: clients/templates/clients/print_landing.html:264
+msgid "مفيش باقات مصممين مفعّلة حالياً."
+msgstr "No designer packages are active right now."
+
+#: clients/templates/clients/print_landing.html:269
+msgid "جرّب تصميم واحد مجاني بدون تسجيل دفع"
+msgstr "Try one free design with no payment registration"
+
+#: clients/templates/clients/print_landing.html:271
+msgid "ادخل متجر التصميم"
+msgstr "Enter the design store"
+
+#: clients/templates/clients/print_landing.html:280
+msgid "باقات المطابع والتصميم"
+msgstr "Print and design packages"
+
+#: clients/templates/clients/print_landing.html:281
+msgid "اختار الباقة المناسبة لحجم شغلك."
+msgstr "Choose the right package for the size of your business."
+
+#: clients/templates/clients/print_landing.html:287
+#: clients/templates/clients/print_landing.html:301
+#: clients/templates/clients/print_landing.html:315
+msgid "ج.م/شهر"
+msgstr "EGP/month"
+
+#: clients/templates/clients/print_landing.html:288
+msgid "للمطابع الصغيرة واستوديوهات التصميم"
+msgstr "For small print shops and design studios"
+
+#: clients/templates/clients/print_landing.html:290
+msgid "فرع واحد"
+msgstr "One branch"
+
+#: clients/templates/clients/print_landing.html:291
+msgid "مستخدم واحد"
+msgstr "One user"
+
+#: clients/templates/clients/print_landing.html:293
+msgid "خزينة واحدة"
+msgstr "One cash box"
+
+#: clients/templates/clients/print_landing.html:302
+msgid "للمطابع المتوسطة ومكاتب التصميم"
+msgstr "For medium print shops and design offices"
+
+#: clients/templates/clients/print_landing.html:304
+msgid "فرعين"
+msgstr "Two branches"
+
+#: clients/templates/clients/print_landing.html:305
+msgid "مستخدمين"
+msgstr "users"
+
+#: clients/templates/clients/print_landing.html:306
+msgid "طلبات غير محدودة"
+msgstr "Unlimited orders"
+
+#: clients/templates/clients/print_landing.html:307
+msgid "خزينتين"
+msgstr "Two cash boxes"
+
+#: clients/templates/clients/print_landing.html:308
+msgid "تقارير متقدمة"
+msgstr "Advanced reports"
+
+#: clients/templates/clients/print_landing.html:316
+msgid "للمطابع الكبيرة ومجموعات التصميم"
+msgstr "For large print shops and design groups"
+
+#: clients/templates/clients/print_landing.html:318
+msgid "فروع غير محدودة"
+msgstr "Unlimited branches"
+
+#: clients/templates/clients/print_landing.html:319
+msgid "مستخدمين غير محدود"
+msgstr "Unlimited users"
+
+#: clients/templates/clients/print_landing.html:320
+msgid "كل المميزات"
+msgstr "All features"
+
+#: clients/templates/clients/print_landing.html:321
+msgid "دعم فني أولوية"
+msgstr "Priority technical support"
+
+#: clients/templates/clients/print_landing.html:323
+msgid "تواصل معنا"
+msgstr "Contact us"
+
+#: clients/templates/clients/print_landing.html:334
+msgid "جاهز تبدأ؟"
+msgstr "Ready to start?"
+
+#: clients/templates/clients/print_landing.html:335
+msgid ""
+"سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات "
+"دفع."
+msgstr "Sign up now and use the system free for 7 days with all the features of the top package — no payment details."
+
+#: clients/templates/clients/print_landing.html:337
+msgid "ابدأ الآن مجانا"
+msgstr "Start now for free"
+
+#: clients/templates/clients/print_landing.html:350
+msgid "تسجيل الدخول"
+msgstr "Log in"
 
 #: diagnostics_catalog/models.py:18
 msgid "معلوماتي"
@@ -7714,53 +8111,6 @@ msgstr "Unverified"
 #: inventory/templates/inventory/b2b_marketplace.html:189
 msgid "الكمية المتوفرة"
 msgstr "Available quantity"
-
-#: inventory/templates/inventory/b2b_marketplace.html:198
-#: inventory/templates/inventory/bank_reconciliation.html:67
-#: inventory/templates/inventory/commission_dashboard.html:92
-#: inventory/templates/inventory/customer_feedback.html:74
-#: inventory/templates/inventory/invoice_print.html:239
-#: inventory/templates/inventory/invoice_print.html:240
-#: inventory/templates/inventory/invoice_print.html:267
-#: inventory/templates/inventory/invoice_print.html:315
-#: inventory/templates/inventory/invoice_print.html:320
-#: inventory/templates/inventory/invoice_print.html:326
-#: inventory/templates/inventory/invoice_print.html:333
-#: inventory/templates/inventory/invoice_print.html:346
-#: inventory/templates/inventory/invoice_print.html:351
-#: inventory/templates/inventory/invoice_print.html:357
-#: inventory/templates/inventory/invoice_print_a4.html:106
-#: inventory/templates/inventory/invoice_print_a4.html:108
-#: inventory/templates/inventory/invoice_print_a4.html:109
-#: inventory/templates/inventory/invoice_print_a4.html:110
-#: inventory/templates/inventory/invoice_print_a4.html:111
-#: inventory/templates/inventory/invoice_print_detailed.html:251
-#: inventory/templates/inventory/invoice_print_detailed.html:253
-#: inventory/templates/inventory/invoice_print_detailed.html:254
-#: inventory/templates/inventory/invoice_print_detailed.html:255
-#: inventory/templates/inventory/invoice_print_detailed.html:256
-#: inventory/templates/inventory/invoice_print_thermal.html:55
-#: inventory/templates/inventory/invoice_print_thermal.html:56
-#: inventory/templates/inventory/invoice_print_thermal.html:57
-#: inventory/templates/inventory/job_card_create.html:120
-#: inventory/templates/inventory/job_card_review.html:566
-#: inventory/templates/inventory/job_card_review.html:643
-#: inventory/templates/inventory/job_card_review.html:785
-#: inventory/templates/inventory/job_card_review.html:920
-#: inventory/templates/inventory/job_card_review.html:941
-#: inventory/templates/inventory/pos_fast.html:72
-#: inventory/templates/inventory/pos_fast.html:94
-#: inventory/templates/inventory/pos_fast.html:104
-#: inventory/templates/inventory/pos_fast.html:105
-#: inventory/templates/inventory/pos_fast.html:106
-#: inventory/templates/inventory/rfq_management.html:291
-#: inventory/templates/inventory/rfq_management.html:379
-#: inventory/templates/inventory/statement_print.html:53
-#: inventory/templates/inventory/statement_print.html:99
-#: inventory/templates/inventory/vehicle_health_passport.html:454
-#: inventory/templates/inventory/vehicle_history.html:101
-msgid "ج.م"
-msgstr "EGP"
 
 #: inventory/templates/inventory/b2b_marketplace.html:199
 msgid "سعر الجملة"

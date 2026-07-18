@@ -1,10 +1,11 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mousstec Print | برنامج إدارة المطابع واستوديوهات التصميم</title>
-    <meta name="description" content="برنامج حسابات أونلاين للمطابع واستوديوهات التصميم — طلبات طباعة، تسعير تلقائي، تتبع ماكينات، وحساب التكلفة الفعلية.">
+    <title>{% trans "Mousstec Print | برنامج إدارة المطابع واستوديوهات التصميم" %}</title>
+    <meta name="description" content="{% trans "برنامج حسابات أونلاين للمطابع واستوديوهات التصميم — طلبات طباعة، تسعير تلقائي، تتبع ماكينات، وحساب التكلفة الفعلية." %}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -38,13 +39,13 @@
         </a>
         <div class="flex items-center gap-3">
             <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-pink-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
-                <i class="fas fa-tags"></i> الباقات
+                <i class="fas fa-tags"></i> {% trans "الباقات" %}
             </a>
             <a href="{% url 'client_login_finder' %}" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-xl text-sm transition">
-                <i class="fas fa-lock"></i> دخول
+                <i class="fas fa-lock"></i> {% trans "دخول" %}
             </a>
             <a href="{% url 'saas_customer_signup' %}?industry=printing" class="btn-pink text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
-                <i class="fas fa-rocket"></i> ابدأ مجانا
+                <i class="fas fa-rocket"></i> {% trans "ابدأ مجانا" %}
             </a>
         </div>
     </header>
@@ -54,25 +55,25 @@
         <div class="max-w-4xl mx-auto text-center">
             <span class="inline-flex items-center gap-2 bg-pink-500/10 text-pink-400 border border-pink-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-6">
                 <span class="w-2 h-2 rounded-full bg-pink-400 animate-pulse"></span>
-                للمطابع واستوديوهات التصميم
+                {% trans "للمطابع واستوديوهات التصميم" %}
             </span>
             <h1 class="text-4xl md:text-6xl font-black text-white leading-tight mb-6">
-                أدِر مطبعتك <br>
-                <span class="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">باحترافية كاملة</span>
+                {% trans "أدِر مطبعتك" %} <br>
+                <span class="bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{% trans "باحترافية كاملة" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-                طلبات طباعة، تسعير تلقائي، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية، خزينة ومصروفات.
+                {% trans "طلبات طباعة، تسعير تلقائي، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية، خزينة ومصروفات." %}
             </p>
 
             <!-- AI Badge -->
             <div class="inline-flex items-center gap-2 ai-badge text-white font-bold px-5 py-2 rounded-full text-xs mb-10">
                 <i class="fas fa-wand-magic-sparkles"></i>
-                جديد: AI Studio — توليد تصاميم بالذكاء الاصطناعي
+                {% trans "جديد" %}: AI Studio — {% trans "توليد تصاميم بالذكاء الاصطناعي" %}
             </div>
 
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{% url 'saas_customer_signup' %}?industry=printing" class="btn-pink text-white font-bold px-8 py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-bolt"></i> سجّل مجاناً — 7 أيام بكل المزايا
+                    <i class="fas fa-bolt"></i> {% trans "سجّل مجاناً — 7 أيام بكل المزايا" %}
                 </a>
             </div>
         </div>
@@ -81,19 +82,19 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mt-16">
             <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 text-center backdrop-blur-sm">
                 <div class="text-3xl font-black text-pink-400 stat-counter">+200</div>
-                <div class="text-slate-500 text-xs mt-1 font-bold">مطبعة واستوديو</div>
+                <div class="text-slate-500 text-xs mt-1 font-bold">{% trans "مطبعة واستوديو" %}</div>
             </div>
             <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 text-center backdrop-blur-sm">
                 <div class="text-3xl font-black text-purple-400 stat-counter">+10K</div>
-                <div class="text-slate-500 text-xs mt-1 font-bold">طلب طباعة شهريا</div>
+                <div class="text-slate-500 text-xs mt-1 font-bold">{% trans "طلب طباعة شهريا" %}</div>
             </div>
             <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 text-center backdrop-blur-sm">
                 <div class="text-3xl font-black text-green-400 stat-counter">99.9%</div>
-                <div class="text-slate-500 text-xs mt-1 font-bold">وقت التشغيل</div>
+                <div class="text-slate-500 text-xs mt-1 font-bold">{% trans "وقت التشغيل" %}</div>
             </div>
             <div class="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 text-center backdrop-blur-sm">
                 <div class="text-3xl font-black text-amber-400 stat-counter">AI</div>
-                <div class="text-slate-500 text-xs mt-1 font-bold">ذكاء اصطناعي مدمج</div>
+                <div class="text-slate-500 text-xs mt-1 font-bold">{% trans "ذكاء اصطناعي مدمج" %}</div>
             </div>
         </div>
     </section>
@@ -102,8 +103,8 @@
 <!-- Features -->
 <section class="py-20 bg-slate-900/50">
     <div class="container mx-auto px-6">
-        <h2 class="text-3xl font-black text-white text-center mb-4">أدوات المطبعة الذكية</h2>
-        <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">كل ما تحتاجه لإدارة المطبعة أو الاستوديو — من الطلب للتسليم.</p>
+        <h2 class="text-3xl font-black text-white text-center mb-4">{% trans "أدوات المطبعة الذكية" %}</h2>
+        <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">{% trans "كل ما تحتاجه لإدارة المطبعة أو الاستوديو — من الطلب للتسليم." %}</p>
 
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
 
@@ -113,8 +114,8 @@
                 <div class="w-12 h-12 bg-fuchsia-500/15 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-robot text-fuchsia-300 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">دعم العملاء بالذكاء الاصطناعي (RAG)</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">مساعد ذكي يرد على عملاء المطبعة فوراً 24/7 — معرفة كاملة بكتالوجك وأسعارك وأوقات التسليم.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "دعم العملاء بالذكاء الاصطناعي (RAG)" %}</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">{% trans "مساعد ذكي يرد على عملاء المطبعة فوراً 24/7 — معرفة كاملة بكتالوجك وأسعارك وأوقات التسليم." %}</p>
             </div>
 
             <div class="bg-gradient-to-br from-amber-900/40 to-slate-900/60 border border-amber-500/40 rounded-2xl p-7 card-hover relative">
@@ -122,56 +123,56 @@
                 <div class="w-12 h-12 bg-amber-500/15 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-handshake text-amber-300 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">سوق تصاميم بضمان دفع آمن</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">بيع تصاميمك للعملاء عبر منصتنا — العمولة تُحتجز في Escrow ولا تُحوَّل إلا بعد رضا العميل، مع مؤشرات ثقة لكل مصمم.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "سوق تصاميم بضمان دفع آمن" %}</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">{% trans "بيع تصاميمك للعملاء عبر منصتنا — العمولة تُحتجز في Escrow ولا تُحوَّل إلا بعد رضا العميل، مع مؤشرات ثقة لكل مصمم." %}</p>
             </div>
 
             <div class="bg-gradient-to-br from-emerald-900/40 to-slate-900/60 border border-emerald-500/40 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-emerald-500/15 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-shield-halved text-emerald-300 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">محاسبة قيد مزدوج + عزل تام للبيانات</h3>
-                <p class="text-slate-400 text-sm leading-relaxed">قيود مزدوجة معتمدة + كل مطبعة في schema منفصل — أمان بنكي ومطابق لمعايير الـ Multi-tenant SaaS العالمية.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "محاسبة قيد مزدوج" %} + {% trans "عزل تام للبيانات" %}</h3>
+                <p class="text-slate-400 text-sm leading-relaxed">{% trans "قيود مزدوجة معتمدة + كل مطبعة في schema منفصل — أمان بنكي ومطابق لمعايير الـ Multi-tenant SaaS العالمية." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-clipboard-list text-pink-400 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">طلبات طباعة</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "طلبات طباعة" %}</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-print text-purple-400 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">تتبع الماكينات</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "تتبع الماكينات" %}</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-user-pen text-cyan-400 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">سجل المصممين</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">تتبع أعمال كل مصمم، ساعات العمل، نوع التنفيذ (يدوي/AI)، وتقييم العميل.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "سجل المصممين" %}</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "تتبع أعمال كل مصمم، ساعات العمل، نوع التنفيذ (يدوي/AI)، وتقييم العميل." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-boxes-stacked text-amber-400 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">مخزون خامات</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">ورق، أحبار، فينيل، بانر — تتبع الكميات وتنبيهات النقص وقيمة المخزون.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "مخزون خامات" %}</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "ورق، أحبار، فينيل، بانر — تتبع الكميات وتنبيهات النقص وقيمة المخزون." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-7 card-hover">
                 <div class="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
                     <i class="fas fa-vault text-green-400 text-xl"></i>
                 </div>
-                <h3 class="text-white font-bold text-lg mb-2">خزينة ومصروفات</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">إيداع وسحب، مصروفات تشغيلية، ومتابعة المدفوعات لكل طلب.</p>
+                <h3 class="text-white font-bold text-lg mb-2">{% trans "خزينة ومصروفات" %}</h3>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "إيداع وسحب، مصروفات تشغيلية، ومتابعة المدفوعات لكل طلب." %}</p>
             </div>
 
             <div class="bg-slate-800/50 border border-purple-500/30 rounded-2xl p-7 card-hover relative overflow-hidden">
@@ -180,7 +181,7 @@
                     <i class="fas fa-wand-magic-sparkles text-purple-400 text-xl"></i>
                 </div>
                 <h3 class="text-white font-bold text-lg mb-2">AI Studio</h3>
-                <p class="text-slate-500 text-sm leading-relaxed">توليد تصاميم بالذكاء الاصطناعي، علامة مائية ذكية، وإرسال تلقائي للعميل بالواتساب.</p>
+                <p class="text-slate-500 text-sm leading-relaxed">{% trans "توليد تصاميم بالذكاء الاصطناعي، علامة مائية ذكية، وإرسال تلقائي للعميل بالواتساب." %}</p>
             </div>
 
         </div>
@@ -192,82 +193,82 @@
     <div class="container mx-auto px-6">
         <div class="text-center mb-14">
             <span class="inline-flex items-center gap-2 ai-badge text-white font-bold px-4 py-1.5 rounded-full text-xs mb-4">
-                <i class="fas fa-wand-magic-sparkles"></i> متجر التصميم بالذكاء الاصطناعي
+                <i class="fas fa-wand-magic-sparkles"></i> {% trans "متجر التصميم بالذكاء الاصطناعي" %}
             </span>
-            <h2 class="text-3xl font-black text-white mb-3">AI Design Store — صمّم بالذكاء الاصطناعي</h2>
-            <p class="text-slate-500 max-w-xl mx-auto">اختار باقتك، ولّد تصاميم احترافية بالـ AI، واطبعها مباشرة. تصميم واحد مجاني للتجربة.</p>
+            <h2 class="text-3xl font-black text-white mb-3">AI Design Store — {% trans "صمّم بالذكاء الاصطناعي" %}</h2>
+            <p class="text-slate-500 max-w-xl mx-auto">{% trans "اختار باقتك، ولّد تصاميم احترافية بالـ AI، واطبعها مباشرة. تصميم واحد مجاني للتجربة." %}</p>
         </div>
 
         <!-- Customer Packages -->
         <div class="text-center mb-8">
-            <h3 class="text-xl font-bold text-purple-400 mb-2"><i class="fas fa-user"></i> باقات العملاء</h3>
-            <p class="text-slate-500 text-sm">للأفراد والشركات اللي عايزين تصاميم جاهزة</p>
+            <h3 class="text-xl font-bold text-purple-400 mb-2"><i class="fas fa-user"></i> {% trans "باقات العملاء" %}</h3>
+            <p class="text-slate-500 text-sm">{% trans "للأفراد والشركات اللي عايزين تصاميم جاهزة" %}</p>
         </div>
         {# 🎨 Customer Packages — driven by DesignPackage(target_audience='customer') #}
         <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-14">
             {% for pkg in customer_packages %}
             <div class="{% if pkg.is_featured %}bg-gradient-to-b from-purple-900/30 to-slate-800/60 border border-purple-500/30{% else %}bg-slate-800/60 border border-slate-700/50{% endif %} rounded-2xl p-8 card-hover text-center relative">
                 {% if pkg.is_featured %}
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 ai-badge text-white text-[10px] font-bold px-3 py-1 rounded-full">{{ pkg.badge_text|default:"الأكثر طلبا" }}</div>
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 ai-badge text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" as default_badge %}{{ pkg.badge_text|default:default_badge }}</div>
                 {% endif %}
-                <div class="{% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %} font-bold text-sm mb-2">{{ pkg.designs_count }} تصميم</div>
-                <div class="text-4xl font-black text-white mb-1">{{ pkg.price_egp|floatformat:0 }} <span class="text-lg text-slate-500">ج.م</span></div>
-                <div class="text-slate-600 text-xs mb-6">دفعة واحدة</div>
+                <div class="{% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %} font-bold text-sm mb-2">{{ pkg.designs_count }} {% trans "تصميم" %}</div>
+                <div class="text-4xl font-black text-white mb-1">{{ pkg.price_egp|floatformat:0 }} <span class="text-lg text-slate-500">{% trans "ج.م" %}</span></div>
+                <div class="text-slate-600 text-xs mb-6">{% trans "دفعة واحدة" %}</div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.designs_count }} تصميم بالذكاء الاصطناعي</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} إعادة توليد لكل تصميم</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.designs_count }} {% trans "تصميم بالذكاء الاصطناعي" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} {% trans "إعادة توليد لكل تصميم" %}</li>
                     {% if pkg.allows_whatsapp_delivery %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> تحميل + إرسال واتساب</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {% trans "تحميل" %} + {% trans "إرسال واتساب" %}</li>
                     {% else %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> تحميل بجودة {{ pkg.resolution_max }}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {% trans "تحميل بجودة" %} {{ pkg.resolution_max }}</li>
                     {% endif %}
                     {% if pkg.allows_source_files %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> ملفات مصدر (PSD/SVG)</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> {% trans "ملفات مصدر (PSD/SVG)" %}</li>
                     {% endif %}
                 </ul>
-                <a href="{% url 'design_store_home' %}?pkg={{ pkg.slug }}" class="block {% if pkg.is_featured %}btn-pink{% else %}bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white{% endif %} text-white font-bold py-3 rounded-xl transition">اشترِ الآن</a>
+                <a href="{% url 'design_store_home' %}?pkg={{ pkg.slug }}" class="block {% if pkg.is_featured %}btn-pink{% else %}bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white{% endif %} text-white font-bold py-3 rounded-xl transition">{% trans "اشترِ الآن" %}</a>
             </div>
             {% empty %}
-            <div class="md:col-span-3 text-center text-slate-500 py-10"><i class="fas fa-info-circle ml-2"></i> مفيش باقات عملاء مفعّلة حالياً.</div>
+            <div class="md:col-span-3 text-center text-slate-500 py-10"><i class="fas fa-info-circle ml-2"></i> {% trans "مفيش باقات عملاء مفعّلة حالياً." %}</div>
             {% endfor %}
         </div>
 
         <!-- Designer Packages -->
         <div class="text-center mb-8">
-            <h3 class="text-xl font-bold text-pink-400 mb-2"><i class="fas fa-palette"></i> باقات المصممين</h3>
-            <p class="text-slate-500 text-sm">للمصممين المحترفين والاستوديوهات</p>
+            <h3 class="text-xl font-bold text-pink-400 mb-2"><i class="fas fa-palette"></i> {% trans "باقات المصممين" %}</h3>
+            <p class="text-slate-500 text-sm">{% trans "للمصممين المحترفين والاستوديوهات" %}</p>
         </div>
         {# 🎨 Designer Packages — driven by DesignPackage(target_audience='designer') #}
         <div class="grid md:grid-cols-4 gap-5 max-w-5xl mx-auto">
             {% for pkg in designer_packages %}
             <div class="{% if pkg.is_featured %}bg-gradient-to-b from-pink-900/20 to-slate-800/60 border border-pink-500/30{% else %}bg-slate-800/60 border border-slate-700/50{% endif %} rounded-2xl p-6 card-hover text-center relative">
                 {% if pkg.is_featured %}
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{{ pkg.badge_text|default:"الأكثر طلبا" }}</div>
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" as default_badge %}{{ pkg.badge_text|default:default_badge }}</div>
                 {% endif %}
-                <div class="{% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %} font-bold text-sm mb-2">{{ pkg.designer_designs_count|default:pkg.designs_count }} تصميم</div>
-                <div class="text-3xl font-black text-white mb-1">{{ pkg.price_egp|floatformat:0 }} <span class="text-lg text-slate-500">ج.م</span></div>
-                <div class="text-slate-600 text-xs mb-5">دفعة واحدة</div>
+                <div class="{% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %} font-bold text-sm mb-2">{{ pkg.designer_designs_count|default:pkg.designs_count }} {% trans "تصميم" %}</div>
+                <div class="text-3xl font-black text-white mb-1">{{ pkg.price_egp|floatformat:0 }} <span class="text-lg text-slate-500">{% trans "ج.م" %}</span></div>
+                <div class="text-slate-600 text-xs mb-5">{% trans "دفعة واحدة" %}</div>
                 <ul class="text-right text-xs text-slate-400 space-y-2 mb-6">
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.designer_designs_count|default:pkg.designs_count }} تصميم AI</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} إعادة توليد</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.designer_designs_count|default:pkg.designs_count }} {% trans "تصميم AI" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} {% trans "إعادة توليد" %}</li>
                     {% if pkg.allows_source_files %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> ملفات مصدر</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> {% trans "ملفات مصدر" %}</li>
                     {% endif %}
                     {% if pkg.allows_commercial_use %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> استخدام تجاري</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {% trans "استخدام تجاري" %}</li>
                     {% endif %}
                 </ul>
-                <a href="{% url 'design_store_home' %}?pkg={{ pkg.slug }}" class="block {% if pkg.is_featured %}btn-pink{% else %}bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-600 hover:text-white{% endif %} text-white font-bold py-2.5 rounded-xl transition text-sm">اشترِ الآن</a>
+                <a href="{% url 'design_store_home' %}?pkg={{ pkg.slug }}" class="block {% if pkg.is_featured %}btn-pink{% else %}bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-600 hover:text-white{% endif %} text-white font-bold py-2.5 rounded-xl transition text-sm">{% trans "اشترِ الآن" %}</a>
             </div>
             {% empty %}
-            <div class="md:col-span-4 text-center text-slate-500 py-10"><i class="fas fa-info-circle ml-2"></i> مفيش باقات مصممين مفعّلة حالياً.</div>
+            <div class="md:col-span-4 text-center text-slate-500 py-10"><i class="fas fa-info-circle ml-2"></i> {% trans "مفيش باقات مصممين مفعّلة حالياً." %}</div>
             {% endfor %}
         </div>
 
         <div class="text-center mt-8">
-            <p class="text-slate-500 text-sm mb-4"><i class="fas fa-gift text-purple-400"></i> جرّب تصميم واحد مجاني بدون تسجيل دفع</p>
+            <p class="text-slate-500 text-sm mb-4"><i class="fas fa-gift text-purple-400"></i> {% trans "جرّب تصميم واحد مجاني بدون تسجيل دفع" %}</p>
             <a href="{% url 'design_store_home' %}" class="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold transition">
-                <i class="fas fa-arrow-left"></i> ادخل متجر التصميم
+                <i class="fas fa-arrow-left"></i> {% trans "ادخل متجر التصميم" %}
             </a>
         </div>
     </div>
@@ -276,50 +277,50 @@
 <!-- Pricing Summary -->
 <section class="py-16 bg-slate-900/50">
     <div class="container mx-auto px-6">
-        <h2 class="text-3xl font-black text-white text-center mb-4">باقات المطابع والتصميم</h2>
-        <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">اختار الباقة المناسبة لحجم شغلك.</p>
+        <h2 class="text-3xl font-black text-white text-center mb-4">{% trans "باقات المطابع والتصميم" %}</h2>
+        <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">{% trans "اختار الباقة المناسبة لحجم شغلك." %}</p>
 
         <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 card-hover text-center">
                 <div class="text-pink-400 font-bold text-sm mb-2">Print Basic</div>
-                <div class="text-4xl font-black text-white mb-1">550 <span class="text-lg text-slate-500">ج.م/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">للمطابع الصغيرة واستوديوهات التصميم</div>
+                <div class="text-4xl font-black text-white mb-1">550 <span class="text-lg text-slate-500">{% trans "ج.م/شهر" %}</span></div>
+                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع الصغيرة واستوديوهات التصميم" %}</div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> فرع واحد</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> مستخدم واحد</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> طلبات طباعة</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> خزينة واحدة</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "فرع واحد" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "مستخدم واحد" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "خزينة واحدة" %}</li>
                 </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-pink-500/10 border border-pink-500/20 text-pink-400 font-bold py-3 rounded-xl hover:bg-pink-600 hover:text-white transition">ابدأ مجانا</a>
+                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-pink-500/10 border border-pink-500/20 text-pink-400 font-bold py-3 rounded-xl hover:bg-pink-600 hover:text-white transition">{% trans "ابدأ مجانا" %}</a>
             </div>
 
             <div class="bg-gradient-to-b from-pink-900/20 to-slate-800/60 border border-pink-500/30 rounded-2xl p-8 card-hover text-center relative">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">الأكثر طلبا</div>
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" %}</div>
                 <div class="text-pink-300 font-bold text-sm mb-2">Print Pro</div>
-                <div class="text-4xl font-black text-white mb-1">880 <span class="text-lg text-slate-500">ج.م/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">للمطابع المتوسطة ومكاتب التصميم</div>
+                <div class="text-4xl font-black text-white mb-1">880 <span class="text-lg text-slate-500">{% trans "ج.م/شهر" %}</span></div>
+                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع المتوسطة ومكاتب التصميم" %}</div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> فرعين</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> 4 مستخدمين</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> طلبات غير محدودة</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> خزينتين</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> تقارير متقدمة</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "فرعين" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> 4 {% trans "مستخدمين" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "طلبات غير محدودة" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "خزينتين" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "تقارير متقدمة" %}</li>
                 </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block btn-pink text-white font-bold py-3 rounded-xl">ابدأ مجانا</a>
+                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block btn-pink text-white font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
             </div>
 
             <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 card-hover text-center">
                 <div class="text-purple-400 font-bold text-sm mb-2">Print Enterprise</div>
-                <div class="text-4xl font-black text-white mb-1">2,000 <span class="text-lg text-slate-500">ج.م/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">للمطابع الكبيرة ومجموعات التصميم</div>
+                <div class="text-4xl font-black text-white mb-1">2,000 <span class="text-lg text-slate-500">{% trans "ج.م/شهر" %}</span></div>
+                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع الكبيرة ومجموعات التصميم" %}</div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> فروع غير محدودة</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> مستخدمين غير محدود</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> كل المميزات</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> دعم فني أولوية</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "فروع غير محدودة" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "مستخدمين غير محدود" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "كل المميزات" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "دعم فني أولوية" %}</li>
                 </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold py-3 rounded-xl hover:bg-purple-600 hover:text-white transition">تواصل معنا</a>
+                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold py-3 rounded-xl hover:bg-purple-600 hover:text-white transition">{% trans "تواصل معنا" %}</a>
             </div>
 
         </div>
@@ -330,10 +331,10 @@
 <section class="py-16">
     <div class="container mx-auto px-6">
         <div class="bg-gradient-to-br from-pink-600/20 to-purple-600/10 border border-pink-500/20 rounded-3xl p-10 md:p-16 text-center max-w-3xl mx-auto">
-            <h2 class="text-3xl font-black text-white mb-4">جاهز تبدأ؟</h2>
-            <p class="text-slate-400 mb-8">سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع.</p>
+            <h2 class="text-3xl font-black text-white mb-4">{% trans "جاهز تبدأ؟" %}</h2>
+            <p class="text-slate-400 mb-8">{% trans "سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع." %}</p>
             <a href="{% url 'saas_customer_signup' %}?industry=printing" class="btn-pink text-white font-bold px-10 py-4 rounded-2xl text-lg inline-flex items-center gap-3">
-                <i class="fas fa-rocket"></i> ابدأ الآن مجانا
+                <i class="fas fa-rocket"></i> {% trans "ابدأ الآن مجانا" %}
             </a>
         </div>
     </div>
@@ -342,11 +343,11 @@
 <!-- Footer -->
 <footer class="border-t border-slate-800 py-8">
     <div class="container mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div class="text-slate-600 text-sm">&copy; 2026 Mousstec. جميع الحقوق محفوظة.</div>
+        <div class="text-slate-600 text-sm">&copy; 2026 Mousstec. {% trans "جميع الحقوق محفوظة" %}.</div>
         <div class="flex gap-6 text-slate-600 text-sm">
-            <a href="/" class="hover:text-pink-400 transition">الرئيسية</a>
-            <a href="{% url 'saas_pricing' %}" class="hover:text-pink-400 transition">الباقات</a>
-            <a href="{% url 'client_login_finder' %}" class="hover:text-pink-400 transition">تسجيل الدخول</a>
+            <a href="/" class="hover:text-pink-400 transition">{% trans "الرئيسية" %}</a>
+            <a href="{% url 'saas_pricing' %}" class="hover:text-pink-400 transition">{% trans "الباقات" %}</a>
+            <a href="{% url 'client_login_finder' %}" class="hover:text-pink-400 transition">{% trans "تسجيل الدخول" %}</a>
         </div>
     </div>
 </footer>
