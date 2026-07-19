@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 14:43+0300\n"
+"POT-Creation-Date: 2026-07-19 14:54+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,7 +86,9 @@ msgid "شحن تصاميم للشركة"
 msgstr ""
 
 #: clients/models/billing.py:46 clients/models/design_store.py:141
-#: clients/models/tenancy.py:1042 clients/templates/clients/pricing.html:228
+#: clients/models/tenancy.py:1042
+#: clients/templates/clients/payment_failed.html:85
+#: clients/templates/clients/pricing.html:228
 msgid "فودافون كاش"
 msgstr "Vodafone Cash"
 
@@ -3628,6 +3630,7 @@ msgstr "All rights reserved"
 
 #: clients/templates/clients/auto_landing.html:208
 #: clients/templates/clients/features.html:33
+#: clients/templates/clients/payment_success.html:122
 #: clients/templates/clients/print_landing.html:348
 #: inventory/templates/inventory/_base_portal.html:38
 #: inventory/templates/inventory/bank_reconciliation.html:38
@@ -4830,13 +4833,136 @@ msgstr "Confirm and enable 2FA"
 msgid "العودة لإعدادات الأمان"
 msgstr "Back to security settings"
 
-#: clients/templates/clients/pricing.html:7
-msgid "باقات Mouss Tec | اختر خطتك"
-msgstr "Mouss Tec Packages | Choose Your Plan"
+#: clients/templates/clients/payment_failed.html:7
+msgid "فشل الدفع"
+msgstr "Payment failed"
 
+#: clients/templates/clients/payment_failed.html:44
+msgid "لم تكتمل عملية الدفع"
+msgstr "The payment was not completed"
+
+#: clients/templates/clients/payment_failed.html:52
+msgid "ماذا حدث؟"
+msgstr "What happened?"
+
+#: clients/templates/clients/payment_failed.html:56
+msgid "قد يكون سبب الرفض"
+msgstr "The reason for rejection may be"
+
+#: clients/templates/clients/payment_failed.html:58
+msgid "رصيد غير كافٍ في البطاقة"
+msgstr "Insufficient balance on the card"
+
+#: clients/templates/clients/payment_failed.html:59
+msgid "البطاقة غير مفعّلة للمدفوعات الإلكترونية"
+msgstr "The card is not enabled for online payments"
+
+#: clients/templates/clients/payment_failed.html:60
+msgid "البيانات المدخلة غير صحيحة"
+msgstr "The entered details are incorrect"
+
+#: clients/templates/clients/payment_failed.html:61
+msgid "رفض البنك لأسباب أمنية"
+msgstr "The bank declined for security reasons"
+
+#: clients/templates/clients/payment_failed.html:64
+msgid ""
+"انتهت المهلة المحددة للدفع (60 دقيقة). يرجى إعادة المحاولة وإتمام الدفع في "
+"الوقت المحدد."
+msgstr "The payment time limit (60 minutes) has expired. Please try again and complete the payment within the allotted time."
+
+#: clients/templates/clients/payment_failed.html:73
+msgid "ماذا تريد أن تفعل؟"
+msgstr "What would you like to do?"
+
+#: clients/templates/clients/payment_failed.html:77
+msgid "حاول مرة أخرى"
+msgstr "Try again"
+
+#: clients/templates/clients/payment_failed.html:82
+msgid "أو ادفع بطريقة أخرى"
+msgstr "Or pay with another method"
+
+#: clients/templates/clients/payment_failed.html:91
+msgid "للدفع بالمحافظ الإلكترونية تواصل مع الدعم على واتساب."
+msgstr "To pay with e-wallets, contact support on WhatsApp."
+
+#: clients/templates/clients/payment_failed.html:96
+msgid "تواصل مع الدعم"
+msgstr "Contact support"
+
+#: clients/templates/clients/payment_failed.html:100
 #: clients/templates/clients/pricing.html:38
 msgid "العودة للرئيسية"
 msgstr "Back to home"
+
+#: clients/templates/clients/payment_success.html:7
+msgid "تم الدفع بنجاح"
+msgstr "Payment successful"
+
+#: clients/templates/clients/payment_success.html:52
+msgid "تم الدفع بنجاح!"
+msgstr "Payment successful!"
+
+#: clients/templates/clients/payment_success.html:55
+msgid "تم تفعيل اشتراكك"
+msgstr "Your subscription has been activated"
+
+#: clients/templates/clients/payment_success.html:60
+msgid "تم تفعيل باقة التصميمات. رصيدك جاهز للاستخدام الآن."
+msgstr "The designs package has been activated. Your balance is ready to use now."
+
+#: clients/templates/clients/payment_success.html:62
+msgid "تم استلام دفعتك. قطعتك محجوزة في الـ Escrow."
+msgstr "Your payment has been received. Your part is reserved in Escrow."
+
+#: clients/templates/clients/payment_success.html:64
+msgid "عملية الدفع اكتملت بنجاح."
+msgstr "The payment was completed successfully."
+
+#: clients/templates/clients/payment_success.html:78
+msgid "الاشتراك ساري حتى"
+msgstr "Subscription valid until"
+
+#: clients/templates/clients/payment_success.html:87
+msgid "عملية مشفرة وآمنة عبر Paymob"
+msgstr "Encrypted and secure transaction via Paymob"
+
+#: clients/templates/clients/payment_success.html:91
+msgid "الفاتورة متاحة في لوحة التحكم"
+msgstr "The invoice is available in the dashboard"
+
+#: clients/templates/clients/payment_success.html:96 printing/models.py:256
+msgid "رقم الطلب"
+msgstr "Order number"
+
+#: clients/templates/clients/payment_success.html:106
+msgid "انطلق للوحة التحكم"
+msgstr "Go to the dashboard"
+
+#: clients/templates/clients/payment_success.html:110
+msgid "ابدأ التصميم الآن"
+msgstr "Start designing now"
+
+#: clients/templates/clients/payment_success.html:114
+msgid "متابعة الطلب"
+msgstr "Track the order"
+
+#: clients/templates/clients/payment_success.html:118
+msgid "الصفحة الرئيسية"
+msgstr "Home page"
+
+#: clients/templates/clients/payment_success.html:128
+msgid "مشكلة في الدفع؟"
+msgstr "A problem with the payment?"
+
+#: clients/templates/clients/payment_success.html:129
+msgid "تواصل معنا على واتساب"
+msgstr "Contact us on WhatsApp"
+
+#: clients/templates/clients/pricing.html:7
+msgid "باقات Mouss Tec | اختر خطتك"
+msgstr "Mouss Tec Packages | Choose Your Plan"
 
 #: clients/templates/clients/pricing.html:47
 msgid "اسعار شفافة بدون مفاجآت"
@@ -11661,10 +11787,6 @@ msgstr ""
 
 #: printing/models.py:249
 msgid "مؤكد"
-msgstr ""
-
-#: printing/models.py:256
-msgid "رقم الطلب"
 msgstr ""
 
 #: printing/models.py:262

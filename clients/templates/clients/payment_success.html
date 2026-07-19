@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تم الدفع بنجاح | Mouss Tec</title>
+    <title>{% trans "تم الدفع بنجاح" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -48,19 +49,19 @@
 
         <!-- Title -->
         <div class="float-in delay-1">
-            <h1 class="text-4xl font-black text-white mb-3">تم الدفع بنجاح! 🎉</h1>
+            <h1 class="text-4xl font-black text-white mb-3">{% trans "تم الدفع بنجاح!" %} 🎉</h1>
             {% if context_type == 'subscription' %}
                 <p class="text-slate-400 text-lg mb-6">
-                    تم تفعيل اشتراكك
+                    {% trans "تم تفعيل اشتراكك" %}
                     {% if plan %}<span class="text-purple-400 font-bold">{{ plan|upper }}</span>{% endif %}
                     {% if period_label %} — <span class="text-emerald-400">{{ period_label }}</span>{% endif %}
                 </p>
             {% elif context_type == 'design' %}
-                <p class="text-slate-400 text-lg mb-6">تم تفعيل باقة التصميمات. رصيدك جاهز للاستخدام الآن.</p>
+                <p class="text-slate-400 text-lg mb-6">{% trans "تم تفعيل باقة التصميمات. رصيدك جاهز للاستخدام الآن." %}</p>
             {% elif context_type == 'parts' %}
-                <p class="text-slate-400 text-lg mb-6">تم استلام دفعتك. قطعتك محجوزة في الـ Escrow.</p>
+                <p class="text-slate-400 text-lg mb-6">{% trans "تم استلام دفعتك. قطعتك محجوزة في الـ Escrow." %}</p>
             {% else %}
-                <p class="text-slate-400 text-lg mb-6">عملية الدفع اكتملت بنجاح.</p>
+                <p class="text-slate-400 text-lg mb-6">{% trans "عملية الدفع اكتملت بنجاح." %}</p>
             {% endif %}
         </div>
 
@@ -74,7 +75,7 @@
                 <div>
                     <p class="text-white font-bold">{{ tenant.name }}</p>
                     {% if tenant.subscription_end_date %}
-                    <p class="text-slate-400 text-sm">الاشتراك ساري حتى: <span class="text-emerald-400 font-bold">{{ tenant.subscription_end_date }}</span></p>
+                    <p class="text-slate-400 text-sm">{% trans "الاشتراك ساري حتى" %}: <span class="text-emerald-400 font-bold">{{ tenant.subscription_end_date }}</span></p>
                     {% endif %}
                 </div>
             </div>
@@ -83,16 +84,16 @@
             <div class="space-y-3 text-sm">
                 <div class="flex items-center gap-3 text-slate-300">
                     <i class="fas fa-shield-check text-emerald-400 w-5 text-center"></i>
-                    <span>عملية مشفرة وآمنة عبر Paymob</span>
+                    <span>{% trans "عملية مشفرة وآمنة عبر Paymob" %}</span>
                 </div>
                 <div class="flex items-center gap-3 text-slate-300">
                     <i class="fas fa-receipt text-purple-400 w-5 text-center"></i>
-                    <span>الفاتورة متاحة في لوحة التحكم</span>
+                    <span>{% trans "الفاتورة متاحة في لوحة التحكم" %}</span>
                 </div>
                 {% if context_type == 'parts' and order_code %}
                 <div class="flex items-center gap-3 text-slate-300">
                     <i class="fas fa-box text-blue-400 w-5 text-center"></i>
-                    <span>رقم الطلب: <span class="text-white font-mono font-bold">{{ order_code }}</span></span>
+                    <span>{% trans "رقم الطلب" %}: <span class="text-white font-mono font-bold">{{ order_code }}</span></span>
                 </div>
                 {% endif %}
             </div>
@@ -102,30 +103,30 @@
         <div class="float-in delay-3 flex flex-col sm:flex-row gap-3 justify-center">
             {% if context_type == 'subscription' and shop %}
                 <a href="/{{ shop|slugify }}/" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30">
-                    <i class="fas fa-rocket"></i> انطلق للوحة التحكم
+                    <i class="fas fa-rocket"></i> {% trans "انطلق للوحة التحكم" %}
                 </a>
             {% elif context_type == 'design' %}
                 <a href="/marketplace/design-store/my-designs/" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-palette"></i> ابدأ التصميم الآن
+                    <i class="fas fa-palette"></i> {% trans "ابدأ التصميم الآن" %}
                 </a>
             {% elif context_type == 'parts' %}
                 <a href="/marketplace/parts/orders/" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-box"></i> متابعة الطلب
+                    <i class="fas fa-box"></i> {% trans "متابعة الطلب" %}
                 </a>
             {% else %}
                 <a href="/" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-home"></i> الصفحة الرئيسية
+                    <i class="fas fa-home"></i> {% trans "الصفحة الرئيسية" %}
                 </a>
             {% endif %}
             <a href="/" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2">
-                <i class="fas fa-house"></i> الرئيسية
+                <i class="fas fa-house"></i> {% trans "الرئيسية" %}
             </a>
         </div>
 
         <!-- Support note -->
         <p class="mt-6 text-slate-500 text-sm">
-            مشكلة في الدفع؟
-            <a href="https://wa.me/201XXXXXXXXX" class="text-purple-400 hover:text-purple-300 font-bold">تواصل معنا على واتساب</a>
+            {% trans "مشكلة في الدفع؟" %}
+            <a href="https://wa.me/201XXXXXXXXX" class="text-purple-400 hover:text-purple-300 font-bold">{% trans "تواصل معنا على واتساب" %}</a>
         </p>
     </div>
 
