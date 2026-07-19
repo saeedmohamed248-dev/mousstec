@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 14:54+0300\n"
+"POT-Creation-Date: 2026-07-19 15:07+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,13 +87,20 @@ msgstr ""
 
 #: clients/models/billing.py:46 clients/models/design_store.py:141
 #: clients/models/tenancy.py:1042
+#: clients/templates/clients/diag_topup_purchase.html:128
+#: clients/templates/clients/diag_topup_purchase.html:160
+#: clients/templates/clients/manage_subscription.html:288
 #: clients/templates/clients/payment_failed.html:85
 #: clients/templates/clients/pricing.html:228
 msgid "فودافون كاش"
 msgstr "Vodafone Cash"
 
 #: clients/models/billing.py:47 clients/models/design_store.py:142
-#: clients/models/tenancy.py:1043 clients/templates/clients/pricing.html:247
+#: clients/models/tenancy.py:1043
+#: clients/templates/clients/diag_topup_purchase.html:138
+#: clients/templates/clients/diag_topup_purchase.html:166
+#: clients/templates/clients/manage_subscription.html:289
+#: clients/templates/clients/pricing.html:247
 msgid "إنستاباي"
 msgstr "InstaPay"
 
@@ -125,8 +132,9 @@ msgid "رقم العملية / Reference"
 msgstr ""
 
 #: clients/models/billing.py:65
+#: clients/templates/clients/manual_payment_upload.html:124
 msgid "سكرين شوت التحويل"
-msgstr ""
+msgstr "Transfer screenshot"
 
 #: clients/models/billing.py:73
 msgid "Phone to call back for clarification."
@@ -2002,8 +2010,11 @@ msgid "جديد"
 msgstr "New"
 
 #: clients/models/marketplace_c2c.py:186
+#: clients/templates/clients/manage_subscription.html:58
+#: clients/templates/clients/manage_subscription.html:63
+#: clients/templates/clients/manage_subscription.html:68
 msgid "أساسي"
-msgstr ""
+msgstr "base"
 
 #: clients/models/marketplace_c2c.py:187
 msgid "موثّق بالبريد"
@@ -2662,8 +2673,9 @@ msgid "خزائن إضافية مشتراة"
 msgstr ""
 
 #: clients/models/tenancy.py:110
+#: clients/templates/clients/manage_subscription.html:77
 msgid "فترة تجريبية"
-msgstr ""
+msgstr "Trial period"
 
 #: clients/models/tenancy.py:111
 msgid "نشط (مدفوع)"
@@ -3623,6 +3635,7 @@ msgstr "Start now for free"
 
 #: clients/templates/clients/auto_landing.html:206
 #: clients/templates/clients/features.html:510
+#: clients/templates/clients/manage_subscription.html:298
 #: clients/templates/clients/pricing.html:289
 #: clients/templates/clients/print_landing.html:346
 msgid "جميع الحقوق محفوظة"
@@ -3630,6 +3643,7 @@ msgstr "All rights reserved"
 
 #: clients/templates/clients/auto_landing.html:208
 #: clients/templates/clients/features.html:33
+#: clients/templates/clients/manual_payment_upload.html:32
 #: clients/templates/clients/payment_success.html:122
 #: clients/templates/clients/print_landing.html:348
 #: inventory/templates/inventory/_base_portal.html:38
@@ -3677,6 +3691,133 @@ msgstr "An extra protection layer with Google Authenticator"
 #: inventory/templates/inventory/bank_reconciliation_detail.html:39
 msgid "رجوع"
 msgstr "Back"
+
+#: clients/templates/clients/diag_topup_purchase.html:7
+#: clients/templates/clients/diag_topup_purchase.html:38
+msgid "شحن استخدامات التشخيص"
+msgstr "Top up diagnostic uses"
+
+#: clients/templates/clients/diag_topup_purchase.html:29
+msgid "العودة لغرفة التشخيص"
+msgstr "Back to the diagnostic room"
+
+#: clients/templates/clients/diag_topup_purchase.html:41
+msgid "خلصت حصة باقتك الشهرية؟ اشحن دلوقتي وكمّل شغلك من غير انتظار."
+msgstr "Ran out of your monthly package quota? Top up now and keep working without waiting."
+
+#: clients/templates/clients/diag_topup_purchase.html:52
+msgid "فحوصات التشخيص"
+msgstr "Diagnostic scans"
+
+#: clients/templates/clients/diag_topup_purchase.html:57
+#: clients/templates/clients/diag_topup_purchase.html:70
+msgid "المتبقي من حصة الباقة الشهرية"
+msgstr "Remaining from the monthly package quota"
+
+#: clients/templates/clients/diag_topup_purchase.html:65
+msgid "بوت التشخيص"
+msgstr "Diagnostic bot"
+
+#: clients/templates/clients/diag_topup_purchase.html:78
+msgid "رصيد الشحن"
+msgstr "Top-up balance"
+
+#: clients/templates/clients/diag_topup_purchase.html:83
+msgid "استخدام إضافي متاح فوق الحصة الشهرية"
+msgstr "Extra usage available above the monthly quota"
+
+#: clients/templates/clients/diag_topup_purchase.html:91
+msgid "اختر حزمة الشحن"
+msgstr "Choose a top-up pack"
+
+#: clients/templates/clients/diag_topup_purchase.html:104
+msgid "استخدام إضافي"
+msgstr "Extra use"
+
+#: clients/templates/clients/diag_topup_purchase.html:105
+msgid "فحص أو بوت — أيهما"
+msgstr "Scan or bot — either one"
+
+#: clients/templates/clients/diag_topup_purchase.html:106
+msgid "لا تنتهي صلاحيتها"
+msgstr "Never expires"
+
+#: clients/templates/clients/diag_topup_purchase.html:113
+#: clients/templates/clients/manage_subscription.html:146
+#: clients/templates/clients/manage_subscription.html:181
+#: clients/templates/clients/manage_subscription.html:205
+#: clients/templates/clients/manual_payment_upload.html:41
+#: clients/templates/clients/print_landing.html:215
+#: clients/templates/clients/print_landing.html:249
+#: inventory/templates/inventory/b2b_marketplace.html:198
+#: inventory/templates/inventory/bank_reconciliation.html:67
+#: inventory/templates/inventory/commission_dashboard.html:92
+#: inventory/templates/inventory/customer_feedback.html:74
+#: inventory/templates/inventory/invoice_print.html:239
+#: inventory/templates/inventory/invoice_print.html:240
+#: inventory/templates/inventory/invoice_print.html:267
+#: inventory/templates/inventory/invoice_print.html:315
+#: inventory/templates/inventory/invoice_print.html:320
+#: inventory/templates/inventory/invoice_print.html:326
+#: inventory/templates/inventory/invoice_print.html:333
+#: inventory/templates/inventory/invoice_print.html:346
+#: inventory/templates/inventory/invoice_print.html:351
+#: inventory/templates/inventory/invoice_print.html:357
+#: inventory/templates/inventory/invoice_print_a4.html:106
+#: inventory/templates/inventory/invoice_print_a4.html:108
+#: inventory/templates/inventory/invoice_print_a4.html:109
+#: inventory/templates/inventory/invoice_print_a4.html:110
+#: inventory/templates/inventory/invoice_print_a4.html:111
+#: inventory/templates/inventory/invoice_print_detailed.html:251
+#: inventory/templates/inventory/invoice_print_detailed.html:253
+#: inventory/templates/inventory/invoice_print_detailed.html:254
+#: inventory/templates/inventory/invoice_print_detailed.html:255
+#: inventory/templates/inventory/invoice_print_detailed.html:256
+#: inventory/templates/inventory/invoice_print_thermal.html:55
+#: inventory/templates/inventory/invoice_print_thermal.html:56
+#: inventory/templates/inventory/invoice_print_thermal.html:57
+#: inventory/templates/inventory/job_card_create.html:120
+#: inventory/templates/inventory/job_card_review.html:566
+#: inventory/templates/inventory/job_card_review.html:643
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+#: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/pos_fast.html:72
+#: inventory/templates/inventory/pos_fast.html:94
+#: inventory/templates/inventory/pos_fast.html:104
+#: inventory/templates/inventory/pos_fast.html:105
+#: inventory/templates/inventory/pos_fast.html:106
+#: inventory/templates/inventory/rfq_management.html:291
+#: inventory/templates/inventory/rfq_management.html:379
+#: inventory/templates/inventory/statement_print.html:53
+#: inventory/templates/inventory/statement_print.html:99
+#: inventory/templates/inventory/vehicle_health_passport.html:454
+#: inventory/templates/inventory/vehicle_history.html:101
+msgid "ج.م"
+msgstr "EGP"
+
+#: clients/templates/clients/diag_topup_purchase.html:116
+msgid "ج.م لكل استخدام"
+msgstr "EGP per use"
+
+#: clients/templates/clients/diag_topup_purchase.html:146
+msgid "لا توجد حزم شحن متاحة حالياً."
+msgstr "No top-up packs available right now."
+
+#: clients/templates/clients/diag_topup_purchase.html:155 hr/models.py:949
+msgid "طريقة الدفع"
+msgstr "Payment method"
+
+#: clients/templates/clients/diag_topup_purchase.html:172
+msgid ""
+"بعد اختيارك لطريقة الدفع، هتظهرلك شاشة لرفع سكرين شوت التحويل + رقم العملية."
+msgstr "After choosing a payment method, a screen will appear to upload the transfer screenshot + transaction number."
+
+#: clients/templates/clients/diag_topup_purchase.html:173
+msgid ""
+"هيتم تفعيل الشحن خلال دقائق بعد مراجعة الإدارة، وهتقدر تستخدمه فوراً في غرفة "
+"التشخيص."
+msgstr "The top-up will be activated within minutes after admin review, and you can use it immediately in the diagnostic room."
 
 #: clients/templates/clients/features.html:7
 msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
@@ -4717,6 +4858,387 @@ msgstr "New user?"
 msgid "أنشئ حسابك مجاناً — 7 أيام بكل المزايا"
 msgstr "Create your account free — 7 days with all features"
 
+#: clients/templates/clients/manage_subscription.html:7
+#: clients/templates/clients/manage_subscription.html:39
+msgid "إدارة الاشتراك والباقات"
+msgstr "Manage subscription and packages"
+
+#: clients/templates/clients/manage_subscription.html:20
+msgid "الأكثر طلباً"
+msgstr "Most popular"
+
+#: clients/templates/clients/manage_subscription.html:32
+msgid "العودة للنظام"
+msgstr "Back to the system"
+
+#: clients/templates/clients/manage_subscription.html:40
+msgid "باقة"
+msgstr "Package"
+
+#: clients/templates/clients/manage_subscription.html:53
+msgid "ملخص الباقة الحالية"
+msgstr "Current package summary"
+
+#: clients/templates/clients/manage_subscription.html:57
+msgid "موظفين"
+msgstr "Employees"
+
+#: clients/templates/clients/manage_subscription.html:58
+#: clients/templates/clients/manage_subscription.html:63
+#: clients/templates/clients/manage_subscription.html:68
+msgid "إضافي"
+msgstr "extra"
+
+#: clients/templates/clients/manage_subscription.html:62
+msgid "فروع"
+msgstr "Branches"
+
+#: clients/templates/clients/manage_subscription.html:67
+msgid "خزائن"
+msgstr "Treasuries"
+
+#: clients/templates/clients/manage_subscription.html:73
+#: clients/templates/clients/manage_subscription.html:205
+msgid "يوم متبقي"
+msgstr "days remaining"
+
+#: clients/templates/clients/manage_subscription.html:74
+msgid "ينتهي"
+msgstr "Ends"
+
+#: clients/templates/clients/manage_subscription.html:78
+msgid "تنتهي"
+msgstr "Ends"
+
+#: clients/templates/clients/manage_subscription.html:87
+msgid "باقات النظام — ترقية أو تجديد"
+msgstr "System packages — upgrade or renew"
+
+#: clients/templates/clients/manage_subscription.html:93
+#: inventory/templates/inventory/dashboard.html:121
+msgid "باقتك الحالية"
+msgstr "Your current plan"
+
+#: clients/templates/clients/manage_subscription.html:105
+#: clients/templates/clients/manage_subscription.html:203
+#: clients/templates/clients/pricing.html:157
+#: clients/templates/clients/pricing.html:193
+#: clients/templates/clients/print_landing.html:287
+#: clients/templates/clients/print_landing.html:301
+#: clients/templates/clients/print_landing.html:315
+msgid "ج.م/شهر"
+msgstr "EGP/month"
+
+#: clients/templates/clients/manage_subscription.html:108
+#: clients/templates/clients/manage_subscription.html:218 hr/models.py:242
+#: inventory/templates/inventory/commission_dashboard.html:45
+#: inventory/templates/inventory/commission_dashboard.html:131
+msgid "موظف"
+msgstr "employees"
+
+#: clients/templates/clients/manage_subscription.html:109
+#: clients/templates/clients/manage_subscription.html:242
+#: clients/templates/clients/pricing.html:146
+#: inventory/templates/inventory/commission_dashboard.html:91
+#: printing/models.py:29
+msgid "فرع"
+msgstr "Branch"
+
+#: clients/templates/clients/manage_subscription.html:110
+#: clients/templates/clients/manage_subscription.html:265
+#: clients/templates/clients/pricing.html:146 printing/models.py:547
+msgid "خزينة"
+msgstr "cash box"
+
+#: clients/templates/clients/manage_subscription.html:114
+msgid "تجديد الباقة"
+msgstr "Renew package"
+
+#: clients/templates/clients/manage_subscription.html:118
+msgid "ترقية لهذه الباقة"
+msgstr "Upgrade to this package"
+
+#: clients/templates/clients/manage_subscription.html:130
+msgid "باقات تصاميم الذكاء الاصطناعي — للعملاء"
+msgstr "AI design packages — for customers"
+
+#: clients/templates/clients/manage_subscription.html:131
+msgid "تصاميم احترافية بالذكاء الاصطناعي — دفعة واحدة بدون اشتراك شهري"
+msgstr "Professional AI designs — one-time payment with no monthly subscription"
+
+#: clients/templates/clients/manage_subscription.html:142
+msgid "تصاميم"
+msgstr "designs"
+
+#: clients/templates/clients/manage_subscription.html:147
+#: clients/templates/clients/manage_subscription.html:182
+#: clients/templates/clients/print_landing.html:216
+#: clients/templates/clients/print_landing.html:250
+msgid "دفعة واحدة"
+msgstr "One-time payment"
+
+#: clients/templates/clients/manage_subscription.html:150
+msgid "تصاميم بالذكاء الاصطناعي"
+msgstr "AI designs"
+
+#: clients/templates/clients/manage_subscription.html:151
+#: clients/templates/clients/manage_subscription.html:186
+msgid "إعادتين توليد"
+msgstr "Two regenerations"
+
+#: clients/templates/clients/manage_subscription.html:151
+msgid "إعادة توليد واحدة"
+msgstr "One regeneration"
+
+#: clients/templates/clients/manage_subscription.html:151
+msgid "لكل تصميم"
+msgstr "per design"
+
+#: clients/templates/clients/manage_subscription.html:152
+msgid "تحميل بجودة عالية"
+msgstr "High-quality download"
+
+#: clients/templates/clients/manage_subscription.html:153
+#: clients/templates/clients/print_landing.html:221
+msgid "إرسال واتساب"
+msgstr "WhatsApp delivery"
+
+#: clients/templates/clients/manage_subscription.html:154
+msgid "دمج اللوجو"
+msgstr "Logo integration"
+
+#: clients/templates/clients/manage_subscription.html:155
+#: clients/templates/clients/manage_subscription.html:187
+msgid "علامة مائية"
+msgstr "Watermark"
+
+#: clients/templates/clients/manage_subscription.html:158
+#: clients/templates/clients/manage_subscription.html:191
+#: clients/templates/clients/print_landing.html:229
+#: clients/templates/clients/print_landing.html:261
+msgid "اشترِ الآن"
+msgstr "Buy now"
+
+#: clients/templates/clients/manage_subscription.html:165
+msgid "باقات المصممين والاستوديوهات"
+msgstr "Designer and studio packages"
+
+#: clients/templates/clients/manage_subscription.html:166
+msgid "للمصممين المحترفين والاستوديوهات — عدد أكبر وسعر أقل للتصميم"
+msgstr "For professional designers and studios — more designs at a lower price per design"
+
+#: clients/templates/clients/manage_subscription.html:177
+#: clients/templates/clients/print_landing.html:214
+#: clients/templates/clients/print_landing.html:248
+msgid "تصميم"
+msgstr "designs"
+
+#: clients/templates/clients/manage_subscription.html:185
+#: clients/templates/clients/print_landing.html:252
+msgid "تصميم AI"
+msgstr "AI designs"
+
+#: clients/templates/clients/manage_subscription.html:188
+#: clients/templates/clients/print_landing.html:255
+msgid "ملفات مصدر"
+msgstr "Source files"
+
+#: clients/templates/clients/manage_subscription.html:200
+msgid "شراء إضافات"
+msgstr "Buy add-ons"
+
+#: clients/templates/clients/manage_subscription.html:203
+msgid "سعر الإضافة الكامل"
+msgstr "Full add-on price"
+
+#: clients/templates/clients/manage_subscription.html:205
+msgid "التكلفة التناسبية"
+msgstr "Prorated cost"
+
+#: clients/templates/clients/manage_subscription.html:217
+msgid "إضافة موظف"
+msgstr "Add employee"
+
+#: clients/templates/clients/manage_subscription.html:218
+#: clients/templates/clients/manage_subscription.html:242
+#: clients/templates/clients/manage_subscription.html:265
+msgid "الحالي"
+msgstr "Current"
+
+#: clients/templates/clients/manage_subscription.html:221
+#: clients/templates/clients/manage_subscription.html:245
+#: clients/templates/clients/manage_subscription.html:268
+msgid "العدد"
+msgstr "Quantity"
+
+#: clients/templates/clients/manage_subscription.html:230
+#: clients/templates/clients/manage_subscription.html:253
+#: clients/templates/clients/manage_subscription.html:276
+msgid "إضافة"
+msgstr "Add"
+
+#: clients/templates/clients/manage_subscription.html:241
+msgid "إضافة فرع"
+msgstr "Add branch"
+
+#: clients/templates/clients/manage_subscription.html:264
+msgid "إضافة خزينة"
+msgstr "Add treasury"
+
+#: clients/templates/clients/manage_subscription.html:286
+msgid "طرق الدفع المتاحة"
+msgstr "Available payment methods"
+
+#: clients/templates/clients/manage_subscription.html:290
+msgid "فيزا / ماستركارد"
+msgstr "Visa / Mastercard"
+
+#: clients/templates/clients/manage_subscription.html:290
+#: clients/templates/clients/pricing.html:267
+#: clients/templates/clients/pricing.html:269
+#: clients/templates/clients/pricing.html:272
+#: inventory/models/diagnostics.py:431
+#: inventory/templates/inventory/vehicle_health_passport.html:411
+msgid "قريباً"
+msgstr "Soon"
+
+#: clients/templates/clients/manage_subscription.html:292
+msgid "تواصل معنا على واتساب للاشتراك أو التجديد — سيتم تفعيلك فوراً"
+msgstr "Contact us on WhatsApp to subscribe or renew — you will be activated immediately"
+
+#: clients/templates/clients/manual_payment_upload.html:7
+msgid "دفع بفودافون كاش"
+msgstr "Pay with Vodafone Cash"
+
+#: clients/templates/clients/manual_payment_upload.html:34
+msgid "إتمام الدفع بفودافون كاش"
+msgstr "Complete payment with Vodafone Cash"
+
+#: clients/templates/clients/manual_payment_upload.html:35
+msgid ""
+"حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل"
+msgstr "Transfer the amount to the number below, and upload a screenshot of the transfer so we can confirm your activation"
+
+#: clients/templates/clients/manual_payment_upload.html:40
+msgid "المبلغ المطلوب تحويله"
+msgstr "Amount to transfer"
+
+#: clients/templates/clients/manual_payment_upload.html:43
+msgid "كود الإيصال"
+msgstr "Receipt code"
+
+#: clients/templates/clients/manual_payment_upload.html:51
+msgid "حوّل المبلغ على رقم فودافون كاش"
+msgstr "Transfer the amount to the Vodafone Cash number"
+
+#: clients/templates/clients/manual_payment_upload.html:61
+msgid "اضغط لنسخ الرقم"
+msgstr "Tap to copy the number"
+
+#: clients/templates/clients/manual_payment_upload.html:69
+msgid "أو ادفع عبر InstaPay"
+msgstr "Or pay via InstaPay"
+
+#: clients/templates/clients/manual_payment_upload.html:72
+#: clients/templates/clients/pricing.html:252
+msgid "عنوان InstaPay"
+msgstr "InstaPay address"
+
+#: clients/templates/clients/manual_payment_upload.html:84
+msgid "التحويل بيوصلنا فوراً. بعد التحويل ارجع هنا وارفع سكرين شوت العملية."
+msgstr "The transfer reaches us instantly. After transferring, come back here and upload a screenshot of the transaction."
+
+#: clients/templates/clients/manual_payment_upload.html:92
+msgid "بعد التحويل، ارفع البيانات"
+msgstr "After transferring, upload the details"
+
+#: clients/templates/clients/manual_payment_upload.html:100
+msgid "رقم الفودافون اللي حولت منه"
+msgstr "The Vodafone number you transferred from"
+
+#: clients/templates/clients/manual_payment_upload.html:111
+msgid "رقم العملية (Reference)"
+msgstr "Transaction number (Reference)"
+
+#: clients/templates/clients/manual_payment_upload.html:114
+msgid "مثال: 8765432198 أو الرقم المرجعي من رسالة فودافون"
+msgstr "Example: 8765432198 or the reference number from the Vodafone message"
+
+#: clients/templates/clients/manual_payment_upload.html:117
+msgid "الرقم اللي بيظهر في رسالة التأكيد من فودافون بعد التحويل."
+msgstr "The number that appears in the confirmation message from Vodafone after the transfer."
+
+#: clients/templates/clients/manual_payment_upload.html:129
+msgid "اضغط لاختيار صورة"
+msgstr "Tap to choose an image"
+
+#: clients/templates/clients/manual_payment_upload.html:130
+msgid "PNG / JPG — حد أقصى 5 ميجا"
+msgstr "PNG / JPG — max 5 MB"
+
+#: clients/templates/clients/manual_payment_upload.html:134
+msgid "تم اختيار الصورة"
+msgstr "Image selected"
+
+#: clients/templates/clients/manual_payment_upload.html:144
+msgid "ملاحظات (اختياري)"
+msgstr "Notes (optional)"
+
+#: clients/templates/clients/manual_payment_upload.html:147
+msgid "أي معلومة إضافية..."
+msgstr "Any additional information..."
+
+#: clients/templates/clients/manual_payment_upload.html:154
+#: clients/templates/clients/manual_payment_upload.html:253
+msgid "أرسل الإيصال للمراجعة"
+msgstr "Submit the receipt for review"
+
+#: clients/templates/clients/manual_payment_upload.html:159
+msgid "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً."
+msgstr "After submitting the receipt, our team reviews it within minutes and activates the service automatically."
+
+#: clients/templates/clients/manual_payment_upload.html:168
+msgid "تواصل مع الدعم على واتساب"
+msgstr "Contact support on WhatsApp"
+
+#: clients/templates/clients/manual_payment_upload.html:179
+msgid "تم استلام الإيصال"
+msgstr "Receipt received"
+
+#: clients/templates/clients/manual_payment_upload.html:180
+msgid "هيتم التفعيل خلال دقائق بعد المراجعة."
+msgstr "Activation will happen within minutes after review."
+
+#: clients/templates/clients/manual_payment_upload.html:182
+msgid "تمام"
+msgstr "OK"
+
+#: clients/templates/clients/manual_payment_upload.html:191
+#: clients/templates/clients/pricing.html:370
+msgid "تم النسخ!"
+msgstr "Copied!"
+
+#: clients/templates/clients/manual_payment_upload.html:212
+msgid "حجم الصورة لازم أقل من 5 ميجا."
+msgstr "The image size must be less than 5 MB."
+
+#: clients/templates/clients/manual_payment_upload.html:232
+#: inventory/templates/inventory/b2b_marketplace.html:230
+msgid "جاري الإرسال..."
+msgstr "Sending..."
+
+#: clients/templates/clients/manual_payment_upload.html:242
+msgid "خطأ غير متوقع"
+msgstr "Unexpected error"
+
+#: clients/templates/clients/manual_payment_upload.html:245
+msgid "هيتم التفعيل خلال دقائق."
+msgstr "Activation will happen within minutes."
+
+#: clients/templates/clients/manual_payment_upload.html:251
+msgid "فشل الإرسال — حاول تاني."
+msgstr "Submission failed — try again."
+
 #: clients/templates/clients/mfa_challenge.html:7
 msgid "تحقق ثنائي"
 msgstr "Two-factor verification"
@@ -5034,16 +5556,6 @@ msgstr "Most popular"
 msgid "جنيه / شهر"
 msgstr "EGP / month"
 
-#: clients/templates/clients/pricing.html:146
-#: inventory/templates/inventory/commission_dashboard.html:91
-#: printing/models.py:29
-msgid "فرع"
-msgstr "Branch"
-
-#: clients/templates/clients/pricing.html:146 printing/models.py:547
-msgid "خزينة"
-msgstr "cash box"
-
 #: clients/templates/clients/pricing.html:147
 msgid "مستخدم"
 msgstr "users"
@@ -5055,14 +5567,6 @@ msgstr "AI designs/month"
 #: clients/templates/clients/pricing.html:157
 msgid "اضافة موظف/فرع/خزينة"
 msgstr "Add employee/branch/cash box"
-
-#: clients/templates/clients/pricing.html:157
-#: clients/templates/clients/pricing.html:193
-#: clients/templates/clients/print_landing.html:287
-#: clients/templates/clients/print_landing.html:301
-#: clients/templates/clients/print_landing.html:315
-msgid "ج.م/شهر"
-msgstr "EGP/month"
 
 #: clients/templates/clients/pricing.html:163
 msgid "تجديد"
@@ -5144,10 +5648,6 @@ msgstr "upload the receipt"
 msgid "حوّل عن طريق InstaPay وارفع سكرين شوت العملية"
 msgstr "Transfer via InstaPay and upload a screenshot of the transaction"
 
-#: clients/templates/clients/pricing.html:252
-msgid "عنوان InstaPay"
-msgstr "InstaPay address"
-
 #: clients/templates/clients/pricing.html:257
 msgid "ادفع بإنستاباي"
 msgstr "Pay with InstaPay"
@@ -5155,14 +5655,6 @@ msgstr "Pay with InstaPay"
 #: clients/templates/clients/pricing.html:266
 msgid "بطاقة فيزا / ماستركارد"
 msgstr "Visa / Mastercard"
-
-#: clients/templates/clients/pricing.html:267
-#: clients/templates/clients/pricing.html:269
-#: clients/templates/clients/pricing.html:272
-#: inventory/models/diagnostics.py:431
-#: inventory/templates/inventory/vehicle_health_passport.html:411
-msgid "قريباً"
-msgstr "Soon"
 
 #: clients/templates/clients/pricing.html:267
 msgid "تحت التطوير"
@@ -5210,10 +5702,6 @@ msgstr "Saved"
 #: clients/templates/clients/pricing.html:350
 msgid "جنيه"
 msgstr "EGP"
-
-#: clients/templates/clients/pricing.html:370
-msgid "تم النسخ!"
-msgstr "Copied!"
 
 #: clients/templates/clients/pricing.html:388
 #: clients/templates/clients/pricing.html:418
@@ -5373,65 +5861,6 @@ msgstr "For individuals and companies who want ready-made designs"
 msgid "الأكثر طلبا"
 msgstr "Most popular"
 
-#: clients/templates/clients/print_landing.html:214
-#: clients/templates/clients/print_landing.html:248
-msgid "تصميم"
-msgstr "designs"
-
-#: clients/templates/clients/print_landing.html:215
-#: clients/templates/clients/print_landing.html:249
-#: inventory/templates/inventory/b2b_marketplace.html:198
-#: inventory/templates/inventory/bank_reconciliation.html:67
-#: inventory/templates/inventory/commission_dashboard.html:92
-#: inventory/templates/inventory/customer_feedback.html:74
-#: inventory/templates/inventory/invoice_print.html:239
-#: inventory/templates/inventory/invoice_print.html:240
-#: inventory/templates/inventory/invoice_print.html:267
-#: inventory/templates/inventory/invoice_print.html:315
-#: inventory/templates/inventory/invoice_print.html:320
-#: inventory/templates/inventory/invoice_print.html:326
-#: inventory/templates/inventory/invoice_print.html:333
-#: inventory/templates/inventory/invoice_print.html:346
-#: inventory/templates/inventory/invoice_print.html:351
-#: inventory/templates/inventory/invoice_print.html:357
-#: inventory/templates/inventory/invoice_print_a4.html:106
-#: inventory/templates/inventory/invoice_print_a4.html:108
-#: inventory/templates/inventory/invoice_print_a4.html:109
-#: inventory/templates/inventory/invoice_print_a4.html:110
-#: inventory/templates/inventory/invoice_print_a4.html:111
-#: inventory/templates/inventory/invoice_print_detailed.html:251
-#: inventory/templates/inventory/invoice_print_detailed.html:253
-#: inventory/templates/inventory/invoice_print_detailed.html:254
-#: inventory/templates/inventory/invoice_print_detailed.html:255
-#: inventory/templates/inventory/invoice_print_detailed.html:256
-#: inventory/templates/inventory/invoice_print_thermal.html:55
-#: inventory/templates/inventory/invoice_print_thermal.html:56
-#: inventory/templates/inventory/invoice_print_thermal.html:57
-#: inventory/templates/inventory/job_card_create.html:120
-#: inventory/templates/inventory/job_card_review.html:566
-#: inventory/templates/inventory/job_card_review.html:643
-#: inventory/templates/inventory/job_card_review.html:785
-#: inventory/templates/inventory/job_card_review.html:920
-#: inventory/templates/inventory/job_card_review.html:941
-#: inventory/templates/inventory/pos_fast.html:72
-#: inventory/templates/inventory/pos_fast.html:94
-#: inventory/templates/inventory/pos_fast.html:104
-#: inventory/templates/inventory/pos_fast.html:105
-#: inventory/templates/inventory/pos_fast.html:106
-#: inventory/templates/inventory/rfq_management.html:291
-#: inventory/templates/inventory/rfq_management.html:379
-#: inventory/templates/inventory/statement_print.html:53
-#: inventory/templates/inventory/statement_print.html:99
-#: inventory/templates/inventory/vehicle_health_passport.html:454
-#: inventory/templates/inventory/vehicle_history.html:101
-msgid "ج.م"
-msgstr "EGP"
-
-#: clients/templates/clients/print_landing.html:216
-#: clients/templates/clients/print_landing.html:250
-msgid "دفعة واحدة"
-msgstr "One-time payment"
-
 #: clients/templates/clients/print_landing.html:218
 msgid "تصميم بالذكاء الاصطناعي"
 msgstr "AI designs"
@@ -5444,18 +5873,9 @@ msgstr "regenerations per design"
 msgid "تحميل"
 msgstr "Download"
 
-#: clients/templates/clients/print_landing.html:221
-msgid "إرسال واتساب"
-msgstr "WhatsApp delivery"
-
 #: clients/templates/clients/print_landing.html:223
 msgid "تحميل بجودة"
 msgstr "Download at quality"
-
-#: clients/templates/clients/print_landing.html:229
-#: clients/templates/clients/print_landing.html:261
-msgid "اشترِ الآن"
-msgstr "Buy now"
 
 #: clients/templates/clients/print_landing.html:232
 msgid "مفيش باقات عملاء مفعّلة حالياً."
@@ -5469,17 +5889,9 @@ msgstr "Designer packages"
 msgid "للمصممين المحترفين والاستوديوهات"
 msgstr "For professional designers and studios"
 
-#: clients/templates/clients/print_landing.html:252
-msgid "تصميم AI"
-msgstr "AI designs"
-
 #: clients/templates/clients/print_landing.html:253
 msgid "إعادة توليد"
 msgstr "regenerations"
-
-#: clients/templates/clients/print_landing.html:255
-msgid "ملفات مصدر"
-msgstr "Source files"
 
 #: clients/templates/clients/print_landing.html:264
 msgid "مفيش باقات مصممين مفعّلة حالياً."
@@ -6204,11 +6616,6 @@ msgstr ""
 msgid "إذا مُفعّل: تصميمات هذا الموظف تُعتمد فوراً بدون مراجعة المدير المباشر"
 msgstr ""
 
-#: hr/models.py:242 inventory/templates/inventory/commission_dashboard.html:45
-#: inventory/templates/inventory/commission_dashboard.html:131
-msgid "موظف"
-msgstr "employees"
-
 #: hr/models.py:243
 msgid "الموظفون"
 msgstr ""
@@ -6772,10 +7179,6 @@ msgstr ""
 
 #: hr/models.py:943
 msgid "عند التفعيل: يتجدد الاشتراك تلقائياً عند انتهائه (يتطلب بطاقة محفوظة)"
-msgstr ""
-
-#: hr/models.py:949
-msgid "طريقة الدفع"
 msgstr ""
 
 #: hr/models.py:953
@@ -9144,10 +9547,6 @@ msgstr "Wholesale price"
 msgid "يرجى إدخال رقم القطعة أو الوصف"
 msgstr "Please enter the part number or description"
 
-#: inventory/templates/inventory/b2b_marketplace.html:230
-msgid "جاري الإرسال..."
-msgstr "Sending..."
-
 #: inventory/templates/inventory/b2b_marketplace.html:242
 msgid "تم إرسال طلب التسعير بنجاح! سيتم إخطارك عند ورود العروض."
 msgstr "The RFQ was sent successfully! You will be notified when offers arrive."
@@ -9534,10 +9933,6 @@ msgstr "Renew now and get 5 extra free days"
 #: inventory/templates/inventory/dashboard.html:101
 msgid "تجديد الاشتراك"
 msgstr "Renew subscription"
-
-#: inventory/templates/inventory/dashboard.html:121
-msgid "باقتك الحالية"
-msgstr "Your current plan"
 
 #: inventory/templates/inventory/dashboard.html:127 printing/models.py:30
 msgid "الفروع"

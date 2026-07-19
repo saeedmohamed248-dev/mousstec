@@ -1,10 +1,10 @@
-{% load l10n %}
+{% load l10n i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دفع بفودافون كاش — Mouss Tec</title>
+    <title>{% trans "دفع بفودافون كاش" %} — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -29,18 +29,18 @@
         <!-- Header -->
         <div class="text-center mb-6">
             <a href="/" class="inline-flex items-center gap-2 text-slate-400 hover:text-purple-400 text-sm font-bold mb-4">
-                <i class="fas fa-arrow-right"></i> الرئيسية
+                <i class="fas fa-arrow-right"></i> {% trans "الرئيسية" %}
             </a>
-            <h1 class="text-3xl font-black text-white mb-2">إتمام الدفع بفودافون كاش</h1>
-            <p class="text-slate-400 text-sm">حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل</p>
+            <h1 class="text-3xl font-black text-white mb-2">{% trans "إتمام الدفع بفودافون كاش" %}</h1>
+            <p class="text-slate-400 text-sm">{% trans "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}</p>
         </div>
 
         <!-- Amount -->
         <div class="bg-gradient-to-br from-purple-600/20 to-indigo-600/20 border border-purple-500/30 rounded-2xl p-5 mb-5 text-center">
-            <p class="text-slate-300 text-sm font-bold mb-1">المبلغ المطلوب تحويله</p>
-            <p class="text-4xl font-black text-white">{{ amount_display }} <span class="text-xl text-slate-400">ج.م</span></p>
+            <p class="text-slate-300 text-sm font-bold mb-1">{% trans "المبلغ المطلوب تحويله" %}</p>
+            <p class="text-4xl font-black text-white">{{ amount_display }} <span class="text-xl text-slate-400">{% trans "ج.م" %}</span></p>
             <p class="text-slate-500 text-xs mt-2">
-                <i class="fas fa-receipt ml-1"></i> كود الإيصال: <span class="font-mono">{{ receipt.receipt_code|stringformat:"s"|slice:":8" }}</span>
+                <i class="fas fa-receipt ml-1"></i> {% trans "كود الإيصال" %}: <span class="font-mono">{{ receipt.receipt_code|stringformat:"s"|slice:":8" }}</span>
             </p>
         </div>
 
@@ -48,7 +48,7 @@
         <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-5">
             <div class="flex items-center gap-3 mb-4">
                 <span class="step-num bg-red-500/20 text-red-400 text-sm">1</span>
-                <h3 class="text-white font-black">حوّل المبلغ على رقم فودافون كاش</h3>
+                <h3 class="text-white font-black">{% trans "حوّل المبلغ على رقم فودافون كاش" %}</h3>
             </div>
 
             <!-- Vodafone Number Card -->
@@ -58,7 +58,7 @@
                 <p class="text-white text-4xl font-black tracking-wider mb-3" dir="ltr" id="vfNumber">{{ vodafone_number }}</p>
                 <button onclick="copyNumber('{{ vodafone_number }}', this)"
                         class="bg-white/20 hover:bg-white/30 text-white font-bold text-sm px-4 py-2 rounded-lg transition w-full pulse-ring">
-                    <i class="fas fa-copy ml-1"></i> اضغط لنسخ الرقم
+                    <i class="fas fa-copy ml-1"></i> {% trans "اضغط لنسخ الرقم" %}
                 </button>
             </div>
 
@@ -66,10 +66,10 @@
             <details class="bg-slate-900/50 rounded-xl border border-slate-700/40">
                 <summary class="cursor-pointer p-4 text-sm font-bold text-slate-300 hover:text-white">
                     <i class="fas fa-mobile-screen text-blue-400 ml-2"></i>
-                    أو ادفع عبر InstaPay
+                    {% trans "أو ادفع عبر InstaPay" %}
                 </summary>
                 <div class="px-4 pb-4 text-sm">
-                    <p class="text-slate-400 mb-2">عنوان InstaPay:</p>
+                    <p class="text-slate-400 mb-2">{% trans "عنوان InstaPay" %}:</p>
                     <div class="flex items-center gap-2">
                         <code class="bg-slate-950 px-3 py-2 rounded-lg flex-1 text-blue-400 font-mono">{{ instapay_handle }}</code>
                         <button onclick="copyNumber('{{ instapay_handle }}', this)" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg font-bold">
@@ -81,7 +81,7 @@
 
             <div class="mt-3 text-xs text-amber-400/90 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
                 <i class="fas fa-lightbulb ml-1"></i>
-                التحويل بيوصلنا فوراً. بعد التحويل ارجع هنا وارفع سكرين شوت العملية.
+                {% trans "التحويل بيوصلنا فوراً. بعد التحويل ارجع هنا وارفع سكرين شوت العملية." %}
             </div>
         </div>
 
@@ -89,7 +89,7 @@
         <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-5">
             <div class="flex items-center gap-3 mb-4">
                 <span class="step-num bg-emerald-500/20 text-emerald-400 text-sm">2</span>
-                <h3 class="text-white font-black">بعد التحويل، ارفع البيانات</h3>
+                <h3 class="text-white font-black">{% trans "بعد التحويل، ارفع البيانات" %}</h3>
             </div>
 
             <form id="receiptForm" enctype="multipart/form-data" class="space-y-4">
@@ -97,7 +97,7 @@
                 <!-- Sender Phone -->
                 <div>
                     <label class="block text-slate-300 text-sm font-bold mb-2">
-                        <i class="fas fa-phone text-emerald-400 ml-1"></i> رقم الفودافون اللي حولت منه
+                        <i class="fas fa-phone text-emerald-400 ml-1"></i> {% trans "رقم الفودافون اللي حولت منه" %}
                     </label>
                     <input type="tel" name="sender_phone" required
                            placeholder="010xxxxxxxx"
@@ -108,30 +108,30 @@
                 <!-- Transaction Reference -->
                 <div>
                     <label class="block text-slate-300 text-sm font-bold mb-2">
-                        <i class="fas fa-hashtag text-purple-400 ml-1"></i> رقم العملية (Reference)
+                        <i class="fas fa-hashtag text-purple-400 ml-1"></i> {% trans "رقم العملية (Reference)" %}
                     </label>
                     <input type="text" name="txn_reference" required minlength="4"
-                           placeholder="مثال: 8765432198 أو الرقم المرجعي من رسالة فودافون"
+                           placeholder="{% trans "مثال: 8765432198 أو الرقم المرجعي من رسالة فودافون" %}"
                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-purple-500 focus:outline-none">
                     <p class="text-slate-500 text-xs mt-1">
-                        <i class="fas fa-circle-info ml-1"></i> الرقم اللي بيظهر في رسالة التأكيد من فودافون بعد التحويل.
+                        <i class="fas fa-circle-info ml-1"></i> {% trans "الرقم اللي بيظهر في رسالة التأكيد من فودافون بعد التحويل." %}
                     </p>
                 </div>
 
                 <!-- Screenshot Upload -->
                 <div>
                     <label class="block text-slate-300 text-sm font-bold mb-2">
-                        <i class="fas fa-image text-blue-400 ml-1"></i> سكرين شوت التحويل <span class="text-red-400">*</span>
+                        <i class="fas fa-image text-blue-400 ml-1"></i> {% trans "سكرين شوت التحويل" %} <span class="text-red-400">*</span>
                     </label>
                     <label for="receiptImage" class="upload-area block rounded-xl p-6 text-center cursor-pointer" id="uploadArea">
                         <div id="uploadPrompt">
                             <i class="fas fa-cloud-arrow-up text-4xl text-slate-500 mb-2"></i>
-                            <p class="text-slate-300 font-bold">اضغط لاختيار صورة</p>
-                            <p class="text-slate-500 text-xs mt-1">PNG / JPG — حد أقصى 5 ميجا</p>
+                            <p class="text-slate-300 font-bold">{% trans "اضغط لاختيار صورة" %}</p>
+                            <p class="text-slate-500 text-xs mt-1">{% trans "PNG / JPG — حد أقصى 5 ميجا" %}</p>
                         </div>
                         <div id="uploadPreview" class="hidden">
                             <img id="previewImg" src="" class="mx-auto max-h-48 rounded-lg mb-2">
-                            <p class="text-emerald-400 text-sm font-bold"><i class="fas fa-check-circle ml-1"></i> تم اختيار الصورة</p>
+                            <p class="text-emerald-400 text-sm font-bold"><i class="fas fa-check-circle ml-1"></i> {% trans "تم اختيار الصورة" %}</p>
                             <p class="text-slate-500 text-xs" id="previewName"></p>
                         </div>
                         <input type="file" name="receipt_image" id="receiptImage" accept="image/*" required class="hidden">
@@ -141,22 +141,22 @@
                 <!-- Notes -->
                 <div>
                     <label class="block text-slate-300 text-sm font-bold mb-2">
-                        <i class="fas fa-comment text-amber-400 ml-1"></i> ملاحظات (اختياري)
+                        <i class="fas fa-comment text-amber-400 ml-1"></i> {% trans "ملاحظات (اختياري)" %}
                     </label>
                     <textarea name="notes" rows="2" maxlength="500"
-                              placeholder="أي معلومة إضافية..."
+                              placeholder="{% trans "أي معلومة إضافية..." %}"
                               class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:border-amber-500 focus:outline-none resize-none"></textarea>
                 </div>
 
                 <button type="submit" id="submitBtn"
                         class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-4 rounded-xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
                     <i class="fas fa-paper-plane"></i>
-                    أرسل الإيصال للمراجعة
+                    {% trans "أرسل الإيصال للمراجعة" %}
                 </button>
 
                 <p class="text-center text-slate-500 text-xs">
                     <i class="fas fa-shield-halved ml-1"></i>
-                    بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً.
+                    {% trans "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً." %}
                 </p>
             </form>
         </div>
@@ -165,7 +165,7 @@
         <div class="text-center">
             <a href="https://wa.me/2{{ vodafone_number }}" target="_blank"
                class="inline-flex items-center gap-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/30 text-green-400 font-bold px-5 py-2.5 rounded-xl text-sm transition">
-                <i class="fab fa-whatsapp text-lg"></i> تواصل مع الدعم على واتساب
+                <i class="fab fa-whatsapp text-lg"></i> {% trans "تواصل مع الدعم على واتساب" %}
             </a>
         </div>
     </div>
@@ -176,10 +176,10 @@
             <div class="w-20 h-20 mx-auto bg-emerald-500/20 rounded-full flex items-center justify-center mb-4">
                 <i class="fas fa-check text-4xl text-emerald-400"></i>
             </div>
-            <h3 class="text-2xl font-black text-white mb-2">تم استلام الإيصال ✅</h3>
-            <p class="text-slate-400 mb-6" id="successMsg">هيتم التفعيل خلال دقائق بعد المراجعة.</p>
+            <h3 class="text-2xl font-black text-white mb-2">{% trans "تم استلام الإيصال" %} ✅</h3>
+            <p class="text-slate-400 mb-6" id="successMsg">{% trans "هيتم التفعيل خلال دقائق بعد المراجعة." %}</p>
             <a href="/" id="successLink" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-3 rounded-xl transition">
-                تمام
+                {% trans "تمام" %}
             </a>
         </div>
     </div>
@@ -188,7 +188,7 @@
     function copyNumber(num, btn) {
         navigator.clipboard.writeText(num).then(() => {
             const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check ml-1"></i> تم النسخ!';
+            btn.innerHTML = '<i class="fas fa-check ml-1"></i> {% trans "تم النسخ!" %}';
             btn.classList.add('bg-emerald-500');
             setTimeout(() => {
                 btn.innerHTML = orig;
@@ -209,7 +209,7 @@
         const file = e.target.files[0];
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) {
-            alert('حجم الصورة لازم أقل من 5 ميجا.');
+            alert('{% trans "حجم الصورة لازم أقل من 5 ميجا." %}');
             fileInput.value = '';
             return;
         }
@@ -229,7 +229,7 @@
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
         try {
             const fd = new FormData(e.target);
@@ -239,18 +239,18 @@
                 credentials: 'same-origin',
             });
             const d = await r.json();
-            if (!r.ok || !d.ok) throw new Error(d.error || 'خطأ غير متوقع');
+            if (!r.ok || !d.ok) throw new Error(d.error || '{% trans "خطأ غير متوقع" %}');
 
             // Show success modal
-            document.getElementById('successMsg').textContent = d.message || 'هيتم التفعيل خلال دقائق.';
+            document.getElementById('successMsg').textContent = d.message || '{% trans "هيتم التفعيل خلال دقائق." %}';
             if (d.redirect) document.getElementById('successLink').href = d.redirect;
             const modal = document.getElementById('successModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         } catch (err) {
-            alert(err.message || 'فشل الإرسال — حاول تاني.');
+            alert(err.message || '{% trans "فشل الإرسال — حاول تاني." %}');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> أرسل الإيصال للمراجعة';
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "أرسل الإيصال للمراجعة" %}';
         }
     });
     </script>

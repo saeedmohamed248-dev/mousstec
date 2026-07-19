@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شحن استخدامات التشخيص | Mouss Tec</title>
+    <title>{% trans "شحن استخدامات التشخيص" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -25,7 +26,7 @@
             <span class="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
         <a href="/diagnostics/room/" class="text-slate-400 hover:text-cyan-400 font-bold text-sm flex items-center gap-2 transition">
-            <i class="fas fa-arrow-right"></i> العودة لغرفة التشخيص
+            <i class="fas fa-arrow-right"></i> {% trans "العودة لغرفة التشخيص" %}
         </a>
     </header>
 
@@ -34,10 +35,10 @@
         <!-- Header -->
         <section class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-black bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent mb-3">
-                شحن استخدامات التشخيص
+                {% trans "شحن استخدامات التشخيص" %}
             </h1>
             <p class="text-slate-400 text-lg">
-                خلصت حصة باقتك الشهرية؟ اشحن دلوقتي وكمّل شغلك من غير انتظار.
+                {% trans "خلصت حصة باقتك الشهرية؟ اشحن دلوقتي وكمّل شغلك من غير انتظار." %}
             </p>
         </section>
 
@@ -48,12 +49,12 @@
                     <div class="bg-cyan-500/20 p-2 rounded-lg">
                         <i class="fas fa-search text-cyan-400 text-lg"></i>
                     </div>
-                    <div class="font-bold text-slate-200">فحوصات التشخيص</div>
+                    <div class="font-bold text-slate-200">{% trans "فحوصات التشخيص" %}</div>
                 </div>
                 <div class="text-3xl font-black text-white">
                     {{ scan_status.plan_remaining }}<span class="text-base text-slate-500 font-normal">/{{ scan_status.plan_limit }}</span>
                 </div>
-                <div class="text-xs text-slate-400 mt-1">المتبقي من حصة الباقة الشهرية</div>
+                <div class="text-xs text-slate-400 mt-1">{% trans "المتبقي من حصة الباقة الشهرية" %}</div>
             </div>
 
             <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
@@ -61,12 +62,12 @@
                     <div class="bg-purple-500/20 p-2 rounded-lg">
                         <i class="fas fa-robot text-purple-400 text-lg"></i>
                     </div>
-                    <div class="font-bold text-slate-200">بوت التشخيص</div>
+                    <div class="font-bold text-slate-200">{% trans "بوت التشخيص" %}</div>
                 </div>
                 <div class="text-3xl font-black text-white">
                     {{ bot_status.plan_remaining }}<span class="text-base text-slate-500 font-normal">/{{ bot_status.plan_limit }}</span>
                 </div>
-                <div class="text-xs text-slate-400 mt-1">المتبقي من حصة الباقة الشهرية</div>
+                <div class="text-xs text-slate-400 mt-1">{% trans "المتبقي من حصة الباقة الشهرية" %}</div>
             </div>
 
             <div class="bg-gradient-to-br from-amber-900/40 to-orange-900/40 border border-amber-600/40 rounded-2xl p-5">
@@ -74,12 +75,12 @@
                     <div class="bg-amber-500/20 p-2 rounded-lg">
                         <i class="fas fa-bolt text-amber-400 text-lg"></i>
                     </div>
-                    <div class="font-bold text-amber-200">رصيد الشحن</div>
+                    <div class="font-bold text-amber-200">{% trans "رصيد الشحن" %}</div>
                 </div>
                 <div class="text-3xl font-black text-white">
                     {{ scan_status.topup_remaining }}
                 </div>
-                <div class="text-xs text-amber-300/80 mt-1">استخدام إضافي متاح فوق الحصة الشهرية</div>
+                <div class="text-xs text-amber-300/80 mt-1">{% trans "استخدام إضافي متاح فوق الحصة الشهرية" %}</div>
             </div>
         </section>
 
@@ -87,7 +88,7 @@
         <section class="space-y-4">
             <h2 class="text-2xl font-black text-white mb-4 flex items-center gap-3">
                 <i class="fas fa-tags text-cyan-400"></i>
-                اختر حزمة الشحن
+                {% trans "اختر حزمة الشحن" %}
             </h2>
 
             {% for pack in packs %}
@@ -100,19 +101,19 @@
                         <h3 class="text-2xl font-black text-white">{{ pack.name }}</h3>
                     </div>
                     <div class="text-slate-400 text-sm flex items-center gap-4 flex-wrap">
-                        <span><i class="fas fa-check-circle text-emerald-400"></i> {{ pack.uses_granted }} استخدام إضافي</span>
-                        <span><i class="fas fa-infinity text-cyan-400"></i> فحص أو بوت — أيهما</span>
-                        <span><i class="fas fa-calendar-times text-amber-400"></i> لا تنتهي صلاحيتها</span>
+                        <span><i class="fas fa-check-circle text-emerald-400"></i> {{ pack.uses_granted }} {% trans "استخدام إضافي" %}</span>
+                        <span><i class="fas fa-infinity text-cyan-400"></i> {% trans "فحص أو بوت — أيهما" %}</span>
+                        <span><i class="fas fa-calendar-times text-amber-400"></i> {% trans "لا تنتهي صلاحيتها" %}</span>
                     </div>
                 </div>
 
                 <div class="text-center md:text-left">
                     <div class="text-4xl font-black text-cyan-400 mb-1">
                         {{ pack.price_egp|floatformat:0 }}
-                        <span class="text-base text-slate-400 font-normal">ج.م</span>
+                        <span class="text-base text-slate-400 font-normal">{% trans "ج.م" %}</span>
                     </div>
                     <div class="text-xs text-slate-500">
-                        ≈ {{ pack.price_egp|floatformat:2 }} ج.م لكل استخدام
+                        ≈ {{ pack.price_egp|floatformat:2 }} {% trans "ج.م لكل استخدام" %}
                     </div>
                 </div>
 
@@ -124,7 +125,7 @@
                         <button type="submit"
                                 class="w-full bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-rose-500/30 transition flex items-center justify-center gap-2">
                             <i class="fas fa-mobile-alt"></i>
-                            فودافون كاش
+                            {% trans "فودافون كاش" %}
                         </button>
                     </form>
                     <form method="POST" action="">
@@ -134,7 +135,7 @@
                         <button type="submit"
                                 class="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-purple-500/30 transition flex items-center justify-center gap-2">
                             <i class="fas fa-university"></i>
-                            إنستاباي
+                            {% trans "إنستاباي" %}
                         </button>
                     </form>
                 </div>
@@ -142,7 +143,7 @@
             {% empty %}
             <div class="bg-slate-800/60 border border-slate-700 rounded-2xl p-8 text-center">
                 <i class="fas fa-box-open text-5xl text-slate-600 mb-3"></i>
-                <p class="text-slate-400">لا توجد حزم شحن متاحة حالياً.</p>
+                <p class="text-slate-400">{% trans "لا توجد حزم شحن متاحة حالياً." %}</p>
             </div>
             {% endfor %}
         </section>
@@ -151,25 +152,25 @@
         <section class="mt-10 bg-slate-800/40 border border-slate-700 rounded-2xl p-6">
             <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <i class="fas fa-info-circle text-cyan-400"></i>
-                طريقة الدفع
+                {% trans "طريقة الدفع" %}
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div class="bg-slate-900/60 p-4 rounded-xl">
                     <div class="font-bold text-rose-400 mb-2 flex items-center gap-2">
-                        <i class="fas fa-mobile-alt"></i> فودافون كاش
+                        <i class="fas fa-mobile-alt"></i> {% trans "فودافون كاش" %}
                     </div>
                     <div class="text-slate-300 font-mono text-lg">{{ vodafone_number }}</div>
                 </div>
                 <div class="bg-slate-900/60 p-4 rounded-xl">
                     <div class="font-bold text-purple-400 mb-2 flex items-center gap-2">
-                        <i class="fas fa-university"></i> إنستاباي
+                        <i class="fas fa-university"></i> {% trans "إنستاباي" %}
                     </div>
                     <div class="text-slate-300 font-mono text-lg">{{ instapay_handle }}</div>
                 </div>
             </div>
             <p class="text-slate-400 text-xs mt-4 leading-relaxed">
-                بعد اختيارك لطريقة الدفع، هتظهرلك شاشة لرفع سكرين شوت التحويل + رقم العملية.
-                هيتم تفعيل الشحن خلال دقائق بعد مراجعة الإدارة، وهتقدر تستخدمه فوراً في غرفة التشخيص.
+                {% trans "بعد اختيارك لطريقة الدفع، هتظهرلك شاشة لرفع سكرين شوت التحويل + رقم العملية." %}
+                {% trans "هيتم تفعيل الشحن خلال دقائق بعد مراجعة الإدارة، وهتقدر تستخدمه فوراً في غرفة التشخيص." %}
             </p>
         </section>
 

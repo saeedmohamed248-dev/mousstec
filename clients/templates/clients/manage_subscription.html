@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة الاشتراك والباقات | Mouss Tec</title>
+    <title>{% trans "إدارة الاشتراك والباقات" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,6 +17,8 @@
 </head>
 <body class="text-slate-200 min-h-screen">
 
+    {% trans "الأكثر طلباً" as default_badge %}
+
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
 
     <header class="container mx-auto px-6 py-6 flex justify-between items-center">
@@ -26,15 +29,15 @@
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
         <a href="/{{ ADMIN_URL }}/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
-            <i class="fas fa-arrow-right"></i> العودة للنظام
+            <i class="fas fa-arrow-right"></i> {% trans "العودة للنظام" %}
         </a>
     </header>
 
     <main class="container mx-auto px-6 py-8 max-w-5xl">
 
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-black text-white mb-2">إدارة الاشتراك والباقات</h1>
-            <p class="text-slate-400">{{ tenant.name }} — باقة {{ tenant.get_plan_display }}</p>
+            <h1 class="text-3xl font-black text-white mb-2">{% trans "إدارة الاشتراك والباقات" %}</h1>
+            <p class="text-slate-400">{{ tenant.name }} — {% trans "باقة" %} {{ tenant.get_plan_display }}</p>
         </div>
 
         {% if result_msg %}
@@ -47,32 +50,32 @@
         <!-- 1. ملخص الباقة الحالية                              -->
         <!-- ═══════════════════════════════════════════════════ -->
         <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 mb-8">
-            <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-chart-pie text-purple-400 ml-2"></i>ملخص الباقة الحالية</h2>
+            <h2 class="text-lg font-black text-white mb-4"><i class="fas fa-chart-pie text-purple-400 ml-2"></i>{% trans "ملخص الباقة الحالية" %}</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-slate-900/50 rounded-xl p-4 text-center">
                     <div class="text-2xl font-black text-purple-400">{{ tenant.total_allowed_users }}</div>
-                    <div class="text-slate-400 text-xs mt-1">موظفين</div>
-                    <div class="text-slate-600 text-xs">({{ tenant.max_users }} أساسي + {{ tenant.extra_users_purchased }} إضافي)</div>
+                    <div class="text-slate-400 text-xs mt-1">{% trans "موظفين" %}</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_users }} {% trans "أساسي" %} + {{ tenant.extra_users_purchased }} {% trans "إضافي" %})</div>
                 </div>
                 <div class="bg-slate-900/50 rounded-xl p-4 text-center">
                     <div class="text-2xl font-black text-indigo-400">{{ tenant.total_allowed_branches }}</div>
-                    <div class="text-slate-400 text-xs mt-1">فروع</div>
-                    <div class="text-slate-600 text-xs">({{ tenant.max_branches }} أساسي + {{ tenant.extra_branches_purchased }} إضافي)</div>
+                    <div class="text-slate-400 text-xs mt-1">{% trans "فروع" %}</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_branches }} {% trans "أساسي" %} + {{ tenant.extra_branches_purchased }} {% trans "إضافي" %})</div>
                 </div>
                 <div class="bg-slate-900/50 rounded-xl p-4 text-center">
                     <div class="text-2xl font-black text-emerald-400">{{ tenant.total_allowed_treasuries }}</div>
-                    <div class="text-slate-400 text-xs mt-1">خزائن</div>
-                    <div class="text-slate-600 text-xs">({{ tenant.max_treasuries }} أساسي + {{ tenant.extra_treasuries_purchased }} إضافي)</div>
+                    <div class="text-slate-400 text-xs mt-1">{% trans "خزائن" %}</div>
+                    <div class="text-slate-600 text-xs">({{ tenant.max_treasuries }} {% trans "أساسي" %} + {{ tenant.extra_treasuries_purchased }} {% trans "إضافي" %})</div>
                 </div>
                 <div class="bg-slate-900/50 rounded-xl p-4 text-center">
                     {% if tenant.subscription_end_date %}
                     <div class="text-2xl font-black {% if remaining_days > 7 %}text-emerald-400{% elif remaining_days > 0 %}text-amber-400{% else %}text-red-400{% endif %}">{{ remaining_days }}</div>
-                    <div class="text-slate-400 text-xs mt-1">يوم متبقي</div>
-                    <div class="text-slate-600 text-xs">ينتهي: {{ tenant.subscription_end_date }}</div>
+                    <div class="text-slate-400 text-xs mt-1">{% trans "يوم متبقي" %}</div>
+                    <div class="text-slate-600 text-xs">{% trans "ينتهي" %}: {{ tenant.subscription_end_date }}</div>
                     {% else %}
                     <div class="text-2xl font-black text-amber-400"><i class="fas fa-hourglass-half text-lg"></i></div>
-                    <div class="text-slate-400 text-xs mt-1">فترة تجريبية</div>
-                    <div class="text-slate-600 text-xs">تنتهي: {{ tenant.trial_ends_at }}</div>
+                    <div class="text-slate-400 text-xs mt-1">{% trans "فترة تجريبية" %}</div>
+                    <div class="text-slate-600 text-xs">{% trans "تنتهي" %}: {{ tenant.trial_ends_at }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -81,13 +84,13 @@
         <!-- ═══════════════════════════════════════════════════ -->
         <!-- 2. باقات النظام (ترقية / تجديد)                     -->
         <!-- ═══════════════════════════════════════════════════ -->
-        <h2 class="text-xl font-black text-white mb-5"><i class="fas fa-rocket text-purple-400 ml-2"></i>باقات النظام — ترقية أو تجديد</h2>
+        <h2 class="text-xl font-black text-white mb-5"><i class="fas fa-rocket text-purple-400 ml-2"></i>{% trans "باقات النظام — ترقية أو تجديد" %}</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             {% for plan in available_plans %}
             <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col {% if current_plan == plan.key %}current{% endif %}">
                 {% if current_plan == plan.key %}
                 <div class="text-center mb-3">
-                    <span class="inline-block bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle ml-1"></i>باقتك الحالية</span>
+                    <span class="inline-block bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full"><i class="fas fa-check-circle ml-1"></i>{% trans "باقتك الحالية" %}</span>
                 </div>
                 {% endif %}
                 <div class="text-center mb-4">
@@ -99,20 +102,20 @@
                 </div>
                 <div class="text-center mb-4">
                     <span class="text-3xl font-black text-white">{{ plan.price }}</span>
-                    <span class="text-slate-400 text-sm"> ج.م/شهر</span>
+                    <span class="text-slate-400 text-sm"> {% trans "ج.م/شهر" %}</span>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5 flex-1">
-                    <li><i class="fas fa-users text-purple-400 ml-1 w-4"></i> {{ plan.users }} موظف</li>
-                    <li><i class="fas fa-code-branch text-indigo-400 ml-1 w-4"></i> {{ plan.branches }} فرع</li>
-                    <li><i class="fas fa-vault text-emerald-400 ml-1 w-4"></i> {{ plan.treasuries }} خزينة</li>
+                    <li><i class="fas fa-users text-purple-400 ml-1 w-4"></i> {{ plan.users }} {% trans "موظف" %}</li>
+                    <li><i class="fas fa-code-branch text-indigo-400 ml-1 w-4"></i> {{ plan.branches }} {% trans "فرع" %}</li>
+                    <li><i class="fas fa-vault text-emerald-400 ml-1 w-4"></i> {{ plan.treasuries }} {% trans "خزينة" %}</li>
                 </ul>
                 {% if current_plan == plan.key %}
                 <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-emerald-600/30 text-emerald-400 font-bold py-2.5 rounded-xl text-sm border border-emerald-500/30">
-                    <i class="fas fa-sync-alt ml-1"></i> تجديد الباقة
+                    <i class="fas fa-sync-alt ml-1"></i> {% trans "تجديد الباقة" %}
                 </a>
                 {% else %}
                 <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-arrow-up ml-1"></i> ترقية لهذه الباقة
+                    <i class="fas fa-arrow-up ml-1"></i> {% trans "ترقية لهذه الباقة" %}
                 </a>
                 {% endif %}
             </div>
@@ -124,68 +127,68 @@
         <!-- ═══════════════════════════════════════════════════ -->
 
         <!-- 3a. باقات العملاء -->
-        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-wand-magic-sparkles text-pink-400 ml-2"></i>باقات تصاميم الذكاء الاصطناعي — للعملاء</h2>
-        <p class="text-slate-500 text-sm mb-5">تصاميم احترافية بالذكاء الاصطناعي — دفعة واحدة بدون اشتراك شهري</p>
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-wand-magic-sparkles text-pink-400 ml-2"></i>{% trans "باقات تصاميم الذكاء الاصطناعي — للعملاء" %}</h2>
+        <p class="text-slate-500 text-sm mb-5">{% trans "تصاميم احترافية بالذكاء الاصطناعي — دفعة واحدة بدون اشتراك شهري" %}</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {% for pkg in customer_ai_pkgs %}
             <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 relative hover:border-pink-500/50">
                 {% if pkg.is_featured %}
                 <div class="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span class="bg-pink-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:"الأكثر طلباً" }}</span>
+                    <span class="bg-pink-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:default_badge }}</span>
                 </div>
                 {% endif %}
                 <div class="text-center mb-4">
                     <div class="text-3xl mb-2">{{ pkg.icon_emoji }}</div>
-                    <h3 class="text-lg font-black text-white">{{ pkg.designs_count }} تصاميم</h3>
+                    <h3 class="text-lg font-black text-white">{{ pkg.designs_count }} {% trans "تصاميم" %}</h3>
                 </div>
                 <div class="text-center mb-4">
                     <span class="text-3xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="text-slate-400 text-sm"> ج.م</span>
-                    <div class="text-slate-500 text-xs">دفعة واحدة</div>
+                    <span class="text-slate-400 text-sm"> {% trans "ج.م" %}</span>
+                    <div class="text-slate-500 text-xs">{% trans "دفعة واحدة" %}</div>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5">
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} تصاميم بالذكاء الاصطناعي</li>
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {% if pkg.free_regenerations_per_design > 1 %}إعادتين توليد{% else %}إعادة توليد واحدة{% endif %} لكل تصميم</li>
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> تحميل بجودة عالية</li>
-                    {% if pkg.allows_whatsapp_delivery %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> إرسال واتساب</li>{% endif %}
-                    {% if pkg.allows_logo_upload %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> دمج اللوجو</li>{% endif %}
-                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> علامة مائية</li>{% endif %}
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} {% trans "تصاميم بالذكاء الاصطناعي" %}</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {% if pkg.free_regenerations_per_design > 1 %}{% trans "إعادتين توليد" %}{% else %}{% trans "إعادة توليد واحدة" %}{% endif %} {% trans "لكل تصميم" %}</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "تحميل بجودة عالية" %}</li>
+                    {% if pkg.allows_whatsapp_delivery %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "إرسال واتساب" %}</li>{% endif %}
+                    {% if pkg.allows_logo_upload %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "دمج اللوجو" %}</li>{% endif %}
+                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "علامة مائية" %}</li>{% endif %}
                 </ul>
                 <a href="/marketplace/design-store/" class="block w-full text-center {% if pkg.is_featured %}bg-pink-600 hover:bg-pink-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-shopping-cart ml-1"></i> اشترِ الآن
+                    <i class="fas fa-shopping-cart ml-1"></i> {% trans "اشترِ الآن" %}
                 </a>
             </div>
             {% endfor %}
         </div>
 
         <!-- 3b. باقات المصممين -->
-        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-palette text-purple-400 ml-2"></i>باقات المصممين والاستوديوهات</h2>
-        <p class="text-slate-500 text-sm mb-5">للمصممين المحترفين والاستوديوهات — عدد أكبر وسعر أقل للتصميم</p>
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-palette text-purple-400 ml-2"></i>{% trans "باقات المصممين والاستوديوهات" %}</h2>
+        <p class="text-slate-500 text-sm mb-5">{% trans "للمصممين المحترفين والاستوديوهات — عدد أكبر وسعر أقل للتصميم" %}</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mb-10">
             {% for pkg in designer_ai_pkgs %}
             <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5 relative hover:border-purple-500/50">
                 {% if pkg.is_featured %}
                 <div class="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span class="bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:"الأكثر طلباً" }}</span>
+                    <span class="bg-pink-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">{{ pkg.badge_text|default:default_badge }}</span>
                 </div>
                 {% endif %}
                 <div class="text-center mb-3">
                     <div class="text-2xl mb-1">{{ pkg.icon_emoji }}</div>
-                    <h3 class="font-black text-white">{{ pkg.designs_count }} تصميم</h3>
+                    <h3 class="font-black text-white">{{ pkg.designs_count }} {% trans "تصميم" %}</h3>
                 </div>
                 <div class="text-center mb-3">
                     <span class="text-2xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="text-slate-400 text-xs"> ج.م</span>
-                    <div class="text-slate-500 text-xs">دفعة واحدة</div>
+                    <span class="text-slate-400 text-xs"> {% trans "ج.م" %}</span>
+                    <div class="text-slate-500 text-xs">{% trans "دفعة واحدة" %}</div>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-1.5 mb-4">
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} تصميم AI</li>
-                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> إعادتين توليد</li>
-                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> علامة مائية</li>{% endif %}
-                    {% if pkg.allows_source_files %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> ملفات مصدر</li>{% endif %}
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {{ pkg.designs_count }} {% trans "تصميم AI" %}</li>
+                    <li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "إعادتين توليد" %}</li>
+                    {% if pkg.allows_watermark %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "علامة مائية" %}</li>{% endif %}
+                    {% if pkg.allows_source_files %}<li><i class="fas fa-check text-emerald-400 ml-1"></i> {% trans "ملفات مصدر" %}</li>{% endif %}
                 </ul>
                 <a href="/marketplace/design-store/" class="block w-full text-center {% if pkg.is_featured %}bg-pink-600 hover:bg-pink-500{% else %}bg-purple-700 hover:bg-purple-600{% endif %} text-white font-bold py-2 rounded-xl transition text-xs">
-                    <i class="fas fa-shopping-cart ml-1"></i> اشترِ الآن
+                    <i class="fas fa-shopping-cart ml-1"></i> {% trans "اشترِ الآن" %}
                 </a>
             </div>
             {% endfor %}
@@ -194,12 +197,12 @@
         <!-- ═══════════════════════════════════════════════════ -->
         <!-- 4. إضافات (موظفين / فروع / خزائن)                  -->
         <!-- ═══════════════════════════════════════════════════ -->
-        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-cart-plus text-emerald-400 ml-2"></i>شراء إضافات</h2>
+        <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-cart-plus text-emerald-400 ml-2"></i>{% trans "شراء إضافات" %}</h2>
         <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-5 text-sm">
             <i class="fas fa-calculator text-indigo-400 ml-2"></i>
-            سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} ج.م/شهر</strong>
+            {% trans "سعر الإضافة الكامل" %}: <strong class="text-white">{{ full_addon_price }} {% trans "ج.م/شهر" %}</strong>
             {% if remaining_days > 0 and remaining_days < 30 %}
-            — التكلفة التناسبية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} ج.م</strong>
+            — {% trans "التكلفة التناسبية" %} ({{ remaining_days }} {% trans "يوم متبقي" %}): <strong class="text-emerald-400">{{ prorated_cost }} {% trans "ج.م" %}</strong>
             {% endif %}
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -211,11 +214,11 @@
                     <div class="inline-flex items-center justify-center w-12 h-12 bg-purple-600/20 rounded-xl mb-3">
                         <i class="fas fa-user-plus text-purple-400 text-xl"></i>
                     </div>
-                    <h3 class="font-black text-white">إضافة موظف</h3>
-                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_users }} موظف</p>
+                    <h3 class="font-black text-white">{% trans "إضافة موظف" %}</h3>
+                    <p class="text-slate-500 text-xs mt-1">{% trans "الحالي" %}: {{ tenant.total_allowed_users }} {% trans "موظف" %}</p>
                 </div>
                 <div class="flex items-center justify-center gap-3 mb-4">
-                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <label class="text-slate-400 text-sm">{% trans "العدد" %}:</label>
                     <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-purple-500 focus:outline-none">
                         <option value="1">1</option>
                         <option value="2">2</option>
@@ -224,7 +227,7 @@
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-plus ml-1"></i> إضافة
+                    <i class="fas fa-plus ml-1"></i> {% trans "إضافة" %}
                 </button>
             </form>
 
@@ -235,11 +238,11 @@
                     <div class="inline-flex items-center justify-center w-12 h-12 bg-indigo-600/20 rounded-xl mb-3">
                         <i class="fas fa-code-branch text-indigo-400 text-xl"></i>
                     </div>
-                    <h3 class="font-black text-white">إضافة فرع</h3>
-                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_branches }} فرع</p>
+                    <h3 class="font-black text-white">{% trans "إضافة فرع" %}</h3>
+                    <p class="text-slate-500 text-xs mt-1">{% trans "الحالي" %}: {{ tenant.total_allowed_branches }} {% trans "فرع" %}</p>
                 </div>
                 <div class="flex items-center justify-center gap-3 mb-4">
-                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <label class="text-slate-400 text-sm">{% trans "العدد" %}:</label>
                     <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-indigo-500 focus:outline-none">
                         <option value="1">1</option>
                         <option value="2">2</option>
@@ -247,7 +250,7 @@
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-plus ml-1"></i> إضافة
+                    <i class="fas fa-plus ml-1"></i> {% trans "إضافة" %}
                 </button>
             </form>
 
@@ -258,11 +261,11 @@
                     <div class="inline-flex items-center justify-center w-12 h-12 bg-emerald-600/20 rounded-xl mb-3">
                         <i class="fas fa-vault text-emerald-400 text-xl"></i>
                     </div>
-                    <h3 class="font-black text-white">إضافة خزينة</h3>
-                    <p class="text-slate-500 text-xs mt-1">الحالي: {{ tenant.total_allowed_treasuries }} خزينة</p>
+                    <h3 class="font-black text-white">{% trans "إضافة خزينة" %}</h3>
+                    <p class="text-slate-500 text-xs mt-1">{% trans "الحالي" %}: {{ tenant.total_allowed_treasuries }} {% trans "خزينة" %}</p>
                 </div>
                 <div class="flex items-center justify-center gap-3 mb-4">
-                    <label class="text-slate-400 text-sm">العدد:</label>
+                    <label class="text-slate-400 text-sm">{% trans "العدد" %}:</label>
                     <select name="quantity" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-emerald-500 focus:outline-none">
                         <option value="1">1</option>
                         <option value="2">2</option>
@@ -270,7 +273,7 @@
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-plus ml-1"></i> إضافة
+                    <i class="fas fa-plus ml-1"></i> {% trans "إضافة" %}
                 </button>
             </form>
 
@@ -280,19 +283,19 @@
         <!-- 5. طرق الدفع                                        -->
         <!-- ═══════════════════════════════════════════════════ -->
         <div class="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-6 text-center">
-            <h3 class="font-bold text-white mb-3"><i class="fas fa-credit-card text-purple-400 ml-2"></i>طرق الدفع المتاحة</h3>
+            <h3 class="font-bold text-white mb-3"><i class="fas fa-credit-card text-purple-400 ml-2"></i>{% trans "طرق الدفع المتاحة" %}</h3>
             <div class="flex flex-wrap justify-center gap-6 text-slate-400 text-sm">
-                <span><i class="fas fa-mobile-screen text-emerald-400 ml-1"></i> فودافون كاش</span>
-                <span><i class="fas fa-money-bill-transfer text-blue-400 ml-1"></i> إنستاباي</span>
-                <span class="opacity-50"><i class="fab fa-cc-visa text-slate-500 ml-1"></i> فيزا / ماستركارد <span class="text-[10px] bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded">قريباً</span></span>
+                <span><i class="fas fa-mobile-screen text-emerald-400 ml-1"></i> {% trans "فودافون كاش" %}</span>
+                <span><i class="fas fa-money-bill-transfer text-blue-400 ml-1"></i> {% trans "إنستاباي" %}</span>
+                <span class="opacity-50"><i class="fab fa-cc-visa text-slate-500 ml-1"></i> {% trans "فيزا / ماستركارد" %} <span class="text-[10px] bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded">{% trans "قريباً" %}</span></span>
             </div>
-            <p class="text-slate-600 text-xs mt-3">تواصل معنا على واتساب للاشتراك أو التجديد — سيتم تفعيلك فوراً</p>
+            <p class="text-slate-600 text-xs mt-3">{% trans "تواصل معنا على واتساب للاشتراك أو التجديد — سيتم تفعيلك فوراً" %}</p>
         </div>
 
     </main>
 
     <footer class="text-center py-8 text-slate-600 text-xs mt-8">
-        &copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
+        &copy; 2026 Mouss Tec Ecosystem — {% trans "جميع الحقوق محفوظة" %}
     </footer>
 
 
