@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تم التأسيس بنجاح | Mouss Tec SaaS</title>
+    <title>{% trans "تم التأسيس بنجاح" %} | Mouss Tec SaaS</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -123,31 +124,31 @@
     <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
     <div class="success-icon"><i class="fas fa-check-circle"></i></div>
     
-    <h2 class="font-weight-bold mb-2">تهانينا يا هندسة!</h2>
-    <h4 class="mb-4" style="color: #a7f3d0 !important; font-weight: 700;">تم تخليق مؤسسة "{{ company_name }}" بنجاح</h4>
+    <h2 class="font-weight-bold mb-2">{% trans "تهانينا يا هندسة!" %}</h2>
+    <h4 class="mb-4" style="color: #a7f3d0 !important; font-weight: 700;">{% blocktrans %}تم تخليق مؤسسة {{ company_name }} بنجاح{% endblocktrans %}</h4>
     
     <p class="text-slate-300 mb-4" style="font-size: 15px; line-height: 1.7;">
-        قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح.
+        {% trans "قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح." %}
     </p>
     
     <div class="mb-4 text-start" id="urlSection">
-        <label class="text-slate-400 d-block mb-2 font-weight-bold text-center" style="font-size: 13px;">رابط الدخول الآمن لنظامك المعزول:</label>
+        <label class="text-slate-400 d-block mb-2 font-weight-bold text-center" style="font-size: 13px;">{% trans "رابط الدخول الآمن لنظامك المعزول" %}:</label>
         <div class="url-box-container shadow-sm">
             <div class="url-box" id="targetUrlBox">{{ display_url|default:target_url }}</div>
-            <button class="btn-copy" onclick="copyUrlToClipboard()" title="نسخ الرابط"><i class="far fa-copy"></i></button>
+            <button class="btn-copy" onclick="copyUrlToClipboard()" title="{% trans "نسخ الرابط" %}"><i class="far fa-copy"></i></button>
         </div>
     </div>
 
     <div class="mb-4 text-slate-300 bg-slate-800/50 p-3 rounded-xl border border-slate-700 inline-block w-100" style="font-size: 13px;">
-        <i class="fas fa-user-shield text-purple-400"></i> حساب الأدمن المعتمد: <b class="text-white">{{ admin_email }}</b>
+        <i class="fas fa-user-shield text-purple-400"></i> {% trans "حساب الأدمن المعتمد" %}: <b class="text-white">{{ admin_email }}</b>
     </div>
 
     <div class="alert alert-success bg-emerald-500/10 border-emerald-500/20 text-emerald-400 rounded-xl text-center py-2 px-3 mb-4" style="font-size: 12px; font-weight: 600;">
-        <i class="fab fa-whatsapp animate-bounce"></i> 🤖 أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة.
+        <i class="fab fa-whatsapp animate-bounce"></i> 🤖 {% trans "أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة." %}
     </div>
 
     <a href="{{ target_url }}" class="btn-enter mt-1" id="autoRedirectBtn">
-        <i class="fas fa-door-open"></i> الدخول لغرفة العمليات <span id="countdownText">(<span id="countdownNumber">5</span> ثوانٍ)</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
+        <i class="fas fa-door-open"></i> {% trans "الدخول لغرفة العمليات" %} <span id="countdownText">(<span id="countdownNumber">5</span> {% trans "ثوانٍ" %})</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
 </div>
 
@@ -201,7 +202,7 @@
                 document.getElementById('countdownNumber').innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(countdownTimer);
-                    document.getElementById('autoRedirectBtn').innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري نقلك للسحابة...';
+                    document.getElementById('autoRedirectBtn').innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "جاري نقلك للسحابة..." %}';
                     window.location.href = "{{ target_url }}"; // التوجيه الفعلي
                 }
             }
@@ -210,7 +211,7 @@
 
     function pauseCountdown() {
         isPaused = true;
-        document.getElementById('countdownText').innerHTML = "(تم الإيقاف)";
+        document.getElementById('countdownText').innerHTML = "({% trans "تم الإيقاف" %})";
     }
 
     // بدء العداد فور تحميل الصفحة

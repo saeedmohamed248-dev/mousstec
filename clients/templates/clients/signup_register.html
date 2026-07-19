@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تأسيس مؤسسة سحابية جديدة | Mouss Tec B2B</title>
+    <title>{% trans "تأسيس مؤسسة سحابية جديدة" %} | Mouss Tec B2B</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -149,7 +150,7 @@
 
 <div class="signup-container">
     <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
-    <p class="text-center text-slate-400 font-weight-bold mb-4" style="font-size: 13px;">انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ</p>
+    <p class="text-center text-slate-400 font-weight-bold mb-4" style="font-size: 13px;">{% trans "انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ" %}</p>
 
     <form method="POST" autocomplete="off" id="tenantSignupForm">
         {% csrf_token %}
@@ -168,21 +169,21 @@
         {% endif %}
 
         <div class="row">
-            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> 1. اختر مجالك</h5>
+            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> 1. {% trans "اختر مجالك" %}</h5>
 
             <!-- 🏭 اختيار القطاع -->
             <div class="col-12 mb-3">
-                <label class="form-label">القطاع</label>
+                <label class="form-label">{% trans "القطاع" %}</label>
                 <div class="d-flex gap-3" id="industrySelector">
                     <div class="industry-card active" data-industry="automotive" style="flex:1;cursor:pointer;background:rgba(59,130,246,0.1);border:2px solid #3b82f6;border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
                         <div style="font-size:36px;margin-bottom:8px;">🚗</div>
-                        <div style="font-weight:900;font-size:15px;color:#fff;">سيارات</div>
-                        <div style="font-size:11px;color:#94a3b8;">صيانة وقطع غيار</div>
+                        <div style="font-weight:900;font-size:15px;color:#fff;">{% trans "سيارات" %}</div>
+                        <div style="font-size:11px;color:#94a3b8;">{% trans "صيانة وقطع غيار" %}</div>
                     </div>
                     <div class="industry-card" data-industry="printing" style="flex:1;cursor:pointer;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
                         <div style="font-size:36px;margin-bottom:8px;">🎨</div>
-                        <div style="font-weight:900;font-size:15px;color:#fff;">طباعة وتصميم</div>
-                        <div style="font-size:11px;color:#94a3b8;">مطابع واستوديوهات</div>
+                        <div style="font-weight:900;font-size:15px;color:#fff;">{% trans "طباعة وتصميم" %}</div>
+                        <div style="font-size:11px;color:#94a3b8;">{% trans "مطابع واستوديوهات" %}</div>
                     </div>
                 </div>
                 {{ form.industry }}
@@ -190,51 +191,51 @@
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">اسم المركز أو الشركة</label>
+                <label class="form-label">{% trans "اسم المركز أو الشركة" %}</label>
                 {{ form.company_name }}
                 {% if form.company_name.errors %}<span class="field-error">{{ form.company_name.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">نوع النشاط التشغيلي</label>
+                <label class="form-label">{% trans "نوع النشاط التشغيلي" %}</label>
                 {{ form.business_type }}
                 {% if form.business_type.errors %}<span class="field-error">{{ form.business_type.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-12 mb-3" style="direction: rtl; text-align: right;">
-                <label class="form-label">رابط النظام المحمي (Subdomain)</label>
+                <label class="form-label">{% trans "رابط النظام المحمي (Subdomain)" %}</label>
                 <div class="subdomain-input-group">
                     {{ form.subdomain }}
                     <span class="subdomain-addon">.mousstec.com</span>
                 </div>
-                <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto).</small>
+                <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">{% trans "يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto)." %}</small>
                 {% if form.subdomain.errors %}<span class="field-error">{{ form.subdomain.errors.0 }}</span>{% endif %}
             </div>
 
             <hr class="my-3" style="border-color: rgba(255,255,255,0.05);">
 
-            <h5 class="font-weight-bold mb-3 mt-2" style="color: #c084fc; font-size: 15px;"><i class="fas fa-user-shield"></i> 2. حساب المدير المسؤول (Root Admin)</h5>
+            <h5 class="font-weight-bold mb-3 mt-2" style="color: #c084fc; font-size: 15px;"><i class="fas fa-user-shield"></i> 2. {% trans "حساب المدير المسؤول (Root Admin)" %}</h5>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">الاسم بالكامل</label>
+                <label class="form-label">{% trans "الاسم بالكامل" %}</label>
                 {{ form.full_name }}
                 {% if form.full_name.errors %}<span class="field-error">{{ form.full_name.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">رقم هاتف المالك / الإدارة</label>
+                <label class="form-label">{% trans "رقم هاتف المالك / الإدارة" %}</label>
                 {{ form.phone }}
                 {% if form.phone.errors %}<span class="field-error">{{ form.phone.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">البريد الإلكتروني للإدارة</label>
+                <label class="form-label">{% trans "البريد الإلكتروني للإدارة" %}</label>
                 {{ form.email }}
                 {% if form.email.errors %}<span class="field-error">{{ form.email.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">كلمة المرور للنظام</label>
+                <label class="form-label">{% trans "كلمة المرور للنظام" %}</label>
                 {{ form.password }}
                 <div class="password-meter" id="passMeter">
                     <div class="meter-bar" id="bar1"></div>
@@ -247,7 +248,7 @@
         </div>
 
         <button type="submit" id="submitBtn" class="btn btn-submit w-100 mt-3">
-            <i class="fas fa-rocket"></i> إطلاق وتأسيس الخادم المعزول
+            <i class="fas fa-rocket"></i> {% trans "إطلاق وتأسيس الخادم المعزول" %}
         </button>
     </form>
 </div>
@@ -303,10 +304,10 @@
                 bar3.style.background = strength >= 3 ? '#10b981' : 'rgba(255,255,255,0.1)'; // أخضر (قوي)
 
                 passHint.style.display = 'block';
-                if (strength === 0) passHint.innerText = 'أدخل 8 رموز على الأقل.';
-                else if (strength === 1) { passHint.innerText = 'كلمة مرور ضعيفة، أضف حروف وأرقام.'; passHint.style.color = '#ef4444'; }
-                else if (strength === 2) { passHint.innerText = 'كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى.'; passHint.style.color = '#f59e0b'; }
-                else { passHint.innerText = 'كلمة مرور قوية جداً ومحمية!'; passHint.style.color = '#10b981'; }
+                if (strength === 0) passHint.innerText = '{% trans "أدخل 8 رموز على الأقل." %}';
+                else if (strength === 1) { passHint.innerText = '{% trans "كلمة مرور ضعيفة، أضف حروف وأرقام." %}'; passHint.style.color = '#ef4444'; }
+                else if (strength === 2) { passHint.innerText = '{% trans "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى." %}'; passHint.style.color = '#f59e0b'; }
+                else { passHint.innerText = '{% trans "كلمة مرور قوية جداً ومحمية!" %}'; passHint.style.color = '#10b981'; }
             });
         }
 
@@ -363,7 +364,7 @@
             form.addEventListener('submit', function() {
                 // تحويل الزر لوضعية التحميل لمنع نقرات الـ Race Condition
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري بناء الداتا بيز وتأسيس الخادم...';
+                submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "جاري بناء الداتا بيز وتأسيس الخادم..." %}';
             });
         }
     });

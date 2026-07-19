@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-18 20:42+0300\n"
+"POT-Creation-Date: 2026-07-19 14:43+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -37,9 +37,10 @@ msgstr ""
 #: clients/migrations/0007_update_plan_choice_labels.py:23
 #: clients/migrations/0008_update_plan_names_silver_gold_empire.py:23
 #: clients/models/tenancy.py:96 clients/models/tenancy.py:440
-#: clients/models/tenancy.py:749 hr/models.py:929
+#: clients/models/tenancy.py:749 clients/templates/clients/login_finder.html:48
+#: hr/models.py:929
 msgid "الباقة"
-msgstr ""
+msgstr "Package"
 
 #: clients/migrations/0008_update_plan_names_silver_gold_empire.py:17
 #: clients/models/tenancy.py:88
@@ -949,6 +950,7 @@ msgstr ""
 
 #: clients/models/design_store.py:786 clients/models/tenancy.py:310
 #: clients/templates/clients/landing.html:238
+#: clients/templates/clients/signup_register.html:180
 msgid "سيارات"
 msgstr "Cars"
 
@@ -1263,11 +1265,12 @@ msgid "الماركة"
 msgstr "Brand"
 
 #: clients/models/marketplace_b2b.py:37 clients/models/marketplace_b2b.py:86
-#: hr/admin.py:156 hr/admin.py:380 hr/models.py:415 hr/models.py:476
-#: hr/models.py:543 hr/models.py:626 hr/models.py:667 hr/models.py:861
-#: hr/models.py:933 inventory/models/catalog.py:27
-#: inventory/models/catalog.py:153 inventory/models/diagnostics.py:167
-#: inventory/models/invoices.py:36 inventory/models/operations.py:71
+#: clients/templates/clients/login_finder.html:52 hr/admin.py:156
+#: hr/admin.py:380 hr/models.py:415 hr/models.py:476 hr/models.py:543
+#: hr/models.py:626 hr/models.py:667 hr/models.py:861 hr/models.py:933
+#: inventory/models/catalog.py:27 inventory/models/catalog.py:153
+#: inventory/models/diagnostics.py:167 inventory/models/invoices.py:36
+#: inventory/models/operations.py:71
 #: inventory/templates/inventory/bank_reconciliation_detail.html:69
 #: inventory/templates/inventory/invoice_print.html:215
 #: inventory/templates/inventory/sale_invoice_list.html:51
@@ -1921,9 +1924,9 @@ msgid "رقم الموبايل"
 msgstr ""
 
 #: clients/models/marketplace_c2c.py:48 clients/models/support.py:102
-#: printing/models.py:42
+#: clients/templates/clients/login_finder.html:114 printing/models.py:42
 msgid "البريد الإلكتروني"
-msgstr ""
+msgstr "Email"
 
 #: clients/models/marketplace_c2c.py:49
 msgid "الوظيفة / المسمى"
@@ -1931,8 +1934,9 @@ msgstr ""
 
 #: clients/models/marketplace_c2c.py:50 clients/models/marketplace_c2c.py:308
 #: clients/models/tenancy.py:53 clients/models/tenancy.py:315
+#: clients/templates/clients/signup_register.html:176
 msgid "القطاع"
-msgstr ""
+msgstr "Sector"
 
 #: clients/models/marketplace_c2c.py:51
 msgid "المدينة / المحافظة"
@@ -2383,11 +2387,12 @@ msgstr "Sales"
 msgid "محاسبة ومالية"
 msgstr ""
 
-#: clients/models/support.py:50 inventory/models/operations.py:29
-#: inventory/models/organization.py:37 inventory/models/organization.py:77
-#: printing/models.py:145
+#: clients/models/support.py:50
+#: clients/templates/clients/change_password.html:20
+#: inventory/models/operations.py:29 inventory/models/organization.py:37
+#: inventory/models/organization.py:77 printing/models.py:145
 msgid "المستخدم"
-msgstr ""
+msgstr "User"
 
 #: clients/models/support.py:52
 #: inventory/templates/inventory/commission_dashboard.html:108
@@ -2423,9 +2428,11 @@ msgstr ""
 msgid "عادية"
 msgstr ""
 
-#: clients/models/support.py:85 inventory/models/diagnostics.py:372
+#: clients/models/support.py:85
+#: clients/templates/clients/_password_strength.html:26
+#: inventory/models/diagnostics.py:372
 msgid "متوسطة"
-msgstr ""
+msgstr "Medium"
 
 #: clients/models/support.py:86
 msgid "عاجلة"
@@ -2528,8 +2535,9 @@ msgid "رقم الهاتف"
 msgstr "Phone number"
 
 #: clients/models/tenancy.py:46
+#: clients/templates/clients/signup_register.html:232
 msgid "البريد الإلكتروني للإدارة"
-msgstr ""
+msgstr "Management email"
 
 #: clients/models/tenancy.py:51
 msgid "🎨 طباعة وتصميم جرافيك"
@@ -2784,6 +2792,7 @@ msgid "💎 Feature Catalog — مرجع المزايا"
 msgstr ""
 
 #: clients/models/tenancy.py:311 clients/templates/clients/landing.html:258
+#: clients/templates/clients/signup_register.html:185
 msgid "طباعة وتصميم"
 msgstr "Printing and design"
 
@@ -2914,8 +2923,10 @@ msgid "auto-generated في save() بصيغة INV-YYYY-NNNNNN"
 msgstr ""
 
 #: clients/models/tenancy.py:509
+#: clients/templates/clients/account_recovery.html:165
+#: clients/templates/clients/login_finder.html:44
 msgid "الشركة"
-msgstr ""
+msgstr "Company"
 
 #: clients/models/tenancy.py:514
 msgid "الاشتراك"
@@ -3267,6 +3278,147 @@ msgstr ""
 msgid "📊 سجل استهلاك AI Studio"
 msgstr ""
 
+#: clients/templates/clients/_password_strength.html:11
+msgid "قوة كلمة السر"
+msgstr "Password strength"
+
+#: clients/templates/clients/_password_strength.html:24
+msgid "ضعيفة جداً"
+msgstr "Very weak"
+
+#: clients/templates/clients/_password_strength.html:25
+msgid "ضعيفة"
+msgstr "Weak"
+
+#: clients/templates/clients/_password_strength.html:27
+msgid "قوية"
+msgstr "Strong"
+
+#: clients/templates/clients/_password_strength.html:28
+msgid "ممتازة"
+msgstr "Excellent"
+
+#: clients/templates/clients/_password_strength.html:43
+msgid "8 أحرف+"
+msgstr "8 chars+"
+
+#: clients/templates/clients/_password_strength.html:44
+msgid "حرف كابيتال"
+msgstr "capital letter"
+
+#: clients/templates/clients/_password_strength.html:45
+msgid "رقم"
+msgstr "number"
+
+#: clients/templates/clients/_password_strength.html:46
+msgid "رمز"
+msgstr "symbol"
+
+#: clients/templates/clients/_password_strength.html:60
+msgid "ينقص"
+msgstr "Missing"
+
+#: clients/templates/clients/account_recovery.html:7
+#: clients/templates/clients/account_recovery.html:43
+msgid "استرجاع الحساب"
+msgstr "Account recovery"
+
+#: clients/templates/clients/account_recovery.html:44
+msgid "أدخل رقم الموبايل أو البريد الإلكتروني المسجل"
+msgstr "Enter your registered mobile number or email"
+
+#: clients/templates/clients/account_recovery.html:51
+msgid "رقم الموبايل أو البريد الإلكتروني"
+msgstr "Mobile number or email"
+
+#: clients/templates/clients/account_recovery.html:53
+msgid "01xxxxxxxxx أو email@example.com"
+msgstr "01xxxxxxxxx or email@example.com"
+
+#: clients/templates/clients/account_recovery.html:60
+msgid "ابحث عن حسابي"
+msgstr "Search for my account"
+
+#: clients/templates/clients/account_recovery.html:70
+msgid "تأكيد الهوية"
+msgstr "Identity verification"
+
+#: clients/templates/clients/account_recovery.html:71
+#: clients/templates/clients/account_recovery.html:114
+#: clients/templates/clients/verify_email_result.html:20
+msgid "حساب"
+msgstr "Account"
+
+#: clients/templates/clients/account_recovery.html:77
+msgid "تم إرسال كود تحقق مكون من 6 أرقام إلى"
+msgstr "A 6-digit verification code has been sent to"
+
+#: clients/templates/clients/account_recovery.html:84
+msgid "لا يوجد بريد إلكتروني مسجل. كود التحقق هو"
+msgstr "No email is registered. The verification code is"
+
+#: clients/templates/clients/account_recovery.html:85
+msgid "يُنصح بإضافة بريد إلكتروني لحسابك لاحقاً."
+msgstr "It is recommended to add an email to your account later."
+
+#: clients/templates/clients/account_recovery.html:94
+msgid "كود التحقق (6 أرقام)"
+msgstr "Verification code (6 digits)"
+
+#: clients/templates/clients/account_recovery.html:103
+msgid "تحقق من الكود"
+msgstr "Verify the code"
+
+#: clients/templates/clients/account_recovery.html:113
+msgid "إعادة تعيين كلمة السر"
+msgstr "Reset password"
+
+#: clients/templates/clients/account_recovery.html:124
+msgid "سيتم تغيير كلمة سر"
+msgstr "The password will be changed for"
+
+#: clients/templates/clients/account_recovery.html:131
+#: clients/templates/clients/change_password.html:42
+msgid "كلمة السر الجديدة"
+msgstr "New password"
+
+#: clients/templates/clients/account_recovery.html:133
+#: clients/templates/clients/change_password.html:44
+msgid "8 أحرف على الأقل — حروف وأرقام"
+msgstr "8 characters minimum — letters and numbers"
+
+#: clients/templates/clients/account_recovery.html:140
+msgid "تأكيد كلمة السر"
+msgstr "Confirm password"
+
+#: clients/templates/clients/account_recovery.html:142
+msgid "أعد كتابة كلمة السر"
+msgstr "Re-enter the password"
+
+#: clients/templates/clients/account_recovery.html:150
+#: clients/templates/clients/change_password.html:55
+msgid "حفظ كلمة السر الجديدة"
+msgstr "Save the new password"
+
+#: clients/templates/clients/account_recovery.html:160
+msgid "تم تغيير كلمة السر بنجاح!"
+msgstr "Your password was changed successfully!"
+
+#: clients/templates/clients/account_recovery.html:169
+msgid "اسم المستخدم"
+msgstr "Username"
+
+#: clients/templates/clients/account_recovery.html:177
+#: clients/templates/clients/login_finder.html:62
+msgid "الدخول لنظام"
+msgstr "Log in to the system of"
+
+#: clients/templates/clients/account_recovery.html:186
+#: clients/templates/clients/mfa_challenge.html:52
+#: clients/templates/clients/verify_email_result.html:45
+msgid "العودة لتسجيل الدخول"
+msgstr "Back to login"
+
 #: clients/templates/clients/auto_landing.html:7
 msgid "Mousstec Auto | برنامج إدارة مراكز الصيانة وقطع الغيار"
 msgstr "Mousstec Auto | Software for Managing Maintenance Centers and Spare-Parts Dealers"
@@ -3289,6 +3441,7 @@ msgstr "Plans"
 #: clients/templates/clients/auto_landing.html:43
 #: clients/templates/clients/features.html:501
 #: clients/templates/clients/landing.html:108
+#: clients/templates/clients/login_finder.html:135
 #: clients/templates/clients/print_landing.html:45
 msgid "دخول"
 msgstr "Login"
@@ -3484,9 +3637,43 @@ msgid "الرئيسية"
 msgstr "Home"
 
 #: clients/templates/clients/auto_landing.html:210
+#: clients/templates/clients/login_finder.html:7
+#: clients/templates/clients/login_finder.html:82
 #: clients/templates/clients/print_landing.html:350
 msgid "تسجيل الدخول"
 msgstr "Log in"
+
+#: clients/templates/clients/change_password.html:7
+#: clients/templates/clients/change_password.html:19
+#: inventory/templates/inventory/_base_portal.html:61
+msgid "تغيير كلمة السر"
+msgstr "Change password"
+
+#: clients/templates/clients/change_password.html:37
+msgid "كلمة السر الحالية"
+msgstr "Current password"
+
+#: clients/templates/clients/change_password.html:48
+msgid "تأكيد كلمة السر الجديدة"
+msgstr "Confirm new password"
+
+#: clients/templates/clients/change_password.html:59
+msgid "بعد الحفظ، باقي الأجهزة المسجل عليها هتعمل logout تلقائياً."
+msgstr "After saving, the other registered devices will log out automatically."
+
+#: clients/templates/clients/change_password.html:67
+#: clients/templates/clients/mfa_setup.html:20
+msgid "المصادقة الثنائية (2FA)"
+msgstr "Two-factor authentication (2FA)"
+
+#: clients/templates/clients/change_password.html:69
+msgid "طبقة حماية إضافية بـ Google Authenticator"
+msgstr "An extra protection layer with Google Authenticator"
+
+#: clients/templates/clients/change_password.html:74
+#: inventory/templates/inventory/bank_reconciliation_detail.html:39
+msgid "رجوع"
+msgstr "Back"
 
 #: clients/templates/clients/features.html:7
 msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
@@ -4475,6 +4662,174 @@ msgstr "Your accounts"
 msgid "محمية ومشفرة بالكامل"
 msgstr "fully protected and encrypted"
 
+#: clients/templates/clients/login_finder.html:27
+msgid "منصة إدارة مراكز الصيانة وتجار قطع الغيار"
+msgstr "A platform for managing maintenance centers and spare-parts dealers"
+
+#: clients/templates/clients/login_finder.html:39
+msgid "تم العثور على حسابك!"
+msgstr "Your account was found!"
+
+#: clients/templates/clients/login_finder.html:67
+msgid "سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك"
+msgstr "You will be redirected to your company login link"
+
+#: clients/templates/clients/login_finder.html:72
+msgid "البحث ببريد مختلف"
+msgstr "Search with a different email"
+
+#: clients/templates/clients/login_finder.html:83
+msgid "أدخل بريدك وكلمة السر — هنوصّلك لشركتك مباشرة"
+msgstr "Enter your email and password — we will connect you to your company directly"
+
+#: clients/templates/clients/login_finder.html:95
+msgid "إيميلك لسه مش متفعّل"
+msgstr "Your email is not activated yet"
+
+#: clients/templates/clients/login_finder.html:101
+msgid "ابعت لي رابط التأكيد تاني"
+msgstr "Send me the confirmation link again"
+
+#: clients/templates/clients/login_finder.html:117
+msgid "example@email.com أو 01xxxxxxxxx"
+msgstr "example@email.com or 01xxxxxxxxx"
+
+#: clients/templates/clients/login_finder.html:122
+msgid "كلمة السر"
+msgstr "Password"
+
+#: clients/templates/clients/login_finder.html:129
+msgid "اتركها فاضية لو عايز تلاقي رابط شركتك بس"
+msgstr "Leave it empty if you only want to find your company link"
+
+#: clients/templates/clients/login_finder.html:143
+msgid "نسيت كلمة السر؟ استرجع حسابك"
+msgstr "Forgot your password? Recover your account"
+
+#: clients/templates/clients/login_finder.html:145
+msgid "مستخدم جديد؟"
+msgstr "New user?"
+
+#: clients/templates/clients/login_finder.html:149
+msgid "أنشئ حسابك مجاناً — 7 أيام بكل المزايا"
+msgstr "Create your account free — 7 days with all features"
+
+#: clients/templates/clients/mfa_challenge.html:7
+msgid "تحقق ثنائي"
+msgstr "Two-factor verification"
+
+#: clients/templates/clients/mfa_challenge.html:20
+msgid "التحقق الثنائي"
+msgstr "Two-factor verification"
+
+#: clients/templates/clients/mfa_challenge.html:21
+msgid "افتح تطبيق الـ Authenticator واكتب الكود"
+msgstr "Open the Authenticator app and enter the code"
+
+#: clients/templates/clients/mfa_challenge.html:41
+msgid "أدخل كود الـ 6 أرقام من تطبيقك، أو كود استرجاع (8 أحرف)."
+msgstr "Enter the 6-digit code from your app, or a recovery code (8 characters)."
+
+#: clients/templates/clients/mfa_challenge.html:46
+msgid "تأكيد الدخول"
+msgstr "Confirm login"
+
+#: clients/templates/clients/mfa_setup.html:7
+#: inventory/models/organization.py:48
+msgid "المصادقة الثنائية"
+msgstr "Two-factor authentication"
+
+#: clients/templates/clients/mfa_setup.html:21
+msgid "طبقة حماية إضافية لحسابك"
+msgstr "An extra protection layer for your account"
+
+#: clients/templates/clients/mfa_setup.html:32
+msgid "تم تفعيل 2FA بنجاح"
+msgstr "2FA enabled successfully"
+
+#: clients/templates/clients/mfa_setup.html:36
+msgid "أكواد الاسترجاع (Backup Codes)"
+msgstr "Recovery codes (Backup Codes)"
+
+#: clients/templates/clients/mfa_setup.html:38
+msgid ""
+"احفظ الأكواد دي في مكان آمن. كل كود يُستخدم مرة واحدة بس، وهتحتاجهم لو فقدت "
+"جهازك."
+msgstr "Save these codes in a safe place. Each code is used only once, and you will need them if you lose your device."
+
+#: clients/templates/clients/mfa_setup.html:44
+#: inventory/templates/inventory/vehicle_history.html:131
+msgid "تم النسخ"
+msgstr "Copied"
+
+#: clients/templates/clients/mfa_setup.html:46
+msgid "نسخ كل الأكواد"
+msgstr "Copy all codes"
+
+#: clients/templates/clients/mfa_setup.html:49
+msgid "عودة لإعدادات الأمان"
+msgstr "Back to security settings"
+
+#: clients/templates/clients/mfa_setup.html:54
+msgid "المصادقة الثنائية مفعّلة"
+msgstr "Two-factor authentication is enabled"
+
+#: clients/templates/clients/mfa_setup.html:56
+msgid "منذ"
+msgstr "Since"
+
+#: clients/templates/clients/mfa_setup.html:59
+msgid "متأكد إنك عايز تلغي 2FA؟ حسابك هيرجع محمي بكلمة السر بس."
+msgstr "Are you sure you want to disable 2FA? Your account will be protected by password only."
+
+#: clients/templates/clients/mfa_setup.html:61
+msgid "أدخل كلمة السر لإلغاء 2FA"
+msgstr "Enter your password to disable 2FA"
+
+#: clients/templates/clients/mfa_setup.html:66
+msgid "إلغاء المصادقة الثنائية"
+msgstr "Disable two-factor authentication"
+
+#: clients/templates/clients/mfa_setup.html:72
+msgid "نزّل تطبيق"
+msgstr "Download the app"
+
+#: clients/templates/clients/mfa_setup.html:72
+msgid "أو"
+msgstr "or"
+
+#: clients/templates/clients/mfa_setup.html:72
+msgid "على موبايلك."
+msgstr "on your phone."
+
+#: clients/templates/clients/mfa_setup.html:73
+msgid "افتح التطبيق واضغط \"إضافة حساب\" → \"Scan QR\"."
+msgstr "Open the app and tap \"Add account\" → \"Scan QR\"."
+
+#: clients/templates/clients/mfa_setup.html:74
+msgid "اقرأ الـ QR ده، التطبيق هيبدأ يعرض كود من 6 أرقام كل 30 ثانية."
+msgstr "Scan this QR code, and the app will start showing a 6-digit code every 30 seconds."
+
+#: clients/templates/clients/mfa_setup.html:75
+msgid "اكتب الكود تحت لتأكيد التفعيل."
+msgstr "Enter the code below to confirm activation."
+
+#: clients/templates/clients/mfa_setup.html:83
+msgid "أو أدخل الـ secret يدوياً في التطبيق"
+msgstr "Or enter the secret manually in the app"
+
+#: clients/templates/clients/mfa_setup.html:90
+msgid "الكود من التطبيق (6 أرقام)"
+msgstr "The code from the app (6 digits)"
+
+#: clients/templates/clients/mfa_setup.html:95
+msgid "تأكيد وتفعيل 2FA"
+msgstr "Confirm and enable 2FA"
+
+#: clients/templates/clients/mfa_setup.html:101
+msgid "العودة لإعدادات الأمان"
+msgstr "Back to security settings"
+
 #: clients/templates/clients/pricing.html:7
 msgid "باقات Mouss Tec | اختر خطتك"
 msgstr "Mouss Tec Packages | Choose Your Plan"
@@ -5079,6 +5434,158 @@ msgstr "Priority technical support"
 #: clients/templates/clients/print_landing.html:323
 msgid "تواصل معنا"
 msgstr "Contact us"
+
+#: clients/templates/clients/signup_register.html:7
+msgid "تأسيس مؤسسة سحابية جديدة"
+msgstr "Set up a new cloud organization"
+
+#: clients/templates/clients/signup_register.html:153
+msgid "انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ"
+msgstr "Join the integrated cloud commerce network and own your isolated system in seconds"
+
+#: clients/templates/clients/signup_register.html:172
+msgid "اختر مجالك"
+msgstr "Choose your field"
+
+#: clients/templates/clients/signup_register.html:181
+msgid "صيانة وقطع غيار"
+msgstr "Maintenance and spare parts"
+
+#: clients/templates/clients/signup_register.html:186
+msgid "مطابع واستوديوهات"
+msgstr "Print shops and studios"
+
+#: clients/templates/clients/signup_register.html:194
+msgid "اسم المركز أو الشركة"
+msgstr "Center or company name"
+
+#: clients/templates/clients/signup_register.html:200
+msgid "نوع النشاط التشغيلي"
+msgstr "Type of operational activity"
+
+#: clients/templates/clients/signup_register.html:206
+msgid "رابط النظام المحمي (Subdomain)"
+msgstr "Protected system link (Subdomain)"
+
+#: clients/templates/clients/signup_register.html:211
+msgid "يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto)."
+msgstr "Starts with an English letter, with no spaces (example: mouss-auto)."
+
+#: clients/templates/clients/signup_register.html:217
+msgid "حساب المدير المسؤول (Root Admin)"
+msgstr "Responsible admin account (Root Admin)"
+
+#: clients/templates/clients/signup_register.html:220
+msgid "الاسم بالكامل"
+msgstr "Full name"
+
+#: clients/templates/clients/signup_register.html:226
+msgid "رقم هاتف المالك / الإدارة"
+msgstr "Owner / management phone number"
+
+#: clients/templates/clients/signup_register.html:238
+msgid "كلمة المرور للنظام"
+msgstr "System password"
+
+#: clients/templates/clients/signup_register.html:251
+msgid "إطلاق وتأسيس الخادم المعزول"
+msgstr "Launch and set up the isolated server"
+
+#: clients/templates/clients/signup_register.html:307
+msgid "أدخل 8 رموز على الأقل."
+msgstr "Enter at least 8 characters."
+
+#: clients/templates/clients/signup_register.html:308
+msgid "كلمة مرور ضعيفة، أضف حروف وأرقام."
+msgstr "Weak password, add letters and numbers."
+
+#: clients/templates/clients/signup_register.html:309
+msgid "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى."
+msgstr "Good password, add special characters for stronger security."
+
+#: clients/templates/clients/signup_register.html:310
+msgid "كلمة مرور قوية جداً ومحمية!"
+msgstr "Very strong and protected password!"
+
+#: clients/templates/clients/signup_register.html:367
+msgid "جاري بناء الداتا بيز وتأسيس الخادم..."
+msgstr "Building the database and setting up the server..."
+
+#: clients/templates/clients/signup_success.html:7
+msgid "تم التأسيس بنجاح"
+msgstr "Setup completed successfully"
+
+#: clients/templates/clients/signup_success.html:127
+msgid "تهانينا يا هندسة!"
+msgstr "Congratulations!"
+
+#: clients/templates/clients/signup_success.html:128
+#, python-format
+msgid "تم تخليق مؤسسة %(company_name)s بنجاح"
+msgstr "Organization %(company_name)s created successfully"
+
+#: clients/templates/clients/signup_success.html:131
+msgid ""
+"قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء "
+"الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح."
+msgstr "The Mouss Tec cloud engine has successfully built the isolated database tables, activated the AI agents, and assigned your Root account."
+
+#: clients/templates/clients/signup_success.html:135
+msgid "رابط الدخول الآمن لنظامك المعزول"
+msgstr "Secure login link for your isolated system"
+
+#: clients/templates/clients/signup_success.html:138
+msgid "نسخ الرابط"
+msgstr "Copy the link"
+
+#: clients/templates/clients/signup_success.html:143
+msgid "حساب الأدمن المعتمد"
+msgstr "Approved admin account"
+
+#: clients/templates/clients/signup_success.html:147
+msgid ""
+"أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة."
+msgstr "The welcome agent sent an automatic notification to your phone containing the secure activation details."
+
+#: clients/templates/clients/signup_success.html:151
+msgid "الدخول لغرفة العمليات"
+msgstr "Enter the operations room"
+
+#: clients/templates/clients/signup_success.html:151
+msgid "ثوانٍ"
+msgstr "seconds"
+
+#: clients/templates/clients/signup_success.html:205
+msgid "جاري نقلك للسحابة..."
+msgstr "Transferring you to the cloud..."
+
+#: clients/templates/clients/signup_success.html:214
+msgid "تم الإيقاف"
+msgstr "Paused"
+
+#: clients/templates/clients/verify_email_result.html:7
+msgid "تأكيد البريد"
+msgstr "Email confirmation"
+
+#: clients/templates/clients/verify_email_result.html:19
+msgid "تم تأكيد بريدك بنجاح!"
+msgstr "Your email was confirmed successfully!"
+
+#: clients/templates/clients/verify_email_result.html:25
+msgid "ادخل النظام الآن"
+msgstr "Enter the system now"
+
+#: clients/templates/clients/verify_email_result.html:32
+msgid "تعذّر التأكيد"
+msgstr "Confirmation failed"
+
+#: clients/templates/clients/verify_email_result.html:37
+msgid "إيميل الحساب"
+msgstr "Account email"
+
+#: clients/templates/clients/verify_email_result.html:41
+msgid "ابعت رابط جديد"
+msgstr "Send a new link"
 
 #: diagnostics_catalog/models.py:18
 msgid "معلوماتي"
@@ -7938,10 +8445,6 @@ msgstr ""
 msgid "مصادقة ثنائية"
 msgstr ""
 
-#: inventory/models/organization.py:48
-msgid "المصادقة الثنائية"
-msgstr ""
-
 #: inventory/models/organization.py:56
 msgid "مدير عام (أدمن)"
 msgstr ""
@@ -8113,10 +8616,6 @@ msgstr "Change language"
 #: inventory/templates/inventory/dashboard.html:408
 msgid "لوحة التحكم الكاملة"
 msgstr "Full control panel"
-
-#: inventory/templates/inventory/_base_portal.html:61
-msgid "تغيير كلمة السر"
-msgstr "Change password"
 
 #: inventory/templates/inventory/_base_portal.html:62
 msgid "خروج"
@@ -8601,10 +9100,6 @@ msgstr "Statement"
 #: inventory/templates/inventory/bank_reconciliation_detail.html:117
 msgid "مطابقة تلقائية للكل"
 msgstr "Auto-match all"
-
-#: inventory/templates/inventory/bank_reconciliation_detail.html:39
-msgid "رجوع"
-msgstr "Back"
 
 #: inventory/templates/inventory/bank_reconciliation_detail.html:54
 msgid "سطور مطابقة"
@@ -10967,10 +11462,6 @@ msgstr "Service log"
 #: inventory/templates/inventory/vehicle_history.html:112
 msgid "لا يوجد سجل صيانة لهذه المركبة حتى الآن"
 msgstr "No service history for this vehicle yet"
-
-#: inventory/templates/inventory/vehicle_history.html:131
-msgid "تم النسخ"
-msgstr "Copied"
 
 #: inventory/templates/inventory/vehicle_history.html:135
 msgid "انسخ الرابط:"

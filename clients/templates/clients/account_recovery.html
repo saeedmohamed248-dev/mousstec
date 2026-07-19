@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استرجاع الحساب | Mouss Tec</title>
+    <title>{% trans "استرجاع الحساب" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -39,24 +40,24 @@
             <div class="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-4">
                 <i class="fas fa-key"></i>
             </div>
-            <h1 class="text-xl font-black text-white">استرجاع الحساب</h1>
-            <p class="text-slate-400 text-sm mt-1">أدخل رقم الموبايل أو البريد الإلكتروني المسجل</p>
+            <h1 class="text-xl font-black text-white">{% trans "استرجاع الحساب" %}</h1>
+            <p class="text-slate-400 text-sm mt-1">{% trans "أدخل رقم الموبايل أو البريد الإلكتروني المسجل" %}</p>
         </div>
 
         <form method="post" class="space-y-4">
             {% csrf_token %}
             <input type="hidden" name="step" value="search">
             <div>
-                <label class="block text-xs font-black text-slate-400 mb-2">رقم الموبايل أو البريد الإلكتروني</label>
+                <label class="block text-xs font-black text-slate-400 mb-2">{% trans "رقم الموبايل أو البريد الإلكتروني" %}</label>
                 <input type="text" name="query" required autofocus
-                    placeholder="01xxxxxxxxx أو email@example.com"
+                    placeholder="{% trans "01xxxxxxxxx أو email@example.com" %}"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/20 transition"
                     dir="ltr">
             </div>
             <button type="submit"
                 class="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-amber-500/20 transition duration-300 flex items-center justify-center gap-2">
                 <i class="fas fa-search"></i>
-                ابحث عن حسابي
+                {% trans "ابحث عن حسابي" %}
             </button>
         </form>
 
@@ -66,22 +67,22 @@
             <div class="w-14 h-14 mx-auto rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-2xl mb-4">
                 <i class="fas fa-shield-alt"></i>
             </div>
-            <h1 class="text-xl font-black text-white">تأكيد الهوية</h1>
-            <p class="text-slate-400 text-sm mt-1">حساب: <span class="text-white font-bold">{{ tenant_name }}</span></p>
+            <h1 class="text-xl font-black text-white">{% trans "تأكيد الهوية" %}</h1>
+            <p class="text-slate-400 text-sm mt-1">{% trans "حساب" %}: <span class="text-white font-bold">{{ tenant_name }}</span></p>
         </div>
 
         {% if masked_email %}
         <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl px-4 py-3 text-sm text-slate-400 text-center mb-4">
             <i class="fas fa-envelope text-blue-400 ml-1"></i>
-            تم إرسال كود تحقق مكون من 6 أرقام إلى <span class="text-white font-bold" dir="ltr">{{ masked_email }}</span>
+            {% trans "تم إرسال كود تحقق مكون من 6 أرقام إلى" %} <span class="text-white font-bold" dir="ltr">{{ masked_email }}</span>
         </div>
         {% endif %}
 
         {% if otp_hint %}
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300 text-center mb-4">
             <i class="fas fa-info-circle ml-1"></i>
-            لا يوجد بريد إلكتروني مسجل. كود التحقق هو: <span class="text-white font-black text-lg" dir="ltr">{{ otp_hint }}</span>
-            <br><small class="text-amber-400/70">يُنصح بإضافة بريد إلكتروني لحسابك لاحقاً.</small>
+            {% trans "لا يوجد بريد إلكتروني مسجل. كود التحقق هو" %}: <span class="text-white font-black text-lg" dir="ltr">{{ otp_hint }}</span>
+            <br><small class="text-amber-400/70">{% trans "يُنصح بإضافة بريد إلكتروني لحسابك لاحقاً." %}</small>
         </div>
         {% endif %}
 
@@ -90,7 +91,7 @@
             <input type="hidden" name="step" value="verify">
             <input type="hidden" name="tenant_schema" value="{{ tenant_schema }}">
             <div>
-                <label class="block text-xs font-black text-slate-400 mb-2">كود التحقق (6 أرقام)</label>
+                <label class="block text-xs font-black text-slate-400 mb-2">{% trans "كود التحقق (6 أرقام)" %}</label>
                 <input type="text" name="otp" required autofocus maxlength="6" pattern="[0-9]{6}"
                     placeholder="000000"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-2xl text-center font-black tracking-[0.5em] placeholder-slate-500 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20 transition"
@@ -99,7 +100,7 @@
             <button type="submit"
                 class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition duration-300 flex items-center justify-center gap-2">
                 <i class="fas fa-check-circle"></i>
-                تحقق من الكود
+                {% trans "تحقق من الكود" %}
             </button>
         </form>
 
@@ -109,8 +110,8 @@
             <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-4">
                 <i class="fas fa-lock-open"></i>
             </div>
-            <h1 class="text-xl font-black text-white">إعادة تعيين كلمة السر</h1>
-            <p class="text-slate-400 text-sm mt-1">حساب: <span class="text-white font-bold">{{ tenant_name }}</span></p>
+            <h1 class="text-xl font-black text-white">{% trans "إعادة تعيين كلمة السر" %}</h1>
+            <p class="text-slate-400 text-sm mt-1">{% trans "حساب" %}: <span class="text-white font-bold">{{ tenant_name }}</span></p>
         </div>
 
         <form method="post" class="space-y-4">
@@ -120,25 +121,25 @@
             <input type="hidden" name="reset_token" value="{{ reset_token }}">
 
             <div class="bg-slate-800/40 border border-slate-700 rounded-xl px-4 py-3">
-                <div class="text-[11px] text-slate-500 mb-1">سيتم تغيير كلمة سر:</div>
+                <div class="text-[11px] text-slate-500 mb-1">{% trans "سيتم تغيير كلمة سر" %}:</div>
                 <div class="text-sm font-black text-emerald-300">
                     <i class="fas fa-user-shield ml-1"></i>{{ target_username }}
                 </div>
             </div>
 
             <div>
-                <label class="block text-xs font-black text-slate-400 mb-2">كلمة السر الجديدة</label>
+                <label class="block text-xs font-black text-slate-400 mb-2">{% trans "كلمة السر الجديدة" %}</label>
                 <input type="password" name="new_password" id="id_recovery_password" required minlength="8"
-                    placeholder="8 أحرف على الأقل — حروف وأرقام"
+                    placeholder="{% trans "8 أحرف على الأقل — حروف وأرقام" %}"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition"
                     dir="ltr">
                 {% include 'clients/_password_strength.html' with target_id="id_recovery_password" %}
             </div>
 
             <div>
-                <label class="block text-xs font-black text-slate-400 mb-2">تأكيد كلمة السر</label>
+                <label class="block text-xs font-black text-slate-400 mb-2">{% trans "تأكيد كلمة السر" %}</label>
                 <input type="password" name="confirm_password" required minlength="6"
-                    placeholder="أعد كتابة كلمة السر"
+                    placeholder="{% trans "أعد كتابة كلمة السر" %}"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/20 transition"
                     dir="ltr">
             </div>
@@ -146,7 +147,7 @@
             <button type="submit"
                 class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition duration-300 flex items-center justify-center gap-2">
                 <i class="fas fa-save"></i>
-                حفظ كلمة السر الجديدة
+                {% trans "حفظ كلمة السر الجديدة" %}
             </button>
         </form>
 
@@ -156,16 +157,16 @@
             <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-4">
                 <i class="fas fa-check-circle"></i>
             </div>
-            <h1 class="text-xl font-black text-white">تم تغيير كلمة السر بنجاح!</h1>
+            <h1 class="text-xl font-black text-white">{% trans "تم تغيير كلمة السر بنجاح!" %}</h1>
         </div>
 
         <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 mb-5 space-y-2">
             <div class="flex justify-between items-center">
-                <span class="text-xs text-slate-500">الشركة</span>
+                <span class="text-xs text-slate-500">{% trans "الشركة" %}</span>
                 <span class="text-sm font-black text-white">{{ tenant_name }}</span>
             </div>
             <div class="flex justify-between items-center">
-                <span class="text-xs text-slate-500">اسم المستخدم</span>
+                <span class="text-xs text-slate-500">{% trans "اسم المستخدم" %}</span>
                 <span class="text-sm font-bold text-purple-400" dir="ltr">{{ username }}</span>
             </div>
         </div>
@@ -173,7 +174,7 @@
         <a href="{{ login_url }}"
            class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition duration-300 flex items-center justify-center gap-2 mb-4">
             <i class="fas fa-sign-in-alt"></i>
-            الدخول لنظام {{ tenant_name }}
+            {% trans "الدخول لنظام" %} {{ tenant_name }}
         </a>
         {% endif %}
 
@@ -182,7 +183,7 @@
         <div class="mt-6 pt-5 border-t border-slate-800 text-center space-y-3">
             <a href="{% url 'client_login_finder' %}" class="inline-flex items-center gap-2 text-slate-500 hover:text-purple-400 font-bold text-sm transition">
                 <i class="fas fa-arrow-right text-xs"></i>
-                العودة لتسجيل الدخول
+                {% trans "العودة لتسجيل الدخول" %}
             </a>
         </div>
         {% endif %}
