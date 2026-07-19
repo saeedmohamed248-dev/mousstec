@@ -1,5 +1,6 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,8 +46,8 @@
             <a href="/" class="text-xs text-slate-500 hover:text-slate-300 transition"><i class="fas fa-home"></i></a>
             <form method="post" action="/{{ admin_url|default:'secure-portal' }}/logout/" class="inline">
                 {% csrf_token %}
-                <button type="submit" class="text-xs font-bold text-slate-400 hover:text-red-400 px-3 py-1.5 rounded-lg border border-slate-700 transition" title="تسجيل الخروج">
-                    <i class="fas fa-sign-out-alt ml-1"></i>خروج
+                <button type="submit" class="text-xs font-bold text-slate-400 hover:text-red-400 px-3 py-1.5 rounded-lg border border-slate-700 transition" title="{% trans "تسجيل الخروج" %}">
+                    <i class="fas fa-sign-out-alt ml-1"></i>{% trans "خروج" %}
                 </button>
             </form>
         </div>
@@ -62,8 +63,8 @@
                 <i class="fas fa-building-columns"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-black text-white">لوحة المشرف الأعلى</h1>
-                <p class="text-slate-400 text-sm">مركز القيادة — مراقبة وتحكم كامل في المنصة</p>
+                <h1 class="text-2xl font-black text-white">{% trans "لوحة المشرف الأعلى" %}</h1>
+                <p class="text-slate-400 text-sm">{% trans "مركز القيادة — مراقبة وتحكم كامل في المنصة" %}</p>
             </div>
         </div>
         <div class="flex items-center gap-2">
@@ -80,8 +81,8 @@
                 <i class="fas fa-building"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">إدارة المستأجرين</div>
-                <div class="text-slate-400 text-xs">حذف آمن • استعادة • Force Delete</div>
+                <div class="text-white font-bold text-sm">{% trans "إدارة المستأجرين" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "حذف آمن • استعادة • Force Delete" %}</div>
             </div>
         </a>
 
@@ -90,8 +91,8 @@
                 <i class="fas fa-triangle-exclamation"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">سجل أخطاء النظام</div>
-                <div class="text-slate-400 text-xs">رصد لحظي لكل 4xx/5xx</div>
+                <div class="text-white font-bold text-sm">{% trans "سجل أخطاء النظام" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "رصد لحظي لكل 4xx/5xx" %}</div>
             </div>
         </a>
 
@@ -100,8 +101,8 @@
                 <i class="fas fa-clipboard-list"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">سجل التدقيق</div>
-                <div class="text-slate-400 text-xs">كل أحداث المنصة • فلاتر</div>
+                <div class="text-white font-bold text-sm">{% trans "سجل التدقيق" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "كل أحداث المنصة • فلاتر" %}</div>
             </div>
         </a>
 
@@ -110,7 +111,7 @@
                 <i class="fas fa-heart-pulse"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">صحة النظام</div>
+                <div class="text-white font-bold text-sm">{% trans "صحة النظام" %}</div>
                 <div class="text-slate-400 text-xs">DB • Redis • Celery • Disk</div>
             </div>
         </a>
@@ -120,7 +121,7 @@
                 <i class="fas fa-user-doctor"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">🩺 صحة الشركات</div>
+                <div class="text-white font-bold text-sm">{% trans "🩺 صحة الشركات" %}</div>
                 <div class="text-slate-400 text-xs">Churn risk • health score</div>
             </div>
         </a>
@@ -140,8 +141,8 @@
                 <i class="fas fa-bullhorn"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">📢 بث جماعي</div>
-                <div class="text-slate-400 text-xs">إعلانات • Maintenance</div>
+                <div class="text-white font-bold text-sm">{% trans "📢 بث جماعي" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "إعلانات • Maintenance" %}</div>
             </div>
         </a>
 
@@ -150,8 +151,8 @@
                 <i class="fas fa-gem"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">الباقات والاشتراكات</div>
-                <div class="text-slate-400 text-xs">تسعير • مزايا • تحرير</div>
+                <div class="text-white font-bold text-sm">{% trans "الباقات والاشتراكات" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "تسعير • مزايا • تحرير" %}</div>
             </div>
         </a>
 
@@ -160,8 +161,8 @@
                 <i class="fas fa-chart-line"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">الإيرادات</div>
-                <div class="text-slate-400 text-xs">MRR • نمو • تحصيل</div>
+                <div class="text-white font-bold text-sm">{% trans "الإيرادات" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "MRR • نمو • تحصيل" %}</div>
             </div>
         </a>
 
@@ -170,8 +171,8 @@
                 <i class="fas fa-envelope-open-text"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">صندوق الدعم</div>
-                <div class="text-slate-400 text-xs">تذاكر • Help Form</div>
+                <div class="text-white font-bold text-sm">{% trans "صندوق الدعم" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "تذاكر • Help Form" %}</div>
             </div>
         </a>
 
@@ -180,8 +181,8 @@
                 <i class="fas fa-comments"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">الشات الحي</div>
-                <div class="text-slate-400 text-xs">9-5 ع.م • جمعة مغلق</div>
+                <div class="text-white font-bold text-sm">{% trans "الشات الحي" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "9-5 ع.م • جمعة مغلق" %}</div>
             </div>
         </a>
 
@@ -191,8 +192,8 @@
                 <i class="fas fa-gift"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">🎁 هدية تشخيص</div>
-                <div class="text-slate-400 text-xs">منح • تجديد اشتراك</div>
+                <div class="text-white font-bold text-sm">{% trans "🎁 هدية تشخيص" %}</div>
+                <div class="text-slate-400 text-xs">{% trans "منح • تجديد اشتراك" %}</div>
             </div>
         </a>
     </div>
@@ -200,40 +201,40 @@
     <!-- ═══════════════════ Tab Navigation ═══════════════════ -->
     <div class="flex gap-2 overflow-x-auto pb-1" id="tab-nav">
         <button data-tab="overview" class="tab-btn active text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap">
-            <i class="fas fa-chart-pie ml-1"></i>نظرة عامة
+            <i class="fas fa-chart-pie ml-1"></i>{% trans "نظرة عامة" %}
         </button>
         <button data-tab="tenants" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-building ml-1"></i>الشركات ({{ summary.total }})
+            <i class="fas fa-building ml-1"></i>{% trans "الشركات" %} ({{ summary.total }})
         </button>
         <button data-tab="visitors" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-eye ml-1"></i>الزوار
+            <i class="fas fa-eye ml-1"></i>{% trans "الزوار" %}
         </button>
         <button data-tab="activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-stream ml-1"></i>سجل الأحداث
+            <i class="fas fa-stream ml-1"></i>{% trans "سجل الأحداث" %}
         </button>
         <button data-tab="manual-receipts" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_manual_receipts %}border-red-500/40 text-red-400{% endif %}">
-            <i class="fas fa-mobile-screen-button ml-1"></i>إيصالات فودافون كاش{% if pending_manual_receipts %} ({{ pending_manual_receipts|length }}){% endif %}
+            <i class="fas fa-mobile-screen-button ml-1"></i>{% trans "إيصالات فودافون كاش" %}{% if pending_manual_receipts %} ({{ pending_manual_receipts|length }}){% endif %}
         </button>
         <button data-tab="design-purchases" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_design_purchases %}border-amber-500/40 text-amber-400{% endif %}">
-            <i class="fas fa-paint-brush ml-1"></i>طلبات شراء التصاميم{% if pending_design_purchases %} ({{ pending_design_purchases|length }}){% endif %}
+            <i class="fas fa-paint-brush ml-1"></i>{% trans "طلبات شراء التصاميم" %}{% if pending_design_purchases %} ({{ pending_design_purchases|length }}){% endif %}
         </button>
         <button data-tab="print-requests" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_print_requests %}border-orange-500/40 text-orange-400{% endif %}">
-            <i class="fas fa-print ml-1"></i>طلبات طباعة{% if pending_print_requests %} ({{ pending_print_requests|length }}){% endif %}
+            <i class="fas fa-print ml-1"></i>{% trans "طلبات طباعة" %}{% if pending_print_requests %} ({{ pending_print_requests|length }}){% endif %}
         </button>
         <button data-tab="marketplace-approval" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_marketplace_requests %}border-green-500/40 text-green-400{% endif %}">
-            <i class="fas fa-store ml-1"></i>موافقات السوق{% if pending_marketplace_requests %} ({{ pending_marketplace_requests|length }}){% endif %}
+            <i class="fas fa-store ml-1"></i>{% trans "موافقات السوق" %}{% if pending_marketplace_requests %} ({{ pending_marketplace_requests|length }}){% endif %}
         </button>
         <button data-tab="customers" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-users ml-1"></i>عملاء السوق ({{ customers_summary.total|default:0 }})
+            <i class="fas fa-users ml-1"></i>{% trans "عملاء السوق" %} ({{ customers_summary.total|default:0 }})
         </button>
         <button data-tab="parts-moderation" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_parts_listings %}border-yellow-500/40 text-yellow-400{% endif %}">
-            <i class="fas fa-cogs ml-1"></i>مراجعة قطع الغيار{% if pending_parts_listings %} <span class="bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded-full mr-1">{{ pending_parts_listings|length }}</span>{% endif %}
+            <i class="fas fa-cogs ml-1"></i>{% trans "مراجعة قطع الغيار" %}{% if pending_parts_listings %} <span class="bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded-full mr-1">{{ pending_parts_listings|length }}</span>{% endif %}
         </button>
         <button data-tab="parts-disputes" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_refund_orders %}border-orange-500/40 text-orange-400{% endif %}">
-            🚗 إرجاع قطع الغيار{% if pending_refund_orders %} <span class="bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded-full mr-1">{{ pending_refund_orders|length }}</span>{% endif %}
+            🚗 {% trans "إرجاع قطع الغيار" %}{% if pending_refund_orders %} <span class="bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded-full mr-1">{{ pending_refund_orders|length }}</span>{% endif %}
         </button>
         <button data-tab="tenant-activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-chart-line ml-1"></i>نشاط الشركات
+            <i class="fas fa-chart-line ml-1"></i>{% trans "نشاط الشركات" %}
         </button>
     </div>
 
@@ -262,8 +263,8 @@
             <div class="flex items-start gap-3 mb-3">
                 <div class="text-2xl">⏳</div>
                 <div class="flex-1">
-                    <p class="text-amber-300 font-black text-sm md:text-base">عناصر تنتظر مراجعتك</p>
-                    <p class="text-amber-200/70 text-xs mt-1">اضغط على أي بطاقة للانتقال مباشرةً إلى قسم المراجعة.</p>
+                    <p class="text-amber-300 font-black text-sm md:text-base">{% trans "عناصر تنتظر مراجعتك" %}</p>
+                    <p class="text-amber-200/70 text-xs mt-1">{% trans "اضغط على أي بطاقة للانتقال مباشرةً إلى قسم المراجعة." %}</p>
                 </div>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -272,7 +273,7 @@
                         class="text-right rounded-xl bg-green-500/15 border border-green-500/40 hover:bg-green-500/25 transition px-4 py-3 cursor-pointer">
                     <div class="flex items-center justify-between gap-2">
                         <div>
-                            <p class="text-green-400 text-xs font-bold">طلبات سوق</p>
+                            <p class="text-green-400 text-xs font-bold">{% trans "طلبات سوق" %}</p>
                             <p class="text-white text-2xl font-black mt-1">{{ pending_marketplace_requests|length }}</p>
                         </div>
                         <i class="fas fa-store text-green-400 text-2xl"></i>
@@ -284,7 +285,7 @@
                         class="text-right rounded-xl bg-yellow-500/15 border border-yellow-500/40 hover:bg-yellow-500/25 transition px-4 py-3 cursor-pointer">
                     <div class="flex items-center justify-between gap-2">
                         <div>
-                            <p class="text-yellow-400 text-xs font-bold">قطع غيار للبيع</p>
+                            <p class="text-yellow-400 text-xs font-bold">{% trans "قطع غيار للبيع" %}</p>
                             <p class="text-white text-2xl font-black mt-1">{{ pending_parts_listings|length }}</p>
                         </div>
                         <i class="fas fa-cogs text-yellow-400 text-2xl"></i>
@@ -296,7 +297,7 @@
                         class="text-right rounded-xl bg-amber-500/15 border border-amber-500/40 hover:bg-amber-500/25 transition px-4 py-3 cursor-pointer">
                     <div class="flex items-center justify-between gap-2">
                         <div>
-                            <p class="text-amber-400 text-xs font-bold">شراء تصاميم</p>
+                            <p class="text-amber-400 text-xs font-bold">{% trans "شراء تصاميم" %}</p>
                             <p class="text-white text-2xl font-black mt-1">{{ pending_design_purchases|length }}</p>
                         </div>
                         <i class="fas fa-image text-amber-400 text-2xl"></i>
@@ -308,7 +309,7 @@
                         class="text-right rounded-xl bg-orange-500/15 border border-orange-500/40 hover:bg-orange-500/25 transition px-4 py-3 cursor-pointer">
                     <div class="flex items-center justify-between gap-2">
                         <div>
-                            <p class="text-orange-400 text-xs font-bold">طلبات طباعة</p>
+                            <p class="text-orange-400 text-xs font-bold">{% trans "طلبات طباعة" %}</p>
                             <p class="text-white text-2xl font-black mt-1">{{ pending_print_requests|length }}</p>
                         </div>
                         <i class="fas fa-print text-orange-400 text-2xl"></i>
@@ -323,35 +324,35 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             <div class="stat-glow bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-white">{{ summary.total }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي الشركات</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "إجمالي الشركات" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-indigo-400">{{ summary.trial }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">تجريبية</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "تجريبية" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-emerald-400">{{ summary.active }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">نشطة (مدفوعة)</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "نشطة (مدفوعة)" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-amber-400">{{ summary.suspended }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">معلقة</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "معلقة" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-red-400">{{ summary.fraud }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">مشتبه بها</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "مشتبه بها" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-cyan-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-cyan-400">{{ summary.automotive }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🚗 سيارات</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "🚗 سيارات" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-pink-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-pink-400">{{ summary.printing }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🎨 طباعة</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "🎨 طباعة" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-orange-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-orange-400">{{ trial_expired }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">تجربة منتهية</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "تجربة منتهية" %}</p>
             </div>
         </div>
 
@@ -361,7 +362,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-green-400">{{ new_this_week }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">تسجيلات هذا الأسبوع</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "تسجيلات هذا الأسبوع" %}</p>
                     </div>
                     <div class="text-green-400/30 text-2xl"><i class="fas fa-user-plus"></i></div>
                 </div>
@@ -370,7 +371,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-green-400">{{ new_this_month }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">تسجيلات هذا الشهر</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "تسجيلات هذا الشهر" %}</p>
                     </div>
                     <div class="text-green-400/30 text-2xl"><i class="fas fa-chart-line"></i></div>
                 </div>
@@ -379,7 +380,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-yellow-400">{{ expiring_soon }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">اشتراكات تنتهي قريباً</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "اشتراكات تنتهي قريباً" %}</p>
                     </div>
                     <div class="text-yellow-400/30 text-2xl"><i class="fas fa-exclamation-triangle"></i></div>
                 </div>
@@ -388,7 +389,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-blue-400">{{ visitor_stats.today|default:"0" }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">طلبات اليوم</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "طلبات اليوم" %}</p>
                     </div>
                     <div class="text-blue-400/30 text-2xl"><i class="fas fa-globe"></i></div>
                 </div>
@@ -397,7 +398,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-violet-400">{{ visitor_stats.unique_today|default:"0" }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">زوار فريدون اليوم</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "زوار فريدون اليوم" %}</p>
                     </div>
                     <div class="text-violet-400/30 text-2xl"><i class="fas fa-users"></i></div>
                 </div>
@@ -406,7 +407,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-2xl font-black text-teal-400">{{ visitor_stats.avg_response_ms|default:"0" }}<span class="text-xs text-teal-400/50">ms</span></p>
-                        <p class="text-[10px] text-slate-500 font-bold">متوسط سرعة الاستجابة</p>
+                        <p class="text-[10px] text-slate-500 font-bold">{% trans "متوسط سرعة الاستجابة" %}</p>
                     </div>
                     <div class="text-teal-400/30 text-2xl"><i class="fas fa-bolt"></i></div>
                 </div>
@@ -419,7 +420,7 @@
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
                 <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                     <i class="fas fa-fire text-orange-400"></i>
-                    <span class="font-bold text-sm text-white">أكثر الصفحات زيارة (7 أيام)</span>
+                    <span class="font-bold text-sm text-white">{% trans "أكثر الصفحات زيارة (7 أيام)" %}</span>
                 </div>
                 <div class="divide-y divide-slate-800/60 max-h-80 overflow-y-auto">
                     {% for pg in visitor_stats.top_pages %}
@@ -428,7 +429,7 @@
                         <span class="text-xs font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">{{ pg.hits }}</span>
                     </div>
                     {% empty %}
-                    <div class="px-5 py-6 text-center text-slate-600 text-xs">لا توجد بيانات بعد</div>
+                    <div class="px-5 py-6 text-center text-slate-600 text-xs">{% trans "لا توجد بيانات بعد" %}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -437,7 +438,7 @@
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
                 <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                     <i class="fas fa-stream text-purple-400"></i>
-                    <span class="font-bold text-sm text-white">آخر الأحداث</span>
+                    <span class="font-bold text-sm text-white">{% trans "آخر الأحداث" %}</span>
                 </div>
                 <div class="divide-y divide-slate-800/60 max-h-80 overflow-y-auto">
                     {% for ev in recent_events %}
@@ -463,12 +464,12 @@
                         <div class="flex-1 min-w-0">
                             <p class="text-xs text-white truncate">{{ ev.description }}</p>
                             <p class="text-[10px] text-slate-500 mt-0.5">
-                                {{ ev.tenant_name }} · {{ ev.user_name }} · {{ ev.timestamp|timesince }} مضت
+                                {{ ev.tenant_name }} · {{ ev.user_name }} · {{ ev.timestamp|timesince }} {% trans "مضت" %}
                             </p>
                         </div>
                     </div>
                     {% empty %}
-                    <div class="px-5 py-6 text-center text-slate-600 text-xs">لا توجد أحداث بعد</div>
+                    <div class="px-5 py-6 text-center text-slate-600 text-xs">{% trans "لا توجد أحداث بعد" %}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -480,7 +481,7 @@
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
                 <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                     <i class="fas fa-trophy text-amber-400"></i>
-                    <span class="font-bold text-sm text-white">أنشط الشركات (7 أيام)</span>
+                    <span class="font-bold text-sm text-white">{% trans "أنشط الشركات (7 أيام)" %}</span>
                 </div>
                 <div class="divide-y divide-slate-800/60">
                     {% for tt in visitor_stats.top_tenants %}
@@ -489,10 +490,10 @@
                             <span class="text-xs font-black text-slate-500">{{ forloop.counter }}</span>
                             <span class="text-xs text-white font-bold">{{ tt.tenant_schema }}</span>
                         </div>
-                        <span class="text-xs font-black text-amber-400">{{ tt.hits }} طلب</span>
+                        <span class="text-xs font-black text-amber-400">{% blocktrans with n=tt.hits %}{{ n }} طلب{% endblocktrans %}</span>
                     </div>
                     {% empty %}
-                    <div class="px-5 py-6 text-center text-slate-600 text-xs">لا توجد بيانات</div>
+                    <div class="px-5 py-6 text-center text-slate-600 text-xs">{% trans "لا توجد بيانات" %}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -501,15 +502,15 @@
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
                 <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                     <i class="fas fa-mobile-alt text-cyan-400"></i>
-                    <span class="font-bold text-sm text-white">توزيع الأجهزة (7 أيام)</span>
+                    <span class="font-bold text-sm text-white">{% trans "توزيع الأجهزة (7 أيام)" %}</span>
                 </div>
                 <div class="p-5 space-y-3">
                     {% for dev in visitor_stats.device_breakdown %}
                     <div>
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs font-bold text-slate-300">
-                                {% if dev.device_type == 'mobile' %}<i class="fas fa-mobile-alt ml-1 text-cyan-400"></i>موبايل
-                                {% elif dev.device_type == 'desktop' %}<i class="fas fa-desktop ml-1 text-blue-400"></i>ديسكتوب
+                                {% if dev.device_type == 'mobile' %}<i class="fas fa-mobile-alt ml-1 text-cyan-400"></i>{% trans "موبايل" %}
+                                {% elif dev.device_type == 'desktop' %}<i class="fas fa-desktop ml-1 text-blue-400"></i>{% trans "ديسكتوب" %}
                                 {% else %}<i class="fas fa-question-circle ml-1 text-slate-400"></i>{{ dev.device_type }}{% endif %}
                             </span>
                             <span class="text-xs font-black text-slate-400">{{ dev.count }}</span>
@@ -520,7 +521,7 @@
                         </div>
                     </div>
                     {% empty %}
-                    <div class="text-center text-slate-600 text-xs py-4">لا توجد بيانات</div>
+                    <div class="text-center text-slate-600 text-xs py-4">{% trans "لا توجد بيانات" %}</div>
                     {% endfor %}
                 </div>
             </div>
@@ -536,22 +537,22 @@
         <!-- Search & Filter Bar -->
         <div class="flex gap-3 flex-wrap items-center">
             <div class="relative flex-1 min-w-[200px]">
-                <input type="text" id="search-input" placeholder="ابحث بالاسم أو الباقة أو الحالة..."
+                <input type="text" id="search-input" placeholder="{% trans "ابحث بالاسم أو الباقة أو الحالة..." %}"
                     class="w-full bg-slate-900/60 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60 transition">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
             </div>
             <select id="filter-status" class="bg-slate-900/60 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/60">
-                <option value="">كل الحالات</option>
-                <option value="trial">تجريبية</option>
-                <option value="active">نشطة</option>
-                <option value="suspended">معلقة</option>
+                <option value="">{% trans "كل الحالات" %}</option>
+                <option value="trial">{% trans "تجريبية" %}</option>
+                <option value="active">{% trans "نشطة" %}</option>
+                <option value="suspended">{% trans "معلقة" %}</option>
             </select>
             <select id="filter-industry" class="bg-slate-900/60 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/60">
-                <option value="">كل القطاعات</option>
-                <option value="automotive">سيارات</option>
-                <option value="printing">طباعة</option>
+                <option value="">{% trans "كل القطاعات" %}</option>
+                <option value="automotive">{% trans "سيارات" %}</option>
+                <option value="printing">{% trans "طباعة" %}</option>
             </select>
-            <span class="text-xs text-slate-600 font-bold">{{ summary.total }} شركة</span>
+            <span class="text-xs text-slate-600 font-bold">{% blocktrans with n=summary.total %}{{ n }} شركة{% endblocktrans %}</span>
         </div>
 
         <!-- ═══ Company Cards ═══ -->
@@ -583,14 +584,14 @@
                                     {{ t.obj.get_status_display }}
                                 </span>
                                 {% if t.obj.is_fraud_flagged %}
-                                <span class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20"><i class="fas fa-shield-virus ml-1"></i>مشتبه</span>
+                                <span class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20"><i class="fas fa-shield-virus ml-1"></i>{% trans "مشتبه" %}</span>
                                 {% endif %}
                                 {% if t.obj.is_verified_merchant %}
-                                <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><i class="fas fa-badge-check ml-1"></i>موثق</span>
+                                <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><i class="fas fa-badge-check ml-1"></i>{% trans "موثق" %}</span>
                                 {% endif %}
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5">
-                                <span class="font-mono">{{ t.obj.schema_name }}</span> · {{ t.obj.phone|default:"—" }} · تسجيل {{ t.obj.created_on }}
+                                <span class="font-mono">{{ t.obj.schema_name }}</span> · {{ t.obj.phone|default:"—" }} · {% trans "تسجيل" %} {{ t.obj.created_on }}
                             </p>
                         </div>
                     </div>
@@ -598,7 +599,7 @@
                     <a href="/superadmin/enter/{{ t.obj.schema_name }}/" target="_blank"
                         class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs hover:from-blue-500 hover:to-indigo-500 transition shadow-lg shadow-blue-600/20 flex-shrink-0 mr-3">
                         <i class="fas fa-arrow-left"></i>
-                        <span>دخول النظام</span>
+                        <span>{% trans "دخول النظام" %}</span>
                     </a>
                 </div>
 
@@ -606,7 +607,7 @@
                 <div class="grid grid-cols-3 sm:grid-cols-6 gap-px bg-slate-800/30">
                     <!-- الباقة -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
-                        <p class="text-[10px] text-slate-500 mb-1">الباقة</p>
+                        <p class="text-[10px] text-slate-500 mb-1">{% trans "الباقة" %}</p>
                         <span class="text-xs font-black px-2.5 py-1 rounded-lg inline-block
                             {% if t.obj.plan == 'empire' or t.obj.plan == 'print_enterprise' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
                             {% elif t.obj.plan == 'gold' or t.obj.plan == 'print_pro' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
@@ -617,26 +618,26 @@
                     </div>
                     <!-- المستخدمون -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
-                        <p class="text-[10px] text-slate-500 mb-1">المستخدمون</p>
+                        <p class="text-[10px] text-slate-500 mb-1">{% trans "المستخدمون" %}</p>
                         <p class="text-lg font-black text-blue-400">{{ t.users_count }}</p>
                     </div>
                     <!-- المتبقي -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
-                        <p class="text-[10px] text-slate-500 mb-1">المتبقي</p>
+                        <p class="text-[10px] text-slate-500 mb-1">{% trans "المتبقي" %}</p>
                         {% if t.days_left > 7 %}
-                        <p class="text-lg font-black text-emerald-400">{{ t.days_left }}<span class="text-xs text-emerald-400/60"> يوم</span></p>
+                        <p class="text-lg font-black text-emerald-400">{{ t.days_left }}<span class="text-xs text-emerald-400/60"> {% trans "يوم" %}</span></p>
                         {% elif t.days_left > 0 %}
-                        <p class="text-lg font-black text-amber-400">{{ t.days_left }}<span class="text-xs text-amber-400/60"> يوم</span></p>
+                        <p class="text-lg font-black text-amber-400">{{ t.days_left }}<span class="text-xs text-amber-400/60"> {% trans "يوم" %}</span></p>
                         {% elif t.days_left == 0 %}
-                        <p class="text-sm font-black text-red-400">ينتهي اليوم!</p>
+                        <p class="text-sm font-black text-red-400">{% trans "ينتهي اليوم!" %}</p>
                         {% else %}
-                        <p class="text-sm font-black text-red-500">منتهي</p>
+                        <p class="text-sm font-black text-red-500">{% trans "منتهي" %}</p>
                         {% endif %}
                     </div>
                     <!-- الرصيد -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
-                        <p class="text-[10px] text-slate-500 mb-1">الرصيد</p>
-                        <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|floatformat:0 }}<span class="text-xs text-emerald-400/60"> ج</span></p>
+                        <p class="text-[10px] text-slate-500 mb-1">{% trans "الرصيد" %}</p>
+                        <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|floatformat:0 }}<span class="text-xs text-emerald-400/60"> {% trans "ج" %}</span></p>
                     </div>
                     <!-- AI Studio -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
@@ -644,14 +645,14 @@
                         {% if t.ai_addon_name %}
                         <span class="text-xs font-black text-violet-400"><i class="fas fa-wand-magic-sparkles ml-1"></i>{{ t.ai_addon_name }}</span>
                         {% else %}
-                        <span class="text-xs text-slate-600">غير مفعّل</span>
+                        <span class="text-xs text-slate-600">{% trans "غير مفعّل" %}</span>
                         {% endif %}
                     </div>
                     <!-- القطاع -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
-                        <p class="text-[10px] text-slate-500 mb-1">القطاع</p>
+                        <p class="text-[10px] text-slate-500 mb-1">{% trans "القطاع" %}</p>
                         <span class="text-xs font-bold {% if t.obj.industry == 'automotive' %}text-cyan-400{% else %}text-pink-400{% endif %}">
-                            {% if t.obj.industry == 'automotive' %}🚗 سيارات{% else %}🎨 طباعة{% endif %}
+                            {% if t.obj.industry == 'automotive' %}🚗 {% trans "سيارات" %}{% else %}🎨 {% trans "طباعة" %}{% endif %}
                         </span>
                     </div>
                 </div>
@@ -665,7 +666,7 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="activate">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
-                            <i class="fas fa-play ml-1"></i>تفعيل
+                            <i class="fas fa-play ml-1"></i>{% trans "تفعيل" %}
                         </button>
                     </form>
                     {% else %}
@@ -673,7 +674,7 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="suspend">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition">
-                            <i class="fas fa-pause ml-1"></i>تعليق
+                            <i class="fas fa-pause ml-1"></i>{% trans "تعليق" %}
                         </button>
                     </form>
                     {% endif %}
@@ -684,7 +685,7 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="extend_trial">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition">
-                            <i class="fas fa-clock-rotate-left ml-1"></i>تمديد +7 أيام
+                            <i class="fas fa-clock-rotate-left ml-1"></i>{% trans "تمديد +7 أيام" %}
                         </button>
                     </form>
                     {% endif %}
@@ -692,7 +693,7 @@
                     <!-- تفعيل اشتراك -->
                     <button type="button" onclick="openSubModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.plan }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
-                        <i class="fas fa-credit-card ml-1"></i>اشتراك
+                        <i class="fas fa-credit-card ml-1"></i>{% trans "اشتراك" %}
                     </button>
 
                     <!-- تجديد -->
@@ -701,7 +702,7 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="renew_subscription">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition">
-                            <i class="fas fa-redo ml-1"></i>تجديد +30 يوم
+                            <i class="fas fa-redo ml-1"></i>{% trans "تجديد +30 يوم" %}
                         </button>
                     </form>
                     {% endif %}
@@ -712,28 +713,28 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="deactivate_ai_addon">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition"
-                            onclick="return confirm('إلغاء تفعيل AI Studio لهذه الشركة؟')">
-                            <i class="fas fa-wand-magic-sparkles ml-1"></i>إلغاء AI
+                            onclick="return confirm('{% trans "إلغاء تفعيل AI Studio لهذه الشركة؟" %}')">
+                            <i class="fas fa-wand-magic-sparkles ml-1"></i>{% trans "إلغاء AI" %}
                         </button>
                     </form>
                     {% else %}
                     <button type="button" onclick="openAiModal('{{ t.obj.id }}', '{{ t.obj.name }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition">
-                        <i class="fas fa-wand-magic-sparkles ml-1"></i>تفعيل AI
+                        <i class="fas fa-wand-magic-sparkles ml-1"></i>{% trans "تفعيل AI" %}
                     </button>
                     {% endif %}
 
                     <!-- 🎁 هدية تصاميم -->
                     <button type="button" onclick="openGiftModal('{{ t.obj.id }}', '{{ t.obj.name }}', {{ t.bonus_designs }}, {{ t.bonus_whatsapp }}, {{ t.bonus_watermarks }})"
-                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20 hover:bg-pink-500/20 transition" title="منح رصيد مجاني">
-                        <i class="fas fa-gift ml-1"></i>هدية
+                        class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20 hover:bg-pink-500/20 transition" title="{% trans "منح رصيد مجاني" %}">
+                        <i class="fas fa-gift ml-1"></i>{% trans "هدية" %}
                         {% if t.bonus_designs > 0 %}<span class="text-pink-300 mr-1">({{ t.bonus_designs }})</span>{% endif %}
                     </button>
 
                     <!-- إدارة الباقة -->
                     <a href="/pricing/?shop={{ t.obj.schema_name }}"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition">
-                        <i class="fas fa-crown ml-1"></i>الباقات
+                        <i class="fas fa-crown ml-1"></i>{% trans "الباقات" %}
                     </a>
 
                     <!-- احتيال -->
@@ -742,7 +743,7 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="unflag_fraud">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition">
-                            <i class="fas fa-unlock ml-1"></i>رفع الحظر
+                            <i class="fas fa-unlock ml-1"></i>{% trans "رفع الحظر" %}
                         </button>
                     </form>
                     {% else %}
@@ -750,8 +751,8 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="flag_fraud">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition"
-                            onclick="return confirm('وضع هذه الشركة تحت المراقبة؟')">
-                            <i class="fas fa-shield-virus ml-1"></i>مراقبة
+                            onclick="return confirm('{% trans "وضع هذه الشركة تحت المراقبة؟" %}')">
+                            <i class="fas fa-shield-virus ml-1"></i>{% trans "مراقبة" %}
                         </button>
                     </form>
                     {% endif %}
@@ -762,14 +763,14 @@
                     <!-- حذف نهائي -->
                     <button type="button" onclick="openDeleteModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.schema_name }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-900/20 text-red-500/70 border border-red-900/30 hover:bg-red-900/40 hover:text-red-400 transition">
-                        <i class="fas fa-trash-alt ml-1"></i>حذف
+                        <i class="fas fa-trash-alt ml-1"></i>{% trans "حذف" %}
                     </button>
                 </div>
             </div>
             {% empty %}
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl py-16 text-center">
                 <i class="fas fa-building text-4xl text-slate-700 mb-3 block"></i>
-                <p class="text-slate-600 font-bold">لا توجد شركات مسجلة بعد.</p>
+                <p class="text-slate-600 font-bold">{% trans "لا توجد شركات مسجلة بعد." %}</p>
             </div>
             {% endfor %}
         </div>
@@ -784,19 +785,19 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="stat-glow bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-blue-400">{{ visitor_stats.today|default:"0" }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">طلبات اليوم</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "طلبات اليوم" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-violet-500/20 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-violet-400">{{ visitor_stats.unique_today|default:"0" }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">IPs فريدة اليوم</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "IPs فريدة اليوم" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-indigo-400">{{ visitor_stats.week|default:"0" }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">طلبات الأسبوع</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "طلبات الأسبوع" %}</p>
             </div>
             <div class="stat-glow bg-slate-900/60 border border-cyan-500/20 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-cyan-400">{{ visitor_stats.unique_week|default:"0" }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">IPs فريدة (أسبوع)</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "IPs فريدة (أسبوع)" %}</p>
             </div>
         </div>
 
@@ -805,23 +806,23 @@
             <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>
-                    <span class="font-bold text-sm text-white">بث مباشر — آخر 50 طلب اليوم</span>
+                    <span class="font-bold text-sm text-white">{% trans "بث مباشر — آخر 50 طلب اليوم" %}</span>
                 </div>
-                <span class="text-[10px] text-slate-500">يتحدث تلقائياً عند التحديث</span>
+                <span class="text-[10px] text-slate-500">{% trans "يتحدث تلقائياً عند التحديث" %}</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs">
                     <thead>
                         <tr class="border-b border-slate-800 bg-slate-800/30">
-                            <th class="text-right px-4 py-2 text-slate-500">الوقت</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "الوقت" %}</th>
                             <th class="text-right px-4 py-2 text-slate-500">IP</th>
-                            <th class="text-right px-4 py-2 text-slate-500">المسار</th>
-                            <th class="text-right px-4 py-2 text-slate-500">الطريقة</th>
-                            <th class="text-right px-4 py-2 text-slate-500">الحالة</th>
-                            <th class="text-right px-4 py-2 text-slate-500">الشركة</th>
-                            <th class="text-right px-4 py-2 text-slate-500">الجهاز</th>
-                            <th class="text-right px-4 py-2 text-slate-500">السرعة</th>
-                            <th class="text-right px-4 py-2 text-slate-500">المستخدم</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "المسار" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "الطريقة" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "الحالة" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "الشركة" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "الجهاز" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "السرعة" %}</th>
+                            <th class="text-right px-4 py-2 text-slate-500">{% trans "المستخدم" %}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/40">
@@ -854,7 +855,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-8 text-slate-600">لا توجد زيارات مسجلة اليوم بعد</td>
+                            <td colspan="9" class="text-center py-8 text-slate-600">{% trans "لا توجد زيارات مسجلة اليوم بعد" %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -871,7 +872,7 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-history text-purple-400"></i>
-                <span class="font-bold text-sm text-white">سجل أحداث المنصة — آخر 30 حدث</span>
+                <span class="font-bold text-sm text-white">{% trans "سجل أحداث المنصة — آخر 30 حدث" %}</span>
             </div>
             <div class="divide-y divide-slate-800/60">
                 {% for ev in recent_events %}
@@ -899,7 +900,7 @@
                         <div class="flex items-center gap-3 mt-1 text-[10px] text-slate-500">
                             <span><i class="fas fa-building ml-1"></i>{{ ev.tenant_name|default:"-" }}</span>
                             <span><i class="fas fa-user ml-1"></i>{{ ev.user_name|default:"-" }}</span>
-                            <span><i class="fas fa-clock ml-1"></i>{{ ev.timestamp|timesince }} مضت</span>
+                            <span><i class="fas fa-clock ml-1"></i>{{ ev.timestamp|timesince }} {% trans "مضت" %}</span>
                         </div>
                     </div>
                     <div>
@@ -916,7 +917,7 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-ghost text-3xl mb-3 block text-slate-700"></i>
-                    لا توجد أحداث مسجلة بعد. ستظهر هنا عند تفعيل/تعليق/تسجيل شركات.
+                    {% trans "لا توجد أحداث مسجلة بعد. ستظهر هنا عند تفعيل/تعليق/تسجيل شركات." %}
                 </div>
                 {% endfor %}
             </div>
@@ -932,7 +933,7 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-paint-brush text-pink-400"></i>
-                <span class="font-bold text-sm text-white">طلبات شراء باقات التصاميم — في انتظار التأكيد</span>
+                <span class="font-bold text-sm text-white">{% trans "طلبات شراء باقات التصاميم — في انتظار التأكيد" %}</span>
             </div>
             <div class="divide-y divide-slate-800/60">
                 {% for dp in pending_design_purchases %}
@@ -947,12 +948,12 @@
                             <span class="text-pink-400">{{ dp.package.name_ar }}</span>
                         </p>
                         <div class="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
-                            <span><i class="fas fa-money-bill ml-1"></i>{{ dp.price_paid }} ج.م</span>
-                            <span><i class="fas fa-palette ml-1"></i>{{ dp.designs_total }} تصميم</span>
+                            <span><i class="fas fa-money-bill ml-1"></i>{{ dp.price_paid }} {% trans "ج.م" %}</span>
+                            <span><i class="fas fa-palette ml-1"></i>{{ dp.designs_total }} {% trans "تصميم" %}</span>
                             <span><i class="fas fa-wallet ml-1"></i>{{ dp.get_payment_method_display }}</span>
-                            <span><i class="fas fa-clock ml-1"></i>{{ dp.created_at|timesince }} مضت</span>
+                            <span><i class="fas fa-clock ml-1"></i>{{ dp.created_at|timesince }} {% trans "مضت" %}</span>
                             {% if dp.payment_reference %}
-                            <span class="text-blue-400"><i class="fas fa-hashtag ml-1"></i>رقم العملية: {{ dp.payment_reference }}</span>
+                            <span class="text-blue-400"><i class="fas fa-hashtag ml-1"></i>{% trans "رقم العملية" %}: {{ dp.payment_reference }}</span>
                             {% endif %}
                             {% if dp.sender_phone %}
                             <span class="text-green-400"><i class="fas fa-phone ml-1"></i>{{ dp.sender_phone }}</span>
@@ -968,12 +969,12 @@
                         {% if dp.status == 'pending' or dp.status == 'awaiting_confirm' %}
                         <button onclick="confirmDesignPurchase({{ dp.pk }}, 'confirm')"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
-                            title="{% if dp.status == 'pending' %}تفعيل يدوي — للحالات اللي العميل دفع لكن الـ callback ما اشتغلش{% else %}تأكيد الدفع وتفعيل الباقة{% endif %}">
-                            <i class="fas fa-check ml-1"></i>{% if dp.status == 'pending' %}تفعيل يدوي{% else %}تأكيد{% endif %}
+                            title="{% if dp.status == 'pending' %}{% trans "تفعيل يدوي — للحالات اللي العميل دفع لكن الـ callback ما اشتغلش" %}{% else %}{% trans "تأكيد الدفع وتفعيل الباقة" %}{% endif %}">
+                            <i class="fas fa-check ml-1"></i>{% if dp.status == 'pending' %}{% trans "تفعيل يدوي" %}{% else %}{% trans "تأكيد" %}{% endif %}
                         </button>
                         <button onclick="confirmDesignPurchase({{ dp.pk }}, 'reject')"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
-                            <i class="fas fa-times ml-1"></i>رفض
+                            <i class="fas fa-times ml-1"></i>{% trans "رفض" %}
                         </button>
                         {% endif %}
                     </div>
@@ -981,7 +982,7 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
-                    لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة.
+                    {% trans "لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة." %}
                 </div>
                 {% endfor %}
             </div>
@@ -994,10 +995,10 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2 bg-red-500/5">
                 <i class="fas fa-mobile-screen-button text-red-400"></i>
-                <span class="font-bold text-sm text-white">إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة</span>
+                <span class="font-bold text-sm text-white">{% trans "إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة" %}</span>
                 {% if pending_manual_receipts %}
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 mr-auto">
-                    {{ pending_manual_receipts|length }} إيصال جديد
+                    {{ pending_manual_receipts|length }} {% trans "إيصال جديد" %}
                 </span>
                 {% endif %}
             </div>
@@ -1009,7 +1010,7 @@
                         <!-- Screenshot thumbnail -->
                         <div class="flex-shrink-0">
                             {% if mr.receipt_image %}
-                            <a href="{{ mr.receipt_image.url }}" target="_blank" title="فتح الصورة بحجم كامل">
+                            <a href="{{ mr.receipt_image.url }}" target="_blank" title="{% trans "فتح الصورة بحجم كامل" %}">
                                 <img src="{{ mr.receipt_image.url }}"
                                      class="w-24 h-24 object-cover rounded-xl border-2 border-slate-700 hover:border-emerald-400 transition cursor-zoom-in">
                             </a>
@@ -1035,7 +1036,7 @@
                                     <i class="fas fa-mobile-alt ml-1"></i>{{ mr.get_payment_method_display }}
                                 </span>
                                 <span class="text-[11px] text-white font-black mr-auto">
-                                    {{ mr.amount|floatformat:2 }} ج.م
+                                    {{ mr.amount|floatformat:2 }} {% trans "ج.م" %}
                                 </span>
                             </div>
 
@@ -1044,16 +1045,16 @@
                             </p>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-400">
-                                <div><i class="fas fa-phone text-emerald-400 ml-1"></i> من رقم: <span class="text-white font-mono">{{ mr.sender_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-phone text-emerald-400 ml-1"></i> {% trans "من رقم:" %} <span class="text-white font-mono">{{ mr.sender_phone|default:"—" }}</span></div>
                                 <div><i class="fas fa-hashtag text-purple-400 ml-1"></i> Ref: <span class="text-white font-mono">{{ mr.txn_reference|default:"—" }}</span></div>
-                                <div><i class="fas fa-user text-blue-400 ml-1"></i> اتصال: <span class="text-white">{{ mr.contact_phone|default:"—" }}</span></div>
-                                <div><i class="fas fa-clock text-amber-400 ml-1"></i> {{ mr.created_at|timesince }} مضت</div>
+                                <div><i class="fas fa-user text-blue-400 ml-1"></i> {% trans "اتصال:" %} <span class="text-white">{{ mr.contact_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-clock text-amber-400 ml-1"></i> {{ mr.created_at|timesince }} {% trans "مضت" %}</div>
                             </div>
 
                             {% if mr.notes %}
                             <div class="mt-2 text-[11px] text-slate-300 bg-slate-800/60 rounded-lg p-2">
                                 <i class="fas fa-comment text-amber-400 ml-1"></i>
-                                <span class="font-bold">ملاحظة العميل:</span> {{ mr.notes|truncatechars:200 }}
+                                <span class="font-bold">{% trans "ملاحظة العميل:" %}</span> {{ mr.notes|truncatechars:200 }}
                             </div>
                             {% endif %}
                         </div>
@@ -1063,12 +1064,12 @@
                             <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'confirm')"
                                     {% if not mr.receipt_image or not mr.txn_reference %}disabled{% endif %}
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                    title="{% if not mr.receipt_image %}العميل لم يرفع صورة بعد{% else %}تأكيد الدفع وتفعيل الخدمة{% endif %}">
-                                <i class="fas fa-check ml-1"></i>تأكيد وتفعيل
+                                    title="{% if not mr.receipt_image %}{% trans "العميل لم يرفع صورة بعد" %}{% else %}{% trans "تأكيد الدفع وتفعيل الخدمة" %}{% endif %}">
+                                <i class="fas fa-check ml-1"></i>{% trans "تأكيد وتفعيل" %}
                             </button>
                             <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'reject')"
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
-                                <i class="fas fa-times ml-1"></i>رفض
+                                <i class="fas fa-times ml-1"></i>{% trans "رفض" %}
                             </button>
                         </div>
                     </div>
@@ -1076,9 +1077,9 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
-                    لا توجد إيصالات دفع يدوي في الانتظار.
+                    {% trans "لا توجد إيصالات دفع يدوي في الانتظار." %}
                     <p class="text-xs text-slate-500 font-normal mt-2">
-                        الإيصالات بتظهر هنا لما العملاء يرفعوا سكرين شوت تحويل فودافون كاش أو إنستاباي.
+                        {% trans "الإيصالات بتظهر هنا لما العملاء يرفعوا سكرين شوت تحويل فودافون كاش أو إنستاباي." %}
                     </p>
                 </div>
                 {% endfor %}
@@ -1091,7 +1092,7 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-print text-orange-400"></i>
-                <span class="font-bold text-sm text-white">طلبات طباعة تصاميم — عميل صمم وعاوز يطبع</span>
+                <span class="font-bold text-sm text-white">{% trans "طلبات طباعة تصاميم — عميل صمم وعاوز يطبع" %}</span>
             </div>
             <div class="divide-y divide-slate-800/60">
                 {% for pr in pending_print_requests %}
@@ -1109,7 +1110,7 @@
                             </p>
                             <div class="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
                                 {% if pr.width_cm and pr.height_cm %}
-                                <span><i class="fas fa-ruler-combined ml-1"></i>{{ pr.width_cm }}x{{ pr.height_cm }} سم</span>
+                                <span><i class="fas fa-ruler-combined ml-1"></i>{{ pr.width_cm }}x{{ pr.height_cm }} {% trans "سم" %}</span>
                                 {% endif %}
                                 {% if pr.paper_type %}
                                 <span><i class="fas fa-scroll ml-1"></i>{{ pr.paper_type }}</span>
@@ -1118,7 +1119,7 @@
                                 {% if pr.finishing %}
                                 <span><i class="fas fa-magic ml-1"></i>{{ pr.finishing }}</span>
                                 {% endif %}
-                                <span><i class="fas fa-clock ml-1"></i>{{ pr.created_at|timesince }} مضت</span>
+                                <span><i class="fas fa-clock ml-1"></i>{{ pr.created_at|timesince }} {% trans "مضت" %}</span>
                                 {% if pr.delivery_phone %}
                                 <span class="text-green-400"><i class="fas fa-phone ml-1"></i>{{ pr.delivery_phone }}</span>
                                 {% endif %}
@@ -1140,14 +1141,14 @@
                             {% if pr.design.image_url %}
                             <a href="{{ pr.design.image_url }}" target="_blank"
                                class="text-[10px] font-bold px-2 py-1 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25 transition">
-                                <i class="fas fa-image ml-1"></i>التصميم
+                                <i class="fas fa-image ml-1"></i>{% trans "التصميم" %}
                             </a>
                             {% endif %}
                             {% if pr.print_spec_pdf %}
                             <a href="{{ pr.print_spec_pdf.url }}" target="_blank"
                                class="text-[10px] font-bold px-2 py-1 rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25 transition"
-                               title="PDF بكل المواصفات للمطبعة">
-                                <i class="fas fa-file-pdf ml-1"></i>📄 PDF للمطبعة
+                               title="{% trans "PDF بكل المواصفات للمطبعة" %}">
+                                <i class="fas fa-file-pdf ml-1"></i>{% trans "📄 PDF للمطبعة" %}
                             </a>
                             {% endif %}
                         </div>
@@ -1156,7 +1157,7 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
-                    لا توجد طلبات طباعة حالياً.
+                    {% trans "لا توجد طلبات طباعة حالياً." %}
                 </div>
                 {% endfor %}
             </div>
@@ -1169,18 +1170,18 @@
         <div class="flex justify-end mb-3">
             <a href="/superadmin/marketplace/requests/" target="_blank"
                class="inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition">
-                <i class="fas fa-external-link-alt"></i> إدارة كل طلبات السوق (كل الحالات)
+                <i class="fas fa-external-link-alt"></i> {% trans "إدارة كل طلبات السوق (كل الحالات)" %}
             </a>
         </div>
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-store text-green-400"></i>
-                    <span class="font-bold text-sm text-white">طلبات السوق في انتظار الموافقة — راجع وقرر</span>
+                    <span class="font-bold text-sm text-white">{% trans "طلبات السوق في انتظار الموافقة — راجع وقرر" %}</span>
                 </div>
                 <a href="/superadmin/marketplace/requests/?status=pending_approval" target="_blank"
                    class="text-[11px] text-green-400 hover:text-green-300 font-bold">
-                    عرض الكل <i class="fas fa-arrow-left mr-1"></i>
+                    {% trans "عرض الكل" %} <i class="fas fa-arrow-left mr-1"></i>
                 </a>
             </div>
             <div class="divide-y divide-slate-800/60">
@@ -1200,16 +1201,16 @@
                                 <span><i class="fas fa-phone ml-1"></i>{{ mr.customer.phone }}</span>
                                 <span><i class="fas fa-industry ml-1"></i>{{ mr.get_sector_display }}</span>
                                 <span><i class="fas fa-bolt ml-1"></i>{{ mr.get_urgency_display }}</span>
-                                <span><i class="fas fa-clock ml-1"></i>{{ mr.created_at|timesince }} مضت</span>
+                                <span><i class="fas fa-clock ml-1"></i>{{ mr.created_at|timesince }} {% trans "مضت" %}</span>
                                 {% if mr.max_budget %}
-                                <span class="text-amber-400"><i class="fas fa-coins ml-1"></i>ميزانية: {{ mr.max_budget }} ج</span>
+                                <span class="text-amber-400"><i class="fas fa-coins ml-1"></i>{% trans "ميزانية" %}: {{ mr.max_budget }} {% trans "ج" %}</span>
                                 {% endif %}
                             </div>
                             {% if mr.attachment_1 %}
                             <div class="flex gap-2 mt-2">
-                                <a href="{{ mr.attachment_1.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>مرفق 1</a>
+                                <a href="{{ mr.attachment_1.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>{% trans "مرفق 1" %}</a>
                                 {% if mr.attachment_2 %}
-                                <a href="{{ mr.attachment_2.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>مرفق 2</a>
+                                <a href="{{ mr.attachment_2.url }}" target="_blank" class="text-[10px] text-purple-400"><i class="fas fa-image ml-1"></i>{% trans "مرفق 2" %}</a>
                                 {% endif %}
                             </div>
                             {% endif %}
@@ -1217,11 +1218,11 @@
                         <div class="flex flex-col items-end gap-2">
                             <button onclick="approveMarketplaceReq({{ mr.pk }}, this)"
                                     class="text-[10px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer">
-                                <i class="fas fa-check ml-1"></i>موافقة
+                                <i class="fas fa-check ml-1"></i>{% trans "موافقة" %}
                             </button>
                             <button onclick="rejectMarketplaceReq({{ mr.pk }}, this)"
                                     class="text-[10px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer">
-                                <i class="fas fa-times ml-1"></i>رفض
+                                <i class="fas fa-times ml-1"></i>{% trans "رفض" %}
                             </button>
                         </div>
                     </div>
@@ -1229,11 +1230,11 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
-                    لا توجد طلبات في انتظار الموافقة حالياً.
+                    {% trans "لا توجد طلبات في انتظار الموافقة حالياً." %}
                     <div class="mt-4">
                         <a href="/superadmin/marketplace/requests/" target="_blank"
                            class="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition">
-                            <i class="fas fa-list"></i> عرض كل طلبات السوق (مفتوحة، مقبولة، مكتملة...)
+                            <i class="fas fa-list"></i> {% trans "عرض كل طلبات السوق (مفتوحة، مقبولة، مكتملة...)" %}
                         </a>
                     </div>
                 </div>
@@ -1250,35 +1251,35 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-5">
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-white">{{ customers_summary.total }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي العملاء</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "إجمالي العملاء" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-emerald-400">{{ customers_summary.active_today }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">نشطون اليوم</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "نشطون اليوم" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-violet-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-violet-400">{{ customers_summary.with_designs }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">عملوا تصاميم</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "عملوا تصاميم" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-blue-400">{{ customers_summary.automotive }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🚗 سيارات</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "🚗 سيارات" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-pink-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-pink-400">{{ customers_summary.printing }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🎨 طباعة</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "🎨 طباعة" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-cyan-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-cyan-400">{{ customers_summary.individuals }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">أفراد</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "أفراد" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-amber-400">{{ customers_summary.companies }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">شركات</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "شركات" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-red-400">{{ customers_summary.blocked }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">محظورين</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "محظورين" %}</p>
             </div>
         </div>
 
@@ -1286,23 +1287,23 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-users text-blue-400"></i>
-                <span class="font-bold text-sm text-white">آخر ١٠٠ عميل نشاطاً</span>
-                <span class="text-xs text-slate-500 mr-2">— اضغط الصف لتفاصيل العميل</span>
+                <span class="font-bold text-sm text-white">{% trans "آخر ١٠٠ عميل نشاطاً" %}</span>
+                <span class="text-xs text-slate-500 mr-2">{% trans "— اضغط الصف لتفاصيل العميل" %}</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs">
                     <thead class="bg-slate-800/50 text-slate-400 font-bold">
                         <tr>
-                            <th class="px-3 py-2 text-right">الاسم / الشركة</th>
-                            <th class="px-3 py-2 text-right">📱 الموبايل</th>
-                            <th class="px-3 py-2 text-right">القطاع</th>
-                            <th class="px-3 py-2 text-center">📋 طلبات</th>
-                            <th class="px-3 py-2 text-center">🎨 تصاميم</th>
-                            <th class="px-3 py-2 text-center">🛒 مشتريات</th>
-                            <th class="px-3 py-2 text-center">💰 صرف (ج.م)</th>
-                            <th class="px-3 py-2 text-right">آخر نشاط</th>
-                            <th class="px-3 py-2 text-center">الحالة</th>
-                            <th class="px-3 py-2 text-center">⚡ إجراءات</th>
+                            <th class="px-3 py-2 text-right">{% trans "الاسم / الشركة" %}</th>
+                            <th class="px-3 py-2 text-right">{% trans "📱 الموبايل" %}</th>
+                            <th class="px-3 py-2 text-right">{% trans "القطاع" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "📋 طلبات" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "🎨 تصاميم" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "🛒 مشتريات" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "💰 صرف (ج.م)" %}</th>
+                            <th class="px-3 py-2 text-right">{% trans "آخر نشاط" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "الحالة" %}</th>
+                            <th class="px-3 py-2 text-center">{% trans "⚡ إجراءات" %}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
@@ -1318,50 +1319,50 @@
                             <td class="px-3 py-3 text-slate-300" dir="ltr">{{ c.phone }}</td>
                             <td class="px-3 py-3">
                                 {% if c.sector == 'automotive' %}
-                                <span class="bg-blue-500/15 text-blue-400 px-2 py-1 rounded text-[10px] font-bold">🚗 سيارات</span>
+                                <span class="bg-blue-500/15 text-blue-400 px-2 py-1 rounded text-[10px] font-bold">{% trans "🚗 سيارات" %}</span>
                                 {% else %}
-                                <span class="bg-pink-500/15 text-pink-400 px-2 py-1 rounded text-[10px] font-bold">🎨 طباعة</span>
+                                <span class="bg-pink-500/15 text-pink-400 px-2 py-1 rounded text-[10px] font-bold">{% trans "🎨 طباعة" %}</span>
                                 {% endif %}
                             </td>
                             <td class="px-3 py-3 text-center text-white font-bold">{{ c.requests_count|default:0 }}</td>
                             <td class="px-3 py-3 text-center text-violet-400 font-bold">{{ c.designs_count|default:0 }}</td>
                             <td class="px-3 py-3 text-center text-amber-400 font-bold">{{ c.purchases_count|default:0 }}</td>
                             <td class="px-3 py-3 text-center text-emerald-400 font-bold">{{ c.spent_total|default:0|floatformat:0 }}</td>
-                            <td class="px-3 py-3 text-slate-500 text-[10px]">{{ c.last_active|timesince }} مضت</td>
+                            <td class="px-3 py-3 text-slate-500 text-[10px]">{{ c.last_active|timesince }} {% trans "مضت" %}</td>
                             <td class="px-3 py-3 text-center">
                                 {% if c.is_blocked %}
-                                <span class="bg-red-500/15 text-red-400 px-2 py-1 rounded text-[10px] font-bold">🛑 محظور</span>
+                                <span class="bg-red-500/15 text-red-400 px-2 py-1 rounded text-[10px] font-bold">{% trans "🛑 محظور" %}</span>
                                 {% elif c.is_verified %}
-                                <span class="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold">✓ نشط</span>
+                                <span class="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded text-[10px] font-bold">{% trans "✓ نشط" %}</span>
                                 {% else %}
-                                <span class="bg-amber-500/15 text-amber-400 px-2 py-1 rounded text-[10px] font-bold">⏳ غير موثق</span>
+                                <span class="bg-amber-500/15 text-amber-400 px-2 py-1 rounded text-[10px] font-bold">{% trans "⏳ غير موثق" %}</span>
                                 {% endif %}
                             </td>
                             <td class="px-3 py-3 text-center whitespace-nowrap">
                                 <button type="button" onclick="event.stopPropagation(); showCustomerDetail({{ c.pk }})"
-                                    title="عرض التفاصيل"
+                                    title="{% trans "عرض التفاصيل" %}"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/40 hover:bg-slate-600 text-slate-300 hover:text-white transition">
                                     <i class="fas fa-eye text-xs"></i>
                                 </button>
                                 <button type="button" onclick="event.stopPropagation(); openCustomerGift({{ c.pk }}, '{{ c.full_name|escapejs }}')"
-                                    title="منح هدية تصاميم مجانية"
+                                    title="{% trans "منح هدية تصاميم مجانية" %}"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-white transition">
                                     <i class="fas fa-gift text-xs"></i>
                                 </button>
                                 <button type="button" onclick="event.stopPropagation(); openCustomerNotify({{ c.pk }}, '{{ c.full_name|escapejs }}')"
-                                    title="إرسال إشعار للعميل"
+                                    title="{% trans "إرسال إشعار للعميل" %}"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/15 hover:bg-blue-500 text-blue-400 hover:text-white transition">
                                     <i class="fas fa-bell text-xs"></i>
                                 </button>
                                 <button type="button" onclick="event.stopPropagation(); openCustomerDelete({{ c.pk }}, '{{ c.full_name|escapejs }}', '{{ c.phone }}')"
-                                    title="حذف العميل نهائياً"
+                                    title="{% trans "حذف العميل نهائياً" %}"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white transition">
                                     <i class="fas fa-trash-alt text-xs"></i>
                                 </button>
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="10" class="px-3 py-8 text-center text-slate-500">لا يوجد عملاء بعد.</td></tr>
+                        <tr><td colspan="10" class="px-3 py-8 text-center text-slate-500">{% trans "لا يوجد عملاء بعد." %}</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -1380,26 +1381,26 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
             <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-amber-400">{{ parts_listings_summary.pending|default:0 }}</p>
-                <p class="text-xs text-slate-400 mt-1">⏳ بانتظار المراجعة</p>
+                <p class="text-xs text-slate-400 mt-1">{% trans "⏳ بانتظار المراجعة" %}</p>
             </div>
             <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-emerald-400">{{ parts_listings_summary.approved|default:0 }}</p>
-                <p class="text-xs text-slate-400 mt-1">✅ معتمدة</p>
+                <p class="text-xs text-slate-400 mt-1">{% trans "✅ معتمدة" %}</p>
             </div>
             <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-red-400">{{ parts_listings_summary.rejected|default:0 }}</p>
-                <p class="text-xs text-slate-400 mt-1">❌ مرفوضة</p>
+                <p class="text-xs text-slate-400 mt-1">{% trans "❌ مرفوضة" %}</p>
             </div>
             <div class="bg-slate-700/40 border border-slate-700 rounded-2xl p-4 text-center">
                 <p class="text-3xl font-black text-slate-300">{{ parts_listings_summary.suspended|default:0 }}</p>
-                <p class="text-xs text-slate-400 mt-1">⏸️ معلقة</p>
+                <p class="text-xs text-slate-400 mt-1">{% trans "⏸️ معلقة" %}</p>
             </div>
         </div>
 
         <div class="flex justify-end mb-3">
             <a href="/superadmin/parts/moderation/?show=all" target="_blank"
                class="inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/25 transition">
-                <i class="fas fa-external-link-alt"></i> صفحة المراجعة الكاملة (كل الحالات)
+                <i class="fas fa-external-link-alt"></i> {% trans "صفحة المراجعة الكاملة (كل الحالات)" %}
             </a>
         </div>
 
@@ -1407,7 +1408,7 @@
             <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <i class="fas fa-cogs text-yellow-400"></i>
-                    <span class="font-bold text-sm text-white">قطع الغيار الجديدة — تنتظر موافقتك قبل النشر</span>
+                    <span class="font-bold text-sm text-white">{% trans "قطع الغيار الجديدة — تنتظر موافقتك قبل النشر" %}</span>
                 </div>
             </div>
             <div class="divide-y divide-slate-800/60">
@@ -1431,9 +1432,9 @@
                             <p class="text-xs text-slate-400 mb-2">{{ pl.description|truncatechars:100 }}</p>
                             <div class="flex flex-wrap gap-3 text-[10px] text-slate-500">
                                 <span><i class="fas fa-car ml-1"></i>{{ pl.car_make.name }} {{ pl.car_model }}</span>
-                                <span class="text-emerald-400 font-black"><i class="fas fa-tag ml-1"></i>{{ pl.price_egp }} ج.م</span>
+                                <span class="text-emerald-400 font-black"><i class="fas fa-tag ml-1"></i>{{ pl.price_egp }} {% trans "ج.م" %}</span>
                                 <span><i class="fas fa-user ml-1"></i>{{ pl.seller_label }}</span>
-                                <span><i class="fas fa-clock ml-1"></i>{{ pl.created_at|timesince }} مضت</span>
+                                <span><i class="fas fa-clock ml-1"></i>{{ pl.created_at|timesince }} {% trans "مضت" %}</span>
                                 {% if pl.city %}<span><i class="fas fa-map-marker-alt ml-1"></i>{{ pl.city }}</span>{% endif %}
                             </div>
                         </div>
@@ -1444,17 +1445,17 @@
                                 {% csrf_token %}
                                 <button type="submit"
                                         class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer whitespace-nowrap">
-                                    <i class="fas fa-check ml-1"></i>موافقة ونشر
+                                    <i class="fas fa-check ml-1"></i>{% trans "موافقة ونشر" %}
                                 </button>
                             </form>
                             <button onclick="rejectPartListing({{ pl.pk }}, this)"
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer whitespace-nowrap">
-                                <i class="fas fa-times ml-1"></i>رفض
+                                <i class="fas fa-times ml-1"></i>{% trans "رفض" %}
                             </button>
                             {% if pl.photos.count > 0 %}
                             <a href="/superadmin/parts/moderation/?show=all" target="_blank"
                                class="text-[11px] font-bold px-3 py-2 rounded-lg bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25 transition whitespace-nowrap">
-                                <i class="fas fa-images ml-1"></i>عرض الصور
+                                <i class="fas fa-images ml-1"></i>{% trans "عرض الصور" %}
                             </a>
                             {% endif %}
                         </div>
@@ -1463,11 +1464,11 @@
                 {% empty %}
                 <div class="px-5 py-12 text-center text-slate-600 font-bold">
                     <i class="fas fa-check-circle text-3xl mb-3 block text-emerald-700"></i>
-                    لا توجد قطع غيار تنتظر المراجعة حالياً.
+                    {% trans "لا توجد قطع غيار تنتظر المراجعة حالياً." %}
                     <div class="mt-4">
                         <a href="/superadmin/parts/moderation/?show=all" target="_blank"
                            class="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/25 transition">
-                            <i class="fas fa-list"></i> عرض كل القطع (معتمدة، مرفوضة...)
+                            <i class="fas fa-list"></i> {% trans "عرض كل القطع (معتمدة، مرفوضة...)" %}
                         </a>
                     </div>
                 </div>
@@ -1484,26 +1485,26 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-white">{{ parts_orders_summary.total|default:0 }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي الطلبات</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "إجمالي الطلبات" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-blue-400">{{ parts_orders_summary.in_escrow|default:0 }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🔒 في الـ Escrow</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "🔒 في الـ Escrow" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-orange-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-orange-400">{{ parts_orders_summary.refund_pending|default:0 }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">⚠️ طلبات إرجاع</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "⚠️ طلبات إرجاع" %}</p>
             </div>
             <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
                 <p class="text-2xl font-black text-emerald-400">{{ parts_orders_summary.released_total|default:0 }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">✅ تم تحريرها</p>
+                <p class="text-[10px] text-slate-500 font-bold mt-1">{% trans "✅ تم تحريرها" %}</p>
             </div>
         </div>
 
         <div class="bg-slate-900/60 border border-orange-500/20 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-triangle-exclamation text-orange-400"></i>
-                <span class="font-bold text-sm text-white">طلبات إرجاع تنتظر قرار الإدارة</span>
+                <span class="font-bold text-sm text-white">{% trans "طلبات إرجاع تنتظر قرار الإدارة" %}</span>
             </div>
             {% if pending_refund_orders %}
             <div class="divide-y divide-slate-800/60">
@@ -1522,31 +1523,31 @@
                             <div class="text-xs text-slate-400 mb-2">
                                 <span class="bg-orange-500/15 text-orange-300 px-2 py-0.5 rounded font-bold">⚠️ {{ o.get_status_display }}</span>
                                 · {{ o.listing.car_make.name }}
-                                · {{ o.amount_paid|floatformat:0 }} ج.م
-                                · ضمان {{ o.warranty_days }} يوم
+                                · {{ o.amount_paid|floatformat:0 }} {% trans "ج.م" %}
+                                · {% trans "ضمان" %} {{ o.warranty_days }} {% trans "يوم" %}
                             </div>
                             <div class="text-xs text-slate-300 mb-1">
-                                <strong class="text-blue-300">المشتري:</strong> {{ o.buyer_customer.full_name|default:o.buyer_tenant.name }} ({{ o.buyer_customer.phone|default:'—' }})
+                                <strong class="text-blue-300">{% trans "المشتري:" %}</strong> {{ o.buyer_customer.full_name|default:o.buyer_tenant.name }} ({{ o.buyer_customer.phone|default:'—' }})
                             </div>
                             <div class="text-xs text-slate-300 mb-2">
-                                <strong class="text-emerald-300">البائع:</strong> {{ o.listing.seller_label }}
-                                {% if o.listing.seller_is_company %}<span class="bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded text-[10px]">شركة (عمولة 4%)</span>{% else %}<span class="bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded text-[10px]">فرد (عمولة 8%)</span>{% endif %}
+                                <strong class="text-emerald-300">{% trans "البائع:" %}</strong> {{ o.listing.seller_label }}
+                                {% if o.listing.seller_is_company %}<span class="bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded text-[10px]">{% trans "شركة (عمولة" %} 4%)</span>{% else %}<span class="bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded text-[10px]">{% trans "فرد (عمولة" %} 8%)</span>{% endif %}
                             </div>
                             <div class="bg-orange-500/5 border border-orange-500/20 rounded-lg p-3 mt-3">
-                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:</div>
+                                <div class="text-[10px] text-orange-300 font-bold mb-1">{% trans "📝 سبب الإرجاع:" %}</div>
                                 <div class="text-xs text-slate-200 whitespace-pre-wrap">{{ o.refund_reason }}</div>
                             </div>
                             <div class="mt-2 flex gap-3 text-[10px] text-slate-500">
-                                <span>طُلب الإرجاع: {{ o.created_at|timesince }} مضت</span>
-                                <a href="/marketplace/parts/{{ o.listing.listing_code }}/" target="_blank" class="text-blue-400 hover:text-blue-300"><i class="fas fa-external-link-alt"></i> عرض القطعة</a>
+                                <span>{% trans "طُلب الإرجاع" %}: {{ o.created_at|timesince }} {% trans "مضت" %}</span>
+                                <a href="/marketplace/parts/{{ o.listing.listing_code }}/" target="_blank" class="text-blue-400 hover:text-blue-300"><i class="fas fa-external-link-alt"></i> {% trans "عرض القطعة" %}</a>
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 min-w-[140px]">
                             <button onclick="approveRefund('{{ o.order_code }}')" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
-                                <i class="fas fa-check"></i> قبول الإرجاع
+                                <i class="fas fa-check"></i> {% trans "قبول الإرجاع" %}
                             </button>
                             <button onclick="rejectRefund('{{ o.order_code }}')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
-                                <i class="fas fa-times"></i> رفض وتحرير للبائع
+                                <i class="fas fa-times"></i> {% trans "رفض وتحرير للبائع" %}
                             </button>
                         </div>
                     </div>
@@ -1556,7 +1557,7 @@
             {% else %}
             <div class="p-10 text-center text-slate-500">
                 <i class="fas fa-check-circle text-3xl text-emerald-500/30 mb-3"></i>
-                <p>لا توجد طلبات إرجاع قيد الانتظار 👌</p>
+                <p>{% trans "لا توجد طلبات إرجاع قيد الانتظار 👌" %}</p>
             </div>
             {% endif %}
         </div>
@@ -1566,7 +1567,7 @@
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-chart-line text-cyan-400"></i>
-                <span class="font-bold text-sm text-white">نشاط الشركات — ترتيب حسب آخر نشاط</span>
+                <span class="font-bold text-sm text-white">{% trans "نشاط الشركات — ترتيب حسب آخر نشاط" %}</span>
             </div>
             <div class="divide-y divide-slate-800/60">
                 {% for a in tenant_activity %}
@@ -1585,17 +1586,17 @@
                             </div>
                             <div class="flex flex-wrap gap-3 text-[11px] text-slate-400 mb-2">
                                 {% if a.last_visit_at %}
-                                <span><i class="fas fa-clock text-cyan-400 ml-1"></i>آخر نشاط: {{ a.last_visit_at|timesince }} مضت</span>
+                                <span><i class="fas fa-clock text-cyan-400 ml-1"></i>{% trans "آخر نشاط" %}: {{ a.last_visit_at|timesince }} {% trans "مضت" %}</span>
                                 {% if a.last_visit_path %}<span class="text-slate-500" dir="ltr">📍 {{ a.last_visit_path|truncatechars:50 }}</span>{% endif %}
                                 {% else %}
-                                <span class="text-slate-500">⚠️ لم يدخل النظام بعد</span>
+                                <span class="text-slate-500">{% trans "⚠️ لم يدخل النظام بعد" %}</span>
                                 {% endif %}
-                                <span><i class="fas fa-eye text-emerald-400 ml-1"></i>{{ a.visits_today }} طلب اليوم</span>
-                                <span><i class="fas fa-calendar text-violet-400 ml-1"></i>{{ a.visits_7d }} آخر ٧ أيام</span>
+                                <span><i class="fas fa-eye text-emerald-400 ml-1"></i>{{ a.visits_today }} {% trans "طلب اليوم" %}</span>
+                                <span><i class="fas fa-calendar text-violet-400 ml-1"></i>{{ a.visits_7d }} {% trans "آخر ٧ أيام" %}</span>
                             </div>
                             {% if a.last_events %}
                             <div class="bg-slate-800/40 rounded-lg p-2 mt-2">
-                                <p class="text-[10px] text-slate-500 font-bold mb-1">آخر أحداث:</p>
+                                <p class="text-[10px] text-slate-500 font-bold mb-1">{% trans "آخر أحداث:" %}</p>
                                 {% for ev in a.last_events %}
                                 <div class="text-[11px] text-slate-300 py-0.5 border-b border-slate-800/40 last:border-0">
                                     <span class="text-slate-500">{{ ev.timestamp|date:"Y-m-d H:i" }}</span>
@@ -1608,7 +1609,7 @@
                     </div>
                 </div>
                 {% empty %}
-                <div class="px-5 py-8 text-center text-slate-500">لا يوجد شركات بعد.</div>
+                <div class="px-5 py-8 text-center text-slate-500">{% trans "لا يوجد شركات بعد." %}</div>
                 {% endfor %}
             </div>
         </div>
@@ -1618,11 +1619,11 @@
     <div id="customerDetailModal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this) closeCustomerDetail()">
         <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
-                <h3 class="font-black text-white text-lg"><i class="fas fa-user-circle ml-2 text-blue-400"></i>تفاصيل العميل</h3>
+                <h3 class="font-black text-white text-lg"><i class="fas fa-user-circle ml-2 text-blue-400"></i>{% trans "تفاصيل العميل" %}</h3>
                 <button onclick="closeCustomerDetail()" class="text-slate-500 hover:text-white text-xl"><i class="fas fa-times"></i></button>
             </div>
             <div id="customerDetailBody" class="p-6 text-sm text-slate-300">
-                <div class="text-center text-slate-500"><i class="fas fa-spinner fa-spin ml-2"></i> جاري التحميل...</div>
+                <div class="text-center text-slate-500"><i class="fas fa-spinner fa-spin ml-2"></i> {% trans "جاري التحميل..." %}</div>
             </div>
         </div>
     </div>
@@ -1634,7 +1635,7 @@
     <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-            <h3 class="font-black text-white text-lg"><i class="fas fa-credit-card ml-2 text-green-400"></i>تفعيل اشتراك يدوي</h3>
+            <h3 class="font-black text-white text-lg"><i class="fas fa-credit-card ml-2 text-green-400"></i>{% trans "تفعيل اشتراك يدوي" %}</h3>
             <button onclick="closeSubModal()" class="text-slate-500 hover:text-white transition text-xl"><i class="fas fa-times"></i></button>
         </div>
         <!-- Body -->
@@ -1645,28 +1646,28 @@
 
             <!-- اسم الشركة -->
             <div class="bg-slate-800/60 rounded-xl px-4 py-3 border border-slate-700">
-                <p class="text-xs text-slate-500 mb-1">الشركة</p>
+                <p class="text-xs text-slate-500 mb-1">{% trans "الشركة" %}</p>
                 <p class="font-black text-white" id="sub-tenant-name">—</p>
             </div>
 
             <!-- اختيار الباقة -->
             <div>
-                <label class="text-xs font-bold text-slate-400 block mb-2">الباقة</label>
+                <label class="text-xs font-bold text-slate-400 block mb-2">{% trans "الباقة" %}</label>
                 <div class="grid grid-cols-3 gap-2" id="plan-btns">
                     <button type="button" data-plan="silver" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-medal block text-xl mb-1 text-slate-400"></i>
-                        <span class="text-xs font-black block">سيلفر</span>
-                        <span class="text-xs text-slate-500">475 ج</span>
+                        <span class="text-xs font-black block">{% trans "سيلفر" %}</span>
+                        <span class="text-xs text-slate-500">{% trans "475 ج" %}</span>
                     </button>
                     <button type="button" data-plan="gold" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-gem block text-xl mb-1 text-purple-400"></i>
-                        <span class="text-xs font-black block">جولد</span>
-                        <span class="text-xs text-slate-500">700 ج</span>
+                        <span class="text-xs font-black block">{% trans "جولد" %}</span>
+                        <span class="text-xs text-slate-500">{% trans "700 ج" %}</span>
                     </button>
                     <button type="button" data-plan="empire" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <i class="fas fa-crown block text-xl mb-1 text-amber-400"></i>
                         <span class="text-xs font-black block">Empire</span>
-                        <span class="text-xs text-slate-500">1400 ج</span>
+                        <span class="text-xs text-slate-500">{% trans "1400 ج" %}</span>
                     </button>
                 </div>
                 <input type="hidden" name="plan" id="sub-plan" value="silver">
@@ -1674,23 +1675,23 @@
 
             <!-- فترة الاشتراك -->
             <div>
-                <label class="text-xs font-bold text-slate-400 block mb-2">فترة الاشتراك</label>
+                <label class="text-xs font-bold text-slate-400 block mb-2">{% trans "فترة الاشتراك" %}</label>
                 <div class="grid grid-cols-2 gap-2" id="period-btns">
                     <button type="button" data-period="monthly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">شهري</span>
-                        <span class="text-xs text-slate-500">بدون خصم</span>
+                        <span class="text-xs font-black block">{% trans "شهري" %}</span>
+                        <span class="text-xs text-slate-500">{% trans "بدون خصم" %}</span>
                     </button>
                     <button type="button" data-period="quarterly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">ربع سنوي</span>
-                        <span class="text-xs text-green-400">خصم 9%</span>
+                        <span class="text-xs font-black block">{% trans "ربع سنوي" %}</span>
+                        <span class="text-xs text-green-400">{% trans "خصم" %} 9%</span>
                     </button>
                     <button type="button" data-period="semi_annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">نصف سنوي</span>
-                        <span class="text-xs text-green-400">خصم 12.5%</span>
+                        <span class="text-xs font-black block">{% trans "نصف سنوي" %}</span>
+                        <span class="text-xs text-green-400">{% trans "خصم" %} 12.5%</span>
                     </button>
                     <button type="button" data-period="annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">سنوي</span>
-                        <span class="text-xs text-green-400">خصم 25%</span>
+                        <span class="text-xs font-black block">{% trans "سنوي" %}</span>
+                        <span class="text-xs text-green-400">{% trans "خصم" %} 25%</span>
                     </button>
                 </div>
                 <input type="hidden" name="billing_period" id="sub-period" value="monthly">
@@ -1699,15 +1700,15 @@
             <!-- ملخص السعر -->
             <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-xl px-4 py-3">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs text-slate-400">الإجمالي المطلوب</span>
-                    <span class="text-2xl font-black text-green-400" id="sub-total">475 ج.م</span>
+                    <span class="text-xs text-slate-400">{% trans "الإجمالي المطلوب" %}</span>
+                    <span class="text-2xl font-black text-green-400" id="sub-total">{% trans "475 ج.م" %}</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-1" id="sub-detail">سيلفر × 1 شهر</p>
+                <p class="text-xs text-slate-500 mt-1" id="sub-detail">{% trans "سيلفر × 1 شهر" %}</p>
             </div>
 
             <!-- زر التفعيل -->
             <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black text-sm hover:from-green-500 hover:to-emerald-500 transition shadow-lg shadow-green-600/20">
-                <i class="fas fa-check-circle ml-2"></i>تفعيل الاشتراك الآن
+                <i class="fas fa-check-circle ml-2"></i>{% trans "تفعيل الاشتراك الآن" %}
             </button>
         </form>
     </div>
@@ -1717,7 +1718,7 @@
 <div id="delete-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm">
     <div class="bg-slate-900 border border-red-800/50 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <div class="flex items-center justify-between px-6 py-4 border-b border-red-900/50">
-            <h3 class="font-black text-red-400 text-lg"><i class="fas fa-skull-crossbones ml-2"></i>حذف نهائي!</h3>
+            <h3 class="font-black text-red-400 text-lg"><i class="fas fa-skull-crossbones ml-2"></i>{% trans "حذف نهائي!" %}</h3>
             <button onclick="closeDeleteModal()" class="text-slate-500 hover:text-white transition text-xl"><i class="fas fa-times"></i></button>
         </div>
         <form method="post" class="p-6 space-y-4">
@@ -1727,25 +1728,25 @@
 
             <div class="bg-red-900/20 border border-red-800/30 rounded-xl p-4 text-center">
                 <i class="fas fa-exclamation-triangle text-3xl text-red-400 mb-2"></i>
-                <p class="text-sm font-bold text-red-300">هذا الإجراء لا يمكن التراجع عنه!</p>
-                <p class="text-xs text-red-400/70 mt-1">سيتم حذف الشركة وجميع بياناتها نهائياً</p>
+                <p class="text-sm font-bold text-red-300">{% trans "هذا الإجراء لا يمكن التراجع عنه!" %}</p>
+                <p class="text-xs text-red-400/70 mt-1">{% trans "سيتم حذف الشركة وجميع بياناتها نهائياً" %}</p>
             </div>
 
             <div class="bg-slate-800/60 rounded-xl px-4 py-3 border border-slate-700">
-                <p class="text-xs text-slate-500 mb-1">الشركة</p>
+                <p class="text-xs text-slate-500 mb-1">{% trans "الشركة" %}</p>
                 <p class="font-black text-white" id="del-tenant-name">—</p>
             </div>
 
             <div>
-                <label class="text-xs font-bold text-red-400 block mb-2">للتأكيد: اكتب اسم الـ Schema</label>
-                <p class="text-xs text-slate-500 mb-2">اكتب: <code class="text-red-300 font-mono bg-red-900/20 px-2 py-0.5 rounded" id="del-schema-hint"></code></p>
+                <label class="text-xs font-bold text-red-400 block mb-2">{% trans "للتأكيد: اكتب اسم الـ Schema" %}</label>
+                <p class="text-xs text-slate-500 mb-2">{% trans "اكتب:" %} <code class="text-red-300 font-mono bg-red-900/20 px-2 py-0.5 rounded" id="del-schema-hint"></code></p>
                 <input type="text" name="confirm_name" required autocomplete="off"
                     class="w-full bg-slate-900 border border-red-800/50 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500 transition"
-                    placeholder="اكتب اسم الـ schema للتأكيد...">
+                    placeholder="{% trans "اكتب اسم الـ schema للتأكيد..." %}">
             </div>
 
             <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-black text-sm hover:from-red-600 hover:to-red-500 transition shadow-lg shadow-red-600/20">
-                <i class="fas fa-trash-alt ml-2"></i>حذف الشركة نهائياً
+                <i class="fas fa-trash-alt ml-2"></i>{% trans "حذف الشركة نهائياً" %}
             </button>
         </form>
     </div>
@@ -1755,7 +1756,7 @@
 <div id="ai-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-violet-800/50 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-            <h3 class="font-black text-white text-lg"><i class="fas fa-wand-magic-sparkles ml-2 text-violet-400"></i>تفعيل AI Studio</h3>
+            <h3 class="font-black text-white text-lg"><i class="fas fa-wand-magic-sparkles ml-2 text-violet-400"></i>{% trans "تفعيل AI Studio" %}</h3>
             <button onclick="closeAiModal()" class="text-slate-500 hover:text-white transition text-xl"><i class="fas fa-times"></i></button>
         </div>
         <form method="post" class="p-6 space-y-5">
@@ -1765,12 +1766,12 @@
             <input type="hidden" name="ai_addon_slug" id="ai-addon-slug" value="">
 
             <div class="bg-slate-800/60 rounded-xl px-4 py-3 border border-slate-700">
-                <p class="text-xs text-slate-500 mb-1">الشركة</p>
+                <p class="text-xs text-slate-500 mb-1">{% trans "الشركة" %}</p>
                 <p class="font-black text-white" id="ai-tenant-name">—</p>
             </div>
 
             <div>
-                <label class="text-xs font-bold text-slate-400 block mb-3">اختر حزمة AI</label>
+                <label class="text-xs font-bold text-slate-400 block mb-3">{% trans "اختر حزمة AI" %}</label>
                 <div class="space-y-2" id="ai-addon-list">
                     {% for addon in ai_addons %}
                     <button type="button" data-slug="{{ addon.slug }}"
@@ -1787,12 +1788,12 @@
                                 <p class="text-[10px] text-slate-500">{{ addon.slug }}</p>
                             </div>
                         </div>
-                        <span class="text-sm font-black text-violet-400">{{ addon.monthly_price }} ج/شهر</span>
+                        <span class="text-sm font-black text-violet-400">{{ addon.monthly_price }} {% trans "ج/شهر" %}</span>
                     </button>
                     {% empty %}
                     <div class="text-center text-slate-600 text-xs py-4">
                         <i class="fas fa-box-open text-2xl mb-2 block text-slate-700"></i>
-                        لا توجد حزم AI متاحة. أضف حزم من لوحة الإدارة أولاً.
+                        {% trans "لا توجد حزم AI متاحة. أضف حزم من لوحة الإدارة أولاً." %}
                     </div>
                     {% endfor %}
                 </div>
@@ -1800,7 +1801,7 @@
 
             <button type="submit" id="ai-submit-btn" disabled
                 class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-700 to-purple-600 text-white font-black text-sm hover:from-violet-600 hover:to-purple-500 transition shadow-lg shadow-violet-600/20 disabled:opacity-40 disabled:cursor-not-allowed">
-                <i class="fas fa-bolt ml-2"></i>تفعيل الحزمة
+                <i class="fas fa-bolt ml-2"></i>{% trans "تفعيل الحزمة" %}
             </button>
         </form>
     </div>
@@ -1855,8 +1856,8 @@ document.getElementById('filter-industry').addEventListener('change', applyFilte
 const PLAN_PRICES = {{ plan_prices_json|safe }};
 const PERIOD_DISCOUNTS = {{ period_discounts_json|safe }};
 const PERIOD_MONTHS = {{ period_months_json|safe }};
-const PLAN_LABELS = {silver: 'سيلفر', gold: 'جولد', empire: 'Empire'};
-const PERIOD_LABELS = {monthly: 'شهري', quarterly: 'ربع سنوي', semi_annual: 'نصف سنوي', annual: 'سنوي'};
+const PLAN_LABELS = {silver: '{% trans "سيلفر" %}', gold: '{% trans "جولد" %}', empire: 'Empire'};
+const PERIOD_LABELS = {monthly: '{% trans "شهري" %}', quarterly: '{% trans "ربع سنوي" %}', semi_annual: '{% trans "نصف سنوي" %}', annual: '{% trans "سنوي" %}'};
 
 let selectedPlan = 'silver';
 let selectedPeriod = 'monthly';
@@ -1919,10 +1920,10 @@ function recalc() {
     const months = PERIOD_MONTHS[selectedPeriod] || 1;
     const discount = PERIOD_DISCOUNTS[selectedPeriod] || 0;
     const total = Math.round(base * months * (1 - discount));
-    document.getElementById('sub-total').textContent = total.toLocaleString('ar-EG') + ' ج.م';
+    document.getElementById('sub-total').textContent = total.toLocaleString('ar-EG') + ' {% trans "ج.م" %}';
     document.getElementById('sub-detail').textContent =
-        PLAN_LABELS[selectedPlan] + ' × ' + months + ' شهر' +
-        (discount > 0 ? ' (خصم ' + Math.round(discount * 100) + '%)' : '');
+        PLAN_LABELS[selectedPlan] + ' × ' + months + ' {% trans "شهر" %}' +
+        (discount > 0 ? ' ({% trans "خصم" %} ' + Math.round(discount * 100) + '%)' : '');
 }
 
 // ═══════════════════ Delete Modal ═══════════════════
@@ -1997,7 +1998,7 @@ async function openGiftModal(tenantId, tenantName, curDesigns, curWA, curWM) {
     const listBox = document.getElementById('gift-existing-list');
     const listBody = document.getElementById('gift-existing-body');
     listBox.classList.add('hidden');
-    listBody.innerHTML = '<div class="text-center text-slate-500 text-xs py-3"><i class="fas fa-spinner fa-spin ml-1"></i> جاري التحميل...</div>';
+    listBody.innerHTML = '<div class="text-center text-slate-500 text-xs py-3"><i class="fas fa-spinner fa-spin ml-1"></i> {% trans "جاري التحميل..." %}</div>';
     try {
         const r = await fetch(`/superadmin/tenant/${tenantId}/grants/`);
         if (r.ok) {
@@ -2008,8 +2009,8 @@ async function openGiftModal(tenantId, tenantName, curDesigns, curWA, curWM) {
                     <div class="flex items-center justify-between gap-2 bg-slate-900/60 rounded-lg p-2 border border-slate-700/40">
                         <div class="flex-1 text-xs">
                             <div class="text-white font-bold">
-                                ${g.reason || 'هدية بدون سبب'}
-                                ${g.is_welcome ? '<span class="text-[9px] text-emerald-400 mr-1">(ترحيب تلقائي)</span>' : ''}
+                                ${g.reason || '{% trans "هدية بدون سبب" %}'}
+                                ${g.is_welcome ? '<span class="text-[9px] text-emerald-400 mr-1">({% trans "ترحيب تلقائي" %})</span>' : ''}
                             </div>
                             <div class="text-slate-400 text-[10px] mt-0.5">
                                 🎨 ${g.remaining_designs}/${g.granted_designs} •
@@ -2018,9 +2019,9 @@ async function openGiftModal(tenantId, tenantName, curDesigns, curWA, curWM) {
                                 <span class="text-slate-500 mr-1">— ${g.granted_at}</span>
                             </div>
                         </div>
-                        <button type="button" onclick="revokeGrant(${g.id}, ${tenantId}, '${(g.reason || 'هدية').replace(/'/g, '')}')"
+                        <button type="button" onclick="revokeGrant(${g.id}, ${tenantId}, '${(g.reason || '{% trans "هدية" %}').replace(/'/g, '')}')"
                             class="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition shrink-0">
-                            <i class="fas fa-times ml-1"></i>إلغاء
+                            <i class="fas fa-times ml-1"></i>{% trans "إلغاء" %}
                         </button>
                     </div>
                 `).join('');
@@ -2059,12 +2060,12 @@ document.getElementById('giftForm')?.addEventListener('submit', function(e) {
     }
     btn.dataset.submitting = '1';
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 });
 
 // 🗑️ إلغاء هدية معينة
 async function revokeGrant(grantId, tenantId, label) {
-    if (!confirm(`إلغاء الهدية «${label}»؟ الرصيد المتبقي منها هيتشال فوراً.`)) return;
+    if (!confirm(`{% trans "إلغاء الهدية" %} «${label}»؟ {% trans "الرصيد المتبقي منها هيتشال فوراً." %}`)) return;
     const fd = new FormData();
     fd.append('action', 'revoke_bonus');
     fd.append('tenant_id', tenantId);
@@ -2075,10 +2076,10 @@ async function revokeGrant(grantId, tenantId, label) {
         if (r.ok) {
             window.location.reload();
         } else {
-            alert('فشل الإلغاء');
+            alert('{% trans "فشل الإلغاء" %}');
         }
     } catch (e) {
-        alert('خطأ في الشبكة');
+        alert('{% trans "خطأ في الشبكة" %}');
     }
 }
 
@@ -2089,13 +2090,13 @@ async function showCustomerDetail(customerId) {
 
     // Guard ضد الـ undefined/null/0 IDs
     if (!customerId || customerId === 'undefined') {
-        body.innerHTML = '<div class="text-center text-red-400 py-8">⚠️ معرف العميل غير صالح.</div>';
+        body.innerHTML = '<div class="text-center text-red-400 py-8">⚠️ {% trans "معرف العميل غير صالح." %}</div>';
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         return;
     }
 
-    body.innerHTML = '<div class="text-center text-slate-500 py-8"><i class="fas fa-spinner fa-spin ml-2"></i> جاري التحميل...</div>';
+    body.innerHTML = '<div class="text-center text-slate-500 py-8"><i class="fas fa-spinner fa-spin ml-2"></i> {% trans "جاري التحميل..." %}</div>';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
@@ -2111,13 +2112,13 @@ async function showCustomerDetail(customerId) {
             // 404/403/500 — نعرض الـ body اللي راجع من السيرفر (لو fragment) أو رسالة عامة
             body.innerHTML = text && text.length < 2000
                 ? text
-                : `<div class="text-center text-red-400 py-8">⚠️ تعذر تحميل بيانات العميل (${r.status}).</div>`;
+                : `<div class="text-center text-red-400 py-8">⚠️ {% trans "تعذر تحميل بيانات العميل" %} (${r.status}).</div>`;
             return;
         }
 
         body.innerHTML = text;
     } catch (e) {
-        body.innerHTML = `<div class="text-center text-red-400 py-8">⚠️ ${e.message || 'خطأ في الاتصال'}</div>`;
+        body.innerHTML = `<div class="text-center text-red-400 py-8">⚠️ ${e.message || '{% trans "خطأ في الاتصال" %}'}</div>`;
     }
 }
 function closeCustomerDetail() {
@@ -2133,7 +2134,7 @@ function closeCustomerDetail() {
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-white">
                 <i class="fas fa-gift text-pink-400 ml-2"></i>
-                هدية رصيد AI Studio
+                {% trans "هدية رصيد AI Studio" %}
             </h3>
             <button onclick="closeGiftModal()" class="text-slate-400 hover:text-white">
                 <i class="fas fa-times text-xl"></i>
@@ -2142,21 +2143,21 @@ function closeCustomerDetail() {
 
         <div class="bg-pink-500/10 border border-pink-500/20 rounded-xl p-3 mb-5">
             <div class="text-sm text-slate-300 mb-1">
-                <i class="fas fa-building ml-1"></i> الشركة:
+                <i class="fas fa-building ml-1"></i> {% trans "الشركة:" %}
                 <span id="gift-tenant-name" class="text-white font-bold"></span>
             </div>
             <div class="text-xs text-slate-400 grid grid-cols-3 gap-2 mt-2">
                 <div class="text-center bg-slate-800/50 rounded-lg p-2">
                     <div class="text-pink-300 font-black text-lg" id="gift-current-designs">0</div>
-                    <div>تصاميم متبقية</div>
+                    <div>{% trans "تصاميم متبقية" %}</div>
                 </div>
                 <div class="text-center bg-slate-800/50 rounded-lg p-2">
                     <div class="text-pink-300 font-black text-lg" id="gift-current-whatsapp">0</div>
-                    <div>واتساب متبقي</div>
+                    <div>{% trans "واتساب متبقي" %}</div>
                 </div>
                 <div class="text-center bg-slate-800/50 rounded-lg p-2">
                     <div class="text-pink-300 font-black text-lg" id="gift-current-watermarks">0</div>
-                    <div>علامات مائية</div>
+                    <div>{% trans "علامات مائية" %}</div>
                 </div>
             </div>
         </div>
@@ -2164,13 +2165,13 @@ function closeCustomerDetail() {
         <!-- 📋 الهدايا الحالية للشركة (يتم تعبئتها من JS) -->
         <div id="gift-existing-list" class="mb-5 hidden">
             <label class="text-xs font-bold text-amber-300 mb-2 block">
-                <i class="fas fa-history ml-1"></i> الهدايا النشطة حالياً (يمكن إلغاء كل واحدة على حدة):
+                <i class="fas fa-history ml-1"></i> {% trans "الهدايا النشطة حالياً (يمكن إلغاء كل واحدة على حدة):" %}
             </label>
             <div id="gift-existing-body" class="space-y-2 max-h-48 overflow-y-auto bg-slate-800/40 rounded-xl p-3 border border-slate-700/50"></div>
             <p class="text-[10px] text-amber-200/60 mt-2">
                 <i class="fas fa-info-circle ml-1"></i>
-                ملاحظة: أي شركة جديدة بتاخد <b>هدية ترحيب تلقائية (10 تصاميم + 5 واتساب + 5 علامة مائية)</b>.
-                لو ضفت هدية تانية، الرصيد المعروض = مجموع الهدايا كلها.
+                {% trans "ملاحظة: أي شركة جديدة بتاخد" %} <b>{% trans "هدية ترحيب تلقائية (10 تصاميم + 5 واتساب + 5 علامة مائية)" %}</b>.
+                {% trans "لو ضفت هدية تانية، الرصيد المعروض = مجموع الهدايا كلها." %}
             </p>
         </div>
 
@@ -2180,10 +2181,10 @@ function closeCustomerDetail() {
 
             <!-- Quick presets -->
             <div class="mb-4">
-                <label class="text-xs font-bold text-slate-400 mb-2 block">قوالب سريعة:</label>
+                <label class="text-xs font-bold text-slate-400 mb-2 block">{% trans "قوالب سريعة:" %}</label>
                 <div class="grid grid-cols-3 gap-2">
                     <button type="button" onclick="setGiftPreset(10, 5, 5)" class="text-xs font-bold py-2 rounded-lg bg-slate-800 hover:bg-pink-500/20 border border-slate-700 hover:border-pink-500 text-slate-300 transition">
-                        🎁 ترحيب<br><span class="text-[10px] text-slate-500">10/5/5</span>
+                        {% trans "🎁 ترحيب" %}<br><span class="text-[10px] text-slate-500">10/5/5</span>
                     </button>
                     <button type="button" onclick="setGiftPreset(25, 15, 10)" class="text-xs font-bold py-2 rounded-lg bg-slate-800 hover:bg-pink-500/20 border border-slate-700 hover:border-pink-500 text-slate-300 transition">
                         💎 VIP<br><span class="text-[10px] text-slate-500">25/15/10</span>
@@ -2197,21 +2198,21 @@ function closeCustomerDetail() {
             <div class="grid grid-cols-3 gap-3 mb-4">
                 <div>
                     <label class="text-xs font-bold text-slate-300 mb-1 block">
-                        <i class="fas fa-image text-violet-400 ml-1"></i> تصاميم
+                        <i class="fas fa-image text-violet-400 ml-1"></i> {% trans "تصاميم" %}
                     </label>
                     <input type="number" name="grant_designs" id="grant_designs" min="0" value="10"
                         class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-center font-bold focus:border-pink-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-300 mb-1 block">
-                        <i class="fab fa-whatsapp text-green-400 ml-1"></i> واتساب
+                        <i class="fab fa-whatsapp text-green-400 ml-1"></i> {% trans "واتساب" %}
                     </label>
                     <input type="number" name="grant_whatsapp" id="grant_whatsapp" min="0" value="0"
                         class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-center font-bold focus:border-pink-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-300 mb-1 block">
-                        <i class="fas fa-droplet text-cyan-400 ml-1"></i> علامة مائية
+                        <i class="fas fa-droplet text-cyan-400 ml-1"></i> {% trans "علامة مائية" %}
                     </label>
                     <input type="number" name="grant_watermarks" id="grant_watermarks" min="0" value="0"
                         class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-center font-bold focus:border-pink-500 focus:outline-none">
@@ -2219,25 +2220,25 @@ function closeCustomerDetail() {
             </div>
 
             <div class="mb-4">
-                <label class="text-xs font-bold text-slate-300 mb-1 block">سبب الهدية (يظهر للعميل):</label>
-                <input type="text" name="grant_reason" placeholder="مثال: هدية الترحيب الذهبية، تعويض، عيد ميلاد المنصة..."
+                <label class="text-xs font-bold text-slate-300 mb-1 block">{% trans "سبب الهدية (يظهر للعميل):" %}</label>
+                <input type="text" name="grant_reason" placeholder="{% trans "مثال: هدية الترحيب الذهبية، تعويض، عيد ميلاد المنصة..." %}"
                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-pink-500 focus:outline-none">
             </div>
 
             <div class="mb-5">
-                <label class="text-xs font-bold text-slate-300 mb-1 block">تنتهي بعد كم يوم؟ (اختياري — اتركه فاضي للمدى المفتوح):</label>
-                <input type="number" name="grant_expires_days" min="1" placeholder="مثال: 30"
+                <label class="text-xs font-bold text-slate-300 mb-1 block">{% trans "تنتهي بعد كم يوم؟ (اختياري — اتركه فاضي للمدى المفتوح):" %}</label>
+                <input type="number" name="grant_expires_days" min="1" placeholder="{% trans "مثال: 30" %}"
                     class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-pink-500 focus:outline-none">
             </div>
 
             <div class="flex gap-3">
                 <button type="button" onclick="closeGiftModal()"
                     class="flex-1 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition">
-                    إلغاء
+                    {% trans "إلغاء" %}
                 </button>
                 <button type="submit" id="giftSubmitBtn"
                     class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white font-black transition shadow-lg shadow-pink-500/30 disabled:opacity-60 disabled:cursor-not-allowed">
-                    <i class="fas fa-gift ml-1"></i> إرسال الهدية
+                    <i class="fas fa-gift ml-1"></i> {% trans "إرسال الهدية" %}
                 </button>
             </div>
         </form>
@@ -2247,13 +2248,13 @@ function closeCustomerDetail() {
 <script>
 // 💵 مراجعة إيصالات الدفع اليدوي (Vodafone/InstaPay)
 async function reviewReceipt(receiptCode, action) {
-    const label = action === 'confirm' ? 'تأكيد الإيصال وتفعيل الخدمة' : 'رفض الإيصال';
-    const promptMsg = action === 'reject' ? 'سبب الرفض (اختياري):' : '';
+    const label = action === 'confirm' ? '{% trans "تأكيد الإيصال وتفعيل الخدمة" %}' : '{% trans "رفض الإيصال" %}';
+    const promptMsg = action === 'reject' ? '{% trans "سبب الرفض (اختياري):" %}' : '';
     let notes = '';
     if (action === 'reject') {
         notes = prompt(promptMsg) || '';
     } else {
-        if (!confirm(`هل أنت متأكد من ${label}؟`)) return;
+        if (!confirm(`{% trans "هل أنت متأكد من" %} ${label}؟`)) return;
     }
 
     try {
@@ -2267,7 +2268,7 @@ async function reviewReceipt(receiptCode, action) {
             method: 'POST', body: fd, credentials: 'same-origin',
         });
         const d = await r.json();
-        if (!r.ok || !d.ok) throw new Error(d.error || 'خطأ');
+        if (!r.ok || !d.ok) throw new Error(d.error || '{% trans "خطأ" %}');
 
         // Update row visually
         const row = document.querySelector(`#mr-row-${receiptCode}`) ||
@@ -2279,7 +2280,7 @@ async function reviewReceipt(receiptCode, action) {
                     el.style.background = 'rgba(16,185,129,0.08)';
                     el.querySelectorAll('button').forEach(b => b.remove());
                     const status = document.createElement('div');
-                    status.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-2xl"></i><p class="text-emerald-400 font-bold text-xs mt-1">تم التأكيد</p>';
+                    status.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-2xl"></i><p class="text-emerald-400 font-bold text-xs mt-1">{% trans "تم التأكيد" %}</p>';
                     status.style.cssText = 'text-align:center;';
                     el.querySelector('.flex.flex-col')?.appendChild(status);
                 } else {
@@ -2290,15 +2291,15 @@ async function reviewReceipt(receiptCode, action) {
             }
         });
 
-        alert(d.message || 'تم بنجاح');
+        alert(d.message || '{% trans "تم بنجاح" %}');
     } catch (e) {
-        alert('فشل: ' + (e.message || 'خطأ غير متوقع'));
+        alert('{% trans "فشل: " %}' + (e.message || '{% trans "خطأ غير متوقع" %}'));
     }
 }
 
 async function confirmDesignPurchase(purchaseId, action) {
-    const label = action === 'confirm' ? 'تأكيد الدفع وتفعيل الباقة' : 'رفض الطلب';
-    if (!confirm(`هل أنت متأكد من ${label}؟`)) return;
+    const label = action === 'confirm' ? '{% trans "تأكيد الدفع وتفعيل الباقة" %}' : '{% trans "رفض الطلب" %}';
+    if (!confirm(`{% trans "هل أنت متأكد من" %} ${label}؟`)) return;
 
     try {
         const fd = new FormData();
@@ -2312,7 +2313,7 @@ async function confirmDesignPurchase(purchaseId, action) {
             body: fd,
         });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'خطأ');
+        if (!r.ok) throw new Error(d.error || '{% trans "خطأ" %}');
 
         // Update the row visually
         const row = document.getElementById(`dp-row-${purchaseId}`);
@@ -2320,20 +2321,20 @@ async function confirmDesignPurchase(purchaseId, action) {
             if (action === 'confirm') {
                 row.innerHTML = `
                     <div class="event-icon bg-emerald-500/15 text-emerald-400"><i class="fas fa-check-circle"></i></div>
-                    <div class="flex-1 text-sm text-emerald-400 font-bold">تم تأكيد الدفع وتفعيل الباقة ✅</div>`;
+                    <div class="flex-1 text-sm text-emerald-400 font-bold">{% trans "تم تأكيد الدفع وتفعيل الباقة" %} ✅</div>`;
             } else {
                 row.innerHTML = `
                     <div class="event-icon bg-red-500/15 text-red-400"><i class="fas fa-times-circle"></i></div>
-                    <div class="flex-1 text-sm text-red-400 font-bold">تم رفض الطلب ❌</div>`;
+                    <div class="flex-1 text-sm text-red-400 font-bold">{% trans "تم رفض الطلب" %} ❌</div>`;
             }
         }
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        alert('{% trans "خطأ: " %}' + e.message);
     }
 }
 
 async function approveMarketplaceReq(id, btn) {
-    if (!confirm('هل تريد الموافقة على هذا الطلب ونشره للتجار؟')) return;
+    if (!confirm('{% trans "هل تريد الموافقة على هذا الطلب ونشره للتجار؟" %}')) return;
     btn.disabled = true;
     btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full"></span>';
     try {
@@ -2342,19 +2343,19 @@ async function approveMarketplaceReq(id, btn) {
             headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         const row = document.getElementById('mreq-' + id);
         if (row) row.style.display = 'none';
         alert(data.message);
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        alert('{% trans "خطأ: " %}' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check ml-1"></i>موافقة';
+        btn.innerHTML = '<i class="fas fa-check ml-1"></i>{% trans "موافقة" %}';
     }
 }
 
 async function rejectPartListing(id, btn) {
-    const reason = prompt('سبب الرفض (اختياري):');
+    const reason = prompt('{% trans "سبب الرفض (اختياري):" %}');
     if (reason === null) return;
     btn.disabled = true;
     const origText = btn.innerHTML;
@@ -2366,19 +2367,19 @@ async function rejectPartListing(id, btn) {
             body: JSON.stringify({reason: reason}),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         const row = document.getElementById('pl-' + id);
         if (row) row.style.display = 'none';
-        alert(data.message || 'تم الرفض');
+        alert(data.message || '{% trans "تم الرفض" %}');
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        alert('{% trans "خطأ: " %}' + e.message);
         btn.disabled = false;
         btn.innerHTML = origText;
     }
 }
 
 async function rejectMarketplaceReq(id, btn) {
-    const reason = prompt('سبب الرفض (اختياري):');
+    const reason = prompt('{% trans "سبب الرفض (اختياري):" %}');
     if (reason === null) return; // cancelled
     btn.disabled = true;
     btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full"></span>';
@@ -2389,14 +2390,14 @@ async function rejectMarketplaceReq(id, btn) {
             body: JSON.stringify({reason: reason}),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         const row = document.getElementById('mreq-' + id);
         if (row) row.style.display = 'none';
         alert(data.message);
     } catch (e) {
-        alert('خطأ: ' + e.message);
+        alert('{% trans "خطأ: " %}' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-times ml-1"></i>رفض';
+        btn.innerHTML = '<i class="fas fa-times ml-1"></i>{% trans "رفض" %}';
     }
 }
 </script>
@@ -2409,20 +2410,20 @@ async function rejectMarketplaceReq(id, btn) {
 <div id="customer-gift-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
-            <h3 class="text-xl font-black text-white"><i class="fas fa-gift text-emerald-400 ml-2"></i> هدية تصاميم مجانية</h3>
+            <h3 class="text-xl font-black text-white"><i class="fas fa-gift text-emerald-400 ml-2"></i> {% trans "هدية تصاميم مجانية" %}</h3>
             <button onclick="closeCustomerGift()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <p class="text-xs text-slate-400 mb-4">إرسال هدية إلى: <span id="customer-gift-name" class="text-emerald-300 font-bold"></span></p>
+        <p class="text-xs text-slate-400 mb-4">{% trans "إرسال هدية إلى:" %} <span id="customer-gift-name" class="text-emerald-300 font-bold"></span></p>
         <form id="customer-gift-form" onsubmit="submitCustomerGift(event)">
             {% csrf_token %}
-            <label class="block text-xs font-bold text-slate-300 mb-2">عدد التصاميم</label>
+            <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "عدد التصاميم" %}</label>
             <input type="number" name="designs" min="1" max="500" value="5" required
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-emerald-500 outline-none">
-            <label class="block text-xs font-bold text-slate-300 mb-2">السبب / الرسالة (اختياري)</label>
-            <textarea name="reason" rows="3" placeholder="هدية ترحيب من إدارة المنصة"
+            <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "السبب / الرسالة (اختياري)" %}</label>
+            <textarea name="reason" rows="3" placeholder="{% trans "هدية ترحيب من إدارة المنصة" %}"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-emerald-500 outline-none"></textarea>
             <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl transition">
-                <i class="fas fa-paper-plane ml-1"></i> إرسال الهدية
+                <i class="fas fa-paper-plane ml-1"></i> {% trans "إرسال الهدية" %}
             </button>
         </form>
     </div>
@@ -2432,41 +2433,41 @@ async function rejectMarketplaceReq(id, btn) {
 <div id="customer-notify-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-blue-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
-            <h3 class="text-xl font-black text-white"><i class="fas fa-bell text-blue-400 ml-2"></i> إرسال إشعار</h3>
+            <h3 class="text-xl font-black text-white"><i class="fas fa-bell text-blue-400 ml-2"></i> {% trans "إرسال إشعار" %}</h3>
             <button onclick="closeCustomerNotify()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <p class="text-xs text-slate-400 mb-4">المرسل إليه: <span id="customer-notify-name" class="text-blue-300 font-bold"></span></p>
+        <p class="text-xs text-slate-400 mb-4">{% trans "المرسل إليه:" %} <span id="customer-notify-name" class="text-blue-300 font-bold"></span></p>
         <form id="customer-notify-form" onsubmit="submitCustomerNotify(event)">
             {% csrf_token %}
-            <label class="block text-xs font-bold text-slate-300 mb-2">العنوان</label>
-            <input type="text" name="title" maxlength="200" required placeholder="مثال: عرض خاص لك"
+            <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "العنوان" %}</label>
+            <input type="text" name="title" maxlength="200" required placeholder="{% trans "مثال: عرض خاص لك" %}"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-blue-500 outline-none">
-            <label class="block text-xs font-bold text-slate-300 mb-2">النص</label>
-            <textarea name="body" rows="4" required placeholder="اكتب رسالتك للعميل..."
+            <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "النص" %}</label>
+            <textarea name="body" rows="4" required placeholder="{% trans "اكتب رسالتك للعميل..." %}"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-4 focus:border-blue-500 outline-none"></textarea>
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-2">المستوى</label>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "المستوى" %}</label>
                     <select name="level" class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-3 text-white focus:border-blue-500 outline-none">
-                        <option value="info">معلومة</option>
-                        <option value="success">نجاح / هدية</option>
-                        <option value="warning">تنبيه</option>
-                        <option value="danger">تحذير</option>
+                        <option value="info">{% trans "معلومة" %}</option>
+                        <option value="success">{% trans "نجاح / هدية" %}</option>
+                        <option value="warning">{% trans "تنبيه" %}</option>
+                        <option value="danger">{% trans "تحذير" %}</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-300 mb-2">أيقونة (FA)</label>
+                    <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "أيقونة (FA)" %}</label>
                     <input type="text" name="icon" value="fa-bell" placeholder="fa-bell"
                         class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-3 text-white focus:border-blue-500 outline-none">
                 </div>
             </div>
-            <label class="block text-xs font-bold text-slate-300 mb-2">رابط زر (اختياري)</label>
+            <label class="block text-xs font-bold text-slate-300 mb-2">{% trans "رابط زر (اختياري)" %}</label>
             <input type="text" name="action_url" placeholder="/marketplace/design-store/"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-3 focus:border-blue-500 outline-none">
-            <input type="text" name="action_label" placeholder="نص الزر (مثال: تصفّح الآن)"
+            <input type="text" name="action_label" placeholder="{% trans "نص الزر (مثال: تصفّح الآن)" %}"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-blue-500 outline-none">
             <button type="submit" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-3 rounded-xl transition">
-                <i class="fas fa-paper-plane ml-1"></i> إرسال الإشعار
+                <i class="fas fa-paper-plane ml-1"></i> {% trans "إرسال الإشعار" %}
             </button>
         </form>
     </div>
@@ -2476,21 +2477,21 @@ async function rejectMarketplaceReq(id, btn) {
 <div id="customer-delete-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-red-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
-            <h3 class="text-xl font-black text-red-400"><i class="fas fa-triangle-exclamation ml-2"></i> حذف عميل نهائياً</h3>
+            <h3 class="text-xl font-black text-red-400"><i class="fas fa-triangle-exclamation ml-2"></i> {% trans "حذف عميل نهائياً" %}</h3>
             <button onclick="closeCustomerDelete()" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
         </div>
         <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-5 text-xs text-red-200 leading-relaxed">
-            ⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم حذف:<br>
-            – بيانات العميل + جميع الطلبات + التصاميم + المشتريات + الإشعارات.<br>
-            للتأكيد، اكتب رقم موبايل العميل: <span class="font-bold text-red-300" id="customer-delete-phone-hint"></span>
+            {% trans "⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم حذف:" %}<br>
+            {% trans "– بيانات العميل + جميع الطلبات + التصاميم + المشتريات + الإشعارات." %}<br>
+            {% trans "للتأكيد، اكتب رقم موبايل العميل:" %} <span class="font-bold text-red-300" id="customer-delete-phone-hint"></span>
         </div>
-        <p class="text-xs text-slate-400 mb-3">العميل: <span id="customer-delete-name" class="text-red-300 font-bold"></span></p>
+        <p class="text-xs text-slate-400 mb-3">{% trans "العميل:" %} <span id="customer-delete-name" class="text-red-300 font-bold"></span></p>
         <form id="customer-delete-form" onsubmit="submitCustomerDelete(event)">
             {% csrf_token %}
-            <input type="text" name="confirm_phone" placeholder="رقم الموبايل للتأكيد" required dir="ltr"
+            <input type="text" name="confirm_phone" placeholder="{% trans "رقم الموبايل للتأكيد" %}" required dir="ltr"
                 class="w-full bg-slate-800/60 border border-red-500/40 rounded-xl px-4 py-3 text-white mb-5 focus:border-red-500 outline-none text-center font-bold">
             <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition">
-                <i class="fas fa-trash-alt ml-1"></i> حذف نهائي
+                <i class="fas fa-trash-alt ml-1"></i> {% trans "حذف نهائي" %}
             </button>
         </form>
     </div>
@@ -2529,8 +2530,8 @@ async function submitCustomerGift(e) {
         credentials: 'same-origin',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || 'فشل إرسال الهدية'); return; }
-    alert(d.message || 'تم.');
+    if (!r.ok) { alert(d.error || '{% trans "فشل إرسال الهدية" %}'); return; }
+    alert(d.message || '{% trans "تم." %}');
     closeCustomerGift();
 }
 
@@ -2551,8 +2552,8 @@ async function submitCustomerNotify(e) {
         credentials: 'same-origin',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || 'فشل إرسال الإشعار'); return; }
-    alert(d.message || 'تم.');
+    if (!r.ok) { alert(d.error || '{% trans "فشل إرسال الإشعار" %}'); return; }
+    alert(d.message || '{% trans "تم." %}');
     closeCustomerNotify();
 }
 
@@ -2567,8 +2568,8 @@ function closeCustomerDelete() { _closeModal('customer-delete-modal'); }
 
 // ── Parts marketplace refund-dispute handlers ──────────────────────────
 async function approveRefund(orderCode) {
-    const note = prompt('ملاحظة الإدارة (اختياري):') || '';
-    if (!confirm('سيتم استرداد المبلغ كاملاً للمشتري والشحن على المنصة. متابعة؟')) return;
+    const note = prompt('{% trans "ملاحظة الإدارة (اختياري):" %}') || '';
+    if (!confirm('{% trans "سيتم استرداد المبلغ كاملاً للمشتري والشحن على المنصة. متابعة؟" %}')) return;
     const fd = new FormData(); fd.append('admin_note', note);
     const r = await fetch(`/superadmin/parts/order/${orderCode}/refund/approve/`, {
         method: 'POST', body: fd,
@@ -2576,16 +2577,16 @@ async function approveRefund(orderCode) {
         credentials: 'same-origin',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || 'فشل العملية'); return; }
-    alert(d.message || 'تم.');
+    if (!r.ok) { alert(d.error || '{% trans "فشل العملية" %}'); return; }
+    alert(d.message || '{% trans "تم." %}');
     const card = document.getElementById('refund-' + orderCode);
     if (card) card.remove();
 }
 
 async function rejectRefund(orderCode) {
-    const note = prompt('اكتب سبب رفض الإرجاع (10 حروف على الأقل):');
-    if (!note || note.trim().length < 10) { alert('السبب قصير جداً.'); return; }
-    if (!confirm('سيتم تحرير المبلغ للبائع. متابعة؟')) return;
+    const note = prompt('{% trans "اكتب سبب رفض الإرجاع (10 حروف على الأقل):" %}');
+    if (!note || note.trim().length < 10) { alert('{% trans "السبب قصير جداً." %}'); return; }
+    if (!confirm('{% trans "سيتم تحرير المبلغ للبائع. متابعة؟" %}')) return;
     const fd = new FormData(); fd.append('admin_note', note);
     const r = await fetch(`/superadmin/parts/order/${orderCode}/refund/reject/`, {
         method: 'POST', body: fd,
@@ -2593,15 +2594,15 @@ async function rejectRefund(orderCode) {
         credentials: 'same-origin',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || 'فشل العملية'); return; }
-    alert(d.message || 'تم.');
+    if (!r.ok) { alert(d.error || '{% trans "فشل العملية" %}'); return; }
+    alert(d.message || '{% trans "تم." %}');
     const card = document.getElementById('refund-' + orderCode);
     if (card) card.remove();
 }
 
 async function submitCustomerDelete(e) {
     e.preventDefault();
-    if (!confirm('تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟')) return;
+    if (!confirm('{% trans "تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟" %}')) return;
     const fd = new FormData(e.target);
     const r = await fetch(`/superadmin/customer/${_activeCustomerId}/delete/`, {
         method: 'POST', body: fd,
@@ -2609,8 +2610,8 @@ async function submitCustomerDelete(e) {
         credentials: 'same-origin',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || 'فشل الحذف'); return; }
-    alert(d.message || 'تم الحذف.');
+    if (!r.ok) { alert(d.error || '{% trans "فشل الحذف" %}'); return; }
+    alert(d.message || '{% trans "تم الحذف." %}');
     closeCustomerDelete();
     const row = document.querySelector(`tr[data-customer-id="${_activeCustomerId}"]`);
     if (row) row.remove();
@@ -2680,7 +2681,7 @@ async function submitCustomerDelete(e) {
     <div class="cmdk-box">
         <div class="cmdk-input-wrap">
             <i class="fas fa-magnifying-glass"></i>
-            <input id="cmdkInput" class="cmdk-input" type="text" placeholder="ابحث عن صفحة، شركة، مستخدم …" autocomplete="off">
+            <input id="cmdkInput" class="cmdk-input" type="text" placeholder="{% trans "ابحث عن صفحة، شركة، مستخدم …" %}" autocomplete="off">
             <span class="cmdk-kbd">esc</span>
         </div>
         <div class="cmdk-results" id="cmdkResults"></div>
@@ -2693,25 +2694,25 @@ async function submitCustomerDelete(e) {
 
     // ─── Static page index ──────────────────────────────────────────
     const PAGES = [
-        { kind:'page', label:'الرئيسية',          sub:'لوحة السوبر أدمن',                url:'/superadmin/',                       icon:'house' },
-        { kind:'page', label:'إدارة المستأجرين',  sub:'soft-delete · restore · force',   url:'/superadmin/tenants/',               icon:'building' },
-        { kind:'page', label:'الباقات',           sub:'تسعير · مزايا · تحرير',           url:'/superadmin/plans/',                 icon:'gem' },
-        { kind:'page', label:'الإيرادات',         sub:'MRR · نمو · تحصيل',               url:'/superadmin/revenue/',               icon:'chart-line' },
+        { kind:'page', label:'{% trans "الرئيسية" %}',          sub:'{% trans "لوحة السوبر أدمن" %}',                url:'/superadmin/',                       icon:'house' },
+        { kind:'page', label:'{% trans "إدارة المستأجرين" %}',  sub:'soft-delete · restore · force',   url:'/superadmin/tenants/',               icon:'building' },
+        { kind:'page', label:'{% trans "الباقات" %}',           sub:'{% trans "تسعير · مزايا · تحرير" %}',           url:'/superadmin/plans/',                 icon:'gem' },
+        { kind:'page', label:'{% trans "الإيرادات" %}',         sub:'{% trans "MRR · نمو · تحصيل" %}',               url:'/superadmin/revenue/',               icon:'chart-line' },
         { kind:'page', label:'Revenue Intelligence', sub:'MRR breakdown · cohorts · conversion', url:'/superadmin/revenue-intel/',      icon:'gem' },
-        { kind:'page', label:'مصروفات التشخيص',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
-        { kind:'page', label:'سجل الأخطاء',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
-        { kind:'page', label:'سجل التدقيق',       sub:'كل أحداث المنصة + فلاتر',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
-        { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
-        { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
-        { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
-        { kind:'page', label:'صندوق الدعم',       sub:'تذاكر · Help Form',                url:'/superadmin/support/',               icon:'envelope-open-text' },
-        { kind:'page', label:'الشات الحي',        sub:'9-5 ع.م',                          url:'/superadmin/chat/',                  icon:'comments' },
-        { kind:'page', label:'هدية تشخيص',        sub:'منح OBD · تجديد اشتراك',           url:'/superadmin/gift-diagnostics/',      icon:'gift' },
-        { kind:'page', label:'وصول OBD',          sub:'grant / revoke per tenant',        url:'/superadmin/obd-access/',            icon:'plug' },
-        { kind:'page', label:'مراجعة قطع الغيار', sub:'pending listings',                 url:'/superadmin/parts/moderation/',      icon:'shield-halved' },
-        { kind:'page', label:'القطع النشطة',      sub:'live marketplace',                 url:'/superadmin/parts/active/',          icon:'screwdriver-wrench' },
-        { kind:'page', label:'النزاعات',          sub:'dispute tickets',                  url:'/superadmin/disputes/',              icon:'scale-balanced' },
-        { kind:'page', label:'طلبات السوق',       sub:'service requests',                 url:'/superadmin/marketplace/requests/',  icon:'list-check' },
+        { kind:'page', label:'{% trans "مصروفات التشخيص" %}',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
+        { kind:'page', label:'{% trans "سجل الأخطاء" %}',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
+        { kind:'page', label:'{% trans "سجل التدقيق" %}',       sub:'{% trans "كل أحداث المنصة + فلاتر" %}',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
+        { kind:'page', label:'{% trans "صحة النظام" %}',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
+        { kind:'page', label:'{% trans "صحة الشركات" %}',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
+        { kind:'page', label:'{% trans "البث الجماعي" %}',      sub:'{% trans "إعلانات + maintenance" %}',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
+        { kind:'page', label:'{% trans "صندوق الدعم" %}',       sub:'{% trans "تذاكر · Help Form" %}',                url:'/superadmin/support/',               icon:'envelope-open-text' },
+        { kind:'page', label:'{% trans "الشات الحي" %}',        sub:'{% trans "9-5 ع.م" %}',                          url:'/superadmin/chat/',                  icon:'comments' },
+        { kind:'page', label:'{% trans "هدية تشخيص" %}',        sub:'{% trans "منح OBD · تجديد اشتراك" %}',           url:'/superadmin/gift-diagnostics/',      icon:'gift' },
+        { kind:'page', label:'{% trans "وصول OBD" %}',          sub:'grant / revoke per tenant',        url:'/superadmin/obd-access/',            icon:'plug' },
+        { kind:'page', label:'{% trans "مراجعة قطع الغيار" %}', sub:'pending listings',                 url:'/superadmin/parts/moderation/',      icon:'shield-halved' },
+        { kind:'page', label:'{% trans "القطع النشطة" %}',      sub:'live marketplace',                 url:'/superadmin/parts/active/',          icon:'screwdriver-wrench' },
+        { kind:'page', label:'{% trans "النزاعات" %}',          sub:'dispute tickets',                  url:'/superadmin/disputes/',              icon:'scale-balanced' },
+        { kind:'page', label:'{% trans "طلبات السوق" %}',       sub:'service requests',                 url:'/superadmin/marketplace/requests/',  icon:'list-check' },
     ];
 
     let activeIdx = 0;
@@ -2745,16 +2746,16 @@ async function submitCustomerDelete(e) {
     function render(pages, remote) {
         currentResults = [...pages, ...(remote || [])];
         if (currentResults.length === 0) {
-            wrap.innerHTML = '<div class="cmdk-empty"><i class="fas fa-circle-question" style="font-size:24px; color:#475569;"></i><p>لا توجد نتائج. جرّب كلمة تانية.</p></div>';
+            wrap.innerHTML = '<div class="cmdk-empty"><i class="fas fa-circle-question" style="font-size:24px; color:#475569;"></i><p>{% trans "لا توجد نتائج. جرّب كلمة تانية." %}</p></div>';
             return;
         }
         let html = '';
         if (pages.length) {
-            html += '<div class="cmdk-section">صفحات</div>';
+            html += '<div class="cmdk-section">{% trans "صفحات" %}</div>';
             pages.forEach((p, i) => html += renderItem(p, i));
         }
         if (remote && remote.length) {
-            html += '<div class="cmdk-section">شركات / مستخدمون</div>';
+            html += '<div class="cmdk-section">{% trans "شركات / مستخدمون" %}</div>';
             remote.forEach((r, j) => html += renderItem(r, pages.length + j));
         }
         wrap.innerHTML = html;
