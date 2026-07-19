@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 15:07+0300\n"
+"POT-Creation-Date: 2026-07-19 15:12+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1213,8 +1213,9 @@ msgid "🌀 Data Flywheel — سجلات تعلم الذكاء"
 msgstr ""
 
 #: clients/models/diagnostics.py:40
+#: clients/templates/clients/ai_chatbot_widget.html:177
 msgid "تجربة مجانية"
-msgstr ""
+msgstr "Free trial"
 
 #: clients/models/diagnostics.py:41
 msgid "Basic — 99 ج/شهر"
@@ -2464,8 +2465,9 @@ msgid "شات خارج أوقات العمل"
 msgstr ""
 
 #: clients/models/support.py:92
+#: clients/templates/clients/ai_chatbot_widget.html:131
 msgid "المساعد الذكي"
-msgstr ""
+msgstr "AI Assistant"
 
 #: clients/models/support.py:93
 msgid "بريد إلكتروني"
@@ -3432,6 +3434,152 @@ msgstr "Log in to the system of"
 #: clients/templates/clients/verify_email_result.html:45
 msgid "العودة لتسجيل الدخول"
 msgstr "Back to login"
+
+#: clients/templates/clients/ai_chatbot_widget.html:145
+msgid "مساعد Mouss Tec"
+msgstr "Mouss Tec Assistant"
+
+#: clients/templates/clients/ai_chatbot_widget.html:146
+msgid "منصة أتمتة و ERP — لكل المجالات"
+msgstr "Automation and ERP platform — for all industries"
+
+#: clients/templates/clients/ai_chatbot_widget.html:156
+msgid "الشات الذكي"
+msgstr "Smart chat"
+
+#: clients/templates/clients/ai_chatbot_widget.html:157
+msgid "محتاج مساعدة؟"
+msgstr "Need help?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:165
+msgid "أهلاً بيك! 👋 أنا مساعد <b>Mouss Tec</b> الذكي."
+msgstr "Welcome! 👋 I am the <b>Mouss Tec</b> smart assistant."
+
+#: clients/templates/clients/ai_chatbot_widget.html:166
+msgid ""
+"إحنا منصة أتمتة و ERP سحابية لكل المجالات — اسألني عن أي حاجة عن النظام أو "
+"الشركة."
+msgstr "We are a cloud automation and ERP platform for all industries — ask me anything about the system or the company."
+
+#: clients/templates/clients/ai_chatbot_widget.html:172
+msgid "إيه هي Mouss Tec وبتعملوا إيه؟"
+msgstr "What is Mouss Tec and what do you do?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:172
+msgid "مين Mouss Tec؟"
+msgstr "Who is Mouss Tec?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:173
+msgid "إيه الفرق بين الباقات والأسعار؟"
+msgstr "What is the difference between the packages and prices?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:173
+#: clients/templates/clients/landing.html:331
+msgid "الباقات والأسعار"
+msgstr "Plans and pricing"
+
+#: clients/templates/clients/ai_chatbot_widget.html:174
+msgid "النظام بيعمل إيه لشركات الطباعة؟"
+msgstr "What does the system do for printing companies?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:174
+msgid "قطاع الطباعة"
+msgstr "Printing sector"
+
+#: clients/templates/clients/ai_chatbot_widget.html:175
+msgid "النظام بيعمل إيه لورش السيارات؟"
+msgstr "What does the system do for car workshops?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:175
+msgid "قطاع السيارات"
+msgstr "Automotive sector"
+
+#: clients/templates/clients/ai_chatbot_widget.html:176
+msgid "عندكوا حل لمجال تاني غير السيارات والطباعة؟"
+msgstr "Do you have a solution for an industry other than automotive and printing?"
+
+#: clients/templates/clients/ai_chatbot_widget.html:176
+msgid "مجالات أخرى"
+msgstr "Other industries"
+
+#: clients/templates/clients/ai_chatbot_widget.html:177
+msgid "عاوز أجرب النظام مجاناً"
+msgstr "I want to try the system for free"
+
+#: clients/templates/clients/ai_chatbot_widget.html:185
+msgid "اكتب سؤالك هنا..."
+msgstr "Type your question here..."
+
+#: clients/templates/clients/ai_chatbot_widget.html:195
+msgid "فورم المساعدة"
+msgstr "Help form"
+
+#: clients/templates/clients/ai_chatbot_widget.html:196
+msgid "ابعتلنا مشكلتك أو استفسارك وفريق الدعم هيرد عليك في أقرب وقت."
+msgstr "Send us your problem or inquiry and the support team will reply to you as soon as possible."
+
+#: clients/templates/clients/ai_chatbot_widget.html:198
+msgid "اسمك"
+msgstr "Your name"
+
+#: clients/templates/clients/ai_chatbot_widget.html:199
+msgid "بريدك الإلكتروني"
+msgstr "Your email"
+
+#: clients/templates/clients/ai_chatbot_widget.html:200
+msgid "الموضوع (اختياري)"
+msgstr "Subject (optional)"
+
+#: clients/templates/clients/ai_chatbot_widget.html:201
+msgid "اكتب رسالتك أو مشكلتك بالتفصيل..."
+msgstr "Write your message or problem in detail..."
+
+#: clients/templates/clients/ai_chatbot_widget.html:203
+msgid "إرسال للدعم"
+msgstr "Send to support"
+
+#: clients/templates/clients/ai_chatbot_widget.html:206
+msgid "أو اتصل/واتساب"
+msgstr "Or call/WhatsApp"
+
+#: clients/templates/clients/ai_chatbot_widget.html:213
+msgid "صفحتنا على فيسبوك"
+msgstr "Our Facebook page"
+
+#: clients/templates/clients/ai_chatbot_widget.html:216
+msgid "الدعم"
+msgstr "Support"
+
+#: clients/templates/clients/ai_chatbot_widget.html:293
+msgid "حدث خطأ غير متوقع"
+msgstr "An unexpected error occurred"
+
+#: clients/templates/clients/ai_chatbot_widget.html:298
+msgid "تعذر الاتصال بالمساعد. تأكد من اتصالك بالإنترنت."
+msgstr "Could not connect to the assistant. Check your internet connection."
+
+#: clients/templates/clients/ai_chatbot_widget.html:324
+#: clients/templates/clients/manual_payment_upload.html:232
+#: inventory/templates/inventory/b2b_marketplace.html:230
+msgid "جاري الإرسال..."
+msgstr "Sending..."
+
+#: clients/templates/clients/ai_chatbot_widget.html:335
+msgid "تم إرسال رسالتك — هنرد عليك قريب!"
+msgstr "Your message has been sent — we will reply to you soon!"
+
+#: clients/templates/clients/ai_chatbot_widget.html:339
+#: inventory/templates/inventory/customer_feedback.html:246
+msgid "فشل الإرسال"
+msgstr "Submission failed"
+
+#: clients/templates/clients/ai_chatbot_widget.html:339
+msgid "جرّب الاتصال على 01094850763"
+msgstr "Try calling 01094850763"
+
+#: clients/templates/clients/ai_chatbot_widget.html:343
+msgid "خطأ في الاتصال — جرّب الاتصال على 01094850763"
+msgstr "Connection error — try calling 01094850763"
 
 #: clients/templates/clients/auto_landing.html:7
 msgid "Mousstec Auto | برنامج إدارة مراكز الصيانة وقطع الغيار"
@@ -4610,10 +4758,6 @@ msgstr "Direct link to customer invoices"
 msgid "ابدأ تجربتك مع AI Studio"
 msgstr "Start your trial with AI Studio"
 
-#: clients/templates/clients/landing.html:331
-msgid "الباقات والأسعار"
-msgstr "Plans and pricing"
-
 #: clients/templates/clients/landing.html:344
 msgid "سجل التصاميم"
 msgstr "Designs log"
@@ -5221,11 +5365,6 @@ msgstr "Copied!"
 #: clients/templates/clients/manual_payment_upload.html:212
 msgid "حجم الصورة لازم أقل من 5 ميجا."
 msgstr "The image size must be less than 5 MB."
-
-#: clients/templates/clients/manual_payment_upload.html:232
-#: inventory/templates/inventory/b2b_marketplace.html:230
-msgid "جاري الإرسال..."
-msgstr "Sending..."
 
 #: clients/templates/clients/manual_payment_upload.html:242
 msgid "خطأ غير متوقع"
@@ -9879,10 +10018,6 @@ msgstr "Please choose a rating first."
 #: inventory/templates/inventory/customer_feedback.html:222
 msgid "جارٍ الإرسال..."
 msgstr "Sending..."
-
-#: inventory/templates/inventory/customer_feedback.html:246
-msgid "فشل الإرسال"
-msgstr "Submission failed"
 
 #: inventory/templates/inventory/customer_feedback.html:251
 msgid "خطأ في الشبكة"
