@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ listing.title }} | سوق قطع الغيار</title>
+    <title>{{ listing.title }} | {% trans "سوق قطع الغيار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -84,7 +85,7 @@
 <body>
 
 <div class="topbar">
-    <a href="/marketplace/parts/{% if listing.car_make.slug %}?make={{ listing.car_make.slug }}{% endif %}" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
+    <a href="/marketplace/parts/{% if listing.car_make.slug %}?make={{ listing.car_make.slug }}{% endif %}" class="back"><i class="fas fa-arrow-right"></i> {% trans "رجوع للسوق" %}</a>
     <a href="/marketplace/" class="back"><i class="fas fa-home"></i></a>
 </div>
 
@@ -117,44 +118,44 @@
                 <i class="fas fa-car"></i> {{ listing.car_make.name }}{% if listing.car_model %} — {{ listing.car_model }}{% endif %}
                 {% if listing.car_year_from %} · {{ listing.car_year_from }}{% if listing.car_year_to %}–{{ listing.car_year_to }}{% endif %}{% endif %}
             </div>
-            <div class="price">{{ listing.price_egp|floatformat:0 }} ج.م</div>
+            <div class="price">{{ listing.price_egp|floatformat:0 }} {% trans "ج.م" %}</div>
 
-            <div class="spec"><span class="lbl">الحالة</span><span class="val">{{ listing.get_condition_display }}</span></div>
-            <div class="spec"><span class="lbl">فترة الضمان</span><span class="val" style="color:#6ee7b7;"><i class="fas fa-shield-halved"></i> {{ listing.warranty_days }} يوم</span></div>
+            <div class="spec"><span class="lbl">{% trans "الحالة" %}</span><span class="val">{{ listing.get_condition_display }}</span></div>
+            <div class="spec"><span class="lbl">{% trans "فترة الضمان" %}</span><span class="val" style="color:#6ee7b7;"><i class="fas fa-shield-halved"></i> {{ listing.warranty_days }} {% trans "يوم" %}</span></div>
             {% if listing.part_number %}
-            <div class="spec"><span class="lbl">رقم OEM</span><span class="val" dir="ltr">{{ listing.part_number }}</span></div>
+            <div class="spec"><span class="lbl">{% trans "رقم OEM" %}</span><span class="val" dir="ltr">{{ listing.part_number }}</span></div>
             {% endif %}
             {% if listing.city %}
-            <div class="spec"><span class="lbl">المدينة</span><span class="val">{{ listing.city }}</span></div>
+            <div class="spec"><span class="lbl">{% trans "المدينة" %}</span><span class="val">{{ listing.city }}</span></div>
             {% endif %}
-            <div class="spec"><span class="lbl">البائع</span><span class="val">{{ listing.seller_label }}{% if listing.seller_is_company %} <span style="background:rgba(59,130,246,0.2); color:#93c5fd; font-size:0.7rem; padding:2px 6px; border-radius:6px;">شركة</span>{% endif %}</span></div>
+            <div class="spec"><span class="lbl">{% trans "البائع" %}</span><span class="val">{{ listing.seller_label }}{% if listing.seller_is_company %} <span style="background:rgba(59,130,246,0.2); color:#93c5fd; font-size:0.7rem; padding:2px 6px; border-radius:6px;">{% trans "شركة" %}</span>{% endif %}</span></div>
 
             <div class="trust" style="margin-top:20px;">
-                <h4><i class="fas fa-shield-halved"></i> حمايتنا لك</h4>
+                <h4><i class="fas fa-shield-halved"></i> {% trans "حمايتنا لك" %}</h4>
                 <ul>
-                    <li>الفلوس في الـ <strong>Escrow</strong> — مش هتروح للبائع إلا بعد ما تستلم وتتأكد.</li>
-                    <li>ضمان {{ listing.warranty_days }} يوم بعد التسليم — لو فيها مشكلة ترجعها.</li>
-                    <li>الشحن في الإرجاع <strong>على المنصة</strong>.</li>
-                    <li>صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور.</li>
+                    <li>{% trans "الفلوس في الـ" %} <strong>Escrow</strong> {% trans "— مش هتروح للبائع إلا بعد ما تستلم وتتأكد." %}</li>
+                    <li>{% blocktrans with d=listing.warranty_days %}ضمان {{ d }} يوم بعد التسليم — لو فيها مشكلة ترجعها.{% endblocktrans %}</li>
+                    <li>{% trans "الشحن في الإرجاع" %} <strong>{% trans "على المنصة" %}</strong>.</li>
+                    <li>{% trans "صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور." %}</li>
                 </ul>
             </div>
 
             {% if is_owner %}
-            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض</button>
+            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> {% trans "أنت صاحب هذا العرض" %}</button>
             {% elif listing.status != 'active' %}
-            <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة لم تعد متاحة</button>
+            <button class="buy-btn" disabled><i class="fas fa-lock"></i> {% trans "القطعة لم تعد متاحة" %}</button>
             {% elif customer %}
-            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} ج.م</button>
+            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> {% trans "اشترِ الآن" %} — {{ listing.price_egp|floatformat:0 }} {% trans "ج.م" %}</button>
             {% else %}
             <a href="/marketplace/login/?next=/marketplace/parts/{{ listing.listing_code }}/" class="buy-btn" style="display:block; text-align:center; text-decoration:none;">
-                <i class="fas fa-sign-in-alt"></i> سجل دخول للشراء
+                <i class="fas fa-sign-in-alt"></i> {% trans "سجل دخول للشراء" %}
             </a>
             {% endif %}
         </div>
     </div>
 
     <div class="desc-section">
-        <h3><i class="fas fa-file-lines"></i> الوصف الكامل</h3>
+        <h3><i class="fas fa-file-lines"></i> {% trans "الوصف الكامل" %}</h3>
         <div class="desc-text">{{ listing.description }}</div>
     </div>
 </div>
@@ -162,33 +163,33 @@
 <!-- Buy Modal -->
 <div id="buyModal" class="modal-bg">
     <div class="modal">
-        <h3><i class="fas fa-shopping-cart" style="color:var(--accent);"></i> إتمام الشراء</h3>
+        <h3><i class="fas fa-shopping-cart" style="color:var(--accent);"></i> {% trans "إتمام الشراء" %}</h3>
         <form id="buyForm" onsubmit="event.preventDefault(); return false;">
             {% csrf_token %}
-            <label>الاسم الكامل للاستلام</label>
+            <label>{% trans "الاسم الكامل للاستلام" %}</label>
             <input type="text" name="shipping_name" value="{{ customer.full_name }}" required>
-            <label>رقم الموبايل</label>
+            <label>{% trans "رقم الموبايل" %}</label>
             <input type="tel" name="shipping_phone" value="{{ customer.phone }}" required dir="ltr">
-            <label>المدينة</label>
-            <input type="text" name="shipping_city" value="{{ customer.city }}" placeholder="القاهرة، الإسكندرية..." required>
-            <label>العنوان بالتفصيل</label>
-            <textarea name="shipping_address" rows="2" placeholder="الشارع، المنطقة، علامة مميزة..." required minlength="10"></textarea>
+            <label>{% trans "المدينة" %}</label>
+            <input type="text" name="shipping_city" value="{{ customer.city }}" placeholder="{% trans "القاهرة، الإسكندرية..." %}" required>
+            <label>{% trans "العنوان بالتفصيل" %}</label>
+            <textarea name="shipping_address" rows="2" placeholder="{% trans "الشارع، المنطقة، علامة مميزة..." %}" required minlength="10"></textarea>
 
             <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:12px; padding:12px; margin: 8px 0 16px;">
-                <div class="summary-row"><span>سعر القطعة</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
-                <div class="summary-row"><span>الشحن</span><span style="color:#6ee7b7;">حسب البائع</span></div>
-                <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
+                <div class="summary-row"><span>{% trans "سعر القطعة" %}</span><span>{{ listing.price_egp|floatformat:0 }} {% trans "ج.م" %}</span></div>
+                <div class="summary-row"><span>{% trans "الشحن" %}</span><span style="color:#6ee7b7;">{% trans "حسب البائع" %}</span></div>
+                <div class="summary-row total"><span>{% trans "الإجمالي للدفع" %}</span><span>{{ listing.price_egp|floatformat:0 }} {% trans "ج.م" %}</span></div>
             </div>
 
             <button type="button" id="vodafonePayBtn" onclick="payPartsVodafone()"
                     style="width:100%; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; padding:12px; border-radius:11px; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(239,68,68,0.25);">
-                <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش (01094850763)
+                <i class="fas fa-mobile-screen-button"></i> {% trans "ادفع بفودافون كاش (01094850763)" %}
             </button>
             <button type="button" disabled id="payBtn"
                     style="width:100%; background:rgba(71,85,105,0.4); color:#94a3b8; border:1px dashed rgba(148,163,184,0.3); padding:12px; border-radius:11px; margin-top:8px; font-weight:700; cursor:not-allowed;">
-                <i class="fas fa-clock"></i> ادفع بالفيزا — قريباً
+                <i class="fas fa-clock"></i> {% trans "ادفع بالفيزا — قريباً" %}
             </button>
-            <button type="button" onclick="closeBuyModal()" style="width:100%; background:transparent; border:1px solid var(--line); color:var(--muted); padding:10px; border-radius:11px; margin-top:8px; font-weight:700; cursor:pointer;">إلغاء</button>
+            <button type="button" onclick="closeBuyModal()" style="width:100%; background:transparent; border:1px solid var(--line); color:var(--muted); padding:10px; border-radius:11px; margin-top:8px; font-weight:700; cursor:pointer;">{% trans "إلغاء" %}</button>
         </form>
     </div>
 </div>
@@ -212,19 +213,19 @@ const form = document.getElementById('buyForm');
 if (form) form.addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('payBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري إنشاء الطلب..." %}';
     const fd = new FormData(this);
     try {
         const r = await fetch('/marketplace/parts/{{ listing.listing_code }}/checkout/', {
             method: 'POST', body: fd, credentials: 'same-origin',
         });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'فشل');
-        toast('جارٍ التحويل لبوابة الدفع...', 'success');
+        if (!r.ok) throw new Error(d.error || '{% trans "فشل" %}');
+        toast('{% trans "جارٍ التحويل لبوابة الدفع..." %}', 'success');
         setTimeout(() => { window.location.href = d.iframe_url; }, 800);
     } catch (err) {
         toast(err.message, 'error');
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> ادفع بالفيزا (Paymob)';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> {% trans "ادفع بالفيزا (Paymob)" %}';
     }
 });
 
@@ -233,20 +234,20 @@ async function payPartsVodafone() {
     if (!form.reportValidity()) return;
     const vBtn = document.getElementById('vodafonePayBtn');
     vBtn.disabled = true;
-    vBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
+    vBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري إنشاء الطلب..." %}';
     const fd = new FormData(form);
     try {
         const r = await fetch('/payment/manual/parts/{{ listing.listing_code }}/start/', {
             method: 'POST', body: fd, credentials: 'same-origin',
         });
         const d = await r.json();
-        if (!r.ok || !d.ok) throw new Error(d.error || 'فشل');
-        toast('جارٍ توجيهك لصفحة رفع الإيصال...', 'success');
+        if (!r.ok || !d.ok) throw new Error(d.error || '{% trans "فشل" %}');
+        toast('{% trans "جارٍ توجيهك لصفحة رفع الإيصال..." %}', 'success');
         setTimeout(() => { window.location.href = d.redirect; }, 600);
     } catch (err) {
         toast(err.message, 'error');
         vBtn.disabled = false;
-        vBtn.innerHTML = '<i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش (01094850763)';
+        vBtn.innerHTML = '<i class="fas fa-mobile-screen-button"></i> {% trans "ادفع بفودافون كاش (01094850763)" %}';
     }
 }
 </script>
