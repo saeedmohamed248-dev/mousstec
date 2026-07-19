@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 22:06+0300\n"
+"POT-Creation-Date: 2026-07-19 22:14+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,7 +46,7 @@ msgid "اشتراك SaaS"
 msgstr ""
 
 msgid "قطع غيار"
-msgstr ""
+msgstr "Spare parts"
 
 msgid "باقة تصاميم"
 msgstr ""
@@ -1356,7 +1356,7 @@ msgid "⚖️ تذاكر النزاعات"
 msgstr ""
 
 msgid "فرد"
-msgstr ""
+msgstr "Individual"
 
 msgid "شركة / مؤسسة"
 msgstr ""
@@ -1389,7 +1389,7 @@ msgid "القطاع"
 msgstr "Sector"
 
 msgid "المدينة / المحافظة"
-msgstr ""
+msgstr "City / Governorate"
 
 msgid "كلمة المرور (مُشفّرة)"
 msgstr ""
@@ -3910,6 +3910,192 @@ msgstr "Activation will happen within minutes."
 msgid "فشل الإرسال — حاول تاني."
 msgstr "Submission failed — try again."
 
+msgid "سوق السيارات | اطلب صيانة أو قطع غيار واستلم عروض من أفضل المراكز"
+msgstr "Automotive marketplace | Request maintenance or spare parts and receive offers from the best centers"
+
+msgid "سوق السيارات | Mouss Tec"
+msgstr "Automotive marketplace | Mouss Tec"
+
+msgid "تغيير القطاع"
+msgstr "Change sector"
+
+msgid "عودة للوحتي"
+msgstr "Back to my dashboard"
+
+msgid "سيارات • صيانة • قطع غيار"
+msgstr "Cars • Maintenance • Spare parts"
+
+msgid "اطلب اللي محتاجه لعربيتك واستلم عروض من أفضل المراكز"
+msgstr "Request what you need for your car and receive offers from the best centers"
+
+msgid ""
+"قطع غيار، صيانة، فحص، أو تشخيص — التجار يتنافسوا عليك، اختار الأقرب والأرخص "
+"بضمان وتقييم"
+msgstr "Spare parts, maintenance, inspection, or diagnostics — merchants compete for you, choose the nearest and cheapest with warranty and rating"
+
+msgid "زيوت وفلاتر"
+msgstr "Oils and filters"
+
+msgid "صيانة دورية"
+msgstr "Routine maintenance"
+
+msgid "بطاريات"
+msgstr "Batteries"
+
+msgid "كهرباء"
+msgstr "Electrical"
+
+msgid "تشخيص OBD"
+msgstr "OBD diagnostics"
+
+msgid "دهان وسمكرة"
+msgstr "Painting and bodywork"
+
+msgid "تكييف"
+msgstr "Air conditioning"
+
+msgid "طلب أسبوعياً"
+msgstr "Requests per week"
+
+msgid "متوسط التوفير"
+msgstr "Average savings"
+
+msgid "تقييم متوسط"
+msgstr "Average rating"
+
+msgid "حساب جديد"
+msgstr "New account"
+
+msgid "أنت:"
+msgstr "You are:"
+
+msgid "صاحب سيارة"
+msgstr "Car owner"
+
+msgid "أسطول / شركة"
+msgstr "Fleet / Company"
+
+msgid "الاسم الكامل *"
+msgstr "Full name *"
+
+msgid "محمد أحمد"
+msgstr "Mohamed Ahmed"
+
+msgid "اسم الشركة / المؤسسة *"
+msgstr "Company / organization name *"
+
+msgid "شركة النقل الذكي"
+msgstr "Smart Transport Company"
+
+msgid "رقم الموبايل *"
+msgstr "Mobile number *"
+
+msgid "الوظيفة (اختياري)"
+msgstr "Job title (optional)"
+
+msgid "مدير أسطول، صاحب سيارة، ..."
+msgstr "Fleet manager, car owner, ..."
+
+msgid "القاهرة، الإسكندرية، ..."
+msgstr "Cairo, Alexandria, ..."
+
+msgid "البريد الإلكتروني (اختياري)"
+msgstr "Email (optional)"
+
+msgid "كلمة المرور * (٨ حروف على الأقل)"
+msgstr "Password * (at least 8 characters)"
+
+msgid "سجّل وادخل"
+msgstr "Sign up and enter"
+
+msgid "كلمة المرور"
+msgstr "Password"
+
+msgid "جديد ✨"
+msgstr "New ✨"
+
+msgid "شخّص عطل عربيتك بنفسك — مجاناً لمدة ٧ أيام"
+msgstr "Diagnose your car fault yourself — free for 7 days"
+
+msgid ""
+"ربط بلوتوث مع جهاز OBD2، تشخيص بالذكاء الاصطناعي، تاريخ صحي للسيارة، وخطط "
+"فحص خطوة-بخطوة. اشترك بعد التجربة من ٩٩ ج/شهر."
+msgstr "Bluetooth connection with an OBD2 device, AI diagnostics, a health history for the car, and step-by-step inspection plans. Subscribe after the trial from 99 EGP/month."
+
+msgid "اعرف أكتر"
+msgstr "Learn more"
+
+msgid "&copy; 2026 Mouss Tec Platform — سوق السيارات"
+msgstr "&copy; 2026 Mouss Tec Platform — Automotive marketplace"
+
+msgid "جاري التسجيل..."
+msgstr "Registering..."
+
+msgid "تم التسجيل"
+msgstr "Registered"
+
+msgid "تم الدخول"
+msgstr "Logged in"
+
+msgid "سوق Mouss Tec | اختر القطاع"
+msgstr "Mouss Tec Marketplace | Choose sector"
+
+msgid "أهلاً بك في سوق Mouss Tec"
+msgstr "Welcome to the Mouss Tec Marketplace"
+
+msgid ""
+"السوق المفتوح بين العملاء والتجار — اختر القطاع المناسب لطلبك وابدأ تستلم "
+"عروض من أفضل التجار في غضون دقائق"
+msgstr "The open marketplace between customers and merchants — choose the right sector for your request and start receiving offers from the best merchants within minutes"
+
+msgid "سوق السيارات"
+msgstr "Automotive marketplace"
+
+msgid "صيانة، قطع غيار، تشخيص، فحص"
+msgstr "Maintenance, spare parts, diagnostics, inspection"
+
+msgid "قطع غيار أصلي وبديل"
+msgstr "Genuine and aftermarket spare parts"
+
+msgid "صيانة دورية ومتخصصة"
+msgstr "Routine and specialized maintenance"
+
+msgid "فحص شامل بالكمبيوتر"
+msgstr "Full computer inspection"
+
+msgid "تشخيص الأعطال OBD2"
+msgstr "OBD2 fault diagnostics"
+
+msgid "مقارنة أسعار من أفضل المراكز"
+msgstr "Price comparison from the best centers"
+
+msgid "ادخل سوق السيارات"
+msgstr "Enter the automotive marketplace"
+
+msgid "سوق الطباعة والتصميم"
+msgstr "Printing and design marketplace"
+
+msgid "تصميم جرافيك، طباعة، هوية بصرية"
+msgstr "Graphic design, printing, visual identity"
+
+msgid "تصميم لوجو وهوية بصرية"
+msgstr "Logo and visual identity design"
+
+msgid "طباعة فلاير، بوستر، كروت"
+msgstr "Flyer, poster, card printing"
+
+msgid "تصميم سوشيال ميديا"
+msgstr "Social media design"
+
+msgid "طباعة T-Shirt و Mug"
+msgstr "T-Shirt and Mug printing"
+
+msgid "عينات تصميم قبل الاختيار"
+msgstr "Design samples before choosing"
+
+msgid "ادخل سوق الطباعة"
+msgstr "Enter the printing marketplace"
+
 msgid "سوق قطع الغيار"
 msgstr "Spare-parts marketplace"
 
@@ -3939,7 +4125,8 @@ msgstr "— it will not go to the seller until you receive and confirm."
 
 #, python-format
 msgid "ضمان %(d)s يوم بعد التسليم — لو فيها مشكلة ترجعها."
-msgstr "Warranty of %(d)s days after delivery — if there is a problem, return it."
+msgstr ""
+"Warranty of %(d)s days after delivery — if there is a problem, return it."
 
 msgid "الشحن في الإرجاع"
 msgstr "Return shipping is"
@@ -3948,7 +4135,9 @@ msgid "على المنصة"
 msgstr "on the platform"
 
 msgid "صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور."
-msgstr "The part photos from the seller are verified — any difference is visible in the photos."
+msgstr ""
+"The part photos from the seller are verified — any difference is visible in "
+"the photos."
 
 msgid "أنت صاحب هذا العرض"
 msgstr "You are the owner of this listing"
@@ -4009,6 +4198,110 @@ msgstr "Pay with Visa (Paymob)"
 
 msgid "جارٍ توجيهك لصفحة رفع الإيصال..."
 msgstr "Redirecting you to the receipt upload page..."
+
+msgid "سوق قطع الغيار غير متاح"
+msgstr "Spare-parts marketplace unavailable"
+
+msgid "⛔ غير متاح"
+msgstr "⛔ Unavailable"
+
+msgid "العودة للسوق"
+msgstr "Back to marketplace"
+
+msgid "سوق الطباعة والتصميم | اطلب تصميمك واستلم عروض من أفضل المطابع"
+msgstr "Printing and design marketplace | Request your design and receive offers from the best print shops"
+
+msgid "سوق الطباعة والتصميم | Mouss Tec"
+msgstr "Printing and design marketplace | Mouss Tec"
+
+msgid "تصميم • طباعة • هوية بصرية"
+msgstr "Design • Printing • Visual identity"
+
+msgid "صمم وأطبع اللي تتخيله — مطابع ومصممين متنافسين عشانك"
+msgstr "Design and print whatever you imagine — print shops and designers competing for you"
+
+msgid ""
+"لوجو، فلاير، بوستر، كروت، طباعة T-shirt — اطلب اللي محتاجه، شوف العينات قبل "
+"ما تختار، وخد أفضل سعر بأعلى جودة"
+msgstr "Logo, flyer, poster, cards, T-shirt printing — request what you need, see the samples before you choose, and get the best price at the highest quality"
+
+msgid "&nbsp; كروت بزنس"
+msgstr "&nbsp; Business cards"
+
+msgid "&nbsp; بوسترات"
+msgstr "&nbsp; Posters"
+
+msgid "&nbsp; ماجات"
+msgstr "&nbsp; Mugs"
+
+msgid "&nbsp; استيكرز"
+msgstr "&nbsp; Stickers"
+
+msgid "&nbsp; كتالوجات"
+msgstr "&nbsp; Catalogs"
+
+msgid "تصميم لوجو"
+msgstr "Logo design"
+
+msgid "كروت بزنس"
+msgstr "Business cards"
+
+msgid "فلاير وبوستر"
+msgstr "Flyer and poster"
+
+msgid "سوشيال ميديا"
+msgstr "Social media"
+
+msgid "T-Shirt و Mug"
+msgstr "T-Shirt and Mug"
+
+msgid "استيكرز"
+msgstr "Stickers"
+
+msgid "كتالوج ومطبوعات"
+msgstr "Catalog and printed materials"
+
+msgid "تغليف وعبوات"
+msgstr "Packaging"
+
+msgid "تصميم أسبوعياً"
+msgstr "Designs per week"
+
+msgid "مطبعة ومصمم"
+msgstr "Print shops and designers"
+
+msgid "متوسط التسليم"
+msgstr "Average delivery"
+
+msgid "شركة / علامة تجارية"
+msgstr "Company / Brand"
+
+msgid "اسم الشركة / البراند *"
+msgstr "Company / brand name *"
+
+msgid "مدير تسويق، صاحب براند، ..."
+msgstr "Marketing manager, brand owner, ..."
+
+msgid "سجّل وابدأ التصميم"
+msgstr "Sign up and start designing"
+
+msgid "أدخل كود التحقق"
+msgstr "Enter the verification code"
+
+msgid "تم الإرسال للرقم"
+msgstr "Sent to the number"
+
+msgid "تحقق وادخل"
+msgstr "Verify and enter"
+
+msgid "&copy; 2026 Mouss Tec Platform — سوق الطباعة والتصميم"
+msgstr "&copy; 2026 Mouss Tec Platform — Printing and design marketplace"
+
+msgid "إرسال كود الدخول"
+msgstr "Send login code"
+
+msgid "جاري التحقق..."
+msgstr "Verifying..."
 
 msgid "تحقق ثنائي"
 msgstr "Two-factor verification"
