@@ -1,3 +1,5 @@
+{% load i18n %}
+{% trans "تصميم" as t_design %}
 <div class="space-y-5">
     <!-- ▣ Header card -->
     <div class="bg-gradient-to-br from-blue-500/10 to-violet-500/10 border border-blue-500/30 rounded-2xl p-4">
@@ -10,8 +12,8 @@
                     <span class="bg-slate-800 px-2 py-1 rounded" dir="ltr">📱 {{ customer.phone }}</span>
                     {% if customer.email %}<span class="bg-slate-800 px-2 py-1 rounded" dir="ltr">✉️ {{ customer.email }}</span>{% endif %}
                     {% if customer.city %}<span class="bg-slate-800 px-2 py-1 rounded">📍 {{ customer.city }}</span>{% endif %}
-                    <span class="bg-slate-800 px-2 py-1 rounded">سجل في {{ customer.created_at|date:"Y-m-d" }}</span>
-                    {% if customer.last_login_at %}<span class="bg-slate-800 px-2 py-1 rounded">آخر دخول: {{ customer.last_login_at|timesince }} مضت</span>{% endif %}
+                    <span class="bg-slate-800 px-2 py-1 rounded">{% trans "سجل في" %} {{ customer.created_at|date:"Y-m-d" }}</span>
+                    {% if customer.last_login_at %}<span class="bg-slate-800 px-2 py-1 rounded">{% trans "آخر دخول" %}: {{ customer.last_login_at|timesince }} {% trans "مضت" %}</span>{% endif %}
                 </div>
             </div>
         </div>
@@ -21,32 +23,32 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-violet-400">{{ total_designs }}</p>
-            <p class="text-[10px] text-slate-500 font-bold">🎨 تصاميم</p>
+            <p class="text-[10px] text-slate-500 font-bold">🎨 {% trans "تصاميم" %}</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-amber-400">{{ total_purchases }}</p>
-            <p class="text-[10px] text-slate-500 font-bold">🛒 مشتريات</p>
+            <p class="text-[10px] text-slate-500 font-bold">🛒 {% trans "مشتريات" %}</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-emerald-400">{{ total_spent|floatformat:0 }}</p>
-            <p class="text-[10px] text-slate-500 font-bold">💰 صرف ج.م</p>
+            <p class="text-[10px] text-slate-500 font-bold">💰 {% trans "صرف ج.م" %}</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-cyan-400">{{ requests_list|length }}</p>
-            <p class="text-[10px] text-slate-500 font-bold">📋 طلبات</p>
+            <p class="text-[10px] text-slate-500 font-bold">📋 {% trans "طلبات" %}</p>
         </div>
     </div>
 
     <!-- ▣ Free trial / designs balance -->
     <div class="bg-slate-800/40 rounded-xl p-3 text-xs flex flex-wrap gap-3 items-center">
-        <span class="text-slate-400 font-bold">رصيد التصاميم:</span>
-        <span class="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded">مجاني: {{ customer.free_designs_remaining }} / {{ customer.free_designs_total }}</span>
+        <span class="text-slate-400 font-bold">{% trans "رصيد التصاميم" %}:</span>
+        <span class="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded">{% trans "مجاني" %}: {{ customer.free_designs_remaining }} / {{ customer.free_designs_total }}</span>
     </div>
 
     <!-- ▣ Designs -->
     {% if designs %}
     <div>
-        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-images text-violet-400 ml-1"></i>التصاميم ({{ designs|length }})</h5>
+        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-images text-violet-400 ml-1"></i>{% trans "التصاميم" %} ({{ designs|length }})</h5>
         <div class="space-y-2 max-h-64 overflow-y-auto">
             {% for d in designs %}
             <div class="bg-slate-800/40 rounded-lg p-2 flex items-center gap-3">
@@ -56,7 +58,7 @@
                 <div class="w-12 h-12 rounded bg-slate-700 flex items-center justify-center text-2xl">🎨</div>
                 {% endif %}
                 <div class="flex-1 text-xs">
-                    <p class="text-white font-bold">{{ d.get_category_display|default:"تصميم" }}</p>
+                    <p class="text-white font-bold">{{ d.get_category_display|default:t_design }}</p>
                     <p class="text-slate-500">{{ d.created_at|date:"Y-m-d H:i" }}</p>
                     {% if d.prompt %}<p class="text-slate-400 text-[10px] mt-1">{{ d.prompt|truncatechars:80 }}</p>{% endif %}
                 </div>
@@ -69,7 +71,7 @@
     <!-- ▣ Purchases -->
     {% if purchases %}
     <div>
-        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-shopping-cart text-amber-400 ml-1"></i>المشتريات ({{ purchases|length }})</h5>
+        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-shopping-cart text-amber-400 ml-1"></i>{% trans "المشتريات" %} ({{ purchases|length }})</h5>
         <div class="space-y-2 max-h-64 overflow-y-auto">
             {% for p in purchases %}
             <div class="bg-slate-800/40 rounded-lg p-2">
@@ -84,11 +86,11 @@
                     </span>
                 </div>
                 <div class="flex justify-between text-[10px] text-slate-500">
-                    <span>{{ p.price_paid }} ج.م · {{ p.payment_method }}</span>
+                    <span>{{ p.price_paid }} {% trans "ج.م" %} · {{ p.payment_method }}</span>
                     <span>{{ p.created_at|date:"Y-m-d H:i" }}</span>
                 </div>
                 <div class="text-[10px] text-slate-400 mt-1">
-                    تصاميم: {{ p.designs_used }}/{{ p.designs_total }}
+                    {% trans "تصاميم" %}: {{ p.designs_used }}/{{ p.designs_total }}
                     {% if p.payment_reference %} · ref: {{ p.payment_reference|truncatechars:30 }}{% endif %}
                 </div>
             </div>
@@ -100,7 +102,7 @@
     <!-- ▣ Service requests -->
     {% if requests_list %}
     <div>
-        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-bullhorn text-green-400 ml-1"></i>طلبات السوق ({{ requests_list|length }})</h5>
+        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-bullhorn text-green-400 ml-1"></i>{% trans "طلبات السوق" %} ({{ requests_list|length }})</h5>
         <div class="space-y-2 max-h-64 overflow-y-auto">
             {% for r in requests_list %}
             <div class="bg-slate-800/40 rounded-lg p-2 text-xs">
@@ -109,7 +111,7 @@
                     <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-700 text-slate-300">{{ r.get_status_display }}</span>
                 </div>
                 <p class="text-slate-400 text-[10px]">{{ r.description|truncatechars:140 }}</p>
-                <p class="text-slate-500 text-[10px] mt-1">{{ r.created_at|date:"Y-m-d H:i" }} · {{ r.get_urgency_display }} · {{ r.offers_count }} عرض</p>
+                <p class="text-slate-500 text-[10px] mt-1">{{ r.created_at|date:"Y-m-d H:i" }} · {{ r.get_urgency_display }} · {{ r.offers_count }} {% trans "عرض" %}</p>
             </div>
             {% endfor %}
         </div>
@@ -117,6 +119,6 @@
     {% endif %}
 
     {% if not designs and not purchases and not requests_list %}
-    <p class="text-center text-slate-500 py-6">لم يقم العميل بأي نشاط بعد.</p>
+    <p class="text-center text-slate-500 py-6">{% trans "لم يقم العميل بأي نشاط بعد." %}</p>
     {% endif %}
 </div>

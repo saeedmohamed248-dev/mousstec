@@ -1,10 +1,10 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎁 هدية اشتراك تشخيص — Mouss Tec</title>
+<title>🎁 {% trans "هدية اشتراك تشخيص" %} — Mouss Tec</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
@@ -24,9 +24,9 @@
 
   <!-- Header -->
   <div class="flex items-center gap-3 mb-5">
-    <a href="/superadmin/" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>الرجوع للوحة</a>
+    <a href="/superadmin/" class="text-slate-400 hover:text-white text-sm"><i class="fas fa-arrow-right ml-1"></i>{% trans "الرجوع للوحة" %}</a>
     <span class="text-slate-600">|</span>
-    <h1 class="text-xl font-black text-amber-300"><i class="fas fa-gift ml-2"></i>هدية / تجديد اشتراك تشخيص الأعطال</h1>
+    <h1 class="text-xl font-black text-amber-300"><i class="fas fa-gift ml-2"></i>{% trans "هدية / تجديد اشتراك تشخيص الأعطال" %}</h1>
   </div>
 
   <!-- Success / Error Banners -->
@@ -40,9 +40,9 @@
     <div class="bg-slate-900/60 border border-slate-700 rounded-2xl overflow-hidden">
       <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-800">
         <i class="fas fa-building text-indigo-400"></i>
-        <span class="font-bold text-white">الشركات المسجلة</span>
-        <span class="text-xs text-slate-500 mr-auto">{{ companies|length }} شركة</span>
-        <input id="company-search" type="text" placeholder="ابحث باسم الشركة…"
+        <span class="font-bold text-white">{% trans "الشركات المسجلة" %}</span>
+        <span class="text-xs text-slate-500 mr-auto">{{ companies|length }} {% trans "شركة" %}</span>
+        <input id="company-search" type="text" placeholder="{% trans "ابحث باسم الشركة…" %}"
           oninput="filterCompanies(this.value)"
           class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-44">
       </div>
@@ -51,13 +51,13 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="text-slate-500 text-xs border-b border-slate-800">
-              <th class="px-4 py-2 text-right font-semibold">الشركة</th>
-              <th class="px-3 py-2 text-center font-semibold">القطاع</th>
-              <th class="px-3 py-2 text-center font-semibold">الباقة</th>
+              <th class="px-4 py-2 text-right font-semibold">{% trans "الشركة" %}</th>
+              <th class="px-3 py-2 text-center font-semibold">{% trans "القطاع" %}</th>
+              <th class="px-3 py-2 text-center font-semibold">{% trans "الباقة" %}</th>
               <th class="px-3 py-2 text-center font-semibold">OBD</th>
-              <th class="px-3 py-2 text-center font-semibold">🎁 هدية OBD</th>
-              <th class="px-3 py-2 text-center font-semibold">⚡ شحن فحوصات</th>
-              <th class="px-3 py-2 text-center font-semibold">دخول</th>
+              <th class="px-3 py-2 text-center font-semibold">🎁 {% trans "هدية OBD" %}</th>
+              <th class="px-3 py-2 text-center font-semibold">⚡ {% trans "شحن فحوصات" %}</th>
+              <th class="px-3 py-2 text-center font-semibold">{% trans "دخول" %}</th>
             </tr>
           </thead>
           <tbody id="companies-tbody">
@@ -69,9 +69,9 @@
               </td>
               <td class="px-3 py-3 text-center">
                 {% if c.industry == 'automotive' %}
-                  <span class="text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded">🚗 سيارات</span>
+                  <span class="text-xs bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded">🚗 {% trans "سيارات" %}</span>
                 {% elif c.industry == 'printing' %}
-                  <span class="text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded">🖨️ طباعة</span>
+                  <span class="text-xs bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded">🖨️ {% trans "طباعة" %}</span>
                 {% else %}
                   <span class="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">{{ c.industry }}</span>
                 {% endif %}
@@ -90,35 +90,35 @@
                     <i class="fas fa-circle-check"></i>
                     {% if c.obd_access_expiry %}
                       <span class="text-slate-400">{{ c.obd_access_expiry|date:"d/m/y" }}</span>
-                    {% else %}دائم{% endif %}
+                    {% else %}{% trans "دائم" %}{% endif %}
                   </span>
                 {% else %}
-                  <span class="text-xs text-slate-600"><i class="fas fa-circle-xmark"></i> لا</span>
+                  <span class="text-xs text-slate-600"><i class="fas fa-circle-xmark"></i> {% trans "لا" %}</span>
                 {% endif %}
               </td>
               <td class="px-3 py-3 text-center">
                 <button onclick="openGiftModal({{ c.id }}, '{{ c.name|escapejs }}')"
                   class="text-xs px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 rounded-lg transition font-bold">
-                  <i class="fas fa-gift ml-1"></i>منح
+                  <i class="fas fa-gift ml-1"></i>{% trans "منح" %}
                 </button>
               </td>
               <td class="px-3 py-3 text-center">
                 <button onclick="openTopupModal({{ c.id }}, '{{ c.name|escapejs }}')"
                   class="text-xs px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-500/30 rounded-lg transition font-bold">
-                  <i class="fas fa-bolt ml-1"></i>شحن
+                  <i class="fas fa-bolt ml-1"></i>{% trans "شحن" %}
                 </button>
               </td>
               <td class="px-3 py-3 text-center">
                 <a href="/superadmin/enter/{{ c.schema_name }}/"
                    target="_blank" rel="noopener"
                    class="text-xs px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600/60 text-indigo-300 rounded transition"
-                   title="دخول النظام في تاب جديد">
+                   title="{% trans "دخول النظام في تاب جديد" %}">
                   <i class="fas fa-arrow-up-right-from-square"></i>
                 </a>
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">لا توجد شركات</td></tr>
+            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">{% trans "لا توجد شركات" %}</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -130,7 +130,7 @@
       <!-- Step 1: Phone Search -->
       <div class="step active" id="step-1">
         <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
-          <h2 class="text-base font-bold text-white mb-4"><span class="text-amber-400 ml-2">①</span>ابحث بالهاتف</h2>
+          <h2 class="text-base font-bold text-white mb-4"><span class="text-amber-400 ml-2">①</span>{% trans "ابحث بالهاتف" %}</h2>
           <div class="flex gap-2">
             <input id="phone-input" type="tel" placeholder="01xxxxxxxxx"
               class="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-sm"
@@ -148,11 +148,11 @@
               </div>
             </div>
             <button onclick="goStep(2)" class="w-full mt-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition">
-              اختر الباقة <i class="fas fa-arrow-left mr-1"></i>
+              {% trans "اختر الباقة" %} <i class="fas fa-arrow-left mr-1"></i>
             </button>
           </div>
           <div id="lookup-notfound" class="mt-3 hidden p-3 rounded-xl bg-red-900/30 border border-red-500/30 text-red-300 text-xs text-center">
-            <i class="fas fa-circle-xmark ml-1"></i>لم يتم العثور على عميل بهذا الرقم
+            <i class="fas fa-circle-xmark ml-1"></i>{% trans "لم يتم العثور على عميل بهذا الرقم" %}
           </div>
         </div>
       </div>
@@ -161,8 +161,8 @@
       <div class="step" id="step-2">
         <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">②</span>اختر الباقة</h2>
-            <button onclick="goStep(1)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">②</span>{% trans "اختر الباقة" %}</h2>
+            <button onclick="goStep(1)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>{% trans "رجوع" %}</button>
           </div>
           <div class="grid grid-cols-3 gap-2">
             {% for t in tiers %}
@@ -172,9 +172,9 @@
               <div class="text-xl mb-1.5" style="color:{{ t.color }}"><i class="fas {{ t.icon }}"></i></div>
               <div class="font-black text-white text-sm">{{ t.label }}</div>
               <div class="text-xs text-slate-400 mt-0.5">
-                {% if t.scans %}{{ t.scans }} فحص{% else %}غير محدود{% endif %}
+                {% if t.scans %}{{ t.scans }} {% trans "فحص" %}{% else %}{% trans "غير محدود" %}{% endif %}
               </div>
-              <div class="text-sm font-bold mt-1.5" style="color:{{ t.color }}">{{ t.price }} ج</div>
+              <div class="text-sm font-bold mt-1.5" style="color:{{ t.color }}">{{ t.price }} {% trans "ج" %}</div>
             </div>
             {% endfor %}
           </div>
@@ -185,8 +185,8 @@
       <div class="step" id="step-3">
         <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">③</span>المدة</h2>
-            <button onclick="goStep(2)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">③</span>{% trans "المدة" %}</h2>
+            <button onclick="goStep(2)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>{% trans "رجوع" %}</button>
           </div>
           <div class="grid grid-cols-2 gap-2">
             {% for d in durations %}
@@ -200,11 +200,11 @@
             {% endfor %}
           </div>
           <div id="price-preview" class="hidden mt-3 p-3 rounded-xl bg-indigo-900/20 border border-indigo-500/30 text-center">
-            <div class="text-xs text-slate-400 mb-0.5">الإجمالي</div>
+            <div class="text-xs text-slate-400 mb-0.5">{% trans "الإجمالي" %}</div>
             <div id="price-value" class="text-2xl font-black text-indigo-300"></div>
           </div>
           <button onclick="goStep(4)" id="to-step4" class="hidden w-full mt-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition text-sm">
-            التالي <i class="fas fa-arrow-left mr-1"></i>
+            {% trans "التالي" %} <i class="fas fa-arrow-left mr-1"></i>
           </button>
         </div>
       </div>
@@ -213,23 +213,23 @@
       <div class="step" id="step-4">
         <div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-5">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">④</span>تأكيد</h2>
-            <button onclick="goStep(3)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>رجوع</button>
+            <h2 class="text-base font-bold text-white"><span class="text-amber-400 ml-2">④</span>{% trans "تأكيد" %}</h2>
+            <button onclick="goStep(3)" class="text-slate-400 hover:text-white text-xs"><i class="fas fa-arrow-right ml-1"></i>{% trans "رجوع" %}</button>
           </div>
           <div class="bg-slate-800 rounded-xl p-3 mb-3 text-sm space-y-2">
-            <div class="flex justify-between"><span class="text-slate-400">العميل</span><span id="sum-name" class="text-white font-bold"></span></div>
-            <div class="flex justify-between"><span class="text-slate-400">الباقة</span><span id="sum-tier" class="text-white font-bold"></span></div>
-            <div class="flex justify-between"><span class="text-slate-400">المدة</span><span id="sum-dur"  class="text-white font-bold"></span></div>
+            <div class="flex justify-between"><span class="text-slate-400">{% trans "العميل" %}</span><span id="sum-name" class="text-white font-bold"></span></div>
+            <div class="flex justify-between"><span class="text-slate-400">{% trans "الباقة" %}</span><span id="sum-tier" class="text-white font-bold"></span></div>
+            <div class="flex justify-between"><span class="text-slate-400">{% trans "المدة" %}</span><span id="sum-dur"  class="text-white font-bold"></span></div>
             <div class="flex justify-between border-t border-slate-700 pt-2 mt-1">
-              <span class="text-slate-400">الإجمالي</span>
+              <span class="text-slate-400">{% trans "الإجمالي" %}</span>
               <span id="sum-price" class="text-indigo-300 font-black"></span>
             </div>
           </div>
-          <textarea id="note-input" placeholder="ملاحظة للعميل (اختياري)…"
+          <textarea id="note-input" placeholder="{% trans "ملاحظة للعميل (اختياري)…" %}"
             class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 resize-none mb-3 text-sm" rows="2"></textarea>
           <button onclick="submitGift()" id="submit-btn"
             class="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white font-black rounded-xl transition">
-            <i class="fas fa-gift ml-2"></i>تفعيل الهدية
+            <i class="fas fa-gift ml-2"></i>{% trans "تفعيل الهدية" %}
           </button>
         </div>
       </div>
@@ -244,24 +244,24 @@
     <div class="flex items-center gap-3 mb-4">
       <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg"><i class="fas fa-gift"></i></div>
       <div>
-        <div class="font-black text-white text-sm">هدية OBD / تشخيص الأعطال</div>
+        <div class="font-black text-white text-sm">{% trans "هدية OBD / تشخيص الأعطال" %}</div>
         <div id="obd-modal-name" class="text-xs text-amber-300 mt-0.5"></div>
       </div>
       <button onclick="closeGiftModal()" class="mr-auto text-slate-500 hover:text-white text-lg"><i class="fas fa-xmark"></i></button>
     </div>
 
-    <p class="text-xs text-slate-400 mb-4">اختر المدة — لو عنده اشتراك حالي هيتمدد من نهايته:</p>
+    <p class="text-xs text-slate-400 mb-4">{% trans "اختر المدة — لو عنده اشتراك حالي هيتمدد من نهايته" %}:</p>
 
     <div class="grid grid-cols-3 gap-2 mb-3">
-      <button onclick="grantObd('1d')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">يوم</button>
-      <button onclick="grantObd('1w')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">أسبوع</button>
-      <button onclick="grantObd('1m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">شهر</button>
-      <button onclick="grantObd('3m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">3 أشهر</button>
-      <button onclick="grantObd('6m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">6 أشهر</button>
-      <button onclick="grantObd('1y')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">سنة</button>
+      <button onclick="grantObd('1d')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "يوم" %}</button>
+      <button onclick="grantObd('1w')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "أسبوع" %}</button>
+      <button onclick="grantObd('1m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "شهر" %}</button>
+      <button onclick="grantObd('3m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "3 أشهر" %}</button>
+      <button onclick="grantObd('6m')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "6 أشهر" %}</button>
+      <button onclick="grantObd('1y')"  class="obd-dur-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 text-white text-sm font-bold transition">{% trans "سنة" %}</button>
     </div>
     <button onclick="grantObd('lifetime')" class="w-full py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-sm font-black transition">
-      <i class="fas fa-infinity ml-1"></i>مدى الحياة
+      <i class="fas fa-infinity ml-1"></i>{% trans "مدى الحياة" %}
     </button>
 
     <div id="obd-modal-result" class="hidden mt-3 p-3 rounded-xl text-xs text-center font-bold"></div>
@@ -274,25 +274,25 @@
     <div class="flex items-center gap-3 mb-4">
       <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300 text-lg"><i class="fas fa-bolt"></i></div>
       <div>
-        <div class="font-black text-white text-sm">شحن رصيد فحوصات تشخيص</div>
+        <div class="font-black text-white text-sm">{% trans "شحن رصيد فحوصات تشخيص" %}</div>
         <div id="topup-modal-name" class="text-xs text-blue-300 mt-0.5"></div>
       </div>
       <button onclick="closeTopupModal()" class="mr-auto text-slate-500 hover:text-white text-lg"><i class="fas fa-xmark"></i></button>
     </div>
 
-    <p class="text-xs text-slate-400 mb-4">اختر عدد الفحوصات اللي تحب تشحنها — هتتضاف للرصيد الحالي للشركة فوراً:</p>
+    <p class="text-xs text-slate-400 mb-4">{% trans "اختر عدد الفحوصات اللي تحب تشحنها — هتتضاف للرصيد الحالي للشركة فوراً" %}:</p>
 
     <div class="grid grid-cols-3 gap-2 mb-3">
-      <button onclick="grantTopup(10)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">10 فحص</button>
-      <button onclick="grantTopup(30)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">30 فحص</button>
-      <button onclick="grantTopup(50)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">50 فحص</button>
-      <button onclick="grantTopup(100)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">100 فحص</button>
-      <button onclick="grantTopup(200)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">200 فحص</button>
-      <button onclick="grantTopup(500)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">500 فحص</button>
+      <button onclick="grantTopup(10)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "10 فحص" %}</button>
+      <button onclick="grantTopup(30)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "30 فحص" %}</button>
+      <button onclick="grantTopup(50)"  class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "50 فحص" %}</button>
+      <button onclick="grantTopup(100)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "100 فحص" %}</button>
+      <button onclick="grantTopup(200)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "200 فحص" %}</button>
+      <button onclick="grantTopup(500)" class="topup-btn py-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-blue-500/20 hover:border-blue-500/50 text-white text-sm font-bold transition">{% trans "500 فحص" %}</button>
     </div>
 
     <div class="flex gap-2">
-      <input id="topup-custom" type="number" min="1" max="1000" placeholder="عدد مخصص…"
+      <input id="topup-custom" type="number" min="1" max="1000" placeholder="{% trans "عدد مخصص…" %}"
         class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 text-sm">
       <button onclick="grantTopupCustom()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition text-sm">
         <i class="fas fa-plus"></i>
@@ -314,7 +314,7 @@ function goStep(n) {
     document.getElementById('sum-name').textContent  = selectedCustomerName;
     document.getElementById('sum-tier').textContent  = selectedTierLabel;
     document.getElementById('sum-dur').textContent   = selectedDurLabel;
-    document.getElementById('sum-price').textContent = calcPrice() + ' ج.م';
+    document.getElementById('sum-price').textContent = calcPrice() + ' {% trans "ج.م" %}';
   }
 }
 
@@ -343,8 +343,8 @@ async function lookupPhone() {
   selectedCustomerName = data.name;
   document.getElementById('cust-name').textContent = data.name + ' · ' + data.phone;
   let subText = data.is_active
-    ? `✅ ${data.tier_display} — متبقي ${data.days_remaining} يوم (حتى ${data.paid_until})`
-    : `⭕ غير مشترك`;
+    ? `✅ ${data.tier_display} — {% trans "متبقي" %} ${data.days_remaining} {% trans "يوم" %} ({% trans "حتى" %} ${data.paid_until})`
+    : `⭕ {% trans "غير مشترك" %}`;
   document.getElementById('cust-sub').textContent = subText;
   document.getElementById('lookup-result').classList.remove('hidden');
 }
@@ -360,7 +360,7 @@ function selectDuration(months, label, discount, el) {
   document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   selectedMonths = months; selectedDurLabel = label; selectedDiscount = discount;
-  document.getElementById('price-value').textContent = calcPrice() + ' ج.م';
+  document.getElementById('price-value').textContent = calcPrice() + ' {% trans "ج.م" %}';
   document.getElementById('price-preview').classList.remove('hidden');
   document.getElementById('to-step4').classList.remove('hidden');
 }
@@ -368,7 +368,7 @@ function selectDuration(months, label, discount, el) {
 async function submitGift() {
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>جاري التفعيل…';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>{% trans "جاري التفعيل…" %}';
 
   const form = new FormData();
   form.append('phone',  selectedPhone);
@@ -384,7 +384,7 @@ async function submitGift() {
   const data = await res.json();
 
   btn.disabled = false;
-  btn.innerHTML = '<i class="fas fa-gift ml-2"></i>تفعيل الهدية';
+  btn.innerHTML = '<i class="fas fa-gift ml-2"></i>{% trans "تفعيل الهدية" %}';
 
   if (data.ok) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
@@ -400,7 +400,7 @@ async function submitGift() {
     setTimeout(() => banner.classList.add('hidden'), 6000);
   } else {
     const banner = document.getElementById('error-banner');
-    banner.innerHTML = `<i class="fas fa-circle-xmark ml-2"></i>${data.error || 'حدث خطأ'}`;
+    banner.innerHTML = `<i class="fas fa-circle-xmark ml-2"></i>${data.error || '{% trans "حدث خطأ" %}'}`;
     banner.classList.remove('hidden');
     setTimeout(() => banner.classList.add('hidden'), 5000);
   }
@@ -449,7 +449,7 @@ async function grantObd(duration) {
   const resultEl = document.getElementById('obd-modal-result');
   if (data.ok) {
     resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-emerald-900/40 border border-emerald-500/40 text-emerald-200';
-    resultEl.textContent = data.message + (data.new_expiry ? ` — حتى ${data.new_expiry}` : '');
+    resultEl.textContent = data.message + (data.new_expiry ? ` — {% trans "حتى" %} ${data.new_expiry}` : '');
     resultEl.classList.remove('hidden');
     // Update OBD cell in table
     const cell = document.getElementById(`obd-cell-${obdTenantId}`);
@@ -459,7 +459,7 @@ async function grantObd(duration) {
     setTimeout(closeGiftModal, 2500);
   } else {
     resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
-    resultEl.textContent = data.error || 'حدث خطأ';
+    resultEl.textContent = data.error || '{% trans "حدث خطأ" %}';
     resultEl.classList.remove('hidden');
   }
 }
@@ -512,7 +512,7 @@ async function grantTopup(uses) {
     setTimeout(closeTopupModal, 2500);
   } else {
     resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
-    resultEl.textContent = data.error || 'حدث خطأ';
+    resultEl.textContent = data.error || '{% trans "حدث خطأ" %}';
     resultEl.classList.remove('hidden');
   }
 }
@@ -522,7 +522,7 @@ function grantTopupCustom() {
   if (!val || val <= 0 || val > 1000) {
     const resultEl = document.getElementById('topup-modal-result');
     resultEl.className = 'mt-3 p-3 rounded-xl text-xs text-center font-bold bg-red-900/40 border border-red-500/40 text-red-200';
-    resultEl.textContent = 'العدد لازم يكون بين 1 و 1000';
+    resultEl.textContent = '{% trans "العدد لازم يكون بين 1 و 1000" %}';
     resultEl.classList.remove('hidden');
     return;
   }

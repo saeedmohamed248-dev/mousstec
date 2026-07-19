@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 15:12+0300\n"
+"POT-Creation-Date: 2026-07-19 15:25+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,6 +38,8 @@ msgstr ""
 #: clients/migrations/0008_update_plan_names_silver_gold_empire.py:23
 #: clients/models/tenancy.py:96 clients/models/tenancy.py:440
 #: clients/models/tenancy.py:749 clients/templates/clients/login_finder.html:48
+#: clients/templates/clients/super_admin_gift_diagnostics.html:56
+#: clients/templates/clients/super_admin_gift_diagnostics.html:221
 #: hr/models.py:929
 msgid "الباقة"
 msgstr "Package"
@@ -609,7 +611,9 @@ msgstr ""
 
 #: clients/models/design_store.py:436 clients/models/design_store.py:553
 #: clients/models/design_store.py:830 clients/models/marketplace_c2c.py:307
-#: clients/models/marketplace_c2c.py:436 inventory/models/invoices.py:74
+#: clients/models/marketplace_c2c.py:436
+#: clients/templates/clients/super_admin_gift_diagnostics.html:220
+#: inventory/models/invoices.py:74
 #: inventory/templates/inventory/ai_diag_print.html:333
 #: inventory/templates/inventory/customer_feedback.html:60
 #: inventory/templates/inventory/invoice_print_thermal.html:30
@@ -961,6 +965,7 @@ msgstr ""
 #: clients/models/design_store.py:786 clients/models/tenancy.py:310
 #: clients/templates/clients/landing.html:238
 #: clients/templates/clients/signup_register.html:180
+#: clients/templates/clients/super_admin_gift_diagnostics.html:72
 msgid "سيارات"
 msgstr "Cars"
 
@@ -1946,6 +1951,7 @@ msgstr ""
 #: clients/models/marketplace_c2c.py:50 clients/models/marketplace_c2c.py:308
 #: clients/models/tenancy.py:53 clients/models/tenancy.py:315
 #: clients/templates/clients/signup_register.html:176
+#: clients/templates/clients/super_admin_gift_diagnostics.html:55
 msgid "القطاع"
 msgstr "Sector"
 
@@ -2941,6 +2947,7 @@ msgstr ""
 #: clients/models/tenancy.py:509
 #: clients/templates/clients/account_recovery.html:165
 #: clients/templates/clients/login_finder.html:44
+#: clients/templates/clients/super_admin_gift_diagnostics.html:54
 msgid "الشركة"
 msgstr "Company"
 
@@ -3605,6 +3612,7 @@ msgstr "Plans"
 #: clients/templates/clients/landing.html:108
 #: clients/templates/clients/login_finder.html:135
 #: clients/templates/clients/print_landing.html:45
+#: clients/templates/clients/super_admin_gift_diagnostics.html:60
 msgid "دخول"
 msgstr "Login"
 
@@ -3836,6 +3844,9 @@ msgid "طبقة حماية إضافية بـ Google Authenticator"
 msgstr "An extra protection layer with Google Authenticator"
 
 #: clients/templates/clients/change_password.html:74
+#: clients/templates/clients/super_admin_gift_diagnostics.html:165
+#: clients/templates/clients/super_admin_gift_diagnostics.html:189
+#: clients/templates/clients/super_admin_gift_diagnostics.html:217
 #: inventory/templates/inventory/bank_reconciliation_detail.html:39
 msgid "رجوع"
 msgstr "Back"
@@ -3897,6 +3908,9 @@ msgstr "Never expires"
 #: clients/templates/clients/manual_payment_upload.html:41
 #: clients/templates/clients/print_landing.html:215
 #: clients/templates/clients/print_landing.html:249
+#: clients/templates/clients/super_admin_customer_detail.html:89
+#: clients/templates/clients/super_admin_gift_diagnostics.html:317
+#: clients/templates/clients/super_admin_gift_diagnostics.html:363
 #: inventory/templates/inventory/b2b_marketplace.html:198
 #: inventory/templates/inventory/bank_reconciliation.html:67
 #: inventory/templates/inventory/commission_dashboard.html:92
@@ -4432,6 +4446,7 @@ msgstr "Number of employees"
 
 #: clients/templates/clients/features.html:469
 #: clients/templates/clients/features.html:475
+#: clients/templates/clients/super_admin_gift_diagnostics.html:175
 msgid "غير محدود"
 msgstr "Unlimited"
 
@@ -5111,6 +5126,8 @@ msgid "تصاميم احترافية بالذكاء الاصطناعي — دف�
 msgstr "Professional AI designs — one-time payment with no monthly subscription"
 
 #: clients/templates/clients/manage_subscription.html:142
+#: clients/templates/clients/super_admin_customer_detail.html:26
+#: clients/templates/clients/super_admin_customer_detail.html:93
 msgid "تصاميم"
 msgstr "designs"
 
@@ -5174,6 +5191,7 @@ msgstr "For professional designers and studios — more designs at a lower price
 #: clients/templates/clients/manage_subscription.html:177
 #: clients/templates/clients/print_landing.html:214
 #: clients/templates/clients/print_landing.html:248
+#: clients/templates/clients/super_admin_customer_detail.html:2
 msgid "تصميم"
 msgstr "designs"
 
@@ -6239,6 +6257,285 @@ msgstr "Transferring you to the cloud..."
 #: clients/templates/clients/signup_success.html:214
 msgid "تم الإيقاف"
 msgstr "Paused"
+
+#: clients/templates/clients/super_admin_customer_detail.html:15
+msgid "سجل في"
+msgstr "Registered on"
+
+#: clients/templates/clients/super_admin_customer_detail.html:16
+msgid "آخر دخول"
+msgstr "Last login"
+
+#: clients/templates/clients/super_admin_customer_detail.html:16
+msgid "مضت"
+msgstr "ago"
+
+#: clients/templates/clients/super_admin_customer_detail.html:30
+msgid "مشتريات"
+msgstr "Purchases"
+
+#: clients/templates/clients/super_admin_customer_detail.html:34
+msgid "صرف ج.م"
+msgstr "Spent EGP"
+
+#: clients/templates/clients/super_admin_customer_detail.html:38
+msgid "طلبات"
+msgstr "Requests"
+
+#: clients/templates/clients/super_admin_customer_detail.html:44
+msgid "رصيد التصاميم"
+msgstr "Design balance"
+
+#: clients/templates/clients/super_admin_customer_detail.html:45
+msgid "مجاني"
+msgstr "Free"
+
+#: clients/templates/clients/super_admin_customer_detail.html:51
+msgid "التصاميم"
+msgstr "Designs"
+
+#: clients/templates/clients/super_admin_customer_detail.html:74
+msgid "المشتريات"
+msgstr "Purchases"
+
+#: clients/templates/clients/super_admin_customer_detail.html:105
+msgid "طلبات السوق"
+msgstr "Marketplace requests"
+
+#: clients/templates/clients/super_admin_customer_detail.html:114
+#: inventory/templates/inventory/b2b_marketplace.html:167
+msgid "عرض"
+msgstr "offers"
+
+#: clients/templates/clients/super_admin_customer_detail.html:122
+msgid "لم يقم العميل بأي نشاط بعد."
+msgstr "The customer has not done any activity yet."
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:7
+msgid "هدية اشتراك تشخيص"
+msgstr "Diagnostic subscription gift"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:27
+msgid "الرجوع للوحة"
+msgstr "Back to the dashboard"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:29
+msgid "هدية / تجديد اشتراك تشخيص الأعطال"
+msgstr "Gift / renew fault-diagnostic subscription"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:43
+msgid "الشركات المسجلة"
+msgstr "Registered companies"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:44
+msgid "شركة"
+msgstr "company"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:45
+msgid "ابحث باسم الشركة…"
+msgstr "Search by company name…"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:58
+msgid "هدية OBD"
+msgstr "OBD gift"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:59
+msgid "شحن فحوصات"
+msgstr "Top up scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:74
+#: inventory/templates/inventory/vehicle_history.html:21
+msgid "طباعة"
+msgstr "Print"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:93
+msgid "دائم"
+msgstr "Permanent"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:96
+msgid "لا"
+msgstr "No"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:102
+msgid "منح"
+msgstr "Grant"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:108
+msgid "شحن"
+msgstr "Top up"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:115
+msgid "دخول النظام في تاب جديد"
+msgstr "Open the system in a new tab"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:121
+msgid "لا توجد شركات"
+msgstr "No companies"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:133
+msgid "ابحث بالهاتف"
+msgstr "Search by phone"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:151
+#: clients/templates/clients/super_admin_gift_diagnostics.html:164
+msgid "اختر الباقة"
+msgstr "Choose the package"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:155
+msgid "لم يتم العثور على عميل بهذا الرقم"
+msgstr "No customer found with this number"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:175
+msgid "فحص"
+msgstr "scan"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:177
+msgid "ج"
+msgstr "EGP"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:188
+#: clients/templates/clients/super_admin_gift_diagnostics.html:222
+#: inventory/templates/inventory/tech_workspace.html:107
+msgid "المدة"
+msgstr "Duration"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:203
+#: clients/templates/clients/super_admin_gift_diagnostics.html:224
+#: inventory/models/invoices.py:34
+#: inventory/templates/inventory/company_branches.html:81
+#: inventory/templates/inventory/customer_feedback.html:73
+#: inventory/templates/inventory/invoice_print.html:219
+#: inventory/templates/inventory/invoice_print_a4.html:72
+#: inventory/templates/inventory/invoice_print_detailed.html:212
+#: inventory/templates/inventory/invoice_print_thermal.html:55
+#: inventory/templates/inventory/job_card_create.html:174
+#: inventory/templates/inventory/job_card_review.html:941
+#: inventory/templates/inventory/lightning_pos.html:48
+#: inventory/templates/inventory/pos_fast.html:71
+#: inventory/templates/inventory/sale_invoice_list.html:52
+#: printing/models.py:267 printing/models.py:396 printing/models.py:800
+msgid "الإجمالي"
+msgstr "Total"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:207
+msgid "التالي"
+msgstr "Next"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:216
+msgid "تأكيد"
+msgstr "Confirm"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:228
+msgid "ملاحظة للعميل (اختياري)…"
+msgstr "Note for the customer (optional)…"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:232
+#: clients/templates/clients/super_admin_gift_diagnostics.html:387
+msgid "تفعيل الهدية"
+msgstr "Activate the gift"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:247
+msgid "هدية OBD / تشخيص الأعطال"
+msgstr "OBD / fault-diagnostic gift"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:253
+msgid "اختر المدة — لو عنده اشتراك حالي هيتمدد من نهايته"
+msgstr "Choose the duration — if they have a current subscription it will be extended from its end"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:256
+#: clients/templates/clients/super_admin_gift_diagnostics.html:346
+#: inventory/templates/inventory/_rfq_card.html:54
+#: inventory/templates/inventory/job_card_review.html:785
+#: inventory/templates/inventory/job_card_review.html:920
+msgid "يوم"
+msgstr "days"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:257
+msgid "أسبوع"
+msgstr "Week"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:258
+msgid "شهر"
+msgstr "Month"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:259
+msgid "3 أشهر"
+msgstr "3 months"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:260
+msgid "6 أشهر"
+msgstr "6 months"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:261
+msgid "سنة"
+msgstr "Year"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:264
+msgid "مدى الحياة"
+msgstr "Lifetime"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:277
+msgid "شحن رصيد فحوصات تشخيص"
+msgstr "Top up diagnostic scan balance"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:283
+msgid "اختر عدد الفحوصات اللي تحب تشحنها — هتتضاف للرصيد الحالي للشركة فوراً"
+msgstr "Choose the number of scans you want to top up — they will be added to the company balance immediately"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:286
+msgid "10 فحص"
+msgstr "10 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:287
+msgid "30 فحص"
+msgstr "30 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:288
+msgid "50 فحص"
+msgstr "50 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:289
+msgid "100 فحص"
+msgstr "100 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:290
+msgid "200 فحص"
+msgstr "200 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:291
+msgid "500 فحص"
+msgstr "500 scans"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:295
+msgid "عدد مخصص…"
+msgstr "Custom number…"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:346
+msgid "متبقي"
+msgstr "remaining"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:346
+#: clients/templates/clients/super_admin_gift_diagnostics.html:452
+msgid "حتى"
+msgstr "until"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:347
+msgid "غير مشترك"
+msgstr "Not subscribed"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:371
+msgid "جاري التفعيل…"
+msgstr "Activating…"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:403
+#: clients/templates/clients/super_admin_gift_diagnostics.html:462
+#: clients/templates/clients/super_admin_gift_diagnostics.html:515
+msgid "حدث خطأ"
+msgstr "An error occurred"
+
+#: clients/templates/clients/super_admin_gift_diagnostics.html:525
+msgid "العدد لازم يكون بين 1 و 1000"
+msgstr "The number must be between 1 and 1000"
 
 #: clients/templates/clients/verify_email_result.html:7
 msgid "تأكيد البريد"
@@ -8690,22 +8987,6 @@ msgstr ""
 msgid "مرجع المزاد المالي (Escrow)"
 msgstr ""
 
-#: inventory/models/invoices.py:34
-#: inventory/templates/inventory/company_branches.html:81
-#: inventory/templates/inventory/customer_feedback.html:73
-#: inventory/templates/inventory/invoice_print.html:219
-#: inventory/templates/inventory/invoice_print_a4.html:72
-#: inventory/templates/inventory/invoice_print_detailed.html:212
-#: inventory/templates/inventory/invoice_print_thermal.html:55
-#: inventory/templates/inventory/job_card_create.html:174
-#: inventory/templates/inventory/job_card_review.html:941
-#: inventory/templates/inventory/lightning_pos.html:48
-#: inventory/templates/inventory/pos_fast.html:71
-#: inventory/templates/inventory/sale_invoice_list.html:52
-#: printing/models.py:267 printing/models.py:396 printing/models.py:800
-msgid "الإجمالي"
-msgstr "Total"
-
 #: inventory/models/invoices.py:35 inventory/models/invoices.py:93
 #: inventory/templates/inventory/invoice_print_a4.html:110
 #: inventory/templates/inventory/invoice_print_detailed.html:255
@@ -9383,12 +9664,6 @@ msgstr "days"
 msgid "إجراء"
 msgstr "Action"
 
-#: inventory/templates/inventory/_rfq_card.html:54
-#: inventory/templates/inventory/job_card_review.html:785
-#: inventory/templates/inventory/job_card_review.html:920
-msgid "يوم"
-msgstr "days"
-
 #: inventory/templates/inventory/_rfq_card.html:62
 msgid "القطعة مش في الكاتالوج — أضفها من شاشة المنتجات أولاً"
 msgstr "The part is not in the catalog — add it from the products screen first"
@@ -9665,10 +9940,6 @@ msgstr "Search results for"
 #: inventory/templates/inventory/b2b_marketplace.html:167
 msgid "عرض واحد"
 msgstr "1 offer"
-
-#: inventory/templates/inventory/b2b_marketplace.html:167
-msgid "عرض"
-msgstr "offers"
 
 #: inventory/templates/inventory/b2b_marketplace.html:175
 msgid "غير معتمد"
@@ -11874,10 +12145,6 @@ msgstr "Ongoing tasks"
 msgid "قطع إضافية"
 msgstr "Extra parts"
 
-#: inventory/templates/inventory/tech_workspace.html:107
-msgid "المدة"
-msgstr "Duration"
-
 #: inventory/templates/inventory/tech_workspace.html:123
 msgid "إيقاف مؤقت"
 msgstr "Pause"
@@ -12074,10 +12341,6 @@ msgstr "Link copied"
 #: inventory/templates/inventory/vehicle_history.html:21
 msgid "طباعة سجل الصيانة"
 msgstr "Print service log"
-
-#: inventory/templates/inventory/vehicle_history.html:21
-msgid "طباعة"
-msgstr "Print"
 
 #: inventory/templates/inventory/vehicle_history.html:22
 msgid "مشاركة الرابط"
