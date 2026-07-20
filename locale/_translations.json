@@ -2723,5 +2723,22 @@
   "تم تعديل التصميم حسب طلبك ✅": "The design has been edited per your request ✅",
   "الآن — متبقي": "now — remaining",
   "✅ تم التعديل!": "✅ Edited!",
-  "فشل التعديل": "Edit failed"
+  "فشل التعديل": "Edit failed",
+  "Premium Diagnostics — غير متاح": "Premium Diagnostics — Unavailable",
+  "باقة Premium Diagnostics غير متاحة حالياً": "Premium Diagnostics package is currently unavailable",
+  "يبدو أن الباقة لم يتم تفعيلها بعد على هذا النظام. تواصل مع الدعم الفني.": "It seems the package has not been activated yet on this system. Contact technical support.",
+  "403 — غير مصرح": "403 — Unauthorized",
+  "403 — غير مصرح بالدخول": "403 — Access denied",
+  "عذراً، لا يمكن تنفيذ هذا الطلب. قد يكون السبب انتهاء صلاحية الجلسة أو مشكلة في التحقق الأمني.": "Sorry, this request cannot be completed. The session may have expired or there may be a security verification issue.",
+  "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكيز ثم أعد المحاولة.": "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again.",
+  "الهب": "The Hub",
+  "خبير التشخيص": "Diagnostics Expert",
+  "تاريخ المحادثات": "Chat history",
+  "غير متصل | Mouss Tec": "Offline | Mouss Tec",
+  "أنت غير متصل بالإنترنت": "You are offline",
+  "لا تقلق — نظام Mouss Tec يعمل في وضع عدم الاتصال.": "Do not worry — the Mouss Tec system works in offline mode.",
+  "الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال.": "Previously saved pages are available, and syncing happens automatically when the connection returns.",
+  "إعادة المحاولة": "Retry",
+  "جاري مراقبة الاتصال…": "Monitoring the connection…",
+  "تم استعادة الاتصال — جاري التحميل…": "Connection restored — loading…"
 }

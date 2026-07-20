@@ -1,4 +1,4 @@
-{% comment %}
+{% load i18n %}{% comment %}
 Shared cross-room navigation bar. Include this in each room template, e.g.:
 include 'ai_rooms/_rooms_nav.html' with active='repair_atlas'
 {% endcomment %}
@@ -29,10 +29,10 @@ include 'ai_rooms/_rooms_nav.html' with active='repair_atlas'
     .rooms-nav .history-link:hover { color: #00d4ff; background: transparent; }
 </style>
 <nav class="rooms-nav">
-    <a href="{% url 'ai_rooms:hub' %}" {% if active == 'hub' %}class="active"{% endif %}>🧠 الهب</a>
-    <a href="{% url 'smart_diagnostics:diagnostics-room' %}" {% if active == 'diagnostic_room' %}class="active"{% endif %}>🩺 غرفة التشخيص</a>
-    <a href="{% url 'diagnostic_shop' %}" {% if active == 'auto_diagnostic' %}class="active"{% endif %}>🚗 خبير التشخيص</a>
-    <a href="{% url 'repair_atlas:page' %}" {% if active == 'repair_atlas' %}class="active"{% endif %}>🔧 أطلس الإصلاح</a>
+    <a href="{% url 'ai_rooms:hub' %}" {% if active == 'hub' %}class="active"{% endif %}>🧠 {% trans "الهب" %}</a>
+    <a href="{% url 'smart_diagnostics:diagnostics-room' %}" {% if active == 'diagnostic_room' %}class="active"{% endif %}>🩺 {% trans "غرفة التشخيص" %}</a>
+    <a href="{% url 'diagnostic_shop' %}" {% if active == 'auto_diagnostic' %}class="active"{% endif %}>🚗 {% trans "خبير التشخيص" %}</a>
+    <a href="{% url 'repair_atlas:page' %}" {% if active == 'repair_atlas' %}class="active"{% endif %}>🔧 {% trans "أطلس الإصلاح" %}</a>
     <span class="sep"></span>
-    <a href="{% url 'ai_rooms:history' %}" class="history-link"><i class="fas fa-clock-rotate-left"></i> تاريخ المحادثات</a>
+    <a href="{% url 'ai_rooms:history' %}" class="history-link"><i class="fas fa-clock-rotate-left"></i> {% trans "تاريخ المحادثات" %}</a>
 </nav>

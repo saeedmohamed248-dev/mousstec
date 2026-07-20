@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
-    <title>غير متصل | Mouss Tec</title>
+    <title>{% trans "غير متصل | Mouss Tec" %}</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Cairo',Arial,sans-serif;background:#0f172a;color:#e2e8f0;
@@ -27,16 +27,16 @@
 <body>
     <div class="container">
         <div class="icon pulse">🛰️</div>
-        <h1>أنت غير متصل بالإنترنت</h1>
-        <p>لا تقلق — نظام Mouss Tec يعمل في وضع عدم الاتصال.<br>
-           الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال.</p>
-        <button class="retry-btn" type="button" onclick="window.location.reload()">إعادة المحاولة</button>
-        <div class="status" id="status">جاري مراقبة الاتصال…</div>
+        <h1>{% trans "أنت غير متصل بالإنترنت" %}</h1>
+        <p>{% trans "لا تقلق — نظام Mouss Tec يعمل في وضع عدم الاتصال." %}<br>
+           {% trans "الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال." %}</p>
+        <button class="retry-btn" type="button" onclick="window.location.reload()">{% trans "إعادة المحاولة" %}</button>
+        <div class="status" id="status">{% trans "جاري مراقبة الاتصال…" %}</div>
     </div>
     <script>
         window.addEventListener('online', () => {
             const s = document.getElementById('status');
-            s.textContent = 'تم استعادة الاتصال — جاري التحميل…';
+            s.textContent = '{% trans "تم استعادة الاتصال — جاري التحميل…" %}';
             s.style.color = '#10b981';
             setTimeout(() => window.location.reload(), 800);
         });

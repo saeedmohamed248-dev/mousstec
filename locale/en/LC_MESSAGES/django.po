@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 18:45+0300\n"
+"POT-Creation-Date: 2026-07-20 18:52+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,21 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "الهب"
+msgstr "The Hub"
+
+msgid "غرفة التشخيص"
+msgstr "Diagnostics room"
+
+msgid "خبير التشخيص"
+msgstr "Diagnostics Expert"
+
+msgid "أطلس الإصلاح"
+msgstr "Repair atlas"
+
+msgid "تاريخ المحادثات"
+msgstr "Chat history"
 
 msgid "🏢 الإدارة المركزية (Mouss Tec Ecosystem)"
 msgstr ""
@@ -4991,24 +5006,32 @@ msgid ""
 "اكتب فكرة التصميم بأي مجال (شبشب، غرفة معيشة، لوجو، تغليف منتج، …) والذكاء "
 "الاصطناعي هيقترح عليك القوائم المناسبة تلقائياً. كل توليد بيدخل في برنامج "
 "التعلم الذاتي بتاعنا."
-msgstr "Write your design idea in any field (slippers, living room, logo, product packaging, …) and the AI will automatically suggest the appropriate lists. Every generation feeds into our self-learning program."
+msgstr ""
+"Write your design idea in any field (slippers, living room, logo, product "
+"packaging, …) and the AI will automatically suggest the appropriate lists. "
+"Every generation feeds into our self-learning program."
 
 msgid "💡 فكرة التصميم"
 msgstr "💡 Design idea"
 
 msgid "مثال: غرفة معيشة عصرية | شبشب بلاستيك للشاطئ | لوجو شركة تكنولوجيا"
-msgstr "Example: modern living room | plastic beach slippers | tech company logo"
+msgstr ""
+"Example: modern living room | plastic beach slippers | tech company logo"
 
 msgid "حلل الفكرة واقترح الخيارات"
 msgstr "Analyze the idea and suggest options"
 
 msgid "📎 ارفق صور مرجعية (اختياري، حتى 3 صور — لوجو، حائط، عينة لون...)"
-msgstr "📎 Attach reference photos (optional, up to 3 photos — logo, wall, color sample...)"
+msgstr ""
+"📎 Attach reference photos (optional, up to 3 photos — logo, wall, color "
+"sample...)"
 
 msgid ""
 "💡 السيستم بيحلل كل صورة ويضمّ تفاصيلها (الألوان، الملمس، الأسلوب) في التصميم "
 "النهائي."
-msgstr "💡 The system analyzes each photo and includes its details (colors, texture, style) in the final design."
+msgstr ""
+"💡 The system analyzes each photo and includes its details (colors, texture, "
+"style) in the final design."
 
 msgid "✨ ولّد التصميم"
 msgstr "✨ Generate the design"
@@ -5047,7 +5070,9 @@ msgid "ابدأ تصميم أول حاجة!"
 msgstr "Start designing your first thing!"
 
 msgid "اكتب وصف اللي تتخيله فوق وهيتولد فوراً"
-msgstr "Write a description of what you imagine above and it will be generated instantly"
+msgstr ""
+"Write a description of what you imagine above and it will be generated "
+"instantly"
 
 msgid "جاري التوليد... (15-30 ثانية)"
 msgstr "Generating... (15-30 seconds)"
@@ -5289,7 +5314,9 @@ msgid "🔍 فحص جودة بصري (Vision LLM):"
 msgstr "🔍 Visual quality check (Vision LLM):"
 
 msgid "السيستم لاحظ نقص في الجودة وأعاد التوليد تلقائياً بنسخة محسّنة"
-msgstr "The system noticed a quality shortfall and automatically regenerated an improved version"
+msgstr ""
+"The system noticed a quality shortfall and automatically regenerated an "
+"improved version"
 
 msgid "🔄 اتعدّل تلقائياً"
 msgstr "🔄 Auto-adjusted"
@@ -5320,7 +5347,9 @@ msgstr "regenerations"
 
 msgid ""
 "جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!"
-msgstr "Ready to edit your design? Ask me to change the colors, shrink the font, or move the print location!"
+msgstr ""
+"Ready to edit your design? Ask me to change the colors, shrink the font, or "
+"move the print location!"
 
 msgid "ولّد التصميم الأول"
 msgstr "Generate the design first"
@@ -5421,7 +5450,9 @@ msgstr "edit attempts"
 msgid ""
 "✏️ تعديل دقيق: غيّر اللون للأزرق | شيل النص | ضيف ظل | خليه أفخم   ·   🔄 "
 "إعادة كاملة: اعمله من الأول"
-msgstr "✏️ Precise edit: change the color to blue | remove the text | add a shadow | make it fancier   ·   🔄 Full redo: make it from scratch"
+msgstr ""
+"✏️ Precise edit: change the color to blue | remove the text | add a shadow | "
+"make it fancier   ·   🔄 Full redo: make it from scratch"
 
 msgid "عدّل"
 msgstr "Edit"
@@ -5445,7 +5476,8 @@ msgid "✏️ تعديل دقيق (الصورة الأصلية محفوظة)"
 msgstr "✏️ Precise edit (original image preserved)"
 
 msgid "استخدم FLUX.1-Kontext لتعديل الصورة الأصلية بدون إعادة توليد كاملة"
-msgstr "Uses FLUX.1-Kontext to edit the original image without a full regeneration"
+msgstr ""
+"Uses FLUX.1-Kontext to edit the original image without a full regeneration"
 
 msgid "🔄 إعادة توليد كامل"
 msgstr "🔄 Full regeneration"
@@ -5715,9 +5747,6 @@ msgstr "My car diagnostics | Mouss Tec"
 
 msgid "تشخيص ذكي | Mouss Tec"
 msgstr "Smart diagnostics | Mouss Tec"
-
-msgid "أطلس الإصلاح"
-msgstr "Repair atlas"
 
 msgid "مساعد التشخيص الذكي"
 msgstr "Smart diagnostic assistant"
@@ -11320,9 +11349,6 @@ msgstr "Tech Workspace"
 msgid "تشخيص الأعطال"
 msgstr "Fault diagnostics"
 
-msgid "غرفة التشخيص"
-msgstr "Diagnostics room"
-
 msgid "غرفة التكويدات"
 msgstr "Coding room"
 
@@ -13224,8 +13250,52 @@ msgstr ""
 msgid "💰 API Call Cost Log"
 msgstr ""
 
+msgid "Premium Diagnostics — غير متاح"
+msgstr "Premium Diagnostics — Unavailable"
+
+msgid "باقة Premium Diagnostics غير متاحة حالياً"
+msgstr "Premium Diagnostics package is currently unavailable"
+
+msgid "يبدو أن الباقة لم يتم تفعيلها بعد على هذا النظام. تواصل مع الدعم الفني."
+msgstr "It seems the package has not been activated yet on this system. Contact technical support."
+
+msgid "403 — غير مصرح"
+msgstr "403 — Unauthorized"
+
+msgid "403 — غير مصرح بالدخول"
+msgstr "403 — Access denied"
+
+msgid ""
+"عذراً، لا يمكن تنفيذ هذا الطلب. قد يكون السبب انتهاء صلاحية الجلسة أو مشكلة "
+"في التحقق الأمني."
+msgstr "Sorry, this request cannot be completed. The session may have expired or there may be a security verification issue."
+
+msgid "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكيز ثم أعد المحاولة."
+msgstr "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
+
 #, python-format
 msgid ""
 "You are authenticated as %(username)s, but are not authorized to access this "
 "page. Would you like to login to a different account?"
 msgstr ""
+
+msgid "غير متصل | Mouss Tec"
+msgstr "Offline | Mouss Tec"
+
+msgid "أنت غير متصل بالإنترنت"
+msgstr "You are offline"
+
+msgid "لا تقلق — نظام Mouss Tec يعمل في وضع عدم الاتصال."
+msgstr "Do not worry — the Mouss Tec system works in offline mode."
+
+msgid "الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال."
+msgstr "Previously saved pages are available, and syncing happens automatically when the connection returns."
+
+msgid "إعادة المحاولة"
+msgstr "Retry"
+
+msgid "جاري مراقبة الاتصال…"
+msgstr "Monitoring the connection…"
+
+msgid "تم استعادة الاتصال — جاري التحميل…"
+msgstr "Connection restored — loading…"
