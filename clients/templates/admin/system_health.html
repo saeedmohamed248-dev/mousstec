@@ -1,4 +1,5 @@
 {% extends "admin/base_site.html" %}
+{% load i18n %}
 {% block content %}
 <style>
   .health-card { background:#fff; border:1px solid #cbd5e1; border-radius:12px; padding:18px; margin-bottom:20px; }
@@ -13,7 +14,7 @@
 
 <div style="max-width:1100px;margin:24px auto;">
   <h1 style="color:#0f172a;">🩺 System Health Radar</h1>
-  <p style="color:#475569;">رادار الـ Mouss Tec — يرصد الدورات غير المكتملة والـ anomalies. كل زرار «تنظيف» محمي بـ atomic transaction.</p>
+  <p style="color:#475569;">{% trans "رادار الـ Mouss Tec — يرصد الدورات غير المكتملة والـ anomalies. كل زرار «تنظيف» محمي بـ atomic transaction." %}</p>
 
   {% if messages %}
     {% for m in messages %}
@@ -23,12 +24,12 @@
 
   <!-- ── Card 1: Stale Print Requests ── -->
   <div class="health-card">
-    <h2>🖨️ طلبات طباعة معلقة > 24 ساعة
-      {% if stale_prints_count %}<span class="anomaly-badge">{{ stale_prints_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    <h2>{% trans "🖨️ طلبات طباعة معلقة > 24 ساعة" %}
+      {% if stale_prints_count %}<span class="anomaly-badge">{{ stale_prints_count }}</span>{% else %}<span class="ok-badge">{% trans "سليم" %}</span>{% endif %}
     </h2>
     {% if stale_prints %}
     <table class="health-table">
-      <thead><tr><th>الكود</th><th>العميل</th><th>نوع المنتج</th><th>الكمية</th><th>الإنشاء</th></tr></thead>
+      <thead><tr><th>{% trans "الكود" %}</th><th>{% trans "العميل" %}</th><th>{% trans "نوع المنتج" %}</th><th>{% trans "الكمية" %}</th><th>{% trans "الإنشاء" %}</th></tr></thead>
       <tbody>
         {% for r in stale_prints %}
         <tr>
@@ -41,22 +42,22 @@
         {% endfor %}
       </tbody>
     </table>
-    <form method="post" style="margin-top:12px;" onsubmit="return confirm('تعليم كل الطلبات المعلقة كـ cancelled؟');">
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('{% trans "تعليم كل الطلبات المعلقة كـ cancelled؟" %}');">
       {% csrf_token %}
       <input type="hidden" name="action" value="expire_stale_prints">
-      <button class="action-btn">🧹 إغلاق الطلبات المعلقة (Cancel)</button>
+      <button class="action-btn">{% trans "🧹 إغلاق الطلبات المعلقة (Cancel)" %}</button>
     </form>
-    {% else %}<p style="color:#10b981;">✅ مفيش طلبات معلقة قديمة.</p>{% endif %}
+    {% else %}<p style="color:#10b981;">{% trans "✅ مفيش طلبات معلقة قديمة." %}</p>{% endif %}
   </div>
 
   <!-- ── Card 2: Failed AI Generation Logs ── -->
   <div class="health-card">
-    <h2>🤖 سجلات توليد AI فاشلة (بدون صورة)
-      {% if failed_logs_count %}<span class="anomaly-badge">{{ failed_logs_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    <h2>{% trans "🤖 سجلات توليد AI فاشلة (بدون صورة)" %}
+      {% if failed_logs_count %}<span class="anomaly-badge">{{ failed_logs_count }}</span>{% else %}<span class="ok-badge">{% trans "سليم" %}</span>{% endif %}
     </h2>
     {% if failed_logs %}
     <table class="health-table">
-      <thead><tr><th>#</th><th>الفكرة</th><th>المجال</th><th>التاريخ</th></tr></thead>
+      <thead><tr><th>#</th><th>{% trans "الفكرة" %}</th><th>{% trans "المجال" %}</th><th>{% trans "التاريخ" %}</th></tr></thead>
       <tbody>
         {% for l in failed_logs %}
         <tr>
@@ -68,40 +69,40 @@
         {% endfor %}
       </tbody>
     </table>
-    <form method="post" style="margin-top:12px;" onsubmit="return confirm('حذف سجلات التوليد الفاشلة الأقدم من 7 أيام؟');">
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('{% trans "حذف سجلات التوليد الفاشلة الأقدم من 7 أيام؟" %}');">
       {% csrf_token %}
       <input type="hidden" name="action" value="purge_failed_logs">
-      <button class="action-btn">🗑️ حذف الفاشل > 7 أيام</button>
+      <button class="action-btn">{% trans "🗑️ حذف الفاشل > 7 أيام" %}</button>
     </form>
-    {% else %}<p style="color:#10b981;">✅ مفيش سجلات فاشلة.</p>{% endif %}
+    {% else %}<p style="color:#10b981;">{% trans "✅ مفيش سجلات فاشلة." %}</p>{% endif %}
   </div>
 
   <!-- ── Card 3: Abandoned Purchases ── -->
   <div class="health-card">
-    <h2>💳 مشتريات مهجورة (Pending > 24 ساعة)
-      {% if abandoned_purchases_count %}<span class="anomaly-badge">{{ abandoned_purchases_count }}</span>{% else %}<span class="ok-badge">سليم</span>{% endif %}
+    <h2>{% trans "💳 مشتريات مهجورة (Pending > 24 ساعة)" %}
+      {% if abandoned_purchases_count %}<span class="anomaly-badge">{{ abandoned_purchases_count }}</span>{% else %}<span class="ok-badge">{% trans "سليم" %}</span>{% endif %}
     </h2>
     {% if abandoned_purchases %}
     <table class="health-table">
-      <thead><tr><th>الكود</th><th>العميل</th><th>الباقة</th><th>السعر</th><th>الإنشاء</th></tr></thead>
+      <thead><tr><th>{% trans "الكود" %}</th><th>{% trans "العميل" %}</th><th>{% trans "الباقة" %}</th><th>{% trans "السعر" %}</th><th>{% trans "الإنشاء" %}</th></tr></thead>
       <tbody>
         {% for p in abandoned_purchases %}
         <tr>
           <td><code>{{ p.purchase_code|stringformat:'s'|slice:':8' }}</code></td>
           <td>{{ p.customer.full_name }}</td>
           <td>{{ p.package.name_ar }}</td>
-          <td>{{ p.price_paid }} ج</td>
+          <td>{% blocktrans with n=p.price_paid %}{{ n }} ج{% endblocktrans %}</td>
           <td>{{ p.created_at|date:'Y-m-d H:i' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    <form method="post" style="margin-top:12px;" onsubmit="return confirm('تعليم المشتريات المهجورة كـ expired؟');">
+    <form method="post" style="margin-top:12px;" onsubmit="return confirm('{% trans "تعليم المشتريات المهجورة كـ expired؟" %}');">
       {% csrf_token %}
       <input type="hidden" name="action" value="expire_abandoned_purchases">
-      <button class="action-btn">⏳ تعليم كـ Expired</button>
+      <button class="action-btn">{% trans "⏳ تعليم كـ Expired" %}</button>
     </form>
-    {% else %}<p style="color:#10b981;">✅ مفيش مشتريات مهجورة.</p>{% endif %}
+    {% else %}<p style="color:#10b981;">{% trans "✅ مفيش مشتريات مهجورة." %}</p>{% endif %}
   </div>
 </div>
 {% endblock %}

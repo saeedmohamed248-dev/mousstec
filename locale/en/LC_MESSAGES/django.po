@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 19:05+0300\n"
+"POT-Creation-Date: 2026-07-20 19:08+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -818,7 +818,7 @@ msgid "لوجو بديل (لون مختلف / monochrome)"
 msgstr ""
 
 msgid "المجال"
-msgstr ""
+msgstr "Domain"
 
 msgid "الأسلوب البصري"
 msgstr ""
@@ -2485,6 +2485,69 @@ msgstr "✅ Confirm grant"
 
 msgid "إلغاء"
 msgstr "Cancel"
+
+msgid ""
+"رادار الـ Mouss Tec — يرصد الدورات غير المكتملة والـ anomalies. كل زرار "
+"«تنظيف» محمي بـ atomic transaction."
+msgstr "The Mouss Tec radar — detects incomplete cycles and anomalies. Every Clean button is protected by an atomic transaction."
+
+msgid "🖨️ طلبات طباعة معلقة > 24 ساعة"
+msgstr "🖨️ Pending print requests > 24 hours"
+
+msgid "سليم"
+msgstr "Healthy"
+
+msgid "الكود"
+msgstr "Code"
+
+msgid "الإنشاء"
+msgstr "Created"
+
+msgid "تعليم كل الطلبات المعلقة كـ cancelled؟"
+msgstr "Mark all pending requests as cancelled?"
+
+msgid "🧹 إغلاق الطلبات المعلقة (Cancel)"
+msgstr "🧹 Close pending requests (Cancel)"
+
+msgid "✅ مفيش طلبات معلقة قديمة."
+msgstr "✅ No old pending requests."
+
+msgid "🤖 سجلات توليد AI فاشلة (بدون صورة)"
+msgstr "🤖 Failed AI generation logs (no image)"
+
+msgid "الفكرة"
+msgstr "Idea"
+
+msgid "التاريخ"
+msgstr "Date"
+
+msgid "حذف سجلات التوليد الفاشلة الأقدم من 7 أيام؟"
+msgstr "Delete failed generation logs older than 7 days?"
+
+msgid "🗑️ حذف الفاشل > 7 أيام"
+msgstr "🗑️ Delete failed > 7 days"
+
+msgid "✅ مفيش سجلات فاشلة."
+msgstr "✅ No failed logs."
+
+msgid "💳 مشتريات مهجورة (Pending > 24 ساعة)"
+msgstr "💳 Abandoned purchases (Pending > 24 hours)"
+
+msgid "السعر"
+msgstr "Price"
+
+#, python-format
+msgid "%(n)s ج"
+msgstr "%(n)s EGP"
+
+msgid "تعليم المشتريات المهجورة كـ expired؟"
+msgstr "Mark abandoned purchases as expired?"
+
+msgid "⏳ تعليم كـ Expired"
+msgstr "⏳ Mark as Expired"
+
+msgid "✅ مفيش مشتريات مهجورة."
+msgstr "✅ No abandoned purchases."
 
 msgid "قوة كلمة السر"
 msgstr "Password strength"
@@ -7599,11 +7662,60 @@ msgstr "🔒 End session"
 msgid "🔒 هذه الجلسة مغلقة"
 msgstr "🔒 This session is closed"
 
-msgid "تعديل قطعة"
-msgstr "Edit part"
+msgid "السوق المفتوح — المعروضات النشطة"
+msgstr "Open marketplace — Active listings"
 
 msgid "المعروضات النشطة"
 msgstr "Active listings"
+
+msgid "🛒 المعروضات النشطة على السوق"
+msgstr "🛒 Active listings on the marketplace"
+
+msgid ""
+"كل المعروضات المعتمدة والمرئية للمشترين الآن. الـ Suspend يخفيها فوراً من "
+"الصفحات العامة بدون حذف."
+msgstr "All approved listings currently visible to buyers. Suspend hides them immediately from public pages without deleting."
+
+msgid "نشطة"
+msgstr "Active"
+
+msgid "معلقة"
+msgstr "Suspended"
+
+msgid "🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع..."
+msgstr "🔍 Search by name, part number, or seller name..."
+
+msgid "بحث"
+msgstr "Search"
+
+msgid "الماركة/الموديل"
+msgstr "Make/Model"
+
+msgid "تاريخ النشر"
+msgstr "Publish date"
+
+msgid "الإجراءات"
+msgstr "Actions"
+
+#, python-format
+msgid "تعليق المعروضة «%(title)s»؟ ستُخفى فوراً من المشترين."
+msgstr "Suspend the listing «%(title)s»? It will be hidden from buyers immediately."
+
+msgid "تعليق"
+msgstr "Suspend"
+
+#, python-format
+msgid "حذف المعروضة «%(title)s»؟ (Soft Delete — يمكن استعادتها لاحقاً)"
+msgstr "Delete the listing «%(title)s»? (Soft Delete — can be restored later)"
+
+msgid "حذف"
+msgstr "Delete"
+
+msgid "لا توجد معروضات نشطة بهذا الفلتر."
+msgstr "No active listings with this filter."
+
+msgid "تعديل قطعة"
+msgstr "Edit part"
 
 #, python-format
 msgid "✏️ تعديل المعروضة #%(id)s"
@@ -7681,7 +7793,9 @@ msgstr "📨 Support tickets inbox"
 msgid ""
 "كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها "
 "على بريدك المسجل سراً."
-msgstr "Every message from the contact form or after-hours chat appears here, and a copy is sent privately to your registered email."
+msgstr ""
+"Every message from the contact form or after-hours chat appears here, and a "
+"copy is sent privately to your registered email."
 
 msgid "🚨 تذاكر عاجلة مفتوحة"
 msgstr "🚨 Open urgent tickets"
@@ -7977,9 +8091,6 @@ msgstr "Trial"
 msgid "نشطة (مدفوعة)"
 msgstr "Active (paid)"
 
-msgid "معلقة"
-msgstr "Suspended"
-
 msgid "مشتبه بها"
 msgstr "Suspicious"
 
@@ -8047,9 +8158,6 @@ msgstr "Desktop"
 msgid "ابحث بالاسم أو الباقة أو الحالة..."
 msgstr "Search by name, package, or status..."
 
-msgid "نشطة"
-msgstr "Active"
-
 msgid "طباعة"
 msgstr "Print"
 
@@ -8090,9 +8198,6 @@ msgstr "Not activated"
 msgid "تفعيل"
 msgstr "Activate"
 
-msgid "تعليق"
-msgstr "Suspend"
-
 msgid "تمديد +7 أيام"
 msgstr "Extend +7 days"
 
@@ -8125,9 +8230,6 @@ msgstr "Put this company under monitoring?"
 
 msgid "مراقبة"
 msgstr "Monitoring"
-
-msgid "حذف"
-msgstr "Delete"
 
 msgid "لا توجد شركات مسجلة بعد."
 msgstr "No companies registered yet."
@@ -9366,9 +9468,6 @@ msgstr ""
 
 msgid "عطلة رسمية"
 msgstr ""
-
-msgid "التاريخ"
-msgstr "Date"
 
 msgid "وقت الحضور"
 msgstr ""
@@ -11130,9 +11229,6 @@ msgstr "Approve + PO"
 msgid "سُجِّل"
 msgstr "Logged"
 
-msgid "السعر"
-msgstr "Price"
-
 msgid "احفظ"
 msgstr "Save"
 
@@ -11260,9 +11356,6 @@ msgstr "Part number or product name (e.g. 11787589121 or oil filter)..."
 
 msgid "مسح"
 msgstr "Clear"
-
-msgid "بحث"
-msgstr "Search"
 
 msgid "فلاتر"
 msgstr "Filters"
