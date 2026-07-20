@@ -1,8 +1,8 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>مراجعة إجابات أطلس الإصلاح — SuperAdmin</title>
+    <title>{% trans "مراجعة إجابات أطلس الإصلاح — SuperAdmin" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0a1929; color: #e6f1ff; padding: 24px; }
@@ -28,16 +28,16 @@
     </style>
 </head>
 <body>
-    <h1>📋 إجابات بانتظار المراجعة ({{ pending|length }})</h1>
+    <h1>{% blocktrans with n=pending|length %}📋 إجابات بانتظار المراجعة ({{ n }}){% endblocktrans %}</h1>
 
     {% for ans in pending %}
         <div class="card">
             <div class="meta">
                 #{{ ans.id }} — {{ ans.created_at|date:"Y-m-d H:i" }}
-                · الفني: {{ ans.query.session.user.username }}
-                · العربية: {{ ans.query.session.brand }} {{ ans.query.session.model_name }} {{ ans.query.session.year|default:"" }}
-                · الوضع: {{ ans.query.get_mode_display }}
-                · القطعة: {{ ans.query.part_or_system|default:"—" }}
+                · {% trans "الفني:" %} {{ ans.query.session.user.username }}
+                · {% trans "العربية:" %} {{ ans.query.session.brand }} {{ ans.query.session.model_name }} {{ ans.query.session.year|default:"" }}
+                · {% trans "الوضع:" %} {{ ans.query.get_mode_display }}
+                · {% trans "القطعة:" %} {{ ans.query.part_or_system|default:"—" }}
             </div>
             <div class="question">❓ {{ ans.query.question_text }}</div>
             <div class="answer">{{ ans.body_markdown }}</div>
@@ -45,17 +45,17 @@
             <form method="post" action="{% url 'repair_atlas:review-act' ans.id %}">
                 {% csrf_token %}
                 <textarea name="corrected_body" rows="4"
-                          placeholder="(اختياري) إجابة مصححة — هتحل محل اللي فوق لو ضغطت 'صحح وعتمد'">{{ ans.body_markdown }}</textarea>
-                <input name="note" placeholder="ملاحظة مراجعة (اختياري)" />
+                          placeholder="{% trans "(اختياري) إجابة مصححة — هتحل محل اللي فوق لو ضغطت 'صحح وعتمد'" %}">{{ ans.body_markdown }}</textarea>
+                <input name="note" placeholder="{% trans "ملاحظة مراجعة (اختياري)" %}" />
                 <div class="actions">
-                    <button name="action" value="approve">✅ اعتمد كما هي</button>
-                    <button name="action" value="correct" class="warn">✏️ صحح وعتمد</button>
-                    <button name="action" value="reject" class="danger">❌ ارفض</button>
+                    <button name="action" value="approve">{% trans "✅ اعتمد كما هي" %}</button>
+                    <button name="action" value="correct" class="warn">{% trans "✏️ صحح وعتمد" %}</button>
+                    <button name="action" value="reject" class="danger">{% trans "❌ ارفض" %}</button>
                 </div>
             </form>
         </div>
     {% empty %}
-        <div class="empty">✨ مفيش حاجة بانتظار المراجعة دلوقتي.</div>
+        <div class="empty">{% trans "✨ مفيش حاجة بانتظار المراجعة دلوقتي." %}</div>
     {% endfor %}
 </body>
 </html>

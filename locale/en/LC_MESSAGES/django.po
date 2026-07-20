@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 18:52+0300\n"
+"POT-Creation-Date: 2026-07-20 18:56+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1692,7 +1692,7 @@ msgid "فشل"
 msgstr "Failed"
 
 msgid "الموضوع"
-msgstr ""
+msgstr "Subject"
 
 msgid "نص الرسالة"
 msgstr ""
@@ -2370,6 +2370,86 @@ msgstr ""
 
 msgid "📊 سجل استهلاك AI Studio"
 msgstr ""
+
+msgid "💣 الحذف العميق (Deep Clean)"
+msgstr "💣 Deep delete (Deep Clean)"
+
+msgid "⚠️ تحذير:"
+msgstr "⚠️ Warning:"
+
+msgid "العملية ده"
+msgstr "This operation"
+
+msgid "لا يمكن التراجع عنها"
+msgstr "cannot be undone"
+
+msgid ""
+"هتمسح كل بيانات العملاء التالية + ملفاتهم من التخزين + سجلات تعلّم الـ AI "
+"الخاصة بيهم."
+msgstr "It will delete all the following customer data + their files from storage + their AI learning records."
+
+msgid ""
+"كله ملفوف بـ transaction.atomic() — لو فشلت أي خطوة، الـ DB يرجع بالكامل."
+msgstr "Everything is wrapped in transaction.atomic() — if any step fails, the DB rolls back completely."
+
+msgid "تصاميم"
+msgstr "designs"
+
+msgid "باقات"
+msgstr "Packages"
+
+msgid "طلبات طباعة"
+msgstr "Print orders"
+
+msgid "سجلات تعلم"
+msgstr "Learning records"
+
+msgid "اكتب كلمة"
+msgstr "Type the word"
+
+msgid "للتأكيد:"
+msgstr "to confirm:"
+
+msgid "💣 تأكيد الحذف العميق"
+msgstr "💣 Confirm deep delete"
+
+msgid "إلغاء (آمن)"
+msgstr "Cancel (safe)"
+
+msgid "🎁 منح باقة هدية"
+msgstr "🎁 Grant a gift package"
+
+msgid "سيتم منح الباقة المختارة كـ"
+msgstr "The selected package will be granted as a"
+
+msgid "هدية مجانية"
+msgstr "free gift"
+
+msgid "(payment_method=admin_grant) للعملاء التاليين:"
+msgstr "(payment_method=admin_grant) to the following customers:"
+
+msgid "اختر الباقة:"
+msgstr "Choose the package:"
+
+#, python-format
+msgid "%(n)s تصميم"
+msgstr "%(n)s designs"
+
+#, python-format
+msgid "(قيمة فعلية: %(price)s ج.م)"
+msgstr "(actual value: %(price)s EGP)"
+
+msgid "سبب المنحة (اختياري):"
+msgstr "Grant reason (optional):"
+
+msgid "مثال: تعويض عن عطل في 2026-06-01"
+msgstr "Example: compensation for an outage on 2026-06-01"
+
+msgid "✅ تأكيد المنحة"
+msgstr "✅ Confirm grant"
+
+msgid "إلغاء"
+msgstr "Cancel"
 
 msgid "قوة كلمة السر"
 msgstr "Password strength"
@@ -3732,9 +3812,6 @@ msgid "تصاميم احترافية بالذكاء الاصطناعي — دف�
 msgstr ""
 "Professional AI designs — one-time payment with no monthly subscription"
 
-msgid "تصاميم"
-msgstr "designs"
-
 msgid "دفعة واحدة"
 msgstr "One-time payment"
 
@@ -4656,9 +4733,6 @@ msgstr "Confirm"
 msgid "هل أنت متأكد؟"
 msgstr "Are you sure?"
 
-msgid "إلغاء"
-msgstr "Cancel"
-
 msgid "تم التوليد"
 msgstr "Generated"
 
@@ -5569,10 +5643,6 @@ msgstr "Complete the payment so we can activate your package"
 
 msgid "عدد التصاميم"
 msgstr "Number of designs"
-
-#, python-format
-msgid "%(n)s تصميم"
-msgstr "%(n)s designs"
 
 msgid "المبلغ المطلوب"
 msgstr "Amount due"
@@ -7287,9 +7357,6 @@ msgstr ""
 "Certified double entries + each print shop in a separate schema — bank-grade "
 "security compliant with global Multi-tenant SaaS standards."
 
-msgid "طلبات طباعة"
-msgstr "Print orders"
-
 msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
 msgstr ""
 "Create a print order with sizes, quantities, and copies — pricing is "
@@ -8623,6 +8690,27 @@ msgstr "Account email"
 
 msgid "ابعت رابط جديد"
 msgstr "Send a new link"
+
+msgid "💬 محتاج مساعدة؟"
+msgstr "💬 Need help?"
+
+msgid "📨 تواصل مع الدعم"
+msgstr "📨 Contact support"
+
+msgid "رسالتك..."
+msgstr "Your message..."
+
+msgid "📤 إرسال"
+msgstr "📤 Send"
+
+msgid "✅ تم الإرسال"
+msgstr "✅ Sent"
+
+msgid "❌ فشل الإرسال"
+msgstr "❌ Submission failed"
+
+msgid "❌ خطأ في الاتصال"
+msgstr "❌ Connection error"
 
 msgid "معلوماتي"
 msgstr ""
@@ -13157,6 +13245,43 @@ msgstr ""
 msgid "بنود العرض"
 msgstr ""
 
+msgid "مراجعة إجابات أطلس الإصلاح — SuperAdmin"
+msgstr "Review Repair Atlas answers — SuperAdmin"
+
+#, python-format
+msgid "📋 إجابات بانتظار المراجعة (%(n)s)"
+msgstr "📋 Answers awaiting review (%(n)s)"
+
+msgid "الفني:"
+msgstr "Technician:"
+
+msgid "العربية:"
+msgstr "Vehicle:"
+
+msgid "الوضع:"
+msgstr "Mode:"
+
+msgid "القطعة:"
+msgstr "Part:"
+
+msgid "(اختياري) إجابة مصححة — هتحل محل اللي فوق لو ضغطت 'صحح وعتمد'"
+msgstr "(optional) corrected answer — it replaces the one above if you press Correct and approve"
+
+msgid "ملاحظة مراجعة (اختياري)"
+msgstr "Review note (optional)"
+
+msgid "✅ اعتمد كما هي"
+msgstr "✅ Approve as is"
+
+msgid "✏️ صحح وعتمد"
+msgstr "✏️ Correct and approve"
+
+msgid "❌ ارفض"
+msgstr "❌ Reject"
+
+msgid "✨ مفيش حاجة بانتظار المراجعة دلوقتي."
+msgstr "✨ Nothing awaiting review right now."
+
 msgid "التوكن"
 msgstr ""
 
@@ -13257,7 +13382,9 @@ msgid "باقة Premium Diagnostics غير متاحة حالياً"
 msgstr "Premium Diagnostics package is currently unavailable"
 
 msgid "يبدو أن الباقة لم يتم تفعيلها بعد على هذا النظام. تواصل مع الدعم الفني."
-msgstr "It seems the package has not been activated yet on this system. Contact technical support."
+msgstr ""
+"It seems the package has not been activated yet on this system. Contact "
+"technical support."
 
 msgid "403 — غير مصرح"
 msgstr "403 — Unauthorized"
@@ -13268,10 +13395,13 @@ msgstr "403 — Access denied"
 msgid ""
 "عذراً، لا يمكن تنفيذ هذا الطلب. قد يكون السبب انتهاء صلاحية الجلسة أو مشكلة "
 "في التحقق الأمني."
-msgstr "Sorry, this request cannot be completed. The session may have expired or there may be a security verification issue."
+msgstr ""
+"Sorry, this request cannot be completed. The session may have expired or "
+"there may be a security verification issue."
 
 msgid "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكيز ثم أعد المحاولة."
-msgstr "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
+msgstr ""
+"Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
 
 #, python-format
 msgid ""
@@ -13289,7 +13419,9 @@ msgid "لا تقلق — نظام Mouss Tec يعمل في وضع عدم الات
 msgstr "Do not worry — the Mouss Tec system works in offline mode."
 
 msgid "الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال."
-msgstr "Previously saved pages are available, and syncing happens automatically when the connection returns."
+msgstr ""
+"Previously saved pages are available, and syncing happens automatically when "
+"the connection returns."
 
 msgid "إعادة المحاولة"
 msgstr "Retry"
