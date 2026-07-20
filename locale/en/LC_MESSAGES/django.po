@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 14:25+0300\n"
+"POT-Creation-Date: 2026-07-20 14:44+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -601,7 +601,7 @@ msgid "ألوان محددة"
 msgstr ""
 
 msgid "الألوان"
-msgstr ""
+msgstr "Colors"
 
 msgid "التشطيب"
 msgstr ""
@@ -760,10 +760,10 @@ msgid "اللون الثانوي"
 msgstr ""
 
 msgid "لون التمييز (اختياري)"
-msgstr ""
+msgstr "Accent color (optional)"
 
 msgid "اللوجو"
-msgstr ""
+msgstr "The logo"
 
 msgid "هيتستخدم كـ reference في كل تصميم تلقائياً"
 msgstr ""
@@ -1113,10 +1113,10 @@ msgid "مثال: 320i, X5, Cooper S, F30"
 msgstr ""
 
 msgid "من سنة"
-msgstr ""
+msgstr "From year"
 
 msgid "إلى سنة"
-msgstr ""
+msgstr "To year"
 
 msgid "كود الموتور"
 msgstr "Engine code"
@@ -1125,7 +1125,7 @@ msgid "مثال: N13, N20, M54, K20A — حساس جداً لمطابقة قطع
 msgstr ""
 
 msgid "رقم القطعة الأصلي (OEM)"
-msgstr ""
+msgstr "Original part number (OEM)"
 
 msgid "السعر (ج.م)"
 msgstr "Price (EGP)"
@@ -4045,6 +4045,173 @@ msgstr "Registered"
 msgid "تم الدخول"
 msgstr "Logged in"
 
+msgid "ملف البراند | Mouss Tec"
+msgstr "Brand profile | Mouss Tec"
+
+msgid "ملف البراند"
+msgstr "Brand profile"
+
+msgid "رجوع للمتجر"
+msgstr "Back to store"
+
+msgid "🎨 هوية البراند بتاعتك"
+msgstr "🎨 Your brand identity"
+
+msgid ""
+"اللوجو، الألوان، الخطوط، والستايل — هيتطبقوا تلقائياً على كل تصميم AI تطلبه. "
+"اللي بتحفظه هنا بيتحقن مباشرة في الـ design pipeline."
+msgstr "The logo, colors, fonts, and style — they are applied automatically to every AI design you request. What you save here is injected directly into the design pipeline."
+
+msgid "تصميم اتعملوا بهذه الهوية"
+msgstr "designs made with this identity"
+
+msgid "الهوية"
+msgstr "Identity"
+
+msgid "اسم البراند والتاج لاين الأساسي."
+msgstr "The brand name and the main tagline."
+
+msgid "اسم البراند (عربي) *"
+msgstr "Brand name (Arabic) *"
+
+msgid "مثلاً: موس تك"
+msgstr "Example: Mouss Tec"
+
+msgid "اسم البراند (English)"
+msgstr "Brand name (English)"
+
+msgid "التاج لاين / الشعار"
+msgstr "The tagline / slogan"
+
+msgid "جملة قصيرة بتعبّر عن البراند"
+msgstr "A short phrase that expresses the brand"
+
+msgid "PNG/JPG/WEBP/SVG — أقصى حجم 5MB."
+msgstr "PNG/JPG/WEBP/SVG — maximum size 5MB."
+
+msgid "اللوجو الأساسي"
+msgstr "Primary logo"
+
+msgid "اسحب اللوجو هنا أو اضغط للاختيار"
+msgstr "Drag the logo here or click to choose"
+
+msgid "حذف الأساسي"
+msgstr "Delete primary"
+
+msgid "اللوجو البديل (اختياري)"
+msgstr "Alternate logo (optional)"
+
+msgid "نسخة بديلة (داكنة/أحادية اللون)"
+msgstr "Alternate version (dark/monochrome)"
+
+msgid "حذف البديل"
+msgstr "Delete alternate"
+
+msgid "هيتم استخدامها كـ palette رئيسي في كل تصميم."
+msgstr "They will be used as the main palette in every design."
+
+msgid "اللون الأساسي *"
+msgstr "Primary color *"
+
+msgid "اللون الثانوي *"
+msgstr "Secondary color *"
+
+msgid "الستايل والنبرة"
+msgstr "Style and tone"
+
+msgid "بتوجّه الـ AI ليفهم القطاع والمزاج العام."
+msgstr "They guide the AI to understand the sector and the general mood."
+
+msgid "الجمالية البصرية"
+msgstr "Visual aesthetic"
+
+msgid "النبرة / المزاج"
+msgstr "Tone / mood"
+
+msgid "الخط العربي"
+msgstr "Arabic font"
+
+msgid "الخط الإنجليزي"
+msgstr "English font"
+
+msgid "ملاحظات الستايل (تعليمات إضافية للـ AI)"
+msgstr "Style notes (extra instructions for the AI)"
+
+msgid "مثلاً: استخدم نمط minimalist، تجنّب الزخارف، خلفية فاتحة..."
+msgstr "Example: use a minimalist style, avoid ornaments, light background..."
+
+msgid "الحقن التلقائي"
+msgstr "Automatic injection"
+
+msgid "تحكّم في إيه اللي يتطبق تلقائياً على كل تصميم جديد."
+msgstr "Control what is applied automatically to every new design."
+
+msgid "تفعيل ملف البراند"
+msgstr "Enable brand profile"
+
+msgid "لو طفيته، التصاميم هتتعمل من غير هويتك."
+msgstr "If you turn it off, designs will be made without your identity."
+
+msgid "حقن اللوجو تلقائياً"
+msgstr "Inject the logo automatically"
+
+msgid "يضيف اللوجو لكل تصميم بشكل طبيعي."
+msgstr "Adds the logo to every design naturally."
+
+msgid "حقن الألوان تلقائياً"
+msgstr "Inject the colors automatically"
+
+msgid "يستخدم الـ palette بتاعتك في كل تصميم."
+msgstr "Uses your palette in every design."
+
+msgid "حذف الملف كاملاً"
+msgstr "Delete the entire profile"
+
+msgid "حفظ ملف البراند"
+msgstr "Save brand profile"
+
+msgid "الحجم أكبر من 5MB"
+msgstr "The size is larger than 5MB"
+
+msgid "فشل التحميل"
+msgstr "Upload failed"
+
+msgid "اللوجو المحفوظ"
+msgstr "Saved logo"
+
+msgid "اللوجو البديل المحفوظ"
+msgstr "Saved alternate logo"
+
+msgid "فشل الحفظ"
+msgstr "Failed to save"
+
+msgid "✅ تم الحفظ"
+msgstr "✅ Saved"
+
+msgid "تأكيد حذف اللوجو"
+msgstr "Confirm deleting the"
+
+msgid "الأساسي"
+msgstr "primary logo"
+
+msgid "البديل"
+msgstr "alternate logo"
+
+msgid "؟"
+msgstr "?"
+
+msgid "فشل الحذف"
+msgstr "Deletion failed"
+
+msgid "تم حذف اللوجو"
+msgstr "Logo deleted"
+
+msgid "هتمسح ملف البراند كله — متأكد؟ ده مش بيتراجع."
+msgstr "You will delete the entire brand profile — are you sure? This cannot be undone."
+
+msgid "اتمسح الملف"
+msgstr "Profile deleted"
+
 msgid "سوق Mouss Tec | اختر القطاع"
 msgstr "Mouss Tec Marketplace | Choose sector"
 
@@ -4117,10 +4284,14 @@ msgstr "%(e)s %(l)s advisor"
 msgid ""
 "هاكلمك في برانديك، اقترحلك تصاميم، وأقول لك أنسب باقة من design store حسب "
 "استخدامك."
-msgstr "I will talk with you about your branding, suggest designs, and tell you the best package from the design store based on your usage."
+msgstr ""
+"I will talk with you about your branding, suggest designs, and tell you the "
+"best package from the design store based on your usage."
 
 msgid "هاكلمك في صيانة عربيتك، اشتراك التشخيص، وهفكرك بمواعيد الفحص."
-msgstr "I will talk with you about your car maintenance, the diagnostics subscription, and remind you of inspection dates."
+msgstr ""
+"I will talk with you about your car maintenance, the diagnostics "
+"subscription, and remind you of inspection dates."
 
 #, python-format
 msgid "أهلاً %(name)s! اسألني عن أي حاجة تخص"
@@ -4204,9 +4375,6 @@ msgstr "We will send you a notification as soon as the payment is confirmed"
 
 msgid "في انتظار التأكيد"
 msgstr "Awaiting confirmation"
-
-msgid "رجوع للمتجر"
-msgstr "Back to store"
 
 msgid "تم رفض الطلب"
 msgstr "Request rejected"
@@ -4550,11 +4718,121 @@ msgstr "and in Arabic"
 msgid "بأسعار قطع الغيار المصرية"
 msgstr "at Egyptian spare-parts prices"
 
-msgid "سوق قطع الغيار"
-msgstr "Spare-parts marketplace"
+msgid "اعرض قطعة | سوق قطع الغيار"
+msgstr "Sell a part | Spare-parts marketplace"
 
 msgid "رجوع للسوق"
 msgstr "Back to marketplace"
+
+msgid "📷 اعرض قطعة للبيع"
+msgstr "📷 Sell a part"
+
+msgid "اعرض قطعة غيار للبيع"
+msgstr "Sell a spare part"
+
+msgid ""
+"صور بالتفصيل من كل الزوايا — كلما زادت الصور والتفاصيل، زادت ثقة المشتري."
+msgstr "Photograph in detail from all angles — the more photos and details, the more buyer confidence."
+
+msgid "اسم القطعة *"
+msgstr "Part name *"
+
+msgid "مثال: طرمبة بنزين BMW 320i 2014"
+msgstr "Example: BMW 320i 2014 fuel pump"
+
+msgid "ماركة السيارة *"
+msgstr "Car make *"
+
+msgid "اختر الماركة..."
+msgstr "Choose the make..."
+
+msgid "مثال: 320i / X5 / Cooper"
+msgstr "Example: 320i / X5 / Cooper"
+
+msgid "(اختياري) — يرفع الثقة"
+msgstr "(optional) — increases trust"
+
+msgid "الحالة *"
+msgstr "Condition *"
+
+msgid "الوصف الكامل *"
+msgstr "Full description *"
+
+msgid ""
+"اوصف القطعة بالتفصيل: تاريخ التركيب، أي أعطال أو خدوش، السبب الذي تبيعها "
+"لأجله، أي قطع إضافية معها..."
+msgstr "Describe the part in detail: installation date, any faults or scratches, the reason you are selling it, any extra parts with it..."
+
+msgid "صور القطعة * (3 صور على الأقل — الأولى هتكون الرئيسية)"
+msgstr "Part photos * (at least 3 photos — the first will be the main one)"
+
+msgid "اضغط هنا لرفع الصور"
+msgstr "Click here to upload photos"
+
+msgid "صوّر من كل الزوايا: أمام، خلف، جنب، الأرقام، أي خدوش"
+msgstr "Photograph from all angles: front, back, side, numbers, any scratches"
+
+msgid ""
+"⚠️ لو القطعة فيها مشكلة بعد البيع وما صوّرتش التفصيلة دي، المشتري ممكن يرجعها."
+msgstr "⚠️ If the part has a problem after the sale and you did not photograph this detail, the buyer may return it."
+
+msgid "السعر (ج.م) *"
+msgstr "Price (EGP) *"
+
+msgid "فترة الضمان (يوم) *"
+msgstr "Warranty period (days) *"
+
+msgid "ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك."
+msgstr "7-day warranty — a good balance between trust and receiving your money quickly."
+
+msgid "القاهرة، الإسكندرية..."
+msgstr "Cairo, Alexandria..."
+
+msgid "ملخص العمولة:"
+msgstr "Commission summary:"
+
+msgid "السعر المعروض"
+msgstr "Listed price"
+
+msgid "— ج.م"
+msgstr "— EGP"
+
+#, python-format
+msgid "عمولة المنصة (8%% للأفراد)"
+msgstr ""
+
+msgid "👈 صافي مكسبك"
+msgstr "👈 Your net profit"
+
+msgid "الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان."
+msgstr "The money is released to your account after the warranty period ends."
+
+msgid "انشر القطعة في السوق"
+msgstr "Publish the part in the marketplace"
+
+msgid "رئيسية"
+msgstr "Primary"
+
+msgid "⚡ ضمان قصير — هتستلم فلوسك بسرعة، بس المشتري ممكن يتردد."
+msgstr "⚡ Short warranty — you will receive your money fast, but the buyer may hesitate."
+
+msgid "✅ ضمان متوازن — يرفع ثقة المشتري ومش هتنتظر كتير."
+msgstr "✅ Balanced warranty — raises buyer confidence and you will not wait long."
+
+msgid "🛡️ ضمان طويل — هيجذب المشترين الجادين، فلوسك هتتأخر شوية."
+msgstr "🛡️ Long warranty — attracts serious buyers, your money will be delayed a bit."
+
+msgid "🏆 ضمان مميز — أعلى ثقة. هتبيع أسرع وبسعر أعلى."
+msgstr "🏆 Premium warranty — highest trust. You will sell faster and at a higher price."
+
+msgid "لازم 3 صور على الأقل"
+msgstr "At least 3 photos are required"
+
+msgid "جاري الرفع..."
+msgstr "Uploading..."
+
+msgid "سوق قطع الغيار"
+msgstr "Spare-parts marketplace"
 
 msgid "فترة الضمان"
 msgstr "Warranty period"
@@ -4610,9 +4888,6 @@ msgstr "Complete purchase"
 
 msgid "الاسم الكامل للاستلام"
 msgstr "Full name for delivery"
-
-msgid "القاهرة، الإسكندرية..."
-msgstr "Cairo, Alexandria..."
 
 msgid "العنوان بالتفصيل"
 msgstr "Detailed address"
@@ -6526,9 +6801,6 @@ msgstr "The amount will be released to the seller. Continue?"
 msgid "تأكيد نهائي: حذف العميل لا يمكن التراجع عنه. متابعة؟"
 msgstr "Final confirmation: deleting the customer cannot be undone. Continue?"
 
-msgid "فشل الحذف"
-msgstr "Deletion failed"
-
 msgid "تم الحذف."
 msgstr "Deleted."
 
@@ -8175,9 +8447,6 @@ msgid "المورد"
 msgstr "Supplier"
 
 msgid "وقت إرسال الطلب"
-msgstr ""
-
-msgid "السعر المعروض"
 msgstr ""
 
 msgid "مدة التوريد (أيام)"
@@ -10207,9 +10476,6 @@ msgstr ""
 
 msgid "أدخل سعراً صحيحاً."
 msgstr "Enter a valid price."
-
-msgid "فشل الحفظ"
-msgstr "Failed to save"
 
 msgid "سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟"
 msgstr "A Draft purchase order will be created for this supplier. Sure?"

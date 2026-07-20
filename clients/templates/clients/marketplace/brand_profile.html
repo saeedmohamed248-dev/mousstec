@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ملف البراند | Mouss Tec</title>
+    <title>{% trans "ملف البراند | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -158,19 +159,19 @@
 </head>
 <body>
     <div class="topbar">
-        <div class="brand"><i class="fas fa-palette"></i> ملف البراند</div>
+        <div class="brand"><i class="fas fa-palette"></i> {% trans "ملف البراند" %}</div>
         <div>
-            <a href="/marketplace/design-store/"><i class="fas fa-arrow-right"></i> رجوع للمتجر</a>
+            <a href="/marketplace/design-store/"><i class="fas fa-arrow-right"></i> {% trans "رجوع للمتجر" %}</a>
         </div>
     </div>
 
     <div class="hero">
-        <h1>🎨 هوية البراند بتاعتك</h1>
-        <p>اللوجو، الألوان، الخطوط، والستايل — هيتطبقوا تلقائياً على كل تصميم AI تطلبه. اللي بتحفظه هنا بيتحقن مباشرة في الـ design pipeline.</p>
+        <h1>{% trans "🎨 هوية البراند بتاعتك" %}</h1>
+        <p>{% trans "اللوجو، الألوان، الخطوط، والستايل — هيتطبقوا تلقائياً على كل تصميم AI تطلبه. اللي بتحفظه هنا بيتحقن مباشرة في الـ design pipeline." %}</p>
         <div style="margin-top: 14px;">
             <span class="stat-chip" id="designs-count" style="display:none;">
                 <i class="fas fa-check-circle"></i>
-                <span id="designs-count-num">0</span> تصميم اتعملوا بهذه الهوية
+                <span id="designs-count-num">0</span> {% trans "تصميم اتعملوا بهذه الهوية" %}
             </span>
         </div>
     </div>
@@ -180,36 +181,36 @@
 
             <!-- Identity -->
             <div class="card">
-                <h2><i class="fas fa-id-badge"></i> الهوية</h2>
-                <p class="hint">اسم البراند والتاج لاين الأساسي.</p>
+                <h2><i class="fas fa-id-badge"></i> {% trans "الهوية" %}</h2>
+                <p class="hint">{% trans "اسم البراند والتاج لاين الأساسي." %}</p>
                 <div class="grid">
                     <div>
-                        <label>اسم البراند (عربي) *</label>
-                        <input type="text" name="brand_name" id="brand_name" required maxlength="120" placeholder="مثلاً: موس تك">
+                        <label>{% trans "اسم البراند (عربي) *" %}</label>
+                        <input type="text" name="brand_name" id="brand_name" required maxlength="120" placeholder="{% trans "مثلاً: موس تك" %}">
                     </div>
                     <div>
-                        <label>اسم البراند (English)</label>
+                        <label>{% trans "اسم البراند (English)" %}</label>
                         <input type="text" name="brand_name_en" id="brand_name_en" maxlength="120" placeholder="e.g. Mouss Tec">
                     </div>
                 </div>
                 <div style="margin-top: 14px;">
-                    <label>التاج لاين / الشعار</label>
-                    <input type="text" name="tagline" id="tagline" maxlength="200" placeholder="جملة قصيرة بتعبّر عن البراند">
+                    <label>{% trans "التاج لاين / الشعار" %}</label>
+                    <input type="text" name="tagline" id="tagline" maxlength="200" placeholder="{% trans "جملة قصيرة بتعبّر عن البراند" %}">
                 </div>
             </div>
 
             <!-- Logos -->
             <div class="card">
-                <h2><i class="fas fa-image"></i> اللوجو</h2>
-                <p class="hint">PNG/JPG/WEBP/SVG — أقصى حجم 5MB.</p>
+                <h2><i class="fas fa-image"></i> {% trans "اللوجو" %}</h2>
+                <p class="hint">{% trans "PNG/JPG/WEBP/SVG — أقصى حجم 5MB." %}</p>
                 <div class="grid">
                     <div>
-                        <label>اللوجو الأساسي</label>
+                        <label>{% trans "اللوجو الأساسي" %}</label>
                         <div class="logo-uploader" id="logo-uploader" onclick="document.getElementById('logo-input').click()">
                             <input type="file" name="logo" id="logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                             <div id="logo-empty">
                                 <i class="fas fa-cloud-upload-alt"></i>
-                                <div>اسحب اللوجو هنا أو اضغط للاختيار</div>
+                                <div>{% trans "اسحب اللوجو هنا أو اضغط للاختيار" %}</div>
                             </div>
                             <div id="logo-preview-wrap" style="display:none;">
                                 <img id="logo-preview" alt="logo preview">
@@ -218,18 +219,18 @@
                         </div>
                         <div class="logo-actions" id="logo-actions" style="display:none;">
                             <button type="button" onclick="deleteLogo('primary', event)">
-                                <i class="fas fa-trash"></i> حذف الأساسي
+                                <i class="fas fa-trash"></i> {% trans "حذف الأساسي" %}
                             </button>
                         </div>
                     </div>
 
                     <div>
-                        <label>اللوجو البديل (اختياري)</label>
+                        <label>{% trans "اللوجو البديل (اختياري)" %}</label>
                         <div class="logo-uploader" id="logo-alt-uploader" onclick="document.getElementById('logo-alt-input').click()">
                             <input type="file" name="logo_alt" id="logo-alt-input" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                             <div id="logo-alt-empty">
                                 <i class="fas fa-cloud-upload-alt"></i>
-                                <div>نسخة بديلة (داكنة/أحادية اللون)</div>
+                                <div>{% trans "نسخة بديلة (داكنة/أحادية اللون)" %}</div>
                             </div>
                             <div id="logo-alt-preview-wrap" style="display:none;">
                                 <img id="logo-alt-preview" alt="alt logo preview">
@@ -238,7 +239,7 @@
                         </div>
                         <div class="logo-actions" id="logo-alt-actions" style="display:none;">
                             <button type="button" onclick="deleteLogo('alt', event)">
-                                <i class="fas fa-trash"></i> حذف البديل
+                                <i class="fas fa-trash"></i> {% trans "حذف البديل" %}
                             </button>
                         </div>
                     </div>
@@ -247,25 +248,25 @@
 
             <!-- Colors -->
             <div class="card">
-                <h2><i class="fas fa-fill-drip"></i> الألوان</h2>
-                <p class="hint">هيتم استخدامها كـ palette رئيسي في كل تصميم.</p>
+                <h2><i class="fas fa-fill-drip"></i> {% trans "الألوان" %}</h2>
+                <p class="hint">{% trans "هيتم استخدامها كـ palette رئيسي في كل تصميم." %}</p>
                 <div class="grid" style="grid-template-columns: 1fr 1fr 1fr;">
                     <div>
-                        <label>اللون الأساسي *</label>
+                        <label>{% trans "اللون الأساسي *" %}</label>
                         <div class="color-row">
                             <input type="color" id="primary_color_picker" value="#7c3aed">
                             <input type="text" name="primary_color" id="primary_color" value="#7c3aed" pattern="^#[0-9A-Fa-f]{3,8}$">
                         </div>
                     </div>
                     <div>
-                        <label>اللون الثانوي *</label>
+                        <label>{% trans "اللون الثانوي *" %}</label>
                         <div class="color-row">
                             <input type="color" id="secondary_color_picker" value="#1e293b">
                             <input type="text" name="secondary_color" id="secondary_color" value="#1e293b" pattern="^#[0-9A-Fa-f]{3,8}$">
                         </div>
                     </div>
                     <div>
-                        <label>لون التمييز (اختياري)</label>
+                        <label>{% trans "لون التمييز (اختياري)" %}</label>
                         <div class="color-row">
                             <input type="color" id="accent_color_picker" value="#ec4899">
                             <input type="text" name="accent_color" id="accent_color" placeholder="#ec4899">
@@ -276,61 +277,61 @@
 
             <!-- Style -->
             <div class="card">
-                <h2><i class="fas fa-magic"></i> الستايل والنبرة</h2>
-                <p class="hint">بتوجّه الـ AI ليفهم القطاع والمزاج العام.</p>
+                <h2><i class="fas fa-magic"></i> {% trans "الستايل والنبرة" %}</h2>
+                <p class="hint">{% trans "بتوجّه الـ AI ليفهم القطاع والمزاج العام." %}</p>
                 <div class="grid">
                     <div>
-                        <label>القطاع</label>
+                        <label>{% trans "القطاع" %}</label>
                         <select name="industry" id="industry"></select>
                     </div>
                     <div>
-                        <label>الجمالية البصرية</label>
+                        <label>{% trans "الجمالية البصرية" %}</label>
                         <select name="aesthetic" id="aesthetic"></select>
                     </div>
                     <div>
-                        <label>النبرة / المزاج</label>
+                        <label>{% trans "النبرة / المزاج" %}</label>
                         <select name="tone" id="tone"></select>
                     </div>
                     <div>
-                        <label>الخط العربي</label>
+                        <label>{% trans "الخط العربي" %}</label>
                         <select name="arabic_font" id="arabic_font"></select>
                     </div>
                     <div>
-                        <label>الخط الإنجليزي</label>
+                        <label>{% trans "الخط الإنجليزي" %}</label>
                         <select name="english_font" id="english_font"></select>
                     </div>
                 </div>
                 <div style="margin-top: 14px;">
-                    <label>ملاحظات الستايل (تعليمات إضافية للـ AI)</label>
-                    <textarea name="style_notes" id="style_notes" maxlength="500" placeholder="مثلاً: استخدم نمط minimalist، تجنّب الزخارف، خلفية فاتحة..."></textarea>
+                    <label>{% trans "ملاحظات الستايل (تعليمات إضافية للـ AI)" %}</label>
+                    <textarea name="style_notes" id="style_notes" maxlength="500" placeholder="{% trans "مثلاً: استخدم نمط minimalist، تجنّب الزخارف، خلفية فاتحة..." %}"></textarea>
                 </div>
             </div>
 
             <!-- Auto-inject toggles -->
             <div class="card">
-                <h2><i class="fas fa-bolt"></i> الحقن التلقائي</h2>
-                <p class="hint">تحكّم في إيه اللي يتطبق تلقائياً على كل تصميم جديد.</p>
+                <h2><i class="fas fa-bolt"></i> {% trans "الحقن التلقائي" %}</h2>
+                <p class="hint">{% trans "تحكّم في إيه اللي يتطبق تلقائياً على كل تصميم جديد." %}</p>
 
                 <div class="switch-row">
                     <div>
-                        <label>تفعيل ملف البراند</label>
-                        <div class="desc">لو طفيته، التصاميم هتتعمل من غير هويتك.</div>
+                        <label>{% trans "تفعيل ملف البراند" %}</label>
+                        <div class="desc">{% trans "لو طفيته، التصاميم هتتعمل من غير هويتك." %}</div>
                     </div>
                     <div class="switch on" id="switch-is_active" data-name="is_active" onclick="toggleSwitch(this)"></div>
                 </div>
 
                 <div class="switch-row">
                     <div>
-                        <label>حقن اللوجو تلقائياً</label>
-                        <div class="desc">يضيف اللوجو لكل تصميم بشكل طبيعي.</div>
+                        <label>{% trans "حقن اللوجو تلقائياً" %}</label>
+                        <div class="desc">{% trans "يضيف اللوجو لكل تصميم بشكل طبيعي." %}</div>
                     </div>
                     <div class="switch on" id="switch-auto_inject_logo" data-name="auto_inject_logo" onclick="toggleSwitch(this)"></div>
                 </div>
 
                 <div class="switch-row">
                     <div>
-                        <label>حقن الألوان تلقائياً</label>
-                        <div class="desc">يستخدم الـ palette بتاعتك في كل تصميم.</div>
+                        <label>{% trans "حقن الألوان تلقائياً" %}</label>
+                        <div class="desc">{% trans "يستخدم الـ palette بتاعتك في كل تصميم." %}</div>
                     </div>
                     <div class="switch on" id="switch-auto_inject_colors" data-name="auto_inject_colors" onclick="toggleSwitch(this)"></div>
                 </div>
@@ -342,10 +343,10 @@
 
             <div class="actions">
                 <button type="button" class="btn btn-danger" onclick="deleteProfile()">
-                    <i class="fas fa-trash"></i> حذف الملف كاملاً
+                    <i class="fas fa-trash"></i> {% trans "حذف الملف كاملاً" %}
                 </button>
                 <button type="submit" class="btn btn-primary" id="save-btn">
-                    <i class="fas fa-save"></i> حفظ ملف البراند
+                    <i class="fas fa-save"></i> {% trans "حفظ ملف البراند" %}
                 </button>
             </div>
         </form>
@@ -396,7 +397,7 @@
             document.getElementById(inputId).addEventListener('change', e => {
                 const f = e.target.files[0];
                 if (!f) return;
-                if (f.size > 5 * 1024 * 1024) { showToast('الحجم أكبر من 5MB', 'error'); e.target.value = ''; return; }
+                if (f.size > 5 * 1024 * 1024) { showToast('{% trans "الحجم أكبر من 5MB" %}', 'error'); e.target.value = ''; return; }
                 const reader = new FileReader();
                 reader.onload = ev => {
                     document.getElementById(previewId).src = ev.target.result;
@@ -430,7 +431,7 @@
             try {
                 const res = await fetch(API_URL, { credentials: 'same-origin' });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'فشل التحميل');
+                if (!res.ok) throw new Error(data.error || '{% trans "فشل التحميل" %}');
 
                 const c = data.choices || {};
                 const p = data.profile;
@@ -467,7 +468,7 @@
 
                 if (p.logo_url) {
                     document.getElementById('logo-preview').src = p.logo_url;
-                    document.getElementById('logo-filename').textContent = 'اللوجو المحفوظ';
+                    document.getElementById('logo-filename').textContent = '{% trans "اللوجو المحفوظ" %}';
                     document.getElementById('logo-empty').style.display = 'none';
                     document.getElementById('logo-preview-wrap').style.display = 'block';
                     document.getElementById('logo-actions').style.display = 'flex';
@@ -475,7 +476,7 @@
                 }
                 if (p.logo_alt_url) {
                     document.getElementById('logo-alt-preview').src = p.logo_alt_url;
-                    document.getElementById('logo-alt-filename').textContent = 'اللوجو البديل المحفوظ';
+                    document.getElementById('logo-alt-filename').textContent = '{% trans "اللوجو البديل المحفوظ" %}';
                     document.getElementById('logo-alt-empty').style.display = 'none';
                     document.getElementById('logo-alt-preview-wrap').style.display = 'block';
                     document.getElementById('logo-alt-actions').style.display = 'flex';
@@ -505,8 +506,8 @@
                     credentials: 'same-origin',
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'فشل الحفظ');
-                showToast(data.message || '✅ تم الحفظ', 'success');
+                if (!res.ok) throw new Error(data.error || '{% trans "فشل الحفظ" %}');
+                showToast(data.message || '{% trans "✅ تم الحفظ" %}', 'success');
                 // refresh logo URLs after upload
                 setTimeout(loadProfile, 500);
             } catch (err) {
@@ -519,7 +520,7 @@
         // ── Delete logo slot ───────────────────────────────────
         async function deleteLogo(slot, ev) {
             ev.stopPropagation();
-            if (!confirm(`تأكيد حذف اللوجو ${slot === 'primary' ? 'الأساسي' : 'البديل'}؟`)) return;
+            if (!confirm(`{% trans "تأكيد حذف اللوجو" %} ${slot === 'primary' ? '{% trans "الأساسي" %}' : '{% trans "البديل" %}'}{% trans "؟" %}`)) return;
             setLoading(true);
             try {
                 const res = await fetch(`/marketplace/brand-profile/logo/${slot}/delete/`, {
@@ -528,8 +529,8 @@
                     credentials: 'same-origin',
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'فشل الحذف');
-                showToast('تم حذف اللوجو', 'success');
+                if (!res.ok) throw new Error(data.error || '{% trans "فشل الحذف" %}');
+                showToast('{% trans "تم حذف اللوجو" %}', 'success');
                 loadProfile();
             } catch (err) {
                 showToast(err.message, 'error');
@@ -540,7 +541,7 @@
 
         // ── Delete whole profile ───────────────────────────────
         async function deleteProfile() {
-            if (!confirm('هتمسح ملف البراند كله — متأكد؟ ده مش بيتراجع.')) return;
+            if (!confirm('{% trans "هتمسح ملف البراند كله — متأكد؟ ده مش بيتراجع." %}')) return;
             setLoading(true);
             try {
                 const res = await fetch(API_URL, {
@@ -548,8 +549,8 @@
                     headers: { 'X-CSRFToken': getCookie('csrftoken') },
                     credentials: 'same-origin',
                 });
-                if (!res.ok) throw new Error('فشل الحذف');
-                showToast('اتمسح الملف', 'success');
+                if (!res.ok) throw new Error('{% trans "فشل الحذف" %}');
+                showToast('{% trans "اتمسح الملف" %}', 'success');
                 setTimeout(() => location.reload(), 800);
             } catch (err) {
                 showToast(err.message, 'error');

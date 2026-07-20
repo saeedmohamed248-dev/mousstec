@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اعرض قطعة | سوق قطع الغيار</title>
+    <title>{% trans "اعرض قطعة | سوق قطع الغيار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -70,105 +71,105 @@
 <body>
 
 <div class="topbar">
-    <a href="/marketplace/parts/" class="back"><i class="fas fa-arrow-right"></i> رجوع للسوق</a>
-    <span style="font-weight:900;">📷 اعرض قطعة للبيع</span>
+    <a href="/marketplace/parts/" class="back"><i class="fas fa-arrow-right"></i> {% trans "رجوع للسوق" %}</a>
+    <span style="font-weight:900;">{% trans "📷 اعرض قطعة للبيع" %}</span>
 </div>
 
 <div id="toast" class="toast"></div>
 
 <div class="wrap">
-    <h1>اعرض قطعة غيار للبيع</h1>
-    <p class="subtitle">صور بالتفصيل من كل الزوايا — كلما زادت الصور والتفاصيل، زادت ثقة المشتري.</p>
+    <h1>{% trans "اعرض قطعة غيار للبيع" %}</h1>
+    <p class="subtitle">{% trans "صور بالتفصيل من كل الزوايا — كلما زادت الصور والتفاصيل، زادت ثقة المشتري." %}</p>
 
     <form id="listingForm" enctype="multipart/form-data">
         {% csrf_token %}
 
         <div class="form-card">
-            <label>اسم القطعة *</label>
-            <input type="text" name="title" required maxlength="200" placeholder="مثال: طرمبة بنزين BMW 320i 2014">
+            <label>{% trans "اسم القطعة *" %}</label>
+            <input type="text" name="title" required maxlength="200" placeholder="{% trans "مثال: طرمبة بنزين BMW 320i 2014" %}">
 
             <div class="row">
                 <div>
-                    <label>ماركة السيارة *</label>
+                    <label>{% trans "ماركة السيارة *" %}</label>
                     <select name="car_make" id="carMakeSelect" required>
-                        <option value="">اختر الماركة...</option>
+                        <option value="">{% trans "اختر الماركة..." %}</option>
                         {% for m in makes %}
                         <option value="{{ m.pk }}">{{ m.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label>الموديل</label>
-                    <input type="text" name="car_model" maxlength="100" placeholder="مثال: 320i / X5 / Cooper">
+                    <label>{% trans "الموديل" %}</label>
+                    <input type="text" name="car_model" maxlength="100" placeholder="{% trans "مثال: 320i / X5 / Cooper" %}">
                 </div>
             </div>
 
             <div class="row">
                 <div>
-                    <label>من سنة</label>
+                    <label>{% trans "من سنة" %}</label>
                     <input type="number" name="car_year_from" min="1980" max="2030" placeholder="2014">
                 </div>
                 <div>
-                    <label>إلى سنة</label>
+                    <label>{% trans "إلى سنة" %}</label>
                     <input type="number" name="car_year_to" min="1980" max="2030" placeholder="2018">
                 </div>
             </div>
 
-            <label>رقم القطعة الأصلي (OEM)</label>
-            <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+            <label>{% trans "رقم القطعة الأصلي (OEM)" %}</label>
+            <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="{% trans "(اختياري) — يرفع الثقة" %}">
 
-            <label>الحالة *</label>
+            <label>{% trans "الحالة *" %}</label>
             <select name="condition" required>
                 {% for val, lbl in condition_choices %}
                 <option value="{{ val }}" {% if val == 'used_good' %}selected{% endif %}>{{ lbl }}</option>
                 {% endfor %}
             </select>
 
-            <label>الوصف الكامل *</label>
-            <textarea name="description" rows="5" required minlength="20" placeholder="اوصف القطعة بالتفصيل: تاريخ التركيب، أي أعطال أو خدوش، السبب الذي تبيعها لأجله، أي قطع إضافية معها..."></textarea>
+            <label>{% trans "الوصف الكامل *" %}</label>
+            <textarea name="description" rows="5" required minlength="20" placeholder="{% trans "اوصف القطعة بالتفصيل: تاريخ التركيب، أي أعطال أو خدوش، السبب الذي تبيعها لأجله، أي قطع إضافية معها..." %}"></textarea>
         </div>
 
         <div class="form-card">
-            <label>صور القطعة * (3 صور على الأقل — الأولى هتكون الرئيسية)</label>
+            <label>{% trans "صور القطعة * (3 صور على الأقل — الأولى هتكون الرئيسية)" %}</label>
             <div class="photo-area" onclick="document.getElementById('photosInput').click()">
                 <i class="fas fa-camera-retro"></i>
-                <p style="margin: 10px 0 4px; font-weight:800;">اضغط هنا لرفع الصور</p>
-                <p style="color: var(--muted); font-size: 0.82rem; margin: 0;">صوّر من كل الزوايا: أمام، خلف، جنب، الأرقام، أي خدوش</p>
+                <p style="margin: 10px 0 4px; font-weight:800;">{% trans "اضغط هنا لرفع الصور" %}</p>
+                <p style="color: var(--muted); font-size: 0.82rem; margin: 0;">{% trans "صوّر من كل الزوايا: أمام، خلف، جنب، الأرقام، أي خدوش" %}</p>
             </div>
             <input type="file" id="photosInput" name="photos" multiple accept="image/*" style="display:none;" onchange="previewPhotos(this)">
             <div id="preview" class="preview-grid"></div>
-            <p class="hint">⚠️ لو القطعة فيها مشكلة بعد البيع وما صوّرتش التفصيلة دي، المشتري ممكن يرجعها.</p>
+            <p class="hint">{% trans "⚠️ لو القطعة فيها مشكلة بعد البيع وما صوّرتش التفصيلة دي، المشتري ممكن يرجعها." %}</p>
         </div>
 
         <div class="form-card">
             <div class="row">
                 <div>
-                    <label>السعر (ج.م) *</label>
+                    <label>{% trans "السعر (ج.م) *" %}</label>
                     <input type="number" name="price_egp" id="priceInput" required min="1" step="0.01" placeholder="2500" oninput="updateCommission()">
                 </div>
                 <div>
-                    <label>فترة الضمان (يوم) *</label>
+                    <label>{% trans "فترة الضمان (يوم) *" %}</label>
                     <input type="number" name="warranty_days" id="warrantyInput" required min="1" max="90" value="7" oninput="updateWarrantyNote()">
                 </div>
             </div>
             <div id="warrantyNote" class="warranty-note">
-                <i class="fas fa-info-circle"></i> ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك.
+                <i class="fas fa-info-circle"></i> {% trans "ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك." %}
             </div>
 
-            <label>المدينة</label>
-            <input type="text" name="city" value="{{ customer.city }}" maxlength="100" placeholder="القاهرة، الإسكندرية...">
+            <label>{% trans "المدينة" %}</label>
+            <input type="text" name="city" value="{{ customer.city }}" maxlength="100" placeholder="{% trans "القاهرة، الإسكندرية..." %}">
         </div>
 
         <div class="commission-card">
-            <strong><i class="fas fa-calculator"></i> ملخص العمولة:</strong>
-            <div class="commission-row"><span>السعر المعروض</span><span id="sumPrice">— ج.م</span></div>
-            <div class="commission-row"><span>عمولة المنصة (8% للأفراد)</span><span id="sumCommission" style="color:#fca5a5;">— ج.م</span></div>
-            <div class="commission-row"><span>👈 صافي مكسبك</span><span id="sumPayout" style="color:#6ee7b7;">— ج.م</span></div>
-            <p style="margin: 10px 0 0; font-size: 0.78rem; color: var(--muted);">الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان.</p>
+            <strong><i class="fas fa-calculator"></i> {% trans "ملخص العمولة:" %}</strong>
+            <div class="commission-row"><span>{% trans "السعر المعروض" %}</span><span id="sumPrice">{% trans "— ج.م" %}</span></div>
+            <div class="commission-row"><span>{% trans "عمولة المنصة (8% للأفراد)" %}</span><span id="sumCommission" style="color:#fca5a5;">{% trans "— ج.م" %}</span></div>
+            <div class="commission-row"><span>{% trans "👈 صافي مكسبك" %}</span><span id="sumPayout" style="color:#6ee7b7;">{% trans "— ج.م" %}</span></div>
+            <p style="margin: 10px 0 0; font-size: 0.78rem; color: var(--muted);">{% trans "الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان." %}</p>
         </div>
 
         <button type="submit" class="submit-btn" id="submitBtn">
-            <i class="fas fa-upload"></i> انشر القطعة في السوق
+            <i class="fas fa-upload"></i> {% trans "انشر القطعة في السوق" %}
         </button>
     </form>
 </div>
@@ -183,27 +184,27 @@ function previewPhotos(input) {
         const url = URL.createObjectURL(f);
         const div = document.createElement('div');
         div.className = 'preview-thumb';
-        div.innerHTML = `<img src="${url}">${i === 0 ? '<span class="badge-primary">رئيسية</span>' : ''}`;
+        div.innerHTML = `<img src="${url}">${i === 0 ? '<span class="badge-primary">{% trans "رئيسية" %}</span>' : ''}`;
         grid.appendChild(div);
     });
 }
 
 function updateCommission() {
     const p = parseFloat(document.getElementById('priceInput').value || 0);
-    document.getElementById('sumPrice').textContent = p.toFixed(0) + ' ج.م';
+    document.getElementById('sumPrice').textContent = p.toFixed(0) + ' {% trans "ج.م" %}';
     const c = p * 0.08; // 8% individual seller
-    document.getElementById('sumCommission').textContent = c.toFixed(0) + ' ج.م';
-    document.getElementById('sumPayout').textContent = (p - c).toFixed(0) + ' ج.م';
+    document.getElementById('sumCommission').textContent = c.toFixed(0) + ' {% trans "ج.م" %}';
+    document.getElementById('sumPayout').textContent = (p - c).toFixed(0) + ' {% trans "ج.م" %}';
 }
 
 function updateWarrantyNote() {
     const d = parseInt(document.getElementById('warrantyInput').value || 0);
     const note = document.getElementById('warrantyNote');
     let msg, color;
-    if (d <= 3) { msg = '⚡ ضمان قصير — هتستلم فلوسك بسرعة، بس المشتري ممكن يتردد.'; color = 'rgba(245,158,11,0.1)'; }
-    else if (d <= 14) { msg = '✅ ضمان متوازن — يرفع ثقة المشتري ومش هتنتظر كتير.'; color = 'rgba(16,185,129,0.1)'; }
-    else if (d <= 30) { msg = '🛡️ ضمان طويل — هيجذب المشترين الجادين، فلوسك هتتأخر شوية.'; color = 'rgba(59,130,246,0.1)'; }
-    else { msg = '🏆 ضمان مميز — أعلى ثقة. هتبيع أسرع وبسعر أعلى.'; color = 'rgba(139,92,246,0.1)'; }
+    if (d <= 3) { msg = '{% trans "⚡ ضمان قصير — هتستلم فلوسك بسرعة، بس المشتري ممكن يتردد." %}'; color = 'rgba(245,158,11,0.1)'; }
+    else if (d <= 14) { msg = '{% trans "✅ ضمان متوازن — يرفع ثقة المشتري ومش هتنتظر كتير." %}'; color = 'rgba(16,185,129,0.1)'; }
+    else if (d <= 30) { msg = '{% trans "🛡️ ضمان طويل — هيجذب المشترين الجادين، فلوسك هتتأخر شوية." %}'; color = 'rgba(59,130,246,0.1)'; }
+    else { msg = '{% trans "🏆 ضمان مميز — أعلى ثقة. هتبيع أسرع وبسعر أعلى." %}'; color = 'rgba(139,92,246,0.1)'; }
     note.style.background = color;
     note.innerHTML = '<i class="fas fa-info-circle"></i> ' + msg;
 }
@@ -218,18 +219,18 @@ function toast(msg, type) {
 document.getElementById('listingForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
-    if (_selectedFiles.length < 3) { toast('لازم 3 صور على الأقل', 'error'); return; }
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
+    if (_selectedFiles.length < 3) { toast('{% trans "لازم 3 صور على الأقل" %}', 'error'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الرفع..." %}';
     const fd = new FormData(this);
     try {
         const r = await fetch('/marketplace/parts/sell/', { method: 'POST', body: fd, credentials: 'same-origin' });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'فشل');
+        if (!r.ok) throw new Error(d.error || '{% trans "فشل" %}');
         toast(d.message, 'success');
         setTimeout(() => { window.location.href = d.detail_url; }, 1100);
     } catch (err) {
         toast(err.message, 'error');
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> انشر القطعة في السوق';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> {% trans "انشر القطعة في السوق" %}';
     }
 });
 </script>
