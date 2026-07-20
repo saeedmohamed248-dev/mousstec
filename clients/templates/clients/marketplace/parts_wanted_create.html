@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اطلب قطعة | سوق قطع الغيار</title>
+    <title>{% trans "اطلب قطعة | سوق قطع الغيار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -43,13 +44,13 @@
 </head>
 <body>
 <div class="topbar">
-    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> رجوع للسوق</a>
-    <div style="color:var(--accent);font-weight:900">🆘 اطلب قطعة</div>
+    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> {% trans "رجوع للسوق" %}</a>
+    <div style="color:var(--accent);font-weight:900">{% trans "🆘 اطلب قطعة" %}</div>
 </div>
 
 <div class="wrap">
-    <h1>اطلب قطعة غيار</h1>
-    <p class="subtitle">اكتب مواصفات سيارتك بدقة عشان البائعين يقدروا يطابقوها — هتوصلك عروض خلال 14 يوم.</p>
+    <h1>{% trans "اطلب قطعة غيار" %}</h1>
+    <p class="subtitle">{% trans "اكتب مواصفات سيارتك بدقة عشان البائعين يقدروا يطابقوها — هتوصلك عروض خلال 14 يوم." %}</p>
 
     <div id="alert" style="display:none"></div>
 
@@ -57,50 +58,49 @@
         {% csrf_token %}
         <div class="row">
             <div>
-                <label>الماركة *</label>
+                <label>{% trans "الماركة *" %}</label>
                 <select name="car_make" required>
-                    <option value="">— اختر الماركة —</option>
+                    <option value="">{% trans "— اختر الماركة —" %}</option>
                     {% for m in makes %}
                         <option value="{{ m.id }}">{{ m.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label>الموديل / Chassis *</label>
-                <input type="text" name="car_model" required maxlength="100" placeholder="مثال: F30, X5, Civic">
+                <label>{% trans "الموديل / Chassis *" %}</label>
+                <input type="text" name="car_model" required maxlength="100" placeholder="{% trans "مثال: F30, X5, Civic" %}">
             </div>
         </div>
 
         <div class="row3">
             <div>
-                <label>سنة الصنع *</label>
+                <label>{% trans "سنة الصنع *" %}</label>
                 <input type="number" name="car_year" required min="1950" max="2030" placeholder="2015">
             </div>
             <div>
-                <label>كود الموتور</label>
+                <label>{% trans "كود الموتور" %}</label>
                 <input type="text" name="engine_code" maxlength="30" placeholder="N13, N20, K20A">
             </div>
             <div>
-                <label>الميزانية القصوى (ج.م)</label>
-                <input type="number" name="max_budget_egp" step="0.01" min="0" placeholder="اختياري">
+                <label>{% trans "الميزانية القصوى (ج.م)" %}</label>
+                <input type="number" name="max_budget_egp" step="0.01" min="0" placeholder="{% trans "اختياري" %}">
             </div>
         </div>
 
-        <label>اسم القطعة المطلوبة *</label>
-        <input type="text" name="part_name" required maxlength="200" placeholder="مثال: قشاط الموتور / فرامل أمامية">
+        <label>{% trans "اسم القطعة المطلوبة *" %}</label>
+        <input type="text" name="part_name" required maxlength="200" placeholder="{% trans "مثال: قشاط الموتور / فرامل أمامية" %}">
 
-        <label>رقم OEM (اختياري)</label>
-        <input type="text" name="part_number_oem" maxlength="120" placeholder="مثال: 13627837459">
-        <div class="hint">لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100%.</div>
+        <label>{% trans "رقم OEM (اختياري)" %}</label>
+        <input type="text" name="part_number_oem" maxlength="120" placeholder="{% trans "مثال: 13627837459" %}">
+        <div class="hint">{% trans "لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100%." %}</div>
 
-        <label>ملاحظات إضافية</label>
-        <textarea name="description" rows="4" placeholder="أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)"></textarea>
+        <label>{% trans "ملاحظات إضافية" %}</label>
+        <textarea name="description" rows="4" placeholder="{% trans "أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)" %}"></textarea>
 
-        <button type="submit" class="submit-btn"><i class="fa fa-paper-plane"></i> انشر الطلب</button>
+        <button type="submit" class="submit-btn"><i class="fa fa-paper-plane"></i> {% trans "انشر الطلب" %}</button>
 
         <p class="legal">
-            بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين
-            وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow.
+            {% trans "بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow." %}
         </p>
     </form>
 </div>
@@ -121,17 +121,17 @@ document.getElementById('wantedForm').addEventListener('submit', async (e) => {
         const j = await r.json();
         if (j.ok) {
             alertBox.className = 'alert alert-ok';
-            alertBox.textContent = j.message || 'تم النشر.';
+            alertBox.textContent = j.message || '{% trans "تم النشر." %}';
             alertBox.style.display = 'block';
             setTimeout(() => { window.location.href = '/marketplace/parts/'; }, 1800);
         } else {
             alertBox.className = 'alert alert-err';
-            alertBox.textContent = j.error || 'فشل النشر.';
+            alertBox.textContent = j.error || '{% trans "فشل النشر." %}';
             alertBox.style.display = 'block';
         }
     } catch (err) {
         alertBox.className = 'alert alert-err';
-        alertBox.textContent = 'خطأ في الاتصال: ' + err.message;
+        alertBox.textContent = '{% trans "خطأ في الاتصال:" %} ' + err.message;
         alertBox.style.display = 'block';
     }
 });

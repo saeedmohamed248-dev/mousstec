@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💳 إتمام الدفع | Mouss Tec</title>
+    <title>{% trans "💳 إتمام الدفع | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -152,10 +153,10 @@
     <!-- Already paid -->
     <div class="success-box">
         <i class="fas fa-check-circle"></i>
-        <h2>تم الدفع بنجاح!</h2>
-        <p>الباقة مفعلة — يمكنك البدء في توليد التصاميم الآن</p>
+        <h2>{% trans "تم الدفع بنجاح!" %}</h2>
+        <p>{% trans "الباقة مفعلة — يمكنك البدء في توليد التصاميم الآن" %}</p>
         <a href="/marketplace/design-store/my-designs/" class="btn-submit" style="display:inline-block;margin-top:20px;text-decoration:none;text-align:center">
-            <i class="fas fa-paint-brush"></i> ابدأ التصميم
+            <i class="fas fa-paint-brush"></i> {% trans "ابدأ التصميم" %}
         </a>
     </div>
 
@@ -163,50 +164,50 @@
     <!-- Awaiting admin confirmation -->
     <div class="success-box">
         <i class="fas fa-clock" style="color:#3b82f6"></i>
-        <h2 style="color:#60a5fa">تم استلام بيانات الدفع</h2>
+        <h2 style="color:#60a5fa">{% trans "تم استلام بيانات الدفع" %}</h2>
         <p>
-            جاري التأكيد من فريقنا — هيتم تفعيل الباقة خلال دقائق<br>
-            <strong>رقم العملية:</strong> {{ purchase.payment_reference }}<br>
-            <small>هنبعتلك إشعار أول ما يتأكد الدفع</small>
+            {% trans "جاري التأكيد من فريقنا — هيتم تفعيل الباقة خلال دقائق" %}<br>
+            <strong>{% trans "رقم العملية:" %}</strong> {{ purchase.payment_reference }}<br>
+            <small>{% trans "هنبعتلك إشعار أول ما يتأكد الدفع" %}</small>
         </p>
         <span class="status-badge status-awaiting" style="margin-top:16px">
-            <i class="fas fa-hourglass-half"></i> في انتظار التأكيد
+            <i class="fas fa-hourglass-half"></i> {% trans "في انتظار التأكيد" %}
         </span>
         <a href="/marketplace/design-store/" class="btn-back" style="margin-top:20px">
-            <i class="fas fa-arrow-right"></i> رجوع للمتجر
+            <i class="fas fa-arrow-right"></i> {% trans "رجوع للمتجر" %}
         </a>
     </div>
 
     {% elif purchase.status == 'rejected' %}
     <div class="success-box">
         <i class="fas fa-times-circle" style="color:#ef4444"></i>
-        <h2 style="color:#f87171">تم رفض الطلب</h2>
-        <p>لم يتم التأكد من عملية الدفع. تواصل معنا لو في مشكلة.</p>
+        <h2 style="color:#f87171">{% trans "تم رفض الطلب" %}</h2>
+        <p>{% trans "لم يتم التأكد من عملية الدفع. تواصل معنا لو في مشكلة." %}</p>
         <a href="/marketplace/design-store/" class="btn-submit" style="display:inline-block;margin-top:20px;text-decoration:none;text-align:center;background:linear-gradient(135deg,#8b5cf6,#ec4899)">
-            <i class="fas fa-redo"></i> حاول تاني
+            <i class="fas fa-redo"></i> {% trans "حاول تاني" %}
         </a>
     </div>
 
     {% else %}
     <!-- Pending — show payment instructions -->
-    <h1>💳 إتمام الدفع</h1>
-    <p style="text-align:center;color:#94a3b8;font-size:0.9rem;margin-bottom:16px">أكمل الدفع علشان نفعّلك الباقة</p>
+    <h1>{% trans "💳 إتمام الدفع" %}</h1>
+    <p style="text-align:center;color:#94a3b8;font-size:0.9rem;margin-bottom:16px">{% trans "أكمل الدفع علشان نفعّلك الباقة" %}</p>
 
     <div class="order-summary">
         <div class="order-row">
-            <span class="label">الباقة</span>
+            <span class="label">{% trans "الباقة" %}</span>
             <span class="value">{{ purchase.package.name_ar }}</span>
         </div>
         <div class="order-row">
-            <span class="label">عدد التصاميم</span>
-            <span class="value">{{ purchase.designs_total }} تصميم</span>
+            <span class="label">{% trans "عدد التصاميم" %}</span>
+            <span class="value">{% blocktrans with n=purchase.designs_total %}{{ n }} تصميم{% endblocktrans %}</span>
         </div>
         <div class="order-row">
-            <span class="label">المبلغ المطلوب</span>
-            <span class="value price">{{ purchase.price_paid }} ج.م</span>
+            <span class="label">{% trans "المبلغ المطلوب" %}</span>
+            <span class="value price">{{ purchase.price_paid }} {% trans "ج.م" %}</span>
         </div>
         <div class="order-row">
-            <span class="label">رقم الطلب</span>
+            <span class="label">{% trans "رقم الطلب" %}</span>
             <span class="value" style="font-size:0.8rem;direction:ltr;color:#8b5cf6">{{ purchase.purchase_code|truncatechars:13 }}</span>
         </div>
     </div>
@@ -214,77 +215,77 @@
     {% if purchase.payment_method == 'vodafone_cash' %}
     <div class="payment-method-box">
         <div class="icon"><i class="fas fa-mobile-alt" style="color:#ef4444"></i></div>
-        <h3>فودافون كاش</h3>
-        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">حوّل المبلغ على الرقم ده:</p>
-        <div class="vodafone-number" onclick="copyNumber('01094850763')" title="اضغط للنسخ">
+        <h3>{% trans "فودافون كاش" %}</h3>
+        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">{% trans "حوّل المبلغ على الرقم ده:" %}</p>
+        <div class="vodafone-number" onclick="copyNumber('01094850763')" title="{% trans "اضغط للنسخ" %}">
             01094850763
         </div>
-        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> اضغط على الرقم للنسخ</p>
+        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> {% trans "اضغط على الرقم للنسخ" %}</p>
     </div>
 
     <div class="steps">
-        <div class="step"><span class="step-num">1</span> <span>افتح تطبيق فودافون كاش أو اطلب <strong>*9*</strong></span></div>
-        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> على الرقم <strong style="direction:ltr">01094850763</strong></span></div>
-        <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم العملية</strong> اللي جالك في الرسالة هنا تحت</span></div>
-        <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة في دقائق ✨</span></div>
+        <div class="step"><span class="step-num">1</span> <span>{% trans "افتح تطبيق فودافون كاش أو اطلب" %} <strong>*9*</strong></span></div>
+        <div class="step"><span class="step-num">2</span> <span>{% trans "حوّل" %} <strong>{{ purchase.price_paid }} {% trans "ج.م" %}</strong> {% trans "على الرقم" %} <strong style="direction:ltr">01094850763</strong></span></div>
+        <div class="step"><span class="step-num">3</span> <span>{% trans "اكتب" %} <strong>{% trans "رقم العملية" %}</strong> {% trans "اللي جالك في الرسالة هنا تحت" %}</span></div>
+        <div class="step"><span class="step-num">4</span> <span>{% trans "اضغط" %} <strong>"{% trans "تأكيد الدفع" %}"</strong> {% trans "وهنفعّلك الباقة في دقائق ✨" %}</span></div>
     </div>
 
     {% elif purchase.payment_method == 'instapay' %}
     <div class="payment-method-box">
         <div class="icon"><i class="fas fa-university" style="color:#3b82f6"></i></div>
         <h3>InstaPay</h3>
-        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">حوّل المبلغ عن طريق InstaPay لـ:</p>
-        <div class="instapay-info" onclick="copyNumber('01094850763@instapay')" title="اضغط للنسخ">
+        <p style="color:#cbd5e1;font-size:0.9rem;margin-bottom:8px">{% trans "حوّل المبلغ عن طريق InstaPay لـ:" %}</p>
+        <div class="instapay-info" onclick="copyNumber('01094850763@instapay')" title="{% trans "اضغط للنسخ" %}">
             01094850763@instapay
         </div>
-        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> اضغط للنسخ</p>
+        <p style="color:#94a3b8;font-size:0.8rem;margin-top:4px"><i class="fas fa-copy"></i> {% trans "اضغط للنسخ" %}</p>
     </div>
 
     <div class="steps">
-        <div class="step"><span class="step-num">1</span> <span>افتح تطبيق البنك بتاعك</span></div>
-        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> عبر InstaPay</span></div>
-        <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم المرجع</strong> أو <strong>Transaction ID</strong> هنا تحت</span></div>
-        <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة ✨</span></div>
+        <div class="step"><span class="step-num">1</span> <span>{% trans "افتح تطبيق البنك بتاعك" %}</span></div>
+        <div class="step"><span class="step-num">2</span> <span>{% trans "حوّل" %} <strong>{{ purchase.price_paid }} {% trans "ج.م" %}</strong> {% trans "عبر InstaPay" %}</span></div>
+        <div class="step"><span class="step-num">3</span> <span>{% trans "اكتب" %} <strong>{% trans "رقم المرجع" %}</strong> {% trans "أو" %} <strong>Transaction ID</strong> {% trans "هنا تحت" %}</span></div>
+        <div class="step"><span class="step-num">4</span> <span>{% trans "اضغط" %} <strong>"{% trans "تأكيد الدفع" %}"</strong> {% trans "وهنفعّلك الباقة ✨" %}</span></div>
     </div>
 
     {% else %}
     <div class="payment-method-box">
         <div class="icon"><i class="far fa-credit-card" style="color:#a855f7"></i></div>
-        <h3>بطاقة ائتمان / Visa / Mastercard</h3>
+        <h3>{% trans "بطاقة ائتمان / Visa / Mastercard" %}</h3>
         <p style="color:#cbd5e1;font-size:0.9rem">
-            تم إنشاء طلبك. اضغط الزرار لإتمام الدفع ببطاقتك.
+            {% trans "تم إنشاء طلبك. اضغط الزرار لإتمام الدفع ببطاقتك." %}
         </p>
         <button disabled class="btn-submit" style="display:inline-block;margin-top:16px;background:rgba(71,85,105,0.4);color:#94a3b8;cursor:not-allowed;border:1px dashed rgba(148,163,184,0.3);">
-            <i class="fas fa-clock"></i> الدفع بالبطاقة — قريباً
+            <i class="fas fa-clock"></i> {% trans "الدفع بالبطاقة — قريباً" %}
         </button>
-        <p style="color:#64748b;font-size:0.75rem;margin-top:10px;">الدفع بالفيزا تحت التطوير. ارجع للصفحة السابقة واختر فودافون كاش لتفعيل فوري.</p>
-        <a href="/marketplace/design-store/" style="display:inline-block;margin-top:8px;color:#a855f7;font-size:0.8rem;text-decoration:underline;">← العودة لاختيار فودافون كاش</a>
+        <p style="color:#64748b;font-size:0.75rem;margin-top:10px;">{% trans "الدفع بالفيزا تحت التطوير. ارجع للصفحة السابقة واختر فودافون كاش لتفعيل فوري." %}</p>
+        <a href="/marketplace/design-store/" style="display:inline-block;margin-top:8px;color:#a855f7;font-size:0.8rem;text-decoration:underline;">{% trans "← العودة لاختيار فودافون كاش" %}</a>
     </div>
     {% endif %}
 
     {% if purchase.payment_method in 'vodafone_cash,instapay' %}
     <form onsubmit="submitPayment(event)">
         <div class="form-group">
-            <label><i class="fas fa-hashtag"></i> رقم العملية / Transaction Reference</label>
-            <input type="text" id="txnRef" placeholder="مثال: 123456789" required>
+            <label><i class="fas fa-hashtag"></i> {% trans "رقم العملية / Transaction Reference" %}</label>
+            <input type="text" id="txnRef" placeholder="{% trans "مثال: 123456789" %}" required>
         </div>
         <div class="form-group">
-            <label><i class="fas fa-phone"></i> رقم الموبايل اللي حوّلت منه</label>
-            <input type="tel" id="senderPhone" placeholder="مثال: 01012345678" dir="ltr">
+            <label><i class="fas fa-phone"></i> {% trans "رقم الموبايل اللي حوّلت منه" %}</label>
+            <input type="tel" id="senderPhone" placeholder="{% trans "مثال: 01012345678" %}" dir="ltr">
         </div>
         <button type="submit" class="btn-submit" id="submitBtn">
-            <i class="fas fa-paper-plane"></i> تأكيد الدفع
+            <i class="fas fa-paper-plane"></i> {% trans "تأكيد الدفع" %}
         </button>
     </form>
     {% endif %}
 
     <a href="/marketplace/design-store/" class="btn-back">
-        <i class="fas fa-arrow-right"></i> رجوع للمتجر
+        <i class="fas fa-arrow-right"></i> {% trans "رجوع للمتجر" %}
     </a>
     {% endif %}
 </div>
 
-<div class="copy-toast" id="copyToast">تم النسخ ✅</div>
+<div class="copy-toast" id="copyToast">{% trans "تم النسخ ✅" %}</div>
 
 <script>
 function copyNumber(text) {
@@ -301,10 +302,10 @@ async function submitPayment(e) {
     const txnRef = document.getElementById('txnRef').value.trim();
     const senderPhone = document.getElementById('senderPhone').value.trim();
 
-    if (!txnRef) { alert('لازم تكتب رقم العملية'); return; }
+    if (!txnRef) { alert('{% trans "لازم تكتب رقم العملية" %}'); return; }
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
     try {
         const fd = new FormData();
@@ -312,13 +313,13 @@ async function submitPayment(e) {
         fd.append('sender_phone', senderPhone);
         const r = await fetch(window.location.href, { method: 'POST', body: fd });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'خطأ');
+        if (!r.ok) throw new Error(d.error || '{% trans "خطأ" %}');
         // Reload to show "awaiting confirmation" state
         window.location.reload();
     } catch (err) {
         alert(err.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الدفع';
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "تأكيد الدفع" %}';
     }
 }
 </script>

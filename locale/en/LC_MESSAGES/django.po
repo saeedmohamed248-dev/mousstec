@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 13:43+0300\n"
+"POT-Creation-Date: 2026-07-20 13:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -610,7 +610,7 @@ msgid "سوفت تاتش، لامع، مطفي، UV، إلخ"
 msgstr ""
 
 msgid "ملاحظات إضافية"
-msgstr ""
+msgstr "Additional notes"
 
 msgid "عنوان التوصيل"
 msgstr ""
@@ -1233,7 +1233,7 @@ msgid "N13, N20, etc. اتركه فارغاً لو القطعة هيكلية أ�
 msgstr ""
 
 msgid "رقم OEM (اختياري)"
-msgstr ""
+msgstr "OEM number (optional)"
 
 msgid "الميزانية القصوى (ج.م) — اختياري"
 msgstr ""
@@ -4107,6 +4107,155 @@ msgstr "Design samples before choosing"
 msgid "ادخل سوق الطباعة"
 msgstr "Enter the printing marketplace"
 
+msgid "💳 إتمام الدفع | Mouss Tec"
+msgstr "💳 Complete payment | Mouss Tec"
+
+msgid "تم الدفع بنجاح!"
+msgstr "Payment successful!"
+
+msgid "الباقة مفعلة — يمكنك البدء في توليد التصاميم الآن"
+msgstr "The package is active — you can start generating designs now"
+
+msgid "ابدأ التصميم"
+msgstr "Start designing"
+
+msgid "تم استلام بيانات الدفع"
+msgstr "Payment details received"
+
+msgid "جاري التأكيد من فريقنا — هيتم تفعيل الباقة خلال دقائق"
+msgstr "Being confirmed by our team — the package will be activated within minutes"
+
+msgid "رقم العملية:"
+msgstr "Transaction number:"
+
+msgid "هنبعتلك إشعار أول ما يتأكد الدفع"
+msgstr "We will send you a notification as soon as the payment is confirmed"
+
+msgid "في انتظار التأكيد"
+msgstr "Awaiting confirmation"
+
+msgid "رجوع للمتجر"
+msgstr "Back to store"
+
+msgid "تم رفض الطلب"
+msgstr "Request rejected"
+
+msgid "لم يتم التأكد من عملية الدفع. تواصل معنا لو في مشكلة."
+msgstr "The payment could not be verified. Contact us if there is a problem."
+
+msgid "حاول تاني"
+msgstr "Try again"
+
+msgid "💳 إتمام الدفع"
+msgstr "💳 Complete payment"
+
+msgid "أكمل الدفع علشان نفعّلك الباقة"
+msgstr "Complete the payment so we can activate your package"
+
+msgid "عدد التصاميم"
+msgstr "Number of designs"
+
+#, python-format
+msgid "%(n)s تصميم"
+msgstr "%(n)s designs"
+
+msgid "المبلغ المطلوب"
+msgstr "Amount due"
+
+msgid "رقم الطلب"
+msgstr "Order number"
+
+msgid "حوّل المبلغ على الرقم ده:"
+msgstr "Transfer the amount to this number:"
+
+msgid "اضغط للنسخ"
+msgstr "Tap to copy"
+
+msgid "اضغط على الرقم للنسخ"
+msgstr "Tap the number to copy"
+
+msgid "افتح تطبيق فودافون كاش أو اطلب"
+msgstr "Open the Vodafone Cash app or dial"
+
+msgid "حوّل"
+msgstr "Transfer"
+
+msgid "على الرقم"
+msgstr "to the number"
+
+msgid "اكتب"
+msgstr "Enter"
+
+msgid "رقم العملية"
+msgstr "Transaction number"
+
+msgid "اللي جالك في الرسالة هنا تحت"
+msgstr "that you received in the message here below"
+
+msgid "اضغط"
+msgstr "Tap"
+
+msgid "تأكيد الدفع"
+msgstr "Confirm payment"
+
+msgid "وهنفعّلك الباقة في دقائق ✨"
+msgstr "and we will activate your package in minutes ✨"
+
+msgid "حوّل المبلغ عن طريق InstaPay لـ:"
+msgstr "Transfer the amount via InstaPay to:"
+
+msgid "افتح تطبيق البنك بتاعك"
+msgstr "Open your bank app"
+
+msgid "عبر InstaPay"
+msgstr "via InstaPay"
+
+msgid "رقم المرجع"
+msgstr "Reference number"
+
+msgid "أو"
+msgstr "or"
+
+msgid "هنا تحت"
+msgstr "here below"
+
+msgid "وهنفعّلك الباقة ✨"
+msgstr "and we will activate your package ✨"
+
+msgid "بطاقة ائتمان / Visa / Mastercard"
+msgstr "Credit card / Visa / Mastercard"
+
+msgid "تم إنشاء طلبك. اضغط الزرار لإتمام الدفع ببطاقتك."
+msgstr "Your order has been created. Press the button to complete the payment with your card."
+
+msgid "الدفع بالبطاقة — قريباً"
+msgstr "Card payment — soon"
+
+msgid ""
+"الدفع بالفيزا تحت التطوير. ارجع للصفحة السابقة واختر فودافون كاش لتفعيل فوري."
+msgstr "Visa payment is under development. Go back to the previous page and choose Vodafone Cash for instant activation."
+
+msgid "← العودة لاختيار فودافون كاش"
+msgstr "← Back to choosing Vodafone Cash"
+
+msgid "رقم العملية / Transaction Reference"
+msgstr "Transaction number / Transaction Reference"
+
+msgid "مثال: 123456789"
+msgstr "Example: 123456789"
+
+msgid "رقم الموبايل اللي حوّلت منه"
+msgstr "The mobile number you transferred from"
+
+msgid "مثال: 01012345678"
+msgstr "Example: 01012345678"
+
+msgid "تم النسخ ✅"
+msgstr "Copied ✅"
+
+msgid "لازم تكتب رقم العملية"
+msgstr "You must enter the transaction number"
+
 msgid "🖨️ طلباتي للطباعة | Mouss Tec"
 msgstr "🖨️ My print orders | Mouss Tec"
 
@@ -4128,7 +4277,9 @@ msgstr "Track print orders from start to delivery"
 msgid ""
 "كل طلب بعتته للمطبعة هتلاقيه هنا — بحالته الحالية، السعر المقترح، ومتى يتوقع "
 "تسليمه."
-msgstr "Every order you sent to the print shop will appear here — with its current status, the proposed price, and when it is expected to be delivered."
+msgstr ""
+"Every order you sent to the print shop will appear here — with its current "
+"status, the proposed price, and when it is expected to be delivered."
 
 msgid "إجمالي الطلبات"
 msgstr "Total requests"
@@ -4180,7 +4331,9 @@ msgstr "No print orders yet"
 
 msgid ""
 "اعمل تصميم في الـ AI Studio وابعته للمطبعة، وهتقدر تتابعه هنا خطوة بخطوة."
-msgstr "Create a design in AI Studio and send it to the print shop, and you will be able to track it here step by step."
+msgstr ""
+"Create a design in AI Studio and send it to the print shop, and you will be "
+"able to track it here step by step."
 
 msgid "ابدأ تصميم جديد"
 msgstr "Start a new design"
@@ -4197,7 +4350,9 @@ msgstr "Choose the right package for your car"
 msgid ""
 "كل الباقات بتشغّل تشخيص الـ AI، تاريخ السيارة، وخطط الفحص — الفرق في الـ Live "
 "Data والكمية."
-msgstr "All packages run AI diagnostics, car history, and inspection plans — the difference is in Live Data and quantity."
+msgstr ""
+"All packages run AI diagnostics, car history, and inspection plans — the "
+"difference is in Live Data and quantity."
 
 #, python-format
 msgid "أنت في التجربة المجانية — متبقي %(d)s يوم"
@@ -4260,7 +4415,8 @@ msgid "150–400 ج"
 msgstr "150–400 EGP"
 
 msgid "للمرة الواحدة. ببساطة، أنت بتشخّص بنفسك بأقل من سكان واحد."
-msgstr "per single time. Simply put, you diagnose yourself for less than one scan."
+msgstr ""
+"per single time. Simply put, you diagnose yourself for less than one scan."
 
 msgid "أسئلة شائعة"
 msgstr "Frequently asked questions"
@@ -4271,13 +4427,18 @@ msgstr "Do I need an OBD device?"
 msgid ""
 "أيوه — تحتاج جهاز ELM327 Bluetooth (متوفر في السوق من 150 ج تقريباً). بمجرد "
 "ما توصله بالكونيكتور تحت الطبلون، الموقع بيتصل بيه من المتصفح مباشرة."
-msgstr "Yes — you need an ELM327 Bluetooth device (available in the market from about 150 EGP). Once you connect it to the connector under the dashboard, the site connects to it directly from the browser."
+msgstr ""
+"Yes — you need an ELM327 Bluetooth device (available in the market from "
+"about 150 EGP). Once you connect it to the connector under the dashboard, "
+"the site connects to it directly from the browser."
 
 msgid "هل أقدر ألغي الاشتراك في أي وقت؟"
 msgstr "Can I cancel the subscription at any time?"
 
 msgid "أيوه. الفلوس بترجع للأيام الباقية لو ألغيت قبل التجديد التلقائي."
-msgstr "Yes. The money is refunded for the remaining days if you cancel before the automatic renewal."
+msgstr ""
+"Yes. The money is refunded for the remaining days if you cancel before the "
+"automatic renewal."
 
 msgid "إيه الفرق بين الباقات؟"
 msgstr "What is the difference between the packages?"
@@ -4295,14 +4456,18 @@ msgid "الـ Live Data"
 msgstr "Live Data"
 
 msgid "(Pro وEmpire بس). تقدر تبدأ بـ Basic وترقّي لاحقاً بدون فقدان رصيدك."
-msgstr "(Pro and Empire only). You can start with Basic and upgrade later without losing your balance."
+msgstr ""
+"(Pro and Empire only). You can start with Basic and upgrade later without "
+"losing your balance."
 
 msgid "الأسعار مقارنة بمين؟"
 msgstr "Compared to whom are the prices?"
 
 msgid ""
 "Carista العالمي = ~300 ج/شهر. ميكانيكي السكان = 150-400 ج/مرة. أسعارنا أرخص"
-msgstr "Global Carista = ~300 EGP/month. Mechanic scan = 150-400 EGP/time. Our prices are cheaper"
+msgstr ""
+"Global Carista = ~300 EGP/month. Mechanic scan = 150-400 EGP/time. Our "
+"prices are cheaper"
 
 msgid "وبالعربي"
 msgstr "and in Arabic"
@@ -4432,7 +4597,9 @@ msgid "🛒 سوق قطع غيار السيارات"
 msgstr "🛒 Car spare-parts marketplace"
 
 msgid "قطع مع ضمان رد المال — الفلوس آمنة في الـ Escrow حتى تتأكد من القطعة."
-msgstr "Parts with a money-back guarantee — the money is safe in Escrow until you verify the part."
+msgstr ""
+"Parts with a money-back guarantee — the money is safe in Escrow until you "
+"verify the part."
 
 msgid "الكل"
 msgstr "All"
@@ -4477,6 +4644,74 @@ msgstr "⛔ Unavailable"
 msgid "العودة للسوق"
 msgstr "Back to marketplace"
 
+msgid "اطلب قطعة | سوق قطع الغيار"
+msgstr "Request a part | Spare-parts marketplace"
+
+msgid "🆘 اطلب قطعة"
+msgstr "🆘 Request a part"
+
+msgid "اطلب قطعة غيار"
+msgstr "Request a spare part"
+
+msgid ""
+"اكتب مواصفات سيارتك بدقة عشان البائعين يقدروا يطابقوها — هتوصلك عروض خلال 14 "
+"يوم."
+msgstr "Write your car specs accurately so sellers can match them — you will receive offers within 14 days."
+
+msgid "الماركة *"
+msgstr "Make *"
+
+msgid "— اختر الماركة —"
+msgstr "— Choose the make —"
+
+msgid "الموديل / Chassis *"
+msgstr "Model / Chassis *"
+
+msgid "مثال: F30, X5, Civic"
+msgstr "Example: F30, X5, Civic"
+
+msgid "سنة الصنع *"
+msgstr "Manufacture year *"
+
+msgid "الميزانية القصوى (ج.م)"
+msgstr "Maximum budget (EGP)"
+
+msgid "اختياري"
+msgstr "Optional"
+
+msgid "اسم القطعة المطلوبة *"
+msgstr "Requested part name *"
+
+msgid "مثال: قشاط الموتور / فرامل أمامية"
+msgstr "Example: timing belt / front brakes"
+
+msgid "مثال: 13627837459"
+msgstr "Example: 13627837459"
+
+#, python-format
+msgid "لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100%%."
+msgstr ""
+
+msgid "أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)"
+msgstr "Any details that can help the seller (e.g.: color, condition, genuine/aftermarket...)"
+
+msgid "انشر الطلب"
+msgstr "Post the request"
+
+msgid ""
+"بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين "
+"وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow."
+msgstr "By posting this request, you agree to the terms of use. Your data is hidden from sellers and is shown to them only when you accept their offer and pay the amount into Escrow."
+
+msgid "تم النشر."
+msgstr "Posted."
+
+msgid "فشل النشر."
+msgstr "Posting failed."
+
+msgid "خطأ في الاتصال:"
+msgstr "Connection error:"
+
 msgid "طلبات المشترين | سوق قطع الغيار"
 msgstr "Buyer requests | Spare-parts marketplace"
 
@@ -4487,7 +4722,8 @@ msgid "طلبات المشترين الحالية"
 msgstr "Current buyer requests"
 
 msgid "قطع غيار مطلوبة الآن — افلتر بمواصفات السيارة اللي عندك مخزون لها."
-msgstr "Spare parts wanted now — filter by the specs of the car you have stock for."
+msgstr ""
+"Spare parts wanted now — filter by the specs of the car you have stock for."
 
 msgid "— الكل —"
 msgstr "— All —"
@@ -4670,9 +4906,6 @@ msgstr "Disable two-factor authentication"
 msgid "نزّل تطبيق"
 msgstr "Download the app"
 
-msgid "أو"
-msgstr "or"
-
 msgid "على موبايلك."
 msgstr "on your phone."
 
@@ -4751,9 +4984,6 @@ msgstr "Back to home"
 msgid "تم الدفع بنجاح"
 msgstr "Payment successful"
 
-msgid "تم الدفع بنجاح!"
-msgstr "Payment successful!"
-
 msgid "تم تفعيل اشتراكك"
 msgstr "Your subscription has been activated"
 
@@ -4775,9 +5005,6 @@ msgstr "Encrypted and secure transaction via Paymob"
 
 msgid "الفاتورة متاحة في لوحة التحكم"
 msgstr "The invoice is available in the dashboard"
-
-msgid "رقم الطلب"
-msgstr "Order number"
 
 msgid "انطلق للوحة التحكم"
 msgstr "Go to the dashboard"
@@ -4896,9 +5123,6 @@ msgstr ""
 
 msgid "اشترك الآن"
 msgstr "Subscribe now"
-
-msgid "المبلغ المطلوب"
-msgstr "Amount due"
 
 msgid "ج.م / شهر"
 msgstr "EGP / month"
@@ -5624,9 +5848,6 @@ msgstr ""
 msgid "طلبات شراء باقات التصاميم — في انتظار التأكيد"
 msgstr "Design-package purchase requests — awaiting confirmation"
 
-msgid "رقم العملية"
-msgstr "Transaction number"
-
 msgid "تفعيل يدوي — للحالات اللي العميل دفع لكن الـ callback ما اشتغلش"
 msgstr ""
 "Manual activation — for cases where the customer paid but the callback did "
@@ -6065,9 +6286,6 @@ msgstr "Reject the request"
 msgid "تم تأكيد الدفع وتفعيل الباقة"
 msgstr "Payment confirmed and plan activated"
 
-msgid "تم رفض الطلب"
-msgstr "Request rejected"
-
 msgid "خطأ: "
 msgstr "Error: "
 
@@ -6082,9 +6300,6 @@ msgstr "Free designs gift"
 
 msgid "إرسال هدية إلى:"
 msgstr "Send a gift to:"
-
-msgid "عدد التصاميم"
-msgstr "Number of designs"
 
 msgid "السبب / الرسالة (اختياري)"
 msgstr "Reason / message (optional)"
@@ -7512,9 +7727,6 @@ msgid "الكمية بعد"
 msgstr ""
 
 msgid "نوع المرجع"
-msgstr ""
-
-msgid "رقم المرجع"
 msgstr ""
 
 msgid "ملاحظة"
