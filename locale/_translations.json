@@ -2781,5 +2781,14 @@
   "✅ اعتمد كما هي": "✅ Approve as is",
   "✏️ صحح وعتمد": "✏️ Correct and approve",
   "❌ ارفض": "❌ Reject",
-  "✨ مفيش حاجة بانتظار المراجعة دلوقتي.": "✨ Nothing awaiting review right now."
+  "✨ مفيش حاجة بانتظار المراجعة دلوقتي.": "✨ Nothing awaiting review right now.",
+  "محادثة": "Conversation",
+  "%(n)s رسالة": "%(n)s messages",
+  "صورة من الورشة": "Photo from the workshop",
+  "ثقة": "Confidence",
+  "محادثة فاضية.": "Empty conversation.",
+  "📜 تاريخ المحادثات — Mouss Tec": "📜 Chat history — Mouss Tec",
+  "📜 تاريخ المحادثات": "📜 Chat history",
+  "محادثة بدون عنوان": "Untitled conversation",
+  "مفيش محادثات لسه.": "No conversations yet."
 }

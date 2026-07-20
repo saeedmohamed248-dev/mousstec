@@ -1,8 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+{% trans "محادثة بدون عنوان" as t_untitled %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>📜 تاريخ المحادثات — Mouss Tec</title>
+    <title>{% trans "📜 تاريخ المحادثات — Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -37,9 +38,9 @@
 <body>
     {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
     <div class="container">
-        <h1>📜 تاريخ المحادثات</h1>
+        <h1>{% trans "📜 تاريخ المحادثات" %}</h1>
         <div class="filters">
-            <a href="?" {% if not room_filter %}class="active"{% endif %}>الكل</a>
+            <a href="?" {% if not room_filter %}class="active"{% endif %}>{% trans "الكل" %}</a>
             {% for key, label in rooms %}
                 <a href="?room={{ key }}" {% if room_filter == key %}class="active"{% endif %}>{{ label }}</a>
             {% endfor %}
@@ -49,17 +50,17 @@
             <a class="row" href="{% url 'ai_rooms:detail' conv.id %}">
                 <span class="room">{{ conv.get_room_display }}</span>
                 <div class="body">
-                    <h4>{{ conv.title|default:"محادثة بدون عنوان" }}</h4>
+                    <h4>{{ conv.title|default:t_untitled }}</h4>
                     <p>
                         {% if conv.brand %}{{ conv.brand }}{% endif %}
                         {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
-                        · {{ conv.turn_count }} رسالة
+                        · {% blocktrans with n=conv.turn_count %}{{ n }} رسالة{% endblocktrans %}
                     </p>
                 </div>
                 <span class="when">{{ conv.updated_at|date:"d M Y H:i" }}</span>
             </a>
         {% empty %}
-            <p style="text-align: center; color: #64748b; padding: 40px;">مفيش محادثات لسه.</p>
+            <p style="text-align: center; color: #64748b; padding: 40px;">{% trans "مفيش محادثات لسه." %}</p>
         {% endfor %}
     </div>
 </body>

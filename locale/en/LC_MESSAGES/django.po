@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 18:56+0300\n"
+"POT-Creation-Date: 2026-07-20 18:58+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -32,6 +32,37 @@ msgstr "Repair atlas"
 
 msgid "تاريخ المحادثات"
 msgstr "Chat history"
+
+msgid "محادثة"
+msgstr "Conversation"
+
+#, python-format
+msgid "%(n)s رسالة"
+msgstr "%(n)s messages"
+
+msgid "صورة من الورشة"
+msgstr "Photo from the workshop"
+
+msgid "ثقة"
+msgstr "Confidence"
+
+msgid "محادثة فاضية."
+msgstr "Empty conversation."
+
+msgid "محادثة بدون عنوان"
+msgstr "Untitled conversation"
+
+msgid "📜 تاريخ المحادثات — Mouss Tec"
+msgstr "📜 Chat history — Mouss Tec"
+
+msgid "📜 تاريخ المحادثات"
+msgstr "📜 Chat history"
+
+msgid "الكل"
+msgstr "All"
+
+msgid "مفيش محادثات لسه."
+msgstr "No conversations yet."
 
 msgid "🏢 الإدارة المركزية (Mouss Tec Ecosystem)"
 msgstr ""
@@ -2386,11 +2417,15 @@ msgstr "cannot be undone"
 msgid ""
 "هتمسح كل بيانات العملاء التالية + ملفاتهم من التخزين + سجلات تعلّم الـ AI "
 "الخاصة بيهم."
-msgstr "It will delete all the following customer data + their files from storage + their AI learning records."
+msgstr ""
+"It will delete all the following customer data + their files from storage + "
+"their AI learning records."
 
 msgid ""
 "كله ملفوف بـ transaction.atomic() — لو فشلت أي خطوة، الـ DB يرجع بالكامل."
-msgstr "Everything is wrapped in transaction.atomic() — if any step fails, the DB rolls back completely."
+msgstr ""
+"Everything is wrapped in transaction.atomic() — if any step fails, the DB "
+"rolls back completely."
 
 msgid "تصاميم"
 msgstr "designs"
@@ -6568,9 +6603,6 @@ msgid "قطع مع ضمان رد المال — الفلوس آمنة في ال�
 msgstr ""
 "Parts with a money-back guarantee — the money is safe in Escrow until you "
 "verify the part."
-
-msgid "الكل"
-msgstr "All"
 
 #, python-format
 msgid "%(n)s قطعة"
@@ -13265,7 +13297,9 @@ msgid "القطعة:"
 msgstr "Part:"
 
 msgid "(اختياري) إجابة مصححة — هتحل محل اللي فوق لو ضغطت 'صحح وعتمد'"
-msgstr "(optional) corrected answer — it replaces the one above if you press Correct and approve"
+msgstr ""
+"(optional) corrected answer — it replaces the one above if you press Correct "
+"and approve"
 
 msgid "ملاحظة مراجعة (اختياري)"
 msgstr "Review note (optional)"

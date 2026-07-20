@@ -1,8 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+{% trans "محادثة" as t_conv %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>{{ conv.title|default:"محادثة" }} — Mouss Tec</title>
+    <title>{{ conv.title|default:t_conv }} — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -33,12 +34,12 @@
     {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
     <div class="container">
         <div class="head">
-            <h1>{{ conv.title|default:"محادثة" }}<span class="room-badge">{{ conv.get_room_display }}</span></h1>
+            <h1>{{ conv.title|default:t_conv }}<span class="room-badge">{{ conv.get_room_display }}</span></h1>
             <p>
                 {% if conv.brand %}{{ conv.brand }}{% endif %}
                 {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
                 {% if conv.year %} · {{ conv.year }}{% endif %}
-                · {{ conv.turn_count }} رسالة · {{ conv.updated_at|date:"d M Y H:i" }}
+                · {% blocktrans with n=conv.turn_count %}{{ n }} رسالة{% endblocktrans %} · {{ conv.updated_at|date:"d M Y H:i" }}
             </p>
         </div>
         <div class="turns">
@@ -46,18 +47,18 @@
                 <div class="turn {{ t.role }}">
                     <span class="ts">{{ t.ts }}</span>
                     {% if t.meta.image_url %}
-                        <img src="{{ t.meta.image_url }}" class="turn-photo" alt="صورة من الورشة">
+                        <img src="{{ t.meta.image_url }}" class="turn-photo" alt="{% trans "صورة من الورشة" %}">
                     {% endif %}
                     {{ t.text }}
                     {% if t.meta.tier or t.meta.confidence %}
                         <div class="meta">
                             {% if t.meta.tier %}🎯 {{ t.meta.tier }}{% endif %}
-                            {% if t.meta.confidence %} · ثقة {{ t.meta.confidence }}%{% endif %}
+                            {% if t.meta.confidence %} · {% trans "ثقة" %} {{ t.meta.confidence }}%{% endif %}
                         </div>
                     {% endif %}
                 </div>
             {% empty %}
-                <p style="color: #64748b; text-align: center; padding: 40px;">محادثة فاضية.</p>
+                <p style="color: #64748b; text-align: center; padding: 40px;">{% trans "محادثة فاضية." %}</p>
             {% endfor %}
         </div>
     </div>
