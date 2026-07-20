@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 19:02+0300\n"
+"POT-Creation-Date: 2026-07-20 19:05+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1375,7 +1375,7 @@ msgid "مشكلة في الدفع"
 msgstr ""
 
 msgid "مفتوحة"
-msgstr ""
+msgstr "Open"
 
 msgid "قيد المراجعة"
 msgstr "Under review"
@@ -1717,7 +1717,7 @@ msgid "جاري الإرسال"
 msgstr ""
 
 msgid "تم الإرسال"
-msgstr ""
+msgstr "Sent"
 
 msgid "فشل"
 msgstr "Failed"
@@ -1777,7 +1777,7 @@ msgid "بانتظار رد العميل"
 msgstr ""
 
 msgid "مغلقة"
-msgstr ""
+msgstr "Closed"
 
 msgid "عادية"
 msgstr ""
@@ -1816,7 +1816,7 @@ msgid "الهاتف"
 msgstr "Phone"
 
 msgid "الرسالة"
-msgstr ""
+msgstr "Message"
 
 msgid "ملاحظات داخلية"
 msgstr ""
@@ -7631,7 +7631,9 @@ msgstr "💎 Plans and subscriptions management"
 msgid ""
 "السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه "
 "%(n)s ميزة مفعلة."
-msgstr "Super admin — control prices and dynamic features for each plan. The catalog has %(n)s active features."
+msgstr ""
+"Super admin — control prices and dynamic features for each plan. The catalog "
+"has %(n)s active features."
 
 msgid "إجمالي الباقات"
 msgstr "Total plans"
@@ -7666,6 +7668,91 @@ msgstr "No plans."
 
 msgid "رجوع لـ SaaS Dashboard"
 msgstr "Back to SaaS Dashboard"
+
+msgid "صندوق الدعم — Mouss Tec Super Admin"
+msgstr "Support inbox — Mouss Tec Super Admin"
+
+msgid "صندوق الدعم"
+msgstr "Support inbox"
+
+msgid "📨 صندوق تذاكر الدعم"
+msgstr "📨 Support tickets inbox"
+
+msgid ""
+"كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها "
+"على بريدك المسجل سراً."
+msgstr "Every message from the contact form or after-hours chat appears here, and a copy is sent privately to your registered email."
+
+msgid "🚨 تذاكر عاجلة مفتوحة"
+msgstr "🚨 Open urgent tickets"
+
+msgid "📋 إجمالي مفتوح"
+msgstr "📋 Total open"
+
+msgid "الوقت"
+msgstr "Time"
+
+msgid "المرسل"
+msgstr "Sender"
+
+msgid "المصدر"
+msgstr "Source"
+
+msgid "الأولوية"
+msgstr "Priority"
+
+msgid "📭 لا توجد تذاكر في هذا التصنيف"
+msgstr "📭 No tickets in this category"
+
+msgid "تذكرة"
+msgstr "Ticket"
+
+#, python-format
+msgid "تذكرة #%(id)s"
+msgstr "Ticket #%(id)s"
+
+msgid "📝 ملاحظات داخلية"
+msgstr "📝 Internal notes"
+
+msgid "لا توجد ملاحظات"
+msgstr "No notes"
+
+msgid "أضف ملاحظة..."
+msgstr "Add a note..."
+
+msgid "➕ إضافة ملاحظة"
+msgstr "➕ Add note"
+
+msgid "⚙️ إجراءات"
+msgstr "⚙️ Actions"
+
+msgid "حفظ الحالة"
+msgstr "Save status"
+
+msgid "حفظ الأولوية"
+msgstr "Save priority"
+
+msgid "📋 تفاصيل"
+msgstr "📋 Details"
+
+msgid "معيّن لـ"
+msgstr "Assigned to"
+
+msgid "الإيميل المرسَل"
+msgstr "Email sent"
+
+msgid "✅ تم"
+msgstr "✅ Done"
+
+#, python-format
+msgid "❌ فشل — %(e)s"
+msgstr "❌ Failed — %(e)s"
+
+msgid "⏳ بانتظار"
+msgstr "⏳ Pending"
+
+msgid "تاريخ الإغلاق"
+msgstr "Closing date"
 
 msgid "تأسيس مؤسسة سحابية جديدة"
 msgstr "Set up a new cloud organization"
@@ -7820,9 +7907,6 @@ msgstr "Revenue"
 
 msgid "MRR • نمو • تحصيل"
 msgstr "MRR • Growth • Collection"
-
-msgid "صندوق الدعم"
-msgstr "Support inbox"
 
 msgid "تذاكر • Help Form"
 msgstr "Tickets • Help Form"
@@ -8062,9 +8146,6 @@ msgstr "Live stream — last 50 requests today"
 
 msgid "يتحدث تلقائياً عند التحديث"
 msgstr "Updates automatically on refresh"
-
-msgid "الوقت"
-msgstr "Time"
 
 msgid "المسار"
 msgstr "Path"
