@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎨 تصاميمي | AI Designs Store</title>
+    <title>{% trans "🎨 تصاميمي | AI Designs Store" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -189,13 +190,13 @@
 <form style="display:none;" aria-hidden="true">{% csrf_token %}</form>
 
 <div class="topbar">
-    <div class="brand">🎨 تصاميمي</div>
+    <div class="brand">{% trans "🎨 تصاميمي" %}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <a href="#generator" style="background:rgba(236,72,153,0.15);color:#ec4899;font-weight:700;"><i class="fas fa-wand-magic-sparkles"></i> توليد جديد</a>
-        <a href="#library"><i class="fas fa-images"></i> تصاميمي ({{ designs|length }})</a>
-        <a href="/marketplace/design-store/print-orders/" style="background:rgba(249,115,22,0.12);color:#fb923c;font-weight:700;"><i class="fas fa-print"></i> طلباتي للطباعة</a>
-        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> المتجر</a>
-        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+        <a href="#generator" style="background:rgba(236,72,153,0.15);color:#ec4899;font-weight:700;"><i class="fas fa-wand-magic-sparkles"></i> {% trans "توليد جديد" %}</a>
+        <a href="#library"><i class="fas fa-images"></i> {% blocktrans with n=designs|length %}تصاميمي ({{ n }}){% endblocktrans %}</a>
+        <a href="/marketplace/design-store/print-orders/" style="background:rgba(249,115,22,0.12);color:#fb923c;font-weight:700;"><i class="fas fa-print"></i> {% trans "طلباتي للطباعة" %}</a>
+        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> {% trans "المتجر" %}</a>
+        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> {% trans "لوحتي" %}</a>
     </div>
 </div>
 
@@ -208,25 +209,25 @@
         <div class="balance-info" style="flex:1;min-width:220px;">
             <h2 style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
                 <strong>{{ total_remaining }}</strong>
-                <span style="font-size:1rem;font-weight:700;color:#cbd5e1;">تصميم متاح</span>
+                <span style="font-size:1rem;font-weight:700;color:#cbd5e1;">{% trans "تصميم متاح" %}</span>
             </h2>
             <p style="margin-top:6px;">
                 {% if free_remaining %}
-                <span style="background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;margin-left:6px;">🎁 مجاني: {{ free_remaining }}</span>
+                <span style="background:rgba(16,185,129,0.15);color:#10b981;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;margin-left:6px;">{% blocktrans with n=free_remaining %}🎁 مجاني: {{ n }}{% endblocktrans %}</span>
                 {% endif %}
                 {% if paid_remaining %}
-                <span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;">💎 مدفوع: {{ paid_remaining }}</span>
+                <span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:3px 10px;border-radius:8px;font-weight:700;font-size:0.8rem;">{% blocktrans with n=paid_remaining %}💎 مدفوع: {{ n }}{% endblocktrans %}</span>
                 {% endif %}
                 {% if active_purchase %}
-                <span style="display:block;margin-top:8px;color:#94a3b8;font-size:0.8rem;">📦 الباقة النشطة: <strong style="color:#ec4899;">{{ active_purchase.package.name_ar }}</strong> ({{ active_purchase.designs_used }}/{{ active_purchase.designs_total }})</span>
+                <span style="display:block;margin-top:8px;color:#94a3b8;font-size:0.8rem;">{% trans "📦 الباقة النشطة:" %} <strong style="color:#ec4899;">{{ active_purchase.package.name_ar }}</strong> ({{ active_purchase.designs_used }}/{{ active_purchase.designs_total }})</span>
                 {% endif %}
             </p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
             {% if total_remaining == 0 %}
-            <a href="/marketplace/design-store/" class="btn-buy" style="background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-cart-plus"></i> اشتري باقة جديدة</a>
+            <a href="/marketplace/design-store/" class="btn-buy" style="background:linear-gradient(135deg,#10b981,#059669);"><i class="fas fa-cart-plus"></i> {% trans "اشتري باقة جديدة" %}</a>
             {% else %}
-            <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> باقة إضافية</a>
+            <a href="/marketplace/design-store/" class="btn-buy"><i class="fas fa-plus"></i> {% trans "باقة إضافية" %}</a>
             {% endif %}
         </div>
     </div>
@@ -244,7 +245,7 @@
         <div style="font-size:1.6rem;">💬</div>
         <div style="flex:1;color:#fff;">
             <div style="font-weight:900; font-size:0.95rem;">
-                عندك محادثة تصميم شغّالة
+                {% trans "عندك محادثة تصميم شغّالة" %}
                 <span style="font-size:0.72rem; padding:2px 8px; border-radius:10px;
                              background:rgba(245,158,11,0.25); color:#fcd34d;
                              margin-right:6px; font-weight:700;">
@@ -252,13 +253,11 @@
                 </span>
             </div>
             <div style="font-size:0.78rem; color:#cbd5e1; margin-top:3px;">
-                {{ active_conversation.turn_count }} تيرنات
-                · {{ active_conversation.image_count }} صور
-                · آخر نشاط {{ active_conversation.updated_at|timesince }}
+                {% blocktrans with t=active_conversation.turn_count i=active_conversation.image_count a=active_conversation.updated_at|timesince %}{{ t }} تيرنات · {{ i }} صور · آخر نشاط {{ a }}{% endblocktrans %}
             </div>
         </div>
         <div style="color:#fcd34d; font-weight:900; font-size:0.9rem;">
-            استكمال <i class="fas fa-arrow-left"></i>
+            {% trans "استكمال" %} <i class="fas fa-arrow-left"></i>
         </div>
     </a>
     {% endif %}
@@ -267,15 +266,15 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px;">
         <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:1.6rem;font-weight:900;color:#ec4899;">{{ designs|length }}</div>
-            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">إجمالي تصاميمي</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">{% trans "إجمالي تصاميمي" %}</div>
         </div>
         <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:1.6rem;font-weight:900;color:#10b981;">{{ purchases|length }}</div>
-            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">باقاتي السابقة</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">{% trans "باقاتي السابقة" %}</div>
         </div>
         <div style="background:rgba(30,41,59,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px;text-align:center;">
             <div style="font-size:1.6rem;font-weight:900;color:#f59e0b;">{{ total_remaining }}</div>
-            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">رصيد متبقي</div>
+            <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;">{% trans "رصيد متبقي" %}</div>
         </div>
     </div>
 
@@ -285,24 +284,23 @@
     <div class="generator-card" id="universalAI" style="border:2px solid #7c3aed;background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(236,72,153,0.04));margin-bottom:20px;">
         <h3 class="gen-title" style="display:flex;align-items:center;gap:8px;">
             <i class="fas fa-brain" style="color:#a78bfa;"></i>
-            🧠 ذكاء التصميم الشامل
-            <span style="font-size:10px;background:#7c3aed;color:#fff;padding:3px 8px;border-radius:8px;font-weight:800;">جديد</span>
+            {% trans "🧠 ذكاء التصميم الشامل" %}
+            <span style="font-size:10px;background:#7c3aed;color:#fff;padding:3px 8px;border-radius:8px;font-weight:800;">{% trans "جديد" %}</span>
         </h3>
         <p style="font-size:12px;color:#cbd5e1;margin:6px 0 14px;line-height:1.7;">
-            اكتب فكرة التصميم بأي مجال (شبشب، غرفة معيشة، لوجو، تغليف منتج، …) والذكاء الاصطناعي
-            هيقترح عليك القوائم المناسبة تلقائياً. كل توليد بيدخل في برنامج التعلم الذاتي بتاعنا.
+            {% trans "اكتب فكرة التصميم بأي مجال (شبشب، غرفة معيشة، لوجو، تغليف منتج، …) والذكاء الاصطناعي هيقترح عليك القوائم المناسبة تلقائياً. كل توليد بيدخل في برنامج التعلم الذاتي بتاعنا." %}
         </p>
 
         <div class="form-group">
-            <label>💡 فكرة التصميم</label>
+            <label>{% trans "💡 فكرة التصميم" %}</label>
             <input type="text" id="uaiIdea" maxlength="500"
-                   placeholder="مثال: غرفة معيشة عصرية | شبشب بلاستيك للشاطئ | لوجو شركة تكنولوجيا"
+                   placeholder="{% trans "مثال: غرفة معيشة عصرية | شبشب بلاستيك للشاطئ | لوجو شركة تكنولوجيا" %}"
                    style="width:100%;">
         </div>
 
         <button type="button" id="uaiAnalyzeBtn" onclick="uaiAnalyze()"
                 style="margin-top:12px;width:100%;background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;border:none;padding:12px;border-radius:10px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;">
-            <i class="fas fa-magnifying-glass-chart"></i> حلل الفكرة واقترح الخيارات
+            <i class="fas fa-magnifying-glass-chart"></i> {% trans "حلل الفكرة واقترح الخيارات" %}
         </button>
 
         <div id="uaiSchemaBox" style="display:none;margin-top:14px;padding:14px;background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;">
@@ -312,10 +310,10 @@
             <!-- 🖼️ Reference Images Uploader -->
             <div style="margin-top:18px;padding:14px;background:rgba(15,23,42,0.7);border:1px dashed #7c3aed;border-radius:10px;">
                 <label style="display:block;font-size:12px;color:#c4b5fd;font-weight:800;margin-bottom:8px;">
-                    <i class="fas fa-image"></i> 📎 ارفق صور مرجعية (اختياري، حتى 3 صور — لوجو، حائط، عينة لون...)
+                    <i class="fas fa-image"></i> {% trans "📎 ارفق صور مرجعية (اختياري، حتى 3 صور — لوجو، حائط، عينة لون...)" %}
                 </label>
                 <p style="font-size:11px;color:#94a3b8;margin-bottom:10px;">
-                    💡 السيستم بيحلل كل صورة ويضمّ تفاصيلها (الألوان، الملمس، الأسلوب) في التصميم النهائي.
+                    {% trans "💡 السيستم بيحلل كل صورة ويضمّ تفاصيلها (الألوان، الملمس، الأسلوب) في التصميم النهائي." %}
                 </p>
                 <input type="file" id="uaiRefFiles" accept="image/png,image/jpeg,image/webp" multiple
                        onchange="uaiOnRefFiles(this)"
@@ -325,7 +323,7 @@
 
             <button type="button" id="uaiGenBtn" onclick="uaiGenerate()"
                     style="margin-top:14px;width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;padding:13px;border-radius:10px;font-family:inherit;font-weight:900;font-size:14px;cursor:pointer;">
-                <i class="fas fa-wand-magic-sparkles"></i> ✨ ولّد التصميم
+                <i class="fas fa-wand-magic-sparkles"></i> {% trans "✨ ولّد التصميم" %}
             </button>
         </div>
 
@@ -335,7 +333,7 @@
     {% endif %}
 
     <!-- Designs Library -->
-    <h3 id="library" style="font-weight:900;margin-bottom:16px;scroll-margin-top:80px;"><i class="fas fa-images" style="color:#ec4899"></i> تصاميمي السابقة ({{ designs|length }})</h3>
+    <h3 id="library" style="font-weight:900;margin-bottom:16px;scroll-margin-top:80px;"><i class="fas fa-images" style="color:#ec4899"></i> {% blocktrans with n=designs|length %}تصاميمي السابقة ({{ n }}){% endblocktrans %}</h3>
 
     {% if designs %}
     <div class="designs-grid">
@@ -348,8 +346,8 @@
                 padding:4px 10px; border-radius:12px; font-size:0.66rem; font-weight:800;
                 background:rgba(15,23,42,0.85); backdrop-filter:blur(8px);
                 border:1px solid rgba(139,92,246,0.5); color:#c4b5fd;
-            " title="هذا التصميم اتعمل من محادثة الذكاء الاصطناعي">
-                <i class="fas fa-comments"></i> من المحادثة
+            " title="{% trans "هذا التصميم اتعمل من محادثة الذكاء الاصطناعي" %}">
+                <i class="fas fa-comments"></i> {% trans "من المحادثة" %}
             </span>
             {% endif %}
             <img src="{{ d.image_thumb_url|default:d.image_url }}"
@@ -369,11 +367,11 @@
                     <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/jpg/" title="JPG">
                         JPG
                     </a>
-                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/print-spec.pdf" target="_blank" title="PDF مع مواصفات الطباعة">
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/print-spec.pdf" target="_blank" title="{% trans "PDF مع مواصفات الطباعة" %}">
                         <i class="fas fa-file-pdf"></i>
                     </a>
                     {% if d.purchase.package.allows_source_files %}
-                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/source/" title="ملفات المصدر (PNG عالي الدقة + SVG + ترخيص)" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;">
+                    <a class="btn-small btn-dl" href="/marketplace/design-store/{{ d.design_code }}/download/source/" title="{% trans "ملفات المصدر (PNG عالي الدقة + SVG + ترخيص)" %}" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff;">
                         <i class="fas fa-file-code"></i> SRC
                     </a>
                     {% endif %}
@@ -382,25 +380,25 @@
                         <i class="fab fa-whatsapp"></i>
                     </button>
                     {% if not d.is_free_trial %}
-                    <button class="btn-small" style="background:#f97316;color:#fff;font-size:10px;" onclick="addWatermarkFor('{{ d.design_code }}')" title="علامة مائية">
+                    <button class="btn-small" style="background:#f97316;color:#fff;font-size:10px;" onclick="addWatermarkFor('{{ d.design_code }}')" title="{% trans "علامة مائية" %}">
                         <i class="fas fa-droplet"></i>
                     </button>
-                    <button class="btn-small" style="background:#10b981;color:#fff;font-size:10px;" onclick="sendToMarketplaceFor('{{ d.design_code }}')" title="أرسل لسوق الطباعة">
+                    <button class="btn-small" style="background:#10b981;color:#fff;font-size:10px;" onclick="sendToMarketplaceFor('{{ d.design_code }}')" title="{% trans "أرسل لسوق الطباعة" %}">
                         <i class="fas fa-store"></i>
                     </button>
                     {% endif %}
                     {% if d.regenerations_used < d.regenerations_allowed %}
-                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد ({{ d.regen_left }} متبقي)">
+                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="{% blocktrans with n=d.regen_left %}إعادة توليد ({{ n }} متبقي){% endblocktrans %}">
                         <i class="fas fa-rotate-right"></i> {{ d.regen_left }}
                     </button>
                     {% endif %}
-                    <button class="btn-small btn-chat" onclick="openChat('{{ d.design_code }}')" title="المحادثة والتعديل">
+                    <button class="btn-small btn-chat" onclick="openChat('{{ d.design_code }}')" title="{% trans "المحادثة والتعديل" %}">
                         <i class="fas fa-comments"></i>
                     </button>
                 </div>
                 {% if d.regenerations_allowed > 0 %}
                 <div style="font-size:0.65rem;color:#94a3b8;margin-top:4px;">
-                    🔄 إعادة توليد: {{ d.regen_left }}/{{ d.regenerations_allowed }} متبقي
+                    {% blocktrans with a=d.regen_left b=d.regenerations_allowed %}🔄 إعادة توليد: {{ a }}/{{ b }} متبقي{% endblocktrans %}
                 </div>
                 {% endif %}
             </div>
@@ -410,8 +408,8 @@
     {% else %}
     <div class="empty">
         <i class="fas fa-paint-brush"></i>
-        <h3>ابدأ تصميم أول حاجة!</h3>
-        <p>اكتب وصف اللي تتخيله فوق وهيتولد فوراً</p>
+        <h3>{% trans "ابدأ تصميم أول حاجة!" %}</h3>
+        <p>{% trans "اكتب وصف اللي تتخيله فوق وهيتولد فوراً" %}</p>
     </div>
     {% endif %}
 
@@ -460,21 +458,21 @@ document.getElementById('genForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('genBtn');
     const orig = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد... (15-30 ثانية)';
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التوليد... (15-30 ثانية)" %}';
     document.getElementById('resultBox').classList.remove('show');
 
     try {
         const fd = new FormData(e.target);
         const r = await fetch('/marketplace/design-store/generate/', {method:'POST', body:fd});
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'فشل التوليد');
+        if (!r.ok) throw new Error(d.error || '{% trans "فشل التوليد" %}');
 
         lastDesignCode = d.design_code;
         lastImageUrl = d.image_url;
         document.getElementById('resultImg').src = d.image_url;
         document.getElementById('regenLeft').textContent = d.regenerations_left;
         document.getElementById('resultBox').classList.add('show');
-        toast(`✅ تم التوليد! متبقي ${d.remaining_in_package} تصميم`, 'success');
+        toast(`{% trans "✅ تم التوليد! متبقي" %} ${d.remaining_in_package} {% trans "تصميم" %}`, 'success');
         setTimeout(() => location.reload(), 3000);
     } catch (err) {
         toast(err.message, 'error');
@@ -507,7 +505,7 @@ function refreshCustBalance(balance) {
     const el = document.getElementById('custBalanceTotal');
     if (!el) return;
     if (balance && typeof balance.total === 'number') {
-        el.textContent = balance.total + ' تصميم';
+        el.textContent = balance.total + ' {% trans "تصميم" %}';
         el.style.color = balance.total > 5 ? '#fff' : (balance.total > 0 ? '#fbbf24' : '#fca5a5');
     }
 }
@@ -527,7 +525,7 @@ async function openCustTopupModal() {
             const r = await fetch('/printing-copilot/api/topup/catalog/?audience=customer', { credentials: 'same-origin' });
             const d = await r.json();
             _custTopupCatalog = d.packages || [];
-        } catch (e) { toast('تعذر تحميل الباقات', 'error'); return; }
+        } catch (e) { toast('{% trans "تعذر تحميل الباقات" %}', 'error'); return; }
     }
 
     let existing = document.getElementById('custTopupModal');
@@ -537,7 +535,7 @@ async function openCustTopupModal() {
         '<div id="custTopupModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)document.getElementById(\'custTopupModal\').remove()">'
         + '<div style="background:#0f172a;border:1px solid #7c3aed;border-radius:18px;padding:24px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;font-family:inherit;">'
         +     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">'
-        +         '<h3 style="color:#c4b5fd;font-weight:900;font-size:18px;margin:0;"><i class="fas fa-coins"></i> اشحن باقة تصاميم</h3>'
+        +         '<h3 style="color:#c4b5fd;font-weight:900;font-size:18px;margin:0;"><i class="fas fa-coins"></i> {% trans "اشحن باقة تصاميم" %}</h3>'
         +         '<button onclick="document.getElementById(\'custTopupModal\').remove()" style="background:#334155;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-family:inherit;">✕</button>'
         +     '</div>'
         +     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">'
@@ -545,9 +543,9 @@ async function openCustTopupModal() {
                 '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(236,72,153,0.08));border:1px solid #7c3aed;border-radius:14px;padding:18px;text-align:center;">'
                 + (p.badge ? '<div style="display:inline-block;background:#ec4899;color:#fff;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;margin-bottom:10px;">' + escapeHtmlFlux(p.badge) + '</div>' : '')
                 + '<p style="color:#fff;font-weight:900;font-size:24px;margin:4px 0;">' + p.designs + '</p>'
-                + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">تصميم</p>'
-                + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' ج.م</p>'
-                + '<button onclick="purchaseCustTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> اشتري دلوقتي</button>'
+                + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">{% trans "تصميم" %}</p>'
+                + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' {% trans "ج.م" %}</p>'
+                + '<button onclick="purchaseCustTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> {% trans "اشتري دلوقتي" %}</button>'
                 + '</div>'
             ).join('')
         +     '</div>'
@@ -568,9 +566,9 @@ async function purchaseCustTopup(slug) {
         if (d.success && d.checkout_url) {
             window.location.href = d.checkout_url;
         } else {
-            toast(d.message || 'تعذر بدء الشراء', 'error');
+            toast(d.message || '{% trans "تعذر بدء الشراء" %}', 'error');
         }
-    } catch (e) { toast('خطأ في الاتصال', 'error'); }
+    } catch (e) { toast('{% trans "خطأ في الاتصال" %}', 'error'); }
 }
 
 // Load balance on page ready
@@ -581,13 +579,13 @@ if (document.getElementById('custBalanceBar')) {
 
 async function sendWA(code = lastDesignCode) {
     if (!code) return;
-    const phone = prompt('رقم واتساب العميل (يبدأ بـ 01...):');
+    const phone = prompt('{% trans "رقم واتساب العميل (يبدأ بـ 01...):" %}');
     if (!phone) return;
     const fd = new FormData(); fd.append('phone', phone);
     const r = await fetch(`/marketplace/design-store/${code}/whatsapp/`, {method:'POST', body:fd});
     const d = await r.json();
     if (d.whatsapp_url) window.open(d.whatsapp_url, '_blank');
-    else toast(d.error || 'فشل', 'error');
+    else toast(d.error || '{% trans "فشل" %}', 'error');
 }
 function sendWAFor(code) { sendWA(code); }
 
@@ -603,21 +601,21 @@ function renderPipelineBadges(d) {
 
     // 🎨 Brand identity applied (logo composite OR brand_applied flag)
     if (d.logo_composited) {
-        pills.push(pill('✨ تم تطبيق هويتك البصرية', 'linear-gradient(135deg,#7c3aed,#ec4899)',
-            'تم دمج لوجو علامتك التجارية في التصميم تلقائياً'));
+        pills.push(pill('{% trans "✨ تم تطبيق هويتك البصرية" %}', 'linear-gradient(135deg,#7c3aed,#ec4899)',
+            '{% trans "تم دمج لوجو علامتك التجارية في التصميم تلقائياً" %}'));
     } else if (d.brand_applied) {
-        pills.push(pill('🎨 ألوان علامتك مطبّقة', '#7c3aed',
-            'تم استخدام لوحة ألوان علامتك التجارية في صياغة التصميم'));
+        pills.push(pill('{% trans "🎨 ألوان علامتك مطبّقة" %}', '#7c3aed',
+            '{% trans "تم استخدام لوحة ألوان علامتك التجارية في صياغة التصميم" %}'));
     }
 
     // 🤖 Smart Router engine (FLUX vs Ideogram)
     const eng = (d.engine_used || d.engine || '').toLowerCase();
     if (eng === 'ideogram') {
-        pills.push(pill('🅰️ Ideogram — نص دقيق', '#0891b2',
-            'النصوص مرسومة داخل الصورة مباشرة بدقة عالية'));
+        pills.push(pill('{% trans "🅰️ Ideogram — نص دقيق" %}', '#0891b2',
+            '{% trans "النصوص مرسومة داخل الصورة مباشرة بدقة عالية" %}'));
     } else if (eng === 'flux' || eng.startsWith('flux')) {
         pills.push(pill('⚡ FLUX', '#059669',
-            'محرك توليد عالي الجودة للصور الفوتوغرافية والتصميمات'));
+            '{% trans "محرك توليد عالي الجودة للصور الفوتوغرافية والتصميمات" %}'));
     }
 
     // 🏆 Quality gate score (0..1) — show only for confident scores
@@ -625,8 +623,8 @@ function renderPipelineBadges(d) {
     if (q !== null && q >= 0) {
         const pct = Math.round(q * 100);
         const bg = pct >= 85 ? '#059669' : pct >= 70 ? '#0891b2' : '#f59e0b';
-        const label = pct >= 85 ? '🏆 جودة ممتازة' : pct >= 70 ? '✅ جودة جيدة' : '⚠️ جودة مقبولة';
-        pills.push(pill(`${label} (${pct}٪)`, bg, 'تقييم آلي من Quality Gate'));
+        const label = pct >= 85 ? '{% trans "🏆 جودة ممتازة" %}' : pct >= 70 ? '{% trans "✅ جودة جيدة" %}' : '{% trans "⚠️ جودة مقبولة" %}';
+        pills.push(pill(`${label} (${pct}٪)`, bg, '{% trans "تقييم آلي من Quality Gate" %}'));
     }
 
     return pills.length
@@ -635,11 +633,11 @@ function renderPipelineBadges(d) {
 }
 
 async function regenDesign(code) {
-    if (!confirm('إعادة التوليد ستستخدم محاولة من المتاح في باقتك. متابعة؟')) return;
-    toast('جاري إعادة التوليد...', 'success');
+    if (!confirm('{% trans "إعادة التوليد ستستخدم محاولة من المتاح في باقتك. متابعة؟" %}')) return;
+    toast('{% trans "جاري إعادة التوليد..." %}', 'success');
     const r = await fetch(`/marketplace/design-store/${code}/regenerate/`, {method:'POST'});
     const d = await r.json();
-    if (!d.image_url) { toast(d.error || 'فشل', 'error'); return; }
+    if (!d.image_url) { toast(d.error || '{% trans "فشل" %}', 'error'); return; }
 
     // ✨ Show pipeline badges briefly before reload so the customer sees the value.
     const badges = renderPipelineBadges(d);
@@ -649,12 +647,12 @@ async function regenDesign(code) {
         modal.innerHTML =
             '<div style="background:#0f172a;border:1px solid #7c3aed;border-radius:18px;padding:20px;max-width:520px;width:100%;text-align:center;">'
             +   '<img src="' + d.image_url + '" style="width:100%;border-radius:12px;border:2px solid #a78bfa;margin-bottom:12px;">'
-            +   '<div style="color:#a78bfa;font-weight:800;margin-bottom:6px;">✅ تم إعادة التوليد</div>'
+            +   '<div style="color:#a78bfa;font-weight:800;margin-bottom:6px;">{% trans "✅ تم إعادة التوليد" %}</div>'
             +   badges
             + '</div>';
         document.body.appendChild(modal);
     } else {
-        toast('✅ تم!', 'success');
+        toast('{% trans "✅ تم!" %}', 'success');
     }
     setTimeout(() => location.reload(), 2200);
 }
@@ -663,30 +661,30 @@ async function regenDesign(code) {
 
 // ====== Watermark ======
 async function addWatermarkFor(code) {
-    const text = prompt('نص العلامة المائية (اسم شركتك مثلاً):');
+    const text = prompt('{% trans "نص العلامة المائية (اسم شركتك مثلاً):" %}');
     if (text === null) return;
-    toast('جاري إضافة العلامة المائية...', 'success');
+    toast('{% trans "جاري إضافة العلامة المائية..." %}', 'success');
     const fd = new FormData();
     if (text) fd.append('text', text);
     try {
         const r = await fetch(`/marketplace/design-store/${code}/watermark/`, {method:'POST', body:fd});
         const d = await r.json();
         if (d.watermarked_url) {
-            toast('✅ تم إضافة العلامة المائية', 'success');
+            toast('{% trans "✅ تم إضافة العلامة المائية" %}', 'success');
             // Open watermarked image in new tab
             window.open(d.watermarked_url, '_blank');
         } else {
-            toast(d.error || 'فشل', 'error');
+            toast(d.error || '{% trans "فشل" %}', 'error');
         }
-    } catch(e) { toast('حدث خطأ', 'error'); }
+    } catch(e) { toast('{% trans "حدث خطأ" %}', 'error'); }
 }
 
 // ====== Send to B2B Marketplace ======
 async function sendToMarketplaceFor(code) {
-    const qty = prompt('كمية الطباعة المطلوبة:');
+    const qty = prompt('{% trans "كمية الطباعة المطلوبة:" %}');
     if (!qty) return;
-    const notes = prompt('ملاحظات إضافية (اختياري):') || '';
-    toast('جاري إرسال التصميم لسوق الطباعة...', 'success');
+    const notes = prompt('{% trans "ملاحظات إضافية (اختياري):" %}') || '';
+    toast('{% trans "جاري إرسال التصميم لسوق الطباعة..." %}', 'success');
     const fd = new FormData();
     fd.append('quantity', qty);
     fd.append('notes', notes);
@@ -698,15 +696,15 @@ async function sendToMarketplaceFor(code) {
             // 🆕 تـ surface رابط لصفحة الطلب عشان العميل يقدر يشوف عروض المطابع
             // أول ما تيجي — قبل ده كان مفيش link، العميل بيتنسى الطلب.
             if (d.request_code) {
-                const wantsOpen = confirm('عاوز تفتح صفحة الطلب علشان تتابع عروض المطابع؟');
+                const wantsOpen = confirm('{% trans "عاوز تفتح صفحة الطلب علشان تتابع عروض المطابع؟" %}');
                 if (wantsOpen) {
                     window.open('/marketplace/request/' + d.request_code + '/', '_blank');
                 }
             }
         } else {
-            toast(d.error || 'فشل', 'error');
+            toast(d.error || '{% trans "فشل" %}', 'error');
         }
-    } catch(e) { toast('حدث خطأ', 'error'); }
+    } catch(e) { toast('{% trans "حدث خطأ" %}', 'error'); }
 }
 
 // ==========================================================
@@ -734,7 +732,7 @@ function uaiOnRefFiles(input) {
 
     files.forEach((file, idx) => {
         if (file.size > 2 * 1024 * 1024) {
-            toast('⚠️ ' + file.name + ' أكبر من 2 ميجا — اتجاهلت', 'error');
+            toast('⚠️ ' + file.name + ' {% trans "أكبر من 2 ميجا — اتجاهلت" %}', 'error');
             return;
         }
         const reader = new FileReader();
@@ -747,7 +745,7 @@ function uaiOnRefFiles(input) {
             card.style.cssText = 'position:relative;width:120px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:6px;';
             card.innerHTML =
                 '<img src="' + dataUrl + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;">'
-                + '<input type="text" maxlength="40" placeholder="نوع المرجع (مثال: لوجو)" '
+                + '<input type="text" maxlength="40" placeholder="{% trans "نوع المرجع (مثال: لوجو)" %}" '
                 + 'oninput="_uaiRefImages[' + i + '].hint=this.value" '
                 + 'style="width:100%;margin-top:5px;padding:5px;font-size:10px;border-radius:5px;border:1px solid #475569;background:#1e293b;color:#cbd5e1;font-family:inherit;">'
                 + '<button onclick="uaiRemoveRef(' + i + ')" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-weight:900;font-size:11px;">✕</button>';
@@ -769,7 +767,7 @@ function uaiRemoveRef(idx) {
         card.style.cssText = 'position:relative;width:120px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:6px;';
         card.innerHTML =
             '<img src="' + ref.data_url + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;">'
-            + '<input type="text" maxlength="40" placeholder="نوع المرجع" value="' + _uaiEsc(ref.hint) + '" '
+            + '<input type="text" maxlength="40" placeholder="{% trans "نوع المرجع" %}" value="' + _uaiEsc(ref.hint) + '" '
             + 'oninput="_uaiRefImages[' + i + '].hint=this.value" '
             + 'style="width:100%;margin-top:5px;padding:5px;font-size:10px;border-radius:5px;border:1px solid #475569;background:#1e293b;color:#cbd5e1;font-family:inherit;">'
             + '<button onclick="uaiRemoveRef(' + i + ')" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border:none;width:22px;height:22px;border-radius:50%;cursor:pointer;font-weight:900;font-size:11px;">✕</button>';
@@ -826,16 +824,16 @@ function _uaiRenderField(f) {
         const step = f.step !== undefined ? f.step : 1;
         return wrap(
             '<div style="display:flex;gap:8px;align-items:center;">'
-            + '<input type="number" data-uai-input data-uai-range="from" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="من" style="' + baseStyle + 'flex:1;">'
+            + '<input type="number" data-uai-input data-uai-range="from" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="{% trans "من" %}" style="' + baseStyle + 'flex:1;">'
             + '<span style="color:#94a3b8;">→</span>'
-            + '<input type="number" data-uai-input data-uai-range="to" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="إلى" style="' + baseStyle + 'flex:1;">'
+            + '<input type="number" data-uai-input data-uai-range="to" min="' + min + '" max="' + max + '" step="' + step + '" placeholder="{% trans "إلى" %}" style="' + baseStyle + 'flex:1;">'
             + '</div>'
         );
     }
 
     if (f.type === 'dimensions') {
         const axes = f.axes || ['length', 'width'];
-        const axisLabel = { length: 'طول', width: 'عرض', height: 'ارتفاع', depth: 'عمق' };
+        const axisLabel = { length: '{% trans "طول" %}', width: '{% trans "العرض" %}', height: '{% trans "ارتفاع" %}', depth: '{% trans "عمق" %}' };
         const inputs = axes.map(ax =>
             '<div style="flex:1;">'
             + '<label style="display:block;font-size:10px;color:#94a3b8;margin-bottom:3px;">' + _uaiEsc(axisLabel[ax] || ax) + '</label>'
@@ -913,11 +911,11 @@ function _uaiCollectSelections() {
 
 async function uaiAnalyze() {
     const idea = (document.getElementById('uaiIdea').value || '').trim();
-    if (!idea) { toast('اكتب فكرة التصميم الأول', 'error'); return; }
+    if (!idea) { toast('{% trans "اكتب فكرة التصميم الأول" %}', 'error'); return; }
     const btn = document.getElementById('uaiAnalyzeBtn');
     const orig = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> بحلل الفكرة...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "بحلل الفكرة..." %}';
     try {
         const r = await fetch('/ai/design/analyze/', {
             method: 'POST',
@@ -931,12 +929,12 @@ async function uaiAnalyze() {
         try { d = JSON.parse(rawText); }
         catch (parseErr) {
             console.error('[UAI ANALYZE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
-            toast('⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console لمزيد من التفاصيل.', 'error');
+            toast('{% trans "⚠️ السيرفر رد بـ HTTP" %} ' + r.status + ' {% trans "(مش JSON) — افتح Console لمزيد من التفاصيل." %}', 'error');
             return;
         }
         if (!d.success) {
             console.warn('[UAI ANALYZE] server returned error', d);
-            toast(d.message || 'تعذر التحليل', 'error');
+            toast(d.message || '{% trans "تعذر التحليل" %}', 'error');
             return;
         }
 
@@ -945,7 +943,7 @@ async function uaiAnalyze() {
         const badge = document.getElementById('uaiDomainBadge');
         const fieldsBox = document.getElementById('uaiFields');
 
-        badge.innerHTML = '<i class="fas fa-tag"></i> المجال: <span style="color:#fff;">'
+        badge.innerHTML = '<i class="fas fa-tag"></i> {% trans "المجال:" %} <span style="color:#fff;">'
             + _uaiEsc(d.domain_ar || d.domain) + '</span>';
 
         fieldsBox.innerHTML = d.fields.map(f => _uaiRenderField(f)).join('');
@@ -953,7 +951,7 @@ async function uaiAnalyze() {
         box.style.display = 'block';
         box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
-        toast('⚠️ تعذر الاتصال', 'error');
+        toast('{% trans "⚠️ تعذر الاتصال" %}', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = orig;
@@ -961,7 +959,7 @@ async function uaiAnalyze() {
 }
 
 async function uaiGenerate() {
-    if (!_uaiSchema) { toast('حلل الفكرة الأول', 'error'); return; }
+    if (!_uaiSchema) { toast('{% trans "حلل الفكرة الأول" %}', 'error'); return; }
     const idea = (document.getElementById('uaiIdea').value || '').trim();
     const selections = _uaiCollectSelections();
 
@@ -969,9 +967,9 @@ async function uaiGenerate() {
     const orig = btn.innerHTML;
     const box = document.getElementById('uaiResultBox');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> بصيغ البرومبت + بولد الصورة...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "بصيغ البرومبت + بولد الصورة..." %}';
     box.style.display = 'block';
-    box.innerHTML = '<p style="text-align:center;color:#a78bfa;font-size:12px;"><i class="fas fa-cogs fa-spin"></i> المرحلة 1: صياغة Mega Prompt — المرحلة 2: توليد الصورة...</p>';
+    box.innerHTML = '<p style="text-align:center;color:#a78bfa;font-size:12px;"><i class="fas fa-cogs fa-spin"></i> {% trans "المرحلة 1: صياغة Mega Prompt — المرحلة 2: توليد الصورة..." %}</p>';
 
     try {
         const r = await fetch('/ai/design/generate/', {
@@ -994,7 +992,7 @@ async function uaiGenerate() {
         try { d = JSON.parse(rawText); }
         catch (parseErr) {
             console.error('[UAI GENERATE] non-JSON response', { status: r.status, body: rawText.slice(0, 500) });
-            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ السيرفر رد بـ HTTP ' + r.status + ' (مش JSON) — افتح Console لمزيد من التفاصيل.</p>';
+            box.innerHTML = '<p style="color:#fca5a5;text-align:center;">{% trans "⚠️ السيرفر رد بـ HTTP" %} ' + r.status + ' {% trans "(مش JSON) — افتح Console لمزيد من التفاصيل." %}</p>';
             return;
         }
         if (!d.success) console.warn('[UAI GENERATE] server returned error', d);
@@ -1004,10 +1002,10 @@ async function uaiGenerate() {
                 box.innerHTML =
                     '<div style="text-align:center;padding:16px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:10px;">'
                     + '<p style="color:#fca5a5;font-weight:800;font-size:13px;margin-bottom:10px;">' + _uaiEsc(d.message) + '</p>'
-                    + '<button onclick="openCustTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:9px 20px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن الباقة</button>'
+                    + '<button onclick="openCustTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:9px 20px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-bolt"></i> {% trans "شحن الباقة" %}</button>'
                     + '</div>';
             } else {
-                box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + _uaiEsc(d.message || d.error || 'فشل') + '</p>';
+                box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ ' + _uaiEsc(d.message || d.error || '{% trans "فشل" %}') + '</p>';
             }
             return;
         }
@@ -1021,27 +1019,27 @@ async function uaiGenerate() {
         // 🧵 Metadata sidebar: category-driven rows
         const metaRows = [];
         const CAT_LABEL_AR = {
-            apparel: 'ملابس', document: 'مستند ورقي', signage: 'لافتة/بوستر',
-            logo: 'لوجو', packaging: 'تغليف', footwear: 'حذاء',
-            interior: 'تصميم داخلي', vehicle: 'تغليف عربية', accessory: 'إكسسوار',
-            other: 'تصميم عام',
+            apparel: '{% trans "ملابس" %}', document: '{% trans "مستند ورقي" %}', signage: '{% trans "لافتة/بوستر" %}',
+            logo: '{% trans "لوجو" %}', packaging: '{% trans "تغليف" %}', footwear: '{% trans "حذاء" %}',
+            interior: '{% trans "تصميم داخلي" %}', vehicle: '{% trans "تغليف عربية" %}', accessory: '{% trans "إكسسوار" %}',
+            other: '{% trans "تصميم عام" %}',
         };
-        if (meta.category)             metaRows.push(['🏷️ النوع', CAT_LABEL_AR[meta.category] || meta.category]);
+        if (meta.category)             metaRows.push(['{% trans "🏷️ النوع" %}', CAT_LABEL_AR[meta.category] || meta.category]);
         // 'fabric' is the apparel-specific key; 'material' is the generic one
         const materialLabel = meta.fabric || meta.material;
-        if (materialLabel)             metaRows.push(['🧵 الخامة', materialLabel]);
-        if (meta.print_tech)           metaRows.push(['🖨️ تقنية الطباعة', meta.print_tech]);
-        if (meta.placement && meta.category === 'apparel') metaRows.push(['📍 موضع الطباعة', meta.placement === 'back' ? 'الضهر' : 'القدام']);
-        if (meta.suggested_dimensions) metaRows.push(['📐 المقاس المقترح', meta.suggested_dimensions]);
+        if (materialLabel)             metaRows.push(['{% trans "🧵 الخامة" %}', materialLabel]);
+        if (meta.print_tech)           metaRows.push(['{% trans "🖨️ تقنية الطباعة" %}', meta.print_tech]);
+        if (meta.placement && meta.category === 'apparel') metaRows.push(['{% trans "📍 موضع الطباعة" %}', meta.placement === 'back' ? '{% trans "الضهر" %}' : '{% trans "القدام" %}']);
+        if (meta.suggested_dimensions) metaRows.push(['{% trans "📐 المقاس المقترح" %}', meta.suggested_dimensions]);
         if (meta.overlay_applied) {
             const overlayLabel = meta.category === 'apparel'
-                ? 'تم — مطبوع بأسلوب DTG'
-                : 'تم — مدمج بطباعة رقمية';
-            metaRows.push(['🅰️ النص مدمج', overlayLabel]);
+                ? '{% trans "تم — مطبوع بأسلوب DTG" %}'
+                : '{% trans "تم — مدمج بطباعة رقمية" %}';
+            metaRows.push(['{% trans "🅰️ النص مدمج" %}', overlayLabel]);
         }
         const metaHtml = metaRows.length
             ? '<div style="background:rgba(15,23,42,0.55);border:1px solid rgba(124,58,237,0.35);border-radius:12px;padding:14px;">'
-              + '<p style="font-size:12px;font-weight:800;color:#c4b5fd;margin:0 0 10px;border-bottom:1px solid rgba(124,58,237,0.3);padding-bottom:8px;"><i class="fas fa-clipboard-list"></i> تفاصيل التصميم</p>'
+              + '<p style="font-size:12px;font-weight:800;color:#c4b5fd;margin:0 0 10px;border-bottom:1px solid rgba(124,58,237,0.3);padding-bottom:8px;"><i class="fas fa-clipboard-list"></i> {% trans "تفاصيل التصميم" %}</p>'
               + metaRows.map(r =>
                   '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#cbd5e1;margin-bottom:7px;line-height:1.5;">'
                   + '<span style="color:#94a3b8;font-weight:700;">' + _uaiEsc(r[0]) + '</span>'
@@ -1059,10 +1057,10 @@ async function uaiGenerate() {
             +       '<span style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.domain || 'design') + '</span>'
             +       '<span style="font-size:11px;background:#059669;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;">' + _uaiEsc(d.model || 'flux') + '</span>'
             +       (d.engine === 'ideogram'
-                      ? '<span style="font-size:11px;background:#0891b2;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="النصوص اترسمت داخل الصورة مباشرة بدقة عالية">🅰️ Ideogram (نص مدمج)</span>'
-                      : '<span style="font-size:11px;background:#6366f1;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="صور فوتوريالستك بـ FLUX-dev">🎨 FLUX</span>')
+                      ? '<span style="font-size:11px;background:#0891b2;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="{% trans "النصوص اترسمت داخل الصورة مباشرة بدقة عالية" %}">🅰️ Ideogram ({% trans "نص مدمج" %})</span>'
+                      : '<span style="font-size:11px;background:#6366f1;color:#fff;padding:4px 12px;border-radius:12px;font-weight:700;" title="{% trans "صور فوتوريالستك بـ FLUX-dev" %}">🎨 FLUX</span>')
             +       (d.engine_fallback_from
-                      ? '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="الـ engine الأصلي ' + _uaiEsc(d.engine_fallback_from) + ' فشل واتحوّل للـ fallback">↩️ fallback</span>'
+                      ? '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="{% trans "الـ engine الأصلي" %} ' + _uaiEsc(d.engine_fallback_from) + ' {% trans "فشل واتحوّل للـ fallback" %}">↩️ fallback</span>'
                       : '')
             +       (d.quality_report && d.quality_report.score
                       ? (function(){
@@ -1070,21 +1068,21 @@ async function uaiGenerate() {
                           var verdict = qr.verdict || 'acceptable';
                           var sc = qr.score;
                           var palette = { excellent: '#10b981', acceptable: '#84cc16', needs_regen: '#f97316', critical_fail: '#ef4444' };
-                          var label = { excellent: 'ممتاز', acceptable: 'مقبول', needs_regen: 'تعديل', critical_fail: 'فشل' };
+                          var label = { excellent: '{% trans "ممتاز" %}', acceptable: '{% trans "مقبول" %}', needs_regen: '{% trans "تعديل" %}', critical_fail: '{% trans "فشل" %}' };
                           var bg = palette[verdict] || '#6b7280';
                           var lab = label[verdict] || verdict;
                           var issues = (qr.key_issues || []).slice(0, 3).join(' • ');
-                          var tip = '🔍 فحص جودة بصري (Vision LLM):\n' + lab + ' — ' + sc + '/10' + (issues ? '\n• ' + issues : '');
+                          var tip = '{% trans "🔍 فحص جودة بصري (Vision LLM):" %}\n' + lab + ' — ' + sc + '/10' + (issues ? '\n• ' + issues : '');
                           return '<span style="font-size:11px;background:' + bg + ';color:#fff;padding:4px 12px;border-radius:12px;font-weight:800;cursor:help;" title="' + _uaiEsc(tip) + '">🔍 ' + sc + '/10 · ' + _uaiEsc(lab) + '</span>';
                       })()
                       : '')
             +       (d.auto_regenerated
-                      ? '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="السيستم لاحظ نقص في الجودة وأعاد التوليد تلقائياً بنسخة محسّنة">🔄 اتعدّل تلقائياً</span>'
+                      ? '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;" title="{% trans "السيستم لاحظ نقص في الجودة وأعاد التوليد تلقائياً بنسخة محسّنة" %}">{% trans "🔄 اتعدّل تلقائياً" %}</span>'
                       : '')
             +     '</div>'
             +     (d.quality_report && d.quality_report.key_issues && d.quality_report.key_issues.length && (d.quality_report.verdict === 'acceptable' || d.quality_report.verdict === 'needs_regen' || d.quality_report.verdict === 'critical_fail')
                       ? '<details style="margin-top:10px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:8px;padding:8px 12px;">'
-                        + '<summary style="cursor:pointer;color:#fb923c;font-weight:700;font-size:11px;">⚠️ ملاحظات الـ Vision (' + (d.quality_report.key_issues.length) + ')</summary>'
+                        + '<summary style="cursor:pointer;color:#fb923c;font-weight:700;font-size:11px;">{% trans "⚠️ ملاحظات الـ Vision" %} (' + (d.quality_report.key_issues.length) + ')</summary>'
                         + '<ul style="margin:6px 0 0 18px;padding:0;font-size:11px;color:#cbd5e1;line-height:1.6;">'
                         +   d.quality_report.key_issues.map(function(i){ return '<li>' + _uaiEsc(i) + '</li>'; }).join('')
                         + '</ul>'
@@ -1098,21 +1096,21 @@ async function uaiGenerate() {
             + '</div>'
             + '<style>@media (min-width:760px){#uaiResultGrid{grid-template-columns:1.4fr 1fr !important;}}</style>'
             + '<details style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.25);border-radius:10px;padding:10px 14px;margin-bottom:12px;">'
-            +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Mega Prompt</summary>'
+            +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">{% trans "📝 الـ Mega Prompt" %}</summary>'
             +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;direction:ltr;text-align:left;">' + _uaiEsc(d.mega_prompt) + '</p>'
             + '</details>'
             + (logId ? (
                 '<div id="uaiFeedback_' + logId + '" style="text-align:center;padding:10px;background:rgba(15,23,42,0.4);border-radius:10px;margin-bottom:10px;">'
-                + '<p style="font-size:12px;color:#cbd5e1;margin-bottom:8px;">هل التصميم طلع كويس؟ (رأيك بيساعد الذكاء يتعلم)</p>'
-                + '<button onclick="uaiFeedback(' + logId + ', true)" style="background:#10b981;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-up"></i> ممتاز</button>'
-                + '<button onclick="uaiFeedback(' + logId + ', false)" style="background:#ef4444;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-down"></i> مش مظبوط</button>'
+                + '<p style="font-size:12px;color:#cbd5e1;margin-bottom:8px;">{% trans "هل التصميم طلع كويس؟ (رأيك بيساعد الذكاء يتعلم)" %}</p>'
+                + '<button onclick="uaiFeedback(' + logId + ', true)" style="background:#10b981;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-up"></i> {% trans "ممتاز" %}</button>'
+                + '<button onclick="uaiFeedback(' + logId + ', false)" style="background:#ef4444;color:#fff;border:none;padding:7px 16px;border-radius:8px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;margin:0 4px;"><i class="fas fa-thumbs-down"></i> {% trans "مش مظبوط" %}</button>'
                 + '</div>'
             ) : '')
             + '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
-            +     '<button onclick="uaiSendToPrint()" style="flex:1;min-width:160px;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-print"></i> 🖨️ إرسال للمطبعة</button>'
-            +     (d.print_spec_pdf_url ? ('<a href="' + d.print_spec_pdf_url + '" target="_blank" style="flex:1;min-width:160px;text-align:center;padding:11px;background:linear-gradient(135deg,#dc2626,#f59e0b);color:#fff;border-radius:10px;font-weight:800;font-size:12px;text-decoration:none;"><i class="fas fa-file-pdf"></i> 📄 تحميل PDF للمطبعة</a>') : '')
-            +     '<a href="' + img + '" download="ai-design.png" style="flex:1;min-width:130px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;"><i class="fas fa-download"></i> تحميل صورة</a>'
-            +     '<button onclick="uaiGenerate()" style="flex:1;min-width:130px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
+            +     '<button onclick="uaiSendToPrint()" style="flex:1;min-width:160px;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-print"></i> {% trans "🖨️ إرسال للمطبعة" %}</button>'
+            +     (d.print_spec_pdf_url ? ('<a href="' + d.print_spec_pdf_url + '" target="_blank" style="flex:1;min-width:160px;text-align:center;padding:11px;background:linear-gradient(135deg,#dc2626,#f59e0b);color:#fff;border-radius:10px;font-weight:800;font-size:12px;text-decoration:none;"><i class="fas fa-file-pdf"></i> {% trans "📄 تحميل PDF للمطبعة" %}</a>') : '')
+            +     '<a href="' + img + '" download="ai-design.png" style="flex:1;min-width:130px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none;"><i class="fas fa-download"></i> {% trans "تحميل صورة" %}</a>'
+            +     '<button onclick="uaiGenerate()" style="flex:1;min-width:130px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fas fa-rotate"></i> {% trans "إعادة توليد" %}</button>'
             + '</div>';
 
         // 💬 Auto-activate refinement chat — يفتح الـ chat modal ويعرض الـ kickoff prompt
@@ -1132,8 +1130,8 @@ async function uaiGenerate() {
                         const kickoff = document.createElement('div');
                         kickoff.className = 'chat-msg assistant uai-kickoff';
                         kickoff.innerHTML =
-                            '<div style="font-weight:700;">جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!</div>'
-                            + '<div class="time">الآن</div>';
+                            '<div style="font-weight:700;">{% trans "جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!" %}</div>'
+                            + '<div class="time">{% trans "الآن" %}</div>';
                         msgBox.appendChild(kickoff);
                         msgBox.scrollTop = msgBox.scrollHeight;
                         const inp = document.getElementById('chatRefineInput');
@@ -1145,7 +1143,7 @@ async function uaiGenerate() {
             })();
         }
     } catch (e) {
-        box.innerHTML = '<p style="color:#fca5a5;text-align:center;">⚠️ تعذر الاتصال</p>';
+        box.innerHTML = '<p style="color:#fca5a5;text-align:center;">{% trans "⚠️ تعذر الاتصال" %}</p>';
     } finally {
         btn.disabled = false;
         btn.innerHTML = orig;
@@ -1153,7 +1151,7 @@ async function uaiGenerate() {
 }
 
 function uaiSendToPrint() {
-    if (!_uaiLastResult || !_uaiLastResult.image_url) { toast('ولّد التصميم الأول', 'error'); return; }
+    if (!_uaiLastResult || !_uaiLastResult.image_url) { toast('{% trans "ولّد التصميم الأول" %}', 'error'); return; }
     if (document.getElementById('uaiStpBox')) {
         document.getElementById('uaiStpBox').scrollIntoView({ behavior: 'smooth' });
         return;
@@ -1162,34 +1160,34 @@ function uaiSendToPrint() {
     const box = document.getElementById('uaiResultBox');
     box.insertAdjacentHTML('beforeend',
         '<div id="uaiStpBox" style="margin-top:14px;padding:16px;background:rgba(15,23,42,0.6);border:1px solid #7c3aed;border-radius:12px;">'
-        + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;text-align:center;"><i class="fas fa-print"></i> تفاصيل طلب الطباعة</p>'
+        + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;text-align:center;"><i class="fas fa-print"></i> {% trans "تفاصيل طلب الطباعة" %}</p>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
-        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">نوع المنتج</label>'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "نوع المنتج" %}</label>'
         +     '<select id="uaiStpType" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;">'
-        +         '<option value="business_card">💳 كارت بزنس</option>'
-        +         '<option value="tshirt">👕 تيشرت</option>'
-        +         '<option value="flyer">📄 فلاير</option>'
-        +         '<option value="poster">🖼️ بوستر</option>'
-        +         '<option value="banner">🪧 بنر / ستاند</option>'
-        +         '<option value="mug">☕ ماج</option>'
-        +         '<option value="sticker">🏷️ ستيكر</option>'
-        +         '<option value="packaging">📦 تغليف / علبة</option>'
-        +         '<option value="menu">📋 منيو</option>'
-        +         '<option value="invitation">💌 كارت دعوة</option>'
-        +         '<option value="other" selected>✨ أخرى (حسب التصميم)</option>'
+        +         '<option value="business_card">{% trans "💳 كارت بزنس" %}</option>'
+        +         '<option value="tshirt">{% trans "👕 تيشرت" %}</option>'
+        +         '<option value="flyer">{% trans "📄 فلاير" %}</option>'
+        +         '<option value="poster">{% trans "🖼️ بوستر" %}</option>'
+        +         '<option value="banner">{% trans "🪧 بنر / ستاند" %}</option>'
+        +         '<option value="mug">{% trans "☕ ماج" %}</option>'
+        +         '<option value="sticker">{% trans "🏷️ ستيكر" %}</option>'
+        +         '<option value="packaging">{% trans "📦 تغليف / علبة" %}</option>'
+        +         '<option value="menu">{% trans "📋 منيو" %}</option>'
+        +         '<option value="invitation">{% trans "💌 كارت دعوة" %}</option>'
+        +         '<option value="other" selected>{% trans "✨ أخرى (حسب التصميم)" %}</option>'
         +     '</select></div>'
-        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">الكمية</label>'
+        +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "الكمية" %}</label>'
         +     '<input id="uaiStpQty" type="number" min="1" value="100" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;"></div>'
         + '</div>'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">رقم واتساب للتواصل</label>'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "رقم واتساب للتواصل" %}</label>'
         + '<input id="uaiStpPhone" type="text" placeholder="01xxxxxxxxx" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">عنوان التسليم</label>'
-        + '<input id="uaiStpAddress" type="text" placeholder="العنوان بالكامل + علامة مميزة" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
-        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)</label>'
-        + '<textarea id="uaiStpNotes" rows="2" placeholder="مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..." style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;resize:vertical;margin-bottom:14px;"></textarea>'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "عنوان التسليم" %}</label>'
+        + '<input id="uaiStpAddress" type="text" placeholder="{% trans "العنوان بالكامل + علامة مميزة" %}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;margin-bottom:10px;">'
+        + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)" %}</label>'
+        + '<textarea id="uaiStpNotes" rows="2" placeholder="{% trans "مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..." %}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:inherit;font-size:12px;resize:vertical;margin-bottom:14px;"></textarea>'
         + '<div style="display:flex;gap:8px;">'
-        +     '<button onclick="uaiSubmitPrint()" id="uaiStpSubmitBtn" style="flex:1;padding:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة</button>'
-        +     '<button onclick="document.getElementById(\'uaiStpBox\').remove()" style="padding:13px 20px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">إلغاء</button>'
+        +     '<button onclick="uaiSubmitPrint()" id="uaiStpSubmitBtn" style="flex:1;padding:13px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;"><i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}</button>'
+        +     '<button onclick="document.getElementById(\'uaiStpBox\').remove()" style="padding:13px 20px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">{% trans "إلغاء" %}</button>'
         + '</div></div>'
     );
     document.getElementById('uaiStpBox').scrollIntoView({ behavior: 'smooth' });
@@ -1199,7 +1197,7 @@ async function uaiSubmitPrint() {
     if (!_uaiLastResult) return;
     const btn = document.getElementById('uaiStpSubmitBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
     // نضم اختيارات المستخدم في الـ brief عشان المطبعة تشوفها
     const selTxt = Object.entries(_uaiLastResult.selections || {})
@@ -1231,19 +1229,19 @@ async function uaiSubmitPrint() {
         const data = await r.json();
         if (data.success) {
             document.getElementById('uaiStpBox').innerHTML =
-                '<p style="text-align:center;color:#6ee7b7;font-weight:800;font-size:16px;padding:14px;"><i class="fas fa-check-circle"></i> ' + _uaiEsc(data.message || 'تم!') + '</p>'
-                + '<p style="text-align:center;color:#94a3b8;font-size:11px;">كود الطلب: <code style="background:#0f172a;padding:2px 10px;border-radius:4px;color:#c4b5fd;">' + _uaiEsc(data.print_request_code || '—') + '</code></p>'
-                + '<div style="text-align:center;margin-top:10px;"><a href="/marketplace/design-store/print-orders/" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;font-size:13px;"><i class="fas fa-route"></i> تابع حالة الطلب</a></div>';
-            toast('✅ طلب الطباعة اتسجل!', 'success');
+                '<p style="text-align:center;color:#6ee7b7;font-weight:800;font-size:16px;padding:14px;"><i class="fas fa-check-circle"></i> ' + _uaiEsc(data.message || '{% trans "تم!" %}') + '</p>'
+                + '<p style="text-align:center;color:#94a3b8;font-size:11px;">{% trans "كود الطلب:" %} <code style="background:#0f172a;padding:2px 10px;border-radius:4px;color:#c4b5fd;">' + _uaiEsc(data.print_request_code || '—') + '</code></p>'
+                + '<div style="text-align:center;margin-top:10px;"><a href="/marketplace/design-store/print-orders/" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;border-radius:10px;text-decoration:none;font-weight:800;font-size:13px;"><i class="fas fa-route"></i> {% trans "تابع حالة الطلب" %}</a></div>';
+            toast('{% trans "✅ طلب الطباعة اتسجل!" %}', 'success');
         } else {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-            toast(data.message || data.error || 'فشل الإرسال', 'error');
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}';
+            toast(data.message || data.error || '{% trans "فشل الإرسال" %}', 'error');
         }
     } catch (err) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-        toast('⚠️ تعذر الاتصال', 'error');
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}';
+        toast('{% trans "⚠️ تعذر الاتصال" %}', 'error');
         console.error('[UAI STP]', err);
     }
 }
@@ -1260,7 +1258,7 @@ async function uaiFeedback(logId, isSuccessful) {
         const wrap = document.getElementById('uaiFeedback_' + logId);
         if (!wrap) return;
         if (!d.success) {
-            wrap.innerHTML = '<p style="color:#fca5a5;font-size:12px;margin:0;">تعذر تسجيل التقييم.</p>';
+            wrap.innerHTML = '<p style="color:#fca5a5;font-size:12px;margin:0;">{% trans "تعذر تسجيل التقييم." %}</p>';
             return;
         }
         // ✅ تقييم اتسجّل. لو إيجابي + اتحفظ في الـ portfolio، نظهر الـ design_code
@@ -1268,15 +1266,15 @@ async function uaiFeedback(logId, isSuccessful) {
             // نخزن الـ design_code عشان send-to-print يربط الطلب بـ CustomerDesign الموجود
             if (_uaiLastResult) _uaiLastResult.portfolio_design_code = d.design_code;
             wrap.innerHTML =
-                '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0 0 6px;"><i class="fas fa-check-circle"></i> شكراً! تقييمك اتسجل.</p>'
+                '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0 0 6px;"><i class="fas fa-check-circle"></i> {% trans "شكراً! تقييمك اتسجل." %}</p>'
                 + '<p style="color:#a78bfa;font-size:11px;margin:0;"><i class="fas fa-images"></i> '
-                + (d.portfolio_was_existing ? 'التصميم متواجد بالفعل في معرضك' : 'تم حفظ التصميم في معرضك (Portfolio)')
-                + ' — كود: <code style="background:#0f172a;padding:2px 8px;border-radius:4px;color:#c4b5fd;">'
+                + (d.portfolio_was_existing ? '{% trans "التصميم متواجد بالفعل في معرضك" %}' : '{% trans "تم حفظ التصميم في معرضك (Portfolio)" %}')
+                + ' {% trans "— كود:" %} <code style="background:#0f172a;padding:2px 8px;border-radius:4px;color:#c4b5fd;">'
                 + _uaiEsc(d.design_code.slice(0, 8)) + '</code></p>';
         } else if (d.is_successful) {
-            wrap.innerHTML = '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0;"><i class="fas fa-check-circle"></i> شكراً! تقييمك اتسجل وهيحسّن النموذج.</p>';
+            wrap.innerHTML = '<p style="color:#10b981;font-weight:800;font-size:12px;margin:0;"><i class="fas fa-check-circle"></i> {% trans "شكراً! تقييمك اتسجل وهيحسّن النموذج." %}</p>';
         } else {
-            wrap.innerHTML = '<p style="color:#a78bfa;font-weight:700;font-size:12px;margin:0;"><i class="fas fa-info-circle"></i> تقييمك اتسجل — هنحاول نحسّن النتائج.</p>';
+            wrap.innerHTML = '<p style="color:#a78bfa;font-weight:700;font-size:12px;margin:0;"><i class="fas fa-info-circle"></i> {% trans "تقييمك اتسجل — هنحاول نحسّن النتائج." %}</p>';
         }
     } catch (e) { /* silent */ }
 }
@@ -1286,19 +1284,19 @@ async function uaiFeedback(logId, isSuccessful) {
 <div class="chat-modal" id="chatModal">
     <div class="chat-box">
         <div class="chat-header">
-            <h3 id="chatTitle"><i class="fas fa-comments" style="color:#ec4899;"></i> محادثة التصميم</h3>
+            <h3 id="chatTitle"><i class="fas fa-comments" style="color:#ec4899;"></i> {% trans "محادثة التصميم" %}</h3>
             <span id="chatRemainingBadge" style="background:#1e293b;color:#fbbf24;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;margin-right:auto;display:none;">
-                <i class="fas fa-rotate"></i> متبقي <b id="chatRemainingCount">—</b> محاولات تعديل
+                <i class="fas fa-rotate"></i> {% trans "متبقي" %} <b id="chatRemainingCount">—</b> {% trans "محاولات تعديل" %}
             </span>
             <button class="chat-close" onclick="closeChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chatMessages">
-            <div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>
+            <div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> {% trans "جاري التحميل..." %}</div>
         </div>
         <div class="chat-input-row">
-            <input type="text" id="chatRefineInput" placeholder="✏️ تعديل دقيق: غيّر اللون للأزرق | شيل النص | ضيف ظل | خليه أفخم   ·   🔄 إعادة كاملة: اعمله من الأول"
+            <input type="text" id="chatRefineInput" placeholder="{% trans "✏️ تعديل دقيق: غيّر اللون للأزرق | شيل النص | ضيف ظل | خليه أفخم   ·   🔄 إعادة كاملة: اعمله من الأول" %}"
                    onkeydown="if(event.key==='Enter')chatRefine()">
-            <button onclick="chatRefine()" id="chatRefineBtn"><i class="fas fa-paper-plane"></i> عدّل</button>
+            <button onclick="chatRefine()" id="chatRefineBtn"><i class="fas fa-paper-plane"></i> {% trans "عدّل" %}</button>
         </div>
     </div>
 </div>
@@ -1310,12 +1308,12 @@ let chatDesignCode = null;
 async function openChat(code) {
     chatDesignCode = code;
     document.getElementById('chatModal').classList.add('show');
-    document.getElementById('chatMessages').innerHTML = '<div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+    document.getElementById('chatMessages').innerHTML = '<div class="chat-empty"><i class="fas fa-spinner fa-spin"></i> {% trans "جاري التحميل..." %}</div>';
     try {
         const r = await fetch(`/marketplace/design-store/${code}/chat/`);
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
-        document.getElementById('chatTitle').innerHTML = `<i class="fas fa-comments" style="color:#ec4899;"></i> ${d.title || 'محادثة التصميم'}`;
+        document.getElementById('chatTitle').innerHTML = `<i class="fas fa-comments" style="color:#ec4899;"></i> ${d.title || '{% trans "محادثة التصميم" %}'}`;
 
         // 🔢 Remaining count badge
         const remBadge = document.getElementById('chatRemainingBadge');
@@ -1331,7 +1329,7 @@ async function openChat(code) {
         const sendBtn = document.getElementById('chatRefineBtn');
         if (d.can_refine === false) {
             inputEl.disabled = true;
-            inputEl.placeholder = '🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد';
+            inputEl.placeholder = '{% trans "🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد" %}';
             sendBtn.disabled = true;
         } else {
             inputEl.disabled = false;
@@ -1340,7 +1338,7 @@ async function openChat(code) {
 
         const box = document.getElementById('chatMessages');
         if (!d.messages || d.messages.length === 0) {
-            box.innerHTML = '<div class="chat-empty">لا توجد رسائل بعد — ابدأ بكتابة تعديل</div>';
+            box.innerHTML = '<div class="chat-empty">{% trans "لا توجد رسائل بعد — ابدأ بكتابة تعديل" %}</div>';
             return;
         }
         box.innerHTML = '';
@@ -1355,7 +1353,7 @@ async function openChat(code) {
         });
         box.scrollTop = box.scrollHeight;
     } catch(e) {
-        document.getElementById('chatMessages').innerHTML = `<div class="chat-empty" style="color:#ef4444;">${e.message || 'فشل تحميل المحادثة'}</div>`;
+        document.getElementById('chatMessages').innerHTML = `<div class="chat-empty" style="color:#ef4444;">${e.message || '{% trans "فشل تحميل المحادثة" %}'}</div>`;
     }
 }
 
@@ -1383,7 +1381,7 @@ async function chatRefine() {
     if (emptyMsg) emptyMsg.remove();
     const userDiv = document.createElement('div');
     userDiv.className = 'chat-msg user';
-    userDiv.innerHTML = `<div>${text}</div><div class="time">الآن</div>`;
+    userDiv.innerHTML = `<div>${text}</div><div class="time">{% trans "الآن" %}</div>`;
     box.appendChild(userDiv);
     box.scrollTop = box.scrollHeight;
     input.value = '';
@@ -1396,17 +1394,17 @@ async function chatRefine() {
         if (!r.ok) throw new Error(d.error);
 
         // Add AI response — مع placement label + method badge + before/after comparison
-        const placementLabel = d.placement === 'back' ? '🔄 الضهر' : '👕 القدام';
+        const placementLabel = d.placement === 'back' ? '{% trans "🔄 الضهر" %}' : '{% trans "👕 القدام" %}';
 
         // 🎯 Method badge — kontext_i2i (تعديل دقيق) vs full_regenerate (إعادة كاملة)
         const methodMeta = {
             'kontext_i2i': {
-                label: '✏️ تعديل دقيق (الصورة الأصلية محفوظة)',
-                bg: '#0891b2', tooltip: 'استخدم FLUX.1-Kontext لتعديل الصورة الأصلية بدون إعادة توليد كاملة'
+                label: '{% trans "✏️ تعديل دقيق (الصورة الأصلية محفوظة)" %}',
+                bg: '#0891b2', tooltip: '{% trans "استخدم FLUX.1-Kontext لتعديل الصورة الأصلية بدون إعادة توليد كاملة" %}'
             },
             'full_regenerate': {
-                label: '🔄 إعادة توليد كامل',
-                bg: '#f59e0b', tooltip: 'التعديل يحتاج تغيير جذري في التصميم'
+                label: '{% trans "🔄 إعادة توليد كامل" %}',
+                bg: '#f59e0b', tooltip: '{% trans "التعديل يحتاج تغيير جذري في التصميم" %}'
             },
         };
         const meta = methodMeta[d.refinement_method] || null;
@@ -1416,12 +1414,12 @@ async function chatRefine() {
 
         // 🎯 Intent badge (إذا متاح)
         const intentLabel = {
-            'color_change': '🎨 تغيير لون',
-            'element_add': '➕ إضافة عنصر',
-            'element_remove': '✂️ حذف عنصر',
-            'style_tweak': '✨ تحسين أسلوب',
-            'text_change': '📝 تعديل نص',
-            'regenerate': '🔁 إعادة',
+            'color_change': '{% trans "🎨 تغيير لون" %}',
+            'element_add': '{% trans "➕ إضافة عنصر" %}',
+            'element_remove': '{% trans "✂️ حذف عنصر" %}',
+            'style_tweak': '{% trans "✨ تحسين أسلوب" %}',
+            'text_change': '{% trans "📝 تعديل نص" %}',
+            'regenerate': '{% trans "🔁 إعادة" %}',
         };
         const intentBadge = d.refinement_intent && intentLabel[d.refinement_intent]
             ? `<span style="font-size:10px;background:#475569;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;margin-left:4px;">${intentLabel[d.refinement_intent]}</span>`
@@ -1430,14 +1428,14 @@ async function chatRefine() {
         // 🔀 Before/after comparison (لو في previous_image_url)
         const comparisonHtml = d.previous_image_url
             ? `<details style="margin-top:6px;background:rgba(8,145,178,0.08);border:1px solid rgba(8,145,178,0.25);border-radius:8px;padding:6px 10px;">
-                  <summary style="cursor:pointer;color:#22d3ee;font-weight:700;font-size:11px;">🔀 قبل / بعد</summary>
+                  <summary style="cursor:pointer;color:#22d3ee;font-weight:700;font-size:11px;">{% trans "🔀 قبل / بعد" %}</summary>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
                     <div>
-                      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:4px;font-weight:700;">قبل</div>
+                      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-bottom:4px;font-weight:700;">{% trans "قبل" %}</div>
                       <img src="${d.previous_image_url}" loading="lazy" style="width:100%;border-radius:6px;border:1px solid rgba(255,255,255,0.1);">
                     </div>
                     <div>
-                      <div style="font-size:10px;color:#22d3ee;text-align:center;margin-bottom:4px;font-weight:700;">بعد</div>
+                      <div style="font-size:10px;color:#22d3ee;text-align:center;margin-bottom:4px;font-weight:700;">{% trans "بعد" %}</div>
                       <img src="${d.image_url}" loading="lazy" style="width:100%;border-radius:6px;border:1px solid rgba(34,211,238,0.4);">
                     </div>
                   </div>
@@ -1449,14 +1447,14 @@ async function chatRefine() {
         // ✨ Phase N.6+ — unified pipeline badges (brand/engine/quality)
         const pipelineBadges = renderPipelineBadges(d);
         aiDiv.innerHTML = `
-            <div>تم تعديل التصميم حسب طلبك ✅ (${placementLabel}) ${methodBadge}${intentBadge}</div>
+            <div>{% trans "تم تعديل التصميم حسب طلبك ✅" %} (${placementLabel}) ${methodBadge}${intentBadge}</div>
             <img src="${d.image_url}" loading="lazy">
             ${pipelineBadges}
             ${comparisonHtml}
-            <div class="time">الآن — متبقي <b>${d.regenerations_left}</b> تعديل</div>`;
+            <div class="time">{% trans "الآن — متبقي" %} <b>${d.regenerations_left}</b> {% trans "تعديل" %}</div>`;
         box.appendChild(aiDiv);
         box.scrollTop = box.scrollHeight;
-        toast('✅ تم التعديل!', 'success');
+        toast('{% trans "✅ تم التعديل!" %}', 'success');
 
         // 🔢 Update remaining badge
         const remCount = document.getElementById('chatRemainingCount');
@@ -1469,23 +1467,23 @@ async function chatRefine() {
         // Block input if exhausted
         if (d.regenerations_left <= 0) {
             input.disabled = true;
-            input.placeholder = '🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد';
+            input.placeholder = '{% trans "🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد" %}';
             btn.disabled = true;
         }
     } catch(e) {
         const errDiv = document.createElement('div');
         errDiv.className = 'chat-msg assistant';
-        errDiv.innerHTML = `<div style="color:#ef4444;">${e.message || 'فشل التعديل'}</div>`;
+        errDiv.innerHTML = `<div style="color:#ef4444;">${e.message || '{% trans "فشل التعديل" %}'}</div>`;
         box.appendChild(errDiv);
-        toast(e.message || 'فشل التعديل', 'error');
+        toast(e.message || '{% trans "فشل التعديل" %}', 'error');
     } finally {
         if (!btn.disabled) {
-            btn.innerHTML = '<i class="fas fa-paper-plane"></i> عدّل';
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "عدّل" %}';
         }
         // ما نـ re-enable الـ btn هنا — لو اتـ disable من 0-remaining، يفضل disabled
         if (input.disabled) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-ban"></i> منتهي';
+            btn.innerHTML = '<i class="fas fa-ban"></i> {% trans "منتهي" %}';
         } else {
             btn.disabled = false;
         }

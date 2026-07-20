@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 17:38+0300\n"
+"POT-Creation-Date: 2026-07-20 18:45+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -577,7 +577,7 @@ msgid "كارت دعوة"
 msgstr ""
 
 msgid "نوع المنتج"
-msgstr ""
+msgstr "Product type"
 
 msgid "الكمية"
 msgstr "Quantity"
@@ -4628,7 +4628,9 @@ msgstr "The design will appear here"
 msgid ""
 "ابدأ المحادثة في الجانب → الذكاء الاصطناعي بيولّد التصميم لما يبقى عنده "
 "تفاصيل كافية."
-msgstr "Start the chat on the side → the AI generates the design once it has enough details."
+msgstr ""
+"Start the chat on the side → the AI generates the design once it has enough "
+"details."
 
 msgid "تنزيل"
 msgstr "Download"
@@ -4658,7 +4660,8 @@ msgid "مش متأكد"
 msgstr "Not sure"
 
 msgid "قلت 'عدّل' بس لسه مفيش تصميم — ولّدت بدل ما أعدّل"
-msgstr "You said Edit but there is no design yet — I generated instead of editing"
+msgstr ""
+"You said Edit but there is no design yet — I generated instead of editing"
 
 msgid "تحويل تلقائي"
 msgstr "Auto switch"
@@ -4700,7 +4703,9 @@ msgid "فشل التراجع"
 msgstr "Undo failed"
 
 msgid "هتقفل المحادثة دي وتعتمد التصميم الحالي. مش هتقدر تعدّل بعد كده. متأكد؟"
-msgstr "This will close the chat and approve the current design. You will not be able to edit after that. Sure?"
+msgstr ""
+"This will close the chat and approve the current design. You will not be "
+"able to edit after that. Sure?"
 
 msgid "تم الاعتماد — هنرجعك لتصاميمك"
 msgstr "Approved — taking you back to your designs"
@@ -4926,6 +4931,566 @@ msgstr "Could not start the purchase"
 
 msgid "رابط الدفع غير متاح"
 msgstr "The payment link is not available"
+
+msgid "🎨 تصاميمي | AI Designs Store"
+msgstr "🎨 My designs | AI Designs Store"
+
+msgid "🎨 تصاميمي"
+msgstr "🎨 My designs"
+
+msgid "توليد جديد"
+msgstr "New generation"
+
+#, python-format
+msgid "تصاميمي (%(n)s)"
+msgstr "My designs (%(n)s)"
+
+msgid "تصميم متاح"
+msgstr "designs available"
+
+#, python-format
+msgid "🎁 مجاني: %(n)s"
+msgstr "🎁 Free: %(n)s"
+
+#, python-format
+msgid "💎 مدفوع: %(n)s"
+msgstr "💎 Paid: %(n)s"
+
+msgid "📦 الباقة النشطة:"
+msgstr "📦 Active package:"
+
+msgid "اشتري باقة جديدة"
+msgstr "Buy a new package"
+
+msgid "باقة إضافية"
+msgstr "Extra package"
+
+msgid "عندك محادثة تصميم شغّالة"
+msgstr "You have an active design chat"
+
+#, python-format
+msgid "%(t)s تيرنات · %(i)s صور · آخر نشاط %(a)s"
+msgstr "%(t)s turns · %(i)s photos · last activity %(a)s"
+
+msgid "استكمال"
+msgstr "Continue"
+
+msgid "إجمالي تصاميمي"
+msgstr "My total designs"
+
+msgid "باقاتي السابقة"
+msgstr "My previous packages"
+
+msgid "رصيد متبقي"
+msgstr "Remaining balance"
+
+msgid "🧠 ذكاء التصميم الشامل"
+msgstr "🧠 Comprehensive design intelligence"
+
+msgid ""
+"اكتب فكرة التصميم بأي مجال (شبشب، غرفة معيشة، لوجو، تغليف منتج، …) والذكاء "
+"الاصطناعي هيقترح عليك القوائم المناسبة تلقائياً. كل توليد بيدخل في برنامج "
+"التعلم الذاتي بتاعنا."
+msgstr "Write your design idea in any field (slippers, living room, logo, product packaging, …) and the AI will automatically suggest the appropriate lists. Every generation feeds into our self-learning program."
+
+msgid "💡 فكرة التصميم"
+msgstr "💡 Design idea"
+
+msgid "مثال: غرفة معيشة عصرية | شبشب بلاستيك للشاطئ | لوجو شركة تكنولوجيا"
+msgstr "Example: modern living room | plastic beach slippers | tech company logo"
+
+msgid "حلل الفكرة واقترح الخيارات"
+msgstr "Analyze the idea and suggest options"
+
+msgid "📎 ارفق صور مرجعية (اختياري، حتى 3 صور — لوجو، حائط، عينة لون...)"
+msgstr "📎 Attach reference photos (optional, up to 3 photos — logo, wall, color sample...)"
+
+msgid ""
+"💡 السيستم بيحلل كل صورة ويضمّ تفاصيلها (الألوان، الملمس، الأسلوب) في التصميم "
+"النهائي."
+msgstr "💡 The system analyzes each photo and includes its details (colors, texture, style) in the final design."
+
+msgid "✨ ولّد التصميم"
+msgstr "✨ Generate the design"
+
+#, python-format
+msgid "تصاميمي السابقة (%(n)s)"
+msgstr "My previous designs (%(n)s)"
+
+msgid "هذا التصميم اتعمل من محادثة الذكاء الاصطناعي"
+msgstr "This design was made from the AI chat"
+
+msgid "من المحادثة"
+msgstr "From the chat"
+
+msgid "PDF مع مواصفات الطباعة"
+msgstr "PDF with print specifications"
+
+msgid "ملفات المصدر (PNG عالي الدقة + SVG + ترخيص)"
+msgstr "Source files (high-res PNG + SVG + license)"
+
+msgid "أرسل لسوق الطباعة"
+msgstr "Send to the print market"
+
+#, python-format
+msgid "إعادة توليد (%(n)s متبقي)"
+msgstr "Regenerate (%(n)s remaining)"
+
+msgid "المحادثة والتعديل"
+msgstr "Chat and editing"
+
+#, python-format
+msgid "🔄 إعادة توليد: %(a)s/%(b)s متبقي"
+msgstr "🔄 Regenerate: %(a)s/%(b)s remaining"
+
+msgid "ابدأ تصميم أول حاجة!"
+msgstr "Start designing your first thing!"
+
+msgid "اكتب وصف اللي تتخيله فوق وهيتولد فوراً"
+msgstr "Write a description of what you imagine above and it will be generated instantly"
+
+msgid "جاري التوليد... (15-30 ثانية)"
+msgstr "Generating... (15-30 seconds)"
+
+msgid "فشل التوليد"
+msgstr "Generation failed"
+
+msgid "✅ تم التوليد! متبقي"
+msgstr "✅ Generated! Remaining"
+
+#, fuzzy
+#| msgid "تعذر تحميل بيانات العميل"
+msgid "تعذر تحميل الباقات"
+msgstr "Failed to load customer data"
+
+msgid "اشحن باقة تصاميم"
+msgstr "Recharge a designs package"
+
+msgid "اشتري دلوقتي"
+msgstr "Buy now"
+
+msgid "خطأ في الاتصال"
+msgstr "Connection error"
+
+msgid "رقم واتساب العميل (يبدأ بـ 01...):"
+msgstr "Customer WhatsApp number (starts with 01...):"
+
+msgid "✨ تم تطبيق هويتك البصرية"
+msgstr "✨ Your visual identity has been applied"
+
+msgid "تم دمج لوجو علامتك التجارية في التصميم تلقائياً"
+msgstr "Your brand logo was automatically merged into the design"
+
+msgid "🎨 ألوان علامتك مطبّقة"
+msgstr "🎨 Your brand colors applied"
+
+msgid "تم استخدام لوحة ألوان علامتك التجارية في صياغة التصميم"
+msgstr "Your brand color palette was used in composing the design"
+
+msgid "🅰️ Ideogram — نص دقيق"
+msgstr "🅰️ Ideogram — precise text"
+
+msgid "النصوص مرسومة داخل الصورة مباشرة بدقة عالية"
+msgstr "The texts are drawn directly inside the image with high precision"
+
+msgid "محرك توليد عالي الجودة للصور الفوتوغرافية والتصميمات"
+msgstr "A high-quality generation engine for photographic images and designs"
+
+msgid "🏆 جودة ممتازة"
+msgstr "🏆 Excellent quality"
+
+msgid "✅ جودة جيدة"
+msgstr "✅ Good quality"
+
+msgid "⚠️ جودة مقبولة"
+msgstr "⚠️ Acceptable quality"
+
+msgid "تقييم آلي من Quality Gate"
+msgstr "Automated assessment by Quality Gate"
+
+msgid "إعادة التوليد ستستخدم محاولة من المتاح في باقتك. متابعة؟"
+msgstr "Regeneration will use one attempt from your package. Continue?"
+
+msgid "جاري إعادة التوليد..."
+msgstr "Regenerating..."
+
+msgid "✅ تم إعادة التوليد"
+msgstr "✅ Regenerated"
+
+msgid "✅ تم!"
+msgstr "✅ Done!"
+
+msgid "نص العلامة المائية (اسم شركتك مثلاً):"
+msgstr "Watermark text (your company name for example):"
+
+msgid "جاري إضافة العلامة المائية..."
+msgstr "Adding the watermark..."
+
+msgid "✅ تم إضافة العلامة المائية"
+msgstr "✅ Watermark added"
+
+msgid "حدث خطأ"
+msgstr "An error occurred"
+
+msgid "كمية الطباعة المطلوبة:"
+msgstr "Required print quantity:"
+
+msgid "ملاحظات إضافية (اختياري):"
+msgstr "Additional notes (optional):"
+
+msgid "جاري إرسال التصميم لسوق الطباعة..."
+msgstr "Sending the design to the print market..."
+
+msgid "عاوز تفتح صفحة الطلب علشان تتابع عروض المطابع؟"
+msgstr "Do you want to open the order page to follow the print shops offers?"
+
+msgid "أكبر من 2 ميجا — اتجاهلت"
+msgstr "Larger than 2 MB — ignored"
+
+msgid "نوع المرجع (مثال: لوجو)"
+msgstr "Reference type (example: logo)"
+
+msgid "نوع المرجع"
+msgstr "Reference type"
+
+msgid "من"
+msgstr "from"
+
+msgid "إلى"
+msgstr "To"
+
+msgid "طول"
+msgstr "Length"
+
+msgid "العرض"
+msgstr "Width"
+
+msgid "ارتفاع"
+msgstr "Height"
+
+msgid "عمق"
+msgstr "Depth"
+
+msgid "اكتب فكرة التصميم الأول"
+msgstr "Write the design idea first"
+
+msgid "بحلل الفكرة..."
+msgstr "Analyzing the idea..."
+
+msgid "⚠️ السيرفر رد بـ HTTP"
+msgstr "⚠️ The server responded with HTTP"
+
+msgid "(مش JSON) — افتح Console لمزيد من التفاصيل."
+msgstr "(not JSON) — open Console for more details."
+
+msgid "تعذر التحليل"
+msgstr "Analysis failed"
+
+msgid "المجال:"
+msgstr "Field:"
+
+msgid "⚠️ تعذر الاتصال"
+msgstr "⚠️ Connection failed"
+
+msgid "حلل الفكرة الأول"
+msgstr "Analyze the idea first"
+
+msgid "بصيغ البرومبت + بولد الصورة..."
+msgstr "Composing the prompt + generating the image..."
+
+msgid "المرحلة 1: صياغة Mega Prompt — المرحلة 2: توليد الصورة..."
+msgstr "Stage 1: composing Mega Prompt — Stage 2: generating the image..."
+
+msgid "شحن الباقة"
+msgstr "Recharge the package"
+
+msgid "ملابس"
+msgstr "Clothing"
+
+msgid "مستند ورقي"
+msgstr "Paper document"
+
+msgid "لافتة/بوستر"
+msgstr "Banner/poster"
+
+msgid "لوجو"
+msgstr "Logo"
+
+msgid "تغليف"
+msgstr "Packaging"
+
+msgid "حذاء"
+msgstr "Shoe"
+
+msgid "تصميم داخلي"
+msgstr "Interior design"
+
+msgid "تغليف عربية"
+msgstr "Car wrap"
+
+msgid "إكسسوار"
+msgstr "Accessory"
+
+msgid "تصميم عام"
+msgstr "General design"
+
+msgid "🏷️ النوع"
+msgstr "🏷️ Type"
+
+msgid "🧵 الخامة"
+msgstr "🧵 Material"
+
+msgid "🖨️ تقنية الطباعة"
+msgstr "🖨️ Printing technique"
+
+msgid "📍 موضع الطباعة"
+msgstr "📍 Print placement"
+
+msgid "الضهر"
+msgstr "Back"
+
+msgid "القدام"
+msgstr "Front"
+
+msgid "📐 المقاس المقترح"
+msgstr "📐 Suggested size"
+
+msgid "تم — مطبوع بأسلوب DTG"
+msgstr "Done — printed in DTG style"
+
+msgid "تم — مدمج بطباعة رقمية"
+msgstr "Done — integrated with digital printing"
+
+msgid "🅰️ النص مدمج"
+msgstr "🅰️ Text integrated"
+
+msgid "تفاصيل التصميم"
+msgstr "Design details"
+
+msgid "النصوص اترسمت داخل الصورة مباشرة بدقة عالية"
+msgstr "The texts were drawn directly inside the image with high precision"
+
+msgid "نص مدمج"
+msgstr "text integrated"
+
+msgid "صور فوتوريالستك بـ FLUX-dev"
+msgstr "Photorealistic images with FLUX-dev"
+
+msgid "الـ engine الأصلي"
+msgstr "The original engine"
+
+msgid "فشل واتحوّل للـ fallback"
+msgstr "failed and switched to fallback"
+
+msgid "ممتاز"
+msgstr "Excellent"
+
+msgid "🔍 فحص جودة بصري (Vision LLM):"
+msgstr "🔍 Visual quality check (Vision LLM):"
+
+msgid "السيستم لاحظ نقص في الجودة وأعاد التوليد تلقائياً بنسخة محسّنة"
+msgstr "The system noticed a quality shortfall and automatically regenerated an improved version"
+
+msgid "🔄 اتعدّل تلقائياً"
+msgstr "🔄 Auto-adjusted"
+
+msgid "⚠️ ملاحظات الـ Vision"
+msgstr "⚠️ Vision notes"
+
+msgid "📝 الـ Mega Prompt"
+msgstr "📝 The Mega Prompt"
+
+msgid "هل التصميم طلع كويس؟ (رأيك بيساعد الذكاء يتعلم)"
+msgstr "Did the design turn out well? (your feedback helps the AI learn)"
+
+msgid "مش مظبوط"
+msgstr "Not right"
+
+msgid "🖨️ إرسال للمطبعة"
+msgstr "🖨️ Send to the print shop"
+
+msgid "📄 تحميل PDF للمطبعة"
+msgstr "📄 Download print PDF"
+
+msgid "تحميل صورة"
+msgstr "Download image"
+
+msgid "إعادة توليد"
+msgstr "regenerations"
+
+msgid ""
+"جاهز لتعديل تصميمك؟ اطلب مني تغيير الألوان، تصغير الخط، أو نقل مكان المطبوعة!"
+msgstr "Ready to edit your design? Ask me to change the colors, shrink the font, or move the print location!"
+
+msgid "ولّد التصميم الأول"
+msgstr "Generate the design first"
+
+msgid "تفاصيل طلب الطباعة"
+msgstr "Print order details"
+
+msgid "💳 كارت بزنس"
+msgstr "💳 Business card"
+
+msgid "👕 تيشرت"
+msgstr "👕 T-shirt"
+
+msgid "📄 فلاير"
+msgstr "📄 Flyer"
+
+msgid "🖼️ بوستر"
+msgstr "🖼️ Poster"
+
+msgid "🪧 بنر / ستاند"
+msgstr "🪧 Banner / stand"
+
+msgid "☕ ماج"
+msgstr "☕ Mug"
+
+msgid "🏷️ ستيكر"
+msgstr "🏷️ Sticker"
+
+msgid "📦 تغليف / علبة"
+msgstr "📦 Packaging / box"
+
+msgid "📋 منيو"
+msgstr "📋 Menu"
+
+msgid "💌 كارت دعوة"
+msgstr "💌 Invitation card"
+
+msgid "✨ أخرى (حسب التصميم)"
+msgstr "✨ Other (depends on the design)"
+
+msgid "رقم واتساب للتواصل"
+msgstr "WhatsApp number for contact"
+
+msgid "عنوان التسليم"
+msgstr "Delivery address"
+
+msgid "العنوان بالكامل + علامة مميزة"
+msgstr "Full address + landmark"
+
+msgid "ملاحظات للمطبعة (نوع الورق / التشطيب / تفاصيل)"
+msgstr "Notes for the print shop (paper type / finishing / details)"
+
+msgid "مثلاً: ورق كوشيه 300 جرام، تشطيب لامع UV..."
+msgstr "For example: 300 gsm coated paper, glossy UV finish..."
+
+msgid "تأكيد الإرسال للمطبعة"
+msgstr "Confirm sending to the print shop"
+
+msgid "تم!"
+msgstr "Done!"
+
+msgid "كود الطلب:"
+msgstr "Order code:"
+
+msgid "تابع حالة الطلب"
+msgstr "Follow the order status"
+
+msgid "✅ طلب الطباعة اتسجل!"
+msgstr "✅ Print order registered!"
+
+msgid "تعذر تسجيل التقييم."
+msgstr "Could not register the rating."
+
+msgid "شكراً! تقييمك اتسجل."
+msgstr "Thanks! Your rating has been registered."
+
+msgid "التصميم متواجد بالفعل في معرضك"
+msgstr "The design is already in your gallery"
+
+msgid "تم حفظ التصميم في معرضك (Portfolio)"
+msgstr "The design has been saved in your gallery (Portfolio)"
+
+msgid "— كود:"
+msgstr "— code:"
+
+msgid "شكراً! تقييمك اتسجل وهيحسّن النموذج."
+msgstr "Thanks! Your rating has been registered and will improve the model."
+
+msgid "تقييمك اتسجل — هنحاول نحسّن النتائج."
+msgstr "Your rating has been registered — we will try to improve the results."
+
+msgid "متبقي"
+msgstr "remaining"
+
+msgid "محاولات تعديل"
+msgstr "edit attempts"
+
+msgid ""
+"✏️ تعديل دقيق: غيّر اللون للأزرق | شيل النص | ضيف ظل | خليه أفخم   ·   🔄 "
+"إعادة كاملة: اعمله من الأول"
+msgstr "✏️ Precise edit: change the color to blue | remove the text | add a shadow | make it fancier   ·   🔄 Full redo: make it from scratch"
+
+msgid "عدّل"
+msgstr "Edit"
+
+msgid "🛑 استنفدت محاولات التعديل — احصل على باقة أعلى للمزيد"
+msgstr "🛑 You have used up your edit attempts — get a higher package for more"
+
+msgid "لا توجد رسائل بعد — ابدأ بكتابة تعديل"
+msgstr "No messages yet — start by writing an edit"
+
+msgid "فشل تحميل المحادثة"
+msgstr "Failed to load the chat"
+
+msgid "🔄 الضهر"
+msgstr "🔄 Back"
+
+msgid "👕 القدام"
+msgstr "👕 Front"
+
+msgid "✏️ تعديل دقيق (الصورة الأصلية محفوظة)"
+msgstr "✏️ Precise edit (original image preserved)"
+
+msgid "استخدم FLUX.1-Kontext لتعديل الصورة الأصلية بدون إعادة توليد كاملة"
+msgstr "Uses FLUX.1-Kontext to edit the original image without a full regeneration"
+
+msgid "🔄 إعادة توليد كامل"
+msgstr "🔄 Full regeneration"
+
+msgid "التعديل يحتاج تغيير جذري في التصميم"
+msgstr "The edit needs a radical change to the design"
+
+msgid "🎨 تغيير لون"
+msgstr "🎨 Color change"
+
+msgid "➕ إضافة عنصر"
+msgstr "➕ Add element"
+
+msgid "✂️ حذف عنصر"
+msgstr "✂️ Remove element"
+
+msgid "✨ تحسين أسلوب"
+msgstr "✨ Improve style"
+
+msgid "📝 تعديل نص"
+msgstr "📝 Edit text"
+
+msgid "🔁 إعادة"
+msgstr "🔁 Redo"
+
+msgid "🔀 قبل / بعد"
+msgstr "🔀 Before / after"
+
+msgid "قبل"
+msgstr "Before"
+
+msgid "بعد"
+msgstr "After"
+
+msgid "تم تعديل التصميم حسب طلبك ✅"
+msgstr "The design has been edited per your request ✅"
+
+msgid "الآن — متبقي"
+msgstr "now — remaining"
+
+msgid "✅ تم التعديل!"
+msgstr "✅ Edited!"
+
+msgid "فشل التعديل"
+msgstr "Edit failed"
 
 msgid "💳 إتمام الدفع | Mouss Tec"
 msgstr "💳 Complete payment | Mouss Tec"
@@ -5316,9 +5881,6 @@ msgstr "Scan error"
 
 msgid "تم السكان"
 msgstr "Scan complete"
-
-msgid "متبقي"
-msgstr "remaining"
 
 msgid "سكان"
 msgstr "scans"
@@ -6780,9 +7342,6 @@ msgstr "No customer packages are active right now."
 msgid "للمصممين المحترفين والاستوديوهات"
 msgstr "For professional designers and studios"
 
-msgid "إعادة توليد"
-msgstr "regenerations"
-
 msgid "مفيش باقات مصممين مفعّلة حالياً."
 msgstr "No designer packages are active right now."
 
@@ -7622,9 +8181,6 @@ msgstr "Invalid customer ID."
 msgid "تعذر تحميل بيانات العميل"
 msgstr "Failed to load customer data"
 
-msgid "خطأ في الاتصال"
-msgstr "Connection error"
-
 msgid "هدية رصيد AI Studio"
 msgstr "AI Studio credit gift"
 
@@ -8017,9 +8573,6 @@ msgstr "Not subscribed"
 
 msgid "جاري التفعيل…"
 msgstr "Activating…"
-
-msgid "حدث خطأ"
-msgstr "An error occurred"
 
 msgid "العدد لازم يكون بين 1 و 1000"
 msgstr "The number must be between 1 and 1000"
@@ -9122,9 +9675,6 @@ msgstr ""
 msgid "الكمية بعد"
 msgstr ""
 
-msgid "نوع المرجع"
-msgstr ""
-
 msgid "ملاحظة"
 msgstr "Note"
 
@@ -9872,9 +10422,6 @@ msgstr ""
 
 msgid "نهاية العمل الفعلي"
 msgstr ""
-
-msgid "ممتاز"
-msgstr "Excellent"
 
 msgid "يحتاج متابعة"
 msgstr ""
@@ -11383,9 +11930,6 @@ msgstr "Order from supplier"
 msgid "احتمالية"
 msgstr "Probability"
 
-msgid "من"
-msgstr "from"
-
 msgid "الـ AI لم يقترح قطعاً عالية الاحتمالية لهذه الأكواد."
 msgstr "AI did not suggest high-probability parts for these codes."
 
@@ -11744,9 +12288,6 @@ msgstr "last 100"
 
 msgid "معاينة الرسالة قبل الإرسال"
 msgstr "Preview message before sending"
-
-msgid "إلى"
-msgstr "To"
 
 msgid "افتح WhatsApp وأرسل"
 msgstr "Open WhatsApp and send"
@@ -12576,9 +13117,6 @@ msgid "الطلب الناتج"
 msgstr ""
 
 msgid "عروض الأسعار"
-msgstr ""
-
-msgid "العرض"
 msgstr ""
 
 msgid "مثال: تصميم لوجو احترافي بـ 3 خيارات"
