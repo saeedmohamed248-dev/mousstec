@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متجر التصاميم الذكية | Mouss Tec</title>
+    <title>{% trans "متجر التصاميم الذكية | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -226,29 +227,29 @@
     <div class="brand">AI Designs Store</div>
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         {% if customer %}
-            <span class="balance-chip"><i class="fas fa-wallet"></i> رصيدك: <strong>{{ total_balance }}</strong> تصميم</span>
-            <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
-            <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+            <span class="balance-chip"><i class="fas fa-wallet"></i> {% trans "رصيدك:" %} <strong>{{ total_balance }}</strong> {% trans "تصميم" %}</span>
+            <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> {% trans "تصاميمي" %}</a>
+            <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> {% trans "لوحتي" %}</a>
         {% else %}
-            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> دخول</a>
+            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
         {% endif %}
     </div>
 </div>
 
 <!-- Hero -->
 <section class="hero">
-    <h1>صمم اللي تتخيله في ثواني</h1>
-    <p>متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي: <strong>لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا</strong> وأي تصميم تتخيله.</p>
+    <h1>{% trans "صمم اللي تتخيله في ثواني" %}</h1>
+    <p>{% trans "متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي:" %} <strong>{% trans "لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا" %}</strong> {% trans "وأي تصميم تتخيله." %}</p>
 </section>
 
 {% if not customer %}
 <div class="login-banner">
-    <i class="fas fa-info-circle"></i> سجل دخول علشان تشتري وتصمم <a href="/marketplace/?next=/marketplace/design-store/">دخول / تسجيل سريع</a>
+    <i class="fas fa-info-circle"></i> {% trans "سجل دخول علشان تشتري وتصمم" %} <a href="/marketplace/?next=/marketplace/design-store/">{% trans "دخول / تسجيل سريع" %}</a>
 </div>
 {% elif free_remaining > 0 %}
 <div class="free-trial-badge">
-    <i class="fas fa-gift"></i> عندك <strong>{{ free_remaining }}</strong> تصميم مجاني! جرّب دلوقتي من <a href="/marketplace/design-store/my-designs/" style="color:#6ee7b7;">صفحة التصاميم</a>
-    <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;">التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل المزايا.</div>
+    <i class="fas fa-gift"></i> {% trans "عندك" %} <strong>{{ free_remaining }}</strong> {% trans "تصميم مجاني! جرّب دلوقتي من" %} <a href="/marketplace/design-store/my-designs/" style="color:#6ee7b7;">{% trans "صفحة التصاميم" %}</a>
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;">{% trans "التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل المزايا." %}</div>
 </div>
 {% endif %}
 
@@ -256,42 +257,42 @@
 <div class="features-strip">
     <div class="feature">
         <i class="fas fa-bolt" style="color:#fbbf24"></i>
-        <h4>توليد فوري</h4>
-        <p>تصميمك جاهز في ثواني</p>
+        <h4>{% trans "توليد فوري" %}</h4>
+        <p>{% trans "تصميمك جاهز في ثواني" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-ruler-combined" style="color:#06b6d4"></i>
-        <h4>مقاسات جاهزة</h4>
-        <p>تيشرت، كارت، A4، وأكتر</p>
+        <h4>{% trans "مقاسات جاهزة" %}</h4>
+        <p>{% trans "تيشرت، كارت، A4، وأكتر" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-rotate-right" style="color:#10b981"></i>
-        <h4>2 إعادة مجانية</h4>
-        <p>مش عاجبك؟ جرّب تاني</p>
+        <h4>{% trans "2 إعادة مجانية" %}</h4>
+        <p>{% trans "مش عاجبك؟ جرّب تاني" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-print" style="color:#f97316"></i>
-        <h4>اطبع تصميمك</h4>
-        <p>اطلب طباعته مباشرة</p>
+        <h4>{% trans "اطبع تصميمك" %}</h4>
+        <p>{% trans "اطلب طباعته مباشرة" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-copyright" style="color:#ec4899"></i>
-        <h4>حقوق ملكية</h4>
-        <p>استخدام تجاري كامل</p>
+        <h4>{% trans "حقوق ملكية" %}</h4>
+        <p>{% trans "استخدام تجاري كامل" %}</p>
     </div>
 </div>
 
 <!-- Tab Switcher -->
 <div class="tab-switcher">
-    <button class="tab-btn active" onclick="switchTab('customer')"><i class="fas fa-user"></i> باقات الأفراد</button>
-    <button class="tab-btn" onclick="switchTab('designer')"><i class="fas fa-palette"></i> باقات المصممين</button>
+    <button class="tab-btn active" onclick="switchTab('customer')"><i class="fas fa-user"></i> {% trans "باقات الأفراد" %}</button>
+    <button class="tab-btn" onclick="switchTab('designer')"><i class="fas fa-palette"></i> {% trans "باقات المصممين" %}</button>
 </div>
 
 <!-- ═══════ Customer Packages ═══════ -->
 <div class="packages-section active" id="section-customer">
     <div class="section-title">
-        <h2 style="color:#ec4899;">باقات العملاء الأفراد</h2>
-        <p>جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات</p>
+        <h2 style="color:#ec4899;">{% trans "باقات العملاء الأفراد" %}</h2>
+        <p>{% trans "جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات" %}</p>
     </div>
     <div class="packages-grid">
         {% for pkg in customer_packages %}
@@ -304,30 +305,30 @@
             <div class="pkg-price-row">
                 <div>
                     <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="pkg-price-cur">ج.م</span>
+                    <span class="pkg-price-cur">{% trans "ج.م" %}</span>
                 </div>
                 <div class="pkg-per-design">
-                    <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                    <strong>{{ pkg.designs_count }}</strong> {% trans "تصميم" %}
+                    · {{ pkg.price_per_design|floatformat:0 }} {% trans "ج.م/تصميم" %}
                 </div>
                 {% if pkg.savings_vs_starter > 0 %}
-                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
+                <span class="savings-tag">{% blocktrans with s=pkg.savings_vs_starter %}وفر {{ s }}%{% endblocktrans %}</span>
                 {% endif %}
             </div>
             <ul class="pkg-features">
-                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
-                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
-                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
+                <li><i class="fas fa-check-circle"></i> {% blocktrans with q=pkg.get_quality_level_display|default:'عالية' %}جودة {{ q }}{% endblocktrans %}</li>
+                <li><i class="fas fa-check-circle"></i> {% blocktrans with n=pkg.free_regenerations_per_design %}{{ n }} إعادة مجانية/تصميم{% endblocktrans %}</li>
+                <li><i class="fas fa-check-circle"></i> {% trans "استخدام تجاري كامل" %}</li>
                 <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
-                    <i class="fab fa-whatsapp"></i> توصيل واتساب
+                    <i class="fab fa-whatsapp"></i> {% trans "توصيل واتساب" %}
                 </li>
                 <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
                     <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    دمج لوجو الشركة
+                    {% trans "دمج لوجو الشركة" %}
                 </li>
             </ul>
             <button class="pkg-buy-btn" onclick="buyCustomerTopup('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
-                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
+                {% if customer %}{% blocktrans with n=pkg.designs_count %}اشتري {{ n }} تصميم{% endblocktrans %}{% else %}<i class="fas fa-lock"></i> {% trans "سجل دخول" %}{% endif %}
             </button>
         </div>
         {% endfor %}
@@ -337,8 +338,8 @@
 <!-- ═══════ Designer Packages ═══════ -->
 <div class="packages-section" id="section-designer">
     <div class="section-title">
-        <h2 style="color:#8b5cf6;">باقات المصممين والشركات</h2>
-        <p>باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات</p>
+        <h2 style="color:#8b5cf6;">{% trans "باقات المصممين والشركات" %}</h2>
+        <p>{% trans "باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات" %}</p>
     </div>
     <div class="packages-grid">
         {% for pkg in designer_packages %}
@@ -351,36 +352,36 @@
             <div class="pkg-price-row">
                 <div>
                     <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="pkg-price-cur">ج.م</span>
+                    <span class="pkg-price-cur">{% trans "ج.م" %}</span>
                 </div>
                 <div class="pkg-per-design">
-                    <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                    <strong>{{ pkg.designs_count }}</strong> {% trans "تصميم" %}
+                    · {{ pkg.price_per_design|floatformat:0 }} {% trans "ج.م/تصميم" %}
                 </div>
                 {% if pkg.savings_vs_starter > 0 %}
-                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
+                <span class="savings-tag">{% blocktrans with s=pkg.savings_vs_starter %}وفر {{ s }}%{% endblocktrans %}</span>
                 {% endif %}
             </div>
             <ul class="pkg-features">
-                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
-                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
-                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
-                <li><i class="fab fa-whatsapp"></i> توصيل واتساب</li>
+                <li><i class="fas fa-check-circle"></i> {% blocktrans with q=pkg.get_quality_level_display|default:'عالية' %}جودة {{ q }}{% endblocktrans %}</li>
+                <li><i class="fas fa-check-circle"></i> {% blocktrans with n=pkg.free_regenerations_per_design %}{{ n }} إعادة مجانية/تصميم{% endblocktrans %}</li>
+                <li><i class="fas fa-check-circle"></i> {% trans "استخدام تجاري كامل" %}</li>
+                <li><i class="fab fa-whatsapp"></i> {% trans "توصيل واتساب" %}</li>
                 <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
                     <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    دمج لوجو الشركة
+                    {% trans "دمج لوجو الشركة" %}
                 </li>
                 <li class="{% if not pkg.allows_watermark %}off{% endif %}">
                     <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    علامة مائية مخصصة
+                    {% trans "علامة مائية مخصصة" %}
                 </li>
                 <li class="{% if not pkg.allows_source_files %}off{% endif %}">
                     <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    ملفات مصدر (PSD/SVG)
+                    {% trans "ملفات مصدر (PSD/SVG)" %}
                 </li>
             </ul>
             <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|floatformat:0 }}', '{{ pkg.designs_count }}')">
-                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
+                {% if customer %}{% blocktrans with n=pkg.designs_count %}اشتري {{ n }} تصميم{% endblocktrans %}{% else %}<i class="fas fa-lock"></i> {% trans "سجل دخول" %}{% endif %}
             </button>
         </div>
         {% endfor %}
@@ -388,56 +389,55 @@
 
     <!-- ERP Banner -->
     <div class="erp-banner">
-        <h3><i class="fas fa-building"></i> عندك شركة أو مطبعة؟</h3>
+        <h3><i class="fas fa-building"></i> {% trans "عندك شركة أو مطبعة؟" %}</h3>
         <p>
-            سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل،
-            تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد.
+            {% trans "سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل، تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد." %}
         </p>
-        <a href="/" class="erp-link"><i class="fas fa-rocket"></i> سجّل شركتك الآن مجاناً</a>
+        <a href="/" class="erp-link"><i class="fas fa-rocket"></i> {% trans "سجّل شركتك الآن مجاناً" %}</a>
     </div>
 </div>
 
 <!-- Compare Section -->
 <div class="compare-section">
-    <h3>ليه تختار Mouss Tec AI Designs؟</h3>
+    <h3>{% trans "ليه تختار Mouss Tec AI Designs؟" %}</h3>
     <p>
-        تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong> وبيستغرق <strong>2-7 أيام</strong>.<br><br>
-        مع باقاتنا، التصميم الواحد يبدأ من <strong>أقل من 50 جنيه</strong> وجاهز في <strong>ثواني</strong>!<br>
-        وكمان تقدر <strong style="color:#f97316">تطبعه مباشرة</strong> من عندنا.
+        {% trans "تكلفة مصمم فريلانس لتصميم واحد:" %} <strong>{% trans "200-800 جنيه" %}</strong> {% trans "وبيستغرق" %} <strong>{% trans "2-7 أيام" %}</strong>.<br><br>
+        {% trans "مع باقاتنا، التصميم الواحد يبدأ من" %} <strong>{% trans "أقل من 50 جنيه" %}</strong> {% trans "وجاهز في" %} <strong>{% trans "ثواني" %}</strong>!<br>
+        {% trans "وكمان تقدر" %} <strong style="color:#f97316">{% trans "تطبعه مباشرة" %}</strong> {% trans "من عندنا." %}
     </p>
 </div>
 
 <!-- Payment Modal -->
 <div class="modal" id="buyModal">
     <div class="modal-box">
-        <h3>تأكيد الشراء</h3>
-        <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> ج.م — <span id="modalPkgCount"></span> تصميم</p>
+        <h3>{% trans "تأكيد الشراء" %}</h3>
+        <p>{% trans "هتشتري" %} <strong id="modalPkgName"></strong> {% trans "بـ" %} <strong id="modalPkgPrice"></strong> {% trans "ج.م —" %} <span id="modalPkgCount"></span> {% trans "تصميم" %}</p>
         <div class="payment-options">
             <label class="payment-opt">
                 <input type="radio" name="pm" value="vodafone_cash" checked>
                 <i class="fas fa-mobile-alt"></i>
-                <div><strong>فودافون كاش</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل المبلغ وسجل رقم العملية</small></div>
+                <div><strong>{% trans "فودافون كاش" %}</strong><br><small style="color:#94a3b8;font-size:0.75rem">{% trans "حوّل المبلغ وسجل رقم العملية" %}</small></div>
             </label>
             <label class="payment-opt">
                 <input type="radio" name="pm" value="instapay">
                 <i class="fas fa-money-bill-transfer"></i>
-                <div><strong>InstaPay</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل عن طريق InstaPay وارفع سكرين شوت</small></div>
+                <div><strong>InstaPay</strong><br><small style="color:#94a3b8;font-size:0.75rem">{% trans "حوّل عن طريق InstaPay وارفع سكرين شوت" %}</small></div>
             </label>
             <label class="payment-opt" style="opacity:0.4;pointer-events:none;">
                 <input type="radio" name="pm" value="paymob" disabled>
                 <i class="far fa-credit-card"></i>
-                <div><strong>بطاقة ائتمان</strong><br><small style="color:#94a3b8;font-size:0.75rem">Visa / Mastercard — قريباً</small></div>
+                <div><strong>{% trans "بطاقة ائتمان" %}</strong><br><small style="color:#94a3b8;font-size:0.75rem">{% trans "Visa / Mastercard — قريباً" %}</small></div>
             </label>
         </div>
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeBuy()">إلغاء</button>
-            <button class="btn-confirm" onclick="confirmBuy()" id="confirmBtn">تأكيد الدفع</button>
+            <button class="btn-cancel" onclick="closeBuy()">{% trans "إلغاء" %}</button>
+            <button class="btn-confirm" onclick="confirmBuy()" id="confirmBtn">{% trans "تأكيد الدفع" %}</button>
         </div>
     </div>
 </div>
 
 <div style="text-align:center;padding:30px 20px;color:#475569;font-size:0.8rem;">
-    Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية
+    {% trans "Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية" %}
 </div>
 
 <script>
@@ -502,7 +502,7 @@ function _getCookieCsrf() {
 
 async function confirmBuy() {
     const btn = document.getElementById('confirmBtn');
-    btn.disabled = true; btn.textContent = 'جاري المعالجة...';
+    btn.disabled = true; btn.textContent = '{% trans "جاري المعالجة..." %}';
     const pm = document.querySelector('input[name="pm"]:checked').value;
 
     try {
@@ -519,11 +519,11 @@ async function confirmBuy() {
                 }),
             });
             const d = await r.json();
-            if (!d.success) throw new Error(d.message || d.error || 'تعذر بدء الشراء');
+            if (!d.success) throw new Error(d.message || d.error || '{% trans "تعذر بدء الشراء" %}');
             if (d.checkout_url) {
                 window.location.href = d.checkout_url;
             } else {
-                throw new Error('رابط الدفع غير متاح');
+                throw new Error('{% trans "رابط الدفع غير متاح" %}');
             }
             return;
         }
@@ -533,11 +533,11 @@ async function confirmBuy() {
         fd.append('payment_method', pm);
         const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'خطأ');
+        if (!r.ok) throw new Error(d.error || '{% trans "خطأ" %}');
         window.location.href = d.redirect;
     } catch (e) {
         alert(e.message);
-        btn.disabled = false; btn.textContent = 'تأكيد الدفع';
+        btn.disabled = false; btn.textContent = '{% trans "تأكيد الدفع" %}';
     }
 }
 </script>

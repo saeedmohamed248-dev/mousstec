@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 14:44+0300\n"
+"POT-Creation-Date: 2026-07-20 15:16+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1551,13 +1551,13 @@ msgid "عنوان التاجر التفصيلي"
 msgstr ""
 
 msgid "صورة 1"
-msgstr ""
+msgstr "Image 1"
 
 msgid "صورة 2"
-msgstr ""
+msgstr "Image 2"
 
 msgid "صورة 3"
-msgstr ""
+msgstr "Image 3"
 
 msgid "ملف مرفق (PDF/Word)"
 msgstr ""
@@ -4060,7 +4060,10 @@ msgstr "🎨 Your brand identity"
 msgid ""
 "اللوجو، الألوان، الخطوط، والستايل — هيتطبقوا تلقائياً على كل تصميم AI تطلبه. "
 "اللي بتحفظه هنا بيتحقن مباشرة في الـ design pipeline."
-msgstr "The logo, colors, fonts, and style — they are applied automatically to every AI design you request. What you save here is injected directly into the design pipeline."
+msgstr ""
+"The logo, colors, fonts, and style — they are applied automatically to every "
+"AI design you request. What you save here is injected directly into the "
+"design pipeline."
 
 msgid "تصميم اتعملوا بهذه الهوية"
 msgstr "designs made with this identity"
@@ -4207,7 +4210,9 @@ msgid "تم حذف اللوجو"
 msgstr "Logo deleted"
 
 msgid "هتمسح ملف البراند كله — متأكد؟ ده مش بيتراجع."
-msgstr "You will delete the entire brand profile — are you sure? This cannot be undone."
+msgstr ""
+"You will delete the entire brand profile — are you sure? This cannot be "
+"undone."
 
 msgid "اتمسح الملف"
 msgstr "Profile deleted"
@@ -4348,6 +4353,219 @@ msgstr "Confirm clearing the conversation?"
 msgid "أهلاً! اسألني تاني."
 msgstr "Hi! Ask me again."
 
+msgid "متجر التصاميم الذكية | Mouss Tec"
+msgstr "Smart Designs Store | Mouss Tec"
+
+msgid "رصيدك:"
+msgstr "Your balance:"
+
+msgid "تصاميمي"
+msgstr "My designs"
+
+msgid "لوحتي"
+msgstr "My dashboard"
+
+msgid "صمم اللي تتخيله في ثواني"
+msgstr "Design what you imagine in seconds"
+
+msgid "متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي:"
+msgstr "The first smart designs store in Egypt. With AI:"
+
+msgid "لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا"
+msgstr "Logos, cards, T-shirts, flyers, social media"
+
+msgid "وأي تصميم تتخيله."
+msgstr "and any design you imagine."
+
+msgid "سجل دخول علشان تشتري وتصمم"
+msgstr "Log in to buy and design"
+
+msgid "دخول / تسجيل سريع"
+msgstr "Login / quick signup"
+
+msgid "عندك"
+msgstr "You have"
+
+msgid "تصميم مجاني! جرّب دلوقتي من"
+msgstr "free design! Try now from"
+
+msgid "صفحة التصاميم"
+msgstr "the designs page"
+
+msgid ""
+"التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل "
+"المزايا."
+msgstr "The free design is for preview only — no download or sending. Buy a package to enable all features."
+
+msgid "توليد فوري"
+msgstr "Instant generation"
+
+msgid "تصميمك جاهز في ثواني"
+msgstr "Your design is ready in seconds"
+
+msgid "مقاسات جاهزة"
+msgstr "Ready sizes"
+
+msgid "تيشرت، كارت، A4، وأكتر"
+msgstr "T-shirt, card, A4, and more"
+
+msgid "2 إعادة مجانية"
+msgstr "2 free regenerations"
+
+msgid "مش عاجبك؟ جرّب تاني"
+msgstr "Not happy? Try again"
+
+msgid "اطبع تصميمك"
+msgstr "Print your design"
+
+msgid "اطلب طباعته مباشرة"
+msgstr "Order it printed directly"
+
+msgid "حقوق ملكية"
+msgstr "Ownership rights"
+
+msgid "استخدام تجاري كامل"
+msgstr "Full commercial use"
+
+msgid "باقات الأفراد"
+msgstr "Individual packages"
+
+msgid "باقات المصممين"
+msgstr "Designer packages"
+
+msgid "باقات العملاء الأفراد"
+msgstr "Individual customer packages"
+
+msgid "جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات"
+msgstr "Try one design free, or save more with the packages"
+
+msgid "ج.م/تصميم"
+msgstr "EGP/design"
+
+#, python-format
+msgid "وفر %(s)s%%"
+msgstr ""
+
+#, python-format
+msgid "جودة %(q)s"
+msgstr "Quality %(q)s"
+
+#, python-format
+msgid "%(n)s إعادة مجانية/تصميم"
+msgstr "%(n)s free regenerations/design"
+
+msgid "توصيل واتساب"
+msgstr "WhatsApp delivery"
+
+msgid "دمج لوجو الشركة"
+msgstr "Merge company logo"
+
+#, python-format
+msgid "اشتري %(n)s تصميم"
+msgstr "Buy %(n)s designs"
+
+msgid "سجل دخول"
+msgstr "Log in"
+
+msgid "باقات المصممين والشركات"
+msgstr "Designer and company packages"
+
+msgid "باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات"
+msgstr "Bigger packages at a lower price per design. Designed specially for professionals and studios"
+
+msgid "علامة مائية مخصصة"
+msgstr "Custom watermark"
+
+msgid "عندك شركة أو مطبعة؟"
+msgstr "Do you have a company or print shop?"
+
+msgid ""
+"سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة "
+"متكامل، تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله "
+"من مكان واحد."
+msgstr "Register your company in the Mouss Tec ERP system and enjoy bigger exclusive packages, an integrated management system, order and staff tracking, and the smart advisor that helps you run your whole business from one place."
+
+msgid "سجّل شركتك الآن مجاناً"
+msgstr "Register your company now for free"
+
+msgid "ليه تختار Mouss Tec AI Designs؟"
+msgstr "Why choose Mouss Tec AI Designs?"
+
+msgid "تكلفة مصمم فريلانس لتصميم واحد:"
+msgstr "The cost of a freelance designer for one design:"
+
+msgid "200-800 جنيه"
+msgstr "200-800 EGP"
+
+msgid "وبيستغرق"
+msgstr "and it takes"
+
+msgid "2-7 أيام"
+msgstr "2-7 days"
+
+msgid "مع باقاتنا، التصميم الواحد يبدأ من"
+msgstr "With our packages, a single design starts from"
+
+msgid "أقل من 50 جنيه"
+msgstr "less than 50 EGP"
+
+msgid "وجاهز في"
+msgstr "and ready in"
+
+msgid "ثواني"
+msgstr "seconds"
+
+msgid "وكمان تقدر"
+msgstr "and you can also"
+
+msgid "تطبعه مباشرة"
+msgstr "print it directly"
+
+msgid "من عندنا."
+msgstr "from us."
+
+msgid "تأكيد الشراء"
+msgstr "Confirm purchase"
+
+msgid "هتشتري"
+msgstr "You will buy"
+
+msgid "بـ"
+msgstr "for"
+
+msgid "ج.م —"
+msgstr "EGP —"
+
+msgid "حوّل المبلغ وسجل رقم العملية"
+msgstr "Transfer the amount and record the transaction number"
+
+msgid "حوّل عن طريق InstaPay وارفع سكرين شوت"
+msgstr "Transfer via InstaPay and upload a screenshot"
+
+msgid "بطاقة ائتمان"
+msgstr "Credit card"
+
+msgid "Visa / Mastercard — قريباً"
+msgstr "Visa / Mastercard — soon"
+
+msgid "إلغاء"
+msgstr "Cancel"
+
+msgid "تأكيد الدفع"
+msgstr "Confirm payment"
+
+msgid "Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية"
+msgstr "Mouss Tec &copy; 2026 — all designs are protected by intellectual property rights"
+
+msgid "جاري المعالجة..."
+msgstr "Processing..."
+
+msgid "تعذر بدء الشراء"
+msgstr "Could not start the purchase"
+
+msgid "رابط الدفع غير متاح"
+msgstr "The payment link is not available"
+
 msgid "💳 إتمام الدفع | Mouss Tec"
 msgstr "💳 Complete payment | Mouss Tec"
 
@@ -4434,9 +4652,6 @@ msgstr "that you received in the message here below"
 msgid "اضغط"
 msgstr "Tap"
 
-msgid "تأكيد الدفع"
-msgstr "Confirm payment"
-
 msgid "وهنفعّلك الباقة في دقائق ✨"
 msgstr "and we will activate your package in minutes ✨"
 
@@ -4505,14 +4720,8 @@ msgstr "🖨️ My print orders | Mouss Tec"
 msgid "🖨️ طلباتي للطباعة"
 msgstr "🖨️ My print orders"
 
-msgid "تصاميمي"
-msgstr "My designs"
-
 msgid "المتجر"
 msgstr "Store"
-
-msgid "لوحتي"
-msgstr "My dashboard"
 
 msgid "تابع طلبات الطباعة من البداية للتسليم"
 msgstr "Track print orders from start to delivery"
@@ -4732,7 +4941,9 @@ msgstr "Sell a spare part"
 
 msgid ""
 "صور بالتفصيل من كل الزوايا — كلما زادت الصور والتفاصيل، زادت ثقة المشتري."
-msgstr "Photograph in detail from all angles — the more photos and details, the more buyer confidence."
+msgstr ""
+"Photograph in detail from all angles — the more photos and details, the more "
+"buyer confidence."
 
 msgid "اسم القطعة *"
 msgstr "Part name *"
@@ -4761,7 +4972,9 @@ msgstr "Full description *"
 msgid ""
 "اوصف القطعة بالتفصيل: تاريخ التركيب، أي أعطال أو خدوش، السبب الذي تبيعها "
 "لأجله، أي قطع إضافية معها..."
-msgstr "Describe the part in detail: installation date, any faults or scratches, the reason you are selling it, any extra parts with it..."
+msgstr ""
+"Describe the part in detail: installation date, any faults or scratches, the "
+"reason you are selling it, any extra parts with it..."
 
 msgid "صور القطعة * (3 صور على الأقل — الأولى هتكون الرئيسية)"
 msgstr "Part photos * (at least 3 photos — the first will be the main one)"
@@ -4774,7 +4987,9 @@ msgstr "Photograph from all angles: front, back, side, numbers, any scratches"
 
 msgid ""
 "⚠️ لو القطعة فيها مشكلة بعد البيع وما صوّرتش التفصيلة دي، المشتري ممكن يرجعها."
-msgstr "⚠️ If the part has a problem after the sale and you did not photograph this detail, the buyer may return it."
+msgstr ""
+"⚠️ If the part has a problem after the sale and you did not photograph this "
+"detail, the buyer may return it."
 
 msgid "السعر (ج.م) *"
 msgstr "Price (EGP) *"
@@ -4783,7 +4998,9 @@ msgid "فترة الضمان (يوم) *"
 msgstr "Warranty period (days) *"
 
 msgid "ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك."
-msgstr "7-day warranty — a good balance between trust and receiving your money quickly."
+msgstr ""
+"7-day warranty — a good balance between trust and receiving your money "
+"quickly."
 
 msgid "القاهرة، الإسكندرية..."
 msgstr "Cairo, Alexandria..."
@@ -4814,16 +5031,22 @@ msgid "رئيسية"
 msgstr "Primary"
 
 msgid "⚡ ضمان قصير — هتستلم فلوسك بسرعة، بس المشتري ممكن يتردد."
-msgstr "⚡ Short warranty — you will receive your money fast, but the buyer may hesitate."
+msgstr ""
+"⚡ Short warranty — you will receive your money fast, but the buyer may "
+"hesitate."
 
 msgid "✅ ضمان متوازن — يرفع ثقة المشتري ومش هتنتظر كتير."
-msgstr "✅ Balanced warranty — raises buyer confidence and you will not wait long."
+msgstr ""
+"✅ Balanced warranty — raises buyer confidence and you will not wait long."
 
 msgid "🛡️ ضمان طويل — هيجذب المشترين الجادين، فلوسك هتتأخر شوية."
-msgstr "🛡️ Long warranty — attracts serious buyers, your money will be delayed a bit."
+msgstr ""
+"🛡️ Long warranty — attracts serious buyers, your money will be delayed a bit."
 
 msgid "🏆 ضمان مميز — أعلى ثقة. هتبيع أسرع وبسعر أعلى."
-msgstr "🏆 Premium warranty — highest trust. You will sell faster and at a higher price."
+msgstr ""
+"🏆 Premium warranty — highest trust. You will sell faster and at a higher "
+"price."
 
 msgid "لازم 3 صور على الأقل"
 msgstr "At least 3 photos are required"
@@ -4912,9 +5135,6 @@ msgstr "Pay with Vodafone Cash (01094850763)"
 
 msgid "ادفع بالفيزا — قريباً"
 msgstr "Pay with Visa — soon"
-
-msgid "إلغاء"
-msgstr "Cancel"
 
 msgid "جاري إنشاء الطلب..."
 msgstr "Creating order..."
@@ -5255,6 +5475,89 @@ msgstr "Send login code"
 
 msgid "جاري التحقق..."
 msgstr "Verifying..."
+
+msgid "العروض على طلبي | سوق Mouss Tec"
+msgstr "Offers on my request | Mouss Tec marketplace"
+
+msgid "العرض المقبول"
+msgstr "Accepted offer"
+
+msgid "سوق Mouss Tec"
+msgstr "Mouss Tec marketplace"
+
+msgid "العودة للوحتي"
+msgstr "Back to my dashboard"
+
+msgid "العودة"
+msgstr "Back"
+
+#, python-format
+msgid "ينتهي %(d)s"
+msgstr "Ends %(d)s"
+
+#, python-format
+msgid "%(n)s عرض"
+msgstr "%(n)s offers"
+
+msgid "عاجل"
+msgstr "Urgent"
+
+msgid "قريب"
+msgstr "Soon"
+
+msgid "عادي"
+msgstr "Normal"
+
+msgid "مطلوب صور"
+msgstr "Photos required"
+
+msgid "مرفق 1"
+msgstr "Attachment 1"
+
+msgid "مرفق 2"
+msgstr "Attachment 2"
+
+msgid "العروض المقدمة"
+msgstr "Submitted offers"
+
+msgid "قبول العرض"
+msgstr "Accept offer"
+
+msgid "موقع التاجر"
+msgstr "Merchant location"
+
+msgid "مدة التنفيذ"
+msgstr "Execution time"
+
+msgid "الضمان"
+msgstr "Warranty"
+
+msgid "ملف مرفق"
+msgstr "Attached file"
+
+msgid "بيانات التاجر"
+msgstr "Merchant details"
+
+msgid "قيّم التاجر"
+msgstr "Rate the merchant"
+
+msgid "اكتب تعليقك (اختياري)..."
+msgstr "Write your comment (optional)..."
+
+msgid "إرسال التقييم"
+msgstr "Submit rating"
+
+msgid "لا يوجد عروض بعد"
+msgstr "No offers yet"
+
+msgid "التجار لسه بيراجعوا طلبك. هيبدأوا يقدموا عروضهم قريب!"
+msgstr "Merchants are still reviewing your request. They will start submitting their offers soon!"
+
+msgid "هل أنت متأكد من قبول هذا العرض؟ سيتم رفض باقي العروض."
+msgstr "Are you sure you want to accept this offer? The rest of the offers will be rejected."
+
+msgid "اختار تقييم من 1 لـ 5"
+msgstr "Choose a rating from 1 to 5"
 
 msgid "تحقق ثنائي"
 msgstr "Two-factor verification"
@@ -5755,9 +6058,6 @@ msgstr "Download at quality"
 
 msgid "مفيش باقات عملاء مفعّلة حالياً."
 msgstr "No customer packages are active right now."
-
-msgid "باقات المصممين"
-msgstr "Designer packages"
 
 msgid "للمصممين المحترفين والاستوديوهات"
 msgstr "For professional designers and studios"
@@ -6345,12 +6645,6 @@ msgstr "View all"
 
 msgid "ميزانية"
 msgstr "Budget"
-
-msgid "مرفق 1"
-msgstr "Attachment 1"
-
-msgid "مرفق 2"
-msgstr "Attachment 2"
 
 msgid "موافقة"
 msgstr "Approve"
@@ -9368,9 +9662,6 @@ msgstr ""
 msgid "تم إصدار التقرير بواسطة"
 msgstr "Report issued by"
 
-msgid "العودة"
-msgstr "Back"
-
 msgid "ابحث في السوق المشترك"
 msgstr "Search the shared market"
 
@@ -9691,9 +9982,6 @@ msgstr "Digital signature (optional)"
 
 msgid "وقّع بإصبعك على الشاشة"
 msgstr "Sign with your finger on the screen"
-
-msgid "إرسال التقييم"
-msgstr "Submit rating"
 
 msgid "سيئ"
 msgstr "Poor"
