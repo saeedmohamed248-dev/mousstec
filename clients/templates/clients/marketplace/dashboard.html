@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحتي | {{ sector_ui.label }} — Mouss Tec</title>
+    <title>{% blocktrans with l=sector_ui.label %}لوحتي | {{ l }} — Mouss Tec{% endblocktrans %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -355,25 +356,25 @@
 
         <!-- 🔔 Notification bell -->
         <div class="notif-wrap" style="position:relative;">
-            <button id="notifBtn" class="icon-btn" title="الإشعارات" onclick="toggleNotifs()">
+            <button id="notifBtn" class="icon-btn" title="{% trans "الإشعارات" %}" onclick="toggleNotifs()">
                 <i class="fas fa-bell"></i>
                 <span id="notifBadge" class="notif-badge" style="display:none;">0</span>
             </button>
             <div id="notifPanel" class="notif-panel">
                 <div class="notif-head">
-                    <strong><i class="fas fa-bell"></i> الإشعارات</strong>
+                    <strong><i class="fas fa-bell"></i> {% trans "الإشعارات" %}</strong>
                     <button onclick="toggleNotifs()" style="background:none;border:0;color:var(--muted);cursor:pointer;"><i class="fas fa-times"></i></button>
                 </div>
                 <div id="notifList" class="notif-list">
-                    <div style="padding:18px;text-align:center;color:var(--muted);font-size:0.85rem;">جاري التحميل...</div>
+                    <div style="padding:18px;text-align:center;color:var(--muted);font-size:0.85rem;">{% trans "جاري التحميل..." %}</div>
                 </div>
             </div>
         </div>
 
         {% if customer.sector == 'printing' %}
-        <a href="/marketplace/brand-profile/edit/" class="icon-btn" title="هويتي البصرية"><i class="fas fa-id-badge"></i></a>
+        <a href="/marketplace/brand-profile/edit/" class="icon-btn" title="{% trans "هويتي البصرية" %}"><i class="fas fa-id-badge"></i></a>
         {% endif %}
-        <a href="/marketplace/logout/" class="icon-btn" title="خروج"><i class="fas fa-sign-out-alt"></i></a>
+        <a href="/marketplace/logout/" class="icon-btn" title="{% trans "خروج" %}"><i class="fas fa-sign-out-alt"></i></a>
     </div>
 </div>
 
@@ -383,8 +384,8 @@
 
     <!-- ============ HERO ============ -->
     <section class="hero">
-        <h1>أهلاً، {{ customer.full_name|truncatechars:30 }} 👋</h1>
-        <p>{{ sector_ui.greeting }} اختار من الفئات أو اعمل طلب مخصص.</p>
+        <h1>{% blocktrans with n=customer.full_name|truncatechars:30 %}أهلاً، {{ n }} 👋{% endblocktrans %}</h1>
+        <p>{% blocktrans with g=sector_ui.greeting %}{{ g }} اختار من الفئات أو اعمل طلب مخصص.{% endblocktrans %}</p>
         <div class="quick-chips">
             {% for cat in sector_ui.quick_categories %}
             <button class="quick-chip" onclick="openNewRequest('{{ cat.q|escapejs }}')">
@@ -392,7 +393,7 @@
             </button>
             {% endfor %}
             <button class="quick-chip quick-chip--cta" onclick="openNewRequest('')">
-                <i class="fas fa-pen"></i> طلب مخصص
+                <i class="fas fa-pen"></i> {% trans "طلب مخصص" %}
             </button>
         </div>
     </section>
@@ -401,23 +402,23 @@
     <div class="kpi-strip">
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-list-check"></i></div>
-            <div><div class="kpi-num">{{ stats.total }}</div><div class="kpi-label">إجمالي الطلبات</div></div>
+            <div><div class="kpi-num">{{ stats.total }}</div><div class="kpi-label">{% trans "إجمالي الطلبات" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-dot"></i></div>
-            <div><div class="kpi-num">{{ stats.open }}</div><div class="kpi-label">مفتوح / يستلم عروض</div></div>
+            <div><div class="kpi-num">{{ stats.open }}</div><div class="kpi-label">{% trans "مفتوح / يستلم عروض" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
-            <div><div class="kpi-num">{{ stats.pending_approval }}</div><div class="kpi-label">في انتظار الموافقة</div></div>
+            <div><div class="kpi-num">{{ stats.pending_approval }}</div><div class="kpi-label">{% trans "في انتظار الموافقة" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba({{ sector_ui.color|cut:'#' }},0.18); color:var(--accent);"><i class="fas fa-handshake"></i></div>
-            <div><div class="kpi-num">{{ stats.accepted }}</div><div class="kpi-label">تم القبول</div></div>
+            <div><div class="kpi-num">{{ stats.accepted }}</div><div class="kpi-label">{% trans "تم القبول" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(59,130,246,0.18); color:#93c5fd;"><i class="fas fa-check-double"></i></div>
-            <div><div class="kpi-num">{{ stats.completed }}</div><div class="kpi-label">مكتملة</div></div>
+            <div><div class="kpi-num">{{ stats.completed }}</div><div class="kpi-label">{% trans "مكتملة" %}</div></div>
         </div>
     </div>
 
@@ -429,10 +430,10 @@
                 <i class="fas fa-stethoscope" style="font-size:1.4rem; color:#0a1320;"></i>
             </div>
             <div style="flex:1; min-width:200px;">
-                <div style="font-weight:900; font-size:1.05rem; margin-bottom:2px;">شخّص عربيتك بنفسك <span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:6px; font-size:0.7rem; margin-right:6px;">٧ أيام مجاناً</span></div>
-                <div style="color:var(--muted); font-size:0.88rem;">AI + بلوتوث OBD2 + خطط فحص — من ٩٩ ج/شهر</div>
+                <div style="font-weight:900; font-size:1.05rem; margin-bottom:2px;">{% trans "شخّص عربيتك بنفسك" %} <span style="background:#10b981; color:#fff; padding:2px 8px; border-radius:6px; font-size:0.7rem; margin-right:6px;">{% trans "٧ أيام مجاناً" %}</span></div>
+                <div style="color:var(--muted); font-size:0.88rem;">{% trans "AI + بلوتوث OBD2 + خطط فحص — من ٩٩ ج/شهر" %}</div>
             </div>
-            <div style="color:#f59e0b; font-weight:800;">ابدأ <i class="fas fa-arrow-left"></i></div>
+            <div style="color:#f59e0b; font-weight:800;">{% trans "ابدأ" %} <i class="fas fa-arrow-left"></i></div>
         </div>
     </a>
     {% endif %}
@@ -459,8 +460,8 @@
         <!-- MAIN: REQUESTS -->
         <div id="requests">
             <div class="section-head">
-                <h3><i class="fas fa-list-check"></i> طلباتي</h3>
-                <button class="req-btn primary" onclick="openNewRequest('')"><i class="fas fa-plus"></i> طلب جديد</button>
+                <h3><i class="fas fa-list-check"></i> {% trans "طلباتي" %}</h3>
+                <button class="req-btn primary" onclick="openNewRequest('')"><i class="fas fa-plus"></i> {% trans "طلب جديد" %}</button>
             </div>
             {% if requests %}
                 {% for req in requests %}
@@ -471,30 +472,30 @@
                             <p class="req-desc">{{ req.description|truncatechars:140 }}</p>
                             <div class="req-meta">
                                 <span class="badge b-{{ req.status }}">
-                                    {% if req.status == 'pending_approval' %}<i class="fas fa-hourglass-half"></i> في انتظار الموافقة
-                                    {% elif req.status == 'open' %}<i class="fas fa-circle-dot"></i> مفتوح
-                                    {% elif req.status == 'reviewing' %}<i class="fas fa-eye"></i> قيد المراجعة
-                                    {% elif req.status == 'accepted' %}<i class="fas fa-handshake"></i> تم القبول
-                                    {% elif req.status == 'completed' %}<i class="fas fa-check-double"></i> مكتمل
-                                    {% elif req.status == 'expired' %}<i class="fas fa-clock"></i> منتهي
-                                    {% elif req.status == 'rejected_by_admin' %}<i class="fas fa-circle-xmark"></i> مرفوض
-                                    {% else %}<i class="fas fa-ban"></i> ملغي{% endif %}
+                                    {% if req.status == 'pending_approval' %}<i class="fas fa-hourglass-half"></i> {% trans "في انتظار الموافقة" %}
+                                    {% elif req.status == 'open' %}<i class="fas fa-circle-dot"></i> {% trans "مفتوح" %}
+                                    {% elif req.status == 'reviewing' %}<i class="fas fa-eye"></i> {% trans "قيد المراجعة" %}
+                                    {% elif req.status == 'accepted' %}<i class="fas fa-handshake"></i> {% trans "تم القبول" %}
+                                    {% elif req.status == 'completed' %}<i class="fas fa-check-double"></i> {% trans "مكتمل" %}
+                                    {% elif req.status == 'expired' %}<i class="fas fa-clock"></i> {% trans "منتهي" %}
+                                    {% elif req.status == 'rejected_by_admin' %}<i class="fas fa-circle-xmark"></i> {% trans "مرفوض" %}
+                                    {% else %}<i class="fas fa-ban"></i> {% trans "ملغي" %}{% endif %}
                                 </span>
                                 <span class="badge b-{{ req.urgency }}">
-                                    {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> عاجل
-                                    {% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> قريب
-                                    {% else %}<i class="fas fa-calendar"></i> عادي{% endif %}
+                                    {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> {% trans "عاجل" %}
+                                    {% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> {% trans "قريب" %}
+                                    {% else %}<i class="fas fa-calendar"></i> {% trans "عادي" %}{% endif %}
                                 </span>
-                                <span class="badge b-offers"><i class="fas fa-gavel"></i> {{ req.offers_count }} عرض</span>
+                                <span class="badge b-offers"><i class="fas fa-gavel"></i> {% blocktrans with n=req.offers_count %}{{ n }} عرض{% endblocktrans %}</span>
                             </div>
                         </div>
                         <div class="req-actions">
                             <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
                             {% if req.status == 'pending_approval' or req.status == 'open' %}
-                            <button class="req-btn" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')"><i class="fas fa-edit"></i> تعديل</button>
+                            <button class="req-btn" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')"><i class="fas fa-edit"></i> {% trans "تعديل" %}</button>
                             {% endif %}
                             {% if req.offers_count > 0 %}
-                            <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> العروض</a>
+                            <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> {% trans "العروض" %}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -503,9 +504,9 @@
             {% else %}
                 <div class="empty">
                     <i class="fas fa-inbox"></i>
-                    <h4>لا يوجد طلبات بعد</h4>
-                    <p>اعمل أول طلب وخلي التجار يتنافسوا عليك!</p>
-                    <button class="btn-primary-grad" style="margin-top:10px;" onclick="openNewRequest('')"><i class="fas fa-plus"></i> ابدأ الآن</button>
+                    <h4>{% trans "لا يوجد طلبات بعد" %}</h4>
+                    <p>{% trans "اعمل أول طلب وخلي التجار يتنافسوا عليك!" %}</p>
+                    <button class="btn-primary-grad" style="margin-top:10px;" onclick="openNewRequest('')"><i class="fas fa-plus"></i> {% trans "ابدأ الآن" %}</button>
                 </div>
             {% endif %}
         </div>
@@ -514,19 +515,19 @@
         <aside>
             {% if customer.sector == 'printing' and side_widgets.credits %}
             <div class="side-card">
-                <h4><i class="fas fa-coins"></i> رصيد تصاميمي</h4>
-                <div class="credit-row"><span>رصيد مجاني</span><span class="num">{{ side_widgets.credits.free }}</span></div>
-                <div class="credit-row"><span>رصيد مدفوع</span><span class="num">{{ side_widgets.credits.paid }}</span></div>
-                <div class="credit-row" style="padding-top:10px;"><span style="font-weight:800;">الإجمالي</span><span class="num" style="font-size:1.2rem;">{{ side_widgets.credits.total }}</span></div>
+                <h4><i class="fas fa-coins"></i> {% trans "رصيد تصاميمي" %}</h4>
+                <div class="credit-row"><span>{% trans "رصيد مجاني" %}</span><span class="num">{{ side_widgets.credits.free }}</span></div>
+                <div class="credit-row"><span>{% trans "رصيد مدفوع" %}</span><span class="num">{{ side_widgets.credits.paid }}</span></div>
+                <div class="credit-row" style="padding-top:10px;"><span style="font-weight:800;">{% trans "الإجمالي" %}</span><span class="num" style="font-size:1.2rem;">{{ side_widgets.credits.total }}</span></div>
                 <a href="/marketplace/design-store/" class="side-link" style="margin-top:12px;">
-                    <i class="fas fa-cart-shopping lead"></i> شراء رصيد <i class="fas fa-arrow-left tail"></i>
+                    <i class="fas fa-cart-shopping lead"></i> {% trans "شراء رصيد" %} <i class="fas fa-arrow-left tail"></i>
                 </a>
             </div>
             {% endif %}
 
             {% if customer.sector == 'printing' and side_widgets.recent_designs %}
             <div class="side-card">
-                <h4><i class="fas fa-images"></i> آخر تصاميمي</h4>
+                <h4><i class="fas fa-images"></i> {% trans "آخر تصاميمي" %}</h4>
                 <div class="design-thumbs">
                     {% for d in side_widgets.recent_designs %}
                     <a class="design-thumb" href="/marketplace/design-store/my-designs/" title="{{ d.prompt|truncatechars:60 }}">
@@ -535,32 +536,32 @@
                     {% endfor %}
                 </div>
                 <a href="/marketplace/design-store/my-designs/" class="side-link" style="margin-top:12px;">
-                    <i class="fas fa-folder-open lead"></i> كل تصاميمي <i class="fas fa-arrow-left tail"></i>
+                    <i class="fas fa-folder-open lead"></i> {% trans "كل تصاميمي" %} <i class="fas fa-arrow-left tail"></i>
                 </a>
             </div>
             {% endif %}
 
             <div class="side-card">
-                <h4><i class="fas fa-bolt"></i> روابط سريعة</h4>
+                <h4><i class="fas fa-bolt"></i> {% trans "روابط سريعة" %}</h4>
                 {% if customer.sector == 'printing' %}
-                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> متجر تصاميم AI <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/design-chat/" class="side-link"><i class="fas fa-comments lead"></i> دردشة تصميم <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> 🧠 مستشار البراند <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/brand-profile/edit/" class="side-link"><i class="fas fa-id-badge lead"></i> هويتي البصرية <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/design-store/my-designs/" class="side-link"><i class="fas fa-folder-open lead"></i> كل تصاميمي <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/design-store/print-orders/" class="side-link"><i class="fas fa-print lead"></i> طلباتي للطباعة <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> {% trans "متجر تصاميم AI" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-chat/" class="side-link"><i class="fas fa-comments lead"></i> {% trans "دردشة تصميم" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> {% trans "🧠 مستشار البراند" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/brand-profile/edit/" class="side-link"><i class="fas fa-id-badge lead"></i> {% trans "هويتي البصرية" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/my-designs/" class="side-link"><i class="fas fa-folder-open lead"></i> {% trans "كل تصاميمي" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/print-orders/" class="side-link"><i class="fas fa-print lead"></i> {% trans "طلباتي للطباعة" %} <i class="fas fa-arrow-left tail"></i></a>
                 {% else %}
-                <a href="/marketplace/diagnostics/" class="side-link"><i class="fas fa-stethoscope lead"></i> تشخيص عربيتي <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> 🧠 مستشار صيانة العربية <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> التصميم الذكي (AI) <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/parts/" class="side-link"><i class="fas fa-cogs lead"></i> سوق قطع الغيار <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/diagnostics/" class="side-link"><i class="fas fa-stethoscope lead"></i> {% trans "تشخيص عربيتي" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> {% trans "🧠 مستشار صيانة العربية" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> {% trans "التصميم الذكي (AI)" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> {% trans "أنا تاجر — بوابة التجار" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/parts/" class="side-link"><i class="fas fa-cogs lead"></i> {% trans "سوق قطع الغيار" %} <i class="fas fa-arrow-left tail"></i></a>
                 {% endif %}
             </div>
 
             {% if sector_ui.tips %}
             <div class="side-card">
-                <h4><i class="fas fa-lightbulb"></i> نصائح تساعدك تاخد سعر أحسن</h4>
+                <h4><i class="fas fa-lightbulb"></i> {% trans "نصائح تساعدك تاخد سعر أحسن" %}</h4>
                 {% for tip in sector_ui.tips %}
                 <div class="tip-row"><i class="fas fa-circle-info"></i> <span>{{ tip }}</span></div>
                 {% endfor %}
@@ -571,34 +572,34 @@
 </div>
 
 <!-- ============ FAB ============ -->
-<button class="fab" onclick="openNewRequest('')"><i class="fas fa-plus"></i> طلب جديد</button>
+<button class="fab" onclick="openNewRequest('')"><i class="fas fa-plus"></i> {% trans "طلب جديد" %}</button>
 
 <!-- ============ NEW REQUEST MODAL ============ -->
 <div class="modal-overlay" id="newRequestModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas {{ sector_ui.icon }}" style="color:var(--accent);"></i> طلب خدمة جديد</h3>
+        <h3><i class="fas {{ sector_ui.icon }}" style="color:var(--accent);"></i> {% trans "طلب خدمة جديد" %}</h3>
         <form id="requestForm" enctype="multipart/form-data">
             <div class="mb-3">
-                <label class="form-label">عنوان الطلب *</label>
+                <label class="form-label">{% trans "عنوان الطلب *" %}</label>
                 <input type="text" class="form-control" name="title" id="newTitle" placeholder="{{ sector_ui.title_placeholder }}" required>
             </div>
             <div class="mb-3">
-                <label class="form-label">التفاصيل *</label>
+                <label class="form-label">{% trans "التفاصيل *" %}</label>
                 <textarea class="form-control" name="description" rows="4" placeholder="{{ sector_ui.desc_placeholder }}" required></textarea>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">مستوى الاستعجال</label>
+                    <label class="form-label">{% trans "مستوى الاستعجال" %}</label>
                     <select class="form-select" name="urgency">
-                        <option value="normal">عادي — خلال أسبوع</option>
-                        <option value="soon">قريب — خلال 3 أيام</option>
-                        <option value="urgent">عاجل — خلال 24 ساعة</option>
+                        <option value="normal">{% trans "عادي — خلال أسبوع" %}</option>
+                        <option value="soon">{% trans "قريب — خلال 3 أيام" %}</option>
+                        <option value="urgent">{% trans "عاجل — خلال 24 ساعة" %}</option>
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">الميزانية القصوى (اختياري)</label>
-                    <input type="number" class="form-control" name="max_budget" placeholder="مخفي عن التجار" dir="ltr">
+                    <label class="form-label">{% trans "الميزانية القصوى (اختياري)" %}</label>
+                    <input type="number" class="form-control" name="max_budget" placeholder="{% trans "مخفي عن التجار" %}" dir="ltr">
                 </div>
             </div>
             <div class="mb-3">
@@ -606,15 +607,15 @@
                     <input type="checkbox" id="wantsImages" name="wants_images">
                     <label for="wantsImages" class="form-label mb-0" style="cursor:pointer;">{{ sector_ui.images_label }}</label>
                 </div>
-                <small style="color:var(--muted);">لو فعّلت — التجار ملزمين يرفقوا صور مع عروضهم</small>
+                <small style="color:var(--muted);">{% trans "لو فعّلت — التجار ملزمين يرفقوا صور مع عروضهم" %}</small>
             </div>
             <div class="mb-3">
-                <label class="form-label">صور مرجعية (اختياري)</label>
+                <label class="form-label">{% trans "صور مرجعية (اختياري)" %}</label>
                 <input type="file" class="form-control" name="attachment_1" accept="image/*">
                 <input type="file" class="form-control mt-2" name="attachment_2" accept="image/*">
             </div>
             <button type="submit" class="btn-primary-grad w-100" id="submitReqBtn">
-                <i class="fas fa-paper-plane"></i> انشر الطلب
+                <i class="fas fa-paper-plane"></i> {% trans "انشر الطلب" %}
             </button>
         </form>
     </div>
@@ -624,33 +625,33 @@
 <div class="modal-overlay" id="editRequestModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-edit" style="color:var(--accent);"></i> تعديل الطلب</h3>
+        <h3><i class="fas fa-edit" style="color:var(--accent);"></i> {% trans "تعديل الطلب" %}</h3>
         <form id="editForm" enctype="multipart/form-data">
             <input type="hidden" id="editRequestCode" name="request_code">
             <div class="mb-3">
-                <label class="form-label">عنوان الطلب *</label>
+                <label class="form-label">{% trans "عنوان الطلب *" %}</label>
                 <input type="text" class="form-control" name="title" id="editTitle" required>
             </div>
             <div class="mb-3">
-                <label class="form-label">التفاصيل *</label>
+                <label class="form-label">{% trans "التفاصيل *" %}</label>
                 <textarea class="form-control" name="description" id="editDescription" rows="4" required></textarea>
             </div>
             <div class="mb-3">
-                <label class="form-label">مستوى الاستعجال</label>
+                <label class="form-label">{% trans "مستوى الاستعجال" %}</label>
                 <select class="form-select" name="urgency" id="editUrgency">
-                    <option value="normal">عادي — خلال أسبوع</option>
-                    <option value="soon">قريب — خلال 3 أيام</option>
-                    <option value="urgent">عاجل — خلال 24 ساعة</option>
+                    <option value="normal">{% trans "عادي — خلال أسبوع" %}</option>
+                    <option value="soon">{% trans "قريب — خلال 3 أيام" %}</option>
+                    <option value="urgent">{% trans "عاجل — خلال 24 ساعة" %}</option>
                 </select>
             </div>
             <div class="mb-3">
-                <label class="form-label">تحديث صور مرجعية (اختياري)</label>
+                <label class="form-label">{% trans "تحديث صور مرجعية (اختياري)" %}</label>
                 <input type="file" class="form-control" name="attachment_1" accept="image/*">
                 <input type="file" class="form-control mt-2" name="attachment_2" accept="image/*">
             </div>
-            <p style="color:var(--warn); font-size:0.85rem;"><i class="fas fa-info-circle"></i> لو الطلب كان مفتوح، التعديل هيعيده لمراجعة الإدارة.</p>
+            <p style="color:var(--warn); font-size:0.85rem;"><i class="fas fa-info-circle"></i> {% trans "لو الطلب كان مفتوح، التعديل هيعيده لمراجعة الإدارة." %}</p>
             <button type="submit" class="btn-primary-grad w-100" id="editReqBtn">
-                <i class="fas fa-save"></i> حفظ التعديلات
+                <i class="fas fa-save"></i> {% trans "حفظ التعديلات" %}
             </button>
         </form>
     </div>
@@ -677,20 +678,20 @@ function toast(msg, type) {
 document.getElementById('requestForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('submitReqBtn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري النشر...';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> {% trans "جاري النشر..." %}';
     const fd = new FormData(this);
     fd.set('wants_images', document.getElementById('wantsImages').checked ? 'true' : 'false');
     try {
         const res = await fetch('/marketplace/request/create/', { method: 'POST', body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         toast(data.message, 'success');
         closeModal();
         setTimeout(() => location.reload(), 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> انشر الطلب';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "انشر الطلب" %}';
     }
 });
 
@@ -720,7 +721,7 @@ async function loadNotifs() {
             badge.style.display = 'none';
         }
         if (!data.items.length) {
-            list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;"><i class="fas fa-bell-slash" style="font-size:1.6rem;opacity:0.4;display:block;margin-bottom:8px;"></i>لا توجد إشعارات بعد</div>';
+            list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;"><i class="fas fa-bell-slash" style="font-size:1.6rem;opacity:0.4;display:block;margin-bottom:8px;"></i>{% trans "لا توجد إشعارات بعد" %}</div>';
             return;
         }
         list.innerHTML = data.items.map(n => `
@@ -729,7 +730,7 @@ async function loadNotifs() {
                 <div class="notif-body">
                     <div class="notif-title">${escapeHtml(n.title)}</div>
                     <div class="notif-text">${escapeHtml(n.body)}</div>
-                    ${n.action_url ? `<a class="notif-cta" href="${n.action_url}">${escapeHtml(n.action_label || 'فتح')}</a>` : ''}
+                    ${n.action_url ? `<a class="notif-cta" href="${n.action_url}">${escapeHtml(n.action_label || '{% trans "فتح" %}')}</a>` : ''}
                     <div class="notif-time">${timeAgo(n.created_at)}</div>
                 </div>
             </div>
@@ -739,10 +740,10 @@ async function loadNotifs() {
 function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function timeAgo(iso) {
     const d = new Date(iso); const diff = (Date.now() - d.getTime())/1000;
-    if (diff < 60) return 'الآن';
-    if (diff < 3600) return Math.floor(diff/60) + ' د';
-    if (diff < 86400) return Math.floor(diff/3600) + ' س';
-    return Math.floor(diff/86400) + ' ي';
+    if (diff < 60) return '{% trans "الآن" %}';
+    if (diff < 3600) return Math.floor(diff/60) + ' {% trans "د" %}';
+    if (diff < 86400) return Math.floor(diff/3600) + ' {% trans "س" %}';
+    return Math.floor(diff/86400) + ' {% trans "ي" %}';
 }
 async function readNotif(id) {
     try {
@@ -768,20 +769,20 @@ setInterval(loadNotifs, 60000); // refresh every 60s
 document.getElementById('editForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = document.getElementById('editReqBtn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الحفظ..." %}';
     const code = document.getElementById('editRequestCode').value;
     const fd = new FormData(this);
     try {
         const res = await fetch(`/marketplace/request/${code}/edit/`, { method: 'POST', body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         toast(data.message, 'success');
         closeModal();
         setTimeout(() => location.reload(), 1100);
     } catch (err) {
         toast(err.message, 'error');
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-save"></i> {% trans "حفظ التعديلات" %}';
     }
 });
 </script>

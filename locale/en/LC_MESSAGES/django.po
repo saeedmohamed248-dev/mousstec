@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 15:34+0300\n"
+"POT-Creation-Date: 2026-07-20 17:31+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -550,7 +550,7 @@ msgid "تم التسليم"
 msgstr "Delivered"
 
 msgid "ملغي"
-msgstr ""
+msgstr "Cancelled"
 
 msgid "تيشرت"
 msgstr ""
@@ -1332,7 +1332,7 @@ msgid "مفتوحة"
 msgstr ""
 
 msgid "قيد المراجعة"
-msgstr ""
+msgstr "Under review"
 
 msgid "محلولة — رد للمشتري"
 msgstr ""
@@ -4353,6 +4353,220 @@ msgstr "Confirm clearing the conversation?"
 msgid "أهلاً! اسألني تاني."
 msgstr "Hi! Ask me again."
 
+#, python-format
+msgid "لوحتي | %(l)s — Mouss Tec"
+msgstr "My dashboard | %(l)s — Mouss Tec"
+
+msgid "الإشعارات"
+msgstr "Notifications"
+
+msgid "جاري التحميل..."
+msgstr "Loading..."
+
+msgid "هويتي البصرية"
+msgstr "My visual identity"
+
+msgid "خروج"
+msgstr "Logout"
+
+#, python-format
+msgid "أهلاً، %(n)s 👋"
+msgstr "Hello, %(n)s 👋"
+
+#, python-format
+msgid "%(g)s اختار من الفئات أو اعمل طلب مخصص."
+msgstr "%(g)s Choose from the categories or make a custom request."
+
+msgid "طلب مخصص"
+msgstr "Custom request"
+
+msgid "إجمالي الطلبات"
+msgstr "Total requests"
+
+msgid "مفتوح / يستلم عروض"
+msgstr "Open / receiving offers"
+
+msgid "في انتظار الموافقة"
+msgstr "Awaiting approval"
+
+msgid "تم القبول"
+msgstr "Accepted"
+
+msgid "مكتملة"
+msgstr "Completed"
+
+msgid "شخّص عربيتك بنفسك"
+msgstr "Diagnose your car yourself"
+
+msgid "٧ أيام مجاناً"
+msgstr "7 days free"
+
+msgid "AI + بلوتوث OBD2 + خطط فحص — من ٩٩ ج/شهر"
+msgstr "AI + OBD2 Bluetooth + inspection plans — from 99 EGP/month"
+
+msgid "ابدأ"
+msgstr "Start"
+
+msgid "طلباتي"
+msgstr "My orders"
+
+msgid "طلب جديد"
+msgstr "New request"
+
+msgid "مفتوح"
+msgstr "Open"
+
+msgid "مكتمل"
+msgstr "Completed"
+
+msgid "منتهي"
+msgstr "Expired"
+
+msgid "عاجل"
+msgstr "Urgent"
+
+msgid "قريب"
+msgstr "Soon"
+
+msgid "عادي"
+msgstr "Normal"
+
+#, python-format
+msgid "%(n)s عرض"
+msgstr "%(n)s offers"
+
+msgid "تعديل"
+msgstr "Edit"
+
+msgid "العروض"
+msgstr "Offers"
+
+msgid "لا يوجد طلبات بعد"
+msgstr "No requests yet"
+
+msgid "اعمل أول طلب وخلي التجار يتنافسوا عليك!"
+msgstr "Make your first request and let the merchants compete for you!"
+
+msgid "ابدأ الآن"
+msgstr "Start now"
+
+msgid "رصيد تصاميمي"
+msgstr "My design credit"
+
+msgid "رصيد مجاني"
+msgstr "Free credit"
+
+msgid "رصيد مدفوع"
+msgstr "Paid credit"
+
+msgid "الإجمالي"
+msgstr "Total"
+
+msgid "شراء رصيد"
+msgstr "Buy credit"
+
+msgid "آخر تصاميمي"
+msgstr "My latest designs"
+
+msgid "كل تصاميمي"
+msgstr "All my designs"
+
+msgid "روابط سريعة"
+msgstr "Quick links"
+
+msgid "متجر تصاميم AI"
+msgstr "AI designs store"
+
+msgid "دردشة تصميم"
+msgstr "Design chat"
+
+msgid "🧠 مستشار البراند"
+msgstr "🧠 Brand advisor"
+
+msgid "طلباتي للطباعة"
+msgstr "My print orders"
+
+msgid "تشخيص عربيتي"
+msgstr "My car diagnostics"
+
+msgid "🧠 مستشار صيانة العربية"
+msgstr "🧠 Car maintenance advisor"
+
+msgid "التصميم الذكي (AI)"
+msgstr "Smart design (AI)"
+
+msgid "أنا تاجر — بوابة التجار"
+msgstr "I am a merchant — merchants portal"
+
+msgid "سوق قطع الغيار"
+msgstr "Spare-parts marketplace"
+
+msgid "نصائح تساعدك تاخد سعر أحسن"
+msgstr "Tips to help you get a better price"
+
+msgid "طلب خدمة جديد"
+msgstr "New service request"
+
+msgid "عنوان الطلب *"
+msgstr "Request title *"
+
+msgid "التفاصيل *"
+msgstr "Details *"
+
+msgid "مستوى الاستعجال"
+msgstr "Urgency level"
+
+msgid "الميزانية القصوى (اختياري)"
+msgstr "Maximum budget (optional)"
+
+msgid "مخفي عن التجار"
+msgstr "Hidden from merchants"
+
+msgid "لو فعّلت — التجار ملزمين يرفقوا صور مع عروضهم"
+msgstr "If enabled — merchants must attach photos with their offers"
+
+msgid "صور مرجعية (اختياري)"
+msgstr "Reference photos (optional)"
+
+msgid "انشر الطلب"
+msgstr "Post the request"
+
+msgid "تعديل الطلب"
+msgstr "Edit the request"
+
+msgid "تحديث صور مرجعية (اختياري)"
+msgstr "Update reference photos (optional)"
+
+msgid "لو الطلب كان مفتوح، التعديل هيعيده لمراجعة الإدارة."
+msgstr "If the request was open, editing will send it back to management review."
+
+msgid "حفظ التعديلات"
+msgstr "Save changes"
+
+msgid "جاري النشر..."
+msgstr "Publishing..."
+
+msgid "لا توجد إشعارات بعد"
+msgstr "No notifications yet"
+
+msgid "فتح"
+msgstr "Open"
+
+msgid "الآن"
+msgstr "now"
+
+msgid "د"
+msgstr "min"
+
+msgid "س"
+msgstr "hr"
+
+msgid "ي"
+msgstr "d"
+
+msgid "جاري الحفظ..."
+msgstr "Saving..."
+
 msgid "متجر التصاميم الذكية | Mouss Tec"
 msgstr "Smart Designs Store | Mouss Tec"
 
@@ -4742,9 +4956,6 @@ msgstr ""
 "Every order you sent to the print shop will appear here — with its current "
 "status, the proposed price, and when it is expected to be delivered."
 
-msgid "إجمالي الطلبات"
-msgstr "Total requests"
-
 msgid "طلبات نشطة"
 msgstr "Active orders"
 
@@ -4827,10 +5038,14 @@ msgstr ". For codes + image reading + Live Data — upgrade to package"
 msgid ""
 "أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على "
 "التابلوه...) وأنا هحللها معاك."
-msgstr "Hi! Describe the symptoms you notice in your car (strange noise, smell, dashboard light...) and I will analyze them with you."
+msgstr ""
+"Hi! Describe the symptoms you notice in your car (strange noise, smell, "
+"dashboard light...) and I will analyze them with you."
 
 msgid "مثال: العربية بتصدر صوت طقطقة من المحرك لما أبدأ تشغيل صبحاً..."
-msgstr "Example: the car makes a knocking sound from the engine when I start it in the morning..."
+msgstr ""
+"Example: the car makes a knocking sound from the engine when I start it in "
+"the morning..."
 
 msgid "ارفع صورة"
 msgstr "Upload an image"
@@ -4851,7 +5066,8 @@ msgid "⚠️ مشكلة اتصال — راجع الإنترنت وحاول ت�
 msgstr "⚠️ Connection problem — check the internet and try again."
 
 msgid "تم تفعيل الباقة بنجاح. خليك مرتاح وشخّص براحتك."
-msgstr "The package was activated successfully. Relax and diagnose at your leisure."
+msgstr ""
+"The package was activated successfully. Relax and diagnose at your leisure."
 
 msgid "الاشتراك انتهى"
 msgstr "Subscription expired"
@@ -4861,7 +5077,9 @@ msgid "أهلاً، %(n)s"
 msgstr "Hello, %(n)s"
 
 msgid "شخّص أعطال عربيتك بنفسك — استلم تحليل AI ودليل خطوة-بخطوة لكل كود عطل."
-msgstr "Diagnose your car faults yourself — get an AI analysis and a step-by-step guide for every fault code."
+msgstr ""
+"Diagnose your car faults yourself — get an AI analysis and a step-by-step "
+"guide for every fault code."
 
 msgid "سكانات متاحة"
 msgstr "Available scans"
@@ -4885,7 +5103,9 @@ msgid "على الموبايل/الكمبيوتر — Safari لسه ما بيد�
 msgstr "on mobile/desktop — Safari does not support it yet."
 
 msgid "اضغط زر «اتصل» وشغّل البلوتوث في الموبايل، واختر جهاز ELM327 / OBD2."
-msgstr "Press the «Connect» button, turn on Bluetooth on your phone, and choose an ELM327 / OBD2 device."
+msgstr ""
+"Press the «Connect» button, turn on Bluetooth on your phone, and choose an "
+"ELM327 / OBD2 device."
 
 msgid "جاري الاتصال..."
 msgstr "Connecting..."
@@ -4987,7 +5207,8 @@ msgid "محتاج فني؟"
 msgstr "Need a technician?"
 
 msgid "اعمل طلب على السوق والميكانيكية هيتنافسوا على عرضك."
-msgstr "Post a request on the marketplace and mechanics will compete for your offer."
+msgstr ""
+"Post a request on the marketplace and mechanics will compete for your offer."
 
 msgid "اطلب الآن →"
 msgstr "Request now →"
@@ -5159,21 +5380,8 @@ msgstr "Expired too"
 msgid "النتيجة: <strong style=\"color:var(--text);\">%(c)s</strong> طلب"
 msgstr "Result: <strong style=\"color:var(--text);\">%(c)s</strong> requests"
 
-msgid "عاجل"
-msgstr "Urgent"
-
-msgid "قريب"
-msgstr "Soon"
-
-msgid "عادي"
-msgstr "Normal"
-
 msgid "مطلوب صور"
 msgstr "Photos required"
-
-#, python-format
-msgid "%(n)s عرض"
-msgstr "%(n)s offers"
 
 #, python-format
 msgid "ينتهي %(d)s"
@@ -5291,12 +5499,6 @@ msgstr "Send the offer"
 msgid "صور (مطلوبة من العميل)"
 msgstr "Photos (required by the customer)"
 
-msgid "جاري النشر..."
-msgstr "Publishing..."
-
-msgid "انشر الطلب"
-msgstr "Post the request"
-
 msgid "اطلب أنت من السوق (B2B)"
 msgstr "Request from the marketplace yourself (B2B)"
 
@@ -5313,14 +5515,8 @@ msgstr "Your identity stays anonymous"
 msgid "زي العميل النهائي تماماً."
 msgstr "Just like the end customer."
 
-msgid "عنوان الطلب *"
-msgstr "Request title *"
-
 msgid "مثال: مطلوب 10 آلاف تيشرت قطن أبيض"
 msgstr "Example: 10,000 white cotton T-shirts wanted"
-
-msgid "التفاصيل *"
-msgstr "Details *"
 
 msgid "اشرح المواصفات: الكمية، الخامة، المقاسات، المدة، أي تفاصيل مهمة..."
 msgstr ""
@@ -5332,9 +5528,6 @@ msgstr "Target sector"
 
 msgid "🚗 سيارات وقطع غيار"
 msgstr "🚗 Cars and spare parts"
-
-msgid "مستوى الاستعجال"
-msgstr "Urgency level"
 
 msgid "بالجنيه"
 msgstr "In EGP"
@@ -5469,9 +5662,6 @@ msgstr "At least 3 photos are required"
 msgid "جاري الرفع..."
 msgstr "Uploading..."
 
-msgid "سوق قطع الغيار"
-msgstr "Spare-parts marketplace"
-
 msgid "فترة الضمان"
 msgstr "Warranty period"
 
@@ -5568,9 +5758,6 @@ msgstr "Spare-parts marketplace | Mouss Tec"
 
 msgid "داش بوردي"
 msgstr "My dashboard"
-
-msgid "طلباتي"
-msgstr "My orders"
 
 msgid "مبيعاتي"
 msgstr "My sales"
@@ -6627,9 +6814,6 @@ msgstr "Paused"
 msgid "تسجيل الخروج"
 msgstr "Log out"
 
-msgid "خروج"
-msgstr "Logout"
-
 msgid "لوحة المشرف الأعلى"
 msgstr "Super Admin dashboard"
 
@@ -6853,9 +7037,6 @@ msgstr "Remaining"
 
 msgid "ينتهي اليوم!"
 msgstr "Ends today!"
-
-msgid "منتهي"
-msgstr "Expired"
 
 msgid "الرصيد"
 msgstr "Balance"
@@ -7215,9 +7396,6 @@ msgstr "No companies yet."
 
 msgid "تفاصيل العميل"
 msgstr "Customer details"
-
-msgid "جاري التحميل..."
-msgstr "Loading..."
 
 msgid "تفعيل اشتراك يدوي"
 msgstr "Activate a manual subscription"
@@ -7637,9 +7815,6 @@ msgstr "scan"
 
 msgid "المدة"
 msgstr "Duration"
-
-msgid "الإجمالي"
-msgstr "Total"
 
 msgid "التالي"
 msgstr "Next"
@@ -9028,9 +9203,6 @@ msgstr "In progress"
 msgid "متوقف مؤقتاً"
 msgstr ""
 
-msgid "مكتمل"
-msgstr ""
-
 msgid "بانتظار قطع إضافية"
 msgstr ""
 
@@ -9611,9 +9783,6 @@ msgstr ""
 msgid "إنشاء"
 msgstr ""
 
-msgid "تعديل"
-msgstr ""
-
 msgid "الجدول"
 msgstr ""
 
@@ -10166,9 +10335,6 @@ msgstr "Statements"
 
 msgid "رصيد ختامي"
 msgstr "Closing balance"
-
-msgid "فتح"
-msgstr "Open"
 
 msgid "لا يوجد كشوف بنكية بعد"
 msgstr "No bank statements yet"
@@ -11015,9 +11181,6 @@ msgstr "Technician work logs"
 
 msgid "مهمة"
 msgstr "tasks"
-
-msgid "د"
-msgstr "min"
 
 msgid "قطع مقترحة من تحليل الـ DTCs"
 msgstr "Parts suggested from DTC analysis"
@@ -12113,9 +12276,6 @@ msgid "حبر Yellow (مل)"
 msgstr ""
 
 msgid "حبر Black (مل)"
-msgstr ""
-
-msgid "مكتملة"
 msgstr ""
 
 msgid "تاريخ الإكمال"
