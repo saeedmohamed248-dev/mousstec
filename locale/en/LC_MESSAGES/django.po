@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 17:31+0300\n"
+"POT-Creation-Date: 2026-07-20 17:38+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -427,10 +427,10 @@ msgid "قيد التعديل"
 msgstr ""
 
 msgid "تم الاعتماد"
-msgstr ""
+msgstr "Approved"
 
 msgid "متروك"
-msgstr ""
+msgstr "Abandoned"
 
 msgid "رمز المحادثة"
 msgstr ""
@@ -487,7 +487,7 @@ msgid "رجوع للحالة السابقة"
 msgstr ""
 
 msgid "اعتماد التصميم"
-msgstr ""
+msgstr "Approve the design"
 
 msgid "غير محدد"
 msgstr "Not specified"
@@ -4538,7 +4538,8 @@ msgid "تحديث صور مرجعية (اختياري)"
 msgstr "Update reference photos (optional)"
 
 msgid "لو الطلب كان مفتوح، التعديل هيعيده لمراجعة الإدارة."
-msgstr "If the request was open, editing will send it back to management review."
+msgstr ""
+"If the request was open, editing will send it back to management review."
 
 msgid "حفظ التعديلات"
 msgstr "Save changes"
@@ -4566,6 +4567,146 @@ msgstr "d"
 
 msgid "جاري الحفظ..."
 msgstr "Saving..."
+
+msgid "محادثة التصميم | Mouss Tec"
+msgstr "Design chat | Mouss Tec"
+
+msgid "محادثة التصميم"
+msgstr "Design chat"
+
+msgid "المتجر"
+msgstr "Store"
+
+msgid "البراند"
+msgstr "Brand"
+
+msgid "تخطيط"
+msgstr "Planning"
+
+msgid "البراند مفعّل"
+msgstr "Brand active"
+
+msgid "ابدأ المحادثة لتصميم منتجك"
+msgstr "Start the chat to design your product"
+
+msgid "اكتب فكرتك بكلامك الطبيعي — مثلاً:"
+msgstr "Write your idea in your own words — for example:"
+
+msgid "«اعمل لي تيشرت رياضي بالأزرق»"
+msgstr "«Make me a sporty t-shirt in blue»"
+
+msgid "أو «ابدأ بوستر لمطعم»"
+msgstr "Or «start a poster for a restaurant»"
+
+msgid "ولّد"
+msgstr "Generate"
+
+msgid "تراجع"
+msgstr "Undo"
+
+msgid "اعتماد"
+msgstr "Approve"
+
+msgid "اكتب رسالتك..."
+msgstr "Write your message..."
+
+msgid "تيرنات"
+msgstr "Turns"
+
+msgid "صور"
+msgstr "photos"
+
+msgid "مجموع تكلفة هذه الجلسة بالكريديت"
+msgstr "Total cost of this session in credits"
+
+msgid "رصيد"
+msgstr "Balance"
+
+msgid "التصميم هيبان هنا"
+msgstr "The design will appear here"
+
+msgid ""
+"ابدأ المحادثة في الجانب → الذكاء الاصطناعي بيولّد التصميم لما يبقى عنده "
+"تفاصيل كافية."
+msgstr "Start the chat on the side → the AI generates the design once it has enough details."
+
+msgid "تنزيل"
+msgstr "Download"
+
+msgid "تأكيد"
+msgstr "Confirm"
+
+msgid "هل أنت متأكد؟"
+msgstr "Are you sure?"
+
+msgid "إلغاء"
+msgstr "Cancel"
+
+msgid "تم التوليد"
+msgstr "Generated"
+
+msgid "حصل خطأ مؤقت في الذكاء"
+msgstr "A temporary AI error occurred"
+
+msgid "مؤقت"
+msgstr "Temporary"
+
+msgid "مكنتش متأكد من قصدك — لو عاوز توليد دوس 'ولّد'"
+msgstr "I was not sure what you meant — if you want generation press Generate"
+
+msgid "مش متأكد"
+msgstr "Not sure"
+
+msgid "قلت 'عدّل' بس لسه مفيش تصميم — ولّدت بدل ما أعدّل"
+msgstr "You said Edit but there is no design yet — I generated instead of editing"
+
+msgid "تحويل تلقائي"
+msgstr "Auto switch"
+
+msgid "الميزة لسه مش متاحة"
+msgstr "The feature is not available yet"
+
+msgid "محادثة التصميم بنفعّلها تدريجياً."
+msgstr "We are enabling design chat gradually."
+
+msgid "فشل بدء المحادثة"
+msgstr "Failed to start the chat"
+
+msgid "فيه رسالة شغّالة دلوقتي — استنى ثانية"
+msgstr "There is a message in progress now — wait a second"
+
+msgid "وصلت لحد الجلسة — اعمل اعتماد أو ابدأ جديدة"
+msgstr "You reached the session limit — approve or start a new one"
+
+msgid "المحادثة دي اتقفلت"
+msgstr "This chat has been closed"
+
+msgid "الميزة مش متاحة"
+msgstr "The feature is not available"
+
+msgid "حصل خطأ"
+msgstr "An error occurred"
+
+msgid "اكتب وصف صغير الأول، بعدين دوس على الزرار"
+msgstr "Write a short description first, then press the button"
+
+msgid "تم التراجع للتصميم السابق"
+msgstr "Reverted to the previous design"
+
+msgid "تم التراجع"
+msgstr "Reverted"
+
+msgid "فشل التراجع"
+msgstr "Undo failed"
+
+msgid "هتقفل المحادثة دي وتعتمد التصميم الحالي. مش هتقدر تعدّل بعد كده. متأكد؟"
+msgstr "This will close the chat and approve the current design. You will not be able to edit after that. Sure?"
+
+msgid "تم الاعتماد — هنرجعك لتصاميمك"
+msgstr "Approved — taking you back to your designs"
+
+msgid "فشل الاعتماد"
+msgstr "Failed to approve"
 
 msgid "متجر التصاميم الذكية | Mouss Tec"
 msgstr "Smart Designs Store | Mouss Tec"
@@ -4769,9 +4910,6 @@ msgstr "Credit card"
 msgid "Visa / Mastercard — قريباً"
 msgstr "Visa / Mastercard — soon"
 
-msgid "إلغاء"
-msgstr "Cancel"
-
 msgid "تأكيد الدفع"
 msgstr "Confirm payment"
 
@@ -4942,9 +5080,6 @@ msgstr "🖨️ My print orders | Mouss Tec"
 
 msgid "🖨️ طلباتي للطباعة"
 msgstr "🖨️ My print orders"
-
-msgid "المتجر"
-msgstr "Store"
 
 msgid "تابع طلبات الطباعة من البداية للتسليم"
 msgstr "Track print orders from start to delivery"
@@ -7146,9 +7281,6 @@ msgstr "Confirm payment and activate the plan"
 
 msgid "تفعيل يدوي"
 msgstr "Manual activation"
-
-msgid "تأكيد"
-msgstr "Confirm"
 
 msgid "رفض"
 msgstr "Reject"
@@ -9813,9 +9945,6 @@ msgstr ""
 msgid "جاري الاستيراد"
 msgstr ""
 
-msgid "تم التراجع"
-msgstr ""
-
 msgid "عملاء"
 msgstr ""
 
@@ -10422,9 +10551,6 @@ msgstr "Pay from treasury"
 
 msgid "— اختر الخزنة —"
 msgstr "— Choose treasury —"
-
-msgid "رصيد"
-msgstr "Balance"
 
 msgid "المستحق (ج.م)"
 msgstr "Due (EGP)"
@@ -11309,9 +11435,6 @@ msgstr "Enter a valid price."
 msgid "سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟"
 msgstr "A Draft purchase order will be created for this supplier. Sure?"
 
-msgid "فشل الاعتماد"
-msgstr "Failed to approve"
-
 msgid "تم إنشاء أمر شراء Draft"
 msgstr "Draft purchase order created"
 
@@ -11962,9 +12085,6 @@ msgstr "Vehicle timeline"
 
 msgid "حدث"
 msgstr "events"
-
-msgid "صور"
-msgstr "photos"
 
 msgid "افتح البطاقة"
 msgstr "Open card"

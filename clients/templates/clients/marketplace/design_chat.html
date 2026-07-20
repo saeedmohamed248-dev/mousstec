@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محادثة التصميم | Mouss Tec</title>
+    <title>{% trans "محادثة التصميم | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -349,10 +350,10 @@
 </head>
 <body>
     <div class="topbar">
-        <div class="brand"><i class="fas fa-comments"></i> محادثة التصميم</div>
+        <div class="brand"><i class="fas fa-comments"></i> {% trans "محادثة التصميم" %}</div>
         <div style="display:flex; gap:6px;">
-            <a href="/marketplace/design-store/"><i class="fas fa-store"></i> المتجر</a>
-            <a href="/marketplace/brand-profile/edit/"><i class="fas fa-palette"></i> البراند</a>
+            <a href="/marketplace/design-store/"><i class="fas fa-store"></i> {% trans "المتجر" %}</a>
+            <a href="/marketplace/brand-profile/edit/"><i class="fas fa-palette"></i> {% trans "البراند" %}</a>
         </div>
     </div>
 
@@ -362,21 +363,21 @@
             <div class="sidebar-header">
                 <span class="stage-chip" id="stage-chip" data-stage="planning">
                     <i class="fas fa-circle" style="font-size:0.5rem;"></i>
-                    <span id="stage-label">تخطيط</span>
+                    <span id="stage-label">{% trans "تخطيط" %}</span>
                 </span>
                 <span class="brand-chip" id="brand-chip" style="display:none;">
-                    <i class="fas fa-palette"></i> البراند مفعّل
+                    <i class="fas fa-palette"></i> {% trans "البراند مفعّل" %}
                 </span>
             </div>
 
             <div class="transcript" id="transcript">
                 <div class="empty-state" id="empty-state">
                     <i class="fas fa-magic"></i>
-                    <div><strong>ابدأ المحادثة لتصميم منتجك</strong></div>
+                    <div><strong>{% trans "ابدأ المحادثة لتصميم منتجك" %}</strong></div>
                     <div style="margin-top:8px; font-size:0.85rem;">
-                        اكتب فكرتك بكلامك الطبيعي — مثلاً:<br>
-                        "اعمل لي تيشرت رياضي بالأزرق"<br>
-                        أو "ابدأ بوستر لمطعم"
+                        {% trans "اكتب فكرتك بكلامك الطبيعي — مثلاً:" %}<br>
+                        {% trans "«اعمل لي تيشرت رياضي بالأزرق»" %}<br>
+                        {% trans "أو «ابدأ بوستر لمطعم»" %}
                     </div>
                 </div>
                 <div class="typing" id="typing">
@@ -386,13 +387,13 @@
 
             <div class="quick-actions">
                 <button class="qa-btn" id="qa-generate" onclick="quickAction('generate')" disabled>
-                    <i class="fas fa-magic"></i> ولّد
+                    <i class="fas fa-magic"></i> {% trans "ولّد" %}
                 </button>
                 <button class="qa-btn" id="qa-undo" onclick="undoTurn()" disabled>
-                    <i class="fas fa-undo"></i> تراجع
+                    <i class="fas fa-undo"></i> {% trans "تراجع" %}
                 </button>
                 <button class="qa-btn qa-finalize" id="qa-finalize" onclick="askFinalize()" disabled>
-                    <i class="fas fa-check"></i> اعتماد
+                    <i class="fas fa-check"></i> {% trans "اعتماد" %}
                 </button>
             </div>
 
@@ -400,7 +401,7 @@
                 <div class="input-row">
                     <textarea
                         id="msg-input"
-                        placeholder="اكتب رسالتك..."
+                        placeholder="{% trans "اكتب رسالتك..." %}"
                         rows="1"
                         oninput="autoGrow(this)"
                         onkeydown="onInputKey(event)"
@@ -413,17 +414,17 @@
 
             <div class="meter">
                 <div class="meter-row">
-                    <span class="meter-label">تيرنات</span>
+                    <span class="meter-label">{% trans "تيرنات" %}</span>
                     <div class="meter-bar"><div class="meter-fill" id="turns-fill" style="width:0%"></div></div>
                     <span class="meter-val" id="turns-val">0 / 30</span>
                 </div>
                 <div class="meter-row">
-                    <span class="meter-label">صور</span>
+                    <span class="meter-label">{% trans "صور" %}</span>
                     <div class="meter-bar"><div class="meter-fill" id="images-fill" style="width:0%"></div></div>
                     <span class="meter-val" id="images-val">0 / 8</span>
                 </div>
-                <div class="meter-row" title="مجموع تكلفة هذه الجلسة بالكريديت">
-                    <span class="meter-label"><i class="fas fa-coins" style="color:var(--orange);"></i> رصيد</span>
+                <div class="meter-row" title="{% trans "مجموع تكلفة هذه الجلسة بالكريديت" %}">
+                    <span class="meter-label"><i class="fas fa-coins" style="color:var(--orange);"></i> {% trans "رصيد" %}</span>
                     <div class="meter-bar"><div class="meter-fill" id="cost-fill" style="width:0%; background:linear-gradient(90deg,var(--orange),var(--pink));"></div></div>
                     <span class="meter-val" id="cost-val">0.00</span>
                 </div>
@@ -439,8 +440,8 @@
                 <div class="canvas-empty" id="canvas-empty">
                     <i class="fas fa-image"></i>
                     <p>
-                        <strong>التصميم هيبان هنا</strong><br>
-                        ابدأ المحادثة في الجانب → الذكاء الاصطناعي بيولّد التصميم لما يبقى عنده تفاصيل كافية.
+                        <strong>{% trans "التصميم هيبان هنا" %}</strong><br>
+                        {% trans "ابدأ المحادثة في الجانب → الذكاء الاصطناعي بيولّد التصميم لما يبقى عنده تفاصيل كافية." %}
                     </p>
                 </div>
                 <img id="canvas-img" alt="design preview" style="display:none;">
@@ -448,10 +449,10 @@
 
             <div class="canvas-actions">
                 <button class="ca-btn ca-download" id="ca-download" onclick="downloadImage()" disabled>
-                    <i class="fas fa-download"></i> تنزيل
+                    <i class="fas fa-download"></i> {% trans "تنزيل" %}
                 </button>
                 <button class="ca-btn ca-finalize" id="ca-finalize" onclick="askFinalize()" disabled>
-                    <i class="fas fa-check-circle"></i> اعتماد التصميم
+                    <i class="fas fa-check-circle"></i> {% trans "اعتماد التصميم" %}
                 </button>
             </div>
         </main>
@@ -461,11 +462,11 @@
     <div class="toast" id="toast"></div>
     <div class="modal-bg" id="modal-bg">
         <div class="modal">
-            <h3 id="modal-title">تأكيد</h3>
-            <p id="modal-body">هل أنت متأكد؟</p>
+            <h3 id="modal-title">{% trans "تأكيد" %}</h3>
+            <p id="modal-body">{% trans "هل أنت متأكد؟" %}</p>
             <div class="modal-actions">
-                <button class="modal-btn modal-cancel" onclick="closeModal()">إلغاء</button>
-                <button class="modal-btn modal-confirm" id="modal-confirm-btn">تأكيد</button>
+                <button class="modal-btn modal-cancel" onclick="closeModal()">{% trans "إلغاء" %}</button>
+                <button class="modal-btn modal-confirm" id="modal-confirm-btn">{% trans "تأكيد" %}</button>
             </div>
         </div>
     </div>
@@ -541,8 +542,8 @@
         // Rendering
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const STAGE_LABELS = {
-            planning: 'تخطيط', generated: 'تم التوليد',
-            refining: 'تعديل', finalized: 'تم الاعتماد', abandoned: 'متروك',
+            planning: '{% trans "تخطيط" %}', generated: '{% trans "تم التوليد" %}',
+            refining: '{% trans "تعديل" %}', finalized: '{% trans "تم الاعتماد" %}', abandoned: '{% trans "متروك" %}',
         };
         function renderStage() {
             const chip = document.getElementById('stage-chip');
@@ -600,13 +601,13 @@
         function buildIntentBadge(turn) {
             // Smart visibility: only show when something non-obvious happened
             if (turn.fallback_reason === 'classifier_error') {
-                return `<span class="intent-badge intent-error" title="حصل خطأ مؤقت في الذكاء"><i class="fas fa-triangle-exclamation"></i> مؤقت</span>`;
+                return `<span class="intent-badge intent-error" title="{% trans "حصل خطأ مؤقت في الذكاء" %}"><i class="fas fa-triangle-exclamation"></i> {% trans "مؤقت" %}</span>`;
             }
             if (turn.fallback_reason === 'low_confidence') {
-                return `<span class="intent-badge intent-fallback" title="مكنتش متأكد من قصدك — لو عاوز توليد دوس 'ولّد'">💬 مش متأكد</span>`;
+                return `<span class="intent-badge intent-fallback" title="{% trans "مكنتش متأكد من قصدك — لو عاوز توليد دوس 'ولّد'" %}">💬 {% trans "مش متأكد" %}</span>`;
             }
             if (turn.downgraded) {
-                return `<span class="intent-badge intent-downgraded" title="قلت 'عدّل' بس لسه مفيش تصميم — ولّدت بدل ما أعدّل"><i class="fas fa-shuffle"></i> تحويل تلقائي</span>`;
+                return `<span class="intent-badge intent-downgraded" title="{% trans "قلت 'عدّل' بس لسه مفيش تصميم — ولّدت بدل ما أعدّل" %}"><i class="fas fa-shuffle"></i> {% trans "تحويل تلقائي" %}</span>`;
             }
             return '';
         }
@@ -684,11 +685,11 @@
         async function startNew() {
             const r = await api('/start/', { method: 'POST', body: '{}' });
             if (r.status === 404) {
-                document.body.innerHTML = '<div style="padding:60px; text-align:center; color:#fca5a5;"><h1>الميزة لسه مش متاحة</h1><p>محادثة التصميم بنفعّلها تدريجياً. <a href="/marketplace/" style="color:#ec4899;">رجوع</a></p></div>';
+                document.body.innerHTML = '<div style="padding:60px; text-align:center; color:#fca5a5;"><h1>{% trans "الميزة لسه مش متاحة" %}</h1><p>{% trans "محادثة التصميم بنفعّلها تدريجياً." %} <a href="/marketplace/" style="color:#ec4899;">{% trans "رجوع" %}</a></p></div>';
                 return;
             }
             if (r.status === 401) { window.location = '/marketplace/'; return; }
-            if (!r.ok) { showToast('فشل بدء المحادثة', 'error'); return; }
+            if (!r.ok) { showToast('{% trans "فشل بدء المحادثة" %}', 'error'); return; }
             state.convCode = r.data.conversation_code;
             state.stage = r.data.stage;
             state.brandApplied = r.data.brand_applied;
@@ -752,15 +753,15 @@
             setTyping(false);
 
             if (r.status === 409) {
-                showToast('فيه رسالة شغّالة دلوقتي — استنى ثانية', 'info');
+                showToast('{% trans "فيه رسالة شغّالة دلوقتي — استنى ثانية" %}', 'info');
             } else if (r.status === 429) {
-                showToast('وصلت لحد الجلسة — اعمل اعتماد أو ابدأ جديدة', 'error', 5000);
+                showToast('{% trans "وصلت لحد الجلسة — اعمل اعتماد أو ابدأ جديدة" %}', 'error', 5000);
             } else if (r.status === 410) {
-                showToast('المحادثة دي اتقفلت', 'error');
+                showToast('{% trans "المحادثة دي اتقفلت" %}', 'error');
             } else if (r.status === 404) {
-                document.body.innerHTML = '<div style="padding:60px; text-align:center;"><h1>الميزة مش متاحة</h1></div>';
+                document.body.innerHTML = '<div style="padding:60px; text-align:center;"><h1>{% trans "الميزة مش متاحة" %}</h1></div>';
             } else if (!r.ok) {
-                showToast(r.data.error || 'حصل خطأ', 'error');
+                showToast(r.data.error || '{% trans "حصل خطأ" %}', 'error');
             } else {
                 appendTurn({
                     role: 'assistant',
@@ -793,7 +794,7 @@
             const input = document.getElementById('msg-input');
             if (!input.value.trim()) {
                 input.focus();
-                showToast('اكتب وصف صغير الأول، بعدين دوس على الزرار', 'info');
+                showToast('{% trans "اكتب وصف صغير الأول، بعدين دوس على الزرار" %}', 'info');
                 return;
             }
             sendMessage(intent);
@@ -807,18 +808,18 @@
                 state.turnCount = r.data.turn_count;
                 state.canUndo = r.data.can_undo;
                 state.stage = r.data.stage;
-                appendTurn({ role: 'system', content: '↩️ تم التراجع للتصميم السابق' });
+                appendTurn({ role: 'system', content: '↩️ {% trans "تم التراجع للتصميم السابق" %}' });
                 renderStage(); renderMeter(); renderCanvas();
-                showToast('تم التراجع', 'success');
+                showToast('{% trans "تم التراجع" %}', 'success');
             } else {
-                showToast(r.data.error || 'فشل التراجع', 'error');
+                showToast(r.data.error || '{% trans "فشل التراجع" %}', 'error');
             }
             state.sending = false; renderActions();
         }
         function askFinalize() {
             openModal({
-                title: 'اعتماد التصميم',
-                body: 'هتقفل المحادثة دي وتعتمد التصميم الحالي. مش هتقدر تعدّل بعد كده. متأكد؟',
+                title: '{% trans "اعتماد التصميم" %}',
+                body: '{% trans "هتقفل المحادثة دي وتعتمد التصميم الحالي. مش هتقدر تعدّل بعد كده. متأكد؟" %}',
                 onConfirm: doFinalize,
             });
         }
@@ -828,12 +829,12 @@
             const r = await api(`/${state.convCode}/finalize/`, { method: 'POST' });
             if (r.ok) {
                 localStorage.removeItem(STORAGE_KEY);
-                showToast('✅ تم الاعتماد — هنرجعك لتصاميمك', 'success', 2000);
+                showToast('✅ {% trans "تم الاعتماد — هنرجعك لتصاميمك" %}', 'success', 2000);
                 setTimeout(() => {
                     window.location = '/marketplace/design-store/my-designs/';
                 }, 1500);
             } else {
-                showToast(r.data.error || 'فشل الاعتماد', 'error');
+                showToast(r.data.error || '{% trans "فشل الاعتماد" %}', 'error');
                 state.sending = false; renderActions();
             }
         }
