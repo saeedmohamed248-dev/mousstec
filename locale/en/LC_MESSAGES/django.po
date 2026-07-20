@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 18:59+0300\n"
+"POT-Creation-Date: 2026-07-20 19:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1807,7 +1807,7 @@ msgid "مكالمة هاتفية"
 msgstr ""
 
 msgid "المستأجر"
-msgstr ""
+msgstr "Tenant"
 
 msgid "اسم المرسل"
 msgstr ""
@@ -7533,11 +7533,50 @@ msgstr "Contact us"
 msgid "ضيف"
 msgstr "Guest"
 
-msgid "شات"
-msgstr "Chat"
+msgid "الشات الحي — Mouss Tec Super Admin"
+msgstr "Live chat — Mouss Tec Super Admin"
 
 msgid "الشات الحي"
 msgstr "Live chat"
+
+msgid "💬 الشات الحي"
+msgstr "💬 Live chat"
+
+msgid "كل الجلسات الجارية بانتظار رد موظفي الدعم."
+msgstr "All ongoing sessions awaiting a reply from support staff."
+
+msgid "🟢 داخل أوقات العمل"
+msgstr "🟢 Within working hours"
+
+msgid "🔴 خارج أوقات العمل — الزوار يشوفون الفورم"
+msgstr "🔴 Outside working hours — visitors see the form"
+
+msgid "⏳ بانتظار رد"
+msgstr "⏳ Awaiting reply"
+
+msgid "🟢 جارية"
+msgstr "🟢 Ongoing"
+
+msgid "بدأت"
+msgstr "Started"
+
+msgid "الزائر"
+msgstr "Visitor"
+
+msgid "آخر نشاط"
+msgstr "Last activity"
+
+msgid "غير مقروء"
+msgstr "Unread"
+
+msgid "الموظف"
+msgstr "Employee"
+
+msgid "📭 لا توجد جلسات شات جارية"
+msgstr "📭 No ongoing chat sessions"
+
+msgid "شات"
+msgstr "Chat"
 
 msgid "بدأت:"
 msgstr "Started:"
@@ -7572,10 +7611,61 @@ msgstr "✏️ Edit listing #%(id)s"
 
 msgid ""
 "تعديل إداري يتجاوز ملكية البائع — يُستخدم لتصحيح المخالفات أو الأخطاء الواضحة."
-msgstr "Administrative edit that overrides seller ownership — used to correct violations or obvious errors."
+msgstr ""
+"Administrative edit that overrides seller ownership — used to correct "
+"violations or obvious errors."
 
 msgid "رقم القطعة (OEM)"
 msgstr "Part number (OEM)"
+
+msgid "الإدارة"
+msgstr "Administration"
+
+msgid "إدارة الباقات"
+msgstr "Plans management"
+
+msgid "💎 إدارة الباقات والاشتراكات"
+msgstr "💎 Plans and subscriptions management"
+
+#, python-format
+msgid ""
+"السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه "
+"%(n)s ميزة مفعلة."
+msgstr "Super admin — control prices and dynamic features for each plan. The catalog has %(n)s active features."
+
+msgid "إجمالي الباقات"
+msgstr "Total plans"
+
+msgid "ميزات نشطة في الـ catalog"
+msgstr "Active features in the catalog"
+
+msgid "الـ Slug"
+msgstr "Slug"
+
+msgid "السعر/شهر"
+msgstr "Price/month"
+
+msgid "المشتركين النشطين"
+msgstr "Active subscribers"
+
+msgid "المزايا"
+msgstr "Features"
+
+msgid "الـ Revisions"
+msgstr "Revisions"
+
+msgid "إجراء"
+msgstr "Action"
+
+#, python-format
+msgid "آخرها %(d)s"
+msgstr "Latest %(d)s"
+
+msgid "مفيش باقات."
+msgstr "No plans."
+
+msgid "رجوع لـ SaaS Dashboard"
+msgstr "Back to SaaS Dashboard"
 
 msgid "تأسيس مؤسسة سحابية جديدة"
 msgstr "Set up a new cloud organization"
@@ -8133,9 +8223,6 @@ msgstr "🛒 Purchases"
 
 msgid "💰 صرف (ج.م)"
 msgstr "💰 Spent (EGP)"
-
-msgid "آخر نشاط"
-msgstr "Last activity"
 
 msgid "⚡ إجراءات"
 msgstr "⚡ Actions"
@@ -9168,9 +9255,6 @@ msgstr ""
 
 msgid "ورديات العمل"
 msgstr ""
-
-msgid "الموظف"
-msgstr "Employee"
 
 msgid "الوردية"
 msgstr ""
@@ -10955,9 +11039,6 @@ msgstr "Qty"
 
 msgid "أيام"
 msgstr "days"
-
-msgid "إجراء"
-msgstr "Action"
 
 msgid "القطعة مش في الكاتالوج — أضفها من شاشة المنتجات أولاً"
 msgstr "The part is not in the catalog — add it from the products screen first"

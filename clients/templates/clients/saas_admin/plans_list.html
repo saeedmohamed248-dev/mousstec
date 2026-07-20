@@ -1,6 +1,6 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <title>SaaS Plans Management — Mouss Tec Super Admin</title>
@@ -32,36 +32,36 @@
 <body>
 <div class="container">
     <div class="breadcrumb">
-        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
         <a href="/superadmin/">SaaS Dashboard</a> ›
-        إدارة الباقات
+        {% trans "إدارة الباقات" %}
     </div>
 
-    <h1><i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات</h1>
-    <p class="sub">السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه {{ features_count_total }} ميزة مفعلة.</p>
+    <h1><i class="fas fa-crown"></i> {% trans "💎 إدارة الباقات والاشتراكات" %}</h1>
+    <p class="sub">{% blocktrans with n=features_count_total %}السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه {{ n }} ميزة مفعلة.{% endblocktrans %}</p>
 
     <div class="stats-row">
         <div class="stat-card">
             <div class="val">{{ plans_data|length }}</div>
-            <div class="lbl"><i class="fas fa-cubes"></i> إجمالي الباقات</div>
+            <div class="lbl"><i class="fas fa-cubes"></i> {% trans "إجمالي الباقات" %}</div>
         </div>
         <div class="stat-card">
             <div class="val">{{ features_count_total }}</div>
-            <div class="lbl"><i class="fas fa-puzzle-piece"></i> ميزات نشطة في الـ catalog</div>
+            <div class="lbl"><i class="fas fa-puzzle-piece"></i> {% trans "ميزات نشطة في الـ catalog" %}</div>
         </div>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>الـ Slug</th>
-                <th>الباقة</th>
-                <th>القطاع</th>
-                <th>السعر/شهر</th>
-                <th>المشتركين النشطين</th>
-                <th>المزايا</th>
-                <th>الـ Revisions</th>
-                <th>إجراء</th>
+                <th>{% trans "الـ Slug" %}</th>
+                <th>{% trans "الباقة" %}</th>
+                <th>{% trans "القطاع" %}</th>
+                <th>{% trans "السعر/شهر" %}</th>
+                <th>{% trans "المشتركين النشطين" %}</th>
+                <th>{% trans "المزايا" %}</th>
+                <th>{% trans "الـ Revisions" %}</th>
+                <th>{% trans "إجراء" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -70,23 +70,23 @@
                     <td><code style="color:#a78bfa;">{{ row.plan.slug }}</code></td>
                     <td><b>{{ row.plan.name }}</b></td>
                     <td><span class="badge industry-{{ row.plan.industry }}">{{ row.plan.get_industry_display }}</span></td>
-                    <td><span class="price">{{ row.plan.monthly_price|floatformat:2 }} ج.م</span></td>
+                    <td><span class="price">{% blocktrans with p=row.plan.monthly_price|floatformat:2 %}{{ p }} ج.م{% endblocktrans %}</span></td>
                     <td><b style="color:#0ea5e9;">{{ row.subscribers_count }}</b></td>
                     <td>{{ row.features_count }} entitlements</td>
                     <td>
                         {{ row.revisions_count }}
-                        {% if row.latest_revision %}<br><span style="font-size:11px;color:#94a3b8;">آخرها {{ row.latest_revision.effective_from|date:"Y-m-d" }}</span>{% endif %}
+                        {% if row.latest_revision %}<br><span style="font-size:11px;color:#94a3b8;">{% blocktrans with d=row.latest_revision.effective_from|date:"Y-m-d" %}آخرها {{ d }}{% endblocktrans %}</span>{% endif %}
                     </td>
-                    <td><a class="btn" href="{% url 'saas_plan_edit' row.plan.id %}"><i class="fas fa-edit"></i> تعديل</a></td>
+                    <td><a class="btn" href="{% url 'saas_plan_edit' row.plan.id %}"><i class="fas fa-edit"></i> {% trans "تعديل" %}</a></td>
                 </tr>
             {% empty %}
-                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:30px;">مفيش باقات.</td></tr>
+                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:30px;">{% trans "مفيش باقات." %}</td></tr>
             {% endfor %}
         </tbody>
     </table>
 
     <p style="margin-top:24px;">
-        <a class="btn btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> رجوع لـ SaaS Dashboard</a>
+        <a class="btn btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a>
     </p>
 </div>
 </body>

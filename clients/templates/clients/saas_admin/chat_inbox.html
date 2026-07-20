@@ -1,9 +1,10 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% trans "ضيف" as t_guest %}
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>الشات الحي — Mouss Tec Super Admin</title>
+    <title>{% trans "الشات الحي — Mouss Tec Super Admin" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
@@ -35,33 +36,33 @@
 </head>
 <body>
 <div class="container">
-    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / الشات الحي</div>
-    <h1>💬 الشات الحي</h1>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "الشات الحي" %}</div>
+    <h1>{% trans "💬 الشات الحي" %}</h1>
     <p class="sub">
-        كل الجلسات الجارية بانتظار رد موظفي الدعم.
+        {% trans "كل الجلسات الجارية بانتظار رد موظفي الدعم." %}
         {% if is_open %}
-            <span class="status-pill open">🟢 داخل أوقات العمل</span>
+            <span class="status-pill open">{% trans "🟢 داخل أوقات العمل" %}</span>
         {% else %}
-            <span class="status-pill closed">🔴 خارج أوقات العمل — الزوار يشوفون الفورم</span>
+            <span class="status-pill closed">{% trans "🔴 خارج أوقات العمل — الزوار يشوفون الفورم" %}</span>
         {% endif %}
     </p>
 
     <div class="stats">
-        <div class="stat waiting"><h2>{{ count_waiting }}</h2><div class="label">⏳ بانتظار رد</div></div>
-        <div class="stat active"><h2>{{ count_active }}</h2><div class="label">🟢 جارية</div></div>
+        <div class="stat waiting"><h2>{{ count_waiting }}</h2><div class="label">{% trans "⏳ بانتظار رد" %}</div></div>
+        <div class="stat active"><h2>{{ count_active }}</h2><div class="label">{% trans "🟢 جارية" %}</div></div>
     </div>
 
     <table>
         <thead>
         <tr>
             <th>#</th>
-            <th>بدأت</th>
-            <th>الزائر</th>
-            <th>المستأجر</th>
-            <th>آخر نشاط</th>
-            <th>الحالة</th>
-            <th>غير مقروء</th>
-            <th>الموظف</th>
+            <th>{% trans "بدأت" %}</th>
+            <th>{% trans "الزائر" %}</th>
+            <th>{% trans "المستأجر" %}</th>
+            <th>{% trans "آخر نشاط" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th>{% trans "غير مقروء" %}</th>
+            <th>{% trans "الموظف" %}</th>
         </tr>
         </thead>
         <tbody>
@@ -69,7 +70,7 @@
         <tr onclick="window.location='{% url 'saas_chat_session_detail' s.id %}'">
             <td>#{{ s.id }}</td>
             <td>{{ s.started_at|date:"m-d H:i" }}</td>
-            <td><strong>{{ s.visitor_name|default:"ضيف" }}</strong><br><small style="color:#94a3b8;">{{ s.visitor_email|default:s.ip_address }}</small></td>
+            <td><strong>{{ s.visitor_name|default:t_guest }}</strong><br><small style="color:#94a3b8;">{{ s.visitor_email|default:s.ip_address }}</small></td>
             <td>{{ s.tenant.name|default:"—" }}</td>
             <td><small>{{ s.last_activity_at|date:"H:i:s" }}</small></td>
             <td><span class="badge b-{{ s.status }}">{{ s.get_status_display }}</span></td>
@@ -77,7 +78,7 @@
             <td>{{ s.agent|default:"—" }}</td>
         </tr>
         {% empty %}
-            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">📭 لا توجد جلسات شات جارية</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">{% trans "📭 لا توجد جلسات شات جارية" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
