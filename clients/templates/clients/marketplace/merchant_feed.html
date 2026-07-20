@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طلبات العملاء | سوق التجار</title>
+    <title>{% trans "طلبات العملاء | سوق التجار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -65,8 +66,8 @@
 <body>
 
 <div class="topbar">
-    <h2><i class="fas fa-store"></i> سوق العملاء — {{ tenant.name }}</h2>
-    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+    <h2><i class="fas fa-store"></i> {% blocktrans with t=tenant.name %}سوق العملاء — {{ t }}{% endblocktrans %}</h2>
+    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> {% trans "العودة للوحة التحكم" %}</a>
 </div>
 
 <div id="toast" class="alert-toast"></div>
@@ -75,33 +76,33 @@
 
     <div class="tabs" style="justify-content:space-between;align-items:center;">
         <div style="display:flex;gap:8px;">
-            <button class="tab-btn active" onclick="showTab('requests', this)"><i class="fas fa-inbox"></i> طلبات جديدة</button>
-            <button class="tab-btn" onclick="showTab('myoffers', this)"><i class="fas fa-paper-plane"></i> عروضي</button>
+            <button class="tab-btn active" onclick="showTab('requests', this)"><i class="fas fa-inbox"></i> {% trans "طلبات جديدة" %}</button>
+            <button class="tab-btn" onclick="showTab('myoffers', this)"><i class="fas fa-paper-plane"></i> {% trans "عروضي" %}</button>
         </div>
         <button class="btn-offer" onclick="openB2BModal()" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
-            <i class="fas fa-plus-circle"></i> اطلب أنت (B2B)
+            <i class="fas fa-plus-circle"></i> {% trans "اطلب أنت (B2B)" %}
         </button>
     </div>
 
     <!-- 🔍 Filter Bar — يساعد التاجر يفهم ليه الـ feed فاضي -->
     <div style="background:rgba(30,41,59,0.5); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px 16px; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:13px;">
         <span style="color:var(--muted); font-weight:700;">
-            <i class="fas fa-filter"></i> فلتر:
+            <i class="fas fa-filter"></i> {% trans "فلتر:" %}
         </span>
         <a href="?" style="padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; {% if not diagnostics.show_all_sectors and not diagnostics.include_expired and not diagnostics.include_offered %}background:var(--accent); color:#fff;{% else %}background:rgba(255,255,255,0.05); color:var(--muted);{% endif %}">
-            قطاعي فقط ({{ diagnostics.my_industry }})
+            {% blocktrans with i=diagnostics.my_industry %}قطاعي فقط ({{ i }}){% endblocktrans %}
         </a>
         <a href="?show=all" style="padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; {% if diagnostics.show_all_sectors %}background:var(--accent); color:#fff;{% else %}background:rgba(255,255,255,0.05); color:var(--muted);{% endif %}">
-            <i class="fas fa-globe"></i> كل القطاعات
+            <i class="fas fa-globe"></i> {% trans "كل القطاعات" %}
         </a>
         <a href="?include_offered=1" style="padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; {% if diagnostics.include_offered %}background:var(--accent); color:#fff;{% else %}background:rgba(255,255,255,0.05); color:var(--muted);{% endif %}">
-            <i class="fas fa-check"></i> اللي قدمت عليها
+            <i class="fas fa-check"></i> {% trans "اللي قدمت عليها" %}
         </a>
         <a href="?include_expired=1" style="padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; {% if diagnostics.include_expired %}background:var(--accent); color:#fff;{% else %}background:rgba(255,255,255,0.05); color:var(--muted);{% endif %}">
-            <i class="fas fa-clock"></i> منتهية كمان
+            <i class="fas fa-clock"></i> {% trans "منتهية كمان" %}
         </a>
         <span style="margin-right:auto; color:var(--muted); font-size:12px;">
-            النتيجة: <strong style="color:var(--text);">{{ total_open_count }}</strong> طلب
+            {% blocktrans with c=total_open_count %}النتيجة: <strong style="color:var(--text);">{{ c }}</strong> طلب{% endblocktrans %}
         </span>
     </div>
 
@@ -114,16 +115,16 @@
             <div class="request-desc">{{ req.description|truncatechars:200 }}</div>
             <div class="request-tags">
                 <span class="tag tag-urgency-{{ req.urgency }}">
-                    {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> عاجل{% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> قريب{% else %}<i class="fas fa-calendar"></i> عادي{% endif %}
+                    {% if req.urgency == 'urgent' %}<i class="fas fa-bolt"></i> {% trans "عاجل" %}{% elif req.urgency == 'soon' %}<i class="fas fa-clock"></i> {% trans "قريب" %}{% else %}<i class="fas fa-calendar"></i> {% trans "عادي" %}{% endif %}
                 </span>
                 {% if req.customer_city %}
                 <span class="tag tag-city"><i class="fas fa-map-marker-alt"></i> {{ req.customer_city }}</span>
                 {% endif %}
                 {% if req.wants_images %}
-                <span class="tag tag-images"><i class="fas fa-camera"></i> مطلوب صور</span>
+                <span class="tag tag-images"><i class="fas fa-camera"></i> {% trans "مطلوب صور" %}</span>
                 {% endif %}
                 <span class="tag" style="background:rgba(255,255,255,0.05); color:var(--muted);">
-                    <i class="fas fa-gavel"></i> {{ req.offers_count }} عرض
+                    <i class="fas fa-gavel"></i> {% blocktrans with n=req.offers_count %}{{ n }} عرض{% endblocktrans %}
                 </span>
             </div>
             {% if req.attachment_1 %}
@@ -135,9 +136,9 @@
             </div>
             {% endif %}
             <div class="d-flex justify-content-between align-items-center">
-                <small style="color:var(--muted);">ينتهي {{ req.expires_at|date:"d/m/Y H:i" }}</small>
+                <small style="color:var(--muted);">{% blocktrans with d=req.expires_at|date:"d/m/Y H:i" %}ينتهي {{ d }}{% endblocktrans %}</small>
                 <button class="btn-offer" onclick="openOfferForm('{{ req.request_code }}', '{{ req.title|escapejs }}', {{ req.wants_images|yesno:'true,false' }})">
-                    <i class="fas fa-paper-plane"></i> قدّم عرض
+                    <i class="fas fa-paper-plane"></i> {% trans "قدّم عرض" %}
                 </button>
             </div>
         </div>
@@ -145,43 +146,43 @@
         {% else %}
         <div class="empty-state">
             <i class="fas fa-inbox"></i>
-            <h4>لا يوجد طلبات تطابق الفلتر الحالي</h4>
+            <h4>{% trans "لا يوجد طلبات تطابق الفلتر الحالي" %}</h4>
 
             <!-- 🔍 Smart diagnostics — تفسر للتاجر ليه ما لقاش طلبات -->
             <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:18px; max-width:500px; margin:20px auto; text-align:right;">
                 <p style="font-weight:700; color:var(--text); margin-bottom:12px;">
-                    <i class="fas fa-info-circle" style="color:var(--accent);"></i> الإحصائيات الحالية:
+                    <i class="fas fa-info-circle" style="color:var(--accent);"></i> {% trans "الإحصائيات الحالية:" %}
                 </p>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; font-size:13px;">
-                    <div>📊 إجمالي الطلبات في النظام:</div>
+                    <div>{% trans "📊 إجمالي الطلبات في النظام:" %}</div>
                     <div style="color:var(--text); font-weight:700;">{{ diagnostics.total_in_db }}</div>
 
-                    <div>🟢 طلبات مفتوحة:</div>
+                    <div>{% trans "🟢 طلبات مفتوحة:" %}</div>
                     <div style="color:var(--text); font-weight:700;">{{ diagnostics.open_in_db }}</div>
 
-                    <div>🎯 في قطاعك ({{ diagnostics.my_industry }}):</div>
+                    <div>{% blocktrans with i=diagnostics.my_industry %}🎯 في قطاعك ({{ i }}):{% endblocktrans %}</div>
                     <div style="color:var(--text); font-weight:700;">{{ diagnostics.open_in_my_sector }}</div>
 
-                    <div>📤 قدمت عليها عروض:</div>
+                    <div>{% trans "📤 قدمت عليها عروض:" %}</div>
                     <div style="color:var(--text); font-weight:700;">{{ diagnostics.i_already_offered_count }}</div>
 
-                    <div>⏰ منتهية في قطاعك:</div>
+                    <div>{% trans "⏰ منتهية في قطاعك:" %}</div>
                     <div style="color:var(--text); font-weight:700;">{{ diagnostics.expired_in_my_sector }}</div>
                 </div>
             </div>
 
             <p style="margin-top:14px;">
                 {% if diagnostics.open_in_my_sector == 0 and diagnostics.open_in_db > 0 %}
-                    🔍 يوجد <strong>{{ diagnostics.open_in_db }}</strong> طلب مفتوح في قطاعات أخرى —
-                    <a href="?show=all" style="color:var(--accent); text-decoration:underline;">اعرضها كلها</a>
+                    {% blocktrans with n=diagnostics.open_in_db %}🔍 يوجد <strong>{{ n }}</strong> طلب مفتوح في قطاعات أخرى —{% endblocktrans %}
+                    <a href="?show=all" style="color:var(--accent); text-decoration:underline;">{% trans "اعرضها كلها" %}</a>
                 {% elif diagnostics.open_in_my_sector > 0 and diagnostics.i_already_offered_count >= diagnostics.open_in_my_sector %}
-                    ✅ قدمت عروض على كل الطلبات المفتوحة —
-                    <a href="?include_offered=1" style="color:var(--accent); text-decoration:underline;">اعرض اللي قدمت عليها</a>
+                    {% trans "✅ قدمت عروض على كل الطلبات المفتوحة —" %}
+                    <a href="?include_offered=1" style="color:var(--accent); text-decoration:underline;">{% trans "اعرض اللي قدمت عليها" %}</a>
                 {% elif diagnostics.total_in_db == 0 %}
-                    لسه مفيش طلبات في النظام. الطلبات هتيجي من العملاء على
-                    <a href="/marketplace/" style="color:var(--accent); text-decoration:underline;">صفحة السوق</a>.
+                    {% trans "لسه مفيش طلبات في النظام. الطلبات هتيجي من العملاء على" %}
+                    <a href="/marketplace/" style="color:var(--accent); text-decoration:underline;">{% trans "صفحة السوق" %}</a>.
                 {% else %}
-                    سيتم عرض طلبات العملاء في قطاعك هنا فور نشرها.
+                    {% trans "سيتم عرض طلبات العملاء في قطاعك هنا فور نشرها." %}
                 {% endif %}
             </p>
         </div>
@@ -196,13 +197,13 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <strong>{{ offer.service_request.title|truncatechars:60 }}</strong>
-                    <div style="font-size:0.9rem; color:var(--muted);">عرضك: <span style="color:var(--accent); font-weight:900;">{{ offer.price }} ج.م</span></div>
+                    <div style="font-size:0.9rem; color:var(--muted);">{% trans "عرضك:" %} <span style="color:var(--accent); font-weight:900;">{% blocktrans with p=offer.price %}{{ p }} ج.م{% endblocktrans %}</span></div>
                 </div>
                 <span class="offer-status-{{ offer.status }}">
-                    {% if offer.status == 'pending' %}<i class="fas fa-hourglass-half"></i> في الانتظار
-                    {% elif offer.status == 'accepted' %}<i class="fas fa-check-circle"></i> مقبول!
-                    {% elif offer.status == 'rejected' %}<i class="fas fa-times-circle"></i> مرفوض
-                    {% else %}<i class="fas fa-ban"></i> مسحوب{% endif %}
+                    {% if offer.status == 'pending' %}<i class="fas fa-hourglass-half"></i> {% trans "في الانتظار" %}
+                    {% elif offer.status == 'accepted' %}<i class="fas fa-check-circle"></i> {% trans "مقبول!" %}
+                    {% elif offer.status == 'rejected' %}<i class="fas fa-times-circle"></i> {% trans "مرفوض" %}
+                    {% else %}<i class="fas fa-ban"></i> {% trans "مسحوب" %}{% endif %}
                 </span>
             </div>
             {% if offer.customer_rating %}
@@ -218,8 +219,8 @@
         {% else %}
         <div class="empty-state">
             <i class="fas fa-paper-plane"></i>
-            <h4>لم تقدم أي عروض بعد</h4>
-            <p>تصفح الطلبات الجديدة وقدّم عروضك!</p>
+            <h4>{% trans "لم تقدم أي عروض بعد" %}</h4>
+            <p>{% trans "تصفح الطلبات الجديدة وقدّم عروضك!" %}</p>
         </div>
         {% endif %}
     </div>
@@ -229,7 +230,7 @@
 <div class="modal-overlay" id="offerModal">
     <div class="modal-box" style="position:relative;">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-paper-plane" style="color:var(--accent)"></i> تقديم عرض سعر</h3>
+        <h3><i class="fas fa-paper-plane" style="color:var(--accent)"></i> {% trans "تقديم عرض سعر" %}</h3>
         <p style="color:var(--muted); font-size:0.9rem;" id="offerRequestTitle"></p>
 
         <form id="offerForm" enctype="multipart/form-data">
@@ -237,50 +238,50 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">السعر المقترح (ج.م) *</label>
+                    <label class="form-label">{% trans "السعر المقترح (ج.م) *" %}</label>
                     <input type="number" class="form-control" name="price" required min="1" dir="ltr">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">مدة التنفيذ (أيام)</label>
+                    <label class="form-label">{% trans "مدة التنفيذ (أيام)" %}</label>
                     <input type="number" class="form-control" name="estimated_days" value="1" min="1" dir="ltr">
                 </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">تفاصيل العرض *</label>
-                <textarea class="form-control" name="description" rows="3" placeholder="اشرح عرضك بالتفصيل — الأنواع المتاحة، الجودة، أي شيء يميز عرضك..." required></textarea>
+                <label class="form-label">{% trans "تفاصيل العرض *" %}</label>
+                <textarea class="form-control" name="description" rows="3" placeholder="{% trans "اشرح عرضك بالتفصيل — الأنواع المتاحة، الجودة، أي شيء يميز عرضك..." %}" required></textarea>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">مدة الضمان (أيام)</label>
+                    <label class="form-label">{% trans "مدة الضمان (أيام)" %}</label>
                     <input type="number" class="form-control" name="warranty_days" value="0" min="0" dir="ltr">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">المدينة *</label>
-                    <input type="text" class="form-control" name="merchant_city" placeholder="القاهرة" required>
+                    <label class="form-label">{% trans "المدينة *" %}</label>
+                    <input type="text" class="form-control" name="merchant_city" placeholder="{% trans "القاهرة" %}" required>
                 </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">العنوان التفصيلي (يظهر للعميل)</label>
-                <input type="text" class="form-control" name="merchant_address" placeholder="شارع التحرير، الدقي">
+                <label class="form-label">{% trans "العنوان التفصيلي (يظهر للعميل)" %}</label>
+                <input type="text" class="form-control" name="merchant_address" placeholder="{% trans "شارع التحرير، الدقي" %}">
             </div>
 
             <div class="mb-3" id="imagesSection">
-                <label class="form-label" id="imagesLabel">صور (اختياري)</label>
+                <label class="form-label" id="imagesLabel">{% trans "صور (اختياري)" %}</label>
                 <input type="file" class="form-control mb-2" name="image_1" accept="image/*">
                 <input type="file" class="form-control mb-2" name="image_2" accept="image/*">
                 <input type="file" class="form-control" name="image_3" accept="image/*">
             </div>
 
             <div class="mb-3">
-                <label class="form-label">ملف مرفق — PDF/Word (اختياري)</label>
+                <label class="form-label">{% trans "ملف مرفق — PDF/Word (اختياري)" %}</label>
                 <input type="file" class="form-control" name="file_attachment" accept=".pdf,.doc,.docx">
             </div>
 
             <button type="submit" class="btn-offer w-100" id="submitOfferBtn" style="padding:14px;">
-                <i class="fas fa-paper-plane"></i> إرسال العرض
+                <i class="fas fa-paper-plane"></i> {% trans "إرسال العرض" %}
             </button>
         </form>
     </div>
@@ -298,10 +299,10 @@ function openOfferForm(code, title, wantsImages) {
     document.getElementById('offerRequestCode').value = code;
     document.getElementById('offerRequestTitle').textContent = title;
     if (wantsImages) {
-        document.getElementById('imagesLabel').innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warn)"></i> صور (مطلوبة من العميل)';
+        document.getElementById('imagesLabel').innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warn)"></i> {% trans "صور (مطلوبة من العميل)" %}';
         document.querySelector('[name="image_1"]').required = true;
     } else {
-        document.getElementById('imagesLabel').textContent = 'صور (اختياري)';
+        document.getElementById('imagesLabel').textContent = '{% trans "صور (اختياري)" %}';
         document.querySelector('[name="image_1"]').required = false;
     }
     document.getElementById('offerModal').classList.add('show');
@@ -320,7 +321,7 @@ document.getElementById('offerForm').addEventListener('submit', async function(e
     e.preventDefault();
     const btn = document.getElementById('submitOfferBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> جاري الإرسال...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الإرسال..." %}';
 
     const code = document.getElementById('offerRequestCode').value;
     const fd = new FormData(this);
@@ -328,7 +329,7 @@ document.getElementById('offerForm').addEventListener('submit', async function(e
     try {
         const res = await fetch(`/marketplace/merchant/offer/${code}/`, { method: 'POST', body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         toast(data.message, 'success');
         closeModal();
         setTimeout(() => location.reload(), 1200);
@@ -336,7 +337,7 @@ document.getElementById('offerForm').addEventListener('submit', async function(e
         toast(err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال العرض';
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "إرسال العرض" %}';
     }
 });
 
@@ -349,7 +350,7 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
     e.preventDefault();
     const btn = document.getElementById('b2bSubmitBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> جاري النشر...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري النشر..." %}';
 
     const fd = new FormData(this);
     fd.set('wants_images', document.getElementById('b2bWantsImages').checked ? 'true' : 'false');
@@ -357,7 +358,7 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
     try {
         const res = await fetch('/marketplace/merchant/request/create/', { method: 'POST', body: fd });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ" %}');
         toast(data.message, 'success');
         document.getElementById('b2bModal').classList.remove('show');
         setTimeout(() => location.reload(), 1200);
@@ -365,7 +366,7 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
         toast(err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-bullhorn"></i> انشر الطلب';
+        btn.innerHTML = '<i class="fas fa-bullhorn"></i> {% trans "انشر الطلب" %}';
     }
 });
 </script>
@@ -374,55 +375,55 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
 <div class="modal-overlay" id="b2bModal">
     <div class="modal-box" style="position:relative;">
         <button class="modal-close" onclick="document.getElementById('b2bModal').classList.remove('show')"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> اطلب أنت من السوق (B2B)</h3>
+        <h3><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> {% trans "اطلب أنت من السوق (B2B)" %}</h3>
         <p style="color:var(--muted);font-size:0.9rem;margin-bottom:18px;">
-            مثال: مطبعة تطلب 10 آلاف تيشرت من مصنع، أو ورشة تطلب 100 طقم فلاتر من تاجر جملة.
-            <br><strong style="color:#fcd34d;">هويتك تبقى مجهولة</strong> زي العميل النهائي تماماً.
+            {% trans "مثال: مطبعة تطلب 10 آلاف تيشرت من مصنع، أو ورشة تطلب 100 طقم فلاتر من تاجر جملة." %}
+            <br><strong style="color:#fcd34d;">{% trans "هويتك تبقى مجهولة" %}</strong> {% trans "زي العميل النهائي تماماً." %}
         </p>
 
         <form id="b2bForm">
             <div class="mb-3">
-                <label class="form-label">عنوان الطلب *</label>
-                <input type="text" class="form-control" name="title" placeholder="مثال: مطلوب 10 آلاف تيشرت قطن أبيض" required>
+                <label class="form-label">{% trans "عنوان الطلب *" %}</label>
+                <input type="text" class="form-control" name="title" placeholder="{% trans "مثال: مطلوب 10 آلاف تيشرت قطن أبيض" %}" required>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">التفاصيل *</label>
-                <textarea class="form-control" name="description" rows="4" placeholder="اشرح المواصفات: الكمية، الخامة، المقاسات، المدة، أي تفاصيل مهمة..." required></textarea>
+                <label class="form-label">{% trans "التفاصيل *" %}</label>
+                <textarea class="form-control" name="description" rows="4" placeholder="{% trans "اشرح المواصفات: الكمية، الخامة، المقاسات، المدة، أي تفاصيل مهمة..." %}" required></textarea>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">القطاع المستهدف</label>
+                    <label class="form-label">{% trans "القطاع المستهدف" %}</label>
                     <select class="form-select" name="target_sector">
-                        <option value="printing" {% if tenant.industry == 'printing' %}selected{% endif %}>🎨 طباعة وتصميم</option>
-                        <option value="automotive" {% if tenant.industry == 'automotive' %}selected{% endif %}>🚗 سيارات وقطع غيار</option>
+                        <option value="printing" {% if tenant.industry == 'printing' %}selected{% endif %}>{% trans "🎨 طباعة وتصميم" %}</option>
+                        <option value="automotive" {% if tenant.industry == 'automotive' %}selected{% endif %}>{% trans "🚗 سيارات وقطع غيار" %}</option>
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">مستوى الاستعجال</label>
+                    <label class="form-label">{% trans "مستوى الاستعجال" %}</label>
                     <select class="form-select" name="urgency">
-                        <option value="normal">عادي — خلال أسبوع</option>
-                        <option value="soon">قريب — خلال 3 أيام</option>
-                        <option value="urgent">عاجل — خلال 24 ساعة</option>
+                        <option value="normal">{% trans "عادي — خلال أسبوع" %}</option>
+                        <option value="soon">{% trans "قريب — خلال 3 أيام" %}</option>
+                        <option value="urgent">{% trans "عاجل — خلال 24 ساعة" %}</option>
                     </select>
                 </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">الميزانية القصوى (اختياري — مخفي عن التجار)</label>
-                <input type="number" class="form-control" name="max_budget" placeholder="بالجنيه" dir="ltr">
+                <label class="form-label">{% trans "الميزانية القصوى (اختياري — مخفي عن التجار)" %}</label>
+                <input type="number" class="form-control" name="max_budget" placeholder="{% trans "بالجنيه" %}" dir="ltr">
             </div>
 
             <div class="mb-4">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#cbd5e1;font-size:0.9rem;">
                     <input type="checkbox" id="b2bWantsImages" name="wants_images" style="width:18px;height:18px;">
-                    أريد عينات / صور مع العروض
+                    {% trans "أريد عينات / صور مع العروض" %}
                 </label>
             </div>
 
             <button type="submit" class="btn-offer w-100" id="b2bSubmitBtn" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
-                <i class="fas fa-bullhorn"></i> انشر الطلب
+                <i class="fas fa-bullhorn"></i> {% trans "انشر الطلب" %}
             </button>
         </form>
     </div>

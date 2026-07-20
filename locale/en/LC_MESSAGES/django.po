@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 15:16+0300\n"
+"POT-Creation-Date: 2026-07-20 15:24+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -76,7 +76,7 @@ msgid "تم التأكيد"
 msgstr "Confirmed"
 
 msgid "مرفوض"
-msgstr ""
+msgstr "Rejected"
 
 msgid "PK of the related DesignPurchase / PartOrder / PlatformInvoice / etc."
 msgstr ""
@@ -1365,7 +1365,7 @@ msgid "🚗 سيارات — صيانة وقطع غيار"
 msgstr ""
 
 msgid "🎨 طباعة وتصميم"
-msgstr ""
+msgstr "🎨 Printing and design"
 
 msgid "نوع العميل"
 msgstr ""
@@ -1473,13 +1473,13 @@ msgid "مرفوض من الإدارة"
 msgstr ""
 
 msgid "عادي — خلال أسبوع"
-msgstr ""
+msgstr "Normal — within a week"
 
 msgid "قريب — خلال 3 أيام"
-msgstr ""
+msgstr "Soon — within 3 days"
 
 msgid "عاجل — خلال 24 ساعة"
-msgstr ""
+msgstr "Urgent — within 24 hours"
 
 msgid "عنوان الطلب"
 msgstr ""
@@ -1497,7 +1497,7 @@ msgid "مدينة العميل"
 msgstr ""
 
 msgid "الميزانية القصوى (اختياري — مخفي عن التجار)"
-msgstr ""
+msgstr "Maximum budget (optional — hidden from merchants)"
 
 msgid "صورة مرجعية 1"
 msgstr ""
@@ -1542,7 +1542,7 @@ msgid "أيام التنفيذ المتوقعة"
 msgstr ""
 
 msgid "مدة الضمان (أيام)"
-msgstr ""
+msgstr "Warranty period (days)"
 
 msgid "مدينة التاجر"
 msgstr ""
@@ -4395,7 +4395,9 @@ msgstr "the designs page"
 msgid ""
 "التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل "
 "المزايا."
-msgstr "The free design is for preview only — no download or sending. Buy a package to enable all features."
+msgstr ""
+"The free design is for preview only — no download or sending. Buy a package "
+"to enable all features."
 
 msgid "توليد فوري"
 msgstr "Instant generation"
@@ -4471,7 +4473,9 @@ msgid "باقات المصممين والشركات"
 msgstr "Designer and company packages"
 
 msgid "باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات"
-msgstr "Bigger packages at a lower price per design. Designed specially for professionals and studios"
+msgstr ""
+"Bigger packages at a lower price per design. Designed specially for "
+"professionals and studios"
 
 msgid "علامة مائية مخصصة"
 msgstr "Custom watermark"
@@ -4483,7 +4487,10 @@ msgid ""
 "سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة "
 "متكامل، تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله "
 "من مكان واحد."
-msgstr "Register your company in the Mouss Tec ERP system and enjoy bigger exclusive packages, an integrated management system, order and staff tracking, and the smart advisor that helps you run your whole business from one place."
+msgstr ""
+"Register your company in the Mouss Tec ERP system and enjoy bigger exclusive "
+"packages, an integrated management system, order and staff tracking, and the "
+"smart advisor that helps you run your whole business from one place."
 
 msgid "سجّل شركتك الآن مجاناً"
 msgstr "Register your company now for free"
@@ -4555,7 +4562,9 @@ msgid "تأكيد الدفع"
 msgstr "Confirm payment"
 
 msgid "Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية"
-msgstr "Mouss Tec &copy; 2026 — all designs are protected by intellectual property rights"
+msgstr ""
+"Mouss Tec &copy; 2026 — all designs are protected by intellectual property "
+"rights"
 
 msgid "جاري المعالجة..."
 msgstr "Processing..."
@@ -4926,6 +4935,220 @@ msgstr "and in Arabic"
 
 msgid "بأسعار قطع الغيار المصرية"
 msgstr "at Egyptian spare-parts prices"
+
+msgid "طلبات العملاء | سوق التجار"
+msgstr "Customer requests | Merchants marketplace"
+
+#, python-format
+msgid "سوق العملاء — %(t)s"
+msgstr "Customer marketplace — %(t)s"
+
+msgid "العودة للوحة التحكم"
+msgstr "Back to dashboard"
+
+msgid "طلبات جديدة"
+msgstr "New requests"
+
+msgid "عروضي"
+msgstr "My offers"
+
+msgid "اطلب أنت (B2B)"
+msgstr "Request yourself (B2B)"
+
+msgid "فلتر:"
+msgstr "Filter:"
+
+#, python-format
+msgid "قطاعي فقط (%(i)s)"
+msgstr "My sector only (%(i)s)"
+
+msgid "كل القطاعات"
+msgstr "All sectors"
+
+msgid "اللي قدمت عليها"
+msgstr "The ones I offered on"
+
+msgid "منتهية كمان"
+msgstr "Expired too"
+
+#, python-format
+msgid "النتيجة: <strong style=\"color:var(--text);\">%(c)s</strong> طلب"
+msgstr "Result: <strong style=\"color:var(--text);\">%(c)s</strong> requests"
+
+msgid "عاجل"
+msgstr "Urgent"
+
+msgid "قريب"
+msgstr "Soon"
+
+msgid "عادي"
+msgstr "Normal"
+
+msgid "مطلوب صور"
+msgstr "Photos required"
+
+#, python-format
+msgid "%(n)s عرض"
+msgstr "%(n)s offers"
+
+#, python-format
+msgid "ينتهي %(d)s"
+msgstr "Ends %(d)s"
+
+msgid "قدّم عرض"
+msgstr "Submit an offer"
+
+msgid "لا يوجد طلبات تطابق الفلتر الحالي"
+msgstr "No requests match the current filter"
+
+msgid "الإحصائيات الحالية:"
+msgstr "Current statistics:"
+
+msgid "📊 إجمالي الطلبات في النظام:"
+msgstr "📊 Total requests in the system:"
+
+msgid "🟢 طلبات مفتوحة:"
+msgstr "🟢 Open requests:"
+
+#, python-format
+msgid "🎯 في قطاعك (%(i)s):"
+msgstr "🎯 In your sector (%(i)s):"
+
+msgid "📤 قدمت عليها عروض:"
+msgstr "📤 Requests I offered on:"
+
+msgid "⏰ منتهية في قطاعك:"
+msgstr "⏰ Expired in your sector:"
+
+#, python-format
+msgid "🔍 يوجد <strong>%(n)s</strong> طلب مفتوح في قطاعات أخرى —"
+msgstr "🔍 There are <strong>%(n)s</strong> open requests in other sectors —"
+
+msgid "اعرضها كلها"
+msgstr "Show them all"
+
+msgid "✅ قدمت عروض على كل الطلبات المفتوحة —"
+msgstr "✅ You have offered on all open requests —"
+
+msgid "اعرض اللي قدمت عليها"
+msgstr "Show the ones I offered on"
+
+msgid "لسه مفيش طلبات في النظام. الطلبات هتيجي من العملاء على"
+msgstr "There are no requests in the system yet. Requests will come from customers on"
+
+msgid "صفحة السوق"
+msgstr "The marketplace page"
+
+msgid "سيتم عرض طلبات العملاء في قطاعك هنا فور نشرها."
+msgstr "Customer requests in your sector will appear here as soon as they are posted."
+
+msgid "عرضك:"
+msgstr "Your offer:"
+
+#, python-format
+msgid "%(p)s ج.م"
+msgstr "%(p)s EGP"
+
+msgid "في الانتظار"
+msgstr "Pending"
+
+msgid "مقبول!"
+msgstr "Accepted!"
+
+msgid "مسحوب"
+msgstr "Withdrawn"
+
+msgid "لم تقدم أي عروض بعد"
+msgstr "You have not made any offers yet"
+
+msgid "تصفح الطلبات الجديدة وقدّم عروضك!"
+msgstr "Browse the new requests and submit your offers!"
+
+msgid "تقديم عرض سعر"
+msgstr "Submit a price offer"
+
+msgid "السعر المقترح (ج.م) *"
+msgstr "Proposed price (EGP) *"
+
+msgid "مدة التنفيذ (أيام)"
+msgstr "Execution time (days)"
+
+msgid "تفاصيل العرض *"
+msgstr "Offer details *"
+
+msgid "اشرح عرضك بالتفصيل — الأنواع المتاحة، الجودة، أي شيء يميز عرضك..."
+msgstr "Explain your offer in detail — available types, quality, anything that distinguishes your offer..."
+
+msgid "المدينة *"
+msgstr "City *"
+
+msgid "القاهرة"
+msgstr "Cairo"
+
+msgid "العنوان التفصيلي (يظهر للعميل)"
+msgstr "Detailed address (shown to the customer)"
+
+msgid "شارع التحرير، الدقي"
+msgstr "Tahrir Street, Dokki"
+
+msgid "صور (اختياري)"
+msgstr "Photos (optional)"
+
+msgid "ملف مرفق — PDF/Word (اختياري)"
+msgstr "Attached file — PDF/Word (optional)"
+
+msgid "إرسال العرض"
+msgstr "Send the offer"
+
+msgid "صور (مطلوبة من العميل)"
+msgstr "Photos (required by the customer)"
+
+msgid "جاري النشر..."
+msgstr "Publishing..."
+
+msgid "انشر الطلب"
+msgstr "Post the request"
+
+msgid "اطلب أنت من السوق (B2B)"
+msgstr "Request from the marketplace yourself (B2B)"
+
+msgid ""
+"مثال: مطبعة تطلب 10 آلاف تيشرت من مصنع، أو ورشة تطلب 100 طقم فلاتر من تاجر "
+"جملة."
+msgstr "Example: a print shop requests 10,000 T-shirts from a factory, or a workshop requests 100 filter sets from a wholesaler."
+
+msgid "هويتك تبقى مجهولة"
+msgstr "Your identity stays anonymous"
+
+msgid "زي العميل النهائي تماماً."
+msgstr "Just like the end customer."
+
+msgid "عنوان الطلب *"
+msgstr "Request title *"
+
+msgid "مثال: مطلوب 10 آلاف تيشرت قطن أبيض"
+msgstr "Example: 10,000 white cotton T-shirts wanted"
+
+msgid "التفاصيل *"
+msgstr "Details *"
+
+msgid "اشرح المواصفات: الكمية، الخامة، المقاسات، المدة، أي تفاصيل مهمة..."
+msgstr "Explain the specifications: quantity, material, sizes, duration, any important details..."
+
+msgid "القطاع المستهدف"
+msgstr "Target sector"
+
+msgid "🚗 سيارات وقطع غيار"
+msgstr "🚗 Cars and spare parts"
+
+msgid "مستوى الاستعجال"
+msgstr "Urgency level"
+
+msgid "بالجنيه"
+msgstr "In EGP"
+
+msgid "أريد عينات / صور مع العروض"
+msgstr "I want samples / photos with the offers"
 
 msgid "اعرض قطعة | سوق قطع الغيار"
 msgstr "Sell a part | Spare-parts marketplace"
@@ -5326,9 +5549,6 @@ msgstr ""
 "Any details that can help the seller (e.g.: color, condition, genuine/"
 "aftermarket...)"
 
-msgid "انشر الطلب"
-msgstr "Post the request"
-
 msgid ""
 "بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين "
 "وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow."
@@ -5491,26 +5711,6 @@ msgstr "Back to my dashboard"
 msgid "العودة"
 msgstr "Back"
 
-#, python-format
-msgid "ينتهي %(d)s"
-msgstr "Ends %(d)s"
-
-#, python-format
-msgid "%(n)s عرض"
-msgstr "%(n)s offers"
-
-msgid "عاجل"
-msgstr "Urgent"
-
-msgid "قريب"
-msgstr "Soon"
-
-msgid "عادي"
-msgstr "Normal"
-
-msgid "مطلوب صور"
-msgstr "Photos required"
-
 msgid "مرفق 1"
 msgstr "Attachment 1"
 
@@ -5551,10 +5751,14 @@ msgid "لا يوجد عروض بعد"
 msgstr "No offers yet"
 
 msgid "التجار لسه بيراجعوا طلبك. هيبدأوا يقدموا عروضهم قريب!"
-msgstr "Merchants are still reviewing your request. They will start submitting their offers soon!"
+msgstr ""
+"Merchants are still reviewing your request. They will start submitting their "
+"offers soon!"
 
 msgid "هل أنت متأكد من قبول هذا العرض؟ سيتم رفض باقي العروض."
-msgstr "Are you sure you want to accept this offer? The rest of the offers will be rejected."
+msgstr ""
+"Are you sure you want to accept this offer? The rest of the offers will be "
+"rejected."
 
 msgid "اختار تقييم من 1 لـ 5"
 msgstr "Choose a rating from 1 to 5"
@@ -6429,9 +6633,6 @@ msgstr "Search by name, package, or status..."
 
 msgid "نشطة"
 msgstr "Active"
-
-msgid "كل القطاعات"
-msgstr "All sectors"
 
 msgid "طباعة"
 msgstr "Print"
@@ -8834,9 +9035,6 @@ msgstr ""
 msgid "مستحق الآن"
 msgstr ""
 
-msgid "في الانتظار"
-msgstr "Pending"
-
 msgid "تم إرسال تذكير"
 msgstr ""
 
@@ -10401,9 +10599,6 @@ msgstr "(Electronic / manual)"
 
 msgid "طباعة الوثيقة الرسمية"
 msgstr "Print official document"
-
-msgid "العودة للوحة التحكم"
-msgstr "Back to dashboard"
 
 msgid "طباعة A4"
 msgstr "Print A4"
