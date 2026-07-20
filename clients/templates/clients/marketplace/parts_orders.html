@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if mode == 'seller' %}مبيعاتي{% else %}طلباتي{% endif %} | قطع الغيار</title>
+    <title>{% if mode == 'seller' %}{% trans "مبيعاتي" %}{% else %}{% trans "طلباتي" %}{% endif %} | {% trans "قطع الغيار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -70,17 +71,17 @@
 <body>
 
 <div class="topbar">
-    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> {% trans "السوق" %}</a>
     <a href="/marketplace/"><i class="fas fa-home"></i></a>
 </div>
 
 <div id="toast" class="toast"></div>
 
 <div class="wrap">
-    <h1>{% if mode == 'seller' %}🏪 مبيعاتي{% else %}📦 طلباتي{% endif %}</h1>
+    <h1>{% if mode == 'seller' %}{% trans "🏪 مبيعاتي" %}{% else %}{% trans "📦 طلباتي" %}{% endif %}</h1>
     <div class="tabs">
-        <a class="tab {% if mode == 'buyer' %}active{% endif %}" href="/marketplace/parts/orders/">📦 مشترياتي</a>
-        <a class="tab {% if mode == 'seller' %}active{% endif %}" href="/marketplace/parts/sales/">🏪 مبيعاتي</a>
+        <a class="tab {% if mode == 'buyer' %}active{% endif %}" href="/marketplace/parts/orders/">{% trans "📦 مشترياتي" %}</a>
+        <a class="tab {% if mode == 'seller' %}active{% endif %}" href="/marketplace/parts/sales/">{% trans "🏪 مبيعاتي" %}</a>
     </div>
 
     {% if orders %}
@@ -100,46 +101,46 @@
                 · {{ o.listing.car_make.name }}
                 · {{ o.created_at|date:"d/m/Y" }}
                 {% if o.warranty_ends_at and o.status == 'delivered' %}
-                · <i class="fas fa-shield-halved" style="color:#6ee7b7;"></i> ينتهي الضمان {{ o.warranty_ends_at|date:"d/m/Y" }}
+                · <i class="fas fa-shield-halved" style="color:#6ee7b7;"></i> {% blocktrans with d=o.warranty_ends_at|date:"d/m/Y" %}ينتهي الضمان {{ d }}{% endblocktrans %}
                 {% endif %}
             </div>
             <div class="order-amount">
                 {% if mode == 'seller' %}
-                صافيك: {{ o.seller_payout|floatformat:0 }} ج.م
-                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|floatformat:0 }})</span>
+                {% blocktrans with p=o.seller_payout|floatformat:0 %}صافيك: {{ p }} ج.م{% endblocktrans %}
+                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">{% blocktrans with c=o.commission_amount|floatformat:0 %}(عمولة {{ c }}){% endblocktrans %}</span>
                 {% else %}
-                {{ o.amount_paid|floatformat:0 }} ج.م
+                {{ o.amount_paid|floatformat:0 }} {% trans "ج.م" %}
                 {% endif %}
             </div>
         </div>
         <div class="actions">
             {% if mode == 'seller' %}
                 {% if o.status == 'paid_held' %}
-                <button class="btn primary" onclick="markShipped('{{ o.order_code }}')"><i class="fas fa-truck"></i> تم الشحن</button>
+                <button class="btn primary" onclick="markShipped('{{ o.order_code }}')"><i class="fas fa-truck"></i> {% trans "تم الشحن" %}</button>
                 {% endif %}
                 {% if o.status == 'released' %}
-                <span class="badge b-released" style="padding:8px 14px;"><i class="fas fa-check-circle"></i> اكتمل</span>
+                <span class="badge b-released" style="padding:8px 14px;"><i class="fas fa-check-circle"></i> {% trans "اكتمل" %}</span>
                 {% endif %}
             {% else %}
                 {% if o.status == 'shipped' %}
-                <button class="btn primary" onclick="confirmDelivery('{{ o.order_code }}')"><i class="fas fa-check"></i> تأكيد الاستلام</button>
+                <button class="btn primary" onclick="confirmDelivery('{{ o.order_code }}')"><i class="fas fa-check"></i> {% trans "تأكيد الاستلام" %}</button>
                 {% endif %}
                 {% if o.status == 'delivered' %}
-                <button class="btn danger" onclick="requestRefund('{{ o.order_code }}')"><i class="fas fa-rotate-left"></i> طلب إرجاع</button>
+                <button class="btn danger" onclick="requestRefund('{{ o.order_code }}')"><i class="fas fa-rotate-left"></i> {% trans "طلب إرجاع" %}</button>
                 {% endif %}
             {% endif %}
-            <a href="/marketplace/parts/{{ o.listing.listing_code }}/" class="btn"><i class="fas fa-eye"></i> القطعة</a>
+            <a href="/marketplace/parts/{{ o.listing.listing_code }}/" class="btn"><i class="fas fa-eye"></i> {% trans "القطعة" %}</a>
         </div>
     </div>
     {% endfor %}
     {% else %}
     <div class="empty">
         <i class="fas fa-{% if mode == 'seller' %}store{% else %}box-open{% endif %}"></i>
-        <h3>{% if mode == 'seller' %}لم تبع أي قطعة بعد{% else %}لم تشتر أي قطعة بعد{% endif %}</h3>
-        <p style="color:var(--muted);">{% if mode == 'seller' %}اعرض قطعة دلوقتي وابدأ تكسب{% else %}اتصفّح السوق ودوّر على قطعة بسعر مناسب{% endif %}</p>
+        <h3>{% if mode == 'seller' %}{% trans "لم تبع أي قطعة بعد" %}{% else %}{% trans "لم تشتر أي قطعة بعد" %}{% endif %}</h3>
+        <p style="color:var(--muted);">{% if mode == 'seller' %}{% trans "اعرض قطعة دلوقتي وابدأ تكسب" %}{% else %}{% trans "اتصفّح السوق ودوّر على قطعة بسعر مناسب" %}{% endif %}</p>
         <a href="/marketplace/parts/{% if mode == 'seller' %}sell/{% endif %}" style="display:inline-block; margin-top:12px; background:var(--accent); color:#0b1020; padding:10px 22px; border-radius:12px; font-weight:800; text-decoration:none;">
             <i class="fas fa-{% if mode == 'seller' %}plus{% else %}search{% endif %}"></i>
-            {% if mode == 'seller' %}اعرض قطعة{% else %}تصفّح السوق{% endif %}
+            {% if mode == 'seller' %}{% trans "اعرض قطعة" %}{% else %}{% trans "تصفّح السوق" %}{% endif %}
         </a>
     </div>
     {% endif %}
@@ -159,7 +160,7 @@ async function _action(url, body) {
         body: body || '',
     });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'فشل');
+    if (!r.ok) throw new Error(d.error || '{% trans "فشل" %}');
     return d;
 }
 async function markShipped(code) {
@@ -168,14 +169,14 @@ async function markShipped(code) {
     catch (e) { toast(e.message, 'error'); }
 }
 async function confirmDelivery(code) {
-    if (!confirm('تأكيد الاستلام يبدأ فترة الضمان. متابعة؟')) return;
+    if (!confirm('{% trans "تأكيد الاستلام يبدأ فترة الضمان. متابعة؟" %}')) return;
     try { const d = await _action(`/marketplace/parts/order/${code}/delivered/`);
           toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
     catch (e) { toast(e.message, 'error'); }
 }
 async function requestRefund(code) {
-    const reason = prompt('اكتب سبب الإرجاع بالتفصيل (10 حروف على الأقل):');
-    if (!reason || reason.length < 10) { toast('السبب قصير جداً', 'error'); return; }
+    const reason = prompt('{% trans "اكتب سبب الإرجاع بالتفصيل (10 حروف على الأقل):" %}');
+    if (!reason || reason.length < 10) { toast('{% trans "السبب قصير جداً" %}', 'error'); return; }
     try { const d = await _action(`/marketplace/parts/order/${code}/refund/`, 'reason=' + encodeURIComponent(reason));
           toast(d.message, 'success'); setTimeout(() => location.reload(), 1100); }
     catch (e) { toast(e.message, 'error'); }

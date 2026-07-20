@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 13:57+0300\n"
+"POT-Creation-Date: 2026-07-20 14:25+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -544,7 +544,7 @@ msgid "قيد الطباعة"
 msgstr "Printing"
 
 msgid "تم الشحن"
-msgstr ""
+msgstr "Shipped"
 
 msgid "تم التسليم"
 msgstr "Delivered"
@@ -1167,7 +1167,7 @@ msgid "تم الإفراج — أُرسلت للبائع"
 msgstr ""
 
 msgid "طلب إرجاع"
-msgstr ""
+msgstr "Request return"
 
 msgid "تم الإرجاع للمشتري"
 msgstr ""
@@ -4107,6 +4107,76 @@ msgstr "Design samples before choosing"
 msgid "ادخل سوق الطباعة"
 msgstr "Enter the printing marketplace"
 
+msgid "المستشار الذكي | Mouss Tec"
+msgstr "Smart advisor | Mouss Tec"
+
+#, python-format
+msgid "%(e)s مستشار %(l)s"
+msgstr "%(e)s %(l)s advisor"
+
+msgid ""
+"هاكلمك في برانديك، اقترحلك تصاميم، وأقول لك أنسب باقة من design store حسب "
+"استخدامك."
+msgstr "I will talk with you about your branding, suggest designs, and tell you the best package from the design store based on your usage."
+
+msgid "هاكلمك في صيانة عربيتك، اشتراك التشخيص، وهفكرك بمواعيد الفحص."
+msgstr "I will talk with you about your car maintenance, the diagnostics subscription, and remind you of inspection dates."
+
+#, python-format
+msgid "أهلاً %(name)s! اسألني عن أي حاجة تخص"
+msgstr "Hi %(name)s! Ask me about anything related to"
+
+msgid "برانديك أو تصاميمك"
+msgstr "your branding or your designs"
+
+msgid "عربيتك أو اشتراك التشخيص"
+msgstr "your car or the diagnostics subscription"
+
+msgid "اكتب سؤالك..."
+msgstr "Write your question..."
+
+msgid "ابعت"
+msgstr "Send"
+
+msgid "امسح"
+msgstr "Clear"
+
+msgid "إيه أنسب باقة ليّا؟"
+msgstr "Which package suits me best?"
+
+msgid "برانديي متسق ولا لأ؟"
+msgstr "Is my branding consistent or not?"
+
+msgid "اقترح فكرة تصميم اللي بعده"
+msgstr "Suggest the next design idea"
+
+msgid "باقتي مكفياني ولا أرقي؟"
+msgstr "Is my package enough or should I upgrade?"
+
+msgid "إمتى أعمل فحص جاي؟"
+msgstr "When should I do my next inspection?"
+
+msgid "شرحلي الفرق بين Pro و Empire"
+msgstr "Explain the difference between Pro and Empire"
+
+msgid "💡 اضغط"
+msgstr "💡 Press"
+
+msgid "للإرسال"
+msgstr "to send"
+
+msgid "⚠️ تعذر الحصول على رد."
+msgstr "⚠️ Could not get a reply."
+
+msgid "⚠️ مشكلة اتصال — حاول مرة تانية."
+msgstr "⚠️ Connection problem — try again."
+
+msgid "تأكد من مسح المحادثة؟"
+msgstr "Confirm clearing the conversation?"
+
+msgid "أهلاً! اسألني تاني."
+msgstr "Hi! Ask me again."
+
 msgid "💳 إتمام الدفع | Mouss Tec"
 msgstr "💳 Complete payment | Mouss Tec"
 
@@ -4123,7 +4193,8 @@ msgid "تم استلام بيانات الدفع"
 msgstr "Payment details received"
 
 msgid "جاري التأكيد من فريقنا — هيتم تفعيل الباقة خلال دقائق"
-msgstr "Being confirmed by our team — the package will be activated within minutes"
+msgstr ""
+"Being confirmed by our team — the package will be activated within minutes"
 
 msgid "رقم العملية:"
 msgstr "Transaction number:"
@@ -4226,14 +4297,18 @@ msgid "بطاقة ائتمان / Visa / Mastercard"
 msgstr "Credit card / Visa / Mastercard"
 
 msgid "تم إنشاء طلبك. اضغط الزرار لإتمام الدفع ببطاقتك."
-msgstr "Your order has been created. Press the button to complete the payment with your card."
+msgstr ""
+"Your order has been created. Press the button to complete the payment with "
+"your card."
 
 msgid "الدفع بالبطاقة — قريباً"
 msgstr "Card payment — soon"
 
 msgid ""
 "الدفع بالفيزا تحت التطوير. ارجع للصفحة السابقة واختر فودافون كاش لتفعيل فوري."
-msgstr "Visa payment is under development. Go back to the previous page and choose Vodafone Cash for instant activation."
+msgstr ""
+"Visa payment is under development. Go back to the previous page and choose "
+"Vodafone Cash for instant activation."
 
 msgid "← العودة لاختيار فودافون كاش"
 msgstr "← Back to choosing Vodafone Cash"
@@ -4635,6 +4710,63 @@ msgstr "Try another filter or be the first to list a part!"
 msgid "اعرض قطعة الآن"
 msgstr "List a part now"
 
+msgid "قطع الغيار"
+msgstr "Spare parts"
+
+msgid "🏪 مبيعاتي"
+msgstr "🏪 My sales"
+
+msgid "📦 طلباتي"
+msgstr "📦 My orders"
+
+msgid "📦 مشترياتي"
+msgstr "📦 My purchases"
+
+#, python-format
+msgid "ينتهي الضمان %(d)s"
+msgstr "Warranty ends %(d)s"
+
+#, python-format
+msgid "صافيك: %(p)s ج.م"
+msgstr "Your net: %(p)s EGP"
+
+#, python-format
+msgid "(عمولة %(c)s)"
+msgstr "(commission %(c)s)"
+
+msgid "اكتمل"
+msgstr "Completed"
+
+msgid "تأكيد الاستلام"
+msgstr "Confirm receipt"
+
+msgid "القطعة"
+msgstr "Part"
+
+msgid "لم تبع أي قطعة بعد"
+msgstr "You have not sold any part yet"
+
+msgid "لم تشتر أي قطعة بعد"
+msgstr "You have not bought any part yet"
+
+msgid "اعرض قطعة دلوقتي وابدأ تكسب"
+msgstr "List a part now and start earning"
+
+msgid "اتصفّح السوق ودوّر على قطعة بسعر مناسب"
+msgstr "Browse the marketplace and look for a part at a good price"
+
+msgid "تصفّح السوق"
+msgstr "Browse the marketplace"
+
+msgid "تأكيد الاستلام يبدأ فترة الضمان. متابعة؟"
+msgstr "Confirming receipt starts the warranty period. Continue?"
+
+msgid "اكتب سبب الإرجاع بالتفصيل (10 حروف على الأقل):"
+msgstr "Write the return reason in detail (at least 10 characters):"
+
+msgid "السبب قصير جداً"
+msgstr "The reason is too short"
+
 msgid "سوق قطع الغيار غير متاح"
 msgstr "Spare-parts marketplace unavailable"
 
@@ -4656,7 +4788,9 @@ msgstr "Request a spare part"
 msgid ""
 "اكتب مواصفات سيارتك بدقة عشان البائعين يقدروا يطابقوها — هتوصلك عروض خلال 14 "
 "يوم."
-msgstr "Write your car specs accurately so sellers can match them — you will receive offers within 14 days."
+msgstr ""
+"Write your car specs accurately so sellers can match them — you will receive "
+"offers within 14 days."
 
 msgid "الماركة *"
 msgstr "Make *"
@@ -4693,7 +4827,9 @@ msgid "لو معاك رقم القطعة الأصلي، حطه عشان تتأك
 msgstr ""
 
 msgid "أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)"
-msgstr "Any details that can help the seller (e.g.: color, condition, genuine/aftermarket...)"
+msgstr ""
+"Any details that can help the seller (e.g.: color, condition, genuine/"
+"aftermarket...)"
 
 msgid "انشر الطلب"
 msgstr "Post the request"
@@ -4701,7 +4837,10 @@ msgstr "Post the request"
 msgid ""
 "بنشر هذا الطلب، أنت توافق على شروط الاستخدام. بياناتك مخفية عن البائعين "
 "وتُعرض لهم فقط عند قبول عرضهم ودفع المبلغ في الـ Escrow."
-msgstr "By posting this request, you agree to the terms of use. Your data is hidden from sellers and is shown to them only when you accept their offer and pay the amount into Escrow."
+msgstr ""
+"By posting this request, you agree to the terms of use. Your data is hidden "
+"from sellers and is shown to them only when you accept their offer and pay "
+"the amount into Escrow."
 
 msgid "تم النشر."
 msgstr "Posted."
@@ -6912,9 +7051,6 @@ msgstr "Human Resources"
 msgid "الورشة / الصيانة"
 msgstr ""
 
-msgid "قطع الغيار"
-msgstr ""
-
 msgid "المخزن"
 msgstr ""
 
@@ -7584,9 +7720,6 @@ msgstr ""
 
 msgid "سجل تاريخ الأسعار"
 msgstr ""
-
-msgid "القطعة"
-msgstr "Part"
 
 msgid "الفرع"
 msgstr "Branch"

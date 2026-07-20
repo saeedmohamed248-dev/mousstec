@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>المستشار الذكي | Mouss Tec</title>
+<title>{% trans "المستشار الذكي | Mouss Tec" %}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -46,18 +46,18 @@ textarea { flex:1; min-height:60px; max-height:160px; padding:12px; background:r
 </head>
 <body>
 <div class="topbar">
-  <div class="brand"><i class="fas fa-brain"></i> المستشار الذكي | Mouss Tec</div>
-  <a href="/marketplace/dashboard/"><i class="fas fa-arrow-left"></i> عودة للوحتي</a>
+  <div class="brand"><i class="fas fa-brain"></i> {% trans "المستشار الذكي | Mouss Tec" %}</div>
+  <a href="/marketplace/dashboard/"><i class="fas fa-arrow-left"></i> {% trans "عودة للوحتي" %}</a>
 </div>
 
 <div class="wrap">
   <div class="hero">
-    <h1>{{ sector_emoji }} مستشار {{ sector_label }}</h1>
+    <h1>{% blocktrans with e=sector_emoji l=sector_label %}{{ e }} مستشار {{ l }}{% endblocktrans %}</h1>
     <div class="muted">
       {% if sector == 'printing' %}
-        هاكلمك في برانديك، اقترحلك تصاميم، وأقول لك أنسب باقة من design store حسب استخدامك.
+        {% trans "هاكلمك في برانديك، اقترحلك تصاميم، وأقول لك أنسب باقة من design store حسب استخدامك." %}
       {% else %}
-        هاكلمك في صيانة عربيتك، اشتراك التشخيص، وهفكرك بمواعيد الفحص.
+        {% trans "هاكلمك في صيانة عربيتك، اشتراك التشخيص، وهفكرك بمواعيد الفحص." %}
       {% endif %}
     </div>
   </div>
@@ -65,33 +65,33 @@ textarea { flex:1; min-height:60px; max-height:160px; padding:12px; background:r
   <div class="chat-window" id="advChatWindow">
     <div class="msg bot">
       <i class="fas fa-brain" style="color:var(--accent);"></i>
-      أهلاً {{ customer.full_name }}! اسألني عن أي حاجة تخص
-      {% if sector == 'printing' %}برانديك أو تصاميمك{% else %}عربيتك أو اشتراك التشخيص{% endif %}.
+      {% blocktrans with name=customer.full_name %}أهلاً {{ name }}! اسألني عن أي حاجة تخص{% endblocktrans %}
+      {% if sector == 'printing' %}{% trans "برانديك أو تصاميمك" %}{% else %}{% trans "عربيتك أو اشتراك التشخيص" %}{% endif %}.
     </div>
   </div>
 
   <div class="composer">
-    <textarea id="advChatInput" placeholder="اكتب سؤالك..." onkeydown="if(event.key==='Enter' && (event.ctrlKey||event.metaKey)) sendAdv()"></textarea>
+    <textarea id="advChatInput" placeholder="{% trans "اكتب سؤالك..." %}" onkeydown="if(event.key==='Enter' && (event.ctrlKey||event.metaKey)) sendAdv()"></textarea>
     <div style="display:flex; flex-direction:column; gap:8px;">
-      <button onclick="sendAdv()" id="advSendBtn" class="btn-cta"><i class="fas fa-paper-plane"></i> ابعت</button>
-      <button onclick="resetAdv()" class="btn-secondary"><i class="fas fa-rotate-left"></i> امسح</button>
+      <button onclick="sendAdv()" id="advSendBtn" class="btn-cta"><i class="fas fa-paper-plane"></i> {% trans "ابعت" %}</button>
+      <button onclick="resetAdv()" class="btn-secondary"><i class="fas fa-rotate-left"></i> {% trans "امسح" %}</button>
     </div>
   </div>
 
   <div class="suggestions">
     {% if sector == 'printing' %}
-      <div class="suggestion" onclick="useSugg(this)">إيه أنسب باقة ليّا؟</div>
-      <div class="suggestion" onclick="useSugg(this)">برانديي متسق ولا لأ؟</div>
-      <div class="suggestion" onclick="useSugg(this)">اقترح فكرة تصميم اللي بعده</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "إيه أنسب باقة ليّا؟" %}</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "برانديي متسق ولا لأ؟" %}</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "اقترح فكرة تصميم اللي بعده" %}</div>
     {% else %}
-      <div class="suggestion" onclick="useSugg(this)">باقتي مكفياني ولا أرقي؟</div>
-      <div class="suggestion" onclick="useSugg(this)">إمتى أعمل فحص جاي؟</div>
-      <div class="suggestion" onclick="useSugg(this)">شرحلي الفرق بين Pro و Empire</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "باقتي مكفياني ولا أرقي؟" %}</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "إمتى أعمل فحص جاي؟" %}</div>
+      <div class="suggestion" onclick="useSugg(this)">{% trans "شرحلي الفرق بين Pro و Empire" %}</div>
     {% endif %}
   </div>
 
   <div style="margin-top:8px; font-size:0.78rem; color:var(--muted);">
-    💡 اضغط <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> للإرسال
+    {% trans "💡 اضغط" %} <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> {% trans "للإرسال" %}
   </div>
 </div>
 
@@ -130,20 +130,20 @@ async function sendAdv() {
     });
     const data = await res.json();
     typing.remove();
-    appendMsg('bot', data.reply || data.message || '⚠️ تعذر الحصول على رد.');
+    appendMsg('bot', data.reply || data.message || '{% trans "⚠️ تعذر الحصول على رد." %}');
   } catch (e) {
     typing.remove();
-    appendMsg('bot', '⚠️ مشكلة اتصال — حاول مرة تانية.');
+    appendMsg('bot', '{% trans "⚠️ مشكلة اتصال — حاول مرة تانية." %}');
   } finally {
     btn.disabled = false;
     btn.innerHTML = oldHTML;
   }
 }
 async function resetAdv() {
-  if (!confirm('تأكد من مسح المحادثة؟')) return;
+  if (!confirm('{% trans "تأكد من مسح المحادثة؟" %}')) return;
   try { await fetch('/marketplace/advisor/reset/', { method: 'POST' }); } catch (e) {}
   document.getElementById('advChatWindow').innerHTML =
-    '<div class="msg bot"><i class="fas fa-brain" style="color:var(--accent);"></i> أهلاً! اسألني تاني.</div>';
+    '<div class="msg bot"><i class="fas fa-brain" style="color:var(--accent);"></i> {% trans "أهلاً! اسألني تاني." %}</div>';
 }
 </script>
 
