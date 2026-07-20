@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 15:24+0300\n"
+"POT-Creation-Date: 2026-07-20 15:34+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4799,6 +4799,199 @@ msgstr ""
 msgid "ابدأ تصميم جديد"
 msgstr "Start a new design"
 
+msgid "تشخيص عربيتي | Mouss Tec"
+msgstr "My car diagnostics | Mouss Tec"
+
+msgid "تشخيص ذكي | Mouss Tec"
+msgstr "Smart diagnostics | Mouss Tec"
+
+msgid "أطلس الإصلاح"
+msgstr "Repair atlas"
+
+msgid "مساعد التشخيص الذكي"
+msgstr "Smart diagnostic assistant"
+
+#, python-format
+msgid "باقة %(t)s"
+msgstr "Package %(t)s"
+
+msgid "باقتك الحالية تدعم"
+msgstr "Your current package supports"
+
+msgid "وصف الأعراض فقط"
+msgstr "symptom description only"
+
+msgid ". للأكواد + قراءة الصور + الـ Live Data — رقّي لباقة"
+msgstr ". For codes + image reading + Live Data — upgrade to package"
+
+msgid ""
+"أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على "
+"التابلوه...) وأنا هحللها معاك."
+msgstr "Hi! Describe the symptoms you notice in your car (strange noise, smell, dashboard light...) and I will analyze them with you."
+
+msgid "مثال: العربية بتصدر صوت طقطقة من المحرك لما أبدأ تشغيل صبحاً..."
+msgstr "Example: the car makes a knocking sound from the engine when I start it in the morning..."
+
+msgid "ارفع صورة"
+msgstr "Upload an image"
+
+msgid "إزالة"
+msgstr "Remove"
+
+msgid "الصورة كبيرة جداً (الحد الأقصى 5 ميجا)."
+msgstr "The image is too large (maximum 5 MB)."
+
+msgid "(انقر هنا للترقية:"
+msgstr "(click here to upgrade:"
+
+msgid "⚠️ تعذر الحصول على رد. حاول مرة تانية."
+msgstr "⚠️ Could not get a reply. Try again."
+
+msgid "⚠️ مشكلة اتصال — راجع الإنترنت وحاول تاني."
+msgstr "⚠️ Connection problem — check the internet and try again."
+
+msgid "تم تفعيل الباقة بنجاح. خليك مرتاح وشخّص براحتك."
+msgstr "The package was activated successfully. Relax and diagnose at your leisure."
+
+msgid "الاشتراك انتهى"
+msgstr "Subscription expired"
+
+#, python-format
+msgid "أهلاً، %(n)s"
+msgstr "Hello, %(n)s"
+
+msgid "شخّص أعطال عربيتك بنفسك — استلم تحليل AI ودليل خطوة-بخطوة لكل كود عطل."
+msgstr "Diagnose your car faults yourself — get an AI analysis and a step-by-step guide for every fault code."
+
+msgid "سكانات متاحة"
+msgstr "Available scans"
+
+msgid "إجمالي السكانات"
+msgstr "Total scans"
+
+msgid "جدّد اشتراكك من ٩٩ ج/شهر"
+msgstr "Renew your subscription from 99 EGP/month"
+
+msgid "رقّي لباقة مدفوعة"
+msgstr "Upgrade to a paid package"
+
+msgid "اتصل بفيشة العربية"
+msgstr "Connect to the car port"
+
+msgid "متصفحك مش بيدعم Web Bluetooth. استخدم"
+msgstr "Your browser does not support Web Bluetooth. Use"
+
+msgid "على الموبايل/الكمبيوتر — Safari لسه ما بيدعمش."
+msgstr "on mobile/desktop — Safari does not support it yet."
+
+msgid "اضغط زر «اتصل» وشغّل البلوتوث في الموبايل، واختر جهاز ELM327 / OBD2."
+msgstr "Press the «Connect» button, turn on Bluetooth on your phone, and choose an ELM327 / OBD2 device."
+
+msgid "جاري الاتصال..."
+msgstr "Connecting..."
+
+msgid "متصل بـ"
+msgstr "Connected to"
+
+msgid "اتصل بالفيشة"
+msgstr "Connect to the port"
+
+msgid "اقرأ الأعطال"
+msgstr "Read the faults"
+
+msgid "أو ادخل الكود يدوياً"
+msgstr "Or enter the code manually"
+
+msgid "VIN — 17 حرف (اختياري)"
+msgstr "VIN — 17 characters (optional)"
+
+msgid "كود عطل مثل P0301 (افصلهم بفاصلة لأكتر من كود)"
+msgstr "Fault code like P0301 (separate with a comma for more than one code)"
+
+msgid "شخّص بالكود"
+msgstr "Diagnose by code"
+
+msgid "مميزات باقتك"
+msgstr "Your package features"
+
+msgid "تشخيص بالذكاء الاصطناعي"
+msgstr "AI diagnostics"
+
+msgid "تاريخ سيارتك الكامل"
+msgstr "Your full car history"
+
+msgid "بث مباشر للـ OBD (RPM، حرارة، بطارية)"
+msgstr "Live OBD stream (RPM, temperature, battery)"
+
+msgid "تقارير PDF مفصّلة"
+msgstr "Detailed PDF reports"
+
+msgid "شات مباشر مع فني خبير"
+msgstr "Live chat with an expert technician"
+
+msgid "أكتر من سيارة على نفس الحساب"
+msgstr "More than one car on the same account"
+
+msgid "اختار جهازك من قائمة البلوتوث..."
+msgstr "Choose your device from the Bluetooth list..."
+
+msgid "متصل بالجهاز، جاري تهيئة OBD2..."
+msgstr "Connected to the device, initializing OBD2..."
+
+msgid "فشل الاتصال"
+msgstr "Connection failed"
+
+msgid "لازم تتصل بالفيشة الأول."
+msgstr "You must connect to the port first."
+
+msgid "جاري قراءة الأكواد..."
+msgstr "Reading the codes..."
+
+msgid "فشل قراءة الأكواد"
+msgstr "Failed to read the codes"
+
+msgid "أدخل VIN أو كود عطل على الأقل."
+msgstr "Enter at least a VIN or a fault code."
+
+msgid "رقّي الباقة"
+msgstr "Upgrade the package"
+
+msgid "خطأ في السكان"
+msgstr "Scan error"
+
+msgid "تم السكان"
+msgstr "Scan complete"
+
+msgid "متبقي"
+msgstr "remaining"
+
+msgid "سكان"
+msgstr "scans"
+
+msgid "عربيتك سليمة!"
+msgstr "Your car is healthy!"
+
+msgid "مفيش أي كود عطل مخزّن. الـ ECU نظيف."
+msgstr "No fault codes are stored. The ECU is clean."
+
+msgid "عطل تم كشفه:"
+msgstr "faults detected:"
+
+msgid "خطوات الفحص"
+msgstr "Inspection steps"
+
+msgid "اطلب عرض من ميكانيكي قريب"
+msgstr "Request an offer from a nearby mechanic"
+
+msgid "محتاج فني؟"
+msgstr "Need a technician?"
+
+msgid "اعمل طلب على السوق والميكانيكية هيتنافسوا على عرضك."
+msgstr "Post a request on the marketplace and mechanics will compete for your offer."
+
+msgid "اطلب الآن →"
+msgstr "Request now →"
+
 msgid "باقات التشخيص | Mouss Tec"
 msgstr "Diagnostics packages | Mouss Tec"
 
@@ -4839,20 +5032,11 @@ msgstr "EGP / month"
 msgid "%(q)s سكان شهرياً"
 msgstr "%(q)s scans per month"
 
-msgid "تشخيص بالذكاء الاصطناعي"
-msgstr "AI diagnostics"
-
 msgid "تاريخ السيارة الكامل"
 msgstr "Full car history"
 
 msgid "بث مباشر OBD (RPM، حرارة، بطارية)"
 msgstr "Live OBD stream (RPM, temperature, battery)"
-
-msgid "تقارير PDF مفصّلة"
-msgstr "Detailed PDF reports"
-
-msgid "شات مباشر مع فني خبير"
-msgstr "Live chat with an expert technician"
 
 msgid "سيارات متعددة"
 msgstr "Multiple cars"
@@ -5034,13 +5218,15 @@ msgid "اعرض اللي قدمت عليها"
 msgstr "Show the ones I offered on"
 
 msgid "لسه مفيش طلبات في النظام. الطلبات هتيجي من العملاء على"
-msgstr "There are no requests in the system yet. Requests will come from customers on"
+msgstr ""
+"There are no requests in the system yet. Requests will come from customers on"
 
 msgid "صفحة السوق"
 msgstr "The marketplace page"
 
 msgid "سيتم عرض طلبات العملاء في قطاعك هنا فور نشرها."
-msgstr "Customer requests in your sector will appear here as soon as they are posted."
+msgstr ""
+"Customer requests in your sector will appear here as soon as they are posted."
 
 msgid "عرضك:"
 msgstr "Your offer:"
@@ -5077,7 +5263,9 @@ msgid "تفاصيل العرض *"
 msgstr "Offer details *"
 
 msgid "اشرح عرضك بالتفصيل — الأنواع المتاحة، الجودة، أي شيء يميز عرضك..."
-msgstr "Explain your offer in detail — available types, quality, anything that distinguishes your offer..."
+msgstr ""
+"Explain your offer in detail — available types, quality, anything that "
+"distinguishes your offer..."
 
 msgid "المدينة *"
 msgstr "City *"
@@ -5115,7 +5303,9 @@ msgstr "Request from the marketplace yourself (B2B)"
 msgid ""
 "مثال: مطبعة تطلب 10 آلاف تيشرت من مصنع، أو ورشة تطلب 100 طقم فلاتر من تاجر "
 "جملة."
-msgstr "Example: a print shop requests 10,000 T-shirts from a factory, or a workshop requests 100 filter sets from a wholesaler."
+msgstr ""
+"Example: a print shop requests 10,000 T-shirts from a factory, or a workshop "
+"requests 100 filter sets from a wholesaler."
 
 msgid "هويتك تبقى مجهولة"
 msgstr "Your identity stays anonymous"
@@ -5133,7 +5323,9 @@ msgid "التفاصيل *"
 msgstr "Details *"
 
 msgid "اشرح المواصفات: الكمية، الخامة، المقاسات، المدة، أي تفاصيل مهمة..."
-msgstr "Explain the specifications: quantity, material, sizes, duration, any important details..."
+msgstr ""
+"Explain the specifications: quantity, material, sizes, duration, any "
+"important details..."
 
 msgid "القطاع المستهدف"
 msgstr "Target sector"
@@ -7509,9 +7701,6 @@ msgstr "500 scans"
 
 msgid "عدد مخصص…"
 msgstr "Custom number…"
-
-msgid "متبقي"
-msgstr "remaining"
 
 msgid "حتى"
 msgstr "until"
@@ -10295,9 +10484,6 @@ msgstr "Fault diagnostics"
 msgid "غرفة التشخيص"
 msgstr "Diagnostics room"
 
-msgid "أطلس الإصلاح"
-msgstr "Repair atlas"
-
 msgid "غرفة التكويدات"
 msgstr "Coding room"
 
@@ -10917,9 +11103,6 @@ msgstr "AI did not suggest high-probability parts for these codes."
 msgid "قطعة مقترحة (مرتّبة حسب الاحتمالية)"
 msgstr "suggested parts (sorted by probability)"
 
-msgid "فشل الاتصال"
-msgstr "Connection failed"
-
 msgid "فشل الإضافة"
 msgstr "Failed to add"
 
@@ -11052,9 +11235,6 @@ msgstr "Sign in to start tracking work hours and productivity"
 
 msgid "تسجيل خروج"
 msgstr "Clock out"
-
-msgid "مساعد التشخيص الذكي"
-msgstr "Smart diagnostic assistant"
 
 msgid "أدخل كود العطل (مثال: P0300)..."
 msgstr "Enter the fault code (e.g. P0300)..."

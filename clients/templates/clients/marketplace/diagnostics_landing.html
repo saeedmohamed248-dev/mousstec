@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تشخيص عربيتي | Mouss Tec</title>
+    <title>{% trans "تشخيص عربيتي | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -54,24 +54,24 @@
 <body>
 
 <div class="topbar">
-    <div class="brand"><i class="fas fa-stethoscope"></i> تشخيص ذكي | Mouss Tec</div>
+    <div class="brand"><i class="fas fa-stethoscope"></i> {% trans "تشخيص ذكي | Mouss Tec" %}</div>
     <div style="display:flex; gap:10px; align-items:center;">
         <a href="/marketplace/repair-atlas/" style="background: linear-gradient(135deg, #ff9500, #ff6b6b); padding: 8px 16px; border-radius: 999px; color: #fff; font-weight: 800; text-decoration: none;">
-            <i class="fas fa-wrench"></i> أطلس الإصلاح
+            <i class="fas fa-wrench"></i> {% trans "أطلس الإصلاح" %}
         </a>
-        <a href="/marketplace/dashboard/"><i class="fas fa-home"></i> لوحتي</a>
+        <a href="/marketplace/dashboard/"><i class="fas fa-home"></i> {% trans "لوحتي" %}</a>
     </div>
 
     <!-- ════ 🤖 AI Diagnostic Chat (tier-gated) ════ -->
     <div class="panel" style="margin-top:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
-            <h3 style="margin:0;"><i class="fas fa-robot" style="color:var(--accent);"></i> مساعد التشخيص الذكي</h3>
+            <h3 style="margin:0;"><i class="fas fa-robot" style="color:var(--accent);"></i> {% trans "مساعد التشخيص الذكي" %}</h3>
             <div style="display:flex; gap:8px; align-items:center;">
                 <span class="tier-badge {% if sub.tier == 'empire' %}tier-paid{% elif sub.tier == 'pro' %}tier-paid{% elif sub.tier == 'trial' %}tier-trial{% else %}tier-trial{% endif %}" style="margin:0;">
-                    باقة {{ sub.get_tier_display|default:'Trial' }}
+                    {% blocktrans with t=sub.get_tier_display|default:'Trial' %}باقة {{ t }}{% endblocktrans %}
                 </span>
                 <button onclick="resetDiagChat()" class="btn-secondary-glass" style="padding:6px 14px; font-size:0.85rem;">
-                    <i class="fas fa-rotate-left"></i> امسح
+                    <i class="fas fa-rotate-left"></i> {% trans "امسح" %}
                 </button>
             </div>
         </div>
@@ -79,41 +79,41 @@
         {% if sub.tier == 'trial' or sub.tier == 'basic' %}
         <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:0.88rem;">
             <i class="fas fa-info-circle" style="color:var(--accent);"></i>
-            باقتك الحالية تدعم <b>وصف الأعراض فقط</b>. للأكواد + قراءة الصور + الـ Live Data — رقّي لباقة <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Pro</a> أو <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Empire</a>.
+            {% trans "باقتك الحالية تدعم" %} <b>{% trans "وصف الأعراض فقط" %}</b>{% trans ". للأكواد + قراءة الصور + الـ Live Data — رقّي لباقة" %} <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Pro</a> {% trans "أو" %} <a href="/marketplace/diagnostics/pricing/" style="color:var(--accent); font-weight:800;">Empire</a>.
         </div>
         {% endif %}
 
         <div id="diagChatWindow" style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:12px; padding:16px; max-height:420px; min-height:200px; overflow-y:auto; margin-bottom:14px;">
             <div class="diag-msg diag-bot">
                 <i class="fas fa-robot" style="color:var(--accent);"></i>
-                أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك.
+                {% trans "أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك." %}
             </div>
         </div>
 
         <div style="display:flex; gap:10px; align-items:stretch; flex-wrap:wrap;">
-            <textarea id="diagChatInput" placeholder="مثال: العربية بتصدر صوت طقطقة من المحرك لما أبدأ تشغيل صبحاً..."
+            <textarea id="diagChatInput" placeholder="{% trans "مثال: العربية بتصدر صوت طقطقة من المحرك لما أبدأ تشغيل صبحاً..." %}"
                 style="flex:1; min-width:240px; min-height:60px; max-height:140px; padding:12px; background:rgba(10,19,32,0.7); border:1px solid var(--line); border-radius:10px; color:var(--text); font-family:'Cairo',sans-serif; font-size:0.95rem; resize:vertical;"
                 onkeydown="if(event.key==='Enter' && (event.ctrlKey||event.metaKey)) sendDiagChat()"></textarea>
             <div style="display:flex; flex-direction:column; gap:8px;">
                 {% if sub.tier == 'pro' or sub.tier == 'empire' %}
-                <label class="btn-secondary-glass" style="margin:0; cursor:pointer; padding:8px 14px; font-size:0.85rem;" title="ارفع صورة">
+                <label class="btn-secondary-glass" style="margin:0; cursor:pointer; padding:8px 14px; font-size:0.85rem;" title="{% trans "ارفع صورة" %}">
                     <i class="fas fa-camera"></i>
                     <input type="file" id="diagChatImage" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="previewDiagImage(this)">
                 </label>
                 {% endif %}
                 <button onclick="sendDiagChat()" id="diagChatSendBtn" class="btn-cta" style="padding:12px 20px; margin:0;">
-                    <i class="fas fa-paper-plane"></i> ابعت
+                    <i class="fas fa-paper-plane"></i> {% trans "ابعت" %}
                 </button>
             </div>
         </div>
         <div id="diagChatImagePreview" style="margin-top:8px; display:none;">
             <img id="diagChatImagePreviewImg" style="max-width:140px; max-height:100px; border-radius:8px; border:1px solid var(--line);">
             <button onclick="clearDiagImage()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.85rem;">
-                <i class="fas fa-times-circle"></i> إزالة
+                <i class="fas fa-times-circle"></i> {% trans "إزالة" %}
             </button>
         </div>
         <div style="margin-top:6px; font-size:0.78rem; color:var(--muted);">
-            💡 اضغط <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> للإرسال
+            {% trans "💡 اضغط" %} <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px;">Ctrl+Enter</kbd> {% trans "للإرسال" %}
         </div>
     </div>
 
@@ -136,7 +136,7 @@
             const file = input.files[0];
             if (!file) return;
             if (file.size > 5 * 1024 * 1024) {
-                alert('الصورة كبيرة جداً (الحد الأقصى 5 ميجا).');
+                alert('{% trans "الصورة كبيرة جداً (الحد الأقصى 5 ميجا)." %}');
                 input.value = '';
                 return;
             }
@@ -211,13 +211,13 @@
                 if (data.reply) {
                     appendDiagMsg('bot', data.reply);
                 } else if (data.message) {
-                    appendDiagMsg('bot', '⚠️ ' + data.message + (data.upgrade_url ? ' (انقر هنا للترقية: ' + data.upgrade_url + ')' : ''));
+                    appendDiagMsg('bot', '⚠️ ' + data.message + (data.upgrade_url ? ' {% trans "(انقر هنا للترقية:" %} ' + data.upgrade_url + ')' : ''));
                 } else {
-                    appendDiagMsg('bot', '⚠️ تعذر الحصول على رد. حاول مرة تانية.');
+                    appendDiagMsg('bot', '{% trans "⚠️ تعذر الحصول على رد. حاول مرة تانية." %}');
                 }
             } catch (e) {
                 typing.remove();
-                appendDiagMsg('bot', '⚠️ مشكلة اتصال — راجع الإنترنت وحاول تاني.');
+                appendDiagMsg('bot', '{% trans "⚠️ مشكلة اتصال — راجع الإنترنت وحاول تاني." %}');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = oldHTML;
@@ -225,12 +225,12 @@
         }
 
         async function resetDiagChat() {
-            if (!confirm('تأكد من مسح المحادثة؟')) return;
+            if (!confirm('{% trans "تأكد من مسح المحادثة؟" %}')) return;
             try {
                 await fetch('/marketplace/diagnostics/chat/reset/', { method: 'POST' });
             } catch (e) {}
             const win = document.getElementById('diagChatWindow');
-            win.innerHTML = '<div class="diag-msg diag-bot"><i class="fas fa-robot" style="color:var(--accent);"></i> أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك.</div>';
+            win.innerHTML = '<div class="diag-msg diag-bot"><i class="fas fa-robot" style="color:var(--accent);"></i> {% trans "أهلاً! اوصف الأعراض اللي بتلاحظها في عربيتك (صوت غريب، رائحة، لمبة على التابلوه...) وأنا هحللها معاك." %}</div>';
         }
     </script>
 </div>
@@ -239,31 +239,31 @@
 
     {% if request.GET.upgraded %}
     <div style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#6ee7b7; padding:14px 18px; border-radius:12px; margin-bottom:20px;">
-        <i class="fas fa-check-circle"></i> تم تفعيل الباقة بنجاح. خليك مرتاح وشخّص براحتك.
+        <i class="fas fa-check-circle"></i> {% trans "تم تفعيل الباقة بنجاح. خليك مرتاح وشخّص براحتك." %}
     </div>
     {% endif %}
 
     <!-- Hero status card -->
     <div class="hero-card">
         {% if sub.tier == 'trial' and is_active %}
-            <span class="tier-badge tier-trial"><i class="fas fa-gift"></i> تجربة مجانية</span>
+            <span class="tier-badge tier-trial"><i class="fas fa-gift"></i> {% trans "تجربة مجانية" %}</span>
         {% elif is_active %}
             <span class="tier-badge tier-paid"><i class="fas fa-crown"></i> {{ sub.get_tier_display }}</span>
         {% else %}
-            <span class="tier-badge tier-expired"><i class="fas fa-circle-exclamation"></i> الاشتراك انتهى</span>
+            <span class="tier-badge tier-expired"><i class="fas fa-circle-exclamation"></i> {% trans "الاشتراك انتهى" %}</span>
         {% endif %}
 
-        <h1>أهلاً، {{ customer.full_name|truncatechars:30 }}</h1>
-        <p class="muted">شخّص أعطال عربيتك بنفسك — استلم تحليل AI ودليل خطوة-بخطوة لكل كود عطل.</p>
+        <h1>{% blocktrans with n=customer.full_name|truncatechars:30 %}أهلاً، {{ n }}{% endblocktrans %}</h1>
+        <p class="muted">{% trans "شخّص أعطال عربيتك بنفسك — استلم تحليل AI ودليل خطوة-بخطوة لكل كود عطل." %}</p>
 
         <div class="metrics">
             <div class="metric">
                 <div class="n">{{ days_remaining }}</div>
-                <div class="l">يوم متبقي</div>
+                <div class="l">{% trans "يوم متبقي" %}</div>
             </div>
             <div class="metric">
                 <div class="n">{{ quota_remaining }}/{{ quota_total }}</div>
-                <div class="l">سكانات متاحة</div>
+                <div class="l">{% trans "سكانات متاحة" %}</div>
                 <div class="progress-bar-wrap">
                     {% widthratio sub.scans_used quota_total 100 as used_pct %}
                     <div class="progress-bar" style="width:{{ used_pct|default:0 }}%;"></div>
@@ -271,19 +271,19 @@
             </div>
             <div class="metric">
                 <div class="n">{{ sub.lifetime_scans }}</div>
-                <div class="l">إجمالي السكانات</div>
+                <div class="l">{% trans "إجمالي السكانات" %}</div>
             </div>
         </div>
 
         {% if not is_active %}
             <a href="/marketplace/diagnostics/pricing/" class="btn-cta">
-                <i class="fas fa-rocket"></i> جدّد اشتراكك من ٩٩ ج/شهر
+                <i class="fas fa-rocket"></i> {% trans "جدّد اشتراكك من ٩٩ ج/شهر" %}
             </a>
         {% elif sub.tier == 'trial' %}
             <a href="/marketplace/diagnostics/pricing/" class="btn-cta">
-                <i class="fas fa-crown"></i> رقّي لباقة مدفوعة
+                <i class="fas fa-crown"></i> {% trans "رقّي لباقة مدفوعة" %}
             </a>
-            <a href="/marketplace/dashboard/" class="btn-secondary-glass">عودة للوحتي</a>
+            <a href="/marketplace/dashboard/" class="btn-secondary-glass">{% trans "عودة للوحتي" %}</a>
         {% endif %}
     </div>
 
@@ -291,44 +291,44 @@
 
         <!-- Scan panel — Bluetooth-first, manual fallback -->
         <div class="panel">
-            <h3><i class="fas fa-bluetooth-b" style="color:var(--accent);"></i> اتصل بفيشة العربية</h3>
+            <h3><i class="fas fa-bluetooth-b" style="color:var(--accent);"></i> {% trans "اتصل بفيشة العربية" %}</h3>
 
             <!-- Bluetooth status -->
             <div id="btStatus" style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; font-size:0.92rem;">
                 <div id="btUnsupported" style="display:none; color:#fca5a5;">
-                    <i class="fas fa-triangle-exclamation"></i> متصفحك مش بيدعم Web Bluetooth. استخدم <b>Chrome</b> أو <b>Edge</b> على الموبايل/الكمبيوتر — Safari لسه ما بيدعمش.
+                    <i class="fas fa-triangle-exclamation"></i> {% trans "متصفحك مش بيدعم Web Bluetooth. استخدم" %} <b>Chrome</b> {% trans "أو" %} <b>Edge</b> {% trans "على الموبايل/الكمبيوتر — Safari لسه ما بيدعمش." %}
                 </div>
                 <div id="btIdle">
                     <i class="fas fa-circle-info" style="color:var(--accent);"></i>
-                    اضغط زر "اتصل" وشغّل البلوتوث في الموبايل، واختر جهاز ELM327 / OBD2.
+                    {% trans "اضغط زر «اتصل» وشغّل البلوتوث في الموبايل، واختر جهاز ELM327 / OBD2." %}
                 </div>
                 <div id="btConnecting" style="display:none; color:#fcd34d;">
-                    <i class="fas fa-spinner fa-spin"></i> <span id="btConnectMsg">جاري الاتصال...</span>
+                    <i class="fas fa-spinner fa-spin"></i> <span id="btConnectMsg">{% trans "جاري الاتصال..." %}</span>
                 </div>
                 <div id="btConnected" style="display:none; color:#6ee7b7;">
-                    <i class="fas fa-check-circle"></i> متصل بـ <b id="btDeviceName">—</b>
+                    <i class="fas fa-check-circle"></i> {% trans "متصل بـ" %} <b id="btDeviceName">—</b>
                 </div>
                 <div id="btError" style="display:none; color:#fca5a5;"></div>
             </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
                 <button id="btConnectBtn" class="btn-cta" style="flex:1; min-width:180px;" onclick="btConnect()">
-                    <i class="fas fa-link"></i> اتصل بالفيشة
+                    <i class="fas fa-link"></i> {% trans "اتصل بالفيشة" %}
                 </button>
                 <button id="btReadBtn" class="btn-cta" style="flex:1; min-width:180px; display:none;" onclick="btReadDTCs()">
-                    <i class="fas fa-magnifying-glass-chart"></i> اقرأ الأعطال
+                    <i class="fas fa-magnifying-glass-chart"></i> {% trans "اقرأ الأعطال" %}
                 </button>
             </div>
 
             <details style="margin-top:6px;">
                 <summary style="cursor:pointer; color:var(--muted); font-size:0.88rem;">
-                    <i class="fas fa-keyboard"></i> أو ادخل الكود يدوياً
+                    <i class="fas fa-keyboard"></i> {% trans "أو ادخل الكود يدوياً" %}
                 </summary>
                 <div style="margin-top:10px;">
-                    <input id="vinInput" class="scan-input mb-2" placeholder="VIN — 17 حرف (اختياري)" maxlength="17" dir="ltr">
-                    <input id="dtcInput" class="scan-input" placeholder="كود عطل مثل P0301 (افصلهم بفاصلة لأكتر من كود)" dir="ltr">
+                    <input id="vinInput" class="scan-input mb-2" placeholder="{% trans "VIN — 17 حرف (اختياري)" %}" maxlength="17" dir="ltr">
+                    <input id="dtcInput" class="scan-input" placeholder="{% trans "كود عطل مثل P0301 (افصلهم بفاصلة لأكتر من كود)" %}" dir="ltr">
                     <button class="btn-cta" style="width:100%; margin-top:10px;" onclick="manualScan()">
-                        <i class="fas fa-bolt"></i> شخّص بالكود
+                        <i class="fas fa-bolt"></i> {% trans "شخّص بالكود" %}
                     </button>
                 </div>
             </details>
@@ -338,34 +338,34 @@
 
         <!-- Features panel -->
         <div class="panel">
-            <h3><i class="fas fa-list-check" style="color:var(--accent);"></i> مميزات باقتك</h3>
+            <h3><i class="fas fa-list-check" style="color:var(--accent);"></i> {% trans "مميزات باقتك" %}</h3>
             <ul class="feature-list">
                 {% with all_features="ai_diagnosis,vehicle_history,live_data,pdf_reports,tech_chat,priority_support,multi_vehicle,parts_rewards" %}
                 {% for f in all_features|slice:":0" %}{% endfor %}
                 {% endwith %}
                 <li class="{% if 'ai_diagnosis' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'ai_diagnosis' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    تشخيص بالذكاء الاصطناعي
+                    {% trans "تشخيص بالذكاء الاصطناعي" %}
                 </li>
                 <li class="{% if 'vehicle_history' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'vehicle_history' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    تاريخ سيارتك الكامل
+                    {% trans "تاريخ سيارتك الكامل" %}
                 </li>
                 <li class="{% if 'live_data' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'live_data' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    بث مباشر للـ OBD (RPM، حرارة، بطارية)
+                    {% trans "بث مباشر للـ OBD (RPM، حرارة، بطارية)" %}
                 </li>
                 <li class="{% if 'pdf_reports' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'pdf_reports' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    تقارير PDF مفصّلة
+                    {% trans "تقارير PDF مفصّلة" %}
                 </li>
                 <li class="{% if 'tech_chat' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'tech_chat' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    شات مباشر مع فني خبير
+                    {% trans "شات مباشر مع فني خبير" %}
                 </li>
                 <li class="{% if 'multi_vehicle' not in features %}locked-row{% endif %}">
                     <i class="fas fa-{% if 'multi_vehicle' in features %}check unlocked{% else %}lock locked{% endif %}"></i>
-                    أكتر من سيارة على نفس الحساب
+                    {% trans "أكتر من سيارة على نفس الحساب" %}
                 </li>
             </ul>
         </div>
@@ -388,7 +388,7 @@ function btSetState(state, msg = '') {
     ['btUnsupported','btIdle','btConnecting','btConnected','btError']
         .forEach(id => document.getElementById(id).style.display = 'none');
     document.getElementById(state).style.display = 'block';
-    if (state === 'btConnecting') document.getElementById('btConnectMsg').textContent = msg || 'جاري الاتصال...';
+    if (state === 'btConnecting') document.getElementById('btConnectMsg').textContent = msg || '{% trans "جاري الاتصال..." %}';
     if (state === 'btError')      document.getElementById('btError').innerHTML =
         `<i class="fas fa-circle-xmark"></i> ${msg}`;
 }
@@ -405,12 +405,12 @@ window.addEventListener('DOMContentLoaded', () => {
 async function btConnect() {
     if (!('bluetooth' in navigator)) { btSetState('btUnsupported'); return; }
     const btn = document.getElementById('btConnectBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال...';
-    btSetState('btConnecting', 'اختار جهازك من قائمة البلوتوث...');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الاتصال..." %}';
+    btSetState('btConnecting', '{% trans "اختار جهازك من قائمة البلوتوث..." %}');
     try {
         if (!obd) obd = new OBDBluetooth();
         const info = await obd.requestDevice({ relaxed: false });
-        btSetState('btConnecting', 'متصل بالجهاز، جاري تهيئة OBD2...');
+        btSetState('btConnecting', '{% trans "متصل بالجهاز، جاري تهيئة OBD2..." %}');
         await obd.connect();
         obdConnected = true;
         document.getElementById('btDeviceName').textContent = info?.name || 'OBD2 Adapter';
@@ -418,7 +418,7 @@ async function btConnect() {
         document.getElementById('btConnectBtn').style.display = 'none';
         document.getElementById('btReadBtn').style.display = 'inline-block';
     } catch (e) {
-        const msg = (e && e.message) ? e.message : 'فشل الاتصال';
+        const msg = (e && e.message) ? e.message : '{% trans "فشل الاتصال" %}';
         // User cancelled the chooser → don't show as an error.
         if (/cancel|user/i.test(msg)) {
             btSetState('btIdle');
@@ -426,14 +426,14 @@ async function btConnect() {
             btSetState('btError', msg);
         }
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-link"></i> اتصل بالفيشة';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-link"></i> {% trans "اتصل بالفيشة" %}';
     }
 }
 
 async function btReadDTCs() {
-    if (!obdConnected) { btSetState('btError', 'لازم تتصل بالفيشة الأول.'); return; }
+    if (!obdConnected) { btSetState('btError', '{% trans "لازم تتصل بالفيشة الأول." %}'); return; }
     const btn = document.getElementById('btReadBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري قراءة الأكواد...';
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري قراءة الأكواد..." %}';
     try {
         const result = await obd.readDTCs();
         // result shape: { stored: [...], pending: [...], permanent: [...] }
@@ -452,16 +452,16 @@ async function btReadDTCs() {
         }
         await postScan({ vin: '', dtc_codes: all });
     } catch (e) {
-        renderError(e.message || 'فشل قراءة الأكواد');
+        renderError(e.message || '{% trans "فشل قراءة الأكواد" %}');
     } finally {
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-magnifying-glass-chart"></i> اقرأ الأعطال';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-magnifying-glass-chart"></i> {% trans "اقرأ الأعطال" %}';
     }
 }
 
 async function manualScan() {
     const vin = document.getElementById('vinInput').value.trim();
     const dtcRaw = document.getElementById('dtcInput').value.trim();
-    if (!vin && !dtcRaw) { renderError('أدخل VIN أو كود عطل على الأقل.'); return; }
+    if (!vin && !dtcRaw) { renderError('{% trans "أدخل VIN أو كود عطل على الأقل." %}'); return; }
     const codes = dtcRaw ? dtcRaw.split(/[,\s]+/).filter(Boolean) : [];
     await postScan({ vin, dtc_codes: codes });
 }
@@ -474,10 +474,10 @@ async function postScan(payload) {
         });
         const data = await res.json();
         if (res.status === 402) {
-            renderError(`${data.reason} — <a href="${data.upgrade_url}" style="color:#f59e0b;">رقّي الباقة</a>`);
+            renderError(`${data.reason} — <a href="${data.upgrade_url}" style="color:#f59e0b;">{% trans "رقّي الباقة" %}</a>`);
             return;
         }
-        if (!res.ok) throw new Error(data.error || 'خطأ في السكان');
+        if (!res.ok) throw new Error(data.error || '{% trans "خطأ في السكان" %}');
         renderResult(data);
     } catch (e) {
         renderError(e.message);
@@ -493,18 +493,18 @@ function renderResult(data) {
     const out = document.getElementById('scanResult');
     let html = `<div style="margin-top:18px; padding-top:18px; border-top:1px solid var(--line);">`;
     html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-        <div style="font-weight:900;"><i class="fas fa-check-circle" style="color:var(--success);"></i> تم السكان</div>
-        <div style="color:var(--muted); font-size:0.85rem;">متبقي ${data.quota_remaining} سكان</div>
+        <div style="font-weight:900;"><i class="fas fa-check-circle" style="color:var(--success);"></i> {% trans "تم السكان" %}</div>
+        <div style="color:var(--muted); font-size:0.85rem;">{% trans "متبقي" %} ${data.quota_remaining} {% trans "سكان" %}</div>
     </div>`;
 
     if (data._empty || !data.diagnoses || data.diagnoses.length === 0) {
         html += `<div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); padding:16px; border-radius:12px; text-align:center;">
             <i class="fas fa-check-double" style="color:var(--success); font-size:1.6rem;"></i>
-            <h4 style="margin:8px 0 4px;">عربيتك سليمة!</h4>
-            <p style="color:var(--muted); margin:0; font-size:0.88rem;">مفيش أي كود عطل مخزّن. الـ ECU نظيف.</p>
+            <h4 style="margin:8px 0 4px;">{% trans "عربيتك سليمة!" %}</h4>
+            <p style="color:var(--muted); margin:0; font-size:0.88rem;">{% trans "مفيش أي كود عطل مخزّن. الـ ECU نظيف." %}</p>
         </div>`;
     } else {
-        html += `<div style="margin-bottom:10px; color:var(--muted); font-size:0.85rem;">${data.diagnoses.length} عطل تم كشفه:</div>`;
+        html += `<div style="margin-bottom:10px; color:var(--muted); font-size:0.85rem;">${data.diagnoses.length} {% trans "عطل تم كشفه:" %}</div>`;
         for (const d of data.diagnoses) {
             html += `<div style="background:rgba(10,19,32,0.6); border:1px solid var(--line); border-right:4px solid ${d.severity_color}; border-radius:12px; padding:14px 16px; margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
@@ -518,7 +518,7 @@ function renderResult(data) {
                 ${d.guided_steps && d.guided_steps.length ? `
                     <details style="margin-top:10px;">
                         <summary style="cursor:pointer; color:var(--accent); font-size:0.88rem; font-weight:700;">
-                            <i class="fas fa-list-check"></i> خطوات الفحص (${d.guided_steps.length})
+                            <i class="fas fa-list-check"></i> {% trans "خطوات الفحص" %} (${d.guided_steps.length})
                         </summary>
                         <ol style="margin:8px 0 0 0; padding-right:18px; color:var(--muted); font-size:0.88rem; line-height:1.8;">
                             ${d.guided_steps.map(s => `<li>${s.title || s.action || ''}</li>`).join('')}
@@ -526,14 +526,14 @@ function renderResult(data) {
                     </details>` : ''}
                 ${!d.known ? `<div style="margin-top:8px; font-size:0.85rem;">
                     <a href="/marketplace/?q=${encodeURIComponent('تشخيص ' + d.code)}" style="color:var(--accent);">
-                        <i class="fas fa-handshake"></i> اطلب عرض من ميكانيكي قريب
+                        <i class="fas fa-handshake"></i> {% trans "اطلب عرض من ميكانيكي قريب" %}
                     </a></div>` : ''}
             </div>`;
         }
         html += `<div style="margin-top:14px; padding:14px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:12px;">
             <i class="fas fa-lightbulb" style="color:var(--accent);"></i>
-            <b>محتاج فني؟</b> اعمل طلب على السوق والميكانيكية هيتنافسوا على عرضك.
-            <a href="/marketplace/dashboard/" style="color:var(--accent); font-weight:800; margin-right:6px;">اطلب الآن →</a>
+            <b>{% trans "محتاج فني؟" %}</b> {% trans "اعمل طلب على السوق والميكانيكية هيتنافسوا على عرضك." %}
+            <a href="/marketplace/dashboard/" style="color:var(--accent); font-weight:800; margin-right:6px;">{% trans "اطلب الآن →" %}</a>
         </div>`;
     }
     html += `</div>`;
