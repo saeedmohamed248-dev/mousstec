@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-20 18:58+0300\n"
+"POT-Creation-Date: 2026-07-20 18:59+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1177,7 +1177,7 @@ msgid "السعر (ج.م)"
 msgstr "Price (EGP)"
 
 msgid "فترة الضمان (يوم)"
-msgstr ""
+msgstr "Warranty period (days)"
 
 msgid "بعد التسليم — كلما طالت الفترة زادت ثقة المشتري (الحد الأقصى 90 يوم)"
 msgstr ""
@@ -7530,6 +7530,53 @@ msgstr "Priority technical support"
 msgid "تواصل معنا"
 msgstr "Contact us"
 
+msgid "ضيف"
+msgstr "Guest"
+
+msgid "شات"
+msgstr "Chat"
+
+msgid "الشات الحي"
+msgstr "Live chat"
+
+msgid "بدأت:"
+msgstr "Started:"
+
+msgid "الحالة:"
+msgstr "Status:"
+
+msgid "اكتب ردك..."
+msgstr "Type your reply..."
+
+msgid "📤 إرسال"
+msgstr "📤 Send"
+
+msgid "غلق الجلسة؟"
+msgstr "Close the session?"
+
+msgid "🔒 إنهاء الجلسة"
+msgstr "🔒 End session"
+
+msgid "🔒 هذه الجلسة مغلقة"
+msgstr "🔒 This session is closed"
+
+msgid "تعديل قطعة"
+msgstr "Edit part"
+
+msgid "المعروضات النشطة"
+msgstr "Active listings"
+
+#, python-format
+msgid "✏️ تعديل المعروضة #%(id)s"
+msgstr "✏️ Edit listing #%(id)s"
+
+msgid ""
+"تعديل إداري يتجاوز ملكية البائع — يُستخدم لتصحيح المخالفات أو الأخطاء الواضحة."
+msgstr "Administrative edit that overrides seller ownership — used to correct violations or obvious errors."
+
+msgid "رقم القطعة (OEM)"
+msgstr "Part number (OEM)"
+
 msgid "تأسيس مؤسسة سحابية جديدة"
 msgstr "Set up a new cloud organization"
 
@@ -7689,9 +7736,6 @@ msgstr "Support inbox"
 
 msgid "تذاكر • Help Form"
 msgstr "Tickets • Help Form"
-
-msgid "الشات الحي"
-msgstr "Live chat"
 
 msgid "9-5 ع.م • جمعة مغلق"
 msgstr "9-5 PM • Friday closed"
@@ -8731,9 +8775,6 @@ msgstr "📨 Contact support"
 
 msgid "رسالتك..."
 msgstr "Your message..."
-
-msgid "📤 إرسال"
-msgstr "📤 Send"
 
 msgid "✅ تم الإرسال"
 msgstr "✅ Sent"

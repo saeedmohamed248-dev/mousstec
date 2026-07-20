@@ -2790,5 +2790,19 @@
   "📜 تاريخ المحادثات — Mouss Tec": "📜 Chat history — Mouss Tec",
   "📜 تاريخ المحادثات": "📜 Chat history",
   "محادثة بدون عنوان": "Untitled conversation",
-  "مفيش محادثات لسه.": "No conversations yet."
+  "مفيش محادثات لسه.": "No conversations yet.",
+  "تعديل قطعة": "Edit part",
+  "المعروضات النشطة": "Active listings",
+  "✏️ تعديل المعروضة #%(id)s": "✏️ Edit listing #%(id)s",
+  "تعديل إداري يتجاوز ملكية البائع — يُستخدم لتصحيح المخالفات أو الأخطاء الواضحة.": "Administrative edit that overrides seller ownership — used to correct violations or obvious errors.",
+  "رقم القطعة (OEM)": "Part number (OEM)",
+  "فترة الضمان (يوم)": "Warranty period (days)",
+  "شات": "Chat",
+  "ضيف": "Guest",
+  "بدأت:": "Started:",
+  "الحالة:": "Status:",
+  "اكتب ردك...": "Type your reply...",
+  "غلق الجلسة؟": "Close the session?",
+  "🔒 إنهاء الجلسة": "🔒 End session",
+  "🔒 هذه الجلسة مغلقة": "🔒 This session is closed"
 }
