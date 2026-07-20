@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>باقات التشخيص | Mouss Tec</title>
+    <title>{% trans "باقات التشخيص | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -22,7 +23,7 @@
         .tier-card { background:var(--card); backdrop-filter:blur(16px); border:1px solid var(--line); border-radius:20px; padding:32px 24px; position:relative; transition:0.3s; display:flex; flex-direction:column; }
         .tier-card:hover { transform:translateY(-6px); border-color:rgba(245,158,11,0.4); }
         .tier-card.featured { border:2px solid var(--accent); background:linear-gradient(135deg, rgba(245,158,11,0.12), rgba(239,68,68,0.08)); }
-        .tier-card.featured::before { content:'الأكثر طلباً'; position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#0a1320; padding:6px 16px; border-radius:999px; font-weight:900; font-size:0.78rem; }
+        .tier-card.featured::before { content:'{% trans "الأكثر طلباً" %}'; position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#0a1320; padding:6px 16px; border-radius:999px; font-weight:900; font-size:0.78rem; }
         .tier-card.current { border:2px solid var(--success); }
         .tier-name { font-size:1.4rem; font-weight:900; margin-bottom:6px; }
         .tier-target { color:var(--muted); font-size:0.88rem; margin-bottom:18px; }
@@ -51,20 +52,20 @@
 
 <div class="topbar">
     <div class="brand"><i class="fas fa-stethoscope"></i> Mouss Tec</div>
-    <a href="/marketplace/diagnostics/"><i class="fas fa-arrow-right"></i> الرجوع</a>
+    <a href="/marketplace/diagnostics/"><i class="fas fa-arrow-right"></i> {% trans "الرجوع" %}</a>
 </div>
 
 <div class="wrap">
     <div class="hero">
-        <h1>اختار الباقة المناسبة لعربيتك</h1>
-        <p>كل الباقات بتشغّل تشخيص الـ AI، تاريخ السيارة، وخطط الفحص — الفرق في الـ Live Data والكمية.</p>
+        <h1>{% trans "اختار الباقة المناسبة لعربيتك" %}</h1>
+        <p>{% trans "كل الباقات بتشغّل تشخيص الـ AI، تاريخ السيارة، وخطط الفحص — الفرق في الـ Live Data والكمية." %}</p>
         {% if current_tier == 'trial' and days_remaining > 0 %}
         <div class="trial-banner">
-            <i class="fas fa-gift"></i> أنت في التجربة المجانية — متبقي {{ days_remaining }} يوم
+            <i class="fas fa-gift"></i> {% blocktrans with d=days_remaining %}أنت في التجربة المجانية — متبقي {{ d }} يوم{% endblocktrans %}
         </div>
         {% elif current_tier and current_tier != 'trial' and current_tier != 'expired' %}
         <div class="trial-banner">
-            <i class="fas fa-crown"></i> باقتك الحالية: {{ sub.get_tier_display }} — متبقي {{ days_remaining }} يوم
+            <i class="fas fa-crown"></i> {% blocktrans with tier=sub.get_tier_display d=days_remaining %}باقتك الحالية: {{ tier }} — متبقي {{ d }} يوم{% endblocktrans %}
         </div>
         {% endif %}
     </div>
@@ -78,56 +79,56 @@
                 {% else %}<i class="fas fa-crown" style="color:var(--accent);"></i> Empire{% endif %}
             </div>
             <div class="tier-target">
-                {% if tier.key == 'basic' %}للمستخدم العادي — سيارة واحدة
-                {% elif tier.key == 'pro' %}للمستخدم النشط — يشخّص بانتظام
-                {% else %}للأسطول وعشاق العربيات{% endif %}
+                {% if tier.key == 'basic' %}{% trans "للمستخدم العادي — سيارة واحدة" %}
+                {% elif tier.key == 'pro' %}{% trans "للمستخدم النشط — يشخّص بانتظام" %}
+                {% else %}{% trans "للأسطول وعشاق العربيات" %}{% endif %}
             </div>
             <div class="price-block">
                 <span class="price-num">{{ tier.price_egp|floatformat:0 }}</span>
-                <span class="price-unit">ج / شهر</span>
+                <span class="price-unit">{% trans "ج / شهر" %}</span>
             </div>
             <ul class="features">
-                <li><i class="fas fa-check-circle"></i> {{ tier.quota }} سكان شهرياً</li>
-                <li><i class="fas fa-check-circle"></i> تشخيص بالذكاء الاصطناعي</li>
+                <li><i class="fas fa-check-circle"></i> {% blocktrans with q=tier.quota %}{{ q }} سكان شهرياً{% endblocktrans %}</li>
+                <li><i class="fas fa-check-circle"></i> {% trans "تشخيص بالذكاء الاصطناعي" %}</li>
                 <li class="{% if 'vehicle_history' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'vehicle_history' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    تاريخ السيارة الكامل
+                    {% trans "تاريخ السيارة الكامل" %}
                 </li>
                 <li class="{% if 'live_data' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'live_data' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    بث مباشر OBD (RPM، حرارة، بطارية)
+                    {% trans "بث مباشر OBD (RPM، حرارة، بطارية)" %}
                 </li>
                 <li class="{% if 'pdf_reports' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'pdf_reports' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    تقارير PDF مفصّلة
+                    {% trans "تقارير PDF مفصّلة" %}
                 </li>
                 <li class="{% if 'tech_chat' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'tech_chat' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    شات مباشر مع فني خبير
+                    {% trans "شات مباشر مع فني خبير" %}
                 </li>
                 <li class="{% if 'multi_vehicle' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'multi_vehicle' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    سيارات متعددة
+                    {% trans "سيارات متعددة" %}
                 </li>
                 <li class="{% if 'parts_rewards' not in tier.features %}dim{% endif %}">
                     <i class="fas fa-{% if 'parts_rewards' in tier.features %}check-circle{% else %}circle-minus{% endif %}"></i>
-                    مكافآت قطع غيار
+                    {% trans "مكافآت قطع غيار" %}
                 </li>
             </ul>
             {% if tier.key == current_tier %}
-                <div class="btn-current"><i class="fas fa-check"></i> باقتك الحالية</div>
+                <div class="btn-current"><i class="fas fa-check"></i> {% trans "باقتك الحالية" %}</div>
             {% else %}
                 <a href="/marketplace/diagnostics/upgrade/{{ tier.key }}/" class="btn-buy">
                     <i class="fas fa-credit-card"></i>
                     {% if current_tier == 'trial' or current_tier == 'expired' %}
-                        اشترك بالفيزا
+                        {% trans "اشترك بالفيزا" %}
                     {% else %}
-                        غيّر بالفيزا
+                        {% trans "غيّر بالفيزا" %}
                     {% endif %}
                 </a>
                 <a href="/payment/manual/diagnostics/{{ tier.key }}/start/"
                    style="display:block; margin-top:8px; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; font-weight:800; padding:12px 20px; border-radius:14px; text-align:center; text-decoration:none; box-shadow:0 6px 20px rgba(239,68,68,0.25);">
-                    <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
+                    <i class="fas fa-mobile-screen-button"></i> {% trans "ادفع بفودافون كاش" %}
                 </a>
             {% endif %}
         </div>
@@ -135,26 +136,26 @@
     </div>
 
     <p class="compare-note">
-        💡 سعر السكان عند ميكانيكي = <strong>150–400 ج</strong> للمرة الواحدة. ببساطة، أنت بتشخّص بنفسك بأقل من سكان واحد.
+        {% trans "💡 سعر السكان عند ميكانيكي =" %} <strong>{% trans "150–400 ج" %}</strong> {% trans "للمرة الواحدة. ببساطة، أنت بتشخّص بنفسك بأقل من سكان واحد." %}
     </p>
 
     <div class="faq">
-        <h2>أسئلة شائعة</h2>
+        <h2>{% trans "أسئلة شائعة" %}</h2>
         <div class="faq-item">
-            <h4><i class="fas fa-question-circle"></i> هل أحتاج جهاز OBD؟</h4>
-            <p>أيوه — تحتاج جهاز ELM327 Bluetooth (متوفر في السوق من 150 ج تقريباً). بمجرد ما توصله بالكونيكتور تحت الطبلون، الموقع بيتصل بيه من المتصفح مباشرة.</p>
+            <h4><i class="fas fa-question-circle"></i> {% trans "هل أحتاج جهاز OBD؟" %}</h4>
+            <p>{% trans "أيوه — تحتاج جهاز ELM327 Bluetooth (متوفر في السوق من 150 ج تقريباً). بمجرد ما توصله بالكونيكتور تحت الطبلون، الموقع بيتصل بيه من المتصفح مباشرة." %}</p>
         </div>
         <div class="faq-item">
-            <h4><i class="fas fa-question-circle"></i> هل أقدر ألغي الاشتراك في أي وقت؟</h4>
-            <p>أيوه. الفلوس بترجع للأيام الباقية لو ألغيت قبل التجديد التلقائي.</p>
+            <h4><i class="fas fa-question-circle"></i> {% trans "هل أقدر ألغي الاشتراك في أي وقت؟" %}</h4>
+            <p>{% trans "أيوه. الفلوس بترجع للأيام الباقية لو ألغيت قبل التجديد التلقائي." %}</p>
         </div>
         <div class="faq-item">
-            <h4><i class="fas fa-question-circle"></i> إيه الفرق بين الباقات؟</h4>
-            <p>الفرق الرئيسي: <strong>عدد السكانات</strong> و<strong>الـ Live Data</strong> (Pro وEmpire بس). تقدر تبدأ بـ Basic وترقّي لاحقاً بدون فقدان رصيدك.</p>
+            <h4><i class="fas fa-question-circle"></i> {% trans "إيه الفرق بين الباقات؟" %}</h4>
+            <p>{% trans "الفرق الرئيسي:" %} <strong>{% trans "عدد السكانات" %}</strong> {% trans "و" %}<strong>{% trans "الـ Live Data" %}</strong> {% trans "(Pro وEmpire بس). تقدر تبدأ بـ Basic وترقّي لاحقاً بدون فقدان رصيدك." %}</p>
         </div>
         <div class="faq-item">
-            <h4><i class="fas fa-question-circle"></i> الأسعار مقارنة بمين؟</h4>
-            <p>Carista العالمي = ~300 ج/شهر. ميكانيكي السكان = 150-400 ج/مرة. أسعارنا أرخص <strong>وبالعربي</strong> و<strong>بأسعار قطع الغيار المصرية</strong>.</p>
+            <h4><i class="fas fa-question-circle"></i> {% trans "الأسعار مقارنة بمين؟" %}</h4>
+            <p>{% trans "Carista العالمي = ~300 ج/شهر. ميكانيكي السكان = 150-400 ج/مرة. أسعارنا أرخص" %} <strong>{% trans "وبالعربي" %}</strong> {% trans "و" %}<strong>{% trans "بأسعار قطع الغيار المصرية" %}</strong>.</p>
         </div>
     </div>
 </div>

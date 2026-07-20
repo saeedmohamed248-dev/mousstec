@@ -1,10 +1,10 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوق قطع الغيار | Mouss Tec</title>
+    <title>{% trans "سوق قطع الغيار | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -93,33 +93,33 @@
 <div class="topbar">
     <div class="brand">
         <span class="icon"><i class="fas fa-cogs" style="color:#0b1020;"></i></span>
-        سوق قطع الغيار
+        {% trans "سوق قطع الغيار" %}
     </div>
     <div class="top-actions">
-        <a href="/marketplace/"><i class="fas fa-home"></i> داش بوردي</a>
+        <a href="/marketplace/"><i class="fas fa-home"></i> {% trans "داش بوردي" %}</a>
         {% if customer %}
-        <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> طلباتي</a>
-        <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
-        <a href="/marketplace/parts/sell/" class="primary"><i class="fas fa-plus"></i> اعرض قطعة</a>
+        <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> {% trans "طلباتي" %}</a>
+        <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> {% trans "مبيعاتي" %}</a>
+        <a href="/marketplace/parts/sell/" class="primary"><i class="fas fa-plus"></i> {% trans "اعرض قطعة" %}</a>
         {% else %}
-        <a href="/marketplace/login/" class="primary"><i class="fas fa-sign-in-alt"></i> دخول</a>
+        <a href="/marketplace/login/" class="primary"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
         {% endif %}
     </div>
 </div>
 
 <div class="wrap">
-    <h1>🛒 سوق قطع غيار السيارات</h1>
-    <p class="subtitle">قطع مع ضمان رد المال — الفلوس آمنة في الـ Escrow حتى تتأكد من القطعة.</p>
+    <h1>{% trans "🛒 سوق قطع غيار السيارات" %}</h1>
+    <p class="subtitle">{% trans "قطع مع ضمان رد المال — الفلوس آمنة في الـ Escrow حتى تتأكد من القطعة." %}</p>
 
     <!-- Makes filter strip -->
     <div class="makes-strip">
         <a href="/marketplace/parts/" class="make-chip {% if not selected_make %}active{% endif %}">
-            <i class="fas fa-th"></i><br>الكل
+            <i class="fas fa-th"></i><br>{% trans "الكل" %}
         </a>
         {% for m in makes %}
         <a href="?make={{ m.slug }}" class="make-chip {% if selected_make and selected_make.slug == m.slug %}active{% endif %}">
             {{ m.name }}
-            {% if m.listings_count %}<span class="count">{{ m.listings_count }} قطعة</span>{% endif %}
+            {% if m.listings_count %}<span class="count">{% blocktrans with n=m.listings_count %}{{ n }} قطعة{% endblocktrans %}</span>{% endif %}
         </a>
         {% endfor %}
     </div>
@@ -127,19 +127,19 @@
     <!-- Text filter -->
     <form method="get" class="filter-row">
         {% if selected_make_slug %}<input type="hidden" name="make" value="{{ selected_make_slug }}">{% endif %}
-        <input type="search" name="q" value="{{ q }}" placeholder="ابحث: اسم قطعة، موديل، رقم OEM...">
+        <input type="search" name="q" value="{{ q }}" placeholder="{% trans "ابحث: اسم قطعة، موديل، رقم OEM..." %}">
         <select name="condition">
-            <option value="">كل الحالات</option>
+            <option value="">{% trans "كل الحالات" %}</option>
             {% for val, lbl in condition_choices %}
             <option value="{{ val }}" {% if condition == val %}selected{% endif %}>{{ lbl }}</option>
             {% endfor %}
         </select>
         <select name="sort">
-            <option value="new" {% if sort == 'new' %}selected{% endif %}>الأحدث</option>
-            <option value="price_low" {% if sort == 'price_low' %}selected{% endif %}>الأرخص</option>
-            <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>الأغلى</option>
+            <option value="new" {% if sort == 'new' %}selected{% endif %}>{% trans "الأحدث" %}</option>
+            <option value="price_low" {% if sort == 'price_low' %}selected{% endif %}>{% trans "الأرخص" %}</option>
+            <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>{% trans "الأغلى" %}</option>
         </select>
-        <button type="submit" class="submit"><i class="fas fa-filter"></i> فلتر</button>
+        <button type="submit" class="submit"><i class="fas fa-filter"></i> {% trans "فلتر" %}</button>
     </form>
 
     {% if listings %}
@@ -156,10 +156,10 @@
             <div class="card-body">
                 <h3 class="card-title">{{ l.title }}</h3>
                 <div class="card-make">{{ l.car_make.name }}{% if l.car_model %} — {{ l.car_model }}{% endif %}</div>
-                <div class="card-price">{{ l.price_egp|floatformat:0 }} ج.م</div>
+                <div class="card-price">{{ l.price_egp|floatformat:0 }} {% trans "ج.م" %}</div>
                 <div class="card-meta">
                     <span><i class="fas fa-{% if l.condition == 'new' %}sparkles{% else %}wrench{% endif %}"></i> {{ l.get_condition_display }}</span>
-                    <span class="badge-warranty"><i class="fas fa-shield-halved"></i> {{ l.warranty_days }} يوم</span>
+                    <span class="badge-warranty"><i class="fas fa-shield-halved"></i> {{ l.warranty_days }} {% trans "يوم" %}</span>
                 </div>
             </div>
         </a>
@@ -168,11 +168,11 @@
     {% else %}
     <div class="empty">
         <i class="fas fa-box-open"></i>
-        <h3>لا توجد قطع متاحة بالفلتر ده</h3>
-        <p>جرّب فلتر تاني أو ابقى أول واحد يعرض قطعة!</p>
+        <h3>{% trans "لا توجد قطع متاحة بالفلتر ده" %}</h3>
+        <p>{% trans "جرّب فلتر تاني أو ابقى أول واحد يعرض قطعة!" %}</p>
         {% if customer %}
         <a href="/marketplace/parts/sell/" style="display:inline-block; margin-top:12px; background:var(--accent); color:#0b1020; padding:10px 22px; border-radius:12px; font-weight:800; text-decoration:none;">
-            <i class="fas fa-plus"></i> اعرض قطعة الآن
+            <i class="fas fa-plus"></i> {% trans "اعرض قطعة الآن" %}
         </a>
         {% endif %}
     </div>

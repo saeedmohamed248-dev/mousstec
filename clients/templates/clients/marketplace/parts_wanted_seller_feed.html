@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طلبات المشترين | سوق قطع الغيار</title>
+    <title>{% trans "طلبات المشترين | سوق قطع الغيار" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -49,39 +50,39 @@
 </head>
 <body>
 <div class="topbar">
-    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> رجوع للسوق</a>
-    <div style="color:var(--accent);font-weight:900">🛒 طلبات المشترين</div>
+    <a class="back" href="/marketplace/parts/"><i class="fa fa-arrow-right"></i> {% trans "رجوع للسوق" %}</a>
+    <div style="color:var(--accent);font-weight:900">{% trans "🛒 طلبات المشترين" %}</div>
 </div>
 
 <div class="wrap">
-    <h1>طلبات المشترين الحالية</h1>
-    <p class="subtitle">قطع غيار مطلوبة الآن — افلتر بمواصفات السيارة اللي عندك مخزون لها.</p>
+    <h1>{% trans "طلبات المشترين الحالية" %}</h1>
+    <p class="subtitle">{% trans "قطع غيار مطلوبة الآن — افلتر بمواصفات السيارة اللي عندك مخزون لها." %}</p>
 
     <form class="filter-card" method="get">
         <div class="filter-grid">
             <div>
-                <label>الماركة</label>
+                <label>{% trans "الماركة" %}</label>
                 <select name="make">
-                    <option value="">— الكل —</option>
+                    <option value="">{% trans "— الكل —" %}</option>
                     {% for m in makes %}
                         <option value="{{ m.slug }}" {% if filters.make_slug == m.slug %}selected{% endif %}>{{ m.name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label>الموديل</label>
+                <label>{% trans "الموديل" %}</label>
                 <input type="text" name="model" value="{{ filters.model }}" placeholder="F30, X5, Civic">
             </div>
             <div>
-                <label>السنة</label>
+                <label>{% trans "السنة" %}</label>
                 <input type="number" name="year" value="{{ filters.year }}" min="1950" max="2030" placeholder="2015">
             </div>
             <div>
-                <label>كود الموتور</label>
+                <label>{% trans "كود الموتور" %}</label>
                 <input type="text" name="engine_code" value="{{ filters.engine_code }}" placeholder="N13">
             </div>
             <div>
-                <button class="btn" type="submit"><i class="fa fa-filter"></i> فلتر</button>
+                <button class="btn" type="submit"><i class="fa fa-filter"></i> {% trans "فلتر" %}</button>
             </div>
         </div>
     </form>
@@ -103,9 +104,9 @@
                     {% if r.description %}<div class="desc">{{ r.description|truncatechars:120 }}</div>{% endif %}
                     <div class="meta-row">
                         {% if r.max_budget_egp %}
-                            <span>💰 ميزانية: <span class="budget">{{ r.max_budget_egp }} ج.م</span></span>
+                            <span>{% trans "💰 ميزانية:" %} <span class="budget">{{ r.max_budget_egp }} {% trans "ج.م" %}</span></span>
                         {% endif %}
-                        <span class="expires">⏰ ينتهي {{ r.expires_at|date:"Y-m-d" }}</span>
+                        <span class="expires">{% blocktrans with d=r.expires_at|date:"Y-m-d" %}⏰ ينتهي {{ d }}{% endblocktrans %}</span>
                     </div>
                 </div>
             {% endfor %}
@@ -113,7 +114,7 @@
     {% else %}
         <div class="empty">
             <i class="fa fa-search" style="font-size:48px;color:var(--muted);opacity:0.4"></i>
-            <p>مفيش طلبات مطابقة للفلتر دلوقتي.</p>
+            <p>{% trans "مفيش طلبات مطابقة للفلتر دلوقتي." %}</p>
         </div>
     {% endif %}
 </div>

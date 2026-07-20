@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🖨️ طلباتي للطباعة | Mouss Tec</title>
+    <title>{% trans "🖨️ طلباتي للطباعة | Mouss Tec" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -111,27 +112,27 @@
 <body>
 
 <div class="topbar">
-    <div class="brand">🖨️ طلباتي للطباعة</div>
+    <div class="brand">{% trans "🖨️ طلباتي للطباعة" %}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
-        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> المتجر</a>
-        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+        <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> {% trans "تصاميمي" %}</a>
+        <a href="/marketplace/design-store/"><i class="fas fa-shopping-bag"></i> {% trans "المتجر" %}</a>
+        <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> {% trans "لوحتي" %}</a>
     </div>
 </div>
 
 <div class="container-x">
 
     <div class="hero">
-        <h1>تابع طلبات الطباعة من البداية للتسليم</h1>
-        <p>كل طلب بعتته للمطبعة هتلاقيه هنا — بحالته الحالية، السعر المقترح، ومتى يتوقع تسليمه.</p>
+        <h1>{% trans "تابع طلبات الطباعة من البداية للتسليم" %}</h1>
+        <p>{% trans "كل طلب بعتته للمطبعة هتلاقيه هنا — بحالته الحالية، السعر المقترح، ومتى يتوقع تسليمه." %}</p>
     </div>
 
     <!-- Summary chips -->
     <div class="summary-row">
-        <div class="sum-card total"><div class="n">{{ summary.total }}</div><div class="l">إجمالي الطلبات</div></div>
-        <div class="sum-card active"><div class="n">{{ summary.active }}</div><div class="l">طلبات نشطة</div></div>
-        <div class="sum-card delivered"><div class="n">{{ summary.delivered }}</div><div class="l">تم التسليم</div></div>
-        <div class="sum-card cancelled"><div class="n">{{ summary.cancelled }}</div><div class="l">ملغاة</div></div>
+        <div class="sum-card total"><div class="n">{{ summary.total }}</div><div class="l">{% trans "إجمالي الطلبات" %}</div></div>
+        <div class="sum-card active"><div class="n">{{ summary.active }}</div><div class="l">{% trans "طلبات نشطة" %}</div></div>
+        <div class="sum-card delivered"><div class="n">{{ summary.delivered }}</div><div class="l">{% trans "تم التسليم" %}</div></div>
+        <div class="sum-card cancelled"><div class="n">{{ summary.cancelled }}</div><div class="l">{% trans "ملغاة" %}</div></div>
     </div>
 
     {% if orders %}
@@ -163,45 +164,45 @@
                 </div>
 
                 <div class="order-meta">
-                    <strong>كمية:</strong> {{ o.quantity }}
-                    {% if o.paper_type %} · <strong>خامة:</strong> {{ o.paper_type }}{% endif %}
-                    {% if o.finishing %} · <strong>تشطيب:</strong> {{ o.finishing }}{% endif %}
+                    <strong>{% trans "كمية:" %}</strong> {{ o.quantity }}
+                    {% if o.paper_type %} · <strong>{% trans "خامة:" %}</strong> {{ o.paper_type }}{% endif %}
+                    {% if o.finishing %} · <strong>{% trans "تشطيب:" %}</strong> {{ o.finishing }}{% endif %}
                     <br>
-                    <strong>تاريخ الطلب:</strong> {{ o.created_at|date:"d/m/Y H:i" }}
-                    {% if o.delivery_address %} · <strong>التوصيل:</strong> {{ o.delivery_address|truncatechars:50 }}{% endif %}
+                    <strong>{% trans "تاريخ الطلب:" %}</strong> {{ o.created_at|date:"d/m/Y H:i" }}
+                    {% if o.delivery_address %} · <strong>{% trans "التوصيل:" %}</strong> {{ o.delivery_address|truncatechars:50 }}{% endif %}
                 </div>
 
                 {% if o.quoted_price %}
                 <div class="order-quote">
-                    <i class="fas fa-coins"></i> سعر مقترح: <strong>{{ o.quoted_price|floatformat:0 }} ج.م</strong>
+                    <i class="fas fa-coins"></i> {% trans "سعر مقترح:" %} <strong>{{ o.quoted_price|floatformat:0 }} {% trans "ج.م" %}</strong>
                 </div>
                 {% endif %}
 
                 {% if not o.is_cancelled %}
-                <div class="timeline" title="مسار الطلب">
+                <div class="timeline" title="{% trans "مسار الطلب" %}">
                     {% with s=o.status_step %}
                     <div class="step {% if s >= 1 %}{% if s == 1 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">1</div><div class="label">انتظار</div>
+                        <div class="dot">1</div><div class="label">{% trans "انتظار" %}</div>
                     </div>
                     <div class="step-line {% if s > 1 %}done{% endif %}"></div>
                     <div class="step {% if s >= 2 %}{% if s == 2 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">2</div><div class="label">عرض سعر</div>
+                        <div class="dot">2</div><div class="label">{% trans "عرض سعر" %}</div>
                     </div>
                     <div class="step-line {% if s > 2 %}done{% endif %}"></div>
                     <div class="step {% if s >= 3 %}{% if s == 3 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">3</div><div class="label">قبول</div>
+                        <div class="dot">3</div><div class="label">{% trans "قبول" %}</div>
                     </div>
                     <div class="step-line {% if s > 3 %}done{% endif %}"></div>
                     <div class="step {% if s >= 4 %}{% if s == 4 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">4</div><div class="label">قيد الطباعة</div>
+                        <div class="dot">4</div><div class="label">{% trans "قيد الطباعة" %}</div>
                     </div>
                     <div class="step-line {% if s > 4 %}done{% endif %}"></div>
                     <div class="step {% if s >= 5 %}{% if s == 5 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">5</div><div class="label">شحن</div>
+                        <div class="dot">5</div><div class="label">{% trans "شحن" %}</div>
                     </div>
                     <div class="step-line {% if s > 5 %}done{% endif %}"></div>
                     <div class="step {% if s >= 6 %}{% if s == 6 %}current{% else %}done{% endif %}{% endif %}">
-                        <div class="dot">6</div><div class="label">تسليم</div>
+                        <div class="dot">6</div><div class="label">{% trans "تسليم" %}</div>
                     </div>
                     {% endwith %}
                 </div>
@@ -210,17 +211,17 @@
                 <div class="order-actions">
                     {% if o.print_spec_pdf %}
                     <a class="btn btn-secondary" href="{{ o.print_spec_pdf.url }}" target="_blank">
-                        <i class="fas fa-file-pdf"></i> PDF المواصفات
+                        <i class="fas fa-file-pdf"></i> {% trans "PDF المواصفات" %}
                     </a>
                     {% endif %}
                     {% if o.design %}
                     <a class="btn btn-secondary" href="/marketplace/design-store/{{ o.design.design_code }}/download/png/" target="_blank">
-                        <i class="fas fa-image"></i> التصميم
+                        <i class="fas fa-image"></i> {% trans "التصميم" %}
                     </a>
                     {% endif %}
                     {% if o.delivery_phone %}
                     <a class="btn btn-warning" href="https://wa.me/2{{ o.delivery_phone }}" target="_blank">
-                        <i class="fab fa-whatsapp"></i> واتساب
+                        <i class="fab fa-whatsapp"></i> {% trans "واتساب" %}
                     </a>
                     {% endif %}
                 </div>
@@ -231,10 +232,10 @@
     {% else %}
     <div class="empty">
         <i class="fas fa-print"></i>
-        <h3>مفيش طلبات طباعة لسه</h3>
-        <p>اعمل تصميم في الـ AI Studio وابعته للمطبعة، وهتقدر تتابعه هنا خطوة بخطوة.</p>
+        <h3>{% trans "مفيش طلبات طباعة لسه" %}</h3>
+        <p>{% trans "اعمل تصميم في الـ AI Studio وابعته للمطبعة، وهتقدر تتابعه هنا خطوة بخطوة." %}</p>
         <a href="/marketplace/design-store/my-designs/" class="btn btn-primary">
-            <i class="fas fa-wand-magic-sparkles"></i> ابدأ تصميم جديد
+            <i class="fas fa-wand-magic-sparkles"></i> {% trans "ابدأ تصميم جديد" %}
         </a>
     </div>
     {% endif %}

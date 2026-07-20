@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-19 22:14+0300\n"
+"POT-Creation-Date: 2026-07-20 13:43+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -541,13 +541,13 @@ msgid "العميل قبل العرض"
 msgstr ""
 
 msgid "قيد الطباعة"
-msgstr ""
+msgstr "Printing"
 
 msgid "تم الشحن"
 msgstr ""
 
 msgid "تم التسليم"
-msgstr ""
+msgstr "Delivered"
 
 msgid "ملغي"
 msgstr ""
@@ -999,7 +999,7 @@ msgid "هل هو العرض الفائز؟"
 msgstr ""
 
 msgid "عرض سعر"
-msgstr ""
+msgstr "Price quote"
 
 msgid "عروض أسعار التجار"
 msgstr ""
@@ -1119,7 +1119,7 @@ msgid "إلى سنة"
 msgstr ""
 
 msgid "كود الموتور"
-msgstr ""
+msgstr "Engine code"
 
 msgid "مثال: N13, N20, M54, K20A — حساس جداً لمطابقة قطع غيار محرك."
 msgstr ""
@@ -3911,7 +3911,9 @@ msgid "فشل الإرسال — حاول تاني."
 msgstr "Submission failed — try again."
 
 msgid "سوق السيارات | اطلب صيانة أو قطع غيار واستلم عروض من أفضل المراكز"
-msgstr "Automotive marketplace | Request maintenance or spare parts and receive offers from the best centers"
+msgstr ""
+"Automotive marketplace | Request maintenance or spare parts and receive "
+"offers from the best centers"
 
 msgid "سوق السيارات | Mouss Tec"
 msgstr "Automotive marketplace | Mouss Tec"
@@ -3926,12 +3928,15 @@ msgid "سيارات • صيانة • قطع غيار"
 msgstr "Cars • Maintenance • Spare parts"
 
 msgid "اطلب اللي محتاجه لعربيتك واستلم عروض من أفضل المراكز"
-msgstr "Request what you need for your car and receive offers from the best centers"
+msgstr ""
+"Request what you need for your car and receive offers from the best centers"
 
 msgid ""
 "قطع غيار، صيانة، فحص، أو تشخيص — التجار يتنافسوا عليك، اختار الأقرب والأرخص "
 "بضمان وتقييم"
-msgstr "Spare parts, maintenance, inspection, or diagnostics — merchants compete for you, choose the nearest and cheapest with warranty and rating"
+msgstr ""
+"Spare parts, maintenance, inspection, or diagnostics — merchants compete for "
+"you, choose the nearest and cheapest with warranty and rating"
 
 msgid "زيوت وفلاتر"
 msgstr "Oils and filters"
@@ -4020,7 +4025,10 @@ msgstr "Diagnose your car fault yourself — free for 7 days"
 msgid ""
 "ربط بلوتوث مع جهاز OBD2، تشخيص بالذكاء الاصطناعي، تاريخ صحي للسيارة، وخطط "
 "فحص خطوة-بخطوة. اشترك بعد التجربة من ٩٩ ج/شهر."
-msgstr "Bluetooth connection with an OBD2 device, AI diagnostics, a health history for the car, and step-by-step inspection plans. Subscribe after the trial from 99 EGP/month."
+msgstr ""
+"Bluetooth connection with an OBD2 device, AI diagnostics, a health history "
+"for the car, and step-by-step inspection plans. Subscribe after the trial "
+"from 99 EGP/month."
 
 msgid "اعرف أكتر"
 msgstr "Learn more"
@@ -4046,7 +4054,10 @@ msgstr "Welcome to the Mouss Tec Marketplace"
 msgid ""
 "السوق المفتوح بين العملاء والتجار — اختر القطاع المناسب لطلبك وابدأ تستلم "
 "عروض من أفضل التجار في غضون دقائق"
-msgstr "The open marketplace between customers and merchants — choose the right sector for your request and start receiving offers from the best merchants within minutes"
+msgstr ""
+"The open marketplace between customers and merchants — choose the right "
+"sector for your request and start receiving offers from the best merchants "
+"within minutes"
 
 msgid "سوق السيارات"
 msgstr "Automotive marketplace"
@@ -4095,6 +4106,209 @@ msgstr "Design samples before choosing"
 
 msgid "ادخل سوق الطباعة"
 msgstr "Enter the printing marketplace"
+
+msgid "🖨️ طلباتي للطباعة | Mouss Tec"
+msgstr "🖨️ My print orders | Mouss Tec"
+
+msgid "🖨️ طلباتي للطباعة"
+msgstr "🖨️ My print orders"
+
+msgid "تصاميمي"
+msgstr "My designs"
+
+msgid "المتجر"
+msgstr "Store"
+
+msgid "لوحتي"
+msgstr "My dashboard"
+
+msgid "تابع طلبات الطباعة من البداية للتسليم"
+msgstr "Track print orders from start to delivery"
+
+msgid ""
+"كل طلب بعتته للمطبعة هتلاقيه هنا — بحالته الحالية، السعر المقترح، ومتى يتوقع "
+"تسليمه."
+msgstr "Every order you sent to the print shop will appear here — with its current status, the proposed price, and when it is expected to be delivered."
+
+msgid "إجمالي الطلبات"
+msgstr "Total requests"
+
+msgid "طلبات نشطة"
+msgstr "Active orders"
+
+msgid "كمية:"
+msgstr "Quantity:"
+
+msgid "خامة:"
+msgstr "Material:"
+
+msgid "تشطيب:"
+msgstr "Finishing:"
+
+msgid "تاريخ الطلب:"
+msgstr "Order date:"
+
+msgid "التوصيل:"
+msgstr "Delivery:"
+
+msgid "سعر مقترح:"
+msgstr "Proposed price:"
+
+msgid "مسار الطلب"
+msgstr "Order path"
+
+msgid "انتظار"
+msgstr "Waiting"
+
+msgid "قبول"
+msgstr "Accept"
+
+msgid "شحن"
+msgstr "Top up"
+
+msgid "PDF المواصفات"
+msgstr "Specs PDF"
+
+msgid "التصميم"
+msgstr "Design"
+
+msgid "واتساب"
+msgstr "WhatsApp"
+
+msgid "مفيش طلبات طباعة لسه"
+msgstr "No print orders yet"
+
+msgid ""
+"اعمل تصميم في الـ AI Studio وابعته للمطبعة، وهتقدر تتابعه هنا خطوة بخطوة."
+msgstr "Create a design in AI Studio and send it to the print shop, and you will be able to track it here step by step."
+
+msgid "ابدأ تصميم جديد"
+msgstr "Start a new design"
+
+msgid "باقات التشخيص | Mouss Tec"
+msgstr "Diagnostics packages | Mouss Tec"
+
+msgid "الرجوع"
+msgstr "Back"
+
+msgid "اختار الباقة المناسبة لعربيتك"
+msgstr "Choose the right package for your car"
+
+msgid ""
+"كل الباقات بتشغّل تشخيص الـ AI، تاريخ السيارة، وخطط الفحص — الفرق في الـ Live "
+"Data والكمية."
+msgstr "All packages run AI diagnostics, car history, and inspection plans — the difference is in Live Data and quantity."
+
+#, python-format
+msgid "أنت في التجربة المجانية — متبقي %(d)s يوم"
+msgstr "You are in the free trial — %(d)s days remaining"
+
+#, python-format
+msgid "باقتك الحالية: %(tier)s — متبقي %(d)s يوم"
+msgstr "Your current package: %(tier)s — %(d)s days remaining"
+
+msgid "للمستخدم العادي — سيارة واحدة"
+msgstr "For the regular user — one car"
+
+msgid "للمستخدم النشط — يشخّص بانتظام"
+msgstr "For the active user — diagnoses regularly"
+
+msgid "للأسطول وعشاق العربيات"
+msgstr "For fleets and car enthusiasts"
+
+msgid "ج / شهر"
+msgstr "EGP / month"
+
+#, python-format
+msgid "%(q)s سكان شهرياً"
+msgstr "%(q)s scans per month"
+
+msgid "تشخيص بالذكاء الاصطناعي"
+msgstr "AI diagnostics"
+
+msgid "تاريخ السيارة الكامل"
+msgstr "Full car history"
+
+msgid "بث مباشر OBD (RPM، حرارة، بطارية)"
+msgstr "Live OBD stream (RPM, temperature, battery)"
+
+msgid "تقارير PDF مفصّلة"
+msgstr "Detailed PDF reports"
+
+msgid "شات مباشر مع فني خبير"
+msgstr "Live chat with an expert technician"
+
+msgid "سيارات متعددة"
+msgstr "Multiple cars"
+
+msgid "مكافآت قطع غيار"
+msgstr "Spare-parts rewards"
+
+msgid "اشترك بالفيزا"
+msgstr "Subscribe with Visa"
+
+msgid "غيّر بالفيزا"
+msgstr "Change with Visa"
+
+msgid "ادفع بفودافون كاش"
+msgstr "Pay with Vodafone Cash"
+
+msgid "💡 سعر السكان عند ميكانيكي ="
+msgstr "💡 The scan price at a mechanic ="
+
+msgid "150–400 ج"
+msgstr "150–400 EGP"
+
+msgid "للمرة الواحدة. ببساطة، أنت بتشخّص بنفسك بأقل من سكان واحد."
+msgstr "per single time. Simply put, you diagnose yourself for less than one scan."
+
+msgid "أسئلة شائعة"
+msgstr "Frequently asked questions"
+
+msgid "هل أحتاج جهاز OBD؟"
+msgstr "Do I need an OBD device?"
+
+msgid ""
+"أيوه — تحتاج جهاز ELM327 Bluetooth (متوفر في السوق من 150 ج تقريباً). بمجرد "
+"ما توصله بالكونيكتور تحت الطبلون، الموقع بيتصل بيه من المتصفح مباشرة."
+msgstr "Yes — you need an ELM327 Bluetooth device (available in the market from about 150 EGP). Once you connect it to the connector under the dashboard, the site connects to it directly from the browser."
+
+msgid "هل أقدر ألغي الاشتراك في أي وقت؟"
+msgstr "Can I cancel the subscription at any time?"
+
+msgid "أيوه. الفلوس بترجع للأيام الباقية لو ألغيت قبل التجديد التلقائي."
+msgstr "Yes. The money is refunded for the remaining days if you cancel before the automatic renewal."
+
+msgid "إيه الفرق بين الباقات؟"
+msgstr "What is the difference between the packages?"
+
+msgid "الفرق الرئيسي:"
+msgstr "The main difference:"
+
+msgid "عدد السكانات"
+msgstr "the number of scans"
+
+msgid "و"
+msgstr "and"
+
+msgid "الـ Live Data"
+msgstr "Live Data"
+
+msgid "(Pro وEmpire بس). تقدر تبدأ بـ Basic وترقّي لاحقاً بدون فقدان رصيدك."
+msgstr "(Pro and Empire only). You can start with Basic and upgrade later without losing your balance."
+
+msgid "الأسعار مقارنة بمين؟"
+msgstr "Compared to whom are the prices?"
+
+msgid ""
+"Carista العالمي = ~300 ج/شهر. ميكانيكي السكان = 150-400 ج/مرة. أسعارنا أرخص"
+msgstr "Global Carista = ~300 EGP/month. Mechanic scan = 150-400 EGP/time. Our prices are cheaper"
+
+msgid "وبالعربي"
+msgstr "and in Arabic"
+
+msgid "بأسعار قطع الغيار المصرية"
+msgstr "at Egyptian spare-parts prices"
 
 msgid "سوق قطع الغيار"
 msgstr "Spare-parts marketplace"
@@ -4199,6 +4413,61 @@ msgstr "Pay with Visa (Paymob)"
 msgid "جارٍ توجيهك لصفحة رفع الإيصال..."
 msgstr "Redirecting you to the receipt upload page..."
 
+msgid "سوق قطع الغيار | Mouss Tec"
+msgstr "Spare-parts marketplace | Mouss Tec"
+
+msgid "داش بوردي"
+msgstr "My dashboard"
+
+msgid "طلباتي"
+msgstr "My orders"
+
+msgid "مبيعاتي"
+msgstr "My sales"
+
+msgid "اعرض قطعة"
+msgstr "List a part"
+
+msgid "🛒 سوق قطع غيار السيارات"
+msgstr "🛒 Car spare-parts marketplace"
+
+msgid "قطع مع ضمان رد المال — الفلوس آمنة في الـ Escrow حتى تتأكد من القطعة."
+msgstr "Parts with a money-back guarantee — the money is safe in Escrow until you verify the part."
+
+msgid "الكل"
+msgstr "All"
+
+#, python-format
+msgid "%(n)s قطعة"
+msgstr "%(n)s parts"
+
+msgid "ابحث: اسم قطعة، موديل، رقم OEM..."
+msgstr "Search: part name, model, OEM number..."
+
+msgid "كل الحالات"
+msgstr "All statuses"
+
+msgid "الأحدث"
+msgstr "Newest"
+
+msgid "الأرخص"
+msgstr "Cheapest"
+
+msgid "الأغلى"
+msgstr "Most expensive"
+
+msgid "فلتر"
+msgstr "Filter"
+
+msgid "لا توجد قطع متاحة بالفلتر ده"
+msgstr "No parts available with this filter"
+
+msgid "جرّب فلتر تاني أو ابقى أول واحد يعرض قطعة!"
+msgstr "Try another filter or be the first to list a part!"
+
+msgid "اعرض قطعة الآن"
+msgstr "List a part now"
+
 msgid "سوق قطع الغيار غير متاح"
 msgstr "Spare-parts marketplace unavailable"
 
@@ -4208,8 +4477,38 @@ msgstr "⛔ Unavailable"
 msgid "العودة للسوق"
 msgstr "Back to marketplace"
 
+msgid "طلبات المشترين | سوق قطع الغيار"
+msgstr "Buyer requests | Spare-parts marketplace"
+
+msgid "🛒 طلبات المشترين"
+msgstr "🛒 Buyer requests"
+
+msgid "طلبات المشترين الحالية"
+msgstr "Current buyer requests"
+
+msgid "قطع غيار مطلوبة الآن — افلتر بمواصفات السيارة اللي عندك مخزون لها."
+msgstr "Spare parts wanted now — filter by the specs of the car you have stock for."
+
+msgid "— الكل —"
+msgstr "— All —"
+
+msgid "السنة"
+msgstr "Year"
+
+msgid "💰 ميزانية:"
+msgstr "💰 Budget:"
+
+#, python-format
+msgid "⏰ ينتهي %(d)s"
+msgstr "⏰ Ends %(d)s"
+
+msgid "مفيش طلبات مطابقة للفلتر دلوقتي."
+msgstr "No requests matching the filter right now."
+
 msgid "سوق الطباعة والتصميم | اطلب تصميمك واستلم عروض من أفضل المطابع"
-msgstr "Printing and design marketplace | Request your design and receive offers from the best print shops"
+msgstr ""
+"Printing and design marketplace | Request your design and receive offers "
+"from the best print shops"
 
 msgid "سوق الطباعة والتصميم | Mouss Tec"
 msgstr "Printing and design marketplace | Mouss Tec"
@@ -4218,12 +4517,16 @@ msgid "تصميم • طباعة • هوية بصرية"
 msgstr "Design • Printing • Visual identity"
 
 msgid "صمم وأطبع اللي تتخيله — مطابع ومصممين متنافسين عشانك"
-msgstr "Design and print whatever you imagine — print shops and designers competing for you"
+msgstr ""
+"Design and print whatever you imagine — print shops and designers competing "
+"for you"
 
 msgid ""
 "لوجو، فلاير، بوستر، كروت، طباعة T-shirt — اطلب اللي محتاجه، شوف العينات قبل "
 "ما تختار، وخد أفضل سعر بأعلى جودة"
-msgstr "Logo, flyer, poster, cards, T-shirt printing — request what you need, see the samples before you choose, and get the best price at the highest quality"
+msgstr ""
+"Logo, flyer, poster, cards, T-shirt printing — request what you need, see "
+"the samples before you choose, and get the best price at the highest quality"
 
 msgid "&nbsp; كروت بزنس"
 msgstr "&nbsp; Business cards"
@@ -4608,9 +4911,6 @@ msgstr "Transfer and upload a screenshot — instant activation after review"
 
 msgid "رقم التحويل"
 msgstr "Transfer number"
-
-msgid "ادفع بفودافون كاش"
-msgstr "Pay with Vodafone Cash"
 
 msgid "ارفع الإيصال"
 msgstr "upload the receipt"
@@ -5189,9 +5489,6 @@ msgstr "Desktop"
 msgid "ابحث بالاسم أو الباقة أو الحالة..."
 msgstr "Search by name, package, or status..."
 
-msgid "كل الحالات"
-msgstr "All statuses"
-
 msgid "نشطة"
 msgstr "Active"
 
@@ -5393,9 +5690,6 @@ msgstr "Design print requests — a customer designed and wants to print"
 msgid "سم"
 msgstr "cm"
 
-msgid "التصميم"
-msgstr "Design"
-
 msgid "PDF بكل المواصفات للمطبعة"
 msgstr "PDF with all specs for the print shop"
 
@@ -5533,9 +5827,6 @@ msgstr "No spare parts awaiting review right now."
 
 msgid "عرض كل القطع (معتمدة، مرفوضة...)"
 msgstr "View all parts (approved, rejected...)"
-
-msgid "إجمالي الطلبات"
-msgstr "Total requests"
 
 msgid "🔒 في الـ Escrow"
 msgstr "🔒 In Escrow"
@@ -5734,9 +6025,6 @@ msgstr "Quick templates:"
 
 msgid "🎁 ترحيب"
 msgstr "🎁 Welcome"
-
-msgid "واتساب"
-msgstr "WhatsApp"
 
 msgid "سبب الهدية (يظهر للعميل):"
 msgstr "Gift reason (shown to the customer):"
@@ -6015,9 +6303,6 @@ msgstr "No"
 
 msgid "منح"
 msgstr "Grant"
-
-msgid "شحن"
-msgstr "Top up"
 
 msgid "دخول النظام في تاب جديد"
 msgstr "Open the system in a new tab"
@@ -6739,9 +7024,6 @@ msgid "مصروف"
 msgstr "Expense"
 
 msgid "الشهر"
-msgstr ""
-
-msgid "السنة"
 msgstr ""
 
 msgid "إجمالي المرتبات قبل الخصم"
@@ -8722,9 +9004,6 @@ msgstr "Branches Overview"
 msgid "ملخص اليوم"
 msgstr "Today's summary"
 
-msgid "لوحتي"
-msgstr "My dashboard"
-
 msgid "مبيعات اليوم"
 msgstr "Today's sales"
 
@@ -9015,9 +9294,6 @@ msgstr "Today's check-outs"
 
 msgid "— كل الحركات —"
 msgstr "— All movements —"
-
-msgid "— الكل —"
-msgstr "— All —"
 
 msgid "تصفية"
 msgstr "Filter"
