@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 17:35+0300\n"
+"POT-Creation-Date: 2026-07-21 17:40+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -67,7 +67,6 @@ msgstr "No conversations yet."
 msgid "إصدار gift جديد — Issue new gift"
 msgstr "Issue new gift"
 
-#| msgid "— اختر الخزنة —"
 msgid "— اختر ورشة —"
 msgstr "— Select workshop —"
 
@@ -80,7 +79,6 @@ msgstr "ISN credits"
 msgid "Subscription window — اشتراك زمني"
 msgstr "Subscription window"
 
-#| msgid "ابدأ تجربتك المجانية الآن"
 msgid "عدد العمليات المجانية. لازم > 0."
 msgstr "Number of free operations. Must be > 0."
 
@@ -101,7 +99,6 @@ msgstr "If there is an active gift of the same type, the default rejects with 40
 msgid "آخر 20 gift — Recent gifts"
 msgstr "Recent gifts (last 20)"
 
-#| msgid "مفيش فواتير لسة."
 msgid "مفيش gifts لسة."
 msgstr "No gifts yet."
 
@@ -1170,7 +1167,7 @@ msgid "تم البيع"
 msgstr ""
 
 msgid "محذوف"
-msgstr ""
+msgstr "Deleted"
 
 msgid "بانتظار موافقة الإدارة"
 msgstr ""
@@ -1263,7 +1260,7 @@ msgid "نزاع — قيد المراجعة"
 msgstr ""
 
 msgid "تراجع المشتري"
-msgstr ""
+msgstr "Buyer remorse"
 
 msgid "مقاس / تركيب خطأ من المشتري"
 msgstr ""
@@ -1278,7 +1275,7 @@ msgid "غير مطابق للوصف / الصور"
 msgstr ""
 
 msgid "لم تصل"
-msgstr ""
+msgstr "Never arrived"
 
 msgid "المشتري"
 msgstr ""
@@ -7429,7 +7426,6 @@ msgstr "🔒 This session is closed"
 msgid "🔧 تحليل تكلفة Smart Diagnostics — Super Admin"
 msgstr "🔧 Smart Diagnostics cost analysis — Super Admin"
 
-#| msgid "Premium Diagnostics — غير متاح"
 msgid "Smart Diagnostics — تحليل التكلفة"
 msgstr "Smart Diagnostics — Cost analysis"
 
@@ -7439,22 +7435,18 @@ msgstr "Refresh"
 msgid "الإيرادات"
 msgstr "Revenue"
 
-#| msgid "باقة Premium Diagnostics غير متاحة حالياً"
 msgid "⚠️ وحدة Smart Diagnostics غير مثبتة"
 msgstr "⚠️ Smart Diagnostics module not installed"
 
-#| msgid "لا توجد بيانات"
 msgid "لا يمكن تجميع بيانات API spend."
 msgstr "Cannot aggregate API spend data."
 
-#| msgid "إجمالي الكشوف"
 msgid "إجمالي مصروف API"
 msgstr "Total API spend"
 
 msgid "USD — كل الـ tenants"
 msgstr "USD — all tenants"
 
-#| msgid "الإجمالي"
 msgid "إجمالي Calls"
 msgstr "Total Calls"
 
@@ -7465,7 +7457,6 @@ msgstr "%(n)s of them cache hits"
 msgid "كل cache hit = $0 توفير"
 msgstr "Every cache hit = $0 saved"
 
-#| msgid "شحن استخدامات التشخيص"
 msgid "شركات استخدمت الوحدة"
 msgstr "Companies that used the module"
 
@@ -7475,23 +7466,18 @@ msgstr "Last 30 days cost (USD/day — for calls that hit external)"
 msgid "أعلى 10 Tenants استهلاكاً"
 msgstr "Top 10 Tenants by consumption"
 
-#| msgid "الإجمالي"
 msgid "إجمالي $"
 msgstr "Total $"
 
-#| msgid "آخر 30 يوم"
 msgid "آخر 30 يوم $"
 msgstr "Last 30 days $"
 
-#| msgid "آخر 25"
 msgid "آخر 24س Calls"
 msgstr "Last 24h Calls"
 
-#| msgid "آخر اتصال:"
 msgid "آخر اتصال"
 msgstr "Last connection"
 
-#| msgid "لا توجد باقات متاحة حالياً لهذا القطاع."
 msgid "لا توجد بيانات بعد — انتظر حتى يستخدم العملاء الوحدة."
 msgstr "No data yet — wait until customers use the module."
 
@@ -7502,13 +7488,109 @@ msgstr "Show all tenants (%(n)s)"
 msgid "الـ data بـ تتـ cache لمدة 5 دقايق — اضغط"
 msgstr "Data is cached for 5 minutes — press"
 
-#| msgid "ملاحظات الفني"
 msgid "للتحديث الفوري."
 msgstr "for an instant refresh."
 
-#| msgid "التكلفة"
 msgid "تكلفة (USD)"
 msgstr "Cost (USD)"
+
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "مركز النزاعات — Mouss Tec Super Admin"
+msgstr "Disputes center — Mouss Tec Super Admin"
+
+#| msgid "النزاعات"
+msgid "مركز النزاعات"
+msgstr "Disputes center"
+
+#| msgid "⚠️ لم يدخل النظام بعد"
+msgid "⚖️ مركز فضّ النزاعات"
+msgstr "⚖️ Dispute resolution center"
+
+msgid ""
+"المبلغ مجمّد في الـ Escrow لحين قرارك. اختر \"رد للمشتري\"، \"تحرير للبائع\"، "
+"أو \"تسوية جزئية\"."
+msgstr "The amount is frozen in Escrow until your decision. Choose \"Refund to buyer\", \"Release to seller\", or \"Partial settlement\"."
+
+#| msgid "🟢 طلبات مفتوحة:"
+msgid "⏳ نزاعات مفتوحة"
+msgstr "⏳ Open disputes"
+
+#| msgid "مفتوحة"
+msgid "⏳ مفتوحة"
+msgstr "⏳ Open"
+
+#| msgid "✅ محلول"
+msgid "✅ محلولة"
+msgstr "✅ Resolved"
+
+msgid "📋 الكل"
+msgstr "📋 All"
+
+msgid "فتحه:"
+msgstr "Opened by:"
+
+#| msgid "كود الطلب:"
+msgid "الطلب:"
+msgstr "Order:"
+
+#| msgid "المبلغ"
+msgid "المبلغ:"
+msgstr "Amount:"
+
+msgid "الفئة:"
+msgstr "Category:"
+
+#| msgid "صرف العمولات المستحقة"
+msgid "حالة الطلب وقت الفتح:"
+msgstr "Order status at open:"
+
+msgid "القطعة:"
+msgstr "Part:"
+
+#| msgid "تاريخ النشر"
+msgid "تاريخ الفتح:"
+msgstr "Open date:"
+
+#| msgid "📝 سبب الإرجاع:"
+msgid "سبب الإرجاع:"
+msgstr "Return reason:"
+
+msgid "معيبة"
+msgstr "Defective"
+
+msgid "مختلفة"
+msgstr "Different"
+
+msgid "غير مطابق"
+msgstr "Unmatched"
+
+#| msgid "المشتري:"
+msgid "رد للمشتري"
+msgstr "Refund to buyer"
+
+#| msgid "رفض وتحرير للبائع"
+msgid "تحرير للبائع"
+msgstr "Release to seller"
+
+#| msgid "قبول الإرجاع"
+msgid "مبلغ الإرجاع:"
+msgstr "Refund amount:"
+
+#| msgid "أولوية عالية"
+msgid "تسوية جزئية"
+msgstr "Partial settlement"
+
+#| msgid "الإدارة"
+msgid "قرار الإدارة:"
+msgstr "Admin decision:"
+
+#| msgid "تم فحص"
+msgid "تم في:"
+msgstr "Done at:"
+
+#| msgid "لا توجد قطع في هذه القائمة الآن."
+msgid "لا توجد نزاعات في هذه القائمة."
+msgstr "No disputes in this list."
 
 msgid "وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin"
 msgstr "Diagnostics room access (OBD) — Mouss Tec Super Admin"
@@ -7678,9 +7760,6 @@ msgstr "⏳ Awaiting review"
 
 msgid "❌ مرفوضة"
 msgstr "❌ Rejected"
-
-msgid "📋 الكل"
-msgstr "📋 All"
 
 msgid "صورة"
 msgstr "Image"
@@ -7937,6 +8016,96 @@ msgstr "✓ Resolved"
 msgid "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!"
 msgstr "🎉 No errors — the system is running smoothly!"
 
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "إدارة المستأجرين — Mouss Tec Super Admin"
+msgstr "Tenant management — Mouss Tec Super Admin"
+
+#| msgid "هدية بدون سبب"
+msgid "بدون سبب"
+msgstr "No reason"
+
+msgid "إدارة المستأجرين"
+msgstr "Tenant management"
+
+#| msgid "إدارة المستأجرين"
+msgid "🏢 إدارة المستأجرين (Tenants)"
+msgstr "🏢 Tenant management (Tenants)"
+
+msgid ""
+"حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force "
+"Delete مقيد بالـ Super Owner."
+msgstr "Soft Delete to hide companies without breaking historical invoices. Force Delete is restricted to the Super Owner."
+
+#| msgid "✅ نشط"
+msgid "✅ نشطة"
+msgstr "✅ Active"
+
+msgid "🗑️ محذوفة"
+msgstr "🗑️ Deleted"
+
+msgid "المالك"
+msgstr "Owner"
+
+msgid "تاريخ الإنشاء"
+msgstr "Creation date"
+
+msgid "♻️ استعادة"
+msgstr "♻️ Restore"
+
+#| msgid "✂️ حذف عنصر"
+msgid "🗑️ حذف آمن"
+msgstr "🗑️ Soft delete"
+
+#| msgid "لا يوجد مستأجرون في هذا الفلتر."
+msgid "لا توجد مستأجرين في هذا التصنيف."
+msgstr "No tenants in this category."
+
+msgid "🗑️ حذف آمن (Soft Delete)"
+msgstr "🗑️ Soft delete (Soft Delete)"
+
+msgid "سيتم إخفاء «"
+msgstr "The following will be hidden «"
+
+msgid "» من جميع القوائم. الفواتير والمدفوعات والـ schema تفضل سليمة."
+msgstr "» from all lists. Invoices, payments, and the schema remain intact."
+
+#| msgid "سبب الرفض (اختياري):"
+msgid "سبب الحذف (اختياري):"
+msgstr "Deletion reason (optional):"
+
+#| msgid "توقيع العميل بالاستلام"
+msgid "مثلاً: العميل ألغى الاشتراك"
+msgstr "e.g. The customer cancelled the subscription"
+
+#| msgid "💣 تأكيد الحذف العميق"
+msgid "تأكيد الحذف الآمن"
+msgstr "Confirm soft delete"
+
+#| msgid "حذف نهائي"
+msgid "💀 حذف نهائي (Force Delete)"
+msgstr "💀 Permanent delete (Force Delete)"
+
+#| msgid "تحذير"
+msgid "تحذير:"
+msgstr "Warning:"
+
+msgid ""
+"هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم "
+"الشركة بالضبط للتأكيد:"
+msgstr "This action is irreversible and will delete the schema and all data permanently. Type the company name exactly to confirm:"
+
+#| msgid "الإجمالي المطلوب"
+msgid "الاسم المطلوب:"
+msgstr "Required name:"
+
+#| msgid "اسم الشركة / البراند *"
+msgid "اكتب اسم الشركة بالحرف"
+msgstr "Type the company name exactly"
+
+#| msgid "حذف نهائي"
+msgid "احذف نهائياً"
+msgstr "Delete permanently"
+
 msgid "تأسيس مؤسسة سحابية جديدة"
 msgstr "Set up a new cloud organization"
 
@@ -8042,9 +8211,6 @@ msgstr "Super Admin dashboard"
 
 msgid "مركز القيادة — مراقبة وتحكم كامل في المنصة"
 msgstr "Command center — full monitoring and control of the platform"
-
-msgid "إدارة المستأجرين"
-msgstr "Tenant management"
 
 msgid "حذف آمن • استعادة • Force Delete"
 msgstr "Safe delete • Restore • Force Delete"
@@ -10216,9 +10382,6 @@ msgstr ""
 msgid "عقود صيانة الشركات (B2B)"
 msgstr ""
 
-msgid "المالك"
-msgstr "Owner"
-
 msgid "رقم الشاسيه (VIN)"
 msgstr "Chassis number (VIN)"
 
@@ -11500,9 +11663,6 @@ msgstr "Matched transaction"
 
 msgid "مطابق"
 msgstr "Matched"
-
-msgid "غير مطابق"
-msgstr "Unmatched"
 
 msgid "لا توجد سطور"
 msgstr "No lines"
@@ -13244,9 +13404,6 @@ msgstr ""
 msgid "مؤكد"
 msgstr ""
 
-msgid "تاريخ الإنشاء"
-msgstr ""
-
 msgid "موعد التسليم"
 msgstr ""
 
@@ -13541,9 +13698,6 @@ msgstr "Vehicle:"
 
 msgid "الوضع:"
 msgstr "Mode:"
-
-msgid "القطعة:"
-msgstr "Part:"
 
 msgid "(اختياري) إجابة مصححة — هتحل محل اللي فوق لو ضغطت 'صحح وعتمد'"
 msgstr "(optional) corrected answer — it replaces the one above if you press Correct and approve"
