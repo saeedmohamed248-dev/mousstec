@@ -1,9 +1,9 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>سجل أخطاء النظام — Mouss Tec Super Admin</title>
+    <title>{% trans "سجل أخطاء النظام — Mouss Tec Super Admin" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -42,40 +42,40 @@
 </head>
 <body>
 <div class="container">
-    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / سجل الأخطاء</div>
-    <h1>🚨 مركز رصد أخطاء النظام</h1>
-    <p class="sub">كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً. <span class="auto-refresh">🔄 تحديث تلقائي كل 30 ثانية</span></p>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "سجل الأخطاء" %}</div>
+    <h1>{% trans "🚨 مركز رصد أخطاء النظام" %}</h1>
+    <p class="sub">{% trans "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً." %} <span class="auto-refresh">{% trans "🔄 تحديث تلقائي كل 30 ثانية" %}</span></p>
 
     {% if messages %}
         {% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}
     {% endif %}
 
     <div class="stats">
-        <div class="stat"><h2>{{ count_critical }}</h2><div class="label">🔥 أخطاء حرجة مفتوحة (500)</div></div>
-        <div class="stat warn"><h2>{{ count_open }}</h2><div class="label">📋 إجمالي مفتوح</div></div>
+        <div class="stat"><h2>{{ count_critical }}</h2><div class="label">{% trans "🔥 أخطاء حرجة مفتوحة (500)" %}</div></div>
+        <div class="stat warn"><h2>{{ count_open }}</h2><div class="label">{% trans "📋 إجمالي مفتوح" %}</div></div>
     </div>
 
     <div class="filters">
-        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">مفتوحة</a>
-        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">محلولة</a>
-        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">الكل</a>
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">{% trans "مفتوحة" %}</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">{% trans "محلولة" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">{% trans "الكل" %}</a>
         <span style="margin-right:auto;"></span>
-        <a class="tab {% if level == 'critical' %}active{% endif %}" href="?show={{ show }}&level=critical">🔥 حرج</a>
-        <a class="tab {% if level == 'error' %}active{% endif %}" href="?show={{ show }}&level=error">⚠️ خطأ</a>
-        <a class="tab {% if level == 'warning' %}active{% endif %}" href="?show={{ show }}&level=warning">ℹ️ تحذير</a>
+        <a class="tab {% if level == 'critical' %}active{% endif %}" href="?show={{ show }}&level=critical">{% trans "🔥 حرج" %}</a>
+        <a class="tab {% if level == 'error' %}active{% endif %}" href="?show={{ show }}&level=error">{% trans "⚠️ خطأ" %}</a>
+        <a class="tab {% if level == 'warning' %}active{% endif %}" href="?show={{ show }}&level=warning">{% trans "ℹ️ تحذير" %}</a>
     </div>
 
     <table>
         <thead>
         <tr>
-            <th>الوقت</th>
-            <th>المستوى</th>
-            <th>المستأجر</th>
-            <th>المسار</th>
-            <th>الكود</th>
-            <th>الاستثناء</th>
-            <th>التفاصيل</th>
-            <th>إجراء</th>
+            <th>{% trans "الوقت" %}</th>
+            <th>{% trans "المستوى" %}</th>
+            <th>{% trans "المستأجر" %}</th>
+            <th>{% trans "المسار" %}</th>
+            <th>{% trans "الكود" %}</th>
+            <th>{% trans "الاستثناء" %}</th>
+            <th>{% trans "التفاصيل" %}</th>
+            <th>{% trans "إجراء" %}</th>
         </tr>
         </thead>
         <tbody>
@@ -94,22 +94,22 @@
                 {% if e.username %}<br><small>👤 {{ e.username }}</small>{% endif %}
             </td>
             <td>
-                {% if e.message %}<details><summary>الرسالة</summary><pre>{{ e.message }}</pre></details>{% endif %}
+                {% if e.message %}<details><summary>{% trans "الرسالة" %}</summary><pre>{{ e.message }}</pre></details>{% endif %}
                 {% if e.traceback %}<details><summary>Traceback</summary><pre>{{ e.traceback }}</pre></details>{% endif %}
             </td>
             <td>
                 {% if e.is_resolved %}
-                    <span style="color:#22c55e;">✅ محلول</span><br>
+                    <span style="color:#22c55e;">{% trans "✅ محلول" %}</span><br>
                     <small>{{ e.resolved_by }}</small>
                 {% else %}
                     <form method="post" action="{% url 'saas_system_error_resolve' e.id %}">{% csrf_token %}
-                        <button class="btn btn-ok" type="submit">✓ تم الحل</button>
+                        <button class="btn btn-ok" type="submit">{% trans "✓ تم الحل" %}</button>
                     </form>
                 {% endif %}
             </td>
         </tr>
         {% empty %}
-            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">🎉 لا توجد أخطاء — النظام يعمل بسلاسة!</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">{% trans "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
