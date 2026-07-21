@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:20+0300\n"
+"POT-Creation-Date: 2026-07-21 18:26+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7354,6 +7354,83 @@ msgstr "Priority technical support"
 msgid "تواصل معنا"
 msgstr "Contact us"
 
+msgid "سجل التدقيق — Mouss Tec Super Admin"
+msgstr "Audit log — Mouss Tec Super Admin"
+
+msgid "السوبر أدمن"
+msgstr "Super admin"
+
+msgid "سجل التدقيق"
+msgstr "Audit log"
+
+msgid "📜 سجل التدقيق (Audit Log)"
+msgstr "📜 Audit Log"
+
+msgid ""
+"كل أحداث المنصة الحساسة في مكان واحد — لمن، ومتى، وعلى أي شركة. اعمل فلتر، "
+"صدّر، حلّل."
+msgstr "Every sensitive platform event in one place — who, when, and for which tenant. Filter, export, analyze."
+
+msgid "إجمالي الأحداث"
+msgstr "Total events"
+
+msgid "بعد الفلتر"
+msgstr "After filter"
+
+msgid "شركات لها أحداث"
+msgstr "Tenants with events"
+
+msgid "مستخدمون نشطون"
+msgstr "Active users"
+
+msgid "نوع الحدث"
+msgstr "Event type"
+
+msgid "كل الأنواع"
+msgstr "All types"
+
+msgid "الشركة (schema)"
+msgstr "Tenant (schema)"
+
+msgid "من تاريخ"
+msgstr "From date"
+
+msgid "إلى تاريخ"
+msgstr "To date"
+
+msgid "بحث في الوصف"
+msgstr "Search in description"
+
+msgid "كلمة …"
+msgstr "Keyword …"
+
+msgid "تطبيق"
+msgstr "Apply"
+
+msgid "إعادة تعيين"
+msgstr "Reset"
+
+msgid "الوقت"
+msgstr "Time"
+
+msgid "النوع"
+msgstr "Type"
+
+msgid "لا توجد أحداث مطابقة للفلاتر الحالية."
+msgstr "No events match the current filters."
+
+msgid "توزيع الأنواع"
+msgstr "Type distribution"
+
+msgid "لا توجد بيانات"
+msgstr "No data"
+
+msgid "أنشط الشركات"
+msgstr "Most active tenants"
+
+msgid "أنشط المستخدمين"
+msgstr "Most active users"
+
 msgid "ضيف"
 msgstr "Guest"
 
@@ -7426,9 +7503,6 @@ msgstr "🔒 This session is closed"
 msgid "صحة الشركات — Mouss Tec Super Admin"
 msgstr "Tenant health — Mouss Tec Super Admin"
 
-msgid "السوبر أدمن"
-msgstr "Super admin"
-
 msgid "🩺 صحة الشركات"
 msgstr "🩺 Companies health"
 
@@ -7482,9 +7556,6 @@ msgstr "Worst first"
 msgid "الأفضل أولاً"
 msgstr "Best first"
 
-msgid "تطبيق"
-msgstr "Apply"
-
 msgid "إعادة"
 msgstr "Reset"
 
@@ -7502,9 +7573,6 @@ msgstr "Support:"
 
 msgid "ثقة:"
 msgstr "Trust:"
-
-msgid "سجل التدقيق"
-msgstr "Audit log"
 
 msgid "لا توجد شركات مطابقة."
 msgstr "No matching tenants."
@@ -8096,6 +8164,81 @@ msgstr "%(n)s months"
 msgid "مفيش فواتير لسة."
 msgstr "No invoices yet."
 
+msgid ""
+"MRR، conversion، cohort retention، churn — كل القرارات اللي تخص نمو "
+"الإيرادات في صفحة واحدة."
+msgstr "MRR, conversion, cohort retention, churn — every revenue-growth decision on one page."
+
+msgid "MRR الحالي"
+msgstr "Current MRR"
+
+msgid "شركات بتدفع"
+msgstr "Paying tenants"
+
+msgid "من إجمالي الشركات في الـ DB"
+msgstr "Of all tenants in the DB"
+
+msgid "متوسط الإيراد لكل شركة (شهرياً)"
+msgstr "Average revenue per tenant (monthly)"
+
+msgid "الشهر الحالي"
+msgstr "Current month"
+
+msgid "معدل الـ churn:"
+msgstr "Churn rate:"
+
+msgid "اتجاه الإيرادات الشهرية (آخر 6 شهور)"
+msgstr "Monthly revenue trend (last 6 months)"
+
+msgid "الشهر"
+msgstr "Month"
+
+msgid "إيراد"
+msgstr "Revenue"
+
+msgid "شركات دفعت"
+msgstr "Paying tenants"
+
+msgid "تسجيلات جديدة"
+msgstr "New signups"
+
+msgid "لا توجد بيانات بعد."
+msgstr "No data yet."
+
+#, python-format
+msgid "%% من شركات شهر X لسه بيدفعوا في الشهور اللي بعده"
+msgstr "%% of month-X tenants still paying in the following months"
+
+msgid "الـ Cohort"
+msgstr "Cohort"
+
+#, python-format
+msgid ""
+"M0 = شهر التسجيل، M1 = الشهر اللي بعده، إلخ. كل ما النسبة قرّبت من 100%%، كل "
+"ما الـ cohort أكثر retention."
+msgstr "M0 = signup month, M1 = the month after, etc. The closer the percentage gets to 100%%, the higher the cohort retention."
+
+msgid "لا توجد cohorts بعد."
+msgstr "No cohorts yet."
+
+msgid "تسجيلات"
+msgstr "Signups"
+
+msgid "أكّدوا الإيميل"
+msgstr "Verified email"
+
+msgid "دفعوا"
+msgstr "Paid"
+
+msgid "MRR لكل باقة"
+msgstr "MRR per plan"
+
+msgid "شركات"
+msgstr "Companies"
+
+msgid "لا توجد اشتراكات نشطة."
+msgstr "No active subscriptions."
+
 msgid "صندوق الدعم — Mouss Tec Super Admin"
 msgstr "Support inbox — Mouss Tec Super Admin"
 
@@ -8115,9 +8258,6 @@ msgstr "🚨 Open urgent tickets"
 
 msgid "📋 إجمالي مفتوح"
 msgstr "📋 Total open"
-
-msgid "الوقت"
-msgstr "Time"
 
 msgid "المرسل"
 msgstr "Sender"
@@ -8624,9 +8764,6 @@ msgstr "No events yet"
 msgid "أنشط الشركات (7 أيام)"
 msgstr "Most active companies (7 days)"
 
-msgid "لا توجد بيانات"
-msgstr "No data"
-
 msgid "توزيع الأجهزة (7 أيام)"
 msgstr "Device distribution (7 days)"
 
@@ -8836,9 +8973,6 @@ msgstr "Made designs"
 
 msgid "أفراد"
 msgstr "Individuals"
-
-msgid "شركات"
-msgstr "Companies"
 
 msgid "محظورين"
 msgstr "Blocked"
@@ -9983,12 +10117,6 @@ msgstr ""
 msgid "نوع الإجازة"
 msgstr ""
 
-msgid "من تاريخ"
-msgstr "From date"
-
-msgid "إلى تاريخ"
-msgstr "To date"
-
 msgid "السبب"
 msgstr ""
 
@@ -10100,9 +10228,6 @@ msgstr ""
 
 msgid "مصروف"
 msgstr "Expense"
-
-msgid "الشهر"
-msgstr ""
 
 msgid "إجمالي المرتبات قبل الخصم"
 msgstr ""
@@ -10834,9 +10959,6 @@ msgstr ""
 
 msgid "مشكلة/تحذير"
 msgstr ""
-
-msgid "النوع"
-msgstr "Type"
 
 msgid "مرفق سجل إصلاح"
 msgstr ""
@@ -14014,11 +14136,11 @@ msgstr "Account statement issued by Mouss Tec"
 msgid "تم نسخ رابط كشف الحساب — يمكن إرساله للعميل"
 msgstr "Statement link copied — you can send it to the customer"
 
-#| msgid "كشف حساب %(name)s | Mouss Tec"
+#, python-format
 msgid "تحليل ربحية الطلب #%(n)s | Mouss Tec"
 msgstr "Order profitability analysis #%(n)s | Mouss Tec"
 
-#| msgid "تابع حالة الطلب"
+#, python-format
 msgid "تحليل ربحية الطلب #%(n)s"
 msgstr "Order profitability analysis #%(n)s"
 
@@ -14026,65 +14148,53 @@ msgstr "Order profitability analysis #%(n)s"
 msgid "إجمالي %(t)s − خصم %(d)s"
 msgstr "Total %(t)s − discount %(d)s"
 
-#| msgid "إجمالي الكشوف"
 msgid "إجمالي التكلفة"
 msgstr "Total cost"
 
 msgid "ماكينة + حبر + أجر المصمم"
 msgstr "Machine + ink + designer wage"
 
-#| msgid "صافي الخسارة"
 msgid "الخسارة"
 msgstr "Loss"
 
-#| msgid "هامش الربح: %(p)s%%"
+#, python-format
 msgid "هامش الربح: <strong>%(p)s%%</strong>"
 msgstr "Profit margin: <strong>%(p)s%%</strong>"
 
-#| msgid "سعر التكلفة"
 msgid "توزيع التكلفة"
 msgstr "Cost breakdown"
 
-#| msgid "تفاصيل التصميم"
+#, python-format
 msgid "تفاصيل المهام (%(n)s)"
 msgstr "Job details (%(n)s)"
 
-#| msgid "مهمة"
 msgid "المهمة"
 msgstr "Job"
 
-#| msgid "الساعات"
 msgid "ساعات"
 msgstr "Hours"
 
-#| msgid "وقت التشغيل"
 msgid "تشغيل"
 msgstr "Machine run"
 
-#| msgid "مطبعة ومصمم"
 msgid "أجر مصمم"
 msgstr "Designer wage"
 
-#| msgid "إجمالي الكشوف"
 msgid "إجمالي تكلفة"
 msgstr "Total cost"
 
-#| msgid "صافي الربح"
 msgid "الربح"
 msgstr "Profit"
 
 msgid "هامش"
 msgstr "Margin"
 
-#| msgid "لا توجد مصروفات في هذا الشهر"
 msgid "لا توجد مهام في هذا الطلب بعد."
 msgstr "No jobs in this order yet."
 
-#| msgid "بيانات المركبة"
 msgid "بيانات الطلب"
 msgstr "Order details"
 
-#| msgid "تنبيه"
 msgid "تنبيه:"
 msgstr "Notice:"
 
@@ -14450,11 +14560,9 @@ msgstr "Device connection instructions"
 msgid "الجهاز يتصل بـ WebSocket على المسار التالي مع"
 msgstr "The device connects via WebSocket at the following path with"
 
-#| msgid "بيانات المركبة"
 msgid "غير متصل بمركبة"
 msgstr "Not connected to a vehicle"
 
-#| msgid "البراند مفعّل"
 msgid "الاشتراك غير مفعّل"
 msgstr "Subscription not active"
 
@@ -14463,11 +14571,9 @@ msgid ""
 "المركبة مسجَّلة في النظام."
 msgstr "Requires an active Premium Diagnostics plan to access the live stream, and the vehicle must be registered in the system."
 
-#| msgid "أنت مشترك في Premium Diagnostics. كل المزايا متاحة الآن."
 msgid "يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر."
 msgstr "Requires an active Premium Diagnostics plan to access the live stream."
 
-#| msgid "القراءات الحية"
 msgid "القياسات الحية"
 msgstr "Live readings"
 
@@ -14477,23 +14583,18 @@ msgstr "rpm"
 msgid "كم/س"
 msgstr "km/h"
 
-#| msgid "آخر صيانة"
 msgid "آخر 60 ثانية"
 msgstr "last 60 seconds"
 
-#| msgid "للاضافة الواحدة."
 msgid "سجل الإطارات الواردة"
 msgstr "Incoming frames log"
 
-#| msgid "اشترك الآن"
 msgid "اشترك للوصول"
 msgstr "Subscribe for access"
 
-#| msgid "توزيع المصروفات حسب التصنيف"
 msgid "تم إيقاف المحاولات — حدّث الصفحة"
 msgstr "Attempts stopped — refresh the page"
 
-#| msgid "سبب الإرجاع:"
 msgid "سبب الحجب:"
 msgstr "Block reason:"
 

@@ -1,6 +1,6 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <title>💎 Revenue Intelligence — Mouss Tec Super Admin</title>
@@ -118,34 +118,34 @@
 <body>
 <div class="container">
     <div class="breadcrumb">
-        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> /
-        <a href="/superadmin/revenue/">الإيرادات</a> /
+        <a href="/superadmin/"><i class="fas fa-home"></i> {% trans "السوبر أدمن" %}</a> /
+        <a href="/superadmin/revenue/">{% trans "الإيرادات" %}</a> /
         💎 Revenue Intelligence
     </div>
     <h1>💎 Revenue Intelligence</h1>
-    <p class="sub">MRR، conversion، cohort retention، churn — كل القرارات اللي تخص نمو الإيرادات في صفحة واحدة.</p>
+    <p class="sub">{% trans "MRR، conversion، cohort retention، churn — كل القرارات اللي تخص نمو الإيرادات في صفحة واحدة." %}</p>
 
     <!-- ─── Hero metrics ─── -->
     <div class="hero">
         <div class="metric">
-            <div class="lbl"><i class="fas fa-chart-line"></i> MRR الحالي</div>
-            <div class="big">{{ current_mrr|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> ج.م</span></div>
-            <div class="sub-val">ARR ≈ {{ arr|floatformat:0 }} ج.م</div>
+            <div class="lbl"><i class="fas fa-chart-line"></i> {% trans "MRR الحالي" %}</div>
+            <div class="big">{{ current_mrr|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {% trans "ج.م" %}</span></div>
+            <div class="sub-val">ARR ≈ {{ arr|floatformat:0 }} {% trans "ج.م" %}</div>
         </div>
         <div class="metric alt">
-            <div class="lbl"><i class="fas fa-users"></i> شركات بتدفع</div>
+            <div class="lbl"><i class="fas fa-users"></i> {% trans "شركات بتدفع" %}</div>
             <div class="big">{{ paying_count }}</div>
-            <div class="sub-val">من إجمالي الشركات في الـ DB</div>
+            <div class="sub-val">{% trans "من إجمالي الشركات في الـ DB" %}</div>
         </div>
         <div class="metric alt">
             <div class="lbl"><i class="fas fa-coins"></i> ARPU</div>
-            <div class="big">{{ arpu|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> ج.م</span></div>
-            <div class="sub-val">متوسط الإيراد لكل شركة (شهرياً)</div>
+            <div class="big">{{ arpu|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {% trans "ج.م" %}</span></div>
+            <div class="sub-val">{% trans "متوسط الإيراد لكل شركة (شهرياً)" %}</div>
         </div>
         <div class="metric warn">
-            <div class="lbl"><i class="fas fa-arrow-down"></i> Churn (الشهر الحالي)</div>
+            <div class="lbl"><i class="fas fa-arrow-down"></i> Churn ({% trans "الشهر الحالي" %})</div>
             <div class="big" style="color:#fff;">{{ churn_count }}<span style="font-size:14px;"> / {{ last_month_active }}</span></div>
-            <div class="sub-val">معدل الـ churn: <strong style="color:#fcd34d;">{{ churn_rate }}%</strong></div>
+            <div class="sub-val">{% trans "معدل الـ churn:" %} <strong style="color:#fcd34d;">{{ churn_rate }}%</strong></div>
         </div>
     </div>
 
@@ -154,7 +154,7 @@
         <div>
             <div class="card">
                 <h3>
-                    <i class="fas fa-arrow-trend-up"></i> اتجاه الإيرادات الشهرية (آخر 6 شهور)
+                    <i class="fas fa-arrow-trend-up"></i> {% trans "اتجاه الإيرادات الشهرية (آخر 6 شهور)" %}
                 </h3>
                 {% if mrr_trend %}
                     <div class="trend">
@@ -175,17 +175,17 @@
                     <table style="margin-top:10px;">
                         <thead>
                             <tr>
-                                <th>الشهر</th>
-                                <th style="text-align:left;">إيراد</th>
-                                <th style="text-align:left;">شركات دفعت</th>
-                                <th style="text-align:left;">تسجيلات جديدة</th>
+                                <th>{% trans "الشهر" %}</th>
+                                <th style="text-align:left;">{% trans "إيراد" %}</th>
+                                <th style="text-align:left;">{% trans "شركات دفعت" %}</th>
+                                <th style="text-align:left;">{% trans "تسجيلات جديدة" %}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for m in mrr_trend %}
                                 <tr>
                                     <td>{{ m.month_label }}</td>
-                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ m.total|floatformat:0 }} ج.م</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ m.total|floatformat:0 }} {% trans "ج.م" %}</td>
                                     <td style="text-align:left;">{{ m.paid_tenants }}</td>
                                     <td style="text-align:left;">{{ m.new_signups }}</td>
                                 </tr>
@@ -193,7 +193,7 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد بيانات بعد.</div>
+                    <div class="empty">{% trans "لا توجد بيانات بعد." %}</div>
                 {% endif %}
             </div>
 
@@ -201,14 +201,14 @@
             <div class="card">
                 <h3>
                     <i class="fas fa-layer-group"></i> Cohort Retention
-                    <span class="more">% من شركات شهر X لسه بيدفعوا في الشهور اللي بعده</span>
+                    <span class="more">{% blocktrans %}% من شركات شهر X لسه بيدفعوا في الشهور اللي بعده{% endblocktrans %}</span>
                 </h3>
                 {% if cohorts %}
                     <table class="cohort-table">
                         <thead>
                             <tr>
-                                <th class="row-label">الـ Cohort</th>
-                                <th>عدد</th>
+                                <th class="row-label">{% trans "الـ Cohort" %}</th>
+                                <th>{% trans "عدد" %}</th>
                                 {% for n in "0123456" %}
                                     {% if forloop.counter0 <= cohorts|length %}
                                         <th>M{{ forloop.counter0 }}</th>
@@ -232,11 +232,10 @@
                         </tbody>
                     </table>
                     <p style="color:#64748b; font-size:11px; margin-top:10px;">
-                        💡 M0 = شهر التسجيل، M1 = الشهر اللي بعده، إلخ.
-                        كل ما النسبة قرّبت من 100%، كل ما الـ cohort أكثر retention.
+                        💡 {% blocktrans %}M0 = شهر التسجيل، M1 = الشهر اللي بعده، إلخ. كل ما النسبة قرّبت من 100%، كل ما الـ cohort أكثر retention.{% endblocktrans %}
                     </p>
                 {% else %}
-                    <div class="empty">لا توجد cohorts بعد.</div>
+                    <div class="empty">{% trans "لا توجد cohorts بعد." %}</div>
                 {% endif %}
             </div>
         </div>
@@ -250,17 +249,17 @@
                     <div class="funnel-window">{{ f.label }}</div>
 
                     <div class="funnel-row">
-                        <span class="stage">تسجيلات</span>
+                        <span class="stage">{% trans "تسجيلات" %}</span>
                         <div class="funnel-bar">{{ f.signed_up }}</div>
                         <span class="pct">100%</span>
                     </div>
                     <div class="funnel-row">
-                        <span class="stage">أكّدوا الإيميل</span>
+                        <span class="stage">{% trans "أكّدوا الإيميل" %}</span>
                         <div class="funnel-bar b" style="width:{% widthratio f.verified f.signed_up 100 %}%; min-width:30px;">{{ f.verified }}</div>
                         <span class="pct">{{ f.verified_pct }}%</span>
                     </div>
                     <div class="funnel-row">
-                        <span class="stage">دفعوا</span>
+                        <span class="stage">{% trans "دفعوا" %}</span>
                         <div class="funnel-bar c" style="width:{% widthratio f.converted f.signed_up 100 %}%; min-width:30px;">{{ f.converted }}</div>
                         <span class="pct">{{ f.converted_pct }}%</span>
                     </div>
@@ -269,13 +268,13 @@
 
             <!-- By plan -->
             <div class="card">
-                <h3><i class="fas fa-gem"></i> MRR لكل باقة</h3>
+                <h3><i class="fas fa-gem"></i> {% trans "MRR لكل باقة" %}</h3>
                 {% if by_plan_mrr %}
                     <table>
                         <thead>
                             <tr>
-                                <th>الباقة</th>
-                                <th style="text-align:left;">شركات</th>
+                                <th>{% trans "الباقة" %}</th>
+                                <th style="text-align:left;">{% trans "شركات" %}</th>
                                 <th style="text-align:left;">MRR</th>
                             </tr>
                         </thead>
@@ -287,13 +286,13 @@
                                         <span class="pill" style="font-size:10px;">{{ row.slug }}</span>
                                     </td>
                                     <td style="text-align:left;">{{ row.count }}</td>
-                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ row.mrr|floatformat:0 }} ج.م</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ row.mrr|floatformat:0 }} {% trans "ج.م" %}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد اشتراكات نشطة.</div>
+                    <div class="empty">{% trans "لا توجد اشتراكات نشطة." %}</div>
                 {% endif %}
             </div>
         </div>
