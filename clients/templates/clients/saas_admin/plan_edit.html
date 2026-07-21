@@ -1,9 +1,9 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>تعديل {{ plan.name }} — SaaS Admin</title>
+    <title>{% blocktrans with name=plan.name %}تعديل {{ name }} — SaaS Admin{% endblocktrans %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -57,18 +57,18 @@
     </style>
 </head>
 <body>
+{% trans "بدون سبب" as t_no_reason %}
 <div class="container">
     <div class="breadcrumb">
-        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
         <a href="/superadmin/">SaaS Dashboard</a> ›
-        <a href="{% url 'saas_plan_list' %}">الباقات</a> ›
-        تعديل {{ plan.name }}
+        <a href="{% url 'saas_plan_list' %}">{% trans "الباقات" %}</a> ›
+        {% blocktrans with name=plan.name %}تعديل {{ name }}{% endblocktrans %}
     </div>
 
-    <h1><i class="fas fa-edit"></i> تعديل: {{ plan.name }} <code style="font-size:14px;color:#a78bfa;">({{ plan.slug }})</code></h1>
+    <h1><i class="fas fa-edit"></i> {% trans "تعديل:" %} {{ plan.name }} <code style="font-size:14px;color:#a78bfa;">({{ plan.slug }})</code></h1>
     <p class="sub">
-        <span style="color:#0ea5e9;font-weight:700;">{{ active_subs_count }}</span> مشترك نشط على الباقة دي حالياً.
-        التغييرات في الأسعار/المزايا متحكم فيها بالـ Rollout اختيار تحت.
+        <span style="color:#0ea5e9;font-weight:700;">{{ active_subs_count }}</span> {% trans "مشترك نشط على الباقة دي حالياً. التغييرات في الأسعار/المزايا متحكم فيها بالـ Rollout اختيار تحت." %}
     </p>
 
     {% if messages %}
@@ -84,13 +84,13 @@
         <div class="grid-2">
             <div>
                 <div class="panel">
-                    <h3><i class="fas fa-tag"></i> السعر</h3>
-                    <label for="monthly_price">السعر الشهري (ج.م)</label>
+                    <h3><i class="fas fa-tag"></i> {% trans "السعر" %}</h3>
+                    <label for="monthly_price">{% trans "السعر الشهري (ج.م)" %}</label>
                     <input type="text" id="monthly_price" name="monthly_price" value="{{ plan.monthly_price }}" required>
                 </div>
 
                 <div class="panel">
-                    <h3><i class="fas fa-puzzle-piece"></i> الصلاحيات (Entitlements)</h3>
+                    <h3><i class="fas fa-puzzle-piece"></i> {% trans "الصلاحيات (Entitlements)" %}</h3>
                     {% regroup feature_rows by feature.category as cats %}
                     {% for cat in cats %}
                         <div class="feature-cat">
@@ -106,7 +106,7 @@
                                     </label>
                                     {% if row.feature.is_quantitative %}
                                         <input class="flimit" type="number" min="0" name="feat_{{ row.feature.code }}_limit"
-                                               value="{{ row.monthly_limit|default_if_none:'' }}" placeholder="حد شهري (0=∞)">
+                                               value="{{ row.monthly_limit|default_if_none:'' }}" placeholder="{% trans "حد شهري (0=∞)" %}">
                                         <span class="unit">{{ row.feature.unit_label_ar }}</span>
                                     {% endif %}
                                 </div>
@@ -116,54 +116,54 @@
                 </div>
 
                 <div class="panel">
-                    <h3><i class="fas fa-rocket"></i> Rollout — متى يسري التعديل؟</h3>
+                    <h3><i class="fas fa-rocket"></i> {% trans "Rollout — متى يسري التعديل؟" %}</h3>
                     <div class="rollout-options">
                         <label class="rollout-option">
                             <input type="radio" name="rollout" value="next_renewal" checked>
-                            <span class="label-main">🟢 عند التجديد القادم (افتراضي)</span>
-                            <span class="label-sub">المشتركين الحاليين يفضلوا locked على السعر/المزايا القديمة لحد تجديد اشتراكهم. الـ revision الجديد بيـ apply بس على التجديد التالي.</span>
+                            <span class="label-main">{% trans "🟢 عند التجديد القادم (افتراضي)" %}</span>
+                            <span class="label-sub">{% trans "المشتركين الحاليين يفضلوا locked على السعر/المزايا القديمة لحد تجديد اشتراكهم. الـ revision الجديد بيـ apply بس على التجديد التالي." %}</span>
                         </label>
                         <label class="rollout-option">
                             <input type="radio" name="rollout" value="new_subscribers_only">
-                            <span class="label-main">🟡 المشتركين الجدد فقط</span>
-                            <span class="label-sub">نفس السلوك السابق — تعديل الـ Plan يـ affect الـ subscribers الجداد بس. الاختلاف هنا تسجيل سبب التغيير في الـ revision.</span>
+                            <span class="label-main">{% trans "🟡 المشتركين الجدد فقط" %}</span>
+                            <span class="label-sub">{% trans "نفس السلوك السابق — تعديل الـ Plan يـ affect الـ subscribers الجداد بس. الاختلاف هنا تسجيل سبب التغيير في الـ revision." %}</span>
                         </label>
                         <label class="rollout-option danger">
                             <input type="radio" name="rollout" value="force_apply" id="force_apply_radio">
-                            <span class="label-main">🔴 تطبيق فوري على كل المشتركين النشطين</span>
-                            <span class="label-sub">⚠️ خطر — هيـ overwrite الـ locked_* لكل المشتركين الحاليين بالقيم الجديدة. لا يمكن التراجع (إلا برولاوت revision قديم يدوياً).</span>
+                            <span class="label-main">{% trans "🔴 تطبيق فوري على كل المشتركين النشطين" %}</span>
+                            <span class="label-sub">{% trans "⚠️ خطر — هيـ overwrite الـ locked_* لكل المشتركين الحاليين بالقيم الجديدة. لا يمكن التراجع (إلا برولاوت revision قديم يدوياً)." %}</span>
                         </label>
                     </div>
                     <div class="confirm-box" id="confirm_box">
-                        <label for="confirm_text">⚠️ اكتب CONFIRM بحروف كبيرة بالظبط لتفعيل الإجراء:</label>
+                        <label for="confirm_text">{% trans "⚠️ اكتب CONFIRM بحروف كبيرة بالظبط لتفعيل الإجراء:" %}</label>
                         <input type="text" id="confirm_text" name="confirm_text" placeholder="CONFIRM" autocomplete="off">
                     </div>
                 </div>
 
                 <div class="panel">
-                    <h3><i class="fas fa-comment-dots"></i> سبب التغيير (audit log)</h3>
-                    <label for="change_reason">يـ appear في الـ PlanRevision (240 حرف max)</label>
-                    <input type="text" id="change_reason" name="change_reason" maxlength="240" placeholder="مثلاً: زيادة سعر سنوي بناءً على inflation Q2 2026">
+                    <h3><i class="fas fa-comment-dots"></i> {% trans "سبب التغيير (audit log)" %}</h3>
+                    <label for="change_reason">{% trans "يـ appear في الـ PlanRevision (240 حرف max)" %}</label>
+                    <input type="text" id="change_reason" name="change_reason" maxlength="240" placeholder="{% trans "مثلاً: زيادة سعر سنوي بناءً على inflation Q2 2026" %}">
                 </div>
 
                 <div style="display:flex;gap:10px;">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التغييرات</button>
-                    <a class="btn btn-back" href="{% url 'saas_plan_list' %}"><i class="fas fa-times"></i> إلغاء</a>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {% trans "حفظ التغييرات" %}</button>
+                    <a class="btn btn-back" href="{% url 'saas_plan_list' %}"><i class="fas fa-times"></i> {% trans "إلغاء" %}</a>
                 </div>
             </div>
 
             <div>
                 <div class="panel">
-                    <h3><i class="fas fa-scroll"></i> آخر 10 Revisions</h3>
+                    <h3><i class="fas fa-scroll"></i> {% trans "آخر 10 Revisions" %}</h3>
                     {% for r in revisions %}
                         <div class="revision">
                             <span class="when">{{ r.effective_from|date:"Y-m-d H:i" }}</span>
-                            <span class="price">{{ r.monthly_price }} ج.م</span><br>
-                            <span class="reason">{{ r.change_reason|default:"بدون سبب" }}</span>
-                            {% if r.changed_by %}<br><small>بواسطة {{ r.changed_by.username }}</small>{% endif %}
+                            <span class="price">{{ r.monthly_price }} {% trans "ج.م" %}</span><br>
+                            <span class="reason">{{ r.change_reason|default:t_no_reason }}</span>
+                            {% if r.changed_by %}<br><small>{% blocktrans with u=r.changed_by.username %}بواسطة {{ u }}{% endblocktrans %}</small>{% endif %}
                         </div>
                     {% empty %}
-                        <p style="color:#94a3b8;font-size:12px;">مفيش revisions لسة.</p>
+                        <p style="color:#94a3b8;font-size:12px;">{% trans "مفيش revisions لسة." %}</p>
                     {% endfor %}
                 </div>
             </div>
