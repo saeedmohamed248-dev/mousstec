@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:26+0300\n"
+"POT-Creation-Date: 2026-07-21 18:34+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1731,13 +1731,13 @@ msgid "سجلات أخطاء النظام"
 msgstr ""
 
 msgid "كل الشركات"
-msgstr ""
+msgstr "All tenants"
 
 msgid "الشركات النشطة فقط"
 msgstr ""
 
 msgid "في الفترة التجريبية"
-msgstr ""
+msgstr "On trial"
 
 msgid "اشتراك ينتهي خلال 14 يوم"
 msgstr ""
@@ -1746,7 +1746,7 @@ msgid "شركات في خطر churn"
 msgstr ""
 
 msgid "باقة محددة"
-msgstr ""
+msgstr "Specific plan"
 
 msgid "فلتر مخصص"
 msgstr ""
@@ -1764,7 +1764,7 @@ msgid "الموضوع"
 msgstr "Subject"
 
 msgid "نص الرسالة"
-msgstr ""
+msgstr "Message body"
 
 msgid "حملة بث"
 msgstr ""
@@ -7431,6 +7431,221 @@ msgstr "Most active tenants"
 msgid "أنشط المستخدمين"
 msgstr "Most active users"
 
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "البث الجماعي — Mouss Tec Super Admin"
+msgstr "Broadcast — Mouss Tec Super Admin"
+
+#| msgid "البث الجماعي"
+msgid "📢 البث الجماعي"
+msgstr "📢 Broadcast"
+
+#| msgid "البث الجماعي"
+msgid "📢 البث الجماعي (Email Broadcast)"
+msgstr "📢 Email Broadcast"
+
+msgid ""
+"ابعت إعلان أو إشعار صيانة لكل الشركات أو شريحة محددة. الإرسال sync — للأحجام "
+"الكبيرة هنعمل Celery لاحقاً."
+msgstr "Send an announcement or maintenance notice to all tenants or a specific segment. Sending is sync — for large volumes we will add Celery later."
+
+#| msgid "طلب جديد"
+msgid "حملة جديدة"
+msgstr "New campaign"
+
+#| msgid "القطاع المستهدف"
+msgid "الجمهور المستهدف"
+msgstr "Target audience"
+
+#| msgid "— اختر ورشة —"
+msgid "— اختر —"
+msgstr "— Choose —"
+
+#| msgid "لا توجد أحداث مطابقة للفلاتر الحالية."
+msgid "شركة مطابقة للفلتر الحالي"
+msgstr "tenants match the current filter"
+
+msgid "⛔ بدون email"
+msgstr "⛔ No email"
+
+msgid "إعلان مهم …"
+msgstr "Important announcement …"
+
+msgid "— استخدم {تعبير tenant_name} لتخصيص اسم الشركة"
+msgstr "— use {tenant_name} to personalize the tenant name"
+
+#, python-brace-format
+msgid "عزيزي {tenant_name}، …"
+msgstr "Dear {tenant_name}, …"
+
+#| msgid "بيانات العميل"
+msgid "قنوات التوصيل"
+msgstr "Delivery channels"
+
+msgid "إرسال إيميل (يتم في الخلفية عبر Celery)"
+msgstr "Send email (runs in the background via Celery)"
+
+#, python-format
+msgid "عرض كبانر داخل لوحة الشركة (يصل 100%% من الشركات)"
+msgstr "Show a banner inside the tenant dashboard (reaches 100%% of tenants)"
+
+#| msgid "نوع الحساب"
+msgid "نوع البانر"
+msgstr "Banner type"
+
+#| msgid "معلومة"
+msgid "📢 معلومة (أزرق)"
+msgstr "📢 Info (blue)"
+
+msgid "✅ نجاح (أخضر)"
+msgstr "✅ Success (green)"
+
+#| msgid "⚠️ تحذير:"
+msgid "⚠️ تحذير (أصفر)"
+msgstr "⚠️ Warning (yellow)"
+
+#| msgid "🚨 خطر حرج"
+msgid "🚨 حرج (أحمر)"
+msgstr "🚨 Critical (red)"
+
+#| msgid "مدة الضمان (أيام)"
+msgid "يبقى ظاهر لمدة (أيام)"
+msgstr "Stays visible for (days)"
+
+#, python-format
+msgid ""
+"هتبعت لـ <strong>%(n)s</strong> شركة. الإرسال نهائي ومش هينفع تتراجع. لو "
+"الإرسال كبير، استعد لانتظار 30-60 ثانية."
+msgstr "You will send to <strong>%(n)s</strong> tenants. Sending is final and cannot be undone. If the send is large, expect to wait 30-60 seconds."
+
+#| msgid "للتأكيد:"
+msgid "للتأكيد، اكتب"
+msgstr "To confirm, type"
+
+#| msgid "إرسال الهدية"
+msgid "إرسال الآن"
+msgstr "Send now"
+
+msgid "إعادة"
+msgstr "Reset"
+
+#| msgid "دخول / تسجيل سريع"
+msgid "دليل سريع"
+msgstr "Quick guide"
+
+#| msgid "نوع المنتج"
+msgid "أنواع الجمهور:"
+msgstr "Audience types:"
+
+msgid "كل tenant مفعّل (مش متحذف)"
+msgstr "Every active tenant (not deleted)"
+
+#| msgid "المعروضات النشطة"
+msgid "الشركات النشطة"
+msgstr "Active tenants"
+
+msgid "status=active بس"
+msgstr "status=active only"
+
+#| msgid "ينتهي اليوم!"
+msgid "ينتهي خلال 14 يوم"
+msgstr "Expires within 14 days"
+
+#| msgid "توليد جديد"
+msgid "تذكير تجديد"
+msgstr "Renewal reminder"
+
+msgid "في خطر churn"
+msgstr "At churn risk"
+
+msgid "موقوف / منتهي / fraud"
+msgstr "suspended / expired / fraud"
+
+msgid "silver/gold/empire إلخ"
+msgstr "silver/gold/empire etc."
+
+#| msgid "مبيعات اليوم"
+msgid "متغيرات الـ template"
+msgstr "Template variables"
+
+#| msgid "الشركة (schema)"
+msgid "معرف الشركة (subdomain)"
+msgstr "Tenant identifier (subdomain)"
+
+#| msgid "أمان عالي"
+msgid "أمان"
+msgstr "Security"
+
+msgid "كل بث بيتسجل في"
+msgstr "Every broadcast is logged in"
+
+msgid "الشركات اللي مالهاش email بتتخطى تلقائي (skipped count)."
+msgstr "Tenants without an email are skipped automatically (skipped count)."
+
+msgid "الفشل في إرسال لشركة معينة مش بيوقف الباقي — كل واحدة منفصلة."
+msgstr "Failing to send to one tenant does not stop the rest — each is independent."
+
+msgid "سجل الحملات (آخر 100)"
+msgstr "Campaign log (last 100)"
+
+#| msgid "سعر الجملة"
+msgid "الجمهور"
+msgstr "Audience"
+
+#| msgid "المستخدمون"
+msgid "المستهدفون"
+msgstr "Targeted"
+
+#| msgid "تم بنجاح"
+msgid "نجاح"
+msgstr "Success"
+
+msgid "تخطّى"
+msgstr "Skipped"
+
+msgid "المرسل"
+msgstr "Sender"
+
+#| msgid "أهلاً، %(n)s"
+msgid "أخطاء (%(n)s)"
+msgstr "Errors (%(n)s)"
+
+#| msgid "إعادة المحاولة"
+msgid "إعادة إرسال «%(s)s»؟"
+msgstr "Resend «%(s)s»?"
+
+#| msgid "إعادة المحاولة"
+msgid "إعادة إرسال"
+msgstr "Resend"
+
+msgid "لسه مفيش حملات. ابدأ من الـ composer جنب."
+msgstr "No campaigns yet. Start from the composer on the side."
+
+msgid "اختر قناة توصيل واحدة على الأقل: إيميل أو بانر داخل النظام."
+msgstr "Choose at least one delivery channel: email or in-app banner."
+
+#| msgid "إيميل الحساب"
+msgid "إيميل"
+msgstr "Email"
+
+#| msgid "الدخول لنظام"
+msgid "بانر داخل النظام"
+msgstr "In-app banner"
+
+msgid "هتبعت"
+msgstr "You will send"
+
+#| msgid "إلى"
+msgid "لـ"
+msgstr "to"
+
+#| msgid "شركة (عمولة"
+msgid "شركة عبر:"
+msgstr "tenants via:"
+
+#| msgid "مش متأكد؟"
+msgid "متأكد؟"
+msgstr "Are you sure?"
+
 msgid "ضيف"
 msgstr "Guest"
 
@@ -7555,9 +7770,6 @@ msgstr "Worst first"
 
 msgid "الأفضل أولاً"
 msgstr "Best first"
-
-msgid "إعادة"
-msgstr "Reset"
 
 msgid "اشتراك:"
 msgstr "Subscription:"
@@ -8258,9 +8470,6 @@ msgstr "🚨 Open urgent tickets"
 
 msgid "📋 إجمالي مفتوح"
 msgstr "📋 Total open"
-
-msgid "المرسل"
-msgstr "Sender"
 
 msgid "المصدر"
 msgstr "Source"
