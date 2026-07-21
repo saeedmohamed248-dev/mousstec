@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:14+0300\n"
+"POT-Creation-Date: 2026-07-21 18:20+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7423,7 +7423,6 @@ msgstr "🔒 End session"
 msgid "🔒 هذه الجلسة مغلقة"
 msgstr "🔒 This session is closed"
 
-#| msgid "صحة النظام — Mouss Tec Super Admin"
 msgid "صحة الشركات — Mouss Tec Super Admin"
 msgstr "Tenant health — Mouss Tec Super Admin"
 
@@ -7433,7 +7432,6 @@ msgstr "Super admin"
 msgid "🩺 صحة الشركات"
 msgstr "🩺 Companies health"
 
-#| msgid "🩺 صحة الشركات"
 msgid "🩺 صحة الشركات (Tenant Health & Churn Risk)"
 msgstr "🩺 Tenant Health & Churn Risk"
 
@@ -7442,22 +7440,18 @@ msgid ""
 "الثقة. ركّز على الـ critical &amp; high أولاً."
 msgstr "Scores every tenant 0-100 based on subscription + activity + tenure + support + trust. Focus on critical &amp; high first."
 
-#| msgid "🔥 حرج"
 msgid "🚨 خطر حرج"
 msgstr "🚨 Critical risk"
 
-#| msgid "⚠️ خطأ"
 msgid "⚠️ خطر مرتفع"
 msgstr "⚠️ High risk"
 
-#| msgid "شدة متوسطة"
 msgid "🟡 خطر متوسط"
 msgstr "🟡 Medium risk"
 
 msgid "✅ آمن"
 msgstr "✅ Safe"
 
-#| msgid "الخط العربي"
 msgid "الخطر"
 msgstr "Risk"
 
@@ -7482,27 +7476,21 @@ msgstr "Name or schema …"
 msgid "الترتيب"
 msgstr "Sort"
 
-#| msgid "اختر الخزنة أولاً."
 msgid "الأسوأ أولاً"
 msgstr "Worst first"
 
-#| msgid "اختر الخزنة أولاً."
 msgid "الأفضل أولاً"
 msgstr "Best first"
 
-#| msgid "نزّل تطبيق"
 msgid "تطبيق"
 msgstr "Apply"
 
-#| msgid "🔁 إعادة"
 msgid "إعادة"
 msgstr "Reset"
 
-#| msgid "اشتراك"
 msgid "اشتراك:"
 msgstr "Subscription:"
 
-#| msgid "لنشاطك"
 msgid "نشاط:"
 msgstr "Activity:"
 
@@ -7518,11 +7506,9 @@ msgstr "Trust:"
 msgid "سجل التدقيق"
 msgstr "Audit log"
 
-#| msgid "لا توجد قطع مطابقة."
 msgid "لا توجد شركات مطابقة."
 msgstr "No matching tenants."
 
-#| msgid "تغيير اللغة"
 msgid "جرّب تغيير الفلاتر."
 msgstr "Try changing the filters."
 
@@ -10221,7 +10207,7 @@ msgid "مطلوب تعديل"
 msgstr ""
 
 msgid "المصمم"
-msgstr ""
+msgstr "Designer"
 
 msgid "الوصف / التفاصيل"
 msgstr ""
@@ -13680,7 +13666,7 @@ msgid "مؤكد"
 msgstr ""
 
 msgid "موعد التسليم"
-msgstr ""
+msgstr "Delivery date"
 
 msgid "تاريخ التسليم الفعلي"
 msgstr ""
@@ -13719,7 +13705,7 @@ msgid "مقاس مخصص"
 msgstr ""
 
 msgid "الماكينة"
-msgstr ""
+msgstr "Machine"
 
 msgid "نوع البند"
 msgstr ""
@@ -13785,7 +13771,7 @@ msgid "ورق"
 msgstr ""
 
 msgid "حبر"
-msgstr ""
+msgstr "Ink"
 
 msgid "فينيل"
 msgstr ""
@@ -13979,67 +13965,138 @@ msgstr "Start by creating your first design from AI Studio"
 msgid "هل أنت متأكد من حذف هذا التصميم؟"
 msgstr "Are you sure you want to delete this design?"
 
-#| msgid "عرض سعر %(q)s | Mouss Tec"
+#, python-format
 msgid "كشف حساب %(name)s | Mouss Tec"
 msgstr "Account statement %(name)s | Mouss Tec"
 
-#| msgid "طباعة"
 msgid "طباعة PDF"
 msgstr "Print PDF"
 
-#| msgid "مشاركة"
 msgid "رابط مشاركة"
 msgstr "Share link"
 
-#| msgid "عميل"
 msgid "عميل منذ"
 msgstr "Customer since"
 
-#| msgid "إجمالي قيمة الفواتير"
 msgid "إجمالي الفواتير"
 msgstr "Total invoices"
 
-#| msgid "فواتير ذكية"
 msgid "فواتير مفتوحة"
 msgstr "Open invoices"
 
-#| msgid "إجمالي الطلبات"
 msgid "إجمالي المدفوعات"
 msgstr "Total payments"
 
-#| msgid "المستحق للمورد"
 msgid "مستحق للمطبعة"
 msgstr "Due to the shop"
 
-#| msgid "المستحق على العميل"
 msgid "مستحق للعميل"
 msgstr "Due to the customer"
 
-#| msgid "واتساب متبقي"
 msgid "الحساب متطابق"
 msgstr "Account balanced"
 
-#| msgid "مدين (مستحق)"
 msgid "مدين (له)"
 msgstr "Debit (owed)"
 
-#| msgid "دائن (مدفوع)"
 msgid "دائن (دفع)"
 msgstr "Credit (paid)"
 
 msgid "دفعة"
 msgstr "Payment"
 
-#| msgid "لا توجد بيانات في آخر ساعة."
 msgid "لا توجد حركات في الفترة المحددة"
 msgstr "No transactions in the selected period"
 
-#| msgid "تقرير صادر من Mouss Tec •"
 msgid "كشف حساب صادر من Mouss Tec"
 msgstr "Account statement issued by Mouss Tec"
 
 msgid "تم نسخ رابط كشف الحساب — يمكن إرساله للعميل"
 msgstr "Statement link copied — you can send it to the customer"
+
+#| msgid "كشف حساب %(name)s | Mouss Tec"
+msgid "تحليل ربحية الطلب #%(n)s | Mouss Tec"
+msgstr "Order profitability analysis #%(n)s | Mouss Tec"
+
+#| msgid "تابع حالة الطلب"
+msgid "تحليل ربحية الطلب #%(n)s"
+msgstr "Order profitability analysis #%(n)s"
+
+#, python-format
+msgid "إجمالي %(t)s − خصم %(d)s"
+msgstr "Total %(t)s − discount %(d)s"
+
+#| msgid "إجمالي الكشوف"
+msgid "إجمالي التكلفة"
+msgstr "Total cost"
+
+msgid "ماكينة + حبر + أجر المصمم"
+msgstr "Machine + ink + designer wage"
+
+#| msgid "صافي الخسارة"
+msgid "الخسارة"
+msgstr "Loss"
+
+#| msgid "هامش الربح: %(p)s%%"
+msgid "هامش الربح: <strong>%(p)s%%</strong>"
+msgstr "Profit margin: <strong>%(p)s%%</strong>"
+
+#| msgid "سعر التكلفة"
+msgid "توزيع التكلفة"
+msgstr "Cost breakdown"
+
+#| msgid "تفاصيل التصميم"
+msgid "تفاصيل المهام (%(n)s)"
+msgstr "Job details (%(n)s)"
+
+#| msgid "مهمة"
+msgid "المهمة"
+msgstr "Job"
+
+#| msgid "الساعات"
+msgid "ساعات"
+msgstr "Hours"
+
+#| msgid "وقت التشغيل"
+msgid "تشغيل"
+msgstr "Machine run"
+
+#| msgid "مطبعة ومصمم"
+msgid "أجر مصمم"
+msgstr "Designer wage"
+
+#| msgid "إجمالي الكشوف"
+msgid "إجمالي تكلفة"
+msgstr "Total cost"
+
+#| msgid "صافي الربح"
+msgid "الربح"
+msgstr "Profit"
+
+msgid "هامش"
+msgstr "Margin"
+
+#| msgid "لا توجد مصروفات في هذا الشهر"
+msgid "لا توجد مهام في هذا الطلب بعد."
+msgstr "No jobs in this order yet."
+
+#| msgid "بيانات المركبة"
+msgid "بيانات الطلب"
+msgstr "Order details"
+
+#| msgid "تنبيه"
+msgid "تنبيه:"
+msgstr "Notice:"
+
+msgid ""
+"لم يتم تسجيل أي تكاليف (ساعات تشغيل أو حبر) للمهام بعد. الأرباح المعروضة "
+"تساوي الإيرادات بالكامل."
+msgstr "No costs (machine hours or ink) have been recorded for the jobs yet. The profit shown equals the full revenue."
+
+msgid ""
+"افتح المهام وأضف <em>وقت التنفيذ الفعلي</em> + <em>الماكينة</em> + "
+"<em>المصمم</em> للحصول على تحليل دقيق."
+msgstr "Open the jobs and add <em>actual execution time</em> + <em>machine</em> + <em>designer</em> for an accurate analysis."
 
 #, python-format
 msgid "تقرير الأرباح والخسائر — %(m)s %(y)s | Mouss Tec"
@@ -14392,6 +14449,53 @@ msgstr "Device connection instructions"
 
 msgid "الجهاز يتصل بـ WebSocket على المسار التالي مع"
 msgstr "The device connects via WebSocket at the following path with"
+
+#| msgid "بيانات المركبة"
+msgid "غير متصل بمركبة"
+msgstr "Not connected to a vehicle"
+
+#| msgid "البراند مفعّل"
+msgid "الاشتراك غير مفعّل"
+msgstr "Subscription not active"
+
+msgid ""
+"يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر، وأن تكون "
+"المركبة مسجَّلة في النظام."
+msgstr "Requires an active Premium Diagnostics plan to access the live stream, and the vehicle must be registered in the system."
+
+#| msgid "أنت مشترك في Premium Diagnostics. كل المزايا متاحة الآن."
+msgid "يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر."
+msgstr "Requires an active Premium Diagnostics plan to access the live stream."
+
+#| msgid "القراءات الحية"
+msgid "القياسات الحية"
+msgstr "Live readings"
+
+msgid "دورة/د"
+msgstr "rpm"
+
+msgid "كم/س"
+msgstr "km/h"
+
+#| msgid "آخر صيانة"
+msgid "آخر 60 ثانية"
+msgstr "last 60 seconds"
+
+#| msgid "للاضافة الواحدة."
+msgid "سجل الإطارات الواردة"
+msgstr "Incoming frames log"
+
+#| msgid "اشترك الآن"
+msgid "اشترك للوصول"
+msgstr "Subscribe for access"
+
+#| msgid "توزيع المصروفات حسب التصنيف"
+msgid "تم إيقاف المحاولات — حدّث الصفحة"
+msgstr "Attempts stopped — refresh the page"
+
+#| msgid "سبب الإرجاع:"
+msgid "سبب الحجب:"
+msgstr "Block reason:"
 
 msgid "ترقية إلى Premium Diagnostics"
 msgstr "Upgrade to Premium Diagnostics"

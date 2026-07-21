@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 Live Diagnostics — {% if vehicle %}{{ vehicle.car_plate|default:vehicle.chassis_number }}{% else %}غير متاح{% endif %}</title>
+    <title>🔧 Live Diagnostics — {% if vehicle %}{{ vehicle.car_plate|default:vehicle.chassis_number }}{% else %}{% trans "غير متاح" %}{% endif %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -82,7 +82,7 @@
         {% if vehicle %}
         <div class="vin">VIN: {{ vehicle.chassis_number }} &middot; {{ vehicle.brand }} {{ vehicle.model_name|default:"" }}</div>
         {% else %}
-        <div class="vin">غير متصل بمركبة</div>
+        <div class="vin">{% trans "غير متصل بمركبة" %}</div>
         {% endif %}
     </div>
     <div id="wsStatus" class="status-pill idle">⏳ Connecting…</div>
@@ -90,26 +90,27 @@
 
 {% if denied %}
 <div class="deny-banner" style="display:block;">
-    <h2>🛑 {{ reason|default:"الاشتراك غير مفعّل" }}</h2>
-    <p>يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر، وأن تكون المركبة مسجَّلة في النظام.</p>
-    <a href="/api/diagnostics/upgrade/">ترقية الباقة</a>
+    {% trans "الاشتراك غير مفعّل" as t_sub_inactive %}
+    <h2>🛑 {{ reason|default:t_sub_inactive }}</h2>
+    <p>{% trans "يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر، وأن تكون المركبة مسجَّلة في النظام." %}</p>
+    <a href="/api/diagnostics/upgrade/">{% trans "ترقية الباقة" %}</a>
 </div>
 {% else %}
 <div id="denyBanner" class="deny-banner">
-    <h2 id="denyTitle">🛑 الاشتراك غير مفعّل</h2>
-    <p id="denyText">يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر.</p>
-    <a href="/api/diagnostics/upgrade/">ترقية الباقة</a>
+    <h2 id="denyTitle">🛑 {% trans "الاشتراك غير مفعّل" %}</h2>
+    <p id="denyText">{% trans "يتطلب تفعيل باقة Premium Diagnostics للوصول لخدمة البث المباشر." %}</p>
+    <a href="/api/diagnostics/upgrade/">{% trans "ترقية الباقة" %}</a>
 </div>
 {% endif %}
 
 {% if vehicle %}
 <div class="main" id="dashContent">
     <div class="card full">
-        <div class="card-title">📊 القياسات الحية</div>
+        <div class="card-title">📊 {% trans "القياسات الحية" %}</div>
         <div class="gauges">
             <div class="gauge"><div class="label">RPM</div>
                 <div class="value" id="g_rpm">—</div>
-                <div class="unit">دورة/د</div></div>
+                <div class="unit">{% trans "دورة/د" %}</div></div>
             <div class="gauge"><div class="label">Engine Load</div>
                 <div class="value" id="g_load">—</div>
                 <div class="unit">%</div></div>
@@ -118,7 +119,7 @@
                 <div class="unit">°C</div></div>
             <div class="gauge"><div class="label">Vehicle Speed</div>
                 <div class="value" id="g_speed">—</div>
-                <div class="unit">كم/س</div></div>
+                <div class="unit">{% trans "كم/س" %}</div></div>
             <div class="gauge"><div class="label">Throttle</div>
                 <div class="value" id="g_throttle">—</div>
                 <div class="unit">%</div></div>
@@ -129,16 +130,16 @@
     </div>
 
     <div class="card">
-        <div class="card-title">📈 RPM &amp; Speed (آخر 60 ثانية)</div>
+        <div class="card-title">📈 RPM &amp; Speed ({% trans "آخر 60 ثانية" %})</div>
         <div class="chart-wrap"><canvas id="chartRPM"></canvas></div>
     </div>
     <div class="card">
-        <div class="card-title">🌡️ Coolant &amp; Load (آخر 60 ثانية)</div>
+        <div class="card-title">🌡️ Coolant &amp; Load ({% trans "آخر 60 ثانية" %})</div>
         <div class="chart-wrap"><canvas id="chartTemp"></canvas></div>
     </div>
 
     <div class="card full">
-        <div class="card-title">📝 سجل الإطارات الواردة</div>
+        <div class="card-title">📝 {% trans "سجل الإطارات الواردة" %}</div>
         <div id="frameLog" class="log"></div>
     </div>
 </div>
@@ -231,12 +232,12 @@
 
     function connect() {
         if (permanentlyDenied) {
-            els.status.textContent = '🛑 Access denied — اشترك للوصول';
+            els.status.textContent = '🛑 Access denied — {% trans "اشترك للوصول" %}';
             els.status.className = 'status-pill error';
             return;
         }
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-            els.status.textContent = '⏸ تم إيقاف المحاولات — حدّث الصفحة';
+            els.status.textContent = '⏸ {% trans "تم إيقاف المحاولات — حدّث الصفحة" %}';
             els.status.className = 'status-pill error';
             return;
         }
@@ -266,7 +267,7 @@
                 permanentlyDenied = true;  // 🛡️ block all future reconnects
                 els.deny.style.display = 'block';
                 els.dashContent.style.display = 'none';
-                els.denyText.textContent = 'سبب الحجب: ' + msg.reason;
+                els.denyText.textContent = '{% trans "سبب الحجب:" %} ' + msg.reason;
                 ws.close();
                 return;
             }
