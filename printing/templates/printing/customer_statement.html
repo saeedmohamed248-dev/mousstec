@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كشف حساب {{ customer.name }} | Mouss Tec</title>
+    <title>{% blocktrans with name=customer.name %}كشف حساب {{ name }} | Mouss Tec{% endblocktrans %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -100,11 +100,11 @@
 <body>
 
 <div class="topbar no-print">
-    <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب — {{ customer.name }}</h2>
+    <h2><i class="fas fa-file-invoice-dollar"></i> {% trans "كشف حساب" %} — {{ customer.name }}</h2>
     <div class="topbar-actions">
-        <a href="/secure-portal/printing/printcustomer/{{ customer.pk }}/change/" class="btn outline"><i class="fas fa-arrow-right"></i> رجوع</a>
-        <a href="?print=1" target="_blank" class="btn"><i class="fas fa-print"></i> طباعة PDF</a>
-        <button onclick="copyShareLink()" class="btn primary"><i class="fas fa-share"></i> رابط مشاركة</button>
+        <a href="/secure-portal/printing/printcustomer/{{ customer.pk }}/change/" class="btn outline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+        <a href="?print=1" target="_blank" class="btn"><i class="fas fa-print"></i> {% trans "طباعة PDF" %}</a>
+        <button onclick="copyShareLink()" class="btn primary"><i class="fas fa-share"></i> {% trans "رابط مشاركة" %}</button>
     </div>
 </div>
 
@@ -117,7 +117,7 @@
             {% if customer.phone %}<span><i class="fas fa-phone"></i> {{ customer.phone }}</span>{% endif %}
             {% if customer.whatsapp %}<span><i class="fab fa-whatsapp"></i> {{ customer.whatsapp }}</span>{% endif %}
             {% if customer.email %}<span><i class="fas fa-envelope"></i> {{ customer.email }}</span>{% endif %}
-            <span><i class="fas fa-calendar"></i> عميل منذ {{ customer.created_at|date:"d/m/Y" }}</span>
+            <span><i class="fas fa-calendar"></i> {% trans "عميل منذ" %} {{ customer.created_at|date:"d/m/Y" }}</span>
         </div>
     </div>
 
@@ -125,15 +125,15 @@
     <div class="summary-grid">
         <div class="stat">
             <div class="stat-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-file-invoice"></i></div>
-            <div><div class="stat-num">{{ summary.total_orders }}</div><div class="stat-label">إجمالي الفواتير</div></div>
+            <div><div class="stat-num">{{ summary.total_orders }}</div><div class="stat-label">{% trans "إجمالي الفواتير" %}</div></div>
         </div>
         <div class="stat">
             <div class="stat-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
-            <div><div class="stat-num">{{ summary.open_orders }}</div><div class="stat-label">فواتير مفتوحة</div></div>
+            <div><div class="stat-num">{{ summary.open_orders }}</div><div class="stat-label">{% trans "فواتير مفتوحة" %}</div></div>
         </div>
         <div class="stat">
             <div class="stat-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-check"></i></div>
-            <div><div class="stat-num">{{ summary.delivered_orders }}</div><div class="stat-label">تم التسليم</div></div>
+            <div><div class="stat-num">{{ summary.delivered_orders }}</div><div class="stat-label">{% trans "تم التسليم" %}</div></div>
         </div>
     </div>
 
@@ -141,28 +141,28 @@
     <div class="balance-card">
         <div class="totals">
             <div class="item">
-                <div class="label">إجمالي الفواتير</div>
-                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} ج.م</div>
+                <div class="label">{% trans "إجمالي الفواتير" %}</div>
+                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} {% trans "ج.م" %}</div>
             </div>
             <div class="item">
-                <div class="label">إجمالي المدفوعات</div>
-                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} ج.م</div>
+                <div class="label">{% trans "إجمالي المدفوعات" %}</div>
+                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} {% trans "ج.م" %}</div>
             </div>
         </div>
         <div class="final {% if final_balance > 0 %}due{% elif final_balance < 0 %}paid{% else %}balanced{% endif %}">
             <div class="label">
-                {% if final_balance > 0 %}<i class="fas fa-arrow-up"></i> مستحق للمطبعة{% elif final_balance < 0 %}<i class="fas fa-arrow-down"></i> مستحق للعميل{% else %}<i class="fas fa-circle-check"></i> الحساب متطابق{% endif %}
+                {% if final_balance > 0 %}<i class="fas fa-arrow-up"></i> {% trans "مستحق للمطبعة" %}{% elif final_balance < 0 %}<i class="fas fa-arrow-down"></i> {% trans "مستحق للعميل" %}{% else %}<i class="fas fa-circle-check"></i> {% trans "الحساب متطابق" %}{% endif %}
             </div>
-            <div class="value">{{ final_balance|floatformat:2 }} ج.م</div>
+            <div class="value">{{ final_balance|floatformat:2 }} {% trans "ج.م" %}</div>
         </div>
     </div>
 
     <!-- Filter -->
     <form class="filter-bar no-print" method="get">
-        <label>من تاريخ <input type="date" name="from" value="{{ date_from }}"></label>
-        <label>إلى تاريخ <input type="date" name="to" value="{{ date_to }}"></label>
-        <button type="submit" class="btn primary"><i class="fas fa-filter"></i> فلترة</button>
-        {% if date_from or date_to %}<a href="?" class="btn"><i class="fas fa-xmark"></i> مسح</a>{% endif %}
+        <label>{% trans "من تاريخ" %} <input type="date" name="from" value="{{ date_from }}"></label>
+        <label>{% trans "إلى تاريخ" %} <input type="date" name="to" value="{{ date_to }}"></label>
+        <button type="submit" class="btn primary"><i class="fas fa-filter"></i> {% trans "فلترة" %}</button>
+        {% if date_from or date_to %}<a href="?" class="btn"><i class="fas fa-xmark"></i> {% trans "مسح" %}</a>{% endif %}
     </form>
 
     <!-- Statement table -->
@@ -170,13 +170,13 @@
         <table>
             <thead>
                 <tr>
-                    <th>التاريخ</th>
-                    <th>النوع</th>
-                    <th>المرجع</th>
-                    <th>الوصف</th>
-                    <th style="text-align:left;">مدين (له)</th>
-                    <th style="text-align:left;">دائن (دفع)</th>
-                    <th style="text-align:left;">الرصيد</th>
+                    <th>{% trans "التاريخ" %}</th>
+                    <th>{% trans "النوع" %}</th>
+                    <th>{% trans "المرجع" %}</th>
+                    <th>{% trans "الوصف" %}</th>
+                    <th style="text-align:left;">{% trans "مدين (له)" %}</th>
+                    <th style="text-align:left;">{% trans "دائن (دفع)" %}</th>
+                    <th style="text-align:left;">{% trans "الرصيد" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -185,9 +185,9 @@
                     <td>{{ ev.date|date:"d/m/Y H:i" }}</td>
                     <td>
                         {% if ev.type == 'invoice' %}
-                            <span class="type-pill pill-invoice"><i class="fas fa-file-invoice"></i> فاتورة</span>
+                            <span class="type-pill pill-invoice"><i class="fas fa-file-invoice"></i> {% trans "فاتورة" %}</span>
                         {% else %}
-                            <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> دفعة</span>
+                            <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> {% trans "دفعة" %}</span>
                         {% endif %}
                     </td>
                     <td>
@@ -203,13 +203,13 @@
                     <td class="num balance" style="text-align:left;">{{ ev.balance|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="7" class="empty"><i class="fas fa-inbox"></i><div>لا توجد حركات في الفترة المحددة</div></td></tr>
+                <tr><td colspan="7" class="empty"><i class="fas fa-inbox"></i><div>{% trans "لا توجد حركات في الفترة المحددة" %}</div></td></tr>
                 {% endfor %}
             </tbody>
             {% if events %}
             <tfoot style="background:rgba(255,255,255,0.03);">
                 <tr style="font-weight:900;">
-                    <td colspan="4" style="text-align:left;">الإجمالي</td>
+                    <td colspan="4" style="text-align:left;">{% trans "الإجمالي" %}</td>
                     <td class="num debit" style="text-align:left;">{{ total_invoiced|floatformat:2 }}</td>
                     <td class="num credit" style="text-align:left;">{{ total_paid|floatformat:2 }}</td>
                     <td class="num balance" style="text-align:left;">{{ final_balance|floatformat:2 }}</td>
@@ -220,7 +220,7 @@
     </div>
 
     <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin-top:30px;">
-        كشف حساب صادر من Mouss Tec • {{ customer.name }} • {% now "d/m/Y H:i" %}
+        {% trans "كشف حساب صادر من Mouss Tec" %} • {{ customer.name }} • {% now "d/m/Y H:i" %}
     </p>
 </div>
 
@@ -228,7 +228,7 @@
 function copyShareLink() {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
-        alert('تم نسخ رابط كشف الحساب — يمكن إرساله للعميل');
+        alert('{% trans "تم نسخ رابط كشف الحساب — يمكن إرساله للعميل" %}');
     });
 }
 {% if print_mode %}window.addEventListener('load', () => setTimeout(() => window.print(), 400));{% endif %}
