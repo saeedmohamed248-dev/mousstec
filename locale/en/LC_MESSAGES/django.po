@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:39+0300\n"
+"POT-Creation-Date: 2026-07-21 18:44+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -14879,26 +14879,94 @@ msgid ""
 "page. Would you like to login to a different account?"
 msgstr ""
 
-#| msgid "المستشار الذكي | Mouss Tec"
-msgid "المستشار الذكي — %(sl)s | Mousstec ERP"
-msgstr "Smart Advisor — %(sl)s | Mousstec ERP"
+#, python-format
+msgid "خبير تشخيص متعدد الماركات — %(al)s"
+msgstr "Multi-brand diagnostic expert — %(al)s"
 
-#| msgid "المستشار الذكي | Mouss Tec"
-msgid "المستشار الذكي — %(sl)s"
-msgstr "Smart Advisor — %(sl)s"
+#| msgid "كروت صيانة + تتبع المركبات"
+msgid "خبير تشخيص متعدد الماركات"
+msgstr "Multi-brand diagnostic expert"
 
-#| msgid "محادثة فاضية."
 msgid "محادثة جديدة"
 msgstr "New conversation"
 
-#| msgid "أسئلة شائعة"
+#| msgid "الشركات المسجلة"
+msgid "المحركات المدعومة"
+msgstr "Supported engines"
+
+#| msgid "خبير التشخيص"
+msgid "أهلاً بيك في خبير التشخيص"
+msgstr "Welcome to the diagnostic expert"
+
+msgid ""
+"اختر الماركة من الأعلى — أو اكتب الشكوى مباشرة وهنرشحلك الماركة تلقائياً. "
+"تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك."
+msgstr "Pick the brand from the top — or write the complaint directly and we will suggest the brand automatically. You can write in colloquial Arabic, a fault code (such as P0301), or the car model + engine."
+
+#| msgid "أدخل كود العطل (مثال: P0300)..."
+msgid "اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)"
+msgstr "Write your complaint or the fault code... (example: P0301 on F30 N20)"
+
+msgid "محرك"
+msgstr "engine"
+
+#| msgid "خبير التشخيص"
+msgid "خبير تشخيص"
+msgstr "Diagnostic expert"
+
+#| msgid "أهلاً بك في سوق Mouss Tec"
+msgid "أهلاً بيك في خبير"
+msgstr "Welcome to the expert of"
+
+#| msgid "أدخل كود العطل (مثال: P0300)..."
+msgid "اكتب شكوتك أو كود العطل... (مثال: P0301 على"
+msgstr "Write your complaint or the fault code... (example: P0301 on"
+
+#| msgid "لا يوجد ضمان"
+msgid "لا يوجد"
+msgstr "None"
+
+#| msgid "زيت المحرك"
+msgid "المحرك:"
+msgstr "Engine:"
+
+#| msgid "التصميم"
+msgid "التصنيف:"
+msgstr "Category:"
+
+#| msgid "الأولوية"
+msgid "الأولوية:"
+msgstr "Priority:"
+
+#| msgid "مفيش باقات."
+msgid "مفيش رد."
+msgstr "No response."
+
+msgid "حصل خطأ غير متوقع."
+msgstr "An unexpected error occurred."
+
+#| msgid "خطأ في الاتصال بالخادم"
+msgid "تعذر الاتصال بالخادم."
+msgstr "Could not connect to the server."
+
+#| msgid "متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟"
+msgid "متأكد إنك عاوز تبدأ من الأول؟"
+msgstr "Are you sure you want to start over?"
+
+#, python-format
+msgid "المستشار الذكي — %(sl)s | Mousstec ERP"
+msgstr "Smart Advisor — %(sl)s | Mousstec ERP"
+
+#, python-format
+msgid "المستشار الذكي — %(sl)s"
+msgstr "Smart Advisor — %(sl)s"
+
 msgid "أسئلة جاهزة"
 msgstr "Ready-made questions"
 
 msgid "لو لميت الفلوس المكتوبة في الفواتير الآجلة، هيكون معايا كاش كام؟"
 msgstr "If I collect all the money on the deferred invoices, how much cash would I have?"
 
-#| msgid "صفحة المراجعة الكاملة (كل الحالات)"
 msgid "توقع الكاش لو حصّلت كل المستحقات"
 msgstr "Forecast the cash if I collect all receivables"
 
@@ -14906,21 +14974,19 @@ msgstr "Forecast the cash if I collect all receivables"
 msgid "لو بعت 20%% من المخزون الراكد بسعر السوق، الأرباح المتوقعة كام؟"
 msgstr "If I sell 20%% of the dead stock at market price, what are the expected profits?"
 
-#| msgid "حساب الأدمن المعتمد"
+#, python-format
 msgid "محاكاة بيع 20%% من الراكد"
 msgstr "Simulate selling 20%% of the dead stock"
 
 msgid "إيه الأصناف اللي مش بيتباع وعندي فيها ركود في المخازن؟"
 msgstr "Which items are not selling and are stagnant in the warehouses?"
 
-#| msgid "تقرير الأرباح والخسائر"
 msgid "تقرير الراكد والكاش المحبوس"
 msgstr "Dead-stock and locked-cash report"
 
 msgid "ودّيني لصفحة العميل رقم 14"
 msgstr "Take me to the page of customer number 14"
 
-#| msgid "إرسال مباشر للعميل"
 msgid "لينك مباشر لعميل"
 msgstr "Direct link to a customer"
 
@@ -14928,11 +14994,10 @@ msgstr "Direct link to a customer"
 msgid "لو بعت 50%% من الراكد هحقق ربح كام؟"
 msgstr "If I sell 50%% of the dead stock, how much profit would I make?"
 
-#| msgid "استلم عروض من التجار"
+#, python-format
 msgid "سيناريو: 50%% من الراكد"
 msgstr "Scenario: 50%% of the dead stock"
 
-#| msgid "أدلة التشخيص الذكي"
 msgid "أهلاً! أنا مستشارك الذكي"
 msgstr "Hello! I am your smart advisor"
 
@@ -14944,15 +15009,9 @@ msgstr "Ask me about cash, dead stock, profits, or any report. All answers come 
 msgid "اسأل المستشار... (مثال: لو لميت الفلوس الكاش هيكون كام؟)"
 msgstr "Ask the advisor... (example: if I collect the money, how much cash would there be?)"
 
-#| msgid "حدث خطأ غير متوقع"
-msgid "حصل خطأ غير متوقع."
-msgstr "An unexpected error occurred."
-
-#| msgid "تعذر الاتصال بالمساعد. تأكد من اتصالك بالإنترنت."
 msgid "تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت."
 msgstr "Could not connect to the server. Check your internet connection."
 
-#| msgid "متأكد إنك عايز تلغي 2FA؟ حسابك هيرجع محمي بكلمة السر بس."
 msgid "متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟"
 msgstr "Are you sure you want to start a new conversation and clear the previous one?"
 

@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خبير تشخيص متعدد الماركات — {{ audience_label }}</title>
+    <title>{% blocktrans with al=audience_label %}خبير تشخيص متعدد الماركات — {{ al }}{% endblocktrans %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -192,10 +192,10 @@
 {% include 'ai_rooms/_rooms_nav.html' with active='auto_diagnostic' %}
 
 <div class="topbar">
-    <h1>{{ audience_emoji }} <span id="topbarBrandLabel">خبير تشخيص متعدد الماركات</span> — {{ audience_label }}</h1>
+    <h1>{{ audience_emoji }} <span id="topbarBrandLabel">{% trans "خبير تشخيص متعدد الماركات" %}</span> — {{ audience_label }}</h1>
     <div class="actions">
-        <button id="reset-btn"><i class="fas fa-broom"></i> محادثة جديدة</button>
-        <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
+        <button id="reset-btn"><i class="fas fa-broom"></i> {% trans "محادثة جديدة" %}</button>
+        <a href="/"><i class="fas fa-home"></i> {% trans "الرئيسية" %}</a>
     </div>
 </div>
 
@@ -215,12 +215,12 @@
 <div class="shell">
 
     <aside class="sidebar">
-        <h3><i class="fas fa-microchip"></i> المحركات المدعومة
+        <h3><i class="fas fa-microchip"></i> {% trans "المحركات المدعومة" %}
             <span style="font-size:.7rem; color:#64748b; font-weight:600; margin-right:auto;" id="engineCount"></span>
         </h3>
         <div id="engineChips" style="margin-bottom: 16px;"></div>
 
-        <h3><i class="fas fa-bolt"></i> أسئلة شائعة</h3>
+        <h3><i class="fas fa-bolt"></i> {% trans "أسئلة شائعة" %}</h3>
         <div id="faqList"></div>
     </aside>
 
@@ -228,16 +228,15 @@
         <div class="messages" id="messages">
             <div class="welcome" id="welcome">
                 <span class="emoji">{{ audience_emoji }}</span>
-                <h2 id="welcomeTitle">أهلاً بيك في خبير التشخيص</h2>
-                <p id="welcomeBody">اختر الماركة من الأعلى — أو اكتب الشكوى مباشرة وهنرشحلك الماركة تلقائياً.
-                    تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك.</p>
+                <h2 id="welcomeTitle">{% trans "أهلاً بيك في خبير التشخيص" %}</h2>
+                <p id="welcomeBody">{% trans "اختر الماركة من الأعلى — أو اكتب الشكوى مباشرة وهنرشحلك الماركة تلقائياً. تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك." %}</p>
                 <span class="tenant-badge"><i class="fas fa-shield-alt"></i> Tenant: {{ tenant_schema }}</span>
             </div>
         </div>
 
         <form class="composer" id="composer">
-            <textarea id="query-input" placeholder="اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)" rows="1"></textarea>
-            <button type="submit" id="send-btn"><i class="fas fa-stethoscope"></i> تشخيص</button>
+            <textarea id="query-input" placeholder="{% trans 'اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)' %}" rows="1"></textarea>
+            <button type="submit" id="send-btn"><i class="fas fa-stethoscope"></i> {% trans "تشخيص" %}</button>
         </form>
     </main>
 </div>
@@ -288,7 +287,7 @@
         engineChipsEl.innerHTML = brand.engines.map(
             e => `<span class="engine-chip">${e}</span>`
         ).join('');
-        engineCountEl.textContent = `${brand.engines.length} محرك`;
+        engineCountEl.textContent = `${brand.engines.length} {% trans "محرك" %}`;
 
         // FAQs (audience-aware)
         const faqs = AUDIENCE === 'shop' ? brand.shop_faqs : brand.customer_faqs;
@@ -307,12 +306,12 @@
         });
 
         // Header label + welcome title
-        topbarBrandLabel.textContent = `${brand.emoji} خبير تشخيص ${brand.label}`;
-        if (welcomeTitle) welcomeTitle.textContent = `أهلاً بيك في خبير ${brand.label}`;
+        topbarBrandLabel.textContent = `${brand.emoji} {% trans "خبير تشخيص" %} ${brand.label}`;
+        if (welcomeTitle) welcomeTitle.textContent = `{% trans "أهلاً بيك في خبير" %} ${brand.label}`;
 
         // Input placeholder reflects the active brand's engines
         const sampleEngine = brand.engines[0] || '';
-        input.placeholder = `اكتب شكوتك أو كود العطل... (مثال: P0301 على ${brand.label} ${sampleEngine})`;
+        input.placeholder = `{% trans "اكتب شكوتك أو كود العطل... (مثال: P0301 على" %} ${brand.label} ${sampleEngine})`;
     }
 
     // Wire brand tab clicks
@@ -337,13 +336,13 @@
         if (!refined || refined.refiner_status !== 'ok') return;
         const card = document.createElement('div');
         card.className = 'refined-card';
-        const dtcs = (refined.dtc_codes || []).join(', ') || 'لا يوجد';
-        const eng = (refined.vehicle_hint && refined.vehicle_hint.engine) || 'غير محدد';
+        const dtcs = (refined.dtc_codes || []).join(', ') || '{% trans "لا يوجد" %}';
+        const eng = (refined.vehicle_hint && refined.vehicle_hint.engine) || '{% trans "غير محدد" %}';
         const cat = refined.symptom_category || '—';
         const urg = refined.urgency || '—';
         card.innerHTML = `
             <div><span class="label">DTC:</span> ${dtcs}</div>
-            <div><span class="label">المحرك:</span> ${eng} &nbsp;|&nbsp; <span class="label">التصنيف:</span> ${cat} &nbsp;|&nbsp; <span class="label">الأولوية:</span> ${urg}</div>
+            <div><span class="label">{% trans "المحرك:" %}</span> ${eng} &nbsp;|&nbsp; <span class="label">{% trans "التصنيف:" %}</span> ${cat} &nbsp;|&nbsp; <span class="label">{% trans "الأولوية:" %}</span> ${urg}</div>
         `;
         messagesEl.appendChild(card);
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -376,13 +375,13 @@
 
             if (data.success) {
                 addRefinedCard(data.refined);
-                addMessage(data.answer || '⚠️ مفيش رد.', 'assistant');
+                addMessage(data.answer || '⚠️ {% trans "مفيش رد." %}', 'assistant');
             } else {
-                addMessage(data.answer || '⚠️ حصل خطأ غير متوقع.', 'error');
+                addMessage(data.answer || '⚠️ {% trans "حصل خطأ غير متوقع." %}', 'error');
             }
         } catch (err) {
             typingEl.remove();
-            addMessage('⚠️ تعذر الاتصال بالخادم.', 'error');
+            addMessage('⚠️ {% trans "تعذر الاتصال بالخادم." %}', 'error');
             console.error(err);
         } finally {
             sendBtn.disabled = false;
@@ -411,7 +410,7 @@
     // (FAQ click handlers are wired inside renderBrand() — no global binding)
 
     resetBtn.addEventListener('click', async () => {
-        if (!confirm('متأكد إنك عاوز تبدأ من الأول؟')) return;
+        if (!confirm('{% trans "متأكد إنك عاوز تبدأ من الأول؟" %}')) return;
         try {
             const fd = new FormData();
             fd.append('audience', AUDIENCE);

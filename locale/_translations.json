@@ -3417,5 +3417,22 @@
   "توقع الكاش لو حصّلت كل المستحقات": "Forecast the cash if I collect all receivables",
   "تقرير الراكد والكاش المحبوس": "Dead-stock and locked-cash report",
   "لينك مباشر لعميل": "Direct link to a customer",
-  "سيناريو: 50%% من الراكد": "Scenario: 50%% of the dead stock"
+  "سيناريو: 50%% من الراكد": "Scenario: 50%% of the dead stock",
+  "خبير تشخيص متعدد الماركات — %(al)s": "Multi-brand diagnostic expert — %(al)s",
+  "خبير تشخيص متعدد الماركات": "Multi-brand diagnostic expert",
+  "المحركات المدعومة": "Supported engines",
+  "أهلاً بيك في خبير التشخيص": "Welcome to the diagnostic expert",
+  "اختر الماركة من الأعلى — أو اكتب الشكوى مباشرة وهنرشحلك الماركة تلقائياً. تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك.": "Pick the brand from the top — or write the complaint directly and we will suggest the brand automatically. You can write in colloquial Arabic, a fault code (such as P0301), or the car model + engine.",
+  "اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)": "Write your complaint or the fault code... (example: P0301 on F30 N20)",
+  "محرك": "engine",
+  "خبير تشخيص": "Diagnostic expert",
+  "أهلاً بيك في خبير": "Welcome to the expert of",
+  "اكتب شكوتك أو كود العطل... (مثال: P0301 على": "Write your complaint or the fault code... (example: P0301 on",
+  "لا يوجد": "None",
+  "المحرك:": "Engine:",
+  "التصنيف:": "Category:",
+  "الأولوية:": "Priority:",
+  "مفيش رد.": "No response.",
+  "تعذر الاتصال بالخادم.": "Could not connect to the server.",
+  "متأكد إنك عاوز تبدأ من الأول؟": "Are you sure you want to start over?"
 }
