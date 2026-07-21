@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:02+0300\n"
+"POT-Creation-Date: 2026-07-21 18:10+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7574,6 +7574,92 @@ msgstr "Done at:"
 msgid "لا توجد نزاعات في هذه القائمة."
 msgstr "No disputes in this list."
 
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "طلبات السوق | Super Admin — Mouss Tec"
+msgstr "Marketplace requests | Super Admin — Mouss Tec"
+
+msgid "لوحة السوبر أدمن"
+msgstr "Super-admin dashboard"
+
+#| msgid "إدارة طلبات التسعير"
+msgid "إدارة طلبات السوق"
+msgstr "Manage marketplace requests"
+
+#| msgid "إدارة كل طلبات السوق (كل الحالات)"
+msgid "مراجعة وإدارة كل طلبات العملاء في السوق المفتوح"
+msgstr "Review and manage all customer requests in the open marketplace"
+
+msgid "بحث"
+msgstr "Search"
+
+#| msgid "زي العميل النهائي تماماً."
+msgid "اسم العميل / رقم الهاتف / عنوان الطلب"
+msgstr "Customer name / phone number / request title"
+
+msgid "مسح"
+msgstr "Clear"
+
+#, python-format
+msgid "%(n)s طلب"
+msgstr "%(n)s requests"
+
+#| msgid "لا توجد طلبات طباعة حالياً."
+msgid "لا توجد طلبات بهذه المعايير."
+msgstr "No requests match these criteria."
+
+msgid "طباعة"
+msgstr "Print"
+
+#, python-format
+msgid "%(t)s مضت"
+msgstr "%(t)s ago"
+
+msgid "ج"
+msgstr "EGP"
+
+#| msgid "ملاحظة المحاسب"
+msgid "ملاحظة الإدارة:"
+msgstr "Admin note:"
+
+msgid "موافقة"
+msgstr "Approve"
+
+msgid "رفض"
+msgstr "Reject"
+
+msgid "إغلاق"
+msgstr "Close"
+
+#| msgid "إعادة توليد"
+msgid "إعادة فتح"
+msgstr "Reopen"
+
+#| msgid "تشخيص OBD مباشر"
+msgid "نشر مباشر"
+msgstr "Publish directly"
+
+msgid "هل تريد الموافقة على هذا الطلب ونشره للتجار؟"
+msgstr "Do you want to approve this request and publish it to merchants?"
+
+#| msgid "هل تريد الموافقة على هذا الطلب ونشره للتجار؟"
+msgid "هل تريد إغلاق هذا الطلب؟"
+msgstr "Do you want to close this request?"
+
+#| msgid "هل تريد الموافقة على هذا الطلب ونشره للتجار؟"
+msgid "هل تريد إعادة فتح الطلب للمراجعة؟"
+msgstr "Do you want to reopen the request for review?"
+
+#| msgid "سيتم تحرير المبلغ للبائع. متابعة؟"
+msgid "هل تريد نشر الطلب للتجار مباشرة؟"
+msgstr "Do you want to publish the request to merchants directly?"
+
+msgid "سبب الرفض (اختياري):"
+msgstr "Rejection reason (optional):"
+
+#| msgid "خطأ: "
+msgid "خطأ:"
+msgstr "Error:"
+
 msgid "وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin"
 msgstr "Diagnostics room access (OBD) — Mouss Tec Super Admin"
 
@@ -7682,9 +7768,6 @@ msgstr "Suspended"
 msgid "🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع..."
 msgstr "🔍 Search by name, part number, or seller name..."
 
-msgid "بحث"
-msgstr "Search"
-
 msgid "الماركة/الموديل"
 msgstr "Make/Model"
 
@@ -7757,9 +7840,6 @@ msgstr "Actions"
 
 msgid "سبب الرفض (اختياري)"
 msgstr "Rejection reason (optional)"
-
-msgid "رفض"
-msgstr "Reject"
 
 msgid "لا توجد قطع في هذه القائمة الآن."
 msgstr "No parts in this list now."
@@ -8075,36 +8155,30 @@ msgstr "✓ Resolved"
 msgid "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!"
 msgstr "🎉 No errors — the system is running smoothly!"
 
-#| msgid "سجل أخطاء النظام — Mouss Tec Super Admin"
 msgid "صحة النظام — Mouss Tec Super Admin"
 msgstr "System health — Mouss Tec Super Admin"
 
-#| msgid "لوحة السوبر أدمن"
 msgid "السوبر أدمن"
 msgstr "Super admin"
 
 msgid "صحة النظام"
 msgstr "System health"
 
-#| msgid "صحة النظام"
 msgid "⚙️ صحة النظام (System Status)"
 msgstr "⚙️ System health (System Status)"
 
 msgid "لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً."
 msgstr "A live snapshot of all components. The page refreshes itself automatically every 30 seconds."
 
-#| msgid "ادخل النظام الآن"
 msgid "كل الأنظمة شغّالة"
 msgstr "All systems operational"
 
 msgid "في تدهور أداء"
 msgstr "Performance degraded"
 
-#| msgid "لا يوجد ضمان"
 msgid "🚨 يوجد عُطل"
 msgstr "🚨 There is an outage"
 
-#| msgid "مفيش طلبات مطابقة للفلتر دلوقتي."
 msgid "مفيش حاجة محتاجة تدخل دلوقتي."
 msgstr "Nothing needs your attention right now."
 
@@ -8114,7 +8188,6 @@ msgstr "Some components are running slowly — check the details below."
 msgid "مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً."
 msgstr "At least one component is down — review all items immediately."
 
-#| msgid "آخر نشاط"
 msgid "آخر فحص"
 msgstr "Last check"
 
@@ -8127,26 +8200,21 @@ msgstr "Slow"
 msgid "واقف"
 msgstr "Down"
 
-#| msgid "غير متوفر"
 msgid "غير معروف"
 msgstr "Unknown"
 
-#| msgid "طلبات طباعة"
 msgid "طلبات في آخر ساعة"
 msgstr "Requests in the last hour"
 
-#| msgid "متوسط سرعة الاستجابة"
 msgid "متوسط زمن الاستجابة"
 msgstr "Average response time"
 
-#| msgid "زوار فريدون اليوم"
 msgid "زوار نشطون (آخر 5 دقايق)"
 msgstr "Active visitors (last 5 minutes)"
 
 msgid "أخطاء في آخر ساعة"
 msgstr "Errors in the last hour"
 
-#| msgid "خطأ غير متوقع"
 msgid "خطأ غير محلول في"
 msgstr "unresolved error(s) in"
 
@@ -8159,11 +8227,9 @@ msgstr "🐢 Slowest 10 requests (last hour)"
 msgid "المدة"
 msgstr "Duration"
 
-#| msgid "لا توجد بيانات مركبة"
 msgid "لا توجد بيانات في آخر ساعة."
 msgstr "No data in the last hour."
 
-#| msgid "🔄 تحديث تلقائي كل 30 ثانية"
 msgid "الصفحة بتـ refresh تلقائياً كل 30 ثانية"
 msgstr "The page refreshes automatically every 30 seconds"
 
@@ -8493,10 +8559,6 @@ msgstr "No events yet"
 msgid "أنشط الشركات (7 أيام)"
 msgstr "Most active companies (7 days)"
 
-#, python-format
-msgid "%(n)s طلب"
-msgstr "%(n)s requests"
-
 msgid "لا توجد بيانات"
 msgstr "No data"
 
@@ -8511,9 +8573,6 @@ msgstr "Desktop"
 
 msgid "ابحث بالاسم أو الباقة أو الحالة..."
 msgstr "Search by name, package, or status..."
-
-msgid "طباعة"
-msgstr "Print"
 
 #, python-format
 msgid "%(n)s شركة"
@@ -8542,9 +8601,6 @@ msgstr "Ends today!"
 
 msgid "الرصيد"
 msgstr "Balance"
-
-msgid "ج"
-msgstr "EGP"
 
 msgid "غير مفعّل"
 msgstr "Not activated"
@@ -8697,9 +8753,6 @@ msgstr "View all"
 
 msgid "ميزانية"
 msgstr "Budget"
-
-msgid "موافقة"
-msgstr "Approve"
 
 msgid "لا توجد طلبات في انتظار الموافقة حالياً."
 msgstr "No requests awaiting approval right now."
@@ -9013,9 +9066,6 @@ msgstr "Confirm the receipt and activate the service"
 msgid "رفض الإيصال"
 msgstr "Reject the receipt"
 
-msgid "سبب الرفض (اختياري):"
-msgstr "Rejection reason (optional):"
-
 msgid "هل أنت متأكد من"
 msgstr "Are you sure about"
 
@@ -9033,9 +9083,6 @@ msgstr "Payment confirmed and plan activated"
 
 msgid "خطأ: "
 msgstr "Error: "
-
-msgid "هل تريد الموافقة على هذا الطلب ونشره للتجار؟"
-msgstr "Do you want to approve this request and publish it to merchants?"
 
 msgid "تم الرفض"
 msgstr "Rejected"
@@ -9132,9 +9179,6 @@ msgstr "Deleted."
 
 msgid "ابحث عن صفحة، شركة، مستخدم …"
 msgstr "Search for a page, company, user …"
-
-msgid "لوحة السوبر أدمن"
-msgstr "Super-admin dashboard"
 
 msgid "تسعير · مزايا · تحرير"
 msgstr "Pricing · features · editing"
@@ -11592,9 +11636,6 @@ msgstr "Download PDF"
 msgid "شارك واتساب"
 msgstr "Share on WhatsApp"
 
-msgid "إغلاق"
-msgstr "Close"
-
 msgid "رقم تليفون العميل غير مسجّل"
 msgstr "Customer phone number not registered"
 
@@ -11686,9 +11727,6 @@ msgstr "Search by part number or product name to find the best prices from verif
 
 msgid "رقم القطعة أو اسم المنتج (مثال: 11787589121 أو فلتر زيت)..."
 msgstr "Part number or product name (e.g. 11787589121 or oil filter)..."
-
-msgid "مسح"
-msgstr "Clear"
 
 msgid "فلاتر"
 msgstr "Filters"
@@ -13638,7 +13676,7 @@ msgid "عدد النسخ"
 msgstr ""
 
 msgid "سعر الوحدة"
-msgstr ""
+msgstr "Unit price"
 
 msgid "وقت التنفيذ الفعلي (ساعات)"
 msgstr ""
@@ -13809,7 +13847,7 @@ msgid "ملاحظات / شروط"
 msgstr ""
 
 msgid "المجموع الفرعي"
-msgstr ""
+msgstr "Subtotal"
 
 msgid "نسبة الضريبة %"
 msgstr ""
@@ -13871,18 +13909,16 @@ msgstr "Start by creating your first design from AI Studio"
 msgid "هل أنت متأكد من حذف هذا التصميم؟"
 msgstr "Are you sure you want to delete this design?"
 
-#| msgid "الأرباح والخسائر"
+#, python-format
 msgid "تقرير الأرباح والخسائر — %(m)s %(y)s | Mouss Tec"
 msgstr "Profit and loss report — %(m)s %(y)s | Mouss Tec"
 
-#| msgid "الأرباح والخسائر"
 msgid "تقرير الأرباح والخسائر"
 msgstr "Profit and loss report"
 
 msgid "الأدمن"
 msgstr "Admin"
 
-#| msgid "الفترة"
 msgid "الفترة:"
 msgstr "Period:"
 
@@ -13913,7 +13949,6 @@ msgstr "August"
 msgid "سبتمبر"
 msgstr "September"
 
-#| msgid "ديسكتوب"
 msgid "أكتوبر"
 msgstr "October"
 
@@ -13923,73 +13958,131 @@ msgstr "November"
 msgid "ديسمبر"
 msgstr "December"
 
-#| msgid "اطبع التقرير"
 msgid "عرض التقرير"
 msgstr "Show report"
 
-#| msgid "%(n)s شركة"
+#, python-format
 msgid "%(n)s حركة"
 msgstr "%(n)s transaction(s)"
 
-#| msgid "مصروفات"
 msgid "المصروفات"
 msgstr "Expenses"
 
-#| msgid "صافي الربح"
 msgid "صافي الخسارة"
 msgstr "Net loss"
 
-#| msgid "صافي الربح (ج.م)"
+#, python-format
 msgid "هامش الربح: %(p)s%%"
 msgstr "Profit margin: %(p)s%%"
 
-#| msgid "جنيه / 6 شهور"
 msgid "اتجاه آخر 6 شهور"
 msgstr "Last 6 months trend"
 
-#| msgid "الإيرادات"
+#, python-format
 msgid "إيرادات: %(a)s ج.م"
 msgstr "Revenue: %(a)s EGP"
 
-#| msgid "مصروفات اليوم"
+#, python-format
 msgid "مصروفات: %(a)s ج.م"
 msgstr "Expenses: %(a)s EGP"
 
-#| msgid "الإيرادات"
 msgid "إيرادات"
 msgstr "Revenue"
 
-#| msgid "للمطابع المتوسطة ومكاتب التصميم"
 msgid "توزيع المصروفات حسب التصنيف"
 msgstr "Expense breakdown by category"
 
-#| msgid "لا توجد معروضات نشطة بهذا الفلتر."
 msgid "لا توجد مصروفات في هذا الشهر"
 msgstr "No expenses this month"
 
-#| msgid "فواتير ذكية"
 msgid "فواتير الشهر"
 msgstr "Invoices of the month"
 
-#| msgid "الفواتير"
 msgid "عدد الفواتير"
 msgstr "Number of invoices"
 
-#| msgid "إجمالي قطع الغيار"
 msgid "إجمالي قيمة الفواتير"
 msgstr "Total invoice value"
 
-#| msgid "المحدد"
 msgid "المحصّل"
 msgstr "Collected"
 
-#| msgid "المتبقي على العميل"
 msgid "المتبقي على العملاء"
 msgstr "Outstanding on customers"
 
-#| msgid "سوق السيارات | Mouss Tec"
 msgid "تقرير صادر من Mouss Tec •"
 msgstr "Report issued by Mouss Tec •"
+
+#| msgid "غير متصل | Mouss Tec"
+msgid "عرض سعر %(q)s | Mouss Tec"
+msgstr "Quotation %(q)s | Mouss Tec"
+
+#| msgid "عرض سعر"
+msgid "عرض سعر احترافي"
+msgstr "Professional quotation"
+
+#| msgid "توفير حتى"
+msgid "صالح حتى:"
+msgstr "Valid until:"
+
+#| msgid "في انتظار الردود"
+msgid "في انتظار ردك"
+msgstr "Awaiting your response"
+
+#| msgid "تم استلام عروض — جاهزة للاعتماد"
+msgid "تم قبول العرض — شكراً لثقتك"
+msgstr "The quote was accepted — thank you for your trust"
+
+#| msgid "تم حفظ العرض"
+msgid "تم رفض هذا العرض"
+msgstr "This quote was rejected"
+
+#| msgid "لا تنتهي صلاحيتها"
+msgid "هذا العرض منتهي الصلاحية"
+msgstr "This quote has expired"
+
+#| msgid "تم تحويلها لأوامر شراء"
+msgid "تم تحويل العرض لطلب رسمي"
+msgstr "The quote was converted to an official order"
+
+#| msgid "مسودة غير نهائية"
+msgid "مسودة عرض"
+msgstr "Quote draft"
+
+#| msgid "تاريخ النشر"
+msgid "تاريخ العرض"
+msgstr "Quote date"
+
+msgid "صادر عن:"
+msgstr "Issued by:"
+
+#| msgid "لا توجد سطور"
+msgid "لا توجد بنود"
+msgstr "No items"
+
+#| msgid "هامش الربح: %(p)s%%"
+msgid "الضريبة (%(p)s%%)"
+msgstr "Tax (%(p)s%%)"
+
+#| msgid "ملاحظات إضافية"
+msgid "ملاحظات / شروط:"
+msgstr "Notes / terms:"
+
+#| msgid "سوق الطباعة والتصميم"
+msgid "نظام إدارة الطباعة والتصميم"
+msgstr "Printing & design management system"
+
+#| msgid "أرسل الإيصال للمراجعة"
+msgid "رقم العرض للمراجعة:"
+msgstr "Quote number for reference:"
+
+#| msgid "هل أنت متأكد من قبول هذا العرض؟ سيتم رفض باقي العروض."
+msgid "هل أنت متأكد من قبول العرض؟ هنتواصل معاك للتأكيد."
+msgstr "Are you sure you want to accept the quote? We will contact you to confirm."
+
+#| msgid "هل أنت متأكد من حذف هذا التصميم؟"
+msgid "هل أنت متأكد من رفض العرض؟"
+msgstr "Are you sure you want to reject the quote?"
 
 msgid "مراجعة إجابات أطلس الإصلاح — SuperAdmin"
 msgstr "Review Repair Atlas answers — SuperAdmin"
