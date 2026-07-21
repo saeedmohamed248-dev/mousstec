@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:34+0300\n"
+"POT-Creation-Date: 2026-07-21 18:39+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7431,15 +7431,12 @@ msgstr "Most active tenants"
 msgid "أنشط المستخدمين"
 msgstr "Most active users"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "البث الجماعي — Mouss Tec Super Admin"
 msgstr "Broadcast — Mouss Tec Super Admin"
 
-#| msgid "البث الجماعي"
 msgid "📢 البث الجماعي"
 msgstr "📢 Broadcast"
 
-#| msgid "البث الجماعي"
 msgid "📢 البث الجماعي (Email Broadcast)"
 msgstr "📢 Email Broadcast"
 
@@ -7448,19 +7445,15 @@ msgid ""
 "الكبيرة هنعمل Celery لاحقاً."
 msgstr "Send an announcement or maintenance notice to all tenants or a specific segment. Sending is sync — for large volumes we will add Celery later."
 
-#| msgid "طلب جديد"
 msgid "حملة جديدة"
 msgstr "New campaign"
 
-#| msgid "القطاع المستهدف"
 msgid "الجمهور المستهدف"
 msgstr "Target audience"
 
-#| msgid "— اختر ورشة —"
 msgid "— اختر —"
 msgstr "— Choose —"
 
-#| msgid "لا توجد أحداث مطابقة للفلاتر الحالية."
 msgid "شركة مطابقة للفلتر الحالي"
 msgstr "tenants match the current filter"
 
@@ -7477,7 +7470,6 @@ msgstr "— use {tenant_name} to personalize the tenant name"
 msgid "عزيزي {tenant_name}، …"
 msgstr "Dear {tenant_name}, …"
 
-#| msgid "بيانات العميل"
 msgid "قنوات التوصيل"
 msgstr "Delivery channels"
 
@@ -7488,26 +7480,21 @@ msgstr "Send email (runs in the background via Celery)"
 msgid "عرض كبانر داخل لوحة الشركة (يصل 100%% من الشركات)"
 msgstr "Show a banner inside the tenant dashboard (reaches 100%% of tenants)"
 
-#| msgid "نوع الحساب"
 msgid "نوع البانر"
 msgstr "Banner type"
 
-#| msgid "معلومة"
 msgid "📢 معلومة (أزرق)"
 msgstr "📢 Info (blue)"
 
 msgid "✅ نجاح (أخضر)"
 msgstr "✅ Success (green)"
 
-#| msgid "⚠️ تحذير:"
 msgid "⚠️ تحذير (أصفر)"
 msgstr "⚠️ Warning (yellow)"
 
-#| msgid "🚨 خطر حرج"
 msgid "🚨 حرج (أحمر)"
 msgstr "🚨 Critical (red)"
 
-#| msgid "مدة الضمان (أيام)"
 msgid "يبقى ظاهر لمدة (أيام)"
 msgstr "Stays visible for (days)"
 
@@ -7517,40 +7504,33 @@ msgid ""
 "الإرسال كبير، استعد لانتظار 30-60 ثانية."
 msgstr "You will send to <strong>%(n)s</strong> tenants. Sending is final and cannot be undone. If the send is large, expect to wait 30-60 seconds."
 
-#| msgid "للتأكيد:"
 msgid "للتأكيد، اكتب"
 msgstr "To confirm, type"
 
-#| msgid "إرسال الهدية"
 msgid "إرسال الآن"
 msgstr "Send now"
 
 msgid "إعادة"
 msgstr "Reset"
 
-#| msgid "دخول / تسجيل سريع"
 msgid "دليل سريع"
 msgstr "Quick guide"
 
-#| msgid "نوع المنتج"
 msgid "أنواع الجمهور:"
 msgstr "Audience types:"
 
 msgid "كل tenant مفعّل (مش متحذف)"
 msgstr "Every active tenant (not deleted)"
 
-#| msgid "المعروضات النشطة"
 msgid "الشركات النشطة"
 msgstr "Active tenants"
 
 msgid "status=active بس"
 msgstr "status=active only"
 
-#| msgid "ينتهي اليوم!"
 msgid "ينتهي خلال 14 يوم"
 msgstr "Expires within 14 days"
 
-#| msgid "توليد جديد"
 msgid "تذكير تجديد"
 msgstr "Renewal reminder"
 
@@ -7563,15 +7543,12 @@ msgstr "suspended / expired / fraud"
 msgid "silver/gold/empire إلخ"
 msgstr "silver/gold/empire etc."
 
-#| msgid "مبيعات اليوم"
 msgid "متغيرات الـ template"
 msgstr "Template variables"
 
-#| msgid "الشركة (schema)"
 msgid "معرف الشركة (subdomain)"
 msgstr "Tenant identifier (subdomain)"
 
-#| msgid "أمان عالي"
 msgid "أمان"
 msgstr "Security"
 
@@ -7587,15 +7564,12 @@ msgstr "Failing to send to one tenant does not stop the rest — each is indepen
 msgid "سجل الحملات (آخر 100)"
 msgstr "Campaign log (last 100)"
 
-#| msgid "سعر الجملة"
 msgid "الجمهور"
 msgstr "Audience"
 
-#| msgid "المستخدمون"
 msgid "المستهدفون"
 msgstr "Targeted"
 
-#| msgid "تم بنجاح"
 msgid "نجاح"
 msgstr "Success"
 
@@ -7605,15 +7579,14 @@ msgstr "Skipped"
 msgid "المرسل"
 msgstr "Sender"
 
-#| msgid "أهلاً، %(n)s"
+#, python-format
 msgid "أخطاء (%(n)s)"
 msgstr "Errors (%(n)s)"
 
-#| msgid "إعادة المحاولة"
+#, python-format
 msgid "إعادة إرسال «%(s)s»؟"
 msgstr "Resend «%(s)s»?"
 
-#| msgid "إعادة المحاولة"
 msgid "إعادة إرسال"
 msgstr "Resend"
 
@@ -7623,26 +7596,21 @@ msgstr "No campaigns yet. Start from the composer on the side."
 msgid "اختر قناة توصيل واحدة على الأقل: إيميل أو بانر داخل النظام."
 msgstr "Choose at least one delivery channel: email or in-app banner."
 
-#| msgid "إيميل الحساب"
 msgid "إيميل"
 msgstr "Email"
 
-#| msgid "الدخول لنظام"
 msgid "بانر داخل النظام"
 msgstr "In-app banner"
 
 msgid "هتبعت"
 msgstr "You will send"
 
-#| msgid "إلى"
 msgid "لـ"
 msgstr "to"
 
-#| msgid "شركة (عمولة"
 msgid "شركة عبر:"
 msgstr "tenants via:"
 
-#| msgid "مش متأكد؟"
 msgid "متأكد؟"
 msgstr "Are you sure?"
 
@@ -14910,6 +14878,83 @@ msgid ""
 "You are authenticated as %(username)s, but are not authorized to access this "
 "page. Would you like to login to a different account?"
 msgstr ""
+
+#| msgid "المستشار الذكي | Mouss Tec"
+msgid "المستشار الذكي — %(sl)s | Mousstec ERP"
+msgstr "Smart Advisor — %(sl)s | Mousstec ERP"
+
+#| msgid "المستشار الذكي | Mouss Tec"
+msgid "المستشار الذكي — %(sl)s"
+msgstr "Smart Advisor — %(sl)s"
+
+#| msgid "محادثة فاضية."
+msgid "محادثة جديدة"
+msgstr "New conversation"
+
+#| msgid "أسئلة شائعة"
+msgid "أسئلة جاهزة"
+msgstr "Ready-made questions"
+
+msgid "لو لميت الفلوس المكتوبة في الفواتير الآجلة، هيكون معايا كاش كام؟"
+msgstr "If I collect all the money on the deferred invoices, how much cash would I have?"
+
+#| msgid "صفحة المراجعة الكاملة (كل الحالات)"
+msgid "توقع الكاش لو حصّلت كل المستحقات"
+msgstr "Forecast the cash if I collect all receivables"
+
+#, python-format
+msgid "لو بعت 20%% من المخزون الراكد بسعر السوق، الأرباح المتوقعة كام؟"
+msgstr "If I sell 20%% of the dead stock at market price, what are the expected profits?"
+
+#| msgid "حساب الأدمن المعتمد"
+msgid "محاكاة بيع 20%% من الراكد"
+msgstr "Simulate selling 20%% of the dead stock"
+
+msgid "إيه الأصناف اللي مش بيتباع وعندي فيها ركود في المخازن؟"
+msgstr "Which items are not selling and are stagnant in the warehouses?"
+
+#| msgid "تقرير الأرباح والخسائر"
+msgid "تقرير الراكد والكاش المحبوس"
+msgstr "Dead-stock and locked-cash report"
+
+msgid "ودّيني لصفحة العميل رقم 14"
+msgstr "Take me to the page of customer number 14"
+
+#| msgid "إرسال مباشر للعميل"
+msgid "لينك مباشر لعميل"
+msgstr "Direct link to a customer"
+
+#, python-format
+msgid "لو بعت 50%% من الراكد هحقق ربح كام؟"
+msgstr "If I sell 50%% of the dead stock, how much profit would I make?"
+
+#| msgid "استلم عروض من التجار"
+msgid "سيناريو: 50%% من الراكد"
+msgstr "Scenario: 50%% of the dead stock"
+
+#| msgid "أدلة التشخيص الذكي"
+msgid "أهلاً! أنا مستشارك الذكي"
+msgstr "Hello! I am your smart advisor"
+
+msgid ""
+"اسألني عن الكاش، الراكد، الأرباح، أو أي تقرير. كل الإجابات بتيجي من بياناتك "
+"الفعلية في النظام."
+msgstr "Ask me about cash, dead stock, profits, or any report. All answers come from your actual data in the system."
+
+msgid "اسأل المستشار... (مثال: لو لميت الفلوس الكاش هيكون كام؟)"
+msgstr "Ask the advisor... (example: if I collect the money, how much cash would there be?)"
+
+#| msgid "حدث خطأ غير متوقع"
+msgid "حصل خطأ غير متوقع."
+msgstr "An unexpected error occurred."
+
+#| msgid "تعذر الاتصال بالمساعد. تأكد من اتصالك بالإنترنت."
+msgid "تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت."
+msgstr "Could not connect to the server. Check your internet connection."
+
+#| msgid "متأكد إنك عايز تلغي 2FA؟ حسابك هيرجع محمي بكلمة السر بس."
+msgid "متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟"
+msgstr "Are you sure you want to start a new conversation and clear the previous one?"
 
 msgid "غير متصل | Mouss Tec"
 msgstr "Offline | Mouss Tec"

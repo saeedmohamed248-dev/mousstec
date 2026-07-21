@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المستشار الذكي — {{ sector_label }} | Mousstec ERP</title>
+    <title>{% blocktrans with sl=sector_label %}المستشار الذكي — {{ sl }} | Mousstec ERP{% endblocktrans %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -158,10 +158,10 @@
 <body>
 
 <div class="topbar">
-    <h1>{{ sector_emoji }} المستشار الذكي — {{ sector_label }}</h1>
+    <h1>{{ sector_emoji }} {% blocktrans with sl=sector_label %}المستشار الذكي — {{ sl }}{% endblocktrans %}</h1>
     <div class="actions">
-        <button id="reset-btn"><i class="fas fa-broom"></i> محادثة جديدة</button>
-        <a href="/"><i class="fas fa-home"></i> الرئيسية</a>
+        <button id="reset-btn"><i class="fas fa-broom"></i> {% trans "محادثة جديدة" %}</button>
+        <a href="/"><i class="fas fa-home"></i> {% trans "الرئيسية" %}</a>
     </div>
 </div>
 
@@ -169,21 +169,21 @@
 
     <!-- ──────── Sidebar: Smart Suggestions ──────── -->
     <aside class="sidebar">
-        <h3><i class="fas fa-lightbulb"></i> أسئلة جاهزة</h3>
-        <button class="suggestion" data-q="لو لميت الفلوس المكتوبة في الفواتير الآجلة، هيكون معايا كاش كام؟">
-            💰 توقع الكاش لو حصّلت كل المستحقات
+        <h3><i class="fas fa-lightbulb"></i> {% trans "أسئلة جاهزة" %}</h3>
+        <button class="suggestion" data-q="{% trans 'لو لميت الفلوس المكتوبة في الفواتير الآجلة، هيكون معايا كاش كام؟' %}">
+            💰 {% trans "توقع الكاش لو حصّلت كل المستحقات" %}
         </button>
-        <button class="suggestion" data-q="لو بعت 20% من المخزون الراكد بسعر السوق، الأرباح المتوقعة كام؟">
-            📈 محاكاة بيع 20% من الراكد
+        <button class="suggestion" data-q="{% blocktrans %}لو بعت 20% من المخزون الراكد بسعر السوق، الأرباح المتوقعة كام؟{% endblocktrans %}">
+            📈 {% blocktrans %}محاكاة بيع 20% من الراكد{% endblocktrans %}
         </button>
-        <button class="suggestion" data-q="إيه الأصناف اللي مش بيتباع وعندي فيها ركود في المخازن؟">
-            📦 تقرير الراكد والكاش المحبوس
+        <button class="suggestion" data-q="{% trans 'إيه الأصناف اللي مش بيتباع وعندي فيها ركود في المخازن؟' %}">
+            📦 {% trans "تقرير الراكد والكاش المحبوس" %}
         </button>
-        <button class="suggestion" data-q="ودّيني لصفحة العميل رقم 14">
-            🔗 لينك مباشر لعميل
+        <button class="suggestion" data-q="{% trans 'ودّيني لصفحة العميل رقم 14' %}">
+            🔗 {% trans "لينك مباشر لعميل" %}
         </button>
-        <button class="suggestion" data-q="لو بعت 50% من الراكد هحقق ربح كام؟">
-            🎯 سيناريو: 50% من الراكد
+        <button class="suggestion" data-q="{% blocktrans %}لو بعت 50% من الراكد هحقق ربح كام؟{% endblocktrans %}">
+            🎯 {% blocktrans %}سيناريو: 50% من الراكد{% endblocktrans %}
         </button>
     </aside>
 
@@ -192,15 +192,15 @@
         <div class="messages" id="messages">
             <div class="welcome" id="welcome">
                 <span class="emoji">{{ sector_emoji }}</span>
-                <h2>أهلاً! أنا مستشارك الذكي</h2>
-                <p>اسألني عن الكاش، الراكد، الأرباح، أو أي تقرير. كل الإجابات بتيجي من بياناتك الفعلية في النظام.</p>
+                <h2>{% trans "أهلاً! أنا مستشارك الذكي" %}</h2>
+                <p>{% trans "اسألني عن الكاش، الراكد، الأرباح، أو أي تقرير. كل الإجابات بتيجي من بياناتك الفعلية في النظام." %}</p>
                 <span class="tenant-badge"><i class="fas fa-shield-alt"></i> Tenant: {{ tenant_schema }}</span>
             </div>
         </div>
 
         <form class="composer" id="composer">
-            <textarea id="query-input" placeholder="اسأل المستشار... (مثال: لو لميت الفلوس الكاش هيكون كام؟)" rows="1"></textarea>
-            <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i> إرسال</button>
+            <textarea id="query-input" placeholder="{% trans 'اسأل المستشار... (مثال: لو لميت الفلوس الكاش هيكون كام؟)' %}" rows="1"></textarea>
+            <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i> {% trans "إرسال" %}</button>
         </form>
     </main>
 </div>
@@ -300,11 +300,11 @@
                 const html = (data.answer || '').replace(/\n/g, '<br>');
                 addMessage(html, 'assistant', { isHtml: true });
             } else {
-                addMessage(data.answer || '⚠️ حصل خطأ غير متوقع.', 'error');
+                addMessage(data.answer || '⚠️ {% trans "حصل خطأ غير متوقع." %}', 'error');
             }
         } catch (err) {
             typingEl.remove();
-            addMessage('⚠️ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.', 'error');
+            addMessage('⚠️ {% trans "تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت." %}', 'error');
             console.error(err);
         } finally {
             sendBtn.disabled = false;
@@ -342,7 +342,7 @@
 
     // Reset conversation
     resetBtn.addEventListener('click', async () => {
-        if (!confirm('متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟')) return;
+        if (!confirm('{% trans "متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟" %}')) return;
         try {
             const fd = new FormData();
             fd.append('sector', SECTOR);
