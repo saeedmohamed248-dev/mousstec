@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 17:31+0300\n"
+"POT-Creation-Date: 2026-07-21 17:35+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -63,6 +63,47 @@ msgstr "All"
 
 msgid "مفيش محادثات لسه."
 msgstr "No conversations yet."
+
+msgid "إصدار gift جديد — Issue new gift"
+msgstr "Issue new gift"
+
+#| msgid "— اختر الخزنة —"
+msgid "— اختر ورشة —"
+msgstr "— Select workshop —"
+
+msgid "Coding credits — رصيد تكويدات"
+msgstr "Coding credits"
+
+msgid "ISN credits — رصيد ISN"
+msgstr "ISN credits"
+
+msgid "Subscription window — اشتراك زمني"
+msgstr "Subscription window"
+
+#| msgid "ابدأ تجربتك المجانية الآن"
+msgid "عدد العمليات المجانية. لازم > 0."
+msgstr "Number of free operations. Must be > 0."
+
+msgid "اختياري لـ *_credits، إجباري لـ subscription_window."
+msgstr "Optional for *_credits, required for subscription_window."
+
+msgid "مثلاً: عرض العيد — 5 تكويدات مجانية"
+msgstr "e.g. Eid offer — 5 free codings"
+
+msgid "Allow stacking — اسمح بالتراكم"
+msgstr "Allow stacking"
+
+msgid ""
+"لو في gift فعّال من نفس النوع، الافتراضي يرفض بـ 409. فعّل ده عشان تسمح بإضافة "
+"gift فوق الموجود."
+msgstr "If there is an active gift of the same type, the default rejects with 409. Enable this to allow adding a gift on top of the existing one."
+
+msgid "آخر 20 gift — Recent gifts"
+msgstr "Recent gifts (last 20)"
+
+#| msgid "مفيش فواتير لسة."
+msgid "مفيش gifts لسة."
+msgstr "No gifts yet."
 
 msgid "🏢 الإدارة المركزية (Mouss Tec Ecosystem)"
 msgstr ""
@@ -7385,6 +7426,90 @@ msgstr "🔒 End session"
 msgid "🔒 هذه الجلسة مغلقة"
 msgstr "🔒 This session is closed"
 
+msgid "🔧 تحليل تكلفة Smart Diagnostics — Super Admin"
+msgstr "🔧 Smart Diagnostics cost analysis — Super Admin"
+
+#| msgid "Premium Diagnostics — غير متاح"
+msgid "Smart Diagnostics — تحليل التكلفة"
+msgstr "Smart Diagnostics — Cost analysis"
+
+msgid "تحديث"
+msgstr "Refresh"
+
+msgid "الإيرادات"
+msgstr "Revenue"
+
+#| msgid "باقة Premium Diagnostics غير متاحة حالياً"
+msgid "⚠️ وحدة Smart Diagnostics غير مثبتة"
+msgstr "⚠️ Smart Diagnostics module not installed"
+
+#| msgid "لا توجد بيانات"
+msgid "لا يمكن تجميع بيانات API spend."
+msgstr "Cannot aggregate API spend data."
+
+#| msgid "إجمالي الكشوف"
+msgid "إجمالي مصروف API"
+msgstr "Total API spend"
+
+msgid "USD — كل الـ tenants"
+msgstr "USD — all tenants"
+
+#| msgid "الإجمالي"
+msgid "إجمالي Calls"
+msgstr "Total Calls"
+
+#, python-format
+msgid "%(n)s منها cache hits"
+msgstr "%(n)s of them cache hits"
+
+msgid "كل cache hit = $0 توفير"
+msgstr "Every cache hit = $0 saved"
+
+#| msgid "شحن استخدامات التشخيص"
+msgid "شركات استخدمت الوحدة"
+msgstr "Companies that used the module"
+
+msgid "تكلفة آخر 30 يوم (USD/يوم — للـ calls اللي خبطت external)"
+msgstr "Last 30 days cost (USD/day — for calls that hit external)"
+
+msgid "أعلى 10 Tenants استهلاكاً"
+msgstr "Top 10 Tenants by consumption"
+
+#| msgid "الإجمالي"
+msgid "إجمالي $"
+msgstr "Total $"
+
+#| msgid "آخر 30 يوم"
+msgid "آخر 30 يوم $"
+msgstr "Last 30 days $"
+
+#| msgid "آخر 25"
+msgid "آخر 24س Calls"
+msgstr "Last 24h Calls"
+
+#| msgid "آخر اتصال:"
+msgid "آخر اتصال"
+msgstr "Last connection"
+
+#| msgid "لا توجد باقات متاحة حالياً لهذا القطاع."
+msgid "لا توجد بيانات بعد — انتظر حتى يستخدم العملاء الوحدة."
+msgstr "No data yet — wait until customers use the module."
+
+#, python-format
+msgid "عرض كل الـ tenants (%(n)s)"
+msgstr "Show all tenants (%(n)s)"
+
+msgid "الـ data بـ تتـ cache لمدة 5 دقايق — اضغط"
+msgstr "Data is cached for 5 minutes — press"
+
+#| msgid "ملاحظات الفني"
+msgid "للتحديث الفوري."
+msgstr "for an instant refresh."
+
+#| msgid "التكلفة"
+msgid "تكلفة (USD)"
+msgstr "Cost (USD)"
+
 msgid "وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin"
 msgstr "Diagnostics room access (OBD) — Mouss Tec Super Admin"
 
@@ -7536,14 +7661,12 @@ msgstr "Administrative edit that overrides seller ownership — used to correct 
 msgid "رقم القطعة (OEM)"
 msgstr "Part number (OEM)"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "مراجعة قطع الغيار — Mouss Tec Super Admin"
 msgstr "Parts review — Mouss Tec Super Admin"
 
 msgid "مراجعة قطع الغيار"
 msgstr "Spare-parts review"
 
-#| msgid "مراجعة قطع الغيار"
 msgid "🛡️ بوابة مراجعة قطع الغيار"
 msgstr "🛡️ Parts review gate"
 
@@ -7556,7 +7679,6 @@ msgstr "⏳ Awaiting review"
 msgid "❌ مرفوضة"
 msgstr "❌ Rejected"
 
-#| msgid "📜 الكل"
 msgid "📋 الكل"
 msgstr "📋 All"
 
@@ -7566,21 +7688,18 @@ msgstr "Image"
 msgid "السيارة"
 msgstr "Car"
 
-#| msgid "تاريخ الإصدار"
 msgid "تاريخ الإضافة"
 msgstr "Date added"
 
 msgid "إجراءات"
 msgstr "Actions"
 
-#| msgid "سبب الرفض (اختياري):"
 msgid "سبب الرفض (اختياري)"
 msgstr "Rejection reason (optional)"
 
 msgid "رفض"
 msgstr "Reject"
 
-#| msgid "— لا توجد قطع على هذه البطاقة —"
 msgid "لا توجد قطع في هذه القائمة الآن."
 msgstr "No parts in this list now."
 
@@ -7630,15 +7749,12 @@ msgstr "No plans."
 msgid "رجوع لـ SaaS Dashboard"
 msgstr "Back to SaaS Dashboard"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "الإيرادات العامة — Mouss Tec SaaS"
 msgstr "Platform revenue — Mouss Tec SaaS"
 
-#| msgid "القراءات الحية"
 msgid "الإيرادات العامة"
 msgstr "Platform revenue"
 
-#| msgid "الأداء العاملين"
 msgid "📊 الإيرادات العامة للمنصة"
 msgstr "📊 Platform revenue overview"
 
@@ -7647,15 +7763,12 @@ msgid ""
 "مبيعات الـ tenants لعملائهم."
 msgstr "Total SaaS inflows from paid platform invoices (PlatformInvoice). Does not include tenant sales to their customers."
 
-#| msgid "الإجمالي قبل الخصم"
 msgid "الإجمالي من بداية التشغيل"
 msgstr "Total since launch"
 
-#| msgid "تسجيلات هذا الشهر"
 msgid "هذا الشهر"
 msgstr "This month"
 
-#| msgid "آخر ٧ أيام"
 msgid "آخر 30 يوم"
 msgstr "Last 30 days"
 
@@ -7666,19 +7779,15 @@ msgstr "Paid invoices (%(n)s unpaid)"
 msgid "الإيرادات حسب الباقة (Lifetime)"
 msgstr "Revenue by plan (Lifetime)"
 
-#| msgid "العدد"
 msgid "عدد"
 msgstr "Count"
 
-#| msgid "المجال"
 msgid "المجموع"
 msgstr "Total"
 
-#| msgid "✅ مفيش طلبات معلقة قديمة."
 msgid "مفيش فواتير مدفوعة لسة."
 msgstr "No paid invoices yet."
 
-#| msgid "آخر زيارة"
 msgid "آخر 25 فاتورة"
 msgstr "Last 25 invoices"
 
@@ -7688,11 +7797,10 @@ msgstr "Period"
 msgid "صدرت"
 msgstr "Issued"
 
-#| msgid "%(n)s شركة"
+#, python-format
 msgid "%(n)s شهر"
 msgstr "%(n)s months"
 
-#| msgid "مفيش محادثات لسه."
 msgid "مفيش فواتير لسة."
 msgstr "No invoices yet."
 
@@ -7970,9 +8078,6 @@ msgstr "Packages and subscriptions"
 
 msgid "تسعير • مزايا • تحرير"
 msgstr "Pricing • Features • Editing"
-
-msgid "الإيرادات"
-msgstr "Revenue"
 
 msgid "MRR • نمو • تحصيل"
 msgstr "MRR • Growth • Collection"
@@ -12169,9 +12274,6 @@ msgstr "tasks"
 
 msgid "قطع مقترحة من تحليل الـ DTCs"
 msgstr "Parts suggested from DTC analysis"
-
-msgid "تحديث"
-msgstr "Refresh"
 
 msgid "جاري استخراج القطع من تحليل الـ AI..."
 msgstr "Extracting parts from AI analysis..."
