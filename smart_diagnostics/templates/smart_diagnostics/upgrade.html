@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>💎 ترقية إلى Premium Diagnostics</title>
+    <title>💎 {% trans "ترقية إلى Premium Diagnostics" %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -21,7 +21,7 @@
             <div class="bg-gradient-to-tr from-amber-500 to-orange-500 p-2 rounded-xl"><i class="fas fa-crown text-white"></i></div>
             <span class="text-lg font-black bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent">Premium Diagnostics</span>
         </div>
-        <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+        <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>{% trans "العودة" %}</a>
     </div>
 </nav>
 
@@ -33,15 +33,15 @@
             <i class="fas fa-sparkles"></i> TIER PREMIUM SAAS
         </div>
         <h1 class="text-4xl md:text-5xl font-black text-white mb-3">{{ plan.name }}</h1>
-        <p class="text-slate-400 max-w-2xl mx-auto">منظومة فحص ذكية كاملة لمراكز الصيانة المحترفة — Live OBD2 + ISTA Test Plans + Smart Parts Finder + خصومات تلقائية لـ 200 فحص API شهرياً.</p>
+        <p class="text-slate-400 max-w-2xl mx-auto">{% trans "منظومة فحص ذكية كاملة لمراكز الصيانة المحترفة — Live OBD2 + ISTA Test Plans + Smart Parts Finder + خصومات تلقائية لـ 200 فحص API شهرياً." %}</p>
     </div>
 
     {% if already_premium %}
     <div class="bg-emerald-900/40 border border-emerald-500/40 rounded-2xl p-8 text-center mb-8 glow">
         <div class="text-5xl mb-3"><i class="fas fa-check-circle text-emerald-400"></i></div>
-        <h2 class="text-xl font-black text-emerald-300 mb-2">باقتك مفعّلة بالفعل</h2>
-        <p class="text-slate-300 mb-4">أنت مشترك في Premium Diagnostics. كل المزايا متاحة الآن.</p>
-        <a href="/system/dashboard/" class="inline-block bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 font-bold px-6 py-2 rounded-xl border border-emerald-500/30">عودة للوحة التحكم</a>
+        <h2 class="text-xl font-black text-emerald-300 mb-2">{% trans "باقتك مفعّلة بالفعل" %}</h2>
+        <p class="text-slate-300 mb-4">{% trans "أنت مشترك في Premium Diagnostics. كل المزايا متاحة الآن." %}</p>
+        <a href="/system/dashboard/" class="inline-block bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 font-bold px-6 py-2 rounded-xl border border-emerald-500/30">{% trans "عودة للوحة التحكم" %}</a>
     </div>
     {% else %}
 
@@ -51,7 +51,7 @@
         <i class="fas fa-circle-exclamation text-amber-300 text-2xl mb-2 block"></i>
         <p class="text-amber-200 font-bold">{{ reason }}</p>
         {% if gate == 'scan_quota' and plan_limit %}
-        <p class="text-xs text-amber-300/70 mt-2">باقتك الحالية: {{ plan_limit }} فحص/شهر.</p>
+        <p class="text-xs text-amber-300/70 mt-2">{% blocktrans %}باقتك الحالية: {{ plan_limit }} فحص/شهر.{% endblocktrans %}</p>
         {% endif %}
     </div>
     {% endif %}
@@ -60,10 +60,10 @@
     {% if gate == 'scan_quota' and topup_url %}
     <div class="bg-gradient-to-br from-slate-900/80 to-blue-900/20 border border-blue-500/30 rounded-3xl p-8 mb-8 glow text-center">
         <div class="text-5xl mb-3"><i class="fas fa-battery-quarter text-blue-300"></i></div>
-        <h2 class="text-xl font-black text-white mb-2">اشحن باقة فحوصات إضافية</h2>
-        <p class="text-slate-400 text-sm mb-5">استمتع بفحوصات إضافية دون الحاجة لترقية الباقة الشهرية.</p>
+        <h2 class="text-xl font-black text-white mb-2">{% trans "اشحن باقة فحوصات إضافية" %}</h2>
+        <p class="text-slate-400 text-sm mb-5">{% trans "استمتع بفحوصات إضافية دون الحاجة لترقية الباقة الشهرية." %}</p>
         <a href="{{ topup_url }}" class="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3 px-8 rounded-xl shadow-lg shadow-blue-500/30">
-            <i class="fas fa-bolt ml-1"></i> اشحن دلوقتي
+            <i class="fas fa-bolt ml-1"></i> {% trans "اشحن دلوقتي" %}
         </a>
     </div>
     {% elif plan %}
@@ -71,16 +71,16 @@
     <div class="bg-gradient-to-br from-slate-900/80 to-purple-900/20 border border-purple-500/30 rounded-3xl p-8 mb-8 glow">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
-                <div class="text-xs text-purple-300 uppercase tracking-widest mb-2">السعر الشهري</div>
+                <div class="text-xs text-purple-300 uppercase tracking-widest mb-2">{% trans "السعر الشهري" %}</div>
                 <div class="flex items-baseline gap-2">
                     <span class="text-6xl font-black text-white">{{ plan.monthly_price|floatformat:0 }}</span>
-                    <span class="text-2xl font-bold text-purple-300">ج.م</span>
+                    <span class="text-2xl font-bold text-purple-300">{% trans "ج.م" %}</span>
                 </div>
-                <div class="text-sm text-slate-400 mt-2">/ شهر — يتجدد تلقائياً</div>
+                <div class="text-sm text-slate-400 mt-2">{% trans "/ شهر — يتجدد تلقائياً" %}</div>
                 <div class="mt-4 flex flex-wrap gap-2 text-xs">
-                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">خصم ربع سنوي {{ plan.quarterly_discount }}%</span>
-                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">خصم نصف سنوي {{ plan.semi_annual_discount }}%</span>
-                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">خصم سنوي {{ plan.annual_discount }}%</span>
+                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">{% blocktrans with d=plan.quarterly_discount %}خصم ربع سنوي {{ d }}%{% endblocktrans %}</span>
+                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">{% blocktrans with d=plan.semi_annual_discount %}خصم نصف سنوي {{ d }}%{% endblocktrans %}</span>
+                    <span class="bg-emerald-500/10 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/20">{% blocktrans with d=plan.annual_discount %}خصم سنوي {{ d }}%{% endblocktrans %}</span>
                 </div>
             </div>
 
@@ -94,7 +94,7 @@
                     <input type="hidden" name="shop" value="{{ shop }}">
                     <input type="hidden" name="payment_method" value="vodafone_cash">
                     <button type="submit" class="block w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-red-500/30">
-                        <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
+                        <i class="fas fa-mobile-screen-button"></i> {% trans "ادفع بفودافون كاش" %}
                     </button>
                 </form>
 
@@ -106,15 +106,15 @@
                     <input type="hidden" name="shop" value="{{ shop }}">
                     <input type="hidden" name="payment_method" value="instapay">
                     <button type="submit" class="block w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-3 rounded-xl text-sm text-center shadow-lg shadow-blue-500/30">
-                        <i class="fas fa-money-bill-transfer"></i> ادفع بإنستاباي
+                        <i class="fas fa-money-bill-transfer"></i> {% trans "ادفع بإنستاباي" %}
                     </button>
                 </form>
 
                 <div class="p-3 bg-slate-800/40 border border-slate-700/40 rounded-xl opacity-70">
                     <button disabled class="w-full md:w-64 bg-slate-700/50 text-slate-400 font-bold py-2 rounded-lg text-xs cursor-not-allowed">
-                        <i class="fas fa-clock"></i> Visa / Mastercard — قريباً
+                        <i class="fas fa-clock"></i> {% trans "Visa / Mastercard — قريباً" %}
                     </button>
-                    <p class="text-[10px] text-slate-500 mt-2 text-center">الدفع بالفيزا تحت التطوير</p>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">{% trans "الدفع بالفيزا تحت التطوير" %}</p>
                 </div>
             </div>
         </div>
@@ -122,7 +122,7 @@
     {% else %}
     {# Plan مش متاح — جروم degraded #}
     <div class="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 text-center mb-8">
-        <p class="text-slate-300">تواصل مع الدعم لتفعيل الباقة.</p>
+        <p class="text-slate-300">{% trans "تواصل مع الدعم لتفعيل الباقة." %}</p>
     </div>
     {% endif %}
 
@@ -143,19 +143,19 @@
 
     <!-- FAQ -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-6 text-sm">
-        <h3 class="font-black text-slate-300 mb-4"><i class="fas fa-question-circle text-cyan-400"></i> أسئلة شائعة</h3>
+        <h3 class="font-black text-slate-300 mb-4"><i class="fas fa-question-circle text-cyan-400"></i> {% trans "أسئلة شائعة" %}</h3>
         <div class="space-y-3 text-slate-400">
             <div>
-                <p class="font-bold text-slate-200">ماذا يحدث إذا تجاوزت 200 فحص API/شهر؟</p>
-                <p class="text-xs mt-1">يتم تعطيل الفحوصات الخارجية فقط — كل القراءات المحلية (DTC catalog + cache) تظل مجانية بلا حدود. يمكنك طلب refill إضافي من السوبر أدمن.</p>
+                <p class="font-bold text-slate-200">{% trans "ماذا يحدث إذا تجاوزت 200 فحص API/شهر؟" %}</p>
+                <p class="text-xs mt-1">{% trans "يتم تعطيل الفحوصات الخارجية فقط — كل القراءات المحلية (DTC catalog + cache) تظل مجانية بلا حدود. يمكنك طلب refill إضافي من السوبر أدمن." %}</p>
             </div>
             <div>
-                <p class="font-bold text-slate-200">هل يحفظ النظام تكلفة كل فحص؟</p>
-                <p class="text-xs mt-1">نعم — APICallLog يسجل كل request مع تكلفته بالـ USD. السوبر أدمن يرى التكلفة الإجمالية لكل شركة.</p>
+                <p class="font-bold text-slate-200">{% trans "هل يحفظ النظام تكلفة كل فحص؟" %}</p>
+                <p class="text-xs mt-1">{% trans "نعم — APICallLog يسجل كل request مع تكلفته بالـ USD. السوبر أدمن يرى التكلفة الإجمالية لكل شركة." %}</p>
             </div>
             <div>
-                <p class="font-bold text-slate-200">ماذا عن الأجهزة (Hardware)؟</p>
-                <p class="text-xs mt-1">عدد لا محدود من أجهزة OBD2 لكل شركة. كل جهاز عنده token آمن خاص + ربط بسيارة محددة.</p>
+                <p class="font-bold text-slate-200">{% trans "ماذا عن الأجهزة (Hardware)؟" %}</p>
+                <p class="text-xs mt-1">{% trans "عدد لا محدود من أجهزة OBD2 لكل شركة. كل جهاز عنده token آمن خاص + ربط بسيارة محددة." %}</p>
             </div>
         </div>
     </div>

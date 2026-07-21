@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 17:40+0300\n"
+"POT-Creation-Date: 2026-07-21 17:52+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2142,7 +2142,7 @@ msgid "entitlements لازم تكون dict، مش list/string."
 msgstr ""
 
 msgid "السعر الشهري"
-msgstr ""
+msgstr "Monthly price"
 
 msgid "الصلاحيات"
 msgstr ""
@@ -2384,7 +2384,7 @@ msgid "منحة إدارية"
 msgstr ""
 
 msgid "إجمالي التصاميم"
-msgstr ""
+msgstr "Total designs"
 
 msgid "المستهلك"
 msgstr ""
@@ -7494,15 +7494,12 @@ msgstr "for an instant refresh."
 msgid "تكلفة (USD)"
 msgstr "Cost (USD)"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "مركز النزاعات — Mouss Tec Super Admin"
 msgstr "Disputes center — Mouss Tec Super Admin"
 
-#| msgid "النزاعات"
 msgid "مركز النزاعات"
 msgstr "Disputes center"
 
-#| msgid "⚠️ لم يدخل النظام بعد"
 msgid "⚖️ مركز فضّ النزاعات"
 msgstr "⚖️ Dispute resolution center"
 
@@ -7511,15 +7508,12 @@ msgid ""
 "أو \"تسوية جزئية\"."
 msgstr "The amount is frozen in Escrow until your decision. Choose \"Refund to buyer\", \"Release to seller\", or \"Partial settlement\"."
 
-#| msgid "🟢 طلبات مفتوحة:"
 msgid "⏳ نزاعات مفتوحة"
 msgstr "⏳ Open disputes"
 
-#| msgid "مفتوحة"
 msgid "⏳ مفتوحة"
 msgstr "⏳ Open"
 
-#| msgid "✅ محلول"
 msgid "✅ محلولة"
 msgstr "✅ Resolved"
 
@@ -7529,29 +7523,24 @@ msgstr "📋 All"
 msgid "فتحه:"
 msgstr "Opened by:"
 
-#| msgid "كود الطلب:"
 msgid "الطلب:"
 msgstr "Order:"
 
-#| msgid "المبلغ"
 msgid "المبلغ:"
 msgstr "Amount:"
 
 msgid "الفئة:"
 msgstr "Category:"
 
-#| msgid "صرف العمولات المستحقة"
 msgid "حالة الطلب وقت الفتح:"
 msgstr "Order status at open:"
 
 msgid "القطعة:"
 msgstr "Part:"
 
-#| msgid "تاريخ النشر"
 msgid "تاريخ الفتح:"
 msgstr "Open date:"
 
-#| msgid "📝 سبب الإرجاع:"
 msgid "سبب الإرجاع:"
 msgstr "Return reason:"
 
@@ -7564,31 +7553,24 @@ msgstr "Different"
 msgid "غير مطابق"
 msgstr "Unmatched"
 
-#| msgid "المشتري:"
 msgid "رد للمشتري"
 msgstr "Refund to buyer"
 
-#| msgid "رفض وتحرير للبائع"
 msgid "تحرير للبائع"
 msgstr "Release to seller"
 
-#| msgid "قبول الإرجاع"
 msgid "مبلغ الإرجاع:"
 msgstr "Refund amount:"
 
-#| msgid "أولوية عالية"
 msgid "تسوية جزئية"
 msgstr "Partial settlement"
 
-#| msgid "الإدارة"
 msgid "قرار الإدارة:"
 msgstr "Admin decision:"
 
-#| msgid "تم فحص"
 msgid "تم في:"
 msgstr "Done at:"
 
-#| msgid "لا توجد قطع في هذه القائمة الآن."
 msgid "لا توجد نزاعات في هذه القائمة."
 msgstr "No disputes in this list."
 
@@ -8016,18 +7998,15 @@ msgstr "✓ Resolved"
 msgid "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!"
 msgstr "🎉 No errors — the system is running smoothly!"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "إدارة المستأجرين — Mouss Tec Super Admin"
 msgstr "Tenant management — Mouss Tec Super Admin"
 
-#| msgid "هدية بدون سبب"
 msgid "بدون سبب"
 msgstr "No reason"
 
 msgid "إدارة المستأجرين"
 msgstr "Tenant management"
 
-#| msgid "إدارة المستأجرين"
 msgid "🏢 إدارة المستأجرين (Tenants)"
 msgstr "🏢 Tenant management (Tenants)"
 
@@ -8036,7 +8015,6 @@ msgid ""
 "Delete مقيد بالـ Super Owner."
 msgstr "Soft Delete to hide companies without breaking historical invoices. Force Delete is restricted to the Super Owner."
 
-#| msgid "✅ نشط"
 msgid "✅ نشطة"
 msgstr "✅ Active"
 
@@ -8052,11 +8030,9 @@ msgstr "Creation date"
 msgid "♻️ استعادة"
 msgstr "♻️ Restore"
 
-#| msgid "✂️ حذف عنصر"
 msgid "🗑️ حذف آمن"
 msgstr "🗑️ Soft delete"
 
-#| msgid "لا يوجد مستأجرون في هذا الفلتر."
 msgid "لا توجد مستأجرين في هذا التصنيف."
 msgstr "No tenants in this category."
 
@@ -8069,23 +8045,18 @@ msgstr "The following will be hidden «"
 msgid "» من جميع القوائم. الفواتير والمدفوعات والـ schema تفضل سليمة."
 msgstr "» from all lists. Invoices, payments, and the schema remain intact."
 
-#| msgid "سبب الرفض (اختياري):"
 msgid "سبب الحذف (اختياري):"
 msgstr "Deletion reason (optional):"
 
-#| msgid "توقيع العميل بالاستلام"
 msgid "مثلاً: العميل ألغى الاشتراك"
 msgstr "e.g. The customer cancelled the subscription"
 
-#| msgid "💣 تأكيد الحذف العميق"
 msgid "تأكيد الحذف الآمن"
 msgstr "Confirm soft delete"
 
-#| msgid "حذف نهائي"
 msgid "💀 حذف نهائي (Force Delete)"
 msgstr "💀 Permanent delete (Force Delete)"
 
-#| msgid "تحذير"
 msgid "تحذير:"
 msgstr "Warning:"
 
@@ -8094,15 +8065,12 @@ msgid ""
 "الشركة بالضبط للتأكيد:"
 msgstr "This action is irreversible and will delete the schema and all data permanently. Type the company name exactly to confirm:"
 
-#| msgid "الإجمالي المطلوب"
 msgid "الاسم المطلوب:"
 msgstr "Required name:"
 
-#| msgid "اسم الشركة / البراند *"
 msgid "اكتب اسم الشركة بالحرف"
 msgstr "Type the company name exactly"
 
-#| msgid "حذف نهائي"
 msgid "احذف نهائياً"
 msgstr "Delete permanently"
 
@@ -13683,6 +13651,37 @@ msgstr ""
 msgid "بنود العرض"
 msgstr ""
 
+#| msgid "سجل التصاميم"
+msgid "سجل تصاميم AI Studio"
+msgstr "AI Studio designs log"
+
+#| msgid "العروض المقدمة"
+msgid "معروض حالياً"
+msgstr "Currently shown"
+
+#| msgid "لوجو"
+msgid "بلوجو"
+msgstr "With logo"
+
+#| msgid "فتح الصورة بحجم كامل"
+msgid "فتح بالحجم الكامل"
+msgstr "Open full size"
+
+msgid "مفضّل"
+msgstr "Favorite"
+
+#| msgid "لا يوجد طلبات بعد"
+msgid "لا يوجد تصاميم بعد"
+msgstr "No designs yet"
+
+#| msgid "ابدأ التصميم الآن"
+msgid "ابدأ بإنشاء تصميمك الأول من AI Studio"
+msgstr "Start by creating your first design from AI Studio"
+
+#| msgid "لا توجد مستأجرين في هذا التصنيف."
+msgid "هل أنت متأكد من حذف هذا التصميم؟"
+msgstr "Are you sure you want to delete this design?"
+
 msgid "مراجعة إجابات أطلس الإصلاح — SuperAdmin"
 msgstr "Review Repair Atlas answers — SuperAdmin"
 
@@ -13874,6 +13873,90 @@ msgstr "Device connection instructions"
 
 msgid "الجهاز يتصل بـ WebSocket على المسار التالي مع"
 msgstr "The device connects via WebSocket at the following path with"
+
+msgid "ترقية إلى Premium Diagnostics"
+msgstr "Upgrade to Premium Diagnostics"
+
+msgid ""
+"منظومة فحص ذكية كاملة لمراكز الصيانة المحترفة — Live OBD2 + ISTA Test Plans "
+"+ Smart Parts Finder + خصومات تلقائية لـ 200 فحص API شهرياً."
+msgstr "A complete smart diagnostics system for professional service centers — Live OBD2 + ISTA Test Plans + Smart Parts Finder + automatic discounts for 200 API scans per month."
+
+#| msgid "باقتك الحالية"
+msgid "باقتك مفعّلة بالفعل"
+msgstr "Your plan is already active"
+
+#| msgid "باقة Premium Diagnostics غير متاحة حالياً"
+msgid "أنت مشترك في Premium Diagnostics. كل المزايا متاحة الآن."
+msgstr "You are subscribed to Premium Diagnostics. All features are available now."
+
+#| msgid "العودة للوحة التحكم"
+msgid "عودة للوحة التحكم"
+msgstr "Back to dashboard"
+
+#| msgid "باقتك الحالية تدعم"
+msgid "باقتك الحالية: %(plan_limit)s فحص/شهر."
+msgstr "Your current plan: %(plan_limit)s scans/month."
+
+#| msgid "شحن رصيد فحوصات تشخيص"
+msgid "اشحن باقة فحوصات إضافية"
+msgstr "Top up an extra scans pack"
+
+#| msgid "استخدام إضافي متاح فوق الحصة الشهرية"
+msgid "استمتع بفحوصات إضافية دون الحاجة لترقية الباقة الشهرية."
+msgstr "Enjoy extra scans without needing to upgrade the monthly plan."
+
+#| msgid "اشتري دلوقتي"
+msgid "اشحن دلوقتي"
+msgstr "Top up now"
+
+#| msgid "🔄 اتعدّل تلقائياً"
+msgid "/ شهر — يتجدد تلقائياً"
+msgstr "/ month — renews automatically"
+
+#| msgid "ربع سنوي"
+msgid "خصم ربع سنوي %(d)s%%"
+msgstr "Quarterly discount %(d)s%%"
+
+#| msgid "نصف سنوي"
+msgid "خصم نصف سنوي %(d)s%%"
+msgstr "Semi-annual discount %(d)s%%"
+
+#| msgid "نصف سنوي"
+msgid "خصم سنوي %(d)s%%"
+msgstr "Annual discount %(d)s%%"
+
+#| msgid "ادفع بالفيزا — قريباً"
+msgid "الدفع بالفيزا تحت التطوير"
+msgstr "Card payment is under development"
+
+#| msgid "تأكيد الدفع وتفعيل الباقة"
+msgid "تواصل مع الدعم لتفعيل الباقة."
+msgstr "Contact support to activate the plan."
+
+msgid "ماذا يحدث إذا تجاوزت 200 فحص API/شهر؟"
+msgstr "What happens if I exceed 200 API scans/month?"
+
+msgid ""
+"يتم تعطيل الفحوصات الخارجية فقط — كل القراءات المحلية (DTC catalog + cache) "
+"تظل مجانية بلا حدود. يمكنك طلب refill إضافي من السوبر أدمن."
+msgstr "Only external scans are disabled — all local reads (DTC catalog + cache) stay free without limits. You can request an extra refill from the super admin."
+
+msgid "هل يحفظ النظام تكلفة كل فحص؟"
+msgstr "Does the system save the cost of each scan?"
+
+msgid ""
+"نعم — APICallLog يسجل كل request مع تكلفته بالـ USD. السوبر أدمن يرى التكلفة "
+"الإجمالية لكل شركة."
+msgstr "Yes — APICallLog records every request with its cost in USD. The super admin sees the total cost for each company."
+
+msgid "ماذا عن الأجهزة (Hardware)؟"
+msgstr "What about the hardware?"
+
+msgid ""
+"عدد لا محدود من أجهزة OBD2 لكل شركة. كل جهاز عنده token آمن خاص + ربط بسيارة "
+"محددة."
+msgstr "Unlimited OBD2 devices per company. Each device has its own secure token + a link to a specific car."
 
 msgid "Premium Diagnostics — غير متاح"
 msgstr "Premium Diagnostics — Unavailable"

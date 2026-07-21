@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>سجل تصاميم AI Studio</title>
+    <title>{% trans "سجل تصاميم AI Studio" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -84,22 +84,22 @@
 <body>
 
 <div class="topbar">
-    <h1><i class="fas fa-history"></i> سجل تصاميم AI Studio</h1>
-    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+    <h1><i class="fas fa-history"></i> {% trans "سجل تصاميم AI Studio" %}</h1>
+    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> {% trans "العودة للوحة التحكم" %}</a>
 </div>
 
 <div class="stats">
     <div class="stat-card">
         <div class="n">{{ total }}</div>
-        <div class="l">إجمالي التصاميم</div>
+        <div class="l">{% trans "إجمالي التصاميم" %}</div>
     </div>
     <div class="stat-card">
         <div class="n">{{ sessions|length }}</div>
-        <div class="l">معروض حالياً</div>
+        <div class="l">{% trans "معروض حالياً" %}</div>
     </div>
     <div class="stat-card">
         <div class="n">{{ tenant.name|default:"-" }}</div>
-        <div class="l">الشركة</div>
+        <div class="l">{% trans "الشركة" %}</div>
     </div>
 </div>
 
@@ -112,22 +112,22 @@
             <div class="card-prompt">{{ s.raw_input|truncatechars:140 }}</div>
             <div class="card-meta">
                 {% if s.design_category %}<span class="badge">{{ s.design_category }}</span>{% endif %}
-                {% if s.logo_used %}<span class="badge logo"><i class="fas fa-image"></i> بلوجو</span>{% endif %}
-                {% if s.watermarked %}<span class="badge watermark"><i class="fas fa-droplet"></i> علامة مائية</span>{% endif %}
+                {% if s.logo_used %}<span class="badge logo"><i class="fas fa-image"></i> {% trans "بلوجو" %}</span>{% endif %}
+                {% if s.watermarked %}<span class="badge watermark"><i class="fas fa-droplet"></i> {% trans "علامة مائية" %}</span>{% endif %}
                 {% if s.model_used %}<span class="badge model">{{ s.model_used }}</span>{% endif %}
             </div>
             <div class="date-tag"><i class="far fa-clock"></i> {{ s.created_at|date:"Y-m-d H:i" }}</div>
             <div class="card-actions">
-                <a class="btn-action" href="{{ s.image_url }}" target="_blank" title="فتح بالحجم الكامل">
+                <a class="btn-action" href="{{ s.image_url }}" target="_blank" title="{% trans "فتح بالحجم الكامل" %}">
                     <i class="fas fa-expand"></i>
                 </a>
-                <a class="btn-action" href="{{ s.image_url }}" download title="تحميل">
+                <a class="btn-action" href="{{ s.image_url }}" download title="{% trans "تحميل" %}">
                     <i class="fas fa-download"></i>
                 </a>
-                <button class="btn-action fav {% if s.is_favorite %}active{% endif %}" onclick="toggleFav({{ s.pk }})" title="مفضّل">
+                <button class="btn-action fav {% if s.is_favorite %}active{% endif %}" onclick="toggleFav({{ s.pk }})" title="{% trans "مفضّل" %}">
                     <i class="fas fa-star"></i>
                 </button>
-                <button class="btn-action delete" onclick="deleteSession({{ s.pk }})" title="حذف">
+                <button class="btn-action delete" onclick="deleteSession({{ s.pk }})" title="{% trans "حذف" %}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -138,8 +138,8 @@
 {% else %}
 <div class="empty">
     <i class="fas fa-images"></i>
-    <h2>لا يوجد تصاميم بعد</h2>
-    <p>ابدأ بإنشاء تصميمك الأول من AI Studio</p>
+    <h2>{% trans "لا يوجد تصاميم بعد" %}</h2>
+    <p>{% trans "ابدأ بإنشاء تصميمك الأول من AI Studio" %}</p>
 </div>
 {% endif %}
 
@@ -154,7 +154,7 @@ async function toggleFav(id) {
 }
 
 async function deleteSession(id) {
-    if (!confirm('هل أنت متأكد من حذف هذا التصميم؟')) return;
+    if (!confirm('{% trans "هل أنت متأكد من حذف هذا التصميم؟" %}')) return;
     const r = await fetch(`/printing/ai/session/${id}/delete/`, {method: 'POST'});
     const d = await r.json();
     if (d.success) {
