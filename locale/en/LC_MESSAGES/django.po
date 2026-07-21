@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:48+0300\n"
+"POT-Creation-Date: 2026-07-21 18:53+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -8621,117 +8621,91 @@ msgstr "No data in the last hour."
 msgid "الصفحة بتـ refresh تلقائياً كل 30 ثانية"
 msgstr "The page refreshes automatically every 30 seconds"
 
-#| msgid "⛔ بدون email"
 msgid "بدون email"
 msgstr "No email"
 
-#| msgid "ينتهي %(d)s"
+#, python-format
 msgid "انضم %(d)s"
 msgstr "Joined %(d)s"
 
-#| msgid "سجل دخول للشراء"
 msgid "دخول للحساب"
 msgstr "Log in to the account"
 
 msgid "تجديد الاشتراك"
 msgstr "Renew subscription"
 
-#| msgid "المتبقي على العملاء"
 msgid "يوم متبقي على التجربة"
 msgstr "days left on the trial"
 
-#| msgid "مثلاً: العميل ألغى الاشتراك"
 msgid "يوم متبقي على الاشتراك"
 msgstr "days left on the subscription"
 
-#| msgid "تاريخ الانتهاء"
 msgid "بدون تاريخ انتهاء"
 msgstr "No expiry date"
 
-#| msgid "إجمالي المدفوعات"
 msgid "إجمالي المدفوع"
 msgstr "Total paid"
 
-#| msgid "آخر ٧ أيام"
 msgid "زيارات آخر 7 أيام"
 msgstr "Visits in the last 7 days"
 
-#| msgid "خطأ غير محلول في"
 msgid "أخطاء غير محلولة"
 msgstr "Unresolved errors"
 
-#| msgid "ترقية الباقة"
 msgid "تشريح درجة الصحة"
 msgstr "Health score breakdown"
 
-#| msgid "لنشاطك"
 msgid "النشاط"
 msgstr "Activity"
 
-#| msgid "نوع الحساب"
 msgid "عمر الحساب"
 msgstr "Account age"
 
 msgid "الثقة"
 msgstr "Trust"
 
-#| msgid "الفواتير"
 msgid "الفواتير (آخر 20)"
 msgstr "Invoices (last 20)"
 
-#| msgid "المدفوع"
 msgid "المدفوع:"
 msgstr "Paid:"
 
-#| msgid "مستحق"
 msgid "المستحق:"
 msgstr "Due:"
 
-#| msgid "على الرقم"
 msgid "الرقم"
 msgstr "Number"
 
-#| msgid "تاريخ الإصدار"
 msgid "الإصدار"
 msgstr "Issued"
 
-#| msgid "لا توجد فواتير"
 msgid "لا توجد فواتير بعد."
 msgstr "No invoices yet."
 
-#| msgid "أكثر الصفحات زيارة (7 أيام)"
 msgid "أكثر الصفحات زيارة (30 يوم)"
 msgstr "Most visited pages (30 days)"
 
-#| msgid "لا توجد بيانات في آخر ساعة."
 msgid "لا توجد بيانات تصفّح في آخر 30 يوم."
 msgstr "No browsing data in the last 30 days."
 
-#| msgid "آخر الأحداث"
 msgid "آخر الأخطاء (10)"
 msgstr "Latest errors (10)"
 
-#| msgid "آخر 30 يوم"
 msgid "آخر 30 يوم:"
 msgstr "Last 30 days:"
 
-#| msgid "محلولة"
 msgid "محلول"
 msgstr "Resolved"
 
-#| msgid "لا توجد أحداث بعد"
 msgid "لا توجد أخطاء — رائع!"
 msgstr "No errors — great!"
 
-#| msgid "ج.م لكل استخدام"
 msgid "ملخص الاستخدام"
 msgstr "Usage summary"
 
-#| msgid "آخر 30 يوم"
 msgid "زيارات آخر 7 يوم"
 msgstr "Visits in the last 7 days"
 
-#| msgid "آخر 30 يوم"
 msgid "زيارات آخر 30 يوم"
 msgstr "Visits in the last 30 days"
 
@@ -8741,50 +8715,39 @@ msgstr "Users"
 msgid "آخر زيارة"
 msgstr "Last visit"
 
-#| msgid "السوق"
 msgid "السوق (B2B)"
 msgstr "Marketplace (B2B)"
 
-#| msgid "الشركات النشطة"
 msgid "قطع الغيار النشطة"
 msgstr "Active spare parts"
 
-#| msgid "إجمالي قطع الغيار"
 msgid "إجمالي القطع المعروضة"
 msgstr "Total listed parts"
 
-#| msgid "⏳ نزاعات مفتوحة"
 msgid "نزاعات مفتوحة"
 msgstr "Open disputes"
 
-#| msgid "إرسال التقييم"
 msgid "التقييم"
 msgstr "Rating"
 
-#| msgid "التوصيل:"
 msgid "التوثيق"
 msgstr "Verification"
 
-#| msgid "موثق"
 msgid "✓ موثق"
 msgstr "✓ Verified"
 
-#| msgid "مغلقة"
 msgid "مغلق:"
 msgstr "Closed:"
 
-#| msgid "لا توجد اشتراكات نشطة."
 msgid "لا توجد تذاكر مفتوحة."
 msgstr "No open tickets."
 
 msgid "آخر الأحداث"
 msgstr "Latest events"
 
-#| msgid "لا توجد أحداث بعد"
 msgid "لا توجد أحداث."
 msgstr "No events."
 
-#| msgid "فرع واحد"
 msgid "شهر واحد"
 msgstr "One month"
 
@@ -8794,11 +8757,9 @@ msgstr "3 months"
 msgid "6 أشهر"
 msgstr "6 months"
 
-#| msgid "سجل كامل"
 msgid "سنة كاملة"
 msgstr "Full year"
 
-#| msgid "خطأ في الاتصال بالخادم"
 msgid "خطأ في الاتصال بالسيرفر"
 msgstr "Error connecting to the server"
 
@@ -10770,6 +10731,191 @@ msgstr ""
 msgid "اشتراكات AI التصميم"
 msgstr ""
 
+msgid "لوحة الموارد البشرية"
+msgstr "HR Dashboard"
+
+#| msgid "مرحباً"
+msgid "مرحباً،"
+msgstr "Welcome,"
+
+#| msgid "ملاحظة الإدارة:"
+msgid "لوحة الإدارة"
+msgstr "Admin panel"
+
+#| msgid "أهلاً بيك في خبير"
+msgid "أهلاً 👋 — يومك سعيد"
+msgstr "Hello 👋 — have a great day"
+
+msgid "كل اللي عايز تعرفه عن فريقك النهاردة: حضور، طلبات معلقة، وتنبيهات."
+msgstr "Everything you need to know about your team today: attendance, pending requests, and alerts."
+
+#| msgid "إجمالي الموظفين"
+msgid "كل الموظفين"
+msgstr "All employees"
+
+#| msgid "تسجيل حضور"
+msgid "سجل الحضور"
+msgstr "Attendance log"
+
+#| msgid "معلقة"
+msgid "سلف معلقة"
+msgstr "Pending advances"
+
+#| msgid "سيارات متعددة"
+msgid "إجازات معلقة"
+msgstr "Pending leaves"
+
+msgid "إجمالي الموظفين"
+msgstr "Total employees"
+
+#| msgid "نشطون اليوم"
+msgid "حاضرون اليوم"
+msgstr "Present today"
+
+#| msgid "متأخر"
+msgid "متأخرون"
+msgstr "Late"
+
+#| msgid "البيان / الملاحظات"
+msgid "غائبون / لم يحضروا"
+msgstr "Absent / did not check in"
+
+#| msgid "موثق إلكترونياً"
+msgid "موثق بصمة وجه"
+msgstr "Face-verified"
+
+#| msgid "الحضور"
+msgid "نسبة الحضور"
+msgstr "Attendance rate"
+
+#| msgid "سيارات تحتاج تواصل الآن"
+msgid "تنبيهات تحتاج تدخّل"
+msgstr "Alerts requiring action"
+
+#| msgid "في انتظار الموافقة"
+msgid "%(n)s طلب سلفة في انتظار الموافقة"
+msgstr "%(n)s advance request awaiting approval"
+
+#| msgid "طلب إرجاع"
+msgid "%(n)s طلب إجازة معلق"
+msgstr "%(n)s pending leave request"
+
+#, python-format
+msgid "%(n)s موظف بدون مدير مباشر"
+msgstr "%(n)s employee without a direct manager"
+
+#| msgid "طلب اليوم"
+msgid "حضور اليوم"
+msgstr "Today attendance"
+
+msgid "لم يحضروا"
+msgstr "Not checked in"
+
+#| msgid "حاضر"
+msgid "حاضرون"
+msgstr "Present"
+
+#| msgid "غائب"
+msgid "غائبون"
+msgstr "Absent"
+
+#| msgid "لم يتصل بعد"
+msgid "لم يسجل"
+msgstr "Not recorded"
+
+msgid "كل الموظفين سجلوا حضور النهاردة 🎉"
+msgstr "All employees have checked in today 🎉"
+
+#| msgid "حاضر"
+msgid "حضر"
+msgstr "Checked in"
+
+#| msgid "خوادم موثوقة"
+msgid "بصمة وجه موثقة"
+msgstr "Face print verified"
+
+#| msgid "لا توجد أحداث بعد"
+msgid "لا أحد حضر بعد."
+msgstr "No one has checked in yet."
+
+#| msgid "اشتري %(n)s تصميم"
+msgid "متأخر %(n)s دقيقة"
+msgstr "Late by %(n)s minutes"
+
+#| msgid "سجل الإطارات الواردة"
+msgid "محدش متأخر النهاردة."
+msgstr "No one is late today."
+
+#| msgid "مفيش باقات."
+msgid "مفيش غياب مسجل."
+msgstr "No recorded absences."
+
+#| msgid "طلبات المشترين الحالية"
+msgid "طلبات السلف المعلقة"
+msgstr "Pending advance requests"
+
+#| msgid "%(n)s قطعة"
+msgid "%(n)s قسط"
+msgstr "%(n)s installments"
+
+#| msgid "مراجع"
+msgid "مراجعة"
+msgstr "Review"
+
+#| msgid "✅ مفيش طلبات معلقة قديمة."
+msgid "مفيش طلبات سلف معلقة."
+msgstr "No pending advance requests."
+
+#| msgid "نظام الاضافات المرنة"
+msgid "طلبات الإجازات المعلقة"
+msgstr "Pending leave requests"
+
+#| msgid "مفيش طلبات طباعة لسه"
+msgid "مفيش طلبات إجازات معلقة."
+msgstr "No pending leave requests."
+
+#| msgid "زيارات آخر 7 أيام"
+msgid "حضور آخر 7 أيام"
+msgstr "Attendance over the last 7 days"
+
+#| msgid "توزيع الأنواع"
+msgid "توزيع الأقسام"
+msgstr "Department distribution"
+
+#| msgid "لا توجد أحداث."
+msgid "لا توجد أقسام."
+msgstr "No departments."
+
+#| msgid "إجمالي القطع المعروضة"
+msgid "إجمالي السلف المطلوبة"
+msgstr "Total requested advances"
+
+#| msgid "شوف عينات تصميم قبل الموافقة"
+msgid "إجازات تمت الموافقة"
+msgstr "Approved leaves"
+
+msgid "موظفون بدون مدير مباشر"
+msgstr "Employees without a direct manager"
+
+#| msgid "إضافة موظف"
+msgid "إضافة موظف جديد"
+msgstr "Add a new employee"
+
+msgid "الرواتب"
+msgstr "Payroll"
+
+#| msgid "تسجيل الوردية"
+msgid "الورديات"
+msgstr "Shifts"
+
+#| msgid "إيرادات"
+msgid "إعدادات HR"
+msgstr "HR settings"
+
+#| msgid "حملة جديدة"
+msgid "موظف جديد"
+msgstr "New employee"
+
 msgid "الحالة والنتيجة"
 msgstr ""
 
@@ -12716,14 +12862,8 @@ msgstr "Previous page"
 msgid "الحضور والانصراف"
 msgstr "Attendance"
 
-msgid "لوحة الموارد البشرية"
-msgstr "HR Dashboard"
-
 msgid "الحضور والانصراف المُسجّل بالـ GPS — للمراجعة وكشف رواتب الفترة."
 msgstr "GPS-logged attendance — for review and period payroll."
-
-msgid "إجمالي الموظفين"
-msgstr "Total employees"
 
 msgid "داخل العمل الآن"
 msgstr "Currently at work"
