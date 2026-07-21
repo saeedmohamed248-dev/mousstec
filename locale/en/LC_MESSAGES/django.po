@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 17:27+0300\n"
+"POT-Creation-Date: 2026-07-21 17:31+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7385,42 +7385,33 @@ msgstr "🔒 End session"
 msgid "🔒 هذه الجلسة مغلقة"
 msgstr "🔒 This session is closed"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin"
 msgstr "Diagnostics room access (OBD) — Mouss Tec Super Admin"
 
-#| msgid "غرفة التشخيص"
 msgid "وصول غرفة التشخيص"
 msgstr "Diagnostics room access"
 
-#| msgid "العودة لغرفة التشخيص"
 msgid "🔧 وصول غرفة التشخيص (OBD)"
 msgstr "🔧 Diagnostics room access (OBD)"
 
-#| msgid "المميزة"
 msgid "هذه الميزة"
 msgstr "This feature is a"
 
-#| msgid "إضافة قطعة"
 msgid "إضافة مدفوعة"
 msgstr "paid add-on"
 
 msgid "منفصلة عن الباقة الأساسية. امنح/اسحب الوصول لكل مستأجر بضغطة زر."
 msgstr "separate from the base package. Grant/revoke access for each tenant with one click."
 
-#| msgid "الكل"
 msgid "📜 الكل"
 msgstr "📜 All"
 
-#| msgid "✓ نشط"
 msgid "✅ نشط"
 msgstr "✅ Active"
 
-#| msgid "عادي — خلال أسبوع"
 msgid "⏳ ينتهي خلال أسبوع"
 msgstr "⏳ Expires within a week"
 
-#| msgid "غير مشترك"
 msgid "🚫 غير نشط"
 msgstr "🚫 Inactive"
 
@@ -7433,38 +7424,30 @@ msgstr "Grant access"
 msgid "إجراء"
 msgstr "Action"
 
-#| msgid "مدى الحياة"
 msgid "♾️ مدى الحياة"
 msgstr "♾️ Lifetime"
 
-#| msgid "منتهي"
 msgid "⏰ منتهي"
 msgstr "⏰ Expired"
 
-#| msgid "غير مفعّل"
 msgid "🚫 غير مفعّل"
 msgstr "🚫 Not enabled"
 
 msgid "+1 يوم"
 msgstr "+1 day"
 
-#| msgid "أسبوع"
 msgid "+1 أسبوع"
 msgstr "+1 week"
 
-#| msgid "ج / شهر"
 msgid "+1 شهر"
 msgstr "+1 month"
 
-#| msgid "جنيه / 3 شهور"
 msgid "+3 شهور"
 msgstr "+3 months"
 
-#| msgid "جنيه / 6 شهور"
 msgid "+6 شهور"
 msgstr "+6 months"
 
-#| msgid "من سنة"
 msgid "+1 سنة"
 msgstr "+1 year"
 
@@ -7472,14 +7455,13 @@ msgstr "+1 year"
 msgid "منح وصول مدى الحياة لـ %(name)s؟"
 msgstr "Grant lifetime access to %(name)s?"
 
-#| msgid "تأكيد حذف اللوجو"
+#, python-format
 msgid "تأكيد سحب الوصول من %(name)s؟"
 msgstr "Confirm revoking access from %(name)s?"
 
 msgid "🚫 سحب"
 msgstr "🚫 Revoke"
 
-#| msgid "لا توجد معروضات نشطة بهذا الفلتر."
 msgid "لا يوجد مستأجرون في هذا الفلتر."
 msgstr "No tenants with this filter."
 
@@ -7554,6 +7536,54 @@ msgstr "Administrative edit that overrides seller ownership — used to correct 
 msgid "رقم القطعة (OEM)"
 msgstr "Part number (OEM)"
 
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "مراجعة قطع الغيار — Mouss Tec Super Admin"
+msgstr "Parts review — Mouss Tec Super Admin"
+
+msgid "مراجعة قطع الغيار"
+msgstr "Spare-parts review"
+
+#| msgid "مراجعة قطع الغيار"
+msgid "🛡️ بوابة مراجعة قطع الغيار"
+msgstr "🛡️ Parts review gate"
+
+msgid "كل قطعة جديدة من السوق تظهر هنا قبل ما تتنشر للعامة. اعتمدها أو ارفضها."
+msgstr "Every new part from the marketplace appears here before it is published publicly. Approve or reject it."
+
+msgid "⏳ بانتظار المراجعة"
+msgstr "⏳ Awaiting review"
+
+msgid "❌ مرفوضة"
+msgstr "❌ Rejected"
+
+#| msgid "📜 الكل"
+msgid "📋 الكل"
+msgstr "📋 All"
+
+msgid "صورة"
+msgstr "Image"
+
+msgid "السيارة"
+msgstr "Car"
+
+#| msgid "تاريخ الإصدار"
+msgid "تاريخ الإضافة"
+msgstr "Date added"
+
+msgid "إجراءات"
+msgstr "Actions"
+
+#| msgid "سبب الرفض (اختياري):"
+msgid "سبب الرفض (اختياري)"
+msgstr "Rejection reason (optional)"
+
+msgid "رفض"
+msgstr "Reject"
+
+#| msgid "— لا توجد قطع على هذه البطاقة —"
+msgid "لا توجد قطع في هذه القائمة الآن."
+msgstr "No parts in this list now."
+
 msgid "الإدارة"
 msgstr "Administration"
 
@@ -7599,6 +7629,72 @@ msgstr "No plans."
 
 msgid "رجوع لـ SaaS Dashboard"
 msgstr "Back to SaaS Dashboard"
+
+#| msgid "الشات الحي — Mouss Tec Super Admin"
+msgid "الإيرادات العامة — Mouss Tec SaaS"
+msgstr "Platform revenue — Mouss Tec SaaS"
+
+#| msgid "القراءات الحية"
+msgid "الإيرادات العامة"
+msgstr "Platform revenue"
+
+#| msgid "الأداء العاملين"
+msgid "📊 الإيرادات العامة للمنصة"
+msgstr "📊 Platform revenue overview"
+
+msgid ""
+"إجمالي تدفقات SaaS من فواتير المنصة (PlatformInvoice) المدفوعة. مش بيشمل "
+"مبيعات الـ tenants لعملائهم."
+msgstr "Total SaaS inflows from paid platform invoices (PlatformInvoice). Does not include tenant sales to their customers."
+
+#| msgid "الإجمالي قبل الخصم"
+msgid "الإجمالي من بداية التشغيل"
+msgstr "Total since launch"
+
+#| msgid "تسجيلات هذا الشهر"
+msgid "هذا الشهر"
+msgstr "This month"
+
+#| msgid "آخر ٧ أيام"
+msgid "آخر 30 يوم"
+msgstr "Last 30 days"
+
+#, python-format
+msgid "فواتير مدفوعة (%(n)s لم تُدفع)"
+msgstr "Paid invoices (%(n)s unpaid)"
+
+msgid "الإيرادات حسب الباقة (Lifetime)"
+msgstr "Revenue by plan (Lifetime)"
+
+#| msgid "العدد"
+msgid "عدد"
+msgstr "Count"
+
+#| msgid "المجال"
+msgid "المجموع"
+msgstr "Total"
+
+#| msgid "✅ مفيش طلبات معلقة قديمة."
+msgid "مفيش فواتير مدفوعة لسة."
+msgstr "No paid invoices yet."
+
+#| msgid "آخر زيارة"
+msgid "آخر 25 فاتورة"
+msgstr "Last 25 invoices"
+
+msgid "الفترة"
+msgstr "Period"
+
+msgid "صدرت"
+msgstr "Issued"
+
+#| msgid "%(n)s شركة"
+msgid "%(n)s شهر"
+msgstr "%(n)s months"
+
+#| msgid "مفيش محادثات لسه."
+msgid "مفيش فواتير لسة."
+msgstr "No invoices yet."
 
 msgid "صندوق الدعم — Mouss Tec Super Admin"
 msgstr "Support inbox — Mouss Tec Super Admin"
@@ -7685,29 +7781,24 @@ msgstr "⏳ Pending"
 msgid "تاريخ الإغلاق"
 msgstr "Closing date"
 
-#| msgid "الشات الحي — Mouss Tec Super Admin"
 msgid "سجل أخطاء النظام — Mouss Tec Super Admin"
 msgstr "System error log — Mouss Tec Super Admin"
 
 msgid "سجل الأخطاء"
 msgstr "Error log"
 
-#| msgid "سجل أخطاء النظام"
 msgid "🚨 مركز رصد أخطاء النظام"
 msgstr "🚨 System error monitoring center"
 
 msgid "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً."
 msgstr "Every 4xx/5xx error from all tenants appears here instantly."
 
-#| msgid "🔄 اتعدّل تلقائياً"
 msgid "🔄 تحديث تلقائي كل 30 ثانية"
 msgstr "🔄 Auto refresh every 30 seconds"
 
-#| msgid "🚨 تذاكر عاجلة مفتوحة"
 msgid "🔥 أخطاء حرجة مفتوحة (500)"
 msgstr "🔥 Open critical errors (500)"
 
-#| msgid "حلول"
 msgid "محلولة"
 msgstr "Resolved"
 
@@ -7717,7 +7808,6 @@ msgstr "🔥 Critical"
 msgid "⚠️ خطأ"
 msgstr "⚠️ Error"
 
-#| msgid "⚠️ تحذير:"
 msgid "ℹ️ تحذير"
 msgstr "ℹ️ Warning"
 
@@ -7727,19 +7817,15 @@ msgstr "Level"
 msgid "المسار"
 msgstr "Path"
 
-#| msgid "استثنائي"
 msgid "الاستثناء"
 msgstr "Exception"
 
-#| msgid "حلول"
 msgid "✅ محلول"
 msgstr "✅ Resolved"
 
-#| msgid "✅ تم الحفظ"
 msgid "✓ تم الحل"
 msgstr "✓ Resolved"
 
-#| msgid "— لا توجد خدمات على هذه البطاقة —"
 msgid "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!"
 msgstr "🎉 No errors — the system is running smoothly!"
 
@@ -7926,9 +8012,6 @@ msgstr "Marketplace approvals"
 
 msgid "عملاء السوق"
 msgstr "Marketplace customers"
-
-msgid "مراجعة قطع الغيار"
-msgstr "Spare-parts review"
 
 msgid "إرجاع قطع الغيار"
 msgstr "Spare-parts returns"
@@ -8148,9 +8231,6 @@ msgstr "Confirm payment and activate the plan"
 msgid "تفعيل يدوي"
 msgstr "Manual activation"
 
-msgid "رفض"
-msgstr "Reject"
-
 msgid "لا توجد طلبات شراء معلّقة حالياً. كل الطلبات مؤكدة."
 msgstr "No pending purchase requests right now. All requests are confirmed."
 
@@ -8294,14 +8374,8 @@ msgstr "Permanently delete the customer"
 msgid "لا يوجد عملاء بعد."
 msgstr "No customers yet."
 
-msgid "⏳ بانتظار المراجعة"
-msgstr "⏳ Awaiting review"
-
 msgid "✅ معتمدة"
 msgstr "✅ Approved"
-
-msgid "❌ مرفوضة"
-msgstr "❌ Rejected"
 
 msgid "⏸️ معلقة"
 msgstr "⏸️ Suspended"
@@ -9067,9 +9141,6 @@ msgstr ""
 
 msgid "رفض السلف المحددة"
 msgstr ""
-
-msgid "الفترة"
-msgstr "Period"
 
 msgid "إنشاء / إعادة حساب الرواتب"
 msgstr ""
@@ -10731,9 +10802,6 @@ msgstr "Replace now"
 msgid "أمر الشغل"
 msgstr ""
 
-msgid "السيارة"
-msgstr ""
-
 msgid "الفرامل"
 msgstr "Brakes"
 
@@ -11931,9 +11999,6 @@ msgstr "min"
 msgid "طلب قطع إضافية"
 msgstr "Request extra parts"
 
-msgid "صورة"
-msgstr "Image"
-
 msgid "نتائج التشخيص الذكي"
 msgstr "Smart diagnostic results"
 
@@ -12377,9 +12442,6 @@ msgstr "Brand / Model"
 
 msgid "التكلفة"
 msgstr "Cost"
-
-msgid "إجراءات"
-msgstr "Actions"
 
 msgid "نفد"
 msgstr "Out"
@@ -13492,15 +13554,12 @@ msgstr ""
 msgid "💰 API Call Cost Log"
 msgstr ""
 
-#| msgid "خطوات الفحص"
 msgid "🔌 أجهزة الفحص OBD2"
 msgstr "🔌 OBD2 scan devices"
 
-#| msgid "خطوات الفحص"
 msgid "أجهزة الفحص OBD2"
 msgstr "OBD2 scan devices"
 
-#| msgid "المصادقة الثنائية مفعّلة"
 msgid "🛑 الميزة غير مفعّلة"
 msgstr "🛑 Feature not enabled"
 
@@ -13512,37 +13571,30 @@ msgid ""
 "WebSocket."
 msgstr "Save this token now — we will not show it again. The device will use it to connect via WebSocket."
 
-#| msgid "تسجيل الوردية"
 msgid "تسجيل جهاز جديد"
 msgstr "Register a new device"
 
-#| msgid "اختار الباقة المناسبة لعربيتك"
 msgid "VIN — اختياري (للأجهزة المثبتة دائماً)"
 msgstr "VIN — optional (for permanently installed devices)"
 
 msgid "اتركها فارغة لأجهزة الورشة المحمولة (ELM327)"
 msgstr "Leave empty for portable workshop devices (ELM327)"
 
-#| msgid "صور (اختياري)"
 msgid "Hardware ID (اختياري)"
 msgstr "Hardware ID (optional)"
 
-#| msgid "توليد فوري"
 msgid "توليد توكن"
 msgstr "Generate token"
 
-#| msgid "متصل بـ"
 msgid "لم يتصل بعد"
 msgstr "Not connected yet"
 
 msgid "🛠️ جهاز محمول"
 msgstr "🛠️ Portable device"
 
-#| msgid "سوق السيارات"
 msgid "(يتنقل بين السيارات)"
 msgstr "(moves between cars)"
 
-#| msgid "اتصال:"
 msgid "آخر اتصال:"
 msgstr "Last connection:"
 
@@ -13552,19 +13604,15 @@ msgstr "Stopped"
 msgid "تدوير التوكن سيمنع الجهاز الحالي من الاتصال — تأكيد؟"
 msgstr "Rotating the token will prevent the current device from connecting — confirm?"
 
-#| msgid "تأمين التوالف"
 msgid "تدوير التوكن"
 msgstr "Rotate token"
 
-#| msgid "تم الإيقاف"
 msgid "تفعيل/إيقاف"
 msgstr "Enable/Disable"
 
-#| msgid "لا توجد باقات متاحة حالياً لهذا القطاع."
 msgid "لا توجد أجهزة بعد. سجّل أول جهاز فوق."
 msgstr "No devices yet. Register your first device above."
 
-#| msgid "تأكيد الإرسال للمطبعة"
 msgid "تعليمات الاتصال للأجهزة"
 msgstr "Device connection instructions"
 

@@ -1,9 +1,9 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>الإيرادات العامة — Mouss Tec SaaS</title>
+    <title>{% trans "الإيرادات العامة — Mouss Tec SaaS" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -39,38 +39,38 @@
 <body>
 <div class="container">
     <div class="breadcrumb">
-        <a href="/secure-portal/"><i class="fas fa-home"></i> الإدارة</a> ›
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
         <a href="/superadmin/">SaaS Dashboard</a> ›
-        الإيرادات العامة
+        {% trans "الإيرادات العامة" %}
     </div>
 
-    <h1><i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة للمنصة</h1>
-    <p class="sub">إجمالي تدفقات SaaS من فواتير المنصة (PlatformInvoice) المدفوعة. مش بيشمل مبيعات الـ tenants لعملائهم.</p>
+    <h1><i class="fas fa-chart-pie"></i> {% trans "📊 الإيرادات العامة للمنصة" %}</h1>
+    <p class="sub">{% trans "إجمالي تدفقات SaaS من فواتير المنصة (PlatformInvoice) المدفوعة. مش بيشمل مبيعات الـ tenants لعملائهم." %}</p>
 
     <div class="stats-row">
         <div class="stat green">
-            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">ج.م</span></div>
-            <div class="lbl"><i class="fas fa-infinity"></i> الإجمالي من بداية التشغيل</div>
+            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">{% trans "ج.م" %}</span></div>
+            <div class="lbl"><i class="fas fa-infinity"></i> {% trans "الإجمالي من بداية التشغيل" %}</div>
         </div>
         <div class="stat blue">
-            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">ج.م</span></div>
-            <div class="lbl"><i class="fas fa-calendar"></i> هذا الشهر</div>
+            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">{% trans "ج.م" %}</span></div>
+            <div class="lbl"><i class="fas fa-calendar"></i> {% trans "هذا الشهر" %}</div>
         </div>
         <div class="stat purple">
-            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">ج.م</span></div>
-            <div class="lbl"><i class="fas fa-clock"></i> آخر 30 يوم</div>
+            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">{% trans "ج.م" %}</span></div>
+            <div class="lbl"><i class="fas fa-clock"></i> {% trans "آخر 30 يوم" %}</div>
         </div>
         <div class="stat amber">
             <div class="val">{{ invoices_count }}</div>
-            <div class="lbl"><i class="fas fa-file-invoice-dollar"></i> فواتير مدفوعة ({{ pending_count }} لم تُدفع)</div>
+            <div class="lbl"><i class="fas fa-file-invoice-dollar"></i> {% blocktrans with n=pending_count %}فواتير مدفوعة ({{ n }} لم تُدفع){% endblocktrans %}</div>
         </div>
     </div>
 
     <div class="grid-2">
         <div class="panel">
-            <h3><i class="fas fa-layer-group"></i> الإيرادات حسب الباقة (Lifetime)</h3>
+            <h3><i class="fas fa-layer-group"></i> {% trans "الإيرادات حسب الباقة (Lifetime)" %}</h3>
             <table>
-                <thead><tr><th>الباقة</th><th>عدد</th><th>المجموع</th></tr></thead>
+                <thead><tr><th>{% trans "الباقة" %}</th><th>{% trans "عدد" %}</th><th>{% trans "المجموع" %}</th></tr></thead>
                 <tbody>
                     {% for row in by_plan %}
                         <tr>
@@ -79,24 +79,24 @@
                             <td><b style="color:#10b981;">{{ row.total|floatformat:2 }}</b></td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px;">مفيش فواتير مدفوعة لسة.</td></tr>
+                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px;">{% trans "مفيش فواتير مدفوعة لسة." %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
         <div class="panel">
-            <h3><i class="fas fa-receipt"></i> آخر 25 فاتورة</h3>
+            <h3><i class="fas fa-receipt"></i> {% trans "آخر 25 فاتورة" %}</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>رقم</th>
-                        <th>الشركة</th>
-                        <th>الباقة</th>
-                        <th>الفترة</th>
-                        <th>الإجمالي</th>
-                        <th>الحالة</th>
-                        <th>صدرت</th>
+                        <th>{% trans "رقم" %}</th>
+                        <th>{% trans "الشركة" %}</th>
+                        <th>{% trans "الباقة" %}</th>
+                        <th>{% trans "الفترة" %}</th>
+                        <th>{% trans "الإجمالي" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "صدرت" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -105,7 +105,7 @@
                             <td><code style="font-size:11px;">{{ inv.invoice_number }}</code></td>
                             <td>{{ inv.tenant.name|truncatechars:24 }}</td>
                             <td>{{ inv.plan_revision.plan.slug }}</td>
-                            <td>{{ inv.billing_cycle_months }} شهر</td>
+                            <td>{% blocktrans with n=inv.billing_cycle_months %}{{ n }} شهر{% endblocktrans %}</td>
                             <td><b>{{ inv.total|floatformat:2 }}</b></td>
                             <td>
                                 {% if inv.status == 'paid' %}<span class="badge badge-paid">✅ {{ inv.get_status_display }}</span>
@@ -117,14 +117,14 @@
                             <td>{{ inv.issued_at|date:"Y-m-d" }}</td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">مفيش فواتير لسة.</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">{% trans "مفيش فواتير لسة." %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <a class="btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> رجوع لـ SaaS Dashboard</a>
+    <a class="btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a>
 </div>
 </body>
 </html>
