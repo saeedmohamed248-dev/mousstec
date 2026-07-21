@@ -1,6 +1,6 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <title>{{ tenant.name }} — Tenant 360</title>
@@ -106,8 +106,8 @@
 <body>
 <div class="container">
     <div class="breadcrumb">
-        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> /
-        <a href="/superadmin/churn-risk/">🩺 صحة الشركات</a> /
+        <a href="/superadmin/"><i class="fas fa-home"></i> {% trans "السوبر أدمن" %}</a> /
+        <a href="/superadmin/churn-risk/">{% trans "🩺 صحة الشركات" %}</a> /
         <strong>{{ tenant.name }}</strong>
     </div>
 
@@ -117,29 +117,30 @@
         <div>
             <h1>{{ tenant.name }}</h1>
             <div class="meta">
-                {{ tenant.owner_name|default:"—" }} · {{ tenant.email|default:"بدون email" }} · {{ tenant.phone|default:"—" }}
+                {% trans "بدون email" as t_no_email %}
+                {{ tenant.owner_name|default:"—" }} · {{ tenant.email|default:t_no_email }} · {{ tenant.phone|default:"—" }}
             </div>
             <div class="chips">
                 <span class="chip">{{ tenant.schema_name }}</span>
                 <span class="chip plan">{{ tenant.get_plan_display }}</span>
                 <span class="chip status-{{ tenant.status }}">{{ tenant.get_status_display }}</span>
-                <span class="chip">انضم {{ tenant.created_on|date:"Y-m-d" }}</span>
+                <span class="chip">{% blocktrans with d=tenant.created_on|date:"Y-m-d" %}انضم {{ d }}{% endblocktrans %}</span>
                 {% if tenant.industry %}<span class="chip">{{ tenant.get_industry_display }}</span>{% endif %}
                 {% if tenant.is_fraud_flagged %}<span class="chip" style="color:#fca5a5; border-color:#ef444466;">🚨 fraud flag</span>{% endif %}
             </div>
         </div>
         <div class="hero-actions">
             <a href="/superadmin/enter/{{ tenant.schema_name }}/" target="_blank" class="btn btn-primary">
-                <i class="fas fa-arrow-right-to-bracket"></i> دخول للحساب
+                <i class="fas fa-arrow-right-to-bracket"></i> {% trans "دخول للحساب" %}
             </a>
             <button onclick="openRenewModal()" class="btn btn-ghost" style="color:#34d399; border-color:#34d39966;">
-                <i class="fas fa-rotate"></i> تجديد الاشتراك
+                <i class="fas fa-rotate"></i> {% trans "تجديد الاشتراك" %}
             </button>
             <a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
-                <i class="fas fa-clipboard-list"></i> سجل التدقيق
+                <i class="fas fa-clipboard-list"></i> {% trans "سجل التدقيق" %}
             </a>
             <a href="/superadmin/support/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
-                <i class="fas fa-life-ring"></i> الدعم
+                <i class="fas fa-life-ring"></i> {% trans "الدعم" %}
             </a>
         </div>
     </div>
@@ -153,22 +154,22 @@
                 {% else %}—{% endif %}
             </div>
             <div class="lbl">
-                {% if trial_days_left is not None %}يوم متبقي على التجربة
-                {% elif days_left is not None %}يوم متبقي على الاشتراك
-                {% else %}بدون تاريخ انتهاء{% endif %}
+                {% if trial_days_left is not None %}{% trans "يوم متبقي على التجربة" %}
+                {% elif days_left is not None %}{% trans "يوم متبقي على الاشتراك" %}
+                {% else %}{% trans "بدون تاريخ انتهاء" %}{% endif %}
             </div>
         </div>
         <div class="stat">
-            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> ج.م</span></div>
-            <div class="lbl">إجمالي المدفوع</div>
+            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> {% trans "ج.م" %}</span></div>
+            <div class="lbl">{% trans "إجمالي المدفوع" %}</div>
         </div>
         <div class="stat">
             <div class="num {% if visits_7d > 50 %}ok{% elif visits_7d > 0 %}warn{% else %}bad{% endif %}">{{ visits_7d }}</div>
-            <div class="lbl">زيارات آخر 7 أيام</div>
+            <div class="lbl">{% trans "زيارات آخر 7 أيام" %}</div>
         </div>
         <div class="stat">
             <div class="num {% if unresolved_errors %}bad{% endif %}">{{ unresolved_errors }}</div>
-            <div class="lbl">أخطاء غير محلولة</div>
+            <div class="lbl">{% trans "أخطاء غير محلولة" %}</div>
         </div>
     </div>
 
@@ -177,15 +178,15 @@
         <div>
             <!-- Health signals -->
             <div class="card">
-                <h3><i class="fas fa-heart-pulse"></i> تشريح درجة الصحة</h3>
+                <h3><i class="fas fa-heart-pulse"></i> {% trans "تشريح درجة الصحة" %}</h3>
                 {% for name, label in health.signals.items %}
                     <div class="signal-row">
                         <span class="lbl-s">
-                            {% if name == 'subscription' %}الاشتراك
-                            {% elif name == 'activity' %}النشاط
-                            {% elif name == 'tenure' %}عمر الحساب
-                            {% elif name == 'support' %}الدعم
-                            {% elif name == 'trust' %}الثقة
+                            {% if name == 'subscription' %}{% trans "الاشتراك" %}
+                            {% elif name == 'activity' %}{% trans "النشاط" %}
+                            {% elif name == 'tenure' %}{% trans "عمر الحساب" %}
+                            {% elif name == 'support' %}{% trans "الدعم" %}
+                            {% elif name == 'trust' %}{% trans "الثقة" %}
                             {% else %}{{ name }}{% endif %}
                         </span>
                         <span class="bar"><span class="fill" style="width:{{ label }}%;"></span></span>
@@ -202,13 +203,13 @@
             <!-- Billing -->
             <div class="card">
                 <h3>
-                    <i class="fas fa-file-invoice-dollar"></i> الفواتير (آخر 20)
-                    <span class="more">المدفوع: <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} ج.م</strong> · المستحق: <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} ج.م</strong></span>
+                    <i class="fas fa-file-invoice-dollar"></i> {% trans "الفواتير (آخر 20)" %}
+                    <span class="more">{% trans "المدفوع:" %} <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} {% trans "ج.م" %}</strong> · {% trans "المستحق:" %} <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} {% trans "ج.م" %}</strong></span>
                 </h3>
                 {% if invoices %}
                     <table>
                         <thead><tr>
-                            <th>الرقم</th><th>الفترة</th><th>الإجمالي</th><th>الحالة</th><th>الإصدار</th>
+                            <th>{% trans "الرقم" %}</th><th>{% trans "الفترة" %}</th><th>{% trans "الإجمالي" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الإصدار" %}</th>
                         </tr></thead>
                         <tbody>
                             {% for inv in invoices %}
@@ -223,13 +224,13 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد فواتير بعد.</div>
+                    <div class="empty">{% trans "لا توجد فواتير بعد." %}</div>
                 {% endif %}
             </div>
 
             <!-- Top pages -->
             <div class="card">
-                <h3><i class="fas fa-fire"></i> أكثر الصفحات زيارة (30 يوم)</h3>
+                <h3><i class="fas fa-fire"></i> {% trans "أكثر الصفحات زيارة (30 يوم)" %}</h3>
                 {% if top_pages %}
                     <table>
                         <tbody>
@@ -242,32 +243,32 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد بيانات تصفّح في آخر 30 يوم.</div>
+                    <div class="empty">{% trans "لا توجد بيانات تصفّح في آخر 30 يوم." %}</div>
                 {% endif %}
             </div>
 
             <!-- Errors -->
             <div class="card">
                 <h3>
-                    <i class="fas fa-triangle-exclamation"></i> آخر الأخطاء (10)
-                    <span class="more">آخر 30 يوم: <strong>{{ errors_30d }}</strong></span>
+                    <i class="fas fa-triangle-exclamation"></i> {% trans "آخر الأخطاء (10)" %}
+                    <span class="more">{% trans "آخر 30 يوم:" %} <strong>{{ errors_30d }}</strong></span>
                 </h3>
                 {% if recent_errors %}
                     <table>
-                        <thead><tr><th>الوقت</th><th>الحالة</th><th>الاستثناء</th><th>الحالة</th></tr></thead>
+                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الاستثناء" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
                         <tbody>
                             {% for e in recent_errors %}
                                 <tr>
                                     <td class="ts">{{ e.created_at|date:"Y-m-d H:i" }}</td>
                                     <td>{{ e.status_code }}</td>
                                     <td style="color:#e2e8f0;">{{ e.exception_class|default:"—" }}<br><span class="ts">{{ e.message|truncatechars:80 }}</span></td>
-                                    <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}محلول{% else %}مفتوح{% endif %}</span></td>
+                                    <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}{% trans "محلول" %}{% else %}{% trans "مفتوح" %}{% endif %}</span></td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد أخطاء — رائع!</div>
+                    <div class="empty">{% trans "لا توجد أخطاء — رائع!" %}</div>
                 {% endif %}
             </div>
         </div>
@@ -276,12 +277,12 @@
         <div>
             <!-- Usage summary -->
             <div class="card">
-                <h3><i class="fas fa-chart-simple"></i> ملخص الاستخدام</h3>
+                <h3><i class="fas fa-chart-simple"></i> {% trans "ملخص الاستخدام" %}</h3>
                 <table>
-                    <tr><td>زيارات آخر 7 يوم</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_7d }}</td></tr>
-                    <tr><td>زيارات آخر 30 يوم</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_30d }}</td></tr>
-                    <tr><td>المستخدمون</td><td style="text-align:left; font-weight:900;">{{ users_active|default:"—" }}<span style="color:#64748b;"> / {{ users_total|default:"—" }}</span></td></tr>
-                    <tr><td>آخر زيارة</td><td style="text-align:left;" class="ts">
+                    <tr><td>{% trans "زيارات آخر 7 يوم" %}</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_7d }}</td></tr>
+                    <tr><td>{% trans "زيارات آخر 30 يوم" %}</td><td style="text-align:left; font-weight:900; color:#c4b5fd;">{{ visits_30d }}</td></tr>
+                    <tr><td>{% trans "المستخدمون" %}</td><td style="text-align:left; font-weight:900;">{{ users_active|default:"—" }}<span style="color:#64748b;"> / {{ users_total|default:"—" }}</span></td></tr>
+                    <tr><td>{% trans "آخر زيارة" %}</td><td style="text-align:left;" class="ts">
                         {% if last_visit %}{{ last_visit.timestamp|date:"Y-m-d H:i" }}<br><span style="color:#64748b;">{{ last_visit.path|truncatechars:30 }}</span>{% else %}—{% endif %}
                     </td></tr>
                 </table>
@@ -289,16 +290,16 @@
 
             <!-- Marketplace -->
             <div class="card">
-                <h3><i class="fas fa-store"></i> السوق (B2B)</h3>
+                <h3><i class="fas fa-store"></i> {% trans "السوق (B2B)" %}</h3>
                 <table>
-                    <tr><td>قطع الغيار النشطة</td><td style="text-align:left; font-weight:900; color:#86efac;">{{ listings_active }}</td></tr>
-                    <tr><td>إجمالي القطع المعروضة</td><td style="text-align:left; font-weight:900;">{{ listings_total }}</td></tr>
-                    <tr><td>نزاعات مفتوحة</td><td style="text-align:left; font-weight:900; {% if disputes_open %}color:#fcd34d;{% endif %}">{{ disputes_open }}</td></tr>
+                    <tr><td>{% trans "قطع الغيار النشطة" %}</td><td style="text-align:left; font-weight:900; color:#86efac;">{{ listings_active }}</td></tr>
+                    <tr><td>{% trans "إجمالي القطع المعروضة" %}</td><td style="text-align:left; font-weight:900;">{{ listings_total }}</td></tr>
+                    <tr><td>{% trans "نزاعات مفتوحة" %}</td><td style="text-align:left; font-weight:900; {% if disputes_open %}color:#fcd34d;{% endif %}">{{ disputes_open }}</td></tr>
                     {% if tenant.market_rating %}
-                        <tr><td>التقييم</td><td style="text-align:left; font-weight:900;">⭐ {{ tenant.market_rating|floatformat:2 }}</td></tr>
+                        <tr><td>{% trans "التقييم" %}</td><td style="text-align:left; font-weight:900;">⭐ {{ tenant.market_rating|floatformat:2 }}</td></tr>
                     {% endif %}
                     {% if tenant.is_verified_merchant %}
-                        <tr><td>التوثيق</td><td style="text-align:left;"><span class="pill pill-resolved">✓ موثق</span></td></tr>
+                        <tr><td>{% trans "التوثيق" %}</td><td style="text-align:left;"><span class="pill pill-resolved">{% trans "✓ موثق" %}</span></td></tr>
                     {% endif %}
                 </table>
             </div>
@@ -306,8 +307,8 @@
             <!-- Support tickets -->
             <div class="card">
                 <h3>
-                    <i class="fas fa-life-ring"></i> تذاكر الدعم
-                    <span class="more">مغلق: {{ closed_tickets_count }}</span>
+                    <i class="fas fa-life-ring"></i> {% trans "تذاكر الدعم" %}
+                    <span class="more">{% trans "مغلق:" %} {{ closed_tickets_count }}</span>
                 </h3>
                 {% if open_tickets %}
                     <table>
@@ -324,15 +325,15 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <div class="empty">لا توجد تذاكر مفتوحة.</div>
+                    <div class="empty">{% trans "لا توجد تذاكر مفتوحة." %}</div>
                 {% endif %}
             </div>
 
             <!-- Recent audit -->
             <div class="card">
                 <h3>
-                    <i class="fas fa-clipboard-list"></i> آخر الأحداث
-                    <span class="more"><a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}">الكل ←</a></span>
+                    <i class="fas fa-clipboard-list"></i> {% trans "آخر الأحداث" %}
+                    <span class="more"><a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}">{% trans "الكل" %} ←</a></span>
                 </h3>
                 {% if events %}
                     {% for e in events %}
@@ -342,7 +343,7 @@
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="empty">لا توجد أحداث.</div>
+                    <div class="empty">{% trans "لا توجد أحداث." %}</div>
                 {% endif %}
             </div>
         </div>
@@ -353,19 +354,19 @@
 <div id="renew-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:9999; align-items:center; justify-content:center;">
   <div style="background:#1e293b; border:1px solid #4c1d95; border-radius:18px; padding:28px; width:100%; max-width:400px; text-align:center; font-family:Cairo,sans-serif;">
     <div style="font-size:32px; margin-bottom:8px;">🔄</div>
-    <h3 style="color:#a78bfa; font-size:18px; font-weight:900; margin:0 0 4px;">تجديد اشتراك</h3>
+    <h3 style="color:#a78bfa; font-size:18px; font-weight:900; margin:0 0 4px;">{% trans "تجديد اشتراك" %}</h3>
     <p style="color:#94a3b8; font-size:13px; margin:0 0 20px;">{{ tenant.name }}</p>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
-      <button onclick="renewSub(1)"  class="renew-opt">شهر واحد</button>
-      <button onclick="renewSub(3)"  class="renew-opt">3 أشهر</button>
-      <button onclick="renewSub(6)"  class="renew-opt">6 أشهر</button>
-      <button onclick="renewSub(12)" class="renew-opt">سنة كاملة</button>
+      <button onclick="renewSub(1)"  class="renew-opt">{% trans "شهر واحد" %}</button>
+      <button onclick="renewSub(3)"  class="renew-opt">{% trans "3 أشهر" %}</button>
+      <button onclick="renewSub(6)"  class="renew-opt">{% trans "6 أشهر" %}</button>
+      <button onclick="renewSub(12)" class="renew-opt">{% trans "سنة كاملة" %}</button>
     </div>
 
     <div id="renew-result" style="display:none; padding:10px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:14px;"></div>
 
-    <button onclick="closeRenewModal()" style="background:transparent; border:1px solid #475569; color:#94a3b8; border-radius:10px; padding:8px 20px; cursor:pointer; font-family:Cairo,sans-serif; font-size:13px;">إغلاق</button>
+    <button onclick="closeRenewModal()" style="background:transparent; border:1px solid #475569; color:#94a3b8; border-radius:10px; padding:8px 20px; cursor:pointer; font-family:Cairo,sans-serif; font-size:13px;">{% trans "إغلاق" %}</button>
   </div>
 </div>
 
@@ -418,12 +419,12 @@ async function renewSub(months) {
       resultEl.style.background = 'rgba(127,29,29,.4)';
       resultEl.style.border = '1px solid rgba(239,68,68,.4)';
       resultEl.style.color = '#fca5a5';
-      resultEl.textContent = data.error || 'حدث خطأ';
+      resultEl.textContent = data.error || '{% trans "حدث خطأ" %}';
     }
   } catch(e) {
     resultEl.style.display = 'block';
     resultEl.style.color = '#fca5a5';
-    resultEl.textContent = 'خطأ في الاتصال بالسيرفر';
+    resultEl.textContent = '{% trans "خطأ في الاتصال بالسيرفر" %}';
   } finally {
     btns.forEach(b => b.disabled = false);
   }

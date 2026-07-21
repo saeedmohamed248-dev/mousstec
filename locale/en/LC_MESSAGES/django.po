@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 18:44+0300\n"
+"POT-Creation-Date: 2026-07-21 18:48+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1863,7 +1863,7 @@ msgid "تذكرة دعم"
 msgstr ""
 
 msgid "تذاكر الدعم"
-msgstr ""
+msgstr "Support tickets"
 
 msgid "بانتظار رد"
 msgstr ""
@@ -2184,7 +2184,7 @@ msgid "الشركة"
 msgstr "Company"
 
 msgid "الاشتراك"
-msgstr ""
+msgstr "Subscription"
 
 msgid "revision الباقة"
 msgstr ""
@@ -8621,6 +8621,187 @@ msgstr "No data in the last hour."
 msgid "الصفحة بتـ refresh تلقائياً كل 30 ثانية"
 msgstr "The page refreshes automatically every 30 seconds"
 
+#| msgid "⛔ بدون email"
+msgid "بدون email"
+msgstr "No email"
+
+#| msgid "ينتهي %(d)s"
+msgid "انضم %(d)s"
+msgstr "Joined %(d)s"
+
+#| msgid "سجل دخول للشراء"
+msgid "دخول للحساب"
+msgstr "Log in to the account"
+
+msgid "تجديد الاشتراك"
+msgstr "Renew subscription"
+
+#| msgid "المتبقي على العملاء"
+msgid "يوم متبقي على التجربة"
+msgstr "days left on the trial"
+
+#| msgid "مثلاً: العميل ألغى الاشتراك"
+msgid "يوم متبقي على الاشتراك"
+msgstr "days left on the subscription"
+
+#| msgid "تاريخ الانتهاء"
+msgid "بدون تاريخ انتهاء"
+msgstr "No expiry date"
+
+#| msgid "إجمالي المدفوعات"
+msgid "إجمالي المدفوع"
+msgstr "Total paid"
+
+#| msgid "آخر ٧ أيام"
+msgid "زيارات آخر 7 أيام"
+msgstr "Visits in the last 7 days"
+
+#| msgid "خطأ غير محلول في"
+msgid "أخطاء غير محلولة"
+msgstr "Unresolved errors"
+
+#| msgid "ترقية الباقة"
+msgid "تشريح درجة الصحة"
+msgstr "Health score breakdown"
+
+#| msgid "لنشاطك"
+msgid "النشاط"
+msgstr "Activity"
+
+#| msgid "نوع الحساب"
+msgid "عمر الحساب"
+msgstr "Account age"
+
+msgid "الثقة"
+msgstr "Trust"
+
+#| msgid "الفواتير"
+msgid "الفواتير (آخر 20)"
+msgstr "Invoices (last 20)"
+
+#| msgid "المدفوع"
+msgid "المدفوع:"
+msgstr "Paid:"
+
+#| msgid "مستحق"
+msgid "المستحق:"
+msgstr "Due:"
+
+#| msgid "على الرقم"
+msgid "الرقم"
+msgstr "Number"
+
+#| msgid "تاريخ الإصدار"
+msgid "الإصدار"
+msgstr "Issued"
+
+#| msgid "لا توجد فواتير"
+msgid "لا توجد فواتير بعد."
+msgstr "No invoices yet."
+
+#| msgid "أكثر الصفحات زيارة (7 أيام)"
+msgid "أكثر الصفحات زيارة (30 يوم)"
+msgstr "Most visited pages (30 days)"
+
+#| msgid "لا توجد بيانات في آخر ساعة."
+msgid "لا توجد بيانات تصفّح في آخر 30 يوم."
+msgstr "No browsing data in the last 30 days."
+
+#| msgid "آخر الأحداث"
+msgid "آخر الأخطاء (10)"
+msgstr "Latest errors (10)"
+
+#| msgid "آخر 30 يوم"
+msgid "آخر 30 يوم:"
+msgstr "Last 30 days:"
+
+#| msgid "محلولة"
+msgid "محلول"
+msgstr "Resolved"
+
+#| msgid "لا توجد أحداث بعد"
+msgid "لا توجد أخطاء — رائع!"
+msgstr "No errors — great!"
+
+#| msgid "ج.م لكل استخدام"
+msgid "ملخص الاستخدام"
+msgstr "Usage summary"
+
+#| msgid "آخر 30 يوم"
+msgid "زيارات آخر 7 يوم"
+msgstr "Visits in the last 7 days"
+
+#| msgid "آخر 30 يوم"
+msgid "زيارات آخر 30 يوم"
+msgstr "Visits in the last 30 days"
+
+msgid "المستخدمون"
+msgstr "Users"
+
+msgid "آخر زيارة"
+msgstr "Last visit"
+
+#| msgid "السوق"
+msgid "السوق (B2B)"
+msgstr "Marketplace (B2B)"
+
+#| msgid "الشركات النشطة"
+msgid "قطع الغيار النشطة"
+msgstr "Active spare parts"
+
+#| msgid "إجمالي قطع الغيار"
+msgid "إجمالي القطع المعروضة"
+msgstr "Total listed parts"
+
+#| msgid "⏳ نزاعات مفتوحة"
+msgid "نزاعات مفتوحة"
+msgstr "Open disputes"
+
+#| msgid "إرسال التقييم"
+msgid "التقييم"
+msgstr "Rating"
+
+#| msgid "التوصيل:"
+msgid "التوثيق"
+msgstr "Verification"
+
+#| msgid "موثق"
+msgid "✓ موثق"
+msgstr "✓ Verified"
+
+#| msgid "مغلقة"
+msgid "مغلق:"
+msgstr "Closed:"
+
+#| msgid "لا توجد اشتراكات نشطة."
+msgid "لا توجد تذاكر مفتوحة."
+msgstr "No open tickets."
+
+msgid "آخر الأحداث"
+msgstr "Latest events"
+
+#| msgid "لا توجد أحداث بعد"
+msgid "لا توجد أحداث."
+msgstr "No events."
+
+#| msgid "فرع واحد"
+msgid "شهر واحد"
+msgstr "One month"
+
+msgid "3 أشهر"
+msgstr "3 months"
+
+msgid "6 أشهر"
+msgstr "6 months"
+
+#| msgid "سجل كامل"
+msgid "سنة كاملة"
+msgstr "Full year"
+
+#| msgid "خطأ في الاتصال بالخادم"
+msgid "خطأ في الاتصال بالسيرفر"
+msgstr "Error connecting to the server"
+
 msgid "إدارة المستأجرين — Mouss Tec Super Admin"
 msgstr "Tenant management — Mouss Tec Super Admin"
 
@@ -8929,9 +9110,6 @@ msgstr "Most visited pages (7 days)"
 msgid "لا توجد بيانات بعد"
 msgstr "No data yet"
 
-msgid "آخر الأحداث"
-msgstr "Latest events"
-
 msgid "مضت"
 msgstr "ago"
 
@@ -8968,9 +9146,6 @@ msgstr "Registered"
 
 msgid "دخول النظام"
 msgstr "Enter the system"
-
-msgid "المستخدمون"
-msgstr "Users"
 
 msgid "المتبقي"
 msgstr "Remaining"
@@ -9708,12 +9883,6 @@ msgstr "Choose the duration — if they have a current subscription it will be e
 
 msgid "أسبوع"
 msgstr "Week"
-
-msgid "3 أشهر"
-msgstr "3 months"
-
-msgid "6 أشهر"
-msgstr "6 months"
 
 msgid "سنة"
 msgstr "Year"
@@ -12412,9 +12581,6 @@ msgstr "%(d)s days left before your subscription ends"
 msgid "جدد الآن واحصل على 5 أيام مجانية إضافية"
 msgstr "Renew now and get 5 extra free days"
 
-msgid "تجديد الاشتراك"
-msgstr "Renew subscription"
-
 msgid "الفروع"
 msgstr "Branches"
 
@@ -13721,9 +13887,6 @@ msgstr "Last odometer reading"
 msgid "أول زيارة"
 msgstr "First visit"
 
-msgid "آخر زيارة"
-msgstr "Last visit"
-
 msgid "صحة السيارة"
 msgstr "Vehicle health"
 
@@ -14883,18 +15046,15 @@ msgstr ""
 msgid "خبير تشخيص متعدد الماركات — %(al)s"
 msgstr "Multi-brand diagnostic expert — %(al)s"
 
-#| msgid "كروت صيانة + تتبع المركبات"
 msgid "خبير تشخيص متعدد الماركات"
 msgstr "Multi-brand diagnostic expert"
 
 msgid "محادثة جديدة"
 msgstr "New conversation"
 
-#| msgid "الشركات المسجلة"
 msgid "المحركات المدعومة"
 msgstr "Supported engines"
 
-#| msgid "خبير التشخيص"
 msgid "أهلاً بيك في خبير التشخيص"
 msgstr "Welcome to the diagnostic expert"
 
@@ -14903,53 +15063,42 @@ msgid ""
 "تقدر تكتب بالعامية، أو كود عطل (مثل P0301)، أو موديل السيارة + المحرك."
 msgstr "Pick the brand from the top — or write the complaint directly and we will suggest the brand automatically. You can write in colloquial Arabic, a fault code (such as P0301), or the car model + engine."
 
-#| msgid "أدخل كود العطل (مثال: P0300)..."
 msgid "اكتب شكوتك أو كود العطل... (مثال: P0301 على F30 N20)"
 msgstr "Write your complaint or the fault code... (example: P0301 on F30 N20)"
 
 msgid "محرك"
 msgstr "engine"
 
-#| msgid "خبير التشخيص"
 msgid "خبير تشخيص"
 msgstr "Diagnostic expert"
 
-#| msgid "أهلاً بك في سوق Mouss Tec"
 msgid "أهلاً بيك في خبير"
 msgstr "Welcome to the expert of"
 
-#| msgid "أدخل كود العطل (مثال: P0300)..."
 msgid "اكتب شكوتك أو كود العطل... (مثال: P0301 على"
 msgstr "Write your complaint or the fault code... (example: P0301 on"
 
-#| msgid "لا يوجد ضمان"
 msgid "لا يوجد"
 msgstr "None"
 
-#| msgid "زيت المحرك"
 msgid "المحرك:"
 msgstr "Engine:"
 
-#| msgid "التصميم"
 msgid "التصنيف:"
 msgstr "Category:"
 
-#| msgid "الأولوية"
 msgid "الأولوية:"
 msgstr "Priority:"
 
-#| msgid "مفيش باقات."
 msgid "مفيش رد."
 msgstr "No response."
 
 msgid "حصل خطأ غير متوقع."
 msgstr "An unexpected error occurred."
 
-#| msgid "خطأ في الاتصال بالخادم"
 msgid "تعذر الاتصال بالخادم."
 msgstr "Could not connect to the server."
 
-#| msgid "متأكد إنك عاوز تبدأ محادثة جديدة وتمسح اللي قبله؟"
 msgid "متأكد إنك عاوز تبدأ من الأول؟"
 msgstr "Are you sure you want to start over?"
 
