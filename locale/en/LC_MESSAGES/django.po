@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 17:57+0300\n"
+"POT-Creation-Date: 2026-07-21 18:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7774,11 +7774,10 @@ msgstr "No reason"
 msgid "الإدارة"
 msgstr "Administration"
 
-#| msgid "تعديل"
+#, python-format
 msgid "تعديل %(name)s"
 msgstr "Edit %(name)s"
 
-#| msgid "تعديل"
 msgid "تعديل:"
 msgstr "Edit:"
 
@@ -7796,7 +7795,6 @@ msgstr "Monthly limit (0=∞)"
 msgid "Rollout — متى يسري التعديل؟"
 msgstr "Rollout — when does the change take effect?"
 
-#| msgid "الرصيد الافتتاحي"
 msgid "🟢 عند التجديد القادم (افتراضي)"
 msgstr "🟢 On next renewal (default)"
 
@@ -7805,7 +7803,6 @@ msgid ""
 "اشتراكهم. الـ revision الجديد بيـ apply بس على التجديد التالي."
 msgstr "Current subscribers stay locked on the old price/features until their subscription renews. The new revision applies only on the next renewal."
 
-#| msgid "المشتركين النشطين"
 msgid "🟡 المشتركين الجدد فقط"
 msgstr "🟡 New subscribers only"
 
@@ -7814,7 +7811,6 @@ msgid ""
 "الاختلاف هنا تسجيل سبب التغيير في الـ revision."
 msgstr "Same previous behavior — editing the Plan affects new subscribers only. The difference here is logging the change reason in the revision."
 
-#| msgid "المشتركين النشطين"
 msgid "🔴 تطبيق فوري على كل المشتركين النشطين"
 msgstr "🔴 Immediate apply to all active subscribers"
 
@@ -7835,19 +7831,16 @@ msgstr "Appears in the PlanRevision (240 chars max)"
 msgid "مثلاً: زيادة سعر سنوي بناءً على inflation Q2 2026"
 msgstr "e.g. annual price increase based on inflation Q2 2026"
 
-#| msgid "حفظ التعديلات"
 msgid "حفظ التغييرات"
 msgstr "Save changes"
 
-#| msgid "الـ Revisions"
 msgid "آخر 10 Revisions"
 msgstr "Last 10 Revisions"
 
-#| msgid "جودة %(q)s"
+#, python-format
 msgid "بواسطة %(u)s"
 msgstr "by %(u)s"
 
-#| msgid "مفيش gifts لسة."
 msgid "مفيش revisions لسة."
 msgstr "No revisions yet."
 
@@ -8082,6 +8075,98 @@ msgstr "✓ Resolved"
 msgid "🎉 لا توجد أخطاء — النظام يعمل بسلاسة!"
 msgstr "🎉 No errors — the system is running smoothly!"
 
+#| msgid "سجل أخطاء النظام — Mouss Tec Super Admin"
+msgid "صحة النظام — Mouss Tec Super Admin"
+msgstr "System health — Mouss Tec Super Admin"
+
+#| msgid "لوحة السوبر أدمن"
+msgid "السوبر أدمن"
+msgstr "Super admin"
+
+msgid "صحة النظام"
+msgstr "System health"
+
+#| msgid "صحة النظام"
+msgid "⚙️ صحة النظام (System Status)"
+msgstr "⚙️ System health (System Status)"
+
+msgid "لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً."
+msgstr "A live snapshot of all components. The page refreshes itself automatically every 30 seconds."
+
+#| msgid "ادخل النظام الآن"
+msgid "كل الأنظمة شغّالة"
+msgstr "All systems operational"
+
+msgid "في تدهور أداء"
+msgstr "Performance degraded"
+
+#| msgid "لا يوجد ضمان"
+msgid "🚨 يوجد عُطل"
+msgstr "🚨 There is an outage"
+
+#| msgid "مفيش طلبات مطابقة للفلتر دلوقتي."
+msgid "مفيش حاجة محتاجة تدخل دلوقتي."
+msgstr "Nothing needs your attention right now."
+
+msgid "بعض المكونات بتشتغل ببطء — شيك على التفاصيل تحت."
+msgstr "Some components are running slowly — check the details below."
+
+msgid "مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً."
+msgstr "At least one component is down — review all items immediately."
+
+#| msgid "آخر نشاط"
+msgid "آخر فحص"
+msgstr "Last check"
+
+msgid "شغّال"
+msgstr "Up"
+
+msgid "بطيء"
+msgstr "Slow"
+
+msgid "واقف"
+msgstr "Down"
+
+#| msgid "غير متوفر"
+msgid "غير معروف"
+msgstr "Unknown"
+
+#| msgid "طلبات طباعة"
+msgid "طلبات في آخر ساعة"
+msgstr "Requests in the last hour"
+
+#| msgid "متوسط سرعة الاستجابة"
+msgid "متوسط زمن الاستجابة"
+msgstr "Average response time"
+
+#| msgid "زوار فريدون اليوم"
+msgid "زوار نشطون (آخر 5 دقايق)"
+msgstr "Active visitors (last 5 minutes)"
+
+msgid "أخطاء في آخر ساعة"
+msgstr "Errors in the last hour"
+
+#| msgid "خطأ غير متوقع"
+msgid "خطأ غير محلول في"
+msgstr "unresolved error(s) in"
+
+msgid "— راجعهم."
+msgstr "— review them."
+
+msgid "🐢 أبطأ 10 طلبات (آخر ساعة)"
+msgstr "🐢 Slowest 10 requests (last hour)"
+
+msgid "المدة"
+msgstr "Duration"
+
+#| msgid "لا توجد بيانات مركبة"
+msgid "لا توجد بيانات في آخر ساعة."
+msgstr "No data in the last hour."
+
+#| msgid "🔄 تحديث تلقائي كل 30 ثانية"
+msgid "الصفحة بتـ refresh تلقائياً كل 30 ثانية"
+msgstr "The page refreshes automatically every 30 seconds"
+
 msgid "إدارة المستأجرين — Mouss Tec Super Admin"
 msgstr "Tenant management — Mouss Tec Super Admin"
 
@@ -8275,9 +8360,6 @@ msgstr "Audit log"
 
 msgid "كل أحداث المنصة • فلاتر"
 msgstr "All platform events • Filters"
-
-msgid "صحة النظام"
-msgstr "System health"
 
 msgid "🩺 صحة الشركات"
 msgstr "🩺 Companies health"
@@ -9189,9 +9271,6 @@ msgstr "No customer found with this number"
 msgid "فحص"
 msgstr "scan"
 
-msgid "المدة"
-msgstr "Duration"
-
 msgid "التالي"
 msgstr "Next"
 
@@ -9297,49 +9376,39 @@ msgstr "❌ Submission failed"
 msgid "❌ خطأ في الاتصال"
 msgstr "❌ Connection error"
 
-#| msgid "الدعم الأولوي"
 msgid "الدعم الفني"
 msgstr "Technical support"
 
-#| msgid "جاري التحميل..."
 msgid "جاري التحقق من التوفر..."
 msgstr "Checking availability..."
 
-#| msgid "للإرسال"
 msgid "إرسال"
 msgstr "Send"
 
-#| msgid "اطلب الآن →"
 msgid "متاحون الآن —"
 msgstr "Available now —"
 
-#| msgid "مغلقة"
 msgid "مغلق —"
 msgstr "Closed —"
 
 msgid "يفتح"
 msgstr "opens"
 
-#| msgid "إدارة بيانات العملاء والموردين بشكل منظم"
 msgid "شاركنا اسمك عشان نخدمك بشكل أفضل:"
 msgstr "Share your name so we can serve you better:"
 
-#| msgid "تعليقك (اختياري)"
 msgid "بريدك (اختياري)"
 msgstr "Your email (optional)"
 
-#| msgid "فشل بدء المحادثة"
 msgid "ابدأ المحادثة"
 msgstr "Start the chat"
 
 msgid "بريدك"
 msgstr "Your email"
 
-#| msgid "تم!"
 msgid "تم"
 msgstr "Done"
 
-#| msgid "🔒 إنهاء الجلسة"
 msgid "انتهت الجلسة"
 msgstr "Session ended"
 
@@ -13801,6 +13870,126 @@ msgstr "Start by creating your first design from AI Studio"
 
 msgid "هل أنت متأكد من حذف هذا التصميم؟"
 msgstr "Are you sure you want to delete this design?"
+
+#| msgid "الأرباح والخسائر"
+msgid "تقرير الأرباح والخسائر — %(m)s %(y)s | Mouss Tec"
+msgstr "Profit and loss report — %(m)s %(y)s | Mouss Tec"
+
+#| msgid "الأرباح والخسائر"
+msgid "تقرير الأرباح والخسائر"
+msgstr "Profit and loss report"
+
+msgid "الأدمن"
+msgstr "Admin"
+
+#| msgid "الفترة"
+msgid "الفترة:"
+msgstr "Period:"
+
+msgid "يناير"
+msgstr "January"
+
+msgid "فبراير"
+msgstr "February"
+
+msgid "مارس"
+msgstr "March"
+
+msgid "إبريل"
+msgstr "April"
+
+msgid "مايو"
+msgstr "May"
+
+msgid "يونيو"
+msgstr "June"
+
+msgid "يوليو"
+msgstr "July"
+
+msgid "أغسطس"
+msgstr "August"
+
+msgid "سبتمبر"
+msgstr "September"
+
+#| msgid "ديسكتوب"
+msgid "أكتوبر"
+msgstr "October"
+
+msgid "نوفمبر"
+msgstr "November"
+
+msgid "ديسمبر"
+msgstr "December"
+
+#| msgid "اطبع التقرير"
+msgid "عرض التقرير"
+msgstr "Show report"
+
+#| msgid "%(n)s شركة"
+msgid "%(n)s حركة"
+msgstr "%(n)s transaction(s)"
+
+#| msgid "مصروفات"
+msgid "المصروفات"
+msgstr "Expenses"
+
+#| msgid "صافي الربح"
+msgid "صافي الخسارة"
+msgstr "Net loss"
+
+#| msgid "صافي الربح (ج.م)"
+msgid "هامش الربح: %(p)s%%"
+msgstr "Profit margin: %(p)s%%"
+
+#| msgid "جنيه / 6 شهور"
+msgid "اتجاه آخر 6 شهور"
+msgstr "Last 6 months trend"
+
+#| msgid "الإيرادات"
+msgid "إيرادات: %(a)s ج.م"
+msgstr "Revenue: %(a)s EGP"
+
+#| msgid "مصروفات اليوم"
+msgid "مصروفات: %(a)s ج.م"
+msgstr "Expenses: %(a)s EGP"
+
+#| msgid "الإيرادات"
+msgid "إيرادات"
+msgstr "Revenue"
+
+#| msgid "للمطابع المتوسطة ومكاتب التصميم"
+msgid "توزيع المصروفات حسب التصنيف"
+msgstr "Expense breakdown by category"
+
+#| msgid "لا توجد معروضات نشطة بهذا الفلتر."
+msgid "لا توجد مصروفات في هذا الشهر"
+msgstr "No expenses this month"
+
+#| msgid "فواتير ذكية"
+msgid "فواتير الشهر"
+msgstr "Invoices of the month"
+
+#| msgid "الفواتير"
+msgid "عدد الفواتير"
+msgstr "Number of invoices"
+
+#| msgid "إجمالي قطع الغيار"
+msgid "إجمالي قيمة الفواتير"
+msgstr "Total invoice value"
+
+#| msgid "المحدد"
+msgid "المحصّل"
+msgstr "Collected"
+
+#| msgid "المتبقي على العميل"
+msgid "المتبقي على العملاء"
+msgstr "Outstanding on customers"
+
+#| msgid "سوق السيارات | Mouss Tec"
+msgid "تقرير صادر من Mouss Tec •"
+msgstr "Report issued by Mouss Tec •"
 
 msgid "مراجعة إجابات أطلس الإصلاح — SuperAdmin"
 msgstr "Review Repair Atlas answers — SuperAdmin"

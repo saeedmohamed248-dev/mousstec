@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تقرير الأرباح والخسائر — {{ month_name }} {{ year }} | Mouss Tec</title>
+    <title>{% blocktrans with m=month_name y=year %}تقرير الأرباح والخسائر — {{ m }} {{ y }} | Mouss Tec{% endblocktrans %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -92,29 +92,29 @@
 <body>
 
 <div class="topbar">
-    <h2><i class="fas fa-chart-line"></i> تقرير الأرباح والخسائر</h2>
-    <a href="/secure-portal/" class="btn"><i class="fas fa-arrow-right"></i> الأدمن</a>
+    <h2><i class="fas fa-chart-line"></i> {% trans "تقرير الأرباح والخسائر" %}</h2>
+    <a href="/secure-portal/" class="btn"><i class="fas fa-arrow-right"></i> {% trans "الأدمن" %}</a>
 </div>
 
 <div class="wrap">
 
     <!-- Period selector -->
     <div class="period-bar">
-        <div class="title"><i class="fas fa-calendar"></i> الفترة: {{ month_name }} {{ year }}</div>
+        <div class="title"><i class="fas fa-calendar"></i> {% trans "الفترة:" %} {{ month_name }} {{ year }}</div>
         <form method="get">
             <select name="month">
-                <option value="1" {% if month == 1 %}selected{% endif %}>يناير</option>
-                <option value="2" {% if month == 2 %}selected{% endif %}>فبراير</option>
-                <option value="3" {% if month == 3 %}selected{% endif %}>مارس</option>
-                <option value="4" {% if month == 4 %}selected{% endif %}>إبريل</option>
-                <option value="5" {% if month == 5 %}selected{% endif %}>مايو</option>
-                <option value="6" {% if month == 6 %}selected{% endif %}>يونيو</option>
-                <option value="7" {% if month == 7 %}selected{% endif %}>يوليو</option>
-                <option value="8" {% if month == 8 %}selected{% endif %}>أغسطس</option>
-                <option value="9" {% if month == 9 %}selected{% endif %}>سبتمبر</option>
-                <option value="10" {% if month == 10 %}selected{% endif %}>أكتوبر</option>
-                <option value="11" {% if month == 11 %}selected{% endif %}>نوفمبر</option>
-                <option value="12" {% if month == 12 %}selected{% endif %}>ديسمبر</option>
+                <option value="1" {% if month == 1 %}selected{% endif %}>{% trans "يناير" %}</option>
+                <option value="2" {% if month == 2 %}selected{% endif %}>{% trans "فبراير" %}</option>
+                <option value="3" {% if month == 3 %}selected{% endif %}>{% trans "مارس" %}</option>
+                <option value="4" {% if month == 4 %}selected{% endif %}>{% trans "إبريل" %}</option>
+                <option value="5" {% if month == 5 %}selected{% endif %}>{% trans "مايو" %}</option>
+                <option value="6" {% if month == 6 %}selected{% endif %}>{% trans "يونيو" %}</option>
+                <option value="7" {% if month == 7 %}selected{% endif %}>{% trans "يوليو" %}</option>
+                <option value="8" {% if month == 8 %}selected{% endif %}>{% trans "أغسطس" %}</option>
+                <option value="9" {% if month == 9 %}selected{% endif %}>{% trans "سبتمبر" %}</option>
+                <option value="10" {% if month == 10 %}selected{% endif %}>{% trans "أكتوبر" %}</option>
+                <option value="11" {% if month == 11 %}selected{% endif %}>{% trans "نوفمبر" %}</option>
+                <option value="12" {% if month == 12 %}selected{% endif %}>{% trans "ديسمبر" %}</option>
             </select>
             <select name="year">
                 <option value="2024" {% if year == 2024 %}selected{% endif %}>2024</option>
@@ -123,32 +123,32 @@
                 <option value="2027" {% if year == 2027 %}selected{% endif %}>2027</option>
                 <option value="2028" {% if year == 2028 %}selected{% endif %}>2028</option>
             </select>
-            <button type="submit" class="btn" style="background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:0;"><i class="fas fa-filter"></i> عرض</button>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:0;"><i class="fas fa-filter"></i> {% trans "عرض التقرير" %}</button>
         </form>
     </div>
 
     <!-- Headline -->
     <div class="head-grid">
         <div class="head-card income">
-            <div class="lbl"><i class="fas fa-arrow-down"></i> الإيرادات</div>
-            <div class="val">{{ total_income|floatformat:2 }} ج.م</div>
-            <div class="meta">{{ in_count }} حركة</div>
+            <div class="lbl"><i class="fas fa-arrow-down"></i> {% trans "الإيرادات" %}</div>
+            <div class="val">{{ total_income|floatformat:2 }} {% trans "ج.م" %}</div>
+            <div class="meta">{% blocktrans with n=in_count %}{{ n }} حركة{% endblocktrans %}</div>
         </div>
         <div class="head-card expense">
-            <div class="lbl"><i class="fas fa-arrow-up"></i> المصروفات</div>
-            <div class="val">{{ total_expense|floatformat:2 }} ج.م</div>
-            <div class="meta">{{ out_count }} حركة</div>
+            <div class="lbl"><i class="fas fa-arrow-up"></i> {% trans "المصروفات" %}</div>
+            <div class="val">{{ total_expense|floatformat:2 }} {% trans "ج.م" %}</div>
+            <div class="meta">{% blocktrans with n=out_count %}{{ n }} حركة{% endblocktrans %}</div>
         </div>
         <div class="head-card net {% if is_profit %}profit{% else %}loss{% endif %}">
-            <div class="lbl">{% if is_profit %}<i class="fas fa-circle-check"></i> صافي الربح{% else %}<i class="fas fa-circle-xmark"></i> صافي الخسارة{% endif %}</div>
-            <div class="val">{{ net_profit|floatformat:2 }} ج.م</div>
-            <div class="margin-pill">هامش الربح: {{ profit_margin|floatformat:1 }}%</div>
+            <div class="lbl">{% if is_profit %}<i class="fas fa-circle-check"></i> {% trans "صافي الربح" %}{% else %}<i class="fas fa-circle-xmark"></i> {% trans "صافي الخسارة" %}{% endif %}</div>
+            <div class="val">{{ net_profit|floatformat:2 }} {% trans "ج.م" %}</div>
+            <div class="margin-pill">{% blocktrans with p=profit_margin|floatformat:1 %}هامش الربح: {{ p }}%{% endblocktrans %}</div>
         </div>
     </div>
 
     <!-- Trend (6-month) -->
     <div class="section">
-        <h3><i class="fas fa-chart-column"></i> اتجاه آخر 6 شهور</h3>
+        <h3><i class="fas fa-chart-column"></i> {% trans "اتجاه آخر 6 شهور" %}</h3>
         <div class="trend">
             {% with max_val=trend|length %}
             {% endwith %}
@@ -158,59 +158,59 @@
                     {{ t.net|floatformat:0 }}
                 </div>
                 <div class="bars">
-                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="إيرادات: {{ t.income|floatformat:0 }} ج.م"></div>
-                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="مصروفات: {{ t.expense|floatformat:0 }} ج.م"></div>
+                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="{% blocktrans with a=t.income|floatformat:0 %}إيرادات: {{ a }} ج.م{% endblocktrans %}"></div>
+                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="{% blocktrans with a=t.expense|floatformat:0 %}مصروفات: {{ a }} ج.م{% endblocktrans %}"></div>
                 </div>
                 <div class="label">{{ t.label }}</div>
             </div>
             {% endfor %}
         </div>
         <div class="trend-legend">
-            <span class="li-i">إيرادات</span>
-            <span class="li-e">مصروفات</span>
+            <span class="li-i">{% trans "إيرادات" %}</span>
+            <span class="li-e">{% trans "مصروفات" %}</span>
         </div>
     </div>
 
     <!-- Expense categories -->
     <div class="section">
-        <h3><i class="fas fa-tag"></i> توزيع المصروفات حسب التصنيف</h3>
+        <h3><i class="fas fa-tag"></i> {% trans "توزيع المصروفات حسب التصنيف" %}</h3>
         {% for cat in expense_cats %}
         <div class="cat-row">
             <div class="label">{{ cat.name }}</div>
             <div class="bar"><div class="bar-fill" style="width: {{ cat.percent|floatformat:0 }}%; background: {{ cat.color }};"></div></div>
             <div class="pct">{{ cat.percent|floatformat:1 }}%</div>
-            <div class="amount">{{ cat.total|floatformat:2 }} ج.م</div>
+            <div class="amount">{{ cat.total|floatformat:2 }} {% trans "ج.م" %}</div>
         </div>
         {% empty %}
-        <div class="empty">لا توجد مصروفات في هذا الشهر</div>
+        <div class="empty">{% trans "لا توجد مصروفات في هذا الشهر" %}</div>
         {% endfor %}
     </div>
 
     <!-- Orders -->
     <div class="section">
-        <h3><i class="fas fa-file-invoice"></i> فواتير الشهر</h3>
+        <h3><i class="fas fa-file-invoice"></i> {% trans "فواتير الشهر" %}</h3>
         <div class="ord-grid">
             <div class="ord-tile">
-                <div class="lbl">عدد الفواتير</div>
+                <div class="lbl">{% trans "عدد الفواتير" %}</div>
                 <div class="val" style="color:#c4b5fd;">{{ orders_count }}</div>
             </div>
             <div class="ord-tile">
-                <div class="lbl">إجمالي قيمة الفواتير</div>
-                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|floatformat:2 }} ج.م</div>
+                <div class="lbl">{% trans "إجمالي قيمة الفواتير" %}</div>
+                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|floatformat:2 }} {% trans "ج.م" %}</div>
             </div>
             <div class="ord-tile">
-                <div class="lbl">المحصّل</div>
-                <div class="val" style="color:#6ee7b7;">{{ orders_paid|floatformat:2 }} ج.م</div>
+                <div class="lbl">{% trans "المحصّل" %}</div>
+                <div class="val" style="color:#6ee7b7;">{{ orders_paid|floatformat:2 }} {% trans "ج.م" %}</div>
             </div>
             <div class="ord-tile">
-                <div class="lbl">المتبقي على العملاء</div>
-                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|floatformat:2 }} ج.م</div>
+                <div class="lbl">{% trans "المتبقي على العملاء" %}</div>
+                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|floatformat:2 }} {% trans "ج.م" %}</div>
             </div>
         </div>
     </div>
 
     <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin-top:20px;">
-        تقرير صادر من Mouss Tec • {% now "d/m/Y H:i" %}
+        {% trans "تقرير صادر من Mouss Tec •" %} {% now "d/m/Y H:i" %}
     </p>
 </div>
 
