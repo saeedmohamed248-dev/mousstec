@@ -1,8 +1,8 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>🧠 الهب الذكي — Mouss Tec</title>
+    <title>🧠 {% trans "الهب الذكي" %} — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -70,14 +70,14 @@
 <body>
     {% include 'ai_rooms/_rooms_nav.html' with active='hub' %}
     <div class="topbar">
-        <h1>🧠 الهب الذكي — كل أدواتك في مكان واحد</h1>
+        <h1>🧠 {% trans "الهب الذكي — كل أدواتك في مكان واحد" %}</h1>
         <span class="audience-pill">
-            {% if audience == 'customer' %}🚙 صاحب السيارة{% else %}🔧 فني / ورشة{% endif %}
+            {% if audience == 'customer' %}🚙 {% trans "صاحب السيارة" %}{% else %}🔧 {% trans "فني / ورشة" %}{% endif %}
         </span>
     </div>
 
     <div class="container">
-        <div class="section-title">الغرف المتاحة</div>
+        <div class="section-title">{% trans "الغرف المتاحة" %}</div>
         <div class="grid">
             {% for r in rooms %}
                 <a class="card" href="{% url r.url_name %}">
@@ -85,12 +85,12 @@
                     <div class="emoji">{{ r.emoji }}</div>
                     <h3>{{ r.title }}</h3>
                     <p>{{ r.subtitle }}</p>
-                    <span class="count">{{ r.count }} محادثة</span>
+                    <span class="count">{{ r.count }} {% trans "محادثة" %}</span>
                 </a>
             {% endfor %}
         </div>
 
-        <div class="section-title" style="margin-top: 40px;">آخر المحادثات</div>
+        <div class="section-title" style="margin-top: 40px;">{% trans "آخر المحادثات" %}</div>
         <div class="recent-list">
             {% for conv in recent %}
                 {% with meta=room_meta|dictsort:"0" %}{% endwith %}
@@ -99,24 +99,24 @@
                         {{ conv.get_room_display }}
                     </span>
                     <div class="title">
-                        <h4>{{ conv.title|default:"محادثة بدون عنوان" }}</h4>
+                        {% trans "محادثة بدون عنوان" as t_untitled %}<h4>{{ conv.title|default:t_untitled }}</h4>
                         <p>
                             {% if conv.brand %}{{ conv.brand }}{% endif %}
                             {% if conv.model_name %} · {{ conv.model_name }}{% endif %}
                             {% if conv.year %} · {{ conv.year }}{% endif %}
-                            · {{ conv.turn_count }} رسالة
+                            · {{ conv.turn_count }} {% trans "رسالة" %}
                         </p>
                     </div>
                     <span class="when">{{ conv.updated_at|date:"d M H:i" }}</span>
                 </a>
             {% empty %}
-                <div class="empty">📭 لسه مفيش محادثات — افتح أي غرفة وابدأ.</div>
+                <div class="empty">📭 {% trans "لسه مفيش محادثات — افتح أي غرفة وابدأ." %}</div>
             {% endfor %}
         </div>
 
         <p style="margin-top: 18px; text-align: center;">
             <a href="{% url 'ai_rooms:history' %}" style="color: #00d4ff; text-decoration: none; font-weight: 700;">
-                شوف كل التاريخ →
+                {% trans "شوف كل التاريخ" %} →
             </a>
         </p>
     </div>

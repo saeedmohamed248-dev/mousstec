@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 19:28+0300\n"
+"POT-Creation-Date: 2026-07-27 19:30+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -63,6 +63,40 @@ msgstr "All"
 
 msgid "مفيش محادثات لسه."
 msgstr "No conversations yet."
+
+#| msgid "الشات الذكي"
+msgid "الهب الذكي"
+msgstr "Smart hub"
+
+#| msgid "كل اللي تحتاجه في مكان واحد"
+msgid "الهب الذكي — كل أدواتك في مكان واحد"
+msgstr "Smart hub — all your tools in one place"
+
+#| msgid "صحة السيارة"
+msgid "صاحب السيارة"
+msgstr "Car owner"
+
+msgid "فني / ورشة"
+msgstr "Technician / workshop"
+
+#| msgid "الحركة المطابقة"
+msgid "الغرف المتاحة"
+msgstr "Available rooms"
+
+#| msgid "تاريخ المحادثات"
+msgid "آخر المحادثات"
+msgstr "Latest conversations"
+
+#| msgid "الرسالة"
+msgid "رسالة"
+msgstr "message"
+
+msgid "لسه مفيش محادثات — افتح أي غرفة وابدأ."
+msgstr "No conversations yet — open any room and start."
+
+#| msgid "التاريخ"
+msgid "شوف كل التاريخ"
+msgstr "See the full history"
 
 msgid "إصدار gift جديد — Issue new gift"
 msgstr "Issue new gift"
@@ -15598,38 +15632,30 @@ msgstr "Are you sure you want to reject the quote?"
 msgid "تفكيك، تركيب، ضفائر"
 msgstr "Disassembly, assembly, harnesses"
 
-#| msgid "اطبع تقرير العميل"
 msgid "طبع / صدّر الجلسة PDF"
 msgstr "Print / export the session as PDF"
 
-#| msgid "طباعة"
 msgid "طبع"
 msgstr "Print"
 
-#| msgid "حملة جديدة"
 msgid "جلسة جديدة"
 msgstr "New session"
 
-#| msgid "العربية:"
 msgid "العربية"
 msgstr "The car"
 
-#| msgid "اختر الماركة..."
 msgid "اختر الماركة"
 msgstr "Choose the brand"
 
 msgid "الموديل (مثلاً Elantra / E90 / C200)"
 msgstr "Model (e.g. Elantra / E90 / C200)"
 
-#| msgid "رقم الهاتف (اختياري)"
 msgid "كود المحرك (اختياري)"
 msgstr "Engine code (optional)"
 
-#| msgid "(اختياري) — يرفع الثقة"
 msgid "VIN (اختياري — 17 خانة)"
 msgstr "VIN (optional — 17 characters)"
 
-#| msgid "الوضع:"
 msgid "الوضع"
 msgstr "Mode"
 
@@ -15644,7 +15670,9 @@ msgstr "Oil pump sensor Elantra 2018"
 
 msgid ""
 "ضفيرة كهرباء طلمبة البنزين في Corolla 2015 ماشية ازاي من البطارية للطلمبة؟"
-msgstr "How does the fuel pump wiring harness on a Corolla 2015 run from the battery to the pump?"
+msgstr ""
+"How does the fuel pump wiring harness on a Corolla 2015 run from the battery "
+"to the pump?"
 
 msgid "ضفيرة طلمبة البنزين Corolla"
 msgstr "Fuel pump harness Corolla"
@@ -15655,71 +15683,64 @@ msgstr "Where is the oil pressure sensor on a BMW E90 N52?"
 msgid "مكان حساس ضغط الزيت BMW E90"
 msgstr "Oil pressure sensor location BMW E90"
 
-#| msgid "أهلاً بيك في خبير"
 msgid "أهلاً يا فني!"
 msgstr "Welcome, technician!"
 
 msgid ""
 "اكتب سؤالك بالعربي — مثلاً \"إزاي أفك دينمو السيارة دي؟\" أو \"ضفيرة ABS "
 "بتمشي ازاي؟\" أو ارفع صورة من مكان الشغل وأنا هقولك ماشي صح ولا لا."
-msgstr "Type your question in Arabic — for example \"how do I remove the alternator on this car?\" or \"how does the ABS harness run?\" or upload a photo from the work area and I will tell you whether you are on the right track."
+msgstr ""
+"Type your question in Arabic — for example \"how do I remove the alternator "
+"on this car?\" or \"how does the ABS harness run?\" or upload a photo from "
+"the work area and I will tell you whether you are on the right track."
 
-#| msgid "العميل لم يرفع صورة بعد"
 msgid "أكمل على آخر صورة"
 msgstr "Continue on the last photo"
 
-#| msgid "ارفع صورة"
 msgid "أرفق صور (لحد 4)"
 msgstr "Attach photos (up to 4)"
 
 msgid "إدخال صوتي"
 msgstr "Voice input"
 
-#| msgid "اكتب رسالتك أو مشكلتك بالتفصيل..."
 msgid "اكتب سؤالك… أو اضغط المايك واتكلم"
 msgstr "Type your question… or press the mic and talk"
 
-#| msgid "سجّل الرد"
 msgid "وقّف الرد"
 msgstr "Stop the reply"
 
 msgid "دياجرام استرشادي مرسوم بالـ AI — أكّده من الدياجرام الرسمي قبل التوصيل"
-msgstr "Reference diagram drawn by AI — confirm it against the official diagram before wiring"
+msgstr ""
+"Reference diagram drawn by AI — confirm it against the official diagram "
+"before wiring"
 
-#| msgid "خوادم موثوقة"
 msgid "موثوق"
 msgstr "Trusted"
 
-#| msgid "مش متأكد"
 msgid "محتمل — اتأكد"
 msgstr "Likely — verify"
 
-#| msgid "غير مدرج"
 msgid "غير مؤكد — راجع OEM"
 msgstr "Unconfirmed — check OEM"
 
 msgid "بيراجع نفسه..."
 msgstr "Reviewing itself..."
 
-#| msgid "نوع المرجع"
 msgid "نقاط شك المراجع:"
 msgstr "Reviewer doubt points:"
 
 msgid "البوت بيفكر"
 msgstr "The bot is thinking"
 
-#| msgid "سجّل الرد"
 msgid "اسمع الرد"
 msgstr "Listen to the reply"
 
 msgid "مفيد"
 msgstr "Helpful"
 
-#| msgid "مش متأكد"
 msgid "مش مفيد"
 msgstr "Not helpful"
 
-#| msgid "إتمام الشراء"
 msgid "تمام، شكراً"
 msgstr "OK, thanks"
 
@@ -15729,15 +15750,12 @@ msgstr "Got it, we will improve"
 msgid "اتوقف"
 msgstr "Stopped"
 
-#| msgid "مفيش رد."
 msgid "مفيش رد"
 msgstr "No reply"
 
-#| msgid "خطأ في الاتصال بالسيرفر"
 msgid "مشكلة في الاتصال بالسيرفر — جرّب تاني."
 msgstr "Server connection problem — try again."
 
-#| msgid "مشكلة في الدفع؟"
 msgid "مشكلة في رفع الصورة."
 msgstr "Problem uploading the photo."
 
@@ -15747,7 +15765,6 @@ msgstr "photo ready — type your question and send"
 msgid "اسأل عن نفس الصورة… (مفعّل 📷)"
 msgstr "Ask about the same photo… (active 📷)"
 
-#| msgid "أكبر من 2 ميجا — اتجاهلت"
 msgid "أقصى حد 4 صور مع بعض — اتجاهل"
 msgstr "Maximum 4 photos at once — ignored"
 
@@ -15757,15 +15774,12 @@ msgstr "Cannot reach the mic — allow the microphone for the site."
 msgid "بسمعك… دوس تاني تقف"
 msgstr "Listening… press again to stop"
 
-#| msgid "لا توجد قطع غيار تنتظر المراجعة حالياً."
 msgid "تبدأ جلسة جديدة؟ هتفقد المحادثة الحالية."
 msgstr "Start a new session? You will lose the current conversation."
 
-#| msgid "ابدأ تصميم جديد"
 msgid "اسأل من جديد."
 msgstr "Ask again."
 
-#| msgid "اشتري باقة جديدة"
 msgid "اتعملت جلسة جديدة"
 msgstr "A new session was created"
 
