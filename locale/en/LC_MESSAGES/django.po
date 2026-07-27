@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 19:30+0300\n"
+"POT-Creation-Date: 2026-07-27 19:34+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -64,37 +64,30 @@ msgstr "All"
 msgid "مفيش محادثات لسه."
 msgstr "No conversations yet."
 
-#| msgid "الشات الذكي"
 msgid "الهب الذكي"
 msgstr "Smart hub"
 
-#| msgid "كل اللي تحتاجه في مكان واحد"
 msgid "الهب الذكي — كل أدواتك في مكان واحد"
 msgstr "Smart hub — all your tools in one place"
 
-#| msgid "صحة السيارة"
 msgid "صاحب السيارة"
 msgstr "Car owner"
 
 msgid "فني / ورشة"
 msgstr "Technician / workshop"
 
-#| msgid "الحركة المطابقة"
 msgid "الغرف المتاحة"
 msgstr "Available rooms"
 
-#| msgid "تاريخ المحادثات"
 msgid "آخر المحادثات"
 msgstr "Latest conversations"
 
-#| msgid "الرسالة"
 msgid "رسالة"
 msgstr "message"
 
 msgid "لسه مفيش محادثات — افتح أي غرفة وابدأ."
 msgstr "No conversations yet — open any room and start."
 
-#| msgid "التاريخ"
 msgid "شوف كل التاريخ"
 msgstr "See the full history"
 
@@ -16134,11 +16127,27 @@ msgid "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكي�
 msgstr ""
 "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
 
+#| msgid "الصفحة الرئيسية"
+msgid "أنت على الصفحة الرئيسية. يرجى"
+msgstr "You are on the home page. Please"
+
+#| msgid "ابحث عن حسابي"
+msgid "البحث عن حسابك أولاً"
+msgstr "search for your account first"
+
+#| msgid "سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك"
+msgid "للوصول لرابط الدخول الخاص بمؤسستك."
+msgstr "to reach the login link for your organization."
+
 #, python-format
 msgid ""
 "You are authenticated as %(username)s, but are not authorized to access this "
 "page. Would you like to login to a different account?"
 msgstr ""
+
+#| msgid "كلمة المرور"
+msgid "نسيت كلمة المرور؟"
+msgstr "Forgot your password?"
 
 #, python-format
 msgid "خبير تشخيص متعدد الماركات — %(al)s"

@@ -3715,5 +3715,9 @@
   "رسالة": "message",
   "آخر المحادثات": "Latest conversations",
   "لسه مفيش محادثات — افتح أي غرفة وابدأ.": "No conversations yet — open any room and start.",
-  "شوف كل التاريخ": "See the full history"
+  "شوف كل التاريخ": "See the full history",
+  "نسيت كلمة المرور؟": "Forgot your password?",
+  "أنت على الصفحة الرئيسية. يرجى": "You are on the home page. Please",
+  "البحث عن حسابك أولاً": "search for your account first",
+  "للوصول لرابط الدخول الخاص بمؤسستك.": "to reach the login link for your organization."
 }

@@ -10,7 +10,7 @@
     {# If on public schema, warn user they need to go to their tenant subdomain #}
     {% if is_public_schema %}
     <div class="callout callout-warning">
-        <p>أنت على الصفحة الرئيسية. يرجى <a href="/login/" style="font-weight:bold;">البحث عن حسابك أولاً</a> للوصول لرابط الدخول الخاص بمؤسستك.</p>
+        <p>{% trans "أنت على الصفحة الرئيسية. يرجى" %} <a href="/login/" style="font-weight:bold;">{% trans "البحث عن حسابك أولاً" %}</a> {% trans "للوصول لرابط الدخول الخاص بمؤسستك." %}</p>
     </div>
     {% endif %}
 
@@ -31,7 +31,7 @@
         {% if form.errors %}
             {% if form.username.errors %}
                 <div class="callout callout-danger">
-                    <p>البريد الإلكتروني: {{ form.username.errors|join:', ' }}</p>
+                    <p>{% trans "البريد الإلكتروني" %}: {{ form.username.errors|join:', ' }}</p>
                 </div>
             {% endif %}
             {% if form.password.errors %}
@@ -48,7 +48,7 @@
             {% endif %}
         {% endif %}
         <div class="input-group mb-3">
-            <input type="email" name="username" class="form-control" placeholder="البريد الإلكتروني" required>
+            <input type="email" name="username" class="form-control" placeholder="{% trans 'البريد الإلكتروني' %}" required>
             <div class="input-group-append">
                 <div class="input-group-text">
                     <span class="fas fa-envelope"></span>
@@ -56,7 +56,7 @@
             </div>
         </div>
         <div class="input-group mb-3">
-            <input type="password" name="password" class="form-control" placeholder="كلمة المرور" required>
+            <input type="password" name="password" class="form-control" placeholder="{% trans 'كلمة المرور' %}" required>
             <div class="input-group-append">
                 <div class="input-group-text">
                     <span class="fas fa-lock"></span>
@@ -66,13 +66,13 @@
         <div class="row">
             <div class="col-12">
                 <button type="submit" class="btn {{ jazzmin_ui.button_classes.primary }} btn-block">
-                    تسجيل الدخول
+                    {% trans "تسجيل الدخول" %}
                 </button>
             </div>
         </div>
         <div class="row mt-2">
             <div class="col-12 text-center">
-                <a href="/account/recovery/" style="color:#999;">نسيت كلمة المرور؟</a>
+                <a href="/account/recovery/" style="color:#999;">{% trans "نسيت كلمة المرور؟" %}</a>
             </div>
         </div>
     </form>
