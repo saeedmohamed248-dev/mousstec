@@ -1,10 +1,10 @@
-{% load static %}
+{% load static %}{% load i18n %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة المصمم | {{ employee.user.get_full_name|default:employee.user.username }}</title>
+    <title>{% trans "لوحة المصمم" %} | {{ employee.user.get_full_name|default:employee.user.username }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
@@ -200,13 +200,13 @@
 <div class="topbar">
     <div class="brand">
         <div class="logo"><i class="fas fa-palette"></i></div>
-        <div class="name">لوحة المصمم</div>
+        <div class="name">{% trans "لوحة المصمم" %}</div>
     </div>
     <div class="topbar-right">
         <span class="topbar-pill"><i class="fas fa-id-badge"></i> {{ employee.user.get_full_name|default:employee.user.username|truncatechars:25 }}</span>
-        <a href="/hr/attendance/" class="icon-btn" title="بصمة الوجه"><i class="fas fa-camera"></i></a>
-        <a href="/secure-portal/" class="icon-btn" title="لوحة الأدمن"><i class="fas fa-gauge-high"></i></a>
-        <a href="/system/logout/" class="icon-btn" title="خروج"><i class="fas fa-sign-out-alt"></i></a>
+        <a href="/hr/attendance/" class="icon-btn" title="{% trans "بصمة الوجه" %}"><i class="fas fa-camera"></i></a>
+        <a href="/secure-portal/" class="icon-btn" title="{% trans "لوحة الأدمن" %}"><i class="fas fa-gauge-high"></i></a>
+        <a href="/system/logout/" class="icon-btn" title="{% trans "خروج" %}"><i class="fas fa-sign-out-alt"></i></a>
     </div>
 </div>
 
@@ -215,29 +215,29 @@
 <div class="wrap">
 
     <section class="hero">
-        <h1>أهلاً، {{ employee.user.get_full_name|default:employee.user.username|truncatechars:35 }} 🎨</h1>
-        <p class="sub">إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:</p>
+        <h1>{% blocktrans with nm=employee.user.get_full_name|default:employee.user.username|truncatechars:35 %}أهلاً، {{ nm }} 🎨{% endblocktrans %}</h1>
+        <p class="sub">{% trans "إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:" %}</p>
         <div class="quick-chips">
             <button class="quick-chip primary" onclick="openModal('newDesignModal')">
-                <i class="fas fa-plus"></i> رفع تصميم جديد
+                <i class="fas fa-plus"></i> {% trans "رفع تصميم جديد" %}
             </button>
             <button class="quick-chip" onclick="openModal('newQuoteModal')" style="background:linear-gradient(135deg,#06b6d4,#0891b2); border:0; color:#fff;">
-                <i class="fas fa-file-circle-check"></i> عرض سعر للعميل
+                <i class="fas fa-file-circle-check"></i> {% trans "عرض سعر للعميل" %}
             </button>
             <button class="quick-chip green" onclick="openModal('newOrderModal')">
-                <i class="fas fa-file-invoice"></i> فاتورة طباعة
+                <i class="fas fa-file-invoice"></i> {% trans "فاتورة طباعة" %}
             </button>
             <button class="quick-chip orange" onclick="openModal('newExpenseModal')">
-                <i class="fas fa-receipt"></i> مصروف جديد
+                <i class="fas fa-receipt"></i> {% trans "مصروف جديد" %}
             </button>
             <button class="quick-chip blue" onclick="openModal('newIncomeModal')">
-                <i class="fas fa-coins"></i> تحصيل / إيراد
+                <i class="fas fa-coins"></i> {% trans "تحصيل / إيراد" %}
             </button>
             <button class="quick-chip purple" onclick="openModal('advanceModal')">
-                <i class="fas fa-hand-holding-dollar"></i> طلب سلفة
+                <i class="fas fa-hand-holding-dollar"></i> {% trans "طلب سلفة" %}
             </button>
             <a class="quick-chip" href="/secure-portal/printing/printorder/">
-                <i class="fas fa-list-check"></i> كل الطلبات
+                <i class="fas fa-list-check"></i> {% trans "كل الطلبات" %}
             </a>
         </div>
     </section>
@@ -246,56 +246,56 @@
     <div class="att-card">
         <div class="att-icon"><i class="fas fa-check"></i></div>
         <div class="att-body">
-            <div class="att-title">سجلت حضور اليوم ✅</div>
+            <div class="att-title">{% trans "سجلت حضور اليوم ✅" %}</div>
             <div class="att-desc">
-                دخول: {{ today_attendance.clock_in|time:"H:i" }}
-                {% if today_attendance.face_verified %} • بصمة الوجه موثقة 🛡️{% endif %}
-                {% if today_attendance.clock_out %} • خروج: {{ today_attendance.clock_out|time:"H:i" }}{% endif %}
+                {% trans "دخول:" %} {{ today_attendance.clock_in|time:"H:i" }}
+                {% if today_attendance.face_verified %} • {% trans "بصمة الوجه موثقة 🛡️" %}{% endif %}
+                {% if today_attendance.clock_out %} • {% trans "خروج:" %} {{ today_attendance.clock_out|time:"H:i" }}{% endif %}
             </div>
         </div>
         {% if not today_attendance.clock_out %}
-        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> انصراف</a>
+        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> {% trans "انصراف" %}</a>
         {% endif %}
     </div>
     {% else %}
     <div class="att-card warn">
         <div class="att-icon"><i class="fas fa-camera"></i></div>
         <div class="att-body">
-            <div class="att-title">لسه ما سجلتش حضور اليوم</div>
-            <div class="att-desc">دخّل بصمة وجهك في ثانية — مهم للمرتب والـ KPIs.</div>
+            <div class="att-title">{% trans "لسه ما سجلتش حضور اليوم" %}</div>
+            <div class="att-desc">{% trans "دخّل بصمة وجهك في ثانية — مهم للمرتب والـ KPIs." %}</div>
         </div>
-        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> سجل بصمة</a>
+        <a href="/hr/attendance/" class="att-cta"><i class="fas fa-camera"></i> {% trans "سجل بصمة" %}</a>
     </div>
     {% endif %}
 
     <div class="kpi-strip">
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(236,72,153,0.18); color:var(--accent);"><i class="fas fa-bolt"></i></div>
-            <div><div class="kpi-num">{{ stats.today }}</div><div class="kpi-label">تصاميم اليوم</div></div>
+            <div><div class="kpi-num">{{ stats.today }}</div><div class="kpi-label">{% trans "تصاميم اليوم" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(139,92,246,0.18); color:#c4b5fd;"><i class="fas fa-calendar-days"></i></div>
-            <div><div class="kpi-num">{{ stats.month }}</div><div class="kpi-label">هذا الشهر</div></div>
+            <div><div class="kpi-num">{{ stats.month }}</div><div class="kpi-label">{% trans "هذا الشهر" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-check"></i></div>
-            <div><div class="kpi-num">{{ stats.approved }}</div><div class="kpi-label">معتمد</div></div>
+            <div><div class="kpi-num">{{ stats.approved }}</div><div class="kpi-label">{% trans "معتمد" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(245,158,11,0.18); color:#fcd34d;"><i class="fas fa-hourglass-half"></i></div>
-            <div><div class="kpi-num">{{ stats.pending }}</div><div class="kpi-label">قيد المراجعة</div></div>
+            <div><div class="kpi-num">{{ stats.pending }}</div><div class="kpi-label">{% trans "قيد المراجعة" %}</div></div>
         </div>
         <div class="kpi">
             <div class="kpi-icon" style="background:rgba(59,130,246,0.18); color:#93c5fd;"><i class="fas fa-robot"></i></div>
-            <div><div class="kpi-num">{{ stats.ai_generated }}</div><div class="kpi-label">منشأ بـ AI</div></div>
+            <div><div class="kpi-num">{{ stats.ai_generated }}</div><div class="kpi-label">{% trans "منشأ بـ AI" %}</div></div>
         </div>
     </div>
 
     <div class="main-grid">
         <div>
             <div class="section-head">
-                <h3><i class="fas fa-images"></i> آخر تصاميمي</h3>
-                <a href="/secure-portal/hr/designsubmission/">عرض الكل <i class="fas fa-arrow-left"></i></a>
+                <h3><i class="fas fa-images"></i> {% trans "آخر تصاميمي" %}</h3>
+                <a href="/secure-portal/hr/designsubmission/">{% trans "عرض الكل" %} <i class="fas fa-arrow-left"></i></a>
             </div>
             {% if recent_designs %}
             <div class="design-grid" style="margin-bottom: 26px;">
@@ -314,14 +314,14 @@
             {% else %}
             <div class="empty" style="margin-bottom: 26px;">
                 <i class="fas fa-images"></i>
-                <div>لسه ما رفعتش تصاميم — ابدأ من زر "رفع تصميم جديد"</div>
+                <div>{% trans 'لسه ما رفعتش تصاميم — ابدأ من زر "رفع تصميم جديد"' %}</div>
             </div>
             {% endif %}
 
             {% if my_recent_orders %}
             <div class="section-head">
-                <h3><i class="fas fa-file-invoice"></i> آخر فواتيري</h3>
-                <a href="/secure-portal/printing/printorder/">عرض الكل <i class="fas fa-arrow-left"></i></a>
+                <h3><i class="fas fa-file-invoice"></i> {% trans "آخر فواتيري" %}</h3>
+                <a href="/secure-portal/printing/printorder/">{% trans "عرض الكل" %} <i class="fas fa-arrow-left"></i></a>
             </div>
             <div class="row-list" style="margin-bottom: 26px;">
                 {% for o in my_recent_orders %}
@@ -329,11 +329,11 @@
                     <div class="left">
                         <div class="icon-circle order"><i class="fas fa-file-invoice"></i></div>
                         <div class="info">
-                            <div class="t">#{{ o.pk }} — {{ o.customer.name|default:'بدون عميل' }}</div>
+                            {% trans "بدون عميل" as t_no_cust %}<div class="t">#{{ o.pk }} — {{ o.customer.name|default:t_no_cust }}</div>
                             <div class="s">{{ o.created_at|date:"d/m/Y H:i" }}</div>
                         </div>
                     </div>
-                    <div class="amount">{{ o.total_amount|default:0|floatformat:0 }} ج.م</div>
+                    <div class="amount">{{ o.total_amount|default:0|floatformat:0 }} {% trans "ج.م" %}</div>
                 </a>
                 {% endfor %}
             </div>
@@ -341,8 +341,8 @@
 
             {% if recent_transactions %}
             <div class="section-head">
-                <h3><i class="fas fa-coins"></i> آخر حركاتي المالية</h3>
-                <a href="/secure-portal/printing/printtransaction/">عرض الكل <i class="fas fa-arrow-left"></i></a>
+                <h3><i class="fas fa-coins"></i> {% trans "آخر حركاتي المالية" %}</h3>
+                <a href="/secure-portal/printing/printtransaction/">{% trans "عرض الكل" %} <i class="fas fa-arrow-left"></i></a>
             </div>
             <div class="row-list">
                 {% for t in recent_transactions %}
@@ -352,12 +352,12 @@
                             <i class="fas fa-arrow-{% if t.transaction_type == 'in' %}down{% else %}up{% endif %}"></i>
                         </div>
                         <div class="info">
-                            <div class="t">{{ t.description|default:'حركة' }}</div>
+                            {% trans "حركة" as t_txn %}<div class="t">{{ t.description|default:t_txn }}</div>
                             <div class="s">{{ t.treasury.name }} • {{ t.date|date:"d/m/Y H:i" }}</div>
                         </div>
                     </div>
                     <div class="amount {{ t.transaction_type }}">
-                        {% if t.transaction_type == 'in' %}+{% else %}−{% endif %}{{ t.amount|floatformat:0 }} ج.م
+                        {% if t.transaction_type == 'in' %}+{% else %}−{% endif %}{{ t.amount|floatformat:0 }} {% trans "ج.م" %}
                     </div>
                 </div>
                 {% endfor %}
@@ -367,72 +367,72 @@
 
         <aside>
             <div class="ai-status-card">
-                <div class="status-label">اشتراك AI الحالي</div>
+                <div class="status-label">{% trans "اشتراك AI الحالي" %}</div>
                 {% if ai_sub and ai_sub.is_active_and_valid %}
                 <div class="status-value active">{{ ai_sub.get_plan_display }} ✓</div>
-                <div style="font-size:0.82rem; color:var(--muted); margin-top:4px;">ينتهي: {{ ai_sub.end_date|date:"d/m/Y" }} ({{ ai_sub.days_remaining }} يوم)</div>
-                <div style="font-size:0.82rem; margin-top:6px;">المستخدم: {{ ai_sub.ai_generations_used }}{% if ai_sub.ai_generations_limit %}/{{ ai_sub.ai_generations_limit }}{% else %} (غير محدود){% endif %}</div>
+                <div style="font-size:0.82rem; color:var(--muted); margin-top:4px;">{% trans "ينتهي:" %} {{ ai_sub.end_date|date:"d/m/Y" }} ({% blocktrans with dr=ai_sub.days_remaining %}{{ dr }} يوم{% endblocktrans %})</div>
+                <div style="font-size:0.82rem; margin-top:6px;">{% trans "المستخدم:" %} {{ ai_sub.ai_generations_used }}{% if ai_sub.ai_generations_limit %}/{{ ai_sub.ai_generations_limit }}{% else %} {% trans "(غير محدود)" %}{% endif %}</div>
                 {% else %}
-                <div class="status-value inactive">غير مشترك</div>
-                <a href="/secure-portal/hr/aidesignsubscription/add/" style="display:inline-block; margin-top:8px; background:#fff; color:#1e293b; padding:6px 14px; border-radius:8px; font-weight:800; text-decoration:none; font-size:0.82rem;">اشترك الآن</a>
+                <div class="status-value inactive">{% trans "غير مشترك" %}</div>
+                <a href="/secure-portal/hr/aidesignsubscription/add/" style="display:inline-block; margin-top:8px; background:#fff; color:#1e293b; padding:6px 14px; border-radius:8px; font-weight:800; text-decoration:none; font-size:0.82rem;">{% trans "اشترك الآن" %}</a>
                 {% endif %}
             </div>
 
             <div class="side-card">
-                <h4><i class="fas fa-bolt"></i> روابط سريعة</h4>
-                <a href="/hr/attendance/" class="side-link"><i class="fas fa-camera lead"></i> بصمة الوجه <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/secure-portal/printing/printcustomer/" class="side-link"><i class="fas fa-users lead"></i> العملاء <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/secure-portal/printing/printmaterial/" class="side-link"><i class="fas fa-boxes-stacked lead"></i> الخامات <i class="fas fa-arrow-left tail"></i></a>
+                <h4><i class="fas fa-bolt"></i> {% trans "روابط سريعة" %}</h4>
+                <a href="/hr/attendance/" class="side-link"><i class="fas fa-camera lead"></i> {% trans "بصمة الوجه" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/printing/printcustomer/" class="side-link"><i class="fas fa-users lead"></i> {% trans "العملاء" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/printing/printmaterial/" class="side-link"><i class="fas fa-boxes-stacked lead"></i> {% trans "الخامات" %} <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/printing/ai/history/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> AI Studio <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/printing/reports/profit-loss/" class="side-link"><i class="fas fa-chart-line lead"></i> تقرير الأرباح والخسائر <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/secure-portal/printing/pricequotation/" class="side-link"><i class="fas fa-file-circle-check lead"></i> كل عروض الأسعار <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/printing/reports/profit-loss/" class="side-link"><i class="fas fa-chart-line lead"></i> {% trans "تقرير الأرباح والخسائر" %} <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/secure-portal/printing/pricequotation/" class="side-link"><i class="fas fa-file-circle-check lead"></i> {% trans "كل عروض الأسعار" %} <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/secure-portal/hr/leaverequest/" class="side-link">
-                    <i class="fas fa-plane-departure lead"></i> طلبات إجازاتي
+                    <i class="fas fa-plane-departure lead"></i> {% trans "طلبات إجازاتي" %}
                     {% if pending_leaves %}<span class="badge-num">{{ pending_leaves }}</span>{% endif %}
                     <i class="fas fa-arrow-left tail"></i>
                 </a>
                 <a href="/secure-portal/hr/advance/" class="side-link">
-                    <i class="fas fa-hand-holding-dollar lead"></i> سلفي
+                    <i class="fas fa-hand-holding-dollar lead"></i> {% trans "سلفي" %}
                     {% if pending_advances %}<span class="badge-num">{{ pending_advances }}</span>{% endif %}
                     <i class="fas fa-arrow-left tail"></i>
                 </a>
             </div>
 
             <div class="side-card">
-                <h4><i class="fas fa-lightbulb"></i> نصايح</h4>
+                <h4><i class="fas fa-lightbulb"></i> {% trans "نصايح" %}</h4>
                 <div style="font-size:0.86rem; color:var(--soft); line-height:1.7;">
-                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">📷 ارفع صورة معاينة دائماً — بتساعد المراجع يعتمد أسرع.</div>
-                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">🤖 لو تصميمك بـ AI، اختار "AI-assisted" لو عدّلت يدوي.</div>
-                    <div style="padding:6px 0;">⏰ سجّل حضور قبل ٩ صباحاً عشان تتجنب خصم تأخير.</div>
+                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">📷 {% trans "ارفع صورة معاينة دائماً — بتساعد المراجع يعتمد أسرع." %}</div>
+                    <div style="padding:6px 0; border-bottom:1px dashed var(--line);">🤖 {% trans 'لو تصميمك بـ AI، اختار "AI-assisted" لو عدّلت يدوي.' %}</div>
+                    <div style="padding:6px 0;">⏰ {% trans "سجّل حضور قبل ٩ صباحاً عشان تتجنب خصم تأخير." %}</div>
                 </div>
             </div>
         </aside>
     </div>
 </div>
 
-<button class="fab" onclick="openModal('newDesignModal')"><i class="fas fa-plus"></i> رفع تصميم</button>
+<button class="fab" onclick="openModal('newDesignModal')"><i class="fas fa-plus"></i> {% trans "رفع تصميم" %}</button>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="newDesignModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-palette" style="color:var(--accent);"></i> رفع تصميم جديد</h3>
+        <h3><i class="fas fa-palette" style="color:var(--accent);"></i> {% trans "رفع تصميم جديد" %}</h3>
         <form id="designForm" enctype="multipart/form-data">
-            <div class="mb-3"><label class="form-label">عنوان التصميم *</label>
-                <input type="text" class="form-control" name="title" required placeholder="مثال: بوستر افتتاح فرع"></div>
-            <div class="mb-3"><label class="form-label">الوصف</label>
+            <div class="mb-3"><label class="form-label">{% trans "عنوان التصميم" %} *</label>
+                <input type="text" class="form-control" name="title" required placeholder="{% trans "مثال: بوستر افتتاح فرع" %}"></div>
+            <div class="mb-3"><label class="form-label">{% trans "الوصف" %}</label>
                 <textarea class="form-control" name="description" rows="2"></textarea></div>
-            <div class="mb-3"><label class="form-label">نوع التنفيذ</label>
+            <div class="mb-3"><label class="form-label">{% trans "نوع التنفيذ" %}</label>
                 <select class="form-select" name="execution_type">
-                    <option value="manual">⌨️ يدوي بالكامل</option>
-                    <option value="ai_assisted">🧠 مساعد بـ AI</option>
-                    <option value="ai_generated">🤖 مُنشأ بالكامل بـ AI</option>
+                    <option value="manual">⌨️ {% trans "يدوي بالكامل" %}</option>
+                    <option value="ai_assisted">🧠 {% trans "مساعد بـ AI" %}</option>
+                    <option value="ai_generated">🤖 {% trans "مُنشأ بالكامل بـ AI" %}</option>
                 </select></div>
-            <div class="mb-3"><label class="form-label">ملف التصميم *</label>
+            <div class="mb-3"><label class="form-label">{% trans "ملف التصميم" %} *</label>
                 <input type="file" class="form-control" name="design_file" required></div>
-            <div class="mb-3"><label class="form-label">صورة معاينة (اختياري)</label>
+            <div class="mb-3"><label class="form-label">{% trans "صورة معاينة (اختياري)" %}</label>
                 <input type="file" class="form-control" name="preview_image" accept="image/*"></div>
-            <button type="submit" class="btn-primary-grad" id="designBtn"><i class="fas fa-cloud-arrow-up"></i> رفع التصميم</button>
+            <button type="submit" class="btn-primary-grad" id="designBtn"><i class="fas fa-cloud-arrow-up"></i> {% trans "رفع التصميم" %}</button>
         </form>
     </div>
 </div>
@@ -440,17 +440,17 @@
 <div class="modal-overlay" id="newExpenseModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-receipt" style="color:var(--accent3);"></i> تسجيل مصروف</h3>
+        <h3><i class="fas fa-receipt" style="color:var(--accent3);"></i> {% trans "تسجيل مصروف" %}</h3>
         <form id="expenseForm">
-            <div class="mb-3"><label class="form-label">الخزينة *</label>
+            <div class="mb-3"><label class="form-label">{% trans "الخزينة" %} *</label>
                 <select class="form-select" name="treasury" required>
-                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} ج.م)</option>{% endfor %}
+                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} {% trans "ج.م" %})</option>{% endfor %}
                 </select></div>
-            <div class="mb-3"><label class="form-label">المبلغ (ج.م) *</label>
+            <div class="mb-3"><label class="form-label">{% trans "المبلغ (ج.م)" %} *</label>
                 <input type="number" step="0.01" min="0.01" class="form-control" name="amount" required dir="ltr"></div>
-            <div class="mb-3"><label class="form-label">الوصف *</label>
-                <input type="text" class="form-control" name="description" required placeholder="مثال: شراء ورق A4، فاتورة كهرباء..."></div>
-            <button type="submit" class="btn-primary-grad" id="expenseBtn" style="background:linear-gradient(135deg, #f97316, #ea580c);"><i class="fas fa-arrow-up"></i> تسجيل المصروف</button>
+            <div class="mb-3"><label class="form-label">{% trans "الوصف" %} *</label>
+                <input type="text" class="form-control" name="description" required placeholder="{% trans "مثال: شراء ورق A4، فاتورة كهرباء..." %}"></div>
+            <button type="submit" class="btn-primary-grad" id="expenseBtn" style="background:linear-gradient(135deg, #f97316, #ea580c);"><i class="fas fa-arrow-up"></i> {% trans "تسجيل المصروف" %}</button>
         </form>
     </div>
 </div>
@@ -458,17 +458,17 @@
 <div class="modal-overlay" id="newIncomeModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-coins" style="color:#10b981;"></i> تسجيل تحصيل / إيراد</h3>
+        <h3><i class="fas fa-coins" style="color:#10b981;"></i> {% trans "تسجيل تحصيل / إيراد" %}</h3>
         <form id="incomeForm">
-            <div class="mb-3"><label class="form-label">الخزينة *</label>
+            <div class="mb-3"><label class="form-label">{% trans "الخزينة" %} *</label>
                 <select class="form-select" name="treasury" required>
-                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} ج.م)</option>{% endfor %}
+                    {% for t in treasuries %}<option value="{{ t.pk }}">{{ t.name }} ({{ t.balance|floatformat:0 }} {% trans "ج.م" %})</option>{% endfor %}
                 </select></div>
-            <div class="mb-3"><label class="form-label">المبلغ (ج.م) *</label>
+            <div class="mb-3"><label class="form-label">{% trans "المبلغ (ج.م)" %} *</label>
                 <input type="number" step="0.01" min="0.01" class="form-control" name="amount" required dir="ltr"></div>
-            <div class="mb-3"><label class="form-label">الوصف *</label>
-                <input type="text" class="form-control" name="description" required placeholder="مثال: تحصيل فاتورة #123، دفعة عميل..."></div>
-            <button type="submit" class="btn-primary-grad" id="incomeBtn" style="background:linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-arrow-down"></i> تسجيل الإيراد</button>
+            <div class="mb-3"><label class="form-label">{% trans "الوصف" %} *</label>
+                <input type="text" class="form-control" name="description" required placeholder="{% trans "مثال: تحصيل فاتورة #123، دفعة عميل..." %}"></div>
+            <button type="submit" class="btn-primary-grad" id="incomeBtn" style="background:linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-arrow-down"></i> {% trans "تسجيل الإيراد" %}</button>
         </form>
     </div>
 </div>
@@ -476,9 +476,9 @@
 <div class="modal-overlay" id="newOrderModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-file-invoice" style="color:#3b82f6;"></i> فاتورة طباعة جديدة</h3>
-        <p style="color:var(--soft);">فاتورة طباعة فيها تفاصيل كتير (عميل، ماكينات، خامات...). هنوديك لصفحة الإنشاء الشاملة.</p>
-        <a href="/secure-portal/printing/printorder/add/" class="btn-primary-grad" style="display:block; text-align:center; text-decoration:none; background:linear-gradient(135deg, #3b82f6, #2563eb);"><i class="fas fa-arrow-left"></i> فتح صفحة فاتورة جديدة</a>
+        <h3><i class="fas fa-file-invoice" style="color:#3b82f6;"></i> {% trans "فاتورة طباعة جديدة" %}</h3>
+        <p style="color:var(--soft);">{% trans "فاتورة طباعة فيها تفاصيل كتير (عميل، ماكينات، خامات...). هنوديك لصفحة الإنشاء الشاملة." %}</p>
+        <a href="/secure-portal/printing/printorder/add/" class="btn-primary-grad" style="display:block; text-align:center; text-decoration:none; background:linear-gradient(135deg, #3b82f6, #2563eb);"><i class="fas fa-arrow-left"></i> {% trans "فتح صفحة فاتورة جديدة" %}</a>
     </div>
 </div>
 
@@ -486,41 +486,41 @@
 <div class="modal-overlay" id="newQuoteModal">
     <div class="modal-box" style="max-width:680px;">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-file-circle-check" style="color:#06b6d4;"></i> عرض سعر جديد</h3>
+        <h3><i class="fas fa-file-circle-check" style="color:#06b6d4;"></i> {% trans "عرض سعر جديد" %}</h3>
         <form id="quoteForm">
-            <div class="mb-3"><label class="form-label">عنوان العرض *</label>
-                <input type="text" class="form-control" name="title" required placeholder="مثال: تصميم لوجو + 500 كرت شخصي"></div>
+            <div class="mb-3"><label class="form-label">{% trans "عنوان العرض" %} *</label>
+                <input type="text" class="form-control" name="title" required placeholder="{% trans "مثال: تصميم لوجو + 500 كرت شخصي" %}"></div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;" class="mb-3">
-                <div><label class="form-label">اسم العميل</label>
-                    <input type="text" class="form-control" name="customer_name" placeholder="لو غير مسجل"></div>
-                <div><label class="form-label">واتساب العميل</label>
+                <div><label class="form-label">{% trans "اسم العميل" %}</label>
+                    <input type="text" class="form-control" name="customer_name" placeholder="{% trans "لو غير مسجل" %}"></div>
+                <div><label class="form-label">{% trans "واتساب العميل" %}</label>
                     <input type="text" class="form-control" name="customer_whatsapp" placeholder="+201xxxxxxxxx" dir="ltr"></div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">البنود *</label>
+                <label class="form-label">{% trans "البنود" %} *</label>
                 <div id="quoteLines"></div>
                 <button type="button" class="btn-primary-grad" style="margin-top:8px; width:auto; padding:8px 14px; font-size:0.85rem; background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text);" onclick="addQuoteLine()">
-                    <i class="fas fa-plus"></i> إضافة بند
+                    <i class="fas fa-plus"></i> {% trans "إضافة بند" %}
                 </button>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;" class="mb-3">
-                <div><label class="form-label">خصم (ج.م)</label>
+                <div><label class="form-label">{% trans "خصم (ج.م)" %}</label>
                     <input type="number" step="0.01" min="0" class="form-control" name="discount" value="0" dir="ltr"></div>
-                <div><label class="form-label">ضريبة %</label>
+                <div><label class="form-label">{% trans "ضريبة" %} %</label>
                     <input type="number" step="0.01" min="0" max="100" class="form-control" name="tax_percent" value="0" dir="ltr"></div>
             </div>
 
-            <div class="mb-3"><label class="form-label">ملاحظات / شروط</label>
-                <textarea class="form-control" name="notes" rows="2" placeholder="مثال: 50% مقدم، التسليم خلال 5 أيام عمل..."></textarea></div>
+            <div class="mb-3"><label class="form-label">{% trans "ملاحظات / شروط" %}</label>
+                <textarea class="form-control" name="notes" rows="2" placeholder="{% blocktrans %}مثال: 50% مقدم، التسليم خلال 5 أيام عمل...{% endblocktrans %}"></textarea></div>
 
             <div id="quoteTotal" style="background:rgba(6,182,212,0.1); border:1px solid rgba(6,182,212,0.3); border-radius:12px; padding:14px; margin-bottom:14px; text-align:center; font-weight:900; color:#06b6d4; font-size:1.05rem;">
-                الإجمالي: <span id="qtTotal">0.00</span> ج.م
+                {% trans "الإجمالي:" %} <span id="qtTotal">0.00</span> {% trans "ج.م" %}
             </div>
 
-            <button type="submit" class="btn-primary-grad" id="quoteBtn" style="background:linear-gradient(135deg, #06b6d4, #0891b2);"><i class="fas fa-paper-plane"></i> إنشاء العرض</button>
+            <button type="submit" class="btn-primary-grad" id="quoteBtn" style="background:linear-gradient(135deg, #06b6d4, #0891b2);"><i class="fas fa-paper-plane"></i> {% trans "إنشاء العرض" %}</button>
         </form>
     </div>
 </div>
@@ -529,12 +529,12 @@
 <div class="modal-overlay" id="quoteResultModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-circle-check" style="color:#10b981;"></i> تم إنشاء العرض!</h3>
-        <p style="color:var(--soft);">العرض <b id="qrNum"></b> جاهز للإرسال. اختار طريقة المشاركة:</p>
+        <h3><i class="fas fa-circle-check" style="color:#10b981;"></i> {% trans "تم إنشاء العرض!" %}</h3>
+        <p style="color:var(--soft);">{% trans "عرض السعر" %} <b id="qrNum"></b> {% trans "جاهز للإرسال. اختار طريقة المشاركة:" %}</p>
         <div style="display:flex; flex-direction:column; gap:10px;">
-            <a id="qrWhatsapp" href="#" target="_blank" class="btn-primary-grad" style="text-decoration:none; text-align:center; background:linear-gradient(135deg,#25d366,#128c7e);"><i class="fab fa-whatsapp"></i> إرسال عبر واتساب</a>
-            <a id="qrLink" href="#" target="_blank" class="btn-primary-grad" style="text-decoration:none; text-align:center; background:linear-gradient(135deg,#3b82f6,#2563eb);"><i class="fas fa-eye"></i> فتح صفحة العرض</a>
-            <button onclick="copyQuoteLink()" class="btn-primary-grad" style="background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text);"><i class="fas fa-copy"></i> نسخ الرابط</button>
+            <a id="qrWhatsapp" href="#" target="_blank" class="btn-primary-grad" style="text-decoration:none; text-align:center; background:linear-gradient(135deg,#25d366,#128c7e);"><i class="fab fa-whatsapp"></i> {% trans "إرسال عبر واتساب" %}</a>
+            <a id="qrLink" href="#" target="_blank" class="btn-primary-grad" style="text-decoration:none; text-align:center; background:linear-gradient(135deg,#3b82f6,#2563eb);"><i class="fas fa-eye"></i> {% trans "فتح صفحة العرض" %}</a>
+            <button onclick="copyQuoteLink()" class="btn-primary-grad" style="background:rgba(255,255,255,0.06); border:1px solid var(--line); color:var(--text);"><i class="fas fa-copy"></i> {% trans "نسخ الرابط" %}</button>
         </div>
     </div>
 </div>
@@ -542,20 +542,20 @@
 <div class="modal-overlay" id="advanceModal">
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-        <h3><i class="fas fa-hand-holding-dollar" style="color:#8b5cf6;"></i> طلب سلفة</h3>
+        <h3><i class="fas fa-hand-holding-dollar" style="color:#8b5cf6;"></i> {% trans "طلب سلفة" %}</h3>
         <form id="advanceForm">
-            <div class="mb-3"><label class="form-label">المبلغ المطلوب (ج.م) *</label>
+            <div class="mb-3"><label class="form-label">{% trans "المبلغ المطلوب (ج.م)" %} *</label>
                 <input type="number" step="0.01" min="1" class="form-control" name="amount" required dir="ltr"></div>
-            <div class="mb-3"><label class="form-label">السبب *</label>
-                <textarea class="form-control" name="reason" rows="3" required placeholder="اشرح سبب طلب السلفة..."></textarea></div>
-            <div class="mb-3"><label class="form-label">عدد أقساط الخصم</label>
+            <div class="mb-3"><label class="form-label">{% trans "السبب" %} *</label>
+                <textarea class="form-control" name="reason" rows="3" required placeholder="{% trans "اشرح سبب طلب السلفة..." %}"></textarea></div>
+            <div class="mb-3"><label class="form-label">{% trans "عدد أقساط الخصم" %}</label>
                 <select class="form-select" name="installments">
-                    <option value="1">دفعة واحدة</option>
-                    <option value="2">قسطين</option>
-                    <option value="3" selected>3 أقساط</option>
-                    <option value="6">6 أقساط</option>
+                    <option value="1">{% trans "دفعة واحدة" %}</option>
+                    <option value="2">{% trans "قسطين" %}</option>
+                    <option value="3" selected>{% trans "3 أقساط" %}</option>
+                    <option value="6">{% trans "6 أقساط" %}</option>
                 </select></div>
-            <button type="submit" class="btn-primary-grad" id="advanceBtn" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed);"><i class="fas fa-paper-plane"></i> إرسال الطلب</button>
+            <button type="submit" class="btn-primary-grad" id="advanceBtn" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed);"><i class="fas fa-paper-plane"></i> {% trans "إرسال الطلب" %}</button>
         </form>
     </div>
 </div>
@@ -584,7 +584,7 @@ async function postJSON(url, body) {
         credentials: 'same-origin',
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || data.message || 'خطأ غير متوقع');
+    if (!res.ok) throw new Error(data.error || data.message || '{% trans "خطأ غير متوقع" %}');
     return data;
 }
 
@@ -597,7 +597,7 @@ async function postForm(url, formEl) {
         credentials: 'same-origin',
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || data.message || 'خطأ غير متوقع');
+    if (!res.ok) throw new Error(data.error || data.message || '{% trans "خطأ غير متوقع" %}');
     return data;
 }
 
@@ -605,10 +605,10 @@ document.getElementById('designForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('designBtn');
     btn.disabled = true; const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> جاري الرفع...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الرفع..." %}';
     try {
         const data = await postForm('/hr/api/design/submit/', e.target);
-        toast(data.message || 'تم رفع التصميم بنجاح', 'success');
+        toast(data.message || '{% trans "تم رفع التصميم بنجاح" %}', 'success');
         closeModal();
         setTimeout(() => location.reload(), 1100);
     } catch (err) { toast(err.message, 'error'); }
@@ -619,7 +619,7 @@ async function submitTransaction(formId, btnId, txnType) {
     const form = document.getElementById(formId);
     const btn = document.getElementById(btnId);
     btn.disabled = true; const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الحفظ..." %}';
     try {
         const fd = new FormData(form);
         const data = await postJSON('/hr/api/treasury/quick-transaction/', {
@@ -628,7 +628,7 @@ async function submitTransaction(formId, btnId, txnType) {
             description: fd.get('description'),
             transaction_type: txnType,
         });
-        toast(data.message || 'تم تسجيل الحركة', 'success');
+        toast(data.message || '{% trans "تم تسجيل الحركة" %}', 'success');
         closeModal();
         setTimeout(() => location.reload(), 1100);
     } catch (err) { toast(err.message, 'error'); }
@@ -646,9 +646,9 @@ function addQuoteLine(desc='', qty=1, price=0) {
     row.className = 'qt-line';
     row.style.cssText = 'display:grid; grid-template-columns:2.5fr 70px 100px 30px; gap:6px; margin-bottom:6px; align-items:center;';
     row.innerHTML = `
-        <input type="text" class="form-control qt-desc" placeholder="وصف البند" value="${desc}" required>
-        <input type="number" class="form-control qt-qty" step="0.01" min="0.01" placeholder="كمية" value="${qty}" dir="ltr" required>
-        <input type="number" class="form-control qt-price" step="0.01" min="0" placeholder="سعر/وحدة" value="${price}" dir="ltr" required>
+        <input type="text" class="form-control qt-desc" placeholder="{% trans "وصف البند" %}" value="${desc}" required>
+        <input type="number" class="form-control qt-qty" step="0.01" min="0.01" placeholder="{% trans "كمية" %}" value="${qty}" dir="ltr" required>
+        <input type="number" class="form-control qt-price" step="0.01" min="0" placeholder="{% trans "سعر/وحدة" %}" value="${price}" dir="ltr" required>
         <button type="button" onclick="this.parentElement.remove(); recalcQuote();" style="background:none; border:0; color:var(--danger); cursor:pointer; font-size:1.1rem;">×</button>
     `;
     wrap.appendChild(row);
@@ -686,7 +686,7 @@ document.getElementById('quoteForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('quoteBtn');
     btn.disabled = true; const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> جاري الإنشاء...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الإنشاء..." %}';
     try {
         const fd = new FormData(e.target);
         const lines = [];
@@ -699,7 +699,7 @@ document.getElementById('quoteForm').addEventListener('submit', async e => {
                 unit_price: row.querySelector('.qt-price').value,
             });
         });
-        if (lines.length === 0) throw new Error('أضف بنداً واحداً على الأقل');
+        if (lines.length === 0) throw new Error('{% trans "أضف بنداً واحداً على الأقل" %}');
         const payload = {
             title: fd.get('title'),
             customer_name: fd.get('customer_name'),
@@ -715,7 +715,7 @@ document.getElementById('quoteForm').addEventListener('submit', async e => {
         document.getElementById('qrNum').textContent = '#' + data.quote_number;
         document.getElementById('qrLink').href = data.share_url;
         const phone = fd.get('customer_whatsapp').replace(/[^\d+]/g,'');
-        const msg = encodeURIComponent(`السلام عليكم، عرض السعر #${data.quote_number} جاهز:\n${data.share_url}`);
+        const msg = encodeURIComponent('{% trans "السلام عليكم، عرض السعر" %} #' + data.quote_number + ' {% trans "جاهز:" %}\n' + data.share_url);
         document.getElementById('qrWhatsapp').href = phone
             ? `https://wa.me/${phone.replace(/^\+/,'')}?text=${msg}`
             : `https://wa.me/?text=${msg}`;
@@ -727,14 +727,14 @@ document.getElementById('quoteForm').addEventListener('submit', async e => {
 
 function copyQuoteLink() {
     const url = document.getElementById('qrLink').dataset.shareUrl;
-    navigator.clipboard.writeText(url).then(() => toast('تم نسخ الرابط', 'success'));
+    navigator.clipboard.writeText(url).then(() => toast('{% trans "تم نسخ الرابط" %}', 'success'));
 }
 
 document.getElementById('advanceForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('advanceBtn');
     btn.disabled = true; const oldHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> جاري الإرسال...';
+    btn.innerHTML = '<span class="spinner"></span> {% trans "جاري الإرسال..." %}';
     try {
         const fd = new FormData(e.target);
         const data = await postJSON('/hr/api/advance/request/', {
@@ -742,7 +742,7 @@ document.getElementById('advanceForm').addEventListener('submit', async e => {
             reason: fd.get('reason'),
             installments: parseInt(fd.get('installments')),
         });
-        toast(data.message || 'تم إرسال طلب السلفة', 'success');
+        toast(data.message || '{% trans "تم إرسال طلب السلفة" %}', 'success');
         closeModal();
         setTimeout(() => location.reload(), 1100);
     } catch (err) { toast(err.message, 'error'); }

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 18:42+0300\n"
+"POT-Creation-Date: 2026-07-27 18:54+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -453,7 +453,7 @@ msgid "تصميم مجاني (تجربة)"
 msgstr ""
 
 msgid "عنوان التصميم"
-msgstr ""
+msgstr "Design title"
 
 msgid "المقاس"
 msgstr ""
@@ -10761,7 +10761,7 @@ msgid "نوع الإجازة"
 msgstr ""
 
 msgid "السبب"
-msgstr ""
+msgstr "Reason"
 
 msgid "تمت المراجعة بواسطة"
 msgstr ""
@@ -10963,7 +10963,7 @@ msgid "كشوف الرواتب"
 msgstr ""
 
 msgid "يدوي بالكامل"
-msgstr ""
+msgstr "Fully manual"
 
 msgid "مُنشأ بالذكاء الاصطناعي"
 msgstr ""
@@ -10981,13 +10981,13 @@ msgid "الوصف / التفاصيل"
 msgstr ""
 
 msgid "ملف التصميم"
-msgstr ""
+msgstr "Design file"
 
 msgid "صورة معاينة"
 msgstr ""
 
 msgid "نوع التنفيذ"
-msgstr ""
+msgstr "Execution type"
 
 msgid "اعتماد تلقائي"
 msgstr ""
@@ -11067,11 +11067,9 @@ msgstr ""
 msgid "اشتراكات AI التصميم"
 msgstr ""
 
-#| msgid "نسبة الحضور"
 msgid "بصمة الحضور"
 msgstr "Attendance check-in"
 
-#| msgid "حضور اليوم"
 msgid "حالة اليوم"
 msgstr "Today status"
 
@@ -11081,11 +11079,9 @@ msgstr "Check-in"
 msgid "انصراف"
 msgstr "Check out"
 
-#| msgid "لم يتصل بعد"
 msgid "لم يسجّل بعد"
 msgstr "Not recorded yet"
 
-#| msgid "لوجو"
 msgid "وجه"
 msgstr "Face"
 
@@ -11093,104 +11089,85 @@ msgid "موقع"
 msgstr "Location"
 
 #, python-format
-#| msgid "متأخر %(n)s دقيقة"
 msgid "تأخير %(n)s د"
 msgstr "Late by %(n)s min"
 
-#| msgid "خطوات الفحص"
 msgid "خطوات التحقق"
 msgstr "Verification steps"
 
 msgid "الوجه غير مسجّل — سجّل وجهك أولاً"
 msgstr "Face not registered — register your face first"
 
-#| msgid "لوحة التحكم الكاملة"
 msgid "مطلوب — افتح الكاميرا"
 msgstr "Required — open the camera"
 
 msgid "إلزامي"
 msgstr "Mandatory"
 
-#| msgid "المهام الجارية"
 msgid "الموقع الجغرافي"
 msgstr "Geographic location"
 
-#| msgid "في انتظار الموافقة"
 msgid "في انتظار تحديد الموقع..."
 msgstr "Waiting for location..."
 
 msgid "الكاميرا"
 msgstr "Camera"
 
-#| msgid "جارٍ التحويل لبوابة الدفع..."
 msgid "جاري تحميل نموذج التعرف..."
 msgstr "Loading recognition model..."
 
-#| msgid "رقم الهاتف غير مسجل"
 msgid "الوجه غير مسجّل"
 msgstr "Face not registered"
 
 msgid "انظر للكاميرا مباشرة واضغط الزر لتسجيل بصمة الوجه"
-msgstr "Look directly at the camera and press the button to register your face print"
+msgstr ""
+"Look directly at the camera and press the button to register your face print"
 
-#| msgid "تسجيلات حضور اليوم"
 msgid "تسجيل بصمة الوجه"
 msgstr "Register face print"
 
-#| msgid "فتح الصورة بحجم كامل"
 msgid "فتح الكاميرا (بصمة الوجه)"
 msgstr "Open camera (face print)"
 
-#| msgid "سجّل برقم موبايلك"
 msgid "سجّل بصمة الوجه أولاً"
 msgstr "Register your face print first"
 
 msgid "تسجيل حضور"
 msgstr "Check in"
 
-#| msgid "سجل الحضور"
 msgid "تم الحضور"
 msgstr "Checked in"
 
-#| msgid "تسجيل المصروف"
 msgid "تسجيل انصراف"
 msgstr "Check out"
 
-#| msgid "الانصراف"
 msgid "تم الانصراف"
 msgstr "Checked out"
 
-#| msgid "آخر ٧ أيام"
 msgid "آخر 7 أيام"
 msgstr "Last 7 days"
 
-#| msgid "المتصفح لا يدعم GPS"
 msgid "المتصفح لا يدعم تحديد الموقع"
 msgstr "The browser does not support geolocation"
 
-#| msgid "جاري إعادة التوليد..."
 msgid "جاري تحديد الموقع..."
 msgstr "Determining location..."
 
-#| msgid "دخول النظام"
 msgid "داخل النطاق"
 msgstr "Within range"
 
 msgid "م"
 msgstr "m"
 
-#| msgid "حالة النظام"
 msgid "خارج النطاق"
 msgstr "Outside range"
 
 msgid "م بعيد"
 msgstr "m away"
 
-#| msgid "اكتب الكود تحت لتأكيد التفعيل."
 msgid "فشل تحديد الموقع — تأكد من تفعيل GPS"
 msgstr "Location failed — make sure GPS is enabled"
 
-#| msgid "جارٍ التحويل لبوابة الدفع..."
 msgid "جاري تحميل نموذج التعرف على الوجه..."
 msgstr "Loading face recognition model..."
 
@@ -11200,45 +11177,36 @@ msgstr "Look at the camera..."
 msgid "الوجه غير مسجّل — سجّل بصمة وجهك أولاً"
 msgstr "Face not registered — register your face print first"
 
-#| msgid "فشل العملية"
 msgid "فشل فتح الكاميرا:"
 msgstr "Failed to open camera:"
 
-#| msgid "تم استلام عروض — جاهزة للاعتماد"
 msgid "لم يتم اكتشاف وجه — انظر للكاميرا"
 msgstr "No face detected — look at the camera"
 
-#| msgid "تم العثور على حسابك!"
 msgid "تم التعرف على وجهك"
 msgstr "Your face was recognized"
 
-#| msgid "مطابق"
 msgid "تطابق"
 msgstr "match"
 
-#| msgid "جاري التحقق من التوفر..."
 msgid "تم التحقق من الوجه"
 msgstr "Face verified"
 
-#| msgid "الحساب متطابق"
 msgid "الوجه لا يتطابق"
 msgstr "Face does not match"
 
 msgid "مسافة"
 msgstr "distance"
 
-#| msgid "جاري التسجيل..."
 msgid "جاري تسجيل الوجه..."
 msgstr "Registering face..."
 
 msgid "انظر للكاميرا مباشرة ولا تتحرك..."
 msgstr "Look directly at the camera and do not move..."
 
-#| msgid "انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى."
 msgid "لم يتم اكتشاف وجه! حاول مرة أخرى."
 msgstr "No face detected! Try again."
 
-#| msgid "تم تغيير كلمة السر بنجاح!"
 msgid "تم تسجيل بصمة الوجه بنجاح!"
 msgstr "Face print registered successfully!"
 
@@ -11250,6 +11218,358 @@ msgstr "Worked"
 
 msgid "ساعة"
 msgstr "hours"
+
+#| msgid "لوحة التحكم"
+msgid "لوحة المصمم"
+msgstr "Designer dashboard"
+
+#| msgid "لوحة السوبر أدمن"
+msgid "لوحة الأدمن"
+msgstr "Admin panel"
+
+#, python-format
+#| msgid "أهلاً، %(n)s 👋"
+msgid "أهلاً، %(nm)s 🎨"
+msgstr "Hello, %(nm)s 🎨"
+
+msgid "إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:"
+msgstr "What will you get done today? Pick a quick action:"
+
+#| msgid "ابدأ تصميم جديد"
+msgid "رفع تصميم جديد"
+msgstr "Upload a new design"
+
+#| msgid "إرسال للعميل"
+msgid "عرض سعر للعميل"
+msgstr "Quote for a client"
+
+#| msgid "فاتورة صيانة"
+msgid "فاتورة طباعة"
+msgstr "Print invoice"
+
+#| msgid "موظف جديد"
+msgid "مصروف جديد"
+msgstr "New expense"
+
+#| msgid "الإيرادات"
+msgid "تحصيل / إيراد"
+msgstr "Collection / income"
+
+#| msgid "طلب اليوم"
+msgid "طلب سلفة"
+msgstr "Request an advance"
+
+#| msgid "كل الحالات"
+msgid "كل الطلبات"
+msgstr "All orders"
+
+#| msgid "تسجيلات حضور اليوم"
+msgid "سجلت حضور اليوم ✅"
+msgstr "You checked in today ✅"
+
+#| msgid "دخول"
+msgid "دخول:"
+msgstr "Check-in:"
+
+#| msgid "بصمة وجه موثقة"
+msgid "بصمة الوجه موثقة 🛡️"
+msgstr "Face print verified 🛡️"
+
+#| msgid "خروج"
+msgid "خروج:"
+msgstr "Check-out:"
+
+#| msgid "لم يتم تسجيل حضور اليوم"
+msgid "لسه ما سجلتش حضور اليوم"
+msgstr "You have not checked in today yet"
+
+msgid "دخّل بصمة وجهك في ثانية — مهم للمرتب والـ KPIs."
+msgstr "Enter your face print in a second — important for payroll and KPIs."
+
+#| msgid "سجل الصيانة"
+msgid "سجل بصمة"
+msgstr "Check in"
+
+#| msgid "تصميم داخلي"
+msgid "تصاميم اليوم"
+msgstr "Designs today"
+
+msgid "منشأ بـ AI"
+msgstr "Created with AI"
+
+msgid "لسه ما رفعتش تصاميم — ابدأ من زر \"رفع تصميم جديد\""
+msgstr "You have not uploaded any designs yet — start from the \"Upload a new design\" button"
+
+#| msgid "آخر 25 فاتورة"
+msgid "آخر فواتيري"
+msgstr "My latest invoices"
+
+#| msgid "بدون خصم"
+msgid "بدون عميل"
+msgstr "No customer"
+
+#| msgid "التقارير المالية"
+msgid "آخر حركاتي المالية"
+msgstr "My latest financial transactions"
+
+msgid "حركة"
+msgstr "movements"
+
+#| msgid "الشهر الحالي"
+msgid "اشتراك AI الحالي"
+msgstr "Current AI subscription"
+
+#| msgid "ينتهي"
+msgid "ينتهي:"
+msgstr "Ends:"
+
+#, python-format
+#| msgid "+1 يوم"
+msgid "%(dr)s يوم"
+msgstr "%(dr)s days"
+
+#| msgid "المستخدم"
+msgid "المستخدم:"
+msgstr "Used:"
+
+#| msgid "غير محدود"
+msgid "(غير محدود)"
+msgstr "(unlimited)"
+
+msgid "العملاء"
+msgstr "Customers"
+
+#| msgid "🧵 الخامة"
+msgid "الخامات"
+msgstr "Materials"
+
+msgid "تقرير الأرباح والخسائر"
+msgstr "Profit and loss report"
+
+#| msgid "الباقات والأسعار"
+msgid "كل عروض الأسعار"
+msgstr "All quotations"
+
+#| msgid "طلبات طباعة"
+msgid "طلبات إجازاتي"
+msgstr "My leave requests"
+
+msgid "سلفي"
+msgstr "My advances"
+
+msgid "نصايح"
+msgstr "Tips"
+
+msgid "ارفع صورة معاينة دائماً — بتساعد المراجع يعتمد أسرع."
+msgstr "Always upload a preview image — it helps the reviewer approve faster."
+
+msgid "لو تصميمك بـ AI، اختار \"AI-assisted\" لو عدّلت يدوي."
+msgstr "If your design is by AI, choose \"AI-assisted\" if you edited it manually."
+
+msgid "سجّل حضور قبل ٩ صباحاً عشان تتجنب خصم تأخير."
+msgstr "Check in before 9 AM to avoid a lateness deduction."
+
+#| msgid "التصميم"
+msgid "رفع تصميم"
+msgstr "Upload design"
+
+#| msgid "مخزون افتتاحي"
+msgid "مثال: بوستر افتتاح فرع"
+msgstr "e.g. branch opening poster"
+
+#| msgid "مساعد Mouss Tec"
+msgid "مساعد بـ AI"
+msgstr "AI-assisted"
+
+#| msgid "الاسم بالكامل"
+msgid "مُنشأ بالكامل بـ AI"
+msgstr "Fully AI-generated"
+
+#| msgid "صور مرجعية (اختياري)"
+msgid "صورة معاينة (اختياري)"
+msgstr "Preview image (optional)"
+
+#| msgid "صفحة التصاميم"
+msgid "رفع التصميم"
+msgstr "Upload the design"
+
+msgid "تسجيل مصروف"
+msgstr "Record expense"
+
+msgid "الخزينة"
+msgstr "Treasury"
+
+#| msgid "المستحق (ج.م)"
+msgid "المبلغ (ج.م)"
+msgstr "Amount (EGP)"
+
+#| msgid "مثال: شراء قهوة للعملاء"
+msgid "مثال: شراء ورق A4، فاتورة كهرباء..."
+msgstr "e.g. buying A4 paper, electricity bill..."
+
+msgid "تسجيل المصروف"
+msgstr "Record the expense"
+
+#| msgid "تسجيل جهاز جديد"
+msgid "تسجيل تحصيل / إيراد"
+msgstr "Record a collection / income"
+
+msgid "مثال: تحصيل فاتورة #123، دفعة عميل..."
+msgstr "e.g. collecting invoice #123, a customer payment..."
+
+#| msgid "تسجيل الوردية"
+msgid "تسجيل الإيراد"
+msgstr "Record the income"
+
+#| msgid "اشتري باقة جديدة"
+msgid "فاتورة طباعة جديدة"
+msgstr "New print invoice"
+
+msgid ""
+"فاتورة طباعة فيها تفاصيل كتير (عميل، ماكينات، خامات...). هنوديك لصفحة "
+"الإنشاء الشاملة."
+msgstr "A print invoice has many details (customer, machines, materials...). We will take you to the full creation page."
+
+#| msgid "إضافة قطعة جديدة"
+msgid "فتح صفحة فاتورة جديدة"
+msgstr "Open the new invoice page"
+
+#| msgid "عرض سعر"
+msgid "عرض سعر جديد"
+msgstr "New quotation"
+
+msgid "عنوان العرض"
+msgstr "Quotation title"
+
+msgid "مثال: تصميم لوجو + 500 كرت شخصي"
+msgstr "e.g. logo design + 500 business cards"
+
+msgid "اسم العميل"
+msgstr "Customer name"
+
+#| msgid "غير مسجل"
+msgid "لو غير مسجل"
+msgstr "If not registered"
+
+msgid "واتساب العميل"
+msgstr "Customer WhatsApp"
+
+#| msgid "لا توجد بنود"
+msgid "البنود"
+msgstr "Items"
+
+#| msgid "إضافة خزينة"
+msgid "إضافة بند"
+msgstr "Add an item"
+
+#| msgid "💰 صرف (ج.م)"
+msgid "خصم (ج.م)"
+msgstr "Discount (EGP)"
+
+msgid "ضريبة"
+msgstr "Tax"
+
+msgid "ملاحظات / شروط"
+msgstr "Notes / terms"
+
+#, python-format
+msgid "مثال: 50%% مقدم، التسليم خلال 5 أيام عمل..."
+msgstr "e.g. 50%% upfront, delivery within 5 working days..."
+
+#| msgid "الإجمالي"
+msgid "الإجمالي:"
+msgstr "Total:"
+
+#| msgid "إرسال العرض"
+msgid "إنشاء العرض"
+msgstr "Create the quotation"
+
+#| msgid "تم حفظ العرض"
+msgid "تم إنشاء العرض!"
+msgstr "Quotation created!"
+
+#| msgid "عرض سعر"
+msgid "عرض السعر"
+msgstr "The quotation"
+
+#| msgid "جاري إرسال التصميم لسوق الطباعة..."
+msgid "جاهز للإرسال. اختار طريقة المشاركة:"
+msgstr "is ready to send. Choose a sharing method:"
+
+#| msgid "إرسال واتساب"
+msgid "إرسال عبر واتساب"
+msgstr "Send via WhatsApp"
+
+#| msgid "تم حفظ العرض"
+msgid "فتح صفحة العرض"
+msgstr "Open the quotation page"
+
+#| msgid "المبلغ المطلوب"
+msgid "المبلغ المطلوب (ج.م)"
+msgstr "Requested amount (EGP)"
+
+#| msgid "إرسال طلب التسعير"
+msgid "اشرح سبب طلب السلفة..."
+msgstr "Explain the reason for the advance request..."
+
+#| msgid "عدد التصاميم"
+msgid "عدد أقساط الخصم"
+msgstr "Number of deduction installments"
+
+msgid "قسطين"
+msgstr "Two installments"
+
+msgid "3 أقساط"
+msgstr "3 installments"
+
+msgid "6 أقساط"
+msgstr "6 installments"
+
+#| msgid "إرسال الآن"
+msgid "إرسال الطلب"
+msgstr "Send the request"
+
+#| msgid "تم التأسيس بنجاح"
+msgid "تم رفع التصميم بنجاح"
+msgstr "Design uploaded successfully"
+
+#| msgid "تم تسجيل المصروف"
+msgid "تم تسجيل الحركة"
+msgstr "Transaction recorded"
+
+#| msgid "ملف البراند"
+msgid "وصف البند"
+msgstr "Item description"
+
+msgid "كمية"
+msgstr "Qty"
+
+#| msgid "سعر الوحدة"
+msgid "سعر/وحدة"
+msgstr "Unit price"
+
+#| msgid "جاري النشر..."
+msgid "جاري الإنشاء..."
+msgstr "Creating..."
+
+#| msgid "اختر موظف واحد على الأقل."
+msgid "أضف بنداً واحداً على الأقل"
+msgstr "Add at least one item"
+
+#| msgid "تقديم عرض سعر"
+msgid "السلام عليكم، عرض السعر"
+msgstr "Hello, quotation"
+
+#| msgid "وجاهز في"
+msgid "جاهز:"
+msgstr "is ready:"
+
+msgid "تم نسخ الرابط"
+msgstr "Link copied"
+
+#| msgid "إرسال طلب التسعير"
+msgid "تم إرسال طلب السلفة"
+msgstr "Advance request sent"
 
 msgid "لوحة الموارد البشرية"
 msgstr "HR Dashboard"
@@ -12756,9 +13076,6 @@ msgstr "Requested by"
 msgid "غير موجود في الكاتالوج"
 msgstr "Not in catalogue"
 
-msgid "كمية"
-msgstr "Qty"
-
 msgid "أيام"
 msgstr "days"
 
@@ -13131,9 +13448,6 @@ msgstr "Net profit"
 msgid "مصروفات"
 msgstr "Expenses"
 
-msgid "الخزينة"
-msgstr "Treasury"
-
 msgid "لا توجد فروع بعد."
 msgstr "No branches yet."
 
@@ -13301,9 +13615,6 @@ msgstr "Coding room"
 msgid "إضافة قطعة"
 msgstr "Add part"
 
-msgid "تسجيل مصروف"
-msgstr "Record expense"
-
 msgid "إدارة طلبات التسعير"
 msgstr "Manage quote requests"
 
@@ -13391,9 +13702,6 @@ msgstr "Filter"
 
 msgid "سجل"
 msgstr "Log"
-
-msgid "حركة"
-msgstr "movements"
 
 msgid "إحداثيات GPS"
 msgstr "GPS coordinates"
@@ -13618,9 +13926,6 @@ msgstr "Hours"
 msgid "الخصم"
 msgstr "Discount"
 
-msgid "ضريبة"
-msgstr "Tax"
-
 msgid "محسوبة"
 msgstr "Calculated"
 
@@ -13695,9 +14000,6 @@ msgstr "Parts + labor + full vehicle DVI inspection."
 
 msgid "ابحث بالاسم أو رقم الهاتف..."
 msgstr "Search by name or phone number..."
-
-msgid "اسم العميل"
-msgstr "Customer name"
 
 msgid "سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً."
 msgstr ""
@@ -14132,9 +14434,6 @@ msgstr "Statement / Notes"
 
 msgid "مثال: شراء قهوة للعملاء"
 msgstr "e.g., buying coffee for customers"
-
-msgid "تسجيل المصروف"
-msgstr "Record the expense"
 
 msgid "فشل التسجيل."
 msgstr "Recording failed."
@@ -14608,9 +14907,6 @@ msgstr "Preparing..."
 msgid "العميل بدون رقم — انسخ الرابط"
 msgstr "Customer has no number — copy the link"
 
-msgid "تم نسخ الرابط"
-msgstr "Link copied"
-
 msgid "طباعة سجل الصيانة"
 msgstr "Print service log"
 
@@ -14646,9 +14942,6 @@ msgstr "No service history for this vehicle yet"
 
 msgid "انسخ الرابط:"
 msgstr "Copy the link:"
-
-msgid "العملاء"
-msgstr ""
 
 msgid "طابعة رقمية (Digital)"
 msgstr ""
@@ -15019,18 +15312,6 @@ msgstr ""
 msgid "تليفون العميل"
 msgstr ""
 
-msgid "واتساب العميل"
-msgstr ""
-
-msgid "عنوان العرض"
-msgstr ""
-
-msgid "مثال: تصميم لوجو + 500 كرت شخصي"
-msgstr ""
-
-msgid "ملاحظات / شروط"
-msgstr ""
-
 msgid "المجموع الفرعي"
 msgstr "Subtotal"
 
@@ -15219,9 +15500,6 @@ msgstr ""
 #, python-format
 msgid "تقرير الأرباح والخسائر — %(m)s %(y)s | Mouss Tec"
 msgstr "Profit and loss report — %(m)s %(y)s | Mouss Tec"
-
-msgid "تقرير الأرباح والخسائر"
-msgstr "Profit and loss report"
 
 msgid "الأدمن"
 msgstr "Admin"
