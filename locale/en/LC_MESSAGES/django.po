@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 18:54+0300\n"
+"POT-Creation-Date: 2026-07-27 19:28+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -11219,78 +11219,61 @@ msgstr "Worked"
 msgid "ساعة"
 msgstr "hours"
 
-#| msgid "لوحة التحكم"
 msgid "لوحة المصمم"
 msgstr "Designer dashboard"
 
-#| msgid "لوحة السوبر أدمن"
 msgid "لوحة الأدمن"
 msgstr "Admin panel"
 
 #, python-format
-#| msgid "أهلاً، %(n)s 👋"
 msgid "أهلاً، %(nm)s 🎨"
 msgstr "Hello, %(nm)s 🎨"
 
 msgid "إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:"
 msgstr "What will you get done today? Pick a quick action:"
 
-#| msgid "ابدأ تصميم جديد"
 msgid "رفع تصميم جديد"
 msgstr "Upload a new design"
 
-#| msgid "إرسال للعميل"
 msgid "عرض سعر للعميل"
 msgstr "Quote for a client"
 
-#| msgid "فاتورة صيانة"
 msgid "فاتورة طباعة"
 msgstr "Print invoice"
 
-#| msgid "موظف جديد"
 msgid "مصروف جديد"
 msgstr "New expense"
 
-#| msgid "الإيرادات"
 msgid "تحصيل / إيراد"
 msgstr "Collection / income"
 
-#| msgid "طلب اليوم"
 msgid "طلب سلفة"
 msgstr "Request an advance"
 
-#| msgid "كل الحالات"
 msgid "كل الطلبات"
 msgstr "All orders"
 
-#| msgid "تسجيلات حضور اليوم"
 msgid "سجلت حضور اليوم ✅"
 msgstr "You checked in today ✅"
 
-#| msgid "دخول"
 msgid "دخول:"
 msgstr "Check-in:"
 
-#| msgid "بصمة وجه موثقة"
 msgid "بصمة الوجه موثقة 🛡️"
 msgstr "Face print verified 🛡️"
 
-#| msgid "خروج"
 msgid "خروج:"
 msgstr "Check-out:"
 
-#| msgid "لم يتم تسجيل حضور اليوم"
 msgid "لسه ما سجلتش حضور اليوم"
 msgstr "You have not checked in today yet"
 
 msgid "دخّل بصمة وجهك في ثانية — مهم للمرتب والـ KPIs."
 msgstr "Enter your face print in a second — important for payroll and KPIs."
 
-#| msgid "سجل الصيانة"
 msgid "سجل بصمة"
 msgstr "Check in"
 
-#| msgid "تصميم داخلي"
 msgid "تصاميم اليوم"
 msgstr "Designs today"
 
@@ -11298,59 +11281,50 @@ msgid "منشأ بـ AI"
 msgstr "Created with AI"
 
 msgid "لسه ما رفعتش تصاميم — ابدأ من زر \"رفع تصميم جديد\""
-msgstr "You have not uploaded any designs yet — start from the \"Upload a new design\" button"
+msgstr ""
+"You have not uploaded any designs yet — start from the \"Upload a new "
+"design\" button"
 
-#| msgid "آخر 25 فاتورة"
 msgid "آخر فواتيري"
 msgstr "My latest invoices"
 
-#| msgid "بدون خصم"
 msgid "بدون عميل"
 msgstr "No customer"
 
-#| msgid "التقارير المالية"
 msgid "آخر حركاتي المالية"
 msgstr "My latest financial transactions"
 
 msgid "حركة"
 msgstr "movements"
 
-#| msgid "الشهر الحالي"
 msgid "اشتراك AI الحالي"
 msgstr "Current AI subscription"
 
-#| msgid "ينتهي"
 msgid "ينتهي:"
 msgstr "Ends:"
 
 #, python-format
-#| msgid "+1 يوم"
 msgid "%(dr)s يوم"
 msgstr "%(dr)s days"
 
-#| msgid "المستخدم"
 msgid "المستخدم:"
 msgstr "Used:"
 
-#| msgid "غير محدود"
 msgid "(غير محدود)"
 msgstr "(unlimited)"
 
 msgid "العملاء"
 msgstr "Customers"
 
-#| msgid "🧵 الخامة"
 msgid "الخامات"
 msgstr "Materials"
 
 msgid "تقرير الأرباح والخسائر"
 msgstr "Profit and loss report"
 
-#| msgid "الباقات والأسعار"
 msgid "كل عروض الأسعار"
 msgstr "All quotations"
 
-#| msgid "طلبات طباعة"
 msgid "طلبات إجازاتي"
 msgstr "My leave requests"
 
@@ -11364,32 +11338,27 @@ msgid "ارفع صورة معاينة دائماً — بتساعد المراج
 msgstr "Always upload a preview image — it helps the reviewer approve faster."
 
 msgid "لو تصميمك بـ AI، اختار \"AI-assisted\" لو عدّلت يدوي."
-msgstr "If your design is by AI, choose \"AI-assisted\" if you edited it manually."
+msgstr ""
+"If your design is by AI, choose \"AI-assisted\" if you edited it manually."
 
 msgid "سجّل حضور قبل ٩ صباحاً عشان تتجنب خصم تأخير."
 msgstr "Check in before 9 AM to avoid a lateness deduction."
 
-#| msgid "التصميم"
 msgid "رفع تصميم"
 msgstr "Upload design"
 
-#| msgid "مخزون افتتاحي"
 msgid "مثال: بوستر افتتاح فرع"
 msgstr "e.g. branch opening poster"
 
-#| msgid "مساعد Mouss Tec"
 msgid "مساعد بـ AI"
 msgstr "AI-assisted"
 
-#| msgid "الاسم بالكامل"
 msgid "مُنشأ بالكامل بـ AI"
 msgstr "Fully AI-generated"
 
-#| msgid "صور مرجعية (اختياري)"
 msgid "صورة معاينة (اختياري)"
 msgstr "Preview image (optional)"
 
-#| msgid "صفحة التصاميم"
 msgid "رفع التصميم"
 msgstr "Upload the design"
 
@@ -11399,42 +11368,37 @@ msgstr "Record expense"
 msgid "الخزينة"
 msgstr "Treasury"
 
-#| msgid "المستحق (ج.م)"
 msgid "المبلغ (ج.م)"
 msgstr "Amount (EGP)"
 
-#| msgid "مثال: شراء قهوة للعملاء"
 msgid "مثال: شراء ورق A4، فاتورة كهرباء..."
 msgstr "e.g. buying A4 paper, electricity bill..."
 
 msgid "تسجيل المصروف"
 msgstr "Record the expense"
 
-#| msgid "تسجيل جهاز جديد"
 msgid "تسجيل تحصيل / إيراد"
 msgstr "Record a collection / income"
 
 msgid "مثال: تحصيل فاتورة #123، دفعة عميل..."
 msgstr "e.g. collecting invoice #123, a customer payment..."
 
-#| msgid "تسجيل الوردية"
 msgid "تسجيل الإيراد"
 msgstr "Record the income"
 
-#| msgid "اشتري باقة جديدة"
 msgid "فاتورة طباعة جديدة"
 msgstr "New print invoice"
 
 msgid ""
 "فاتورة طباعة فيها تفاصيل كتير (عميل، ماكينات، خامات...). هنوديك لصفحة "
 "الإنشاء الشاملة."
-msgstr "A print invoice has many details (customer, machines, materials...). We will take you to the full creation page."
+msgstr ""
+"A print invoice has many details (customer, machines, materials...). We will "
+"take you to the full creation page."
 
-#| msgid "إضافة قطعة جديدة"
 msgid "فتح صفحة فاتورة جديدة"
 msgstr "Open the new invoice page"
 
-#| msgid "عرض سعر"
 msgid "عرض سعر جديد"
 msgstr "New quotation"
 
@@ -11447,22 +11411,18 @@ msgstr "e.g. logo design + 500 business cards"
 msgid "اسم العميل"
 msgstr "Customer name"
 
-#| msgid "غير مسجل"
 msgid "لو غير مسجل"
 msgstr "If not registered"
 
 msgid "واتساب العميل"
 msgstr "Customer WhatsApp"
 
-#| msgid "لا توجد بنود"
 msgid "البنود"
 msgstr "Items"
 
-#| msgid "إضافة خزينة"
 msgid "إضافة بند"
 msgstr "Add an item"
 
-#| msgid "💰 صرف (ج.م)"
 msgid "خصم (ج.م)"
 msgstr "Discount (EGP)"
 
@@ -11476,43 +11436,33 @@ msgstr "Notes / terms"
 msgid "مثال: 50%% مقدم، التسليم خلال 5 أيام عمل..."
 msgstr "e.g. 50%% upfront, delivery within 5 working days..."
 
-#| msgid "الإجمالي"
 msgid "الإجمالي:"
 msgstr "Total:"
 
-#| msgid "إرسال العرض"
 msgid "إنشاء العرض"
 msgstr "Create the quotation"
 
-#| msgid "تم حفظ العرض"
 msgid "تم إنشاء العرض!"
 msgstr "Quotation created!"
 
-#| msgid "عرض سعر"
 msgid "عرض السعر"
 msgstr "The quotation"
 
-#| msgid "جاري إرسال التصميم لسوق الطباعة..."
 msgid "جاهز للإرسال. اختار طريقة المشاركة:"
 msgstr "is ready to send. Choose a sharing method:"
 
-#| msgid "إرسال واتساب"
 msgid "إرسال عبر واتساب"
 msgstr "Send via WhatsApp"
 
-#| msgid "تم حفظ العرض"
 msgid "فتح صفحة العرض"
 msgstr "Open the quotation page"
 
-#| msgid "المبلغ المطلوب"
 msgid "المبلغ المطلوب (ج.م)"
 msgstr "Requested amount (EGP)"
 
-#| msgid "إرسال طلب التسعير"
 msgid "اشرح سبب طلب السلفة..."
 msgstr "Explain the reason for the advance request..."
 
-#| msgid "عدد التصاميم"
 msgid "عدد أقساط الخصم"
 msgstr "Number of deduction installments"
 
@@ -11525,49 +11475,39 @@ msgstr "3 installments"
 msgid "6 أقساط"
 msgstr "6 installments"
 
-#| msgid "إرسال الآن"
 msgid "إرسال الطلب"
 msgstr "Send the request"
 
-#| msgid "تم التأسيس بنجاح"
 msgid "تم رفع التصميم بنجاح"
 msgstr "Design uploaded successfully"
 
-#| msgid "تم تسجيل المصروف"
 msgid "تم تسجيل الحركة"
 msgstr "Transaction recorded"
 
-#| msgid "ملف البراند"
 msgid "وصف البند"
 msgstr "Item description"
 
 msgid "كمية"
 msgstr "Qty"
 
-#| msgid "سعر الوحدة"
 msgid "سعر/وحدة"
 msgstr "Unit price"
 
-#| msgid "جاري النشر..."
 msgid "جاري الإنشاء..."
 msgstr "Creating..."
 
-#| msgid "اختر موظف واحد على الأقل."
 msgid "أضف بنداً واحداً على الأقل"
 msgstr "Add at least one item"
 
-#| msgid "تقديم عرض سعر"
 msgid "السلام عليكم، عرض السعر"
 msgstr "Hello, quotation"
 
-#| msgid "وجاهز في"
 msgid "جاهز:"
 msgstr "is ready:"
 
 msgid "تم نسخ الرابط"
 msgstr "Link copied"
 
-#| msgid "إرسال طلب التسعير"
 msgid "تم إرسال طلب السلفة"
 msgstr "Advance request sent"
 
@@ -15654,6 +15594,180 @@ msgstr ""
 
 msgid "هل أنت متأكد من رفض العرض؟"
 msgstr "Are you sure you want to reject the quote?"
+
+msgid "تفكيك، تركيب، ضفائر"
+msgstr "Disassembly, assembly, harnesses"
+
+#| msgid "اطبع تقرير العميل"
+msgid "طبع / صدّر الجلسة PDF"
+msgstr "Print / export the session as PDF"
+
+#| msgid "طباعة"
+msgid "طبع"
+msgstr "Print"
+
+#| msgid "حملة جديدة"
+msgid "جلسة جديدة"
+msgstr "New session"
+
+#| msgid "العربية:"
+msgid "العربية"
+msgstr "The car"
+
+#| msgid "اختر الماركة..."
+msgid "اختر الماركة"
+msgstr "Choose the brand"
+
+msgid "الموديل (مثلاً Elantra / E90 / C200)"
+msgstr "Model (e.g. Elantra / E90 / C200)"
+
+#| msgid "رقم الهاتف (اختياري)"
+msgid "كود المحرك (اختياري)"
+msgstr "Engine code (optional)"
+
+#| msgid "(اختياري) — يرفع الثقة"
+msgid "VIN (اختياري — 17 خانة)"
+msgstr "VIN (optional — 17 characters)"
+
+#| msgid "الوضع:"
+msgid "الوضع"
+msgstr "Mode"
+
+msgid "أمثلة"
+msgstr "Examples"
+
+msgid "إزاي أفك حساس طلمبة الزيت في Elantra 2018؟"
+msgstr "How do I remove the oil pump sensor on an Elantra 2018?"
+
+msgid "حساس طلمبة الزيت Elantra 2018"
+msgstr "Oil pump sensor Elantra 2018"
+
+msgid ""
+"ضفيرة كهرباء طلمبة البنزين في Corolla 2015 ماشية ازاي من البطارية للطلمبة؟"
+msgstr "How does the fuel pump wiring harness on a Corolla 2015 run from the battery to the pump?"
+
+msgid "ضفيرة طلمبة البنزين Corolla"
+msgstr "Fuel pump harness Corolla"
+
+msgid "مكان حساس ضغط الزيت في BMW E90 N52؟"
+msgstr "Where is the oil pressure sensor on a BMW E90 N52?"
+
+msgid "مكان حساس ضغط الزيت BMW E90"
+msgstr "Oil pressure sensor location BMW E90"
+
+#| msgid "أهلاً بيك في خبير"
+msgid "أهلاً يا فني!"
+msgstr "Welcome, technician!"
+
+msgid ""
+"اكتب سؤالك بالعربي — مثلاً \"إزاي أفك دينمو السيارة دي؟\" أو \"ضفيرة ABS "
+"بتمشي ازاي؟\" أو ارفع صورة من مكان الشغل وأنا هقولك ماشي صح ولا لا."
+msgstr "Type your question in Arabic — for example \"how do I remove the alternator on this car?\" or \"how does the ABS harness run?\" or upload a photo from the work area and I will tell you whether you are on the right track."
+
+#| msgid "العميل لم يرفع صورة بعد"
+msgid "أكمل على آخر صورة"
+msgstr "Continue on the last photo"
+
+#| msgid "ارفع صورة"
+msgid "أرفق صور (لحد 4)"
+msgstr "Attach photos (up to 4)"
+
+msgid "إدخال صوتي"
+msgstr "Voice input"
+
+#| msgid "اكتب رسالتك أو مشكلتك بالتفصيل..."
+msgid "اكتب سؤالك… أو اضغط المايك واتكلم"
+msgstr "Type your question… or press the mic and talk"
+
+#| msgid "سجّل الرد"
+msgid "وقّف الرد"
+msgstr "Stop the reply"
+
+msgid "دياجرام استرشادي مرسوم بالـ AI — أكّده من الدياجرام الرسمي قبل التوصيل"
+msgstr "Reference diagram drawn by AI — confirm it against the official diagram before wiring"
+
+#| msgid "خوادم موثوقة"
+msgid "موثوق"
+msgstr "Trusted"
+
+#| msgid "مش متأكد"
+msgid "محتمل — اتأكد"
+msgstr "Likely — verify"
+
+#| msgid "غير مدرج"
+msgid "غير مؤكد — راجع OEM"
+msgstr "Unconfirmed — check OEM"
+
+msgid "بيراجع نفسه..."
+msgstr "Reviewing itself..."
+
+#| msgid "نوع المرجع"
+msgid "نقاط شك المراجع:"
+msgstr "Reviewer doubt points:"
+
+msgid "البوت بيفكر"
+msgstr "The bot is thinking"
+
+#| msgid "سجّل الرد"
+msgid "اسمع الرد"
+msgstr "Listen to the reply"
+
+msgid "مفيد"
+msgstr "Helpful"
+
+#| msgid "مش متأكد"
+msgid "مش مفيد"
+msgstr "Not helpful"
+
+#| msgid "إتمام الشراء"
+msgid "تمام، شكراً"
+msgstr "OK, thanks"
+
+msgid "وصلت، هنحسّن"
+msgstr "Got it, we will improve"
+
+msgid "اتوقف"
+msgstr "Stopped"
+
+#| msgid "مفيش رد."
+msgid "مفيش رد"
+msgstr "No reply"
+
+#| msgid "خطأ في الاتصال بالسيرفر"
+msgid "مشكلة في الاتصال بالسيرفر — جرّب تاني."
+msgstr "Server connection problem — try again."
+
+#| msgid "مشكلة في الدفع؟"
+msgid "مشكلة في رفع الصورة."
+msgstr "Problem uploading the photo."
+
+msgid "صورة جاهزة — اكتب سؤالك وابعت"
+msgstr "photo ready — type your question and send"
+
+msgid "اسأل عن نفس الصورة… (مفعّل 📷)"
+msgstr "Ask about the same photo… (active 📷)"
+
+#| msgid "أكبر من 2 ميجا — اتجاهلت"
+msgid "أقصى حد 4 صور مع بعض — اتجاهل"
+msgstr "Maximum 4 photos at once — ignored"
+
+msgid "مش قادر يوصل للمايك — اسمح بالميكروفون للموقع."
+msgstr "Cannot reach the mic — allow the microphone for the site."
+
+msgid "بسمعك… دوس تاني تقف"
+msgstr "Listening… press again to stop"
+
+#| msgid "لا توجد قطع غيار تنتظر المراجعة حالياً."
+msgid "تبدأ جلسة جديدة؟ هتفقد المحادثة الحالية."
+msgstr "Start a new session? You will lose the current conversation."
+
+#| msgid "ابدأ تصميم جديد"
+msgid "اسأل من جديد."
+msgstr "Ask again."
+
+#| msgid "اشتري باقة جديدة"
+msgid "اتعملت جلسة جديدة"
+msgstr "A new session was created"
 
 msgid "مراجعة إجابات أطلس الإصلاح — SuperAdmin"
 msgstr "Review Repair Atlas answers — SuperAdmin"

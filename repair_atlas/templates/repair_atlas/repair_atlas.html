@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static %}{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 أطلس الإصلاح — Mouss Tec</title>
+    <title>🔧 {% trans "أطلس الإصلاح" %} — Mouss Tec</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -248,29 +248,29 @@
 <body>
     {% include 'ai_rooms/_rooms_nav.html' with active='repair_atlas' %}
     <div class="topbar">
-        <h1>🔧 أطلس الإصلاح — تفكيك، تركيب، ضفائر</h1>
+        <h1>🔧 {% trans "أطلس الإصلاح" %} — {% trans "تفكيك، تركيب، ضفائر" %}</h1>
         <div class="actions">
-            <a href="{% url 'smart_diagnostics:diagnostics-room' %}"><i class="fas fa-stethoscope"></i> غرفة التشخيص</a>
-            <button id="printBtn" title="طبع / صدّر الجلسة PDF"><i class="fas fa-print"></i> طبع</button>
-            <button id="resetBtn"><i class="fas fa-rotate"></i> جلسة جديدة</button>
+            <a href="{% url 'smart_diagnostics:diagnostics-room' %}"><i class="fas fa-stethoscope"></i> {% trans "غرفة التشخيص" %}</a>
+            <button id="printBtn" title="{% trans 'طبع / صدّر الجلسة PDF' %}"><i class="fas fa-print"></i> {% trans "طبع" %}</button>
+            <button id="resetBtn"><i class="fas fa-rotate"></i> {% trans "جلسة جديدة" %}</button>
         </div>
     </div>
 
     <div class="shell">
         <aside class="sidebar">
-            <h3><i class="fas fa-car"></i> العربية</h3>
+            <h3><i class="fas fa-car"></i> {% trans "العربية" %}</h3>
             <select id="brand">
-                <option value="">— اختر الماركة —</option>
+                <option value="">— {% trans "اختر الماركة" %} —</option>
                 {% for b in brands %}
                     <option value="{{ b.key }}">{{ b.emoji }} {{ b.label }}</option>
                 {% endfor %}
             </select>
-            <input id="model" placeholder="الموديل (مثلاً Elantra / E90 / C200)" />
-            <input id="year" type="number" min="1980" max="2030" placeholder="السنة" />
-            <input id="engine" placeholder="كود المحرك (اختياري)" />
-            <input id="vin" placeholder="VIN (اختياري — 17 خانة)" maxlength="17" />
+            <input id="model" placeholder="{% trans 'الموديل (مثلاً Elantra / E90 / C200)' %}" />
+            <input id="year" type="number" min="1980" max="2030" placeholder="{% trans 'السنة' %}" />
+            <input id="engine" placeholder="{% trans 'كود المحرك (اختياري)' %}" />
+            <input id="vin" placeholder="{% trans 'VIN (اختياري — 17 خانة)' %}" maxlength="17" />
 
-            <h3><i class="fas fa-wrench"></i> الوضع</h3>
+            <h3><i class="fas fa-wrench"></i> {% trans "الوضع" %}</h3>
             <div id="modeChips">
                 {% for m in modes %}
                     <button type="button" class="mode-chip{% if forloop.first %} active{% endif %}"
@@ -278,31 +278,31 @@
                 {% endfor %}
             </div>
 
-            <h3><i class="fas fa-lightbulb"></i> أمثلة</h3>
-            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="إزاي أفك حساس طلمبة الزيت في Elantra 2018؟">حساس طلمبة الزيت Elantra 2018</button>
-            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="ضفيرة كهرباء طلمبة البنزين في Corolla 2015 ماشية ازاي من البطارية للطلمبة؟">ضفيرة طلمبة البنزين Corolla</button>
-            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;" data-example="مكان حساس ضغط الزيت في BMW E90 N52؟">مكان حساس ضغط الزيت BMW E90</button>
+            <h3><i class="fas fa-lightbulb"></i> {% trans "أمثلة" %}</h3>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="{% trans 'إزاي أفك حساس طلمبة الزيت في Elantra 2018؟' %}">{% trans "حساس طلمبة الزيت Elantra 2018" %}</button>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;margin-bottom:6px;" data-example="{% trans 'ضفيرة كهرباء طلمبة البنزين في Corolla 2015 ماشية ازاي من البطارية للطلمبة؟' %}">{% trans "ضفيرة طلمبة البنزين Corolla" %}</button>
+            <button type="button" class="mode-chip" style="display:block;width:100%;text-align:right;" data-example="{% trans 'مكان حساس ضغط الزيت في BMW E90 N52؟' %}">{% trans "مكان حساس ضغط الزيت BMW E90" %}</button>
         </aside>
 
         <section class="chat-area">
             <div class="messages" id="messages">
                 <div class="welcome">
-                    <h2>🔧 أهلاً يا فني!</h2>
-                    <p>اكتب سؤالك بالعربي — مثلاً "إزاي أفك دينمو السيارة دي؟" أو "ضفيرة ABS بتمشي ازاي؟" أو ارفع صورة من مكان الشغل وأنا هقولك ماشي صح ولا لا.</p>
+                    <h2>🔧 {% trans "أهلاً يا فني!" %}</h2>
+                    <p>{% trans 'اكتب سؤالك بالعربي — مثلاً "إزاي أفك دينمو السيارة دي؟" أو "ضفيرة ABS بتمشي ازاي؟" أو ارفع صورة من مكان الشغل وأنا هقولك ماشي صح ولا لا.' %}</p>
                 </div>
             </div>
 
             <div class="pending-strip" id="pendingStrip" style="display:none;"></div>
             <div class="reuse-strip" id="reuseStrip" style="display:none;">
-                <button type="button" id="reusePhotoBtn">📷 أكمل على آخر صورة</button>
+                <button type="button" id="reusePhotoBtn">📷 {% trans "أكمل على آخر صورة" %}</button>
             </div>
             <div class="composer">
-                <button class="icon" id="photoBtn" title="أرفق صور (لحد 4)"><i class="fas fa-camera"></i></button>
-                <button class="icon" id="micBtn" title="إدخال صوتي" style="display:none;"><i class="fas fa-microphone"></i></button>
+                <button class="icon" id="photoBtn" title="{% trans 'أرفق صور (لحد 4)' %}"><i class="fas fa-camera"></i></button>
+                <button class="icon" id="micBtn" title="{% trans 'إدخال صوتي' %}" style="display:none;"><i class="fas fa-microphone"></i></button>
                 <input type="file" id="photoInput" accept="image/*" multiple />
-                <textarea id="composer" rows="1" placeholder="اكتب سؤالك… أو اضغط المايك واتكلم"></textarea>
-                <button class="icon" id="stopBtn" title="وقّف الرد" style="display:none;"><i class="fas fa-stop"></i></button>
-                <button id="sendBtn"><i class="fas fa-paper-plane"></i> إرسال</button>
+                <textarea id="composer" rows="1" placeholder="{% trans 'اكتب سؤالك… أو اضغط المايك واتكلم' %}"></textarea>
+                <button class="icon" id="stopBtn" title="{% trans 'وقّف الرد' %}" style="display:none;"><i class="fas fa-stop"></i></button>
+                <button id="sendBtn"><i class="fas fa-paper-plane"></i> {% trans "إرسال" %}</button>
             </div>
         </section>
     </div>
@@ -413,7 +413,7 @@
         wrap.className = 'wiring-diagram';
         const banner = document.createElement('div');
         banner.className = 'wiring-note';
-        banner.textContent = '📐 دياجرام استرشادي مرسوم بالـ AI — أكّده من الدياجرام الرسمي قبل التوصيل';
+        banner.textContent = '📐 {% trans "دياجرام استرشادي مرسوم بالـ AI — أكّده من الدياجرام الرسمي قبل التوصيل" %}';
         wrap.appendChild(banner);
         const holder = document.createElement('div');
         holder.className = 'mermaid';
@@ -434,9 +434,9 @@
     }
 
     const TIER_LABEL = {
-        high:   { emoji: '🟢', text: 'موثوق' },
-        medium: { emoji: '🟡', text: 'محتمل — اتأكد' },
-        low:    { emoji: '🔴', text: 'غير مؤكد — راجع OEM' },
+        high:   { emoji: '🟢', text: '{% trans "موثوق" %}' },
+        medium: { emoji: '🟡', text: '{% trans "محتمل — اتأكد" %}' },
+        low:    { emoji: '🔴', text: '{% trans "غير مؤكد — راجع OEM" %}' },
     };
 
     function addMsg(role, text, opts = {}) {
@@ -461,7 +461,7 @@
             // الرد ظهر فوراً — المراجعة الذاتية شغّالة في الخلفية
             const badge = document.createElement('span');
             badge.className = 'conf-badge pending';
-            badge.textContent = '🔄 بيراجع نفسه...';
+            badge.textContent = '🔄 {% trans "بيراجع نفسه..." %}';
             div.appendChild(badge);
         } else if (opts.tier && TIER_LABEL[opts.tier]) {
             const badge = document.createElement('span');
@@ -491,7 +491,7 @@
         const doubts = document.createElement('div');
         doubts.className = 'doubts';
         const head = document.createElement('strong');
-        head.textContent = '⚠️ نقاط شك المراجع:';
+        head.textContent = '⚠️ {% trans "نقاط شك المراجع:" %}';
         doubts.appendChild(head);
         const ul = document.createElement('ul');
         doubtsList.forEach(d => {
@@ -551,7 +551,7 @@
     function showTyping() {
         typingEl = document.createElement('div');
         typingEl.className = 'typing';
-        typingEl.innerHTML = 'البوت بيفكر <span></span><span></span><span></span>';
+        typingEl.innerHTML = '{% trans "البوت بيفكر" %} <span></span><span></span><span></span>';
         messagesEl.appendChild(typingEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
@@ -566,16 +566,16 @@
 
         if ('speechSynthesis' in window) {
             const speak = document.createElement('button');
-            speak.className = 'ctrl-btn'; speak.title = 'اسمع الرد';
+            speak.className = 'ctrl-btn'; speak.title = '{% trans "اسمع الرد" %}';
             speak.innerHTML = '<i class="fas fa-volume-high"></i>';
             speak.onclick = () => toggleSpeak(div._fullText || text, speak);
             bar.appendChild(speak);
         }
         if (answerId) {
             const up = document.createElement('button');
-            up.className = 'ctrl-btn'; up.title = 'مفيد'; up.textContent = '👍';
+            up.className = 'ctrl-btn'; up.title = '{% trans "مفيد" %}'; up.textContent = '👍';
             const down = document.createElement('button');
-            down.className = 'ctrl-btn'; down.title = 'مش مفيد'; down.textContent = '👎';
+            down.className = 'ctrl-btn'; down.title = '{% trans "مش مفيد" %}'; down.textContent = '👎';
             up.onclick = () => sendFeedback(answerId, 1, up, down);
             down.onclick = () => sendFeedback(answerId, -1, down, up);
             bar.appendChild(up); bar.appendChild(down);
@@ -615,7 +615,7 @@
             if (r.ok) {
                 activeBtn.classList.add('chosen');
                 otherBtn.classList.remove('chosen');
-                showToast(value === 1 ? 'تمام، شكراً 👍' : 'وصلت، هنحسّن 👎');
+                showToast(value === 1 ? '{% trans "تمام، شكراً" %} 👍' : '{% trans "وصلت، هنحسّن" %} 👎');
             }
         } catch (e) { /* تجاهل */ }
     }
@@ -677,7 +677,7 @@
                     } else if (ev.type === 'done') {
                         meta = ev;
                     } else if (ev.type === 'error') {
-                        span.innerHTML = renderMarkdown(ev.answer || '⚠️ خطأ');
+                        span.innerHTML = renderMarkdown(ev.answer || '⚠️ {% trans "خطأ" %}');
                         errored = true;
                     }
                 }
@@ -691,7 +691,7 @@
                 span.innerHTML = ''; renderAssistant(span, full);
                 div._fullText = full;
                 const note = document.createElement('span');
-                note.className = 'conf-badge low'; note.textContent = '⏹ اتوقف';
+                note.className = 'conf-badge low'; note.textContent = '⏹ {% trans "اتوقف" %}';
                 div.appendChild(note);
                 attachControls(div, full, null);
                 return true;
@@ -711,7 +711,7 @@
             if (pending) {
                 const badge = document.createElement('span');
                 badge.className = 'conf-badge pending';
-                badge.textContent = '🔄 بيراجع نفسه...';
+                badge.textContent = '🔄 {% trans "بيراجع نفسه..." %}';
                 div.appendChild(badge);
                 if (meta.answer_id) pollVerdict(meta.answer_id, div);
             } else if (meta.tier && TIER_LABEL[meta.tier]) {
@@ -741,7 +741,7 @@
             const data = await r.json();
             hideTyping();
             const pending = !!data.verification_pending;
-            const div = addMsg('assistant', data.answer || '⚠️ مفيش رد', {
+            const div = addMsg('assistant', data.answer || '⚠️ {% trans "مفيش رد" %}', {
                 source: data.source === 'verified' ? 'verified' : 'llm',
                 tier: data.tier, confidence: data.confidence,
                 doubts: data.doubts, pending: pending,
@@ -750,7 +750,7 @@
             attachControls(div, data.answer || '', data.answer_id);
         } catch (e) {
             hideTyping();
-            addMsg('assistant', '⚠️ مشكلة في الاتصال بالسيرفر — جرّب تاني.');
+            addMsg('assistant', '⚠️ {% trans "مشكلة في الاتصال بالسيرفر — جرّب تاني." %}');
         }
     }
 
@@ -762,8 +762,8 @@
         if (list[0]) {
             const reader = new FileReader();
             const label = list.length > 1
-                ? (caption || '') + ' (' + list.length + ' صور)'
-                : (caption || '[صورة من الورشة]');
+                ? (caption || '') + ' (' + list.length + ' {% trans "صور" %})'
+                : (caption || '[{% trans "صورة من الورشة" %}]');
             reader.onload = (ev) => addMsg('user', label.trim(), { photo: ev.target.result });
             reader.readAsDataURL(list[0]);
         }
@@ -783,7 +783,7 @@
             const data = await r.json();
             hideTyping();
             const pending = !!data.verification_pending;
-            const div = addMsg('assistant', data.answer || '⚠️ مفيش رد', {
+            const div = addMsg('assistant', data.answer || '⚠️ {% trans "مفيش رد" %}', {
                 source: 'llm',
                 tier: data.tier,
                 confidence: data.confidence,
@@ -797,7 +797,7 @@
             reuseStrip.style.display = 'block';
         } catch (e) {
             hideTyping();
-            addMsg('assistant', '⚠️ مشكلة في رفع الصورة.');
+            addMsg('assistant', '⚠️ {% trans "مشكلة في رفع الصورة." %}');
         } finally {
             sendBtn.disabled = false;
             busy = false;
@@ -813,7 +813,7 @@
         pendingStrip.innerHTML = '';
         const label = document.createElement('span');
         label.className = 'pend-label';
-        label.textContent = '📎 ' + pendingFiles.length + ' صورة جاهزة — اكتب سؤالك وابعت';
+        label.textContent = '📎 ' + pendingFiles.length + ' {% trans "صورة جاهزة — اكتب سؤالك وابعت" %}';
         pendingStrip.appendChild(label);
         pendingFiles.forEach((file, idx) => {
             const thumb = document.createElement('div');
@@ -857,8 +857,8 @@
         reuseActive = !reuseActive;
         reusePhotoBtn.classList.toggle('active', reuseActive);
         composer.placeholder = reuseActive
-            ? 'اسأل عن نفس الصورة… (مفعّل 📷)'
-            : 'اكتب سؤالك… أو اضغط المايك واتكلم';
+            ? '{% trans "اسأل عن نفس الصورة… (مفعّل 📷)" %}'
+            : '{% trans "اكتب سؤالك… أو اضغط المايك واتكلم" %}';
         composer.focus();
     };
     composer.addEventListener('keydown', (e) => {
@@ -877,7 +877,7 @@
             if (pendingFiles.length < 4) pendingFiles.push(f);
             else dropped++;
         });
-        if (dropped) alert('أقصى حد 4 صور مع بعض — اتجاهل ' + dropped + '.');
+        if (dropped) alert('{% trans "أقصى حد 4 صور مع بعض — اتجاهل" %} ' + dropped + '.');
         photoInput.value = '';
         renderPending();
         composer.focus();
@@ -912,7 +912,7 @@
         rec.onerror = (ev) => {
             stop();
             if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-                alert('مش قادر يوصل للمايك — اسمح بالميكروفون للموقع.');
+                alert('{% trans "مش قادر يوصل للمايك — اسمح بالميكروفون للموقع." %}');
             }
         };
         rec.onend = () => { if (recording) stop(); };
@@ -922,12 +922,12 @@
             try { rec.start(); } catch (e) { return; }
             recording = true;
             micBtn.classList.add('recording');
-            micBtn.title = 'بسمعك… دوس تاني تقف';
+            micBtn.title = '{% trans "بسمعك… دوس تاني تقف" %}';
         }
         function stop() {
             recording = false;
             micBtn.classList.remove('recording');
-            micBtn.title = 'إدخال صوتي';
+            micBtn.title = '{% trans "إدخال صوتي" %}';
             try { rec.stop(); } catch (e) {}
             composer.focus();
         }
@@ -947,16 +947,16 @@
     });
 
     resetBtn.onclick = async () => {
-        if (!confirm('تبدأ جلسة جديدة؟ هتفقد المحادثة الحالية.')) return;
+        if (!confirm('{% trans "تبدأ جلسة جديدة؟ هتفقد المحادثة الحالية." %}')) return;
         await fetch('{% url "repair_atlas:api-reset" %}', {
             method: 'POST', headers: {'X-CSRFToken': csrf},
         });
-        messagesEl.innerHTML = '<div class="welcome"><h2>🔧 جلسة جديدة</h2><p>اسأل من جديد.</p></div>';
+        messagesEl.innerHTML = '<div class="welcome"><h2>🔧 {% trans "جلسة جديدة" %}</h2><p>{% trans "اسأل من جديد." %}</p></div>';
         lastPhotoFiles = null; reuseActive = false;
         reuseStrip.style.display = 'none';
         reusePhotoBtn.classList.remove('active');
         if ('speechSynthesis' in window) speechSynthesis.cancel();
-        showToast('اتعملت جلسة جديدة');
+        showToast('{% trans "اتعملت جلسة جديدة" %}');
     };
 
     // 🔁 حمّل المحادثة القديمة لو الفني قفل الصفحة ورجع — عشان يكمّل من حيث وقف
