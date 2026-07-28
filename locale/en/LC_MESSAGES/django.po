@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 19:34+0300\n"
+"POT-Creation-Date: 2026-07-28 22:03+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -10622,7 +10622,7 @@ msgid "يُولّد تلقائياً إذا تُرك فارغاً"
 msgstr ""
 
 msgid "القسم"
-msgstr ""
+msgstr "Department"
 
 msgid "المسمى الوظيفي"
 msgstr ""
@@ -10785,7 +10785,7 @@ msgid "موافق عليه"
 msgstr ""
 
 msgid "نوع الإجازة"
-msgstr ""
+msgstr "Leave type"
 
 msgid "السبب"
 msgstr "Reason"
@@ -10818,13 +10818,13 @@ msgid "تم السداد بالكامل"
 msgstr ""
 
 msgid "مبلغ السلفة"
-msgstr ""
+msgstr "Advance amount"
 
 msgid "سبب السلفة"
 msgstr ""
 
 msgid "عدد الأقساط"
-msgstr ""
+msgstr "Number of installments"
 
 msgid "عدد الأشهر لتقسيط السلفة"
 msgstr ""
@@ -10906,7 +10906,7 @@ msgid "إجمالي الخصومات"
 msgstr ""
 
 msgid "صافي المرتبات"
-msgstr ""
+msgstr "Net payroll"
 
 msgid "أنشأها"
 msgstr ""
@@ -10921,7 +10921,7 @@ msgid "دورة رواتب"
 msgstr ""
 
 msgid "دورات الرواتب"
-msgstr ""
+msgstr "Payroll runs"
 
 msgid "دورة الرواتب"
 msgstr ""
@@ -11962,7 +11962,7 @@ msgid "تعديل يدوي"
 msgstr ""
 
 msgid "المنتج"
-msgstr ""
+msgstr "Product"
 
 msgid "التغيير في الكمية"
 msgstr ""
@@ -12467,7 +12467,7 @@ msgid "المبلغ (بالعملة المحلية)"
 msgstr ""
 
 msgid "البند"
-msgstr ""
+msgstr "Item"
 
 msgid "الموظف (للرواتب/السلف)"
 msgstr ""
@@ -16127,15 +16127,12 @@ msgid "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكي�
 msgstr ""
 "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
 
-#| msgid "الصفحة الرئيسية"
 msgid "أنت على الصفحة الرئيسية. يرجى"
 msgstr "You are on the home page. Please"
 
-#| msgid "ابحث عن حسابي"
 msgid "البحث عن حسابك أولاً"
 msgstr "search for your account first"
 
-#| msgid "سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك"
 msgid "للوصول لرابط الدخول الخاص بمؤسستك."
 msgstr "to reach the login link for your organization."
 
@@ -16145,9 +16142,307 @@ msgid ""
 "page. Would you like to login to a different account?"
 msgstr ""
 
-#| msgid "كلمة المرور"
 msgid "نسيت كلمة المرور؟"
 msgstr "Forgot your password?"
+
+#| msgid "التقارير المالية"
+msgid "التقارير والتحليلات"
+msgstr "Reports and analytics"
+
+#| msgid "من"
+msgid "من:"
+msgstr "From:"
+
+msgid "إلى:"
+msgstr "To:"
+
+#| msgid "العملاء"
+msgid "كل العملاء"
+msgstr "All customers"
+
+#| msgid "عرض القطعة"
+msgid "عرض النتائج"
+msgstr "Show results"
+
+#| msgid "مبيعات اليوم"
+msgid "مبيعات الشهر"
+msgstr "Month sales"
+
+msgid "ربح:"
+msgstr "Profit:"
+
+#| msgid "مبيعات اليوم"
+msgid "مبيعات السنة"
+msgstr "Year sales"
+
+#| msgid "صافي أرباح الخدمات والمصنعيات"
+msgid "صافي الربح/الخسارة (الفترة)"
+msgstr "Net profit/loss (period)"
+
+#| msgid "المصروفات"
+msgid "بعد خصم المصروفات"
+msgstr "After deducting expenses"
+
+#| msgid "طلبات السلف المعلقة"
+msgid "طلبات B2B معلقة"
+msgstr "Pending B2B requests"
+
+#| msgid "متابعة الطلب"
+msgid "مراجعة الآن"
+msgstr "Review now"
+
+#| msgid "ملخص"
+msgid "الملخص"
+msgstr "Summary"
+
+#| msgid "تقرير AI للعميل"
+msgid "تقرير عميل"
+msgstr "Customer report"
+
+#| msgid "على المنصة"
+msgid "أعلى المنتجات"
+msgstr "Top products"
+
+#| msgid "إجمالي العملاء"
+msgid "أعلى العملاء"
+msgstr "Top customers"
+
+#| msgid "المركبة"
+msgid "المرتبات"
+msgstr "Payroll"
+
+#| msgid "كل الموظفين"
+msgid "الموظفين"
+msgstr "Employees"
+
+#| msgid "تم الدخول"
+msgid "تقادم الديون"
+msgstr "Debt aging"
+
+#| msgid "مخزون خامات"
+msgid "المخزون الراكد"
+msgstr "Slow-moving stock"
+
+#| msgid "اتجاه الإيرادات الشهرية (آخر 6 شهور)"
+msgid "اتجاه المبيعات والأرباح (6 أشهر)"
+msgstr "Sales and profit trend (6 months)"
+
+#| msgid "ملخص الفاتورة النهائي"
+msgid "ملخص الفترة المحددة"
+msgstr "Summary of the selected period"
+
+#| msgid "القيمة (ج.م)"
+msgid "القيمة"
+msgstr "Value"
+
+#| msgid "إجمالي السكانات"
+msgid "إجمالي الإيرادات"
+msgstr "Total revenue"
+
+#| msgid "كمية الطباعة المطلوبة:"
+msgid "تكلفة البضاعة المباعة"
+msgstr "Cost of goods sold"
+
+#| msgid "إجمالي الطلبات"
+msgid "إجمالي الربح"
+msgstr "Gross profit"
+
+#| msgid "مصروفات التشخيص"
+msgid "المصروفات التشغيلية"
+msgstr "Operating expenses"
+
+#| msgid "صافي الخسارة"
+msgid "صافي الربح/الخسارة"
+msgstr "Net profit/loss"
+
+#| msgid "تقرير AI للعميل"
+msgid "تقرير عميل محدد"
+msgstr "Specific customer report"
+
+msgid "اختر عميل من القائمة أعلاه ثم اضغط \"عرض\" لعرض تقريره التفصيلي"
+msgstr "Choose a customer from the list above then press \"Show\" to view the detailed report"
+
+#| msgid "أعلى 10 Tenants استهلاكاً"
+msgid "أعلى 10 منتجات مبيعاً"
+msgstr "Top 10 best-selling products"
+
+#| msgid "رقم القطعة (P/N)"
+msgid "رقم القطعة"
+msgstr "Part number"
+
+#| msgid "الإيرادات"
+msgid "الإيراد"
+msgstr "Revenue"
+
+#| msgid "أعلى 10 Tenants استهلاكاً"
+msgid "أعلى 10 عملاء إنفاقاً"
+msgstr "Top 10 spending customers"
+
+#| msgid "إجمالي الباقات"
+msgid "إجمالي الإنفاق"
+msgstr "Total spending"
+
+#| msgid "توزيع المصروفات حسب التصنيف"
+msgid "تفصيل المصروفات حسب البند"
+msgstr "Expense breakdown by item"
+
+#| msgid "تم النسخ"
+msgid "النسبة"
+msgstr "Percentage"
+
+#| msgid "تاريخ المحادثات"
+msgid "تقرير المرتبات"
+msgstr "Payroll report"
+
+#| msgid "أكمل على آخر صورة"
+msgid "تفصيل آخر دورة"
+msgstr "Latest run breakdown"
+
+#| msgid "التكلفة التناسبية"
+msgid "اتجاه تكلفة المرتبات"
+msgstr "Payroll cost trend"
+
+#| msgid "الإجمالي قبل الخصم"
+msgid "إجمالي قبل الخصم"
+msgstr "Total before deductions"
+
+#| msgid "الخصم"
+msgid "الخصومات"
+msgstr "Deductions"
+
+msgid "خصم تأخير"
+msgstr "Lateness deduction"
+
+#| msgid "قطع غيار"
+msgid "خصم غياب"
+msgstr "Absence deduction"
+
+#| msgid "خصم (ج.م)"
+msgid "خصم سلف"
+msgstr "Advance deduction"
+
+#| msgid "مكافآت قطع غيار"
+msgid "مكافآت"
+msgstr "Bonuses"
+
+#| msgid "إدارة الموظفين"
+msgid "تقارير الموظفين"
+msgstr "Employee reports"
+
+#| msgid "الشهر الحالي"
+msgid "الحضور (الشهر الحالي)"
+msgstr "Attendance (current month)"
+
+#| msgid "الإجراءات"
+msgid "الإجازات"
+msgstr "Leaves"
+
+#| msgid "القطع النشطة"
+msgid "السلف النشطة"
+msgstr "Active advances"
+
+#| msgid "المستوى"
+msgid "المسمى"
+msgstr "Job title"
+
+#| msgid "تم الحضور"
+msgid "أيام حضور"
+msgstr "Attendance days"
+
+msgid "غياب"
+msgstr "Absence"
+
+#| msgid "تأخير %(n)s د"
+msgid "تأخير"
+msgstr "Lateness"
+
+msgid "دقائق تأخير"
+msgstr "Late minutes"
+
+#| msgid "ساعات"
+msgid "ساعات عمل"
+msgstr "Work hours"
+
+#| msgid "نسخ الرابط"
+msgid "الراتب"
+msgstr "Salary"
+
+#| msgid "المسار"
+msgid "المسدد"
+msgstr "Paid"
+
+#| msgid "إجمالي العملاء"
+msgid "تقادم ديون العملاء"
+msgstr "Customer debt aging"
+
+msgid "المخزون الراكد (لم يُباع منذ 60 يوم)"
+msgstr "Slow-moving stock (not sold in 60 days)"
+
+#| msgid "مدير المخزون"
+msgid "قيمة المخزون"
+msgstr "Stock value"
+
+#| msgid "آخر زيارة"
+msgid "آخر بيع"
+msgstr "Last sale"
+
+#| msgid "لا توجد حركات في الفترة المحددة"
+msgid "لا توجد بيانات للفترة المحددة"
+msgstr "No data for the selected period"
+
+#| msgid "إجمالي الشركات"
+msgid "إجمالي المشتريات"
+msgstr "Total purchases"
+
+#| msgid "المرجع"
+msgid "المرتجعات"
+msgstr "Returns"
+
+#| msgid "الرصيد الافتتاحي"
+msgid "الرصيد المستحق"
+msgstr "Outstanding balance"
+
+msgid "مرتجع"
+msgstr "Return"
+
+#| msgid "المدفوع"
+msgid "المدفوعات"
+msgstr "Payments"
+
+#| msgid "لا توجد فواتير"
+msgid "لا توجد مدفوعات"
+msgstr "No payments"
+
+#| msgid "لا توجد حركات في الفترة المحددة"
+msgid "لا توجد مصروفات للفترة المحددة"
+msgstr "No expenses for the selected period"
+
+#| msgid "لا توجد بيانات"
+msgid "لا توجد دورات رواتب"
+msgstr "No payroll runs"
+
+#| msgid "نظام الاضافات المرنة"
+msgid "صافي المرتبات الشهرية"
+msgstr "Monthly net payroll"
+
+#| msgid "لا يوجد ضمان"
+msgid "لا يوجد موظفين"
+msgstr "No employees"
+
+#| msgid "لا توجد إشعارات بعد"
+msgid "لا توجد إجازات للفترة"
+msgstr "No leaves for the period"
+
+#| msgid "لا توجد بطاقات نشطة."
+msgid "لا توجد سلف نشطة"
+msgstr "No active advances"
+
+#| msgid "لا يوجد عملاء متأخرون"
+msgid "لا يوجد عملاء مدينون"
+msgstr "No customers with debt"
+
+msgid "كل المخزون متحرك — ممتاز!"
+msgstr "All stock is moving — excellent!"
 
 #, python-format
 msgid "خبير تشخيص متعدد الماركات — %(al)s"
