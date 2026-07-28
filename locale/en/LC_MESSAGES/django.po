@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-28 22:49+0300\n"
+"POT-Creation-Date: 2026-07-28 22:58+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -143,11 +143,9 @@ msgstr "This is your module — every pin by colour and position"
 msgid "وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور"
 msgstr "Wire by wire: from the OBD plug to the engine module"
 
-#| msgid "الحقن التلقائي"
 msgid "التعرّف التلقائي / Auto-Detect"
 msgstr "Auto-Detect"
 
-#| msgid "اكتب رسالتك أو مشكلتك بالتفصيل..."
 msgid "اكتب رسالة أو سؤال للـ AI…"
 msgstr "Type a message or a question for the AI…"
 
@@ -157,32 +155,27 @@ msgstr "Hidden features"
 msgid "اضغط «Load features» للبدء."
 msgstr "Press Load features to start."
 
-#| msgid "تأكيد الاستلام"
 msgid "تأكيد عطل ميزة أمان"
 msgstr "Confirm disabling a safety feature"
 
-#| msgid "اكتب اسم العميل أو الشركة أو الموبايل..."
 msgid "أتعهد بإن العميل وقّع على إقرار الموافقة."
 msgstr "I confirm the customer signed the consent form."
 
 msgid "إلغاء"
 msgstr "Cancel"
 
-#| msgid "تأكيد وتفعيل"
 msgid "تأكيد وتنفيذ"
 msgstr "Confirm and execute"
 
 msgid "هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل."
 msgstr "We connect, detect the car, and take a backup before any change."
 
-#| msgid "تشفير البيانات والنسخ الاحتياطية التلقائية"
 msgid "مثال 0xC200 — لازم للنسخة الاحتياطية والتكويد"
 msgstr "e.g. 0xC200 — required for backup and coding"
 
 msgid "من E-Sys / الأداة المرخّصة — لو فاضي مش هنخمّن"
 msgstr "From E-Sys / the licensed tool — if empty we will not guess"
 
-#| msgid "إغلاق"
 msgid "إغلاق / Close"
 msgstr "Close"
 
@@ -195,7 +188,10 @@ msgstr "Choose the used DME"
 msgid ""
 "هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل، وبعدين نكتب "
 "الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة."
-msgstr "We read the car ISN from the CAS, back up the used module, then write the ISN. If the UDS write is refused, we continue over the boot (BSL) step by step."
+msgstr ""
+"We read the car ISN from the CAS, back up the used module, then write the "
+"ISN. If the UDS write is refused, we continue over the boot (BSL) step by "
+"step."
 
 msgid "إعداد الـ Bootstrap Loader (BSL)"
 msgstr "Bootstrap Loader (BSL) setup"
@@ -206,11 +202,9 @@ msgstr "working"
 msgid "خطأ"
 msgstr "Error"
 
-#| msgid "اسم الـ ECU"
 msgid "اقرا ISN من الـ CAS"
 msgstr "Read ISN from CAS"
 
-#| msgid "مطابقة تلقائية للكل"
 msgid "نسخة احتياطية للـ DME"
 msgstr "DME backup"
 
@@ -223,43 +217,36 @@ msgstr "Verify"
 msgid "مزامنة EWS"
 msgstr "EWS sync"
 
-#| msgid "رقم العملية"
 msgid "إنهاء العملية"
 msgstr "Finish process"
 
-#| msgid "الشركة"
 msgid "الشريحة / Chip"
 msgstr "Chip"
 
 msgid "بِن البوت / Boot pin"
 msgstr "Boot pin"
 
-#| msgid "المقاس"
 msgid "المقاومة / Pull"
 msgstr "Pull"
 
-#| msgid "تفاصيل العميل"
 msgid "توصيل السيريال / Serial pins"
 msgstr "Serial pins"
 
 msgid "جهد البنش / Bench voltage"
 msgstr "Bench voltage"
 
-#| msgid "خطأ في الاتصال بالسيرفر"
 msgid "تعذّر الاتصال بالسيرفر. / Network error."
 msgstr "Network error."
 
 msgid "خطأ / Error"
 msgstr "Error"
 
-#| msgid "من الموبايل"
 msgid "من الأول"
 msgstr "Start over"
 
 msgid "UDS رفض: NRC"
 msgstr "UDS refused: NRC"
 
-#| msgid "مفيش طلبات مطابقة للفلتر دلوقتي."
 msgid "مفيش مسار كتابة UDS — بنكمّل على البوت"
 msgstr "No UDS write path — continuing over the boot"
 
@@ -267,18 +254,20 @@ msgid "بيانات الهاردوير تحت مبدئية لحد ما تتأك�
 msgstr "Hardware data is provisional until confirmed by the catalog."
 
 msgid "غلط في بِن البوت = كنترول مضروب — أكّد المكان قبل أي bridge."
-msgstr "A wrong boot pin = a bricked module — confirm the location before any bridge."
+msgstr ""
+"A wrong boot pin = a bricked module — confirm the location before any bridge."
 
 msgid ""
 "الـ handshake نجح ✅ بس ناقص الـ ISN offset والـ BSL flash command المؤكدين "
 "(يتسجلوا من الأدمن/الكاتالوج). سجّلهم ودوس Start BSL تاني."
-msgstr "Handshake succeeded ✅ but the confirmed ISN offset and BSL flash command are missing (registered by admin/catalog). Register them and press Start BSL again."
+msgstr ""
+"Handshake succeeded ✅ but the confirmed ISN offset and BSL flash command "
+"are missing (registered by admin/catalog). Register them and press Start BSL "
+"again."
 
-#| msgid "جلسة جديدة"
 msgid "جلسة جديدة / New session"
 msgstr "New session"
 
-#| msgid "إلغاء AI"
 msgid "إلغاء / Abort"
 msgstr "Abort"
 
@@ -6728,9 +6717,9 @@ msgstr "Listed price"
 msgid "— ج.م"
 msgstr "— EGP"
 
-#, python-format
-msgid "عمولة المنصة (8%% للأفراد)"
-msgstr ""
+#| msgid "باقات العملاء الأفراد"
+msgid "عمولة المنصة (8٪ للأفراد)"
+msgstr "Platform commission (8% for individuals)"
 
 msgid "👈 صافي مكسبك"
 msgstr "👈 Your net profit"
@@ -7021,9 +7010,8 @@ msgstr "Example: timing belt / front brakes"
 msgid "مثال: 13627837459"
 msgstr "Example: 13627837459"
 
-#, python-format
-msgid "لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100%%."
-msgstr ""
+msgid "لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100٪."
+msgstr "If you have the original part number, add it to make sure the offer matches 100%."
 
 msgid "أي تفاصيل ممكن تساعد البائع (مثلاً: لون، حالة، أصلي/تجاري...)"
 msgstr ""

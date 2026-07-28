@@ -4444,5 +4444,7 @@
   "نسخة احتياطية للـ DME": "DME backup",
   "هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل، وبعدين نكتب الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة.": "We read the car ISN from the CAS, back up the used module, then write the ISN. If the UDS write is refused, we continue over the boot (BSL) step by step.",
   "هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل.": "We connect, detect the car, and take a backup before any change.",
-  "وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور": "Wire by wire: from the OBD plug to the engine module"
+  "وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور": "Wire by wire: from the OBD plug to the engine module",
+  "عمولة المنصة (8٪ للأفراد)": "Platform commission (8% for individuals)",
+  "لو معاك رقم القطعة الأصلي، حطه عشان تتأكد إن العرض مطابق 100٪.": "If you have the original part number, add it to make sure the offer matches 100%."
 }
