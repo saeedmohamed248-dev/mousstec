@@ -1,6 +1,6 @@
-{% load static %}
+{% load static i18n %}
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -94,7 +94,7 @@
       </select>
     </label>
     <label>Link:
-      <select id="transport-input" title="اختار نوع الوصلة / interface link">
+      <select id="transport-input" title="{% trans "اختار نوع الوصلة / interface link" %}">
         <option value="auto" selected>Auto</option>
         <option value="doip">DoIP / ENET (F·G)</option>
         <option value="kdcan">K+DCAN / CAN (E·R)</option>
@@ -116,13 +116,13 @@
     <div id="guidance-panel" class="cr-guidance" hidden>
       <div class="cr-guidance-head">
         <span id="guidance-badge" class="cr-guidance-badge">—</span>
-        <h3 id="guidance-title">إجراءات التوصيل / Connection steps</h3>
+        <h3 id="guidance-title">{% trans "إجراءات التوصيل / Connection steps" %}</h3>
         <button id="guidance-close" type="button" aria-label="close">✕</button>
       </div>
       <!-- The system SHOWS the technician the module + pins first. -->
       <figure id="guidance-pinout" class="cr-guidance-pinout" hidden>
         <figcaption class="cr-guidance-pinout-title">
-          📍 ده مخطط الكنترول بتاعك — كل بِن بلونه ومكانه
+          📍 {% trans "ده مخطط الكنترول بتاعك — كل بِن بلونه ومكانه" %}
           <span class="en">This is your module — every pin by colour &amp; position</span>
         </figcaption>
         <img id="guidance-pinout-img" alt="ECU pinout diagram">
@@ -131,7 +131,7 @@
       <!-- Explicit wire-by-wire map: OBD plug pin → ECU bench pin. -->
       <div id="guidance-wiring" class="cr-guidance-wiring" hidden>
         <div class="cr-guidance-wiring-title">
-          🔌 وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور
+          🔌 {% trans "وصّل سلك سلك: من فيشة الـ OBD ← لكنترول الموتور" %}
           <span class="en">Wire by wire: OBD plug pin → ECU pin</span>
         </div>
         <div id="guidance-wiring-body" class="cr-guidance-wiring-body"></div>
@@ -144,7 +144,7 @@
     <div id="autodetect-panel" class="cr-autodetect" hidden>
       <div class="cr-guidance-head">
         <span id="ad-badge" class="cr-guidance-badge">—</span>
-        <h3 id="ad-title">التعرّف التلقائي / Auto-Detect</h3>
+        <h3 id="ad-title">{% trans "التعرّف التلقائي / Auto-Detect" %}</h3>
         <button id="ad-close" type="button" aria-label="close">✕</button>
       </div>
       <div id="ad-hw" class="cr-ad-hw" hidden></div>
@@ -154,7 +154,7 @@
     <div id="chat-log" class="cr-chat-log" role="log" aria-live="polite"></div>
     <form id="chat-form" class="cr-chat-input">
       <input id="chat-input" type="text" autocomplete="off"
-             placeholder="اكتب رسالة أو سؤال للـ AI…">
+             placeholder="{% trans "اكتب رسالة أو سؤال للـ AI…" %}">
       <button type="submit">➤</button>
     </form>
   </section>
@@ -162,7 +162,7 @@
   <!-- RIGHT: interactive feature panel -->
   <aside class="cr-panel" aria-label="Hidden features">
     <div class="cr-panel-head">
-      <h2>الميزات المخفية / Hidden features</h2>
+      <h2>{% trans "الميزات المخفية / Hidden features" %}</h2>
       <div class="cr-filter">
         <label>Category:
           <select id="category-filter">
@@ -179,7 +179,7 @@
     </div>
 
     <div id="feature-grid" class="cr-grid">
-      <div class="cr-empty">اضغط «Load features» للبدء.</div>
+      <div class="cr-empty">{% trans "اضغط «Load features» للبدء." %}</div>
     </div>
 
     <footer class="cr-panel-foot">
@@ -194,16 +194,16 @@
 <!-- Safety confirmation modal (shown for safety_disable features) -->
 <div id="safety-modal" class="cr-modal" hidden>
   <div class="cr-modal-body">
-    <h3>⚠️ تأكيد عطل ميزة أمان</h3>
+    <h3>⚠️ {% trans "تأكيد عطل ميزة أمان" %}</h3>
     <p id="safety-modal-text"></p>
     <ul id="safety-modal-list"></ul>
     <label class="cr-consent">
       <input type="checkbox" id="safety-consent">
-      أتعهد بإن العميل وقّع على إقرار الموافقة. <span class="en">Customer signed consent acknowledged.</span>
+      {% trans "أتعهد بإن العميل وقّع على إقرار الموافقة." %} <span class="en">Customer signed consent acknowledged.</span>
     </label>
     <div class="cr-modal-actions">
-      <button id="safety-cancel" type="button">إلغاء</button>
-      <button id="safety-confirm" type="button" disabled>تأكيد وتنفيذ</button>
+      <button id="safety-cancel" type="button">{% trans "إلغاء" %}</button>
+      <button id="safety-confirm" type="button" disabled>{% trans "تأكيد وتنفيذ" %}</button>
     </div>
   </div>
 </div>
@@ -214,21 +214,21 @@
   <div class="cr-modal-body">
     <div id="smart-progress" class="cr-smart-progress"><span></span></div>
     <h3 id="smart-title">🚀 Smart Auto-Detect</h3>
-    <p id="smart-body">هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل.
+    <p id="smart-body">{% trans "هنوصل، نتعرّف على العربية، وناخد نسخة احتياطية قبل أي تعديل." %}
        <span class="en">We detect the car and auto-backup before any write.</span></p>
     <div id="smart-pinout" class="cr-smart-pinout" hidden></div>
     <div class="cr-smart-fields">
       <label>Coding DID (hex)
         <input id="smart-coding-did" type="text" autocomplete="off"
-               placeholder="مثال 0xC200 — لازم للنسخة الاحتياطية والتكويد">
+               placeholder="{% trans "مثال 0xC200 — لازم للنسخة الاحتياطية والتكويد" %}">
       </label>
       <label>Raw coding bytes (hex)
         <input id="smart-raw-hex" type="text" autocomplete="off"
-               placeholder="من E-Sys / الأداة المرخّصة — لو فاضي مش هنخمّن">
+               placeholder="{% trans "من E-Sys / الأداة المرخّصة — لو فاضي مش هنخمّن" %}">
       </label>
     </div>
     <div id="smart-actions" class="cr-modal-actions"></div>
-    <button id="smart-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+    <button id="smart-close" type="button" class="cr-smart-close">{% trans "إغلاق / Close" %}</button>
   </div>
 </div>
 
@@ -239,8 +239,8 @@
   <div class="cr-modal-body">
     <div id="swap-progress" class="cr-smart-progress"><span></span></div>
     <h3 id="swap-title">🔁 Engine Swap — ISN Alignment</h3>
-    <label class="cr-swap-pick">الكنترول / DME profile:
-      <select id="swap-profile-input" title="اختار موديل الكنترول / choose the used DME">
+    <label class="cr-swap-pick">{% trans "الكنترول / DME profile:" %}
+      <select id="swap-profile-input" title="{% trans "اختار موديل الكنترول / choose the used DME" %}">
         {% for sp in swap_profiles %}
         <option value="{{ sp.key }}"{% if forloop.first %} selected{% endif %}>{{ sp.label_ar }}</option>
         {% empty %}
@@ -249,17 +249,16 @@
       </select>
     </label>
     <div id="swap-nrc" class="cr-swap-nrc" hidden></div>
-    <p id="swap-body">هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل،
-       وبعدين نكتب الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة.</p>
+    <p id="swap-body">{% trans "هنقرا ISN العربية من الـ CAS، ناخد نسخة من الكنترول المستعمل، وبعدين نكتب الـ ISN. لو الكتابة عبر UDS اترفضت، هنكمّل على البوت (BSL) خطوة بخطوة." %}</p>
     <div id="swap-warn" class="cr-swap-warn" hidden></div>
     <ol id="swap-steps" class="cr-swap-steps" hidden></ol>
     <table id="swap-hw" class="cr-swap-hw" hidden>
-      <caption>🔧 إعداد الـ Bootstrap Loader (BSL)</caption>
+      <caption>🔧 {% trans "إعداد الـ Bootstrap Loader (BSL)" %}</caption>
       <tbody id="swap-hw-body"></tbody>
     </table>
     <div id="swap-note" class="cr-swap-note" hidden></div>
     <div id="swap-actions" class="cr-modal-actions"></div>
-    <button id="swap-close" type="button" class="cr-smart-close">إغلاق / Close</button>
+    <button id="swap-close" type="button" class="cr-smart-close">{% trans "إغلاق / Close" %}</button>
   </div>
 </div>
 
@@ -318,7 +317,7 @@
     // and coding). Sent only when the tech actually typed one — never guessed.
     var did = codingDid();
     if (did !== null) body.coding_did = did;
-    elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
+    elAct.innerHTML = '<span class="cr-smart-wait">… {% trans "بشتغل / working" %}</span>';
     var res = await fetch(CFG.smartUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json",
@@ -327,7 +326,7 @@
     });
     var data = await res.json();
     if (!res.ok) {
-      render({ title_ar: "خطأ", title_en: "Error",
+      render({ title_ar: "{% trans "خطأ" %}", title_en: "Error",
                body_ar: (data && (data.detail || data.error)) || "request failed",
                body_en: "", actions: [], progress_pct: 0, is_error: true });
       return;
@@ -419,21 +418,21 @@
   // Arabic labels for the primary "next" button, keyed by the event the server
   // says it expects. Falls back to the raw event name for forward-compat.
   var NEXT_LABEL = {
-    READ_CAS_ISN:  "🔑 اقرا ISN من الـ CAS",
-    BACKUP_DME:    "💾 نسخة احتياطية للـ DME",
-    WRITE_DME_ISN: "✍️ اكتب الـ ISN (UDS)",
+    READ_CAS_ISN:  "🔑 {% trans "اقرا ISN من الـ CAS" %}",
+    BACKUP_DME:    "💾 {% trans "نسخة احتياطية للـ DME" %}",
+    WRITE_DME_ISN: "✍️ {% trans "اكتب الـ ISN (UDS)" %}",
     BSL_START:     "🔧 Start BSL Extraction",
-    VERIFY:        "✅ تأكّد (Verify)",
-    ALIGN:         "🔗 مزامنة EWS",
-    FINISH:        "🎉 إنهاء العملية",
+    VERIFY:        "✅ {% trans "تأكّد (Verify)" %}",
+    ALIGN:         "🔗 {% trans "مزامنة EWS" %}",
+    FINISH:        "🎉 {% trans "إنهاء العملية" %}",
   };
 
   var HW_ROWS = [
-    ["chip",           "الشريحة / Chip"],
-    ["boot_pin",       "بِن البوت / Boot pin"],
-    ["pull",           "المقاومة / Pull"],
-    ["serial_pin_map", "توصيل السيريال / Serial pins"],
-    ["bench_voltage",  "جهد البنش / Bench voltage"],
+    ["chip",           "{% trans "الشريحة / Chip" %}"],
+    ["boot_pin",       "{% trans "بِن البوت / Boot pin" %}"],
+    ["pull",           "{% trans "المقاومة / Pull" %}"],
+    ["serial_pin_map", "{% trans "توصيل السيريال / Serial pins" %}"],
+    ["bench_voltage",  "{% trans "جهد البنش / Bench voltage" %}"],
   ];
 
   async function step(event, payload) {
@@ -448,7 +447,7 @@
       var kind = (document.getElementById("transport-input") || {}).value || "auto";
       if (kind !== "auto") body.transport = { kind: kind };
     }
-    elAct.innerHTML = '<span class="cr-smart-wait">… بشتغل / working</span>';
+    elAct.innerHTML = '<span class="cr-smart-wait">… {% trans "بشتغل / working" %}</span>';
     var res, data;
     try {
       res = await fetch(CFG.swapUrl, {
@@ -459,7 +458,7 @@
       });
       data = await res.json();
     } catch (e) {
-      renderError("تعذّر الاتصال بالسيرفر. / Network error.");
+      renderError("{% trans "تعذّر الاتصال بالسيرفر. / Network error." %}");
       return;
     }
     if (!res.ok) {
@@ -474,10 +473,10 @@
   function renderError(msg) {
     elNrc.hidden = true; elWarn.hidden = true; elSteps.hidden = true;
     elHw.hidden = true; elNote.hidden = true;
-    elTitle.textContent = "خطأ / Error";
+    elTitle.textContent = "{% trans "خطأ / Error" %}";
     elBody.textContent = msg;
     elAct.innerHTML = "";
-    addBtn("🔄 من الأول", "select_profile", "default", function () {
+    addBtn("🔄 {% trans "من الأول" %}", "select_profile", "default", function () {
       sessionId = null; step("select_profile", { profile_key: selectedProfile(),
         vin: (document.getElementById("vin-input") || {}).value || "" });
     });
@@ -498,18 +497,18 @@
     // NRC pill: exactly why UDS was refused (or that no UDS path existed).
     if (pl.uds_reject_nrc) {
       elNrc.hidden = false;
-      elNrc.textContent = "UDS رفض: NRC " + pl.uds_reject_nrc;
+      elNrc.textContent = "{% trans "UDS رفض: NRC" %} " + pl.uds_reject_nrc;
     } else {
       elNrc.hidden = false;
-      elNrc.textContent = "مفيش مسار كتابة UDS — بنكمّل على البوت";
+      elNrc.textContent = "{% trans "مفيش مسار كتابة UDS — بنكمّل على البوت" %}";
     }
     // Unverified-hardware warning (the boot pad / pull are templates until the
     // catalog confirms them — a wrong boot pin bricks the DME).
     if (pl.hardware_verified === false) {
       elWarn.hidden = false;
       elWarn.textContent =
-        "⚠️ بيانات الهاردوير تحت مبدئية لحد ما تتأكد من الكاتالوج. " +
-        "غلط في بِن البوت = كنترول مضروب — أكّد المكان قبل أي bridge.";
+        "⚠️ {% trans "بيانات الهاردوير تحت مبدئية لحد ما تتأكد من الكاتالوج." %} " +
+        "{% trans "غلط في بِن البوت = كنترول مضروب — أكّد المكان قبل أي bridge." %}";
     } else {
       elWarn.hidden = true;
     }
@@ -543,8 +542,7 @@
     if (pl.needs_confirmed_flash_profile) {
       elNote.hidden = false;
       elNote.textContent =
-        "الـ handshake نجح ✅ بس ناقص الـ ISN offset والـ BSL flash command " +
-        "المؤكدين (يتسجلوا من الأدمن/الكاتالوج). سجّلهم ودوس Start BSL تاني.";
+        "{% trans "الـ handshake نجح ✅ بس ناقص الـ ISN offset والـ BSL flash command المؤكدين (يتسجلوا من الأدمن/الكاتالوج). سجّلهم ودوس Start BSL تاني." %}";
     } else {
       elNote.hidden = true;
     }
@@ -569,7 +567,7 @@
 
     if (p.is_terminal) {
       // done / failed — no forward button; offer a restart.
-      addBtn("🔄 جلسة جديدة / New session", "", "default", function () {
+      addBtn("🔄 {% trans "جلسة جديدة / New session" %}", "", "default", function () {
         sessionId = null; clearWizard();
         step("select_profile", { profile_key: selectedProfile(),
           vin: (document.getElementById("vin-input") || {}).value || "" });
@@ -586,7 +584,7 @@
       addBtn(label, ev.toLowerCase(), style);
     }
     // Abort is always available while the job is live.
-    addBtn("✋ إلغاء / Abort", "abort", "default");
+    addBtn("✋ {% trans "إلغاء / Abort" %}", "abort", "default");
   }
 
   function open() {
