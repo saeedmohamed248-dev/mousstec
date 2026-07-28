@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-28 22:27+0300\n"
+"POT-Creation-Date: 2026-07-28 22:45+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -519,7 +519,7 @@ msgid "محتوى الرسالة"
 msgstr ""
 
 msgid "صورة مرفقة"
-msgstr ""
+msgstr "image attached"
 
 msgid "تعديل تحسيني"
 msgstr ""
@@ -12083,10 +12083,10 @@ msgid "سجل الفحوصات الرقمية الحية (IoT)"
 msgstr ""
 
 msgid "فحص قبل الإصلاح"
-msgstr ""
+msgstr "Pre-repair inspection"
 
 msgid "فحص بعد الإصلاح / تأكيد جودة"
-msgstr ""
+msgstr "Post-repair inspection / quality confirmation"
 
 msgid "فحص خارجي"
 msgstr ""
@@ -12101,7 +12101,7 @@ msgid "المهندس / الفني"
 msgstr ""
 
 msgid "نوع الفحص"
-msgstr ""
+msgstr "Inspection type"
 
 msgid "وقت الفحص"
 msgstr ""
@@ -15971,6 +15971,1309 @@ msgstr "Device connection instructions"
 msgid "الجهاز يتصل بـ WebSocket على المسار التالي مع"
 msgstr "The device connects via WebSocket at the following path with"
 
+#| msgid "تشخيص الأعطال"
+msgid "غرفة تشخيص الأعطال"
+msgstr "Fault diagnosis room"
+
+#| msgid "الرجوع للوحة"
+msgid "الرجوع للداش بورد"
+msgstr "Back to dashboard"
+
+#| msgid "داش بوردي"
+msgid "الداش بورد"
+msgstr "Dashboard"
+
+#| msgid "غير مسجل"
+msgid "غير متصل"
+msgstr "Disconnected"
+
+#| msgid "طلبات شراء باقات التصاميم — في انتظار التأكيد"
+msgid "عدد التشخيصات المحفوظة محلياً في انتظار رجوع النت"
+msgstr "Number of locally saved diagnoses waiting for the internet to return"
+
+#| msgid "المتصفح لا يدعم GPS"
+msgid "المتصفح لا يدعم Web Bluetooth"
+msgstr "The browser does not support Web Bluetooth"
+
+msgid "افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث (HTTPS فقط)."
+msgstr "Open this page on Chrome or Edge from a device that supports Bluetooth (HTTPS only)."
+
+msgid "Safari و Firefox لا يدعمان البلوتوث في المتصفح."
+msgstr "Safari and Firefox do not support in-browser Bluetooth."
+
+msgid "أنت تستخدم iPhone / iPad"
+msgstr "You are using iPhone / iPad"
+
+msgid ""
+"Apple لا تسمح لأي متصفح على iOS بالاتصال المباشر بالبلوتوث (حتى Chrome على "
+"iPhone يستخدم Safari بالداخل)."
+msgstr "Apple does not allow any iOS browser to connect directly to Bluetooth (even Chrome on iPhone uses Safari internally)."
+
+msgid "3 حلول مجرّبة"
+msgstr "3 proven solutions"
+
+#| msgid "تم الإرسال للرقم"
+msgid "ترتيب من الأسهل للأقوى:"
+msgstr "ordered from easiest to strongest:"
+
+msgid "الحل الأفضل — فيشة OBD2"
+msgstr "Best solution — OBD2 adapter"
+
+#| msgid "اشترك بالفيزا"
+msgid "اشتري فيشة"
+msgstr "Buy an adapter"
+
+msgid "(تدعم Wi-Fi). اتصل بشبكتها من إعدادات iPhone،"
+msgstr "(supports Wi-Fi). Connect to its network from iPhone settings,"
+
+msgid "ارجع للصفحة دي واضغط زر"
+msgstr "Return to this page and press the button"
+
+msgid "اتصل عبر Wi-Fi"
+msgstr "Connect via Wi-Fi"
+
+msgid "في الأسفل. يشتغل على iPhone بدون أي إضافات."
+msgstr "below. It works on iPhone without any add-ons."
+
+#| msgid "اللوجو البديل المحفوظ"
+msgid "الحل البديل — متصفح"
+msgstr "Alternative solution — browser"
+
+msgid ""
+"متصفح مجاني من App Store يضيف دعم Web Bluetooth لـ iPhone. حمّله، افتح الصفحة "
+"دي من خلاله،"
+msgstr "A free browser from the App Store that adds Web Bluetooth support to iPhone. Download it, open this page through it,"
+
+msgid "وزر \"اقرن جهاز OBD2\" البلوتوث هيشتغل عادي."
+msgstr "and the Pair OBD2 device button, Bluetooth will work normally."
+
+msgid "الحل الأخير — موبايل Android أو لاب"
+msgstr "Last resort — Android phone or laptop"
+
+msgid ""
+"أي موبايل Android (Chrome) أو لاب (Chrome/Edge) يدعم Web Bluetooth بشكل كامل "
+"وفوري."
+msgstr "Any Android phone (Chrome) or laptop (Chrome/Edge) supports Web Bluetooth fully and instantly."
+
+msgid "متصل بشبكة جهاز OBD (وضع عدم الاتصال) —"
+msgstr "Connected to the OBD device network (offline mode) —"
+
+#| msgid ""
+#| "الصفحات المحفوظة مسبقاً متاحة، وستتم المزامنة تلقائياً عند عودة الاتصال."
+msgid ""
+"الفحوصات محفوظة بأمان على جهازك وستُرفع آلياً للسيرفر بمجرد رجوع الإنترنت."
+msgstr "The checks are saved safely on your device and will upload automatically once the internet is back."
+
+#| msgid "ملخص نتائج الفحص"
+msgid "نصائح قبل الفحص"
+msgstr "Pre-scan tips"
+
+msgid ""
+"شغّل المحرك (Engine ON) قبل الاتصال — بعض الأكواد لا تظهر إلا والمحرك يعمل."
+msgstr "Start the engine (Engine ON) before connecting — some codes only appear while the engine is running."
+
+#| msgid "تأكيد البريد"
+msgid "تأكد أن البطارية فوق"
+msgstr "Make sure the battery is above"
+
+msgid "، الجهد المنخفض يسبب قراءات خاطئة."
+msgstr ", low voltage causes wrong readings."
+
+#| msgid "لا توجد بيانات"
+msgid "للحصول على بيانات"
+msgstr "To get data for"
+
+msgid "يُنصح بشدة باستخدام محوّل OBD2 من الفئة العالية:"
+msgstr "It is strongly recommended to use a high-end OBD2 adapter:"
+
+msgid "Bluetooth/Wi-Fi، يدعم كل البروتوكولات الحديثة."
+msgstr "Bluetooth/Wi-Fi, supports all modern protocols."
+
+msgid "أسرع وأكثر استقراراً، الأفضل للورش المحترفة."
+msgstr "Faster and more stable, best for professional workshops."
+
+msgid "خيار اقتصادي يدعم BLE بشكل جيد."
+msgstr "An economical option that supports BLE well."
+
+msgid "المحوّلات الرخيصة (ELM327 الصينية) كثيراً ما تفشل في الأوامر المتقدمة."
+msgstr "Cheap adapters (Chinese ELM327) often fail on advanced commands."
+
+msgid ""
+"أوقف جميع الأحمال الكهربائية الكبيرة (مكيف/سخّان) لقراءة دقيقة للحمل والوقود."
+msgstr "Turn off all large electrical loads (AC/heater) for an accurate load and fuel reading."
+
+#| msgid "ملخص نتائج الفحص"
+msgid "فهمت، ابدأ الفحص"
+msgstr "Got it, start the inspection"
+
+#| msgid "تعذر الاتصال بالخادم."
+msgid "الاتصال بالـ OBD"
+msgstr "OBD connection"
+
+#| msgid "الجهاز"
+msgid "اقرن جهاز OBD2"
+msgstr "Pair an OBD2 device"
+
+msgid "نصائح قبل الفحص + الأجهزة الموصى بها لفتح أقصى الإمكانيات"
+msgstr "Pre-scan tips + recommended devices to unlock maximum capabilities"
+
+#| msgid "تم استخدام لوحة ألوان علامتك التجارية في صياغة التصميم"
+msgid "استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية"
+msgstr "Use this option only if the adapter does not appear in the normal list"
+
+#| msgid "بحث بالأوامر الصوتية"
+msgid "بحث شامل عن كل أجهزة البلوتوث"
+msgstr "Full scan for all Bluetooth devices"
+
+#| msgid "اتصل بالفيشة"
+msgid "لا تظهر الفيشة؟"
+msgstr "Adapter not showing?"
+
+#| msgid "بحث شامل في النظام..."
+msgid "بحث شامل عن كل الأجهزة"
+msgstr "Full scan for all devices"
+
+msgid ""
+"للفيشات اللي بتشتغل Wi-Fi فقط — يحتاج تشغيل obd_wifi_bridge.py على اللاب"
+msgstr "For Wi-Fi-only adapters — requires running obd_wifi_bridge.py on the laptop"
+
+#| msgid "الحضور (الشهر الحالي)"
+msgid "اتصل عبر Wi-Fi (الجسر المحلي)"
+msgstr "Connect via Wi-Fi (local bridge)"
+
+#| msgid "أكواد الأعطال"
+msgid "اقرأ أكواد الأعطال (Mode 03)"
+msgstr "Read fault codes (Mode 03)"
+
+#| msgid "نسخ كل الأكواد"
+msgid "امسح الأكواد (Mode 04)"
+msgstr "Clear codes (Mode 04)"
+
+msgid "افصل"
+msgstr "Disconnect"
+
+msgid "احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها"
+msgstr "Save the diagnosis to a customer card so the service advisor can use it"
+
+#| msgid "مراجعة بطاقة العميل"
+msgid "احفظ في بطاقة العميل"
+msgstr "Save to customer card"
+
+#| msgid "مبيعات سريعة"
+msgid "تشخيصات سريعة"
+msgstr "Quick diagnostics"
+
+msgid "درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات في رقم واحد"
+msgstr "Vehicle health score from 0 to 100 — combines all readings into one number"
+
+#| msgid "صحة السيارة"
+msgid "درجة صحة السيارة"
+msgstr "Vehicle health score"
+
+msgid "قياس Misfire للسلندرات"
+msgstr "Misfire measurement per cylinder"
+
+msgid "فحص ضغط الطلمبة، fuel trim، حساس O2"
+msgstr "Check pump pressure, fuel trim, O2 sensor"
+
+#| msgid "صحة النظام"
+msgid "صحة نظام الوقود"
+msgstr "Fuel system health"
+
+#| msgid "فحوصات التشخيص"
+msgid "فحوصات متقدمة"
+msgstr "Advanced checks"
+
+msgid "MAF + O2 + كتلست + idle + TPS + بطارية (~45s)"
+msgstr "MAF + O2 + catalyst + idle + TPS + battery (~45s)"
+
+#| msgid "الحسابات الثنائية"
+msgid "فحص الحسّاسات الشامل"
+msgstr "Comprehensive sensor sweep"
+
+#| msgid "في الانتظار"
+msgid "فحص الانبعاثات"
+msgstr "Emissions test"
+
+#| msgid "اختر الماركة"
+msgid "قراءات خاصة بالماركة"
+msgstr "Brand-specific readings"
+
+#| msgid "التقارير والتحليلات"
+msgid "تقارير ومعلومات"
+msgstr "Reports and info"
+
+#| msgid "لوحة المشرف الأعلى"
+msgid "لقطة ظروف العطل من ECU"
+msgstr "Fault condition snapshot from the ECU"
+
+msgid "حالة self-test في الـ ECU"
+msgstr "self-test status in the ECU"
+
+msgid "معلومات الـ ECU (Mode 09)"
+msgstr "ECU info (Mode 09)"
+
+#| msgid "مصروفات اليوم"
+msgid "معلومات الـ ECU"
+msgstr "ECU info"
+
+msgid "Mode 01 PID 00 bitmask — أي PIDs العربية بتدعمها فعلاً"
+msgstr "Mode 01 PID 00 bitmask — which PIDs the car actually supports"
+
+#| msgid "المدينة"
+msgid "PIDs المدعومة"
+msgstr "Supported PIDs"
+
+msgid "ISO 14229 standard info (VIN/CalID/Serial) من ABS/Airbag/BCM/TCM"
+msgstr "ISO 14229 standard info (VIN/CalID/Serial) from ABS/Airbag/BCM/TCM"
+
+msgid "معلومات الوحدات (Mode 22)"
+msgstr "Modules info (Mode 22)"
+
+#| msgid "القراءات الحية"
+msgid "احفظ القراءات في المتصفح"
+msgstr "Save the readings in the browser"
+
+#| msgid "حفظ الأولوية"
+msgid "احفظ لقطة محلية"
+msgstr "Save local snapshot"
+
+msgid "اختبارات تحكم (Mode 08)"
+msgstr "Control tests (Mode 08)"
+
+msgid "يطلب من ECU إغلاق صمام EVAP لاختبار التسرّب — السيارة لازم تكون متوقّفة"
+msgstr "Asks the ECU to close the EVAP valve to test for leaks — the car must be stationary"
+
+#| msgid "شحن الباقة الآن"
+msgid "فحص البطارية والشحن"
+msgstr "Battery and charging test"
+
+msgid "فحص شامل: راحة + cranking + شحن idle + شحن rev"
+msgstr "Full test: rest + cranking + idle charging + rev charging"
+
+#| msgid "ملخص الباقة الحالية"
+msgid "فحص البطارية الشامل"
+msgstr "Full battery test"
+
+msgid "إجراءات إعادة تعلّم (ETC, idle, BMW battery reg, إلخ)"
+msgstr "Relearn procedures (ETC, idle, BMW battery reg, etc.)"
+
+#| msgid "الإجراءات"
+msgid "قائمة إجراءات Relearn"
+msgstr "Relearn procedures list"
+
+#| msgid "تعلم كيفية استخدام الفاتورة والمبيعات"
+msgid "ابعت كل اللي اتشخّص لفاتورة العميل"
+msgstr "Send everything diagnosed to the customer invoice"
+
+#| msgid "أرسل الإيصال للمراجعة"
+msgid "أرسل التشخيص للفاتورة"
+msgstr "Send diagnosis to invoice"
+
+#| msgid "السيارة"
+msgid "السيارة:"
+msgstr "Vehicle:"
+
+#| msgid "غرفة التشخيص"
+msgid "وجهة التشخيص:"
+msgstr "Diagnosis destination:"
+
+#| msgid "فتح صفحة فاتورة جديدة"
+msgid "— إنشاء فاتورة (Job Card) جديدة —"
+msgstr "— Create a new invoice (Job Card) —"
+
+#| msgid "اللي قدمت عليها"
+msgid "اللي هيتنقل:"
+msgstr "What will be transferred:"
+
+#| msgid "كل الأنواع"
+msgid "كل البنود هتتحفظ"
+msgstr "All items will be saved"
+
+#| msgid "ترحيب تلقائي"
+msgid "مش بتتحاسب تلقائياً"
+msgstr "not billed automatically"
+
+#| msgid "تشفير البيانات والنسخ الاحتياطية التلقائية"
+msgid "المحاسب هو اللي يقرر اللي يدخل الفاتورة النهائية."
+msgstr "The accountant decides what goes into the final invoice."
+
+#| msgid "تم التأسيس بنجاح"
+msgid "تم إرسال التشخيص بنجاح"
+msgstr "The diagnosis was sent successfully"
+
+#| msgid "سلة الفاتورة"
+msgid "أرسل للفاتورة"
+msgstr "Send to invoice"
+
+#| msgid "نظام الاضافات المرنة"
+msgid "فحص نظام الانبعاثات"
+msgstr "Emissions system test"
+
+#| msgid "ملاحظة العميل:"
+msgid "لقطة لحظة العطل"
+msgstr "Fault-moment snapshot"
+
+#| msgid "اتصل بفيشة العربية"
+msgid "قدرات الـ adapter وفيشة السيارة"
+msgstr "Adapter and vehicle port capabilities"
+
+#| msgid "الصفحة السابقة"
+msgid "درجة الصحة العامة"
+msgstr "Overall health score"
+
+#| msgid "أكمل على آخر صورة"
+msgid "لكل سلندر (آخر 10 دورات)"
+msgstr "per cylinder (last 10 cycles)"
+
+#| msgid "ادخل النظام الآن"
+msgid "تشخيص نظام الوقود"
+msgstr "Fuel system diagnosis"
+
+#| msgid "الشركات المسجلة"
+msgid "الأكواد المكتشفة"
+msgstr "Detected codes"
+
+#| msgid "⚠️ لم يدخل النظام بعد"
+msgid "— لم يتم الفحص بعد —"
+msgstr "— Not scanned yet —"
+
+#| msgid "القياسات الحية"
+msgid "البيانات الحية"
+msgstr "Live data"
+
+#| msgid "إدارة العملاء"
+msgid "حرارة المياه"
+msgstr "Coolant temperature"
+
+#| msgid "زيت المحرك"
+msgid "حمل المحرك"
+msgstr "Engine load"
+
+#| msgid "إدارة الفنيين"
+msgid "دواسة البنزين"
+msgstr "Throttle"
+
+#| msgid "البطارية"
+msgid "جهد البطارية"
+msgstr "Battery voltage"
+
+#| msgid "فشل الاتصال"
+msgid "سجل الاتصال"
+msgstr "Connection log"
+
+#| msgid "المساعد الذكي"
+msgid "المساعد الذكي للفني"
+msgstr "Smart assistant for the technician"
+
+msgid "مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن جهاز OBD2 وتقرأ الأكواد،"
+msgstr "Hello 👋 I am your assistant in the diagnosis room. When you pair an OBD2 device and read the codes,"
+
+msgid "هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا."
+msgstr "they reach me automatically and I start analyzing the readings. You can also type any question here."
+
+#| msgid "إزالة اللوجو"
+msgid "إزالة الصورة"
+msgstr "Remove image"
+
+#| msgid "ارفع صورة"
+msgid "ارفع صورة (Camera / Upload)"
+msgstr "Upload an image (Camera / Upload)"
+
+msgid "اسأل عن أي عطل أو قراءة، أو ارفق صورة للموصل/الكابل... (Enter للإرسال)"
+msgstr "Ask about any fault or reading, or attach an image of the connector/cable... (Enter to send)"
+
+#| msgid "مراجعة بطاقة العميل"
+msgid "احفظ التشخيص في بطاقة العميل"
+msgstr "Save the diagnosis to the customer card"
+
+msgid ""
+"مستشار الخدمة هيقدر يفتح بطاقة العميل ويوريه التحليل والصور علشان يبرر تكلفة "
+"الإصلاح."
+msgstr "The service advisor can open the customer card and show the analysis and photos to justify the repair cost."
+
+#| msgid "السيارة"
+msgid "VIN السيارة"
+msgstr "Vehicle VIN"
+
+#| msgid "السيارة"
+msgid "من السيارة"
+msgstr "From the car"
+
+#| msgid "ملخص العمولة:"
+msgid "ملخص الحالة"
+msgstr "Status summary"
+
+#| msgid "نسخ كل الأكواد"
+msgid "الأكواد:"
+msgstr "Codes:"
+
+#| msgid "القراءات الحية"
+msgid "القراءات الحية:"
+msgstr "Live readings:"
+
+#| msgid "عرض الصور"
+msgid "الصور:"
+msgstr "Photos:"
+
+#| msgid "بيانات العميل"
+msgid "بطاقة العميل"
+msgstr "Customer card"
+
+#| msgid "جاري التحميل..."
+msgid "— جاري التحميل... —"
+msgstr "— Loading... —"
+
+msgid ""
+"هتظهر بطاقات الصيانة المفتوحة لنفس السيارة. لو مفيش، التقرير هيتحفظ بدون ربط "
+"(orphan)."
+msgstr "Open service cards for the same vehicle will appear. If none, the report is saved unlinked (orphan)."
+
+msgid "فحص خارجي (Ad-hoc)"
+msgstr "External inspection (Ad-hoc)"
+
+msgid "آخر تحليل من الـ AI (سيُحفظ كملخص)"
+msgstr "Latest AI analysis (will be saved as a summary)"
+
+#| msgid "ابدأ الآن"
+msgid "احفظ الآن"
+msgstr "Save now"
+
+#| msgid "لا توجد بيانات بعد"
+msgid "لا توجد أكواد أعطال"
+msgstr "No fault codes"
+
+#| msgid "فشل قراءة الأكواد"
+msgid "فشل قراءة الملف."
+msgstr "Failed to read the file."
+
+#| msgid "العميل لم يرفع صورة بعد"
+msgid "الملف ليس صورة صالحة."
+msgstr "The file is not a valid image."
+
+#| msgid "تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت."
+msgid "تم حفظ السؤال — هيرد البوت أوتوماتيكي لما الإنترنت يرجع."
+msgstr "The question was saved — the bot will reply automatically once the internet is back."
+
+msgid "رجع الإنترنت — جاري إرسال"
+msgstr "Internet is back — sending"
+
+#| msgid "اللوجو المحفوظ"
+msgid "سؤال محفوظ…"
+msgstr "saved question…"
+
+#| msgid "متأخر"
+msgid "(رد متأخر)"
+msgstr "(delayed reply)"
+
+#| msgid "الإجمالي المطلوب"
+msgid "السؤال المحفوظ رد بـ خطأ:"
+msgstr "The saved question returned an error:"
+
+#| msgid "التحليل والتوصية"
+msgid "جاري تحليل الصورة…"
+msgstr "Analyzing the image…"
+
+#| msgid "جاري التحليل..."
+msgid "جاري التحليل…"
+msgstr "Analyzing…"
+
+#| msgid "لم يتم اكتشاف وجه! حاول مرة أخرى."
+msgid "لم أتمكن من الرد، حاول مرة أخرى."
+msgstr "I could not reply, try again."
+
+#| msgid "تحويل تلقائي"
+msgid "تلقائي"
+msgstr "automatic"
+
+#| msgid "تم استلام عروض — جاهزة للاعتماد"
+msgid "تم استلام قراءات جديدة من السيارة."
+msgstr "New readings were received from the car."
+
+msgid "صورة مرفقة بدون نص"
+msgstr "image attached without text"
+
+#| msgid "متصل بـ"
+msgid "متصل"
+msgstr "Connected"
+
+#| msgid "جاري المطابقة..."
+msgid "جاري تجربة:"
+msgstr "Trying:"
+
+msgid "بروتوكول نجح:"
+msgstr "Protocol succeeded:"
+
+#| msgid "إلى"
+msgid "على"
+msgstr "on"
+
+msgid "جهاز OBD2 جاهز"
+msgstr "OBD2 device ready"
+
+#| msgid "بيانات التاجر"
+msgid "البيانات هتبدأ تظهر."
+msgstr "Data will start to appear."
+
+msgid "جاري فحص قدرات الـ adapter والـ ECU…"
+msgstr "Checking adapter and ECU capabilities…"
+
+#| msgid "تم التجاهل"
+msgid "VIN غير صالح اتجاهل:"
+msgstr "Invalid VIN ignored:"
+
+#| msgid "حذف"
+msgid "حرف"
+msgstr "characters"
+
+#| msgid "لا توجد قطع متاحة بالفلتر ده"
+msgid "لا توجد لقطة محفوظة (مفيش DTC مؤكد)."
+msgstr "No saved snapshot (no confirmed DTC)."
+
+#| msgid "جاهز:"
+msgid "جاهزة"
+msgstr "ready"
+
+msgid "ناقص"
+msgstr "missing"
+
+msgid "بحث شامل... اختر أي جهاز يبدو أنه فيشة OBD"
+msgstr "Full scan... pick any device that looks like an OBD adapter"
+
+#| msgid "جاري الاتصال..."
+msgid "جاري الاقتران..."
+msgstr "Pairing..."
+
+msgid "OBDWiFi driver لم يُحمَّل — أعد تحميل الصفحة."
+msgstr "OBDWiFi driver did not load — reload the page."
+
+#| msgid "جاري البحث في السوق المركزي..."
+msgid "جاري الاتصال بالجسر المحلي..."
+msgstr "Connecting to the local bridge..."
+
+#| msgid "فشل الاتصال"
+msgid "فشل الاتصال بالجسر"
+msgstr "Bridge connection failed"
+
+#| msgid "تم استعادة الاتصال — جاري التحميل…"
+msgid "محاولة استعادة اتصال صامت..."
+msgstr "Attempting a silent reconnect..."
+
+#| msgid "سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟"
+msgid "سيتم مسح كل أكواد الأعطال من ECU. متأكد؟"
+msgstr "All fault codes will be cleared from the ECU. Are you sure?"
+
+msgid "جاري المحاولة بترتيب: Mode 06 → DIDs خاصة بالماركة → تحليل تذبذب RPM"
+msgstr "Trying in order: Mode 06 → brand-specific DIDs → RPM variance analysis"
+
+#| msgid "فشل: "
+msgid "فشل:"
+msgstr "Failed:"
+
+#| msgid "العربية"
+msgid "العربية دي بتدعم"
+msgstr "This car supports"
+
+msgid "ردّوا"
+msgstr "responded"
+
+msgid "مفيش رد (الوحدة مش متصلة أو الـ DIDs مش مدعومة)"
+msgstr "No response (the module is not connected or the DIDs are not supported)"
+
+msgid "الـ ECU هيقفل صمام تنفيس خزّان الكربون ويراقب الضغط."
+msgstr "The ECU will close the charcoal canister vent valve and monitor pressure."
+
+msgid "متطلّبات:"
+msgstr "Requirements:"
+
+#| msgid "المحركات المدعومة"
+msgid "المحرك متوقّف"
+msgstr "Engine off"
+
+msgid "خزّان البنزين بين ¼ و ¾"
+msgstr "Fuel tank between 1/4 and 3/4"
+
+#| msgid "اللي قدمت عليها"
+msgid "الكونتاكت على ON"
+msgstr "Contact ON"
+
+msgid "تكمّل؟"
+msgstr "Continue?"
+
+#| msgid "كود الطلب:"
+msgid "ECU قبلت الطلب. Raw:"
+msgstr "ECU accepted the request. Raw:"
+
+msgid "ECU رفضت — Mode 08 مش مدعوم على العربية دي."
+msgstr "ECU refused — Mode 08 is not supported on this car."
+
+#| msgid "مفيش باقات."
+msgid "مفيش رد قاطع:"
+msgstr "No definitive response:"
+
+msgid "الفحص الأول: المحرك متوقف لكن الـ contact ON. اضغط OK للقياس."
+msgstr "Test 1: engine off but contact ON. Press OK to measure."
+
+msgid ""
+"الفحص الثاني: هندوس على السلف. حضّر مفتاح التشغيل واضغط OK، وبعدها فوراً اشغّل "
+"العربية (4 ثوانٍ)."
+msgstr "Test 2: cranking the starter. Ready the key and press OK, then immediately start the car (4 seconds)."
+
+msgid ""
+"الفحص الثالث: المحرك شغّال idle، كل الأحمال OFF (AC، أنوار، راديو). اضغط OK "
+"للقياس."
+msgstr "Test 3: engine at idle, all loads OFF (AC, lights, radio). Press OK to measure."
+
+msgid ""
+"الفحص الرابع: ارفع الـ RPM حوالين 2000 وثبّتها، شغّل الأحمال (AC + أنوار + "
+"ديفوست). اضغط OK للقياس."
+msgstr "Test 4: raise RPM to around 2000 and hold, turn on loads (AC + lights + defrost). Press OK to measure."
+
+#| msgid "إدارة الباقات والاشتراكات"
+msgid "بدء فحص البطارية والشحن الشامل"
+msgstr "Starting the full battery and charging test"
+
+#| msgid "خطوات الفحص"
+msgid "تم إيقاف الفحص."
+msgstr "The test was stopped."
+
+msgid "قياس"
+msgstr "Measuring"
+
+#| msgid "لا توجد نتائج"
+msgid "لا توجد قراءة"
+msgstr "No reading"
+
+#| msgid "ملخص الباقة الحالية"
+msgid "ملخص فحص البطارية والشحن"
+msgstr "Battery and charging test summary"
+
+#| msgid "زي العميل النهائي تماماً."
+msgid "النظام الكهربائي سليم بالكامل."
+msgstr "The electrical system is fully healthy."
+
+#| msgid "لسه مفيش طلبات في النظام. الطلبات هتيجي من العملاء على"
+msgid "مشكلة حرجة في النظام الكهربائي — راجع التفاصيل أعلاه."
+msgstr "Critical problem in the electrical system — review the details above."
+
+msgid "النظام شغّال لكن فيه ضعف — راجع التفاصيل أعلاه."
+msgstr "The system works but is weak — review the details above."
+
+msgid "إجراءات Adaptation / Relearn المتاحة:"
+msgstr "Available Adaptation / Relearn procedures:"
+
+#| msgid "إتمام الشراء"
+msgid "اكتب رقم الإجراء"
+msgstr "Type the procedure number"
+
+msgid "أو cancel:"
+msgstr "or cancel:"
+
+#| msgid "فشل الإلغاء"
+msgid "تم الإلغاء."
+msgstr "Cancelled."
+
+msgid "هتنفّذ:"
+msgstr "You will execute:"
+
+#| msgid "الإجراءات"
+msgid "الإجراء فيه"
+msgstr "The procedure has"
+
+msgid "خطوة. هتمر عليها واحدة واحدة."
+msgstr "steps. You will go through them one by one."
+
+msgid "بدء:"
+msgstr "Start:"
+
+msgid "خطوة"
+msgstr "Step"
+
+msgid "اتممت؟"
+msgstr "Done?"
+
+#| msgid "تم إيقاف المحاولات — حدّث الصفحة"
+msgid "تم إيقاف الإجراء عند الخطوة"
+msgstr "Procedure stopped at step"
+
+msgid "هتغيّر ECU"
+msgstr "will change the ECU"
+
+msgid "نفّذ؟"
+msgstr "Execute?"
+
+#| msgid "القيمة"
+msgid "أدخل قيمة"
+msgstr "Enter value"
+
+msgid "خطوة حرجة فشلت — يُستحسن وقف الإجراء."
+msgstr "A critical step failed — it is better to stop the procedure."
+
+msgid "فيه فشل في خطوة حرجة. تكمّل برغم ذلك؟"
+msgstr "A critical step failed. Continue anyway?"
+
+#| msgid "اكتمل"
+msgid "اكتمل:"
+msgstr "Completed:"
+
+msgid "جاري الفحص الشامل (~45 ثانية): MAF → O2/Catalyst → Idle/TPS/Battery"
+msgstr "Full sweep in progress (~45 seconds): MAF → O2/Catalyst → Idle/TPS/Battery"
+
+msgid "إيرماس"
+msgstr "MAF"
+
+#| msgid "جاري إضافة العلامة المائية..."
+msgid "جاري قراءة الـ DIDs الخاصة بالماركة..."
+msgstr "Reading brand-specific DIDs..."
+
+msgid "مدعوم"
+msgstr "supported"
+
+#| msgid "مش مظبوط"
+msgid "مش مدعوم"
+msgstr "not supported"
+
+msgid "عام (UDS)"
+msgstr "Generic (UDS)"
+
+msgid "ابعتلنا الـ VIN لنضيف dictionary خاص بالماركة دي."
+msgstr "Send us the VIN to add a dictionary for this brand."
+
+msgid "الـ ECU مردش على أي DID"
+msgstr "The ECU did not respond to any DID"
+
+msgid "جربنا"
+msgstr "We tried"
+
+#| msgid "على الرقم"
+msgid "على الـ ECUs:"
+msgstr "on the ECUs:"
+
+msgid "ممكن السيارة قبل UDS، أو الـ ECU محتاج"
+msgstr "The car may predate UDS, or the ECU needs"
+
+#| msgid "قراءة العداد"
+msgid "قراءة مدعومة"
+msgstr "supported reading"
+
+#| msgid "غير معروف"
+msgid "غير مدعوم"
+msgstr "Not supported"
+
+msgid "جاري فحص نظام الانبعاثات (~6 ثوان): AFR → EGR → EVAP"
+msgstr "Checking the emissions system (~6 seconds): AFR → EGR → EVAP"
+
+msgid "عينة"
+msgstr "samples"
+
+#| msgid "مطلوب صور"
+msgid "مطلوب:"
+msgstr "Commanded:"
+
+msgid "أبخرة:"
+msgstr "Vapor:"
+
+msgid "نسبة خليط الوقود (Wideband O2)"
+msgstr "Fuel mixture ratio (Wideband O2)"
+
+#| msgid "نظام إدارة ورش ذكي"
+msgid "صمام إعادة دوران العادم"
+msgstr "Exhaust gas recirculation valve"
+
+#| msgid "نظام إدارة ورش ذكي"
+msgid "نظام أبخرة الوقود"
+msgstr "Fuel vapor system"
+
+#| msgid "غير محدود"
+msgid "محدود"
+msgstr "Limited"
+
+#| msgid "شغّال"
+msgid "مش شغّال"
+msgstr "Not working"
+
+msgid "لكل سلندر"
+msgstr "per cylinder"
+
+#| msgid "معلومة"
+msgid "ومعلومات ECU"
+msgstr "and ECU info"
+
+#| msgid "اختر الماركة"
+msgid "قراءات الماركة"
+msgstr "Brand readings"
+
+#| msgid "صرف عمولات"
+msgid "البروتوكولات"
+msgstr "Protocols"
+
+#| msgid "التقارير المالية"
+msgid "التقارير المتاحة"
+msgstr "Available reports"
+
+#| msgid "شدة عالية"
+msgid "دقة عالية"
+msgstr "High accuracy"
+
+#| msgid "ضريبة تقديرية"
+msgid "دقة تقديرية"
+msgstr "Estimated accuracy"
+
+msgid "مفيش بيانات misfire — لا Mode 06 ولا DIDs خاصة ولا تذبذب واضح."
+msgstr "No misfire data — no Mode 06, no special DIDs, and no clear variance."
+
+msgid "سلندر"
+msgstr "Cylinder"
+
+msgid "مفيش أي misfire — كل السلندرات سليمة (الإجمالي 0)"
+msgstr "No misfire at all — all cylinders healthy (total 0)"
+
+msgid "في سلندر"
+msgstr "in cylinder"
+
+#| msgid "ابحث بالاسم أو الباقة أو الحالة..."
+msgid "افحص الـ coil و البوجي و البخاخ"
+msgstr "Check the coil, spark plug and injector"
+
+msgid "راقب البوجي والـ coil"
+msgstr "Monitor the spark plug and coil"
+
+#| msgid "إجمالي السكانات"
+msgid "الإجمالي عبر السلندرات:"
+msgstr "Total across cylinders:"
+
+#| msgid "مشمولة الإجمالي"
+msgid "لقطة محفوظة (إجمالي:"
+msgstr "snapshot saved (total:"
+
+msgid "لقطة)"
+msgstr "snapshots)"
+
+msgid "كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل."
+msgstr "All cylinders are healthy — no misfire recorded in the last 10 drive cycles."
+
+#| msgid "المجموع"
+msgid "مجموع"
+msgstr "Total"
+
+#| msgid "على المنصة"
+msgid "أعلى سلندر:"
+msgstr "Worst cylinder:"
+
+#| msgid "مركبة"
+msgid "مرة"
+msgstr "times"
+
+msgid "افحص شمعة، كويل، أو إنجكتر السلندر ده الأول."
+msgstr "Check the spark plug, coil, or injector of this cylinder first."
+
+#| msgid "زيت المحرك"
+msgid "دورة المحرك"
+msgstr "Engine RPM"
+
+#| msgid "إدارة العملاء"
+msgid "حرارة الهواء"
+msgstr "Intake air temperature"
+
+#| msgid "تم الإرسال"
+msgid "تقدّم الإشعال"
+msgstr "Ignition advance"
+
+#| msgid "تأكيد الهوية"
+msgid "تدفق الهواء"
+msgstr "Air flow"
+
+#| msgid "إدارة الباقات"
+msgid "حرارة الزيت"
+msgstr "Oil temperature"
+
+#| msgid "مستوى الاستعجال"
+msgid "مستوى البنزين"
+msgstr "Fuel level"
+
+#| msgid "الخط الإنجليزي"
+msgid "ضغط البنزين"
+msgstr "Fuel pressure"
+
+#| msgid "اضغط للنسخ"
+msgid "ضغط المان"
+msgstr "MAP pressure"
+
+msgid "كم/س"
+msgstr "km/h"
+
+#| msgid "م"
+msgid "°م"
+msgstr "°C"
+
+msgid "فولت"
+msgstr "Volt"
+
+msgid "جم/ث"
+msgstr "g/s"
+
+msgid "لا توجد لقطة محفوظة. الـ Freeze Frame بيتسجّل فقط لما يحصل DTC مؤكد."
+msgstr "No saved snapshot. Freeze Frame is only recorded when a confirmed DTC occurs."
+
+msgid "هذه اللقطة اتسجّلت لحظة عطل:"
+msgstr "This snapshot was recorded at the moment of fault:"
+
+msgid "الإشعال (Misfire)"
+msgstr "Ignition (Misfire)"
+
+#| msgid "تم التوليد"
+msgid "نظام الوقود"
+msgstr "Fuel system"
+
+#| msgid "المصروفات التشغيلية"
+msgid "المكونات الشاملة"
+msgstr "Comprehensive components"
+
+msgid "الكتلست"
+msgstr "Catalyst"
+
+msgid "كتلست مُسخَّن"
+msgstr "Heated catalyst"
+
+msgid "تهرّب الوقود (EVAP)"
+msgstr "Fuel leak (EVAP)"
+
+#| msgid "اللون الثانوي *"
+msgid "الهواء الثانوي"
+msgstr "Secondary air"
+
+#| msgid "فريق التصميم"
+msgid "فريون التكييف"
+msgstr "AC refrigerant"
+
+#| msgid "حذف الأساسي"
+msgid "حسّاس الأكسجين"
+msgstr "Oxygen sensor"
+
+msgid "سخّان حسّاس الأكسجين"
+msgstr "Oxygen sensor heater"
+
+#| msgid "الخط العربي"
+msgid "ضغط التيربو"
+msgstr "Boost pressure"
+
+#| msgid "باقات العملاء"
+msgid "حسّاس العادم"
+msgstr "Exhaust sensor"
+
+msgid "مرشّح DPF"
+msgstr "DPF filter"
+
+msgid "ديزل"
+msgstr "Diesel"
+
+msgid "بنزين"
+msgstr "Petrol"
+
+#| msgid "الصور الموثقة من الفحص"
+msgid "السيارة جاهزة للفحص"
+msgstr "The car is ready for inspection"
+
+#| msgid "الرابط غير متاح"
+msgid "السيارة غير جاهزة —"
+msgstr "The car is not ready —"
+
+#| msgid "علامة مائية ذكية"
+msgid "منظومة محتاجة قيادة"
+msgstr "systems need driving"
+
+#| msgid "مكتملة"
+msgid "منظومة مكتملة"
+msgstr "systems complete"
+
+msgid "مكتمل · شغّل المحرك واسوق ~15 كم"
+msgstr "complete · start the engine and drive ~15 km"
+
+msgid "لمبة Check Engine مولّعة"
+msgstr "Check Engine light is on"
+
+#| msgid "عطل مفتوح"
+msgid "عطل مخزن"
+msgstr "stored fault"
+
+msgid "الـ ECU بيدعم مراقبة continuous بس — ده طبيعي في سيارات بعض الماركات."
+msgstr "The ECU supports continuous monitoring only — this is normal on some brands."
+
+#| msgid "مكتمل"
+msgid "لم يكتمل"
+msgstr "Not complete"
+
+msgid "منظومة مش متاحة في ECU السيارة دي (ده طبيعي)"
+msgstr "systems not available in this car ECU (this is normal)"
+
+#| msgid "اسم القطعة *"
+msgid "اسم الـ ECU"
+msgstr "ECU name"
+
+msgid "كاليبراشن (CalID)"
+msgstr "Calibration (CalID)"
+
+msgid "CVN (checksum الكاليبراشن)"
+msgstr "CVN (calibration checksum)"
+
+#| msgid "عدد الأقساط"
+msgid "عدّاد الأداء (IPT)"
+msgstr "Performance counter (IPT)"
+
+msgid ""
+"الـ ECU مردش بمعلومات Mode 09 — بعض السيارات مش بتدعمه أو محتاج ignition ON."
+msgstr "The ECU did not return Mode 09 info — some cars do not support it or need ignition ON."
+
+msgid "إيرماس MAF"
+msgstr "MAF"
+
+#| msgid "القراءات الحية"
+msgid "قراءة فعلية"
+msgstr "Actual reading"
+
+#| msgid "خطأ غير متوقع"
+msgid "قراءة نظرية متوقعة"
+msgstr "Expected theoretical reading"
+
+#| msgid "النسبة"
+msgid "النسبة (الـ ratio)"
+msgstr "Ratio"
+
+#| msgid "مثال: 30"
+msgid "(المثالي 1.00)"
+msgstr "(ideal 1.00)"
+
+msgid "حسّاسات O2 + الكتلست"
+msgstr "O2 sensors + catalyst"
+
+#| msgid "حساب الأدمن المعتمد"
+msgid "حسّاس O2 الأمامي"
+msgstr "Upstream O2 sensor"
+
+#| msgid "عدّل العرض"
+msgid "معدّل التذبذب"
+msgstr "Oscillation rate"
+
+#| msgid "أقل من 50 جنيه"
+msgid "أقل جهد"
+msgstr "Min voltage"
+
+#| msgid "أعلى العملاء"
+msgid "أعلى جهد"
+msgstr "Max voltage"
+
+msgid "الكفاءة"
+msgstr "Efficiency"
+
+msgid "تذبذب أمامي"
+msgstr "Upstream oscillation"
+
+msgid "تذبذب خلفي"
+msgstr "Downstream oscillation"
+
+msgid "(لازم أقل بكتير)"
+msgstr "(should be much lower)"
+
+#| msgid "تشخيص الـ AI"
+msgid "ثبات الـ Idle"
+msgstr "Idle stability"
+
+#| msgid "متوسط"
+msgid "متوسط RPM"
+msgstr "Average RPM"
+
+#| msgid "النبرة / المزاج"
+msgid "الانحراف المعياري"
+msgstr "Standard deviation"
+
+msgid "المطلق (PID 11)"
+msgstr "Absolute (PID 11)"
+
+#| msgid "النسبة"
+msgid "النسبي (PID 45)"
+msgstr "Relative (PID 45)"
+
+#| msgid "الفروع"
+msgid "الفرق"
+msgstr "Difference"
+
+#| msgid "الماركة / الموديل"
+msgid "البطارية / الدينمو"
+msgstr "Battery / alternator"
+
+#| msgid "متوسط التوفير"
+msgid "متوسط الجهد"
+msgstr "Average voltage"
+
+#| msgid "احفظ قرار المراجعة"
+msgid "استقرار الجهد"
+msgstr "Voltage stability"
+
+#| msgid "مفيش نتائج. تأكد إن العميل مسجل في الـ marketplace."
+msgid "مفيش بيانات — تأكد إن العربية شغّالة وكرّر."
+msgstr "No data — make sure the car is running and retry."
+
+#| msgid "سوق السيارات"
+msgid "توازن السلندرات:"
+msgstr "Cylinder balance:"
+
+msgid "مفيش عوامل سلبية مكتشفة. كل القراءات طبيعية."
+msgstr "No negative factors detected. All readings are normal."
+
+#| msgid "متوسط التوفير"
+msgid "ضغط الوقود"
+msgstr "Fuel pressure"
+
+#| msgid "اضغط للنسخ"
+msgid "ضغط الريل (نسبي)"
+msgstr "Rail pressure (relative)"
+
+#| msgid "اضغط على الرقم للنسخ"
+msgid "ضغط الريل (مطلق)"
+msgstr "Rail pressure (absolute)"
+
+#| msgid "صيغة الملف"
+msgid "ضغط المنفولد"
+msgstr "Manifold pressure"
+
+#| msgid "توقيع العميل"
+msgid "توقيت الإشعال"
+msgstr "Ignition timing"
+
+#| msgid "مدى الحياة"
+msgid "معدل الحقن"
+msgstr "Injection rate"
+
+#| msgid "البث الجماعي"
+msgid "الضغط الجوي"
+msgstr "Barometric pressure"
+
+#| msgid "لا توجد نزاعات في هذه القائمة."
+msgid "لا توجد قراءات كافية للحكم."
+msgstr "Not enough readings to judge."
+
+#| msgid "لازم تختار العميل من القائمة الأول."
+msgid "لازم تقرأ الـ VIN من السيارة الأول."
+msgstr "You must read the VIN from the car first."
+
+#| msgid "اختر موظف واحد على الأقل."
+msgid "شغّل تحليل AI واحد على الأقل قبل الحفظ."
+msgstr "Run at least one AI analysis before saving."
+
+msgid "— مفيش بطاقة مفتوحة (هيتحفظ بدون ربط) —"
+msgstr "— No open card (will save unlinked) —"
+
+msgid ""
+"مفيش بطاقة صيانة مفتوحة لنفس السيارة. التقرير هيتحفظ كـ orphan ومستشار "
+"الخدمة هيقدر يربطه يدوياً."
+msgstr "No open service card for the same vehicle. The report will be saved as orphan and the service advisor can link it manually."
+
+#| msgid "— بدون اسم —"
+msgid "— بدون ربط —"
+msgstr "— Without linking —"
+
+msgid "لقينا"
+msgstr "We found"
+
+#| msgid "لا يوجد سجل لهذه السيارة بعد."
+msgid "بطاقة مفتوحة لهذه السيارة."
+msgstr "open card for this vehicle."
+
+#| msgid "تعذر التحليل"
+msgid "— تعذّر التحميل —"
+msgstr "— Loading failed —"
+
+msgid "محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع"
+msgstr "Saved locally — it will be sent automatically when the internet returns"
+
+#| msgid "تم حفظ العرض"
+msgid "تم الحفظ — تقرير"
+msgstr "Saved — report"
+
+#| msgid "أضف للبطاقة"
+msgid "بطاقة"
+msgstr "Card"
+
+#| msgid "تعذّر التأكيد"
+msgid "تعذّر الحفظ:"
+msgstr "Saving failed:"
+
+#| msgid "الشهر الحالي"
+msgid "الـ VIN الحالي:"
+msgstr "Current VIN:"
+
+msgid "الـ VIN مش صالح. لازم 17 حرف."
+msgstr "The VIN is invalid. It must be 17 characters."
+
+#| msgid "لوحة المعلومات الرئيسية"
+msgid "اضغط \"اقرأ معلومات الـ ECU\" تاني."
+msgstr "Press Read ECU info again."
+
+#| msgid "كود الطلب:"
+msgid "كود عطل (DTC)"
+msgstr "fault code (DTC)"
+
+#| msgid "طلبات الإجازات المعلقة"
+msgid "نتيجة فحص الحسّاسات الشامل"
+msgstr "Comprehensive sensor sweep result"
+
+msgid "قراءة Freeze Frame"
+msgstr "Freeze Frame reading"
+
+msgid "حالة Readiness Monitors"
+msgstr "Readiness Monitors status"
+
+#| msgid "تشريح درجة الصحة"
+msgid "درجة الصحة:"
+msgstr "Health score:"
+
+msgid "محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع."
+msgstr "Saved locally — it will be sent automatically when the internet returns."
+
+#| msgid "سعر مقترح:"
+msgid "بند مقترح"
+msgstr "suggested item"
+
+#| msgid "لا توجد حركات في الفترة المحددة"
+msgid "افتح الفاتورة في صفحة المحاسب"
+msgstr "Open the invoice in the accountant page"
+
+#| msgid "تعذر الاتصال"
+msgid "تعذّر الإرسال:"
+msgstr "Sending failed:"
+
+msgid "لسه مفيش نت — هيبعت تلقائياً لما يرجع"
+msgstr "Still no internet — it will send automatically when it returns"
+
+#| msgid "تم الإرسال"
+msgid "تم إرسال"
+msgstr "Sent"
+
+#| msgid "تشخيص الـ AI"
+msgid "تشخيص محفوظ"
+msgstr "saved diagnosis"
+
+msgid "رجع الإنترنت — جاري إرسال الطابور المحلي…"
+msgstr "Internet is back — sending the local queue…"
+
+msgid "النت اتقطع — التشخيصات هتتخزن محلياً."
+msgstr "The internet dropped — diagnoses will be stored locally."
+
+#| msgid "أكمل على آخر صورة"
+msgid "الملف ليس صورة"
+msgstr "The file is not an image"
+
+#| msgid "الحجم أكبر من 5MB"
+msgid "الصورة أكبر من"
+msgstr "The image is larger than"
+
+msgid "هتتعامل لكن بدقة أقل."
+msgstr "it will be handled but at lower quality."
+
+#| msgid "فشل قراءة الأكواد"
+msgid "فشل معالجة الصورة:"
+msgstr "Image processing failed:"
+
 msgid "غير متصل بمركبة"
 msgstr "Not connected to a vehicle"
 
@@ -15992,9 +17295,6 @@ msgstr "Live readings"
 
 msgid "دورة/د"
 msgstr "rpm"
-
-msgid "كم/س"
-msgstr "km/h"
 
 msgid "آخر 60 ثانية"
 msgstr "last 60 seconds"

@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🤖 غرفة تشخيص الأعطال — Mouss Tec</title>
+<title>🤖 {% trans "غرفة تشخيص الأعطال" %} — Mouss Tec</title>
 <meta name="csrf-token" content="{{ csrf_token }}">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -352,7 +352,7 @@ body {
 <div class="topbar">
     <div class="brand">
         <a href="/system/dashboard/" class="back-btn"
-           title="الرجوع للداش بورد"
+           title="{% trans 'الرجوع للداش بورد' %}"
            style="color:#94a3b8; text-decoration:none; padding:6px 10px;
                   border-radius:8px; margin-inline-end:8px;
                   background:rgba(255,255,255,0.04);
@@ -360,72 +360,72 @@ body {
            onmouseover="this.style.background='rgba(139,92,246,0.15)';this.style.color='#a78bfa'"
            onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='#94a3b8'">
             <i class="fa-solid fa-arrow-right"></i>
-            <span style="font-size:13px;">الداش بورد</span>
+            <span style="font-size:13px;">{% trans "الداش بورد" %}</span>
         </a>
-        <i class="fa-solid fa-microchip"></i> غرفة تشخيص الأعطال
+        <i class="fa-solid fa-microchip"></i> {% trans "غرفة تشخيص الأعطال" %}
     </div>
     <div class="tech">
         <i class="fa-regular fa-user"></i> {{ tech_name }} ·
         <span id="vinPill" class="pill idle" style="font-family:monospace; display:none;">
             <i class="fa-solid fa-car"></i> <span id="vinText">VIN —</span>
         </span>
-        <span id="connStatus" class="pill idle"><span class="dot"></span> غير متصل</span>
+        <span id="connStatus" class="pill idle"><span class="dot"></span> {% trans "غير متصل" %}</span>
         <span id="queueBadge" class="pill idle"
               style="display:none; background:#3b2f0f; color:#fbbf24; border-color:#facc1540;"
-              title="عدد التشخيصات المحفوظة محلياً في انتظار رجوع النت">
+              title="{% trans 'عدد التشخيصات المحفوظة محلياً في انتظار رجوع النت' %}">
             <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span id="queueCount">0</span> في الانتظار
+            <span id="queueCount">0</span> {% trans "في الانتظار" %}
         </span>
     </div>
 </div>
 
 <div id="unsupported" class="unsupported">
-    <h2><i class="fa-solid fa-triangle-exclamation"></i> المتصفح لا يدعم Web Bluetooth</h2>
-    <p id="unsupportedGeneric">افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث (HTTPS فقط).<br>
-       Safari و Firefox لا يدعمان البلوتوث في المتصفح.</p>
+    <h2><i class="fa-solid fa-triangle-exclamation"></i> {% trans "المتصفح لا يدعم Web Bluetooth" %}</h2>
+    <p id="unsupportedGeneric">{% trans "افتح هذه الصفحة على Chrome أو Edge من جهاز يدعم البلوتوث (HTTPS فقط)." %}<br>
+       {% trans "Safari و Firefox لا يدعمان البلوتوث في المتصفح." %}</p>
 
     <!-- 📱 iPhone/iPad — Apple-specific guidance: 3 working paths -->
     <div id="iosGuidance" style="display:none; margin-top:16px; text-align:right;
             background:rgba(15,23,42,.55); border:1px solid rgba(56,189,248,.35);
             border-radius:14px; padding:18px 20px;">
         <h3 style="margin:0 0 12px; color:#7dd3fc; font-size:16px; display:flex; align-items:center; gap:8px;">
-            <i class="fa-brands fa-apple"></i> أنت تستخدم iPhone / iPad
+            <i class="fa-brands fa-apple"></i> {% trans "أنت تستخدم iPhone / iPad" %}
         </h3>
         <p style="color:#cbd5e1; font-size:13px; margin:0 0 14px; line-height:1.7;">
-            Apple لا تسمح لأي متصفح على iOS بالاتصال المباشر بالبلوتوث (حتى Chrome على iPhone يستخدم Safari بالداخل).
-            عندك <b>3 حلول مجرّبة</b> ترتيب من الأسهل للأقوى:
+            {% trans "Apple لا تسمح لأي متصفح على iOS بالاتصال المباشر بالبلوتوث (حتى Chrome على iPhone يستخدم Safari بالداخل)." %}
+            {% trans "عندك" %} <b>{% trans "3 حلول مجرّبة" %}</b> {% trans "ترتيب من الأسهل للأقوى:" %}
         </p>
 
         <div style="display:flex; flex-direction:column; gap:10px;">
             <!-- Path 1: WiFi dongle -->
             <div style="background:rgba(20,83,45,.25); border:1px solid rgba(34,197,94,.4); border-radius:10px; padding:12px;">
                 <div style="color:#86efac; font-weight:800; font-size:14px; margin-bottom:4px;">
-                    ✅ الحل الأفضل — فيشة OBD2 <b>Wi-Fi</b>
+                    ✅ {% trans "الحل الأفضل — فيشة OBD2" %} <b>Wi-Fi</b>
                 </div>
                 <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
-                    اشتري فيشة <b>vLinker MC+</b> أو <b>OBDLink MX+</b> (تدعم Wi-Fi). اتصل بشبكتها من إعدادات iPhone،
-                    ارجع للصفحة دي واضغط زر <b>"اتصل عبر Wi-Fi"</b> في الأسفل. يشتغل على iPhone بدون أي إضافات.
+                    {% trans "اشتري فيشة" %} <b>vLinker MC+</b> {% trans "أو" %} <b>OBDLink MX+</b> {% trans "(تدعم Wi-Fi). اتصل بشبكتها من إعدادات iPhone،" %}
+                    {% trans "ارجع للصفحة دي واضغط زر" %} <b>"{% trans "اتصل عبر Wi-Fi" %}"</b> {% trans "في الأسفل. يشتغل على iPhone بدون أي إضافات." %}
                 </div>
             </div>
 
             <!-- Path 2: Bluefy browser -->
             <div style="background:rgba(30,58,138,.25); border:1px solid rgba(96,165,250,.4); border-radius:10px; padding:12px;">
                 <div style="color:#93c5fd; font-weight:800; font-size:14px; margin-bottom:4px;">
-                    🌐 الحل البديل — متصفح <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener" style="color:#7dd3fc; text-decoration:underline;">Bluefy</a>
+                    🌐 {% trans "الحل البديل — متصفح" %} <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener" style="color:#7dd3fc; text-decoration:underline;">Bluefy</a>
                 </div>
                 <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
-                    متصفح مجاني من App Store يضيف دعم Web Bluetooth لـ iPhone. حمّله، افتح الصفحة دي من خلاله،
-                    وزر "اقرن جهاز OBD2" البلوتوث هيشتغل عادي.
+                    {% trans "متصفح مجاني من App Store يضيف دعم Web Bluetooth لـ iPhone. حمّله، افتح الصفحة دي من خلاله،" %}
+                    {% trans 'وزر "اقرن جهاز OBD2" البلوتوث هيشتغل عادي.' %}
                 </div>
             </div>
 
             <!-- Path 3: Use Android/PC -->
             <div style="background:rgba(120,53,15,.25); border:1px solid rgba(251,191,36,.4); border-radius:10px; padding:12px;">
                 <div style="color:#fcd34d; font-weight:800; font-size:14px; margin-bottom:4px;">
-                    💻 الحل الأخير — موبايل Android أو لاب
+                    💻 {% trans "الحل الأخير — موبايل Android أو لاب" %}
                 </div>
                 <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
-                    أي موبايل Android (Chrome) أو لاب (Chrome/Edge) يدعم Web Bluetooth بشكل كامل وفوري.
+                    {% trans "أي موبايل Android (Chrome) أو لاب (Chrome/Edge) يدعم Web Bluetooth بشكل كامل وفوري." %}
                 </div>
             </div>
         </div>
@@ -456,11 +456,11 @@ body {
     color:#e0f2fe; border:1px solid #38bdf8; border-radius:12px;
     font-size:13px; font-weight:700; box-shadow:0 4px 18px rgba(56,189,248,.25);">
     <i class="fa-solid fa-wifi"></i>
-    متصل بشبكة جهاز OBD (وضع عدم الاتصال) —
-    <span style="font-weight:400;">الفحوصات محفوظة بأمان على جهازك وستُرفع آلياً للسيرفر بمجرد رجوع الإنترنت.</span>
+    {% trans "متصل بشبكة جهاز OBD (وضع عدم الاتصال) —" %}
+    <span style="font-weight:400;">{% trans "الفحوصات محفوظة بأمان على جهازك وستُرفع آلياً للسيرفر بمجرد رجوع الإنترنت." %}</span>
     <span id="offlineQueueCount" style="margin-inline-start:8px;
         background:rgba(255,255,255,0.18); padding:2px 8px; border-radius:99px;
-        font-family:monospace;">0 في الانتظار</span>
+        font-family:monospace;">0 {% trans "في الانتظار" %}</span>
 </div>
 
 <!-- 💡 Pre-Scan Tips modal (Phase 3 #2). Recommends high-end OBD2 adapters
@@ -472,26 +472,26 @@ body {
                 border:1px solid #475569; border-radius:16px; padding:28px;
                 color:#e2e8f0; max-height:88vh; overflow:auto;">
         <h3 style="margin:0 0 14px; color:#fbbf24; font-weight:900;">
-            <i class="fa-solid fa-lightbulb"></i> نصائح قبل الفحص
+            <i class="fa-solid fa-lightbulb"></i> {% trans "نصائح قبل الفحص" %}
         </h3>
         <ul style="padding-inline-start:20px; line-height:1.9; font-size:14px; color:#cbd5e1;">
-            <li>شغّل المحرك (Engine ON) قبل الاتصال — بعض الأكواد لا تظهر إلا والمحرك يعمل.</li>
-            <li>تأكد أن البطارية فوق <b>12.4V</b>، الجهد المنخفض يسبب قراءات خاطئة.</li>
-            <li>للحصول على بيانات <b>Mode 22</b> و <b>Misfire Counters</b> و <b>Multi-frame</b>،
-                يُنصح بشدة باستخدام محوّل OBD2 من الفئة العالية:
+            <li>{% trans "شغّل المحرك (Engine ON) قبل الاتصال — بعض الأكواد لا تظهر إلا والمحرك يعمل." %}</li>
+            <li>{% trans "تأكد أن البطارية فوق" %} <b>12.4V</b>{% trans "، الجهد المنخفض يسبب قراءات خاطئة." %}</li>
+            <li>{% trans "للحصول على بيانات" %} <b>Mode 22</b> {% trans "و" %} <b>Misfire Counters</b> {% trans "و" %} <b>Multi-frame</b>{% trans "،" %}
+                {% trans "يُنصح بشدة باستخدام محوّل OBD2 من الفئة العالية:" %}
                 <ul style="margin-top:6px; color:#67e8f9;">
-                    <li>🥇 <b>vLinker MC+</b> — Bluetooth/Wi-Fi، يدعم كل البروتوكولات الحديثة.</li>
-                    <li>🥇 <b>OBDLink MX+</b> — أسرع وأكثر استقراراً، الأفضل للورش المحترفة.</li>
-                    <li>🥈 <b>Vgate iCar Pro BLE 4.0</b> — خيار اقتصادي يدعم BLE بشكل جيد.</li>
+                    <li>🥇 <b>vLinker MC+</b> — {% trans "Bluetooth/Wi-Fi، يدعم كل البروتوكولات الحديثة." %}</li>
+                    <li>🥇 <b>OBDLink MX+</b> — {% trans "أسرع وأكثر استقراراً، الأفضل للورش المحترفة." %}</li>
+                    <li>🥈 <b>Vgate iCar Pro BLE 4.0</b> — {% trans "خيار اقتصادي يدعم BLE بشكل جيد." %}</li>
                 </ul>
-                المحوّلات الرخيصة (ELM327 الصينية) كثيراً ما تفشل في الأوامر المتقدمة.
+                {% trans "المحوّلات الرخيصة (ELM327 الصينية) كثيراً ما تفشل في الأوامر المتقدمة." %}
             </li>
-            <li>أوقف جميع الأحمال الكهربائية الكبيرة (مكيف/سخّان) لقراءة دقيقة للحمل والوقود.</li>
+            <li>{% trans "أوقف جميع الأحمال الكهربائية الكبيرة (مكيف/سخّان) لقراءة دقيقة للحمل والوقود." %}</li>
         </ul>
         <button type="button" id="btnClosePreScanTips" style="
             margin-top:16px; padding:10px 24px; background:#22c55e; color:#fff;
             border:none; border-radius:8px; font-weight:700; cursor:pointer;
-            font-family:inherit;">فهمت، ابدأ الفحص</button>
+            font-family:inherit;">{% trans "فهمت، ابدأ الفحص" %}</button>
     </div>
 </div>
 
@@ -499,126 +499,126 @@ body {
 
     <!-- ── Connect / DTCs ── -->
     <div class="card">
-        <div class="card-title"><i class="fa-solid fa-plug"></i> الاتصال بالـ OBD</div>
+        <div class="card-title"><i class="fa-solid fa-plug"></i> {% trans "الاتصال بالـ OBD" %}</div>
         <div class="connect-actions">
             <button type="button" id="btnConnect" class="btn primary">
-                <i class="fa-solid fa-bluetooth-b"></i> اقرن جهاز OBD2
+                <i class="fa-solid fa-bluetooth-b"></i> {% trans "اقرن جهاز OBD2" %}
             </button>
             <button type="button" id="btnPreScanTips" class="btn-link-fallback"
-                    title="نصائح قبل الفحص + الأجهزة الموصى بها لفتح أقصى الإمكانيات">
-                <i class="fa-solid fa-lightbulb"></i> نصائح قبل الفحص
+                    title="{% trans 'نصائح قبل الفحص + الأجهزة الموصى بها لفتح أقصى الإمكانيات' %}">
+                <i class="fa-solid fa-lightbulb"></i> {% trans "نصائح قبل الفحص" %}
             </button>
             <button type="button" id="btnConnectRelaxed" class="btn-link-fallback"
-                    title="استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية"
-                    aria-label="بحث شامل عن كل أجهزة البلوتوث">
+                    title="{% trans 'استخدم هذا الخيار فقط لو لم تظهر الفيشة في القائمة العادية' %}"
+                    aria-label="{% trans 'بحث شامل عن كل أجهزة البلوتوث' %}">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                لا تظهر الفيشة؟ <u>بحث شامل عن كل الأجهزة</u>
+                {% trans "لا تظهر الفيشة؟" %} <u>{% trans "بحث شامل عن كل الأجهزة" %}</u>
             </button>
             <button type="button" id="btnConnectWiFi" class="btn secondary"
-                    title="للفيشات اللي بتشتغل Wi-Fi فقط — يحتاج تشغيل obd_wifi_bridge.py على اللاب">
-                <i class="fa-solid fa-wifi"></i> اتصل عبر Wi-Fi (الجسر المحلي)
+                    title="{% trans 'للفيشات اللي بتشتغل Wi-Fi فقط — يحتاج تشغيل obd_wifi_bridge.py على اللاب' %}">
+                <i class="fa-solid fa-wifi"></i> {% trans "اتصل عبر Wi-Fi (الجسر المحلي)" %}
             </button>
             <button type="button" id="btnReadDTC" class="btn secondary" disabled>
-                <i class="fa-solid fa-list-check"></i> اقرأ أكواد الأعطال (Mode 03)
+                <i class="fa-solid fa-list-check"></i> {% trans "اقرأ أكواد الأعطال (Mode 03)" %}
             </button>
             <button type="button" id="btnClearDTC" class="btn danger" disabled>
-                <i class="fa-solid fa-trash"></i> امسح الأكواد (Mode 04)
+                <i class="fa-solid fa-trash"></i> {% trans "امسح الأكواد (Mode 04)" %}
             </button>
             <button type="button" id="btnDisconnect" class="btn secondary" disabled>
-                <i class="fa-solid fa-power-off"></i> افصل
+                <i class="fa-solid fa-power-off"></i> {% trans "افصل" %}
             </button>
             <button type="button" id="btnSaveJobCard" class="btn primary" disabled
-                    title="احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها">
-                <i class="fa-solid fa-floppy-disk"></i> احفظ في بطاقة العميل
+                    title="{% trans 'احفظ التشخيص في بطاقة عميل عشان مستشار الخدمة يستخدمها' %}">
+                <i class="fa-solid fa-floppy-disk"></i> {% trans "احفظ في بطاقة العميل" %}
             </button>
 
             <!-- ── Advanced diagnostics (grouped for clarity) ─────────── -->
             <div class="action-group">
                 <div class="action-group-title">
-                    <i class="fa-solid fa-bolt"></i> تشخيصات سريعة
+                    <i class="fa-solid fa-bolt"></i> {% trans "تشخيصات سريعة" %}
                 </div>
                 <button type="button" id="btnHealthScore" class="btn primary" disabled
-                        title="درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات في رقم واحد">
-                    <i class="fa-solid fa-heart-pulse"></i> درجة صحة السيارة
+                        title="{% trans 'درجة صحة السيارة من 0 إلى 100 — يجمع كل القراءات في رقم واحد' %}">
+                    <i class="fa-solid fa-heart-pulse"></i> {% trans "درجة صحة السيارة" %}
                 </button>
                 <button type="button" id="btnMisfire" class="btn secondary" disabled
                         title="Mode 06 → Mode 22 → RPM variance cascade">
-                    <i class="fa-solid fa-fire"></i> قياس Misfire للسلندرات
+                    <i class="fa-solid fa-fire"></i> {% trans "قياس Misfire للسلندرات" %}
                 </button>
                 <button type="button" id="btnFuelHealth" class="btn secondary" disabled
-                        title="فحص ضغط الطلمبة، fuel trim، حساس O2">
-                    <i class="fa-solid fa-gas-pump"></i> صحة نظام الوقود
+                        title="{% trans 'فحص ضغط الطلمبة، fuel trim، حساس O2' %}">
+                    <i class="fa-solid fa-gas-pump"></i> {% trans "صحة نظام الوقود" %}
                 </button>
             </div>
 
             <div class="action-group">
                 <div class="action-group-title">
-                    <i class="fa-solid fa-microscope"></i> فحوصات متقدمة
+                    <i class="fa-solid fa-microscope"></i> {% trans "فحوصات متقدمة" %}
                 </div>
                 <button type="button" id="btnSensorSweep" class="btn primary" disabled
-                        title="MAF + O2 + كتلست + idle + TPS + بطارية (~45s)">
-                    <i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل
+                        title="{% trans 'MAF + O2 + كتلست + idle + TPS + بطارية (~45s)' %}">
+                    <i class="fa-solid fa-wave-square"></i> {% trans "فحص الحسّاسات الشامل" %}
                 </button>
                 <button type="button" id="btnEmissionsHealth" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#16a34a,#15803d);"
                         title="AFR Wideband + EGR + EVAP">
-                    <i class="fa-solid fa-smog"></i> فحص الانبعاثات
+                    <i class="fa-solid fa-smog"></i> {% trans "فحص الانبعاثات" %}
                 </button>
                 <button type="button" id="btnManufacturerDIDs" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#0891b2,#0e7490);"
                         title="Mode 22 DIDs — BMW/Mercedes/Toyota/VAG/Ford">
-                    <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
+                    <i class="fa-solid fa-microchip"></i> {% trans "قراءات خاصة بالماركة" %}
                 </button>
             </div>
 
             <div class="action-group">
                 <div class="action-group-title">
-                    <i class="fa-solid fa-clipboard-list"></i> تقارير ومعلومات
+                    <i class="fa-solid fa-clipboard-list"></i> {% trans "تقارير ومعلومات" %}
                 </div>
                 <button type="button" id="btnFreezeFrame" class="btn secondary" disabled
-                        title="لقطة ظروف العطل من ECU">
+                        title="{% trans 'لقطة ظروف العطل من ECU' %}">
                     <i class="fa-solid fa-camera-retro"></i> Freeze Frame
                 </button>
                 <button type="button" id="btnReadiness" class="btn secondary" disabled
-                        title="حالة self-test في الـ ECU">
+                        title="{% trans 'حالة self-test في الـ ECU' %}">
                     <i class="fa-solid fa-list-check"></i> Readiness Monitors
                 </button>
                 <button type="button" id="btnVehicleInfo" class="btn secondary" disabled
-                        title="معلومات الـ ECU (Mode 09)">
-                    <i class="fa-solid fa-info-circle"></i> معلومات الـ ECU
+                        title="{% trans 'معلومات الـ ECU (Mode 09)' %}">
+                    <i class="fa-solid fa-info-circle"></i> {% trans "معلومات الـ ECU" %}
                 </button>
                 <button type="button" id="btnSupportedPIDs" class="btn secondary" disabled
-                        title="Mode 01 PID 00 bitmask — أي PIDs العربية بتدعمها فعلاً">
-                    <i class="fa-solid fa-list-ul"></i> PIDs المدعومة
+                        title="{% trans 'Mode 01 PID 00 bitmask — أي PIDs العربية بتدعمها فعلاً' %}">
+                    <i class="fa-solid fa-list-ul"></i> {% trans "PIDs المدعومة" %}
                 </button>
                 <button type="button" id="btnModuleInfo" class="btn secondary" disabled
-                        title="ISO 14229 standard info (VIN/CalID/Serial) من ABS/Airbag/BCM/TCM">
-                    <i class="fa-solid fa-network-wired"></i> معلومات الوحدات (Mode 22)
+                        title="{% trans 'ISO 14229 standard info (VIN/CalID/Serial) من ABS/Airbag/BCM/TCM' %}">
+                    <i class="fa-solid fa-network-wired"></i> {% trans "معلومات الوحدات (Mode 22)" %}
                 </button>
                 <button type="button" id="btnSaveSnapshot" class="btn secondary" disabled
-                        title="احفظ القراءات في المتصفح">
-                    <i class="fa-solid fa-bookmark"></i> احفظ لقطة محلية
+                        title="{% trans 'احفظ القراءات في المتصفح' %}">
+                    <i class="fa-solid fa-bookmark"></i> {% trans "احفظ لقطة محلية" %}
                 </button>
             </div>
 
             <div class="action-group">
                 <div class="action-group-title">
-                    <i class="fa-solid fa-triangle-exclamation"></i> اختبارات تحكم (Mode 08)
+                    <i class="fa-solid fa-triangle-exclamation"></i> {% trans "اختبارات تحكم (Mode 08)" %}
                 </div>
                 <button type="button" id="btnEvapLeakTest" class="btn danger" disabled
-                        title="يطلب من ECU إغلاق صمام EVAP لاختبار التسرّب — السيارة لازم تكون متوقّفة">
+                        title="{% trans 'يطلب من ECU إغلاق صمام EVAP لاختبار التسرّب — السيارة لازم تكون متوقّفة' %}">
                     <i class="fa-solid fa-flask"></i> EVAP Leak Test
                 </button>
             </div>
 
             <div class="action-group">
                 <div class="action-group-title">
-                    <i class="fa-solid fa-car-battery"></i> فحص البطارية والشحن
+                    <i class="fa-solid fa-car-battery"></i> {% trans "فحص البطارية والشحن" %}
                 </div>
                 <button type="button" id="btnBatteryHealth" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#facc15,#ca8a04);color:#1f2937;"
-                        title="فحص شامل: راحة + cranking + شحن idle + شحن rev">
-                    <i class="fa-solid fa-bolt"></i> فحص البطارية الشامل
+                        title="{% trans 'فحص شامل: راحة + cranking + شحن idle + شحن rev' %}">
+                    <i class="fa-solid fa-bolt"></i> {% trans "فحص البطارية الشامل" %}
                 </button>
             </div>
 
@@ -627,8 +627,8 @@ body {
                     <i class="fa-solid fa-gears"></i> Adaptation / Relearn
                 </div>
                 <button type="button" id="btnAdaptationMenu" class="btn danger" disabled
-                        title="إجراءات إعادة تعلّم (ETC, idle, BMW battery reg, إلخ)">
-                    <i class="fa-solid fa-list-check"></i> قائمة إجراءات Relearn
+                        title="{% trans 'إجراءات إعادة تعلّم (ETC, idle, BMW battery reg, إلخ)' %}">
+                    <i class="fa-solid fa-list-check"></i> {% trans "قائمة إجراءات Relearn" %}
                 </button>
             </div>
 
@@ -636,9 +636,9 @@ body {
                 <button type="button" id="btnAttachInvoice" class="btn primary" disabled
                         style="background:linear-gradient(135deg,#8b5cf6,#6366f1);
                                box-shadow:0 4px 14px rgba(139,92,246,0.35);"
-                        title="ابعت كل اللي اتشخّص لفاتورة العميل">
+                        title="{% trans 'ابعت كل اللي اتشخّص لفاتورة العميل' %}">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                    أرسل التشخيص للفاتورة
+                    {% trans "أرسل التشخيص للفاتورة" %}
                 </button>
             </div>
         </div>
@@ -648,53 +648,53 @@ body {
             <div class="attach-modal-bg" onclick="document.getElementById('attachModal').style.display='none'"></div>
             <div class="attach-modal-body">
                 <div class="card-title" style="border-bottom:1px solid #1e293b; padding-bottom:10px;">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> أرسل التشخيص للفاتورة
+                    <i class="fa-solid fa-file-invoice-dollar"></i> {% trans "أرسل التشخيص للفاتورة" %}
                 </div>
 
                 <div id="attachStep_select" style="padding:14px 0;">
                     <div style="color:#cbd5e1; font-size:13px; line-height:1.8;">
-                        <div>السيارة:
+                        <div>{% trans "السيارة:" %}
                             <strong id="attachVin" style="font-family:monospace; color:#67e8f9;"></strong>
                         </div>
                         <div id="attachCustomerLabel" style="margin-top:4px; color:#94a3b8;"></div>
 
                         <div id="attachJobCardSection" style="margin-top:14px;">
                             <label style="display:block; margin-bottom:6px; font-weight:700;">
-                                وجهة التشخيص:
+                                {% trans "وجهة التشخيص:" %}
                             </label>
                             <select id="attachJobCardSel"
                                     style="width:100%; padding:8px 10px; background:#0f172a;
                                            border:1px solid #1e293b; color:#e2e8f0;
                                            border-radius:6px; font-family:inherit;">
-                                <option value="">— إنشاء فاتورة (Job Card) جديدة —</option>
+                                <option value="">{% trans "— إنشاء فاتورة (Job Card) جديدة —" %}</option>
                             </select>
                         </div>
 
                         <div style="margin-top:14px; background:rgba(139,92,246,0.08);
                                     padding:10px 14px; border-radius:8px;
                                     border-inline-start:3px solid #8b5cf6;">
-                            <div style="font-weight:700; margin-bottom:6px;">📋 اللي هيتنقل:</div>
+                            <div style="font-weight:700; margin-bottom:6px;">📋 {% trans "اللي هيتنقل:" %}</div>
                             <ul id="attachSummary"
                                 style="margin:0; padding-inline-start:18px; font-size:12px; color:#cbd5e1;">
                             </ul>
                         </div>
 
                         <div style="margin-top:12px; font-size:12px; color:#fbbf24;">
-                            ⚠ كل البنود هتتحفظ <strong>مش بتتحاسب تلقائياً</strong>.
-                            المحاسب هو اللي يقرر اللي يدخل الفاتورة النهائية.
+                            ⚠ {% trans "كل البنود هتتحفظ" %} <strong>{% trans "مش بتتحاسب تلقائياً" %}</strong>.
+                            {% trans "المحاسب هو اللي يقرر اللي يدخل الفاتورة النهائية." %}
                         </div>
                     </div>
                 </div>
 
                 <div id="attachStep_loading" style="display:none; padding:30px; text-align:center; color:#94a3b8;">
                     <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i>
-                    <div style="margin-top:10px;">جاري الإرسال...</div>
+                    <div style="margin-top:10px;">{% trans "جاري الإرسال..." %}</div>
                 </div>
 
                 <div id="attachStep_success" style="display:none; padding:14px 0;">
                     <div style="text-align:center; font-size:46px; color:#10b981;">✅</div>
                     <div style="text-align:center; font-size:15px; font-weight:700; margin-top:8px;">
-                        تم إرسال التشخيص بنجاح
+                        {% trans "تم إرسال التشخيص بنجاح" %}
                     </div>
                     <div id="attachSuccessDetail"
                          style="margin-top:10px; font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
@@ -710,11 +710,11 @@ body {
                             padding-top:12px; border-top:1px solid #1e293b;">
                     <button type="button" id="attachCancelBtn" class="btn secondary"
                             onclick="document.getElementById('attachModal').style.display='none'">
-                        إغلاق
+                        {% trans "إغلاق" %}
                     </button>
                     <button type="button" id="attachConfirmBtn" class="btn primary"
                             style="background:linear-gradient(135deg,#8b5cf6,#6366f1);">
-                        <i class="fa-solid fa-paper-plane"></i> أرسل للفاتورة
+                        <i class="fa-solid fa-paper-plane"></i> {% trans "أرسل للفاتورة" %}
                     </button>
                 </div>
             </div>
@@ -722,14 +722,14 @@ body {
 
         <!-- Sensor Sweep results -->
         <div id="sensorSweepPanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل</div>
+            <div class="card-title"><i class="fa-solid fa-wave-square"></i> {% trans "فحص الحسّاسات الشامل" %}</div>
             <div id="sensorSweepBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Manufacturer DIDs (Mode 22) -->
         <div id="manufacturerDIDsPanel" class="result-card" style="display:none;">
             <div class="card-title">
-                <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
+                <i class="fa-solid fa-microchip"></i> {% trans "قراءات خاصة بالماركة" %}
                 <span id="manufacturerBadge"
                       style="margin-inline-start:8px; font-size:11px;
                              color:#67e8f9; font-weight:600;"></span>
@@ -740,27 +740,27 @@ body {
         <!-- Emissions Health (AFR + EGR + EVAP) -->
         <div id="emissionsPanel" class="result-card" style="display:none;">
             <div class="card-title">
-                <i class="fa-solid fa-smog"></i> فحص نظام الانبعاثات
+                <i class="fa-solid fa-smog"></i> {% trans "فحص نظام الانبعاثات" %}
             </div>
             <div id="emissionsBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
 
         <!-- Mode 09 ECU info -->
         <div id="vehicleInfoPanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-microchip"></i> معلومات الـ ECU</div>
+            <div class="card-title"><i class="fa-solid fa-microchip"></i> {% trans "معلومات الـ ECU" %}</div>
             <div id="vehicleInfoBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
         </div>
 
         <!-- Freeze Frame -->
         <div id="freezeFramePanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-camera-retro"></i> لقطة لحظة العطل</div>
+            <div class="card-title"><i class="fa-solid fa-camera-retro"></i> {% trans "لقطة لحظة العطل" %}</div>
             <div id="freezeFrameBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
         </div>
 
         <!-- Adapter & ECU capabilities (shown immediately after first connect) -->
         <div id="capabilitiesPanel" class="result-card" style="display:none;">
             <div class="card-title">
-                <i class="fa-solid fa-circle-info"></i> قدرات الـ adapter وفيشة السيارة
+                <i class="fa-solid fa-circle-info"></i> {% trans "قدرات الـ adapter وفيشة السيارة" %}
                 <span id="capabilityBadge"
                       style="margin-inline-start:8px; font-size:11px;
                              padding:2px 10px; border-radius:10px;
@@ -778,7 +778,7 @@ body {
 
         <!-- ── Health score gauge ────────────────────────────────────── -->
         <div id="healthPanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-heart-pulse"></i> درجة الصحة العامة</div>
+            <div class="card-title"><i class="fa-solid fa-heart-pulse"></i> {% trans "درجة الصحة العامة" %}</div>
             <div id="healthGauge"
                  style="display:flex; align-items:center; gap:18px; margin-top:10px;">
                 <div id="healthScoreCircle"
@@ -799,14 +799,14 @@ body {
 
         <!-- ── Misfire per-cylinder bars ──────────────────────────────── -->
         <div id="misfirePanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-fire"></i> Misfire لكل سلندر (آخر 10 دورات)</div>
+            <div class="card-title"><i class="fa-solid fa-fire"></i> Misfire {% trans "لكل سلندر (آخر 10 دورات)" %}</div>
             <div id="misfireBars" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
             <div id="misfireSummary" style="margin-top:10px; font-size:13px; color:#94a3b8;"></div>
         </div>
 
         <!-- ── Fuel pump health card ──────────────────────────────────── -->
         <div id="fuelHealthPanel" class="result-card" style="display:none;">
-            <div class="card-title"><i class="fa-solid fa-gas-pump"></i> تشخيص نظام الوقود</div>
+            <div class="card-title"><i class="fa-solid fa-gas-pump"></i> {% trans "تشخيص نظام الوقود" %}</div>
             <div id="fuelHealthGrid"
                  style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; font-size:13px;"></div>
             <div id="fuelHealthVerdict"
@@ -816,72 +816,72 @@ body {
         </div>
 
         <div class="card-title" style="margin-top: 20px;">
-            <i class="fa-solid fa-bug"></i> الأكواد المكتشفة
+            <i class="fa-solid fa-bug"></i> {% trans "الأكواد المكتشفة" %}
             <span id="dtcCount" style="margin-right:auto; color:#ff5470;">0</span>
         </div>
         <ul id="dtcList" class="dtc-list">
-            <li class="empty">— لم يتم الفحص بعد —</li>
+            <li class="empty">{% trans "— لم يتم الفحص بعد —" %}</li>
         </ul>
     </div>
 
     <!-- ── Live Data ── -->
     <div class="card">
-        <div class="card-title"><i class="fa-solid fa-wave-square"></i> البيانات الحية</div>
+        <div class="card-title"><i class="fa-solid fa-wave-square"></i> {% trans "البيانات الحية" %}</div>
         <div class="gauges">
             <div class="gauge idle" data-key="rpm">
                 <div class="label">RPM</div><div class="value">—</div><div class="unit">rpm</div>
             </div>
             <div class="gauge idle" data-key="speed_kph">
-                <div class="label">السرعة</div><div class="value">—</div><div class="unit">km/h</div>
+                <div class="label">{% trans "السرعة" %}</div><div class="value">—</div><div class="unit">km/h</div>
             </div>
             <div class="gauge idle" data-key="coolant_temp_c">
-                <div class="label">حرارة المياه</div><div class="value">—</div><div class="unit">°C</div>
+                <div class="label">{% trans "حرارة المياه" %}</div><div class="value">—</div><div class="unit">°C</div>
             </div>
             <div class="gauge idle" data-key="engine_load">
-                <div class="label">حمل المحرك</div><div class="value">—</div><div class="unit">%</div>
+                <div class="label">{% trans "حمل المحرك" %}</div><div class="value">—</div><div class="unit">%</div>
             </div>
             <div class="gauge idle" data-key="throttle_pct">
-                <div class="label">دواسة البنزين</div><div class="value">—</div><div class="unit">%</div>
+                <div class="label">{% trans "دواسة البنزين" %}</div><div class="value">—</div><div class="unit">%</div>
             </div>
             <div class="gauge idle" data-key="control_voltage">
-                <div class="label">جهد البطارية</div><div class="value">—</div><div class="unit">V</div>
+                <div class="label">{% trans "جهد البطارية" %}</div><div class="value">—</div><div class="unit">V</div>
             </div>
         </div>
         <div class="card-title" style="margin-top: 18px;">
-            <i class="fa-solid fa-terminal"></i> سجل الاتصال
+            <i class="fa-solid fa-terminal"></i> {% trans "سجل الاتصال" %}
         </div>
         <div id="log" class="log"></div>
     </div>
 
     <!-- ── AI Chat ── -->
     <div class="card chat">
-        <div class="card-title"><i class="fa-solid fa-robot"></i> المساعد الذكي للفني</div>
+        <div class="card-title"><i class="fa-solid fa-robot"></i> {% trans "المساعد الذكي للفني" %}</div>
         <div id="chatStream" class="chat-stream">
             <div class="msg bot">
-                مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن جهاز OBD2 وتقرأ الأكواد،
-                هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا.
+                {% trans "مرحباً 👋 أنا مساعدك في غرفة التشخيص. لما تقرن جهاز OBD2 وتقرأ الأكواد،" %}
+                {% trans "هتوصلني تلقائياً وأبدأ أحلل القراءات. تقدر كمان تكتب أي سؤال هنا." %}
             </div>
         </div>
         <div class="chat-input-wrap">
             <div id="previewRow" class="preview-row">
-                <img id="previewImg" alt="معاينة">
+                <img id="previewImg" alt="{% trans 'معاينة' %}">
                 <div class="file-info">
                     <div class="name" id="previewName">image.jpg</div>
                     <div class="size" id="previewSize">— KB</div>
                 </div>
                 <button type="button" class="remove-btn" id="btnRemoveAttachment"
-                        title="إزالة الصورة">
+                        title="{% trans 'إزالة الصورة' %}">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <form id="chatForm" class="chat-input">
                 <button type="button" id="btnAttach" class="icon-btn"
-                        title="ارفع صورة (Camera / Upload)">
+                        title="{% trans 'ارفع صورة (Camera / Upload)' %}">
                     <i class="fa-solid fa-camera"></i>
                 </button>
                 <input type="file" id="fileInput" accept="image/*" capture="environment"
                        style="display:none;">
-                <textarea id="chatInput" placeholder="اسأل عن أي عطل أو قراءة، أو ارفق صورة للموصل/الكابل... (Enter للإرسال)"></textarea>
+                <textarea id="chatInput" placeholder="{% trans 'اسأل عن أي عطل أو قراءة، أو ارفق صورة للموصل/الكابل... (Enter للإرسال)' %}"></textarea>
                 <button type="submit" class="btn primary" style="padding: 0 18px;">
                     <i class="fa-solid fa-paper-plane"></i>
                 </button>
@@ -893,56 +893,56 @@ body {
 <!-- ── Save-to-Job-Card modal ── -->
 <div id="saveModal" class="modal-backdrop">
     <div class="modal">
-        <h3><i class="fa-solid fa-floppy-disk"></i> احفظ التشخيص في بطاقة العميل</h3>
-        <div class="sub">مستشار الخدمة هيقدر يفتح بطاقة العميل ويوريه التحليل والصور علشان يبرر تكلفة الإصلاح.</div>
+        <h3><i class="fa-solid fa-floppy-disk"></i> {% trans "احفظ التشخيص في بطاقة العميل" %}</h3>
+        <div class="sub">{% trans "مستشار الخدمة هيقدر يفتح بطاقة العميل ويوريه التحليل والصور علشان يبرر تكلفة الإصلاح." %}</div>
 
         <div class="modal-section">
-            <div class="label">VIN السيارة</div>
+            <div class="label">{% trans "VIN السيارة" %}</div>
             <div class="stat-row">
                 <span id="modalVIN" style="font-family:monospace;">—</span>
-                <span class="chip" id="modalVINSource">من السيارة</span>
+                <span class="chip" id="modalVINSource">{% trans "من السيارة" %}</span>
             </div>
         </div>
 
         <div class="modal-section">
-            <div class="label">ملخص الحالة</div>
+            <div class="label">{% trans "ملخص الحالة" %}</div>
             <div class="stat-row">
-                <span>الأكواد: <strong id="modalDTCCount">0</strong></span>
-                <span>القراءات الحية: <strong id="modalLiveCount">0</strong></span>
-                <span>الصور: <strong id="modalPhotoCount">0</strong></span>
+                <span>{% trans "الأكواد:" %} <strong id="modalDTCCount">0</strong></span>
+                <span>{% trans "القراءات الحية:" %} <strong id="modalLiveCount">0</strong></span>
+                <span>{% trans "الصور:" %} <strong id="modalPhotoCount">0</strong></span>
             </div>
         </div>
 
         <div class="modal-section">
-            <div class="label">بطاقة العميل</div>
+            <div class="label">{% trans "بطاقة العميل" %}</div>
             <select id="modalJobCardSelect">
-                <option value="">— جاري التحميل... —</option>
+                <option value="">{% trans "— جاري التحميل... —" %}</option>
             </select>
             <div class="sub" id="modalJobCardHint" style="margin-top:6px;">
-                هتظهر بطاقات الصيانة المفتوحة لنفس السيارة. لو مفيش، التقرير هيتحفظ بدون ربط (orphan).
+                {% trans "هتظهر بطاقات الصيانة المفتوحة لنفس السيارة. لو مفيش، التقرير هيتحفظ بدون ربط (orphan)." %}
             </div>
         </div>
 
         <div class="modal-section">
-            <div class="label">نوع الفحص</div>
+            <div class="label">{% trans "نوع الفحص" %}</div>
             <select id="modalScanType">
-                <option value="pre_repair">فحص قبل الإصلاح</option>
-                <option value="ad_hoc" selected>فحص خارجي (Ad-hoc)</option>
-                <option value="post_repair">فحص بعد الإصلاح / تأكيد جودة</option>
+                <option value="pre_repair">{% trans "فحص قبل الإصلاح" %}</option>
+                <option value="ad_hoc" selected>{% trans "فحص خارجي (Ad-hoc)" %}</option>
+                <option value="post_repair">{% trans "فحص بعد الإصلاح / تأكيد جودة" %}</option>
             </select>
         </div>
 
         <div class="modal-section">
-            <div class="label">آخر تحليل من الـ AI (سيُحفظ كملخص)</div>
+            <div class="label">{% trans "آخر تحليل من الـ AI (سيُحفظ كملخص)" %}</div>
             <div id="modalAISummary" class="summary-preview">—</div>
         </div>
 
         <div class="modal-actions">
             <button type="button" id="btnConfirmSave" class="btn primary" style="flex:1;">
-                <i class="fa-solid fa-check"></i> احفظ الآن
+                <i class="fa-solid fa-check"></i> {% trans "احفظ الآن" %}
             </button>
             <button type="button" id="btnCancelSave" class="btn secondary">
-                إلغاء
+                {% trans "إلغاء" %}
             </button>
         </div>
     </div>
@@ -1083,7 +1083,7 @@ body {
         if (codes.length === 0) {
             const li = document.createElement('li');
             li.className = 'empty';
-            li.innerHTML = '<span><i class="fa-solid fa-check"></i> لا توجد أكواد أعطال</span>';
+            li.innerHTML = '<span><i class="fa-solid fa-check"></i> {% trans "لا توجد أكواد أعطال" %}</span>';
             dtcList.appendChild(li);
             return;
         }
@@ -1123,10 +1123,10 @@ body {
     function resizeImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onerror = () => reject(new Error('فشل قراءة الملف.'));
+            reader.onerror = () => reject(new Error('{% trans "فشل قراءة الملف." %}'));
             reader.onload = () => {
                 const img = new Image();
-                img.onerror = () => reject(new Error('الملف ليس صورة صالحة.'));
+                img.onerror = () => reject(new Error('{% trans "الملف ليس صورة صالحة." %}'));
                 img.onload = () => {
                     const longEdge = Math.max(img.width, img.height);
                     const scale = longEdge > RESIZE_LONG_EDGE
@@ -1174,7 +1174,7 @@ body {
         // in the chat itself, then store the payload for replay.
         if (thinkingNode) {
             thinkingNode.innerHTML =
-                '📦 تم حفظ السؤال — هيرد البوت أوتوماتيكي لما الإنترنت يرجع.';
+                '📦 {% trans "تم حفظ السؤال — هيرد البوت أوتوماتيكي لما الإنترنت يرجع." %}';
             thinkingNode.style.opacity = '0.85';
         }
         __pendingAIQueue.push(payload);
@@ -1183,7 +1183,7 @@ body {
 
     async function _flushAIQueue() {
         if (!__pendingAIQueue.length) return;
-        log(`🤖 رجع الإنترنت — جاري إرسال ${__pendingAIQueue.length} سؤال محفوظ…`);
+        log(`🤖 {% trans "رجع الإنترنت — جاري إرسال" %} ${__pendingAIQueue.length} {% trans "سؤال محفوظ…" %}`);
         while (__pendingAIQueue.length) {
             const payload = __pendingAIQueue.shift();
             try {
@@ -1195,11 +1195,11 @@ body {
                 });
                 const data = await resp.json();
                 if (resp.ok && data.answer) {
-                    pushMessage('bot', '📨 (رد متأخر) ' + data.answer);
+                    pushMessage('bot', '📨 {% trans "(رد متأخر)" %} ' + data.answer);
                     lastAIAnswer = data.answer;
                     $('btnSaveJobCard').disabled = !lastAIAnswer;
                 } else {
-                    pushMessage('bot', '⚠️ السؤال المحفوظ رد بـ خطأ: ' +
+                    pushMessage('bot', '⚠️ {% trans "السؤال المحفوظ رد بـ خطأ:" %} ' +
                         (data.error || 'unknown'));
                 }
             } catch (e) {
@@ -1217,7 +1217,7 @@ body {
         awaitingAI = true;
         const thinkingNode = pushMessage(
             'bot',
-            attachment ? '⏳ جاري تحليل الصورة…' : '⏳ جاري التحليل…',
+            attachment ? '⏳ {% trans "جاري تحليل الصورة…" %}' : '⏳ {% trans "جاري التحليل…" %}',
             { thinking: true },
         );
 
@@ -1253,8 +1253,8 @@ body {
 
             if (!resp.ok || !data.answer) {
                 pushMessage('bot', data.error
-                    ? `⚠️ خطأ: ${data.error}`
-                    : '⚠️ لم أتمكن من الرد، حاول مرة أخرى.');
+                    ? `⚠️ {% trans "خطأ:" %} ${data.error}`
+                    : '⚠️ {% trans "لم أتمكن من الرد، حاول مرة أخرى." %}');
                 return;
             }
             pushMessage('bot', data.answer);
@@ -1264,10 +1264,10 @@ body {
             // Stamp the history with a hint about the attachment so future
             // turns can reference it without re-sending the bytes.
             const userTurnText = userMessage
-                ? userMessage + (attachment ? ' [📷 صورة مرفقة]' : '')
+                ? userMessage + (attachment ? ' [📷 {% trans "صورة مرفقة" %}]' : '')
                 : (autoTriggered
-                    ? '[تلقائي] تم استلام قراءات جديدة من السيارة.'
-                    : (attachment ? '[📷 صورة مرفقة بدون نص]' : ''));
+                    ? '[{% trans "تلقائي" %}] {% trans "تم استلام قراءات جديدة من السيارة." %}'
+                    : (attachment ? '[📷 {% trans "صورة مرفقة بدون نص" %}]' : ''));
             if (userTurnText) history.push({ role: 'user', text: userTurnText });
             history.push({ role: 'assistant', text: data.answer });
             // Cap to last 16 entries to keep payload small
@@ -1290,7 +1290,7 @@ body {
                 ? `Wi-Fi bridge (${e.detail.url})`
                 : `service ${e.detail.service}`;
             log(`Connected on ${where}`);
-            setStatus('live', 'متصل');
+            setStatus('live', '{% trans "متصل" %}');
         });
         driver.addEventListener('init_step', (e) => {
             const tag = e.detail.failed ? '❌' : '✓';
@@ -1299,23 +1299,23 @@ body {
         });
         driver.addEventListener('protocol_probe', (e) => {
             if (e.detail.phase === 'trying') {
-                log(`  → جاري تجربة: ${e.detail.protocol}`);
+                log(`  → {% trans "جاري تجربة:" %} ${e.detail.protocol}`);
                 return;
             }
             if (e.detail.ok) {
-                log(`  ✅ بروتوكول نجح: ${e.detail.protocol}`);
+                log(`  ✅ {% trans "بروتوكول نجح:" %} ${e.detail.protocol}`);
             } else {
                 const resp = (e.detail.response || e.detail.error || 'no reply').slice(0, 50);
-                log(`  ❌ فشل ${e.detail.protocol}: ${resp}`);
+                log(`  ❌ {% trans "فشل" %} ${e.detail.protocol}: ${resp}`);
             }
         });
         driver.addEventListener('initialized', (e) => {
-            const p = e.detail && e.detail.protocol ? ` على ${e.detail.protocol}` : '';
-            log(`جهاز OBD2 جاهز${p} — البيانات هتبدأ تظهر.`);
+            const p = e.detail && e.detail.protocol ? ` {% trans "على" %} ${e.detail.protocol}` : '';
+            log(`{% trans "جهاز OBD2 جاهز" %}${p} — {% trans "البيانات هتبدأ تظهر." %}`);
             // Auto-probe capabilities so the technician knows up-front what
             // this adapter+ECU combo will and won't support.
             if (typeof driver.probeCapabilities === 'function') {
-                log('جاري فحص قدرات الـ adapter والـ ECU…');
+                log('{% trans "جاري فحص قدرات الـ adapter والـ ECU…" %}');
                 driver.probeCapabilities().catch(() => {});
             }
         });
@@ -1328,7 +1328,7 @@ body {
             // The driver already filters, but a corrupted bus can slip a
             // shorter string through — never assign that to lastVIN.
             if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) {
-                log(`⚠ VIN غير صالح اتجاهل: "${v}" (${v.length} حرف)`, true);
+                log(`⚠ {% trans "VIN غير صالح اتجاهل:" %} "${v}" (${v.length} {% trans "حرف" %})`, true);
                 return;
             }
             lastVIN = v;
@@ -1373,13 +1373,13 @@ body {
             window.__freezeFrameLast = e.detail || null;
             log('Freeze Frame: ' + (e.detail.trigger_dtc
                 ? `Triggered by ${e.detail.trigger_dtc}`
-                : 'لا توجد لقطة محفوظة (مفيش DTC مؤكد).'));
+                : '{% trans "لا توجد لقطة محفوظة (مفيش DTC مؤكد)." %}'));
         });
         driver.addEventListener('readiness', (e) => {
             renderReadiness(e.detail);
             window.__readinessLast = e.detail || null;
-            log(`Readiness: ${e.detail.imReady ? 'I/M جاهزة ✅' :
-                `${e.detail.incomplete.length} monitor ناقص ❌`}`);
+            log(`Readiness: ${e.detail.imReady ? 'I/M {% trans "جاهزة" %} ✅' :
+                `${e.detail.incomplete.length} monitor {% trans "ناقص" %} ❌`}`);
         });
         driver.addEventListener('vehicle_info', (e) => {
             renderVehicleInfo(e.detail);
@@ -1396,7 +1396,7 @@ body {
         });
         driver.addEventListener('disconnected', () => {
             log('Disconnected', true);
-            setStatus('idle', 'غير متصل');
+            setStatus('idle', '{% trans "غير متصل" %}');
             setButtons({ connected: false });
         });
     }
@@ -1423,8 +1423,8 @@ body {
         try {
             await ensureDriver(OBDBluetooth);
             setStatus('idle', relaxed
-                ? 'بحث شامل... اختر أي جهاز يبدو أنه فيشة OBD'
-                : 'جاري الاقتران...');
+                ? '{% trans "بحث شامل... اختر أي جهاز يبدو أنه فيشة OBD" %}'
+                : '{% trans "جاري الاقتران..." %}');
             const info = await obd.requestDevice({ relaxed });
             log(`Picked device: ${info.name}${relaxed ? ' (relaxed mode)' : ''}`);
             await obd.connect();
@@ -1436,7 +1436,7 @@ body {
             obd.streamLiveData({ intervalMs: 800 });
         } catch (err) {
             log(`Connect failed: ${err.message}`, true);
-            setStatus('error', 'فشل الاتصال');
+            setStatus('error', '{% trans "فشل الاتصال" %}');
             btnConnect.disabled = false;
             btnConnectRelaxed.disabled = false;
         }
@@ -1456,9 +1456,9 @@ body {
         btnConnectWiFi.disabled = true;
         try {
             if (typeof OBDWiFi !== 'function') {
-                throw new Error('OBDWiFi driver لم يُحمَّل — أعد تحميل الصفحة.');
+                throw new Error('{% trans "OBDWiFi driver لم يُحمَّل — أعد تحميل الصفحة." %}');
             }
-            setStatus('idle', 'جاري الاتصال بالجسر المحلي...');
+            setStatus('idle', '{% trans "جاري الاتصال بالجسر المحلي..." %}');
             await ensureDriver(OBDWiFi);
 
             await obd.connect();                       // ws://127.0.0.1:8765
@@ -1468,7 +1468,7 @@ body {
             obd.streamLiveData({ intervalMs: 800 });
         } catch (err) {
             log(`Wi-Fi connect failed: ${err.message}`, true);
-            setStatus('error', 'فشل الاتصال بالجسر');
+            setStatus('error', '{% trans "فشل الاتصال بالجسر" %}');
             btnConnect.disabled = false;
             btnConnectRelaxed.disabled = false;
             btnConnectWiFi.disabled = false;
@@ -1484,10 +1484,10 @@ body {
     (async function attemptSilentReconnect() {
         if (typeof obd.tryAutoReconnect !== 'function') return;
         try {
-            setStatus('idle', 'محاولة استعادة اتصال صامت...');
+            setStatus('idle', '{% trans "محاولة استعادة اتصال صامت..." %}');
             const info = await obd.tryAutoReconnect();
             if (!info) {
-                setStatus('idle', 'غير متصل');
+                setStatus('idle', '{% trans "غير متصل" %}');
                 return;
             }
             log(`Silent reconnect OK: ${info.name}`);
@@ -1497,7 +1497,7 @@ body {
             obd.streamLiveData({ intervalMs: 800 });
         } catch (err) {
             log(`Silent reconnect skipped: ${err.message}`, true);
-            setStatus('idle', 'غير متصل');
+            setStatus('idle', '{% trans "غير متصل" %}');
         }
     })();
     btnReadDTC.addEventListener('click', async () => {
@@ -1509,7 +1509,7 @@ body {
         }
     });
     btnClearDTC.addEventListener('click', async () => {
-        if (!confirm('سيتم مسح كل أكواد الأعطال من ECU. متأكد؟')) return;
+        if (!confirm('{% trans "سيتم مسح كل أكواد الأعطال من ECU. متأكد؟" %}')) return;
         try {
             await obd.clearDTCs();
         } catch (err) {
@@ -1532,7 +1532,7 @@ body {
             $('misfireSummary').innerHTML =
                 '<div style="color:#94a3b8;">' +
                 '<i class="fa-solid fa-spinner fa-spin"></i> ' +
-                'جاري المحاولة بترتيب: Mode 06 → DIDs خاصة بالماركة → تحليل تذبذب RPM' +
+                '{% trans "جاري المحاولة بترتيب: Mode 06 → DIDs خاصة بالماركة → تحليل تذبذب RPM" %}' +
                 '</div>';
             log('Misfire cascade: Mode 06 → Mode 22 → RPM variance…');
             const r = await obd.detectMisfire({ vin: lastVIN, cylinders: 8 });
@@ -1542,7 +1542,7 @@ body {
         } catch (e) {
             log(`Misfire detection failed: ${e.message}`, true);
             $('misfireSummary').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">{% trans "فشل:" %} ${e.message}</div>`;
         } finally {
             btnMisfire.disabled = !obd.isConnected;
         }
@@ -1625,7 +1625,7 @@ body {
             btnSupportedPIDs.disabled = true;
             log('Reading supported-PIDs bitmask (Mode 01 PID 00 chain)…');
             const list = await obd.readSupportedPIDs();
-            log(`✅ العربية دي بتدعم ${list.length} PID: ${list.join(', ')}`);
+            log(`✅ {% trans "العربية دي بتدعم" %} ${list.length} PID: ${list.join(', ')}`);
         } catch (e) { log(`Supported PIDs failed: ${e.message}`, true); }
         finally     { btnSupportedPIDs.disabled = !obd.isConnected; }
     });
@@ -1647,12 +1647,12 @@ body {
                     const r = await obd.readModuleStandardInfo(key);
                     const keys = Object.keys(r.responses || {});
                     if (keys.length) {
-                        log(`  ✅ ${r.label}: ${keys.length} DIDs ردّوا`);
+                        log(`  ✅ ${r.label}: ${keys.length} DIDs {% trans "ردّوا" %}`);
                         for (const k of keys) {
                             log(`     • ${k}: ${r.responses[k]}`);
                         }
                     } else {
-                        log(`  ⚪ ${r.label}: مفيش رد (الوحدة مش متصلة أو الـ DIDs مش مدعومة)`);
+                        log(`  ⚪ ${r.label}: {% trans "مفيش رد (الوحدة مش متصلة أو الـ DIDs مش مدعومة)" %}`);
                     }
                 } catch (e) {
                     log(`  ❌ ${key}: ${e.message}`);
@@ -1673,12 +1673,12 @@ body {
         }
         const confirmed = window.confirm(
             'EVAP Leak Test (Mode 08 TID 01)\n\n' +
-            'الـ ECU هيقفل صمام تنفيس خزّان الكربون ويراقب الضغط.\n\n' +
-            'متطلّبات:\n' +
-            '• المحرك متوقّف\n' +
-            '• خزّان البنزين بين ¼ و ¾\n' +
-            '• الكونتاكت على ON\n\n' +
-            'تكمّل؟'
+            '{% trans "الـ ECU هيقفل صمام تنفيس خزّان الكربون ويراقب الضغط." %}\n\n' +
+            '{% trans "متطلّبات:" %}\n' +
+            '• {% trans "المحرك متوقّف" %}\n' +
+            '• {% trans "خزّان البنزين بين ¼ و ¾" %}\n' +
+            '• {% trans "الكونتاكت على ON" %}\n\n' +
+            '{% trans "تكمّل؟" %}'
         );
         if (!confirmed) return;
         try {
@@ -1686,11 +1686,11 @@ body {
             log('Mode 08 TID 01: requesting EVAP seal & monitor…');
             const r = await obd.requestComponentTest('01');
             if (r.ok) {
-                log(`✅ ECU قبلت الطلب. Raw: ${r.raw}`);
+                log(`✅ {% trans "ECU قبلت الطلب. Raw:" %} ${r.raw}`);
             } else if (r.raw && /7F\s*08/.test(r.raw)) {
-                log(`⚠️ ECU رفضت — Mode 08 مش مدعوم على العربية دي.`, true);
+                log(`⚠️ {% trans "ECU رفضت — Mode 08 مش مدعوم على العربية دي." %}`, true);
             } else {
-                log(`⚠️ مفيش رد قاطع: ${r.raw}`, true);
+                log(`⚠️ {% trans "مفيش رد قاطع:" %} ${r.raw}`, true);
             }
         } catch (e) { log(`EVAP test failed: ${e.message}`, true); }
         finally     { btnEvapLeakTest.disabled = !obd.isConnected; }
@@ -1702,25 +1702,25 @@ body {
             log('Battery Health requires updated driver.', true); return;
         }
         const phases = [
-            { key: 'rest',          prompt: 'الفحص الأول: المحرك متوقف لكن الـ contact ON. اضغط OK للقياس.' },
-            { key: 'crank',         prompt: 'الفحص الثاني: هندوس على السلف. حضّر مفتاح التشغيل واضغط OK، وبعدها فوراً اشغّل العربية (4 ثوانٍ).' },
-            { key: 'idle_charging', prompt: 'الفحص الثالث: المحرك شغّال idle، كل الأحمال OFF (AC، أنوار، راديو). اضغط OK للقياس.' },
-            { key: 'rev_charging',  prompt: 'الفحص الرابع: ارفع الـ RPM حوالين 2000 وثبّتها، شغّل الأحمال (AC + أنوار + ديفوست). اضغط OK للقياس.' },
+            { key: 'rest',          prompt: '{% trans "الفحص الأول: المحرك متوقف لكن الـ contact ON. اضغط OK للقياس." %}' },
+            { key: 'crank',         prompt: '{% trans "الفحص الثاني: هندوس على السلف. حضّر مفتاح التشغيل واضغط OK، وبعدها فوراً اشغّل العربية (4 ثوانٍ)." %}' },
+            { key: 'idle_charging', prompt: '{% trans "الفحص الثالث: المحرك شغّال idle، كل الأحمال OFF (AC، أنوار، راديو). اضغط OK للقياس." %}' },
+            { key: 'rev_charging',  prompt: '{% trans "الفحص الرابع: ارفع الـ RPM حوالين 2000 وثبّتها، شغّل الأحمال (AC + أنوار + ديفوست). اضغط OK للقياس." %}' },
         ];
         const report = [];
         try {
             btnBatteryHealth.disabled = true;
-            log('═══ بدء فحص البطارية والشحن الشامل ═══');
+            log('═══ {% trans "بدء فحص البطارية والشحن الشامل" %} ═══');
             for (const ph of phases) {
                 if (!window.confirm(ph.prompt)) {
-                    log('تم إيقاف الفحص.', true);
+                    log('{% trans "تم إيقاف الفحص." %}', true);
                     return;
                 }
-                log(`◐ قياس ${ph.key}…`);
+                log(`◐ {% trans "قياس" %} ${ph.key}…`);
                 const r = await obd.runBatteryChargingTest({ phase: ph.key });
                 report.push(r);
                 if (r.voltage == null) {
-                    log(`  ⚠️ ${ph.key}: لا توجد قراءة`, true);
+                    log(`  ⚠️ ${ph.key}: {% trans "لا توجد قراءة" %}`, true);
                 } else {
                     const icon = r.verdict.level === 'good' ? '✅' :
                                  r.verdict.level === 'bad'  ? '❌' : '⚠️';
@@ -1728,14 +1728,14 @@ body {
                 }
             }
             // Summary
-            log('═══ ملخص فحص البطارية والشحن ═══');
+            log('═══ {% trans "ملخص فحص البطارية والشحن" %} ═══');
             const levels = report.map(r => r.verdict.level);
             if (levels.every(l => l === 'good')) {
-                log('✅ النظام الكهربائي سليم بالكامل.');
+                log('✅ {% trans "النظام الكهربائي سليم بالكامل." %}');
             } else if (levels.includes('bad')) {
-                log('❌ مشكلة حرجة في النظام الكهربائي — راجع التفاصيل أعلاه.', true);
+                log('❌ {% trans "مشكلة حرجة في النظام الكهربائي — راجع التفاصيل أعلاه." %}', true);
             } else {
-                log('⚠️ النظام شغّال لكن فيه ضعف — راجع التفاصيل أعلاه.', true);
+                log('⚠️ {% trans "النظام شغّال لكن فيه ضعف — راجع التفاصيل أعلاه." %}', true);
             }
             window.__batteryHealthLast = report;
         } catch (e) { log(`Battery test failed: ${e.message}`, true); }
@@ -1758,24 +1758,24 @@ body {
         const menu = procs.map((p, i) =>
             `${i + 1}. [${p.make}] ${p.name}`).join('\n');
         const choice = window.prompt(
-            `إجراءات Adaptation / Relearn المتاحة:\n\n${menu}\n\n` +
-            `اكتب رقم الإجراء (1-${procs.length}) أو cancel:`
+            `{% trans "إجراءات Adaptation / Relearn المتاحة:" %}\n\n${menu}\n\n` +
+            `{% trans "اكتب رقم الإجراء" %} (1-${procs.length}) {% trans "أو cancel:" %}`
         );
         const idx = parseInt(choice, 10) - 1;
         if (isNaN(idx) || idx < 0 || idx >= procs.length) {
-            log('تم الإلغاء.');
+            log('{% trans "تم الإلغاء." %}');
             return;
         }
         const proc = procs[idx];
 
         if (!window.confirm(
-            `⚠️ هتنفّذ: "${proc.name}"\n\n${proc.description}\n\n` +
-            `الإجراء فيه ${proc.steps.length} خطوة. هتمر عليها واحدة واحدة.\n\nتكمّل؟`
-        )) { log('تم الإلغاء.'); return; }
+            `⚠️ {% trans "هتنفّذ:" %} "${proc.name}"\n\n${proc.description}\n\n` +
+            `{% trans "الإجراء فيه" %} ${proc.steps.length} {% trans "خطوة. هتمر عليها واحدة واحدة." %}\n\n{% trans "تكمّل؟" %}`
+        )) { log('{% trans "تم الإلغاء." %}'); return; }
 
         try {
             btnAdaptationMenu.disabled = true;
-            log(`═══ بدء: ${proc.name} ═══`);
+            log(`═══ {% trans "بدء:" %} ${proc.name} ═══`);
 
             for (let i = 0; i < proc.steps.length; i++) {
                 const step = proc.steps[i];
@@ -1783,36 +1783,36 @@ body {
 
                 // Manual steps just need acknowledgement.
                 if (step.type === 'manual') {
-                    if (!window.confirm(`خطوة ${stepNum}:\n\n${step.text}\n\nاتممت؟`)) {
-                        log(`تم إيقاف الإجراء عند الخطوة ${stepNum}.`, true);
+                    if (!window.confirm(`{% trans "خطوة" %} ${stepNum}:\n\n${step.text}\n\n{% trans "اتممت؟" %}`)) {
+                        log(`{% trans "تم إيقاف الإجراء عند الخطوة" %} ${stepNum}.`, true);
                         return;
                     }
-                    log(`  ✓ خطوة ${stepNum}: ${step.text}`);
+                    log(`  ✓ {% trans "خطوة" %} ${stepNum}: ${step.text}`);
                     continue;
                 }
 
                 // Destructive steps need explicit confirm.
                 if (step.type === 'write' || step.type === 'clear') {
-                    if (!window.confirm(`خطوة ${stepNum} (هتغيّر ECU):\n\n${step.text || step.type}\n\nنفّذ؟`)) {
-                        log(`تم إيقاف الإجراء عند الخطوة ${stepNum}.`, true);
+                    if (!window.confirm(`{% trans "خطوة" %} ${stepNum} ({% trans "هتغيّر ECU" %}):\n\n${step.text || step.type}\n\n{% trans "نفّذ؟" %}`)) {
+                        log(`{% trans "تم إيقاف الإجراء عند الخطوة" %} ${stepNum}.`, true);
                         return;
                     }
                 }
 
                 const r = await obd.runAdaptationStep(step, {
                     onPromptForData: async (inputKey, s) => {
-                        let v = window.prompt(`أدخل قيمة ${inputKey} (hex):`);
+                        let v = window.prompt(`{% trans "أدخل قيمة" %} ${inputKey} (hex):`);
                         return (v || '').trim().toUpperCase();
                     },
                 });
                 const icon = r.ok ? '✅' : '❌';
-                log(`  ${icon} خطوة ${stepNum} (${step.type}): ${r.message || (r.ok ? 'تم' : 'فشل')}`);
+                log(`  ${icon} {% trans "خطوة" %} ${stepNum} (${step.type}): ${r.message || (r.ok ? '{% trans "تم" %}' : '{% trans "فشل" %}')}`);
                 if (!r.ok && (step.type === 'write' || step.type === 'session')) {
-                    log(`  ⚠️ خطوة حرجة فشلت — يُستحسن وقف الإجراء.`, true);
-                    if (!window.confirm('فيه فشل في خطوة حرجة. تكمّل برغم ذلك؟')) return;
+                    log(`  ⚠️ {% trans "خطوة حرجة فشلت — يُستحسن وقف الإجراء." %}`, true);
+                    if (!window.confirm('{% trans "فيه فشل في خطوة حرجة. تكمّل برغم ذلك؟" %}')) return;
                 }
             }
-            log(`═══ اكتمل: ${proc.name} ═══`);
+            log(`═══ {% trans "اكتمل:" %} ${proc.name} ═══`);
         } catch (e) { log(`Adaptation failed: ${e.message}`, true); }
         finally     { btnAdaptationMenu.disabled = !obd.isConnected; }
     });
@@ -1843,9 +1843,9 @@ body {
             $('sensorSweepPanel').style.display = 'block';
             $('sensorSweepBody').innerHTML =
                 '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
-                'جاري الفحص الشامل (~45 ثانية): MAF → O2/Catalyst → Idle/TPS/Battery</div>';
+                '{% trans "جاري الفحص الشامل (~45 ثانية): MAF → O2/Catalyst → Idle/TPS/Battery" %}</div>';
 
-            log('Sensor sweep 1/3: MAF (إيرماس) — sampling 5 readings…');
+            log('Sensor sweep 1/3: MAF ({% trans "إيرماس" %}) — sampling 5 readings…');
             await obd.measureMAFHealth({ displacement: 2.0 });
             log('Sensor sweep 2/3: O2 + Catalyst — sampling 12s…');
             await obd.measureO2AndCatalyst();
@@ -1871,16 +1871,16 @@ body {
             $('manufacturerDIDsPanel').style.display = 'block';
             $('manufacturerDIDsBody').innerHTML =
                 '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
-                'جاري قراءة الـ DIDs الخاصة بالماركة...</div>';
+                '{% trans "جاري قراءة الـ DIDs الخاصة بالماركة..." %}</div>';
             log('Mode 22 sweep: querying manufacturer DIDs…');
             const result = await obd.scanManufacturerDIDs(lastVIN);
             window.__manufacturerDIDsLast = result;
             renderManufacturerDIDs(result);
-            log(`Mode 22: ${result.supported_count} مدعوم · ${result.unsupported_count} مش مدعوم (${result.manufacturer})`);
+            log(`Mode 22: ${result.supported_count} {% trans "مدعوم" %} · ${result.unsupported_count} {% trans "مش مدعوم" %} (${result.manufacturer})`);
         } catch (e) {
             log(`Manufacturer DIDs failed: ${e.message}`, true);
             $('manufacturerDIDsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">{% trans "فشل:" %} ${e.message}</div>`;
         } finally {
             btnManufacturerDIDs.disabled = !obd.isConnected;
         }
@@ -1892,7 +1892,7 @@ body {
         const brandLabel = ({
             bmw: 'BMW', mercedes: 'Mercedes-Benz', vag: 'VW / Audi / Skoda',
             toyota: 'Toyota / Lexus', hyundai: 'Hyundai', kia: 'Kia',
-            ford: 'Ford', gm: 'GM / Chevrolet', generic: 'عام (UDS)',
+            ford: 'Ford', gm: 'GM / Chevrolet', generic: '{% trans "عام (UDS)" %}',
         })[r.manufacturer] || r.manufacturer || '—';
         badge.textContent = brandLabel;
 
@@ -1905,7 +1905,7 @@ body {
                     <div style="font-size:32px; margin-bottom:8px;">📋</div>
                     <div style="color:#fcd34d; font-weight:700; margin-bottom:6px;">${r.note}</div>
                     <div style="color:#94a3b8; font-size:12px;">
-                        ابعتلنا الـ VIN لنضيف dictionary خاص بالماركة دي.
+                        {% trans "ابعتلنا الـ VIN لنضيف dictionary خاص بالماركة دي." %}
                     </div>
                 </div>`;
             return;
@@ -1920,12 +1920,12 @@ body {
                             border-radius:12px;">
                     <div style="font-size:32px; margin-bottom:8px;">🔒</div>
                     <div style="color:#fca5a5; font-weight:700; margin-bottom:8px;">
-                        الـ ECU مردش على أي DID
+                        {% trans "الـ ECU مردش على أي DID" %}
                     </div>
                     <div style="color:#94a3b8; font-size:12px; line-height:1.8;">
-                        جربنا ${MANUFACTURER_LIB_SIZE(r.manufacturer)} DID على الـ ECUs:
+                        {% trans "جربنا" %} ${MANUFACTURER_LIB_SIZE(r.manufacturer)} DID {% trans "على الـ ECUs:" %}
                         ${ecuList || '<code>default</code>'}<br>
-                        ممكن السيارة قبل UDS، أو الـ ECU محتاج
+                        {% trans "ممكن السيارة قبل UDS، أو الـ ECU محتاج" %}
                         <strong>Security Access</strong> (Seed/Key).
                     </div>
                 </div>`;
@@ -1975,8 +1975,8 @@ body {
         body.innerHTML = `
             <div style="display:flex; gap:14px; margin-bottom:12px;
                         font-size:12px;">
-                <span style="color:#10b981;">✓ ${r.supported_count} قراءة مدعومة</span>
-                <span style="color:#64748b;">· ${r.unsupported_count} غير مدعوم</span>
+                <span style="color:#10b981;">✓ ${r.supported_count} {% trans "قراءة مدعومة" %}</span>
+                <span style="color:#64748b;">· ${r.unsupported_count} {% trans "غير مدعوم" %}</span>
             </div>
             <div style="display:grid;
                         grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
@@ -2003,7 +2003,7 @@ body {
             $('emissionsPanel').style.display = 'block';
             $('emissionsBody').innerHTML =
                 '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
-                'جاري فحص نظام الانبعاثات (~6 ثوان): AFR → EGR → EVAP</div>';
+                '{% trans "جاري فحص نظام الانبعاثات (~6 ثوان): AFR → EGR → EVAP" %}</div>';
             log('Emissions sweep: AFR (wideband λ) + EGR + EVAP…');
             const r = await obd.measureEmissionsHealth();
             window.__emissionsHealthLast = r;
@@ -2014,7 +2014,7 @@ body {
         } catch (e) {
             log(`Emissions sweep failed: ${e.message}`, true);
             $('emissionsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">{% trans "فشل:" %} ${e.message}</div>`;
         } finally {
             btnEmissionsHealth.disabled = !obd.isConnected;
         }
@@ -2055,21 +2055,21 @@ body {
                     <div style="margin-top:8px; font-size:11px; color:#64748b;
                                 font-family:monospace;">
                         ${Object.entries(r.afr.banks).map(([k,v]) =>
-                            `${k}: λ=${v.lambda} (${v.samples} عينة)`).join(' · ')}
+                            `${k}: λ=${v.lambda} (${v.samples} {% trans "عينة" %})`).join(' · ')}
                     </div>` : '',
-            } : { color: '#64748b', verdict: r.afr.reason || 'غير مدعوم' };
+            } : { color: '#64748b', verdict: r.afr.reason || '{% trans "غير مدعوم" %}' };
 
         const egrSub = r.egr.supported
             ? {
                 color: r.egr.color, verdict: r.egr.verdict,
                 headline: r.egr.error_avg_pct !== null
-                    ? `خطأ ${r.egr.error_avg_pct}%` : '',
+                    ? `{% trans "خطأ" %} ${r.egr.error_avg_pct}%` : '',
                 details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
                                       font-family:monospace;">
-                    مطلوب: ${r.egr.commanded_avg_pct ?? '—'}% ·
-                    خطأ: ${r.egr.error_avg_pct ?? '—'}%
+                    {% trans "مطلوب:" %} ${r.egr.commanded_avg_pct ?? '—'}% ·
+                    {% trans "خطأ:" %} ${r.egr.error_avg_pct ?? '—'}%
                 </div>`,
-            } : { color: '#64748b', verdict: r.egr.reason || 'غير مدعوم' };
+            } : { color: '#64748b', verdict: r.egr.reason || '{% trans "غير مدعوم" %}' };
 
         const evapSub = r.evap.supported
             ? {
@@ -2081,15 +2081,15 @@ body {
                 details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
                                       font-family:monospace;">
                     Purge: ${r.evap.purge_cmd_pct ?? '—'}% ·
-                    أبخرة: ${r.evap.vapor_press_pa ?? '—'} Pa ·
+                    {% trans "أبخرة:" %} ${r.evap.vapor_press_pa ?? '—'} Pa ·
                     Abs: ${r.evap.abs_vapor_kpa ?? '—'} kPa
                 </div>`,
-            } : { color: '#64748b', verdict: r.evap.reason || 'غير مدعوم' };
+            } : { color: '#64748b', verdict: r.evap.reason || '{% trans "غير مدعوم" %}' };
 
         body.innerHTML =
-            card('🌬️ AFR — نسبة خليط الوقود (Wideband O2)', afrSub) +
-            card('♻️ EGR — صمام إعادة دوران العادم', egrSub) +
-            card('💨 EVAP — نظام أبخرة الوقود', evapSub);
+            card('🌬️ AFR — {% trans "نسبة خليط الوقود (Wideband O2)" %}', afrSub) +
+            card('♻️ EGR — {% trans "صمام إعادة دوران العادم" %}', egrSub) +
+            card('💨 EVAP — {% trans "نظام أبخرة الوقود" %}', evapSub);
     }
 
     // ── Adapter capabilities renderer (shown on connect) ───────────────
@@ -2106,8 +2106,8 @@ body {
             limited:   '#f59e0b', broken: '#ef4444',
         })[rec.level] || '#64748b';
         const labelOf = ({
-            excellent: 'ممتاز', good: 'جيد',
-            limited:   'محدود', broken: 'مش شغّال',
+            excellent: '{% trans "ممتاز" %}', good: '{% trans "جيد" %}',
+            limited:   '{% trans "محدود" %}', broken: '{% trans "مش شغّال" %}',
         })[rec.level] || '—';
         badge.textContent = labelOf;
         badge.style.background = colorOf + '22';
@@ -2116,11 +2116,11 @@ body {
 
         // ── Modes row (raw protocol support) ────────────────────────────
         const modes = [
-            { key: 'mode01', label: 'Mode 01 — القراءات الحية' },
-            { key: 'mode03', label: 'Mode 03 — أكواد الأعطال' },
-            { key: 'mode06_misfire', label: 'Mode 06 — Misfire لكل سلندر' },
-            { key: 'mode09', label: 'Mode 09 — VIN ومعلومات ECU' },
-            { key: 'mode22', label: 'Mode 22 — قراءات الماركة' },
+            { key: 'mode01', label: 'Mode 01 — {% trans "القراءات الحية" %}' },
+            { key: 'mode03', label: 'Mode 03 — {% trans "أكواد الأعطال" %}' },
+            { key: 'mode06_misfire', label: 'Mode 06 — Misfire {% trans "لكل سلندر" %}' },
+            { key: 'mode09', label: 'Mode 09 — VIN {% trans "ومعلومات ECU" %}' },
+            { key: 'mode22', label: 'Mode 22 — {% trans "قراءات الماركة" %}' },
         ];
         const modeRows = modes.map(m => {
             const ok = !!cap.modes[m.key];
@@ -2174,7 +2174,7 @@ body {
                     <div style="font-size:11px; font-weight:700;
                                 color:#64748b; margin-bottom:6px;
                                 text-transform:uppercase;">
-                        البروتوكولات
+                        {% trans "البروتوكولات" %}
                     </div>
                     ${modeRows}
                 </div>
@@ -2182,7 +2182,7 @@ body {
                     <div style="font-size:11px; font-weight:700;
                                 color:#64748b; margin-bottom:6px;
                                 text-transform:uppercase;">
-                        التقارير المتاحة
+                        {% trans "التقارير المتاحة" %}
                     </div>
                     ${reportRows}
                 </div>
@@ -2200,7 +2200,7 @@ body {
             : '#f59e0b';
         const methodIcon  = r.method === 'mode06' ? '🎯'
             : (r.method && r.method.startsWith('mode22')) ? '🔧' : '📊';
-        const confidence  = r.confidence === 'high' ? 'دقة عالية' : 'دقة تقديرية';
+        const confidence  = r.confidence === 'high' ? '{% trans "دقة عالية" %}' : '{% trans "دقة تقديرية" %}';
 
         // ── Method badge ────────────────────────────────────────────────
         let badgeHtml = `
@@ -2223,7 +2223,7 @@ body {
                 `<div style="padding:14px; background:rgba(245,158,11,0.08);
                              border-inline-start:3px solid #f59e0b;
                              border-radius:8px; color:#fcd34d; font-size:13px;">
-                    ⚠ ${r.reason || 'مفيش بيانات misfire — لا Mode 06 ولا DIDs خاصة ولا تذبذب واضح.'}
+                    ⚠ ${r.reason || '{% trans "مفيش بيانات misfire — لا Mode 06 ولا DIDs خاصة ولا تذبذب واضح." %}'}
                 </div>`;
             return;
         }
@@ -2237,7 +2237,7 @@ body {
             row.style.cssText = 'display:flex; align-items:center; gap:10px;';
             row.innerHTML = `
                 <div style="min-width:60px; font-size:12px; color:#94a3b8;
-                            font-weight:600;">سلندر ${c.cylinder}</div>
+                            font-weight:600;">{% trans "سلندر" %} ${c.cylinder}</div>
                 <div style="flex:1; height:22px; background:rgba(15,23,42,0.6);
                             border-radius:8px; overflow:hidden;">
                     <div style="height:100%; width:${Math.max(pct, 4)}%;
@@ -2282,14 +2282,14 @@ body {
                             background:rgba(16,185,129,0.08);
                             border-inline-start:3px solid #10b981;
                             color:#86efac; font-size:13px;">
-                    ✅ مفيش أي misfire — كل السلندرات سليمة (الإجمالي 0)
+                    ✅ {% trans "مفيش أي misfire — كل السلندرات سليمة (الإجمالي 0)" %}
                 </div>`;
         } else {
             const status = worst.count >= 10 ? 'critical' : 'warn';
             const color = status === 'critical' ? '#ef4444' : '#f59e0b';
             const msg = status === 'critical'
-                ? `❌ سلندر ${worst.count} في سلندر #${worst.cylinder} — افحص الـ coil و البوجي و البخاخ`
-                : `⚠ ${worst.count} misfire في سلندر #${worst.cylinder} — راقب البوجي والـ coil`;
+                ? `❌ {% trans "سلندر" %} ${worst.count} {% trans "في سلندر" %} #${worst.cylinder} — {% trans "افحص الـ coil و البوجي و البخاخ" %}`
+                : `⚠ ${worst.count} misfire {% trans "في سلندر" %} #${worst.cylinder} — {% trans "راقب البوجي والـ coil" %}`;
             verdictHtml = `
                 <div style="padding:12px 14px; border-radius:8px;
                             background:${color}1a;
@@ -2297,7 +2297,7 @@ body {
                             color:${color}; font-size:13px; font-weight:600;">
                     ${msg}
                     <div style="margin-top:6px; font-size:11px; color:#94a3b8;">
-                        الإجمالي عبر السلندرات: ${total}
+                        {% trans "الإجمالي عبر السلندرات:" %} ${total}
                     </div>
                 </div>`;
         }
@@ -2314,7 +2314,7 @@ body {
             tech:    '{{ tech_name }}',
         };
         saveSnapshot(snap);
-        log(`📌 لقطة محفوظة (إجمالي: ${loadSnapshots().length} لقطة)`);
+        log(`📌 {% trans "لقطة محفوظة (إجمالي:" %} ${loadSnapshots().length} {% trans "لقطة)" %}`);
     });
 
     // ── Renderers for the new advanced panels ───────────────────────────
@@ -2332,7 +2332,7 @@ body {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex; align-items:center; gap:10px; font-size:12px;';
             row.innerHTML = `
-                <div style="width:60px; color:#94a3b8;">سلندر ${c.cylinder}</div>
+                <div style="width:60px; color:#94a3b8;">{% trans "سلندر" %} ${c.cylinder}</div>
                 <div style="flex:1; height:14px; background:rgba(255,255,255,0.06); border-radius:7px; overflow:hidden;">
                     <div style="height:100%; width:${pct}%;
                                 background:${danger ? 'linear-gradient(90deg,#ef4444,#f97316)' : '#10b981'};
@@ -2346,25 +2346,25 @@ body {
         const total = cyls.reduce((s, c) => s + c.count, 0);
         const worst = cyls.reduce((a, b) => a.count >= b.count ? a : b);
         sum.innerHTML = total === 0
-            ? '✅ كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل.'
-            : `⚠️ مجموع ${total} misfire — أعلى سلندر: <b>سلندر ${worst.cylinder}</b> (${worst.count} مرة). ` +
-              'افحص شمعة، كويل، أو إنجكتر السلندر ده الأول.';
+            ? '✅ {% trans "كل السلندرات سليمة — مفيش misfire مسجل آخر 10 دورات تشغيل." %}'
+            : `⚠️ {% trans "مجموع" %} ${total} misfire — {% trans "أعلى سلندر:" %} <b>{% trans "سلندر" %} ${worst.cylinder}</b> (${worst.count} {% trans "مرة" %}). ` +
+              '{% trans "افحص شمعة، كويل، أو إنجكتر السلندر ده الأول." %}';
     }
 
     // Map English snapshot keys → Arabic labels for human display.
     const PID_LABELS_AR = {
-        rpm: 'دورة المحرك', speed_kph: 'السرعة', coolant_temp_c: 'حرارة المياه',
-        engine_load: 'حمل المحرك', throttle_pct: 'دواسة البنزين',
-        control_voltage: 'جهد البطارية', intake_temp_c: 'حرارة الهواء',
-        timing_advance_deg: 'تقدّم الإشعال', maf_gs: 'تدفق الهواء',
-        oil_temp_c: 'حرارة الزيت', fuel_level_pct: 'مستوى البنزين',
-        fuel_pressure_kpa: 'ضغط البنزين', map_kpa: 'ضغط المان',
+        rpm: '{% trans "دورة المحرك" %}', speed_kph: '{% trans "السرعة" %}', coolant_temp_c: '{% trans "حرارة المياه" %}',
+        engine_load: '{% trans "حمل المحرك" %}', throttle_pct: '{% trans "دواسة البنزين" %}',
+        control_voltage: '{% trans "جهد البطارية" %}', intake_temp_c: '{% trans "حرارة الهواء" %}',
+        timing_advance_deg: '{% trans "تقدّم الإشعال" %}', maf_gs: '{% trans "تدفق الهواء" %}',
+        oil_temp_c: '{% trans "حرارة الزيت" %}', fuel_level_pct: '{% trans "مستوى البنزين" %}',
+        fuel_pressure_kpa: '{% trans "ضغط البنزين" %}', map_kpa: '{% trans "ضغط المان" %}',
     };
     const PID_UNITS = {
-        rpm: 'rpm', speed_kph: 'كم/س', coolant_temp_c: '°م',
-        engine_load: '%', throttle_pct: '%', control_voltage: 'فولت',
-        intake_temp_c: '°م', timing_advance_deg: '°', maf_gs: 'جم/ث',
-        oil_temp_c: '°م', fuel_level_pct: '%', fuel_pressure_kpa: 'kPa',
+        rpm: 'rpm', speed_kph: '{% trans "كم/س" %}', coolant_temp_c: '{% trans "°م" %}',
+        engine_load: '%', throttle_pct: '%', control_voltage: '{% trans "فولت" %}',
+        intake_temp_c: '{% trans "°م" %}', timing_advance_deg: '°', maf_gs: '{% trans "جم/ث" %}',
+        oil_temp_c: '{% trans "°م" %}', fuel_level_pct: '%', fuel_pressure_kpa: 'kPa',
         map_kpa: 'kPa',
     };
 
@@ -2375,7 +2375,7 @@ body {
         const keys = Object.keys(ff).filter(k => k !== '_at' && k !== 'frame');
         if (!keys.length) {
             body.innerHTML = '<em style="color:#94a3b8;">' +
-                'لا توجد لقطة محفوظة. الـ Freeze Frame بيتسجّل فقط لما يحصل DTC مؤكد.</em>';
+                '{% trans "لا توجد لقطة محفوظة. الـ Freeze Frame بيتسجّل فقط لما يحصل DTC مؤكد." %}</em>';
             return;
         }
         let html = '';
@@ -2383,7 +2383,7 @@ body {
             html += `<div style="background:rgba(239,68,68,0.15); padding:8px 12px;
                      border-radius:8px; margin-bottom:10px; color:#fca5a5;">
                 <i class="fa-solid fa-bug"></i>
-                هذه اللقطة اتسجّلت لحظة عطل: <strong>${ff.trigger_dtc}</strong></div>`;
+                {% trans "هذه اللقطة اتسجّلت لحظة عطل:" %} <strong>${ff.trigger_dtc}</strong></div>`;
         }
         html += '<table style="width:100%; border-collapse:collapse;">';
         for (const k of keys) {
@@ -2405,21 +2405,21 @@ body {
         panel.style.display = 'block';
 
         const labels = {
-            misfire: '🔥 الإشعال (Misfire)', fuel_system: '⛽ نظام الوقود',
-            components: '🧩 المكونات الشاملة', catalyst: '🟢 الكتلست',
-            heated_catalyst: '♨️ كتلست مُسخَّن', evap_system: '💨 تهرّب الوقود (EVAP)',
-            secondary_air: '🌬️ الهواء الثانوي', ac_refrigerant: '❄️ فريون التكييف',
-            o2_sensor: '🟡 حسّاس الأكسجين', o2_sensor_heater: '🔥 سخّان حسّاس الأكسجين',
+            misfire: '🔥 {% trans "الإشعال (Misfire)" %}', fuel_system: '⛽ {% trans "نظام الوقود" %}',
+            components: '🧩 {% trans "المكونات الشاملة" %}', catalyst: '🟢 {% trans "الكتلست" %}',
+            heated_catalyst: '♨️ {% trans "كتلست مُسخَّن" %}', evap_system: '💨 {% trans "تهرّب الوقود (EVAP)" %}',
+            secondary_air: '🌬️ {% trans "الهواء الثانوي" %}', ac_refrigerant: '❄️ {% trans "فريون التكييف" %}',
+            o2_sensor: '🟡 {% trans "حسّاس الأكسجين" %}', o2_sensor_heater: '🔥 {% trans "سخّان حسّاس الأكسجين" %}',
             egr_system: '♻️ EGR', nmhc_catalyst: 'NMHC Catalyst',
-            nox_aftertreatment: 'NOx Aftertreatment', boost_pressure: '🌀 ضغط التيربو',
-            exhaust_gas_sensor: 'حسّاس العادم', pm_filter: '🧽 مرشّح DPF',
+            nox_aftertreatment: 'NOx Aftertreatment', boost_pressure: '🌀 {% trans "ضغط التيربو" %}',
+            exhaust_gas_sensor: '{% trans "حسّاس العادم" %}', pm_filter: '🧽 {% trans "مرشّح DPF" %}',
             egr_vvt: '♻️ EGR / VVT',
         };
 
         const supported = Object.entries(r.monitors).filter(([_, m]) => m.supported);
         const complete  = supported.filter(([_, m]) => m.complete).length;
         const total     = supported.length;
-        const fuel      = r.isDiesel ? 'ديزل' : 'بنزين';
+        const fuel      = r.isDiesel ? '{% trans "ديزل" %}' : '{% trans "بنزين" %}';
 
         // ── Modern verdict header (Carista-style) ────────────────────────
         const ratio = total > 0 ? complete / total : 1;
@@ -2427,11 +2427,11 @@ body {
                                   : 'linear-gradient(135deg,#7c2d12,#b91c1c)';
         const iconBig = r.imReady ? '✅' : '⚠️';
         const headline = r.imReady
-            ? 'السيارة جاهزة للفحص'
-            : `السيارة غير جاهزة — ${r.incomplete.length} منظومة محتاجة قيادة`;
+            ? '{% trans "السيارة جاهزة للفحص" %}'
+            : `{% trans "السيارة غير جاهزة —" %} ${r.incomplete.length} {% trans "منظومة محتاجة قيادة" %}`;
         const subline = r.imReady
-            ? `${complete} من ${total} منظومة مكتملة · ${fuel}`
-            : `${complete}/${total} مكتمل · شغّل المحرك واسوق ~15 كم`;
+            ? `${complete} {% trans "من" %} ${total} {% trans "منظومة مكتملة" %} · ${fuel}`
+            : `${complete}/${total} {% trans "مكتمل · شغّل المحرك واسوق ~15 كم" %}`;
 
         verdict.innerHTML = `
             <div style="background:${bgColor}; border-radius:12px;
@@ -2451,7 +2451,7 @@ body {
                             background:rgba(251,191,36,0.1);
                             border-inline-start:3px solid #fbbf24;
                             border-radius:8px; font-size:13px; color:#fcd34d;">
-                    ⚠ لمبة Check Engine مولّعة (${r.dtcCount} عطل مخزن)
+                    ⚠ {% trans "لمبة Check Engine مولّعة" %} (${r.dtcCount} {% trans "عطل مخزن" %})
                 </div>` : ''}
         `;
 
@@ -2463,7 +2463,7 @@ body {
             list.innerHTML = `
                 <li style="padding:14px; text-align:center; color:#94a3b8;
                            background:rgba(15,23,42,0.4); border-radius:8px;">
-                    الـ ECU بيدعم مراقبة continuous بس — ده طبيعي في سيارات بعض الماركات.
+                    {% trans "الـ ECU بيدعم مراقبة continuous بس — ده طبيعي في سيارات بعض الماركات." %}
                 </li>`;
             return;
         }
@@ -2477,7 +2477,7 @@ body {
             const c = m.complete ? '#10b981' : '#ef4444';
             const bg = m.complete ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.10)';
             const icon = m.complete ? '✓' : '✗';
-            const txt = m.complete ? 'مكتمل' : 'لم يكتمل';
+            const txt = m.complete ? '{% trans "مكتمل" %}' : '{% trans "لم يكتمل" %}';
             li.style.cssText =
                 `padding:10px 14px; margin:6px 0; border-radius:10px;
                  display:flex; justify-content:space-between; align-items:center;
@@ -2499,7 +2499,7 @@ body {
             foot.style.cssText =
                 'padding:8px 14px; margin-top:8px; text-align:center;' +
                 'color:#64748b; font-size:11px; font-style:italic;';
-            foot.textContent = `+ ${unsupp} منظومة مش متاحة في ECU السيارة دي (ده طبيعي)`;
+            foot.textContent = `+ ${unsupp} {% trans "منظومة مش متاحة في ECU السيارة دي (ده طبيعي)" %}`;
             list.appendChild(foot);
         }
     }
@@ -2509,15 +2509,15 @@ body {
         const body  = $('vehicleInfoBody');
         panel.style.display = 'block';
         const rows = [
-            ['اسم الـ ECU',     info.ecu_name],
-            ['كاليبراشن (CalID)', info.cal_id],
-            ['CVN (checksum الكاليبراشن)', info.cvn],
-            ['عدّاد الأداء (IPT)', info.ipt],
+            ['{% trans "اسم الـ ECU" %}',     info.ecu_name],
+            ['{% trans "كاليبراشن (CalID)" %}', info.cal_id],
+            ['{% trans "CVN (checksum الكاليبراشن)" %}', info.cvn],
+            ['{% trans "عدّاد الأداء (IPT)" %}', info.ipt],
         ];
         const visible = rows.filter(([_, v]) => v);
         if (!visible.length) {
             body.innerHTML = '<em style="color:#94a3b8;">' +
-                'الـ ECU مردش بمعلومات Mode 09 — بعض السيارات مش بتدعمه أو محتاج ignition ON.</em>';
+                '{% trans "الـ ECU مردش بمعلومات Mode 09 — بعض السيارات مش بتدعمه أو محتاج ignition ON." %}</em>';
             return;
         }
         body.innerHTML = '<table style="width:100%; border-collapse:collapse;">' +
@@ -2546,13 +2546,13 @@ body {
         const maf = buf.maf;
         if (maf) {
             if (!maf.supported) {
-                html += sec('🌬️ إيرماس MAF', '#64748b',
+                html += sec('🌬️ {% trans "إيرماس MAF" %}', '#64748b',
                     `<div style="color:#94a3b8;">${maf.reason}</div>`);
             } else {
-                html += sec(`🌬️ إيرماس MAF — ${maf.verdict}`, maf.color,
-                    row('قراءة فعلية', `${maf.actual_gs} g/s`) +
-                    row('قراءة نظرية متوقعة', `${maf.expected_gs} g/s`) +
-                    row('النسبة (الـ ratio)', `${maf.ratio} (المثالي 1.00)`)
+                html += sec(`🌬️ {% trans "إيرماس MAF" %} — ${maf.verdict}`, maf.color,
+                    row('{% trans "قراءة فعلية" %}', `${maf.actual_gs} g/s`) +
+                    row('{% trans "قراءة نظرية متوقعة" %}', `${maf.expected_gs} g/s`) +
+                    row('{% trans "النسبة (الـ ratio)" %}', `${maf.ratio} {% trans "(المثالي 1.00)" %}`)
                 );
             }
         }
@@ -2561,18 +2561,18 @@ body {
         const o2 = buf.o2;
         if (o2) {
             if (!o2.supported) {
-                html += sec('💨 حسّاسات O2 + الكتلست', '#64748b',
+                html += sec('💨 {% trans "حسّاسات O2 + الكتلست" %}', '#64748b',
                     `<div style="color:#94a3b8;">${o2.reason}</div>`);
             } else {
-                html += sec(`💨 حسّاس O2 الأمامي — ${o2.o2_verdict}`, o2.o2_color,
-                    row('معدّل التذبذب', `${o2.upstream.hz} Hz (${o2.sample_count.pre} عينة)`) +
-                    row('أقل جهد', `${o2.upstream.min.toFixed(2)} V`) +
-                    row('أعلى جهد', `${o2.upstream.max.toFixed(2)} V`)
+                html += sec(`💨 {% trans "حسّاس O2 الأمامي" %} — ${o2.o2_verdict}`, o2.o2_color,
+                    row('{% trans "معدّل التذبذب" %}', `${o2.upstream.hz} Hz (${o2.sample_count.pre} {% trans "عينة" %})`) +
+                    row('{% trans "أقل جهد" %}', `${o2.upstream.min.toFixed(2)} V`) +
+                    row('{% trans "أعلى جهد" %}', `${o2.upstream.max.toFixed(2)} V`)
                 );
-                html += sec(`🛡️ الكتلست — ${o2.cat_verdict}`, o2.cat_color,
-                    row('الكفاءة', `${o2.catalyst_efficiency_pct} %`) +
-                    row('تذبذب أمامي', `${o2.upstream.hz} Hz`) +
-                    row('تذبذب خلفي', `${o2.downstream.hz} Hz (لازم أقل بكتير)`)
+                html += sec(`🛡️ {% trans "الكتلست" %} — ${o2.cat_verdict}`, o2.cat_color,
+                    row('{% trans "الكفاءة" %}', `${o2.catalyst_efficiency_pct} %`) +
+                    row('{% trans "تذبذب أمامي" %}', `${o2.upstream.hz} Hz`) +
+                    row('{% trans "تذبذب خلفي" %}', `${o2.downstream.hz} Hz {% trans "(لازم أقل بكتير)" %}`)
                 );
             }
         }
@@ -2581,27 +2581,27 @@ body {
         const its = buf.idleTpsBattery;
         if (its) {
             if (its.idle && its.idle.supported) {
-                html += sec(`🔄 ثبات الـ Idle — ${its.idle.verdict}`, its.idle.color,
-                    row('متوسط RPM', `${its.idle.mean_rpm} rpm`) +
-                    row('الانحراف المعياري', `±${its.idle.stdev_rpm} rpm`)
+                html += sec(`🔄 {% trans "ثبات الـ Idle" %} — ${its.idle.verdict}`, its.idle.color,
+                    row('{% trans "متوسط RPM" %}', `${its.idle.mean_rpm} rpm`) +
+                    row('{% trans "الانحراف المعياري" %}', `±${its.idle.stdev_rpm} rpm`)
                 );
             }
             if (its.tps && its.tps.supported) {
-                html += sec(`🎚️ TPS (دواسة البنزين) — ${its.tps.verdict}`, its.tps.color,
-                    row('TPS المطلق (PID 11)', `${its.tps.absolute_pct} %`) +
-                    row('TPS النسبي (PID 45)', `${its.tps.relative_pct} %`) +
-                    row('الفرق', `${its.tps.delta_pct} %`)
+                html += sec(`🎚️ TPS ({% trans "دواسة البنزين" %}) — ${its.tps.verdict}`, its.tps.color,
+                    row('TPS {% trans "المطلق (PID 11)" %}', `${its.tps.absolute_pct} %`) +
+                    row('TPS {% trans "النسبي (PID 45)" %}', `${its.tps.relative_pct} %`) +
+                    row('{% trans "الفرق" %}', `${its.tps.delta_pct} %`)
                 );
             }
             if (its.battery && its.battery.supported) {
-                html += sec(`🔋 البطارية / الدينمو — ${its.battery.verdict}`, its.battery.color,
-                    row('متوسط الجهد', `${its.battery.mean_v} V`) +
-                    row('استقرار الجهد', `±${its.battery.stdev_v} V`)
+                html += sec(`🔋 {% trans "البطارية / الدينمو" %} — ${its.battery.verdict}`, its.battery.color,
+                    row('{% trans "متوسط الجهد" %}', `${its.battery.mean_v} V`) +
+                    row('{% trans "استقرار الجهد" %}', `±${its.battery.stdev_v} V`)
                 );
             }
         }
 
-        if (!html) html = '<div style="color:#94a3b8;">مفيش بيانات — تأكد إن العربية شغّالة وكرّر.</div>';
+        if (!html) html = '<div style="color:#94a3b8;">{% trans "مفيش بيانات — تأكد إن العربية شغّالة وكرّر." %}</div>';
         body.innerHTML = html;
     }
 
@@ -2618,11 +2618,11 @@ body {
             color:${h.color}; font-size:30px; font-weight:900;">${h.score}</div>`;
         verdictEl.textContent = h.verdict;
         verdictEl.style.color = h.color;
-        balanceEl.textContent = `توازن السلندرات: ${h.cylinderBalance}/100`;
+        balanceEl.textContent = `{% trans "توازن السلندرات:" %} ${h.cylinderBalance}/100`;
         ul.innerHTML = '';
         if (!h.factors.length) {
             const li = document.createElement('li');
-            li.textContent = 'مفيش عوامل سلبية مكتشفة. كل القراءات طبيعية.';
+            li.textContent = '{% trans "مفيش عوامل سلبية مكتشفة. كل القراءات طبيعية." %}';
             li.style.color = '#86efac';
             ul.appendChild(li);
         } else {
@@ -2643,14 +2643,14 @@ body {
         const labels = {
             stft_b1: 'STFT Bank 1', stft_b2: 'STFT Bank 2',
             ltft_b1: 'LTFT Bank 1', ltft_b2: 'LTFT Bank 2',
-            fuel_pressure_kpa: 'ضغط الوقود',
-            fuel_rail_rel_kpa: 'ضغط الريل (نسبي)',
-            fuel_rail_abs_kpa: 'ضغط الريل (مطلق)',
-            intake_manifold_kpa: 'ضغط المنفولد',
-            timing_advance_deg: 'توقيت الإشعال',
+            fuel_pressure_kpa: '{% trans "ضغط الوقود" %}',
+            fuel_rail_rel_kpa: '{% trans "ضغط الريل (نسبي)" %}',
+            fuel_rail_abs_kpa: '{% trans "ضغط الريل (مطلق)" %}',
+            intake_manifold_kpa: '{% trans "ضغط المنفولد" %}',
+            timing_advance_deg: '{% trans "توقيت الإشعال" %}',
             o2_b1s1_v: 'O2 B1S1', o2_b1s2_v: 'O2 B1S2',
-            fuel_rate_lh: 'معدل الحقن',
-            baro_kpa: 'الضغط الجوي',
+            fuel_rate_lh: '{% trans "معدل الحقن" %}',
+            baro_kpa: '{% trans "الضغط الجوي" %}',
         };
         for (const key of Object.keys(labels)) {
             const v = snap[key];
@@ -2664,7 +2664,7 @@ body {
                 </div>`;
             grid.appendChild(cell);
         }
-        verdictEl.textContent = snap._verdict || 'لا توجد قراءات كافية للحكم.';
+        verdictEl.textContent = snap._verdict || '{% trans "لا توجد قراءات كافية للحكم." %}';
     }
 
     // ── Chat input ──────────────────────────────────────────────
@@ -2701,11 +2701,11 @@ body {
 
     async function openSaveModal() {
         if (!lastVIN) {
-            showToast('لازم تقرأ الـ VIN من السيارة الأول.', 'error');
+            showToast('{% trans "لازم تقرأ الـ VIN من السيارة الأول." %}', 'error');
             return;
         }
         if (!lastAIAnswer) {
-            showToast('شغّل تحليل AI واحد على الأقل قبل الحفظ.', 'error');
+            showToast('{% trans "شغّل تحليل AI واحد على الأقل قبل الحفظ." %}', 'error');
             return;
         }
 
@@ -2719,28 +2719,28 @@ body {
         $('saveModal').classList.add('visible');
 
         const select = $('modalJobCardSelect');
-        select.innerHTML = '<option value="">— جاري التحميل... —</option>';
+        select.innerHTML = '<option value="">{% trans "— جاري التحميل... —" %}</option>';
         try {
             const resp = await fetch(
                 JOB_CARDS_URL + '?vin=' + encodeURIComponent(lastVIN),
             );
             const data = await resp.json();
             if (!data.job_cards || data.job_cards.length === 0) {
-                select.innerHTML = '<option value="">— مفيش بطاقة مفتوحة (هيتحفظ بدون ربط) —</option>';
+                select.innerHTML = '<option value="">{% trans "— مفيش بطاقة مفتوحة (هيتحفظ بدون ربط) —" %}</option>';
                 $('modalJobCardHint').textContent =
-                    'مفيش بطاقة صيانة مفتوحة لنفس السيارة. التقرير هيتحفظ كـ orphan ومستشار الخدمة هيقدر يربطه يدوياً.';
+                    '{% trans "مفيش بطاقة صيانة مفتوحة لنفس السيارة. التقرير هيتحفظ كـ orphan ومستشار الخدمة هيقدر يربطه يدوياً." %}';
             } else {
-                select.innerHTML = '<option value="">— بدون ربط —</option>' +
+                select.innerHTML = '<option value="">{% trans "— بدون ربط —" %}</option>' +
                     data.job_cards.map(jc =>
                         `<option value="${jc.id}">${jc.label}</option>`
                     ).join('');
                 // Default-select the first (most recent) active job card
                 select.selectedIndex = 1;
                 $('modalJobCardHint').textContent =
-                    `لقينا ${data.job_cards.length} بطاقة مفتوحة لهذه السيارة.`;
+                    `{% trans "لقينا" %} ${data.job_cards.length} {% trans "بطاقة مفتوحة لهذه السيارة." %}`;
             }
         } catch (err) {
-            select.innerHTML = '<option value="">— تعذّر التحميل —</option>';
+            select.innerHTML = '<option value="">{% trans "— تعذّر التحميل —" %}</option>';
         }
     }
 
@@ -2751,7 +2751,7 @@ body {
     async function confirmSave() {
         const btn = $('btnConfirmSave');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> {% trans "جاري الحفظ..." %}';
         try {
             const payload = {
                 vin: lastVIN,
@@ -2769,7 +2769,7 @@ body {
             if (result.queued) {
                 closeSaveModal();
                 showToast(
-                    '📦 محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع',
+                    '📦 {% trans "محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع" %}',
                     'success',
                 );
                 log(`Save queued offline (key=${result.idempotency_key.slice(0,8)})`);
@@ -2777,23 +2777,23 @@ body {
             }
             if (!result.ok) {
                 const e = result.error || {};
-                showToast(e.message || e.error || 'فشل الحفظ', 'error');
+                showToast(e.message || e.error || '{% trans "فشل الحفظ" %}', 'error');
                 return;
             }
             const data = result.data;
             closeSaveModal();
             showToast(
-                `✓ تم الحفظ — تقرير #${data.report_id}` +
-                (data.job_card_id ? ` · بطاقة #${data.job_card_id}` : ' (orphan)') +
-                ` · ${data.photos_saved} صورة`,
+                `✓ {% trans "تم الحفظ — تقرير" %} #${data.report_id}` +
+                (data.job_card_id ? ` · {% trans "بطاقة" %} #${data.job_card_id}` : ' (orphan)') +
+                ` · ${data.photos_saved} {% trans "صورة" %}`,
                 'success',
             );
             log(`Saved report #${data.report_id} · photos=${data.photos_saved}/${sessionPhotos.length}`);
         } catch (err) {
-            showToast(`تعذّر الحفظ: ${err.message}`, 'error');
+            showToast(`{% trans "تعذّر الحفظ:" %} ${err.message}`, 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> احفظ الآن';
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> {% trans "احفظ الآن" %}';
         }
     }
 
@@ -2824,9 +2824,9 @@ body {
         // can leave lastVIN as a partial/garbage string (e.g. "28453") and
         // the backend would reject with a confusing "not found" message.
         if (!isValidVIN(lastVIN)) {
-            const cur = lastVIN ? `الـ VIN الحالي: "${lastVIN}" (${lastVIN.length} حرف).` : '';
+            const cur = lastVIN ? `{% trans "الـ VIN الحالي:" %} "${lastVIN}" (${lastVIN.length} {% trans "حرف" %}).` : '';
             showToast(
-                `الـ VIN مش صالح. لازم 17 حرف. ${cur} اضغط "اقرأ معلومات الـ ECU" تاني.`,
+                `{% trans "الـ VIN مش صالح. لازم 17 حرف." %} ${cur} {% trans 'اضغط "اقرأ معلومات الـ ECU" تاني.' %}`,
                 'error', 6000,
             );
             return;
@@ -2840,25 +2840,25 @@ body {
         const hasSweep = sweep && Object.keys(sweep).length > 0;
         const summary = $('attachSummary');
         const lines = [];
-        lines.push(`<li>${lastDTCs.length} كود عطل (DTC)</li>`);
-        if (hasSweep) lines.push('<li>نتيجة فحص الحسّاسات الشامل</li>');
+        lines.push(`<li>${lastDTCs.length} {% trans "كود عطل (DTC)" %}</li>`);
+        if (hasSweep) lines.push('<li>{% trans "نتيجة فحص الحسّاسات الشامل" %}</li>');
         const freezeOK = !!window.__freezeFrameLast;
-        if (freezeOK) lines.push('<li>قراءة Freeze Frame</li>');
+        if (freezeOK) lines.push('<li>{% trans "قراءة Freeze Frame" %}</li>');
         const readyOK = !!window.__readinessLast;
-        if (readyOK) lines.push('<li>حالة Readiness Monitors</li>');
+        if (readyOK) lines.push('<li>{% trans "حالة Readiness Monitors" %}</li>');
         const hs = window.__healthScoreLast;
-        if (typeof hs === 'number') lines.push(`<li>درجة الصحة: ${hs}/100</li>`);
+        if (typeof hs === 'number') lines.push(`<li>{% trans "درجة الصحة:" %} ${hs}/100</li>`);
         summary.innerHTML = lines.join('');
 
         // Load existing maintenance Job Cards for this VIN
         const sel = $('attachJobCardSel');
-        sel.innerHTML = '<option value="">— جاري التحميل... —</option>';
+        sel.innerHTML = '<option value="">{% trans "— جاري التحميل... —" %}</option>';
         try {
             const resp = await fetch(
                 JOB_CARDS_URL + '?vin=' + encodeURIComponent(lastVIN),
             );
             const data = await resp.json();
-            let opts = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
+            let opts = '<option value="">{% trans "— إنشاء فاتورة (Job Card) جديدة —" %}</option>';
             if (data.job_cards && data.job_cards.length) {
                 opts += data.job_cards.map(jc =>
                     `<option value="${jc.id}">${jc.label}</option>`
@@ -2866,7 +2866,7 @@ body {
             }
             sel.innerHTML = opts;
         } catch (err) {
-            sel.innerHTML = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
+            sel.innerHTML = '<option value="">{% trans "— إنشاء فاتورة (Job Card) جديدة —" %}</option>';
         }
 
         $('attachModal').style.display = 'block';
@@ -2897,7 +2897,7 @@ body {
             });
             if (result.queued) {
                 $('attachSuccessDetail').innerHTML =
-                    '📦 محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع.' +
+                    '📦 {% trans "محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع." %}' +
                     '<br><span style="color:#94a3b8; font-size:12px;">' +
                     `Key: ${result.idempotency_key.slice(0, 8)}…</span>`;
                 attachShowStep('success');
@@ -2907,21 +2907,21 @@ body {
             if (!result.ok) {
                 const e = result.error || {};
                 $('attachErrorMsg').textContent =
-                    e.message || e.error || 'فشل الإرسال';
+                    e.message || e.error || '{% trans "فشل الإرسال" %}';
                 attachShowStep('error');
                 return;
             }
             const data = result.data;
             $('attachSuccessDetail').innerHTML =
-                `فاتورة #${data.invoice_id} · ${data.items_created} بند مقترح` +
-                (data.report_id ? ` · تقرير #${data.report_id}` : '') +
+                `{% trans "فاتورة" %} #${data.invoice_id} · ${data.items_created} {% trans "بند مقترح" %}` +
+                (data.report_id ? ` · {% trans "تقرير" %} #${data.report_id}` : '') +
                 `<br><a href="${data.invoice_admin_url}" target="_blank" ` +
                 `style="color:#67e8f9; text-decoration:underline;">` +
-                `افتح الفاتورة في صفحة المحاسب ↗</a>`;
+                `{% trans "افتح الفاتورة في صفحة المحاسب" %} ↗</a>`;
             attachShowStep('success');
             log(`Attached to invoice #${data.invoice_id} · items=${data.items_created}`);
         } catch (err) {
-            $('attachErrorMsg').textContent = `تعذّر الإرسال: ${err.message}`;
+            $('attachErrorMsg').textContent = `{% trans "تعذّر الإرسال:" %} ${err.message}`;
             attachShowStep('error');
         } finally {
             btn.disabled = false;
@@ -2949,21 +2949,21 @@ body {
         badge.style.cursor = 'pointer';
         badge.addEventListener('click', async () => {
             if (navigator.onLine === false) {
-                showToast('لسه مفيش نت — هيبعت تلقائياً لما يرجع', 'error');
+                showToast('{% trans "لسه مفيش نت — هيبعت تلقائياً لما يرجع" %}', 'error');
                 return;
             }
             const r = await DiagOfflineQueue.flush();
             if (r && r.sent) {
-                showToast(`✓ تم إرسال ${r.sent} تشخيص محفوظ`, 'success');
+                showToast(`✓ {% trans "تم إرسال" %} ${r.sent} {% trans "تشخيص محفوظ" %}`, 'success');
                 log(`Queue flush: sent=${r.sent} dropped=${r.dropped || 0} kept=${r.kept || 0}`);
             }
         });
         // When the browser regains connectivity, surface that to the user.
         window.addEventListener('online', () => {
-            log('🌐 رجع الإنترنت — جاري إرسال الطابور المحلي…');
+            log('🌐 {% trans "رجع الإنترنت — جاري إرسال الطابور المحلي…" %}');
         });
         window.addEventListener('offline', () => {
-            log('⚠ النت اتقطع — التشخيصات هتتخزن محلياً.', true);
+            log('⚠ {% trans "النت اتقطع — التشخيصات هتتخزن محلياً." %}', true);
         });
     })();
 
@@ -3006,11 +3006,11 @@ body {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            log(`الملف ليس صورة (${file.type})`, true);
+            log(`{% trans "الملف ليس صورة" %} (${file.type})`, true);
             return;
         }
         if (file.size > MAX_IMAGE_BYTES) {
-            log(`الصورة أكبر من ${MAX_IMAGE_BYTES / 1024 / 1024} MB — هتتعامل لكن بدقة أقل.`);
+            log(`{% trans "الصورة أكبر من" %} ${MAX_IMAGE_BYTES / 1024 / 1024} MB — {% trans "هتتعامل لكن بدقة أقل." %}`);
         }
         try {
             const dataUrl = await resizeImage(file);
@@ -3019,7 +3019,7 @@ body {
                 size: Math.round(dataUrl.length * 0.75),  // base64 → bytes approx
             });
         } catch (err) {
-            log(`فشل معالجة الصورة: ${err.message}`, true);
+            log(`{% trans "فشل معالجة الصورة:" %} ${err.message}`, true);
         }
     });
 })();
@@ -3057,7 +3057,7 @@ body {
         banner.style.display = offline ? 'block' : 'none';
     }
     function renderQueue(n) {
-        if (qCounter) qCounter.textContent = `${n || 0} في الانتظار`;
+        if (qCounter) qCounter.textContent = `${n || 0} {% trans "في الانتظار" %}`;
     }
     window.addEventListener('online',  renderBanner);
     window.addEventListener('offline', renderBanner);
