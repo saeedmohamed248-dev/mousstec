@@ -221,74 +221,74 @@
 <div id="commandPalette" onclick="if(event.target===this) toggleCommandPalette()">
     <div class="palette-container">
         {% if industry == 'printing' %}
-        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث... (طلبات، عملاء، خامات، مصممين)" autocomplete="off" onkeyup="filterCommandPalette()">
+        <input type="text" id="paletteInput" class="palette-input" placeholder="{% trans 'ابحث... (طلبات، عملاء، خامات، مصممين)' %}" autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
             <div class="palette-item" data-name="طلب طباعة جديد أمر إنتاج" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-plus-circle" style="color:#10b981;"></i> طلب طباعة جديد
+                <i class="fas fa-plus-circle" style="color:#10b981;"></i> {% trans "طلب طباعة جديد" %}
             </div>
             <div class="palette-item" data-name="العملاء عميل زبون" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-user-tie" style="color:#3b82f6;"></i> إدارة العملاء
+                <i class="fas fa-user-tie" style="color:#3b82f6;"></i> {% trans "إدارة العملاء" %}
             </div>
             <div class="palette-item" data-name="المصممين مصمم تصميم designer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-palette" style="color:#a855f7;"></i> إدارة المصممين
+                <i class="fas fa-palette" style="color:#a855f7;"></i> {% trans "إدارة المصممين" %}
             </div>
             <div class="palette-item" data-name="سجل أعمال المصممين worklog" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designerworklog/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-clipboard-check" style="color:#f59e0b;"></i> سجل أعمال المصممين
+                <i class="fas fa-clipboard-check" style="color:#f59e0b;"></i> {% trans "سجل أعمال المصممين" %}
             </div>
             <div class="palette-item" data-name="الطلبات طلب إنتاج order" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-file-invoice" style="color:#06b6d4;"></i> سجل الطلبات
+                <i class="fas fa-file-invoice" style="color:#06b6d4;"></i> {% trans "سجل الطلبات" %}
             </div>
             <div class="palette-item" data-name="الخامات مخزن ورق حبر material" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-boxes" style="color:#f97316;"></i> إدارة الخامات والمخزون
+                <i class="fas fa-boxes" style="color:#f97316;"></i> {% trans "إدارة الخامات والمخزون" %}
             </div>
             <div class="palette-item" data-name="الخزينة المالية treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-wallet" style="color:#10b981;"></i> الخزائن المالية
+                <i class="fas fa-wallet" style="color:#10b981;"></i> {% trans "الخزائن المالية" %}
             </div>
             <div class="palette-item" data-name="حركات مالية مصروفات إيرادات" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-exchange-alt" style="color:#ef4444;"></i> الحركات المالية
+                <i class="fas fa-exchange-alt" style="color:#ef4444;"></i> {% trans "الحركات المالية" %}
             </div>
             <div class="palette-item" data-name="الماكينات آلات طابعة machine" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/machineprofile/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-cog" style="color:#64748b;"></i> إدارة الماكينات
+                <i class="fas fa-cog" style="color:#64748b;"></i> {% trans "إدارة الماكينات" %}
             </div>
             <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
-                <i class="fas fa-robot" style="color:#8b5cf6;"></i> المستشار الذكي (AI Copilot)
+                <i class="fas fa-robot" style="color:#8b5cf6;"></i> {% trans "المستشار الذكي (AI Copilot)" %}
             </div>
         </div>
         {% else %}
-        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..." autocomplete="off" onkeyup="filterCommandPalette()">
+        <input type="text" id="paletteInput" class="palette-input" placeholder="{% trans 'ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)...' %}" autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
             <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-plus-circle text-emerald-500"></i> أمر شغل وفاتورة صيانة جديدة
+                <i class="fas fa-plus-circle text-emerald-500"></i> {% trans "أمر شغل وفاتورة صيانة جديدة" %}
             </div>
             <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'admin:inventory_purchaseinvoice_add' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-truck-loading text-info"></i> توريد بضاعة وإنشاء فاتورة مشتريات
+                <i class="fas fa-truck-loading text-info"></i> {% trans "توريد بضاعة وإنشاء فاتورة مشتريات" %}
             </div>
             <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:b2b_marketplace' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات سوق التجار المشترك B2B
+                <i class="fas fa-gavel text-pink-500"></i> {% trans "دخول صالة مزادات سوق التجار المشترك B2B" %}
             </div>
             <div class="palette-item" data-name="نقطة البيع كاشير باركود pos" data-url="{% url 'inventory:pos_interface' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-cash-register text-indigo-500"></i> نقطة البيع السريعة (POS)
+                <i class="fas fa-cash-register text-indigo-500"></i> {% trans "نقطة البيع السريعة (POS)" %}
             </div>
             <div class="palette-item" data-name="العملاء قائمة عميل customer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/customer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-users text-blue-500"></i> إدارة العملاء
+                <i class="fas fa-users text-blue-500"></i> {% trans "إدارة العملاء" %}
             </div>
             <div class="palette-item" data-name="المنتجات اصناف قطع غيار مخزن product" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/product/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-boxes text-amber-500"></i> إدارة الأصناف والمخزون
+                <i class="fas fa-boxes text-amber-500"></i> {% trans "إدارة الأصناف والمخزون" %}
             </div>
             <div class="palette-item" data-name="الفواتير فاتورة بيع invoice" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/saleinvoice/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-file-invoice text-teal-500"></i> سجل الفواتير
+                <i class="fas fa-file-invoice text-teal-500"></i> {% trans "سجل الفواتير" %}
             </div>
             <div class="palette-item" data-name="كشك الفنيين ميكانيكي وردية mechanic" data-url="{% url 'inventory:mechanic_kiosk' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-wrench text-orange-500"></i> كشك الفنيين وتسجيل الورديات
+                <i class="fas fa-wrench text-orange-500"></i> {% trans "كشك الفنيين وتسجيل الورديات" %}
             </div>
             <div class="palette-item" data-name="الخزينة المالية حسابات treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/treasury/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-vault text-green-500"></i> إدارة الخزائن المالية
+                <i class="fas fa-vault text-green-500"></i> {% trans "إدارة الخزائن المالية" %}
             </div>
             <div class="palette-item" data-name="الداشبورد لوحة dashboard" data-url="{% url 'inventory:dashboard' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-chart-pie text-cyan-500"></i> لوحة المعلومات الرئيسية
+                <i class="fas fa-chart-pie text-cyan-500"></i> {% trans "لوحة المعلومات الرئيسية" %}
             </div>
             <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
-                <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (AI Copilot)
+                <i class="fas fa-robot text-purple-500"></i> {% trans "التحدث مع المستشار الذكي (AI Copilot)" %}
             </div>
         </div>
         {% endif %}
@@ -319,7 +319,7 @@
                     <button type="submit"
                             style="background:transparent; border:none; color:#64748b; font-size:20px;
                                    cursor:pointer; line-height:1; padding:4px 8px;"
-                            title="إخفاء">×</button>
+                            title="{% trans 'إخفاء' %}">×</button>
                 </form>
             </div>
             {% endwith %}
@@ -332,12 +332,12 @@
          style="background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 100%); border: 2px solid #ec4899; border-radius: 16px; padding: 16px 20px; color: #831843; box-shadow: 0 4px 18px rgba(236,72,153,.15);">
         <div style="font-size: 28px;">🎁</div>
         <div style="flex: 1;">
-            <h5 style="margin: 0; color: #831843; font-weight: 800;">هدية مفعّلة من إدارة Mouss Tec!</h5>
+            <h5 style="margin: 0; color: #831843; font-weight: 800;">{% trans "هدية مفعّلة من إدارة Mouss Tec!" %}</h5>
             <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
                 {% for g in active_ai_bonus_grants %}
                     <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
-                        {{ g.reason|default:"هدية من الإدارة" }}
-                        {% if g.expires_at %} <small style="color:#6b7280;">— تنتهي {{ g.expires_at|date:"Y-m-d" }}</small>{% endif %}
+                        {{ g.reason|default:_("هدية من الإدارة") }}
+                        {% if g.expires_at %} <small style="color:#6b7280;">— {% trans "تنتهي" %} {{ g.expires_at|date:"Y-m-d" }}</small>{% endif %}
                     </span>
                 {% endfor %}
             </p>
@@ -346,19 +346,19 @@
             {% if active_ai_bonus_totals.designs %}
             <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
                 <div style="font-size: 22px; font-weight: 900; color: #be185d; line-height: 1;">{{ active_ai_bonus_totals.designs }}</div>
-                <div style="font-size: 10px; color: #9f1239; font-weight: 700;">🎨 تصميم</div>
+                <div style="font-size: 10px; color: #9f1239; font-weight: 700;">🎨 {% trans "تصميم" %}</div>
             </div>
             {% endif %}
             {% if active_ai_bonus_totals.whatsapp %}
             <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
                 <div style="font-size: 22px; font-weight: 900; color: #15803d; line-height: 1;">{{ active_ai_bonus_totals.whatsapp }}</div>
-                <div style="font-size: 10px; color: #166534; font-weight: 700;">💬 واتساب</div>
+                <div style="font-size: 10px; color: #166534; font-weight: 700;">💬 {% trans "واتساب" %}</div>
             </div>
             {% endif %}
             {% if active_ai_bonus_totals.watermarks %}
             <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
                 <div style="font-size: 22px; font-weight: 900; color: #0891b2; line-height: 1;">{{ active_ai_bonus_totals.watermarks }}</div>
-                <div style="font-size: 10px; color: #155e75; font-weight: 700;">💧 علامة مائية</div>
+                <div style="font-size: 10px; color: #155e75; font-weight: 700;">💧 {% trans "علامة مائية" %}</div>
             </div>
             {% endif %}
         </div>
@@ -372,32 +372,32 @@
         <div>
             <div class="d-flex align-items-center">
                 <h3 id="dynamicGreeting" class="font-weight-bold mb-0" style="color: #1e293b;">
-                    مرحباً بك في {{ branch_name|default:"غرفة العمليات المركزية" }}
+                    {% trans "مرحباً بك في" %} {{ branch_name|default:_("غرفة العمليات المركزية") }}
                 </h3>
                 {% if industry == 'printing' %}
                     <span class="b2b-badge" style="background: rgba(6,182,212,0.1); color: #06b6d4; border-color: rgba(6,182,212,0.3);">
-                        <i class="fas fa-print"></i> إدارة المطابع والتصميم
+                        <i class="fas fa-print"></i> {% trans "إدارة المطابع والتصميم" %}
                     </span>
                 {% elif business_type == 'parts_dealer' %}
-                    <span class="b2b-badge">📦 تاجر قطع غيار معتمد</span>
+                    <span class="b2b-badge">📦 {% trans "تاجر قطع غيار معتمد" %}</span>
                 {% elif business_type == 'scrap_importer' %}
-                    <span class="b2b-badge">🪚 مستورد ومحرك تقطيع</span>
+                    <span class="b2b-badge">🪚 {% trans "مستورد ومحرك تقطيع" %}</span>
                 {% elif business_type == 'service_center' %}
-                    <span class="b2b-badge">🛠️ إدارة مراكز الصيانة الفنية</span>
+                    <span class="b2b-badge">🛠️ {% trans "إدارة مراكز الصيانة الفنية" %}</span>
                 {% else %}
-                    <span class="b2b-badge">👑 توكيل شامل</span>
+                    <span class="b2b-badge">👑 {% trans "توكيل شامل" %}</span>
                 {% endif %}
             </div>
             {% if industry == 'printing' %}
-            <small class="text-muted font-weight-bold">نظرة شاملة على الطلبات، المصممين، الخامات، والماليات</small>
+            <small class="text-muted font-weight-bold">{% trans "نظرة شاملة على الطلبات، المصممين، الخامات، والماليات" %}</small>
             {% else %}
-            <small class="text-muted font-weight-bold">نظرة عامة على أداء البيزنس والمحفظة اليوم</small>
+            <small class="text-muted font-weight-bold">{% trans "نظرة عامة على أداء البيزنس والمحفظة اليوم" %}</small>
             {% endif %}
         </div>
 
         <div class="d-flex gap-3 align-items-center">
             <span id="networkStatus" class="badge p-2 px-3 shadow-sm" style="font-size: 12px; background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0;">
-                <i class="fas fa-wifi"></i> متصل بالسحابة
+                <i class="fas fa-wifi"></i> {% trans "متصل بالسحابة" %}
             </span>
             <span id="liveClock" class="badge p-2 px-3 shadow-sm" style="font-size: 14px; letter-spacing: 1px; border-radius: 8px; background: var(--dark-grad); color: white;">00:00:00</span>
         </div>
@@ -412,107 +412,107 @@
             {% if is_public_schema and user.is_superuser %}
                 <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
                    style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
-                   title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
+                   title="{% trans 'رادار صحة المنصة + إصلاح الدورات غير المكتملة' %}">
                     <i class="fas fa-heart-pulse"></i> 🩺 System Health
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/marketplacecustomer/" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #7c3aed, #ec4899);"
-                   title="إدارة عملاء السوق + الهدايا + Impersonate">
-                    <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
+                   title="{% trans 'إدارة عملاء السوق + الهدايا + Impersonate' %}">
+                    <i class="fas fa-user-shield"></i> 🛡️ {% trans "عملاء السوق (God Mode)" %}
                 </a>
                 <a href="{% url 'saas_plan_list' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #0ea5e9, #6366f1);"
-                   title="إدارة الباقات والأسعار والمزايا الديناميكية">
-                    <i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات
+                   title="{% trans 'إدارة الباقات والأسعار والمزايا الديناميكية' %}">
+                    <i class="fas fa-crown"></i> 💎 {% trans "إدارة الباقات والاشتراكات" %}
                 </a>
                 <a href="{% url 'saas_revenue_dashboard' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #059669, #14b8a6);"
-                   title="إجمالي إيرادات المنصة وفواتير SaaS">
-                    <i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة
+                   title="{% trans 'إجمالي إيرادات المنصة وفواتير SaaS' %}">
+                    <i class="fas fa-chart-pie"></i> 📊 {% trans "الإيرادات العامة" %}
                 </a>
 
             {% elif industry == 'printing' %}
                 {# ===== أزرار المطابع ===== #}
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" class="saas-quick-btn" style="background: var(--print-grad);">
-                    <i class="fas fa-plus-circle"></i> طلب طباعة جديد
+                    <i class="fas fa-plus-circle"></i> {% trans "طلب طباعة جديد" %}
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" class="saas-quick-btn" style="background: var(--print-design);">
-                    <i class="fas fa-palette"></i> المصممين
+                    <i class="fas fa-palette"></i> {% trans "المصممين" %}
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="saas-quick-btn" style="background: var(--warning-grad);">
-                    <i class="fas fa-boxes"></i> الخامات
+                    <i class="fas fa-boxes"></i> {% trans "الخامات" %}
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" class="saas-quick-btn" style="background: var(--success-grad);">
-                    <i class="fas fa-wallet"></i> الخزينة
+                    <i class="fas fa-wallet"></i> {% trans "الخزينة" %}
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/add/" class="saas-quick-btn" style="background: var(--danger-grad);">
-                    <i class="fas fa-exchange-alt"></i> حركة مالية
+                    <i class="fas fa-exchange-alt"></i> {% trans "حركة مالية" %}
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" class="saas-quick-btn" style="background: var(--info-grad);">
-                    <i class="fas fa-user-tie"></i> العملاء
+                    <i class="fas fa-user-tie"></i> {% trans "العملاء" %}
                 </a>
                 <a href="#" onclick="openAIStudioModal(); return false;" class="saas-quick-btn ai-studio-btn" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">
                     <i class="fas fa-wand-magic-sparkles"></i> AI Studio
                 </a>
                 <a href="/printing/ai/history/" class="saas-quick-btn" style="background: linear-gradient(135deg, #ec4899, #be185d);">
-                    <i class="fas fa-images"></i> سجل التصاميم
+                    <i class="fas fa-images"></i> {% trans "سجل التصاميم" %}
                 </a>
                 <a href="#" onclick="openWatermarkModal(); return false;" class="saas-quick-btn ai-studio-btn" style="background: linear-gradient(135deg, #06b6d4, #0284c7);">
-                    <i class="fas fa-stamp"></i> علامة مائية
+                    <i class="fas fa-stamp"></i> {% trans "علامة مائية" %}
                 </a>
                 <a href="/marketplace/merchant/feed/" class="saas-quick-btn glow-btn" id="marketplaceFeedBtn" style="background: linear-gradient(135deg, #f59e0b, #d97706); position:relative;">
-                    <i class="fas fa-store-alt"></i> السوق المفتوح
+                    <i class="fas fa-store-alt"></i> {% trans "السوق المفتوح" %}
                     <span id="mpFeedBadge" style="display:none;position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;border-radius:50%;min-width:22px;height:22px;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center;padding:0 6px;border:2px solid #1e293b;">0</span>
                 </a>
             {% else %}
                 {# ===== أزرار السيارات ===== #}
                 {% if business_type == 'service_center' or business_type == 'both' %}
                 <a href="{% url 'admin:inventory_saleinvoice_add' %}" class="saas-quick-btn" style="background: var(--primary-grad);">
-                    <i class="fas fa-tools"></i> أمر شغل
+                    <i class="fas fa-tools"></i> {% trans "أمر شغل" %}
                 </a>
                 <a href="{% url 'admin:inventory_maintenancecontract_changelist' %}" class="saas-quick-btn" style="background: var(--dark-grad);">
-                    <i class="fas fa-briefcase"></i> عقود الأساطيل
+                    <i class="fas fa-briefcase"></i> {% trans "عقود الأساطيل" %}
                 </a>
                 {% endif %}
 
                 <a href="{% url 'admin:admin_reports' %}" class="saas-quick-btn" style="background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);">
-                    <i class="fas fa-chart-bar"></i> التقارير والتحليلات
+                    <i class="fas fa-chart-bar"></i> {% trans "التقارير والتحليلات" %}
                 </a>
 
                 {% if business_type == 'parts_dealer' or business_type == 'both' %}
                 <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
-                    <i class="fas fa-cash-register"></i> مبيعات سريعة
+                    <i class="fas fa-cash-register"></i> {% trans "مبيعات سريعة" %}
                 </a>
                 {% endif %}
 
                 {% if business_type == 'scrap_importer' or business_type == 'both' %}
                 <a href="{% url 'admin:inventory_scrapdismantlingjob_changelist' %}" class="saas-quick-btn" style="background: var(--danger-grad);">
-                    <i class="fas fa-car-crash"></i> حاسبة الإفراج
+                    <i class="fas fa-car-crash"></i> {% trans "حاسبة الإفراج" %}
                 </a>
                 {% endif %}
 
                 <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="saas-quick-btn" style="background: var(--success-grad);">
-                    <i class="fas fa-truck-loading"></i> توريد بضاعة
+                    <i class="fas fa-truck-loading"></i> {% trans "توريد بضاعة" %}
                 </a>
 
                 <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
-                    <i class="fas fa-store"></i> سوق B2B
+                    <i class="fas fa-store"></i> {% trans "سوق B2B" %}
                 </a>
 
                 <a href="/marketplace/merchant/feed/" class="saas-quick-btn glow-btn" id="marketplaceFeedBtnAuto" style="background: linear-gradient(135deg, #f59e0b, #d97706); position:relative;">
-                    <i class="fas fa-store-alt"></i> السوق المفتوح
+                    <i class="fas fa-store-alt"></i> {% trans "السوق المفتوح" %}
                     <span id="mpFeedBadgeAuto" style="display:none;position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;border-radius:50%;min-width:22px;height:22px;font-size:11px;font-weight:900;align-items:center;justify-content:center;padding:0 6px;border:2px solid #1e293b;">0</span>
                 </a>
 
                 <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
-                    <i class="fas fa-rocket"></i> الوصول السريع
+                    <i class="fas fa-rocket"></i> {% trans "الوصول السريع" %}
                 </a>
             {% endif %}
         </div>
         <div class="col-lg-4 col-12">
             <div class="omni-search-wrapper" onclick="toggleCommandPalette()">
-                <button class="voice-search-btn" id="voiceSearchBtn" title="بحث بالأوامر الصوتية" onclick="event.stopPropagation()"><i class="fas fa-microphone"></i></button>
-                <input type="text" class="form-control omni-search" placeholder="بحث شامل في النظام..." id="globalSearch" readonly style="cursor: pointer; background-color: #fff;">
+                <button class="voice-search-btn" id="voiceSearchBtn" title="{% trans 'بحث بالأوامر الصوتية' %}" onclick="event.stopPropagation()"><i class="fas fa-microphone"></i></button>
+                <input type="text" class="form-control omni-search" placeholder="{% trans 'بحث شامل في النظام...' %}" id="globalSearch" readonly style="cursor: pointer; background-color: #fff;">
                 <div class="search-hotkey">Ctrl + K</div>
             </div>
         </div>
@@ -529,15 +529,15 @@
         <div class="col-lg-2 col-md-4 col-6 mb-3" onclick="toggleAISidebar()">
             <div class="saas-stat-card glow-btn" style="background: var(--mouss-tec-grad);">
                 <h3><i class="fas fa-brain" style="font-size: 24px;"></i></h3>
-                <p>مستشار Mouss Tec</p>
+                <p>{% trans "مستشار Mouss Tec" %}</p>
                 <i class="fas fa-robot bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
-                <p>إيرادات الشهر</p>
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup></h3>
+                <p>{% trans "إيرادات الشهر" %}</p>
                 <i class="fas fa-coins bg-icon"></i>
             </div>
         </div>
@@ -545,15 +545,15 @@
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--print-grad);">
                 <h3><span class="animate-number" data-value="{{ print_pending|default:'0' }}">0</span></h3>
-                <p>طلبات قيد التنفيذ</p>
+                <p>{% trans "طلبات قيد التنفيذ" %}</p>
                 <i class="fas fa-print bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
-                <p>مستحقات العملاء</p>
+                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup></h3>
+                <p>{% trans "مستحقات العملاء" %}</p>
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
         </div>
@@ -561,15 +561,15 @@
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--print-design);">
                 <h3><span class="animate-number" data-value="{{ print_designers_count|default:'0' }}">0</span></h3>
-                <p>فريق التصميم</p>
+                <p>{% trans "فريق التصميم" %}</p>
                 <i class="fas fa-palette bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-2 col-md-6 col-12 mb-3">
             <div class="saas-stat-card" style="background: var(--dark-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
-                <p>المحصّل هذا الشهر</p>
+                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup></h3>
+                <p>{% trans "المحصّل هذا الشهر" %}</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
         </div>
@@ -581,42 +581,42 @@
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: #06b6d4;"><i class="fas fa-file-alt"></i></div>
                 <div class="mini-value">{{ print_today_count|default:"0" }}</div>
-                <div class="mini-label">طلبات اليوم</div>
+                <div class="mini-label">{% trans "طلبات اليوم" %}</div>
             </div>
         </div>
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: #10b981;"><i class="fas fa-check-double"></i></div>
                 <div class="mini-value">{{ print_delivered_month|default:"0" }}</div>
-                <div class="mini-label">تم تسليمه هذا الشهر</div>
+                <div class="mini-label">{% trans "تم تسليمه هذا الشهر" %}</div>
             </div>
         </div>
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: #a855f7;"><i class="fas fa-clock"></i></div>
                 <div class="mini-value">{{ print_today_design_hours|default:"0" }}</div>
-                <div class="mini-label">ساعات تصميم اليوم</div>
+                <div class="mini-label">{% trans "ساعات تصميم اليوم" %}</div>
             </div>
         </div>
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: #f97316;"><i class="fas fa-clipboard-list"></i></div>
                 <div class="mini-value">{{ print_month_design_logs|default:"0" }}</div>
-                <div class="mini-label">أعمال تصميم الشهر</div>
+                <div class="mini-label">{% trans "أعمال تصميم الشهر" %}</div>
             </div>
         </div>
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: #3b82f6;"><i class="fas fa-users"></i></div>
                 <div class="mini-value">{{ print_customers_count|default:"0" }}</div>
-                <div class="mini-label">إجمالي العملاء</div>
+                <div class="mini-label">{% trans "إجمالي العملاء" %}</div>
             </div>
         </div>
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="print-mini-stat">
                 <div class="mini-icon" style="color: {% if stats.low_stock_count > 0 %}#ef4444{% else %}#10b981{% endif %};"><i class="fas fa-{% if stats.low_stock_count > 0 %}exclamation-triangle{% else %}box-open{% endif %}"></i></div>
                 <div class="mini-value" style="color: {% if stats.low_stock_count > 0 %}#ef4444{% else %}#1e293b{% endif %};">{{ stats.low_stock_count|default:"0" }}</div>
-                <div class="mini-label">خامات منخفضة</div>
+                <div class="mini-label">{% trans "خامات منخفضة" %}</div>
             </div>
         </div>
     </div>
@@ -627,15 +627,15 @@
         <div class="col-lg-2 col-md-4 col-6 mb-3" onclick="toggleAISidebar()">
             <div class="saas-stat-card glow-btn" style="background: var(--mouss-tec-grad);">
                 <h3><i class="fas fa-brain" style="font-size: 24px;"></i></h3>
-                <p>مستشار Mouss Tec</p>
+                <p>{% trans "مستشار Mouss Tec" %}</p>
                 <i class="fas fa-robot bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-3 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
-                <p>مبيعات اليوم</p>
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup></h3>
+                <p>{% trans "مبيعات اليوم" %}</p>
                 <i class="fas fa-wallet bg-icon"></i>
             </div>
         </div>
@@ -643,7 +643,7 @@
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--info-grad);">
                 <h3><span class="animate-number" data-value="{{ stats.invoices_count|slice:'0:3'|default:'0' }}">0</span></h3>
-                <p>{{ stats.invoices_count|slice:'3:'|default:'أوامر الشغل اليوم' }}</p>
+                <p>{{ stats.invoices_count|slice:'3:'|default:_('أوامر الشغل اليوم') }}</p>
                 <i class="fas fa-clipboard-list bg-icon"></i>
             </div>
         </div>
@@ -652,10 +652,10 @@
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
                 {% if stats.total_debt == 'حاسبة التقطيع' %}
                     <h3><i class="fas fa-cogs"></i></h3>
-                    <p>تكلفة الإفراجات</p>
+                    <p>{% trans "تكلفة الإفراجات" %}</p>
                 {% else %}
-                    <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
-                    <p>ديون متأخرة بالخارج</p>
+                    <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup></h3>
+                    <p>{% trans "ديون متأخرة بالخارج" %}</p>
                 {% endif %}
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
@@ -667,10 +667,10 @@
                     {% if stats.net_profit_today == '🔒 مخفي' %}
                         <i class="fas fa-lock" style="font-size: 24px;"></i>
                     {% else %}
-                        <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup>
+                        <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {% trans "ج.م" %}</sup>
                     {% endif %}
                 </h3>
-                <p>أرباح الشهر الصافية</p>
+                <p>{% trans "أرباح الشهر الصافية" %}</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
         </div>
@@ -686,11 +686,11 @@
     <div class="row mb-4">
         <div class="col-12 mb-2">
             <h5 class="font-weight-bold" style="color: #1e293b;">
-                <i class="fas fa-vault text-success"></i> الخزائن والأرصدة المالية
+                <i class="fas fa-vault text-success"></i> {% trans "الخزائن والأرصدة المالية" %}
                 <span style="font-size: 14px; color: #64748b; margin-right: 10px;">
-                    إجمالي الرصيد:
+                    {% trans "إجمالي الرصيد:" %}
                     <b style="color: {% if stats.total_treasury >= '0' %}#10b981{% else %}#ef4444{% endif %}; font-size: 18px;">
-                        {{ stats.total_treasury }} ج.م
+                        {{ stats.total_treasury }} {% trans "ج.م" %}
                     </b>
                 </span>
             </h5>
@@ -706,7 +706,7 @@
                 </div>
                 <div class="treasury-balance-display" style="font-size: 28px; font-weight: 900; color: {% if t.is_negative %}#ef4444{% else %}#10b981{% endif %}; letter-spacing: -0.5px; line-height: 1.2;" data-value="{{ t.balance }}">
                     {{ t.balance|floatformat:"2" }}
-                    <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>
+                    <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">{% trans "ج.م" %}</span>
                 </div>
             </div>
         </div>
@@ -728,13 +728,13 @@
                                 <i class="fas fa-crown"></i> Super Admin Control Center
                             </h4>
                             <p class="mb-0" style="color: #cbd5e1; font-size: 14px;">
-                                لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح
+                                {% trans "لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح" %}
                                 <a href="{% url 'super_admin_dashboard' %}" style="color: #fbbf24; font-weight: 700;">/superadmin/</a>.
                             </p>
                         </div>
                         <a href="{% url 'super_admin_dashboard' %}" class="btn btn-lg font-weight-bold"
                            style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1e1b4b; border-radius: 12px; padding: 12px 28px;">
-                            <i class="fas fa-arrow-left"></i> فتح غرفة عمليات SaaS
+                            <i class="fas fa-arrow-left"></i> {% trans "فتح غرفة عمليات SaaS" %}
                         </a>
                     </div>
                 </div>
@@ -752,9 +752,9 @@
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
                 <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 16px 16px 0 0;">
                     {% if industry == 'printing' %}
-                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area" style="color: #06b6d4;"></i> تحليل إيرادات المطبعة</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area" style="color: #06b6d4;"></i> {% trans "تحليل إيرادات المطبعة" %}</h5>
                     {% else %}
-                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area text-primary"></i> التحليل المالي والتنبؤ الذكي</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area text-primary"></i> {% trans "التحليل المالي والتنبؤ الذكي" %}</h5>
                     {% endif %}
                     <span class="badge d-flex align-items-center gap-2" id="liveSyncBadge" style="background-color: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; transition: 0.3s;">
                         <span style="width:8px; height:8px; background-color:#10b981; border-radius:50%; display:inline-block;" class="live-pulse"></span>
@@ -773,9 +773,9 @@
             <div class="card shadow-sm border-0" style="border-radius: 16px; height: 100%;">
                 <div class="card-header bg-white border-0 pt-4 pb-0">
                     {% if industry == 'printing' %}
-                    <h5 class="font-weight-bold mb-0" style="color: #06b6d4;"><i class="fas fa-satellite-dish" style="color: #06b6d4;"></i> رادار المطبعة الذكي</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #06b6d4;"><i class="fas fa-satellite-dish" style="color: #06b6d4;"></i> {% trans "رادار المطبعة الذكي" %}</h5>
                     {% else %}
-                    <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> رادار Mouss Tec الذكي</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> {% trans "رادار Mouss Tec الذكي" %}</h5>
                     {% endif %}
                 </div>
                 <div class="card-body p-4" style="max-height: 420px; overflow-y: auto;">
@@ -785,74 +785,74 @@
 
                     {# ملخص مالي سريع #}
                     <div class="insight-card" style="border-inline-start-color: #10b981; background: #f0fdf4;">
-                        <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> الملخص المالي للشهر</h6>
+                        <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> {% trans "الملخص المالي للشهر" %}</h6>
                         <div class="d-flex justify-content-between mb-1">
-                            <span style="font-size:13px; color: #475569;">الإيرادات:</span>
-                            <b style="color: #10b981;">{{ print_month_income|default:"0"|floatformat:"0" }} ج.م</b>
+                            <span style="font-size:13px; color: #475569;">{% trans "الإيرادات:" %}</span>
+                            <b style="color: #10b981;">{{ print_month_income|default:"0"|floatformat:"0" }} {% trans "ج.م" %}</b>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <span style="font-size:13px; color: #475569;">المصروفات:</span>
-                            <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|floatformat:"0" }} ج.م</b>
+                            <span style="font-size:13px; color: #475569;">{% trans "المصروفات:" %}</span>
+                            <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|floatformat:"0" }} {% trans "ج.م" %}</b>
                         </div>
                     </div>
 
                     {# خامات منخفضة #}
                     {% if print_low_stock_materials %}
                         <div class="insight-card pulse-alert">
-                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> خامات تحتاج توريد عاجل</h6>
+                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> {% trans "خامات تحتاج توريد عاجل" %}</h6>
                             <ul class="mb-2 text-sm text-danger" style="padding-inline-start: 20px;">
                                 {% for mat in print_low_stock_materials %}
-                                    <li><b>{{ mat.0 }}</b> (المتبقي: {{ mat.1 }})</li>
+                                    <li><b>{{ mat.0 }}</b> ({% trans "المتبقي:" %} {{ mat.1 }})</li>
                                 {% endfor %}
                             </ul>
-                            <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="btn btn-sm btn-outline-danger w-100" style="border-radius: 8px;">إدارة الخامات</a>
+                            <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="btn btn-sm btn-outline-danger w-100" style="border-radius: 8px;">{% trans "إدارة الخامات" %}</a>
                         </div>
                     {% else %}
                         <div class="insight-card" style="border-inline-start-color: #10b981;">
-                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> مخزون الخامات مستقر</h6>
-                            <p class="mb-0 text-sm text-muted">جميع الخامات فوق الحد الأدنى للمخزون.</p>
+                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> {% trans "مخزون الخامات مستقر" %}</h6>
+                            <p class="mb-0 text-sm text-muted">{% trans "جميع الخامات فوق الحد الأدنى للمخزون." %}</p>
                         </div>
                     {% endif %}
 
                     {# آخر الطلبات #}
                     <div class="insight-card" style="border-inline-start-color: #06b6d4; background: #f0f9ff;">
-                        <h6 class="font-weight-bold mb-2" style="color: #0891b2;"><i class="fas fa-history"></i> آخر الطلبات</h6>
+                        <h6 class="font-weight-bold mb-2" style="color: #0891b2;"><i class="fas fa-history"></i> {% trans "آخر الطلبات" %}</h6>
                         <div id="recentOrdersList"></div>
                     </div>
 
                     {% else %}
                     {# ===== رادار السيارات ===== #}
                     <div class="insight-card" style="border-inline-start-color: #7c3aed; background: #f3f4f6;">
-                        <h6 class="font-weight-bold mb-2" style="color: #6d28d9;"><i class="fas fa-microchip"></i> تحليل الأعطال السريع (DTC AI)</h6>
+                        <h6 class="font-weight-bold mb-2" style="color: #6d28d9;"><i class="fas fa-microchip"></i> {% trans "تحليل الأعطال السريع (DTC AI)" %}</h6>
                         <div class="input-group input-group-sm mb-2">
-                            <input type="text" id="quickDtcInput" class="form-control" placeholder="أدخل كود العطل (مثل P0300)..." style="border-radius: 6px 0 0 6px;">
-                            <button class="btn text-white font-weight-bold" type="button" style="background: #7c3aed; border-radius: 0 6px 6px 0;" onclick="triggerQuickDiagnostic()">تحليل</button>
+                            <input type="text" id="quickDtcInput" class="form-control" placeholder="{% trans 'أدخل كود العطل (مثل P0300)...' %}" style="border-radius: 6px 0 0 6px;">
+                            <button class="btn text-white font-weight-bold" type="button" style="background: #7c3aed; border-radius: 0 6px 6px 0;" onclick="triggerQuickDiagnostic()">{% trans "تحليل" %}</button>
                         </div>
                         <div id="quickDtcResult" class="text-xs text-muted" style="display:none; max-height: 80px; overflow-y:auto; background:white; padding:6px; border-radius:6px; border:1px solid #e5e7eb;"></div>
                     </div>
 
                     {% if business_type != 'service_center' %}
                     <div class="insight-card" style="border-inline-start-color: #ec4899; background: #fdf2f8;">
-                        <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> مزادات B2B حية!</h6>
-                        <p class="mb-2 text-sm" style="color: #9d174d;">يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات.</p>
-                        <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
+                        <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> {% trans "مزادات B2B حية!" %}</h6>
+                        <p class="mb-2 text-sm" style="color: #9d174d;">{% trans "يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات." %}</p>
+                        <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">{% trans "دخول صالة المزادات" %}</a>
                     </div>
                     {% endif %}
 
                     {% if low_stock_items %}
                         <div class="insight-card pulse-alert">
-                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> نواقص حرجة للطلب العاجل</h6>
+                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> {% trans "نواقص حرجة للطلب العاجل" %}</h6>
                             <ul class="mb-2 text-sm text-danger" style="padding-inline-start: 20px;">
                                 {% for item in low_stock_items %}
-                                    <li><b>{{ item.product.name }}</b> (باقي: {{ item.quantity }})</li>
+                                    <li><b>{{ item.product.name }}</b> ({% trans "باقي:" %} {{ item.quantity }})</li>
                                 {% endfor %}
                             </ul>
-                            <a href="#" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">طلب تسعير من السوق (RFQ)</a>
+                            <a href="#" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">{% trans "طلب تسعير من السوق (RFQ)" %}</a>
                         </div>
                     {% else %}
                         <div class="insight-card" style="border-inline-start-color: #10b981;">
-                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> المخزون مستقر</h6>
-                            <p class="mb-0 text-sm text-muted">لا توجد قطع غيار تحت حد التنبيه حالياً.</p>
+                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> {% trans "المخزون مستقر" %}</h6>
+                            <p class="mb-0 text-sm text-muted">{% trans "لا توجد قطع غيار تحت حد التنبيه حالياً." %}</p>
                         </div>
                     {% endif %}
                     {% endif %}
@@ -875,26 +875,26 @@
     </div>
     <hr style="border-color: rgba(255,255,255,0.1);">
     {% if industry == 'printing' %}
-    <p style="font-size: 13px; color: #cbd5e1;">أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، متابعة الطلبات، وتحليل أداء المصممين.</p>
+    <p style="font-size: 13px; color: #cbd5e1;">{% trans "أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، متابعة الطلبات، وتحليل أداء المصممين." %}</p>
     {% else %}
-    <p style="font-size: 13px; color: #cbd5e1;">أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات.</p>
+    <p style="font-size: 13px; color: #cbd5e1;">{% trans "أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات." %}</p>
     {% endif %}
 
     <div class="ai-chat-box" id="aiChatBox">
         <div style="background: rgba(79, 70, 229, 0.2); padding: 10px; border-radius: 8px; font-size: 12px; margin-bottom: 5px;">
             {% if industry == 'printing' %}
-            <b style="color: #818cf8;">السيستم:</b> المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟
+            <b style="color: #818cf8;">{% trans "السيستم:" %}</b> {% trans "المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟" %}
             {% else %}
-            <b style="color: #818cf8;">السيستم:</b> كل شيء مستقر. مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي. هل ترغب في فحص توقعات الشهر القادم؟
+            <b style="color: #818cf8;">{% trans "السيستم:" %}</b> {% trans "كل شيء مستقر. مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي. هل ترغب في فحص توقعات الشهر القادم؟" %}
             {% endif %}
         </div>
     </div>
 
     <div class="mt-3">
         {% if industry == 'printing' %}
-        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="اسألني عن تكاليف الطباعة أو الطلبات..." onkeypress="handleAiChat(event)">
+        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="{% trans 'اسألني عن تكاليف الطباعة أو الطلبات...' %}" onkeypress="handleAiChat(event)">
         {% else %}
-        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="اسألني عن الأعطال أو المبيعات..." onkeypress="handleAiChat(event)">
+        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="{% trans 'اسألني عن الأعطال أو المبيعات...' %}" onkeypress="handleAiChat(event)">
         {% endif %}
     </div>
 </div>
@@ -912,10 +912,10 @@
         const badge = document.getElementById('networkStatus');
         if (navigator.onLine) {
             badge.style.background = '#ecfdf5'; badge.style.color = '#10b981'; badge.style.borderColor = '#a7f3d0';
-            badge.innerHTML = '<i class="fas fa-wifi"></i> متصل بالسحابة';
+            badge.innerHTML = '<i class="fas fa-wifi"></i> {% trans "متصل بالسحابة" %}';
         } else {
             badge.style.background = '#fef2f2'; badge.style.color = '#ef4444'; badge.style.borderColor = '#fca5a5';
-            badge.innerHTML = '<i class="fas fa-wifi-slash"></i> العمل محلياً (Offline)';
+            badge.innerHTML = '<i class="fas fa-wifi-slash"></i> {% trans "العمل محلياً (Offline)" %}';
         }
     }
 
@@ -971,9 +971,9 @@
         if(e.key === 'Enter' && e.target.value.trim()) {
             const query = e.target.value.trim(); e.target.value = '';
             const chatBox = document.getElementById('aiChatBox');
-            chatBox.innerHTML += `<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 12px;"><b>أنت:</b> ${query}</div>`;
+            chatBox.innerHTML += `<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; font-size: 12px;"><b>{% trans "أنت:" %}</b> ${query}</div>`;
             const typingId = 'typing_' + Date.now();
-            chatBox.innerHTML += `<div id="${typingId}" style="background: rgba(236, 72, 153, 0.1); padding: 10px; border-radius: 8px; font-size: 12px; color: #f472b6;"><i class="fas fa-circle-notch fa-spin"></i> جاري الاستشارة...</div>`;
+            chatBox.innerHTML += `<div id="${typingId}" style="background: rgba(236, 72, 153, 0.1); padding: 10px; border-radius: 8px; font-size: 12px; color: #f472b6;"><i class="fas fa-circle-notch fa-spin"></i> {% trans "جاري الاستشارة..." %}</div>`;
             chatBox.scrollTop = chatBox.scrollHeight;
             try {
                 {% if industry == 'printing' %}
@@ -984,10 +984,10 @@
                 const res = await fetch(apiUrl);
                 const data = await res.json();
                 const el = document.getElementById(typingId);
-                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> ${data.recommendations||data.message||"تم تحليل طلبك."}`; }
+                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> ${data.recommendations||data.message||"{% trans "تم تحليل طلبك." %}"}`; }
             } catch(err) {
                 const el = document.getElementById(typingId);
-                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> عذراً، حدث خطأ في الاتصال.`; }
+                if(el) { el.removeAttribute('id'); el.style.color='#fff'; el.style.background='rgba(236,72,153,0.2)'; el.innerHTML=`<b>Mouss Tec Copilot:</b> {% trans "عذراً، حدث خطأ في الاتصال." %}`; }
             }
         }
     }
@@ -999,14 +999,14 @@
         const resultBox = document.getElementById('quickDtcResult');
         if(!code) return;
         resultBox.style.display = 'block';
-        resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> جاري التحليل...`;
+        resultBox.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> {% trans "جاري التحليل..." %}`;
         try {
             const response = await fetch(`/system/api/v1/ai/estimate-repair/?dtc=${encodeURIComponent(code)}`);
             if(!response.ok) throw new Error("API Error");
             const data = await response.json();
-            resultBox.innerHTML = `<b>قطع الغيار المقترحة لـ (${code}):</b><br><span style="font-size:12px; color:#10b981;">${data.recommendations || "طقم صيانة وقائية شامل."}</span>`;
+            resultBox.innerHTML = `<b>{% trans "قطع الغيار المقترحة لـ" %} (${code}):</b><br><span style="font-size:12px; color:#10b981;">${data.recommendations || "{% trans "طقم صيانة وقائية شامل." %}"}</span>`;
         } catch(err) {
-            resultBox.innerHTML = `<b>قطع الغيار المقترحة لـ (${code}):</b><br>🟢 طقم بوجيهات (ثقة 94%)<br>🟡 وحدة كويلات (ثقة 60%)`;
+            resultBox.innerHTML = `<b>{% trans "قطع الغيار المقترحة لـ" %} (${code}):</b><br>🟢 {% trans "طقم بوجيهات (ثقة 94٪)" %}<br>🟡 {% trans "وحدة كويلات (ثقة 60٪)" %}`;
         }
     }
     {% endif %}
@@ -1030,7 +1030,7 @@
             const currentTime = Date.now();
             if (currentTime - lastKeyTime > 50) { barcodeBuffer = ''; }
             lastKeyTime = currentTime;
-            if (e.key === 'Enter') { if (barcodeBuffer.length >= 4) { simulateLiveToast('رادار الباركود', `كود: ${barcodeBuffer}`); } barcodeBuffer = ''; }
+            if (e.key === 'Enter') { if (barcodeBuffer.length >= 4) { simulateLiveToast('{% trans "رادار الباركود" %}', `{% trans "كود:" %} ${barcodeBuffer}`); } barcodeBuffer = ''; }
             else { barcodeBuffer += e.key; }
         });
 
@@ -1044,7 +1044,7 @@
                 const transcript = event.results[0][0].transcript;
                 if(transcript.includes('أمر شغل') || transcript.includes('صيانة')) { window.location.href = "{% url 'admin:inventory_saleinvoice_add' %}"; }
                 else if(transcript.includes('المزاد') || transcript.includes('سوق')) { window.location.href = "{% url 'inventory:b2b_marketplace' %}"; }
-                else { simulateLiveToast('أمر صوتي', `${transcript}`); }
+                else { simulateLiveToast('{% trans "أمر صوتي" %}', `${transcript}`); }
             };
             recognition.onend = function() { voiceBtn.classList.remove('voice-recording'); document.getElementById('globalSearch').classList.remove('voice-recording-glow'); };
             voiceBtn.addEventListener('click', () => { recognition.start(); });
@@ -1068,7 +1068,7 @@
         document.querySelectorAll('.treasury-balance-display').forEach(el => {
             const val = parseFloat(el.dataset.value);
             if (!isNaN(val)) {
-                el.innerHTML = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>';
+                el.innerHTML = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">{% trans "ج.م" %}</span>';
             }
         });
 
@@ -1078,17 +1078,17 @@
             const orders = JSON.parse('{{ print_recent_orders|default:"[]"|escapejs }}');
             const container = document.getElementById('recentOrdersList');
             if(orders.length === 0) {
-                container.innerHTML = '<p class="text-muted text-sm mb-0">لا توجد طلبات بعد</p>';
+                container.innerHTML = '<p class="text-muted text-sm mb-0">{% trans "لا توجد طلبات بعد" %}</p>';
             } else {
                 const statusColors = {'مسودة':'#94a3b8','مؤكد':'#3b82f6','قيد التنفيذ':'#f59e0b','جاهز للتسليم':'#06b6d4','تم التسليم':'#10b981','ملغي':'#ef4444'};
                 container.innerHTML = orders.map(o => `
                     <div class="print-order-row d-flex justify-content-between align-items-center">
                         <div>
-                            <b style="font-size:13px; color:#1e293b;">${o.customer__name || 'عميل'}</b>
+                            <b style="font-size:13px; color:#1e293b;">${o.customer__name || '{% trans "عميل" %}'}</b>
                             <span style="font-size:11px; color:#94a3b8; margin-right: 6px;">${o.date_created}</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <span style="font-size:13px; font-weight:700; color:#1e293b;">${o.total_amount.toLocaleString()} ج.م</span>
+                            <span style="font-size:13px; font-weight:700; color:#1e293b;">${o.total_amount.toLocaleString()} {% trans "ج.م" %}</span>
                             <span class="print-status-badge" style="background: ${statusColors[o.status_display]||'#94a3b8'}22; color: ${statusColors[o.status_display]||'#94a3b8'};">${o.status_display}</span>
                         </div>
                     </div>
@@ -1118,16 +1118,16 @@
         window.moussTecChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: parseData('rawChartLabels', ['الشهر الحالي']).concat(['التوقع']),
+                labels: parseData('rawChartLabels', ['{% trans "الشهر الحالي" %}']).concat(['{% trans "التوقع" %}']),
                 datasets: [
                     {
                         type: 'line',
                         {% if industry == 'printing' %}
-                        label: 'التوقع (AI Forecast)',
+                        label: '{% trans "التوقع (AI Forecast)" %}',
                         borderColor: '#a855f7',
                         pointBorderColor: '#a855f7',
                         {% else %}
-                        label: 'تنبؤات الذكاء الاصطناعي (AI Forecast)',
+                        label: '{% trans "تنبؤات الذكاء الاصطناعي (AI Forecast)" %}',
                         borderColor: '#ec4899',
                         pointBorderColor: '#ec4899',
                         {% endif %}
@@ -1137,9 +1137,9 @@
                     {
                         type: 'line',
                         {% if industry == 'printing' %}
-                        label: 'المحصّل الفعلي (ج.م)',
+                        label: '{% trans "المحصّل الفعلي (ج.م)" %}',
                         {% else %}
-                        label: 'صافي الربح الفعلي (ج.م)',
+                        label: '{% trans "صافي الربح الفعلي (ج.م)" %}',
                         {% endif %}
                         data: actualProfitData,
                         borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4,
@@ -1148,10 +1148,10 @@
                     {
                         type: 'bar',
                         {% if industry == 'printing' %}
-                        label: 'إجمالي الطلبات (ج.م)',
+                        label: '{% trans "إجمالي الطلبات (ج.م)" %}',
                         borderColor: '#06b6d4',
                         {% else %}
-                        label: 'إجمالي الإيرادات (ج.م)',
+                        label: '{% trans "إجمالي الإيرادات (ج.م)" %}',
                         borderColor: '#4f46e5',
                         {% endif %}
                         data: parseData('rawChartRevenue', [0]),
@@ -1189,7 +1189,7 @@
             if (r.redirected) {
                 // Auth/routing redirected the request — show the destination
                 // so we can diagnose (was a real bug in Phase N.6 smoke test).
-                throw new Error('تم تحويل الطلب إلى ' + r.url + ' — تأكد من تسجيل الدخول');
+                throw new Error('{% trans "تم تحويل الطلب إلى" %} ' + r.url + ' — {% trans "تأكد من تسجيل الدخول" %}');
             }
             if (!r.ok) {
                 throw new Error('HTTP ' + r.status);
@@ -1197,14 +1197,14 @@
             return r.json();
         }).then(data => {
             if (!data.active) {
-                alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
+                alert('{% trans "حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها." %}');
                 return;
             }
             document.getElementById('aiStudioModal').style.display = 'flex';
-            document.getElementById('aiQuotaInfo').textContent = 'متبقي ' + data.ai_remaining + ' تصميم من ' + data.ai_limit;
+            document.getElementById('aiQuotaInfo').textContent = '{% trans "متبقي" %} ' + data.ai_remaining + ' {% trans "تصميم من" %} ' + data.ai_limit;
         }).catch((err) => {
             console.error('AI Status error:', err);
-            alert('تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت. (' + err.message + ')');
+            alert('{% trans "تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت." %} (' + err.message + ')');
         });
     }
 
@@ -1228,11 +1228,11 @@
         const btn = document.getElementById('aiEnrichBtn');
         const result = document.getElementById('aiResult');
 
-        if (!rawInput) { alert('اكتب وصف التصميم المطلوب'); return; }
+        if (!rawInput) { alert('{% trans "اكتب وصف التصميم المطلوب" %}'); return; }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري هندسة البرومبت...';
-        result.innerHTML = '<p style="text-align:center;color:#a855f7;font-size:12px;"><i class="fas fa-microchip"></i> محرك الذكاء الاصطناعي يحلل وصفك ويبني برومبت احترافي...</p>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري هندسة البرومبت..." %}';
+        result.innerHTML = '<p style="text-align:center;color:#a855f7;font-size:12px;"><i class="fas fa-microchip"></i> {% trans "محرك الذكاء الاصطناعي يحلل وصفك ويبني برومبت احترافي..." %}</p>';
 
         const fd = new FormData();
         fd.append('prompt', rawInput);
@@ -1241,13 +1241,13 @@
         fetch('/printing/ai/prompt-engineer/', { method: 'POST', body: fd })
         .then(r => {
             if (r.redirected || r.status === 302) {
-                throw new Error('جلسة منتهية — سجل دخول مرة أخرى');
+                throw new Error('{% trans "جلسة منتهية — سجل دخول مرة أخرى" %}');
             }
-            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — رد غير متوقع من السيرفر'); });
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — {% trans "رد غير متوقع من السيرفر" %}'); });
         })
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> {% trans "هندسة البرومبت بالذكاء الاصطناعي" %}';
             result.innerHTML = '';
 
             if (data.status === 'success' && data.engineered_prompt) {
@@ -1285,16 +1285,16 @@
                     }
                 }
             } else if (data.status === 'rejected') {
-                result.innerHTML = '<p style="color:#f59e0b;font-size:13px;"><i class="fas fa-exclamation-triangle"></i> ' + (data.reason || 'هذا الطلب خارج نطاق التصميم والطباعة.') + '</p>';
+                result.innerHTML = '<p style="color:#f59e0b;font-size:13px;"><i class="fas fa-exclamation-triangle"></i> ' + (data.reason || '{% trans "هذا الطلب خارج نطاق التصميم والطباعة." %}') + '</p>';
             } else {
-                result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (data.error || 'حدث خطأ. حاول مرة أخرى.') + '</p>';
+                result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (data.error || '{% trans "حدث خطأ. حاول مرة أخرى." %}') + '</p>';
             }
         })
         .catch((err) => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي';
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> {% trans "هندسة البرومبت بالذكاء الاصطناعي" %}';
             console.error('Prompt engineer error:', err);
-            result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.') + '</p>';
+            result.innerHTML = '<p style="color:#ef4444;font-size:13px;">' + (err.message || '{% trans "حدث خطأ في الاتصال. حاول مرة أخرى." %}') + '</p>';
         });
     }
 
@@ -1328,19 +1328,19 @@
         const btn = document.getElementById('aiGenerateBtn');
         const result = document.getElementById('aiResult');
 
-        if (!prompt) { alert('اكتب وصف التصميم المطلوب'); return; }
+        if (!prompt) { alert('{% trans "اكتب وصف التصميم المطلوب" %}'); return; }
 
         // Confirmation step to prevent accidental API calls
         const remaining = document.getElementById('aiQuotaInfo').textContent;
-        let confirmMsg = 'هل أنت متأكد من توليد التصميم؟\n\n' + remaining;
-        if (logoFile) confirmMsg += '\n\n🖼️ سيتم دمج لوجو الشركة في التصميم';
-        if (addWatermark) confirmMsg += '\n💧 سيتم إضافة علامة مائية';
-        confirmMsg += '\n\nكل توليد يخصم من حصتك الشهرية.';
+        let confirmMsg = '{% trans "هل أنت متأكد من توليد التصميم؟" %}\n\n' + remaining;
+        if (logoFile) confirmMsg += '\n\n🖼️ {% trans "سيتم دمج لوجو الشركة في التصميم" %}';
+        if (addWatermark) confirmMsg += '\n💧 {% trans "سيتم إضافة علامة مائية" %}';
+        confirmMsg += '\n\n{% trans "كل توليد يخصم من حصتك الشهرية." %}';
         if (!confirm(confirmMsg)) return;
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
-        result.innerHTML = '<p style="text-align:center;color:#10b981;">جاري توليد التصميم... قد يستغرق 15-30 ثانية</p>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التوليد..." %}';
+        result.innerHTML = '<p style="text-align:center;color:#10b981;">{% trans "جاري توليد التصميم... قد يستغرق 15-30 ثانية" %}</p>';
 
         const fd = new FormData();
         fd.append('prompt', prompt);
@@ -1360,20 +1360,20 @@
         fetch('/printing/ai/generate/', { method: 'POST', body: fd })
         .then(r => {
             if (r.redirected || r.status === 302) {
-                throw new Error('جلسة منتهية — سجل دخول مرة أخرى');
+                throw new Error('{% trans "جلسة منتهية — سجل دخول مرة أخرى" %}');
             }
-            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — رد غير متوقع من السيرفر'); });
+            return r.json().catch(() => { throw new Error('HTTP ' + r.status + ' — {% trans "رد غير متوقع من السيرفر" %}'); });
         })
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
+            btn.innerHTML = '<i class="fas fa-bolt"></i> {% trans "اعتمد وولّد التصميم" %}';
             if (data.success) {
                 _lastGeneratedUrl = data.image_url;
                 _lastSessionId = data.session_id || null;
                 let badges = '';
                 if (data.model_used) badges += '<span style="font-size:10px;background:#3b82f6;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">' + data.model_used + '</span>';
-                if (data.watermarked_url) badges += '<span style="font-size:10px;background:#06b6d4;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">💧 بعلامة مائية</span>';
-                if (logoFile) badges += '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">🖼️ بلوجو</span>';
+                if (data.watermarked_url) badges += '<span style="font-size:10px;background:#06b6d4;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">💧 {% trans "بعلامة مائية" %}</span>';
+                if (logoFile) badges += '<span style="font-size:10px;background:#f59e0b;color:#fff;padding:2px 8px;border-radius:10px;margin-left:4px;">🖼️ {% trans "بلوجو" %}</span>';
 
                 result.innerHTML = '<img src="' + data.image_url + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
                     + '<div style="margin-bottom:8px;">' + badges + '</div>'
@@ -1381,27 +1381,27 @@
 
                     // 🆕 Invoice prompt — ask user if they want to attach to an invoice
                     + '<div style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(5,150,105,0.05));border:1px solid #10b981;border-radius:12px;padding:14px;margin-top:14px;">'
-                    + '<p style="font-size:13px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-file-invoice-dollar"></i> هل تريد ربط هذا التصميم بفاتورة عميل؟</p>'
+                    + '<p style="font-size:13px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-file-invoice-dollar"></i> {% trans "هل تريد ربط هذا التصميم بفاتورة عميل؟" %}</p>'
                     + '<div style="display:flex;gap:8px;">'
-                    + '<button onclick="attachToInvoice(' + (data.session_id || 'null') + ')" style="flex:1;padding:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;"><i class="fas fa-link"></i> نعم، اربطه بفاتورة</button>'
-                    + '<button onclick="dismissInvoicePrompt()" style="flex:1;padding:10px;background:#475569;color:#cbd5e1;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;">لا، حفظ فقط</button>'
+                    + '<button onclick="attachToInvoice(' + (data.session_id || 'null') + ')" style="flex:1;padding:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;"><i class="fas fa-link"></i> {% trans "نعم، اربطه بفاتورة" %}</button>'
+                    + '<button onclick="dismissInvoicePrompt()" style="flex:1;padding:10px;background:#475569;color:#cbd5e1;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:Cairo;">{% trans "لا، حفظ فقط" %}</button>'
                     + '</div></div>'
 
                     + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">'
-                    + '<a href="' + data.image_url + '" download="ai-design.png" style="flex:1;text-align:center;padding:10px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
-                    + '<button onclick="showWhatsAppSend()" style="flex:1;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fab fa-whatsapp"></i> إرسال للعميل</button>'
-                    + '<a href="/printing/ai/history/" style="flex:1;text-align:center;padding:10px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-history"></i> سجل التصاميم</a>'
+                    + '<a href="' + data.image_url + '" download="ai-design.png" style="flex:1;text-align:center;padding:10px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> {% trans "تحميل" %}</a>'
+                    + '<button onclick="showWhatsAppSend()" style="flex:1;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fab fa-whatsapp"></i> {% trans "إرسال للعميل" %}</button>'
+                    + '<a href="/printing/ai/history/" style="flex:1;text-align:center;padding:10px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-history"></i> {% trans "سجل التصاميم" %}</a>'
                     + '</div>';
                 // Update quota counter
                 fetch('/printing/ai/status/').then(r=>r.json()).then(s=>{
-                    if(s.active) document.getElementById('aiQuotaInfo').textContent = 'متبقي ' + s.ai_remaining + ' تصميم من ' + s.ai_limit;
+                    if(s.active) document.getElementById('aiQuotaInfo').textContent = '{% trans "متبقي" %} ' + s.ai_remaining + ' {% trans "تصميم من" %} ' + s.ai_limit;
                     if(s.ai_remaining <= 5 && s.ai_remaining > 0) {
                         document.getElementById('aiQuotaInfo').style.color = '#f59e0b';
-                        document.getElementById('aiQuotaInfo').textContent += ' — تحذير: حصتك على وشك النفاد!';
+                        document.getElementById('aiQuotaInfo').textContent += ' — {% trans "تحذير: حصتك على وشك النفاد!" %}';
                     }
                     if(s.ai_remaining <= 0) {
                         document.getElementById('aiQuotaInfo').style.color = '#ef4444';
-                        document.getElementById('aiQuotaInfo').textContent = 'تم استنفاد حصتك الشهرية. يتم التجديد تلقائياً بداية الشهر القادم.';
+                        document.getElementById('aiQuotaInfo').textContent = '{% trans "تم استنفاد حصتك الشهرية. يتم التجديد تلقائياً بداية الشهر القادم." %}';
                         btn.disabled = true;
                     }
                 });
@@ -1411,9 +1411,9 @@
         })
         .catch((err) => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-bolt"></i> اعتمد وولّد التصميم';
+            btn.innerHTML = '<i class="fas fa-bolt"></i> {% trans "اعتمد وولّد التصميم" %}';
             console.error('Generate design error:', err);
-            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.') + '</p>';
+            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || '{% trans "حدث خطأ في الاتصال. حاول مرة أخرى." %}') + '</p>';
         });
     }
 
@@ -1431,11 +1431,11 @@
         const btn = document.getElementById('aiFluxBtn');
         const result = document.getElementById('aiResult');
 
-        if (!brief) { alert('اكتب وصف التصميم المطلوب'); return; }
+        if (!brief) { alert('{% trans "اكتب وصف التصميم المطلوب" %}'); return; }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التوليد...';
-        result.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> المرحلة 1: تصفية وصياغة الـ Prompt... ثم المرحلة 2: توليد الصورة</p>';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري التوليد..." %}';
+        result.innerHTML = '<p style="text-align:center;color:#a78bfa;"><i class="fas fa-wand-magic-sparkles"></i> {% trans "المرحلة 1: تصفية وصياغة الـ Prompt... ثم المرحلة 2: توليد الصورة" %}</p>';
 
         fetch('/printing-copilot/api/generate/', {
             method: 'POST',
@@ -1446,18 +1446,18 @@
         .then(r => r.json().catch(() => { throw new Error('HTTP ' + r.status); }))
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ✨ اعتمد وولّد التصميم';
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ✨ {% trans "اعتمد وولّد التصميم" %}';
 
             if (!data.success) {
                 // لو السبب نفاد الرصيد، نعرض زرار شحن واضح
                 if (data.need_topup) {
                     result.innerHTML =
                         '<div style="text-align:center;padding:20px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:12px;">'
-                        + '<p style="color:#fca5a5;font-weight:800;font-size:14px;margin-bottom:10px;"><i class="fas fa-coins"></i> ' + (data.message || 'الرصيد خلص') + '</p>'
-                        + '<button onclick="openTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-family:Cairo;font-weight:800;font-size:13px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن الباقة الآن</button>'
+                        + '<p style="color:#fca5a5;font-weight:800;font-size:14px;margin-bottom:10px;"><i class="fas fa-coins"></i> ' + (data.message || '{% trans "الرصيد خلص" %}') + '</p>'
+                        + '<button onclick="openTopupModal()" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-family:Cairo;font-weight:800;font-size:13px;cursor:pointer;"><i class="fas fa-bolt"></i> {% trans "شحن الباقة الآن" %}</button>'
                         + '</div>';
                 } else {
-                    result.innerHTML = '<p style="color:#ef4444;">' + (data.message || data.error || 'فشل التوليد') + '</p>';
+                    result.innerHTML = '<p style="color:#ef4444;">' + (data.message || data.error || '{% trans "فشل التوليد" %}') + '</p>';
                 }
                 return;
             }
@@ -1473,26 +1473,26 @@
             result.innerHTML =
                 '<img src="' + imgUrl + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;border:2px solid #a78bfa;">'
                 + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
-                +     '<span style="font-size:10px;background:#7c3aed;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;">جودة فخمة</span>'
+                +     '<span style="font-size:10px;background:#7c3aed;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;">{% trans "جودة فخمة" %}</span>'
                 +     '<span style="font-size:10px;background:#059669;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;">' + (data.style_tag || 'premium') + '</span>'
-                +     (remaining !== null ? '<span style="font-size:10px;background:#0ea5e9;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;"><i class="fas fa-coins"></i> رصيد متبقي: ' + remaining + '</span>' : '')
+                +     (remaining !== null ? '<span style="font-size:10px;background:#0ea5e9;color:#fff;padding:3px 10px;border-radius:10px;font-weight:700;"><i class="fas fa-coins"></i> {% trans "رصيد متبقي:" %} ' + remaining + '</span>' : '')
                 + '</div>'
                 + '<details style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px 12px;margin-bottom:10px;">'
-                +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 الـ Engineered Prompt (Stage 1)</summary>'
+                +     '<summary style="cursor:pointer;color:#a78bfa;font-weight:700;font-size:12px;">📝 {% trans "الـ Engineered Prompt (Stage 1)" %}</summary>'
                 +     '<p style="font-size:11px;color:#cbd5e1;margin-top:8px;line-height:1.7;">' + escapeHtmlFlux(data.engineered_prompt || '') + '</p>'
                 + '</details>'
 
                 // 🖨️ Send to Print + standard actions
                 + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-                +     '<button onclick="openSendToPrintModal()" style="flex:1;min-width:160px;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-print"></i> 🖨️ إرسال للمطبعة</button>'
-                +     '<a href="' + imgUrl + '" download="flux-design.png" style="flex:1;min-width:120px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> تحميل</a>'
-                +     '<button onclick="generateFluxDesign()" style="flex:1;min-width:120px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-rotate"></i> إعادة توليد</button>'
+                +     '<button onclick="openSendToPrintModal()" style="flex:1;min-width:160px;padding:11px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-print"></i> 🖨️ {% trans "إرسال للمطبعة" %}</button>'
+                +     '<a href="' + imgUrl + '" download="flux-design.png" style="flex:1;min-width:120px;text-align:center;padding:11px;background:#4f46e5;color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;"><i class="fas fa-download"></i> {% trans "تحميل" %}</a>'
+                +     '<button onclick="generateFluxDesign()" style="flex:1;min-width:120px;padding:11px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-rotate"></i> {% trans "إعادة توليد" %}</button>'
                 + '</div>';
         })
         .catch(err => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ✨ اعتمد وولّد التصميم';
-            result.innerHTML = '<p style="color:#ef4444;">⚠️ ' + (err.message || 'تعذر الاتصال') + '</p>';
+            btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> ✨ {% trans "اعتمد وولّد التصميم" %}';
+            result.innerHTML = '<p style="color:#ef4444;">⚠️ ' + (err.message || '{% trans "تعذر الاتصال" %}') + '</p>';
             console.error('[FLUX]', err);
         });
     }
@@ -1508,7 +1508,7 @@
         const el = document.getElementById('aiBalanceTotal');
         if (!el) return;
         if (balance && typeof balance.total === 'number') {
-            el.textContent = balance.total + ' تصميم';
+            el.textContent = balance.total + ' {% trans "تصميم" %}';
             el.style.color = balance.total > 5 ? '#fff' : (balance.total > 0 ? '#fbbf24' : '#fca5a5');
         }
     }
@@ -1528,7 +1528,7 @@
                 const r = await fetch('/printing-copilot/api/topup/catalog/?audience=merchant', { credentials: 'same-origin' });
                 const d = await r.json();
                 _topupCatalog = d.packages || [];
-            } catch (e) { alert('تعذر تحميل الباقات'); return; }
+            } catch (e) { alert('{% trans "تعذر تحميل الباقات" %}'); return; }
         }
 
         let existing = document.getElementById('topupModal');
@@ -1538,7 +1538,7 @@
             '<div id="topupModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)document.getElementById(\'topupModal\').remove()">'
             + '<div style="background:#0f172a;border:1px solid #7c3aed;border-radius:18px;padding:24px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;font-family:Cairo;">'
             +     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">'
-            +         '<h3 style="color:#c4b5fd;font-weight:900;font-size:18px;margin:0;"><i class="fas fa-coins"></i> شحن رصيد التصاميم</h3>'
+            +         '<h3 style="color:#c4b5fd;font-weight:900;font-size:18px;margin:0;"><i class="fas fa-coins"></i> {% trans "شحن رصيد التصاميم" %}</h3>'
             +         '<button onclick="document.getElementById(\'topupModal\').remove()" style="background:#334155;color:#fff;border:none;width:34px;height:34px;border-radius:8px;cursor:pointer;font-family:Cairo;">✕</button>'
             +     '</div>'
             +     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">'
@@ -1546,9 +1546,9 @@
                     '<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(236,72,153,0.08));border:1px solid #7c3aed;border-radius:14px;padding:18px;text-align:center;">'
                     + (p.badge ? '<div style="display:inline-block;background:#ec4899;color:#fff;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;margin-bottom:10px;">' + escapeHtmlFlux(p.badge) + '</div>' : '')
                     + '<p style="color:#fff;font-weight:900;font-size:24px;margin:4px 0;">' + p.designs + '</p>'
-                    + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">تصميم</p>'
-                    + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' ج.م</p>'
-                    + '<button onclick="purchaseTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> اشتري دلوقتي</button>'
+                    + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">{% trans "تصميم" %}</p>'
+                    + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' {% trans "ج.م" %}</p>'
+                    + '<button onclick="purchaseTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> {% trans "اشتري دلوقتي" %}</button>'
                     + '</div>'
                 ).join('')
             +     '</div>'
@@ -1569,9 +1569,9 @@
             if (d.success && d.checkout_url) {
                 window.location.href = d.checkout_url;
             } else {
-                alert(d.message || 'تعذر بدء الشراء');
+                alert(d.message || '{% trans "تعذر بدء الشراء" %}');
             }
-        } catch (e) { alert('خطأ في الاتصال'); }
+        } catch (e) { alert('{% trans "خطأ في الاتصال" %}'); }
     }
 
     // Load balance on AI Studio panel ready
@@ -1581,7 +1581,7 @@
 
     function openSendToPrintModal() {
         if (!_lastFluxResult || !_lastFluxResult.image_url) {
-            alert('ولّد التصميم الأول');
+            alert('{% trans "ولّد التصميم الأول" %}');
             return;
         }
         const result = document.getElementById('aiResult');
@@ -1592,43 +1592,43 @@
 
         result.insertAdjacentHTML('beforeend',
             '<div id="sendToPrintBox" style="margin-top:14px;padding:16px;background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(236,72,153,0.08));border:1px solid #7c3aed;border-radius:12px;">'
-            + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;"><i class="fas fa-print"></i> إرسال التصميم للمطبعة</p>'
+            + '<p style="font-size:14px;font-weight:800;color:#c4b5fd;margin:0 0 12px;"><i class="fas fa-print"></i> {% trans "إرسال التصميم للمطبعة" %}</p>'
 
             // 👤 Customer picker (merchant-only) — autocomplete من MarketplaceCustomer
             + '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;padding:10px;margin-bottom:12px;">'
-            +   '<label style="font-size:11px;color:#a5b4fc;display:block;margin-bottom:6px;font-weight:700;"><i class="fas fa-user-tag"></i> اختار العميل اللي الطلب باسمه *</label>'
-            +   '<input id="stpCustomerSearch" type="text" autocomplete="off" placeholder="اكتب اسم العميل أو الشركة أو الموبايل..." oninput="stpSearchCustomers(this.value)" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;">'
+            +   '<label style="font-size:11px;color:#a5b4fc;display:block;margin-bottom:6px;font-weight:700;"><i class="fas fa-user-tag"></i> {% trans "اختار العميل اللي الطلب باسمه" %} *</label>'
+            +   '<input id="stpCustomerSearch" type="text" autocomplete="off" placeholder="{% trans "اكتب اسم العميل أو الشركة أو الموبايل..." %}" oninput="stpSearchCustomers(this.value)" style="width:100%;padding:9px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;">'
             +   '<div id="stpCustomerResults" style="max-height:200px;overflow-y:auto;margin-top:6px;"></div>'
             +   '<div id="stpSelectedCustomer" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(16,185,129,0.12);border:1px solid #10b981;border-radius:8px;font-size:12px;color:#6ee7b7;font-weight:700;"></div>'
             + '</div>'
 
             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
-            +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">نوع المنتج</label>'
+            +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "نوع المنتج" %}</label>'
             +     '<select id="stpProductType" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;">'
-            +         '<option value="business_card">💳 كارت بزنس</option>'
-            +         '<option value="tshirt">👕 تيشرت</option>'
-            +         '<option value="flyer">📄 فلاير</option>'
-            +         '<option value="poster">🖼️ بوستر</option>'
-            +         '<option value="banner">🪧 بنر</option>'
-            +         '<option value="mug">☕ ماج</option>'
-            +         '<option value="sticker">🏷️ ستيكر</option>'
-            +         '<option value="packaging">📦 تغليف</option>'
-            +         '<option value="invitation">💌 دعوة</option>'
-            +         '<option value="menu">📋 منيو</option>'
-            +         '<option value="other">✨ أخرى</option>'
+            +         '<option value="business_card">💳 {% trans "كارت بزنس" %}</option>'
+            +         '<option value="tshirt">👕 {% trans "تيشرت" %}</option>'
+            +         '<option value="flyer">📄 {% trans "فلاير" %}</option>'
+            +         '<option value="poster">🖼️ {% trans "بوستر" %}</option>'
+            +         '<option value="banner">🪧 {% trans "بنر" %}</option>'
+            +         '<option value="mug">☕ {% trans "ماج" %}</option>'
+            +         '<option value="sticker">🏷️ {% trans "ستيكر" %}</option>'
+            +         '<option value="packaging">📦 {% trans "تغليف" %}</option>'
+            +         '<option value="invitation">💌 {% trans "دعوة" %}</option>'
+            +         '<option value="menu">📋 {% trans "منيو" %}</option>'
+            +         '<option value="other">✨ {% trans "أخرى" %}</option>'
             +     '</select></div>'
-            +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">الكمية</label>'
+            +     '<div><label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "الكمية" %}</label>'
             +     '<input id="stpQuantity" type="number" min="1" value="100" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;"></div>'
             + '</div>'
-            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">رقم التواصل</label>'
+            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "رقم التواصل" %}</label>'
             + '<input id="stpPhone" type="text" placeholder="01xxxxxxxxx" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;margin-bottom:10px;">'
-            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">عنوان التسليم</label>'
-            + '<input id="stpAddress" type="text" placeholder="العنوان بالكامل" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;margin-bottom:10px;">'
-            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">ملاحظات للمطبعة (اختياري)</label>'
-            + '<textarea id="stpNotes" rows="2" placeholder="نوع الورق، التشطيب، أي تفاصيل..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;resize:vertical;margin-bottom:12px;"></textarea>'
+            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "عنوان التسليم" %}</label>'
+            + '<input id="stpAddress" type="text" placeholder="{% trans "العنوان بالكامل" %}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;margin-bottom:10px;">'
+            + '<label style="font-size:11px;color:#cbd5e1;display:block;margin-bottom:4px;">{% trans "ملاحظات للمطبعة (اختياري)" %}</label>'
+            + '<textarea id="stpNotes" rows="2" placeholder="{% trans "نوع الورق، التشطيب، أي تفاصيل..." %}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:12px;resize:vertical;margin-bottom:12px;"></textarea>'
             + '<div style="display:flex;gap:8px;">'
-            +     '<button onclick="submitSendToPrint()" id="stpSubmitBtn" style="flex:1;padding:12px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة</button>'
-            +     '<button onclick="document.getElementById(\'sendToPrintBox\').remove()" style="padding:12px 18px;background:#475569;color:#e2e8f0;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;">إلغاء</button>'
+            +     '<button onclick="submitSendToPrint()" id="stpSubmitBtn" style="flex:1;padding:12px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;font-family:Cairo;"><i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}</button>'
+            +     '<button onclick="document.getElementById(\'sendToPrintBox\').remove()" style="padding:12px 18px;background:#475569;color:#e2e8f0;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:Cairo;">{% trans "إلغاء" %}</button>'
             + '</div></div>'
         );
         document.getElementById('sendToPrintBox').scrollIntoView({ behavior: 'smooth' });
@@ -1649,18 +1649,18 @@
         if (!query || query.length < 2) { box.innerHTML = ''; return; }
 
         _stpSearchTimer = setTimeout(() => {
-            box.innerHTML = '<p style="color:#94a3b8;font-size:11px;text-align:center;padding:6px;"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</p>';
+            box.innerHTML = '<p style="color:#94a3b8;font-size:11px;text-align:center;padding:6px;"><i class="fas fa-spinner fa-spin"></i> {% trans "جاري البحث..." %}</p>';
             fetch('/printing-copilot/api/customer-search/?q=' + encodeURIComponent(query), {
                 credentials: 'same-origin',
             })
             .then(r => r.json())
             .then(data => {
                 if (!data.success) {
-                    box.innerHTML = '<p style="color:#fca5a5;font-size:11px;padding:6px;">' + (data.error || 'فشل البحث') + '</p>';
+                    box.innerHTML = '<p style="color:#fca5a5;font-size:11px;padding:6px;">' + (data.error || '{% trans "فشل البحث" %}') + '</p>';
                     return;
                 }
                 if (!data.results.length) {
-                    box.innerHTML = '<p style="color:#94a3b8;font-size:11px;padding:6px;text-align:center;">مفيش نتائج. تأكد إن العميل مسجل في الـ marketplace.</p>';
+                    box.innerHTML = '<p style="color:#94a3b8;font-size:11px;padding:6px;text-align:center;">{% trans "مفيش نتائج. تأكد إن العميل مسجل في الـ marketplace." %}</p>';
                     return;
                 }
                 box.innerHTML = data.results.map(c =>
@@ -1672,7 +1672,7 @@
                 ).join('');
             })
             .catch(err => {
-                box.innerHTML = '<p style="color:#fca5a5;font-size:11px;padding:6px;">⚠️ خطأ في الاتصال</p>';
+                box.innerHTML = '<p style="color:#fca5a5;font-size:11px;padding:6px;">⚠️ {% trans "خطأ في الاتصال" %}</p>';
                 console.error('[STP SEARCH]', err);
             });
         }, 280);
@@ -1684,8 +1684,8 @@
         document.getElementById('stpCustomerSearch').value = label;
         const pill = document.getElementById('stpSelectedCustomer');
         pill.style.display = 'block';
-        pill.innerHTML = '<i class="fas fa-check-circle"></i> اتاختار: ' + label
-            + ' <button onclick="stpClearCustomer()" style="float:left;background:none;border:none;color:#fca5a5;cursor:pointer;font-family:Cairo;font-weight:700;">✕ إلغاء</button>';
+        pill.innerHTML = '<i class="fas fa-check-circle"></i> {% trans "اتاختار:" %} ' + label
+            + ' <button onclick="stpClearCustomer()" style="float:left;background:none;border:none;color:#fca5a5;cursor:pointer;font-family:Cairo;font-weight:700;">✕ {% trans "إلغاء" %}</button>';
     }
 
     function stpClearCustomer() {
@@ -1698,13 +1698,13 @@
     function submitSendToPrint() {
         if (!_lastFluxResult) return;
         if (!_stpSelectedCustomerId) {
-            alert('⚠️ لازم تختار العميل من القائمة الأول.');
+            alert('⚠️ {% trans "لازم تختار العميل من القائمة الأول." %}');
             document.getElementById('stpCustomerSearch').focus();
             return;
         }
         const submitBtn = document.getElementById('stpSubmitBtn');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري الإرسال..." %}';
 
         const payload = {
             image_url: _lastFluxResult.image_url,
@@ -1734,17 +1734,17 @@
             submitBtn.disabled = false;
             const box = document.getElementById('sendToPrintBox');
             if (data.success) {
-                box.innerHTML = '<p style="text-align:center;color:#10b981;font-weight:800;font-size:15px;padding:14px;"><i class="fas fa-check-circle"></i> ' + (data.message || 'تم!') + '</p>'
-                    + '<p style="text-align:center;color:#94a3b8;font-size:11px;">كود الطلب: <code style="background:#0f172a;padding:2px 8px;border-radius:4px;color:#c4b5fd;">' + (data.print_request_code || '—') + '</code></p>';
+                box.innerHTML = '<p style="text-align:center;color:#10b981;font-weight:800;font-size:15px;padding:14px;"><i class="fas fa-check-circle"></i> ' + (data.message || '{% trans "تم!" %}') + '</p>'
+                    + '<p style="text-align:center;color:#94a3b8;font-size:11px;">{% trans "كود الطلب:" %} <code style="background:#0f172a;padding:2px 8px;border-radius:4px;color:#c4b5fd;">' + (data.print_request_code || '—') + '</code></p>';
             } else {
-                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-                alert(data.message || data.error || 'فشل الإرسال');
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}';
+                alert(data.message || data.error || '{% trans "فشل الإرسال" %}');
             }
         })
         .catch(err => {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> تأكيد الإرسال للمطبعة';
-            alert('⚠️ تعذر الاتصال — جرب تاني.');
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> {% trans "تأكيد الإرسال للمطبعة" %}';
+            alert('⚠️ {% trans "تعذر الاتصال — جرب تاني." %}');
             console.error('[STP]', err);
         });
     }
@@ -1757,7 +1757,7 @@
     }
 
     function attachToInvoice(sessionId) {
-        if (!sessionId) { alert('لم يتم حفظ التصميم'); return; }
+        if (!sessionId) { alert('{% trans "لم يتم حفظ التصميم" %}'); return; }
         // Show invoice selector
         const result = document.getElementById('aiResult');
         const existing = document.getElementById('invoiceSelector');
@@ -1765,12 +1765,12 @@
 
         result.insertAdjacentHTML('beforeend',
             '<div id="invoiceSelector" style="margin-top:14px;padding:14px;background:#0f172a;border:1px solid #10b981;border-radius:12px;">'
-            + '<p style="font-size:12px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-search"></i> اختر العميل والفاتورة:</p>'
-            + '<input type="text" id="invCustomerSearch" placeholder="اكتب اسم العميل أو رقم الموبايل..." oninput="searchInvoices(this.value, ' + sessionId + ')" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:10px;">'
+            + '<p style="font-size:12px;font-weight:700;color:#6ee7b7;margin:0 0 10px;"><i class="fas fa-search"></i> {% trans "اختر العميل والفاتورة:" %}</p>'
+            + '<input type="text" id="invCustomerSearch" placeholder="{% trans "اكتب اسم العميل أو رقم الموبايل..." %}" oninput="searchInvoices(this.value, ' + sessionId + ')" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:10px;">'
             + '<div id="invSearchResults" style="max-height:240px;overflow-y:auto;"></div>'
             + '<div style="margin-top:10px;text-align:center;">'
             + '<a href="/printing/?session=' + sessionId + '" style="display:inline-block;padding:8px 16px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none;font-family:Cairo;">'
-            + '<i class="fas fa-plus-circle"></i> أو أنشئ فاتورة جديدة بهذا التصميم'
+            + '<i class="fas fa-plus-circle"></i> {% trans "أو أنشئ فاتورة جديدة بهذا التصميم" %}'
             + '</a></div></div>'
         );
         document.getElementById('invoiceSelector').scrollIntoView({behavior: 'smooth'});
@@ -1783,12 +1783,12 @@
         if (!query || query.length < 2) { box.innerHTML = ''; return; }
 
         _invSearchTimer = setTimeout(() => {
-            box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</p>';
+            box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;"><i class="fas fa-spinner fa-spin"></i> {% trans "جاري البحث..." %}</p>';
             fetch('/printing/ai/attach-search/?q=' + encodeURIComponent(query))
             .then(r => r.json())
             .then(data => {
                 if (!data.invoices || data.invoices.length === 0) {
-                    box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;">لا توجد فواتير مطابقة</p>';
+                    box.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;">{% trans "لا توجد فواتير مطابقة" %}</p>';
                     return;
                 }
                 let html = '';
@@ -1797,18 +1797,18 @@
                         + '<div style="display:flex;justify-content:space-between;align-items:center;">'
                         + '<div><div style="font-weight:700;font-size:13px;color:#e2e8f0;">' + inv.code + '</div>'
                         + '<div style="font-size:11px;color:#94a3b8;">' + inv.customer + ' — ' + inv.date + '</div></div>'
-                        + '<div style="text-align:left;"><div style="font-weight:700;color:#10b981;">' + inv.total + ' ج.م</div>'
+                        + '<div style="text-align:left;"><div style="font-weight:700;color:#10b981;">' + inv.total + ' {% trans "ج.م" %}</div>'
                         + '<div style="font-size:10px;color:#94a3b8;">' + inv.status + '</div></div>'
                         + '</div></div>';
                 });
                 box.innerHTML = html;
             })
-            .catch(() => { box.innerHTML = '<p style="color:#ef4444;font-size:12px;text-align:center;">فشل البحث</p>'; });
+            .catch(() => { box.innerHTML = '<p style="color:#ef4444;font-size:12px;text-align:center;">{% trans "فشل البحث" %}</p>'; });
         }, 300);
     }
 
     function confirmAttachInvoice(sessionId, invoiceId, invoiceCode) {
-        if (!confirm('ربط التصميم بالفاتورة ' + invoiceCode + '؟')) return;
+        if (!confirm('{% trans "ربط التصميم بالفاتورة" %} ' + invoiceCode + ' ?')) return;
         const fd = new FormData();
         fd.append('invoice_id', invoiceId);
         fd.append('csrfmiddlewaretoken', getCSRFToken());
@@ -1818,9 +1818,9 @@
         .then(data => {
             if (data.success) {
                 const sel = document.getElementById('invoiceSelector');
-                if (sel) sel.innerHTML = '<p style="text-align:center;color:#10b981;font-weight:700;padding:14px;"><i class="fas fa-check-circle"></i> تم ربط التصميم بالفاتورة ' + invoiceCode + ' بنجاح</p>';
+                if (sel) sel.innerHTML = '<p style="text-align:center;color:#10b981;font-weight:700;padding:14px;"><i class="fas fa-check-circle"></i> {% trans "تم ربط التصميم بالفاتورة" %} ' + invoiceCode + ' {% trans "بنجاح" %}</p>';
             } else {
-                alert(data.error || 'فشل الربط');
+                alert(data.error || '{% trans "فشل الربط" %}');
             }
         });
     }
@@ -1828,18 +1828,18 @@
     function showWhatsAppSend() {
         const result = document.getElementById('aiResult');
         result.innerHTML += '<div id="waForm" style="margin-top:12px;padding:12px;background:#0f172a;border-radius:10px;border:1px solid #334155;">'
-            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">رقم واتساب العميل</label>'
+            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">{% trans "رقم واتساب العميل" %}</label>'
             + '<input type="text" id="waPhone" placeholder="01012345678" dir="ltr" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-size:13px;margin-bottom:8px;">'
-            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">رسالة (اختياري)</label>'
-            + '<input type="text" id="waMsg" placeholder="مرحباً، تصميمك جاهز!" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:8px;">'
-            + '<button onclick="sendViaWhatsApp()" style="width:100%;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-family:Cairo;font-weight:900;font-size:13px;cursor:pointer;"><i class="fab fa-whatsapp"></i> إرسال عبر واتساب</button>'
+            + '<label style="font-size:12px;font-weight:700;display:block;margin-bottom:4px;">{% trans "رسالة (اختياري)" %}</label>'
+            + '<input type="text" id="waMsg" placeholder="{% trans "مرحباً، تصميمك جاهز!" %}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:8px;">'
+            + '<button onclick="sendViaWhatsApp()" style="width:100%;padding:10px;background:#25d366;color:#fff;border:none;border-radius:8px;font-family:Cairo;font-weight:900;font-size:13px;cursor:pointer;"><i class="fab fa-whatsapp"></i> {% trans "إرسال عبر واتساب" %}</button>'
             + '</div>';
     }
 
     function sendViaWhatsApp() {
         const phone = document.getElementById('waPhone').value.trim();
         const msg = document.getElementById('waMsg').value.trim();
-        if (!phone) { alert('أدخل رقم واتساب العميل'); return; }
+        if (!phone) { alert('{% trans "أدخل رقم واتساب العميل" %}'); return; }
 
         const fd = new FormData();
         fd.append('phone', phone);
@@ -1849,7 +1849,7 @@
 
         fetch('/printing/ai/whatsapp/', { method: 'POST', body: fd })
         .then(r => {
-            if (r.redirected || r.status === 302) throw new Error('جلسة منتهية');
+            if (r.redirected || r.status === 302) throw new Error('{% trans "جلسة منتهية" %}');
             return r.json().catch(() => { throw new Error('HTTP ' + r.status); });
         })
         .then(data => {
@@ -1859,26 +1859,26 @@
                 alert(data.error);
             }
         })
-        .catch((err) => { console.error('WhatsApp error:', err); alert(err.message || 'حدث خطأ. حاول مرة أخرى.'); });
+        .catch((err) => { console.error('WhatsApp error:', err); alert(err.message || '{% trans "حدث خطأ. حاول مرة أخرى." %}'); });
     }
 
     function openWatermarkModal() {
         fetch('/printing/ai/status/').then(r => {
             if (r.redirected) {
-                throw new Error('تم تحويل الطلب إلى ' + r.url + ' — تأكد من تسجيل الدخول');
+                throw new Error('{% trans "تم تحويل الطلب إلى" %} ' + r.url + ' — {% trans "تأكد من تسجيل الدخول" %}');
             }
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
         }).then(data => {
             if (!data.active) {
-                alert('حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها.');
+                alert('{% trans "حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها." %}');
                 return;
             }
             document.getElementById('watermarkModal').style.display = 'flex';
-            document.getElementById('wmQuotaInfo').textContent = 'متبقي ' + data.wm_remaining + ' علامة';
+            document.getElementById('wmQuotaInfo').textContent = '{% trans "متبقي" %} ' + data.wm_remaining + ' {% trans "علامة" %}';
         }).catch((err) => {
             console.error('Watermark status error:', err);
-            alert('تعذر التحقق من حالة الاشتراك. (' + err.message + ')');
+            alert('{% trans "تعذر التحقق من حالة الاشتراك." %} (' + err.message + ')');
         });
     }
 
@@ -1893,10 +1893,10 @@
         const btn = document.getElementById('wmApplyBtn');
         const result = document.getElementById('wmResult');
 
-        if (!fileInput.files.length) { alert('ارفع صورة أولاً'); return; }
+        if (!fileInput.files.length) { alert('{% trans "ارفع صورة أولاً" %}'); return; }
 
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المعالجة...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري المعالجة..." %}';
 
         const fd = new FormData();
         fd.append('image', fileInput.files[0]);
@@ -1906,24 +1906,24 @@
 
         fetch('/printing/ai/watermark/', { method: 'POST', body: fd })
         .then(r => {
-            if (r.redirected || r.status === 302) throw new Error('جلسة منتهية');
+            if (r.redirected || r.status === 302) throw new Error('{% trans "جلسة منتهية" %}');
             return r.json().catch(() => { throw new Error('HTTP ' + r.status); });
         })
         .then(data => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
+            btn.innerHTML = '<i class="fas fa-stamp"></i> {% trans "تطبيق العلامة" %}';
             if (data.success) {
                 result.innerHTML = '<img src="' + data.image_base64 + '" style="max-width:100%;border-radius:12px;margin-bottom:10px;">'
-                    + '<a href="' + data.image_base64 + '" download="watermarked.jpg" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download"></i> تحميل</a>';
+                    + '<a href="' + data.image_base64 + '" download="watermarked.jpg" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download"></i> {% trans "تحميل" %}</a>';
             } else {
                 result.innerHTML = '<p style="color:#ef4444;">' + data.error + '</p>';
             }
         })
         .catch((err) => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-stamp"></i> تطبيق العلامة';
+            btn.innerHTML = '<i class="fas fa-stamp"></i> {% trans "تطبيق العلامة" %}';
             console.error('Watermark error:', err);
-            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || 'حدث خطأ. حاول مرة أخرى.') + '</p>';
+            result.innerHTML = '<p style="color:#ef4444;">' + (err.message || '{% trans "حدث خطأ. حاول مرة أخرى." %}') + '</p>';
         });
     }
 </script>
@@ -1933,36 +1933,36 @@
 <div id="aiStudioModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-left:8px;"></i>AI Studio — توليد تصميم</h3>
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-left:8px;"></i>AI Studio — {% trans "توليد تصميم" %}</h3>
             <button onclick="closeAIStudioModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <p id="aiQuotaInfo" style="font-size:12px;color:#a855f7;margin-bottom:12px;"></p>
         <!-- Step 1: User Input -->
         <div id="aiStep1">
             <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب <span style="font-size:11px;color:#94a3b8;font-weight:400;">(اكتب بالعربي أو الإنجليزي)</span></label>
-                <textarea id="aiPrompt" rows="3" placeholder="مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
+                <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "وصف التصميم المطلوب" %} <span style="font-size:11px;color:#94a3b8;font-weight:400;">{% trans "(اكتب بالعربي أو الإنجليزي)" %}</span></label>
+                <textarea id="aiPrompt" rows="3" placeholder="{% trans 'مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم' %}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
             </div>
 
             <!-- 🆕 Logo Upload -->
             <div style="margin-bottom:12px;background:rgba(245,158,11,0.07);border:1px dashed #f59e0b;border-radius:10px;padding:12px;">
                 <label style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#fcd34d;">
-                    <i class="fas fa-image"></i> لوجو الشركة (اختياري)
-                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">— يدمج اللوجو في التصميم تلقائياً</span>
+                    <i class="fas fa-image"></i> {% trans "لوجو الشركة (اختياري)" %}
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">— {% trans "يدمج اللوجو في التصميم تلقائياً" %}</span>
                 </label>
                 <input type="file" id="aiLogo" accept="image/png,image/jpeg,image/webp" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;" onchange="previewLogo()">
                 <div id="aiLogoPreview" style="display:none;margin-top:8px;text-align:center;">
                     <img id="aiLogoImg" style="max-height:80px;max-width:140px;border-radius:8px;border:1px solid #475569;" />
                     <button type="button" onclick="clearLogo()" style="display:block;margin:6px auto 0;background:none;border:none;color:#f87171;font-size:11px;cursor:pointer;font-family:Cairo;">
-                        <i class="fas fa-times-circle"></i> إزالة اللوجو
+                        <i class="fas fa-times-circle"></i> {% trans "إزالة اللوجو" %}
                     </button>
                 </div>
             </div>
 
             <button id="aiEnrichBtn" onclick="enrichPrompt()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-                <i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي
+                <i class="fas fa-wand-magic-sparkles"></i> {% trans "هندسة البرومبت بالذكاء الاصطناعي" %}
             </button>
-            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)</p>
+            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">{% trans "الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)" %}</p>
         </div>
 
         <!-- Step 2: Enriched Prompt Confirmation (prompt content hidden — IP protection) -->
@@ -1970,17 +1970,17 @@
             <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.08));border:1px solid #7c3aed;border-radius:12px;padding:18px;margin-bottom:12px;text-align:center;">
                 <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:10px;">
                     <i class="fas fa-shield-halved" style="color:#a855f7;font-size:1.4rem;"></i>
-                    <span style="font-size:14px;font-weight:900;color:#e9d5ff;">البرومبت جاهز للتوليد</span>
+                    <span style="font-size:14px;font-weight:900;color:#e9d5ff;">{% trans "البرومبت جاهز للتوليد" %}</span>
                 </div>
                 <div style="margin-bottom:8px;">
                     <span id="aiCategory" style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:20px;font-weight:700;"></span>
                 </div>
                 <p style="font-size:12px;color:#c4b5fd;margin:4px 0;line-height:1.6;">
                     <i class="fas fa-microchip"></i>
-                    تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن.
+                    {% trans "تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن." %}
                 </p>
                 <p style="font-size:11px;color:#94a3b8;margin:6px 0 0;">
-                    🔒 محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية
+                    🔒 {% trans "محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية" %}
                 </p>
             </div>
             <!-- Hidden inputs to carry the engineered prompt without exposing it visually -->
@@ -1988,27 +1988,27 @@
             <input type="hidden" id="aiNegativePrompt" value="">
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">المقاس</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "المقاس" %}</label>
                     <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <optgroup label="سوشيال ميديا">
-                            <option value="1024x1024">مربع - بوست (1024×1024)</option>
+                        <optgroup label="{% trans 'سوشيال ميديا' %}">
+                            <option value="1024x1024">{% trans "مربع - بوست (1024×1024)" %}</option>
                             <option value="1024x1536">Story / Reels (1024×1536)</option>
-                            <option value="1536x1024">أفقي / Cover (1536×1024)</option>
+                            <option value="1536x1024">{% trans "أفقي / Cover (1536×1024)" %}</option>
                         </optgroup>
-                        <optgroup label="طباعة">
-                            <option value="1024x1792">A4 عمودي طباعة (1024×1792)</option>
-                            <option value="1792x1024">A4 أفقي طباعة (1792×1024)</option>
+                        <optgroup label="{% trans 'طباعة' %}">
+                            <option value="1024x1792">{% trans "A4 عمودي طباعة (1024×1792)" %}</option>
+                            <option value="1792x1024">{% trans "A4 أفقي طباعة (1792×1024)" %}</option>
                         </optgroup>
-                        <optgroup label="متقدم">
-                            <option value="auto">تلقائي (AI يختار)</option>
+                        <optgroup label="{% trans 'متقدم' %}">
+                            <option value="auto">{% trans "تلقائي (AI يختار)" %}</option>
                         </optgroup>
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">الجودة</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "الجودة" %}</label>
                     <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="standard">عادية</option>
-                        <option value="hd">عالية (HD)</option>
+                        <option value="standard">{% trans "عادية" %}</option>
+                        <option value="hd">{% trans "عالية (HD)" %}</option>
                     </select>
                 </div>
             </div>
@@ -2016,26 +2016,26 @@
             <!-- Output Format & Category -->
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">📁 صيغة الملف</label>
+                    <label style="font-size:12px;font-weight:700;">📁 {% trans "صيغة الملف" %}</label>
                     <select id="aiOutputFormat" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="png">PNG (شفافية)</option>
+                        <option value="png">{% trans "PNG (شفافية)" %}</option>
                         <option value="jpg">JPEG</option>
-                        <option value="webp">WebP (أصغر حجم)</option>
-                        <option value="pdf">PDF (طباعة)</option>
+                        <option value="webp">{% trans "WebP (أصغر حجم)" %}</option>
+                        <option value="pdf">{% trans "PDF (طباعة)" %}</option>
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">🏷️ نوع التصميم</label>
+                    <label style="font-size:12px;font-weight:700;">🏷️ {% trans "نوع التصميم" %}</label>
                     <select id="aiDesignCategory" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="other">عام</option>
-                        <option value="logo">لوجو / Brand</option>
-                        <option value="business_card">كارت بزنس</option>
-                        <option value="flyer">فلاير / منشور</option>
-                        <option value="invoice">فاتورة / إيصال</option>
-                        <option value="tshirt">طباعة تيشرت</option>
-                        <option value="packaging">تغليف منتج</option>
-                        <option value="social_media">بوست سوشيال</option>
-                        <option value="banner">بانر / لافتة</option>
+                        <option value="other">{% trans "عام" %}</option>
+                        <option value="logo">{% trans "لوجو / Brand" %}</option>
+                        <option value="business_card">{% trans "كارت بزنس" %}</option>
+                        <option value="flyer">{% trans "فلاير / منشور" %}</option>
+                        <option value="invoice">{% trans "فاتورة / إيصال" %}</option>
+                        <option value="tshirt">{% trans "طباعة تيشرت" %}</option>
+                        <option value="packaging">{% trans "تغليف منتج" %}</option>
+                        <option value="social_media">{% trans "بوست سوشيال" %}</option>
+                        <option value="banner">{% trans "بانر / لافتة" %}</option>
                     </select>
                 </div>
             </div>
@@ -2045,24 +2045,24 @@
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;color:#67e8f9;">
                     <input type="checkbox" id="aiAddWatermark" style="width:18px;height:18px;cursor:pointer;accent-color:#06b6d4;">
                     <i class="fas fa-droplet"></i>
-                    <span>أضف علامة مائية بإسم الشركة على التصميم</span>
+                    <span>{% trans "أضف علامة مائية بإسم الشركة على التصميم" %}</span>
                 </label>
-                <p style="font-size:10px;color:#64748b;margin:4px 0 0 32px;">💡 يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع</p>
+                <p style="font-size:10px;color:#64748b;margin:4px 0 0 32px;">💡 {% trans "يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع" %}</p>
             </div>
 
             <div style="display:flex;gap:10px;">
                 <button onclick="resetAIStudio()" style="flex:0.4;padding:12px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer;">
-                    <i class="fas fa-arrow-right"></i> رجوع
+                    <i class="fas fa-arrow-right"></i> {% trans "رجوع" %}
                 </button>
                 <button id="aiFluxBtn" onclick="generateFluxDesign()" style="flex:1;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-                    <i class="fas fa-wand-magic-sparkles"></i> ✨ اعتمد وولّد التصميم
+                    <i class="fas fa-wand-magic-sparkles"></i> ✨ {% trans "اعتمد وولّد التصميم" %}
                 </button>
             </div>
 
             <!-- 💳 Live balance + Top-up button -->
             <div id="aiBalanceBar" style="margin-top:10px;padding:10px 14px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> رصيد التصاميم: <strong id="aiBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
-                <button onclick="openTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:5px 14px;border-radius:8px;font-family:Cairo;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن رصيد</button>
+                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> {% trans "رصيد التصاميم:" %} <strong id="aiBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
+                <button onclick="openTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:5px 14px;border-radius:8px;font-family:Cairo;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> {% trans "شحن رصيد" %}</button>
             </div>
         </div>
 
@@ -2074,24 +2074,24 @@
 <div id="watermarkModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-stamp" style="color:#06b6d4;margin-left:8px;"></i>علامة مائية ذكية</h3>
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-stamp" style="color:#06b6d4;margin-left:8px;"></i>{% trans "علامة مائية ذكية" %}</h3>
             <button onclick="closeWatermarkModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <p id="wmQuotaInfo" style="font-size:12px;color:#06b6d4;margin-bottom:12px;"></p>
         <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">ارفع الصورة</label>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "ارفع الصورة" %}</label>
             <input type="file" id="wmImage" accept="image/*" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
         </div>
         <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">نص العلامة المائية</label>
-            <input type="text" id="wmText" placeholder="اسم الشركة أو الاستوديو" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "نص العلامة المائية" %}</label>
+            <input type="text" id="wmText" placeholder="{% trans 'اسم الشركة أو الاستوديو' %}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;">
         </div>
         <div style="margin-bottom:16px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">شفافية العلامة: <span id="opacityVal">40</span>%</label>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "شفافية العلامة:" %} <span id="opacityVal">40</span>%</label>
             <input type="range" id="wmOpacity" min="10" max="100" value="40" oninput="document.getElementById('opacityVal').textContent=this.value" style="width:100%;">
         </div>
         <button id="wmApplyBtn" onclick="applyWatermark()" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0284c7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-            <i class="fas fa-stamp"></i> تطبيق العلامة
+            <i class="fas fa-stamp"></i> {% trans "تطبيق العلامة" %}
         </button>
         <div id="wmResult" style="margin-top:16px;"></div>
     </div>

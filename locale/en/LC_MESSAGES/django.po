@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-28 22:03+0300\n"
+"POT-Creation-Date: 2026-07-28 22:27+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -366,7 +366,7 @@ msgid "لوجو / Brand Mark"
 msgstr ""
 
 msgid "كارت بزنس"
-msgstr ""
+msgstr "Business card"
 
 msgid "ورق رسمي"
 msgstr ""
@@ -384,7 +384,7 @@ msgid "غلاف فيسبوك / يوتيوب"
 msgstr ""
 
 msgid "فلاير"
-msgstr ""
+msgstr "Flyer"
 
 msgid "بوستر / إعلان"
 msgstr ""
@@ -396,7 +396,7 @@ msgid "يافطة / كلادينج"
 msgstr ""
 
 msgid "منيو"
-msgstr ""
+msgstr "Menu"
 
 msgid "دعوة / كارت"
 msgstr ""
@@ -438,7 +438,7 @@ msgid "ليبل / ملصق"
 msgstr ""
 
 msgid "ستيكر"
-msgstr ""
+msgstr "Sticker"
 
 msgid "تصميم ماج"
 msgstr ""
@@ -471,7 +471,7 @@ msgid "رسم سيارة / Wrap"
 msgstr ""
 
 msgid "أخرى"
-msgstr ""
+msgstr "Other"
 
 msgid "الباقة (فارغ = تصميم مجاني)"
 msgstr ""
@@ -483,7 +483,7 @@ msgid "عنوان التصميم"
 msgstr "Design title"
 
 msgid "المقاس"
-msgstr ""
+msgstr "Size"
 
 msgid "العرض (px)"
 msgstr ""
@@ -666,16 +666,16 @@ msgid "ملغي"
 msgstr "Cancelled"
 
 msgid "تيشرت"
-msgstr ""
+msgstr "T-shirt"
 
 msgid "بوستر"
-msgstr ""
+msgstr "Poster"
 
 msgid "بنر / ستاند"
 msgstr ""
 
 msgid "ماج"
-msgstr ""
+msgstr "Mug"
 
 msgid "تغليف / علبة"
 msgstr ""
@@ -729,7 +729,7 @@ msgid "عنوان التوصيل"
 msgstr ""
 
 msgid "رقم التواصل"
-msgstr ""
+msgstr "Contact number"
 
 msgid "السعر المقترح من المنصة"
 msgstr ""
@@ -1847,7 +1847,7 @@ msgid "مغلقة"
 msgstr "Closed"
 
 msgid "عادية"
-msgstr ""
+msgstr "Standard"
 
 msgid "متوسطة"
 msgstr "Medium"
@@ -2440,7 +2440,7 @@ msgid "رابط التصميم"
 msgstr ""
 
 msgid "بعلامة مائية"
-msgstr ""
+msgstr "Watermarked"
 
 msgid "جلسة AI Studio"
 msgstr ""
@@ -2455,7 +2455,7 @@ msgid "إرسال رسالة واتساب"
 msgstr ""
 
 msgid "علامة مائية ذكية"
-msgstr ""
+msgstr "Smart watermark"
 
 msgid "نوع العملية"
 msgstr ""
@@ -5324,10 +5324,8 @@ msgstr "Generation failed"
 msgid "✅ تم التوليد! متبقي"
 msgstr "✅ Generated! Remaining"
 
-#, fuzzy
-#| msgid "تعذر تحميل بيانات العميل"
 msgid "تعذر تحميل الباقات"
-msgstr "Failed to load customer data"
+msgstr "Could not load the packages"
 
 msgid "اشحن باقة تصاميم"
 msgstr "Recharge a designs package"
@@ -15001,7 +14999,7 @@ msgid "مصمم"
 msgstr ""
 
 msgid "المصممين"
-msgstr ""
+msgstr "Designers"
 
 msgid "⌨️ يدوي بالكامل"
 msgstr ""
@@ -15205,10 +15203,10 @@ msgid "الطلب المرتبط"
 msgstr ""
 
 msgid "حركة مالية"
-msgstr ""
+msgstr "Financial transaction"
 
 msgid "الحركات المالية"
-msgstr ""
+msgstr "Financial transactions"
 
 msgid "مشاهدة الخزينة"
 msgstr ""
@@ -15232,7 +15230,7 @@ msgid "مشاهدة كل الطلبات"
 msgstr ""
 
 msgid "إدارة العملاء"
-msgstr ""
+msgstr "Manage customers"
 
 msgid "مشاهدة ملفات المشاريع"
 msgstr ""
@@ -16127,6 +16125,714 @@ msgid "جرّب تحديث الصفحة (Ctrl+Shift+R) أو مسح الكوكي�
 msgstr ""
 "Try refreshing the page (Ctrl+Shift+R) or clearing cookies then try again."
 
+msgid "ابحث... (طلبات، عملاء، خامات، مصممين)"
+msgstr "Search... (orders, customers, materials, designers)"
+
+msgid "طلب طباعة جديد"
+msgstr "New print order"
+
+msgid "إدارة المصممين"
+msgstr "Manage designers"
+
+msgid "سجل أعمال المصممين"
+msgstr "Designer worklog"
+
+msgid "سجل الطلبات"
+msgstr "Orders log"
+
+msgid "إدارة الخامات والمخزون"
+msgstr "Manage materials and inventory"
+
+msgid "الخزائن المالية"
+msgstr "Financial treasuries"
+
+msgid "إدارة الماكينات"
+msgstr "Manage machines"
+
+msgid "المستشار الذكي (AI Copilot)"
+msgstr "Smart advisor (AI Copilot)"
+
+msgid "ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..."
+msgstr "Search the Mouss Tec empire (customers, invoices, reports)..."
+
+msgid "أمر شغل وفاتورة صيانة جديدة"
+msgstr "New work order and service invoice"
+
+msgid "توريد بضاعة وإنشاء فاتورة مشتريات"
+msgstr "Receive goods and create purchase invoice"
+
+msgid "دخول صالة مزادات سوق التجار المشترك B2B"
+msgstr "Enter the shared B2B traders auction hall"
+
+msgid "نقطة البيع السريعة (POS)"
+msgstr "Quick point of sale (POS)"
+
+msgid "إدارة الأصناف والمخزون"
+msgstr "Manage items and inventory"
+
+msgid "سجل الفواتير"
+msgstr "Invoices log"
+
+msgid "كشك الفنيين وتسجيل الورديات"
+msgstr "Technicians kiosk and shift logging"
+
+msgid "إدارة الخزائن المالية"
+msgstr "Manage financial treasuries"
+
+msgid "لوحة المعلومات الرئيسية"
+msgstr "Main dashboard"
+
+msgid "التحدث مع المستشار الذكي (AI Copilot)"
+msgstr "Chat with the smart advisor (AI Copilot)"
+
+msgid "إخفاء"
+msgstr "Hide"
+
+msgid "هدية مفعّلة من إدارة Mouss Tec!"
+msgstr "A gift is active from Mouss Tec management!"
+
+msgid "هدية من الإدارة"
+msgstr "A gift from management"
+
+msgid "مرحباً بك في"
+msgstr "Welcome to"
+
+msgid "غرفة العمليات المركزية"
+msgstr "The central operations room"
+
+msgid "إدارة المطابع والتصميم"
+msgstr "Print shops and design management"
+
+msgid "تاجر قطع غيار معتمد"
+msgstr "Verified spare parts dealer"
+
+msgid "مستورد ومحرك تقطيع"
+msgstr "Importer and dismantling engine"
+
+msgid "إدارة مراكز الصيانة الفنية"
+msgstr "Technical service centers management"
+
+msgid "توكيل شامل"
+msgstr "Full dealership"
+
+msgid "نظرة شاملة على الطلبات، المصممين، الخامات، والماليات"
+msgstr "A complete overview of orders, designers, materials, and finances"
+
+msgid "نظرة عامة على أداء البيزنس والمحفظة اليوم"
+msgstr "An overview of business performance and the wallet today"
+
+msgid "متصل بالسحابة"
+msgstr "Connected to the cloud"
+
+msgid "رادار صحة المنصة + إصلاح الدورات غير المكتملة"
+msgstr "Platform health radar + fixing incomplete cycles"
+
+msgid "إدارة عملاء السوق + الهدايا + Impersonate"
+msgstr "Manage marketplace customers + gifts + Impersonate"
+
+msgid "عملاء السوق (God Mode)"
+msgstr "Marketplace customers (God Mode)"
+
+msgid "إدارة الباقات والأسعار والمزايا الديناميكية"
+msgstr "Manage plans, prices, and dynamic features"
+
+msgid "إدارة الباقات والاشتراكات"
+msgstr "Manage plans and subscriptions"
+
+msgid "إجمالي إيرادات المنصة وفواتير SaaS"
+msgstr "Total platform revenue and SaaS invoices"
+
+msgid "عقود الأساطيل"
+msgstr "Fleet contracts"
+
+msgid "التقارير والتحليلات"
+msgstr "Reports and analytics"
+
+msgid "مبيعات سريعة"
+msgstr "Quick sales"
+
+msgid "حاسبة الإفراج"
+msgstr "Release calculator"
+
+msgid "توريد بضاعة"
+msgstr "Receive goods"
+
+msgid "سوق B2B"
+msgstr "B2B marketplace"
+
+msgid "بحث بالأوامر الصوتية"
+msgstr "Search by voice commands"
+
+msgid "بحث شامل في النظام..."
+msgstr "Global search in the system..."
+
+msgid "مستشار Mouss Tec"
+msgstr "Mouss Tec advisor"
+
+msgid "إيرادات الشهر"
+msgstr "Month revenue"
+
+msgid "طلبات قيد التنفيذ"
+msgstr "Orders in progress"
+
+msgid "مستحقات العملاء"
+msgstr "Customer receivables"
+
+msgid "فريق التصميم"
+msgstr "Design team"
+
+msgid "المحصّل هذا الشهر"
+msgstr "Collected this month"
+
+msgid "تم تسليمه هذا الشهر"
+msgstr "Delivered this month"
+
+msgid "ساعات تصميم اليوم"
+msgstr "Design hours today"
+
+msgid "أعمال تصميم الشهر"
+msgstr "Design jobs this month"
+
+msgid "خامات منخفضة"
+msgstr "Low materials"
+
+msgid "أوامر الشغل اليوم"
+msgstr "Work orders today"
+
+msgid "تكلفة الإفراجات"
+msgstr "Release cost"
+
+msgid "ديون متأخرة بالخارج"
+msgstr "Overdue external debts"
+
+msgid "أرباح الشهر الصافية"
+msgstr "Net month profit"
+
+msgid "الخزائن والأرصدة المالية"
+msgstr "Treasuries and financial balances"
+
+msgid "إجمالي الرصيد:"
+msgstr "Total balance:"
+
+msgid ""
+"لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين "
+"والعملاء، افتح"
+msgstr ""
+"General platform administration panel — SaaS tools only. For the detailed "
+"tenants and customers dashboard, open"
+
+msgid "فتح غرفة عمليات SaaS"
+msgstr "Open SaaS operations room"
+
+msgid "تحليل إيرادات المطبعة"
+msgstr "Print shop revenue analysis"
+
+msgid "التحليل المالي والتنبؤ الذكي"
+msgstr "Financial analysis and smart forecasting"
+
+msgid "رادار المطبعة الذكي"
+msgstr "Smart print shop radar"
+
+msgid "رادار Mouss Tec الذكي"
+msgstr "Mouss Tec smart radar"
+
+msgid "الملخص المالي للشهر"
+msgstr "Financial summary for the month"
+
+msgid "الإيرادات:"
+msgstr "Revenue:"
+
+msgid "المصروفات:"
+msgstr "Expenses:"
+
+msgid "خامات تحتاج توريد عاجل"
+msgstr "Materials needing urgent restock"
+
+msgid "المتبقي:"
+msgstr "Remaining:"
+
+msgid "إدارة الخامات"
+msgstr "Manage materials"
+
+msgid "مخزون الخامات مستقر"
+msgstr "Materials stock is stable"
+
+msgid "جميع الخامات فوق الحد الأدنى للمخزون."
+msgstr "All materials are above the minimum stock level."
+
+msgid "آخر الطلبات"
+msgstr "Latest orders"
+
+msgid "تحليل الأعطال السريع (DTC AI)"
+msgstr "Quick fault analysis (DTC AI)"
+
+msgid "أدخل كود العطل (مثل P0300)..."
+msgstr "Enter the fault code (like P0300)..."
+
+msgid "تحليل"
+msgstr "Analyze"
+
+msgid "مزادات B2B حية!"
+msgstr "Live B2B auctions!"
+
+msgid "يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات."
+msgstr ""
+"Service centers are looking for shortages now. Submit your offers to secure "
+"sales."
+
+msgid "دخول صالة المزادات"
+msgstr "Enter the auction hall"
+
+msgid "نواقص حرجة للطلب العاجل"
+msgstr "Critical shortages for urgent ordering"
+
+msgid "باقي:"
+msgstr "Remaining:"
+
+msgid "طلب تسعير من السوق (RFQ)"
+msgstr "Request a quote from the market (RFQ)"
+
+msgid "المخزون مستقر"
+msgstr "Stock is stable"
+
+msgid "لا توجد قطع غيار تحت حد التنبيه حالياً."
+msgstr "No spare parts are below the alert threshold currently."
+
+msgid ""
+"أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، "
+"متابعة الطلبات، وتحليل أداء المصممين."
+msgstr ""
+"I am the print shop smart assistant. I can help you calculate printing "
+"costs, track orders, and analyze designer performance."
+
+msgid ""
+"أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق "
+"المركزي، أو ترجمة أكواد أعطال السيارات."
+msgstr ""
+"I am your smart assistant. I can analyze sales, suggest spare parts from the "
+"central market, or translate car fault codes."
+
+msgid "السيستم:"
+msgstr "System:"
+
+msgid ""
+"المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟"
+msgstr ""
+"The print shop is ready. Do you want to review open orders or track designer "
+"performance?"
+
+msgid ""
+"كل شيء مستقر. مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي. هل ترغب في فحص "
+"توقعات الشهر القادم؟"
+msgstr ""
+"Everything is stable. Today sales are excellent compared to last week. Would "
+"you like to check next month forecasts?"
+
+msgid "اسألني عن تكاليف الطباعة أو الطلبات..."
+msgstr "Ask me about printing costs or orders..."
+
+msgid "اسألني عن الأعطال أو المبيعات..."
+msgstr "Ask me about faults or sales..."
+
+msgid "العمل محلياً (Offline)"
+msgstr "Working locally (Offline)"
+
+msgid "جاري الاستشارة..."
+msgstr "Consulting..."
+
+msgid "تم تحليل طلبك."
+msgstr "Your request was analyzed."
+
+msgid "عذراً، حدث خطأ في الاتصال."
+msgstr "Sorry, a connection error occurred."
+
+msgid "قطع الغيار المقترحة لـ"
+msgstr "Suggested spare parts for"
+
+msgid "طقم صيانة وقائية شامل."
+msgstr "A complete preventive maintenance kit."
+
+msgid "طقم بوجيهات (ثقة 94٪)"
+msgstr "Spark plug set (confidence 94%)"
+
+msgid "وحدة كويلات (ثقة 60٪)"
+msgstr "Coil unit (confidence 60%)"
+
+msgid "رادار الباركود"
+msgstr "Barcode radar"
+
+msgid "كود:"
+msgstr "Code:"
+
+msgid "أمر صوتي"
+msgstr "Voice command"
+
+msgid "لا توجد طلبات بعد"
+msgstr "No orders yet"
+
+msgid "التوقع"
+msgstr "Forecast"
+
+msgid "التوقع (AI Forecast)"
+msgstr "Forecast (AI Forecast)"
+
+msgid "تنبؤات الذكاء الاصطناعي (AI Forecast)"
+msgstr "AI predictions (AI Forecast)"
+
+msgid "المحصّل الفعلي (ج.م)"
+msgstr "Actual collected (EGP)"
+
+msgid "صافي الربح الفعلي (ج.م)"
+msgstr "Actual net profit (EGP)"
+
+msgid "إجمالي الطلبات (ج.م)"
+msgstr "Total orders (EGP)"
+
+msgid "إجمالي الإيرادات (ج.م)"
+msgstr "Total revenue (EGP)"
+
+msgid "تم تحويل الطلب إلى"
+msgstr "The request was redirected to"
+
+msgid "تأكد من تسجيل الدخول"
+msgstr "make sure you are logged in"
+
+msgid "حزمة AI Studio غير مفعّلة على اشتراكك. تواصل مع إدارة المنصة لتفعيلها."
+msgstr ""
+"The AI Studio package is not active on your subscription. Contact the "
+"platform management to activate it."
+
+msgid "تصميم من"
+msgstr "designs of"
+
+msgid "تعذر التحقق من حالة الاشتراك. تأكد من اتصالك بالإنترنت."
+msgstr ""
+"Could not verify the subscription status. Make sure you are connected to the "
+"internet."
+
+msgid "اكتب وصف التصميم المطلوب"
+msgstr "Write the requested design description"
+
+msgid "جاري هندسة البرومبت..."
+msgstr "Engineering the prompt..."
+
+msgid "محرك الذكاء الاصطناعي يحلل وصفك ويبني برومبت احترافي..."
+msgstr ""
+"The AI engine is analyzing your description and building a professional "
+"prompt..."
+
+msgid "جلسة منتهية — سجل دخول مرة أخرى"
+msgstr "Session expired — log in again"
+
+msgid "رد غير متوقع من السيرفر"
+msgstr "Unexpected response from the server"
+
+msgid "هندسة البرومبت بالذكاء الاصطناعي"
+msgstr "Engineer the prompt with AI"
+
+msgid "هذا الطلب خارج نطاق التصميم والطباعة."
+msgstr "This request is outside the scope of design and printing."
+
+msgid "حدث خطأ. حاول مرة أخرى."
+msgstr "An error occurred. Try again."
+
+msgid "حدث خطأ في الاتصال. حاول مرة أخرى."
+msgstr "A connection error occurred. Try again."
+
+msgid "هل أنت متأكد من توليد التصميم؟"
+msgstr "Are you sure you want to generate the design?"
+
+msgid "سيتم دمج لوجو الشركة في التصميم"
+msgstr "The company logo will be merged into the design"
+
+msgid "سيتم إضافة علامة مائية"
+msgstr "A watermark will be added"
+
+msgid "كل توليد يخصم من حصتك الشهرية."
+msgstr "Each generation is deducted from your monthly quota."
+
+msgid "جاري التوليد..."
+msgstr "Generating..."
+
+msgid "جاري توليد التصميم... قد يستغرق 15-30 ثانية"
+msgstr "Generating the design... it may take 15-30 seconds"
+
+msgid "اعتمد وولّد التصميم"
+msgstr "Approve and generate the design"
+
+msgid "هل تريد ربط هذا التصميم بفاتورة عميل؟"
+msgstr "Do you want to link this design to a customer invoice?"
+
+msgid "نعم، اربطه بفاتورة"
+msgstr "Yes, link it to an invoice"
+
+msgid "لا، حفظ فقط"
+msgstr "No, save only"
+
+msgid "تحذير: حصتك على وشك النفاد!"
+msgstr "Warning: your quota is about to run out!"
+
+msgid "تم استنفاد حصتك الشهرية. يتم التجديد تلقائياً بداية الشهر القادم."
+msgstr ""
+"Your monthly quota is exhausted. It renews automatically at the start of "
+"next month."
+
+msgid "المرحلة 1: تصفية وصياغة الـ Prompt... ثم المرحلة 2: توليد الصورة"
+msgstr ""
+"Stage 1: filtering and drafting the prompt... then Stage 2: generating the "
+"image"
+
+msgid "الرصيد خلص"
+msgstr "Balance is depleted"
+
+msgid "شحن الباقة الآن"
+msgstr "Recharge the package now"
+
+msgid "جودة فخمة"
+msgstr "Premium quality"
+
+msgid "رصيد متبقي:"
+msgstr "Remaining balance:"
+
+msgid "الـ Engineered Prompt (Stage 1)"
+msgstr "The Engineered Prompt (Stage 1)"
+
+msgid "إرسال للمطبعة"
+msgstr "Send to print shop"
+
+msgid "تعذر الاتصال"
+msgstr "Could not connect"
+
+msgid "شحن رصيد التصاميم"
+msgstr "Recharge design balance"
+
+msgid "إرسال التصميم للمطبعة"
+msgstr "Send the design to the print shop"
+
+msgid "اختار العميل اللي الطلب باسمه"
+msgstr "Choose the customer the order is for"
+
+msgid "اكتب اسم العميل أو الشركة أو الموبايل..."
+msgstr "Type the customer, company, or mobile name..."
+
+msgid "بنر"
+msgstr "Banner"
+
+msgid "دعوة"
+msgstr "Invitation"
+
+msgid "العنوان بالكامل"
+msgstr "The full address"
+
+msgid "ملاحظات للمطبعة (اختياري)"
+msgstr "Notes for the print shop (optional)"
+
+msgid "نوع الورق، التشطيب، أي تفاصيل..."
+msgstr "Paper type, finishing, any details..."
+
+msgid "جاري البحث..."
+msgstr "Searching..."
+
+msgid "فشل البحث"
+msgstr "Search failed"
+
+msgid "مفيش نتائج. تأكد إن العميل مسجل في الـ marketplace."
+msgstr "No results. Make sure the customer is registered in the marketplace."
+
+msgid "اتاختار:"
+msgstr "Selected:"
+
+msgid "لازم تختار العميل من القائمة الأول."
+msgstr "You must select the customer from the list first."
+
+msgid "تعذر الاتصال — جرب تاني."
+msgstr "Could not connect — try again."
+
+msgid "لم يتم حفظ التصميم"
+msgstr "The design was not saved"
+
+msgid "اختر العميل والفاتورة:"
+msgstr "Choose the customer and invoice:"
+
+msgid "اكتب اسم العميل أو رقم الموبايل..."
+msgstr "Type the customer name or mobile number..."
+
+msgid "أو أنشئ فاتورة جديدة بهذا التصميم"
+msgstr "Or create a new invoice with this design"
+
+msgid "لا توجد فواتير مطابقة"
+msgstr "No matching invoices"
+
+msgid "ربط التصميم بالفاتورة"
+msgstr "Link the design to invoice"
+
+msgid "تم ربط التصميم بالفاتورة"
+msgstr "The design was linked to invoice"
+
+msgid "بنجاح"
+msgstr "successfully"
+
+msgid "فشل الربط"
+msgstr "Linking failed"
+
+msgid "رقم واتساب العميل"
+msgstr "Customer WhatsApp number"
+
+msgid "رسالة (اختياري)"
+msgstr "Message (optional)"
+
+msgid "مرحباً، تصميمك جاهز!"
+msgstr "Hello, your design is ready!"
+
+msgid "أدخل رقم واتساب العميل"
+msgstr "Enter the customer WhatsApp number"
+
+msgid "جلسة منتهية"
+msgstr "Session expired"
+
+msgid "علامة"
+msgstr "watermarks"
+
+msgid "تعذر التحقق من حالة الاشتراك."
+msgstr "Could not verify the subscription status."
+
+msgid "ارفع صورة أولاً"
+msgstr "Upload an image first"
+
+msgid "تطبيق العلامة"
+msgstr "Apply watermark"
+
+msgid "توليد تصميم"
+msgstr "Generate design"
+
+msgid "وصف التصميم المطلوب"
+msgstr "The requested design description"
+
+msgid "(اكتب بالعربي أو الإنجليزي)"
+msgstr "(write in Arabic or English)"
+
+msgid "مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم"
+msgstr ""
+"Example: a business card for a print shop named Al-Nour — gold and black "
+"colors — a luxury look"
+
+msgid "لوجو الشركة (اختياري)"
+msgstr "Company logo (optional)"
+
+msgid "يدمج اللوجو في التصميم تلقائياً"
+msgstr "merges the logo into the design automatically"
+
+msgid "إزالة اللوجو"
+msgstr "Remove the logo"
+
+msgid ""
+"الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)"
+msgstr ""
+"Step 1: the AI engine turns your description into a professional prompt "
+"(free — not deducted from your quota)"
+
+msgid "البرومبت جاهز للتوليد"
+msgstr "The prompt is ready to generate"
+
+msgid "تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن."
+msgstr ""
+"Your description was analyzed by the AI engine and an optimized professional "
+"prompt was prepared."
+
+msgid "محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية"
+msgstr ""
+"The prompt content is protected and hidden to safeguard your intellectual "
+"property"
+
+msgid "مربع - بوست (1024×1024)"
+msgstr "Square - post (1024×1024)"
+
+msgid "أفقي / Cover (1536×1024)"
+msgstr "Landscape / Cover (1536×1024)"
+
+msgid "A4 عمودي طباعة (1024×1792)"
+msgstr "A4 portrait print (1024×1792)"
+
+msgid "A4 أفقي طباعة (1792×1024)"
+msgstr "A4 landscape print (1792×1024)"
+
+msgid "متقدم"
+msgstr "Advanced"
+
+msgid "تلقائي (AI يختار)"
+msgstr "Automatic (AI chooses)"
+
+msgid "الجودة"
+msgstr "Quality"
+
+msgid "عالية (HD)"
+msgstr "High (HD)"
+
+msgid "صيغة الملف"
+msgstr "File format"
+
+msgid "PNG (شفافية)"
+msgstr "PNG (transparency)"
+
+msgid "WebP (أصغر حجم)"
+msgstr "WebP (smaller size)"
+
+msgid "PDF (طباعة)"
+msgstr "PDF (print)"
+
+msgid "نوع التصميم"
+msgstr "Design type"
+
+msgid "عام"
+msgstr "General"
+
+msgid "لوجو / Brand"
+msgstr "Logo / Brand"
+
+msgid "فلاير / منشور"
+msgstr "Flyer / post"
+
+msgid "فاتورة / إيصال"
+msgstr "Invoice / receipt"
+
+msgid "طباعة تيشرت"
+msgstr "T-shirt print"
+
+msgid "تغليف منتج"
+msgstr "Product packaging"
+
+msgid "بوست سوشيال"
+msgstr "Social post"
+
+msgid "بانر / لافتة"
+msgstr "Banner / sign"
+
+msgid "أضف علامة مائية بإسم الشركة على التصميم"
+msgstr "Add a watermark with the company name on the design"
+
+msgid "يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع"
+msgstr ""
+"It protects you from design theft when showing it to the customer before "
+"payment"
+
+msgid "رصيد التصاميم:"
+msgstr "Design balance:"
+
+msgid "شحن رصيد"
+msgstr "Recharge balance"
+
+msgid "ارفع الصورة"
+msgstr "Upload the image"
+
+msgid "نص العلامة المائية"
+msgstr "Watermark text"
+
+msgid "اسم الشركة أو الاستوديو"
+msgstr "Company or studio name"
+
+msgid "شفافية العلامة:"
+msgstr "Watermark opacity:"
+
 msgid "أنت على الصفحة الرئيسية. يرجى"
 msgstr "You are on the home page. Please"
 
@@ -16145,299 +16851,230 @@ msgstr ""
 msgid "نسيت كلمة المرور؟"
 msgstr "Forgot your password?"
 
-#| msgid "التقارير المالية"
-msgid "التقارير والتحليلات"
-msgstr "Reports and analytics"
-
-#| msgid "من"
 msgid "من:"
 msgstr "From:"
 
 msgid "إلى:"
 msgstr "To:"
 
-#| msgid "العملاء"
 msgid "كل العملاء"
 msgstr "All customers"
 
-#| msgid "عرض القطعة"
 msgid "عرض النتائج"
 msgstr "Show results"
 
-#| msgid "مبيعات اليوم"
 msgid "مبيعات الشهر"
 msgstr "Month sales"
 
 msgid "ربح:"
 msgstr "Profit:"
 
-#| msgid "مبيعات اليوم"
 msgid "مبيعات السنة"
 msgstr "Year sales"
 
-#| msgid "صافي أرباح الخدمات والمصنعيات"
 msgid "صافي الربح/الخسارة (الفترة)"
 msgstr "Net profit/loss (period)"
 
-#| msgid "المصروفات"
 msgid "بعد خصم المصروفات"
 msgstr "After deducting expenses"
 
-#| msgid "طلبات السلف المعلقة"
 msgid "طلبات B2B معلقة"
 msgstr "Pending B2B requests"
 
-#| msgid "متابعة الطلب"
 msgid "مراجعة الآن"
 msgstr "Review now"
 
-#| msgid "ملخص"
 msgid "الملخص"
 msgstr "Summary"
 
-#| msgid "تقرير AI للعميل"
 msgid "تقرير عميل"
 msgstr "Customer report"
 
-#| msgid "على المنصة"
 msgid "أعلى المنتجات"
 msgstr "Top products"
 
-#| msgid "إجمالي العملاء"
 msgid "أعلى العملاء"
 msgstr "Top customers"
 
-#| msgid "المركبة"
 msgid "المرتبات"
 msgstr "Payroll"
 
-#| msgid "كل الموظفين"
 msgid "الموظفين"
 msgstr "Employees"
 
-#| msgid "تم الدخول"
 msgid "تقادم الديون"
 msgstr "Debt aging"
 
-#| msgid "مخزون خامات"
 msgid "المخزون الراكد"
 msgstr "Slow-moving stock"
 
-#| msgid "اتجاه الإيرادات الشهرية (آخر 6 شهور)"
 msgid "اتجاه المبيعات والأرباح (6 أشهر)"
 msgstr "Sales and profit trend (6 months)"
 
-#| msgid "ملخص الفاتورة النهائي"
 msgid "ملخص الفترة المحددة"
 msgstr "Summary of the selected period"
 
-#| msgid "القيمة (ج.م)"
 msgid "القيمة"
 msgstr "Value"
 
-#| msgid "إجمالي السكانات"
 msgid "إجمالي الإيرادات"
 msgstr "Total revenue"
 
-#| msgid "كمية الطباعة المطلوبة:"
 msgid "تكلفة البضاعة المباعة"
 msgstr "Cost of goods sold"
 
-#| msgid "إجمالي الطلبات"
 msgid "إجمالي الربح"
 msgstr "Gross profit"
 
-#| msgid "مصروفات التشخيص"
 msgid "المصروفات التشغيلية"
 msgstr "Operating expenses"
 
-#| msgid "صافي الخسارة"
 msgid "صافي الربح/الخسارة"
 msgstr "Net profit/loss"
 
-#| msgid "تقرير AI للعميل"
 msgid "تقرير عميل محدد"
 msgstr "Specific customer report"
 
 msgid "اختر عميل من القائمة أعلاه ثم اضغط \"عرض\" لعرض تقريره التفصيلي"
-msgstr "Choose a customer from the list above then press \"Show\" to view the detailed report"
+msgstr ""
+"Choose a customer from the list above then press \"Show\" to view the "
+"detailed report"
 
-#| msgid "أعلى 10 Tenants استهلاكاً"
 msgid "أعلى 10 منتجات مبيعاً"
 msgstr "Top 10 best-selling products"
 
-#| msgid "رقم القطعة (P/N)"
 msgid "رقم القطعة"
 msgstr "Part number"
 
-#| msgid "الإيرادات"
 msgid "الإيراد"
 msgstr "Revenue"
 
-#| msgid "أعلى 10 Tenants استهلاكاً"
 msgid "أعلى 10 عملاء إنفاقاً"
 msgstr "Top 10 spending customers"
 
-#| msgid "إجمالي الباقات"
 msgid "إجمالي الإنفاق"
 msgstr "Total spending"
 
-#| msgid "توزيع المصروفات حسب التصنيف"
 msgid "تفصيل المصروفات حسب البند"
 msgstr "Expense breakdown by item"
 
-#| msgid "تم النسخ"
 msgid "النسبة"
 msgstr "Percentage"
 
-#| msgid "تاريخ المحادثات"
 msgid "تقرير المرتبات"
 msgstr "Payroll report"
 
-#| msgid "أكمل على آخر صورة"
 msgid "تفصيل آخر دورة"
 msgstr "Latest run breakdown"
 
-#| msgid "التكلفة التناسبية"
 msgid "اتجاه تكلفة المرتبات"
 msgstr "Payroll cost trend"
 
-#| msgid "الإجمالي قبل الخصم"
 msgid "إجمالي قبل الخصم"
 msgstr "Total before deductions"
 
-#| msgid "الخصم"
 msgid "الخصومات"
 msgstr "Deductions"
 
 msgid "خصم تأخير"
 msgstr "Lateness deduction"
 
-#| msgid "قطع غيار"
 msgid "خصم غياب"
 msgstr "Absence deduction"
 
-#| msgid "خصم (ج.م)"
 msgid "خصم سلف"
 msgstr "Advance deduction"
 
-#| msgid "مكافآت قطع غيار"
 msgid "مكافآت"
 msgstr "Bonuses"
 
-#| msgid "إدارة الموظفين"
 msgid "تقارير الموظفين"
 msgstr "Employee reports"
 
-#| msgid "الشهر الحالي"
 msgid "الحضور (الشهر الحالي)"
 msgstr "Attendance (current month)"
 
-#| msgid "الإجراءات"
 msgid "الإجازات"
 msgstr "Leaves"
 
-#| msgid "القطع النشطة"
 msgid "السلف النشطة"
 msgstr "Active advances"
 
-#| msgid "المستوى"
 msgid "المسمى"
 msgstr "Job title"
 
-#| msgid "تم الحضور"
 msgid "أيام حضور"
 msgstr "Attendance days"
 
 msgid "غياب"
 msgstr "Absence"
 
-#| msgid "تأخير %(n)s د"
 msgid "تأخير"
 msgstr "Lateness"
 
 msgid "دقائق تأخير"
 msgstr "Late minutes"
 
-#| msgid "ساعات"
 msgid "ساعات عمل"
 msgstr "Work hours"
 
-#| msgid "نسخ الرابط"
 msgid "الراتب"
 msgstr "Salary"
 
-#| msgid "المسار"
 msgid "المسدد"
 msgstr "Paid"
 
-#| msgid "إجمالي العملاء"
 msgid "تقادم ديون العملاء"
 msgstr "Customer debt aging"
 
 msgid "المخزون الراكد (لم يُباع منذ 60 يوم)"
 msgstr "Slow-moving stock (not sold in 60 days)"
 
-#| msgid "مدير المخزون"
 msgid "قيمة المخزون"
 msgstr "Stock value"
 
-#| msgid "آخر زيارة"
 msgid "آخر بيع"
 msgstr "Last sale"
 
-#| msgid "لا توجد حركات في الفترة المحددة"
 msgid "لا توجد بيانات للفترة المحددة"
 msgstr "No data for the selected period"
 
-#| msgid "إجمالي الشركات"
 msgid "إجمالي المشتريات"
 msgstr "Total purchases"
 
-#| msgid "المرجع"
 msgid "المرتجعات"
 msgstr "Returns"
 
-#| msgid "الرصيد الافتتاحي"
 msgid "الرصيد المستحق"
 msgstr "Outstanding balance"
 
 msgid "مرتجع"
 msgstr "Return"
 
-#| msgid "المدفوع"
 msgid "المدفوعات"
 msgstr "Payments"
 
-#| msgid "لا توجد فواتير"
 msgid "لا توجد مدفوعات"
 msgstr "No payments"
 
-#| msgid "لا توجد حركات في الفترة المحددة"
 msgid "لا توجد مصروفات للفترة المحددة"
 msgstr "No expenses for the selected period"
 
-#| msgid "لا توجد بيانات"
 msgid "لا توجد دورات رواتب"
 msgstr "No payroll runs"
 
-#| msgid "نظام الاضافات المرنة"
 msgid "صافي المرتبات الشهرية"
 msgstr "Monthly net payroll"
 
-#| msgid "لا يوجد ضمان"
 msgid "لا يوجد موظفين"
 msgstr "No employees"
 
-#| msgid "لا توجد إشعارات بعد"
 msgid "لا توجد إجازات للفترة"
 msgstr "No leaves for the period"
 
-#| msgid "لا توجد بطاقات نشطة."
 msgid "لا توجد سلف نشطة"
 msgstr "No active advances"
 
-#| msgid "لا يوجد عملاء متأخرون"
 msgid "لا يوجد عملاء مدينون"
 msgstr "No customers with debt"
 
