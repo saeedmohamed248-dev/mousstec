@@ -18,6 +18,8 @@ Bypass list:
 from __future__ import annotations
 
 import re
+from urllib.parse import urlencode
+
 from django.db import connection
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -70,9 +72,11 @@ class AttendanceGateMiddleware:
             return self.get_response(request)
 
         # 6. Gate fires — redirect to the attendance page with ?next=
+        # urlencode so a target URL that itself carries a query string
+        # (e.g. /system/pos/?tab=2) survives the round-trip intact.
         attendance_url = reverse('hr:attendance_page')
-        nxt = request.get_full_path()
-        return redirect(f'{attendance_url}?next={nxt}&gated=1')
+        params = urlencode({'next': request.get_full_path(), 'gated': '1'})
+        return redirect(f'{attendance_url}?{params}')
 
     @staticmethod
     def _has_open_attendance(user) -> bool:

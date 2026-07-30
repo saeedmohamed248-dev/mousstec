@@ -48,6 +48,22 @@ _PAYMOB_HMAC_FIELDS = (
 )
 
 
+def _hmac_value(v) -> str:
+    """Render one HMAC field exactly as Paymob concatenated it.
+
+    Paymob signs the raw JSON representation: booleans are lowercase
+    ``true``/``false`` and null is the empty string. ``json.loads`` gives us
+    Python ``True``/``False``/``None``, so a plain ``str()`` would produce
+    ``"True"``/``"None"`` and every POST callback would fail verification.
+    GET params arrive as strings already and pass through unchanged.
+    """
+    if v is None:
+        return ''
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    return str(v)
+
+
 def _is_production() -> bool:
     """True unless explicitly running in a non-production environment.
     Defaults to production so HMAC enforcement is strict by default."""
@@ -165,7 +181,7 @@ def verify_paymob_hmac(request, body_data: Optional[dict] = None) -> tuple[bool,
         return False, 'no_hmac_param'
 
     fields = _extract_paymob_fields(body_data, request.GET.dict() if request.method == 'GET' else {})
-    concatenated = ''.join(str(fields[k]) for k in _PAYMOB_HMAC_FIELDS)
+    concatenated = ''.join(_hmac_value(fields[k]) for k in _PAYMOB_HMAC_FIELDS)
     computed = hmac.new(
         secret.encode('utf-8'),
         concatenated.encode('utf-8'),

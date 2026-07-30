@@ -827,7 +827,7 @@ def account_recovery(request):
             confirm_password = request.POST.get('confirm_password', '')
 
             correct_token = cache.get(f"recovery_reset_{schema_name}")
-            if not correct_token or reset_token != correct_token:
+            if not correct_token or not secrets.compare_digest(str(reset_token), str(correct_token)):
                 context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
                 return render(request, 'clients/account_recovery.html', context)
 

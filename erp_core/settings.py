@@ -396,6 +396,9 @@ GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 # =====================================================================
 MESSENGER_VERIFY_TOKEN = env.str('MESSENGER_VERIFY_TOKEN', 'mousstec_secure_bot_token_2026')
 FB_PAGE_ACCESS_TOKEN = env.str('FB_PAGE_ACCESS_TOKEN', '')
+# 🛡️ App Secret من Meta App Dashboard — يُستخدم للتحقق من توقيع X-Hub-Signature-256
+# على الـ POST webhooks. لو فاضي: الـ webhook يقبل بدون تحقق (مع تحذير في اللوج).
+FB_APP_SECRET = env.str('FB_APP_SECRET', '')
 MESSENGER_GEMINI_MODEL = env.str('MESSENGER_GEMINI_MODEL', '') or None
 MESSENGER_VECTOR_STORE_PATH = env.str(
     'MESSENGER_VECTOR_STORE_PATH',

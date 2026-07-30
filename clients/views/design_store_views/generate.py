@@ -78,8 +78,9 @@ def design_store_generate(request):
     from django.conf import settings as _s
     daily_cap = int(getattr(_s, 'DAILY_GLOBAL_IMAGE_CAP', 0))
     if daily_cap > 0:
-        from datetime import date
-        global_key = f'design_gen_global:{date.today().isoformat()}'
+        # timezone.localdate() = يوم القاهرة (TIME_ZONE) — date.today() كان بيقلب
+        # العدّاد على منتصف ليل السيرفر (UTC) مش منتصف الليل المحلي.
+        global_key = f'design_gen_global:{timezone.localdate().isoformat()}'
         global_count = cache.get(global_key, 0)
         if global_count >= daily_cap:
             return JsonResponse({
