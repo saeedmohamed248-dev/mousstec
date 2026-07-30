@@ -30,6 +30,27 @@ def check_tenant_architecture(app_configs, **kwargs):
     return errors
 
 @register(Tags.compatibility)
+def check_otp_delivery_config(app_configs, **kwargs):
+    """🛡️ يمنع footgun: تفعيل MARKETPLACE_OTP_REQUIRED بدون مزوّد OTP حقيقي.
+
+    لو الـ OTP إلزامي والـ provider لسه 'console'، الأكواد بتروح للّوج بس
+    والمستخدمين الحقيقيين مش هيقدروا يستقبلوها → يتقفل عليهم التسجيل.
+    """
+    from django.conf import settings
+    warnings = []
+    if (getattr(settings, 'MARKETPLACE_OTP_REQUIRED', False)
+            and getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console') == 'console'):
+        warnings.append(Warning(
+            '📱 MARKETPLACE_OTP_REQUIRED=True لكن OTP_DELIVERY_PROVIDER=console — '
+            'الأكواد هتروح للّوج فقط والمستخدمين مش هيستقبلوها.',
+            hint='اضبط OTP_DELIVERY_PROVIDER على twilio/vonage/whatsapp_meta/email '
+                 'قبل تفعيل الـ OTP الإلزامي.',
+            id='mousstec.W010',
+        ))
+    return warnings
+
+
+@register(Tags.compatibility)
 def check_infrastructure_readiness(app_configs, **kwargs):
     """
     🚀 ابتكار: فحص البنية التحتية (Celery, Email, API Keys) لضمان عدم إقلاع المنصة وبها إعاقة صامتة.
