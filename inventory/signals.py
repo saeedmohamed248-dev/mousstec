@@ -17,7 +17,8 @@ from .models import (
     Inventory, PurchaseInvoice, PurchaseInvoiceItem,
     SaleInvoice, SaleInvoiceItem, StockTransfer,
     FinancialTransaction, Product, ScrapDismantlingJob,
-    SaleInvoiceServiceItem, CustomerFeedback,
+    SaleInvoiceServiceItem, CustomerFeedback, StockAlert,
+    EmployeeProfile,
 )
 from .services.invoice_service import InvoiceService
 from .services.inventory_service import InventoryService
@@ -128,6 +129,49 @@ def create_customer_feedback_on_post(sender, instance, **kwargs):
     feedback record so the cashier can share the rating link with the customer."""
     if instance.status == 'posted':
         CustomerFeedback.objects.get_or_create(sale_invoice=instance)
+
+
+# =====================================================================
+# 🔔 Web Push to tenant staff — stock alerts (the first live trigger for
+# notify_tenant_user; previously the tenant-side push had no events).
+# =====================================================================
+@receiver(post_save, sender=StockAlert)
+def push_stock_alert_to_staff(sender, instance, created, **kwargs):
+    """يبعت Web Push لمديري/أدمن الفرع لما يتفتح تنبيه نقص مخزون جديد.
+
+    Best-effort: بيتخطى بصمت لو الـ VAPID مش مضبوط أو الـ Celery مش متاح —
+    الـ StockAlert نفسه هو المصدر الأساسي دايماً.
+    """
+    if not created or instance.is_resolved:
+        return
+    try:
+        from clients.services.webpush import webpush_configured
+        if not webpush_configured():
+            return
+        from clients.tasks import send_web_push
+
+        schema = getattr(connection, 'schema_name', 'public')
+        if schema == 'public':
+            return
+
+        # مديري/أدمن نفس الفرع (أو الإدارة العامة branch=None) اللي عندهم user
+        recipients = (EmployeeProfile.objects
+                      .filter(role__in=['admin', 'manager'])
+                      .filter(models.Q(branch=instance.branch) | models.Q(branch__isnull=True))
+                      .exclude(user__isnull=True)
+                      .values_list('user_id', flat=True)
+                      .distinct())
+
+        label = 'نفاد تام' if instance.alert_type == 'out_of_stock' else 'مخزون منخفض'
+        title = f'⚠️ {label}'
+        body = f'{instance.product} — الكمية {instance.current_quantity} (حد الأمان {instance.min_stock_level})'
+        for uid in recipients:
+            send_web_push.delay(
+                tenant_schema=schema, user_id=uid,
+                title=title, body=body, url='/secure-portal/inventory/stockalert/',
+            )
+    except Exception:
+        logger.debug('push_stock_alert_to_staff: skipped', exc_info=True)
 
 
 # =====================================================================

@@ -1393,3 +1393,40 @@ def super_admin_diag_topup_grant(request, tenant_id):
         'new_balance': new_balance,
         'tenant_id': tenant_id,
     })
+
+
+# =====================================================================
+# 📦 Tenant data export (data portability) — super-admin only
+# =====================================================================
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def super_admin_export_tenant(request, tenant_id):
+    """يصدّر كل بيانات tenant كـ ملف JSON.gz للتنزيل المباشر.
+
+    GET /superadmin/tenant/<id>/export/  → attachment (tenant_export_<schema>.json.gz)
+    """
+    guard = _require_superadmin(request)
+    if guard:
+        return guard
+
+    tenant = get_object_or_404(Client, pk=tenant_id)
+    if tenant.schema_name == 'public':
+        return JsonResponse({'error': 'cannot_export_public'}, status=400)
+
+    try:
+        from clients.management.commands.export_tenant_data import build_tenant_export
+        payload = build_tenant_export(tenant.schema_name)
+    except Exception as exc:
+        logger.exception('[EXPORT] tenant=%s failed', tenant.schema_name)
+        return JsonResponse({'error': 'export_failed', 'detail': str(exc)}, status=500)
+
+    PlatformEvent.objects.create(
+        event_type='other', tenant_schema='public', tenant_name=tenant.schema_name,
+        user_name=request.user.username,
+        description=f"📦 تصدير بيانات «{tenant.name}» ({len(payload)} bytes)",
+    )
+
+    resp = HttpResponse(payload, content_type='application/gzip')
+    resp['Content-Disposition'] = (
+        f'attachment; filename="tenant_export_{tenant.schema_name}.json.gz"')
+    return resp

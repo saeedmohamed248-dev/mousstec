@@ -494,6 +494,12 @@ ETA_SIGNATURE_HOOK = env.str('ETA_SIGNATURE_HOOK', '')
 ETA_ALLOW_UNSIGNED = env.bool('ETA_ALLOW_UNSIGNED', default=False)
 
 # =====================================================================
+# 🛟 Disaster recovery — nightly DB backup
+# =====================================================================
+DB_BACKUP_ENABLED = env.bool('DB_BACKUP_ENABLED', default=False)
+DB_BACKUP_RETENTION_DAYS = env.int('DB_BACKUP_RETENTION_DAYS', default=14)
+
+# =====================================================================
 # 💱 Multi-currency (display layer — ledger stays EGP)
 # =====================================================================
 # HMAC secret للـ forex webhook (regional_tax_forex_sync_webhook).
@@ -828,6 +834,11 @@ CELERY_BEAT_SCHEDULE = {
     'fetch_exchange_rates': {
         'task': 'clients.tasks.fetch_exchange_rates',
         'schedule': crontab(hour=5, minute=0),  # 5 صباحاً يومياً
+    },
+    # ── Disaster recovery: nightly DB backup (no-op unless enabled) ──
+    'nightly_database_backup': {
+        'task': 'clients.tasks.nightly_database_backup',
+        'schedule': crontab(hour=3, minute=45),  # 3:45 صباحاً — نافذة هادئة
     },
 }
 

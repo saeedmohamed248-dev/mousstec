@@ -409,6 +409,7 @@ urlpatterns = [
     path('superadmin/enter/<str:schema_name>/', client_views.enter_tenant, name='enter_tenant'),
     path('superadmin/customer/<int:customer_id>/detail/', client_views.super_admin_customer_detail, name='super_admin_customer_detail'),
     path('superadmin/customer/<int:customer_id>/delete/', client_views.super_admin_customer_delete, name='super_admin_customer_delete'),
+    path('superadmin/tenant/<int:tenant_id>/export/', client_views.super_admin_export_tenant, name='super_admin_export_tenant'),
     path('superadmin/customer/<int:customer_id>/gift/',   client_views.super_admin_customer_gift,   name='super_admin_customer_gift'),
     path('superadmin/customer/<int:customer_id>/notify/', client_views.super_admin_customer_notify, name='super_admin_customer_notify'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),

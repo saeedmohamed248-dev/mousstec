@@ -901,3 +901,27 @@ def fetch_exchange_rates():
             updated += 1
     logger.info("💱 [FOREX FETCH] updated %s rates", updated)
     return {'updated': updated}
+
+
+# =====================================================================
+# 🛟 Disaster recovery — nightly full-DB backup
+# =====================================================================
+
+@shared_task(name='clients.tasks.nightly_database_backup')
+def nightly_database_backup():
+    """يشغّل management command الـ backup_database ليلياً.
+
+    مقفول خلف DB_BACKUP_ENABLED (default False) عشان مايفشلش على بيئات
+    مفيهاش pg_dump أو صلاحيات كتابة. فعّله في الإنتاج.
+    """
+    from django.conf import settings
+    if not getattr(settings, 'DB_BACKUP_ENABLED', False):
+        return {'skipped': 'DB_BACKUP_ENABLED=False'}
+    from django.core.management import call_command
+    try:
+        call_command('backup_database',
+                     retention_days=getattr(settings, 'DB_BACKUP_RETENTION_DAYS', 14))
+        return {'status': 'ok'}
+    except Exception as exc:
+        logger.exception('[BACKUP TASK] failed: %s', exc)
+        return {'error': str(exc)}
