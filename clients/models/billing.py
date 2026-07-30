@@ -205,3 +205,37 @@ class ManualPaymentReceipt(models.Model):
         self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes'])
 
 
+
+
+class SavedCard(models.Model):
+    """💳 كارت محفوظ (Paymob card token) لتجديد الاشتراك تلقائياً.
+
+    الـ token بييجي من TOKEN callback بتاع Paymob بعد ما العميل يعلّم
+    «احفظ الكارت» في الـ iframe — إحنا عمرنا ما بنشوف رقم الكارت نفسه،
+    بنخزن الـ gateway token + آخر 4 أرقام للعرض فقط (PCI-safe).
+
+    auto_renew: opt-in صريح لكل كارت — auto_renew_subscriptions مش هتسحب
+    من أي كارت المالك ما فعّلوش.
+    """
+    client = models.ForeignKey(
+        'Client', on_delete=models.CASCADE, related_name='saved_cards',
+        verbose_name=_("الشركة"),
+    )
+    token = models.CharField(max_length=255, verbose_name=_("Paymob Card Token"))
+    masked_pan = models.CharField(max_length=32, blank=True, verbose_name=_("آخر أرقام الكارت"))
+    brand = models.CharField(max_length=32, blank=True, verbose_name=_("نوع الكارت"))
+    is_default = models.BooleanField(default=True, verbose_name=_("الكارت الافتراضي"))
+    auto_renew = models.BooleanField(default=False, verbose_name=_("تجديد تلقائي مفعّل"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر استخدام"))
+
+    class Meta:
+        verbose_name = _("كارت محفوظ")
+        verbose_name_plural = _("💳 الكروت المحفوظة (تجديد تلقائي)")
+        constraints = [
+            models.UniqueConstraint(fields=['client', 'token'], name='savedcard_client_token_uniq'),
+        ]
+
+    def __str__(self):
+        return f"{self.brand or 'Card'} •••• {self.masked_pan[-4:] if self.masked_pan else '????'} — {self.client.name}"

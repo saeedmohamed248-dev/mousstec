@@ -1270,3 +1270,23 @@ class PlatformInvoiceAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 
 # 🛡️ God Mode — يسجّل MarketplaceCustomer admin مع الـ actions + impersonation
 from . import admin_god_mode  # noqa: F401, E402
+
+# =====================================================================
+# 💳 SavedCard — Paymob tokens للتجديد التلقائي
+# =====================================================================
+from .models import SavedCard as _SavedCard  # noqa: E402
+
+
+@admin.register(_SavedCard)
+class SavedCardAdmin(admin.ModelAdmin):
+    list_display = ('client', 'brand', 'masked_pan', 'is_default',
+                    'auto_renew', 'is_active', 'created_at', 'last_used_at')
+    list_filter = ('auto_renew', 'is_active', 'brand')
+    search_fields = ('client__name', 'client__schema_name', 'masked_pan')
+    # الـ token نفسه حساس — يتشال من الفورم ويظهر مقنّع في الـ readonly
+    exclude = ('token',)
+    readonly_fields = ('client', 'masked_pan', 'brand', 'created_at', 'last_used_at')
+    list_editable = ('auto_renew', 'is_active')
+
+    def has_add_permission(self, request):
+        return False  # الكروت تتسجل من TOKEN callback فقط

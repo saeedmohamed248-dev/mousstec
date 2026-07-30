@@ -1038,18 +1038,40 @@ def super_admin_parts_refund_approve(request, order_code):
 
     note = (request.POST.get('admin_note') or '').strip()
 
+    # 💳 Automatic gateway refund — card payments carry paymob_txn_id; push the
+    # money back through Paymob instead of a manual 3-5 day bank transfer.
+    # A gateway failure must NOT block the approval: the dispute decision
+    # stands and finance falls back to a manual transfer (noted below).
+    gateway_refunded = False
+    gateway_detail = ''
+    if order.paymob_txn_id:
+        from billing.services.paymob import refund_transaction
+        gateway_refunded, gateway_detail = refund_transaction(
+            order.paymob_txn_id, order.amount_paid)
+
     with transaction.atomic():
         order.status = 'refunded'
         order.refunded_at = timezone.now()
-        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND APPROVED] {note}'
+        refund_note = f'[REFUND APPROVED] {note}'
+        if order.paymob_txn_id:
+            refund_note += (
+                f'\n[PAYMOB REFUND OK — refund_txn={gateway_detail}]' if gateway_refunded
+                else f'\n[PAYMOB REFUND FAILED ({gateway_detail}) — يتطلب تحويل يدوي]'
+            )
+        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + refund_note
         order.save(update_fields=['status', 'refunded_at', 'admin_notes'])
 
         # Notify buyer
         if order.buyer_customer_id:
+            buyer_body = (
+                f'تم رد مبلغ {order.amount_paid} ج.م على نفس الكارت — يظهر في كشف حسابك خلال أيام حسب البنك.'
+                if gateway_refunded else
+                f'هنرجع لك مبلغ {order.amount_paid} ج.م خلال 3-5 أيام عمل. الشحن على المنصة.'
+            )
             CustomerNotification.objects.create(
                 customer=order.buyer_customer,
                 title='✅ تم قبول طلب الإرجاع',
-                body=f'هنرجع لك مبلغ {order.amount_paid} ج.م خلال 3-5 أيام عمل. الشحن على المنصة.',
+                body=buyer_body,
                 level='success', icon='fa-rotate-left',
             )
         # Notify seller

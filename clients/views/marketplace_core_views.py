@@ -38,6 +38,7 @@ from clients.models import (
 from ._shared import (
     _marketplace_auth,
     _notify_merchants_of_new_request,
+    _send_otp_via_channel,
 )
 
 logger = logging.getLogger('mouss_tec_core')
@@ -213,11 +214,23 @@ def marketplace_register(request):
     # ممكن يحصل لخبطة على القيود الـ unique أو على signals بتلمس tables
     # في schema غلط. الـ schema_context بيضمن atomicity على public.
     # ─────────────────────────────────────────────────────────────────────
+    otp_required = getattr(settings, 'MARKETPLACE_OTP_REQUIRED', False)
+
     try:
         with schema_context('public'):
             # تحقق من التكرار بعد الـ normalize
             existing = MarketplaceCustomer.objects.filter(phone=cleaned_phone).first()
             if existing:
+                # 🔁 حساب اتسجّل قبل كده لكن OTP ما اكتملش — نبعت كود جديد
+                # ونكمّل التحقق بدل ما نقفل عليه بـ duplicate_phone.
+                if otp_required and not existing.is_verified:
+                    otp = existing.generate_otp()
+                    _send_otp_via_channel(existing.phone, otp)
+                    return JsonResponse({
+                        "status": "otp_required",
+                        "message": "حسابك موجود لكن غير مؤكد — بعتنالك كود تحقق جديد.",
+                        "phone": existing.phone,
+                    })
                 return JsonResponse({
                     "status": "existing",
                     "error": "الرقم مسجل بالفعل. ادخل من تسجيل الدخول.",
@@ -235,7 +248,7 @@ def marketplace_register(request):
                 job_title=job_title,
                 sector=sector,
                 city=city,
-                is_verified=True,
+                is_verified=not otp_required,
                 last_login_at=timezone.now(),
             )
             customer.set_password(password)
@@ -272,6 +285,25 @@ def marketplace_register(request):
         }, status=500)
 
     logger.info(f"[MARKETPLACE] New customer {cleaned_phone[:6]}*** registered (sector={sector})")
+
+    # 📱 OTP mode — مفيش session cookie قبل إثبات ملكية الرقم.
+    if otp_required:
+        otp = customer.generate_otp()
+        sent = _send_otp_via_channel(customer.phone, otp)
+        if not sent:
+            logger.critical(
+                "[MARKETPLACE OTP] delivery failed for %s — check OTP_DELIVERY_PROVIDER",
+                cleaned_phone[:6] + '***',
+            )
+        return JsonResponse({
+            "status": "otp_required",
+            "message": "بعتنالك كود تحقق على رقمك — اكتبه لإكمال التسجيل."
+                       if sent else
+                       "تعذر إرسال كود التحقق حالياً. اضغط «إعادة الإرسال» بعد دقيقة.",
+            "phone": customer.phone,
+            "is_existing": False,
+        })
+
     response = JsonResponse({
         "status": "verified",
         "message": "تم تسجيلك بنجاح!",
@@ -289,8 +321,90 @@ def marketplace_register(request):
 
 @csrf_exempt
 def marketplace_verify_otp(request):
-    """التحقق من كود OTP — معطل (تم إلغاء OTP)."""
-    return JsonResponse({"error": "OTP verification is disabled. Use direct login."}, status=410)
+    """📱 التحقق من كود OTP بعد التسجيل/الدخول — أو إعادة إرساله.
+
+    POST {"phone": "...", "code": "123456"}          → verify
+    POST {"phone": "...", "resend": true}            → resend a fresh code
+
+    شغّال بس لما MARKETPLACE_OTP_REQUIRED=True؛ غير كده بيرجع 410 زي الأول
+    عشان مفيش surface إضافي وقت ما الخاصية مقفولة.
+    """
+    if not getattr(settings, 'MARKETPLACE_OTP_REQUIRED', False):
+        return JsonResponse({"error": "OTP verification is disabled. Use direct login."}, status=410)
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
+
+    phone = (data.get('phone') or '').strip()
+    if not phone:
+        return JsonResponse({"error": "رقم الموبايل مطلوب"}, status=400)
+
+    # نفس normalization بتاع register/login
+    cleaned = phone
+    if not phone.startswith('+'):
+        digits = ''.join(c for c in phone if c.isdigit())
+        digits_no_lead = digits.lstrip('0')
+        if len(digits_no_lead) == 10 and digits_no_lead.startswith('1'):
+            cleaned = f'+20{digits_no_lead}'
+        elif len(digits) == 12 and digits.startswith('201'):
+            cleaned = f'+{digits}'
+
+    with schema_context('public'):
+        customer = MarketplaceCustomer.objects.filter(phone=cleaned).first()
+        if not customer:
+            return JsonResponse({"error": "رقم غير مسجل."}, status=404)
+        if customer.is_blocked:
+            return JsonResponse({"error": "تم تعليق حسابك. تواصل مع الدعم."}, status=403)
+
+        # ── Resend ──────────────────────────────────────────────────────
+        if data.get('resend'):
+            resend_key = f'mp_otp_resend:{cleaned}'
+            if cache.get(resend_key):
+                return JsonResponse({"error": "استنى دقيقة قبل إعادة الإرسال."}, status=429)
+            cache.set(resend_key, 1, 60)
+            otp = customer.generate_otp()
+            sent = _send_otp_via_channel(customer.phone, otp)
+            return JsonResponse({
+                "status": "otp_sent" if sent else "send_failed",
+                "message": "تم إرسال كود جديد." if sent else "تعذر الإرسال — جرّب تاني بعد شوية.",
+            }, status=200 if sent else 502)
+
+        # ── Verify ──────────────────────────────────────────────────────
+        code = str(data.get('code') or '').strip()
+        if not code:
+            return JsonResponse({"error": "كود التحقق مطلوب"}, status=400)
+
+        # 🛡️ 5 محاولات لكل رقم كل 10 دقايق — يمنع تخمين الـ 6 أرقام
+        attempts_key = f'mp_otp_attempts:{cleaned}'
+        attempts = cache.get(attempts_key, 0)
+        if attempts >= 5:
+            return JsonResponse({"error": "محاولات كثيرة. اطلب كود جديد بعد 10 دقائق."}, status=429)
+        cache.set(attempts_key, attempts + 1, 600)
+
+        if not customer.verify_otp(code):
+            return JsonResponse({"error": "الكود غير صحيح أو انتهت صلاحيته."}, status=403)
+
+        cache.delete(attempts_key)
+        customer.last_login_at = timezone.now()
+        customer.save(update_fields=['last_login_at'])
+
+    logger.info(f"[MARKETPLACE] OTP verified: {cleaned[:6]}***")
+    response = JsonResponse({
+        "status": "verified",
+        "message": "تم التحقق من رقمك بنجاح!",
+        "redirect": "/marketplace/dashboard/",
+    })
+    # verify_otp() لسه مـ rotate الـ session_token — الكوكي الجديد يتحط هنا
+    response.set_cookie(
+        'mp_session', str(customer.session_token),
+        max_age=60 * 60 * 24 * 30, httponly=True, samesite='Lax',
+        secure=not settings.DEBUG,
+    )
+    return response
 
 
 @csrf_exempt
@@ -348,6 +462,19 @@ def marketplace_login(request):
                 return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
         else:
             customer.set_password(password)
+
+        # 📱 OTP mode: حساب لسه ما أثبتش ملكية رقمه → كود تحقق قبل الجلسة.
+        # (الباسورد اتأكد فوق — فمفيش OTP-spam غير لصاحب كلمة السر الصحيحة.)
+        if getattr(settings, 'MARKETPLACE_OTP_REQUIRED', False) and not customer.is_verified:
+            customer.save(update_fields=['password_hash'])
+            otp = customer.generate_otp()
+            sent = _send_otp_via_channel(customer.phone, otp)
+            return JsonResponse({
+                "status": "otp_required",
+                "message": "رقمك غير مؤكد — بعتنالك كود تحقق."
+                           if sent else "تعذر إرسال كود التحقق. جرّب تاني بعد دقيقة.",
+                "phone": customer.phone,
+            })
 
         customer.is_verified = True
         customer.session_token = uuid.uuid4()

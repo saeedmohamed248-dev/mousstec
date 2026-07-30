@@ -717,3 +717,109 @@ def audit_design_storage_daily():
         out['error'] = str(exc)
 
     return out
+
+
+# =====================================================================
+# 💳 Auto-renewal — charge saved cards before subscriptions lapse
+# =====================================================================
+
+@shared_task(name='clients.tasks.auto_renew_subscriptions')
+def auto_renew_subscriptions():
+    """تجديد الاشتراكات تلقائياً من الكروت المحفوظة (opt-in).
+
+    بتشتغل يومياً: أي tenant نشط اشتراكه بينتهي النهارده أو بكرة وعنده
+    SavedCard مفعّل عليها auto_renew → بنعمل token charge بقيمة باقته.
+    الـ webhook العادي (paymob_callback) هو اللي بيمدد الاشتراك ويعمل
+    PlatformInvoice — نفس مسار الدفع اليدوي بالظبط، مفيش مسار موازٍ.
+
+    أمان مزدوج ضد الـ double-charge:
+      1. مفتاح كاش لكل (tenant, end_date) لمدة 48 ساعة.
+      2. الـ callback نفسه idempotent على payment_reference.
+
+    الخاصية كلها خلف AUTO_RENEW_ENABLED (default False).
+    """
+    from django.conf import settings
+    from django.core.cache import cache
+
+    if not getattr(settings, 'AUTO_RENEW_ENABLED', False):
+        return {'skipped': 'AUTO_RENEW_ENABLED=False'}
+
+    from billing.services.paymob import charge_with_saved_token
+    from clients.models import SavedCard
+
+    today = timezone.localdate()
+    window_end = today + timedelta(days=1)
+
+    summary = {'checked': 0, 'charged': 0, 'declined': 0, 'no_card': 0, 'skipped_dup': 0}
+
+    tenants = (Client.objects
+               .filter(status='active', is_active=True,
+                       subscription_end_date__range=(today, window_end))
+               .exclude(schema_name='public'))
+
+    months_to_period = {1: 'monthly', 3: 'quarterly', 6: 'semi_annual', 12: 'annual'}
+
+    for tenant in tenants:
+        summary['checked'] += 1
+
+        card = (SavedCard.objects
+                .filter(client=tenant, auto_renew=True, is_active=True)
+                .order_by('-is_default', '-created_at')
+                .first())
+        if card is None:
+            summary['no_card'] += 1
+            continue
+
+        dedup_key = f'auto_renew_attempt:{tenant.pk}:{tenant.subscription_end_date}'
+        if cache.get(dedup_key):
+            summary['skipped_dup'] += 1
+            continue
+        cache.set(dedup_key, 1, 60 * 60 * 48)
+
+        try:
+            from tenancy.services.plan_mapping import resolve_plan_slug
+            from clients.models import Plan, PlatformInvoice
+
+            slug = resolve_plan_slug(tenant.plan or '')
+            plan_obj = Plan.objects.filter(slug=slug).first() if slug else None
+            if plan_obj is None:
+                logger.error("[AUTO-RENEW] %s: cannot resolve plan %r — skipped",
+                             tenant.schema_name, tenant.plan)
+                continue
+
+            # نفس مدة آخر فاتورة مدفوعة (شهري لو مفيش تاريخ)
+            last_inv = (PlatformInvoice.objects
+                        .filter(tenant=tenant, status='paid')
+                        .order_by('-period_end').first())
+            months = getattr(last_inv, 'billing_cycle_months', 1) or 1
+            if months not in months_to_period:
+                months = 1
+            amount = plan_obj.price_for_period(months)
+            billing_period = months_to_period[months]
+
+            ok, detail = charge_with_saved_token(
+                card.token, amount,
+                order_ref=f'autorenew_{tenant.schema_name}',
+                item_name=f'Mouss Tec {plan_obj.name} — تجديد تلقائي',
+                metadata={'plan': tenant.plan, 'shop': tenant.schema_name,
+                          'amount': str(amount), 'billing_period': billing_period},
+                cache_key_prefix='paymob_order',
+                customer_email=tenant.email or 'customer@mousstec.com',
+            )
+            if ok:
+                summary['charged'] += 1
+                card.last_used_at = timezone.now()
+                card.save(update_fields=['last_used_at'])
+                logger.info("[AUTO-RENEW] %s charged %s EGP (txn=%s)",
+                            tenant.schema_name, amount, detail)
+            else:
+                summary['declined'] += 1
+                logger.warning("[AUTO-RENEW] %s charge failed: %s — dunning emails "
+                               "will follow the normal expiry path",
+                               tenant.schema_name, detail)
+        except Exception as exc:
+            summary['declined'] += 1
+            logger.exception("[AUTO-RENEW] %s crashed: %s", tenant.schema_name, exc)
+
+    logger.info("💳 [AUTO-RENEW] %s", summary)
+    return summary

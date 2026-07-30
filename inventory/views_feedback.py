@@ -13,7 +13,9 @@ import base64
 import json
 import uuid
 from io import BytesIO
+from urllib.parse import quote
 
+from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, render
@@ -21,12 +23,30 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .models import CustomerFeedback
+from .models import AuditLog, CustomerFeedback
 
 
 def _client_ip(request) -> str | None:
     fwd = request.META.get('HTTP_X_FORWARDED_FOR', '')
     return (fwd.split(',')[0].strip() if fwd else request.META.get('REMOTE_ADDR'))
+
+
+def _audit(request, *, action: str, model_name: str, object_id, object_repr: str,
+           event: str, extra: dict | None = None) -> None:
+    """Pillar-4 compliance rows in the existing AuditLog. Never breaks the view."""
+    try:
+        user = getattr(request, 'user', None)
+        AuditLog.objects.create(
+            user=user if (user and user.is_authenticated) else None,
+            action=action,
+            model_name=model_name,
+            object_id=str(object_id),
+            object_repr=object_repr[:255],
+            changes_json={'event': event, **(extra or {})},
+            ip_address=_client_ip(request),
+        )
+    except Exception:
+        pass
 
 
 def customer_feedback_page(request, public_token):
@@ -103,8 +123,73 @@ def customer_feedback_submit(request, public_token):
     feedback.responded_at = timezone.now()
     feedback.save()
 
+    _audit(request, action='update', model_name='CustomerFeedback',
+           object_id=feedback.pk,
+           object_repr=f'Feedback INV#{feedback.sale_invoice_id}',
+           event='FEEDBACK_SUBMITTED',
+           extra={
+               'rating': feedback.rating,
+               'received_in_good_condition': feedback.received_in_good_condition,
+               'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
+           })
+
     return JsonResponse({
         'ok': True,
         'message': 'تم استلام تقييمك. شكراً لك! 🙏',
         'rating': feedback.rating,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Backlog #3 — regenerate a lost feedback link + WhatsApp resend
+# ---------------------------------------------------------------------------
+
+@login_required(login_url='/login/')
+@require_POST
+def feedback_resend(request, invoice_id: int):
+    """Rotate the public token of an invoice's feedback link and hand back a
+    prefilled ``wa.me`` deep link so the cashier can resend it in one tap.
+
+    Locked once the customer has responded (``responded_at`` set) — rotation
+    after a response would break the audit chain between the signature and
+    the URL it was collected on.
+    """
+    profile = getattr(request.user, 'employee_profile', None)
+    role = getattr(profile, 'role', None)
+    if not (request.user.is_superuser or role in {'admin', 'manager', 'cashier'}):
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+
+    feedback = (CustomerFeedback.objects
+                .select_related('sale_invoice__customer')
+                .filter(sale_invoice_id=invoice_id).first())
+    if feedback is None:
+        return JsonResponse({'ok': False, 'error': 'no_feedback_record'}, status=404)
+    if feedback.responded_at is not None:
+        return JsonResponse(
+            {'ok': False, 'error': 'already_responded',
+             'message': 'العميل قيّم بالفعل — لا يمكن تغيير الرابط بعد الرد.'},
+            status=409)
+
+    old_token = feedback.public_token
+    feedback.public_token = uuid.uuid4()
+    feedback.sent_at = timezone.now()
+    feedback.save(update_fields=['public_token', 'sent_at'])
+
+    link = request.build_absolute_uri(feedback.public_url)
+    customer = feedback.sale_invoice.customer
+    phone = (getattr(customer, 'phone', '') or '').lstrip('+')
+    message = f'أهلاً {customer.name}، قيّم خدمة الصيانة من هنا: {link}'
+    wa_link = f'https://wa.me/{phone}?text={quote(message)}' if phone else ''
+
+    _audit(request, action='update', model_name='CustomerFeedback',
+           object_id=feedback.pk,
+           object_repr=f'Feedback INV#{feedback.sale_invoice_id}',
+           event='FEEDBACK_LINK_ROTATED',
+           extra={'old_token': str(old_token), 'new_token': str(feedback.public_token)})
+
+    return JsonResponse({
+        'ok': True,
+        'message': 'تم توليد رابط جديد. الرابط القديم لم يعد صالحاً.',
+        'feedback_url': link,
+        'whatsapp_url': wa_link,
     })

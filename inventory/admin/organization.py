@@ -29,7 +29,7 @@ from ..models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      AuditLog, ChartOfAccount, AccountingEntry,
                      InventoryMovement, StockAlert, ImportSession,
                      ScrapDismantlingJob, ScrapDismantlingYield,
-                     B2BListingRequest)
+                     B2BListingRequest, CommissionPayout)
 
 # استدعاء جداول الإمبراطورية لربط سوق التجار المركزي (B2B)
 try:
@@ -49,10 +49,25 @@ from .mixins import *  # noqa: F401, F403
 # =====================================================================
 @admin.register(Branch)
 class BranchAdmin(SecureImportExportAdmin):
-    list_display = ('name', 'location', 'phone', 'is_active_badge')
+    list_display = ('name', 'location', 'phone', 'geofence_badge', 'is_active_badge')
     # 🐛 admin.E040 fix — RFQAdmin.autocomplete_fields includes 'branch',
     # which requires the target admin to declare search_fields.
     search_fields = ('name', 'location', 'phone')
+    fieldsets = (
+        (None, {'fields': ('name', 'location', 'phone')}),
+        ('📍 نطاق الحضور الجغرافي (Geofence)', {
+            'fields': ('lat', 'lng', 'geofence_radius_m'),
+            'description': 'حدد إحداثيات الفرع ونصف القطر بالمتر — أي تسجيل حضور '
+                           'خارج الدائرة يتعلّم عليه تلقائياً في سجل الحضور '
+                           '(لا يُمنع، الـ HR هي اللي بتقرر). سيب Lat/Lng فاضيين لتعطيل الخاصية.',
+        }),
+    )
+
+    def geofence_badge(self, obj):
+        if obj.has_geofence:
+            return format_html('<span style="color:#28a745;">📍 {}م</span>', obj.geofence_radius_m)
+        return format_html('<span style="color:#6c757d;">— غير مفعّل</span>')
+    geofence_badge.short_description = "نطاق الحضور"
     
     def is_active_badge(self, obj):
         return format_html('<span style="color:#28a745; font-weight:bold;">✅ نشط وبث لايف</span>')
@@ -84,6 +99,28 @@ class EmployeeProfileAdmin(SecureImportExportAdmin):
             if tenant.max_users and EmployeeProfile.objects.count() >= tenant.max_users:
                 raise ValidationError(f"🚫 تم الوصول للحد الأقصى المسموح به للموظفين والمستخدمين بالباقة ({tenant.max_users}).")
         super().save_model(request, obj, form, change)
+
+
+@admin.register(CommissionPayout)
+class CommissionPayoutAdmin(admin.ModelAdmin):
+    """دفتر تسويات العمولات — سجل قراءة فقط؛ الصفوف تتولد من pay_commissions."""
+    list_display = ('created_at', 'employee', 'amount', 'period_start', 'period_end', 'paid_by')
+    list_select_related = ('employee__user', 'paid_by')
+    list_filter = ('period_start',)
+    search_fields = ('employee__user__username', 'employee__user__first_name',
+                     'employee__user__last_name')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('employee', 'amount', 'transaction', 'period_start',
+                       'period_end', 'paid_by', 'created_at')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 # =====================================================================

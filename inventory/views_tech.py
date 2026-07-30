@@ -235,6 +235,44 @@ def repair_log_upload_media(request, log_id: int):
 # GPS attendance — Pillar 1
 # ---------------------------------------------------------------------------
 
+# GPS readings worse than this are untrustworthy for a 200m geofence.
+_GEOFENCE_MAX_ACCURACY_M = 150.0
+
+
+def _haversine_m(lat1, lng1, lat2, lng2) -> float:
+    """Great-circle distance in meters between two (lat, lng) points."""
+    import math
+    lat1, lng1, lat2, lng2 = (float(lat1), float(lng1), float(lat2), float(lng2))
+    r = 6_371_000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def _geofence_check(profile, lat, lng, accuracy) -> tuple[bool, str]:
+    """Evaluate a check-in against the employee's branch geofence.
+
+    Returns (is_inside, flagged_reason). Flag, never block — HR decides.
+      no_branch_geo  → branch has no pin set; can't verify (not flagged as
+                       cheating, but is_inside stays False so HR sees it).
+      low_accuracy   → GPS reading too coarse to trust.
+      outside_radius → verified outside the branch circle.
+    """
+    branch = profile.branch
+    if branch is None or not branch.has_geofence:
+        return False, 'no_branch_geo'
+    try:
+        if accuracy is not None and float(accuracy) > _GEOFENCE_MAX_ACCURACY_M:
+            return False, 'low_accuracy'
+    except (TypeError, ValueError):
+        pass
+    distance = _haversine_m(lat, lng, branch.lat, branch.lng)
+    if distance > float(branch.geofence_radius_m or 200):
+        return False, 'outside_radius'
+    return True, ''
+
 @login_required(login_url='/login/')
 @tenant_required
 @require_POST
@@ -259,16 +297,23 @@ def attendance_checkin_api(request):
     if event_type not in {'in', 'out'}:
         return _json_err("invalid_event_type")
 
+    accuracy = payload.get('accuracy')
+    inside, flagged_reason = _geofence_check(profile, lat, lng, accuracy)
+
     rec = AttendanceCheckIn.objects.create(
         employee=profile,
         event_type=event_type,
         lat=lat, lng=lng,
-        accuracy_m=payload.get('accuracy'),
+        accuracy_m=accuracy,
         ip_address=request.META.get('REMOTE_ADDR'),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+        is_inside_geofence=inside,
+        flagged_reason=flagged_reason,
     )
     EmployeeProfile.objects.filter(pk=profile.pk).update(
         last_checkin_at=rec.occurred_at, last_lat=rec.lat, last_lng=rec.lng,
     )
     return _json_ok(id=rec.id, event_type=rec.event_type,
-                    occurred_at=rec.occurred_at.isoformat())
+                    occurred_at=rec.occurred_at.isoformat(),
+                    is_inside_geofence=inside,
+                    flagged_reason=flagged_reason)

@@ -227,7 +227,8 @@ class TreasuryService:
     # تـ accept treasury صريح، تشتغل لكل الأدوار اللي بتاخد عمولة، وتـ lock
     # الـ profile قبل ما تـ debit الـ balance.
     @staticmethod
-    def pay_commissions(employee_profiles, treasury, paid_by_user=None, allowed_roles=None):
+    def pay_commissions(employee_profiles, treasury, paid_by_user=None, allowed_roles=None,
+                        period_start=None, period_end=None):
         """
         Pay outstanding commissions for a queryset of EmployeeProfile objects.
 
@@ -237,6 +238,8 @@ class TreasuryService:
             paid_by_user:      User performing the payout (audit trail)
             allowed_roles:     filter to these roles (default: all roles that
                                accrue commission: tech, sales, cashier, manager)
+            period_start/end:  optional accounting period stamped on the
+                               CommissionPayout ledger rows
 
         Returns: {
             'paid_count': N,
@@ -251,7 +254,7 @@ class TreasuryService:
             - treasury balance after payout would go negative
         """
         from inventory.models import (
-            Treasury, FinancialTransaction, EmployeeProfile,
+            Treasury, FinancialTransaction, EmployeeProfile, CommissionPayout,
         )
 
         if not treasury or not treasury.is_active:
@@ -304,7 +307,7 @@ class TreasuryService:
                 display_name = (
                     (user.get_full_name() or user.username) if user else f'#{profile.pk}'
                 )
-                FinancialTransaction.objects.create(
+                txn = FinancialTransaction.objects.create(
                     treasury=treasury_locked,
                     transaction_type='out',
                     amount=amount,
@@ -314,6 +317,14 @@ class TreasuryService:
                         + (f" — معتمد من {paid_by_user.username}" if paid_by_user else "")
                     ),
                     employee=profile,
+                )
+                CommissionPayout.objects.create(
+                    employee=profile,
+                    amount=amount,
+                    transaction=txn,
+                    period_start=period_start,
+                    period_end=period_end,
+                    paid_by=paid_by_user,
                 )
 
                 profile.commission_balance = Decimal('0.00')

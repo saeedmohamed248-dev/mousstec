@@ -41,6 +41,13 @@ def hr_workspace(request):
     if employee_id.isdigit():
         qs = qs.filter(employee_id=int(employee_id))
 
+    # 🚩 Geofence review filter — only rows the geofence actually flagged
+    # (outside the branch circle or GPS too coarse to trust).
+    flagged_only = request.GET.get('flagged') == '1'
+    if flagged_only:
+        qs = qs.filter(is_inside_geofence=False,
+                       flagged_reason__in=['outside_radius', 'low_accuracy'])
+
     # ── Roster snapshot (top of page) ─────────────────────────────────────
     employees = (EmployeeProfile.objects
                  .select_related('user', 'branch')
@@ -68,6 +75,7 @@ def hr_workspace(request):
         'today': today,
         'event_type': event_type,
         'employee_id': employee_id,
+        'flagged_only': flagged_only,
         'head': {
             'in':   head.get('in', 0),
             'out':  head.get('out', 0),

@@ -432,3 +432,96 @@ def refresh_service_nudges(schema_name=None, limit=2000):
 
     log.info("🔮 [Service Nudges Sweep] %s", summary)
     return summary
+
+
+# =====================================================================
+# 📊 Async report generation (DMS — heavy exports off the request cycle)
+# =====================================================================
+# The result lands in the cache under report_result:{schema}:{task_id} as
+# {'status': 'ready', 'csv': str, 'filename': str} with a 1-hour TTL —
+# download_async_report_api streams it back as a CSV attachment.
+
+@shared_task(bind=True, max_retries=1, default_retry_delay=30,
+             name='inventory.tasks.generate_report_async')
+def generate_report_async(self, schema_name: str, report_type: str,
+                          params: dict, task_id: str):
+    import csv
+    import io
+
+    from django.core.cache import cache as _cache
+
+    cache_key = f'report_result:{schema_name}:{task_id}'
+    try:
+        with schema_context(schema_name):
+            from inventory.models import Inventory, SaleInvoice
+            from decimal import Decimal as _D
+
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            branch_id = params.get('branch_id')
+
+            if report_type == 'inventory_valuation':
+                writer.writerow(['product', 'part_number', 'branch',
+                                 'quantity', 'avg_cost', 'value'])
+                qs = Inventory.objects.select_related('product', 'branch').all()
+                if branch_id:
+                    qs = qs.filter(branch_id=branch_id)
+                total = _D('0')
+                for inv in qs.iterator(chunk_size=500):
+                    value = inv.quantity * (inv.product.average_cost or _D('0'))
+                    total += value
+                    writer.writerow([
+                        inv.product.name, inv.product.part_number,
+                        inv.branch.name, inv.quantity,
+                        f'{inv.product.average_cost or 0:.2f}', f'{value:.2f}',
+                    ])
+                writer.writerow([])
+                writer.writerow(['TOTAL', '', '', '', '', f'{total:.2f}'])
+                filename = f'inventory_valuation_{schema_name}.csv'
+
+            elif report_type == 'sales_summary':
+                writer.writerow(['invoice_id', 'date', 'customer', 'branch',
+                                 'total_amount', 'total_cost', 'net_profit', 'status'])
+                qs = (SaleInvoice.objects
+                      .filter(status='posted')
+                      .select_related('customer', 'branch'))
+                if branch_id:
+                    qs = qs.filter(branch_id=branch_id)
+                if params.get('from'):
+                    qs = qs.filter(date_created__date__gte=params['from'])
+                if params.get('to'):
+                    qs = qs.filter(date_created__date__lte=params['to'])
+                for inv in qs.iterator(chunk_size=500):
+                    writer.writerow([
+                        inv.pk, inv.date_created.strftime('%Y-%m-%d'),
+                        getattr(inv.customer, 'name', ''),
+                        getattr(inv.branch, 'name', ''),
+                        f'{inv.total_amount or 0:.2f}',
+                        f'{inv.total_cost or 0:.2f}',
+                        f'{inv.net_profit or 0:.2f}',
+                        inv.status,
+                    ])
+                filename = f'sales_summary_{schema_name}.csv'
+
+            else:
+                _cache.set(cache_key,
+                           {'status': 'error', 'error': f'unsupported_type:{report_type}'},
+                           3600)
+                return {'status': 'error'}
+
+            # ⚠️ لازم الـ set يحصل جوه الـ schema_context — tenant_key_func
+            # بيضيف connection.schema_name كبادئة للمفتاح، والـ download view
+            # بيقرأ من جوه الـ tenant schema. set من برّه = مفتاح مختلف.
+            _cache.set(cache_key,
+                       {'status': 'ready', 'csv': buf.getvalue(), 'filename': filename},
+                       3600)
+            return {'status': 'ready', 'rows': buf.getvalue().count('\n')}
+    except Exception as exc:
+        log.exception('[generate_report_async] %s/%s failed: %s',
+                      schema_name, report_type, exc)
+        try:
+            with schema_context(schema_name):
+                _cache.set(cache_key, {'status': 'error', 'error': 'internal'}, 3600)
+        except Exception:
+            pass
+        raise

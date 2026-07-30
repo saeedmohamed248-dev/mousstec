@@ -70,6 +70,30 @@ def request_async_report_api(request):
     report_type = request.GET.get('type', 'inventory_valuation')
     branch = _get_branch_for_user(request.user)
 
+    # 🚀 Async path — heavy exports run in Celery and come back as a CSV
+    # download from download_async_report_api. Opt-in via ?async=1.
+    if request.GET.get('async') == '1':
+        import uuid as _uuid
+        from django.db import connection as _conn
+        from inventory.tasks import generate_report_async
+
+        if report_type not in ('inventory_valuation', 'sales_summary'):
+            return _json_response_safe({"error": f"نوع التقرير '{report_type}' غير مدعوم."}, 400)
+
+        task_id = _uuid.uuid4().hex
+        params = {
+            'branch_id': branch.pk if branch else None,
+            'from': request.GET.get('from', ''),
+            'to': request.GET.get('to', ''),
+        }
+        generate_report_async.delay(_conn.schema_name, report_type, params, task_id)
+        return _json_response_safe({
+            "status": "queued",
+            "task_id": task_id,
+            "download_url": f"/system/api/v1/reports/export/download/{task_id}/",
+            "message": "جاري توليد التقرير — نزّله من download_url خلال دقائق.",
+        }, 202)
+
     try:
         if report_type == 'inventory_valuation':
             from inventory.models import Inventory as InventoryModel
@@ -139,10 +163,36 @@ def request_async_report_api(request):
 @tenant_required
 @role_required('admin', 'manager')
 def download_async_report_api(request, task_id):
-    return _json_response_safe({
-        "status": "not_implemented",
-        "message": "تحميل التقارير غير المتزامنة سيتم تفعيله قريباً. استخدم التقارير المباشرة حالياً.",
-    }, 501)
+    """تنزيل تقرير مولّد بواسطة generate_report_async.
+
+    الـ task_id هو uuid4 hex غير قابل للتخمين، والمفتاح مربوط بالـ schema
+    الحالي — فمستأجر تاني ميقدرش يوصل لتقرير مش بتاعه حتى لو سرّب الـ id.
+    """
+    import re as _re
+
+    from django.core.cache import cache as _cache
+    from django.db import connection as _conn
+    from django.http import HttpResponse
+
+    if not _re.fullmatch(r'[0-9a-f]{32}', task_id or ''):
+        return _json_response_safe({"error": "task_id غير صالح"}, 400)
+
+    result = _cache.get(f'report_result:{_conn.schema_name}:{task_id}')
+    if result is None:
+        # لسه شغال أو انتهت صلاحيته (TTL ساعة) — الـ UI يعمل retry بعد ثواني
+        return _json_response_safe({
+            "status": "pending",
+            "message": "التقرير لسه بيتجهز أو انتهت صلاحيته (ساعة واحدة). حاول تاني.",
+        }, 202)
+    if result.get('status') == 'error':
+        return _json_response_safe({"status": "error",
+                                    "error": result.get('error', 'internal')}, 500)
+
+    # ✅ Ready — CSV attachment (BOM عشان Excel يفتح العربي صح)
+    csv_text = '\ufeff' + result.get('csv', '')
+    response = HttpResponse(csv_text, content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{result.get("filename", "report.csv")}"'
+    return response
 
 
 # =====================================================================

@@ -3,6 +3,7 @@ from django.views.decorators.cache import cache_page # 🚀 ابتكار: Edge R
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.views import LogoutView
 from . import views
+from . import views_feedback
 from . import views_lightning
 from . import views_tech
 from . import views_hr
@@ -88,6 +89,8 @@ urlpatterns = [
     # 🖨️ 2. محرك الطباعة، المشاركة، والتوثيق (Printing & Docs Engine)
     # =====================================================================
     path('invoice/<int:invoice_id>/print/a4/', views.print_invoice_a4, name='print_invoice_a4'),
+    # 🔄 Backlog #3 — rotate feedback link + WhatsApp resend (cashier/admin/manager)
+    path('invoice/<int:invoice_id>/feedback/resend/', views_feedback.feedback_resend, name='feedback_resend'),
     path('invoice/<int:invoice_id>/print/thermal/', views.print_invoice_thermal, name='print_invoice_thermal'),
     # 🤖 AI diagnostic findings — customer-facing printable report
     path('invoice/<int:invoice_id>/ai-diagnostics/', views.ai_diag_print, name='ai_diag_print'),

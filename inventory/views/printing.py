@@ -88,6 +88,12 @@ def print_invoice_a4(request, invoice_id):
     if branch and invoice.branch != branch:
         return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
 
+    # 📜 Backlog #6 — compliance trail: who rendered which invoice copy, when.
+    from inventory.views_feedback import _audit
+    _audit(request, action='update', model_name='SaleInvoice',
+           object_id=invoice.pk, object_repr=f'INV#{invoice.pk} print ({mode})',
+           event='INVOICE_PRINTED_DETAILED' if mode == 'detailed' else 'INVOICE_PRINTED_SUMMARY')
+
     template = ('inventory/invoice_print_detailed.html' if mode == 'detailed'
                 else 'inventory/invoice_print_a4.html')
     return render(request, template, {

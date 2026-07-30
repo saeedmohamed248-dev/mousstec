@@ -304,6 +304,41 @@ def paymob_callback(request):
     """
     data = request.GET.dict() if request.method == 'GET' else (json.loads(request.body) if request.body else {})
 
+    # ── 💳 TOKEN callback (card saved) — different HMAC scheme, no money moves ──
+    # لما العميل يعلّم «احفظ الكارت» في الـ iframe، Paymob بيبعت type=TOKEN
+    # بالـ card token. بنخزنه كـ SavedCard عشان التجديد التلقائي.
+    if data.get('type') == 'TOKEN':
+        from clients.services.paymob import verify_paymob_token_hmac
+        tok_ok, tok_reason = verify_paymob_token_hmac(request, data)
+        if not tok_ok:
+            return JsonResponse({'ok': False, 'error': 'hmac_failed', 'reason': tok_reason}, status=403)
+        obj = data.get('obj') or {}
+        card_token = obj.get('token', '')
+        token_order_id = obj.get('order_id', '')
+        order_info = cache.get(f'paymob_order_{token_order_id}') if token_order_id else None
+        shop = (order_info or {}).get('shop')
+        if card_token and shop:
+            try:
+                from clients.models import Client as _Client, SavedCard
+                tenant = _Client.objects.filter(schema_name=shop).first()
+                if tenant:
+                    card, created = SavedCard.objects.get_or_create(
+                        client=tenant, token=card_token,
+                        defaults={
+                            'masked_pan': str(obj.get('masked_pan', ''))[:32],
+                            'brand': str(obj.get('card_subtype', ''))[:32],
+                        },
+                    )
+                    if created:
+                        # كارت جديد يبقى الافتراضي — الأقدم يتشال من default
+                        SavedCard.objects.filter(client=tenant).exclude(pk=card.pk)\
+                            .update(is_default=False)
+                        logger.info("[PAYMOB TOKEN] Card saved for %s (%s)",
+                                    shop, card.masked_pan[-4:] if card.masked_pan else '?')
+            except Exception:
+                logger.exception("[PAYMOB TOKEN] failed to persist card for shop=%s", shop)
+        return JsonResponse({'ok': True, 'type': 'TOKEN'})
+
     # ── 🛡️ التحقق من توقيع HMAC (fail-closed) ──
     from clients.services.paymob import verify_paymob_hmac
     ok, reason = verify_paymob_hmac(request, body_data=data)

@@ -471,6 +471,11 @@ DESIGN_CHAT_DAILY_IMAGE_CAP = env.int('DESIGN_CHAT_DAILY_IMAGE_CAP', 10)
 # للحماية الطارئة لو حصل abuse غير متوقع؛ شغّله بـ env var وقت الأزمات.
 DAILY_GLOBAL_IMAGE_CAP = env.int('DAILY_GLOBAL_IMAGE_CAP', 0)
 
+# 💳 التجديد التلقائي للاشتراكات من الكروت المحفوظة (Paymob tokenization).
+# False افتراضياً — فعّلها بعد التأكد إن integration الـ Paymob بتاعك بيدعم
+# MOTO/token payments وإن TOKEN callback شغال (شوف SavedCard + auto_renew_subscriptions).
+AUTO_RENEW_ENABLED = env.bool('AUTO_RENEW_ENABLED', default=False)
+
 # 🛡️ HMAC secret for webhook signature verification.
 # universal_webhook_multiplexer يستخدم WEBHOOK_HMAC_SECRET أساسياً ويـ fall back
 # على PAYMOB_HMAC_SECRET لو الإعداد الموجود حالياً للـ Paymob فقط.
@@ -480,8 +485,10 @@ PAYMOB_HMAC_SECRET = env.str('PAYMOB_HMAC_SECRET', '')
 # 📱 OTP Delivery Configuration
 # Provider options: 'twilio' | 'vonage' | 'whatsapp_meta' | 'email' | 'console' (logs only)
 OTP_DELIVERY_PROVIDER = env.str('OTP_DELIVERY_PROVIDER', 'console')
-# 🧹 [tech-debt 2026-06-05]: MARKETPLACE_DEBUG_OTP removed — marketplace_verify_otp
-# returned 410 Gone for months. Re-add only when OTP path is reactivated.
+# 🛡️ إثبات ملكية رقم الموبايل في الماركت بليس (تسجيل + دخول أول مرة).
+# False افتراضياً عشان الـ deployments الحالية (provider=console) متتكسرش.
+# فعّلها بس بعد ما تظبط OTP_DELIVERY_PROVIDER على مزوّد شغّال.
+MARKETPLACE_OTP_REQUIRED = env.bool('MARKETPLACE_OTP_REQUIRED', default=False)
 
 # Twilio
 TWILIO_ACCOUNT_SID = env.str('TWILIO_ACCOUNT_SID', '')
@@ -676,6 +683,7 @@ CELERY_TASK_ROUTES = {
     'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
     # ── Fintech / reconciliation queue ──────────────────────────────
     'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},
+    'clients.tasks.auto_renew_subscriptions':           {'queue': 'urgent_fintech_tasks'},
     'inventory.tasks.process_financial_reconciliation': {'queue': 'urgent_fintech_tasks'},
     # ── B2B Marketplace queue ────────────────────────────────────────
     'clients.tasks.async_sync_b2b_marketplace_product': {'queue': 'b2b_sync'},
@@ -695,6 +703,11 @@ CELERY_BEAT_SCHEDULE = {
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',
         'schedule': crontab(hour=0, minute=5),
+    },
+    # ── Auto-renew from saved cards (no-op while AUTO_RENEW_ENABLED=False) ─
+    'auto_renew_subscriptions': {
+        'task': 'clients.tasks.auto_renew_subscriptions',
+        'schedule': crontab(hour=2, minute=30),  # قبل إيميلات التحذير الصباحية
     },
     # ── AI Trust & Fraud ─────────────────────────────────────────────
     'update_ai_trust_scores': {

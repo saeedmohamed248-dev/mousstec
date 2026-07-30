@@ -20,7 +20,21 @@ class Branch(models.Model):
     name = models.CharField(max_length=100, verbose_name=_("اسم الفرع"))
     location = models.CharField(max_length=255, blank=True, verbose_name=_("الموقع"))
     phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم تليفون الفرع"))
+
+    # 📍 Geofence — attendance check-ins outside this circle get flagged
+    # (never blocked — HR reviews the flag). Null lat/lng = geofence off.
+    lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True,
+        verbose_name=_("Latitude الفرع"))
+    lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True,
+        verbose_name=_("Longitude الفرع"))
+    geofence_radius_m = models.PositiveIntegerField(default=200,
+        verbose_name=_("نصف قطر نطاق الحضور (متر)"))
+
     def __str__(self): return self.name
+
+    @property
+    def has_geofence(self) -> bool:
+        return self.lat is not None and self.lng is not None
 
 
 # =====================================================================
@@ -147,5 +161,39 @@ class AttendanceCheckIn(models.Model):
 
     def __str__(self):
         return f"{self.employee} — {self.get_event_type_display()} @ {self.occurred_at:%Y-%m-%d %H:%M}"
+
+
+class CommissionPayout(models.Model):
+    """دفتر تسوية العمولات — سجل مراجعة لكل عملية صرف.
+
+    pay_commissions يصفّر commission_balance ويعمل FinancialTransaction؛
+    الصف هنا يربط الاتنين ويحفظ الفترة المحاسبية، فمراجعة الرواتب تقدر
+    تجاوب «مين قبض كام وامتى ومن أنهي خزنة» بدون ما تعيد بناء التاريخ
+    من وصف الـ transactions.
+    """
+    employee = models.ForeignKey(
+        EmployeeProfile, on_delete=models.CASCADE, related_name='commission_payouts',
+        verbose_name=_("الموظف"),
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("المبلغ المصروف"))
+    transaction = models.ForeignKey(
+        'FinancialTransaction', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='commission_payouts', verbose_name=_("الحركة المالية"),
+    )
+    period_start = models.DateField(null=True, blank=True, verbose_name=_("بداية الفترة"))
+    period_end = models.DateField(null=True, blank=True, verbose_name=_("نهاية الفترة"))
+    paid_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='commission_payouts_made', verbose_name=_("صُرفت بواسطة"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("تسوية عمولة")
+        verbose_name_plural = _("دفتر تسويات العمولات")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Payout {self.amount} ج → {self.employee} @ {self.created_at:%Y-%m-%d}"
 
 

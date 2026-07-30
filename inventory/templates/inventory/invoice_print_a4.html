@@ -36,8 +36,40 @@
         <a href="?mode=detailed">🔧 تقرير فني مفصّل</a>
         {% if invoice.feedback %}
           <a class="feedback" href="{{ invoice.feedback.public_url }}" target="_blank">⭐ رابط تقييم العميل</a>
+          {% if not invoice.feedback.responded_at %}
+            <button type="button" class="feedback" id="btn-feedback-resend"
+                    onclick="resendFeedbackLink()">🔄 إعادة إرسال رابط التقييم</button>
+          {% endif %}
         {% endif %}
     </div>
+    {% if invoice.feedback and not invoice.feedback.responded_at %}
+    <script>
+      function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? decodeURIComponent(m.pop()) : '';
+      }
+      function resendFeedbackLink() {
+        var btn = document.getElementById('btn-feedback-resend');
+        btn.disabled = true; btn.textContent = '⏳ جاري التوليد...';
+        fetch('/system/invoice/{{ invoice.id }}/feedback/resend/', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('mt_csrf'),
+          },
+          credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
+          if (data.ok) {
+            btn.textContent = '✅ تم — فتح واتساب';
+            if (data.whatsapp_url) { window.open(data.whatsapp_url, '_blank'); }
+            else if (data.feedback_url) { prompt('انسخ الرابط الجديد:', data.feedback_url); }
+          } else {
+            btn.textContent = '⚠️ ' + (data.message || 'تعذر التوليد');
+          }
+        }).catch(function () { btn.textContent = '⚠️ خطأ في الاتصال'; btn.disabled = false; });
+      }
+    </script>
+    {% endif %}
 
     <div class="header">
         <div>

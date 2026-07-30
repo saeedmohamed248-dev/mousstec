@@ -93,6 +93,16 @@
         مسح
       </a>
     </div>
+    <div class="sm:col-span-4">
+      <label class="inline-flex items-center gap-2 text-xs font-bold cursor-pointer
+                    {% if flagged_only %}text-red-300{% else %}text-slate-400{% endif %}">
+        <input type="checkbox" name="flagged" value="1" {% if flagged_only %}checked{% endif %}
+               onchange="this.form.submit()"
+               class="rounded border-slate-600 bg-slate-950 text-red-500 focus:ring-red-500">
+        <i class="fas fa-triangle-exclamation"></i>
+        المُعلَّم فقط (خارج نطاق الفرع / دقة GPS ضعيفة)
+      </label>
+    </div>
   </form>
 
   <!-- Attendance table -->
@@ -113,6 +123,7 @@
             <th class="text-right px-4 py-3">الدور</th>
             <th class="text-right px-4 py-3">الفرع</th>
             <th class="text-right px-4 py-3">النوع</th>
+            <th class="text-right px-4 py-3">النطاق</th>
             <th class="text-right px-4 py-3">الوقت</th>
             <th class="text-right px-4 py-3">إحداثيات GPS</th>
             <th class="text-right px-4 py-3">الدقة (م)</th>
@@ -140,6 +151,25 @@
                 </span>
               {% endif %}
             </td>
+            <td class="px-4 py-3">
+              {% if r.is_inside_geofence %}
+                <span class="chip bg-emerald-500/15 text-emerald-300" title="داخل نطاق الفرع">
+                  <i class="fas fa-circle-check"></i> داخل النطاق
+                </span>
+              {% elif r.flagged_reason == 'outside_radius' %}
+                <span class="chip bg-red-500/15 text-red-300" title="تسجيل من خارج نطاق الفرع">
+                  <i class="fas fa-triangle-exclamation"></i> خارج النطاق
+                </span>
+              {% elif r.flagged_reason == 'low_accuracy' %}
+                <span class="chip bg-amber-500/15 text-amber-300" title="دقة GPS ضعيفة — لا يمكن التحقق">
+                  <i class="fas fa-signal"></i> دقة ضعيفة
+                </span>
+              {% else %}
+                <span class="chip bg-slate-500/15 text-slate-400" title="الفرع بدون إحداثيات — فعّلها من إدارة الفروع">
+                  — بدون نطاق
+                </span>
+              {% endif %}
+            </td>
             <td class="px-4 py-3 font-mono text-slate-200">
               {{ r.occurred_at|date:'H:i:s' }}
             </td>
@@ -161,7 +191,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="px-4 py-10 text-center text-slate-500">
+            <td colspan="9" class="px-4 py-10 text-center text-slate-500">
               <i class="fas fa-circle-info ml-1"></i>
               لا توجد حركات حضور في هذا التاريخ بالتصفية الحالية.
             </td>
