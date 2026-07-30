@@ -283,3 +283,44 @@ class VehicleInspection(models.Model):
     inspection_timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("بصمة زمنية للفحص"))
     class Meta: verbose_name = _("فحص رقمي وتوثيق مرئي")
 
+
+
+class ETAInvoiceSubmission(models.Model):
+    """🇪🇬 قائمة انتظار رفع الفواتير لمنظومة الضرائب المصرية (ETA).
+
+    الصف بيتعمل بـ eta_einvoice.queue_invoice() (admin action أو hook)،
+    و submit_eta_invoices (Celery) بترفع اللي حالته pending/error-retryable.
+    كل حقول ETA (uuid/longId) بتتخزن هنا — الفاتورة نفسها متتلمسش.
+    """
+    STATUS_CHOICES = (
+        ('pending',   _('في الانتظار')),
+        ('submitted', _('تم الرفع — بانتظار الاعتماد')),
+        ('valid',     _('معتمدة')),
+        ('invalid',   _('مرفوضة من المنظومة')),
+        ('error',     _('خطأ')),
+    )
+
+    sale_invoice = models.OneToOneField(
+        SaleInvoice, on_delete=models.CASCADE, related_name='eta_submission',
+        verbose_name=_("الفاتورة"),
+    )
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES,
+                              default='pending', db_index=True, verbose_name=_("الحالة"))
+    eta_uuid = models.CharField(max_length=64, blank=True, db_index=True,
+                                verbose_name=_("ETA UUID"))
+    eta_long_id = models.CharField(max_length=100, blank=True, verbose_name=_("ETA Long ID"))
+    submission_uuid = models.CharField(max_length=64, blank=True,
+                                       verbose_name=_("Submission ID"))
+    response_json = models.JSONField(default=dict, blank=True, verbose_name=_("رد المنظومة"))
+    error_json = models.JSONField(default=dict, blank=True, verbose_name=_("تفاصيل الخطأ"))
+    attempts = models.PositiveIntegerField(default=0, verbose_name=_("عدد المحاولات"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت الرفع"))
+
+    class Meta:
+        verbose_name = _("رفع فاتورة إلكترونية (ETA)")
+        verbose_name_plural = _("🇪🇬 الفواتير الإلكترونية (ETA)")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"ETA INV#{self.sale_invoice_id} [{self.get_status_display()}]"

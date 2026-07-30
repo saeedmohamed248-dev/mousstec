@@ -131,7 +131,31 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created')
     search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
     autocomplete_fields = ['customer', 'vehicle']
-    actions = ['mark_as_posted', 'create_return', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
+    actions = ['mark_as_posted', 'create_return', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr', 'queue_for_eta']
+
+    @admin.action(description='🇪🇬 إرسال لمنظومة الفاتورة الإلكترونية (ETA)')
+    def queue_for_eta(self, request, queryset):
+        from django.conf import settings as _s
+
+        from inventory.services.eta_einvoice import queue_invoice
+        if not getattr(_s, 'ETA_EINVOICE_ENABLED', False):
+            self.message_user(
+                request,
+                'منظومة ETA غير مفعّلة — اضبط ETA_EINVOICE_ENABLED=1 وبيانات '
+                'المُصدِر (ETA_ISSUER_*) الأول.',
+                level='warning')
+            return
+        queued = skipped = 0
+        for invoice in queryset:
+            if invoice.status != 'posted':
+                skipped += 1
+                continue
+            queue_invoice(invoice)
+            queued += 1
+        self.message_user(
+            request,
+            f'تمت إضافة {queued} فاتورة لقائمة الرفع (سيتم الرفع خلال ساعة). '
+            + (f'تم تخطي {skipped} غير معتمدة.' if skipped else ''))
     date_hierarchy = 'date_created'
     
     class Media:
@@ -442,3 +466,29 @@ class StockTransferAdmin(SecureImportExportAdmin):
         self.message_user(request, f"تم إخراج لود عدد {approved} طلبية للفرع الهدف وجاري التتبع اللحظي عبر المسار اللوجستي.", messages.SUCCESS)
 
 
+
+
+# =====================================================================
+# 🇪🇬 ETA e-Invoicing queue — قراءة فقط + retry action
+# =====================================================================
+from ..models import ETAInvoiceSubmission as _ETASub  # noqa: E402
+
+
+@admin.register(_ETASub)
+class ETAInvoiceSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('sale_invoice', 'status', 'eta_uuid', 'attempts',
+                    'created_at', 'submitted_at')
+    list_filter = ('status',)
+    search_fields = ('eta_uuid', 'sale_invoice__id', 'sale_invoice__customer__name')
+    readonly_fields = ('sale_invoice', 'eta_uuid', 'eta_long_id', 'submission_uuid',
+                       'response_json', 'error_json', 'attempts',
+                       'created_at', 'submitted_at')
+    actions = ['retry_submission']
+
+    def has_add_permission(self, request):
+        return False  # الصفوف تتعمل من queue_invoice / admin action الفواتير
+
+    @admin.action(description='🔄 إعادة محاولة الرفع')
+    def retry_submission(self, request, queryset):
+        n = queryset.filter(status__in=['error', 'invalid']).update(status='pending')
+        self.message_user(request, f'تمت إعادة {n} للرفع في الدورة القادمة.')

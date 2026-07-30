@@ -525,3 +525,53 @@ def generate_report_async(self, schema_name: str, report_type: str,
         except Exception:
             pass
         raise
+
+
+# =====================================================================
+# 🇪🇬 ETA e-invoicing — hourly submission sweep (no-op while flag off)
+# =====================================================================
+
+@shared_task(name='inventory.tasks.submit_eta_invoices')
+def submit_eta_invoices(schema_name: str = None, batch: int = 25):
+    """يرفع الفواتير المنتظرة لمنظومة الضرائب لكل tenant نشط.
+
+    مقفولة خلف ETA_EINVOICE_ENABLED — بترجع فوراً لو الخاصية متفعّلتش.
+    """
+    from django.conf import settings as _settings
+
+    from inventory.services.eta_einvoice import eta_enabled, process_submission
+
+    if not eta_enabled():
+        return {'skipped': 'ETA_EINVOICE_ENABLED=False'}
+
+    if schema_name:
+        targets = [schema_name]
+    else:
+        TenantModel = get_tenant_model()
+        targets = list(
+            TenantModel.objects.exclude(schema_name='public')
+                       .filter(status__in=['active', 'trial'])
+                       .values_list('schema_name', flat=True)
+        )
+
+    summary = {'tenants': 0, 'submitted': 0, 'failed': 0}
+    TenantModel = get_tenant_model()
+    for schema in targets:
+        tenant = TenantModel.objects.filter(schema_name=schema).first()
+        try:
+            with schema_context(schema):
+                from inventory.models import ETAInvoiceSubmission
+                pending = (ETAInvoiceSubmission.objects
+                           .filter(status='pending')
+                           .select_related('sale_invoice')[:batch])
+                for submission in pending:
+                    if process_submission(submission, tenant=tenant):
+                        summary['submitted'] += 1
+                    else:
+                        summary['failed'] += 1
+            summary['tenants'] += 1
+        except Exception as exc:
+            log.exception('[ETA sweep] schema=%s failed: %s', schema, exc)
+
+    log.info('🇪🇬 [ETA Sweep] %s', summary)
+    return summary

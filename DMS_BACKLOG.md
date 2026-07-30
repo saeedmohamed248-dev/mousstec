@@ -1,5 +1,12 @@
 # DMS Backlog — Tier-1 Polish Pass
 
+> **⚡ Status update 2026-07-30:** items **#2, #3, #4, #5, #6** are now DONE
+> (#2 shipped earlier as `clients/obd_device_models.py`; #3–#6 landed on the
+> `claude/system-review-bugs-0p3sc0` branch: Branch geofence + haversine
+> flagging + HR flagged filter, CommissionPayout ledger, feedback link
+> rotation + WhatsApp resend, and AuditLog events for Pillar-4 actions).
+> Remaining: **#1 (test coverage)** — still the top priority.
+
 Status snapshot taken on **2026-06-04** at the end of the 5-Pillar build.
 The core DMS is **live in production** and the check-in → diagnose → repair →
 invoice → customer-signoff → HR-audit loop is closed. The items below are

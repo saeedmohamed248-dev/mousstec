@@ -471,6 +471,28 @@ DESIGN_CHAT_DAILY_IMAGE_CAP = env.int('DESIGN_CHAT_DAILY_IMAGE_CAP', 10)
 # للحماية الطارئة لو حصل abuse غير متوقع؛ شغّله بـ env var وقت الأزمات.
 DAILY_GLOBAL_IMAGE_CAP = env.int('DAILY_GLOBAL_IMAGE_CAP', 0)
 
+# =====================================================================
+# 🇪🇬 منظومة الفاتورة الإلكترونية المصرية (ETA e-Invoicing)
+# =====================================================================
+# البنية جاهزة (inventory/services/eta_einvoice.py) لكن مقفولة افتراضياً —
+# التفعيل محتاج: تسجيل الشركة في بوابة ETA (client_id/secret + RIN + كود
+# النشاط + اعتماد أكواد الأصناف EGS)، وجهاز ختم إلكتروني للتوقيع (B2B).
+# للتجارب: ETA_ENVIRONMENT=preprod + ETA_ALLOW_UNSIGNED=1.
+ETA_EINVOICE_ENABLED = env.bool('ETA_EINVOICE_ENABLED', default=False)
+ETA_ENVIRONMENT = env.str('ETA_ENVIRONMENT', 'preprod')  # 'preprod' | 'prod'
+ETA_CLIENT_ID = env.str('ETA_CLIENT_ID', '')
+ETA_CLIENT_SECRET = env.str('ETA_CLIENT_SECRET', '')
+ETA_ISSUER_RIN = env.str('ETA_ISSUER_RIN', '')            # رقم التسجيل الضريبي
+ETA_ISSUER_NAME = env.str('ETA_ISSUER_NAME', '')
+ETA_ISSUER_ACTIVITY_CODE = env.str('ETA_ISSUER_ACTIVITY_CODE', '')
+ETA_ISSUER_GOVERNATE = env.str('ETA_ISSUER_GOVERNATE', 'Cairo')
+ETA_ISSUER_CITY = env.str('ETA_ISSUER_CITY', 'Cairo')
+ETA_ISSUER_STREET = env.str('ETA_ISSUER_STREET', 'N/A')
+ETA_ISSUER_BUILDING = env.str('ETA_ISSUER_BUILDING', '0')
+# مزوّد التوقيع الإلكتروني: 'module.path:function' — شوف eta_einvoice._sign_document
+ETA_SIGNATURE_HOOK = env.str('ETA_SIGNATURE_HOOK', '')
+ETA_ALLOW_UNSIGNED = env.bool('ETA_ALLOW_UNSIGNED', default=False)
+
 # 💳 التجديد التلقائي للاشتراكات من الكروت المحفوظة (Paymob tokenization).
 # False افتراضياً — فعّلها بعد التأكد إن integration الـ Paymob بتاعك بيدعم
 # MOTO/token payments وإن TOKEN callback شغال (شوف SavedCard + auto_renew_subscriptions).
@@ -772,6 +794,11 @@ CELERY_BEAT_SCHEDULE = {
     'diag_purge_telemetry_frames': {
         'task': 'smart_diagnostics.tasks.purge_old_telemetry_frames',
         'schedule': crontab(minute=15),  # كل ساعة على دقيقة 15
+    },
+    # ── ETA e-invoicing: hourly submission sweep (no-op while flag off) ─
+    'submit_eta_invoices': {
+        'task': 'inventory.tasks.submit_eta_invoices',
+        'schedule': crontab(minute=45),  # كل ساعة على دقيقة 45
     },
 }
 
