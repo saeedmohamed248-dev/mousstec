@@ -200,11 +200,38 @@ def capture_digital_signature(request, invoice_id):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
     try:
+        import base64
+        from django.core.files.base import ContentFile
+        from django.utils import timezone as _tz
+
         data = json.loads(request.body)
-        if not data.get('signature_data'):
+        sig = data.get('signature_data') or ''
+        if not sig:
             return _json_response_safe({"error": "بيانات التوقيع فارغة"}, 400)
-        # TODO: حفظ الـ base64 في حقل model مخصص
-        return _json_response_safe({"status": "success", "message": "تم حفظ التوقيع الإلكتروني."})
+
+        invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+        branch = _get_branch_for_user(request.user)
+        if branch and invoice.branch != branch:
+            return HttpResponseForbidden("لا تملك صلاحية التوقيع على فواتير فروع أخرى.")
+
+        # data URL "data:image/png;base64,..." أو base64 خام
+        if sig.startswith('data:image/'):
+            header, b64 = sig.split(',', 1)
+            ext = 'png' if 'png' in header else 'jpg'
+        else:
+            b64, ext = sig, 'png'
+        raw = base64.b64decode(b64)
+        if len(raw) > 1_500_000:  # سقف ~1.5 MB زي فلو الـ feedback
+            return _json_response_safe({"error": "حجم التوقيع كبير جداً"}, 413)
+
+        invoice.signature_image.save(
+            f"sig_inv_{invoice.id}.{ext}", ContentFile(raw), save=False)
+        invoice.signed_at = _tz.now()
+        invoice.save(update_fields=['signature_image', 'signed_at'])
+        return _json_response_safe({
+            "status": "success", "message": "تم حفظ التوقيع الإلكتروني.",
+            "signature_url": invoice.signature_image.url,
+        })
     except Exception as e:
         logger.error(f"[SIGNATURE API] {e}")
         return _json_response_safe({"error": "خطأ داخلي"}, 500)

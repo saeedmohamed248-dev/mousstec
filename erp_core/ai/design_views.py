@@ -891,8 +891,9 @@ def design_generate(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Feedback — mark log as successful or not
 # ─────────────────────────────────────────────────────────────────────────────
-# ⚠️ مفيش @login_required — marketplace customers لازم يقدروا يقيّموا التصميم
-# اللي ولّدوه. الـ log_id ownership المفروض يتم التحقق منه جوه (TODO: add it).
+# مفيش @login_required عشان marketplace customers (اللي بيتعرّفوا بكوكي
+# mp_session مش جلسة Django) لازم يقيّموا تصميمهم. الملكية بتتأكّد جوه:
+# الـ requester لازم يكون نفس صاحب الـ log (عميل السوق أو مستخدم الشركة).
 @require_POST
 def design_feedback(request):
     """يسجّل تقييم المستخدم. لو is_successful=True والمستخدم عميل، بنحفظ التصميم
@@ -912,6 +913,28 @@ def design_feedback(request):
         log = AIPromptLearningLog.objects.filter(id=log_id).first()
         if not log:
             return JsonResponse({'success': False, 'error': 'log_not_found'}, status=404)
+
+        # 🛡️ [IDOR fix] لازم الـ requester يملك الـ log ده. من غير التحقق ده
+        # أي حد كان يقدر يقلب is_successful لأي تصميم (يلوّث الـ fine-tune
+        # dataset) أو يولّد CustomerDesign في portfolio عميل تاني.
+        # - log بتاع عميل سوق  → لازم كوكي mp_session لنفس الـ customer.
+        # - log بتاع مستخدم شركة → لازم يكون مسجّل دخول بنفس الـ user، أو
+        #   على نفس tenant schema بتاعة الـ log (موظفي الشركة يقيّموا شغلها).
+        _tenant, _customer = _resolve_actor(
+            request, 'customer' if log.customer_id else 'tenant')
+        owns = False
+        if log.customer_id:
+            owns = bool(_customer and _customer.id == log.customer_id)
+        elif log.user_id:
+            owns = bool(request.user.is_authenticated
+                        and (request.user.id == log.user_id or request.user.is_superuser))
+        else:
+            # log مش مربوط بحد (توليد مجهول قديم) — نسمح بس للـ tenant اللي
+            # على نفس الـ schema، ونرفض الـ public/anon.
+            owns = _tenant is not None
+        if not owns:
+            logger.warning('[design_feedback] ownership denied for log_id=%s', log_id)
+            return JsonResponse({'success': False, 'error': 'forbidden'}, status=403)
 
         log.is_successful = is_successful
         log.feedback_at = timezone.now()

@@ -96,6 +96,11 @@ class SaleInvoice(models.Model):
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
     net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
 
+    # ✍️ توقيع العميل الرقمي (يُلتقط على التابلت عند التسليم)
+    signature_image = models.ImageField(upload_to='invoice_signatures/%Y/%m/', null=True, blank=True,
+        verbose_name=_("توقيع العميل الرقمي"))
+    signed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت التوقيع"))
+
     @property
     def due_amount(self):
         if self.maintenance_contract: return Decimal('0.00')

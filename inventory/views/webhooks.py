@@ -98,34 +98,58 @@ def _verify_webhook_hmac(request, secret_setting_name, header_name='HTTP_X_SHOPI
 
 @csrf_exempt
 def shopify_webhook_receiver(request):
+    """🛒 Shopify order webhook.
+
+    ⚠️ [honesty fix]: كان بيتحقق من الـ HMAC وبعدين يرجّع success من غير ما
+    يعمل أي sync فعلي — الطلبات كانت بتتقبل وتتساب بصمت. دلوقتي بيرجّع 501
+    صريح عشان المُرسِل يعرف إن التكامل مش متفعّل. (مسار الـ e-commerce المدعوم
+    حالياً هو Wix — شوف inventory/services/wix_sync.py.)
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    # 🛡️ HMAC-SHA256 verification بدلاً من User-Agent check
     if not _verify_webhook_hmac(request, 'SHOPIFY_WEBHOOK_SECRET', 'HTTP_X_SHOPIFY_HMAC_SHA256'):
         logger.warning("🛑 [SHOPIFY] HMAC verification failed — possible spoofing attempt.")
         return HttpResponseForbidden("Invalid HMAC signature")
-    try:
-        logger.info("⚙️ [SHOPIFY] Sync initiated (HMAC verified).")
-        return _json_response_safe({"status": "success", "message": "Order accepted for sync."})
-    except Exception as e:
-        return _json_response_safe({"status": "error", "message": str(e)}, 500)
+    logger.warning("⚠️ [SHOPIFY] webhook received but Shopify sync is not implemented — "
+                   "returning 501 so the order is not silently dropped.")
+    return _json_response_safe({
+        "status": "not_implemented",
+        "message": "Shopify integration is not active. Use the Wix integration.",
+    }, 501)
 
 
 @csrf_exempt
 def payment_gateway_callback(request):
-    """🛡️ Stub — No logic, safe. When activated must add HMAC verification."""
+    """💳 Generic payment-gateway callback — NOT a live integration.
+
+    ⚠️ [honesty fix]: كان stub بيرجّع success. الدفع الحقيقي بيمرّ على
+    Paymob (/payment/paymob/callback/) والـ escrow webhook
+    (/api/webhooks/fintech/universal/). الـ endpoint ده مش موصول بأي مزوّد،
+    فبيرجّع 501 بدل ما يوهم إن فيه معالجة حصلت.
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    logger.info("⚙️ [PAYMENT GW] Callback received (stub).")
-    return _json_response_safe({"status": "success", "channel": "fintech_sync_active"})
+    logger.warning("⚠️ [PAYMENT GW] callback hit but no generic gateway is wired — 501.")
+    return _json_response_safe({
+        "status": "not_implemented",
+        "message": "No generic payment gateway configured. Use Paymob callbacks.",
+    }, 501)
 
 
 @csrf_exempt
 def market_price_sync_webhook(request):
-    """🛡️ Stub — When activated must add HMAC verification."""
+    """📈 Competitor price-sync — NOT implemented.
+
+    ⚠️ [honesty fix]: كان بيرجّع acknowledged من غير منطق. بيرجّع 501 صريح
+    لحد ما مزوّد أسعار حقيقي يتوصل.
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    return _json_response_safe({"status": "acknowledged"})
+    logger.info("⚠️ [MARKET PRICE] sync webhook hit but no provider is wired — 501.")
+    return _json_response_safe({
+        "status": "not_implemented",
+        "message": "Market price sync is not configured.",
+    }, 501)
 
 
 @csrf_exempt
