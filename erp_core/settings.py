@@ -493,6 +493,28 @@ ETA_ISSUER_BUILDING = env.str('ETA_ISSUER_BUILDING', '0')
 ETA_SIGNATURE_HOOK = env.str('ETA_SIGNATURE_HOOK', '')
 ETA_ALLOW_UNSIGNED = env.bool('ETA_ALLOW_UNSIGNED', default=False)
 
+# =====================================================================
+# 💱 Multi-currency (display layer — ledger stays EGP)
+# =====================================================================
+# HMAC secret للـ forex webhook (regional_tax_forex_sync_webhook).
+FOREX_WEBHOOK_SECRET = env.str('FOREX_WEBHOOK_SECRET', '')
+# مزوّد اختياري لجلب الأسعار يومياً (لو مفيش webhook push). فاضي = معطّل.
+# الـ endpoint المتوقّع يرجّع JSON فيه rates مقابل EGP.
+FOREX_FETCH_URL = env.str('FOREX_FETCH_URL', '')
+FOREX_FETCH_API_KEY = env.str('FOREX_FETCH_API_KEY', '')
+
+# =====================================================================
+# 🔔 Web Push notifications (VAPID)
+# =====================================================================
+# ولّد المفاتيح مرة واحدة:
+#   python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); \
+#     print('PRIVATE:', v.private_pem().decode()); \
+#     print('PUBLIC :', v.public_key_urlsafe_base64())"
+# لو المفاتيح فاضية، كل مسارات الـ push بترجع disabled بهدوء (مفيش أخطاء).
+WEBPUSH_VAPID_PRIVATE_KEY = env.str('WEBPUSH_VAPID_PRIVATE_KEY', '')
+WEBPUSH_VAPID_PUBLIC_KEY = env.str('WEBPUSH_VAPID_PUBLIC_KEY', '')
+WEBPUSH_VAPID_ADMIN_EMAIL = env.str('WEBPUSH_VAPID_ADMIN_EMAIL', 'admin@mousstec.com')
+
 # 💳 التجديد التلقائي للاشتراكات من الكروت المحفوظة (Paymob tokenization).
 # False افتراضياً — فعّلها بعد التأكد إن integration الـ Paymob بتاعك بيدعم
 # MOTO/token payments وإن TOKEN callback شغال (شوف SavedCard + auto_renew_subscriptions).
@@ -698,6 +720,8 @@ CELERY_TASK_ROUTES = {
     # ── Notification queue ───────────────────────────────────────────
     'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},
     'clients.tasks.send_broadcast_campaign':            {'queue': 'notifications'},
+    'clients.tasks.send_web_push':                      {'queue': 'notifications'},
+    'clients.tasks.fetch_exchange_rates':               {'queue': 'default'},
     'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},
     # ── Heavy AI queue ───────────────────────────────────────────────
     'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},
@@ -799,6 +823,11 @@ CELERY_BEAT_SCHEDULE = {
     'submit_eta_invoices': {
         'task': 'inventory.tasks.submit_eta_invoices',
         'schedule': crontab(minute=45),  # كل ساعة على دقيقة 45
+    },
+    # ── Forex: daily rate fetch (no-op unless FOREX_FETCH_URL set) ──
+    'fetch_exchange_rates': {
+        'task': 'clients.tasks.fetch_exchange_rates',
+        'schedule': crontab(hour=5, minute=0),  # 5 صباحاً يومياً
     },
 }
 

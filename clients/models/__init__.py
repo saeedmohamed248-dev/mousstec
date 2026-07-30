@@ -35,3 +35,11 @@ from .billing import *  # noqa: F401, F403
 # Imported here so Django registers them under the `clients` app.
 from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401
 
+# 🔔 Web Push subscriptions (+ CustomerNotification push mirror signal)
+from clients.push_models import PushSubscription  # noqa: E402, F401
+
+# 💱 Multi-currency — global exchange-rate table (display conversion only)
+from clients.currency_models import (  # noqa: E402, F401
+    BASE_CURRENCY, SUPPORTED_CURRENCIES, ExchangeRate,
+)
+

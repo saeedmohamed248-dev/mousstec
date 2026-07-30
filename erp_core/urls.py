@@ -18,6 +18,7 @@ from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
 from clients.views import support_views as support_views
 from clients.views import chat_views as chat_views
+from clients.views import push_views as push_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -534,6 +535,15 @@ urlpatterns = [
     # 3. 🩺 رادار فحص حالة الخادم وسلامة الاتصال السحابي (Datadog/AWS Ready)
     # 🛡️ محمي بـ staff_member_required — منع كشف معلومات البنية التحتية للعامة
     path('system/health/', staff_member_required(system_health_check), name='system_health'),
+
+    # 🔔 Web Push notifications (VAPID subscribe/unsubscribe)
+    path('push/vapid-key/', push_views.vapid_public_key, name='push_vapid_key'),
+    path('push/subscribe/', push_views.push_subscribe, name='push_subscribe'),
+    path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),
+
+    # 💱 Currency preference (display layer — ledger stays EGP)
+    path('currency/options/', push_views.currency_options, name='currency_options'),
+    path('currency/select/', push_views.currency_select, name='currency_select'),
 
     # 🌐 Service Worker & PWA (Offline-First)
     # SW must be served from root (/) with correct scope header

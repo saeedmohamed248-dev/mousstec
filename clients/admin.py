@@ -1290,3 +1290,54 @@ class SavedCardAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False  # الكروت تتسجل من TOKEN callback فقط
+
+
+# =====================================================================
+# 🔔 Web Push subscriptions
+# =====================================================================
+from .models import PushSubscription as _PushSubscription  # noqa: E402
+
+
+@admin.register(_PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'owner_label', 'is_active', 'failure_count',
+                    'created_at', 'last_success_at')
+    list_filter = ('is_active', 'tenant_schema')
+    search_fields = ('endpoint', 'marketplace_customer__full_name',
+                     'marketplace_customer__phone')
+    readonly_fields = ('endpoint', 'p256dh', 'auth', 'marketplace_customer',
+                       'tenant_schema', 'user_id', 'user_agent', 'created_at',
+                       'last_success_at', 'failure_count')
+
+    def owner_label(self, obj):
+        if obj.marketplace_customer_id:
+            return f'🛍️ {obj.marketplace_customer}'
+        return f'👤 {obj.tenant_schema}:{obj.user_id}'
+    owner_label.short_description = 'المالك'
+
+    def has_add_permission(self, request):
+        return False  # الاشتراكات تتسجل من المتصفح فقط
+
+
+# =====================================================================
+# 💱 Exchange rates (multi-currency display layer)
+# =====================================================================
+from .models import ExchangeRate as _ExchangeRate  # noqa: E402
+
+
+@admin.register(_ExchangeRate)
+class ExchangeRateAdmin(admin.ModelAdmin):
+    list_display = ('target_currency', 'rate', 'source', 'fetched_at')
+    list_filter = ('target_currency', 'source')
+    search_fields = ('target_currency',)
+    date_hierarchy = 'fetched_at'
+    ordering = ('target_currency', '-fetched_at')
+
+    def save_model(self, request, obj, form, change):
+        """أي تعديل يدوي من الأدمن يصفّر كاش السعر فوراً."""
+        super().save_model(request, obj, form, change)
+        try:
+            from django.core.cache import cache
+            cache.delete(f'fx_rate:{obj.target_currency.upper()}')
+        except Exception:
+            pass

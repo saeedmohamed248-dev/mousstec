@@ -823,3 +823,81 @@ def auto_renew_subscriptions():
 
     logger.info("💳 [AUTO-RENEW] %s", summary)
     return summary
+
+
+# =====================================================================
+# 🔔 Web Push delivery (async — queue=notifications)
+# =====================================================================
+
+@shared_task(name='clients.tasks.send_web_push')
+def send_web_push(marketplace_customer_id=None, tenant_schema='', user_id=None,
+                  *, title='', body='', url='/'):
+    """يبعت إشعار Web Push. الاستهداف: عميل ماركت بليس أو موظف tenant.
+
+    اشتراكات Web Push كلها في public schema (جدول مشترك)، فالـ task بيشتغل
+    على الـ public connection العادي بدون schema switching.
+    """
+    try:
+        from clients.services.webpush import (
+            notify_marketplace_customer, notify_tenant_user, webpush_configured,
+        )
+    except Exception:
+        return {'skipped': 'webpush_unavailable'}
+
+    if not webpush_configured():
+        return {'skipped': 'vapid_not_configured'}
+
+    if marketplace_customer_id:
+        sent = notify_marketplace_customer(
+            marketplace_customer_id, title=title, body=body, url=url)
+        return {'target': 'marketplace', 'id': marketplace_customer_id, 'sent': sent}
+    if tenant_schema and user_id:
+        sent = notify_tenant_user(
+            tenant_schema, user_id, title=title, body=body, url=url)
+        return {'target': 'tenant', 'schema': tenant_schema, 'user_id': user_id, 'sent': sent}
+    return {'skipped': 'no_target'}
+
+
+# =====================================================================
+# 💱 Forex — daily rate fetch (optional; webhook is the primary path)
+# =====================================================================
+
+@shared_task(name='clients.tasks.fetch_exchange_rates')
+def fetch_exchange_rates():
+    """يجلب أسعار الصرف من FOREX_FETCH_URL يومياً (لو مضبوط).
+
+    المزود المتوقّع يرجّع JSON فيه {"rates": {"USD": <egp_to_usd>, ...}}
+    بأسعار مقابل 1 EGP. لو FOREX_FETCH_URL فاضي، بترجع بدون شغل —
+    الـ webhook هو المسار الأساسي.
+    """
+    from django.conf import settings
+
+    url = getattr(settings, 'FOREX_FETCH_URL', '')
+    if not url:
+        return {'skipped': 'FOREX_FETCH_URL not set'}
+
+    import requests as http_requests
+
+    from clients.services.currency import SUPPORTED_CURRENCIES, is_supported, update_rate
+
+    headers = {}
+    api_key = getattr(settings, 'FOREX_FETCH_API_KEY', '')
+    if api_key:
+        headers['Authorization'] = f'Bearer {api_key}'
+
+    try:
+        res = http_requests.get(url, headers=headers, timeout=20)
+        res.raise_for_status()
+        rates = (res.json() or {}).get('rates') or {}
+    except Exception as exc:
+        logger.warning("[FOREX FETCH] failed: %s", exc)
+        return {'error': str(exc)}
+
+    updated = 0
+    for code in SUPPORTED_CURRENCIES:
+        if code == 'EGP' or code not in rates:
+            continue
+        if is_supported(code) and update_rate(code, rates[code], source='daily_fetch'):
+            updated += 1
+    logger.info("💱 [FOREX FETCH] updated %s rates", updated)
+    return {'updated': updated}

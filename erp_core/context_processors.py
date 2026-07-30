@@ -8,6 +8,9 @@ def tenant_context(request):
     """Inject tenant-related context into all templates."""
     ctx = {
         'is_public_schema': connection.schema_name == 'public',
+        # 💱 عملة العرض المختارة (الأرصدة تفضل EGP — دي للعرض فقط)
+        'display_currency': (request.COOKIES.get('mt_currency', 'EGP').upper()
+                             if request else 'EGP'),
     }
 
     # 🎁 اعرض هدايا الـ AI النشطة للـ tenant (تظهر في admin index)

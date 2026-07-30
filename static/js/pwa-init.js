@@ -145,4 +145,97 @@
         deferredPrompt = null;
         document.querySelectorAll('.mt-pwa-install').forEach(el => el.classList.remove('show'));
     });
+
+    /* ============================================================
+     *  4.  Web Push subscription
+     *      - Only attempts once the SW is ready and the server has
+     *        a VAPID key. Never nags: if permission is 'denied' or
+     *        the user dismissed our prompt recently, we stay quiet.
+     * ============================================================ */
+    const PUSH_DISMISS_KEY = 'mt_push_dismissed_at';
+    const PUSH_DISMISS_TTL = 1000 * 60 * 60 * 24 * 14; // 14 days
+
+    function pushRecentlyDismissed() {
+        const t = parseInt(localStorage.getItem(PUSH_DISMISS_KEY) || '0', 10);
+        return t && (Date.now() - t) < PUSH_DISMISS_TTL;
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        return arr;
+    }
+
+    function getCookie(name) {
+        const m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? decodeURIComponent(m.pop()) : '';
+    }
+
+    async function subscribeToPush(reg, publicKey) {
+        try {
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicKey),
+                });
+            }
+            await fetch('/push/subscribe/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json',
+                           'X-CSRFToken': getCookie('mt_csrf') },
+                credentials: 'same-origin',
+                body: JSON.stringify({ subscription: sub }),
+            });
+        } catch (err) {
+            console.warn('[PWA] push subscribe failed:', err);
+        }
+    }
+
+    function offerPush(reg, publicKey) {
+        // Already granted → subscribe silently (keeps the server row fresh).
+        if (Notification.permission === 'granted') {
+            subscribeToPush(reg, publicKey);
+            return;
+        }
+        if (Notification.permission === 'denied' || pushRecentlyDismissed()) return;
+
+        // Ask via our own banner first — browsers reject the native prompt if
+        // it isn't tied to a user gesture, and a cold auto-prompt is spammy.
+        const banner = buildToast({
+            klass:    'mt-pwa-install',
+            icon:     '🔔',
+            title:    'فعّل الإشعارات',
+            sub:      'اعرف فوراً بالعروض وتحديثات طلباتك',
+            btnLabel: 'تفعيل',
+            onClick:  async () => {
+                banner.classList.remove('show');
+                try {
+                    const perm = await Notification.requestPermission();
+                    if (perm === 'granted') subscribeToPush(reg, publicKey);
+                    else localStorage.setItem(PUSH_DISMISS_KEY, String(Date.now()));
+                } catch (_) { /* ignore */ }
+            },
+        });
+        banner.querySelector('.mt-pwa-close').addEventListener('click', () => {
+            localStorage.setItem(PUSH_DISMISS_KEY, String(Date.now()));
+        });
+    }
+
+    async function initPush() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+        try {
+            const res = await fetch('/push/vapid-key/', { credentials: 'same-origin' });
+            const info = await res.json();
+            if (!info || !info.enabled || !info.public_key) return; // server has push off
+            const reg = await navigator.serviceWorker.ready;
+            offerPush(reg, info.public_key);
+        } catch (_) { /* push is best-effort */ }
+    }
+
+    // Kick off after load so it never competes with first paint.
+    window.addEventListener('load', () => { setTimeout(initPush, 3000); });
 })();

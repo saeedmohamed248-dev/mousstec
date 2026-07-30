@@ -130,10 +130,54 @@ def market_price_sync_webhook(request):
 
 @csrf_exempt
 def regional_tax_forex_sync_webhook(request):
-    """🛡️ Stub — When activated must add HMAC verification."""
+    """💱 يستقبل تحديثات أسعار الصرف من مزوّد خارجي ويخزّنها.
+
+    Body (JSON):
+        {"base": "EGP", "rates": {"USD": 0.0203, "SAR": 0.076, ...}}
+
+    HMAC: X-Forex-HMAC-SHA256 = HMAC-SHA256(body, FOREX_WEBHOOK_SECRET).
+    fail-closed — لو الـ secret مش مضبوط أو التوقيع غلط، بيرفض.
+    الأسعار لازم تكون مقابل 1 EGP (كام وحدة عملة = جنيه واحد).
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    return _json_response_safe({"status": "success", "message": "أسعار الصرف تم تحديثها."})
+
+    if not _verify_webhook_hmac(request, 'FOREX_WEBHOOK_SECRET',
+                                header_name='HTTP_X_FOREX_HMAC_SHA256'):
+        logger.warning("🛑 [FOREX] HMAC verification failed — rejected.")
+        return HttpResponseForbidden("Invalid HMAC signature")
+
+    try:
+        payload = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return _json_response_safe({"error": "invalid_json"}, 400)
+
+    base = (payload.get('base') or 'EGP').upper()
+    rates = payload.get('rates') or {}
+    if base != 'EGP':
+        # المزود بيرجّع أسعار مقابل عملة تانية — نطلب EGP-based صراحةً
+        # عشان مانعملش تحويل عكسي ممكن يدخل أخطاء تقريب.
+        return _json_response_safe(
+            {"error": "unsupported_base", "detail": "rates must be quoted per 1 EGP"}, 400)
+
+    from clients.services.currency import is_supported, update_rate
+    updated, skipped = [], []
+    for code, rate in rates.items():
+        code = str(code).upper()
+        if not is_supported(code) or code == 'EGP':
+            skipped.append(code)
+            continue
+        if update_rate(code, rate, source='forex_webhook'):
+            updated.append(code)
+        else:
+            skipped.append(code)
+
+    logger.info("💱 [FOREX] updated=%s skipped=%s", updated, skipped)
+    return _json_response_safe({
+        "status": "success",
+        "message": "أسعار الصرف تم تحديثها.",
+        "updated": updated, "skipped": skipped,
+    })
 
 
 # =====================================================================

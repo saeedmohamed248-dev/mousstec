@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.5.0-sensor-sweep';
+const SW_VERSION   = 'v4.6.0-web-push';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -145,4 +145,44 @@ self.addEventListener('sync', (event) => {
             all.forEach(c => c.postMessage({ type: 'SYNC_READY' }));
         })());
     }
+});
+
+/* ---------- WEB PUSH ---------- */
+self.addEventListener('push', (event) => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; }
+    catch (_) { data = { title: 'Mouss Tec', body: event.data ? event.data.text() : '' }; }
+
+    const title = data.title || 'Mouss Tec';
+    const options = {
+        body: data.body || '',
+        icon: data.icon || '/static/icon-192.png',
+        badge: data.badge || '/static/icon-192.png',
+        dir: 'rtl',
+        lang: 'ar',
+        data: { url: data.url || '/' },
+        // vibrate ignored on unsupported platforms — harmless
+        vibrate: [80, 40, 80],
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+    event.waitUntil((async () => {
+        const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        // Focus an existing tab on the same origin if one is open
+        for (const client of all) {
+            try {
+                const u = new URL(client.url);
+                if (u.origin === self.location.origin && 'focus' in client) {
+                    await client.focus();
+                    if ('navigate' in client) { try { await client.navigate(targetUrl); } catch (_) {} }
+                    return;
+                }
+            } catch (_) { /* ignore bad client URL */ }
+        }
+        if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+    })());
 });
