@@ -7,6 +7,7 @@ from . import views_lightning
 from . import views_tech
 from . import views_hr
 from .api_obd import ReceiveOBDDataView
+from .views.fixit_webhook import fixit_order_webhook
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -140,6 +141,7 @@ urlpatterns = [
     # 🌐 4. الربط الخارجي والتكامل الإقليمي (Webhooks & Regional Sync)
     # 🛡️ ابتكار: إعفاء الـ CSRF هنا إلزامي مع تطبيق Hmac Validation داخل الـ View
     # =====================================================================
+    path('webhooks/fixit/order/', fixit_order_webhook, name='fixit_order_webhook'),
     path('webhooks/shopify/', csrf_exempt(views.shopify_webhook_receiver), name='shopify_webhook'),
     path('webhooks/payment/callback/', csrf_exempt(views.payment_gateway_callback), name='payment_callback'),
     
