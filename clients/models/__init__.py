@@ -43,3 +43,6 @@ from clients.currency_models import (  # noqa: E402, F401
     BASE_CURRENCY, SUPPORTED_CURRENCIES, ExchangeRate,
 )
 
+# 🔌 Wix integration — per-tenant connection config
+from clients.wix_models import WixConnection  # noqa: E402, F401
+

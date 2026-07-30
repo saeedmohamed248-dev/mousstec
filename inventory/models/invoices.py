@@ -101,6 +101,10 @@ class SaleInvoice(models.Model):
         verbose_name=_("توقيع العميل الرقمي"))
     signed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت التوقيع"))
 
+    # 🔌 Wix — لو الفاتورة اتولّدت من طلب Wix، بنخزّن رقم الطلب لمنع الاستيراد المكرر.
+    wix_order_id = models.CharField(max_length=100, blank=True, null=True, db_index=True,
+        verbose_name="Wix Order ID")
+
     @property
     def due_amount(self):
         if self.maintenance_contract: return Decimal('0.00')

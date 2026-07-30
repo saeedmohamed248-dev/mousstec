@@ -19,6 +19,7 @@ from clients.views import saas_admin_views as saas_admin_views
 from clients.views import support_views as support_views
 from clients.views import chat_views as chat_views
 from clients.views import push_views as push_views
+from clients.views import wix_views as wix_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -504,6 +505,15 @@ urlpatterns = [
 
     # 🛍️ Marketplace requests — full management (all statuses, search, actions)
     path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),
+
+    # 🔌 Wix integration — super-admin control
+    path('superadmin/wix/', wix_views.wix_dashboard, name='wix_dashboard'),
+    path('superadmin/wix/<int:tenant_id>/connect/', wix_views.wix_connect, name='wix_connect'),
+    path('superadmin/wix/conn/<int:conn_id>/test/', wix_views.wix_test, name='wix_test'),
+    path('superadmin/wix/conn/<int:conn_id>/sync/', wix_views.wix_sync_now, name='wix_sync_now'),
+    path('superadmin/wix/conn/<int:conn_id>/disconnect/', wix_views.wix_disconnect, name='wix_disconnect'),
+    # 🔌 Wix real-time order webhook (Wix → us)
+    path('api/webhooks/wix/orders/', wix_views.wix_order_webhook, name='wix_order_webhook'),
 
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),

@@ -728,6 +728,8 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.send_broadcast_campaign':            {'queue': 'notifications'},
     'clients.tasks.send_web_push':                      {'queue': 'notifications'},
     'clients.tasks.fetch_exchange_rates':               {'queue': 'default'},
+    'clients.tasks.wix_sync_all':                       {'queue': 'b2b_sync'},
+    'clients.tasks.wix_sync_one':                       {'queue': 'b2b_sync'},
     'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},
     # ── Heavy AI queue ───────────────────────────────────────────────
     'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},
@@ -839,6 +841,11 @@ CELERY_BEAT_SCHEDULE = {
     'nightly_database_backup': {
         'task': 'clients.tasks.nightly_database_backup',
         'schedule': crontab(hour=3, minute=45),  # 3:45 صباحاً — نافذة هادئة
+    },
+    # ── Wix integration: sync products + pull orders every 15 min ──
+    'wix_sync_all': {
+        'task': 'clients.tasks.wix_sync_all',
+        'schedule': crontab(minute='*/15'),
     },
 }
 
