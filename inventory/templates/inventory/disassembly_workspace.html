@@ -1,0 +1,310 @@
+{% extends 'inventory/_base_portal.html' %}
+{% block title %}الفك بالقوالب — Mouss Tec{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <div class="flex items-center gap-3 mb-6">
+    <div class="bg-gradient-to-tr from-amber-500 to-orange-600 p-3 rounded-xl shadow-lg shadow-amber-500/30">
+      <i class="fas fa-screwdriver-wrench text-white text-xl"></i>
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-white">محرك الفك التدريجي</h1>
+      <p class="text-sm text-slate-400">اختار العنصر الأب وقالب فك جاهز، عدّل، بعدين اعتمد التوزيع.</p>
+    </div>
+  </div>
+
+  <!-- ========== الخطوة 1: اختيار الأب + القالب ========== -->
+  <div id="setupCard" class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-5">
+    <h2 class="text-sm font-black text-amber-400 mb-4"><i class="fas fa-1 ml-1"></i> اختيار العنصر والقالب</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-1">العنصر الأب (في المخزن)</label>
+        <select id="parentSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">— اختار عنصر —</option>
+          {% for p in parents %}
+          <option value="{{ p.id }}" data-cost="{{ p.cost }}" data-est="{{ p.estimated_sales_price }}">
+            {{ p.name }} [{{ p.sku }}] — تكلفة {{ p.cost }} ج.م
+          </option>
+          {% endfor %}
+        </select>
+        <p id="parentInfo" class="text-xs text-slate-500 mt-1"></p>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-1">قالب الفك (Reverse BOM)</label>
+        <select id="templateSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">— اختار قالب —</option>
+          {% for t in templates %}
+          <option value="{{ t.id }}" data-scrap="{{ t.default_scrap_revenue }}">
+            {{ t.name }}{% if t.engine_code %} ({{ t.engine_code }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="text-xs text-slate-500 mt-1">القوالب تتعرّف من لوحة التحكم مرة واحدة.</p>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4 mt-4 items-end">
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-1">إيراد الخردة (ج.م)</label>
+        <input id="scrapInput" type="number" min="0" step="0.01" value="0"
+               class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+      </div>
+      <button id="loadBtn"
+              class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
+        <i class="fas fa-wand-magic-sparkles ml-1"></i> حمّل القالب في مسودة
+      </button>
+    </div>
+    {% if not templates %}
+    <p class="text-xs text-amber-400/80 mt-3"><i class="fas fa-triangle-exclamation ml-1"></i>
+      مفيش قوالب لسه — ضيف قالب من لوحة التحكم (قوالب الفك).</p>
+    {% endif %}
+  </div>
+
+  <!-- ========== الخطوة 2: تعديل المسودة ========== -->
+  <div id="draftCard" class="hidden bg-slate-900/70 border border-slate-800 rounded-2xl p-5 mb-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-black text-emerald-400"><i class="fas fa-2 ml-1"></i> مراجعة الأبناء وتعديلهم</h2>
+      <span id="draftBadge" class="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded-lg"></span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-slate-500 text-xs border-b border-slate-800">
+            <th class="text-right py-2 font-bold">القطعة</th>
+            <th class="text-right py-2 font-bold">SKU</th>
+            <th class="text-right py-2 font-bold">سعر البيع التقديري</th>
+            <th class="text-right py-2 font-bold">التكلفة المتوقعة</th>
+            <th class="py-2"></th>
+          </tr>
+        </thead>
+        <tbody id="childRows"></tbody>
+      </table>
+    </div>
+
+    <!-- شريط الموازنة المالية الحي -->
+    <div class="mt-4 grid sm:grid-cols-4 gap-3 text-center">
+      <div class="bg-slate-800/60 rounded-xl p-3">
+        <p class="text-xs text-slate-500">تكلفة الأب</p>
+        <p id="mParent" class="text-lg font-black text-white">0</p>
+      </div>
+      <div class="bg-slate-800/60 rounded-xl p-3">
+        <p class="text-xs text-slate-500">إيراد الخردة</p>
+        <p id="mScrap" class="text-lg font-black text-amber-300">0</p>
+      </div>
+      <div class="bg-slate-800/60 rounded-xl p-3">
+        <p class="text-xs text-slate-500">Σ تكلفة الأبناء</p>
+        <p id="mChildren" class="text-lg font-black text-emerald-300">0</p>
+      </div>
+      <div id="balanceBox" class="bg-slate-800/60 rounded-xl p-3">
+        <p class="text-xs text-slate-500">التحقق (أبناء + خردة)</p>
+        <p id="mLedger" class="text-lg font-black text-white">0</p>
+      </div>
+    </div>
+
+    <div class="flex gap-3 mt-5">
+      <button id="executeBtn"
+              class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl transition disabled:opacity-40">
+        <i class="fas fa-circle-check ml-1"></i> اعتمد الفك ووزّع التكلفة
+      </button>
+      <button id="cancelBtn"
+              class="px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl transition">
+        إلغاء
+      </button>
+    </div>
+    <p class="text-[11px] text-slate-500 mt-2">
+      التكلفة المعروضة تقديرية للمعاينة. الاعتماد بيحسبها نهائياً على السيرفر بنزاهة صفرية (الأبناء + الخردة = تكلفة الأب بالمليم).
+    </p>
+  </div>
+
+  <!-- ========== الخطوة 3: النتيجة ========== -->
+  <div id="resultCard" class="hidden bg-emerald-950/40 border border-emerald-800 rounded-2xl p-5">
+    <h2 class="text-sm font-black text-emerald-400 mb-3"><i class="fas fa-flag-checkered ml-1"></i> تم الفك بنجاح</h2>
+    <div id="resultBody" class="text-sm text-slate-300"></div>
+    <button onclick="location.reload()" class="mt-4 bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded-lg transition">
+      <i class="fas fa-plus ml-1"></i> فك جديد
+    </button>
+  </div>
+
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-600 text-white text-sm font-bold px-5 py-3 rounded-xl shadow-2xl z-50"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const URLS = {
+  load:    "{% url 'inventory:disassembly_load_template' %}",
+  execute: (id) => `/inventory/disassembly/${id}/execute/`,
+  update:  (rid) => `/inventory/disassembly/result/${rid}/update/`,
+  remove:  (rid) => `/inventory/disassembly/result/${rid}/remove/`,
+};
+
+let state = { eventId: null, parentCost: 0, scrap: 0, rows: [] };
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => Number(n).toLocaleString('ar-EG', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+    body: JSON.stringify(body || {}),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'حصل خطأ في الخادم');
+  return data;
+}
+
+// معاينة توزيع التكلفة على المتصفح (مطابقة لمنطق السيرفر: القيمة البيعية + موازنة المليمات لأغلى ابن)
+function previewAllocation() {
+  const adjusted = Math.round((state.parentCost - state.scrap) * 100) / 100;
+  const totalEst = state.rows.reduce((s, r) => s + Number(r.estimated_sales_price || 0), 0);
+  let running = 0, richestIdx = -1, richestPrice = -1;
+  state.rows.forEach((r, i) => {
+    const price = Number(r.estimated_sales_price || 0);
+    r._alloc = totalEst > 0 ? Math.round(adjusted * (price / totalEst) * 100) / 100 : 0;
+    running += r._alloc;
+    if (price > richestPrice) { richestPrice = price; richestIdx = i; }
+  });
+  const residual = Math.round((adjusted - running) * 100) / 100;
+  if (richestIdx >= 0 && residual !== 0) state.rows[richestIdx]._alloc = Math.round((state.rows[richestIdx]._alloc + residual) * 100) / 100;
+
+  const sumChildren = state.rows.reduce((s, r) => s + (r._alloc || 0), 0);
+  $('mParent').textContent = fmt(state.parentCost);
+  $('mScrap').textContent = fmt(state.scrap);
+  $('mChildren').textContent = fmt(sumChildren);
+  const ledger = Math.round((sumChildren + state.scrap) * 100) / 100;
+  $('mLedger').textContent = fmt(ledger);
+  const balanced = Math.abs(ledger - state.parentCost) < 0.005;
+  $('balanceBox').className = 'rounded-xl p-3 ' + (balanced ? 'bg-emerald-900/40 border border-emerald-700' : 'bg-red-900/40 border border-red-700');
+  $('executeBtn').disabled = state.rows.length === 0 || totalEst <= 0;
+}
+
+function renderRows() {
+  const tbody = $('childRows');
+  tbody.innerHTML = '';
+  state.rows.forEach((r) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-800/60';
+    tr.innerHTML = `
+      <td class="py-2 text-white font-bold">${r.name}</td>
+      <td class="py-2 text-slate-500 text-xs">${r.sku}</td>
+      <td class="py-2">
+        <input type="number" min="0" step="0.01" value="${r.estimated_sales_price}"
+               data-rid="${r.result_id}"
+               class="priceInput w-28 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-sm text-white">
+      </td>
+      <td class="py-2 text-emerald-300 font-bold allocCell">${fmt(r._alloc || 0)}</td>
+      <td class="py-2 text-left">
+        <button data-rid="${r.result_id}" class="removeBtn text-red-400 hover:text-red-300 text-xs px-2" title="شيل البند">
+          <i class="fas fa-trash-can"></i>
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // تعديل السعر (محلي فوري + مزامنة مع السيرفر)
+  tbody.querySelectorAll('.priceInput').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const rid = Number(inp.dataset.rid);
+      const row = state.rows.find((x) => x.result_id === rid);
+      if (row) { row.estimated_sales_price = inp.value || 0; previewAllocation(); syncAllocCells(); }
+    });
+    inp.addEventListener('change', async () => {
+      const rid = Number(inp.dataset.rid);
+      try { await post(URLS.update(rid), {estimated_sales_price: Number(inp.value || 0)}); }
+      catch (e) { toast(e.message); }
+    });
+  });
+  // شيل بند
+  tbody.querySelectorAll('.removeBtn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const rid = Number(btn.dataset.rid);
+      try {
+        const data = await post(URLS.remove(rid), {});
+        applyEvent(data);
+      } catch (e) { toast(e.message); }
+    });
+  });
+}
+
+function syncAllocCells() {
+  const cells = $('childRows').querySelectorAll('.allocCell');
+  state.rows.forEach((r, i) => { if (cells[i]) cells[i].textContent = fmt(r._alloc || 0); });
+}
+
+function applyEvent(data) {
+  state.eventId = data.event_id;
+  state.parentCost = Number(data.parent_item.cost);
+  state.scrap = Number(data.total_scrap_revenue);
+  state.rows = data.results.map((r) => ({...r}));
+  $('draftBadge').textContent = `مسودة #${data.event_id} — ${state.rows.length} قطعة`;
+  $('setupCard').classList.add('opacity-50', 'pointer-events-none');
+  $('draftCard').classList.remove('hidden');
+  previewAllocation();
+  renderRows();
+}
+
+// اختيار الأب → عرض التكلفة
+$('parentSelect').addEventListener('change', (e) => {
+  const opt = e.target.selectedOptions[0];
+  $('parentInfo').textContent = opt && opt.value
+    ? `التكلفة: ${fmt(opt.dataset.cost)} ج.م — سعر البيع التقديري: ${fmt(opt.dataset.est || 0)} ج.م` : '';
+});
+// اختيار القالب → ملء إيراد الخردة الافتراضي
+$('templateSelect').addEventListener('change', (e) => {
+  const opt = e.target.selectedOptions[0];
+  if (opt && opt.dataset.scrap) $('scrapInput').value = opt.dataset.scrap;
+});
+
+// حمّل القالب
+$('loadBtn').addEventListener('click', async () => {
+  const parentId = $('parentSelect').value;
+  const templateId = $('templateSelect').value;
+  if (!parentId || !templateId) { toast('اختار العنصر الأب والقالب الأول'); return; }
+  $('loadBtn').disabled = true;
+  try {
+    const data = await post(URLS.load, {
+      parent_item_id: Number(parentId),
+      template_id: Number(templateId),
+      scrap_revenue: Number($('scrapInput').value || 0),
+    });
+    applyEvent(data);
+  } catch (e) { toast(e.message); $('loadBtn').disabled = false; }
+});
+
+// اعتمد الفك
+$('executeBtn').addEventListener('click', async () => {
+  if (!state.eventId) return;
+  $('executeBtn').disabled = true;
+  try {
+    const data = await post(URLS.execute(state.eventId), {});
+    const rep = data.report || {};
+    $('draftCard').classList.add('hidden');
+    const rows = (rep.children || []).map((c) =>
+      `<tr class="border-b border-emerald-900/40">
+        <td class="py-1 text-white">${c.name}</td>
+        <td class="py-1 text-slate-400 text-xs">${c.sku}</td>
+        <td class="py-1 text-emerald-300 font-bold">${fmt(c.allocated_cost)} ج.م</td>
+      </tr>`).join('');
+    $('resultBody').innerHTML = `
+      <p class="mb-2">تكلفة الأب <b>${fmt(rep.parent_cost)}</b> − خردة <b>${fmt(rep.scrap_revenue)}</b>
+         = <b>${fmt(rep.adjusted_parent_cost)}</b> اتوزّعت على ${rep.children ? rep.children.length : 0} قطعة.</p>
+      <table class="w-full text-sm mt-2"><tbody>${rows}</tbody></table>
+      <p class="mt-3 text-emerald-400 font-bold"><i class="fas fa-scale-balanced ml-1"></i>
+        Σ الأبناء = ${fmt(rep.total_allocated)} ج.م — الدفتر متوازن بالمليم ✅</p>`;
+    $('resultCard').classList.remove('hidden');
+    $('resultCard').scrollIntoView({behavior: 'smooth'});
+  } catch (e) { toast(e.message); $('executeBtn').disabled = false; }
+});
+
+$('cancelBtn').addEventListener('click', () => location.reload());
+</script>
+{% endblock %}

@@ -17,7 +17,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
 
 from ..models import (DisassemblyEvent, DisassemblyResult, DisassemblyTemplate,
@@ -25,6 +25,20 @@ from ..models import (DisassemblyEvent, DisassemblyResult, DisassemblyTemplate,
 from ..services import DisassemblyService
 
 logger = logging.getLogger('mouss_tec_core')
+
+
+@login_required(login_url='/login/')
+def workspace(request):
+    """شاشة فلو الفك بالقوالب — تختار أب + قالب، تعدّل، وتعتمد."""
+    parents = (InventoryItem.objects
+               .filter(status=InventoryItem.STATUS_IN_STOCK)
+               .order_by('-created_at')[:200])
+    templates = (DisassemblyTemplate.objects
+                 .filter(is_active=True).order_by('name'))
+    return render(request, 'inventory/disassembly_workspace.html', {
+        'parents': parents,
+        'templates': templates,
+    })
 
 
 def _body(request):

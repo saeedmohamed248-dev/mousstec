@@ -156,6 +156,7 @@ urlpatterns = [
     path('returns/verify/<int:guard_id>/', verify_return_view, name='return_verify'),
 
     # 🔩 الفك التدريجي + قوالب الفك (Reverse BOM)
+    path('disassembly/', disassembly_views.workspace, name='disassembly_workspace'),
     path('disassembly/templates/', disassembly_views.list_templates, name='disassembly_templates'),
     path('disassembly/load-template/', disassembly_views.load_template, name='disassembly_load_template'),
     path('disassembly/result/<int:result_id>/update/', disassembly_views.update_result, name='disassembly_update_result'),
