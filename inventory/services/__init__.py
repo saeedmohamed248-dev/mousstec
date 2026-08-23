@@ -9,6 +9,7 @@ from .inventory_service import InventoryService
 from .treasury_service import TreasuryService
 from .audit_service import AuditService
 from .reporting_service import ReportingService
+from .disassembly_service import DisassemblyService
 
 __all__ = [
     'InvoiceService',
@@ -16,4 +17,5 @@ __all__ = [
     'TreasuryService',
     'AuditService',
     'ReportingService',
+    'DisassemblyService',
 ]
