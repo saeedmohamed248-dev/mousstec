@@ -191,3 +191,86 @@ class DisassemblyResult(models.Model):
 
     def __str__(self):
         return f"{self.child_item.name} ← فك #{self.event_id}"
+
+
+# =============================================================================
+# 📋 قوالب الفك (Reverse BOM) — عشان مانكتبش الأبناء يدوي كل مرة
+# =============================================================================
+# المحرك الشائع (زي N20) بيتفكّك دايماً لنفس القطع تقريباً. القالب بيخزّن
+# القائمة القياسية مرة واحدة، والمستخدم يحمّلها في مسودة حدث فك ويعدّل
+# (يشيل قطعة تالفة أو يظبط سعر) قبل ما يعتمد.
+class DisassemblyTemplate(models.Model):
+    """قالب فك قياسي قابل لإعادة الاستخدام (Reverse BOM)."""
+
+    name = models.CharField(
+        max_length=200, unique=True,
+        verbose_name=_("اسم القالب"),
+        help_text=_("مثال: تفكيك محرك N20 القياسي"),
+    )
+    engine_code = models.CharField(
+        max_length=100, blank=True, db_index=True,
+        verbose_name=_("كود المحرك / الموديل"),
+        help_text=_("اختياري — لتصفية القوالب حسب المحرك (N20, B48...)."),
+    )
+    default_scrap_revenue = models.DecimalField(
+        **MONEY, default=ZERO, validators=[MinValueValidator(ZERO)],
+        verbose_name=_("إيراد الخردة الافتراضي"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("قالب فك")
+        verbose_name_plural = _("📋 قوالب الفك (Reverse BOM)")
+        ordering = ('name',)
+
+    def __str__(self):
+        code = f" [{self.engine_code}]" if self.engine_code else ""
+        return f"{self.name}{code}"
+
+    @property
+    def total_default_weight(self):
+        """مجموع الأوزان النسبية (لو القالب معرّف بالنِّسَب)."""
+        return self.items.aggregate(s=models.Sum('weight_percentage'))['s'] or ZERO
+
+
+class TemplateItem(models.Model):
+    """سطر قياسي داخل قالب فك: اسم القطعة + وزنها (سعر تقديري أو نسبة %)."""
+
+    template = models.ForeignKey(
+        DisassemblyTemplate, on_delete=models.CASCADE, related_name='items',
+        verbose_name=_("القالب"),
+    )
+    part_name = models.CharField(max_length=200, verbose_name=_("اسم القطعة"))
+    default_estimated_sales_price = models.DecimalField(
+        **MONEY, default=ZERO, validators=[MinValueValidator(ZERO)],
+        verbose_name=_("سعر البيع التقديري الافتراضي"),
+    )
+    # بديل للسعر التقديري: نسبة وزن مئوية من قيمة الأب (0–100)
+    weight_percentage = models.DecimalField(
+        max_digits=6, decimal_places=3, default=ZERO,
+        validators=[MinValueValidator(ZERO)],
+        verbose_name=_("نسبة الوزن %"),
+        help_text=_("بديل للسعر — لو > 0 تُستخدم لتقدير السعر من تكلفة الأب."),
+    )
+    # ربط اختياري بقطعة كتالوج جاهزة (لتوليد SKU/الاسم تلقائياً)
+    product = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='template_items', verbose_name=_("قطعة الكتالوج"),
+    )
+    sku_prefix = models.CharField(
+        max_length=60, blank=True,
+        verbose_name=_("بادئة SKU للأبناء"),
+        help_text=_("اختياري — يُدمج مع مرجع الأب لتوليد SKU فريد للابن."),
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name=_("الترتيب"))
+
+    class Meta:
+        verbose_name = _("بند قالب")
+        verbose_name_plural = _("بنود القوالب")
+        ordering = ('sort_order', 'id')
+
+    def __str__(self):
+        return f"{self.part_name} ({self.template.name})"

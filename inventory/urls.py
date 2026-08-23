@@ -13,6 +13,7 @@ from .views.fixit_returns import (
     fingerprint_dispatch_view,
     verify_return_view,
 )
+from .views import disassembly as disassembly_views
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -153,6 +154,13 @@ urlpatterns = [
     # واجهات المحل الداخلية (تسجيل دخول مطلوب)
     path('returns/fingerprint/<int:item_id>/', fingerprint_dispatch_view, name='return_fingerprint'),
     path('returns/verify/<int:guard_id>/', verify_return_view, name='return_verify'),
+
+    # 🔩 الفك التدريجي + قوالب الفك (Reverse BOM)
+    path('disassembly/templates/', disassembly_views.list_templates, name='disassembly_templates'),
+    path('disassembly/load-template/', disassembly_views.load_template, name='disassembly_load_template'),
+    path('disassembly/result/<int:result_id>/update/', disassembly_views.update_result, name='disassembly_update_result'),
+    path('disassembly/result/<int:result_id>/remove/', disassembly_views.remove_result, name='disassembly_remove_result'),
+    path('disassembly/<int:event_id>/execute/', disassembly_views.execute_event, name='disassembly_execute'),
     path('webhooks/shopify/', csrf_exempt(views.shopify_webhook_receiver), name='shopify_webhook'),
     path('webhooks/payment/callback/', csrf_exempt(views.payment_gateway_callback), name='payment_callback'),
     

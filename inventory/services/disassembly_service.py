@@ -14,6 +14,7 @@
         Σ(تكلفة الأبناء) + إيراد الخردة  ≡  تكلفة الأب  (بالمليم بالظبط)
 """
 import logging
+import uuid
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.exceptions import ValidationError
@@ -213,3 +214,79 @@ class DisassemblyService:
             created_by=created_by, notes=notes, date=date)
         report = DisassemblyService.execute_disassembly(event)
         return event, report
+
+    # ------------------------------------------------------------------
+    # 4) قوالب الفك (Reverse BOM) — تحميل قالب في مسودة حدث فك
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _unique_sku(base):
+        """يضمن SKU فريد للابن: base، ولو موجود يضيف لاحقة قصيرة."""
+        from ..models import InventoryItem
+        base = (base or 'ITEM').strip().replace(' ', '-')[:100] or 'ITEM'
+        candidate = base
+        if not InventoryItem.objects.filter(sku=candidate).exists():
+            return candidate
+        for _ in range(20):
+            candidate = f"{base}-{uuid.uuid4().hex[:6]}"
+            if not InventoryItem.objects.filter(sku=candidate).exists():
+                return candidate
+        return f"{base}-{uuid.uuid4().hex}"  # احتمال شبه مستحيل للتصادم
+
+    @staticmethod
+    def template_to_children(template, parent_item):
+        """يحوّل بنود القالب لـ children specs (بدون إنشاء أي شيء).
+
+        تقدير سعر كل بند:
+          • لو له سعر افتراضي > 0 → يُستخدم كما هو.
+          • غير كده لو له نسبة وزن % > 0 → السعر = النسبة × قيمة الأب المرجعية
+            (سعر بيع الأب التقديري، أو تكلفته لو مفيش سعر تقديري).
+        """
+        ref_value = _q(parent_item.estimated_sales_price or ZERO)
+        if ref_value <= ZERO:
+            ref_value = _q(parent_item.cost or ZERO)
+
+        parent_sku = getattr(parent_item, 'sku', '') or 'PARENT'
+        children = []
+        for item in template.items.all():
+            est = _q(item.default_estimated_sales_price or ZERO)
+            weight = Decimal(str(item.weight_percentage or ZERO))
+            if est <= ZERO and weight > ZERO:
+                est = _q(ref_value * weight / Decimal('100'))
+
+            base = item.sku_prefix or (
+                item.product.part_number if item.product_id else item.part_name)
+            children.append({
+                'sku': DisassemblyService._unique_sku(f"{parent_sku}-{base}"),
+                'name': item.product.name if item.product_id else item.part_name,
+                'estimated_sales_price': est,
+                'product': item.product,
+                'branch': getattr(parent_item, 'branch', None),
+            })
+        return children
+
+    @staticmethod
+    @transaction.atomic
+    def load_template(parent_item, template, created_by=None, notes='',
+                      date=None, override_scrap_revenue=None):
+        """
+        يبني مسودة DisassemblyEvent من قالب فك جاهز (Reverse BOM).
+
+        بيولّد عناصر أبناء وسطور نتائج تلقائياً من بنود القالب. المستخدم
+        بعدها يقدر يشيل بند (يمسح DisassemblyResult) أو يعدّل السعر التقديري
+        قبل ما ينفّذ execute_disassembly. مفيش أي توزيع مالي في المرحلة دي.
+        """
+        from ..models import DisassemblyTemplate
+
+        if not template.items.exists():
+            raise ValidationError("القالب مفيهوش أي بنود لتحميلها.")
+
+        scrap = (override_scrap_revenue if override_scrap_revenue is not None
+                 else template.default_scrap_revenue)
+        children = DisassemblyService.template_to_children(template, parent_item)
+
+        note_head = f"[قالب: {template.name}]"
+        full_notes = f"{note_head}\n{notes}".strip() if notes else note_head
+
+        return DisassemblyService.plan_disassembly(
+            parent_item, children, total_scrap_revenue=scrap,
+            created_by=created_by, notes=full_notes, date=date)

@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from ..models import DisassemblyEvent, DisassemblyResult, InventoryItem
+from ..models import (DisassemblyEvent, DisassemblyResult, DisassemblyTemplate,
+                      InventoryItem, TemplateItem)
 from ..services import DisassemblyService
 
 
@@ -67,3 +68,24 @@ class DisassemblyEventAdmin(admin.ModelAdmin):
         if ok:
             self.message_user(request, f"تم تنفيذ {ok} حدث فك بنجاح ✅",
                               level=messages.SUCCESS)
+
+
+class TemplateItemInline(admin.TabularInline):
+    model = TemplateItem
+    extra = 1
+    raw_id_fields = ('product',)
+    fields = ('sort_order', 'part_name', 'default_estimated_sales_price',
+              'weight_percentage', 'product', 'sku_prefix')
+
+
+@admin.register(DisassemblyTemplate)
+class DisassemblyTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'engine_code', 'items_count', 'default_scrap_revenue',
+                    'is_active', 'updated_at')
+    list_filter = ('is_active', 'engine_code')
+    search_fields = ('name', 'engine_code')
+    inlines = [TemplateItemInline]
+
+    def items_count(self, obj):
+        return obj.items.count()
+    items_count.short_description = _("عدد البنود")
