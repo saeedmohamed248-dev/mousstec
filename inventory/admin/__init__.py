@@ -57,3 +57,4 @@ from .audit import *  # noqa: F401, F403
 from .accounting import *  # noqa: F401, F403
 from .b2b import *  # noqa: F401, F403
 from .returns import *  # noqa: F401, F403
+from .disassembly import *  # noqa: F401, F403
