@@ -172,6 +172,29 @@ def sync_stock_to_fixit_website(sender, instance, **kwargs):
 
 
 # =====================================================================
+# 🛡️ 6.6 Return Guard — القطع المستعملة/التوالف تحتاج تصوير عند الصرف
+# لما يتباع سطر قطعة مستعملة/كور بننشئ حارس مرتجعات (بانتظار التصوير)
+# عشان الموظف يبقى قدامه Checklist يصوّر القطعة قبل ما تطلع.
+# =====================================================================
+@receiver(post_save, sender=SaleInvoiceItem)
+def open_return_guard_for_used_part(sender, instance, created, **kwargs):
+    if not created:
+        return
+    invoice = getattr(instance, 'invoice', None)
+    # المرتجع نفسه مش محتاج حارس، والحارس للقطع المستعملة/التوالف بس
+    if invoice is not None and getattr(invoice, 'is_return', False):
+        return
+    product = getattr(instance, 'product', None)
+    if not product or getattr(product, 'condition', 'new') not in ('used', 'core'):
+        return
+    try:
+        from .services import return_verification
+        return_verification.get_or_create_guard_for_item(instance)
+    except Exception as exc:  # لا يوقف عملية البيع أبداً
+        logger.warning("Return guard auto-open failed (non-blocking): %s", exc)
+
+
+# =====================================================================
 # 📋 7. Audit Trail → AuditService
 # =====================================================================
 def _audit_pre_save(sender, instance, **kwargs):

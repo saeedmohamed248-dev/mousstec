@@ -407,3 +407,141 @@ def predict_market_price_elasticity(part_name, condition, average_cost):
             return parsed
         except Exception: pass
     return {"elasticity_index": 1.0, "suggested_retail": average_cost * 1.25, "market_status": "طبيعي"}
+
+# =====================================================================
+# 🛡️ 6. حارس المرتجعات المرئي (Part Return Vision Guard)
+# =====================================================================
+# فكرة الحارس: نصوّر القطعة وقت الصرف ونستخرج "بصمة" مرئية لها، ولما
+# ترجع نقارن الراجع بالمصروف ونحكم: تنفع ترجع ولا لأ + السبب.
+# ملاحظة سياسة: لو الذكاء الاصطناعي مطفي أو مردّش، مبنقبلش ومبنرفضش
+# تلقائياً — بنرجّع needs_human عشان القرار يبقى لموظف بشري.
+
+def _vision_unavailable():
+    return not getattr(settings, 'ENABLE_AI_PREDICTIONS', False) or (
+        not str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+        and not str(getattr(settings, 'GEMINI_API_KEY', '') or '').strip()
+    )
+
+
+def _part_context_line(product_context):
+    ctx = product_context or {}
+    return (
+        f"القطعة المتوقعة: {ctx.get('name', '?')} | "
+        f"Part Number: {ctx.get('part_number', '?')} | "
+        f"الماركة: {ctx.get('brand', '?')} | "
+        f"الحالة عند البيع: {ctx.get('condition', '?')}"
+    )
+
+
+def fingerprint_part_image(image_base64, product_context=None):
+    """يحلّل صورة القطعة وقت الصرف ويرجّع بصمة مرئية منظمة (JSON).
+
+    البصمة دي هي مصدر الحقيقة اللي بنقارن عليه وقت الإرجاع.
+    """
+    if _vision_unavailable():
+        return {"available": False, "reason": "vision_disabled"}
+
+    system_instruction = (
+        "You are an automotive Part Return Vision Guard. You receive a photo of a "
+        "car spare part AT THE MOMENT IT IS SOLD/DISPATCHED. Extract a durable visual "
+        "fingerprint so the SAME physical unit can later be re-identified on return, "
+        "and any swap or new damage can be detected. "
+        "Return STRICTLY JSON with keys: "
+        "'part_identity' (object: 'looks_like' Arabic string, 'matches_expected' bool, "
+        "'visible_part_numbers' array of strings, 'serial_or_dme' string), "
+        "'condition_grade' (one of 'A','B','C'), "
+        "'distinctive_marks' (array of short Arabic strings — scratches, casting marks, "
+        "stickers, stamps with rough location), "
+        "'surface' (object: 'scratches' int, 'cracks' int, 'corrosion' one of 'none'/'light'/'heavy', "
+        "'missing_pieces' array of Arabic strings), "
+        "'signature' (one concise Arabic sentence uniquely describing this unit), "
+        "'confidence' (int 0-100)."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "بصمة القطعة وقت الصرف. " + _part_context_line(product_context)},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+            ],
+        },
+    ]
+    raw = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw:
+        try:
+            data = json.loads(raw)
+            data['available'] = True
+            return data
+        except json.JSONDecodeError as e:
+            logger.error(f"🔴 [RETURN GUARD]: fingerprint JSON parse error — {e}")
+    return {"available": False, "reason": "no_response"}
+
+
+def verify_part_return(dispatch_fingerprint, return_image_base64, product_context=None):
+    """يقارن صورة القطعة الراجعة ببصمة الصرف ويصدر حكم الإرجاع (JSON).
+
+    baseline = dispatch_fingerprint (بصمة نصية من الصرف). لو مفيش بصمة صرف
+    (طلب موقع بدون تصوير محل) بتتبعت None والموديل بيحكم على الحالة العامة فقط
+    مع خفض الثقة.
+    """
+    if _vision_unavailable():
+        return {
+            "available": False, "returnable": None, "match_score": None,
+            "confidence": 0, "needs_human": True,
+            "reasons": ["تعذّر التحقق الآلي — مراجعة بشرية مطلوبة"],
+            "recommended_action": "مراجعة بشرية",
+        }
+
+    baseline_txt = json.dumps(dispatch_fingerprint, ensure_ascii=False) if dispatch_fingerprint else "لا توجد بصمة صرف مسجّلة"
+    system_instruction = (
+        "You are an automotive Part Return Vision Guard. You are given (1) the stored "
+        "visual fingerprint captured when a part was SOLD, and (2) a photo of the part "
+        "the customer now wants to RETURN. Decide whether this is the SAME physical unit "
+        "and whether it is in acceptable condition to accept the return. "
+        "Reject if: it looks like a DIFFERENT unit (serial/part-number mismatch, different "
+        "distinctive marks), or it has NEW damage not present at dispatch (cracks, burns, "
+        "missing pieces, tampering/opened seals). "
+        "If there is no stored fingerprint, judge only general condition and lower confidence. "
+        "Return STRICTLY JSON with keys: "
+        "'same_part' (bool), 'new_damage' (bool), 'match_score' (int 0-100, how strongly the "
+        "returned unit matches the dispatched one), 'returnable' (bool), 'confidence' (int 0-100), "
+        "'needs_human' (bool — true when unsure or images are poor), "
+        "'reasons' (array of short Arabic strings — if not returnable, EACH reason must clearly "
+        "state WHY, e.g. 'الرقم التسلسلي مختلف عن المصروف', 'يوجد كسر جديد في الزاوية'; if "
+        "returnable, a short confirmation like 'مطابقة للمصروف وبدون تلف جديد'), "
+        "'recommended_action' (Arabic: 'قبول' / 'رفض' / 'مراجعة بشرية')."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": (
+                    _part_context_line(product_context)
+                    + "\n\nبصمة الصرف المسجّلة (baseline):\n" + baseline_txt
+                    + "\n\nدي صورة القطعة الراجعة — قارنها بالبصمة واحكم:"
+                )},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{return_image_base64}"}},
+            ],
+        },
+    ]
+    raw = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw:
+        try:
+            data = json.loads(raw)
+            data['available'] = True
+            # صمام أمان: أي حالة غير واضحة تتحوّل لمراجعة بشرية بدل قبول/رفض أعمى
+            if data.get('needs_human') or data.get('returnable') is None:
+                data['needs_human'] = True
+            elif isinstance(data.get('confidence'), (int, float)) and data['confidence'] < 55:
+                data['needs_human'] = True
+            return data
+        except json.JSONDecodeError as e:
+            logger.error(f"🔴 [RETURN GUARD]: verify JSON parse error — {e}")
+    return {
+        "available": False, "returnable": None, "match_score": None,
+        "confidence": 0, "needs_human": True,
+        "reasons": ["تعذّر التحقق الآلي — مراجعة بشرية مطلوبة"],
+        "recommended_action": "مراجعة بشرية",
+    }

@@ -8,6 +8,11 @@ from . import views_tech
 from . import views_hr
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
+from .views.fixit_returns import (
+    fixit_return_verify_webhook,
+    fingerprint_dispatch_view,
+    verify_return_view,
+)
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -142,6 +147,12 @@ urlpatterns = [
     # 🛡️ ابتكار: إعفاء الـ CSRF هنا إلزامي مع تطبيق Hmac Validation داخل الـ View
     # =====================================================================
     path('webhooks/fixit/order/', fixit_order_webhook, name='fixit_order_webhook'),
+
+    # 🛡️ حارس المرتجعات — العميل يصوّر القطعة قبل/بعد الشرا ويعرف تنفع ترجع ولا لأ
+    path('webhooks/fixit/return/verify/', fixit_return_verify_webhook, name='fixit_return_verify'),
+    # واجهات المحل الداخلية (تسجيل دخول مطلوب)
+    path('returns/fingerprint/<int:item_id>/', fingerprint_dispatch_view, name='return_fingerprint'),
+    path('returns/verify/<int:guard_id>/', verify_return_view, name='return_verify'),
     path('webhooks/shopify/', csrf_exempt(views.shopify_webhook_receiver), name='shopify_webhook'),
     path('webhooks/payment/callback/', csrf_exempt(views.payment_gateway_callback), name='payment_callback'),
     
