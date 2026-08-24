@@ -590,6 +590,41 @@ def tenant_auto_login(request):
     return redirect('/system/dashboard/')
 
 
+def owner_auto_login(request):
+    """
+    GET /account/owner-login/?token=xxx  (على الدومين العام mousstec.com)
+    دخول مباشر للسوبر أدمن بدون باسورد — لتفادي مشاكل الـ autofill/القفل.
+    التوكن بيتولّد من أمر `owner_login_link` على السيرفر، صالح 10 دقائق،
+    وبيسجّل دخول مستخدم is_superuser فقط على السكيمة العامة.
+    """
+    from django.contrib.auth import login as auth_login, logout as auth_logout
+    from django.core import signing
+
+    token = request.GET.get('token', '').strip()
+    if not token:
+        return redirect(f'/{ADMIN_URL}/login/')
+    try:
+        data = signing.loads(token, salt='owner-auto-login', max_age=600)
+    except (signing.BadSignature, signing.SignatureExpired):
+        return redirect(f'/{ADMIN_URL}/login/?msg=token_expired')
+
+    # لازم نكون على الدومين العام (public)
+    if getattr(connection, 'schema_name', 'public') != 'public':
+        return redirect(f'/{ADMIN_URL}/login/')
+
+    if request.user.is_authenticated:
+        auth_logout(request)
+    request.session.flush()
+
+    try:
+        user = User.objects.get(pk=data.get('user_id'), is_active=True, is_superuser=True)
+    except User.DoesNotExist:
+        return redirect(f'/{ADMIN_URL}/login/')
+
+    auth_login(request, user, backend='clients.backends.CaseInsensitiveEmailBackend')
+    return redirect(f'/{ADMIN_URL}/')
+
+
 # =====================================================================
 # 📰 Landing pages
 # =====================================================================
