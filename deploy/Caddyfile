@@ -1,0 +1,32 @@
+# 🔒 Caddy — HTTPS تلقائي (Let's Encrypt) + دعم سَبدومينات الفروع (on-demand)
+{
+	email {$ACME_EMAIL}
+	# شهادات تلقائية لسَبدومينات الفروع عند أول زيارة، بعد التحقق من قاعدة البيانات
+	on_demand_tls {
+		ask http://web:8000/internal/tls-check/
+	}
+}
+
+# الدومين الرئيسي
+{$BASE_DOMAIN} {
+	encode zstd gzip
+	# صور القطع والمستندات تُخدم مباشرة من قرص السيرفر (أسرع)
+	handle_path /media/* {
+		root * /srv/media
+		file_server
+	}
+	reverse_proxy web:8000
+}
+
+# كل سَبدومينات الفروع (tenant1.example.com ...)
+*.{$BASE_DOMAIN} {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	handle_path /media/* {
+		root * /srv/media
+		file_server
+	}
+	reverse_proxy web:8000
+}

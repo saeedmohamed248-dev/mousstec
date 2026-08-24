@@ -1,0 +1,14 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+*.log
+.env
+.env.*
+!.env.production.example
+media/
+staticfiles/
+.DS_Store
+.claude/
+full_project_code.txt
