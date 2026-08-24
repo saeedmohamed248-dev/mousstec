@@ -52,7 +52,9 @@ REDIS_URL=redis://redis:6379/1
 CELERY_BROKER_URL=redis://redis:6379/0
 CELERY_RESULT_BACKEND=redis://redis:6379/0
 USE_S3=False
-ENABLE_AI_PREDICTIONS=True
+# مطفية افتراضياً حتى تضيف مفتاح Gemini (AI_VISION_API_KEY) وتخليها True
+ENABLE_AI_PREDICTIONS=False
+AI_VISION_API_KEY=
 EOF
   echo "✅ اتعمل ملف .env (المفاتيح والباسورد اتولّدوا عشوائيًا وآمنين)."
 else
