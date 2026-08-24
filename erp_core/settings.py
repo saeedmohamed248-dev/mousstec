@@ -186,6 +186,7 @@ TENANT_DOMAIN_MODEL = 'clients.Domain'
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
 # =====================================================================
 MIDDLEWARE = [
+    'erp_core.middleware.CaddyTLSCheckMiddleware',        # -1. فحص شهادات Caddy (لازم أول واحد قبل أي tenant/redirect)
     'erp_core.middleware.IndustryPortalMiddleware',       # 0. بوابات القطاعات (auto.*/print.*) قبل عزل الـ Schema
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'tenancy.middleware.quota.TenantQuotaMiddleware',     # 2. حارس الباقات الديناميكي (Wave 2 Phase 2A — moved from clients/)

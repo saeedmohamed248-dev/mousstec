@@ -11,12 +11,43 @@ import re
 import threading
 from django.conf import settings
 from django.db import connection
-from django.http import HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseNotFound
 from django.shortcuts import redirect
 
 _audit_thread_local = threading.local()
 
 _BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'mousstec.com')
+
+
+class CaddyTLSCheckMiddleware:
+    """🔒 يرد على فحص شهادات Caddy (on-demand TLS) في أول السلسلة خالص.
+
+    لازم يكون **أول** middleware — قبل عزل الـ tenant وقبل أي SSL redirect —
+    لأن Caddy بينده HTTP داخلياً بـ Host='web' اللي مش بيتلاقى tenant، فكان
+    بيتعمله 302 redirect → Caddy يرفض إصدار الشهادة → ERR_SSL_PROTOCOL_ERROR.
+    هنا بنرد 200 للدومينات المسجّلة (فرع حقيقي أو الدومين الأساسي) و404 لغيرها.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path == '/internal/tls-check/':
+            domain = (request.GET.get('domain') or '').strip().lower().rstrip('.')
+            if not domain:
+                return HttpResponseNotFound('no domain')
+            base = (_BASE_DOMAIN or '').lower()
+            if base and (domain == base or domain == f'www.{base}'):
+                return HttpResponse('ok')
+            try:
+                from django_tenants.utils import schema_context
+                from clients.models import Domain
+                with schema_context('public'):
+                    if Domain.objects.filter(domain=domain).exists():
+                        return HttpResponse('ok')
+            except Exception:
+                pass
+            return HttpResponseNotFound('unknown host')
+        return self.get_response(request)
 
 _PORTAL_MAP = {
     f'auto.{_BASE_DOMAIN}': 'automotive',
