@@ -12,17 +12,17 @@
 
     /* ---------- 0. CSS (injected once) ---------- */
     const css = `
-    .mt-pwa-toast,.mt-pwa-install{position:fixed;left:50%;transform:translateX(-50%);
+    .mt-pwa-toast,.mt-pwa-install{position:fixed;right:16px;
       z-index:99999;font-family:'Cairo','Segoe UI',Tahoma,sans-serif;direction:rtl;
       background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#f1f5f9;
       border:1px solid rgba(139,92,246,.35);border-radius:14px;
       box-shadow:0 18px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.04);
       padding:14px 18px;display:flex;align-items:center;gap:14px;
-      max-width:92vw;width:auto;opacity:0;pointer-events:none;
+      max-width:min(90vw,360px);width:auto;opacity:0;pointer-events:none;
       transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .35s ease;}
-    .mt-pwa-toast{bottom:24px;transform:translate(-50%,40px);}
-    .mt-pwa-install{bottom:24px;transform:translate(-50%,40px);}
-    .mt-pwa-toast.show,.mt-pwa-install.show{opacity:1;pointer-events:auto;transform:translate(-50%,0);}
+    .mt-pwa-toast{bottom:24px;transform:translateY(40px);}
+    .mt-pwa-install{bottom:24px;transform:translateY(40px);}
+    .mt-pwa-toast.show,.mt-pwa-install.show{opacity:1;pointer-events:auto;transform:translateY(0);}
     .mt-pwa-toast .mt-msg,.mt-pwa-install .mt-msg{font-size:14px;font-weight:600;line-height:1.5;}
     .mt-pwa-toast .mt-msg small,.mt-pwa-install .mt-msg small{display:block;font-size:11px;color:#94a3b8;font-weight:400;margin-top:2px;}
     .mt-pwa-btn{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border:none;
