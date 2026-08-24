@@ -7,9 +7,21 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
+from django.db import connection
 from django_tenants.utils import get_public_schema_name, schema_context
 
 from clients.models import Client, Domain
+
+
+def _drop_schema_if_exists(schema):
+    """يشيل سكيمة ناقصة اتخلّفت من محاولة فاشلة (عشان المحاولة الجاية تبدأ نضيف)."""
+    safe = ''.join(ch for ch in schema if ch.isalnum() or ch == '_')
+    with connection.cursor() as cur:
+        cur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name=%s", [safe])
+        if cur.fetchone():
+            cur.execute(f'DROP SCHEMA "{safe}" CASCADE')
+            return True
+    return False
 
 
 class Command(BaseCommand):
@@ -51,11 +63,25 @@ class Command(BaseCommand):
         # 2) أول فرع حقيقي (يعمل سكيمته ويطبّق مهاجراته تلقائياً)
         branch = Client.objects.filter(schema_name=schema).first()
         if not branch:
+            # نظّف أي سكيمة ناقصة من محاولة فاشلة سابقة
+            if _drop_schema_if_exists(schema):
+                self.stdout.write(f"🧹 اتشالت سكيمة ناقصة قديمة: {schema}")
             self.stdout.write(f"🔄 إنشاء الفرع '{schema}' وتطبيق مهاجراته (ممكن ياخد دقيقة)...")
             branch = Client(schema_name=schema, name=o['name'],
                             owner_name=o['owner'], phone=o['phone'],
                             industry='automotive', status='trial')
-            branch.save()
+            try:
+                branch.save()
+            except Exception as exc:
+                # django-tenants بيخفي السبب الأصلي بخطأ تنظيف — نطبع الجذر بوضوح
+                root = exc
+                while getattr(root, '__context__', None) is not None:
+                    root = root.__context__
+                _drop_schema_if_exists(schema)  # نضيف للمحاولة الجاية
+                self.stderr.write(self.style.ERROR(
+                    "❌ فشل إنشاء الفرع — السبب الجذري الحقيقي:\n"
+                    f"   {type(root).__name__}: {root}"))
+                raise SystemExit(1)
             self.stdout.write(self.style.SUCCESS(f"✅ اتعمل الفرع: {schema}"))
         else:
             self.stdout.write(f"ℹ️ الفرع {schema} موجود بالفعل")
