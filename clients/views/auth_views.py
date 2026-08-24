@@ -554,7 +554,7 @@ def tenant_auto_login(request):
         return redirect(f'/{ADMIN_URL}/login/')
 
     try:
-        data = signing.loads(token, salt='tenant-auto-login-token', max_age=120)
+        data = signing.loads(token, salt='tenant-auto-login-token', max_age=300)
     except (signing.BadSignature, signing.SignatureExpired):
         return redirect(f'/{ADMIN_URL}/login/?msg=token_expired')
 
