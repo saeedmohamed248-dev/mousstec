@@ -1,0 +1,95 @@
+# 🐳 Mouss Tec ERP — تشغيل كامل بأمر واحد على Droplet واحد
+# الخدمات: postgres + redis + web(daphne) + celery worker + celery beat + caddy(HTTPS تلقائي)
+#
+# التشغيل:  docker compose --env-file .env up -d --build
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: bash deploy/entrypoint.web.sh
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    expose:
+      - "8000"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: celery -A erp_core worker -l info --concurrency=2
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+      - web
+    volumes:
+      - media_data:/app/media
+
+  beat:
+    build: .
+    restart: unless-stopped
+    command: celery -A erp_core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+      - web
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - media_data:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  pg_data:
+  redis_data:
+  media_data:
+  static_data:
+  caddy_data:
+  caddy_config:

@@ -31,6 +31,8 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost', '.localhost']
+# 🚀 مضيفون إضافيون من البيئة (IP السيرفر الجديد، اسم خدمة Docker الداخلي "web"...)
+ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
 
 # 💳 Paymob Payment Gateway
 PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
