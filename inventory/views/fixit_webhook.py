@@ -74,6 +74,7 @@ def fixit_order_webhook(request):
 
         invoice = SaleInvoice.objects.create(
             invoice_type='sale',
+            sales_channel='website',  # 🛒 أوردر من الموقع الإلكتروني
             status='quotation',  # مسودة — تُعتمد يدوياً بعد المراجعة فيخصم المخزون
             customer=customer,
             branch=branch,
