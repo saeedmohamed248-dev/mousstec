@@ -126,9 +126,9 @@ class VehicleInspectionInline(admin.StackedInline):
 @admin.register(SaleInvoice)
 class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     inlines = [SaleInvoiceItemInline, SaleInvoiceServiceItemInline, VehicleInspectionInline]
-    list_display = ('id', 'customer_details', 'invoice_type', 'is_return_badge', 'job_progress_bar', 'total_amount_styled', 'margin_percentage', 'fraud_alert', 'invoice_actions')
+    list_display = ('id', 'customer_details', 'invoice_type', 'channel_badge', 'is_return_badge', 'job_progress_bar', 'total_amount_styled', 'margin_percentage', 'fraud_alert', 'invoice_actions')
     list_select_related = ('customer', 'vehicle', 'branch', 'treasury')
-    list_filter = ('branch', 'treasury', 'invoice_type', 'status', 'date_created')
+    list_filter = ('sales_channel', 'branch', 'treasury', 'invoice_type', 'status', 'date_created')
     search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
     autocomplete_fields = ['customer', 'vehicle']
     actions = ['mark_as_posted', 'create_return', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
@@ -246,6 +246,12 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
                <a style="margin-right: 8px; color: #4f46e5; font-size: 18px; text-decoration:none;" href="{}" target="_blank" title="طباعة مستند الفاتورة الرسمي A4">📄</a>''', 
                whatsapp_url, print_url)
     invoice_actions.short_description = "إجراءات"
+
+    def channel_badge(self, obj):
+        if obj.sales_channel == 'website':
+            return format_html('<span style="color:#8b5cf6; font-weight:700;">🛒 الموقع</span>')
+        return format_html('<span style="color:#64748b;">🏪 المحل</span>')
+    channel_badge.short_description = 'القناة'
 
     def is_return_badge(self, obj):
         if obj.is_return and obj.original_invoice_id:

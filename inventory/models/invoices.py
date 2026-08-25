@@ -64,7 +64,17 @@ class SaleInvoice(models.Model):
         ('posted', _('تم التسليم والاعتماد')),
     )
     
+    SALES_CHANNEL_CHOICES = (
+        ('in_store', _('بيع مباشر (المحل)')),
+        ('website', _('الموقع الإلكتروني')),
+    )
+
     invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPES, verbose_name=_("النوع"))
+    sales_channel = models.CharField(
+        max_length=20, choices=SALES_CHANNEL_CHOICES, default='in_store',
+        db_index=True, verbose_name=_("قناة البيع"),
+        help_text=_("مباشر من المحل أم أوردر من الموقع الإلكتروني"),
+    )
     is_return = models.BooleanField(default=False, verbose_name=_("فاتورة مرتجع؟"))
     original_invoice = models.ForeignKey(
         'self', null=True, blank=True, on_delete=models.SET_NULL,
