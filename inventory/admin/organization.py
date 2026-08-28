@@ -67,7 +67,8 @@ class BranchAdmin(SecureImportExportAdmin):
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(SecureImportExportAdmin):
-    list_display = ('user', 'branch', 'role', 'commission_balance_styled')
+    list_display = ('user', 'branch', 'role', 'commission_rate_pct', 'max_discount_pct',
+                    'can_see_costs', 'commission_balance_styled')
     list_select_related = ('user', 'branch')
     list_filter = ('branch', 'role')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')

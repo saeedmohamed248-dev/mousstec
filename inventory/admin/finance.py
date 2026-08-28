@@ -48,7 +48,7 @@ from .mixins import *  # noqa: F401, F403
 # 💰 9. الإدارة المالية الإقليمية ودفاتر الـ FinTech Audit
 # =====================================================================
 @admin.register(Treasury)
-class TreasuryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
+class TreasuryAdmin(FinanceRoleMixin, BranchIsolationMixin, SecureImportExportAdmin):
     list_display = ('name', 'branch', 'type_badge', 'balance_styled', 'is_active')
     list_filter = ('branch', 'type', 'is_active')
     search_fields = ('name',)
@@ -101,7 +101,7 @@ class ExpenseTransactionInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 @admin.register(ExpenseCategory)
-class ExpenseCategoryAdmin(SecureImportExportAdmin):
+class ExpenseCategoryAdmin(FinanceRoleMixin, SecureImportExportAdmin):
     list_display = ('name', 'get_month_expenses', 'get_total_expenses')
     search_fields = ('name',)
     inlines = [ExpenseTransactionInline]
@@ -153,7 +153,7 @@ class ExpenseCategoryAdmin(SecureImportExportAdmin):
         return super().response_change(request, obj)
 
 @admin.register(FinancialTransaction)
-class FinancialTransactionAdmin(SecureImportExportAdmin):
+class FinancialTransactionAdmin(FinanceRoleMixin, SecureImportExportAdmin):
     list_display = ('transaction_type_badge', 'amount_styled', 'treasury', 'category_display', 'employee_display', 'anomaly_flag', 'date', 'linked_invoice')
     list_filter = ('transaction_type', 'currency', 'treasury', 'category', 'date')
     search_fields = ('description', 'employee__user__first_name', 'employee__user__last_name')
