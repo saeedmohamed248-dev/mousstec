@@ -24,6 +24,9 @@ urlpatterns = [
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
 
+    # 👤 صفحة الموظف: دوره وعمولته وحد الخصم
+    path('my-account/', views.my_account, name='my_account'),
+
     # 💸 Commission payout dashboard (DMS Backlog #5)
     path('commissions/', views.commission_dashboard, name='commission_dashboard'),
 

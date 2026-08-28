@@ -56,6 +56,7 @@ class EmployeeProfile(models.Model):
         ('admin',    _('مدير عام (أدمن)')),
         ('manager',  _('مدير فرع')),
         ('sales',    _('مبيعات (Sales)')),
+        ('accountant', _('محاسب (Accountant)')),
         ('engineer', _('مهندس تشخيص (Engineer)')),
         ('tech',     _('فني / ميكانيكي (Technician)')),
         ('cashier',  _('كاشير / استقبال (Cashier)')),
@@ -63,10 +64,14 @@ class EmployeeProfile(models.Model):
         ('hr',       _('موارد بشرية (HR)')),
     )
 
+    # 🧮 الأدوار اللي ليها صلاحية الوصول للحسابات والقيود والخزائن
+    FINANCE_ROLES = ('admin', 'manager', 'accountant')
+
     WORKSPACE_MAP = {
         'admin':    '/system/dashboard/',
         'manager':  '/system/dashboard/',
         'sales':    '/system/dashboard/',
+        'accountant': '/system/dashboard/',
         'cashier':  '/system/dashboard/',
         'stock':    '/system/dashboard/',
         'engineer': '/system/tech-workspace/',
@@ -85,6 +90,9 @@ class EmployeeProfile(models.Model):
     commission_rate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,
         verbose_name=_("نسبة عمولة المبيعات %"),
         help_text=_("تُطبَّق على هامش الربح للقطع التي يبيعها الموظف"))
+    max_discount_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,
+        verbose_name=_("أقصى نسبة خصم مسموحة %"),
+        help_text=_("أقصى خصم يقدر البائع يعمله على الفاتورة. 0 = ممنوع الخصم. المدير/الأدمن بلا حد."))
 
     # 📍 GPS — last known check-in (denormalised for fast HR dashboards)
     last_checkin_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر تسجيل حضور"))
@@ -99,6 +107,20 @@ class EmployeeProfile(models.Model):
         if self.user.is_superuser:
             return '/system/dashboard/'
         return self.WORKSPACE_MAP.get(self.role, '/system/dashboard/')
+
+    @property
+    def effective_max_discount(self):
+        """أقصى خصم فعلي: المدير/الأدمن بلا حد (100%)، غير كده حسب الحقل."""
+        if self.user.is_superuser or self.role in ('admin', 'manager'):
+            return Decimal('100.00')
+        return self.max_discount_pct or Decimal('0.00')
+
+    def can_apply_discount(self, pct) -> bool:
+        """هل يقدر الموظف يعمل خصم بنسبة pct%؟"""
+        try:
+            return Decimal(str(pct or 0)) <= self.effective_max_discount
+        except Exception:
+            return False
 
     def __str__(self):
         branch_name = self.branch.name if self.branch else "إدارة عامة"

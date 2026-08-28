@@ -149,3 +149,11 @@ def pos_interface(request):
 @tenant_required
 def mechanic_kiosk_interface(request):
     return render(request, 'inventory/mechanic_bay.html')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def my_account(request):
+    """👤 صفحة 'حسابي' للموظف — يشوف دوره، عمولته، وحد الخصم المسموح."""
+    profile = getattr(request.user, 'employee_profile', None)
+    return render(request, 'inventory/my_account.html', {'profile': profile})

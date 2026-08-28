@@ -48,17 +48,13 @@ from .mixins import *  # noqa: F401, F403
 # 📊 12. دليل الحسابات المحاسبية (Chart of Accounts)
 # =====================================================================
 @admin.register(ChartOfAccount)
-class ChartOfAccountAdmin(admin.ModelAdmin):
+class ChartOfAccountAdmin(FinanceRoleMixin, admin.ModelAdmin):
     list_display = ('code', 'name', 'account_type_badge', 'parent', 'balance_display', 'is_active')
     list_filter = ('account_type', 'is_active')
     search_fields = ('code', 'name')
     list_editable = ('is_active',)
     ordering = ('code',)
-
-    def has_module_permission(self, request):
-        if connection.schema_name == 'public':
-            return False
-        return super().has_module_permission(request)
+    # صلاحيات الوصول تُدار عبر FinanceRoleMixin (admin/manager/accountant فقط)
 
     def account_type_badge(self, obj):
         colors = {
@@ -82,7 +78,7 @@ class ChartOfAccountAdmin(admin.ModelAdmin):
 # 📒 13. دفتر القيود المحاسبية (Accounting Ledger)
 # =====================================================================
 @admin.register(AccountingEntry)
-class AccountingEntryAdmin(admin.ModelAdmin):
+class AccountingEntryAdmin(FinanceRoleMixin, admin.ModelAdmin):
     list_display = ('entry_date', 'reference', 'account', 'description_short', 'debit_display', 'credit_display', 'linked_doc')
     list_filter = ('account__account_type', 'entry_date')
     search_fields = ('reference', 'description', 'account__name')
@@ -90,11 +86,7 @@ class AccountingEntryAdmin(admin.ModelAdmin):
     autocomplete_fields = ['account']
     readonly_fields = ('entry_date', 'reference', 'description', 'account', 'debit', 'credit',
                        'sale_invoice', 'purchase_invoice', 'financial_transaction', 'created_by')
-
-    def has_module_permission(self, request):
-        if connection.schema_name == 'public':
-            return False
-        return super().has_module_permission(request)
+    # صلاحيات الوصول تُدار عبر FinanceRoleMixin (admin/manager/accountant فقط)
 
     def description_short(self, obj):
         text = obj.description or ''

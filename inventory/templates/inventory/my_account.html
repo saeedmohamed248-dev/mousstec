@@ -1,0 +1,61 @@
+{% extends 'inventory/_base_portal.html' %}
+{% block title %}حسابي — Mouss Tec{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-3 rounded-xl shadow-lg shadow-purple-500/30">
+      <i class="fas fa-id-badge text-white text-xl"></i>
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-white">حسابي</h1>
+      <p class="text-sm text-slate-400">بياناتك الوظيفية وعمولاتك وصلاحياتك</p>
+    </div>
+  </div>
+
+  {% if profile %}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
+    <div class="flex justify-between border-b border-slate-800 pb-3">
+      <span class="text-slate-400">الاسم</span>
+      <span class="text-white font-bold">{{ request.user.get_full_name|default:request.user.username }}</span>
+    </div>
+    <div class="flex justify-between border-b border-slate-800 pb-3">
+      <span class="text-slate-400">الدور الوظيفي</span>
+      <span class="text-purple-300 font-bold">{{ profile.get_role_display }}</span>
+    </div>
+    <div class="flex justify-between border-b border-slate-800 pb-3">
+      <span class="text-slate-400">الفرع</span>
+      <span class="text-white">{{ profile.branch.name|default:"إدارة عامة" }}</span>
+    </div>
+
+    <div class="grid sm:grid-cols-3 gap-3 pt-2">
+      <div class="bg-emerald-900/30 border border-emerald-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-slate-400 mb-1">رصيد العمولات المستحقة</p>
+        <p class="text-xl font-black text-emerald-300">{{ profile.commission_balance|floatformat:2 }} ج.م</p>
+      </div>
+      <div class="bg-slate-800/60 rounded-xl p-4 text-center">
+        <p class="text-xs text-slate-400 mb-1">نسبة عمولتي</p>
+        <p class="text-xl font-black text-white">{{ profile.commission_rate_pct|floatformat:2 }}%</p>
+      </div>
+      <div class="bg-amber-900/30 border border-amber-800 rounded-xl p-4 text-center">
+        <p class="text-xs text-slate-400 mb-1">أقصى خصم مسموح لي</p>
+        <p class="text-xl font-black text-amber-300">{{ profile.effective_max_discount|floatformat:0 }}%</p>
+      </div>
+    </div>
+
+    <div class="flex justify-between pt-2 text-sm">
+      <span class="text-slate-400">رؤية أسعار التكلفة</span>
+      {% if profile.can_see_costs %}
+        <span class="text-emerald-400 font-bold">مسموح ✅</span>
+      {% else %}
+        <span class="text-slate-500 font-bold">أسعار البيع فقط</span>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 text-center text-slate-400">
+    مفيش ملف موظف مربوط بحسابك. كلّم المدير.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
