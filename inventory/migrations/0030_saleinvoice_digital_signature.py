@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0027_alter_usermfa_id'),
+        ('inventory', '0029_recursive_disassembly'),
     ]
 
     operations = [
