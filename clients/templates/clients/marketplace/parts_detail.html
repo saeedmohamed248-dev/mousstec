@@ -117,7 +117,7 @@
                 <i class="fas fa-car"></i> {{ listing.car_make.name }}{% if listing.car_model %} — {{ listing.car_model }}{% endif %}
                 {% if listing.car_year_from %} · {{ listing.car_year_from }}{% if listing.car_year_to %}–{{ listing.car_year_to }}{% endif %}{% endif %}
             </div>
-            <div class="price">{{ listing.price_egp|floatformat:0 }} ج.م</div>
+            <div class="price">{{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
 
             <div class="spec"><span class="lbl">الحالة</span><span class="val">{{ listing.get_condition_display }}</span></div>
             <div class="spec"><span class="lbl">فترة الضمان</span><span class="val" style="color:#6ee7b7;"><i class="fas fa-shield-halved"></i> {{ listing.warranty_days }} يوم</span></div>
@@ -144,7 +144,7 @@
             {% elif listing.status != 'active' %}
             <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة لم تعد متاحة</button>
             {% elif customer %}
-            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} ج.م</button>
+            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</button>
             {% else %}
             <a href="/marketplace/login/?next=/marketplace/parts/{{ listing.listing_code }}/" class="buy-btn" style="display:block; text-align:center; text-decoration:none;">
                 <i class="fas fa-sign-in-alt"></i> سجل دخول للشراء
@@ -175,9 +175,9 @@
             <textarea name="shipping_address" rows="2" placeholder="الشارع، المنطقة، علامة مميزة..." required minlength="10"></textarea>
 
             <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:12px; padding:12px; margin: 8px 0 16px;">
-                <div class="summary-row"><span>سعر القطعة</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
+                <div class="summary-row"><span>سعر القطعة</span><span>{{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
                 <div class="summary-row"><span>الشحن</span><span style="color:#6ee7b7;">حسب البائع</span></div>
-                <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|floatformat:0 }} ج.م</span></div>
+                <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             </div>
 
             <button type="button" id="vodafonePayBtn" onclick="payPartsVodafone()"

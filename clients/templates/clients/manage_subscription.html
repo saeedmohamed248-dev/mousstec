@@ -99,7 +99,7 @@
                 </div>
                 <div class="text-center mb-4">
                     <span class="text-3xl font-black text-white">{{ plan.price }}</span>
-                    <span class="text-slate-400 text-sm"> ج.م/شهر</span>
+                    <span class="text-slate-400 text-sm"> {{ tenant_currency_symbol|default:'ج.م' }}/شهر</span>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5 flex-1">
                     <li><i class="fas fa-users text-purple-400 ml-1 w-4"></i> {{ plan.users }} موظف</li>
@@ -140,7 +140,7 @@
                 </div>
                 <div class="text-center mb-4">
                     <span class="text-3xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="text-slate-400 text-sm"> ج.م</span>
+                    <span class="text-slate-400 text-sm"> {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     <div class="text-slate-500 text-xs">دفعة واحدة</div>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5">
@@ -175,7 +175,7 @@
                 </div>
                 <div class="text-center mb-3">
                     <span class="text-2xl font-black text-white">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="text-slate-400 text-xs"> ج.م</span>
+                    <span class="text-slate-400 text-xs"> {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     <div class="text-slate-500 text-xs">دفعة واحدة</div>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-1.5 mb-4">
@@ -197,9 +197,9 @@
         <h2 class="text-xl font-black text-white mb-2"><i class="fas fa-cart-plus text-emerald-400 ml-2"></i>شراء إضافات</h2>
         <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-5 text-sm">
             <i class="fas fa-calculator text-indigo-400 ml-2"></i>
-            سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} ج.م/شهر</strong>
+            سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong>
             {% if remaining_days > 0 and remaining_days < 30 %}
-            — التكلفة التناسبية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} ج.م</strong>
+            — التكلفة التناسبية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
             {% endif %}
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

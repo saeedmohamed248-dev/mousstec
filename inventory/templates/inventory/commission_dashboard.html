@@ -45,7 +45,7 @@
                 </span>
             </div>
             <p class="text-2xl font-black text-white">{{ total_outstanding|floatformat:2 }}</p>
-            <p class="text-xs text-slate-500 font-bold mt-1">إجمالي العمولات المستحقة (ج.م)</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">إجمالي العمولات المستحقة ({{ tenant_currency_symbol|default:'ج.م' }})</p>
         </div>
 
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -88,7 +88,7 @@
                 <option value="{{ t.pk }}">
                     {{ t.name }} ({{ t.get_type_display }})
                     {% if t.branch %} — فرع {{ t.branch.name }}{% endif %}
-                    — رصيد {{ t.balance|floatformat:2 }} ج.م
+                    — رصيد {{ t.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
                 </option>
                 {% endfor %}
             </select>
@@ -106,7 +106,7 @@
                         <th class="py-3 px-4 text-right">الموظف</th>
                         <th class="py-3 px-4 text-right">الدور</th>
                         <th class="py-3 px-4 text-right">الفرع</th>
-                        <th class="py-3 px-4 text-left">المستحق (ج.م)</th>
+                        <th class="py-3 px-4 text-left">المستحق ({{ tenant_currency_symbol|default:'ج.م' }})</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
