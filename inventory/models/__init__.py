@@ -23,6 +23,8 @@ from .finance import *  # noqa: F401, F403
 from .invoices import *  # noqa: F401, F403
 from .operations import *  # noqa: F401, F403
 from .diagnostics import *  # noqa: F401, F403
+from .returns import *  # noqa: F401, F403
+from .disassembly import *  # noqa: F401, F403
 
 # Underscore-prefixed helpers that `import *` skips but historical
 # migrations reference by full path.

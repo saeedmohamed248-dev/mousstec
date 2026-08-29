@@ -25,6 +25,7 @@ from erp_core.ai import design_views as design_views
 from clients import admin_god_mode as _god
 from erp_core.ai import diagnostic_views as diagnostic_views
 from inventory import views_feedback as _feedback
+from erp_core import ops_views
 
 # =====================================================================
 # 🏭 فلترة التطبيقات حسب قطاع المستأجر (Industry-Aware Admin)
@@ -281,6 +282,12 @@ handler500 = custom_500_handler
 # 🚦 شبكة المسارات الرئيسية الموحدة (Global Routing Matrix)
 # =====================================================================
 urlpatterns = [
+    # 🔒 فحص شهادات HTTPS التلقائية (Caddy on-demand TLS) — لازم يفضل في الأول
+    path('internal/tls-check/', ops_views.caddy_tls_check, name='caddy_tls_check'),
+
+    # 👑 دخول مباشر للسوبر أدمن بتوكن (بدون باسورد) — يتولّد من أمر owner_login_link
+    path('account/owner-login/', client_views.owner_auto_login, name='owner_auto_login'),
+
     # 0. 🌐 الموجه التكيفي الذكي (بوابة الإمبراطورية السحابية)
     path('', smart_root_router, name='smart_root'),
 

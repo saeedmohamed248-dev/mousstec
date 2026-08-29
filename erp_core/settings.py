@@ -31,6 +31,8 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost', '.localhost']
+# 🚀 مضيفون إضافيون من البيئة (IP السيرفر الجديد، اسم خدمة Docker الداخلي "web"...)
+ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
 
 # 💳 Paymob Payment Gateway
 PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
@@ -184,6 +186,7 @@ TENANT_DOMAIN_MODEL = 'clients.Domain'
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
 # =====================================================================
 MIDDLEWARE = [
+    'erp_core.middleware.CaddyTLSCheckMiddleware',        # -1. فحص شهادات Caddy (لازم أول واحد قبل أي tenant/redirect)
     'erp_core.middleware.IndustryPortalMiddleware',       # 0. بوابات القطاعات (auto.*/print.*) قبل عزل الـ Schema
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'tenancy.middleware.quota.TenantQuotaMiddleware',     # 2. حارس الباقات الديناميكي (Wave 2 Phase 2A — moved from clients/)
@@ -359,7 +362,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # =====================================================================
 # 📧 محرك الاتصالات والمفاتيح السيادية للبوتات (AI Agents & Gateways)
 # =====================================================================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# 📧 قابل للتبديل: SMTP افتراضياً، أو Brevo API (لتخطّي حظر SMTP على DigitalOcean)
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+BREVO_API_KEY = env('BREVO_API_KEY', default='')
 EMAIL_HOST = env('EMAIL_HOST', default='')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)

@@ -100,6 +100,43 @@ class SecureImportExportAdmin(SafeAdminLogMixin, ImportExportModelAdmin):
         try: return request.user.employee_profile.role in ['admin', 'manager']
         except Exception: return False
 
+class FinanceRoleMixin:
+    """🧮 يقصر شاشات الحسابات/القيود/الخزائن على الأدوار المالية فقط
+    (المالك superuser + admin/manager/accountant). أي دور تاني (مبيعات/فني/
+    كاشير...) ميشوفش الحسابات خالص."""
+
+    def _finance_ok(self, request):
+        if connection.schema_name == 'public':
+            return False
+        if request.user.is_superuser:
+            return True
+        try:
+            return request.user.employee_profile.role in EmployeeProfile.FINANCE_ROLES
+        except Exception:
+            return False
+
+    def has_module_permission(self, request):
+        return self._finance_ok(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._finance_ok(request)
+
+    def has_add_permission(self, request):
+        return self._finance_ok(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._finance_ok(request)
+
+    def has_delete_permission(self, request, obj=None):
+        # الحذف المالي أخطر — للمالك/المدير فقط (مش المحاسب)
+        if request.user.is_superuser:
+            return True
+        try:
+            return request.user.employee_profile.role in ('admin', 'manager')
+        except Exception:
+            return False
+
+
 class BranchIsolationMixin:
     """تصفية تلقائية للبيانات والمدخلات والعمليات حسب فرع الموظف الحالي لضمان الأمن المعلوماتي للورش"""
     def get_queryset(self, request):

@@ -8,6 +8,12 @@ from . import views_tech
 from . import views_hr
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
+from .views.fixit_returns import (
+    fixit_return_verify_webhook,
+    fingerprint_dispatch_view,
+    verify_return_view,
+)
+from .views import disassembly as disassembly_views
 
 # 🆕 ابتكار تنظيمي موحد: تحديد اسم التطبيق لتجنب تداخل المسارات (Namespacing)
 app_name = 'inventory'
@@ -17,6 +23,9 @@ urlpatterns = [
     # 📊 1. واجهات المستخدم الرئيسية للفرع (Dashboards & Experiences)
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
+
+    # 👤 صفحة الموظف: دوره وعمولته وحد الخصم
+    path('my-account/', views.my_account, name='my_account'),
 
     # 💸 Commission payout dashboard (DMS Backlog #5)
     path('commissions/', views.commission_dashboard, name='commission_dashboard'),
@@ -142,6 +151,20 @@ urlpatterns = [
     # 🛡️ ابتكار: إعفاء الـ CSRF هنا إلزامي مع تطبيق Hmac Validation داخل الـ View
     # =====================================================================
     path('webhooks/fixit/order/', fixit_order_webhook, name='fixit_order_webhook'),
+
+    # 🛡️ حارس المرتجعات — العميل يصوّر القطعة قبل/بعد الشرا ويعرف تنفع ترجع ولا لأ
+    path('webhooks/fixit/return/verify/', fixit_return_verify_webhook, name='fixit_return_verify'),
+    # واجهات المحل الداخلية (تسجيل دخول مطلوب)
+    path('returns/fingerprint/<int:item_id>/', fingerprint_dispatch_view, name='return_fingerprint'),
+    path('returns/verify/<int:guard_id>/', verify_return_view, name='return_verify'),
+
+    # 🔩 الفك التدريجي + قوالب الفك (Reverse BOM)
+    path('disassembly/', disassembly_views.workspace, name='disassembly_workspace'),
+    path('disassembly/templates/', disassembly_views.list_templates, name='disassembly_templates'),
+    path('disassembly/load-template/', disassembly_views.load_template, name='disassembly_load_template'),
+    path('disassembly/result/<int:result_id>/update/', disassembly_views.update_result, name='disassembly_update_result'),
+    path('disassembly/result/<int:result_id>/remove/', disassembly_views.remove_result, name='disassembly_remove_result'),
+    path('disassembly/<int:event_id>/execute/', disassembly_views.execute_event, name='disassembly_execute'),
     path('webhooks/shopify/', csrf_exempt(views.shopify_webhook_receiver), name='shopify_webhook'),
     path('webhooks/payment/callback/', csrf_exempt(views.payment_gateway_callback), name='payment_callback'),
     
