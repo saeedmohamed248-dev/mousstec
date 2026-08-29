@@ -221,6 +221,19 @@ def lightning_pos_checkout(request):
                 discount = Decimal(str(payload.get("discount") or "0"))
             except InvalidOperation:
                 discount = Decimal("0")
+
+            # 🔒 حد الخصم حسب صلاحية الموظف (المدير/الأدمن بلا حد)
+            subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p in line_specs), Decimal("0"))
+            if discount > 0 and subtotal > 0 and not request.user.is_superuser:
+                profile = getattr(request.user, "employee_profile", None)
+                if profile:
+                    disc_pct = (discount / subtotal) * Decimal("100")
+                    if not profile.can_apply_discount(disc_pct):
+                        return _json_response_safe({
+                            "error": (f"الخصم ({disc_pct:.1f}%) يتجاوز الحد المسموح لك "
+                                      f"({profile.effective_max_discount:.0f}%). راجع المدير.")
+                        }, status=403)
+
             invoice = SaleInvoice.objects.create(
                 invoice_type="sale",
                 status="posted",
