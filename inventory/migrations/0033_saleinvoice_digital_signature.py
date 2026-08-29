@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventory', '0029_recursive_disassembly'),
+        ('inventory', '0032_accountant_role_max_discount'),
     ]
 
     operations = [
