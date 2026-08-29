@@ -26,11 +26,19 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
     def send_messages(self, email_messages):
         if not email_messages:
             return 0
-        api_key = str(getattr(settings, 'BREVO_API_KEY', '') or '').strip()
+        api_key = str(getattr(settings, 'BREVO_API_KEY', '') or '').strip().strip('"').strip("'")
         if not api_key:
             if not self.fail_silently:
                 raise ValueError("BREVO_API_KEY مفقود في البيئة.")
             logger.warning("⚠️ [EMAIL] BREVO_API_KEY missing — email skipped.")
+            return 0
+        if api_key.startswith('xsmtpsib-'):
+            msg = ("BREVO_API_KEY ده مفتاح SMTP (xsmtpsib-) وده مش بينفع مع الـ HTTP API. "
+                   "اعمل مفتاح API من Brevo: SMTP & API ▸ API Keys ▸ Generate a new API key "
+                   "(لازم يبدأ بـ xkeysib-).")
+            logger.warning("🔴 [EMAIL] %s", msg)
+            if not self.fail_silently:
+                raise ValueError(msg)
             return 0
 
         default_from = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or ''
@@ -66,7 +74,11 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
                 else:
                     logger.warning("🔴 [EMAIL] Brevo API %s: %s", r.status_code, r.text[:250])
                     if not self.fail_silently:
-                        raise RuntimeError(f"Brevo API error {r.status_code}: {r.text[:250]}")
+                        hint = ""
+                        if r.status_code == 401:
+                            hint = ("  ← المفتاح مرفوض من Brevo. شغّل: bash deploy/check_brevo.sh "
+                                    "للتشخيص. الأغلب إنه مش مفتاح API (xkeysib-) أو متلغي.")
+                        raise RuntimeError(f"Brevo API error {r.status_code}: {r.text[:250]}{hint}")
             except requests.RequestException as exc:
                 logger.warning("🔴 [EMAIL] Brevo request failed: %s", exc)
                 if not self.fail_silently:
