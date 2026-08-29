@@ -362,7 +362,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # =====================================================================
 # 📧 محرك الاتصالات والمفاتيح السيادية للبوتات (AI Agents & Gateways)
 # =====================================================================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# 📧 قابل للتبديل: SMTP افتراضياً، أو Brevo API (لتخطّي حظر SMTP على DigitalOcean)
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+BREVO_API_KEY = env('BREVO_API_KEY', default='')
 EMAIL_HOST = env('EMAIL_HOST', default='')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
