@@ -29,7 +29,7 @@
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-emerald-400">{{ total_spent|floatformat:0 }}</p>
-            <p class="text-[10px] text-slate-500 font-bold">💰 صرف ج.م</p>
+            <p class="text-[10px] text-slate-500 font-bold">💰 صرف {{ tenant_currency_symbol|default:'ج.م' }}</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
             <p class="text-xl font-black text-cyan-400">{{ requests_list|length }}</p>
@@ -84,7 +84,7 @@
                     </span>
                 </div>
                 <div class="flex justify-between text-[10px] text-slate-500">
-                    <span>{{ p.price_paid }} ج.م · {{ p.payment_method }}</span>
+                    <span>{{ p.price_paid }} {{ tenant_currency_symbol|default:'ج.م' }} · {{ p.payment_method }}</span>
                     <span>{{ p.created_at|date:"Y-m-d H:i" }}</span>
                 </div>
                 <div class="text-[10px] text-slate-400 mt-1">

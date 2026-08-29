@@ -203,7 +203,7 @@
         </div>
         <div class="order-row">
             <span class="label">المبلغ المطلوب</span>
-            <span class="value price">{{ purchase.price_paid }} ج.م</span>
+            <span class="value price">{{ purchase.price_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
         </div>
         <div class="order-row">
             <span class="label">رقم الطلب</span>
@@ -224,7 +224,7 @@
 
     <div class="steps">
         <div class="step"><span class="step-num">1</span> <span>افتح تطبيق فودافون كاش أو اطلب <strong>*9*</strong></span></div>
-        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> على الرقم <strong style="direction:ltr">01094850763</strong></span></div>
+        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> على الرقم <strong style="direction:ltr">01094850763</strong></span></div>
         <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم العملية</strong> اللي جالك في الرسالة هنا تحت</span></div>
         <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة في دقائق ✨</span></div>
     </div>
@@ -242,7 +242,7 @@
 
     <div class="steps">
         <div class="step"><span class="step-num">1</span> <span>افتح تطبيق البنك بتاعك</span></div>
-        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} ج.م</strong> عبر InstaPay</span></div>
+        <div class="step"><span class="step-num">2</span> <span>حوّل <strong>{{ purchase.price_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> عبر InstaPay</span></div>
         <div class="step"><span class="step-num">3</span> <span>اكتب <strong>رقم المرجع</strong> أو <strong>Transaction ID</strong> هنا تحت</span></div>
         <div class="step"><span class="step-num">4</span> <span>اضغط <strong>"تأكيد الدفع"</strong> وهنفعّلك الباقة ✨</span></div>
     </div>

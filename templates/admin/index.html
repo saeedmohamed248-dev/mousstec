@@ -536,7 +536,7 @@
 
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
                 <p>إيرادات الشهر</p>
                 <i class="fas fa-coins bg-icon"></i>
             </div>
@@ -552,7 +552,7 @@
 
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
                 <p>مستحقات العملاء</p>
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
@@ -568,7 +568,7 @@
 
         <div class="col-lg-2 col-md-6 col-12 mb-3">
             <div class="saas-stat-card" style="background: var(--dark-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
                 <p>المحصّل هذا الشهر</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
@@ -634,7 +634,7 @@
 
         <div class="col-lg-3 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
                 <p>مبيعات اليوم</p>
                 <i class="fas fa-wallet bg-icon"></i>
             </div>
@@ -654,7 +654,7 @@
                     <h3><i class="fas fa-cogs"></i></h3>
                     <p>تكلفة الإفراجات</p>
                 {% else %}
-                    <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup></h3>
+                    <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
                     <p>ديون متأخرة بالخارج</p>
                 {% endif %}
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
@@ -667,7 +667,7 @@
                     {% if stats.net_profit_today == '🔒 مخفي' %}
                         <i class="fas fa-lock" style="font-size: 24px;"></i>
                     {% else %}
-                        <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> ج.م</sup>
+                        <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>
                     {% endif %}
                 </h3>
                 <p>أرباح الشهر الصافية</p>
@@ -690,7 +690,7 @@
                 <span style="font-size: 14px; color: #64748b; margin-right: 10px;">
                     إجمالي الرصيد:
                     <b style="color: {% if stats.total_treasury >= '0' %}#10b981{% else %}#ef4444{% endif %}; font-size: 18px;">
-                        {{ stats.total_treasury }} ج.م
+                        {{ stats.total_treasury }} {{ tenant_currency_symbol|default:'ج.م' }}
                     </b>
                 </span>
             </h5>
@@ -706,7 +706,7 @@
                 </div>
                 <div class="treasury-balance-display" style="font-size: 28px; font-weight: 900; color: {% if t.is_negative %}#ef4444{% else %}#10b981{% endif %}; letter-spacing: -0.5px; line-height: 1.2;" data-value="{{ t.balance }}">
                     {{ t.balance|floatformat:"2" }}
-                    <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>
+                    <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
             </div>
         </div>
@@ -788,11 +788,11 @@
                         <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> الملخص المالي للشهر</h6>
                         <div class="d-flex justify-content-between mb-1">
                             <span style="font-size:13px; color: #475569;">الإيرادات:</span>
-                            <b style="color: #10b981;">{{ print_month_income|default:"0"|floatformat:"0" }} ج.م</b>
+                            <b style="color: #10b981;">{{ print_month_income|default:"0"|floatformat:"0" }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span style="font-size:13px; color: #475569;">المصروفات:</span>
-                            <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|floatformat:"0" }} ج.م</b>
+                            <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|floatformat:"0" }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                         </div>
                     </div>
 
@@ -1068,7 +1068,7 @@
         document.querySelectorAll('.treasury-balance-display').forEach(el => {
             const val = parseFloat(el.dataset.value);
             if (!isNaN(val)) {
-                el.innerHTML = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">ج.م</span>';
+                el.innerHTML = val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">{{ tenant_currency_symbol|default:'ج.م' }}</span>';
             }
         });
 
@@ -1088,7 +1088,7 @@
                             <span style="font-size:11px; color:#94a3b8; margin-right: 6px;">${o.date_created}</span>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <span style="font-size:13px; font-weight:700; color:#1e293b;">${o.total_amount.toLocaleString()} ج.م</span>
+                            <span style="font-size:13px; font-weight:700; color:#1e293b;">${o.total_amount.toLocaleString()} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                             <span class="print-status-badge" style="background: ${statusColors[o.status_display]||'#94a3b8'}22; color: ${statusColors[o.status_display]||'#94a3b8'};">${o.status_display}</span>
                         </div>
                     </div>
@@ -1137,9 +1137,9 @@
                     {
                         type: 'line',
                         {% if industry == 'printing' %}
-                        label: 'المحصّل الفعلي (ج.م)',
+                        label: 'المحصّل الفعلي ({{ tenant_currency_symbol|default:'ج.م' }})',
                         {% else %}
-                        label: 'صافي الربح الفعلي (ج.م)',
+                        label: 'صافي الربح الفعلي ({{ tenant_currency_symbol|default:'ج.م' }})',
                         {% endif %}
                         data: actualProfitData,
                         borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4,
@@ -1148,10 +1148,10 @@
                     {
                         type: 'bar',
                         {% if industry == 'printing' %}
-                        label: 'إجمالي الطلبات (ج.م)',
+                        label: 'إجمالي الطلبات ({{ tenant_currency_symbol|default:'ج.م' }})',
                         borderColor: '#06b6d4',
                         {% else %}
-                        label: 'إجمالي الإيرادات (ج.م)',
+                        label: 'إجمالي الإيرادات ({{ tenant_currency_symbol|default:'ج.م' }})',
                         borderColor: '#4f46e5',
                         {% endif %}
                         data: parseData('rawChartRevenue', [0]),
@@ -1547,7 +1547,7 @@
                     + (p.badge ? '<div style="display:inline-block;background:#ec4899;color:#fff;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;margin-bottom:10px;">' + escapeHtmlFlux(p.badge) + '</div>' : '')
                     + '<p style="color:#fff;font-weight:900;font-size:24px;margin:4px 0;">' + p.designs + '</p>'
                     + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">تصميم</p>'
-                    + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' ج.م</p>'
+                    + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' {{ tenant_currency_symbol|default:'ج.م' }}</p>'
                     + '<button onclick="purchaseTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> اشتري دلوقتي</button>'
                     + '</div>'
                 ).join('')
@@ -1797,7 +1797,7 @@
                         + '<div style="display:flex;justify-content:space-between;align-items:center;">'
                         + '<div><div style="font-weight:700;font-size:13px;color:#e2e8f0;">' + inv.code + '</div>'
                         + '<div style="font-size:11px;color:#94a3b8;">' + inv.customer + ' — ' + inv.date + '</div></div>'
-                        + '<div style="text-align:left;"><div style="font-weight:700;color:#10b981;">' + inv.total + ' ج.م</div>'
+                        + '<div style="text-align:left;"><div style="font-weight:700;color:#10b981;">' + inv.total + ' {{ tenant_currency_symbol|default:'ج.م' }}</div>'
                         + '<div style="font-size:10px;color:#94a3b8;">' + inv.status + '</div></div>'
                         + '</div></div>';
                 });

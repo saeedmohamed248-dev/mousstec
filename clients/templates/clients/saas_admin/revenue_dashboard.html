@@ -49,15 +49,15 @@
 
     <div class="stats-row">
         <div class="stat green">
-            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-infinity"></i> الإجمالي من بداية التشغيل</div>
         </div>
         <div class="stat blue">
-            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-calendar"></i> هذا الشهر</div>
         </div>
         <div class="stat purple">
-            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">ج.م</span></div>
+            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-clock"></i> آخر 30 يوم</div>
         </div>
         <div class="stat amber">

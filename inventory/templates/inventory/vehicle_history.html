@@ -98,7 +98,7 @@
                         </div>
                     </div>
                     <div class="text-left">
-                        <p class="text-sm font-black text-emerald-400">{{ inv.total_amount|floatformat:0 }} ج.م</p>
+                        <p class="text-sm font-black text-emerald-400">{{ inv.total_amount|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</p>
                         {% if inv.mileage %}<p class="text-xs text-slate-600">{{ inv.mileage }} كم</p>{% endif %}
                     </div>
                 </div>

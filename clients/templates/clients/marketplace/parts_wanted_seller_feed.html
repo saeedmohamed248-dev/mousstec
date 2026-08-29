@@ -103,7 +103,7 @@
                     {% if r.description %}<div class="desc">{{ r.description|truncatechars:120 }}</div>{% endif %}
                     <div class="meta-row">
                         {% if r.max_budget_egp %}
-                            <span>💰 ميزانية: <span class="budget">{{ r.max_budget_egp }} ج.م</span></span>
+                            <span>💰 ميزانية: <span class="budget">{{ r.max_budget_egp }} {{ tenant_currency_symbol|default:'ج.م' }}</span></span>
                         {% endif %}
                         <span class="expires">⏰ ينتهي {{ r.expires_at|date:"Y-m-d" }}</span>
                     </div>

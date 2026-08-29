@@ -109,10 +109,10 @@
                 <div class="text-center md:text-left">
                     <div class="text-4xl font-black text-cyan-400 mb-1">
                         {{ pack.price_egp|floatformat:0 }}
-                        <span class="text-base text-slate-400 font-normal">ج.م</span>
+                        <span class="text-base text-slate-400 font-normal">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                     </div>
                     <div class="text-xs text-slate-500">
-                        ≈ {{ pack.price_egp|floatformat:2 }} ج.م لكل استخدام
+                        ≈ {{ pack.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }} لكل استخدام
                     </div>
                 </div>
 

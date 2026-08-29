@@ -348,7 +348,7 @@
       confirm_title: "تأكيد الاشتراك",
       confirm_desc: (name) => `هتشترك في باقة «${name}». المبلغ هيتخصم فوراً من رصيد المحفظة.`,
       featured: "الأكثر طلباً",
-      currency: "ج.م",
+      currency: "{{ tenant_currency_symbol|default:'ج.م' }}",
     },
     en: {
       duration_days: (n) => `${n} day${n === 1 ? "" : "s"}`,

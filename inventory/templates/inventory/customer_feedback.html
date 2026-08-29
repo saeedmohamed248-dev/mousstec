@@ -71,7 +71,7 @@
       {% endif %}
       <div class="flex justify-between items-center pt-2 border-t border-slate-800">
         <span class="text-xs text-slate-400">الإجمالي</span>
-        <span class="font-black text-emerald-300">{{ invoice.total_amount|floatformat:2 }} ج.م</span>
+        <span class="font-black text-emerald-300">{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
       </div>
     </div>
 

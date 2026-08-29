@@ -92,7 +92,7 @@
 
             <div class="meta">
                 <div><label>الطلب:</label> <strong>{{ t.order.order_code }}</strong></div>
-                <div><label>المبلغ:</label> <strong>{{ t.order.amount_paid }} ج.م</strong></div>
+                <div><label>المبلغ:</label> <strong>{{ t.order.amount_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></div>
                 <div><label>الفئة:</label> <strong>{{ t.get_category_display }}</strong></div>
                 <div><label>حالة الطلب وقت الفتح:</label> <strong>{{ t.order_status_at_open|default:"—" }}</strong></div>
                 <div><label>القطعة:</label> <strong>{{ t.order.listing.title|truncatechars:40 }}</strong></div>

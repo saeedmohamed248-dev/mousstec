@@ -81,7 +81,7 @@
                 <input type="text" name="engine_code" maxlength="30" placeholder="N13, N20, K20A">
             </div>
             <div>
-                <label>الميزانية القصوى (ج.م)</label>
+                <label>الميزانية القصوى ({{ tenant_currency_symbol|default:'ج.م' }})</label>
                 <input type="number" name="max_budget_egp" step="0.01" min="0" placeholder="اختياري">
             </div>
         </div>

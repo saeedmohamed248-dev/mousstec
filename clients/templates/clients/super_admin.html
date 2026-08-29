@@ -947,7 +947,7 @@
                             <span class="text-pink-400">{{ dp.package.name_ar }}</span>
                         </p>
                         <div class="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
-                            <span><i class="fas fa-money-bill ml-1"></i>{{ dp.price_paid }} ج.م</span>
+                            <span><i class="fas fa-money-bill ml-1"></i>{{ dp.price_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                             <span><i class="fas fa-palette ml-1"></i>{{ dp.designs_total }} تصميم</span>
                             <span><i class="fas fa-wallet ml-1"></i>{{ dp.get_payment_method_display }}</span>
                             <span><i class="fas fa-clock ml-1"></i>{{ dp.created_at|timesince }} مضت</span>
@@ -1035,7 +1035,7 @@
                                     <i class="fas fa-mobile-alt ml-1"></i>{{ mr.get_payment_method_display }}
                                 </span>
                                 <span class="text-[11px] text-white font-black mr-auto">
-                                    {{ mr.amount|floatformat:2 }} ج.م
+                                    {{ mr.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
                                 </span>
                             </div>
 
@@ -1299,7 +1299,7 @@
                             <th class="px-3 py-2 text-center">📋 طلبات</th>
                             <th class="px-3 py-2 text-center">🎨 تصاميم</th>
                             <th class="px-3 py-2 text-center">🛒 مشتريات</th>
-                            <th class="px-3 py-2 text-center">💰 صرف (ج.م)</th>
+                            <th class="px-3 py-2 text-center">💰 صرف ({{ tenant_currency_symbol|default:'ج.م' }})</th>
                             <th class="px-3 py-2 text-right">آخر نشاط</th>
                             <th class="px-3 py-2 text-center">الحالة</th>
                             <th class="px-3 py-2 text-center">⚡ إجراءات</th>
@@ -1431,7 +1431,7 @@
                             <p class="text-xs text-slate-400 mb-2">{{ pl.description|truncatechars:100 }}</p>
                             <div class="flex flex-wrap gap-3 text-[10px] text-slate-500">
                                 <span><i class="fas fa-car ml-1"></i>{{ pl.car_make.name }} {{ pl.car_model }}</span>
-                                <span class="text-emerald-400 font-black"><i class="fas fa-tag ml-1"></i>{{ pl.price_egp }} ج.م</span>
+                                <span class="text-emerald-400 font-black"><i class="fas fa-tag ml-1"></i>{{ pl.price_egp }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                                 <span><i class="fas fa-user ml-1"></i>{{ pl.seller_label }}</span>
                                 <span><i class="fas fa-clock ml-1"></i>{{ pl.created_at|timesince }} مضت</span>
                                 {% if pl.city %}<span><i class="fas fa-map-marker-alt ml-1"></i>{{ pl.city }}</span>{% endif %}
@@ -1522,7 +1522,7 @@
                             <div class="text-xs text-slate-400 mb-2">
                                 <span class="bg-orange-500/15 text-orange-300 px-2 py-0.5 rounded font-bold">⚠️ {{ o.get_status_display }}</span>
                                 · {{ o.listing.car_make.name }}
-                                · {{ o.amount_paid|floatformat:0 }} ج.م
+                                · {{ o.amount_paid|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
                                 · ضمان {{ o.warranty_days }} يوم
                             </div>
                             <div class="text-xs text-slate-300 mb-1">
@@ -1700,7 +1700,7 @@
             <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-xl px-4 py-3">
                 <div class="flex justify-between items-center">
                     <span class="text-xs text-slate-400">الإجمالي المطلوب</span>
-                    <span class="text-2xl font-black text-green-400" id="sub-total">475 ج.م</span>
+                    <span class="text-2xl font-black text-green-400" id="sub-total">475 {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-1" id="sub-detail">سيلفر × 1 شهر</p>
             </div>
@@ -1919,7 +1919,7 @@ function recalc() {
     const months = PERIOD_MONTHS[selectedPeriod] || 1;
     const discount = PERIOD_DISCOUNTS[selectedPeriod] || 0;
     const total = Math.round(base * months * (1 - discount));
-    document.getElementById('sub-total').textContent = total.toLocaleString('ar-EG') + ' ج.م';
+    document.getElementById('sub-total').textContent = total.toLocaleString('ar-EG') + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     document.getElementById('sub-detail').textContent =
         PLAN_LABELS[selectedPlan] + ' × ' + months + ' شهر' +
         (discount > 0 ? ' (خصم ' + Math.round(discount * 100) + '%)' : '');

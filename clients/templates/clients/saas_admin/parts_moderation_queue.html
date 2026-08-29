@@ -93,7 +93,7 @@
                     {{ l.car_make.name }}<br>
                     <small class="seller">{{ l.car_model }} {% if l.car_year_from %}({{ l.car_year_from }}{% if l.car_year_to %}-{{ l.car_year_to }}{% endif %}){% endif %}</small>
                 </td>
-                <td class="price">{{ l.price_egp }} ج.م</td>
+                <td class="price">{{ l.price_egp }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                 <td>
                     {{ l.seller_label }}<br>
                     <small class="seller">{% if l.seller_is_company %}شركة{% else %}فرد{% endif %}</small>

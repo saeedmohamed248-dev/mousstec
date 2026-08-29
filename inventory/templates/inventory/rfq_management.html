@@ -288,7 +288,7 @@ body {
                     {% endif %}
                 </div>
                 <div class="done-price">
-                    {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|floatformat:2 }} ج.م{% endif %}
+                    {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
                 </div>
                 {% if rfq.purchase_invoice %}
                     <a href="/admin/inventory/purchaseinvoice/{{ rfq.purchase_invoice.id }}/change/" target="_blank">
@@ -376,7 +376,7 @@ body {
                     btn.disabled = false; btn.innerHTML = orig;
                     return;
                 }
-                showToast(`✓ PO #${data.purchase_invoice_id} تم إنشاؤه (${data.total.toFixed(2)} ج.م)`);
+                showToast(`✓ PO #${data.purchase_invoice_id} تم إنشاؤه (${data.total.toFixed(2)} {{ tenant_currency_symbol|default:'ج.م' }})`);
                 setTimeout(() => window.location.reload(), 900);
             } catch (err) {
                 showToast(`خطأ: ${err.message}`, 'error');
