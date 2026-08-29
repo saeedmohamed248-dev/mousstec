@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
+from erp_core.localization import current_tenant_symbol as _cur_sym
 from django.contrib import messages
 from django.db import transaction
 from django.db import connection  # مستشعر فحص النطاقات السحابية اللحظي
@@ -247,7 +248,7 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     def financial_assets_styled(self, obj):
         wallet_text = f"{obj.wallet_balance:,.2f}"
         escrow_text = f"{obj.escrow_held:,.2f}"
-        return format_html('<div style="line-height:1.2;"><span style="color:#28a745; font-weight:bold;">🟢 {} ج.م</span><br><span style="color:#ffc107; font-size:10px;">🔒 {} ج.م</span></div>', wallet_text, escrow_text)
+        return format_html('<div style="line-height:1.2;"><span style="color:#28a745; font-weight:bold;">🟢 {} {}</span><br><span style="color:#ffc107; font-size:10px;">🔒 {} {}</span></div>', wallet_text, _cur_sym(), escrow_text, _cur_sym())
     financial_assets_styled.short_description = "الأصول المالية (Escrow)"
 
     def is_verified_icon(self, obj):
@@ -382,7 +383,7 @@ class GlobalB2BMarketplaceAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
         return obj.tenant.name if obj.tenant else '-'
     tenant_name_safe.short_description = "التاجر"
 
-    def wholesale_price_styled(self, obj): return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{obj.wholesale_price:,.2f}")
+    def wholesale_price_styled(self, obj): return format_html('<b style="color:#007bff;">{} {}</b>', f"{obj.wholesale_price:,.2f}", _cur_sym())
     wholesale_price_styled.short_description = "سعر الجملة"
 
     def ai_confidence_score_badge(self, obj):
@@ -422,7 +423,7 @@ class BlindBiddingRequestAdmin(AutomotiveOnlyAdminMixin, admin.ModelAdmin):
         return format_html('<i class="fas fa-user-tie" style="color:#6c757d;"></i>')
     auto_award_icon.short_description = "الذكاء الاصطناعي"
 
-    def winning_price_styled(self, obj): return format_html('<b style="color:#28a745;">{} ج.م</b>', f"{obj.winning_price:,.2f}") if obj.winning_price else "-"
+    def winning_price_styled(self, obj): return format_html('<b style="color:#28a745;">{} {}</b>', f"{obj.winning_price:,.2f}", _cur_sym()) if obj.winning_price else "-"
     winning_price_styled.short_description = "سعر الترسية"
 
     @admin.action(description='⚖️ فض النزاع مركزيًا: إرجاع الأموال للمشتري بالكامل (Refund)')
@@ -493,7 +494,7 @@ class EscrowLedgerAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         sign = "-" if obj.transaction_type in ['hold', 'fee_deduction', 'withdrawal'] else "+"
         color = "#dc3545" if sign == "-" else "#28a745"
         formatted_amount = f"{obj.amount:,.2f}"
-        return format_html('<b style="color:{};">{} {} ج.م</b>', color, sign, formatted_amount)
+        return format_html('<b style="color:{};">{} {} {}</b>', color, sign, formatted_amount, _cur_sym())
     amount_styled.short_description = "المبلغ"
 
     def fraud_risk_badge(self, obj):
@@ -541,7 +542,7 @@ class PlanAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     industry_badge.short_description = "القطاع"
 
     def monthly_price_styled(self, obj):
-        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+        return format_html('<b style="color:#007bff;">{} {}</b>', f"{obj.monthly_price:,.2f}", _cur_sym())
     monthly_price_styled.short_description = "السعر الشهري"
 
     def discount_overview(self, obj):
@@ -591,7 +592,7 @@ class DiagnosticsAddonAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     )
 
     def monthly_price_styled(self, obj):
-        return format_html('<b style="color:#0dcaf0;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+        return format_html('<b style="color:#0dcaf0;">{} {}</b>', f"{obj.monthly_price:,.2f}", _cur_sym())
     monthly_price_styled.short_description = "السعر الشهري"
 
     def feature_count(self, obj):
@@ -617,7 +618,7 @@ class AIAddonPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     ordering = ('sort_order',)
 
     def monthly_price_styled(self, obj):
-        return format_html('<b style="color:#6f42c1;">{} ج.م</b>', f"{obj.monthly_price:,.2f}")
+        return format_html('<b style="color:#6f42c1;">{} {}</b>', f"{obj.monthly_price:,.2f}", _cur_sym())
     monthly_price_styled.short_description = "السعر الشهري"
 
     def is_active_icon(self, obj):
@@ -712,12 +713,12 @@ class DesignPackageAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     target_audience_badge.short_description = "الفئة"
 
     def price_egp_styled(self, obj):
-        return format_html('<b style="color:#6f42c1;">{} ج.م</b>', f"{obj.price_egp:,.2f}")
+        return format_html('<b style="color:#6f42c1;">{} {}</b>', f"{obj.price_egp:,.2f}", _cur_sym())
     price_egp_styled.short_description = "السعر"
     price_egp_styled.admin_order_field = 'price_egp'
 
     def price_per_design_styled(self, obj):
-        return format_html('<span style="color:#0ea5e9;">{} ج.م/تصميم</span>', f"{obj.price_per_design:,.2f}")
+        return format_html('<span style="color:#0ea5e9;">{} {}/تصميم</span>', f"{obj.price_per_design:,.2f}", _cur_sym())
     price_per_design_styled.short_description = "سعر التصميم"
 
     def is_featured_icon(self, obj):

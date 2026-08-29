@@ -102,6 +102,23 @@ def format_money(amount, currency='EGP', lang='ar', decimals=None, symbol=True):
     return f"{formatted} {currency_symbol(currency, lang)}"
 
 
+def current_tenant_symbol():
+    """رمز عملة المستأجر الحالي من الـ DB connection (django-tenants).
+
+    مخصّص لأكواد العرض (admin/views/services) اللي بتشتغل جوه request/tenant.
+    يسقط بأمان لرمز الافتراضي لو مفيش tenant (public schema) أو أي خطأ.
+    """
+    try:
+        from django.db import connection
+        tenant = getattr(connection, 'tenant', None)
+        if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+            tenant = None
+        loc = resolve_tenant_localization(tenant)
+        return currency_symbol(loc['currency'], loc['language'])
+    except Exception:
+        return CURRENCY_META[COUNTRY_CONFIG[DEFAULT_COUNTRY]['currency']]['ar']
+
+
 def resolve_tenant_localization(tenant):
     """
     يشتق إعدادات التوطين الفعّالة لمستأجر: يبدأ من الحقول الصريحة على

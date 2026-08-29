@@ -3,6 +3,7 @@
 """
 from django.contrib import admin
 from django.utils.html import format_html
+from erp_core.localization import current_tenant_symbol as _cur_sym
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
 from django.db import connection
@@ -113,7 +114,7 @@ class MachineProfileAdmin(PrintSecureAdmin):
 
     def hourly_cost_display(self, obj):
         cost = obj.hourly_operating_cost
-        return format_html('<b style="color:#f59e0b;">{} ج.م/ساعة</b>', f"{float(cost):,.2f}")
+        return format_html('<b style="color:#f59e0b;">{} {}/ساعة</b>', f"{float(cost):,.2f}", _cur_sym())
     hourly_cost_display.short_description = "تكلفة التشغيل"
 
     def status_badge(self, obj):
@@ -236,17 +237,17 @@ class PrintOrderAdmin(PrintSecureAdmin):
     status_badge.short_description = "الحالة"
 
     def total_display(self, obj):
-        return format_html('<b>{}</b> ج.م', f"{float(obj.net_total):,.2f}")
+        return format_html('<b>{}</b> {}', f"{float(obj.net_total):,.2f}", _cur_sym())
     total_display.short_description = "الإجمالي"
 
     def paid_display(self, obj):
-        return format_html('<span style="color:#10b981;font-weight:bold;">{}</span> ج.م', f"{float(obj.paid_amount):,.2f}")
+        return format_html('<span style="color:#10b981;font-weight:bold;">{}</span> {}', f"{float(obj.paid_amount):,.2f}", _cur_sym())
     paid_display.short_description = "المدفوع"
 
     def remaining_display(self, obj):
         r = obj.remaining
         color = '#ef4444' if r > 0 else '#10b981'
-        return format_html('<span style="color:{};font-weight:bold;">{}</span> ج.م', color, f"{float(r):,.2f}")
+        return format_html('<span style="color:{};font-weight:bold;">{}</span> {}', color, f"{float(r):,.2f}", _cur_sym())
     remaining_display.short_description = "المتبقي"
 
     def profit_badge(self, obj):
@@ -265,8 +266,8 @@ class PrintOrderAdmin(PrintSecureAdmin):
             '<a href="/printing/order/{}/profit/" target="_blank" '
             'style="background:{}; color:#fff; padding:4px 10px; border-radius:10px; '
             'text-decoration:none; font-weight:700; font-size:0.78rem; display:inline-block;" '
-            'title="افتح تحليل الربحية">{} {} ج.م ({}%)</a>',
-            obj.pk, bg, icon, f"{float(profit):,.0f}", f"{float(margin):.1f}",
+            'title="افتح تحليل الربحية">{} {} {} ({}%)</a>',
+            obj.pk, bg, icon, f"{float(profit):,.0f}", _cur_sym(), f"{float(margin):.1f}",
         )
     profit_badge.short_description = "الربح"
 
@@ -288,13 +289,13 @@ class PrintJobAdmin(PrintSecureAdmin):
 
     def cost_display(self, obj):
         cost = obj.calculated_cost
-        return format_html('<span style="color:#f59e0b;">{}</span> ج.م', f"{float(cost):,.2f}")
+        return format_html('<span style="color:#f59e0b;">{}</span> {}', f"{float(cost):,.2f}", _cur_sym())
     cost_display.short_description = "التكلفة الفعلية"
 
     def profit_display(self, obj):
         p = obj.profit
         color = '#10b981' if p >= 0 else '#ef4444'
-        return format_html('<span style="color:{};font-weight:bold;">{}</span> ج.م', color, f"{float(p):,.2f}")
+        return format_html('<span style="color:{};font-weight:bold;">{}</span> {}', color, f"{float(p):,.2f}", _cur_sym())
     profit_display.short_description = "الربح"
 
 
@@ -314,7 +315,7 @@ class PrintMaterialAdmin(PrintSecureAdmin):
     quantity_display.short_description = "الكمية"
 
     def stock_value_display(self, obj):
-        return format_html('<b>{}</b> ج.م', f"{float(obj.stock_value):,.2f}")
+        return format_html('<b>{}</b> {}', f"{float(obj.stock_value):,.2f}", _cur_sym())
     stock_value_display.short_description = "القيمة"
 
     def stock_alert(self, obj):
@@ -341,7 +342,7 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
 
     def balance_display(self, obj):
         color = '#10b981' if obj.balance >= 0 else '#ef4444'
-        return format_html('<b style="color:{};">{} ج.م</b>', color, f"{float(obj.balance):,.2f}")
+        return format_html('<b style="color:{};">{} {}</b>', color, f"{float(obj.balance):,.2f}", _cur_sym())
     balance_display.short_description = "الرصيد"
 
 
@@ -358,7 +359,7 @@ class PrintTransactionAdmin(PrintSecureAdmin):
 
     def amount_display(self, obj):
         color = '#10b981' if obj.transaction_type == 'in' else '#ef4444'
-        return format_html('<b style="color:{};">{} ج.م</b>', color, f"{float(obj.amount):,.2f}")
+        return format_html('<b style="color:{};">{} {}</b>', color, f"{float(obj.amount):,.2f}", _cur_sym())
     amount_display.short_description = "المبلغ"
 
 
@@ -457,7 +458,7 @@ class PriceQuotationAdmin(PrintSecureAdmin):
     customer_col.short_description = "العميل"
 
     def total_col(self, obj):
-        return format_html('<b style="color:#ec4899; font-size:1rem;">{} ج.م</b>', f'{obj.total:,.2f}')
+        return format_html('<b style="color:#ec4899; font-size:1rem;">{} {}</b>', f'{obj.total:,.2f}', _cur_sym())
     total_col.short_description = "الإجمالي"
 
     def status_badge(self, obj):
