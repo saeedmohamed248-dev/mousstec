@@ -78,4 +78,32 @@ def tenant_context(request):
     except Exception:
         pass
 
+    # 🌍 توطين المستأجر — يتيح للـ templates عرض العملة/الرمز/الضريبة الصحيحة
+    #    بدل "ج.م" الثابتة. آمن على public schema (يسقط للافتراضي المصري).
+    try:
+        from erp_core.localization import (
+            resolve_tenant_localization,
+            currency_symbol,
+            country_config,
+            DEFAULT_COUNTRY,
+        )
+        tenant = getattr(request, 'tenant', None)
+        if tenant is not None and getattr(tenant, 'schema_name', 'public') != 'public':
+            loc = resolve_tenant_localization(tenant)
+        else:
+            _cfg = country_config(DEFAULT_COUNTRY)
+            loc = {
+                'country': DEFAULT_COUNTRY,
+                'currency': _cfg['currency'],
+                'vat_rate': _cfg['vat_rate'],
+                'timezone': _cfg['timezone'],
+                'language': _cfg['language'],
+            }
+        ctx['tenant_localization'] = loc
+        ctx['tenant_currency'] = loc['currency']
+        ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], loc['language'])
+        ctx['tenant_vat_rate'] = loc['vat_rate']
+    except Exception:
+        pass
+
     return ctx
