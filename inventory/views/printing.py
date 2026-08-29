@@ -195,9 +195,16 @@ def capture_digital_signature(request, invoice_id):
         return _json_response_safe({"error": "POST Only"}, 400)
     try:
         data = json.loads(request.body)
-        if not data.get('signature_data'):
+        signature = data.get('signature_data')
+        if not signature:
             return _json_response_safe({"error": "بيانات التوقيع فارغة"}, 400)
-        # TODO: حفظ الـ base64 في حقل model مخصص
+        # حدّ أمان: نرفض أي payload ضخم (canvas data-URI معقول < ~1MB)
+        if len(signature) > 1_000_000:
+            return _json_response_safe({"error": "حجم التوقيع كبير جداً"}, 413)
+        invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+        invoice.digital_signature = signature
+        invoice.signature_captured_at = timezone.now()
+        invoice.save(update_fields=['digital_signature', 'signature_captured_at'])
         return _json_response_safe({"status": "success", "message": "تم حفظ التوقيع الإلكتروني."})
     except Exception as e:
         logger.error(f"[SIGNATURE API] {e}")

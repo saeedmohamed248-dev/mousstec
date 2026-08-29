@@ -324,10 +324,6 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     def smart_dispatch_ai(self, request, queryset):
         self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالمركز، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
 
-    @admin.action(description='🧠 إضافة كود إجراء سريع لفتح أمر شغل فوري في لوحة الـ Quick Actions')
-    def quick_add_job_card(self, request, queryset):
-        pass
-
     @admin.action(description='🧾 الامتثال الضريبي: توليد ختم الفاتورة الإلكترونية B2B/B2C المشفر (QR Code)')
     def generate_e_invoice_qr(self, request, queryset):
         """🚀 ابتكار: تجهيز الفاتورة لتكون متوافقة مع متطلبات الضرائب (مثل ZATCA أو ETA)"""

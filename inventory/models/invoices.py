@@ -96,6 +96,10 @@ class SaleInvoice(models.Model):
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
     net_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, editable=False)
 
+    # ✍️ التوقيع الإلكتروني للعميل عند الاستلام (base64 data-URI من canvas).
+    digital_signature = models.TextField(blank=True, default='', editable=False, verbose_name=_("التوقيع الإلكتروني"))
+    signature_captured_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("وقت التوقيع"))
+
     @property
     def due_amount(self):
         if self.maintenance_contract: return Decimal('0.00')
