@@ -1,0 +1,156 @@
+# English translation for Mouss Tec ERP.
+# This file is distributed under the same license as the PACKAGE package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Mouss Tec ERP\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 00:00+0000\n"
+"PO-Revision-Date: 2026-08-30 00:00+0000\n"
+"Last-Translator: Mouss Tec <sa3eeedmohamed@hotmail.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: erp_core/settings.py
+msgid "Arabic"
+msgstr "Arabic"
+
+#: erp_core/settings.py
+msgid "English"
+msgstr "English"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "إدارة المستأجرين"
+msgstr "Tenant Management"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "إدارة المستأجرين (Tenants)"
+msgstr "Tenant Management (Tenants)"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid ""
+"حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force "
+"Delete مقيد بالـ Super Owner."
+msgstr ""
+"Safe deletion (Soft Delete) hides companies without breaking historical "
+"invoices. Force Delete is restricted to the Super Owner."
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "نشطة"
+msgstr "Active"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "محذوفة"
+msgstr "Deleted"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "الكل"
+msgstr "All"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "الشركة"
+msgstr "Company"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "المالك"
+msgstr "Owner"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "القطاع"
+msgstr "Sector"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "الباقة"
+msgstr "Plan"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "الحالة"
+msgstr "Status"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "تاريخ الإنشاء"
+msgstr "Created on"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "إجراءات"
+msgstr "Actions"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "بدون سبب"
+msgstr "No reason"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "محذوف"
+msgstr "Deleted"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "استعادة"
+msgstr "Restore"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "حذف آمن"
+msgstr "Soft delete"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "لا توجد مستأجرين في هذا التصنيف."
+msgstr "No tenants in this category."
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "حذف آمن (Soft Delete)"
+msgstr "Soft Delete"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid ""
+"سيتم إخفاء «<strong id=\"softName\"></strong>» من جميع القوائم. الفواتير "
+"والمدفوعات والـ schema تفضل سليمة."
+msgstr ""
+"«<strong id=\"softName\"></strong>» will be hidden from all lists. Invoices, "
+"payments and the schema stay intact."
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "سبب الحذف (اختياري):"
+msgstr "Reason for deletion (optional):"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "مثلاً: العميل ألغى الاشتراك"
+msgstr "e.g. The customer cancelled the subscription"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "إلغاء"
+msgstr "Cancel"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "تأكيد الحذف الآمن"
+msgstr "Confirm safe deletion"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "حذف نهائي (Force Delete)"
+msgstr "Force Delete"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "تحذير:"
+msgstr "Warning:"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid ""
+"هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم "
+"الشركة بالضبط للتأكيد:"
+msgstr ""
+"This action is irreversible and will permanently delete the schema and all "
+"data. Type the company name exactly to confirm:"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "الاسم المطلوب:"
+msgstr "Required name:"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "اكتب اسم الشركة بالحرف"
+msgstr "Type the company name exactly"
+
+#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "احذف نهائياً"
+msgstr "Delete permanently"
