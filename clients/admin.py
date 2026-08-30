@@ -524,8 +524,8 @@ class PlanAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             'fields': ('name', 'slug', 'industry', 'is_active', 'sort_order'),
         }),
         ('التسعير والخصومات', {
-            'fields': ('monthly_price', 'quarterly_discount', 'semi_annual_discount', 'annual_discount'),
-            'description': "الأسعار بالجنيه المصري. الخصومات كنسبة مئوية من السعر الشهري."
+            'fields': ('monthly_price', 'monthly_price_aed', 'quarterly_discount', 'semi_annual_discount', 'annual_discount'),
+            'description': "السعر المصري بالجنيه، والإماراتي بالدرهم (يظهر على ae.mousstec.com — اتركه 0 لاستخدام السعر المصري). الخصومات نسبة مئوية."
         }),
         ('حدود الاستخدام', {
             'fields': ('max_branches', 'max_users', 'max_treasuries'),

@@ -362,6 +362,13 @@ class Plan(models.Model):
     industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, verbose_name=_("القطاع"))
 
     monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري (ج.م)"))
+    # 🇦🇪 سعر الباقة للموقع الإماراتي (بالدرهم). فارغ/صفر ⇒ يُستخدم السعر
+    #     المصري كـ fallback. يُعرض تلقائياً على ae.mousstec.com.
+    monthly_price_aed = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name=_("السعر الشهري (د.إ) — الموقع الإماراتي"),
+        help_text=_("سعر الدرهم للموقع الإماراتي. اتركه 0 لاستخدام السعر المصري"),
+    )
     quarterly_discount = models.IntegerField(default=10, verbose_name=_("خصم ربع سنوي (%)"))
     semi_annual_discount = models.IntegerField(default=15, verbose_name=_("خصم نصف سنوي (%)"))
     annual_discount = models.IntegerField(default=20, verbose_name=_("خصم سنوي (%)"))

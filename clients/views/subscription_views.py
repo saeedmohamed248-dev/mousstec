@@ -107,6 +107,11 @@ def saas_pricing_page(request):
         logger.exception("[PRICING] failed to load Feature catalog — rendering without labels")
         feature_labels = {}
 
+    # 🌐 منطقة الموقع (مصري/إماراتي) من الدومين — تحدد عملة وأسعار العرض.
+    from erp_core.regions import region_from_request
+    region = region_from_request(request)
+    _is_ae = region['country'] == 'AE'
+
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
         for p in plan_qs:
@@ -116,11 +121,16 @@ def saas_pricing_page(request):
                     code for code, cfg in ents.items()
                     if isinstance(cfg, dict) and cfg.get('enabled')
                 ]
+                # سعر العرض: على الموقع الإماراتي نعرض سعر الدرهم إن وُجد،
+                # وإلا نسقط للسعر المصري.
+                _aed = getattr(p, 'monthly_price_aed', 0) or 0
+                display_price = _aed if (_is_ae and _aed > 0) else p.monthly_price
                 plans_by_industry.setdefault(p.industry, []).append({
                     'slug': p.slug,
                     'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
                     'name': p.name,
-                    'monthly_price': p.monthly_price,
+                    'monthly_price': display_price,
+                    'display_price': display_price,
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -143,6 +153,7 @@ def saas_pricing_page(request):
     try:
         return render(request, 'clients/pricing.html', {
             'tenant': tenant, 'shop': shop_schema,
+            'platform_region': region,
             'plans_by_industry': plans_by_industry,
             'pricing': {
                 'addon_price': 125,

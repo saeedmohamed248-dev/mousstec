@@ -117,6 +117,12 @@ def register_new_tenant_saas(request):
                         # عشان يجرّبوا كل features. لما يدفعوا، بيختاروا الباقة اللي تناسبهم.
                         default_plan = 'print_enterprise' if industry == 'printing' else 'empire'
 
+                        # 🌐 دولة المستأجر تُشتق من موقع التسجيل: من يسجّل عبر
+                        #    ae.mousstec.com يطلع حساب إماراتي (AED) تلقائياً،
+                        #    وأي دومين آخر → مصري (EGP). العملة/الضريبة تُشتق منها.
+                        from erp_core.regions import region_from_request
+                        signup_country = region_from_request(request)['country']
+
                         tenant = Client.objects.create(
                             schema_name=schema_name,
                             name=company_name,
@@ -126,6 +132,7 @@ def register_new_tenant_saas(request):
                             industry=industry,
                             business_type=business_type,
                             plan=default_plan,
+                            country=signup_country,
                             # 🔒 Email-verification gate: لازم العميل يأكد إيميله
                             # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
                             is_active=False,

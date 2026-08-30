@@ -89,16 +89,23 @@ def tenant_context(request):
         )
         tenant = getattr(request, 'tenant', None)
         if tenant is not None and getattr(tenant, 'schema_name', 'public') != 'public':
+            # صفحات مستأجر → عملة المستأجر نفسه
             loc = resolve_tenant_localization(tenant)
         else:
-            _cfg = country_config(DEFAULT_COUNTRY)
+            # الصفحات العامة (public) → عملة المنطقة حسب الدومين
+            # (mousstec.com → EGP، ae.mousstec.com → AED). ده بيخلّي كل
+            # صفحات التسويق تعرض عملة الدولة الصح تلقائياً بدون تعديل قوالب.
+            from erp_core.regions import region_from_request
+            region = region_from_request(request)
+            _cfg = country_config(region['country'])
             loc = {
-                'country': DEFAULT_COUNTRY,
-                'currency': _cfg['currency'],
-                'vat_rate': _cfg['vat_rate'],
+                'country': region['country'],
+                'currency': region['currency'],
+                'vat_rate': region['vat_rate'],
                 'timezone': _cfg['timezone'],
-                'language': _cfg['language'],
+                'language': region['language'],
             }
+            ctx['platform_region'] = region
         ctx['tenant_localization'] = loc
         ctx['tenant_currency'] = loc['currency']
         ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], loc['language'])
