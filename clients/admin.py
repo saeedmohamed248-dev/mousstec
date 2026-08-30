@@ -525,7 +525,7 @@ class PlanAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 
     fieldsets = (
         ('البيانات الأساسية', {
-            'fields': ('name', 'slug', 'industry', 'is_active', 'sort_order'),
+            'fields': ('name', 'name_en', 'slug', 'industry', 'is_active', 'sort_order'),
         }),
         ('التسعير والخصومات', {
             'fields': ('monthly_price', 'monthly_price_aed', 'quarterly_discount', 'semi_annual_discount', 'annual_discount'),

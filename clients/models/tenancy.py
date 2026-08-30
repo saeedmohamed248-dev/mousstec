@@ -364,6 +364,11 @@ class Plan(models.Model):
     )
     slug = models.SlugField(max_length=40, unique=True, verbose_name=_("المعرف"))
     name = models.CharField(max_length=80, verbose_name=_("اسم الباقة"))
+    name_en = models.CharField(
+        max_length=80, blank=True, default='',
+        verbose_name=_("اسم الباقة (إنجليزي)"),
+        help_text=_("يُعرض على الموقع الإنجليزي — اتركه فارغاً لاستخدام الاسم العربي"),
+    )
     industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, verbose_name=_("القطاع"))
 
     monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري (ج.م)"))

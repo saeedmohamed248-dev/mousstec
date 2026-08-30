@@ -99,10 +99,15 @@ def saas_pricing_page(request):
     plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
 
+    # 🌍 لغة العرض الحالية — تحدد أسماء الباقات والمزايا (عربي/إنجليزي)
+    from django.utils.translation import get_language
+    _is_en = (get_language() or 'ar').startswith('en')
+
     try:
-        feature_labels = dict(
-            Feature.objects.filter(is_active=True).values_list('code', 'name_ar')
-        )
+        # على الموقع الإنجليزي نعرض name_en للمزايا (fallback للعربي لو فارغ)
+        feature_labels = {}
+        for code, name_ar, name_en in Feature.objects.filter(is_active=True).values_list('code', 'name_ar', 'name_en'):
+            feature_labels[code] = (name_en or name_ar) if _is_en else name_ar
     except Exception:
         logger.exception("[PRICING] failed to load Feature catalog — rendering without labels")
         feature_labels = {}
@@ -125,10 +130,12 @@ def saas_pricing_page(request):
                 # وإلا نسقط للسعر المصري.
                 _aed = getattr(p, 'monthly_price_aed', 0) or 0
                 display_price = _aed if (_is_ae and _aed > 0) else p.monthly_price
+                # اسم الباقة حسب اللغة (name_en على الموقع الإنجليزي، fallback للعربي)
+                display_name = (p.name_en or p.name) if _is_en else p.name
                 plans_by_industry.setdefault(p.industry, []).append({
                     'slug': p.slug,
                     'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
-                    'name': p.name,
+                    'name': display_name,
                     'monthly_price': display_price,
                     'display_price': display_price,
                     'max_users': p.max_users,
