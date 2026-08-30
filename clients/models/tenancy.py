@@ -147,6 +147,11 @@ class Client(SoftDeleteMixin, TenantMixin):
         verbose_name=_("اللغة الافتراضية"),
         help_text=_("ar أو en — اتركها فارغة لاشتقاقها من الدولة"),
     )
+    tax_registration_number = models.CharField(
+        max_length=30, blank=True, default='',
+        verbose_name=_("الرقم الضريبي (TRN)"),
+        help_text=_("رقم التسجيل الضريبي — يظهر على الفاتورة الضريبية (إلزامي في الإمارات/السعودية)"),
+    )
 
     @property
     def localization(self):

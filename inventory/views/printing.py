@@ -91,11 +91,14 @@ def print_invoice_a4(request, invoice_id):
 
     template = ('inventory/invoice_print_detailed.html' if mode == 'detailed'
                 else 'inventory/invoice_print_a4.html')
-    return render(request, template, {
+    from erp_core.einvoice import build_tax_invoice_context
+    ctx = {
         'invoice': invoice,
         'print_date': timezone.now(),
         'mode': mode,
-    })
+    }
+    ctx.update(build_tax_invoice_context(invoice, getattr(request, 'tenant', None)))
+    return render(request, template, ctx)
 
 
 @login_required(login_url='/login/')
@@ -116,11 +119,14 @@ def export_invoice_pdf(request, invoice_id):
         return HttpResponseForbidden("لا تملك صلاحية لتصدير فواتير من فروع أخرى.")
 
     from django.template.loader import render_to_string
-    html_string = render_to_string('inventory/invoice_print_a4.html', {
+    from erp_core.einvoice import build_tax_invoice_context
+    _pdf_ctx = {
         'invoice': invoice,
         'print_date': timezone.now(),
         'pdf_mode': True,
-    })
+    }
+    _pdf_ctx.update(build_tax_invoice_context(invoice, getattr(request, 'tenant', None)))
+    html_string = render_to_string('inventory/invoice_print_a4.html', _pdf_ctx)
 
     try:
         from weasyprint import HTML, CSS

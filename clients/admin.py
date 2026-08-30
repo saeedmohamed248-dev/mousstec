@@ -229,6 +229,10 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
             'classes': ('collapse',),
             'description': "مؤشر الثقة الديناميكي المحسوب آلياً بواسطة نظام الـ AI."
         }),
+        ('التوطين والضرائب (Localization)', {
+            'fields': ('country', 'currency', 'vat_rate', 'timezone', 'default_language', 'tax_registration_number'),
+            'description': "الدولة تحدد العملة/الضريبة/التوقيت تلقائياً (اترك الباقي فارغاً). الرقم الضريبي (TRN) يظهر على الفاتورة الضريبية."
+        }),
         ('التخصيص الفني (White-labeling)', {
             # ✅ تم إزالة الحقل الوهمي auto_create_schema للقضاء على خطأ FieldError نهائياً
             'fields': ('logo', 'theme_color')
