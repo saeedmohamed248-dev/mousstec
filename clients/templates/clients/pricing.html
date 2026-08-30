@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>باقات Mouss Tec | اختر خطتك</title>
+    <title>{% trans "باقات Mouss Tec | اختر خطتك" %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -112,13 +112,13 @@
                 شهري
             </button>
             <button onclick="setBilling('quarterly')" id="btn_quarterly" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                ربع سنوي <span class="text-emerald-400 text-xs mr-1">وفّر 9%</span>
+                ربع سنوي <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 9%" %}</span>
             </button>
             <button onclick="setBilling('semi_annual')" id="btn_semi_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                نصف سنوي <span class="text-emerald-400 text-xs mr-1">وفّر 12.5%</span>
+                نصف سنوي <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 12.5%" %}</span>
             </button>
             <button onclick="setBilling('annual')" id="btn_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                سنوي <span class="text-amber-400 text-xs mr-1">وفّر 25%</span>
+                سنوي <span class="text-amber-400 text-xs mr-1">{% trans "وفّر 25%" %}</span>
             </button>
         </div>
 
@@ -151,7 +151,7 @@
                     <div class="mt-4">
                         <span class="text-4xl font-black text-white plan-price"
                               data-base="{{ plan.monthly_price|floatformat:0|unlocalize }}">{{ plan.monthly_price|floatformat:0 }}</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">جنيه / شهر</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">{% trans "جنيه / شهر" %}</span>
                     </div>
                 </div>
 
@@ -212,7 +212,7 @@
         <div class="max-w-2xl mx-auto mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
             <i class="fas fa-gift text-emerald-400 ml-2"></i>
             <span class="text-emerald-400 font-bold text-sm">{% trans "مكافأة الولاء:" %}</span>
-            <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!</span>
+            <span class="text-slate-400 text-sm"> {% trans "التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!" %}</span>
         </div>
 
     </main>
@@ -226,24 +226,24 @@
             </div>
 
             <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-6 text-center">
-                <p class="text-slate-400 text-sm mb-1">المبلغ المطلوب</p>
+                <p class="text-slate-400 text-sm mb-1">{% trans "المبلغ المطلوب" %}</p>
                 <p class="text-3xl font-black text-white"><span id="modalPrice"></span> <span class="text-lg text-slate-400" id="modalBillingLabel">{{ tenant_currency_symbol|default:'ج.م' }} / شهر</span></p>
                 <p class="text-emerald-400 text-xs font-bold mt-2 hidden" id="modalDiscount"></p>
             </div>
 
-            <p class="text-sm text-slate-400 mb-4 text-center">اختر طريقة الدفع المناسبة لك:</p>
+            <p class="text-sm text-slate-400 mb-4 text-center">{% trans "اختر طريقة الدفع المناسبة لك:" %}</p>
 
             <!-- Vodafone Cash -->
             <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-3">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400 text-lg"><i class="fas fa-mobile-alt"></i></div>
                     <div>
-                        <h4 class="text-sm font-black text-white">فودافون كاش</h4>
-                        <p class="text-xs text-slate-500">حوّل وارفع سكرين شوت — تفعيل فوري بعد المراجعة</p>
+                        <h4 class="text-sm font-black text-white">{% trans "فودافون كاش" %}</h4>
+                        <p class="text-xs text-slate-500">{% trans "حوّل وارفع سكرين شوت — تفعيل فوري بعد المراجعة" %}</p>
                     </div>
                 </div>
                 <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
-                    <p class="text-xs text-slate-500 mb-1">رقم التحويل:</p>
+                    <p class="text-xs text-slate-500 mb-1">{% trans "رقم التحويل:" %}</p>
                     <p class="text-xl font-black text-red-400 tracking-wider" dir="ltr" id="vodafoneNumber">01094850763</p>
                 </div>
                 <button onclick="payWithVodafone()"
@@ -257,12 +257,12 @@
                 <div class="flex items-center gap-3 mb-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 text-lg"><i class="fas fa-money-bill-transfer"></i></div>
                     <div>
-                        <h4 class="text-sm font-black text-white">إنستاباي</h4>
-                        <p class="text-xs text-slate-500">حوّل عن طريق InstaPay وارفع سكرين شوت العملية</p>
+                        <h4 class="text-sm font-black text-white">{% trans "إنستاباي" %}</h4>
+                        <p class="text-xs text-slate-500">{% trans "حوّل عن طريق InstaPay وارفع سكرين شوت العملية" %}</p>
                     </div>
                 </div>
                 <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
-                    <p class="text-xs text-slate-500 mb-1">عنوان InstaPay:</p>
+                    <p class="text-xs text-slate-500 mb-1">{% trans "عنوان InstaPay:" %}</p>
                     <p class="text-lg font-black text-blue-400 tracking-wider" dir="ltr">01094850763@instapay</p>
                 </div>
                 <button onclick="payWithInstapay()"
@@ -276,10 +276,10 @@
                 <div class="flex items-center gap-3 mb-3">
                     <div class="w-10 h-10 rounded-xl bg-slate-700/40 flex items-center justify-center text-slate-400 text-lg"><i class="fas fa-credit-card"></i></div>
                     <div>
-                        <h4 class="text-sm font-black text-slate-300">بطاقة فيزا / ماستركارد</h4>
-                        <p class="text-xs text-slate-500">قريباً — تحت التطوير</p>
+                        <h4 class="text-sm font-black text-slate-300">{% trans "بطاقة فيزا / ماستركارد" %}</h4>
+                        <p class="text-xs text-slate-500">{% trans "قريباً — تحت التطوير" %}</p>
                     </div>
-                    <span class="ml-auto text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-full">قريباً</span>
+                    <span class="ml-auto text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-full">{% trans "قريباً" %}</span>
                 </div>
                 <button disabled class="w-full bg-slate-700/50 text-slate-400 font-bold py-3 rounded-xl text-sm cursor-not-allowed">
                     <i class="fas fa-clock ml-1"></i> قريباً — استخدم فودافون كاش الآن
