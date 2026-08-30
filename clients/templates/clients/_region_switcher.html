@@ -1,10 +1,9 @@
-{# 🌍 مبدّل الدولة: مصر 🇪🇬 / الإمارات 🇦🇪 — يظهر على الصفحات العامة #}
+{# 🌍 مبدّل الدولة: مصر 🇪🇬 / الإمارات 🇦🇪 — inline styles ليعمل على أي صفحة (Tailwind/Bootstrap) #}
 {% if platform_regions %}
-<div class="inline-flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-1" role="group" aria-label="اختر الدولة">
+<div style="display:inline-flex;align-items:center;gap:2px;background:rgba(30,41,59,.6);border:1px solid rgba(71,85,105,.6);border-radius:9px;padding:3px;" role="group" aria-label="اختر الدولة">
     {% for r in platform_regions %}
-    <a href="{{ r.url }}"
-       title="{{ r.name_ar }} ({{ r.currency }})"
-       class="px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition {% if r.is_current %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">
+    <a href="{{ r.url }}" title="{{ r.name_ar }} ({{ r.currency }})"
+       style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:6px;font-size:12.5px;font-weight:700;text-decoration:none;transition:.15s;{% if r.is_current %}background:#059669;color:#fff;{% else %}color:#94a3b8;{% endif %}">
         <span>{{ r.flag }}</span><span>{{ r.name_ar }}</span>
     </a>
     {% endfor %}
