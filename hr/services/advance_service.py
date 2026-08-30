@@ -16,6 +16,7 @@ from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -49,7 +50,7 @@ class AdvanceService:
         if amount > max_allowed:
             raise ValidationError(
                 f"مبلغ السلفة ({amount:,.2f}) يتجاوز الحد الأقصى المسموح "
-                f"({max_allowed:,.2f} ج.م — {hr_settings.max_advance_percentage}% من الراتب)."
+                f"({max_allowed:,.2f} {_sym()} — {hr_settings.max_advance_percentage}% من الراتب)."
             )
 
         if installments_count > hr_settings.max_installments:

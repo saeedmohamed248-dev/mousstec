@@ -38,6 +38,7 @@ from clients.models import (
 )
 from clients.services import escrow as escrow_svc
 from clients.views._shared import _marketplace_auth
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -212,7 +213,7 @@ def parts_create(request):
                 PlatformEvent.objects.create(
                     event_type='other', tenant_schema='public', tenant_name='parts_market',
                     user_name=customer.full_name,
-                    description=f"🛒 قطعة جديدة معروضة: «{listing.title}» — {make.name} — {price} ج.م",
+                    description=f"🛒 قطعة جديدة معروضة: «{listing.title}» — {make.name} — {price} {_sym()}",
                 )
             return JsonResponse({
                 'ok': True,
@@ -453,8 +454,8 @@ def parts_paymob_callback(request):
                     customer=order.listing.seller_customer,
                     title=f'🎉 تم بيع «{order.listing.title}»',
                     body=(
-                        f'المشتري دفع {order.amount_paid} ج.م — الفلوس في الـ Escrow. '
-                        f'جهّز القطعة وابعتها للعميل. هتستلم {order.seller_payout} ج.م '
+                        f'المشتري دفع {order.amount_paid} {_sym()} — الفلوس في الـ Escrow. '
+                        f'جهّز القطعة وابعتها للعميل. هتستلم {order.seller_payout} {_sym()} '
                         f'بعد {order.warranty_days} يوم من تأكيد التسليم.'
                     ),
                     level='success', icon='fa-money-check-dollar',

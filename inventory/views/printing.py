@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from erp_core.localization import current_tenant_symbol as _sym
 
 
 # Invoice printing (A4 / thermal / PDF), WhatsApp share, digital signature.
@@ -182,7 +183,7 @@ def share_invoice_whatsapp(request, invoice_id):
     msg = (
         f"مرحباً بك أستاذ {invoice.customer.name} 🚗\n"
         f"تم إصدار مستندكم رقم #{invoice.id}.\n"
-        f"الإجمالي: {amount_str} ج.م\n"
+        f"الإجمالي: {amount_str} {_sym()}\n"
         "شكراً لتعاملكم معنا. (Mouss Tec Ecosystem)"
     )
     return redirect(f"https://wa.me/{invoice.customer.phone}?text={urllib.parse.quote(msg)}")

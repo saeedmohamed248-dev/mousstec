@@ -14,6 +14,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages as django_messages
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -1157,6 +1158,6 @@ def api_quick_treasury_transaction(request):
     icon = "🟢 إيراد" if txn_type == 'in' else "🔴 مصروف"
     return _json_response({
         "success": True,
-        "message": f"تم تسجيل {icon} بقيمة {amount:,.2f} ج.م.",
+        "message": f"تم تسجيل {icon} بقيمة {amount:,.2f} {_sym()}.",
         "transaction_id": txn.pk,
     })

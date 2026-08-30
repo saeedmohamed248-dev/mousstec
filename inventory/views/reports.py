@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from erp_core.localization import current_tenant_symbol as _sym
 
 
 # Async reports, statements (customer/vendor), ledger, bank reconciliation, commission payout, import flow, P&L / trial-balance / balance-sheet / product-profitability.
@@ -1254,7 +1255,7 @@ def commission_dashboard(request):
             messages.success(
                 request,
                 f"✅ صُرفت عمولات {result['paid_count']} موظف بإجمالي "
-                f"{result['total_paid']:,.2f} ج.م من خزنة «{result['treasury_name']}»."
+                f"{result['total_paid']:,.2f} {_sym()} من خزنة «{result['treasury_name']}»."
             )
         except ValidationError as e:
             messages.error(request, f"❌ {e.messages[0]}")

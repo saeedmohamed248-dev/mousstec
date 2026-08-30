@@ -38,6 +38,7 @@ from typing import Literal, Optional
 
 from django.db import transaction
 from django.db.models import F
+from erp_core.localization import current_tenant_symbol as _sym
 
 KindT = Literal['scan', 'bot']
 
@@ -141,7 +142,7 @@ def check_quota(tenant, *, kind: KindT) -> QuotaResult:
 
     reason = (
         f"انتهت حصة {'الفحوصات' if kind == 'scan' else 'البوت'} الشهرية "
-        f"({limit}/شهر). اشحن باقة 30 استخدام بـ 150 ج.م للاستمرار."
+        f"({limit}/شهر). اشحن باقة 30 استخدام بـ 150 {_sym()} للاستمرار."
     )
     return _build_result(sub, kind, False, reason)
 

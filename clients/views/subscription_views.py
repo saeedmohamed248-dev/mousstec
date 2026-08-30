@@ -31,6 +31,7 @@ from clients.models import (
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
 from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -464,10 +465,10 @@ def manage_subscription(request):
                 t.save()
                 EscrowLedger.objects.create(
                     client=t, transaction_type='fee_deduction', amount=total_cost,
-                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
                 )
             tenant.refresh_from_db()
-            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} {_sym()}"
 
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
@@ -547,7 +548,7 @@ def purchase_addon_api(request):
             t.save()
             EscrowLedger.objects.create(
                 client=t, transaction_type='fee_deduction', amount=total_cost,
-                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
             )
 
         remaining_days = 0
@@ -558,7 +559,7 @@ def purchase_addon_api(request):
             "status": "success", "addon_type": addon_type, "quantity": qty,
             "cost_per_unit": float(prorated), "total_cost": float(total_cost),
             "remaining_days": remaining_days,
-            "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+            "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} {_sym()}"
         })
     except Exception as e:
         logger.error("[ADDON] purchase_addon_api error: %s", e)
