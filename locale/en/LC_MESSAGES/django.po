@@ -1,0 +1,37 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Mousstec\n"
+"Report-Msgid-Bugs-To: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: clients/templates/clients/pricing.html
+msgid "العودة للرئيسية"
+msgstr "Back to home"
+
+msgid "اسعار شفافة بدون مفاجآت"
+msgstr "Transparent pricing, no surprises"
+
+msgid "اختر الباقة المناسبة"
+msgstr "Choose the right plan"
+
+msgid "لنشاطك"
+msgstr "for your business"
+
+msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً %(days)s ايام ثم اختر باقتك."
+msgstr "Every plan includes full accounting, smart reports, and invoicing. Try %(days)s days free, then pick your plan."
+
+msgid "نظام الاضافات المرنة"
+msgstr "Flexible add-ons"
+
+msgid "مكافأة الولاء:"
+msgstr "Loyalty bonus:"
+
+msgid "اشترك الآن"
+msgstr "Subscribe now"
+
+msgid "مش متأكد؟"
+msgstr "Not sure?"

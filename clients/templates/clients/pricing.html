@@ -1,6 +1,8 @@
-{% load l10n %}
+{% load l10n i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,9 +36,18 @@
             </div>
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
-        <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
-            <i class="fas fa-arrow-right"></i> العودة للرئيسية
-        </a>
+        <div class="flex items-center gap-4">
+            <!-- 🌐 مبدّل اللغة (ع / EN) -->
+            <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-1">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" name="language" value="ar" class="px-2.5 py-1 rounded text-xs font-bold {% if LANGUAGE_CODE == 'ar' %}bg-purple-600 text-white{% else %}text-slate-400{% endif %}">ع</button>
+                <button type="submit" name="language" value="en" class="px-2.5 py-1 rounded text-xs font-bold {% if LANGUAGE_CODE == 'en' %}bg-purple-600 text-white{% else %}text-slate-400{% endif %}">EN</button>
+            </form>
+            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm flex items-center gap-2 transition">
+                <i class="fas fa-arrow-right"></i> {% trans "العودة للرئيسية" %}
+            </a>
+        </div>
     </header>
 
     <main class="container mx-auto px-6 py-12">
@@ -44,14 +55,14 @@
         <!-- Title -->
         <div class="text-center mb-14">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> اسعار شفافة بدون مفاجآت
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> {% trans "اسعار شفافة بدون مفاجآت" %}
             </span>
             <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
-                اختر الباقة المناسبة
-                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> لنشاطك</span>
+                {% trans "اختر الباقة المناسبة" %}
+                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> {% trans "لنشاطك" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto">
-                جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً {{ pricing.free_trial_days }} ايام ثم اختر باقتك.
+                {% blocktrans with days=pricing.free_trial_days %}جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً {{ days }} ايام ثم اختر باقتك.{% endblocktrans %}
             </p>
 
             {% if tenant %}
@@ -187,7 +198,7 @@
         <div class="max-w-3xl mx-auto mt-10 bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-6 py-5 text-center">
             <div class="flex items-center justify-center gap-3 mb-3">
                 <i class="fas fa-puzzle-piece text-indigo-400 text-lg"></i>
-                <span class="text-indigo-400 font-black text-base">نظام الاضافات المرنة</span>
+                <span class="text-indigo-400 font-black text-base">{% trans "نظام الاضافات المرنة" %}</span>
             </div>
             <p class="text-slate-400 text-sm leading-relaxed">
                 اضف موظفين او فروع او خزائن اضافية في اي وقت بـ <strong class="text-white">{{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong> للاضافة الواحدة.
@@ -198,7 +209,7 @@
         <!-- Loyalty Bonus Note -->
         <div class="max-w-2xl mx-auto mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-6 py-4 text-center">
             <i class="fas fa-gift text-emerald-400 ml-2"></i>
-            <span class="text-emerald-400 font-bold text-sm">مكافأة الولاء:</span>
+            <span class="text-emerald-400 font-bold text-sm">{% trans "مكافأة الولاء:" %}</span>
             <span class="text-slate-400 text-sm"> التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!</span>
         </div>
 
@@ -208,7 +219,7 @@
     <div id="subscribeModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-black text-white"><i class="fas fa-credit-card text-purple-400 ml-2"></i>اشترك الآن — <span id="modalPlanName"></span></h3>
+                <h3 class="text-lg font-black text-white"><i class="fas fa-credit-card text-purple-400 ml-2"></i>{% trans "اشترك الآن" %} — <span id="modalPlanName"></span></h3>
                 <button onclick="closeSubscribeModal()" class="text-slate-500 hover:text-red-400 transition"><i class="fas fa-times text-xl"></i></button>
             </div>
 
@@ -276,7 +287,7 @@
             <!-- Or use trial -->
             {% if not tenant %}
             <div class="text-center mt-4 pt-4 border-t border-slate-800">
-                <p class="text-slate-500 text-xs mb-2">مش متأكد؟</p>
+                <p class="text-slate-500 text-xs mb-2">{% trans "مش متأكد؟" %}</p>
                 <button onclick="closeSubscribeModal(); document.querySelector('[name=action][value=trial]').closest('form').submit();" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
                     <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام بدون دفع
                 </button>
