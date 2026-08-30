@@ -353,9 +353,10 @@ def _find_user_across_tenants(identifier: str):
                 schema_name=cached['schema_name'], status__in=['active', 'trial']
             ).only('id', 'schema_name', 'name', 'status').first()
             if t:
-                with schema_context(t.schema_name):
-                    if User.objects.filter(pk=cached['user_id'], is_active=True).exists():
-                        return {'tenant': t, 'user_id': cached['user_id']}
+                with transaction.atomic():
+                    with schema_context(t.schema_name):
+                        if User.objects.filter(pk=cached['user_id'], is_active=True).exists():
+                            return {'tenant': t, 'user_id': cached['user_id']}
         except Exception:
             pass
         cache.delete(cache_key)
@@ -367,14 +368,18 @@ def _find_user_across_tenants(identifier: str):
     )
     for t in tenants:
         try:
-            with schema_context(t.schema_name):
-                u = (
-                    User.objects.filter(email__iexact=identifier, is_active=True).first()
-                    or User.objects.filter(username__iexact=identifier, is_active=True).first()
-                )
-                if u:
-                    cache.set(cache_key, {'schema_name': t.schema_name, 'user_id': u.id}, timeout=43200)
-                    return {'tenant': t, 'user_id': u.id}
+            # 🛡️ atomic لكل مستأجر: لو schema شركة تالفة/نص-مهاجَرة رمت خطأ،
+            # الـ savepoint بيترول-باك ويسيب الاتصال سليم للمستأجر اللي بعده،
+            # فمحاولة الدخول ماتنكسرش بسبب شركة واحدة معطوبة.
+            with transaction.atomic():
+                with schema_context(t.schema_name):
+                    u = (
+                        User.objects.filter(email__iexact=identifier, is_active=True).first()
+                        or User.objects.filter(username__iexact=identifier, is_active=True).first()
+                    )
+                    if u:
+                        cache.set(cache_key, {'schema_name': t.schema_name, 'user_id': u.id}, timeout=43200)
+                        return {'tenant': t, 'user_id': u.id}
         except Exception:
             continue
     return None
@@ -395,6 +400,29 @@ def _build_login_url_for_tenant(request, tenant) -> str | None:
 
 
 def client_login_finder(request):
+    """غلاف آمن لصفحة الدخول — يمنع أي استثناء غير متوقع من تحويلها لصفحة 500.
+
+    صفحة الدخول نقطة حرجة؛ أي عطل عابر (قاعدة بيانات، كاش، schema شركة تالفة،
+    خطأ في lookup بين المستأجرين… إلخ) كان بيطلّع للمستخدم صفحة "500 - Internal
+    Server Error" الجافة. هنا بنمسك أي استثناء، نسجّله في اللوج بالـ traceback
+    الكامل (عشان السوبر أدمن يشوف السبب الحقيقي في SystemErrorLog/اللوج)،
+    ونرجّع للمستخدم رسالة ودّية يقدر يعيد المحاولة بعدها.
+    """
+    try:
+        return _client_login_finder_impl(request)
+    except Exception:
+        logger.exception("🚨 [LOGIN] client_login_finder crashed — serving safe fallback page")
+        try:
+            last_email = request.POST.get('email', '').strip().lower()
+        except Exception:
+            last_email = ''
+        return render(request, 'clients/login_finder.html', {
+            'error': 'حدث خطأ مؤقت أثناء محاولة تسجيل الدخول. برجاء المحاولة مرة أخرى بعد لحظات، ولو استمرت المشكلة تواصل مع الدعم.',
+            'last_email': last_email,
+        })
+
+
+def _client_login_finder_impl(request):
     """
     صفحة دخول موحّدة بأسلوب Odoo:
     - يدخل المستخدم email + password → النظام يلاقي شركته ويسجّل دخوله مباشرة
