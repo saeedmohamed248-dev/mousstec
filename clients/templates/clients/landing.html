@@ -1,5 +1,8 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -92,6 +95,7 @@
 
         <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
             {% include "clients/_region_switcher.html" %}
+            {% include "clients/_language_switcher.html" %}
             <a href="#marketplace-public" class="hidden md:inline-flex text-amber-300 hover:text-amber-200 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5 bg-amber-500/10 border border-amber-500/20">
                 <i class="fas fa-store"></i> السوق
             </a>
@@ -119,7 +123,7 @@
             </span>
             <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
                 منصة <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">Mouss Tec</span><br>
-                <span class="text-2xl lg:text-3xl text-slate-300">شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد</span>
+                <span class="text-2xl lg:text-3xl text-slate-300">{% trans "شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد" %}</span>
             </h1>
             <p class="text-slate-400 text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed mb-6">
                 إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio للتصاميم — كله من نظام واحد.
@@ -147,23 +151,23 @@
                     <a href="#marketplace-public" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-400 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-user text-amber-400 text-xl"></i>
-                            <span class="text-white font-black text-sm">عميل عاوز يطلب</span>
+                            <span class="text-white font-black text-sm">{% trans "عميل عاوز يطلب" %}</span>
                         </div>
                         <p class="text-amber-200/60 text-xs">قطعة، صيانة، تصميم، أو طباعة</p>
                     </a>
                     <a href="#industry-cards" class="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-400 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-building text-purple-400 text-xl"></i>
-                            <span class="text-white font-black text-sm">صاحب شركة أو مركز</span>
+                            <span class="text-white font-black text-sm">{% trans "صاحب شركة أو مركز" %}</span>
                         </div>
-                        <p class="text-purple-200/60 text-xs">سجّل شركتك واستخدم النظام كامل</p>
+                        <p class="text-purple-200/60 text-xs">{% trans "سجّل شركتك واستخدم النظام كامل" %}</p>
                     </a>
                     <a href="{% url 'client_login_finder' %}" class="bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600 hover:border-slate-500 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-key text-slate-300 text-xl"></i>
-                            <span class="text-white font-black text-sm">عندي حساب</span>
+                            <span class="text-white font-black text-sm">{% trans "عندي حساب" %}</span>
                         </div>
-                        <p class="text-slate-400 text-xs">ادخل على حسابك مباشرة</p>
+                        <p class="text-slate-400 text-xs">{% trans "ادخل على حسابك مباشرة" %}</p>
                     </a>
                 </div>
             </div>

@@ -35,3 +35,22 @@ msgstr "Subscribe now"
 
 msgid "مش متأكد؟"
 msgstr "Not sure?"
+
+#: clients/templates/clients/landing.html
+msgid "شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد"
+msgstr "Your business + your marketplace + your AI, all in one place"
+
+msgid "عميل عاوز يطلب"
+msgstr "I'm a customer"
+
+msgid "صاحب شركة أو مركز"
+msgstr "Business or workshop owner"
+
+msgid "عندي حساب"
+msgstr "I have an account"
+
+msgid "ادخل على حسابك مباشرة"
+msgstr "Sign in to your account"
+
+msgid "سجّل شركتك واستخدم النظام كامل"
+msgstr "Register your business and use the full system"
