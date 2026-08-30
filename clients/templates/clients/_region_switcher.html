@@ -1,0 +1,12 @@
+{# 🌍 مبدّل الدولة: مصر 🇪🇬 / الإمارات 🇦🇪 — يظهر على الصفحات العامة #}
+{% if platform_regions %}
+<div class="inline-flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-1" role="group" aria-label="اختر الدولة">
+    {% for r in platform_regions %}
+    <a href="{{ r.url }}"
+       title="{{ r.name_ar }} ({{ r.currency }})"
+       class="px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition {% if r.is_current %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">
+        <span>{{ r.flag }}</span><span>{{ r.name_ar }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}

@@ -36,7 +36,9 @@
             </div>
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3 flex-wrap">
+            <!-- 🌍 مبدّل الدولة (مصر / الإمارات) -->
+            {% include "clients/_region_switcher.html" %}
             <!-- 🌐 مبدّل اللغة (ع / EN) -->
             <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1 bg-slate-800/60 border border-slate-700 rounded-lg p-1">
                 {% csrf_token %}

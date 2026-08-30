@@ -95,7 +95,7 @@ def tenant_context(request):
             # الصفحات العامة (public) → عملة المنطقة حسب الدومين
             # (mousstec.com → EGP، ae.mousstec.com → AED). ده بيخلّي كل
             # صفحات التسويق تعرض عملة الدولة الصح تلقائياً بدون تعديل قوالب.
-            from erp_core.regions import region_from_request
+            from erp_core.regions import region_from_request, region_links
             region = region_from_request(request)
             _cfg = country_config(region['country'])
             loc = {
@@ -106,6 +106,8 @@ def tenant_context(request):
                 'language': region['language'],
             }
             ctx['platform_region'] = region
+            # روابط تبديل الدولة (مصر 🇪🇬 / الإمارات 🇦🇪) لمبدّل الهيدر
+            ctx['platform_regions'] = region_links(request)
         ctx['tenant_localization'] = loc
         ctx['tenant_currency'] = loc['currency']
         ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], loc['language'])

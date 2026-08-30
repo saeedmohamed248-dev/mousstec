@@ -37,6 +37,7 @@
             </div>
         </a>
         <div class="flex items-center gap-3">
+            {% include "clients/_region_switcher.html" %}
             <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-pink-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
                 <i class="fas fa-tags"></i> الباقات
             </a>

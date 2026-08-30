@@ -65,3 +65,39 @@ def region_from_request(request):
             'vat_rate': cfg['vat_rate'], 'language': cfg['language'],
             'name_ar': cfg['name_ar'], 'flag': cfg['flag'],
         }
+
+
+def _host_for_country(country, base_domain):
+    """host الموقع لكل دولة: مصر = الدومين الأساسي، الإمارات = أول REGION_AE_HOSTS."""
+    if country == 'AE':
+        return (_ae_hosts() or [f'ae.{base_domain}'])[0]
+    return base_domain
+
+
+def region_links(request):
+    """
+    قائمة مواقع المنصة للتبديل بينها (مصري/إماراتي) مع رابط كامل يحافظ على
+    نفس المسار، وعلامة is_current للموقع الحالي. تُستخدم لمبدّل الدولة في الهيدر.
+    """
+    base = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+    try:
+        current = region_country_for_host(request.get_host())
+        path = request.get_full_path()
+        secure = request.is_secure()
+    except Exception:
+        current, path, secure = DEFAULT_COUNTRY, '/', True
+    scheme = 'https' if secure else 'http'
+    out = []
+    for code in ('EG', 'AE'):
+        cfg = country_config(code)
+        host = _host_for_country(code, base)
+        out.append({
+            'country': code,
+            'flag': cfg['flag'],
+            'name_ar': cfg['name_ar'],
+            'name_en': cfg['name_en'],
+            'currency': cfg['currency'],
+            'url': f"{scheme}://{host}{path}",
+            'is_current': code == current,
+        })
+    return out
