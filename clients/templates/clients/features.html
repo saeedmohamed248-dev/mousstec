@@ -1,6 +1,8 @@
-{% load l10n %}
+{% load l10n i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,10 +31,12 @@
             </div>
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
-        <nav class="flex items-center gap-6">
-            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الرئيسية</a>
-            <a href="/pricing/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الباقات</a>
-            <a href="/features/" class="text-purple-400 font-bold text-sm transition border-b-2 border-purple-400">المميزات</a>
+        <nav class="flex items-center gap-4 flex-wrap">
+            {% include "clients/_region_switcher.html" %}
+            {% include "clients/_language_switcher.html" %}
+            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">{% trans "الرئيسية" %}</a>
+            <a href="/pricing/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">{% trans "الباقات" %}</a>
+            <a href="/features/" class="text-purple-400 font-bold text-sm transition border-b-2 border-purple-400">{% trans "المميزات" %}</a>
         </nav>
     </header>
 
@@ -84,7 +88,7 @@
                         <i class="fas fa-receipt"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">الفواتير والمبيعات</h2>
+                        <h2 class="text-3xl font-black text-white">{% trans "الفواتير والمبيعات" %}</h2>
                         <p class="text-slate-400">إنشاء وإدارة فواتير احترافية بسهولة</p>
                     </div>
                 </div>
@@ -96,17 +100,17 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-file-invoice"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">فواتير ذكية</h3>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "فواتير ذكية" %}</h3>
                     <p class="text-slate-400 text-sm">ترقيم تلقائي، توقيع رقمي، وطباعة احترافية</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-calculator"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">حسابات ضريبية دقيقة</h3>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "حسابات ضريبية دقيقة" %}</h3>
                     <p class="text-slate-400 text-sm">حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-file-pdf"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تصدير PDF</h3>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تصدير PDF" %}</h3>
                     <p class="text-slate-400 text-sm">حفظ وطباعة وإرسال الفواتير بصيغة احترافية</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
@@ -137,7 +141,7 @@
                         <i class="fas fa-boxes"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">إدارة المخزون</h2>
+                        <h2 class="text-3xl font-black text-white">{% trans "إدارة المخزون" %}</h2>
                         <p class="text-slate-400">تتبع قطعك وأصنافك بدقة</p>
                     </div>
                 </div>

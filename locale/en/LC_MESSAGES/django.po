@@ -54,3 +54,28 @@ msgstr "Sign in to your account"
 
 msgid "سجّل شركتك واستخدم النظام كامل"
 msgstr "Register your business and use the full system"
+
+#: clients/templates/clients/features.html
+msgid "الرئيسية"
+msgstr "Home"
+
+msgid "الباقات"
+msgstr "Plans"
+
+msgid "المميزات"
+msgstr "Features"
+
+msgid "الفواتير والمبيعات"
+msgstr "Invoicing & Sales"
+
+msgid "فواتير ذكية"
+msgstr "Smart invoices"
+
+msgid "حسابات ضريبية دقيقة"
+msgstr "Accurate tax accounting"
+
+msgid "تصدير PDF"
+msgstr "PDF export"
+
+msgid "إدارة المخزون"
+msgstr "Inventory management"
