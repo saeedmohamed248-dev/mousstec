@@ -1,12 +1,11 @@
 # English translation for Mouss Tec ERP.
-# This file is distributed under the same license as the PACKAGE package.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: Mouss Tec ERP\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-30 00:00+0000\n"
-"PO-Revision-Date: 2026-08-30 00:00+0000\n"
+"POT-Creation-Date: 2026-08-31 00:00+0000\n"
+"PO-Revision-Date: 2026-08-31 00:00+0000\n"
 "Last-Translator: Mouss Tec <sa3eeedmohamed@hotmail.com>\n"
 "Language-Team: English\n"
 "Language: en\n"
@@ -15,142 +14,1521 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: erp_core/settings.py
-msgid "Arabic"
-msgstr "Arabic"
+msgid "% من شركات شهر X لسه بيدفعوا في الشهور اللي بعده"
+msgstr "% of month-X companies still paying in the months that follow"
 
-#: erp_core/settings.py
-msgid "English"
-msgstr "English"
+msgid "%(global_cache_hits)s منها cache hits"
+msgstr "%(global_cache_hits)s of them cache hits"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "إدارة المستأجرين"
-msgstr "Tenant Management"
+msgid "%(n)s شهر"
+msgstr "%(n)s months"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "إدارة المستأجرين (Tenants)"
-msgstr "Tenant Management (Tenants)"
+msgid "%(n)s طلب"
+msgstr "%(n)s requests"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid ""
-"حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force "
-"Delete مقيد بالـ Super Owner."
-msgstr ""
-"Safe deletion (Soft Delete) hides companies without breaking historical "
-"invoices. Force Delete is restricted to the Super Owner."
+msgid "%(n)s عرض"
+msgstr "%(n)s offers"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "نشطة"
-msgstr "Active"
+msgid "%(t)s مضت"
+msgstr "%(t)s ago"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "محذوفة"
-msgstr "Deleted"
+msgid "3 أشهر"
+msgstr "3 months"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "الكل"
-msgstr "All"
+msgid "6 أشهر"
+msgstr "6 months"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "الشركة"
-msgstr "Company"
+msgid "Churn (الشهر الحالي)"
+msgstr "Churn (current month)"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "المالك"
-msgstr "Owner"
+msgid "M0 = شهر التسجيل، M1 = الشهر اللي بعده، إلخ. كل ما النسبة قرّبت من 100%، كل ما الـ cohort أكثر retention."
+msgstr "M0 = signup month, M1 = the next month, etc. The closer the ratio gets to 100%, the more the cohort retains."
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "القطاع"
-msgstr "Sector"
+msgid "MRR الحالي"
+msgstr "Current MRR"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "الباقة"
-msgstr "Plan"
+msgid "MRR لكل باقة"
+msgstr "MRR per plan"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "الحالة"
-msgstr "Status"
+msgid "MRR، conversion، cohort retention، churn — كل القرارات اللي تخص نمو الإيرادات في صفحة واحدة."
+msgstr "MRR, conversion, cohort retention, churn — every decision about revenue growth on one page."
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "تاريخ الإنشاء"
-msgstr "Created on"
+msgid "Rollout — متى يسري التعديل؟"
+msgstr "Rollout — when does the change take effect?"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "USD — كل الـ tenants"
+msgstr "USD — all tenants"
+
+msgid "silver/gold/empire إلخ"
+msgstr "silver/gold/empire, etc."
+
+msgid "status=active بس"
+msgstr "status=active only"
+
+msgid "آخر 10 Revisions"
+msgstr "Last 10 revisions"
+
+msgid "آخر 24س Calls"
+msgstr "Last 24h calls"
+
+msgid "آخر 25 فاتورة"
+msgstr "Last 25 invoices"
+
+msgid "آخر 30 يوم"
+msgstr "Last 30 days"
+
+msgid "آخر 30 يوم $"
+msgstr "Last 30 days $"
+
+msgid "آخر 30 يوم:"
+msgstr "Last 30 days:"
+
+msgid "آخر اتصال"
+msgstr "Last call"
+
+msgid "آخر الأحداث"
+msgstr "Recent events"
+
+msgid "آخر الأخطاء (10)"
+msgstr "Recent errors (10)"
+
+msgid "آخر زيارة"
+msgstr "Last visit"
+
+msgid "آخر فحص"
+msgstr "Last check"
+
+msgid "آخر نشاط"
+msgstr "Last activity"
+
+msgid "آخرها %(d)s"
+msgstr "Latest %(d)s"
+
+msgid "آمن"
+msgstr "Safe"
+
+msgid "أبطأ 10 طلبات (آخر ساعة)"
+msgstr "Slowest 10 requests (last hour)"
+
+msgid "أخطاء (%(n)s)"
+msgstr "Errors (%(n)s)"
+
+msgid "أخطاء حرجة مفتوحة (500)"
+msgstr "Open critical errors (500)"
+
+msgid "أخطاء غير محلولة"
+msgstr "Unresolved errors"
+
+msgid "أخطاء في آخر ساعة"
+msgstr "Errors in the last hour"
+
+msgid "أسبوع"
+msgstr "week"
+
+msgid "أضف ملاحظة..."
+msgstr "Add a note..."
+
+msgid "أعلى 10 Tenants استهلاكاً"
+msgstr "Top 10 consuming tenants"
+
+msgid "أكثر الصفحات زيارة (30 يوم)"
+msgstr "Most visited pages (30 days)"
+
+msgid "أكّدوا الإيميل"
+msgstr "Verified email"
+
+msgid "أمان"
+msgstr "Security"
+
+msgid "أنشط الشركات"
+msgstr "Most active companies"
+
+msgid "أنشط المستخدمين"
+msgstr "Most active users"
+
+msgid "أنواع الجمهور:"
+msgstr "Audience types:"
+
+msgid "إجراء"
+msgstr "Action"
+
 msgid "إجراءات"
 msgstr "Actions"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "بدون سبب"
-msgstr "No reason"
+msgid "إجمالي $"
+msgstr "Total $"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "محذوف"
-msgstr "Deleted"
+msgid "إجمالي Calls"
+msgstr "Total calls"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "استعادة"
-msgstr "Restore"
+msgid "إجمالي الأحداث"
+msgstr "Total events"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "حذف آمن"
-msgstr "Soft delete"
+msgid "إجمالي الباقات"
+msgstr "Total plans"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "لا توجد مستأجرين في هذا التصنيف."
-msgstr "No tenants in this category."
+msgid "إجمالي القطع المعروضة"
+msgstr "Total listed parts"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "حذف آمن (Soft Delete)"
-msgstr "Soft Delete"
+msgid "إجمالي المدفوع"
+msgstr "Total paid"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid ""
-"سيتم إخفاء «<strong id=\"softName\"></strong>» من جميع القوائم. الفواتير "
-"والمدفوعات والـ schema تفضل سليمة."
-msgstr ""
-"«<strong id=\"softName\"></strong>» will be hidden from all lists. Invoices, "
-"payments and the schema stay intact."
+msgid "إجمالي تدفقات SaaS من فواتير المنصة (PlatformInvoice) المدفوعة. مش بيشمل مبيعات الـ tenants لعملائهم."
+msgstr "Total SaaS inflows from paid platform invoices (PlatformInvoice). Does not include tenants' sales to their own customers."
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "سبب الحذف (اختياري):"
-msgstr "Reason for deletion (optional):"
+msgid "إجمالي مصروف API"
+msgstr "Total API spend"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "مثلاً: العميل ألغى الاشتراك"
-msgstr "e.g. The customer cancelled the subscription"
+msgid "إجمالي مفتوح"
+msgstr "Total open"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "إدارة الباقات"
+msgstr "Plan management"
+
+msgid "إدارة الباقات والاشتراكات"
+msgstr "Plans & subscriptions management"
+
+msgid "إدارة المستأجرين"
+msgstr "Tenant Management"
+
+msgid "إدارة المستأجرين (Tenants)"
+msgstr "Tenant Management (Tenants)"
+
+msgid "إدارة طلبات السوق"
+msgstr "Marketplace requests management"
+
+msgid "إرسال"
+msgstr "Send"
+
+msgid "إرسال إيميل (يتم في الخلفية عبر Celery)"
+msgstr "Send email (runs in the background via Celery)"
+
+msgid "إرسال الآن"
+msgstr "Send now"
+
+msgid "إضافة ملاحظة"
+msgstr "Add note"
+
+msgid "إعادة"
+msgstr "Reset"
+
+msgid "إعادة إرسال"
+msgstr "Resend"
+
+msgid "إعادة إرسال «%(subj)s»؟"
+msgstr "Resend «%(subj)s»?"
+
+msgid "إعادة تعيين"
+msgstr "Reset"
+
+msgid "إعادة فتح"
+msgstr "Reopen"
+
+msgid "إعلان مهم …"
+msgstr "Important announcement …"
+
+msgid "إغلاق"
+msgstr "Close"
+
 msgid "إلغاء"
 msgstr "Cancel"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "تأكيد الحذف الآمن"
-msgstr "Confirm safe deletion"
+msgid "إلى تاريخ"
+msgstr "To date"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "حذف نهائي (Force Delete)"
-msgstr "Force Delete"
+msgid "إنهاء الجلسة"
+msgstr "End session"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "تحذير:"
-msgstr "Warning:"
+msgid "إيراد"
+msgstr "Revenue"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid ""
-"هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم "
-"الشركة بالضبط للتأكيد:"
-msgstr ""
-"This action is irreversible and will permanently delete the schema and all "
-"data. Type the company name exactly to confirm:"
+msgid "إيميل"
+msgstr "Email"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "الاسم المطلوب:"
-msgstr "Required name:"
+msgid "ابعت إعلان أو إشعار صيانة لكل الشركات أو شريحة محددة. الإرسال sync — للأحجام الكبيرة هنعمل Celery لاحقاً."
+msgstr "Send an announcement or maintenance notice to all companies or a specific segment. Sending is sync — for large volumes we'll add Celery later."
 
-#: clients/templates/clients/saas_admin/tenants_list.html
+msgid "اتجاه الإيرادات الشهرية (آخر 6 شهور)"
+msgstr "Monthly revenue trend (last 6 months)"
+
+msgid "احذف نهائياً"
+msgstr "Delete permanently"
+
+msgid "اختر قناة توصيل واحدة على الأقل: إيميل أو بانر داخل النظام."
+msgstr "Choose at least one delivery channel: email or in-app banner."
+
+msgid "استعادة"
+msgstr "Restore"
+
+msgid "اسم أو schema …"
+msgstr "Name or schema …"
+
+msgid "اسم الشركة"
+msgstr "Company name"
+
+msgid "اسم العميل / رقم الهاتف / عنوان الطلب"
+msgstr "Customer name / phone number / request title"
+
+msgid "اسم القطعة"
+msgstr "Part name"
+
+msgid "اشتراك:"
+msgstr "Subscription:"
+
+msgid "اعتماد"
+msgstr "Approve"
+
 msgid "اكتب اسم الشركة بالحرف"
 msgstr "Type the company name exactly"
 
-#: clients/templates/clients/saas_admin/tenants_list.html
-msgid "احذف نهائياً"
-msgstr "Delete permanently"
+msgid "اكتب ردك..."
+msgstr "Type your reply..."
+
+msgid "الأسوأ أولاً"
+msgstr "Worst first"
+
+msgid "الأفضل أولاً"
+msgstr "Best first"
+
+msgid "الأولوية"
+msgstr "Priority"
+
+msgid "الإجراءات"
+msgstr "Actions"
+
+msgid "الإجمالي"
+msgstr "Total"
+
+msgid "الإجمالي من بداية التشغيل"
+msgstr "Total since launch"
+
+msgid "الإدارة"
+msgstr "Admin"
+
+msgid "الإصدار"
+msgstr "Issued"
+
+msgid "الإيرادات"
+msgstr "Revenue"
+
+msgid "الإيرادات العامة"
+msgstr "Platform revenue"
+
+msgid "الإيرادات العامة للمنصة"
+msgstr "Overall platform revenue"
+
+msgid "الإيرادات حسب الباقة (Lifetime)"
+msgstr "Revenue by plan (Lifetime)"
+
+msgid "الإيميل المرسَل"
+msgstr "Sent email"
+
+msgid "الاستثناء"
+msgstr "Exception"
+
+msgid "الاسم المطلوب:"
+msgstr "Required name:"
+
+msgid "الاشتراك"
+msgstr "Subscription"
+
+msgid "البائع"
+msgstr "Seller"
+
+msgid "الباقات"
+msgstr "Plans"
+
+msgid "الباقة"
+msgstr "Plan"
+
+msgid "البث الجماعي"
+msgstr "Broadcast"
+
+msgid "البث الجماعي (Email Broadcast)"
+msgstr "Broadcast (Email Broadcast)"
+
+msgid "التاريخ"
+msgstr "Date"
+
+msgid "الترتيب"
+msgstr "Sort"
+
+msgid "التغييرات في الأسعار/المزايا متحكم فيها بالـ Rollout اختيار تحت."
+msgstr "Changes to prices/features are controlled by the Rollout option below."
+
+msgid "التفاصيل"
+msgstr "Details"
+
+msgid "التقييم"
+msgstr "Rating"
+
+msgid "التوثيق"
+msgstr "Verification"
+
+msgid "الثقة"
+msgstr "Trust"
+
+msgid "الجمهور"
+msgstr "Audience"
+
+msgid "الجمهور المستهدف"
+msgstr "Target audience"
+
+msgid "الحالة"
+msgstr "Status"
+
+msgid "الحالة:"
+msgstr "Status:"
+
+msgid "الخطر"
+msgstr "Risk"
+
+msgid "الدرجة"
+msgstr "Grade"
+
+msgid "الدعم"
+msgstr "Support"
+
+msgid "الرسالة"
+msgstr "Message"
+
+msgid "الرقم"
+msgstr "Number"
+
+msgid "الزائر"
+msgstr "Visitor"
+
+msgid "السعر"
+msgstr "Price"
+
+msgid "السعر (ج.م)"
+msgstr "Price (EGP)"
+
+msgid "السعر الشهري (ج.م)"
+msgstr "Monthly price (EGP)"
+
+msgid "السعر/شهر"
+msgstr "Price/month"
+
+msgid "السوبر آدمن — تحكم بالأسعار والمزايا الديناميكية لكل باقة. الـ catalog فيه %(features_count_total)s ميزة مفعلة."
+msgstr "Super admin — control each plan's dynamic prices and features. The catalog has %(features_count_total)s active features."
+
+msgid "السوبر أدمن"
+msgstr "Super admin"
+
+msgid "السوق (B2B)"
+msgstr "Marketplace (B2B)"
+
+msgid "السوق المفتوح"
+msgstr "Open marketplace"
+
+msgid "السوق المفتوح — المعروضات النشطة"
+msgstr "Open marketplace — active listings"
+
+msgid "السيارة"
+msgstr "Car"
+
+msgid "الشات الحي"
+msgstr "Live chat"
+
+msgid "الشركات اللي مالهاش email بتتخطى تلقائي (skipped count)."
+msgstr "Companies without an email are skipped automatically (skipped count)."
+
+msgid "الشركات النشطة"
+msgstr "Active companies"
+
+msgid "الشركة"
+msgstr "Company"
+
+msgid "الشركة (schema)"
+msgstr "Company (schema)"
+
+msgid "الشهر"
+msgstr "Month"
+
+msgid "الصفحة بتـ refresh تلقائياً كل 30 ثانية"
+msgstr "The page auto-refreshes every 30 seconds"
+
+msgid "الصلاحيات (Entitlements)"
+msgstr "Entitlements"
+
+msgid "الطلب:"
+msgstr "Order:"
+
+msgid "الـ Cohort"
+msgstr "Cohort"
+
+msgid "الـ Revisions"
+msgstr "Revisions"
+
+msgid "الـ Slug"
+msgstr "Slug"
+
+msgid "الـ data بـ تتـ cache لمدة 5 دقايق — اضغط"
+msgstr "Data is cached for 5 minutes — click"
+
+msgid "الفئة:"
+msgstr "Category:"
+
+msgid "الفترة"
+msgstr "Period"
+
+msgid "الفشل في إرسال لشركة معينة مش بيوقف الباقي — كل واحدة منفصلة."
+msgstr "Failing to send to one company doesn't stop the rest — each is independent."
+
+msgid "الفواتير (آخر 20)"
+msgstr "Invoices (last 20)"
+
+msgid "القطاع"
+msgstr "Sector"
+
+msgid "القطعة"
+msgstr "Part"
+
+msgid "القطعة:"
+msgstr "Part:"
+
+msgid "الكل"
+msgstr "All"
+
+msgid "الكل ←"
+msgstr "All ←"
+
+msgid "الكود"
+msgstr "Code"
+
+msgid "الماركة/الموديل"
+msgstr "Make/Model"
+
+msgid "المالك"
+msgstr "Owner"
+
+msgid "المبلغ مجمّد في الـ Escrow لحين قرارك. اختر \"رد للمشتري\"، \"تحرير للبائع\"، أو \"تسوية جزئية\"."
+msgstr "The amount is frozen in Escrow pending your decision. Choose \"Refund the buyer\", \"Release to the seller\", or \"Partial settlement\"."
+
+msgid "المبلغ:"
+msgstr "Amount:"
+
+msgid "المجموع"
+msgstr "Total"
+
+msgid "المدة"
+msgstr "Duration"
+
+msgid "المدفوع:"
+msgstr "Paid:"
+
+msgid "المدينة"
+msgstr "City"
+
+msgid "المرسل"
+msgstr "Sender"
+
+msgid "المزايا"
+msgstr "Features"
+
+msgid "المسار"
+msgstr "Path"
+
+msgid "المستأجر"
+msgstr "Tenant"
+
+msgid "المستحق:"
+msgstr "Owed:"
+
+msgid "المستخدم"
+msgstr "User"
+
+msgid "المستخدمون"
+msgstr "Users"
+
+msgid "المستهدفون"
+msgstr "Targeted"
+
+msgid "المستوى"
+msgstr "Level"
+
+msgid "المشتركين الجدد فقط"
+msgstr "New subscribers only"
+
+msgid "المشتركين الحاليين يفضلوا locked على السعر/المزايا القديمة لحد تجديد اشتراكهم. الـ revision الجديد بيـ apply بس على التجديد التالي."
+msgstr "Existing subscribers stay locked to the old price/features until they renew. The new revision applies only at the next renewal."
+
+msgid "المشتركين النشطين"
+msgstr "Active subscribers"
+
+msgid "المصدر"
+msgstr "Source"
+
+msgid "المعروضات النشطة"
+msgstr "Active listings"
+
+msgid "المعروضات النشطة على السوق"
+msgstr "Active listings on the marketplace"
+
+msgid "الموضوع"
+msgstr "Subject"
+
+msgid "الموظف"
+msgstr "Agent"
+
+msgid "النشاط"
+msgstr "Activity"
+
+msgid "النوع"
+msgstr "Type"
+
+msgid "الوصف"
+msgstr "Description"
+
+msgid "الوقت"
+msgstr "Time"
+
+msgid "انضم %(d)s"
+msgstr "Joined %(d)s"
+
+msgid "باقة محددة"
+msgstr "Specific plan"
+
+msgid "بانتظار"
+msgstr "Pending"
+
+msgid "بانتظار المراجعة"
+msgstr "Awaiting review"
+
+msgid "بانتظار رد"
+msgstr "Awaiting reply"
+
+msgid "بانر داخل النظام"
+msgstr "In-app banner"
+
+msgid "بحث"
+msgstr "Search"
+
+msgid "بحث في الوصف"
+msgstr "Search in description"
+
+msgid "بدأت"
+msgstr "Started"
+
+msgid "بدأت:"
+msgstr "Started:"
+
+msgid "بدون email"
+msgstr "No email"
+
+msgid "بدون تاريخ انتهاء"
+msgstr "No expiry date"
+
+msgid "بدون سبب"
+msgstr "No reason"
+
+msgid "بطيء"
+msgstr "Slow"
+
+msgid "بعد الفلتر"
+msgstr "After filter"
+
+msgid "بعض المكونات بتشتغل ببطء — شيك على التفاصيل تحت."
+msgstr "Some components are running slowly — check the details below."
+
+msgid "بوابة مراجعة قطع الغيار"
+msgstr "Spare parts moderation gate"
+
+msgid "بواسطة"
+msgstr "by"
+
+msgid "تأكيد الحذف الآمن"
+msgstr "Confirm safe deletion"
+
+msgid "تأكيد سحب الوصول من %(name)s؟"
+msgstr "Confirm revoking access from %(name)s?"
+
+msgid "تاريخ الإضافة"
+msgstr "Date added"
+
+msgid "تاريخ الإغلاق"
+msgstr "Closing date"
+
+msgid "تاريخ الإنشاء"
+msgstr "Created on"
+
+msgid "تاريخ الانتهاء"
+msgstr "Expiry date"
+
+msgid "تاريخ الفتح:"
+msgstr "Opening date:"
+
+msgid "تاريخ النشر"
+msgstr "Publish date"
+
+msgid "تجديد اشتراك"
+msgstr "Renew subscription"
+
+msgid "تجديد الاشتراك"
+msgstr "Renew subscription"
+
+msgid "تحديث"
+msgstr "Refresh"
+
+msgid "تحديث الوقت الحالي: %(t)s · أزرار المنح تضيف للمدة المتبقية (Stacking)."
+msgstr "Current time updated: %(t)s · grant buttons add to the remaining duration (Stacking)."
+
+msgid "تحديث تلقائي كل 30 ثانية"
+msgstr "Auto-refresh every 30 seconds"
+
+msgid "تحذير"
+msgstr "Warning"
+
+msgid "تحذير (أصفر)"
+msgstr "Warning (yellow)"
+
+msgid "تحذير:"
+msgstr "Warning:"
+
+msgid "تحرير للبائع"
+msgstr "Release to seller"
+
+msgid "تحليل التكلفة"
+msgstr "Cost analysis"
+
+msgid "تحليل تكلفة Smart Diagnostics"
+msgstr "Smart Diagnostics cost analysis"
+
+msgid "تخطّى"
+msgstr "Skipped"
+
+msgid "تذاكر الدعم"
+msgstr "Support tickets"
+
+msgid "تذاكر عاجلة مفتوحة"
+msgstr "Open urgent tickets"
+
+msgid "تذكرة"
+msgstr "Ticket"
+
+msgid "تذكير تجديد"
+msgstr "Renewal reminder"
+
+msgid "تراجع المشتري"
+msgstr "Buyer's remorse"
+
+msgid "تسجيلات"
+msgstr "Signups"
+
+msgid "تسجيلات جديدة"
+msgstr "New signups"
+
+msgid "تسوية جزئية"
+msgstr "Partial settlement"
+
+msgid "تشريح درجة الصحة"
+msgstr "Health score breakdown"
+
+msgid "تصنيف كل الشركات بدرجة 0-100 بناءً على الاشتراك + النشاط + العمر + الدعم + الثقة. ركّز على الـ critical & high أولاً."
+msgstr "Ranking of all companies on a 0-100 score based on subscription + activity + tenure + support + trust. Focus on critical & high first."
+
+msgid "تطبيق"
+msgstr "Apply"
+
+msgid "تطبيق فوري على كل المشتركين النشطين"
+msgstr "Immediate apply to all active subscribers"
+
+msgid "تعديل"
+msgstr "Edit"
+
+msgid "تعديل %(name)s"
+msgstr "Edit %(name)s"
+
+msgid "تعديل إداري يتجاوز ملكية البائع — يُستخدم لتصحيح المخالفات أو الأخطاء الواضحة."
+msgstr "An administrative edit that overrides the seller's ownership — used to correct violations or obvious errors."
+
+msgid "تعديل المعروضة"
+msgstr "Edit listing"
+
+msgid "تعديل قطعة"
+msgstr "Edit part"
+
+msgid "تعديل:"
+msgstr "Edit:"
+
+msgid "تعليق"
+msgstr "Suspend"
+
+msgid "تعليق المعروضة «%(title)s»؟ ستُخفى فوراً من المشترين."
+msgstr "Suspend the listing «%(title)s»? It will be hidden from buyers immediately."
+
+msgid "تفاصيل"
+msgstr "Details"
+
+msgid "تكلفة (USD)"
+msgstr "Cost (USD)"
+
+msgid "تكلفة آخر 30 يوم (USD/يوم — للـ calls اللي خبطت external)"
+msgstr "Last 30 days cost (USD/day — for calls that hit external)"
+
+msgid "تم"
+msgstr "Done"
+
+msgid "تم الإرسال"
+msgstr "Sent"
+
+msgid "تم الحل"
+msgstr "Resolved"
+
+msgid "تم في:"
+msgstr "Done at:"
+
+msgid "توزيع الأنواع"
+msgstr "Type distribution"
+
+msgid "ثقة:"
+msgstr "Trust:"
+
+msgid "ج"
+msgstr "EGP"
+
+msgid "ج.م"
+msgstr "EGP"
+
+msgid "جارية"
+msgstr "Active"
+
+msgid "جرّب تغيير الفلاتر."
+msgstr "Try changing the filters."
+
+msgid "حالة الطلب وقت الفتح:"
+msgstr "Order status at open:"
+
+msgid "حد شهري (0=∞)"
+msgstr "Monthly limit (0=∞)"
+
+msgid "حدث خطأ"
+msgstr "An error occurred"
+
+msgid "حذف"
+msgstr "Delete"
+
+msgid "حذف آمن"
+msgstr "Soft delete"
+
+msgid "حذف آمن (Soft Delete)"
+msgstr "Soft Delete"
+
+msgid "حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force Delete مقيد بالـ Super Owner."
+msgstr "Safe deletion (Soft Delete) hides companies without breaking historical invoices. Force Delete is restricted to the Super Owner."
+
+msgid "حذف المعروضة «%(title)s»؟ (Soft Delete — يمكن استعادتها لاحقاً)"
+msgstr "Delete the listing «%(title)s»? (Soft Delete — it can be restored later)"
+
+msgid "حذف نهائي (Force Delete)"
+msgstr "Force Delete"
+
+msgid "حرج"
+msgstr "Critical"
+
+msgid "حرج (أحمر)"
+msgstr "Critical (red)"
+
+msgid "حفظ الأولوية"
+msgstr "Save priority"
+
+msgid "حفظ التعديلات"
+msgstr "Save changes"
+
+msgid "حفظ التغييرات"
+msgstr "Save changes"
+
+msgid "حفظ الحالة"
+msgstr "Save status"
+
+msgid "حملة جديدة"
+msgstr "New campaign"
+
+msgid "خارج أوقات العمل — الزوار يشوفون الفورم"
+msgstr "Outside working hours — visitors see the form"
+
+msgid "خطأ"
+msgstr "Error"
+
+msgid "خطأ غير محلول في"
+msgstr "unresolved error in"
+
+msgid "خطأ في الاتصال بالسيرفر"
+msgstr "Error connecting to the server"
+
+msgid "خطأ:"
+msgstr "Error:"
+
+msgid "خطر حرج"
+msgstr "Critical risk"
+
+msgid "خطر متوسط"
+msgstr "Medium risk"
+
+msgid "خطر مرتفع"
+msgstr "High risk"
+
+msgid "داخل أوقات العمل"
+msgstr "Within working hours"
+
+msgid "دخول"
+msgstr "Enter"
+
+msgid "دخول للحساب"
+msgstr "Enter account"
+
+msgid "دعم:"
+msgstr "Support:"
+
+msgid "دفعوا"
+msgstr "Paid"
+
+msgid "دليل سريع"
+msgstr "Quick guide"
+
+msgid "راجعهم."
+msgstr "review them."
+
+msgid "رجوع لـ SaaS Dashboard"
+msgstr "Back to SaaS Dashboard"
+
+msgid "رد للمشتري"
+msgstr "Refund buyer"
+
+msgid "رفض"
+msgstr "Reject"
+
+msgid "رقم"
+msgstr "No."
+
+msgid "رقم القطعة (OEM)"
+msgstr "Part number (OEM)"
+
+msgid "زوار نشطون (آخر 5 دقايق)"
+msgstr "Active visitors (last 5 minutes)"
+
+msgid "زيارات آخر 30 يوم"
+msgstr "Visits last 30 days"
+
+msgid "زيارات آخر 7 أيام"
+msgstr "Visits last 7 days"
+
+msgid "زيارات آخر 7 يوم"
+msgstr "Visits last 7 days"
+
+msgid "سبب الإرجاع:"
+msgstr "Return reason:"
+
+msgid "سبب التغيير (audit log)"
+msgstr "Change reason (audit log)"
+
+msgid "سبب الحذف (اختياري):"
+msgstr "Reason for deletion (optional):"
+
+msgid "سبب الرفض (اختياري)"
+msgstr "Rejection reason (optional)"
+
+msgid "سبب الرفض (اختياري):"
+msgstr "Rejection reason (optional):"
+
+msgid "سجل أخطاء النظام"
+msgstr "System error log"
+
+msgid "سجل الأخطاء"
+msgstr "Error log"
+
+msgid "سجل التدقيق"
+msgstr "Audit log"
+
+msgid "سجل التدقيق (Audit Log)"
+msgstr "Audit Log"
+
+msgid "سجل الحملات (آخر 100)"
+msgstr "Campaign history (last 100)"
+
+msgid "سحب"
+msgstr "Revoke"
+
+msgid "سنة"
+msgstr "year"
+
+msgid "سنة كاملة"
+msgstr "Full year"
+
+msgid "سيارات"
+msgstr "Automotive"
+
+msgid "سيتم إخفاء «<strong id=\"softName\"></strong>» من جميع القوائم. الفواتير والمدفوعات والـ schema تفضل سليمة."
+msgstr "«<strong id=\"softName\"></strong>» will be hidden from all lists. Invoices, payments and the schema stay intact."
+
+msgid "شات"
+msgstr "Chat"
+
+msgid "شركات"
+msgstr "Companies"
+
+msgid "شركات استخدمت الوحدة"
+msgstr "Companies that used the module"
+
+msgid "شركات بتدفع"
+msgstr "Paying companies"
+
+msgid "شركات دفعت"
+msgstr "Companies that paid"
+
+msgid "شركات لها أحداث"
+msgstr "Companies with events"
+
+msgid "شركة"
+msgstr "companies"
+
+msgid "شركة عبر:"
+msgstr "companies via:"
+
+msgid "شركة مطابقة للفلتر الحالي"
+msgstr "companies matching the current filter"
+
+msgid "شغّال"
+msgstr "Up"
+
+msgid "شهر"
+msgstr "month"
+
+msgid "شهر واحد"
+msgstr "One month"
+
+msgid "شهور"
+msgstr "months"
+
+msgid "صحة الشركات"
+msgstr "Company health"
+
+msgid "صحة الشركات (Tenant Health & Churn Risk)"
+msgstr "Company health (Tenant Health & Churn Risk)"
+
+msgid "صحة النظام"
+msgstr "System health"
+
+msgid "صحة النظام (System Status)"
+msgstr "System health (System Status)"
+
+msgid "صدرت"
+msgstr "Issued"
+
+msgid "صندوق الدعم"
+msgstr "Support inbox"
+
+msgid "صندوق تذاكر الدعم"
+msgstr "Support ticket inbox"
+
+msgid "صورة"
+msgstr "Image"
+
+msgid "ضيف"
+msgstr "Guest"
+
+msgid "طباعة"
+msgstr "Printing"
+
+msgid "طباعة وتصميم"
+msgstr "Printing & design"
+
+msgid "طلبات السوق"
+msgstr "Marketplace requests"
+
+msgid "طلبات في آخر ساعة"
+msgstr "Requests in the last hour"
+
+msgid "عدد"
+msgstr "Count"
+
+msgid "عرض كبانر داخل لوحة الشركة (يصل 100% من الشركات)"
+msgstr "Show a banner inside the company dashboard (reaches 100% of companies)"
+
+msgid "عرض كل الـ tenants (%(n)s)"
+msgstr "Show all tenants (%(n)s)"
+
+msgid "عزيزي {tenant_name}،"
+msgstr "Dear {tenant_name},"
+
+msgid "عمر الحساب"
+msgstr "Account age"
+
+msgid "عمر:"
+msgstr "Age:"
+
+msgid "عند التجديد القادم (افتراضي)"
+msgstr "At next renewal (default)"
+
+msgid "غلق الجلسة؟"
+msgstr "Close the session?"
+
+msgid "غير مطابق"
+msgstr "Not as described"
+
+msgid "غير معروف"
+msgstr "Unknown"
+
+msgid "غير مفعّل"
+msgstr "Inactive"
+
+msgid "غير مقروء"
+msgstr "Unread"
+
+msgid "غير نشط"
+msgstr "Inactive"
+
+msgid "فتحه:"
+msgstr "Opened by:"
+
+msgid "فترة الضمان (يوم)"
+msgstr "Warranty period (days)"
+
+msgid "فرد"
+msgstr "Individual"
+
+msgid "فشل"
+msgstr "Failed"
+
+msgid "فواتير مدفوعة (%(pending_count)s لم تُدفع)"
+msgstr "Paid invoices (%(pending_count)s unpaid)"
+
+msgid "في الفترة التجريبية"
+msgstr "In trial"
+
+msgid "في تدهور أداء"
+msgstr "Performance degraded"
+
+msgid "في خطر churn"
+msgstr "At churn risk"
+
+msgid "قرار الإدارة:"
+msgstr "Admin decision:"
+
+msgid "قطع الغيار النشطة"
+msgstr "Active spare parts"
+
+msgid "قنوات التوصيل"
+msgstr "Delivery channels"
+
+msgid "كل cache hit = $0 توفير"
+msgstr "Each cache hit = $0 saved"
+
+msgid "كل tenant مفعّل (مش متحذف)"
+msgstr "Every active tenant (not deleted)"
+
+msgid "كل أحداث المنصة الحساسة في مكان واحد — لمن، ومتى، وعلى أي شركة. اعمل فلتر، صدّر، حلّل."
+msgstr "All sensitive platform events in one place — who, when, and which company. Filter, export, analyze."
+
+msgid "كل الأنظمة شغّالة"
+msgstr "All systems operational"
+
+msgid "كل الأنواع"
+msgstr "All types"
+
+msgid "كل الجلسات الجارية بانتظار رد موظفي الدعم."
+msgstr "All ongoing sessions awaiting a reply from support staff."
+
+msgid "كل الشركات"
+msgstr "All companies"
+
+msgid "كل المعروضات المعتمدة والمرئية للمشترين الآن. الـ Suspend يخفيها فوراً من الصفحات العامة بدون حذف."
+msgstr "All approved listings currently visible to buyers. Suspend hides them from public pages immediately without deleting."
+
+msgid "كل بث بيتسجل في"
+msgstr "Every broadcast is logged in the"
+
+msgid "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً."
+msgstr "Every 4xx/5xx error from all tenants appears here instantly."
+
+msgid "كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها على بريدك المسجل سراً."
+msgstr "Every message from the contact form or off-hours chat appears here, and a copy is sent silently to your registered email."
+
+msgid "كل قطعة جديدة من السوق تظهر هنا قبل ما تتنشر للعامة. اعتمدها أو ارفضها."
+msgstr "Every new part from the marketplace appears here before it goes public. Approve or reject it."
+
+msgid "كلمة …"
+msgstr "keyword …"
+
+msgid "لا توجد cohorts بعد."
+msgstr "No cohorts yet."
+
+msgid "لا توجد أحداث مطابقة للفلاتر الحالية."
+msgstr "No events matching the current filters."
+
+msgid "لا توجد أحداث."
+msgstr "No events."
+
+msgid "لا توجد أخطاء — النظام يعمل بسلاسة!"
+msgstr "No errors — the system is running smoothly!"
+
+msgid "لا توجد أخطاء — رائع!"
+msgstr "No errors — great!"
+
+msgid "لا توجد اشتراكات نشطة."
+msgstr "No active subscriptions."
+
+msgid "لا توجد بيانات"
+msgstr "No data"
+
+msgid "لا توجد بيانات بعد — انتظر حتى يستخدم العملاء الوحدة."
+msgstr "No data yet — wait until customers use the module."
+
+msgid "لا توجد بيانات بعد."
+msgstr "No data yet."
+
+msgid "لا توجد بيانات تصفّح في آخر 30 يوم."
+msgstr "No browsing data in the last 30 days."
+
+msgid "لا توجد بيانات في آخر ساعة."
+msgstr "No data in the last hour."
+
+msgid "لا توجد تذاكر في هذا التصنيف"
+msgstr "No tickets in this category"
+
+msgid "لا توجد تذاكر مفتوحة."
+msgstr "No open tickets."
+
+msgid "لا توجد جلسات شات جارية"
+msgstr "No ongoing chat sessions"
+
+msgid "لا توجد شركات مطابقة."
+msgstr "No matching companies."
+
+msgid "لا توجد طلبات بهذه المعايير."
+msgstr "No requests matching these criteria."
+
+msgid "لا توجد فواتير بعد."
+msgstr "No invoices yet."
+
+msgid "لا توجد قطع في هذه القائمة الآن."
+msgstr "No parts in this list right now."
+
+msgid "لا توجد مستأجرين في هذا التصنيف."
+msgstr "No tenants in this category."
+
+msgid "لا توجد معروضات نشطة بهذا الفلتر."
+msgstr "No active listings with this filter."
+
+msgid "لا توجد ملاحظات"
+msgstr "No notes"
+
+msgid "لا توجد نزاعات في هذه القائمة."
+msgstr "No disputes in this list."
+
+msgid "لا يمكن تجميع بيانات API spend."
+msgstr "Cannot aggregate API spend data."
+
+msgid "لا يوجد مستأجرون في هذا الفلتر."
+msgstr "No tenants in this filter."
+
+msgid "لسه مفيش حملات. ابدأ من الـ composer جنب."
+msgstr "No campaigns yet. Start from the composer on the side."
+
+msgid "لـ"
+msgstr "to"
+
+msgid "لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً."
+msgstr "A live snapshot of all components. The page auto-refreshes itself every 30 seconds."
+
+msgid "للتأكيد، اكتب"
+msgstr "To confirm, type"
+
+msgid "للتحديث الفوري."
+msgstr "for an instant refresh."
+
+msgid "لم تصل"
+msgstr "Never arrived"
+
+msgid "لوحة السوبر أدمن"
+msgstr "Super admin dashboard"
+
+msgid "مبلغ الإرجاع:"
+msgstr "Refund amount:"
+
+msgid "متأكد؟"
+msgstr "Sure?"
+
+msgid "متغيرات الـ template"
+msgstr "Template variables"
+
+msgid "متوسط"
+msgstr "Medium"
+
+msgid "متوسط الإيراد لكل شركة (شهرياً)"
+msgstr "Average revenue per company (monthly)"
+
+msgid "متوسط زمن الاستجابة"
+msgstr "Average response time"
+
+msgid "مثلاً: العميل ألغى الاشتراك"
+msgstr "e.g. The customer cancelled the subscription"
+
+msgid "مثلاً: زيادة سعر سنوي بناءً على inflation Q2 2026"
+msgstr "e.g. Annual price increase based on inflation Q2 2026"
+
+msgid "محذوف"
+msgstr "Deleted"
+
+msgid "محذوفة"
+msgstr "Deleted"
+
+msgid "محلول"
+msgstr "Resolved"
+
+msgid "محلولة"
+msgstr "Resolved"
+
+msgid "مختلفة"
+msgstr "Incorrect"
+
+msgid "مدى الحياة"
+msgstr "Lifetime"
+
+msgid "مراجعة قطع الغيار"
+msgstr "Parts moderation"
+
+msgid "مراجعة وإدارة كل طلبات العملاء في السوق المفتوح"
+msgstr "Review and manage all customer requests in the open marketplace"
+
+msgid "مرتفع"
+msgstr "High"
+
+msgid "مرفوضة"
+msgstr "Rejected"
+
+msgid "مركز النزاعات"
+msgstr "Disputes center"
+
+msgid "مركز رصد أخطاء النظام"
+msgstr "System error monitoring center"
+
+msgid "مركز فضّ النزاعات"
+msgstr "Dispute resolution center"
+
+msgid "مستخدمون نشطون"
+msgstr "Active users"
+
+msgid "مسح"
+msgstr "Clear"
+
+msgid "مشترك نشط على الباقة دي حالياً."
+msgstr "active subscribers on this plan currently."
+
+msgid "معدل الـ churn:"
+msgstr "Churn rate:"
+
+msgid "معرف الشركة (subdomain)"
+msgstr "Company ID (subdomain)"
+
+msgid "معلقة"
+msgstr "Suspended"
+
+msgid "معلومة (أزرق)"
+msgstr "Info (blue)"
+
+msgid "معيبة"
+msgstr "Defective"
+
+msgid "معيّن لـ"
+msgstr "Assigned to"
+
+msgid "مغلق:"
+msgstr "Closed:"
+
+msgid "مغلقة"
+msgstr "Closed"
+
+msgid "مفتوح"
+msgstr "Open"
+
+msgid "مفتوحة"
+msgstr "Open"
+
+msgid "مفيش revisions لسة."
+msgstr "No revisions yet."
+
+msgid "مفيش باقات."
+msgstr "No plans."
+
+msgid "مفيش حاجة محتاجة تدخل دلوقتي."
+msgstr "Nothing needs your attention right now."
+
+msgid "مفيش فواتير لسة."
+msgstr "No invoices yet."
+
+msgid "مفيش فواتير مدفوعة لسة."
+msgstr "No paid invoices yet."
+
+msgid "مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً."
+msgstr "At least one component is down — review all items immediately."
+
+msgid "ملاحظات"
+msgstr "Notes"
+
+msgid "ملاحظات داخلية"
+msgstr "Internal notes"
+
+msgid "ملاحظة الإدارة:"
+msgstr "Admin note:"
+
+msgid "ملخص الاستخدام"
+msgstr "Usage summary"
+
+msgid "من إجمالي الشركات في الـ DB"
+msgstr "of total companies in the DB"
+
+msgid "من تاريخ"
+msgstr "From date"
+
+msgid "منتهي"
+msgstr "Expired"
+
+msgid "منح وصول مدى الحياة لـ %(name)s؟"
+msgstr "Grant lifetime access to %(name)s?"
+
+msgid "منخفض"
+msgstr "Low"
+
+msgid "موافقة"
+msgstr "Approve"
+
+msgid "موثق"
+msgstr "Verified"
+
+msgid "موقوف / منتهي / fraud"
+msgstr "Suspended / expired / fraud"
+
+msgid "ميزات نشطة في الـ catalog"
+msgstr "Active features in the catalog"
+
+msgid "مَنح وصول"
+msgstr "Grant access"
+
+msgid "نجاح"
+msgstr "Success"
+
+msgid "نجاح (أخضر)"
+msgstr "Success (green)"
+
+msgid "نزاعات مفتوحة"
+msgstr "Open disputes"
+
+msgid "نشاط:"
+msgstr "Activity:"
+
+msgid "نشر مباشر"
+msgstr "Publish directly"
+
+msgid "نشط"
+msgstr "Active"
+
+msgid "نشطة"
+msgstr "Active"
+
+msgid "نص الرسالة"
+msgstr "Message body"
+
+msgid "نفس السلوك السابق — تعديل الـ Plan يـ affect الـ subscribers الجداد بس. الاختلاف هنا تسجيل سبب التغيير في الـ revision."
+msgstr "Same behavior as before — editing the Plan affects only new subscribers. The difference here is logging the change reason in the revision."
+
+msgid "نوع البانر"
+msgstr "Banner type"
+
+msgid "نوع الحدث"
+msgstr "Event type"
+
+msgid "هتبعت"
+msgstr "Will send"
+
+msgid "هتبعت لـ <strong>%(n)s</strong> شركة. الإرسال نهائي ومش هينفع تتراجع. لو الإرسال كبير، استعد لانتظار 30-60 ثانية."
+msgstr "You will send to <strong>%(n)s</strong> companies. Sending is final and cannot be undone. If the send is large, be ready to wait 30-60 seconds."
+
+msgid "هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم الشركة بالضبط للتأكيد:"
+msgstr "This action is irreversible and will permanently delete the schema and all data. Type the company name exactly to confirm:"
+
+msgid "هذا الشهر"
+msgstr "This month"
+
+msgid "هذه الجلسة مغلقة"
+msgstr "This session is closed"
+
+msgid "هذه الميزة <b>إضافة مدفوعة</b> منفصلة عن الباقة الأساسية. امنح/اسحب الوصول لكل مستأجر بضغطة زر."
+msgstr "This feature is a <b>paid add-on</b> separate from the base plan. Grant/revoke access for each tenant with one click."
+
+msgid "هل تريد إعادة فتح الطلب للمراجعة؟"
+msgstr "Do you want to reopen the request for review?"
+
+msgid "هل تريد إغلاق هذا الطلب؟"
+msgstr "Do you want to close this request?"
+
+msgid "هل تريد الموافقة على هذا الطلب ونشره للتجار؟"
+msgstr "Do you want to approve this request and publish it to merchants?"
+
+msgid "هل تريد نشر الطلب للتجار مباشرة؟"
+msgstr "Do you want to publish the request to merchants directly?"
+
+msgid "واقف"
+msgstr "Down"
+
+msgid "وحدة Smart Diagnostics غير مثبتة"
+msgstr "Smart Diagnostics module is not installed"
+
+msgid "وصول غرفة التشخيص"
+msgstr "Diagnostics room access"
+
+msgid "وصول غرفة التشخيص (OBD)"
+msgstr "Diagnostics room access (OBD)"
+
+msgid "يبقى ظاهر لمدة (أيام)"
+msgstr "Stays visible for (days)"
+
+msgid "يـ appear في الـ PlanRevision (240 حرف max)"
+msgstr "Appears in the PlanRevision (240 chars max)"
+
+msgid "ينتهي خلال 14 يوم"
+msgstr "Expires within 14 days"
+
+msgid "ينتهي خلال أسبوع"
+msgstr "Expires within a week"
+
+msgid "يوم"
+msgstr "day"
+
+msgid "يوم متبقي على الاشتراك"
+msgstr "days left on subscription"
+
+msgid "يوم متبقي على التجربة"
+msgstr "days left in trial"
+
+msgid "— اختر —"
+msgstr "— choose —"
+
+msgid "— استخدم {تعبير tenant_name} لتخصيص اسم الشركة"
+msgstr "— use {tenant_name} to personalize the company name"
+
+msgid "⚠️ اكتب CONFIRM بحروف كبيرة بالظبط لتفعيل الإجراء:"
+msgstr "⚠️ Type CONFIRM in uppercase exactly to activate the action:"
+
+msgid "⚠️ خطر — هيـ overwrite الـ locked_* لكل المشتركين الحاليين بالقيم الجديدة. لا يمكن التراجع (إلا برولاوت revision قديم يدوياً)."
+msgstr "⚠️ Danger — it will overwrite locked_* for all existing subscribers with the new values. It cannot be undone (except by manually rolling out an old revision)."
+
+msgid "⛔ بدون email"
+msgstr "⛔ No email"
+
+msgid "🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع..."
+msgstr "🔍 Search by name, part number, or seller name..."
+
+msgid "🚨 يوجد عُطل"
+msgstr "🚨 There is an outage"
+
+msgctxt "condition"
+msgid "الحالة"
+msgstr "Condition"
+
+msgid "Arabic"
+msgstr "Arabic"
+
+msgid "English"
+msgstr "English"

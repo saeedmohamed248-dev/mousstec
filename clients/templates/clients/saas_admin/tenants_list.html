@@ -11,12 +11,8 @@
     <style>
         body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
         .container { max-width:1300px; margin:0 auto; }
-        .topbar { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
         .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
         .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        .lang-switch { display:flex; gap:6px; }
-        .lang-switch button { background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:6px; padding:5px 12px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; }
-        .lang-switch button.active { background:#7c3aed; color:#fff; border-color:#a78bfa; }
         h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; }
         .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
         .tabs { display:flex; gap:8px; margin-bottom:18px; }
@@ -47,15 +43,9 @@
     </style>
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="topbar">
-        <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "إدارة المستأجرين" %}</div>
-        <form class="lang-switch" action="{% url 'set_language' %}" method="post">{% csrf_token %}
-            <input type="hidden" name="next" value="{{ request.get_full_path }}">
-            <button type="submit" name="language" value="ar" class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}">العربية</button>
-            <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}">English</button>
-        </form>
-    </div>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "إدارة المستأجرين" %}</div>
     <h1>🏢 {% trans "إدارة المستأجرين (Tenants)" %}</h1>
     <p class="sub">{% trans "حذف آمن (Soft Delete) لإخفاء الشركات بدون كسر الفواتير التاريخية. الـ Force Delete مقيد بالـ Super Owner." %}</p>
 
