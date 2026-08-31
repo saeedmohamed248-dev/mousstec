@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>بصمة الحضور | Mouss Tec</title>
+    <title>{% trans "بصمة الحضور" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -23,6 +23,8 @@
         .face-overlay.matched { border-color: rgba(16,185,129,0.8); }
         .face-overlay.no-match { border-color: rgba(239,68,68,0.8); }
         .check-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+        .lang-switch button { background: rgba(148,163,184,0.12); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.2); border-radius: 6px; padding: 3px 9px; font-family: inherit; font-weight: 700; font-size: 11px; cursor: pointer; }
+        .lang-switch button.active { background: rgba(99,102,241,0.3); color: #c7d2fe; }
     </style>
 </head>
 <body class="text-slate-200 min-h-screen">
@@ -36,10 +38,16 @@
             <div class="bg-gradient-to-tr from-emerald-600 to-teal-600 p-2 rounded-xl">
                 <i class="fas fa-fingerprint text-white"></i>
             </div>
-            <span class="font-black text-white text-sm">بصمة الحضور</span>
+            <span class="font-black text-white text-sm">{% trans "بصمة الحضور" %}</span>
         </div>
         <div class="flex items-center gap-2">
             <span class="text-xs text-slate-500" id="live-time"></span>
+            <form action="{% url 'set_language' %}" method="post" class="lang-switch flex gap-1">
+                {% csrf_token %}
+                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                <button type="submit" name="language" value="ar" class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}">ع</button>
+                <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}">EN</button>
+            </form>
             <a href="/{{ admin_url|default:'secure-portal' }}/" class="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg border border-slate-700 transition">
                 <i class="fas fa-arrow-right"></i>
             </a>
@@ -58,7 +66,7 @@
             <p class="font-black text-white text-sm truncate">{{ employee.user.get_full_name|default:employee.user.username }}</p>
             <p class="text-[10px] text-slate-500">{{ employee.employee_id }} · {{ employee.get_department_display }}</p>
         </div>
-        <div class="text-left">
+        <div class="text-end">
             <p class="text-xs font-bold text-slate-400" id="date-display"></p>
         </div>
     </div>
@@ -67,7 +75,7 @@
     {% if today_record and today_record.clock_in %}
     <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 glow-green">
         <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-bold text-emerald-400"><i class="fas fa-check-circle ml-1"></i>حالة اليوم</span>
+            <span class="text-xs font-bold text-emerald-400"><i class="fas fa-check-circle me-1"></i>{% trans "حالة اليوم" %}</span>
             <span class="text-xs font-bold px-2 py-0.5 rounded-lg
                 {% if today_record.status == 'present' %}bg-emerald-500/15 text-emerald-400
                 {% elif today_record.status == 'late' %}bg-amber-500/15 text-amber-400
@@ -78,27 +86,27 @@
         <div class="grid grid-cols-2 gap-3">
             <div class="bg-slate-800/60 rounded-xl px-3 py-2 text-center">
                 <p class="text-lg font-black text-emerald-400">{{ today_record.clock_in|time:"h:i A" }}</p>
-                <p class="text-[10px] text-slate-500">حضور</p>
+                <p class="text-[10px] text-slate-500">{% trans "حضور" %}</p>
             </div>
             <div class="bg-slate-800/60 rounded-xl px-3 py-2 text-center">
                 {% if today_record.clock_out %}
                 <p class="text-lg font-black text-red-400">{{ today_record.clock_out|time:"h:i A" }}</p>
-                <p class="text-[10px] text-slate-500">انصراف</p>
+                <p class="text-[10px] text-slate-500">{% trans "انصراف" %}</p>
                 {% else %}
                 <p class="text-lg font-black text-slate-600">--:--</p>
-                <p class="text-[10px] text-slate-500">لم يسجّل بعد</p>
+                <p class="text-[10px] text-slate-500">{% trans "لم يسجّل بعد" %}</p>
                 {% endif %}
             </div>
         </div>
         <div class="flex items-center gap-3 mt-3">
             {% if today_record.face_verified %}
-            <span class="text-[10px] text-emerald-400 font-bold"><i class="fas fa-face-smile ml-1"></i>وجه</span>
+            <span class="text-[10px] text-emerald-400 font-bold"><i class="fas fa-face-smile me-1"></i>{% trans "وجه" %}</span>
             {% endif %}
             {% if today_record.location_verified %}
-            <span class="text-[10px] text-blue-400 font-bold"><i class="fas fa-map-marker-alt ml-1"></i>موقع</span>
+            <span class="text-[10px] text-blue-400 font-bold"><i class="fas fa-map-marker-alt me-1"></i>{% trans "موقع" %}</span>
             {% endif %}
             {% if today_record.late_minutes > 0 %}
-            <span class="text-[10px] text-amber-400 font-bold"><i class="fas fa-clock ml-1"></i>تأخير {{ today_record.late_minutes }} د</span>
+            <span class="text-[10px] text-amber-400 font-bold"><i class="fas fa-clock me-1"></i>{% blocktrans with n=today_record.late_minutes %}تأخير {{ n }} د{% endblocktrans %}</span>
             {% endif %}
         </div>
     </div>
@@ -106,7 +114,7 @@
 
     <!-- Verification Checklist -->
     <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-3">
-        <p class="text-xs font-bold text-slate-400 mb-1"><i class="fas fa-shield-check ml-1"></i>خطوات التحقق</p>
+        <p class="text-xs font-bold text-slate-400 mb-1"><i class="fas fa-shield-check me-1"></i>{% trans "خطوات التحقق" %}</p>
 
         <!-- Face Check -->
         <div class="flex items-center gap-3" id="step-face">
@@ -114,12 +122,12 @@
                 <i class="fas fa-face-smile"></i>
             </div>
             <div class="flex-1">
-                <p class="text-xs font-bold text-slate-300">بصمة الوجه</p>
+                <p class="text-xs font-bold text-slate-300">{% trans "بصمة الوجه" %}</p>
                 <p class="text-[10px] text-slate-500" id="face-status-text">
-                    {% if not has_face %}الوجه غير مسجّل — سجّل وجهك أولاً{% elif require_face %}مطلوب — افتح الكاميرا{% else %}اختياري{% endif %}
+                    {% if not has_face %}{% trans "الوجه غير مسجّل — سجّل وجهك أولاً" %}{% elif require_face %}{% trans "مطلوب — افتح الكاميرا" %}{% else %}{% trans "اختياري" %}{% endif %}
                 </p>
             </div>
-            {% if require_face %}<span class="text-[10px] text-amber-400 font-bold">إلزامي</span>{% endif %}
+            {% if require_face %}<span class="text-[10px] text-amber-400 font-bold">{% trans "إلزامي" %}</span>{% endif %}
         </div>
 
         <!-- Location Check -->
@@ -128,10 +136,10 @@
                 <i class="fas fa-map-marker-alt"></i>
             </div>
             <div class="flex-1">
-                <p class="text-xs font-bold text-slate-300">الموقع الجغرافي</p>
-                <p class="text-[10px] text-slate-500" id="location-status-text">في انتظار تحديد الموقع...</p>
+                <p class="text-xs font-bold text-slate-300">{% trans "الموقع الجغرافي" %}</p>
+                <p class="text-[10px] text-slate-500" id="location-status-text">{% trans "في انتظار تحديد الموقع..." %}</p>
             </div>
-            {% if require_location %}<span class="text-[10px] text-amber-400 font-bold">إلزامي</span>{% endif %}
+            {% if require_location %}<span class="text-[10px] text-amber-400 font-bold">{% trans "إلزامي" %}</span>{% endif %}
         </div>
     </div>
 
@@ -139,25 +147,25 @@
     <div id="camera-section" class="hidden">
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-                <span class="text-xs font-bold text-white"><i class="fas fa-camera ml-1 text-violet-400"></i>الكاميرا</span>
+                <span class="text-xs font-bold text-white"><i class="fas fa-camera me-1 text-violet-400"></i>{% trans "الكاميرا" %}</span>
                 <button onclick="stopCamera()" class="text-xs text-slate-500 hover:text-red-400 transition"><i class="fas fa-times"></i></button>
             </div>
             <div id="video-container" class="relative aspect-[4/3] bg-black">
                 <video id="video" autoplay playsinline muted class="w-full h-full"></video>
                 <div class="face-overlay" id="face-overlay"></div>
                 <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-xl px-4 py-1.5">
-                    <p class="text-[10px] text-white font-bold text-center" id="camera-hint">جاري تحميل نموذج التعرف...</p>
+                    <p class="text-[10px] text-white font-bold text-center" id="camera-hint">{% trans "جاري تحميل نموذج التعرف..." %}</p>
                 </div>
             </div>
 
             <!-- Face not registered — show register button -->
             {% if not has_face %}
             <div class="p-4 bg-amber-500/5 border-t border-amber-500/20">
-                <p class="text-xs text-amber-400 font-bold mb-2"><i class="fas fa-exclamation-triangle ml-1"></i>الوجه غير مسجّل</p>
-                <p class="text-[10px] text-slate-400 mb-3">انظر للكاميرا مباشرة واضغط الزر لتسجيل بصمة الوجه</p>
+                <p class="text-xs text-amber-400 font-bold mb-2"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "الوجه غير مسجّل" %}</p>
+                <p class="text-[10px] text-slate-400 mb-3">{% trans "انظر للكاميرا مباشرة واضغط الزر لتسجيل بصمة الوجه" %}</p>
                 <button id="btn-register-face" onclick="registerFace()"
                     class="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-black text-xs hover:from-violet-500 hover:to-purple-500 transition">
-                    <i class="fas fa-user-plus ml-1"></i>تسجيل بصمة الوجه
+                    <i class="fas fa-user-plus me-1"></i>{% trans "تسجيل بصمة الوجه" %}
                 </button>
             </div>
             {% endif %}
@@ -167,7 +175,7 @@
     <!-- Open Camera Button -->
     <button id="btn-open-camera" onclick="startCamera()"
         class="w-full py-3 rounded-2xl bg-slate-900/60 border border-slate-700 text-slate-300 font-bold text-sm hover:border-violet-500/40 hover:text-violet-400 transition">
-        <i class="fas fa-camera ml-2"></i>فتح الكاميرا (بصمة الوجه)
+        <i class="fas fa-camera me-2"></i>{% trans "فتح الكاميرا (بصمة الوجه)" %}
     </button>
 
     <!-- Main Action Buttons -->
@@ -176,14 +184,14 @@
         {% if not today_record or not today_record.clock_in %}
         <button id="btn-clock-in" onclick="clockIn()"
             class="py-4 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 text-white font-black text-sm shadow-lg shadow-emerald-600/20 hover:from-emerald-500 hover:to-green-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
-            {% if require_face and not has_face %}disabled title="سجّل بصمة الوجه أولاً"{% endif %}>
+            {% if require_face and not has_face %}disabled title="{% trans 'سجّل بصمة الوجه أولاً' %}"{% endif %}>
             <i class="fas fa-sign-in-alt text-xl mb-1 block"></i>
-            تسجيل حضور
+            {% trans "تسجيل حضور" %}
         </button>
         {% else %}
         <button disabled class="py-4 rounded-2xl bg-slate-800 text-slate-600 font-black text-sm cursor-not-allowed">
             <i class="fas fa-check text-xl mb-1 block"></i>
-            تم الحضور
+            {% trans "تم الحضور" %}
         </button>
         {% endif %}
 
@@ -192,17 +200,17 @@
         <button id="btn-clock-out" onclick="clockOut()"
             class="py-4 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 text-white font-black text-sm shadow-lg shadow-red-600/20 hover:from-red-500 hover:to-rose-600 transition">
             <i class="fas fa-sign-out-alt text-xl mb-1 block"></i>
-            تسجيل انصراف
+            {% trans "تسجيل انصراف" %}
         </button>
         {% elif today_record and today_record.clock_out %}
         <button disabled class="py-4 rounded-2xl bg-slate-800 text-slate-600 font-black text-sm cursor-not-allowed">
             <i class="fas fa-check-double text-xl mb-1 block"></i>
-            تم الانصراف
+            {% trans "تم الانصراف" %}
         </button>
         {% else %}
         <button disabled class="py-4 rounded-2xl bg-slate-800 text-slate-600 font-black text-sm cursor-not-allowed">
             <i class="fas fa-sign-out-alt text-xl mb-1 block"></i>
-            تسجيل انصراف
+            {% trans "تسجيل انصراف" %}
         </button>
         {% endif %}
     </div>
@@ -214,7 +222,7 @@
     {% if recent_records %}
     <div class="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-800">
-            <span class="text-xs font-bold text-white"><i class="fas fa-history ml-1 text-slate-400"></i>آخر 7 أيام</span>
+            <span class="text-xs font-bold text-white"><i class="fas fa-history me-1 text-slate-400"></i>{% trans "آخر 7 أيام" %}</span>
         </div>
         <div class="divide-y divide-slate-800/60">
             {% for rec in recent_records %}
@@ -240,7 +248,7 @@
                         </p>
                     </div>
                 </div>
-                <div class="text-left">
+                <div class="text-end">
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg
                         {% if rec.status == 'present' %}bg-emerald-500/10 text-emerald-400
                         {% elif rec.status == 'late' %}bg-amber-500/10 text-amber-400
@@ -264,6 +272,40 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
 
 <script>
+// ═══════════════════ i18n strings ═══════════════════
+const LOCALE = "{{ LANGUAGE_CODE }}" === 'en' ? 'en-US' : 'ar-EG';
+const T = {
+    noGeoSupport: "{% trans 'المتصفح لا يدعم تحديد الموقع' %}",
+    locating: "{% trans 'جاري تحديد الموقع...' %}",
+    withinRange: "{% trans 'داخل النطاق' %}",
+    outsideRange: "{% trans 'خارج النطاق' %}",
+    meter: "{% trans 'م' %}",
+    away: "{% trans 'بعيد' %}",
+    locFail: "{% trans 'فشل تحديد الموقع — تأكد من تفعيل GPS' %}",
+    loadingFaceModel: "{% trans 'جاري تحميل نموذج التعرف على الوجه...' %}",
+    lookAtCamera: "{% trans 'انظر للكاميرا...' %}",
+    faceNotRegistered: "{% trans 'الوجه غير مسجّل — سجّل بصمة وجهك أولاً' %}",
+    camFail: "{% trans 'فشل فتح الكاميرا:' %}",
+    noFaceDetected: "{% trans 'لم يتم اكتشاف وجه — انظر للكاميرا' %}",
+    faceRecognized: "{% trans 'تم التعرف على وجهك' %}",
+    match: "{% trans 'تطابق' %}",
+    faceVerifiedOk: "{% trans 'تم التحقق من الوجه' %}",
+    faceNoMatch: "{% trans 'الوجه لا يتطابق' %}",
+    distance: "{% trans 'مسافة' %}",
+    registeringFace: "{% trans 'جاري تسجيل الوجه...' %}",
+    holdStill: "{% trans 'انظر للكاميرا مباشرة ولا تتحرك...' %}",
+    noFaceRetry: "{% trans 'لم يتم اكتشاف وجه! حاول مرة أخرى.' %}",
+    registerFaceBtn: "{% trans 'تسجيل بصمة الوجه' %}",
+    faceRegistered: "{% trans 'تم تسجيل بصمة الوجه بنجاح!' %}",
+    registerFail: "{% trans 'فشل التسجيل' %}",
+    connErr: "{% trans 'خطأ في الاتصال:' %}",
+    saving: "{% trans 'جاري التسجيل...' %}",
+    clockInBtn: "{% trans 'تسجيل حضور' %}",
+    clockOutBtn: "{% trans 'تسجيل انصراف' %}",
+    worked: "{% trans 'عملت' %}",
+    hours: "{% trans 'ساعة' %}",
+};
+
 // ═══════════════════ Config ═══════════════════
 const CONFIG = {
     requireFace: {{ require_face|yesno:"true,false" }},
@@ -292,8 +334,8 @@ function updateClock() {
     const now = new Date();
     const timeEl = document.getElementById('live-time');
     const dateEl = document.getElementById('date-display');
-    if (timeEl) timeEl.textContent = now.toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
-    if (dateEl) dateEl.textContent = now.toLocaleDateString('ar-EG', {weekday: 'short', day: 'numeric', month: 'short'});
+    if (timeEl) timeEl.textContent = now.toLocaleTimeString(LOCALE, {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    if (dateEl) dateEl.textContent = now.toLocaleDateString(LOCALE, {weekday: 'short', day: 'numeric', month: 'short'});
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -304,12 +346,12 @@ function getLocation() {
     const text = document.getElementById('location-status-text');
 
     if (!navigator.geolocation) {
-        text.textContent = 'المتصفح لا يدعم تحديد الموقع';
+        text.textContent = T.noGeoSupport;
         badge.className = 'check-badge bg-red-500/15 text-red-400';
         return;
     }
 
-    text.textContent = 'جاري تحديد الموقع...';
+    text.textContent = T.locating;
     navigator.geolocation.getCurrentPosition(
         (pos) => {
             currentPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -318,17 +360,17 @@ function getLocation() {
 
             if (isWithin) {
                 badge.className = 'check-badge bg-emerald-500/15 text-emerald-400';
-                text.textContent = `داخل النطاق (${Math.round(dist)}م)`;
+                text.textContent = `${T.withinRange} (${Math.round(dist)}${T.meter})`;
                 text.className = 'text-[10px] text-emerald-400';
             } else {
                 badge.className = 'check-badge bg-red-500/15 text-red-400';
-                text.textContent = `خارج النطاق (${Math.round(dist)}م بعيد)`;
+                text.textContent = `${T.outsideRange} (${Math.round(dist)}${T.meter} ${T.away})`;
                 text.className = 'text-[10px] text-red-400';
             }
         },
         (err) => {
             badge.className = 'check-badge bg-amber-500/15 text-amber-400';
-            text.textContent = 'فشل تحديد الموقع — تأكد من تفعيل GPS';
+            text.textContent = T.locFail;
             text.className = 'text-[10px] text-amber-400';
         },
         { enableHighAccuracy: true, timeout: 15000 }
@@ -355,20 +397,20 @@ async function startCamera() {
             video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
         });
         video.srcObject = videoStream;
-        hint.textContent = 'جاري تحميل نموذج التعرف على الوجه...';
+        hint.textContent = T.loadingFaceModel;
 
         await loadFaceModels();
-        hint.textContent = 'انظر للكاميرا...';
+        hint.textContent = T.lookAtCamera;
 
         // Load stored descriptor if face is registered
         if (CONFIG.hasFace) {
             await loadStoredDescriptor();
             startFaceDetection();
         } else {
-            hint.textContent = 'الوجه غير مسجّل — سجّل بصمة وجهك أولاً';
+            hint.textContent = T.faceNotRegistered;
         }
     } catch (err) {
-        hint.textContent = 'فشل فتح الكاميرا: ' + err.message;
+        hint.textContent = T.camFail + ' ' + err.message;
     }
 }
 
@@ -426,7 +468,7 @@ function startFaceDetection() {
 
         if (!detection) {
             overlay.className = 'face-overlay';
-            hint.textContent = 'لم يتم اكتشاف وجه — انظر للكاميرا';
+            hint.textContent = T.noFaceDetected;
             return;
         }
 
@@ -437,17 +479,17 @@ function startFaceDetection() {
             const distance = faceapi.euclideanDistance(faceDescriptor, detectedDescriptor);
             if (distance < CONFIG.faceThreshold) {
                 overlay.className = 'face-overlay matched';
-                hint.textContent = `تم التعرف على وجهك (${(100 - distance * 100).toFixed(0)}% تطابق)`;
+                hint.textContent = `${T.faceRecognized} (${(100 - distance * 100).toFixed(0)}% ${T.match})`;
                 faceVerified = true;
                 badge.className = 'check-badge bg-emerald-500/15 text-emerald-400';
-                faceText.textContent = 'تم التحقق من الوجه';
+                faceText.textContent = T.faceVerifiedOk;
                 faceText.className = 'text-[10px] text-emerald-400';
                 // Enable clock-in button
                 const btn = document.getElementById('btn-clock-in');
                 if (btn) btn.disabled = false;
             } else {
                 overlay.className = 'face-overlay no-match';
-                hint.textContent = `الوجه لا يتطابق (${(distance * 100).toFixed(0)}% مسافة)`;
+                hint.textContent = `${T.faceNoMatch} (${(distance * 100).toFixed(0)}% ${T.distance})`;
                 faceVerified = false;
             }
         }
@@ -461,8 +503,8 @@ async function registerFace() {
     const video = document.getElementById('video');
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner spin-slow ml-1"></i>جاري تسجيل الوجه...';
-    hint.textContent = 'انظر للكاميرا مباشرة ولا تتحرك...';
+    btn.innerHTML = `<i class="fas fa-spinner spin-slow me-1"></i>${T.registeringFace}`;
+    hint.textContent = T.holdStill;
 
     await loadFaceModels();
 
@@ -471,9 +513,9 @@ async function registerFace() {
         .withFaceDescriptor();
 
     if (!detection) {
-        hint.textContent = 'لم يتم اكتشاف وجه! حاول مرة أخرى.';
+        hint.textContent = T.noFaceRetry;
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-user-plus ml-1"></i>تسجيل بصمة الوجه';
+        btn.innerHTML = `<i class="fas fa-user-plus me-1"></i>${T.registerFaceBtn}`;
         return;
     }
 
@@ -491,7 +533,7 @@ async function registerFace() {
         const data = await res.json();
 
         if (data.success) {
-            hint.textContent = 'تم تسجيل بصمة الوجه بنجاح!';
+            hint.textContent = T.faceRegistered;
             CONFIG.hasFace = true;
             faceDescriptor = new Float32Array(encoding);
             showMsg('success', data.message);
@@ -500,14 +542,14 @@ async function registerFace() {
             // Hide register button
             btn.parentElement.classList.add('hidden');
         } else {
-            hint.textContent = data.error || 'فشل التسجيل';
+            hint.textContent = data.error || T.registerFail;
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-user-plus ml-1"></i>تسجيل بصمة الوجه';
+            btn.innerHTML = `<i class="fas fa-user-plus me-1"></i>${T.registerFaceBtn}`;
         }
     } catch (e) {
-        hint.textContent = 'خطأ في الاتصال: ' + e.message;
+        hint.textContent = T.connErr + ' ' + e.message;
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-user-plus ml-1"></i>تسجيل بصمة الوجه';
+        btn.innerHTML = `<i class="fas fa-user-plus me-1"></i>${T.registerFaceBtn}`;
     }
 }
 
@@ -516,7 +558,7 @@ async function clockIn() {
     const btn = document.getElementById('btn-clock-in');
     if (!btn || btn.disabled) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner spin-slow text-xl mb-1 block"></i>جاري التسجيل...';
+    btn.innerHTML = `<i class="fas fa-spinner spin-slow text-xl mb-1 block"></i>${T.saving}`;
 
     const body = {
         face_verified: faceVerified,
@@ -544,12 +586,12 @@ async function clockIn() {
         } else {
             showMsg('error', data.error);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sign-in-alt text-xl mb-1 block"></i>تسجيل حضور';
+            btn.innerHTML = `<i class="fas fa-sign-in-alt text-xl mb-1 block"></i>${T.clockInBtn}`;
         }
     } catch (e) {
-        showMsg('error', 'خطأ في الاتصال: ' + e.message);
+        showMsg('error', T.connErr + ' ' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sign-in-alt text-xl mb-1 block"></i>تسجيل حضور';
+        btn.innerHTML = `<i class="fas fa-sign-in-alt text-xl mb-1 block"></i>${T.clockInBtn}`;
     }
 }
 
@@ -557,7 +599,7 @@ async function clockOut() {
     const btn = document.getElementById('btn-clock-out');
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner spin-slow text-xl mb-1 block"></i>جاري التسجيل...';
+    btn.innerHTML = `<i class="fas fa-spinner spin-slow text-xl mb-1 block"></i>${T.saving}`;
 
     const body = {};
     if (currentPosition) {
@@ -577,17 +619,17 @@ async function clockOut() {
         const data = await res.json();
 
         if (data.success) {
-            showMsg('success', data.message + ` (عملت ${data.data.worked_hours} ساعة)`);
+            showMsg('success', data.message + ` (${T.worked} ${data.data.worked_hours} ${T.hours})`);
             setTimeout(() => location.reload(), 1500);
         } else {
             showMsg('error', data.error);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sign-out-alt text-xl mb-1 block"></i>تسجيل انصراف';
+            btn.innerHTML = `<i class="fas fa-sign-out-alt text-xl mb-1 block"></i>${T.clockOutBtn}`;
         }
     } catch (e) {
-        showMsg('error', 'خطأ في الاتصال: ' + e.message);
+        showMsg('error', T.connErr + ' ' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sign-out-alt text-xl mb-1 block"></i>تسجيل انصراف';
+        btn.innerHTML = `<i class="fas fa-sign-out-alt text-xl mb-1 block"></i>${T.clockOutBtn}`;
     }
 }
 

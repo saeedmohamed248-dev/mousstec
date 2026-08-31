@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مراجعة بطاقة العميل #{{ invoice.id }} — Mouss Tec</title>
+<title>{% trans "مراجعة بطاقة العميل" %} #{{ invoice.id }} — Mouss Tec</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -28,6 +28,18 @@ body {
     color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px;
 }
 .topbar .meta { color: #94a3b8; font-size: 13px; }
+.topbar .head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Language switcher */
+.lang-switch { display: flex; gap: 4px; }
+.lang-switch button {
+    background: rgba(148,163,184,0.12); color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,0.2); border-radius: 6px;
+    padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: 12px;
+    cursor: pointer;
+}
+.lang-switch button.active { background: rgba(99,102,241,0.3); color: #c7d2fe;
+    border-color: rgba(99,102,241,0.5); }
 
 .layout {
     display: grid; grid-template-columns: 1fr 320px; gap: 18px;
@@ -52,7 +64,7 @@ body {
 .evidence-section .card-title { color: #c4b5fd; }
 .evidence-section .ai-summary {
     background: rgba(15, 23, 42, 0.6); padding: 12px;
-    border-right: 3px solid #8b5cf6; border-radius: 6px;
+    border-inline-end: 3px solid #8b5cf6; border-radius: 6px;
     font-size: 13px; line-height: 1.75; color: #e2e8f0;
     white-space: pre-wrap; margin-bottom: 10px;
 }
@@ -73,7 +85,7 @@ body {
 
 .tech-log-row {
     background: rgba(34, 197, 94, 0.06); padding: 10px 14px;
-    border-right: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;
+    border-inline-end: 3px solid #22c55e; border-radius: 6px; margin-bottom: 8px;
     font-size: 12px;
 }
 .tech-log-row .who { color: #86efac; font-weight: 700; }
@@ -85,7 +97,7 @@ body {
 }
 .billing-table th {
     background: rgba(15, 23, 42, 0.8); color: #94a3b8;
-    text-align: right; padding: 10px 12px; font-weight: 700; font-size: 11px;
+    text-align: start; padding: 10px 12px; font-weight: 700; font-size: 11px;
     text-transform: uppercase; letter-spacing: 0.5px;
     border-bottom: 1px solid rgba(148, 163, 184, 0.15);
 }
@@ -161,12 +173,12 @@ body {
 .sp-row .sp-name { font-weight: 700; color: #e2e8f0; font-size: 13px; }
 .sp-row .sp-pn {
     font-family: monospace; color: #fbbf24; font-size: 11px;
-    margin-right: 8px;
+    margin-inline-start: 8px;
 }
 .sp-row .dtc-tag {
     display: inline-block; background: rgba(239,68,68,0.1); color: #fca5a5;
     padding: 1px 6px; border-radius: 4px; font-family: monospace;
-    font-size: 10px; margin-left: 4px;
+    font-size: 10px; margin-inline-end: 4px;
 }
 .sp-row .prob-bar {
     height: 4px; background: rgba(148,163,184,0.15); border-radius: 2px;
@@ -312,15 +324,23 @@ body {
 
     <div class="topbar">
         <h1>
-            🧮 مراجعة بطاقة العميل #{{ invoice.id }}
-            <span class="badge">المحاسبة / المبيعات</span>
+            🧮 {% trans "مراجعة بطاقة العميل" %} #{{ invoice.id }}
+            <span class="badge">{% trans "المحاسبة / المبيعات" %}</span>
         </h1>
-        <div class="meta">
-            مراجع: {{ reviewer_name }} ·
-            العميل: <strong>{{ invoice.customer.name }}</strong> ·
-            {% if invoice.vehicle %}
-                المركبة: <strong>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name }}</strong>
-            {% endif %}
+        <div class="head-right">
+            <div class="meta">
+                {% trans "مراجع:" %} {{ reviewer_name }} ·
+                {% trans "العميل:" %} <strong>{{ invoice.customer.name }}</strong> ·
+                {% if invoice.vehicle %}
+                    {% trans "المركبة:" %} <strong>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name }}</strong>
+                {% endif %}
+            </div>
+            <form action="{% url 'set_language' %}" method="post" class="lang-switch">
+                {% csrf_token %}
+                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                <button type="submit" name="language" value="ar" class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}">ع</button>
+                <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}">EN</button>
+            </form>
         </div>
     </div>
 
@@ -335,15 +355,15 @@ body {
     {# ═══ RFQ Modal ════════════════════════════════════════════════ #}
     <div id="rfqModal" class="modal-backdrop">
         <div class="modal-shell">
-            <h3><i class="fa-brands fa-whatsapp"></i> طلب تسعير من الموردين</h3>
+            <h3><i class="fa-brands fa-whatsapp"></i> {% trans "طلب تسعير من الموردين" %}</h3>
             <div class="sub">
-                القطعة: <strong id="rfqPartLabel">—</strong>
-                · الكمية: <strong id="rfqQtyLabel">1</strong>
+                {% trans "القطعة:" %} <strong id="rfqPartLabel">—</strong>
+                · {% trans "الكمية:" %} <strong id="rfqQtyLabel">1</strong>
                 · RFQ <strong>#<span id="rfqIdLabel">—</span></strong>
             </div>
             <div id="rfqVendorList"></div>
             <div id="rfqPOSuccess" class="po-success"></div>
-            <button class="close-btn" id="rfqCloseBtn">إغلاق</button>
+            <button class="close-btn" id="rfqCloseBtn">{% trans "إغلاق" %}</button>
         </div>
     </div>
 
@@ -356,17 +376,17 @@ body {
             {% if invoice.diagnostic_reports.all %}
             <div class="card evidence-section">
                 <div class="card-title">
-                    <i class="fa-solid fa-robot"></i> أدلة التشخيص الذكي
-                    ({{ invoice.diagnostic_reports.count }} تقرير)
+                    <i class="fa-solid fa-robot"></i> {% trans "أدلة التشخيص الذكي" %}
+                    ({% blocktrans with n=invoice.diagnostic_reports.count %}{{ n }} تقرير{% endblocktrans %})
                 </div>
                 {% for r in invoice.diagnostic_reports.all %}
                     <div style="margin-bottom:14px;">
                         <div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">
                             <strong>{{ r.get_scan_type_display }}</strong> ·
                             {{ r.scanned_at|date:"Y/m/d H:i" }} ·
-                            شدة {{ r.severity_score }}/100
+                            {% blocktrans with s=r.severity_score %}شدة {{ s }}/100{% endblocktrans %}
                             {% if r.engineer %}
-                                · المهندس: {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}
+                                · {% trans "المهندس:" %} {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}
                             {% endif %}
                         </div>
                         {% if r.ai_summary %}
@@ -395,15 +415,15 @@ body {
             {% if invoice.repair_logs.all %}
             <div class="card">
                 <div class="card-title" style="color:#86efac;">
-                    <i class="fa-solid fa-wrench"></i> سجلات عمل الفنيين
-                    ({{ invoice.repair_logs.count }} مهمة)
+                    <i class="fa-solid fa-wrench"></i> {% trans "سجلات عمل الفنيين" %}
+                    ({% blocktrans with n=invoice.repair_logs.count %}{{ n }} مهمة{% endblocktrans %})
                 </div>
                 {% for log in invoice.repair_logs.all %}
                     <div class="tech-log-row">
                         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
                             <strong>{{ log.task_title }}</strong>
                             <span style="color:#94a3b8;font-size:11px;">
-                                {{ log.duration_minutes }} د ·
+                                {% blocktrans with d=log.duration_minutes %}{{ d }} د{% endblocktrans %} ·
                                 {{ log.get_status_display }}
                             </span>
                         </div>
@@ -431,14 +451,14 @@ body {
             {% if invoice.diagnostic_reports.all %}
             <div class="card" style="border-color: rgba(14, 165, 233, 0.3); background: rgba(14, 165, 233, 0.05);">
                 <div class="card-title" style="color:#7dd3fc;display:flex;justify-content:space-between;align-items:center;">
-                    <span><i class="fa-solid fa-microchip"></i> قطع مقترحة من تحليل الـ DTCs</span>
+                    <span><i class="fa-solid fa-microchip"></i> {% trans "قطع مقترحة من تحليل الـ DTCs" %}</span>
                     <button type="button" id="btnRefreshParts"
                             style="background:rgba(14,165,233,0.15);color:#7dd3fc;border:1px solid rgba(14,165,233,0.3);padding:4px 12px;border-radius:6px;font-family:inherit;font-size:11px;cursor:pointer;">
-                        <i class="fa-solid fa-rotate"></i> تحديث
+                        <i class="fa-solid fa-rotate"></i> {% trans "تحديث" %}
                     </button>
                 </div>
                 <div id="suggestedPartsStatus" style="font-size:12px;color:#94a3b8;padding:14px 0;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> جاري استخراج القطع من تحليل الـ AI...
+                    <i class="fa-solid fa-spinner fa-spin"></i> {% trans "جاري استخراج القطع من تحليل الـ AI..." %}
                 </div>
                 <div id="suggestedPartsList"></div>
             </div>
@@ -447,17 +467,17 @@ body {
             {# ═══ Parts table (EDITABLE billable toggle) ════════════════ #}
             <div class="card">
                 <div class="card-title">
-                    <i class="fa-solid fa-box"></i> القطع المستخدمة — حدّد ما يُحاسَب عليه العميل
+                    <i class="fa-solid fa-box"></i> {% trans "القطع المستخدمة — حدّد ما يُحاسَب عليه العميل" %}
                 </div>
                 {% if invoice.items.all %}
                 <table class="billing-table">
                     <thead>
                         <tr>
-                            <th style="width:50px;">يُحاسب؟</th>
-                            <th>القطعة</th>
-                            <th style="width:80px;">الكمية</th>
-                            <th style="width:110px;">السعر الإجمالي</th>
-                            <th style="width:220px;">ملاحظة المحاسب</th>
+                            <th style="width:50px;">{% trans "يُحاسب؟" %}</th>
+                            <th>{% trans "القطعة" %}</th>
+                            <th style="width:80px;">{% trans "الكمية" %}</th>
+                            <th style="width:110px;">{% trans "السعر الإجمالي" %}</th>
+                            <th style="width:220px;">{% trans "ملاحظة المحاسب" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -481,31 +501,31 @@ body {
                                 <td>
                                     <input type="text" name="item_{{ item.id }}_note"
                                            value="{{ item.billing_note }}"
-                                           placeholder="مثال: ضمان، قطعة تشخيص فقط...">
+                                           placeholder="{% trans 'مثال: ضمان، قطعة تشخيص فقط...' %}">
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                    <div class="empty">— لا توجد قطع على هذه البطاقة —</div>
+                    <div class="empty">{% trans "— لا توجد قطع على هذه البطاقة —" %}</div>
                 {% endif %}
             </div>
 
             {# ═══ Services table ═══════════════════════════════════════ #}
             <div class="card">
                 <div class="card-title">
-                    <i class="fa-solid fa-screwdriver-wrench"></i> الخدمات / المصنعيات
+                    <i class="fa-solid fa-screwdriver-wrench"></i> {% trans "الخدمات / المصنعيات" %}
                 </div>
                 {% if invoice.service_items.all %}
                 <table class="billing-table">
                     <thead>
                         <tr>
-                            <th style="width:50px;">يُحاسب؟</th>
-                            <th>الخدمة</th>
-                            <th style="width:130px;">الفني</th>
-                            <th style="width:110px;">السعر</th>
-                            <th style="width:220px;">ملاحظة المحاسب</th>
+                            <th style="width:50px;">{% trans "يُحاسب؟" %}</th>
+                            <th>{% trans "الخدمة" %}</th>
+                            <th style="width:130px;">{% trans "الفني" %}</th>
+                            <th style="width:110px;">{% trans "السعر" %}</th>
+                            <th style="width:220px;">{% trans "ملاحظة المحاسب" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -530,14 +550,14 @@ body {
                                 <td>
                                     <input type="text" name="svc_{{ svc.id }}_note"
                                            value="{{ svc.billing_note }}"
-                                           placeholder="ملاحظة اختيارية...">
+                                           placeholder="{% trans 'ملاحظة اختيارية...' %}">
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                    <div class="empty">— لا توجد خدمات على هذه البطاقة —</div>
+                    <div class="empty">{% trans "— لا توجد خدمات على هذه البطاقة —" %}</div>
                 {% endif %}
             </div>
 
@@ -547,39 +567,39 @@ body {
         <div>
             <div class="card totals-card">
                 <div class="card-title">
-                    <i class="fa-solid fa-calculator"></i> ملخص الفاتورة النهائي
+                    <i class="fa-solid fa-calculator"></i> {% trans "ملخص الفاتورة النهائي" %}
                 </div>
                 <div class="total-row">
-                    <span>إجمالي القطع المحاسَب عليها</span>
+                    <span>{% trans "إجمالي القطع المحاسَب عليها" %}</span>
                     <span class="num">{{ parts_total|floatformat:2 }}</span>
                 </div>
                 <div class="total-row">
-                    <span>إجمالي الخدمات</span>
+                    <span>{% trans "إجمالي الخدمات" %}</span>
                     <span class="num">{{ services_total|floatformat:2 }}</span>
                 </div>
                 <div class="total-row excluded">
-                    <span>المستبعد من الفاتورة</span>
+                    <span>{% trans "المستبعد من الفاتورة" %}</span>
                     <span class="num">−{{ excluded_total|floatformat:2 }}</span>
                 </div>
                 <div class="total-row grand">
-                    <span>الإجمالي للعميل</span>
-                    <span class="num">{{ billable_total|floatformat:2 }} ج.م</span>
+                    <span>{% trans "الإجمالي للعميل" %}</span>
+                    <span class="num">{{ billable_total|floatformat:2 }} {% trans "ج.م" %}</span>
                 </div>
 
                 <button type="submit" class="btn">
-                    <i class="fa-solid fa-floppy-disk"></i> احفظ قرار المراجعة
+                    <i class="fa-solid fa-floppy-disk"></i> {% trans "احفظ قرار المراجعة" %}
                 </button>
                 <a href="{% url 'inventory:print_invoice_a4' invoice.id %}?mode=detailed"
                    style="text-decoration:none;">
                     <button type="button" class="btn ghost">
-                        <i class="fa-solid fa-print"></i> اطبع البطاقة التفصيلية
+                        <i class="fa-solid fa-print"></i> {% trans "اطبع البطاقة التفصيلية" %}
                     </button>
                 </a>
                 {% if invoice.diagnostic_reports.all %}
                 <a href="{% url 'inventory:ai_diag_print' invoice.id %}"
                    target="_blank" style="text-decoration:none;">
                     <button type="button" class="btn ghost">
-                        <i class="fa-solid fa-robot"></i> تقرير AI للعميل
+                        <i class="fa-solid fa-robot"></i> {% trans "تقرير AI للعميل" %}
                     </button>
                 </a>
                 {% endif %}
@@ -591,6 +611,51 @@ body {
 </div>
 
 <script>
+const T = {
+    notInCatalog: "{% trans 'غير موجود في الكاتالوج' %}",
+    notAvailable: "{% trans 'غير متوفر' %}",
+    supplyNeeded: "{% trans 'طلب توريد مطلوب' %}",
+    available: "{% trans 'متوفر' %}",
+    addToCard: "{% trans 'أضف للبطاقة' %}",
+    orderFromSupplier: "{% trans 'اطلب من المورد' %}",
+    probability: "{% trans 'احتمالية' %}",
+    salePrice: "{% trans 'سعر البيع' %}",
+    from: "{% trans 'من' %}",
+    egp: "{% trans 'ج.م' %}",
+    day: "{% trans 'يوم' %}",
+    aiNoParts: "{% trans 'الـ AI لم يقترح قطعاً عالية الاحتمالية لهذه الأكواد.' %}",
+    suggestedParts: "{% trans 'قطعة مقترحة (مرتّبة حسب الاحتمالية)' %}",
+    extracting: "{% trans 'جاري استخراج القطع من تحليل الـ AI...' %}",
+    connFail: "{% trans 'فشل الاتصال:' %}",
+    addFail: "{% trans 'فشل الإضافة' %}",
+    added: "{% trans 'أُضيفت' %}",
+    connErr: "{% trans 'خطأ في الاتصال:' %}",
+    send: "{% trans 'أرسل' %}",
+    noPhoneTitle: "{% trans 'رقم الهاتف غير مسجل' %}",
+    noPhone: "{% trans 'بدون رقم' %}",
+    noNumber: "{% trans '— لا يوجد رقم —' %}",
+    editQuote: "{% trans 'عدّل العرض' %}",
+    logResponse: "{% trans 'سجّل الرد' %}",
+    pricePlaceholder: "{% trans 'السعر (ج.م)' %}",
+    daysPlaceholder: "{% trans 'أيام' %}",
+    save: "{% trans 'احفظ' %}",
+    acceptPO: "{% trans 'اعتمد + PO' %}",
+    acceptTitle: "{% trans 'تحويل إلى أمر شراء (Draft)' %}",
+    partNumberNA: "{% trans 'رقم القطعة غير متاح.' %}",
+    createFail: "{% trans 'فشل إنشاء الطلب' %}",
+    noVendors: "{% trans 'لا يوجد موردين مسجّلين بعد — أضف موردين من شاشة الشراء.' %}",
+    enterValidPrice: "{% trans 'أدخل سعراً صحيحاً.' %}",
+    saveFail: "{% trans 'فشل الحفظ' %}",
+    err: "{% trans 'خطأ:' %}",
+    confirmPO: "{% trans 'سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟' %}",
+    acceptFail: "{% trans 'فشل الاعتماد' %}",
+    poCreated: "{% trans 'تم إنشاء أمر شراء Draft' %}",
+    vendor: "{% trans 'المورد:' %}",
+    total: "{% trans 'الإجمالي:' %}",
+    inStatus: "{% trans 'في حالة' %}",
+    openInventory: "{% trans 'افتح شاشة المخزون لتسجيل الاستلام.' %}",
+};
+
 // Live-toggle row class as the accountant flips checkboxes
 document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', () => {
@@ -619,19 +684,19 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
 
     function badgeFor(part) {
         if (part.status === 'not_in_catalogue') {
-            return `<div class="stock-badge unknown">⚠️ غير موجود في الكاتالوج
+            return `<div class="stock-badge unknown">⚠️ ${T.notInCatalog}
                 <span class="branches">${part.p_n_display}</span></div>`;
         }
         if (part.total_stock <= 0) {
-            return `<div class="stock-badge out">❌ غير متوفر
-                <span class="branches">طلب توريد مطلوب</span></div>`;
+            return `<div class="stock-badge out">❌ ${T.notAvailable}
+                <span class="branches">${T.supplyNeeded}</span></div>`;
         }
         const top = part.by_branch
             .filter(b => b.qty > 0)
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 2)
             .map(b => `${b.branch_name}: ${b.qty}`).join(' · ');
-        return `<div class="stock-badge in-stock">✓ متوفر: ${part.total_stock}
+        return `<div class="stock-badge in-stock">✓ ${T.available}: ${part.total_stock}
             <span class="branches">${top || ''}</span></div>`;
     }
 
@@ -640,7 +705,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             .map(d => `<span class="dtc-tag">${d}</span>`).join('');
         const productId = part.product_id || '';
         const price = part.retail_price
-            ? `${part.retail_price.toFixed(2)} ج.م`
+            ? `${part.retail_price.toFixed(2)} ${T.egp}`
             : '—';
 
         // Action button switches based on stock state:
@@ -651,14 +716,14 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         if (part.status === 'in_stock') {
             actionBtn = `<button type="button" class="sp-add-btn"
                     data-product-id="${productId}">
-                <i class="fa-solid fa-plus"></i> أضف للبطاقة
+                <i class="fa-solid fa-plus"></i> ${T.addToCard}
             </button>`;
         } else {
             actionBtn = `<button type="button" class="sp-rfq-btn"
                     data-product-id="${productId}"
                     data-part-number="${part.product_pn_db || part.p_n_display}"
                     data-part-name="${(part.product_name_db || part.part_name || '').replace(/"/g, '&quot;')}">
-                <i class="fa-brands fa-whatsapp"></i> اطلب من المورد
+                <i class="fa-brands fa-whatsapp"></i> ${T.orderFromSupplier}
             </button>`;
         }
 
@@ -670,9 +735,9 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                     <span class="sp-pn">${part.product_pn_db || part.p_n_display}</span>
                 </div>
                 <div class="sp-meta">
-                    احتمالية: <strong>${part.probability}%</strong>
-                    · سعر البيع: <strong>${price}</strong>
-                    · من ${dtcs || '—'}
+                    ${T.probability}: <strong>${part.probability}%</strong>
+                    · ${T.salePrice}: <strong>${price}</strong>
+                    · ${T.from} ${dtcs || '—'}
                 </div>
                 <div class="prob-bar"><div class="fill" style="width:${part.probability}%;"></div></div>
             </div>
@@ -687,11 +752,11 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             return;
         }
         if (!data.parts || data.parts.length === 0) {
-            statusEl.innerHTML = '<i class="fa-solid fa-info-circle"></i> الـ AI لم يقترح قطعاً عالية الاحتمالية لهذه الأكواد.';
+            statusEl.innerHTML = `<i class="fa-solid fa-info-circle"></i> ${T.aiNoParts}`;
             listEl.innerHTML = '';
             return;
         }
-        statusEl.innerHTML = `<i class="fa-solid fa-check-circle" style="color:#4ade80;"></i> ${data.parts.length} قطعة مقترحة (مرتّبة حسب الاحتمالية)`;
+        statusEl.innerHTML = `<i class="fa-solid fa-check-circle" style="color:#4ade80;"></i> ${data.parts.length} ${T.suggestedParts}`;
         listEl.innerHTML = data.parts.map(rowFor).join('');
         listEl.querySelectorAll('.sp-add-btn').forEach(btn => {
             btn.addEventListener('click', () => addPart(btn));
@@ -702,14 +767,14 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
     }
 
     async function load() {
-        statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري استخراج القطع من تحليل الـ AI...';
+        statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${T.extracting}`;
         listEl.innerHTML = '';
         try {
             const resp = await fetch(FETCH_URL);
             const data = await resp.json();
             render(data);
         } catch (err) {
-            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> فشل الاتصال: ${err.message}`;
+            statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${T.connFail} ${err.message}`;
         }
     }
 
@@ -732,18 +797,18 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             if (!resp.ok || !data.ok) {
                 btn.disabled = false;
                 btn.innerHTML = orig;
-                alert(data.error || 'فشل الإضافة');
+                alert(data.error || T.addFail);
                 return;
             }
             btn.className = 'sp-add-btn added';
-            btn.innerHTML = `<i class="fa-solid fa-check"></i> أُضيفت (${data.quantity}×)`;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> ${T.added} (${data.quantity}×)`;
             // Reload the page after a short delay so the parts table
             // below shows the freshly-added line item + updated total.
             setTimeout(() => window.location.reload(), 900);
         } catch (err) {
             btn.disabled = false;
             btn.innerHTML = orig;
-            alert(`خطأ في الاتصال: ${err.message}`);
+            alert(`${T.connErr} ${err.message}`);
         }
     }
 
@@ -776,37 +841,37 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         const responded = msg.has_response;
         const waBtn = msg.can_send
             ? `<a class="wa-btn" href="${msg.wa_url}" target="_blank" rel="noopener">
-                  <i class="fa-brands fa-whatsapp"></i> أرسل
+                  <i class="fa-brands fa-whatsapp"></i> ${T.send}
                </a>`
-            : `<span class="wa-btn disabled" title="رقم الهاتف غير مسجل">
-                  <i class="fa-solid fa-phone-slash"></i> بدون رقم
+            : `<span class="wa-btn disabled" title="${T.noPhoneTitle}">
+                  <i class="fa-solid fa-phone-slash"></i> ${T.noPhone}
                </span>`;
         const priceLabel = responded
-            ? `${msg.quoted_price} ج.م · ${msg.quoted_eta_days ?? '?'} يوم`
+            ? `${msg.quoted_price} ${T.egp} · ${msg.quoted_eta_days ?? '?'} ${T.day}`
             : '';
         return `
         <div class="vendor-row" data-quote-id="${msg.quote_id}">
             <div>
                 <div class="v-name">${msg.vendor_name}</div>
-                <div class="v-phone">${msg.phone || '— لا يوجد رقم —'}</div>
+                <div class="v-phone">${msg.phone || T.noNumber}</div>
                 ${responded ? `<div class="v-status responded">📝 ${priceLabel}</div>` : ''}
             </div>
             <div>${waBtn}</div>
             <button type="button" class="toggle-quote-btn" data-quote-id="${msg.quote_id}">
-                ${responded ? 'عدّل العرض' : 'سجّل الرد'}
+                ${responded ? T.editQuote : T.logResponse}
             </button>
             <div class="quote-form" data-quote-id="${msg.quote_id}">
-                <input type="number" class="q-price" placeholder="السعر (ج.م)"
+                <input type="number" class="q-price" placeholder="${T.pricePlaceholder}"
                        value="${msg.quoted_price || ''}" step="0.01" min="0.01">
-                <input type="number" class="q-eta" placeholder="أيام"
+                <input type="number" class="q-eta" placeholder="${T.daysPlaceholder}"
                        value="${msg.quoted_eta_days || ''}" min="0" max="365">
                 <button type="button" class="save-quote" data-quote-id="${msg.quote_id}">
-                    💾 احفظ
+                    💾 ${T.save}
                 </button>
                 <button type="button" class="accept" data-quote-id="${msg.quote_id}"
                         ${responded ? '' : 'disabled'}
-                        title="تحويل إلى أمر شراء (Draft)">
-                    ✅ اعتمد + PO
+                        title="${T.acceptTitle}">
+                    ✅ ${T.acceptPO}
                 </button>
             </div>
         </div>`;
@@ -834,7 +899,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         const productId = btn.dataset.productId
             ? parseInt(btn.dataset.productId, 10) : null;
         if (!partNumber) {
-            alert('رقم القطعة غير متاح.');
+            alert(T.partNumberNA);
             return;
         }
         btn.disabled = true;
@@ -855,9 +920,9 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             });
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
-                alert(data.error || 'فشل إنشاء الطلب');
+                alert(data.error || T.createFail);
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> اطلب من المورد';
+                btn.innerHTML = `<i class="fa-brands fa-whatsapp"></i> ${T.orderFromSupplier}`;
                 return;
             }
             // Populate modal
@@ -867,7 +932,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             document.getElementById('rfqQtyLabel').textContent = data.quantity;
             if (!data.messages.length) {
                 vendorListEl.innerHTML =
-                    '<div class="empty">لا يوجد موردين مسجّلين بعد — أضف موردين من شاشة الشراء.</div>';
+                    `<div class="empty">${T.noVendors}</div>`;
             } else {
                 vendorListEl.innerHTML = data.messages.map(renderVendor).join('');
                 attachRowHandlers();
@@ -877,8 +942,8 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             btn.innerHTML = '<i class="fa-solid fa-check"></i> RFQ #' + data.rfq_id;
         } catch (err) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> اطلب من المورد';
-            alert(`خطأ في الاتصال: ${err.message}`);
+            btn.innerHTML = `<i class="fa-brands fa-whatsapp"></i> ${T.orderFromSupplier}`;
+            alert(`${T.connErr} ${err.message}`);
         }
     }
 
@@ -887,7 +952,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         const price = row.querySelector('.q-price').value;
         const eta = row.querySelector('.q-eta').value;
         if (!price || parseFloat(price) <= 0) {
-            alert('أدخل سعراً صحيحاً.');
+            alert(T.enterValidPrice);
             return;
         }
         try {
@@ -904,7 +969,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             });
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
-                alert(data.error || 'فشل الحفظ');
+                alert(data.error || T.saveFail);
                 return;
             }
             // Enable accept button + show status
@@ -917,14 +982,14 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                 statusEl.className = 'v-status responded';
                 vrow.querySelector('.v-phone').after(statusEl);
             }
-            statusEl.textContent = `📝 ${data.price} ج.م · ${data.eta_days ?? '?'} يوم`;
+            statusEl.textContent = `📝 ${data.price} ${T.egp} · ${data.eta_days ?? '?'} ${T.day}`;
         } catch (err) {
-            alert(`خطأ: ${err.message}`);
+            alert(`${T.err} ${err.message}`);
         }
     }
 
     async function acceptQuote(quoteId) {
-        if (!confirm('سيتم إنشاء أمر شراء Draft للمورد ده. متأكد؟')) return;
+        if (!confirm(T.confirmPO)) return;
         try {
             const resp = await fetch(rfqAcceptUrl(quoteId), {
                 method: 'POST',
@@ -932,18 +997,18 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             });
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
-                alert(data.error || 'فشل الاعتماد');
+                alert(data.error || T.acceptFail);
                 return;
             }
             poSuccessEl.innerHTML = `
-                <strong>✅ تم إنشاء أمر شراء Draft</strong><br>
-                المورد: <strong>${data.vendor_name}</strong> ·
-                الإجمالي: <strong>${data.total.toFixed(2)} ج.م</strong><br>
-                <small>PurchaseInvoice #${data.purchase_invoice_id} في حالة <em>${data.status}</em> — افتح شاشة المخزون لتسجيل الاستلام.</small>
+                <strong>✅ ${T.poCreated}</strong><br>
+                ${T.vendor} <strong>${data.vendor_name}</strong> ·
+                ${T.total} <strong>${data.total.toFixed(2)} ${T.egp}</strong><br>
+                <small>PurchaseInvoice #${data.purchase_invoice_id} ${T.inStatus} <em>${data.status}</em> — ${T.openInventory}</small>
             `;
             poSuccessEl.classList.add('visible');
         } catch (err) {
-            alert(`خطأ: ${err.message}`);
+            alert(`${T.err} ${err.message}`);
         }
     }
 })();

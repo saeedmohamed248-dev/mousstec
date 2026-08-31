@@ -1,9 +1,9 @@
-{% load static %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🪪 جواز السيارة الصحي — {{ vehicle.car_plate|default:vehicle.chassis_number }}</title>
+<title>🪪 {% trans "جواز السيارة الصحي" %} — {{ vehicle.car_plate|default:vehicle.chassis_number }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -23,7 +23,7 @@ body {
     margin-bottom: 22px; position: relative; overflow: hidden;
 }
 .hero::before {
-    content: ''; position: absolute; top: -40%; right: -10%; width: 280px; height: 280px;
+    content: ''; position: absolute; top: -40%; inset-inline-end: -10%; width: 280px; height: 280px;
     background: radial-gradient(circle, rgba(99,102,241,0.25), transparent 70%);
     border-radius: 50%;
 }
@@ -103,11 +103,11 @@ body {
     display: flex; align-items: center; justify-content: center;
     font-size: 22px;
 }
-.nudge.overdue { border-right: 4px solid #ef4444; }
+.nudge.overdue { border-inline-end: 4px solid #ef4444; }
 .nudge.overdue .icon { background: rgba(239,68,68,0.15); color: #fca5a5; }
-.nudge.due { border-right: 4px solid #f59e0b; }
+.nudge.due { border-inline-end: 4px solid #f59e0b; }
 .nudge.due .icon { background: rgba(245,158,11,0.15); color: #fbbf24; }
-.nudge.upcoming { border-right: 4px solid #38bdf8; }
+.nudge.upcoming { border-inline-end: 4px solid #38bdf8; }
 .nudge.upcoming .icon { background: rgba(56,189,248,0.15); color: #7dd3fc; }
 .nudge .name { font-weight: 700; font-size: 13px; color: #e2e8f0; }
 .nudge .reason { font-size: 11px; color: #94a3b8; margin-top: 2px; }
@@ -119,15 +119,15 @@ body {
 .nudge.upcoming .urgency-chip { background: rgba(56,189,248,0.2); color: #7dd3fc; }
 
 /* ── Timeline ───────────────────────────────────────────────── */
-.timeline { position: relative; padding-right: 24px; }
+.timeline { position: relative; padding-inline-end: 24px; }
 .timeline::before {
-    content: ''; position: absolute; top: 8px; bottom: 8px; right: 10px;
+    content: ''; position: absolute; top: 8px; bottom: 8px; inset-inline-end: 10px;
     width: 2px; background: linear-gradient(180deg,
         rgba(99,102,241,0.5), rgba(99,102,241,0.05));
 }
 .tl-item { position: relative; padding-bottom: 18px; }
 .tl-item::before {
-    content: ''; position: absolute; right: -19px; top: 16px;
+    content: ''; position: absolute; inset-inline-end: -19px; top: 16px;
     width: 12px; height: 12px; border-radius: 50%;
     background: #6366f1; border: 3px solid #0f172a;
     box-shadow: 0 0 0 1px rgba(99,102,241,0.5);
@@ -168,7 +168,7 @@ body {
     font-size: 12px; color: #cbd5e1; line-height: 1.7;
     margin-top: 8px; padding: 10px; border-radius: 6px;
     background: rgba(139, 92, 246, 0.08);
-    border-right: 3px solid #8b5cf6;
+    border-inline-end: 3px solid #8b5cf6;
 }
 .tl-card .total {
     font-weight: 900; color: #fbbf24; font-family: monospace;
@@ -195,7 +195,7 @@ body {
     display: flex; justify-content: space-between; align-items: center;
     padding: 8px 12px; margin-bottom: 6px;
     background: rgba(239, 68, 68, 0.05);
-    border-right: 3px solid #ef4444; border-radius: 6px;
+    border-inline-end: 3px solid #ef4444; border-radius: 6px;
     font-family: monospace; font-size: 12px;
 }
 .dtc-bar .count {
@@ -222,7 +222,7 @@ body {
 /* ── Share button + modal (internal view only) ───────────────── */
 .actions-bar {
     display: flex; gap: 10px; justify-content: flex-end;
-    margin-bottom: 14px;
+    margin-bottom: 14px; flex-wrap: wrap; align-items: center;
 }
 .actions-bar a, .actions-bar button {
     padding: 10px 18px; border-radius: 8px;
@@ -237,6 +237,17 @@ body {
 .btn-share-wa:disabled {
     background: rgba(148, 163, 184, 0.15); color: #64748b; cursor: not-allowed;
 }
+
+/* Language switcher */
+.lang-switch { display: flex; gap: 4px; }
+.lang-switch button {
+    background: rgba(148,163,184,0.12); color: #cbd5e1;
+    border: 1px solid rgba(148,163,184,0.2); border-radius: 6px;
+    padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: 12px;
+    cursor: pointer;
+}
+.lang-switch button.active { background: rgba(99,102,241,0.3); color: #c7d2fe;
+    border-color: rgba(99,102,241,0.5); }
 
 .modal-backdrop {
     display: none; position: fixed; inset: 0;
@@ -263,7 +274,7 @@ body {
 .modal .preview-body {
     background: rgba(0, 0, 0, 0.35); padding: 14px; border-radius: 8px;
     font-size: 12px; line-height: 1.85; white-space: pre-wrap;
-    color: #e2e8f0; border-right: 3px solid #25d366;
+    color: #e2e8f0; border-inline-end: 3px solid #25d366;
     margin-bottom: 16px;
 }
 .modal .link-row {
@@ -310,14 +321,22 @@ body {
 <body>
 <div class="shell">
 
-    {% if not public_share %}
-    {# Advisor-only share toolbar — suppressed on the public token view #}
+    {# Language switcher — available on both advisor and public views #}
     <div class="actions-bar">
+        <form action="{% url 'set_language' %}" method="post" class="lang-switch">
+            {% csrf_token %}
+            <input name="next" type="hidden" value="{{ request.get_full_path }}">
+            <button type="submit" name="language" value="ar" class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}">ع</button>
+            <button type="submit" name="language" value="en" class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}">EN</button>
+        </form>
+
+        {% if not public_share %}
+        {# Advisor-only share toolbar — suppressed on the public token view #}
         <button type="button" id="btnSharePassport" class="btn-share-wa">
-            <i class="fa-brands fa-whatsapp"></i> شارك الجواز مع العميل
+            <i class="fa-brands fa-whatsapp"></i> {% trans "شارك الجواز مع العميل" %}
         </button>
+        {% endif %}
     </div>
-    {% endif %}
 
     {# ═══ HERO ═══════════════════════════════════════════════════ #}
     {% with score=vehicle.ai_health_score %}
@@ -330,33 +349,33 @@ body {
                 </h1>
                 <div class="sub">
                     {% if vehicle.car_plate %}
-                        لوحة: <strong>{{ vehicle.car_plate }}</strong> ·
+                        {% trans "لوحة:" %} <strong>{{ vehicle.car_plate }}</strong> ·
                     {% endif %}
-                    المالك: <strong>{{ customer.name }}</strong>
+                    {% trans "المالك:" %} <strong>{{ customer.name }}</strong>
                     {% if customer.phone %} · 📞 {{ customer.phone }}{% endif %}
                 </div>
                 <span class="vin">VIN: {{ vehicle.chassis_number }}</span>
 
                 <div class="hero-stats">
                     <div class="stat">
-                        <div class="label">عدد الزيارات</div>
+                        <div class="label">{% trans "عدد الزيارات" %}</div>
                         <div class="value">{{ visit_count }}</div>
                     </div>
                     <div class="stat">
-                        <div class="label">آخر قراءة عداد</div>
+                        <div class="label">{% trans "آخر قراءة عداد" %}</div>
                         <div class="value">
                             {{ vehicle.last_mileage|default:'—' }}
-                            <span style="font-size:12px;color:#94a3b8;">كم</span>
+                            <span style="font-size:12px;color:#94a3b8;">{% trans "كم" %}</span>
                         </div>
                     </div>
                     <div class="stat">
-                        <div class="label">أول زيارة</div>
+                        <div class="label">{% trans "أول زيارة" %}</div>
                         <div class="value" style="font-size:14px;">
                             {{ first_visit|date:"Y/m/d"|default:'—' }}
                         </div>
                     </div>
                     <div class="stat">
-                        <div class="label">آخر زيارة</div>
+                        <div class="label">{% trans "آخر زيارة" %}</div>
                         <div class="value" style="font-size:14px;">
                             {{ last_visit|date:"Y/m/d"|default:'—' }}
                         </div>
@@ -375,7 +394,7 @@ body {
                 </svg>
                 <div class="score-text">
                     {{ score }}<span class="pct">%</span>
-                    <div style="font-size:9px;color:#94a3b8;margin-top:4px;font-weight:700;">صحة السيارة</div>
+                    <div style="font-size:9px;color:#94a3b8;margin-top:4px;font-weight:700;">{% trans "صحة السيارة" %}</div>
                 </div>
             </div>
         </div>
@@ -391,8 +410,8 @@ body {
             {% if nudges %}
             <div class="card">
                 <div class="card-title">
-                    <span>🔮 تذكيرات الصيانة الذكية</span>
-                    <span class="badge">{{ nudges|length }} توصية</span>
+                    <span>🔮 {% trans "تذكيرات الصيانة الذكية" %}</span>
+                    <span class="badge">{% blocktrans with n=nudges|length %}{{ n }} توصية{% endblocktrans %}</span>
                 </div>
                 {% for n in nudges %}
                     <div class="nudge {{ n.urgency }}">
@@ -406,9 +425,9 @@ body {
                             <div class="reason">{{ n.reason }}</div>
                         </div>
                         <div class="urgency-chip">
-                            {% if n.urgency == 'overdue' %}متأخر
-                            {% elif n.urgency == 'due' %}مستحق
-                            {% else %}قريباً{% endif %}
+                            {% if n.urgency == 'overdue' %}{% trans "متأخر" %}
+                            {% elif n.urgency == 'due' %}{% trans "مستحق" %}
+                            {% else %}{% trans "قريباً" %}{% endif %}
                         </div>
                     </div>
                 {% endfor %}
@@ -418,8 +437,8 @@ body {
             {# Timeline card #}
             <div class="card">
                 <div class="card-title">
-                    <span>📜 الخط الزمني للسيارة</span>
-                    <span class="badge">{{ timeline|length }} حدث</span>
+                    <span>📜 {% trans "الخط الزمني للسيارة" %}</span>
+                    <span class="badge">{% blocktrans with n=timeline|length %}{{ n }} حدث{% endblocktrans %}</span>
                 </div>
 
                 {% if timeline %}
@@ -440,20 +459,20 @@ body {
                                         </div>
                                         <div class="stat-chips">
                                             <span class="chip status {{ ev.invoice.status }}">{{ ev.invoice.get_status_display }}</span>
-                                            {% if ev.parts_count %}<span class="chip parts">📦 {{ ev.parts_count }} قطع</span>{% endif %}
-                                            {% if ev.services_count %}<span class="chip svc">🔧 {{ ev.services_count }} خدمات</span>{% endif %}
-                                            {% if ev.diag_count %}<span class="chip diag">🤖 {{ ev.diag_count }} تشخيص</span>{% endif %}
-                                            {% if ev.photos_count %}<span class="chip photo">📷 {{ ev.photos_count }} صور</span>{% endif %}
+                                            {% if ev.parts_count %}<span class="chip parts">📦 {% blocktrans with n=ev.parts_count %}{{ n }} قطع{% endblocktrans %}</span>{% endif %}
+                                            {% if ev.services_count %}<span class="chip svc">🔧 {% blocktrans with n=ev.services_count %}{{ n }} خدمات{% endblocktrans %}</span>{% endif %}
+                                            {% if ev.diag_count %}<span class="chip diag">🤖 {% blocktrans with n=ev.diag_count %}{{ n }} تشخيص{% endblocktrans %}</span>{% endif %}
+                                            {% if ev.photos_count %}<span class="chip photo">📷 {% blocktrans with n=ev.photos_count %}{{ n }} صور{% endblocktrans %}</span>{% endif %}
                                         </div>
                                     </div>
                                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                                         <span style="font-size:12px;color:#94a3b8;">
-                                            بطاقة الإصلاح <strong style="color:#e2e8f0;">#{{ ev.invoice.id }}</strong>
+                                            {% trans "بطاقة الإصلاح" %} <strong style="color:#e2e8f0;">#{{ ev.invoice.id }}</strong>
                                         </span>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <span class="total">{{ ev.total|floatformat:2 }} ج.م</span>
+                                            <span class="total">{{ ev.total|floatformat:2 }} {% trans "ج.م" %}</span>
                                             <a class="open-jc" href="{% url 'inventory:job_card_review' ev.invoice.id %}" target="_blank">
-                                                افتح البطاقة
+                                                {% trans "افتح البطاقة" %}
                                             </a>
                                         </div>
                                     </div>
@@ -471,7 +490,7 @@ body {
                                             <span>· {{ ev.date|time:"H:i" }}</span>
                                         </div>
                                         <div class="stat-chips">
-                                            <span class="chip status">جلسة تشخيص بدون بطاقة</span>
+                                            <span class="chip status">{% trans "جلسة تشخيص بدون بطاقة" %}</span>
                                             {% if ev.photos_count %}<span class="chip photo">📷 {{ ev.photos_count }}</span>{% endif %}
                                         </div>
                                     </div>
@@ -492,7 +511,7 @@ body {
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="empty">لا يوجد سجل لهذه السيارة بعد.</div>
+                <div class="empty">{% trans "لا يوجد سجل لهذه السيارة بعد." %}</div>
                 {% endif %}
             </div>
 
@@ -502,21 +521,21 @@ body {
         <div>
             <div class="card">
                 <div class="card-title">
-                    <span>👤 المالك</span>
+                    <span>👤 {% trans "المالك" %}</span>
                 </div>
                 <div class="kv-list">
-                    <div class="row"><span class="key">الاسم</span><span class="val">{{ customer.name }}</span></div>
-                    <div class="row"><span class="key">الهاتف</span><span class="val">{{ customer.phone|default:'—' }}</span></div>
-                    <div class="row"><span class="key">نقاط الولاء</span><span class="val">{{ customer.loyalty_points|default:0 }}</span></div>
+                    <div class="row"><span class="key">{% trans "الاسم" %}</span><span class="val">{{ customer.name }}</span></div>
+                    <div class="row"><span class="key">{% trans "الهاتف" %}</span><span class="val">{{ customer.phone|default:'—' }}</span></div>
+                    <div class="row"><span class="key">{% trans "نقاط الولاء" %}</span><span class="val">{{ customer.loyalty_points|default:0 }}</span></div>
                     {% if customer.is_b2b_company %}
-                        <div class="row"><span class="key">نوع الحساب</span><span class="val">شركة B2B</span></div>
+                        <div class="row"><span class="key">{% trans "نوع الحساب" %}</span><span class="val">{% trans "شركة B2B" %}</span></div>
                     {% endif %}
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-title">
-                    <span>🚨 أكثر الأكواد تكراراً</span>
+                    <span>🚨 {% trans "أكثر الأكواد تكراراً" %}</span>
                     {% if top_dtcs %}<span class="badge">{{ top_dtcs|length }}</span>{% endif %}
                 </div>
                 {% for code, count in top_dtcs %}
@@ -525,13 +544,13 @@ body {
                         <span class="count">{{ count }}×</span>
                     </div>
                 {% empty %}
-                    <div class="empty">لم يتم رصد أي أكواد بعد.</div>
+                    <div class="empty">{% trans "لم يتم رصد أي أكواد بعد." %}</div>
                 {% endfor %}
             </div>
 
             <div class="card">
                 <div class="card-title">
-                    <span>📦 القطع الأكثر استبدالاً</span>
+                    <span>📦 {% trans "القطع الأكثر استبدالاً" %}</span>
                     {% if top_parts %}<span class="badge">{{ top_parts|length }}</span>{% endif %}
                 </div>
                 {% for name, qty in top_parts %}
@@ -540,14 +559,14 @@ body {
                         <span class="qty">{{ qty }}×</span>
                     </div>
                 {% empty %}
-                    <div class="empty">لا توجد قطع مسجّلة.</div>
+                    <div class="empty">{% trans "لا توجد قطع مسجّلة." %}</div>
                 {% endfor %}
             </div>
 
             {% if vehicle.predicted_failure_notes %}
             <div class="card" style="border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05);">
                 <div class="card-title" style="color:#fca5a5;">
-                    <span>⚡ تنبؤات AI</span>
+                    <span>⚡ {% trans "تنبؤات AI" %}</span>
                 </div>
                 <div style="font-size:12px;line-height:1.8;color:#fecaca;white-space:pre-wrap;">{{ vehicle.predicted_failure_notes }}</div>
             </div>
@@ -561,24 +580,24 @@ body {
 {# ── Share-link modal (internal view only) ── #}
 <div id="shareModal" class="modal-backdrop">
     <div class="modal">
-        <h3><i class="fa-brands fa-whatsapp"></i> شارك الجواز الصحي للسيارة</h3>
+        <h3><i class="fa-brands fa-whatsapp"></i> {% trans "شارك الجواز الصحي للسيارة" %}</h3>
         <div class="sub">
-            إلى: <strong id="shareCustomer">—</strong>
+            {% trans "إلى:" %} <strong id="shareCustomer">—</strong>
             · <span id="shareVehicle">—</span>
         </div>
 
         <div class="link-row">
             <input type="text" id="shareUrlInput" readonly>
-            <button type="button" class="copy-btn" id="btnCopyLink">انسخ</button>
+            <button type="button" class="copy-btn" id="btnCopyLink">{% trans "انسخ" %}</button>
         </div>
 
         <div class="preview-body" id="sharePreview">—</div>
 
         <div class="modal-actions">
             <a id="shareWaLink" class="send" target="_blank" rel="noopener">
-                <i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل
+                <i class="fa-brands fa-whatsapp"></i> {% trans "افتح WhatsApp وأرسل" %}
             </a>
-            <button type="button" class="cancel" id="btnCloseShare">إلغاء</button>
+            <button type="button" class="cancel" id="btnCloseShare">{% trans "إلغاء" %}</button>
         </div>
     </div>
 </div>
@@ -587,6 +606,14 @@ body {
 
 <script>
 (function () {
+    const T = {
+        preparing: "{% trans 'جاري التحضير...' %}",
+        prepFail: "{% trans 'فشل التحضير' %}",
+        waSend: "{% trans 'افتح WhatsApp وأرسل' %}",
+        noPhone: "{% trans 'العميل بدون رقم — انسخ الرابط' %}",
+        errPrefix: "{% trans 'خطأ:' %}",
+        copied: "{% trans 'تم نسخ الرابط' %}",
+    };
     function getCsrf() {
         const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
         return m ? decodeURIComponent(m[1]) : '';
@@ -604,7 +631,7 @@ body {
         const btn = document.getElementById('btnSharePassport');
         btn.disabled = true;
         const orig = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحضير...';
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${T.preparing}`;
         try {
             const resp = await fetch(SHARE_LINK_URL, {
                 method: 'POST',
@@ -612,7 +639,7 @@ body {
             });
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
-                showToast(data.error || 'فشل التحضير', 'error');
+                showToast(data.error || T.prepFail, 'error');
                 return;
             }
             document.getElementById('shareCustomer').textContent = data.customer_name;
@@ -625,17 +652,17 @@ body {
                 waLink.style.pointerEvents = '';
                 waLink.style.opacity = '1';
                 waLink.innerHTML =
-                    '<i class="fa-brands fa-whatsapp"></i> افتح WhatsApp وأرسل';
+                    `<i class="fa-brands fa-whatsapp"></i> ${T.waSend}`;
             } else {
                 waLink.href = '#';
                 waLink.style.pointerEvents = 'none';
                 waLink.style.opacity = '0.5';
                 waLink.innerHTML =
-                    '<i class="fa-solid fa-phone-slash"></i> العميل بدون رقم — انسخ الرابط';
+                    `<i class="fa-solid fa-phone-slash"></i> ${T.noPhone}`;
             }
             document.getElementById('shareModal').classList.add('visible');
         } catch (err) {
-            showToast(`خطأ: ${err.message}`, 'error');
+            showToast(`${T.errPrefix} ${err.message}`, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = orig;
@@ -654,10 +681,10 @@ body {
         input.select();
         try {
             navigator.clipboard.writeText(input.value);
-            showToast('تم نسخ الرابط');
+            showToast(T.copied);
         } catch (_) {
             document.execCommand('copy');
-            showToast('تم نسخ الرابط');
+            showToast(T.copied);
         }
     });
 })();
