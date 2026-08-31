@@ -250,3 +250,195 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
   else build();
 })();
+
+
+/* =====================================================================
+ * وحدة الشريط العلوي: تبديل اللغة (عربي/إنجليزي) + زر المساعدة
+ * ===================================================================== */
+(function () {
+  "use strict";
+
+  function getCookie(name) {
+    var m = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+    return m ? decodeURIComponent(m.pop()) : "";
+  }
+  function csrfToken() {
+    var el = document.querySelector("input[name=csrfmiddlewaretoken]");
+    if (el && el.value) return el.value;
+    return getCookie("mt_csrf") || getCookie("csrftoken");
+  }
+  function currentLang() {
+    var l = (document.documentElement.getAttribute("lang") || "").slice(0, 2).toLowerCase();
+    return l === "en" ? "en" : "ar";
+  }
+
+  function switchLang(target) {
+    var form = document.createElement("form");
+    form.method = "post";
+    form.action = "/i18n/setlang/";
+    form.style.display = "none";
+    function add(n, v) {
+      var i = document.createElement("input");
+      i.type = "hidden"; i.name = n; i.value = v; form.appendChild(i);
+    }
+    add("csrfmiddlewaretoken", csrfToken());
+    add("language", target);
+    add("next", window.location.pathname + window.location.search);
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  function navRoot() {
+    return document.querySelector(".main-header .navbar-nav.ml-auto") ||
+           (function () {
+             var lists = document.querySelectorAll(".main-header .navbar-nav");
+             return lists.length ? lists[lists.length - 1] : null;
+           })();
+  }
+
+  function build() {
+    var root = navRoot();
+    if (!root || root.getAttribute("data-mt-nav") === "1") return;
+    root.setAttribute("data-mt-nav", "1");
+
+    var lang = currentLang();
+    var other = lang === "ar" ? "en" : "ar";
+    var otherLabel = lang === "ar" ? "EN" : "ع";
+    var otherTitle = lang === "ar" ? "التبديل للإنجليزية" : "Switch to Arabic";
+
+    // زر المساعدة
+    var help = document.createElement("li");
+    help.className = "nav-item mt-nav-btn mt-help";
+    help.innerHTML = '<a class="nav-link" href="#" title="كيف أستخدم النظام؟">' +
+                     '<i class="fas fa-circle-question"></i><span class="mt-nav-lbl">مساعدة</span></a>';
+    help.querySelector("a").addEventListener("click", function (e) {
+      e.preventDefault();
+      if (window.MTOnboarding) window.MTOnboarding.open();
+    });
+
+    // زر تبديل اللغة
+    var langBtn = document.createElement("li");
+    langBtn.className = "nav-item mt-nav-btn mt-lang";
+    langBtn.innerHTML = '<a class="nav-link" href="#" title="' + otherTitle + '">' +
+                        '<i class="fas fa-globe"></i><span class="mt-lang-code">' + otherLabel + '</span></a>';
+    langBtn.querySelector("a").addEventListener("click", function (e) {
+      e.preventDefault(); switchLang(other);
+    });
+
+    root.insertBefore(help, root.firstChild);
+    root.insertBefore(langBtn, root.firstChild);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", build);
+  else build();
+})();
+
+
+/* =====================================================================
+ * وحدة التعريف بالنظام (Onboarding) — نافذة ترحيب بخطوات مبسّطة + فيديو
+ * ---------------------------------------------------------------------
+ * ✏️ لإضافة الفيديو التعريفي: حطّ الرابط في MT_VIDEO_URL تحت (رابط
+ *    embed من يوتيوب مثلاً: https://www.youtube.com/embed/XXXX).
+ * ===================================================================== */
+(function () {
+  "use strict";
+
+  var MT_VIDEO_URL = ""; // 👈 ضع رابط فيديو الشرح هنا (embed)
+  var SEEN_KEY = "mtSeenIntro_v1";
+
+  var SLIDES = [
+    { icon: "🔍", title: "ابحث في ثانية",
+      body: "اكتب اسم أي شاشة في خانة البحث أعلى القائمة الجانبية، أو اضغط <b>Ctrl + K</b> للبحث الشامل في كل النظام." },
+    { icon: "🗂️", title: "كل شيء في كروت مرتّبة",
+      body: "التطبيقات اتجمّعت في كروت حسب المجال (العمليات، الموارد البشرية، الطباعة، التشخيص…). دوس على الكارت عشان يفتح أو يقفل — وهو بيفتكر آخر حالة." },
+    { icon: "🌐", title: "بدّل اللغة بضغطة",
+      body: "من زر <i class='fas fa-globe'></i> أعلى الصفحة تقدر تحوّل بين <b>العربية</b> و<b>English</b> في أي وقت." },
+    { icon: "🚀", title: "الوصول السريع",
+      body: "أهم الإجراءات (أمر شغل، توريد، السوق، التقارير…) موجودة كأزرار سريعة في أعلى لوحة التحكم عشان توصلها فورًا." }
+  ];
+
+  var overlay, idx = 0;
+
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function render() {
+    var s = SLIDES[idx];
+    var isVideo = idx === SLIDES.length - 1 && MT_VIDEO_URL;
+    var media = isVideo
+      ? '<div class="mt-ob-video"><iframe src="' + MT_VIDEO_URL + '" title="شرح" allowfullscreen frameborder="0"></iframe></div>'
+      : '<div class="mt-ob-icon">' + s.icon + '</div>';
+    overlay.querySelector(".mt-ob-media").innerHTML = media;
+    overlay.querySelector(".mt-ob-title").innerHTML = s.title;
+    overlay.querySelector(".mt-ob-body").innerHTML = s.body;
+
+    var dots = overlay.querySelector(".mt-ob-dots");
+    dots.innerHTML = "";
+    SLIDES.forEach(function (_, i) {
+      var d = el("span", "mt-ob-dot" + (i === idx ? " on" : ""));
+      d.addEventListener("click", function () { idx = i; render(); });
+      dots.appendChild(d);
+    });
+
+    overlay.querySelector(".mt-ob-back").style.visibility = idx === 0 ? "hidden" : "visible";
+    overlay.querySelector(".mt-ob-next").textContent = idx === SLIDES.length - 1 ? "يلا نبدأ ✅" : "التالي ›";
+  }
+
+  function close() {
+    if (overlay) overlay.classList.remove("show");
+    try { localStorage.setItem(SEEN_KEY, "1"); } catch (e) {}
+  }
+  function open() {
+    if (!overlay) create();
+    idx = 0; render();
+    overlay.classList.add("show");
+  }
+
+  function create() {
+    overlay = el("div", "mt-ob-overlay");
+    overlay.innerHTML =
+      '<div class="mt-ob-modal" role="dialog" aria-modal="true">' +
+        '<button class="mt-ob-x" aria-label="إغلاق">&times;</button>' +
+        '<div class="mt-ob-media"></div>' +
+        '<h3 class="mt-ob-title"></h3>' +
+        '<p class="mt-ob-body"></p>' +
+        '<div class="mt-ob-dots"></div>' +
+        '<div class="mt-ob-actions">' +
+          '<button class="mt-ob-back">‹ السابق</button>' +
+          '<button class="mt-ob-skip">تخطّي</button>' +
+          '<button class="mt-ob-next">التالي ›</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    overlay.querySelector(".mt-ob-x").addEventListener("click", close);
+    overlay.querySelector(".mt-ob-skip").addEventListener("click", close);
+    overlay.querySelector(".mt-ob-back").addEventListener("click", function () {
+      if (idx > 0) { idx--; render(); }
+    });
+    overlay.querySelector(".mt-ob-next").addEventListener("click", function () {
+      if (idx < SLIDES.length - 1) { idx++; render(); } else close();
+    });
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", function (e) {
+      if (!overlay.classList.contains("show")) return;
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowLeft") overlay.querySelector(".mt-ob-back").click();
+      else if (e.key === "ArrowRight") overlay.querySelector(".mt-ob-next").click();
+    });
+  }
+
+  window.MTOnboarding = { open: open };
+
+  function boot() {
+    var seen = "1";
+    try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
+    if (seen !== "1") setTimeout(open, 900); // ترحيب أول مرة فقط
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

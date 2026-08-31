@@ -526,7 +526,10 @@ JAZZMIN_SETTINGS = {
     "site_brand": "MOUSS TEC",
     "welcome_sign": "مرحباً بك في منصة Mouss Tec — سجل بالبريد الإلكتروني",
     "copyright": "© 2026 Mouss Tec Ecosystem",
-    "search_model": ["inventory.Product", "clients.Client", "inventory.Customer"],
+    # 🔎 موديل واحد فقط في بحث الشريط العلوي — Jazzmin بيرسم مربع بحث لكل
+    #    موديل، فالقايمة كانت بتطلّع 3 مربعات. البحث الشامل متعدد الكيانات
+    #    موجود في لوحة الأوامر (Ctrl+K) داخل الداشبورد.
+    "search_model": "inventory.Product",
     "user_avatar": None,
     "show_sidebar": True,
     "navigation_expanded": True,
