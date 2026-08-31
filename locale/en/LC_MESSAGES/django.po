@@ -1,0 +1,1013 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Mousstec\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "&copy; 2026 Mousstec. جميع الحقوق محفوظة."
+msgstr "&copy; 2026 Mousstec. All rights reserved."
+
+msgid "'كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم'"
+msgstr "'A business card for a print shop called Al Noor, luxury gold and black'"
+
+msgid "1. اختر مجالك"
+msgstr "1. Choose your industry"
+
+msgid "2. حساب المدير المسؤول (Root Admin)"
+msgstr "2. Root admin account"
+
+msgid "25 تصميم بـ 32 جنيه — لوجو، فلاير، تيشرت، أي تصميم تتخيله"
+msgstr "25 designs — logo, flyer, t-shirt, any design you imagine"
+
+msgid "30 ثانية فقط"
+msgstr "Just 30 seconds"
+
+msgid "4 مستخدمين"
+msgstr "4 users"
+
+msgid "420+ مطبعة ومصمم معتمد"
+msgstr "420+ verified print shops & designers"
+
+msgid "AI Design Store — صمّم بالذكاء الاصطناعي"
+msgstr "AI Design Store — design with AI"
+
+msgid "Escrow · مؤشرات ثقة · تجار موثقين"
+msgstr "Escrow · trust scores · verified merchants"
+
+msgid "Mouss Tec | برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم"
+msgstr "Mouss Tec | Online accounting for workshops, print shops & design studios"
+
+msgid "Mousstec Auto | برنامج إدارة مراكز الصيانة وقطع الغيار"
+msgstr "Mousstec Auto | Management software for workshops & spare parts"
+
+msgid "Mousstec Print | برنامج إدارة المطابع واستوديوهات التصميم"
+msgstr "Mousstec Print | Management software for print shops & design studios"
+
+msgid "© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة"
+msgstr "© 2026 Mouss Tec — Smart workshop management | All rights reserved"
+
+msgid "أدخل بريدك وكلمة السر — هنوصّلك لشركتك مباشرة"
+msgstr "Enter your email and password — we'll take you straight to your business"
+
+msgid "أدوات المطبعة الذكية"
+msgstr "Smart print-shop tools"
+
+msgid "أدوات متكاملة لإدارة مركز الصيانة ومحل قطع الغيار — من أول الفاتورة لآخر تقرير أرباح."
+msgstr "Integrated tools to run your workshop and spare-parts store — from the first invoice to the final profit report."
+
+msgid "أدوار وصلاحيات مختلفة لكل موظف"
+msgstr "Different roles and permissions per employee"
+
+msgid "أرباح يومية · كشف حساب · تحليل المبيعات"
+msgstr "Daily profit · statements · sales analysis"
+
+msgid "أمان عالي"
+msgstr "High security"
+
+msgid "أنت تختار الأرخص والأقرب والأفضل"
+msgstr "You pick the cheapest, closest and best"
+
+msgid "أنت مين؟ اختار اللي يناسبك:"
+msgstr "Who are you? Pick what fits you:"
+
+msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
+msgstr "Create a print order with sizes, quantities and copies — pricing is calculated automatically."
+
+msgid "إخطار تلقائي عند انخفاض الأصناف"
+msgstr "Automatic alerts when stock runs low"
+
+msgid "إدارة الفنيين"
+msgstr "Technician management"
+
+msgid "إدارة المخزون"
+msgstr "Inventory management"
+
+msgid "إدارة المردات والتعديلات بسهولة"
+msgstr "Manage returns and adjustments easily"
+
+msgid "إدارة الموظفين"
+msgstr "Employee management"
+
+msgid "إدارة بيانات العملاء والموردين بشكل منظم"
+msgstr "Organized management of customer and supplier data"
+
+msgid "إدارة كاملة لشركتك — اختار قطاعك:"
+msgstr "Full management for your business — choose your sector:"
+
+msgid "إرسال مباشر للعميل"
+msgstr "Send directly to the customer"
+
+msgid "إزاي يشتغل؟"
+msgstr "How does it work?"
+
+msgid "إشعارات فورية"
+msgstr "Instant notifications"
+
+msgid "إصدار فاتورة · طباعة · إرسال واتساب"
+msgstr "Issue invoice · print · send on WhatsApp"
+
+msgid "إغلاق الحسابات والتسويات التلقائية"
+msgstr "Automatic account closing and settlements"
+
+msgid "إنستاباي"
+msgstr "InstaPay"
+
+msgid "إنشاء وإدارة فواتير احترافية بسهولة"
+msgstr "Create and manage professional invoices easily"
+
+msgid "إيداع وسحب، مصروفات تشغيلية، ومتابعة المدفوعات لكل طلب."
+msgstr "Deposits and withdrawals, operating expenses, and payment tracking per order."
+
+msgid "ابدأ مجانا"
+msgstr "Start free"
+
+msgid "اختار الأفضل وادفع"
+msgstr "Pick the best and pay"
+
+msgid "اختار الباقة المناسبة لحجم شغلك."
+msgstr "Choose the plan that fits your workload."
+
+msgid "اختار باقتك، ولّد تصاميم احترافية بالـ AI، واطبعها مباشرة. تصميم واحد مجاني للتجربة."
+msgstr "Choose your plan, generate professional AI designs, and print them directly. One free design to try."
+
+msgid "اختر الباقة المناسبة"
+msgstr "Choose the right plan"
+
+msgid "اختر الباقة المناسبة لنشاطك"
+msgstr "Choose the plan that fits your business"
+
+msgid "اختر طريقة الدفع المناسبة لك:"
+msgstr "Choose the payment method that suits you:"
+
+msgid "ادارة الإيداع والسحب، مصروفات تشغيلية، كشف حساب عملاء وموردين."
+msgstr "Manage deposits and withdrawals, operating expenses, customer and supplier statements."
+
+msgid "ادخل على حسابك مباشرة"
+msgstr "Sign in to your account"
+
+msgid "اسأل الـ AI أي سؤال عن فاتورة أو مصروف"
+msgstr "Ask the AI any question about an invoice or expense"
+
+msgid "استخدام تجاري"
+msgstr "Commercial use"
+
+msgid "استخدم الباركود والفواتير من أي مكان"
+msgstr "Use barcodes and invoices from anywhere"
+
+msgid "استلم عروض من التجار"
+msgstr "Receive offers from merchants"
+
+msgid "اسعار شفافة بدون مفاجآت"
+msgstr "Transparent pricing, no surprises"
+
+msgid "اسم المركز أو الشركة"
+msgstr "Center or company name"
+
+msgid "اشترك الآن"
+msgstr "Subscribe now"
+
+msgid "اشترِ الآن"
+msgstr "Buy now"
+
+msgid "اصدر فاتورتك في ثواني — دعم الباركود، الطباعة الحرارية و A4، ومشاركة واتساب."
+msgstr "Issue your invoice in seconds — barcode support, thermal and A4 printing, and WhatsApp sharing."
+
+msgid "اطلب من تجار تانيين"
+msgstr "Order from other merchants"
+
+msgid "اقتراحات لتحسين المبيعات والأرباح"
+msgstr "Suggestions to boost sales and profit"
+
+msgid "اقرأ أكواد الأعطال وبيانات المحرك لحظياً بدون تنزيل برامج أو شراء جهاز إضافي — يعمل أوفلاين ويُزامن آلياً."
+msgstr "Read fault codes and live engine data instantly — no software downloads or extra hardware. Works offline and syncs automatically."
+
+msgid "اكتب اللي محتاجه"
+msgstr "Write what you need"
+
+msgid "اكتب طلبك بكلمتين"
+msgstr "Describe your request in a few words"
+
+msgid "الأتمتة"
+msgstr "Automation"
+
+msgid "الأداء العاملين"
+msgstr "Staff performance"
+
+msgid "الأرباح والخسائر"
+msgstr "Profit & loss"
+
+msgid "الأكثر طلبا"
+msgstr "Most popular"
+
+msgid "الاسم بالكامل"
+msgstr "Full name"
+
+msgid "الباقات"
+msgstr "Plans"
+
+msgid "الباقة"
+msgstr "Plan"
+
+msgid "البريد الإلكتروني"
+msgstr "Email"
+
+msgid "البريد الإلكتروني للإدارة"
+msgstr "Admin email"
+
+msgid "التجديد قبل انتهاء الاشتراك يمنحك 5 ايام مجانية اضافية تلقائياً!"
+msgstr "Renewing before your subscription ends earns you 5 extra free days automatically!"
+
+msgid "التحذيرات الذكية"
+msgstr "Smart alerts"
+
+msgid "التصدير"
+msgstr "Export"
+
+msgid "التعليم والمساعدة"
+msgstr "Learning & help"
+
+msgid "التقارير الذكية"
+msgstr "Smart reports"
+
+msgid "التقارير المالية"
+msgstr "Financial reports"
+
+msgid "التنبؤات"
+msgstr "Forecasts"
+
+msgid "التنبيه لأنماط مشبوهة أو عمليات غير معتادة"
+msgstr "Alerts for suspicious patterns or unusual activity"
+
+msgid "التوصيات"
+msgstr "Recommendations"
+
+msgid "الحالة"
+msgstr "Status"
+
+msgid "الحسابات الثنائية"
+msgstr "Double-entry accounts"
+
+msgid "الخسائر والأرباح"
+msgstr "Profit & loss"
+
+msgid "الدعم الأولوي"
+msgstr "Priority support"
+
+msgid "الذكاء الاصطناعي"
+msgstr "Artificial intelligence"
+
+msgid "الرئيسية"
+msgstr "Home"
+
+msgid "الشركة"
+msgstr "Company"
+
+msgid "العملاء والموردين"
+msgstr "Customers & suppliers"
+
+msgid "العودة للرئيسية"
+msgstr "Back to home"
+
+msgid "الفواتير والمبيعات"
+msgstr "Invoicing & sales"
+
+msgid "القطاع"
+msgstr "Industry"
+
+msgid "القيد المزدوج"
+msgstr "Double-entry"
+
+msgid "القيود اليومية"
+msgstr "Journal entries"
+
+msgid "المبلغ المطلوب"
+msgstr "Amount due"
+
+msgid "المبيعات والإيرادات"
+msgstr "Sales & revenue"
+
+msgid "المحاسبة الثنائية"
+msgstr "Double-entry accounting"
+
+msgid "المطابع واستوديوهات التصميم"
+msgstr "Print shops & design studios"
+
+msgid "المقابلات"
+msgstr "Comparisons"
+
+msgid "المميزات"
+msgstr "Features"
+
+msgid "المميزة"
+msgstr "Featured"
+
+msgid "الميزانية"
+msgstr "Balance sheet"
+
+msgid "انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ"
+msgstr "Join the integrated cloud-commerce network and own your isolated system in seconds"
+
+msgid "اوصل لعملاء جدد بدون تسويق"
+msgstr "Reach new customers with no marketing"
+
+msgid "بأمان كامل"
+msgstr "Fully secured"
+
+msgid "باحترافية كاملة"
+msgstr "with full professionalism"
+
+msgid "باركود · جرد · تنبيه نفاد · تحويل بين الفروع"
+msgstr "Barcode · stock-take · low-stock alerts · branch transfers"
+
+msgid "باقات Mouss Tec | اختر خطتك"
+msgstr "Mouss Tec Plans | Choose your plan"
+
+msgid "باقات العملاء"
+msgstr "Customer plans"
+
+msgid "باقات المصممين"
+msgstr "Designer plans"
+
+msgid "باقات المطابع والتصميم"
+msgstr "Print & design plans"
+
+msgid "بتفاصيلك أنت"
+msgstr "with your own details"
+
+msgid "بطاقة فيزا / ماستركارد"
+msgstr "Visa / Mastercard"
+
+msgid "بعد ما تخلص التصميم، اضغط زرار 'إرسال للعميل' وهيوصله على واتساب فوراً"
+msgstr "When your design is ready, hit 'Send to customer' and it reaches them on WhatsApp instantly"
+
+msgid "بيانات وتحليلات فورية"
+msgstr "Instant data and analytics"
+
+msgid "بيع تصاميمك للعملاء عبر منصتنا — العمولة تُحتجز في Escrow ولا تُحوَّل إلا بعد رضا العميل، مع مؤشرات ثقة لكل مصمم."
+msgstr "Sell your designs to customers through our platform — the commission is held in escrow and released only after the customer is satisfied, with trust scores for every designer."
+
+msgid "بيع واشترِ قطع غيار من تجار موثقين — الفلوس مجمّدة في الضمان حتى يتأكد المشتري، ومؤشرات ثقة لكل بائع."
+msgstr "Buy and sell spare parts from verified merchants — funds held in escrow until the buyer confirms, with trust scores for every seller."
+
+msgid "تأسيس مؤسسة سحابية جديدة | Mouss Tec B2B"
+msgstr "Set up a new cloud business | Mouss Tec B2B"
+
+msgid "تاريخ الحركات"
+msgstr "Transaction history"
+
+msgid "تتبع أعمال كل مصمم، ساعات العمل، نوع التنفيذ (يدوي/AI)، وتقييم العميل."
+msgstr "Track every designer's work, hours, execution type (manual/AI), and customer rating."
+
+msgid "تتبع الكميات لحظيا، تنبيهات النقص، جرد بالموبايل، ومطابقة أرقام القطع OEM."
+msgstr "Real-time quantity tracking, low-stock alerts, mobile stock-take, and OEM part-number matching."
+
+msgid "تتبع الماكينات"
+msgstr "Machine tracking"
+
+msgid "تتبع قطعك وأصنافك بدقة"
+msgstr "Track your parts and items accurately"
+
+msgid "تتبع كل عملية بيع مع تاريخ وساعة دقيقة"
+msgstr "Track every sale with exact date and time"
+
+msgid "تحديثات مستمرة"
+msgstr "Continuous updates"
+
+msgid "تحليل الرصيد"
+msgstr "Balance analysis"
+
+msgid "تحليل مفصل للمبيعات اليومية والشهرية"
+msgstr "Detailed analysis of daily and monthly sales"
+
+msgid "تحميل + إرسال واتساب"
+msgstr "Download + WhatsApp send"
+
+msgid "تحويل بين الفروع"
+msgstr "Branch-to-branch transfers"
+
+msgid "ترقيم تلقائي، توقيع رقمي، وطباعة احترافية"
+msgstr "Auto-numbering, digital signature, and professional printing"
+
+msgid "تسجيل الدخول"
+msgstr "Sign in"
+
+msgid "تسجيل الدخول | Mouss Tec"
+msgstr "Sign in | Mouss Tec"
+
+msgid "تسجيل كل حركة مالية تفصيلياً"
+msgstr "Record every financial transaction in detail"
+
+msgid "تسجيل ورديات، توزيع المهام، ومتابعة إنتاجية كل فني من لوحة التحكم."
+msgstr "Log shifts, assign tasks, and track each technician's productivity from the dashboard."
+
+msgid "تسليم"
+msgstr "Delivery"
+
+msgid "تشخيص OBD مباشر"
+msgstr "Live OBD diagnostics"
+
+msgid "تشخيص OBD مباشر من المتصفح (PWA)"
+msgstr "Live OBD diagnostics from the browser (PWA)"
+
+msgid "تشخيص الـ AI"
+msgstr "AI diagnostics"
+
+msgid "تشخيص وتوصيات ذكية"
+msgstr "Smart diagnostics and recommendations"
+
+msgid "تشغيل تلقائي للعمليات المتكررة"
+msgstr "Automate repetitive operations"
+
+msgid "تشفير البيانات"
+msgstr "Data encryption"
+
+msgid "تشفير البيانات والنسخ الاحتياطية التلقائية"
+msgstr "Data encryption and automatic backups"
+
+msgid "تصدير PDF"
+msgstr "PDF export"
+
+msgid "تصنيفات متعددة"
+msgstr "Multiple categories"
+
+msgid "تطبيق موبايل"
+msgstr "Mobile app"
+
+msgid "تعلم كيفية استخدام الفاتورة والمبيعات"
+msgstr "Learn how to use invoicing and sales"
+
+msgid "تقارير أرباح لحظية"
+msgstr "Real-time profit reports"
+
+msgid "تقارير لحظية"
+msgstr "Real-time reports"
+
+msgid "تقارير متقدمة"
+msgstr "Advanced reports"
+
+msgid "تقارير وأرباح"
+msgstr "Reports & profit"
+
+msgid "تقرير أرباح وخسائر، أربحية كل صنف، وحركة المخزون — متاحة 24/7."
+msgstr "Profit & loss report, per-item profitability, and stock movement — available 24/7."
+
+msgid "تقييمات حقيقية + ضمان على كل عرض"
+msgstr "Real reviews + a guarantee on every offer"
+
+msgid "تم العثور على حسابك!"
+msgstr "Your account was found!"
+
+msgid "تنبيهات ناقص"
+msgstr "Low-stock alerts"
+
+msgid "تنظيم الأصناف حسب الفئات والماركات"
+msgstr "Organize items by categories and brands"
+
+msgid "تواصل معنا"
+msgstr "Contact us"
+
+msgid "توفر 99.9% مع سرعة عالية"
+msgstr "99.9% uptime with high speed"
+
+msgid "توفير حتى"
+msgstr "Save up to"
+
+msgid "توقع المبيعات والأصناف الشهيرة"
+msgstr "Predict sales and popular items"
+
+msgid "توليد تصاميم بالذكاء الاصطناعي، علامة مائية ذكية، وإرسال تلقائي للعميل بالواتساب."
+msgstr "Generate AI designs, smart watermarking, and auto-send to the customer on WhatsApp."
+
+msgid "جاهز تبدأ؟"
+msgstr "Ready to start?"
+
+msgid "جاهز لتجربة Mouss Tec؟"
+msgstr "Ready to try Mouss Tec?"
+
+msgid "جديد"
+msgstr "New"
+
+msgid "جديد ⚡"
+msgstr "New ⚡"
+
+msgid "جرّب تصميم واحد مجاني بدون تسجيل دفع"
+msgstr "Try one free design — no payment details needed"
+
+msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً %(days)s ايام ثم اختر باقتك."
+msgstr "Every plan includes full accounting, smart reports, and invoicing. Try %(days)s days free, then pick your plan."
+
+msgid "جنيه / شهر"
+msgstr "per month"
+
+msgid "جولد"
+msgstr "Gold"
+
+msgid "حساب صافي ربحك بدقة شهرية وسنوية"
+msgstr "Calculate your net profit accurately, monthly and yearly"
+
+msgid "حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات"
+msgstr "Automatic VAT calculation and exemption support"
+
+msgid "حسابات ضريبية دقيقة"
+msgstr "Accurate tax accounting"
+
+msgid "حفظ التقارير بصيغ Excel و PDF"
+msgstr "Save reports as Excel and PDF"
+
+msgid "حفظ وطباعة وإرسال الفواتير بصيغة احترافية"
+msgstr "Save, print and send invoices professionally"
+
+msgid "حوّل عن طريق InstaPay وارفع سكرين شوت العملية"
+msgstr "Transfer via InstaPay and upload a screenshot of the transaction"
+
+msgid "حوّل وارفع سكرين شوت — تفعيل فوري بعد المراجعة"
+msgstr "Transfer and upload a screenshot — instant activation after review"
+
+msgid "خزينة واحدة"
+msgstr "One treasury"
+
+msgid "خزينة وحسابات"
+msgstr "Treasury & accounts"
+
+msgid "خزينة ومصروفات"
+msgstr "Treasury & expenses"
+
+msgid "خزينة ومصروفات + تقارير أرباح"
+msgstr "Treasury & expenses + profit reports"
+
+msgid "خزينتين"
+msgstr "Two treasuries"
+
+msgid "خطة الحسابات"
+msgstr "Chart of accounts"
+
+msgid "خلال 48 ساعة"
+msgstr "Within 48 hours"
+
+msgid "خوادم موثوقة"
+msgstr "Reliable servers"
+
+msgid "دعم 24/7"
+msgstr "24/7 support"
+
+msgid "دعم الباركود"
+msgstr "Barcode support"
+
+msgid "دعم العملاء بالذكاء الاصطناعي (RAG)"
+msgstr "AI customer support (RAG)"
+
+msgid "دعم ذكي بالـ RAG"
+msgstr "Smart RAG-powered support"
+
+msgid "دعم فني أولوية"
+msgstr "Priority technical support"
+
+msgid "دعم فني بالذكاء الاصطناعي (RAG)"
+msgstr "AI technical support (RAG)"
+
+msgid "دفاتر احترافية معتمدة"
+msgstr "Certified professional ledgers"
+
+msgid "دفعة واحدة"
+msgstr "One-time payment"
+
+msgid "دمج لوجو الشركة في التصميم"
+msgstr "Embed your company logo in the design"
+
+msgid "ذكاء اصطناعي مدمج"
+msgstr "Built-in AI"
+
+msgid "رؤية واضحة لصافي ربحك"
+msgstr "A clear view of your net profit"
+
+msgid "رابط النظام المحمي (Subdomain)"
+msgstr "Your protected system link (subdomain)"
+
+msgid "ربط مباشر بفواتير العملاء"
+msgstr "Direct link to customer invoices"
+
+msgid "رصيد الخزنة · بنود المصروفات · تقرير شهري"
+msgstr "Treasury balance · expense items · monthly report"
+
+msgid "رقم التحويل:"
+msgstr "Transfer number:"
+
+msgid "رقم هاتف المالك / الإدارة"
+msgstr "Owner / admin phone number"
+
+msgid "سجل أعمال المصممين + تقييمات"
+msgstr "Designer work log + ratings"
+
+msgid "سجل التصاميم"
+msgstr "Design history"
+
+msgid "سجل المصممين"
+msgstr "Designer log"
+
+msgid "سجل كامل"
+msgstr "Full history"
+
+msgid "سجل كل التصاميم — ترجعله أي وقت"
+msgstr "A record of every design — go back to it anytime"
+
+msgid "سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع."
+msgstr "Register now and use the system free for 7 days with all top-plan features — no payment details."
+
+msgid "سجّل برقم موبايلك"
+msgstr "Register with your mobile number"
+
+msgid "سجّل شركتك واستخدم النظام كامل"
+msgstr "Register your business and use the full system"
+
+msgid "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها."
+msgstr "Log every machine's power and ink usage — the hourly cost is computed automatically."
+
+msgid "سجّل واستخدم نظام Mouss Tec"
+msgstr "Register and use Mouss Tec"
+
+msgid "سوق B2B المركزي"
+msgstr "Central B2B marketplace"
+
+msgid "سوق P2P بضمان"
+msgstr "Escrow-backed P2P marketplace"
+
+msgid "سوق تصاميم بضمان دفع آمن"
+msgstr "Design marketplace with secure escrow payment"
+
+msgid "سوق قطع غيار P2P بضمان Escrow"
+msgstr "P2P spare-parts marketplace with escrow"
+
+msgid "سيارات"
+msgstr "Automotive"
+
+msgid "سيلفر"
+msgstr "Silver"
+
+msgid "شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد"
+msgstr "Your business + your marketplace + your AI, all in one place"
+
+msgid "شوف عينات تصميم قبل الموافقة"
+msgstr "See design samples before approving"
+
+msgid "صاحب شركة أو مركز"
+msgstr "Business or workshop owner"
+
+msgid "صفقات آمنة"
+msgstr "Secure deals"
+
+msgid "صيانة وقطع غيار"
+msgstr "Repair & spare parts"
+
+msgid "ضمان Escrow حتى التسليم"
+msgstr "Escrow protection until delivery"
+
+msgid "طباعة وتصميم"
+msgstr "Printing & design"
+
+msgid "طلب طباعة شهريا"
+msgstr "print orders / month"
+
+msgid "طلبات طباعة"
+msgstr "Print orders"
+
+msgid "طلبات طباعة + تسعير تلقائي"
+msgstr "Print orders + auto pricing"
+
+msgid "طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية"
+msgstr "Print orders, machine tracking, designer work log, and real operating-cost calculation"
+
+msgid "طلبات غير محدودة"
+msgstr "Unlimited orders"
+
+msgid "عدد الفروع"
+msgstr "Number of branches"
+
+msgid "عدد الموظفين"
+msgstr "Number of employees"
+
+msgid "عرض الأصول والخصوم وحقوق الملك"
+msgstr "View assets, liabilities and equity"
+
+msgid "علامة مائية تلقائية لحماية تصميمك"
+msgstr "Automatic watermark to protect your design"
+
+msgid "على متوسط السوق"
+msgstr "vs. the market average"
+
+msgid "عميل عاوز يطلب"
+msgstr "I'm a customer"
+
+msgid "عندي حساب"
+msgstr "I have an account"
+
+msgid "عنوان InstaPay:"
+msgstr "InstaPay address:"
+
+msgid "غير محدود"
+msgstr "Unlimited"
+
+msgid "فاتورة شهريا"
+msgstr "invoices / month"
+
+msgid "فترات زمنية"
+msgstr "Time periods"
+
+msgid "فرع واحد"
+msgstr "One branch"
+
+msgid "فرعين"
+msgstr "Two branches"
+
+msgid "فروع غير محدودة"
+msgstr "Unlimited branches"
+
+msgid "فريق دعم متاح لمساعدتك دائماً"
+msgstr "A support team always available to help you"
+
+msgid "فواتير بيع وشراء"
+msgstr "Sales & purchase invoices"
+
+msgid "فواتير بيع وشراء + طباعة وواتساب"
+msgstr "Sales & purchase invoices + print and WhatsApp"
+
+msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير أرباح"
+msgstr "Sales & purchase invoices, spare-parts inventory, repair cards, customer and supplier statements, profit reports"
+
+msgid "فواتير ذكية"
+msgstr "Smart invoices"
+
+msgid "فوترة ذكية"
+msgstr "Smart invoicing"
+
+msgid "فودافون كاش"
+msgstr "Vodafone Cash"
+
+msgid "في خلال دقائق"
+msgstr "In minutes"
+
+msgid "قائمة حسابات مخصصة لنشاطك"
+msgstr "A chart of accounts tailored to your business"
+
+msgid "قريباً"
+msgstr "Coming soon"
+
+msgid "قريباً — تحت التطوير"
+msgstr "Coming soon — under development"
+
+msgid "قطعة، صيانة، تصميم، أو طباعة"
+msgstr "A part, a repair, a design, or printing"
+
+msgid "قيد مزدوج · عزل تام"
+msgstr "Double-entry · full isolation"
+
+msgid "قيود مزدوجة معتمدة + كل مطبعة في schema منفصل — أمان بنكي ومطابق لمعايير الـ Multi-tenant SaaS العالمية."
+msgstr "Certified double-entry bookkeeping + each print shop in a separate schema — bank-grade security compliant with global multi-tenant SaaS standards."
+
+msgid "قيود مزدوجة معتمدة محاسبياً + كل شركة في schema منفصل تماماً — أمان بنكي ومطابقة لأعلى المعايير الدولية (Multi-tenant Isolation)."
+msgstr "Certified double-entry accounting + each company in a fully separate schema — bank-grade security meeting the highest international standards (multi-tenant isolation)."
+
+msgid "كرت صيانة لكل سيارة بالشاسيه واللوحة — تاريخ كامل وتوقيع رقمي من العميل."
+msgstr "A repair card for every car by chassis and plate — full history and a digital signature from the customer."
+
+msgid "كروت صيانة"
+msgstr "Repair cards"
+
+msgid "كروت صيانة + تتبع المركبات"
+msgstr "Repair cards + vehicle tracking"
+
+msgid "كل اللي تحتاجه في مكان واحد"
+msgstr "Everything you need in one place"
+
+msgid "كل المميزات"
+msgstr "All features"
+
+msgid "كل تصميم بيتحفظ بالـ prompt والـ category — ترجع لأي تصميم وتحمّله أو تعدّله"
+msgstr "Every design is saved with its prompt and category — return to any design to download or edit it"
+
+msgid "كل شركة جديدة تتسجل تاخد 10 تصاميم + 5 رسائل واتساب + 5 علامات مائية مجاناً"
+msgstr "Every new company gets 10 designs + 5 WhatsApp messages + 5 watermarks free"
+
+msgid "كل طلب جديد يوصلك في ثوان"
+msgstr "Every new order reaches you in seconds"
+
+msgid "كل عملية بحساب مدين ودائن متوازن"
+msgstr "Every transaction with balanced debit and credit"
+
+msgid "كل ما تحتاجه لإدارة المطبعة أو الاستوديو — من الطلب للتسليم."
+msgstr "Everything you need to run the print shop or studio — from order to delivery."
+
+msgid "كل ما تحتاجه لإدارة مركزك بسهولة"
+msgstr "Everything you need to run your center easily"
+
+msgid "كلمة السر"
+msgstr "Password"
+
+msgid "كلمة المرور للنظام"
+msgstr "System password"
+
+msgid "للأفراد والشركات اللي عايزين تصاميم جاهزة"
+msgstr "For individuals and businesses who want ready-made designs"
+
+msgid "للشركات والمراكز:"
+msgstr "For companies and centers:"
+
+msgid "للمصممين المحترفين والاستوديوهات"
+msgstr "For professional designers and studios"
+
+msgid "للمطابع الصغيرة واستوديوهات التصميم"
+msgstr "For small print shops and design studios"
+
+msgid "للمطابع الكبيرة ومجموعات التصميم"
+msgstr "For large print shops and design groups"
+
+msgid "للمطابع المتوسطة ومكاتب التصميم"
+msgstr "For mid-size print shops and design offices"
+
+msgid "لنشاطك"
+msgstr "for your business"
+
+msgid "ماكينات + حساب تكلفة CMYK"
+msgstr "Machines + CMYK cost calculation"
+
+msgid "متجر تصاميم AI الفوري"
+msgstr "Instant AI design store"
+
+msgid "متصل وآمن"
+msgstr "Online and secure"
+
+msgid "متكامل"
+msgstr "All-in-one"
+
+msgid "محاسبة بالقيد المزدوج + عزل تام للبيانات"
+msgstr "Double-entry accounting + full data isolation"
+
+msgid "محاسبة قيد مزدوج + عزل تام للبيانات"
+msgstr "Double-entry accounting + full data isolation"
+
+msgid "محاسبة معتمدة · كل شركة في schema مستقل"
+msgstr "Certified accounting · each company in its own schema"
+
+msgid "محتاج قطعة أو صيانة لعربيتك؟"
+msgstr "Need a part or a repair for your car?"
+
+msgid "محتاج لوجو أو طباعة لبراندك؟"
+msgstr "Need a logo or printing for your brand?"
+
+msgid "مخزون خامات"
+msgstr "Materials inventory"
+
+msgid "مخزون خامات + خزينة ومصروفات"
+msgstr "Materials inventory + treasury & expenses"
+
+msgid "مخزون ذكي"
+msgstr "Smart inventory"
+
+msgid "مخزون قطع غيار"
+msgstr "Spare-parts inventory"
+
+msgid "مخزون وقطع غيار + باركود"
+msgstr "Inventory & spare parts + barcode"
+
+msgid "مذكرات دائنة ومدينة"
+msgstr "Credit & debit notes"
+
+msgid "مراكز الصيانة وقطع الغيار"
+msgstr "Workshops & spare parts"
+
+msgid "مركز صيانة"
+msgstr "workshops"
+
+msgid "مساعد الأسئلة"
+msgstr "Q&A assistant"
+
+msgid "مساعد ذكي مدرَّب على قاعدة معرفتك وكتالوجات الصيانة — إجابات فورية بالعربي عن أي عطل أو قطعة، بدون انتظار توكيلات الخارج."
+msgstr "A smart assistant trained on your knowledge base and repair catalogs — instant Arabic answers about any fault or part, no waiting on overseas dealers."
+
+msgid "مساعد ذكي يرد على عملاء المطبعة فوراً 24/7 — معرفة كاملة بكتالوجك وأسعارك وأوقات التسليم."
+msgstr "A smart assistant that answers print-shop customers instantly 24/7 — full knowledge of your catalog, prices and delivery times."
+
+msgid "مساعد عربي مدرَّب على بياناتك — رد فوري 24/7"
+msgstr "An Arabic assistant trained on your data — instant replies 24/7"
+
+msgid "مستخدم جديد؟"
+msgstr "New user?"
+
+msgid "مستخدم واحد"
+msgstr "One user"
+
+msgid "مستخدمين غير محدود"
+msgstr "Unlimited users"
+
+msgid "مسح الأصناف بسهولة عند البيع والشراء"
+msgstr "Scan items easily when buying and selling"
+
+msgid "مش متأكد؟"
+msgstr "Not sure?"
+
+msgid "مطابع واستوديوهات"
+msgstr "Print shops & studios"
+
+msgid "مطبعة واستوديو"
+msgstr "print shops & studios"
+
+msgid "معرفة أعلى وأقل الأصناف مبيعاً"
+msgstr "See your best- and worst-selling items"
+
+msgid "معرفة من أخذ وأعطى كل صنف"
+msgstr "Know who took and gave each item"
+
+msgid "معرفة من يبيع الأكثر"
+msgstr "See who sells the most"
+
+msgid "مفيش باقات عملاء مفعّلة حالياً."
+msgstr "No customer plans are currently active."
+
+msgid "مفيش باقات مصممين مفعّلة حالياً."
+msgstr "No designer plans are currently active."
+
+msgid "مقارنة الباقات"
+msgstr "Compare plans"
+
+msgid "مقارنة يومي وشهري وسنوي"
+msgstr "Daily, monthly and yearly comparison"
+
+msgid "مكافأة الولاء:"
+msgstr "Loyalty bonus:"
+
+msgid "ملفات مصدر"
+msgstr "Source files"
+
+msgid "ملفات مصدر (PSD/SVG)"
+msgstr "Source files (PSD/SVG)"
+
+msgid "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار"
+msgstr "Mouss Tec Features | Management system for workshops & spare-parts dealers"
+
+msgid "مميزات إضافية"
+msgstr "Extra features"
+
+msgid "مميزات مشتركة في كل القطاعات"
+msgstr "Features shared across all sectors"
+
+msgid "من المتصفح · بدون أجهزة إضافية · يعمل أوفلاين"
+msgstr "From the browser · no extra hardware · works offline"
+
+msgid "من الموبايل"
+msgstr "from your phone"
+
+msgid "منصة إدارة مراكز الصيانة وتجار قطع الغيار"
+msgstr "Management platform for workshops and spare-parts dealers"
+
+msgid "منصة بمعايير عالمية: ذكاء اصطناعي، PWA، Escrow، ومحاسبة مزدوجة — كل ده في مكان واحد."
+msgstr "A world-class platform: AI, PWA, escrow, and double-entry accounting — all in one place."
+
+msgid "ميزات جديدة وتحسينات شهرية"
+msgstr "New features and monthly improvements"
+
+msgid "ميزانية وحسابات وتحليلات مفصلة"
+msgstr "Balance sheet, accounts and detailed analytics"
+
+msgid "نبض السوق:"
+msgstr "Market pulse:"
+
+msgid "نظام الاضافات المرنة"
+msgstr "Flexible add-ons"
+
+msgid "نقل الأصناف بين المستودعات بسهولة"
+msgstr "Move items between warehouses easily"
+
+msgid "نمو حقيقي"
+msgstr "Real growth"
+
+msgid "نوع النشاط التشغيلي"
+msgstr "Type of business activity"
+
+msgid "هويتك مخفية — مفيش مكالمات إزعاج"
+msgstr "Your identity stays hidden — no nuisance calls"
+
+msgid "ورق، أحبار، فينيل، بانر — تتبع الكميات وتنبيهات النقص وقيمة المخزون."
+msgstr "Paper, inks, vinyl, banners — track quantities, low-stock alerts and inventory value."
+
+msgid "وفّر 12.5%"
+msgstr "Save 12.5%"
+
+msgid "وفّر 25%"
+msgstr "Save 25%"
+
+msgid "وفّر 9%"
+msgstr "Save 9%"
+
+msgid "وقت التشغيل"
+msgstr "Uptime"
+
+msgid "يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto)."
+msgstr "Starts with an English letter, no spaces (e.g. mouss-auto)."
+
+msgid "— اطلب واستلم عروض"
+msgstr "— request and receive offers"
+
+msgid "🎁 10 تصاميم هدية"
+msgstr "🎁 10 free designs"

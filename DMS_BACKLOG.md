@@ -31,7 +31,14 @@ Owner column is intentionally blank — fill in when picked up.
 
 ---
 
-## 2. Per-device HMAC secrets for the OBD API
+## 2. Per-device HMAC secrets for the OBD API — ✅ DONE (Wave 2, workshop app)
+> **RESOLVED** — implemented in `workshop/api_obd.py::_auth_device` with a
+> real per-device model. `inventory/api_obd.py` is now a shim re-exporting it.
+> Delivered beyond the original spec: timestamp replay window + per-device
+> nonce uniqueness guard (`OBDDeviceNonce`) + rotation generations + no
+> device-enumeration oracle + `provision_obd_device` management command.
+> See `clients/obd_device_models.py` (`OBDDevice`, `OBDDeviceNonce`).
+
 **Pillar:** 2
 **Risk if skipped:** Leaked secret on one mechanic's phone compromises every scanner; no rotation path; no audit trail of which device sent a scan.
 **Files in scope:**

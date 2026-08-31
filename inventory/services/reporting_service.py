@@ -21,6 +21,17 @@ from django.utils import timezone
 logger = logging.getLogger('mouss_tec_core')
 
 
+def _sym():
+    """رمز عملة المستأجر الحالي — يفكّ القفل المصري في نصوص التقارير.
+    يقرأ عملة الـ tenant من الـ connection ويسقط للافتراضي بأمان."""
+    from erp_core.localization import resolve_tenant_localization, currency_symbol
+    tenant = getattr(connection, 'tenant', None)
+    if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+        tenant = None
+    loc = resolve_tenant_localization(tenant)
+    return currency_symbol(loc['currency'], loc['language'])
+
+
 class ReportingService:
     """Centralized data aggregation for dashboards and AI copilot."""
 
@@ -70,10 +81,10 @@ class ReportingService:
             return (
                 f"## البيانات الحية:\n"
                 f"{now.strftime('%Y-%m-%d %H:%M')}\n"
-                f"إيرادات اليوم: {revenue_today:,.2f} ج.م | الشهر: {revenue_month:,.2f} ج.م\n"
-                f"صافي ربح الشهر: {profit_month:,.2f} ج.م\n"
-                f"مصروفات الشهر: {expenses_month:,.2f} ج.م\n"
-                f"الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} ج.م\n"
+                f"إيرادات اليوم: {revenue_today:,.2f} {_sym()} | الشهر: {revenue_month:,.2f} {_sym()}\n"
+                f"صافي ربح الشهر: {profit_month:,.2f} {_sym()}\n"
+                f"مصروفات الشهر: {expenses_month:,.2f} {_sym()}\n"
+                f"الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} {_sym()}\n"
                 f"فواتير مفتوحة: {open_invoices}\n"
                 f"إجمالي العملاء: {total_customers} | آخرهم: {customers_list}\n"
                 f"تنبيهات مخزون: {low_items or 'لا يوجد نقص'}\n"
@@ -192,7 +203,7 @@ class ReportingService:
                     sales = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
                 total = sales.aggregate(t=Sum('total_amount'))['t'] or 0
                 profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
-                return f"المبيعات: {total:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
+                return f"المبيعات: {total:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.count()}"
 
             # --- Expenses ---
             if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
@@ -203,21 +214,21 @@ class ReportingService:
                     purchase_invoice__isnull=True,
                 )
                 total = expenses.aggregate(t=Sum('amount'))['t'] or 0
-                return f"إجمالي المصروفات هذا الشهر: {total:,.2f} ج.م"
+                return f"إجمالي المصروفات هذا الشهر: {total:,.2f} {_sym()}"
 
             # --- Treasury ---
             if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'فلوس']):
                 treasuries = Treasury.objects.filter(is_active=True)
                 total = sum(t.balance for t in treasuries)
-                details = "\n".join(f"  • {t.name}: {t.balance:,.2f} ج.م" for t in treasuries)
-                return f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} ج.م"
+                details = "\n".join(f"  • {t.name}: {t.balance:,.2f} {_sym()}" for t in treasuries)
+                return f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} {_sym()}"
 
             # --- Profits ---
             if any(k in q for k in ['ربح', 'أرباح', 'ارباح', 'كسب', 'profit']):
                 sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
                 profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
                 revenue = sales.aggregate(t=Sum('total_amount'))['t'] or 0
-                return f"إيرادات الشهر: {revenue:,.2f} ج.م | صافي الربح: {profit:,.2f} ج.م | عدد الفواتير: {sales.count()}"
+                return f"إيرادات الشهر: {revenue:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.count()}"
 
             # --- Inventory ---
             if any(k in q for k in ['مخزون', 'stock', 'قطعة', 'قطع']):
@@ -389,8 +400,8 @@ class ReportingService:
                 return (
                     f"فاتورة #{inv.id} — {inv.customer.name}\n"
                     f"النوع: {inv.get_invoice_type_display()} | الحالة: {inv.get_status_display()}\n"
-                    f"الإجمالي: {inv.total_amount:,.2f} ج.م | المدفوع: {inv.paid_amount:,.2f} | المتبقي: {inv.due_amount:,.2f}\n"
-                    f"التكلفة: {inv.total_cost:,.2f} ج.م | الربح: {inv.net_profit:,.2f} ج.م ({profit_status})"
+                    f"الإجمالي: {inv.total_amount:,.2f} {_sym()} | المدفوع: {inv.paid_amount:,.2f} | المتبقي: {inv.due_amount:,.2f}\n"
+                    f"التكلفة: {inv.total_cost:,.2f} {_sym()} | الربح: {inv.net_profit:,.2f} {_sym()} ({profit_status})"
                 )
             except SaleInvoice.DoesNotExist:
                 return f"لم أجد فاتورة برقم {inv_id}"

@@ -196,7 +196,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <strong>{{ offer.service_request.title|truncatechars:60 }}</strong>
-                    <div style="font-size:0.9rem; color:var(--muted);">عرضك: <span style="color:var(--accent); font-weight:900;">{{ offer.price }} ج.م</span></div>
+                    <div style="font-size:0.9rem; color:var(--muted);">عرضك: <span style="color:var(--accent); font-weight:900;">{{ offer.price }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
                 </div>
                 <span class="offer-status-{{ offer.status }}">
                     {% if offer.status == 'pending' %}<i class="fas fa-hourglass-half"></i> في الانتظار
@@ -237,7 +237,7 @@
 
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">السعر المقترح (ج.م) *</label>
+                    <label class="form-label">السعر المقترح ({{ tenant_currency_symbol|default:'ج.م' }}) *</label>
                     <input type="number" class="form-control" name="price" required min="1" dir="ltr">
                 </div>
                 <div class="col-md-6 mb-3">

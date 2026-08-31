@@ -55,8 +55,8 @@ class SaleInvoiceItemInline(admin.TabularInline):
     readonly_fields = ['get_total_price', 'available_stock', 'warranty_tracker']
 
     def get_total_price(self, obj):
-        if obj and obj.pk: return format_html('<b>{} ج.م</b>', f"{float(obj.total_price or 0):,.2f}")
-        return "0.00 ج.م"
+        if obj and obj.pk: return format_html('<b>{} {}</b>', f"{float(obj.total_price or 0):,.2f}", _cur_sym())
+        return f"0.00 {_cur_sym()}"
     get_total_price.short_description = "الإجمالي"
 
     def available_stock(self, obj):
@@ -227,7 +227,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     job_progress_bar.short_description = "مسار المركبة في المركز"
 
     def total_amount_styled(self, obj):
-        return format_html('<b>{} ج.م</b>', f"{float(obj.total_amount or 0):,.2f}")
+        return format_html('<b>{} {}</b>', f"{float(obj.total_amount or 0):,.2f}", _cur_sym())
     total_amount_styled.short_description = "الإجمالي النهائى"
 
     def margin_percentage(self, obj):
@@ -330,10 +330,6 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     def smart_dispatch_ai(self, request, queryset):
         self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالمركز، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
 
-    @admin.action(description='🧠 إضافة كود إجراء سريع لفتح أمر شغل فوري في لوحة الـ Quick Actions')
-    def quick_add_job_card(self, request, queryset):
-        pass
-
     @admin.action(description='🧾 الامتثال الضريبي: توليد ختم الفاتورة الإلكترونية B2B/B2C المشفر (QR Code)')
     def generate_e_invoice_qr(self, request, queryset):
         """🚀 ابتكار: تجهيز الفاتورة لتكون متوافقة مع متطلبات الضرائب (مثل ZATCA أو ETA)"""
@@ -351,8 +347,8 @@ class PurchaseInvoiceItemInline(admin.TabularInline):
     readonly_fields = ('get_total_price',)
     
     def get_total_price(self, obj):
-        if obj and obj.pk: return format_html('<b>{} ج.م</b>', f"{float(obj.total_price or 0):,.2f}")
-        return "0.00 ج.م"
+        if obj and obj.pk: return format_html('<b>{} {}</b>', f"{float(obj.total_price or 0):,.2f}", _cur_sym())
+        return f"0.00 {_cur_sym()}"
     get_total_price.short_description = "الإجمالي"
     
     def _can_edit_posted(self, request):
@@ -393,7 +389,7 @@ class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     b2b_secured_badge.short_description = "مصدر الفاتورة"
 
     def total_amount_styled(self, obj):
-        return format_html('<b>{} ج.م</b>', f"{float(obj.total_amount or 0):,.2f}")
+        return format_html('<b>{} {}</b>', f"{float(obj.total_amount or 0):,.2f}", _cur_sym())
     total_amount_styled.short_description = "الإجمالي المستحق"
 
     def payment_status(self, obj):

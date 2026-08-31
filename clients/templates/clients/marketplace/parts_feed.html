@@ -156,7 +156,7 @@
             <div class="card-body">
                 <h3 class="card-title">{{ l.title }}</h3>
                 <div class="card-make">{{ l.car_make.name }}{% if l.car_model %} — {{ l.car_model }}{% endif %}</div>
-                <div class="card-price">{{ l.price_egp|floatformat:0 }} ج.م</div>
+                <div class="card-price">{{ l.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
                 <div class="card-meta">
                     <span><i class="fas fa-{% if l.condition == 'new' %}sparkles{% else %}wrench{% endif %}"></i> {{ l.get_condition_display }}</span>
                     <span class="badge-warranty"><i class="fas fa-shield-halved"></i> {{ l.warranty_days }} يوم</span>

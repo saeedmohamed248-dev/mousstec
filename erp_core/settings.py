@@ -16,6 +16,17 @@ LOGIN_REDIRECT_URL = '/auth/redirect/'
 LOGOUT_REDIRECT_URL = '/'
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'mousstec.com')
+
+# 🌐 مناطق المنصة (نسخة مصرية + نسخة إماراتية على نفس الكود).
+#    الهوستات دي تُعامل كموقع إماراتي (AED)؛ أي هوست آخر = مصري (EGP).
+#    قابلة للتعديل من البيئة: REGION_AE_HOSTS="ae.mousstec.com,mousstec.ae"
+REGION_AE_HOSTS = [
+    h.strip().lower()
+    for h in os.getenv('REGION_AE_HOSTS', f'ae.{BASE_DOMAIN}').split(',')
+    if h.strip()
+]
+DEFAULT_REGION_COUNTRY = os.getenv('DEFAULT_REGION_COUNTRY', 'EG')
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 🟢 تهيئة قارئ البيئة المخفية

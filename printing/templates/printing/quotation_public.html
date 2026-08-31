@@ -158,8 +158,8 @@
                         <td style="color:var(--muted);">{{ forloop.counter }}</td>
                         <td>{{ ln.description }}</td>
                         <td class="num" style="text-align:center;">{{ ln.quantity|floatformat:"-2" }}</td>
-                        <td class="num">{{ ln.unit_price|floatformat:2 }} ج.م</td>
-                        <td class="num total">{{ ln.line_total|floatformat:2 }} ج.م</td>
+                        <td class="num">{{ ln.unit_price|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                        <td class="num total">{{ ln.line_total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:30px;">لا توجد بنود</td></tr>
@@ -170,10 +170,10 @@
 
         <!-- Totals -->
         <div class="totals">
-            <div class="row"><span>المجموع الفرعي</span><span class="num" style="font-weight:800;">{{ quote.subtotal|floatformat:2 }} ج.م</span></div>
-            {% if quote.discount %}<div class="row"><span>الخصم</span><span class="num" style="color:#dc2626; font-weight:800;">− {{ quote.discount|floatformat:2 }} ج.م</span></div>{% endif %}
-            {% if quote.tax_percent %}<div class="row"><span>الضريبة ({{ quote.tax_percent|floatformat:"-2" }}%)</span><span class="num" style="font-weight:800;">+ {{ quote.tax_amount|floatformat:2 }} ج.م</span></div>{% endif %}
-            <div class="row grand"><span>الإجمالي النهائي</span><span class="num">{{ quote.total|floatformat:2 }} ج.م</span></div>
+            <div class="row"><span>المجموع الفرعي</span><span class="num" style="font-weight:800;">{{ quote.subtotal|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            {% if quote.discount %}<div class="row"><span>الخصم</span><span class="num" style="color:#dc2626; font-weight:800;">− {{ quote.discount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+            {% if quote.tax_percent %}<div class="row"><span>الضريبة ({{ quote.tax_percent|floatformat:"-2" }}%)</span><span class="num" style="font-weight:800;">+ {{ quote.tax_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+            <div class="row grand"><span>الإجمالي النهائي</span><span class="num">{{ quote.total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
         </div>
 
         {% if quote.notes %}

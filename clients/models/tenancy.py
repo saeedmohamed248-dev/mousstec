@@ -119,6 +119,58 @@ class Client(SoftDeleteMixin, TenantMixin):
     logo = models.ImageField(upload_to='tenant_logos/', blank=True, null=True, verbose_name=_("لوجو المركز"))
     theme_color = models.CharField(max_length=7, default='#007bff', verbose_name=_("اللون الأساسي للسيستم"))
 
+    # 🌍 التوطين (Localization) — يفكّ القفل المصري ويسمح بالتوسع لدول أخرى.
+    #   الحقول الفارغة/الـ null تُشتق تلقائياً من `country` عبر erp_core.localization.
+    #   مثال: country='AE' ⇒ عملة د.إ + ضريبة 5% + توقيت دبي بدون إدخال يدوي.
+    country = models.CharField(
+        max_length=2, default='EG', db_index=True,
+        verbose_name=_("الدولة"),
+        help_text=_("تحدد العملة والضريبة والتوقيت الافتراضية للمستأجر"),
+    )
+    currency = models.CharField(
+        max_length=3, blank=True, default='',
+        verbose_name=_("العملة"),
+        help_text=_("اتركها فارغة لاشتقاقها من الدولة (EGP/AED/SAR...)"),
+    )
+    vat_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name=_("نسبة ضريبة القيمة المضافة %"),
+        help_text=_("اتركها فارغة لاستخدام النسبة القانونية للدولة"),
+    )
+    timezone = models.CharField(
+        max_length=40, blank=True, default='',
+        verbose_name=_("المنطقة الزمنية"),
+        help_text=_("اتركها فارغة لاشتقاقها من الدولة (Africa/Cairo, Asia/Dubai...)"),
+    )
+    default_language = models.CharField(
+        max_length=5, blank=True, default='',
+        verbose_name=_("اللغة الافتراضية"),
+        help_text=_("ar أو en — اتركها فارغة لاشتقاقها من الدولة"),
+    )
+    tax_registration_number = models.CharField(
+        max_length=30, blank=True, default='',
+        verbose_name=_("الرقم الضريبي (TRN)"),
+        help_text=_("رقم التسجيل الضريبي — يظهر على الفاتورة الضريبية (إلزامي في الإمارات/السعودية)"),
+    )
+
+    @property
+    def localization(self):
+        """إعدادات التوطين الفعّالة (dict): country/currency/vat_rate/timezone/language."""
+        from erp_core.localization import resolve_tenant_localization
+        return resolve_tenant_localization(self)
+
+    @property
+    def effective_currency(self):
+        return self.localization['currency']
+
+    @property
+    def effective_vat_rate(self):
+        return self.localization['vat_rate']
+
+    @property
+    def effective_timezone(self):
+        return self.localization['timezone']
+
     created_on = models.DateField(auto_now_add=True)
     is_active = models.BooleanField(default=True, verbose_name=_("الاشتراك فعال؟"))
 
@@ -312,9 +364,21 @@ class Plan(models.Model):
     )
     slug = models.SlugField(max_length=40, unique=True, verbose_name=_("المعرف"))
     name = models.CharField(max_length=80, verbose_name=_("اسم الباقة"))
+    name_en = models.CharField(
+        max_length=80, blank=True, default='',
+        verbose_name=_("اسم الباقة (إنجليزي)"),
+        help_text=_("يُعرض على الموقع الإنجليزي — اتركه فارغاً لاستخدام الاسم العربي"),
+    )
     industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, verbose_name=_("القطاع"))
 
     monthly_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("السعر الشهري (ج.م)"))
+    # 🇦🇪 سعر الباقة للموقع الإماراتي (بالدرهم). فارغ/صفر ⇒ يُستخدم السعر
+    #     المصري كـ fallback. يُعرض تلقائياً على ae.mousstec.com.
+    monthly_price_aed = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        verbose_name=_("السعر الشهري (د.إ) — الموقع الإماراتي"),
+        help_text=_("سعر الدرهم للموقع الإماراتي. اتركه 0 لاستخدام السعر المصري"),
+    )
     quarterly_discount = models.IntegerField(default=10, verbose_name=_("خصم ربع سنوي (%)"))
     semi_annual_discount = models.IntegerField(default=15, verbose_name=_("خصم نصف سنوي (%)"))
     annual_discount = models.IntegerField(default=20, verbose_name=_("خصم سنوي (%)"))

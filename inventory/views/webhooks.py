@@ -113,27 +113,60 @@ def shopify_webhook_receiver(request):
 
 @csrf_exempt
 def payment_gateway_callback(request):
-    """🛡️ Stub — No logic, safe. When activated must add HMAC verification."""
+    """
+    🛡️ نقطة استقبال payment-gateway — غير مُفعّلة بعد.
+
+    كانت ترجع success وهمي على أي POST (خطر spoofing + إيهام تكامل).
+    الآن: تتطلب HMAC صحيح أولاً، ثم تردّ 501 بصراحة لأن منطق المزامنة
+    لم يُنفّذ. لا تُفعّل حتى يُكتب المنطق الفعلي ويُضبط PAYMENT_GW_WEBHOOK_SECRET.
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    logger.info("⚙️ [PAYMENT GW] Callback received (stub).")
-    return _json_response_safe({"status": "success", "channel": "fintech_sync_active"})
+    if not _verify_webhook_hmac(request, 'PAYMENT_GW_WEBHOOK_SECRET', 'HTTP_X_SIGNATURE'):
+        logger.warning("🛑 [PAYMENT GW] HMAC verification failed — rejecting webhook.")
+        return HttpResponseForbidden("Invalid HMAC signature")
+    logger.info("⚙️ [PAYMENT GW] Callback received but handler not implemented.")
+    return _json_response_safe(
+        {"status": "not_implemented", "message": "Payment gateway callback handler is not implemented yet."},
+        501,
+    )
 
 
 @csrf_exempt
 def market_price_sync_webhook(request):
-    """🛡️ Stub — When activated must add HMAC verification."""
+    """
+    🛡️ مزامنة أسعار السوق — غير مُفعّلة بعد. HMAC مطلوب، وترد 501 بصراحة
+    بدل تأكيد كاذب. اضبط MARKET_PRICE_WEBHOOK_SECRET قبل التفعيل.
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    return _json_response_safe({"status": "acknowledged"})
+    if not _verify_webhook_hmac(request, 'MARKET_PRICE_WEBHOOK_SECRET', 'HTTP_X_SIGNATURE'):
+        logger.warning("🛑 [MARKET SYNC] HMAC verification failed — rejecting webhook.")
+        return HttpResponseForbidden("Invalid HMAC signature")
+    return _json_response_safe(
+        {"status": "not_implemented", "message": "Market price sync handler is not implemented yet."},
+        501,
+    )
 
 
 @csrf_exempt
 def regional_tax_forex_sync_webhook(request):
-    """🛡️ Stub — When activated must add HMAC verification."""
+    """
+    🛡️ مزامنة أسعار الصرف/الضرائب — غير مُفعّلة بعد.
+
+    كانت تردّ «أسعار الصرف تم تحديثها» دون تحديث أي شيء (كذب تكامل خطير
+    مع التوسع متعدد العملات). الآن: HMAC مطلوب، ثم 501 بصراحة.
+    اضبط FOREX_TAX_WEBHOOK_SECRET قبل التفعيل.
+    """
     if request.method != 'POST':
         return HttpResponseForbidden()
-    return _json_response_safe({"status": "success", "message": "أسعار الصرف تم تحديثها."})
+    if not _verify_webhook_hmac(request, 'FOREX_TAX_WEBHOOK_SECRET', 'HTTP_X_SIGNATURE'):
+        logger.warning("🛑 [FOREX SYNC] HMAC verification failed — rejecting webhook.")
+        return HttpResponseForbidden("Invalid HMAC signature")
+    return _json_response_safe(
+        {"status": "not_implemented", "message": "Regional tax/forex sync handler is not implemented yet."},
+        501,
+    )
 
 
 # =====================================================================

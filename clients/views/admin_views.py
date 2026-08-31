@@ -54,6 +54,7 @@ from clients.models import (
 )
 
 from ._shared import _is_platform_owner
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
@@ -134,13 +135,13 @@ def super_admin_dashboard(request):
             PlatformEvent.objects.create(
                 event_type='subscription', tenant_schema=target.schema_name,
                 tenant_name=target.name, user_name=request.user.username,
-                description=f"تفعيل اشتراك «{target.name}» — {plan} {period_labels.get(billing_period)} — {total} ج.م",
+                description=f"تفعيل اشتراك «{target.name}» — {plan} {period_labels.get(billing_period)} — {total} {_sym()}",
                 metadata={'plan': plan, 'period': billing_period, 'total': str(total)},
             )
 
             messages.success(request,
                 f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
-                f'({period_labels.get(billing_period, billing_period)}) — {total} ج.م — '
+                f'({period_labels.get(billing_period, billing_period)}) — {total} {_sym()} — '
                 f'ينتهي {target.subscription_end_date}')
 
         elif action == 'renew_subscription':
@@ -1049,7 +1050,7 @@ def super_admin_parts_refund_approve(request, order_code):
             CustomerNotification.objects.create(
                 customer=order.buyer_customer,
                 title='✅ تم قبول طلب الإرجاع',
-                body=f'هنرجع لك مبلغ {order.amount_paid} ج.م خلال 3-5 أيام عمل. الشحن على المنصة.',
+                body=f'هنرجع لك مبلغ {order.amount_paid} {_sym()} خلال 3-5 أيام عمل. الشحن على المنصة.',
                 level='success', icon='fa-rotate-left',
             )
         # Notify seller
@@ -1064,7 +1065,7 @@ def super_admin_parts_refund_approve(request, order_code):
         PlatformEvent.objects.create(
             event_type='other', tenant_schema='public', tenant_name='parts_market',
             user_name=request.user.username,
-            description=f"✅ موافقة إرجاع طلب {order.order_code} — {order.amount_paid} ج.م إلى المشتري",
+            description=f"✅ موافقة إرجاع طلب {order.order_code} — {order.amount_paid} {_sym()} إلى المشتري",
         )
 
     return JsonResponse({'ok': True, 'message': 'تم قبول الإرجاع وإشعار الطرفين.'})
@@ -1109,14 +1110,14 @@ def super_admin_parts_refund_reject(request, order_code):
             CustomerNotification.objects.create(
                 customer=order.listing.seller_customer,
                 title='💰 تم تحرير أموالك',
-                body=f'الإدارة رفضت طلب الإرجاع. المبلغ {order.seller_payout} ج.م في طريقه لحسابك.',
+                body=f'الإدارة رفضت طلب الإرجاع. المبلغ {order.seller_payout} {_sym()} في طريقه لحسابك.',
                 level='success', icon='fa-money-bill-wave',
             )
 
         PlatformEvent.objects.create(
             event_type='other', tenant_schema='public', tenant_name='parts_market',
             user_name=request.user.username,
-            description=f"❌ رفض إرجاع طلب {order.order_code} — تحرير {order.seller_payout} ج.م للبائع",
+            description=f"❌ رفض إرجاع طلب {order.order_code} — تحرير {order.seller_payout} {_sym()} للبائع",
         )
 
     return JsonResponse({'ok': True, 'message': 'تم رفض الإرجاع وتحرير أموال البائع.'})
@@ -1234,7 +1235,7 @@ def super_admin_gift_diagnostics(request):
                 user_name=request.user.username,
                 description=(
                     f"🎁 هدية اشتراك تشخيص «{sub.get_tier_display()}» × {months} شهر "
-                    f"لعميل «{customer.full_name}» ({customer.phone}) — قيمة {total} ج.م"
+                    f"لعميل «{customer.full_name}» ({customer.phone}) — قيمة {total} {_sym()}"
                 ),
             )
 

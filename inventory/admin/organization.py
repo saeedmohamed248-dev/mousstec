@@ -75,7 +75,7 @@ class EmployeeProfileAdmin(SecureImportExportAdmin):
     
     def commission_balance_styled(self, obj):
         if obj.role == 'tech':
-            return format_html('<b style="color: #28a745;">{} ج.م</b>', f"{obj.commission_balance:,.2f}")
+            return format_html('<b style="color: #28a745;">{} {}</b>', f"{obj.commission_balance:,.2f}", _cur_sym())
         return "-"
     commission_balance_styled.short_description = "العمولات المستحقة"
 
@@ -105,7 +105,7 @@ class MaintenanceContractAdmin(BranchIsolationMixin, SecureImportExportAdmin):
 
     def total_value_styled(self, obj):
         val = float(getattr(obj, 'total_value', 0) or 0)
-        return format_html('<b>{} ج.م</b>', f"{val:,.2f}")
+        return format_html('<b>{} {}</b>', f"{val:,.2f}", _cur_sym())
     total_value_styled.short_description = "قيمة العقد السنوية"
 
 
@@ -168,7 +168,7 @@ class CustomUserAdmin(BaseUserAdmin):
         if connection.schema_name == 'public': return "-"
         if hasattr(instance, 'employee_profile') and instance.employee_profile.role == 'tech':
             val = instance.employee_profile.commission_balance
-            return format_html('<b style="color: #dc3545;">{} ج.م</b>', f"{val:,.2f}")
+            return format_html('<b style="color: #dc3545;">{} {}</b>', f"{val:,.2f}", _cur_sym())
         return "-"
     get_commission.short_description = "عمولات متأخرة"
 
@@ -198,7 +198,7 @@ class CustomUserAdmin(BaseUserAdmin):
             self.message_user(
                 request,
                 f"✅ صُرفت {result['paid_count']} عمولات بإجمالي "
-                f"{result['total_paid']:,.2f} ج.م من خزنة «{result['treasury_name']}».",
+                f"{result['total_paid']:,.2f} {_cur_sym()} من خزنة «{result['treasury_name']}».",
                 messages.SUCCESS,
             )
         except ValidationError as e:

@@ -314,7 +314,7 @@ function goStep(n) {
     document.getElementById('sum-name').textContent  = selectedCustomerName;
     document.getElementById('sum-tier').textContent  = selectedTierLabel;
     document.getElementById('sum-dur').textContent   = selectedDurLabel;
-    document.getElementById('sum-price').textContent = calcPrice() + ' ج.م';
+    document.getElementById('sum-price').textContent = calcPrice() + ' {{ tenant_currency_symbol|default:'ج.م' }}';
   }
 }
 
@@ -360,7 +360,7 @@ function selectDuration(months, label, discount, el) {
   document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   selectedMonths = months; selectedDurLabel = label; selectedDiscount = discount;
-  document.getElementById('price-value').textContent = calcPrice() + ' ج.م';
+  document.getElementById('price-value').textContent = calcPrice() + ' {{ tenant_currency_symbol|default:'ج.م' }}';
   document.getElementById('price-preview').classList.remove('hidden');
   document.getElementById('to-step4').classList.remove('hidden');
 }

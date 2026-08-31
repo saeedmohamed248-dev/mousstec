@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from ..models import Branch, Customer, Product, SaleInvoice, SaleInvoiceItem
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -64,11 +65,11 @@ def fixit_order_webhook(request):
         missing = []
         note_lines = [
             f"{marker} طلب من الموقع الإلكتروني 🛒",
-            f"الدفع: {order.get('payment', 'cod')} — الإجمالي بالموقع: {order.get('total', '?')} ج.م",
+            f"الدفع: {order.get('payment', 'cod')} — الإجمالي بالموقع: {order.get('total', '?')} {_sym()}",
             f"العنوان: {customer_data.get('city', '')} {customer_data.get('address', '')}".strip(),
         ]
         if order.get('coupon'):
-            note_lines.append(f"كوبون: {order['coupon']} (خصم {order.get('discount', 0)} ج.م)")
+            note_lines.append(f"كوبون: {order['coupon']} (خصم {order.get('discount', 0)} {_sym()})")
         if order.get('notes'):
             note_lines.append(f"ملاحظات العميل: {order['notes']}")
 

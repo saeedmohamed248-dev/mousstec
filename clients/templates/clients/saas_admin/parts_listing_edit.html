@@ -46,7 +46,7 @@
         <label>رقم القطعة (OEM)</label>
         <input type="text" name="part_number" value="{{ listing.part_number }}" maxlength="120">
 
-        <label>السعر (ج.م)</label>
+        <label>السعر ({{ tenant_currency_symbol|default:'ج.م' }})</label>
         <input type="number" step="0.01" min="0" name="price_egp" value="{{ listing.price_egp }}" required>
 
         <label>فترة الضمان (يوم)</label>

@@ -1,10 +1,12 @@
-{% load l10n %}
+{% load l10n i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار</title>
+    <title>{% trans "مميزات Mouss Tec | نظام إدارة مراكز الصيانة وتجار قطع الغيار" %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -29,10 +31,12 @@
             </div>
             <span class="text-2xl font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
         </a>
-        <nav class="flex items-center gap-6">
-            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الرئيسية</a>
-            <a href="/pricing/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">الباقات</a>
-            <a href="/features/" class="text-purple-400 font-bold text-sm transition border-b-2 border-purple-400">المميزات</a>
+        <nav class="flex items-center gap-4 flex-wrap">
+            {% include "clients/_region_switcher.html" %}
+            {% include "clients/_language_switcher.html" %}
+            <a href="/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">{% trans "الرئيسية" %}</a>
+            <a href="/pricing/" class="text-slate-400 hover:text-purple-400 font-bold text-sm transition">{% trans "الباقات" %}</a>
+            <a href="/features/" class="text-purple-400 font-bold text-sm transition border-b-2 border-purple-400">{% trans "المميزات" %}</a>
         </nav>
     </header>
 
@@ -45,7 +49,7 @@
             </span>
             <h1 class="text-5xl lg:text-6xl font-black text-white leading-tight mb-4">
                 نظام إدارة ورش ذكي
-                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> متكامل</span>
+                <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> {% trans "متكامل" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-3xl mx-auto mb-8">
                 من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه لإدارة مركزك بكفاءة
@@ -84,8 +88,8 @@
                         <i class="fas fa-receipt"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">الفواتير والمبيعات</h2>
-                        <p class="text-slate-400">إنشاء وإدارة فواتير احترافية بسهولة</p>
+                        <h2 class="text-3xl font-black text-white">{% trans "الفواتير والمبيعات" %}</h2>
+                        <p class="text-slate-400">{% trans "إنشاء وإدارة فواتير احترافية بسهولة" %}</p>
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
@@ -96,33 +100,33 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-file-invoice"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">فواتير ذكية</h3>
-                    <p class="text-slate-400 text-sm">ترقيم تلقائي، توقيع رقمي، وطباعة احترافية</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "فواتير ذكية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "ترقيم تلقائي، توقيع رقمي، وطباعة احترافية" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-calculator"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">حسابات ضريبية دقيقة</h3>
-                    <p class="text-slate-400 text-sm">حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "حسابات ضريبية دقيقة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "حساب ضريبة القيمة المضافة تلقائياً ودعم الإعفاءات" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-file-pdf"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تصدير PDF</h3>
-                    <p class="text-slate-400 text-sm">حفظ وطباعة وإرسال الفواتير بصيغة احترافية</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تصدير PDF" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "حفظ وطباعة وإرسال الفواتير بصيغة احترافية" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-purple-400 mb-4"><i class="fas fa-undo"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">مذكرات دائنة ومدينة</h3>
-                    <p class="text-slate-400 text-sm">إدارة المردات والتعديلات بسهولة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "مذكرات دائنة ومدينة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "إدارة المردات والتعديلات بسهولة" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-emerald-400 mb-4"><i class="fas fa-user-tie"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">العملاء والموردين</h3>
-                    <p class="text-slate-400 text-sm">إدارة بيانات العملاء والموردين بشكل منظم</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "العملاء والموردين" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "إدارة بيانات العملاء والموردين بشكل منظم" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-history"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">سجل كامل</h3>
-                    <p class="text-slate-400 text-sm">تتبع كل عملية بيع مع تاريخ وساعة دقيقة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "سجل كامل" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تتبع كل عملية بيع مع تاريخ وساعة دقيقة" %}</p>
                 </div>
             </div>
         </section>
@@ -137,8 +141,8 @@
                         <i class="fas fa-boxes"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">إدارة المخزون</h2>
-                        <p class="text-slate-400">تتبع قطعك وأصنافك بدقة</p>
+                        <h2 class="text-3xl font-black text-white">{% trans "إدارة المخزون" %}</h2>
+                        <p class="text-slate-400">{% trans "تتبع قطعك وأصنافك بدقة" %}</p>
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
@@ -149,33 +153,33 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-emerald-400 mb-4"><i class="fas fa-barcode"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">دعم الباركود</h3>
-                    <p class="text-slate-400 text-sm">مسح الأصناف بسهولة عند البيع والشراء</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "دعم الباركود" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "مسح الأصناف بسهولة عند البيع والشراء" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-green-400 mb-4"><i class="fas fa-chart-bar"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تحليل الرصيد</h3>
-                    <p class="text-slate-400 text-sm">معرفة أعلى وأقل الأصناف مبيعاً</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تحليل الرصيد" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "معرفة أعلى وأقل الأصناف مبيعاً" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-teal-400 mb-4"><i class="fas fa-triangle-exclamation"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تنبيهات ناقص</h3>
-                    <p class="text-slate-400 text-sm">إخطار تلقائي عند انخفاض الأصناف</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تنبيهات ناقص" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "إخطار تلقائي عند انخفاض الأصناف" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-tag"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تصنيفات متعددة</h3>
-                    <p class="text-slate-400 text-sm">تنظيم الأصناف حسب الفئات والماركات</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تصنيفات متعددة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تنظيم الأصناف حسب الفئات والماركات" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-exchange-alt"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تحويل بين الفروع</h3>
-                    <p class="text-slate-400 text-sm">نقل الأصناف بين المستودعات بسهولة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تحويل بين الفروع" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "نقل الأصناف بين المستودعات بسهولة" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-clock"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">تاريخ الحركات</h3>
-                    <p class="text-slate-400 text-sm">معرفة من أخذ وأعطى كل صنف</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "تاريخ الحركات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "معرفة من أخذ وأعطى كل صنف" %}</p>
                 </div>
             </div>
         </section>
@@ -190,8 +194,8 @@
                         <i class="fas fa-book"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">المحاسبة الثنائية</h2>
-                        <p class="text-slate-400">دفاتر احترافية معتمدة</p>
+                        <h2 class="text-3xl font-black text-white">{% trans "المحاسبة الثنائية" %}</h2>
+                        <p class="text-slate-400">{% trans "دفاتر احترافية معتمدة" %}</p>
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
@@ -202,33 +206,33 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-orange-400 mb-4"><i class="fas fa-scale-balanced"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">القيد المزدوج</h3>
-                    <p class="text-slate-400 text-sm">كل عملية بحساب مدين ودائن متوازن</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "القيد المزدوج" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "كل عملية بحساب مدين ودائن متوازن" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-red-400 mb-4"><i class="fas fa-database"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">خطة الحسابات</h3>
-                    <p class="text-slate-400 text-sm">قائمة حسابات مخصصة لنشاطك</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "خطة الحسابات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "قائمة حسابات مخصصة لنشاطك" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-amber-400 mb-4"><i class="fas fa-file-contract"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">القيود اليومية</h3>
-                    <p class="text-slate-400 text-sm">تسجيل كل حركة مالية تفصيلياً</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "القيود اليومية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تسجيل كل حركة مالية تفصيلياً" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-sync"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">المقابلات</h3>
-                    <p class="text-slate-400 text-sm">إغلاق الحسابات والتسويات التلقائية</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "المقابلات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "إغلاق الحسابات والتسويات التلقائية" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-lime-400 mb-4"><i class="fas fa-arrow-trend-down"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">الخسائر والأرباح</h3>
-                    <p class="text-slate-400 text-sm">حساب صافي ربحك بدقة شهرية وسنوية</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "الخسائر والأرباح" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "حساب صافي ربحك بدقة شهرية وسنوية" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-green-400 mb-4"><i class="fas fa-landmark"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">الميزانية</h3>
-                    <p class="text-slate-400 text-sm">عرض الأصول والخصوم وحقوق الملك</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "الميزانية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "عرض الأصول والخصوم وحقوق الملك" %}</p>
                 </div>
             </div>
         </section>
@@ -243,8 +247,8 @@
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">التقارير الذكية</h2>
-                        <p class="text-slate-400">بيانات وتحليلات فورية</p>
+                        <h2 class="text-3xl font-black text-white">{% trans "التقارير الذكية" %}</h2>
+                        <p class="text-slate-400">{% trans "بيانات وتحليلات فورية" %}</p>
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
@@ -255,33 +259,33 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-violet-400 mb-4"><i class="fas fa-chart-pie"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">المبيعات والإيرادات</h3>
-                    <p class="text-slate-400 text-sm">تحليل مفصل للمبيعات اليومية والشهرية</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "المبيعات والإيرادات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تحليل مفصل للمبيعات اليومية والشهرية" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-purple-400 mb-4"><i class="fas fa-cash-register"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">الأرباح والخسائر</h3>
-                    <p class="text-slate-400 text-sm">رؤية واضحة لصافي ربحك</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "الأرباح والخسائر" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "رؤية واضحة لصافي ربحك" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-indigo-400 mb-4"><i class="fas fa-layer-group"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التقارير المالية</h3>
-                    <p class="text-slate-400 text-sm">ميزانية وحسابات وتحليلات مفصلة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التقارير المالية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "ميزانية وحسابات وتحليلات مفصلة" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-blue-400 mb-4"><i class="fas fa-users"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">الأداء العاملين</h3>
-                    <p class="text-slate-400 text-sm">معرفة من يبيع الأكثر</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "الأداء العاملين" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "معرفة من يبيع الأكثر" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-cyan-400 mb-4"><i class="fas fa-download"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التصدير</h3>
-                    <p class="text-slate-400 text-sm">حفظ التقارير بصيغ Excel و PDF</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التصدير" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "حفظ التقارير بصيغ Excel و PDF" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-teal-400 mb-4"><i class="fas fa-calendar"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">فترات زمنية</h3>
-                    <p class="text-slate-400 text-sm">مقارنة يومي وشهري وسنوي</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "فترات زمنية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "مقارنة يومي وشهري وسنوي" %}</p>
                 </div>
             </div>
         </section>
@@ -296,8 +300,8 @@
                         <i class="fas fa-brain"></i>
                     </div>
                     <div>
-                        <h2 class="text-3xl font-black text-white">الذكاء الاصطناعي</h2>
-                        <p class="text-slate-400">تشخيص وتوصيات ذكية</p>
+                        <h2 class="text-3xl font-black text-white">{% trans "الذكاء الاصطناعي" %}</h2>
+                        <p class="text-slate-400">{% trans "تشخيص وتوصيات ذكية" %}</p>
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
@@ -308,33 +312,33 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-pink-400 mb-4"><i class="fas fa-sparkles"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">مساعد الأسئلة</h3>
-                    <p class="text-slate-400 text-sm">اسأل الـ AI أي سؤال عن فاتورة أو مصروف</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "مساعد الأسئلة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "اسأل الـ AI أي سؤال عن فاتورة أو مصروف" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-rose-400 mb-4"><i class="fas fa-lightbulb"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التوصيات</h3>
-                    <p class="text-slate-400 text-sm">اقتراحات لتحسين المبيعات والأرباح</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التوصيات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "اقتراحات لتحسين المبيعات والأرباح" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-red-400 mb-4"><i class="fas fa-bell"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التحذيرات الذكية</h3>
-                    <p class="text-slate-400 text-sm">التنبيه لأنماط مشبوهة أو عمليات غير معتادة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التحذيرات الذكية" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "التنبيه لأنماط مشبوهة أو عمليات غير معتادة" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-orange-400 mb-4"><i class="fas fa-book"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التعليم والمساعدة</h3>
-                    <p class="text-slate-400 text-sm">تعلم كيفية استخدام الفاتورة والمبيعات</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التعليم والمساعدة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تعلم كيفية استخدام الفاتورة والمبيعات" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-yellow-400 mb-4"><i class="fas fa-magic"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">التنبؤات</h3>
-                    <p class="text-slate-400 text-sm">توقع المبيعات والأصناف الشهيرة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "التنبؤات" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "توقع المبيعات والأصناف الشهيرة" %}</p>
                 </div>
                 <div class="feature-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
                     <div class="text-3xl text-lime-400 mb-4"><i class="fas fa-wand-magic-sparkles"></i></div>
-                    <h3 class="text-lg font-bold text-white mb-2">الأتمتة</h3>
-                    <p class="text-slate-400 text-sm">تشغيل تلقائي للعمليات المتكررة</p>
+                    <h3 class="text-lg font-bold text-white mb-2">{% trans "الأتمتة" %}</h3>
+                    <p class="text-slate-400 text-sm">{% trans "تشغيل تلقائي للعمليات المتكررة" %}</p>
                 </div>
             </div>
         </section>
@@ -344,8 +348,8 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <section class="mb-20">
             <div class="text-center mb-12">
-                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">مميزات إضافية</h2>
-                <p class="text-slate-400 text-lg">كل ما تحتاجه لإدارة مركزك بسهولة</p>
+                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">{% trans "مميزات إضافية" %}</h2>
+                <p class="text-slate-400 text-lg">{% trans "كل ما تحتاجه لإدارة مركزك بسهولة" %}</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -353,8 +357,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-indigo-400 flex-shrink-0"><i class="fas fa-mobile"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">تطبيق موبايل</h3>
-                            <p class="text-slate-400 text-sm">استخدم الباركود والفواتير من أي مكان</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "تطبيق موبايل" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "استخدم الباركود والفواتير من أي مكان" %}</p>
                         </div>
                     </div>
                 </div>
@@ -362,8 +366,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-purple-400 flex-shrink-0"><i class="fas fa-shield-alt"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">أمان عالي</h3>
-                            <p class="text-slate-400 text-sm">تشفير البيانات والنسخ الاحتياطية التلقائية</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "أمان عالي" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "تشفير البيانات والنسخ الاحتياطية التلقائية" %}</p>
                         </div>
                     </div>
                 </div>
@@ -371,8 +375,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-emerald-400 flex-shrink-0"><i class="fas fa-users-cog"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">إدارة الموظفين</h3>
-                            <p class="text-slate-400 text-sm">أدوار وصلاحيات مختلفة لكل موظف</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "إدارة الموظفين" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "أدوار وصلاحيات مختلفة لكل موظف" %}</p>
                         </div>
                     </div>
                 </div>
@@ -380,8 +384,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-cyan-400 flex-shrink-0"><i class="fas fa-headset"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">دعم 24/7</h3>
-                            <p class="text-slate-400 text-sm">فريق دعم متاح لمساعدتك دائماً</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "دعم 24/7" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "فريق دعم متاح لمساعدتك دائماً" %}</p>
                         </div>
                     </div>
                 </div>
@@ -389,8 +393,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-yellow-400 flex-shrink-0"><i class="fas fa-sync"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">تحديثات مستمرة</h3>
-                            <p class="text-slate-400 text-sm">ميزات جديدة وتحسينات شهرية</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "تحديثات مستمرة" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "ميزات جديدة وتحسينات شهرية" %}</p>
                         </div>
                     </div>
                 </div>
@@ -398,8 +402,8 @@
                     <div class="flex items-start gap-4">
                         <div class="text-2xl text-orange-400 flex-shrink-0"><i class="fas fa-server"></i></div>
                         <div>
-                            <h3 class="text-lg font-bold text-white mb-2">خوادم موثوقة</h3>
-                            <p class="text-slate-400 text-sm">توفر 99.9% مع سرعة عالية</p>
+                            <h3 class="text-lg font-bold text-white mb-2">{% trans "خوادم موثوقة" %}</h3>
+                            <p class="text-slate-400 text-sm">{% trans "توفر 99.9% مع سرعة عالية" %}</p>
                         </div>
                     </div>
                 </div>
@@ -411,71 +415,71 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <section class="mb-20">
             <div class="text-center mb-12">
-                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">مقارنة الباقات</h2>
-                <p class="text-slate-400 text-lg">اختر الباقة المناسبة لنشاطك</p>
+                <h2 class="text-3xl lg:text-4xl font-black text-white mb-4">{% trans "مقارنة الباقات" %}</h2>
+                <p class="text-slate-400 text-lg">{% trans "اختر الباقة المناسبة لنشاطك" %}</p>
             </div>
 
             <div class="overflow-x-auto rounded-2xl border border-slate-700">
                 <table class="w-full text-sm text-slate-300">
                     <thead>
                         <tr class="bg-slate-800/60 border-b border-slate-700">
-                            <th class="text-right px-6 py-4 font-bold text-white">المميزة</th>
-                            <th class="text-center px-6 py-4 font-bold text-slate-300">سيلفر</th>
-                            <th class="text-center px-6 py-4 font-bold text-purple-400">جولد</th>
+                            <th class="text-right px-6 py-4 font-bold text-white">{% trans "المميزة" %}</th>
+                            <th class="text-center px-6 py-4 font-bold text-slate-300">{% trans "سيلفر" %}</th>
+                            <th class="text-center px-6 py-4 font-bold text-purple-400">{% trans "جولد" %}</th>
                             <th class="text-center px-6 py-4 font-bold text-amber-400">Empire</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">الفواتير والمبيعات</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "الفواتير والمبيعات" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">إدارة المخزون</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "إدارة المخزون" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">الحسابات الثنائية</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "الحسابات الثنائية" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">التقارير المالية</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "التقارير المالية" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">سوق B2B المركزي</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "سوق B2B المركزي" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">تشخيص الـ AI</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "تشخيص الـ AI" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">عدد الموظفين</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "عدد الموظفين" %}</td>
                             <td class="text-center px-6 py-4 text-slate-400">1</td>
                             <td class="text-center px-6 py-4 text-slate-400">4</td>
-                            <td class="text-center px-6 py-4 text-slate-400">غير محدود</td>
+                            <td class="text-center px-6 py-4 text-slate-400">{% trans "غير محدود" %}</td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">عدد الفروع</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "عدد الفروع" %}</td>
                             <td class="text-center px-6 py-4 text-slate-400">1</td>
                             <td class="text-center px-6 py-4 text-slate-400">2</td>
-                            <td class="text-center px-6 py-4 text-slate-400">غير محدود</td>
+                            <td class="text-center px-6 py-4 text-slate-400">{% trans "غير محدود" %}</td>
                         </tr>
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="text-right px-6 py-4 text-slate-300">الدعم الأولوي</td>
+                            <td class="text-right px-6 py-4 text-slate-300">{% trans "الدعم الأولوي" %}</td>
                             <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-times text-red-400"></i></td>
                             <td class="text-center px-6 py-4"><i class="fas fa-check text-emerald-400"></i></td>
@@ -489,7 +493,7 @@
         <!-- CTA نهائي -->
         <!-- ═══════════════════════════════════════════════════════════ -->
         <section class="section-glow rounded-3xl p-12 text-center mb-0">
-            <h2 class="text-4xl font-black text-white mb-4">جاهز لتجربة Mouss Tec؟</h2>
+            <h2 class="text-4xl font-black text-white mb-4">{% trans "جاهز لتجربة Mouss Tec؟" %}</h2>
             <p class="text-slate-400 text-lg mb-8 max-w-2xl mx-auto">
                 ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تدير مركزك بكفاءة
             </p>
@@ -507,7 +511,7 @@
 
     <!-- Footer -->
     <footer class="text-center py-8 text-slate-600 text-xs mt-12 border-t border-slate-800">
-        <p>© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة</p>
+        <p>{% trans "© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة" %}</p>
     </footer>
 
 {% include 'clients/ai_chatbot_widget.html' %}

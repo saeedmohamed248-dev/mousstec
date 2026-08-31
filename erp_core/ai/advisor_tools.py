@@ -19,6 +19,7 @@ from django.db import connection
 from django.db.models import F, Sum
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -109,7 +110,7 @@ def calculate_cash_flow_projections(days_ahead: int = 30) -> dict[str, Any]:
             'top_outstanding': invoices_breakdown[:10],
             'notes': (
                 f'لو اتحصّلت كل مستحقات العملاء ({len(invoices_breakdown)} فاتورة)، '
-                f'الكاش هيوصل لـ {_money(projection):,.2f} ج.م.'
+                f'الكاش هيوصل لـ {_money(projection):,.2f} {_sym()}.'
             ),
         }
     except Exception as e:
@@ -179,8 +180,8 @@ def simulate_inventory_sale(percentage: float = 20.0) -> dict[str, Any]:
             'sample_breakdown': sample_products,
             'notes': (
                 f'لو بعت {pct:.0f}% من المخزون الراكد ({len(dead)} صنف)، '
-                f'متوقع تدخل {_money(total_revenue):,.2f} ج.م '
-                f'وتحقق ربح صافي {_money(net_profit):,.2f} ج.م.'
+                f'متوقع تدخل {_money(total_revenue):,.2f} {_sym()} '
+                f'وتحقق ربح صافي {_money(net_profit):,.2f} {_sym()}.'
             ),
         }
     except Exception as e:
@@ -214,7 +215,7 @@ def get_dead_stock_report(days_no_sale: int = 90, limit: int = 25) -> dict[str, 
             'items': dead[:limit],
             'notes': (
                 f'فيه {len(dead)} صنف راكد آخر {days_no_sale} يوم، '
-                f'وحابس عندك كاش بقيمة {_money(total_locked):,.2f} ج.م.'
+                f'وحابس عندك كاش بقيمة {_money(total_locked):,.2f} {_sym()}.'
             ),
         }
     except Exception as e:

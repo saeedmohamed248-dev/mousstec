@@ -236,8 +236,8 @@
                         {{ item.warranty_end_date|date:"Y-m-d"|default:"لا يوجد ضمان" }}
                     </td>
                     <td class="td-center">{{ item.quantity }}</td>
-                    <td>{{ item.unit_price }} ج.م</td>
-                    <td><strong>{{ item.total_price }} ج.م</strong></td>
+                    <td>{{ item.unit_price }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                    <td><strong>{{ item.total_price }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -255,7 +255,7 @@
                     <th width="5%">#</th>
                     <th width="65%">وصف الخدمة / الصيانة المنفذة</th>
                     <th width="15%" class="td-center">الفني المختص</th>
-                    <th width="15%">القيمة (ج.م)</th>
+                    <th width="15%">القيمة ({{ tenant_currency_symbol|default:'ج.م' }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -264,7 +264,7 @@
                     <td class="td-center">{{ forloop.counter }}</td>
                     <td>{{ srv.service.name }}</td>
                     <td class="td-center">{{ srv.technician.user.get_full_name|default:"فريق الصيانة" }}</td>
-                    <td><strong>{{ srv.price }} ج.م</strong></td>
+                    <td><strong>{{ srv.price }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -312,25 +312,25 @@
             <div class="totals-box">
                 <div class="totals-row">
                     <span>إجمالي قطع الغيار:</span>
-                    <span>{{ invoice.total_cost|default:"0.00" }} ج.م</span>
+                    <span>{{ invoice.total_cost|default:"0.00" }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 
                 <div class="totals-row">
                     <span>صافي أرباح الخدمات والمصنعيات:</span>
-                    <span>{{ invoice.net_profit|default:"0.00" }} ج.م</span>
+                    <span>{{ invoice.net_profit|default:"0.00" }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 
                 {% if invoice.discount > 0 %}
                 <div class="totals-row discount">
                     <span>الخصم الممنوح:</span>
-                    <span>- {{ invoice.discount }} ج.م</span>
+                    <span>- {{ invoice.discount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}
 
                 {% if invoice.total_core_charge > 0 %}
                 <div class="totals-row core-charge">
                     <span>تأمين التوالف (Core Charge)*:</span>
-                    <span>+ {{ invoice.total_core_charge }} ج.م</span>
+                    <span>+ {{ invoice.total_core_charge }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}
                 
@@ -343,18 +343,18 @@
                 
                 <div class="totals-row grand-total">
                     <span>الإجمالي النهائي المستحق:</span>
-                    <span>{{ invoice.total_amount }} ج.م</span>
+                    <span>{{ invoice.total_amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 <div class="totals-row" style="color: #16a34a; font-weight:bold;">
                     <span>المبلغ المسدد (مقدم):</span>
-                    <span>{{ invoice.paid_amount }} ج.م</span>
+                    <span>{{ invoice.paid_amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 {% if invoice.due_amount > 0 %}
                 <div class="totals-row due">
                     <span>المديونية المتبقية:</span>
-                    <span>{{ invoice.due_amount }} ج.م</span>
+                    <span>{{ invoice.due_amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}
 

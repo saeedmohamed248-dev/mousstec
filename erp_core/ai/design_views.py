@@ -892,7 +892,7 @@ def design_generate(request):
 # 3) Feedback — mark log as successful or not
 # ─────────────────────────────────────────────────────────────────────────────
 # ⚠️ مفيش @login_required — marketplace customers لازم يقدروا يقيّموا التصميم
-# اللي ولّدوه. الـ log_id ownership المفروض يتم التحقق منه جوه (TODO: add it).
+# اللي ولّدوه. ملكية الـ log_id تُتحقّق داخلياً (نفس نمط design_print_spec_pdf).
 @require_POST
 def design_feedback(request):
     """يسجّل تقييم المستخدم. لو is_successful=True والمستخدم عميل، بنحفظ التصميم
@@ -912,6 +912,22 @@ def design_feedback(request):
         log = AIPromptLearningLog.objects.filter(id=log_id).first()
         if not log:
             return JsonResponse({'success': False, 'error': 'log_not_found'}, status=404)
+
+        # 🛡️ فحص الملكية (منع IDOR) — نفس نمط design_print_spec_pdf:
+        #    يُسمح فقط لـ superuser، أو صاحب السجل المسجّل، أو عميل السوق
+        #    صاحب الـ session. بدونه كان أي طرف يقدر يعدّل تقييم سجل غيره.
+        session_customer_id = request.session.get('marketplace_customer_id')
+        owns_log = (
+            request.user.is_superuser
+            or (log.user_id and log.user_id == request.user.id)
+            or (log.customer_id and session_customer_id == log.customer_id)
+        )
+        if not owns_log:
+            logger.warning(
+                f'[FEEDBACK] access denied for log_id={log_id}, '
+                f'user={getattr(request.user, "id", None)}'
+            )
+            return JsonResponse({'success': False, 'error': 'forbidden'}, status=403)
 
         log.is_successful = is_successful
         log.feedback_at = timezone.now()

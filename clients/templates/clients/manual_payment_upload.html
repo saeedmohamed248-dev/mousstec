@@ -38,7 +38,7 @@
         <!-- Amount -->
         <div class="bg-gradient-to-br from-purple-600/20 to-indigo-600/20 border border-purple-500/30 rounded-2xl p-5 mb-5 text-center">
             <p class="text-slate-300 text-sm font-bold mb-1">المبلغ المطلوب تحويله</p>
-            <p class="text-4xl font-black text-white">{{ amount_display }} <span class="text-xl text-slate-400">ج.م</span></p>
+            <p class="text-4xl font-black text-white">{{ amount_display }} <span class="text-xl text-slate-400">{{ tenant_currency_symbol|default:'ج.م' }}</span></p>
             <p class="text-slate-500 text-xs mt-2">
                 <i class="fas fa-receipt ml-1"></i> كود الإيصال: <span class="font-mono">{{ receipt.receipt_code|stringformat:"s"|slice:":8" }}</span>
             </p>

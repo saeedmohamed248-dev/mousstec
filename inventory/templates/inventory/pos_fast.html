@@ -69,7 +69,7 @@
                     <hr class="border-slate-800 my-4">
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-sm font-bold text-slate-400">الإجمالي</span>
-                        <span id="cart-total" class="text-2xl font-black text-emerald-400">0.00 ج.م</span>
+                        <span id="cart-total" class="text-2xl font-black text-emerald-400">0.00 {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     </div>
                     <button onclick="submitInvoice()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
                         <i class="fas fa-check-circle ml-2"></i>اعتماد الفاتورة
@@ -91,7 +91,7 @@ function searchProduct() {
             el.innerHTML = `
                 <div class="flex items-center justify-between p-3 bg-slate-800/40 rounded-xl">
                     <div><p class="font-bold text-white text-sm">${data.name}</p><p class="text-xs text-slate-500">P/N: ${data.part_number} | المتاح: ${data.available_qty}</p></div>
-                    <div class="flex items-center gap-3"><span class="text-emerald-400 font-black">${data.price} ج.م</span>
+                    <div class="flex items-center gap-3"><span class="text-emerald-400 font-black">${data.price} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     <button onclick="addToCart('${data.id}','${data.name}',${data.price})" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas fa-plus"></i></button></div>
                 </div>`;
         }).catch(() => { document.getElementById('search-results').innerHTML = '<p class="text-center text-red-400 py-10">خطأ في الاتصال</p>'; });
@@ -101,9 +101,9 @@ let cart = [];
 function addToCart(id, name, price) { cart.push({id, name, price, qty: 1}); renderCart(); }
 function renderCart() {
     const el = document.getElementById('cart-items');
-    if (!cart.length) { el.innerHTML = '<p class="text-center text-slate-600 py-6 text-sm">السلة فارغة</p>'; document.getElementById('cart-total').textContent = '0.00 ج.م'; return; }
-    el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${item.name}</p><p class="text-xs text-slate-500">${item.price} ج.م × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
-    document.getElementById('cart-total').textContent = cart.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2) + ' ج.م';
+    if (!cart.length) { el.innerHTML = '<p class="text-center text-slate-600 py-6 text-sm">السلة فارغة</p>'; document.getElementById('cart-total').textContent = '0.00 {{ tenant_currency_symbol|default:'ج.م' }}'; return; }
+    el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${item.name}</p><p class="text-xs text-slate-500">${item.price} {{ tenant_currency_symbol|default:'ج.م' }} × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
+    document.getElementById('cart-total').textContent = cart.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
 }
 function submitInvoice() {
     if (!cart.length) return;

@@ -146,13 +146,13 @@
     <div class="head-grid">
         <div class="head-card revenue">
             <div class="lbl"><i class="fas fa-coins"></i> الإيرادات</div>
-            <div class="val num">{{ net_total|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="val num">{{ net_total|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="sub">إجمالي {{ order.total_amount|floatformat:2 }} − خصم {{ discount|floatformat:2 }}</div>
         </div>
 
         <div class="head-card cost">
             <div class="lbl"><i class="fas fa-receipt"></i> إجمالي التكلفة</div>
-            <div class="val num">{{ total_cost|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="val num">{{ total_cost|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="sub">ماكينة + حبر + أجر المصمم</div>
         </div>
 
@@ -161,7 +161,7 @@
                 <i class="fas fa-{% if is_profitable %}arrow-trend-up{% else %}arrow-trend-down{% endif %}"></i>
                 {% if is_profitable %}صافي الربح{% else %}الخسارة{% endif %}
             </div>
-            <div class="val num">{{ gross_profit|floatformat:2 }} <span style="font-size:0.9rem;">ج.م</span></div>
+            <div class="val num">{{ gross_profit|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="margin-pill">
                 هامش الربح: <strong>{{ margin|floatformat:1 }}%</strong>
             </div>
@@ -175,7 +175,7 @@
         {% for c in cost_breakdown %}
         <div class="bd-row">
             <div class="top">
-                <span>{{ c.label }} — <span class="num">{{ c.value|floatformat:2 }}</span> ج.م</span>
+                <span>{{ c.label }} — <span class="num">{{ c.value|floatformat:2 }}</span> {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 <span class="pct num">{{ c.percent|floatformat:1 }}%</span>
             </div>
             <div class="bd-bar">
@@ -271,8 +271,8 @@
             <div class="info-cell"><div class="k">الحالة</div><div class="v">{{ order.get_status_display }}</div></div>
             <div class="info-cell"><div class="k">تاريخ الإنشاء</div><div class="v">{{ order.date_created|date:"Y-m-d" }}</div></div>
             <div class="info-cell"><div class="k">موعد التسليم</div><div class="v">{{ order.date_due|date:"Y-m-d"|default:"—" }}</div></div>
-            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|floatformat:2 }} ج.م</div></div>
-            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|floatformat:2 }} ج.م</div></div>
+            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
         </div>
         {% if total_cost == 0 %}
         <div style="margin-top:14px; padding:12px 16px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; color: #fcd34d; font-size:0.86rem;">

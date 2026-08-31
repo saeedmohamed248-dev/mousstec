@@ -29,6 +29,7 @@ logger = logging.getLogger('mouss_tec_core')
 # AI copilot chat: business data queries + knowledge base + live context.
 
 from .utils import *  # noqa: F401, F403
+from erp_core.localization import current_tenant_symbol as _sym
 
 
 
@@ -77,7 +78,7 @@ def _query_business_data(query, request=None):
 
         return {
             'intent': 'sales',
-            'context': f"إجمالي المبيعات/الإيرادات {period}: {income:,.2f} ج.م\nعدد الطلبات {period}: {order_count} طلب",
+            'context': f"إجمالي المبيعات/الإيرادات {period}: {income:,.2f} {_sym()}\nعدد الطلبات {period}: {order_count} طلب",
         }
 
     # ============ 2. مصاريف ============
@@ -100,13 +101,13 @@ def _query_business_data(query, request=None):
             transaction_type='out', **date_filter
         ).order_by('-amount')[:5]
         details = "\n".join(
-            f"  • {tx.description or 'بدون وصف'}: {tx.amount:,.2f} ج.م"
+            f"  • {tx.description or 'بدون وصف'}: {tx.amount:,.2f} {_sym()}"
             for tx in top_expenses
         )
 
         return {
             'intent': 'expenses',
-            'context': f"إجمالي المصروفات {period}: {expenses:,.2f} ج.م\nأكبر المصروفات:\n{details}" if details else f"إجمالي المصروفات {period}: {expenses:,.2f} ج.م",
+            'context': f"إجمالي المصروفات {period}: {expenses:,.2f} {_sym()}\nأكبر المصروفات:\n{details}" if details else f"إجمالي المصروفات {period}: {expenses:,.2f} {_sym()}",
         }
 
     # ============ 3. فاتورة / طلب محدد ============
@@ -137,10 +138,10 @@ def _query_business_data(query, request=None):
                 'context': (
                     f"طلب #{order.order_number} — العميل: {order.customer.name}\n"
                     f"الحالة: {order.get_status_display()}\n"
-                    f"الإجمالي: {order.total_amount:,.2f} ج.م | خصم: {order.discount:,.2f} | صافي: {total_revenue:,.2f}\n"
+                    f"الإجمالي: {order.total_amount:,.2f} {_sym()} | خصم: {order.discount:,.2f} | صافي: {total_revenue:,.2f}\n"
                     f"المدفوع: {order.paid_amount:,.2f} | المتبقي: {order.remaining:,.2f}\n"
-                    f"التكلفة الفعلية: {total_cost:,.2f} ج.م\n"
-                    f"الربح: {profit:,.2f} ج.م ({profit_status})\n"
+                    f"التكلفة الفعلية: {total_cost:,.2f} {_sym()}\n"
+                    f"الربح: {profit:,.2f} {_sym()} ({profit_status})\n"
                     f"المهام:\n{jobs_detail}" if jobs_detail else ""
                 ),
             }
@@ -175,10 +176,10 @@ def _query_business_data(query, request=None):
             'intent': 'profit',
             'context': (
                 f"التقرير المالي — {period}:\n"
-                f"  إجمالي الإيرادات: {income:,.2f} ج.م\n"
-                f"  إجمالي المصروفات: {expenses:,.2f} ج.م\n"
-                f"  صافي الربح (خزينة): {profit:,.2f} ج.م\n"
-                f"  صافي ربح المهام المكتملة: {job_profit:,.2f} ج.م"
+                f"  إجمالي الإيرادات: {income:,.2f} {_sym()}\n"
+                f"  إجمالي المصروفات: {expenses:,.2f} {_sym()}\n"
+                f"  صافي الربح (خزينة): {profit:,.2f} {_sym()}\n"
+                f"  صافي ربح المهام المكتملة: {job_profit:,.2f} {_sym()}"
             ),
         }
 
@@ -186,10 +187,10 @@ def _query_business_data(query, request=None):
     if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'treasury', 'فلوس']):
         treasuries = PrintTreasury.objects.filter(is_active=True)
         total = sum(t.balance for t in treasuries)
-        details = "\n".join(f"  • {t.name}: {t.balance:,.2f} ج.م" for t in treasuries)
+        details = "\n".join(f"  • {t.name}: {t.balance:,.2f} {_sym()}" for t in treasuries)
         return {
             'intent': 'treasury',
-            'context': f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} ج.م",
+            'context': f"رصيد الخزائن:\n{details}\nالإجمالي: {total:,.2f} {_sym()}",
         }
 
     # ============ 6. عملاء ============
@@ -221,7 +222,7 @@ def _query_business_data(query, request=None):
         ).order_by('-date_created')[:10]
         if open_orders:
             details = "\n".join(
-                f"  • #{o.order_number} — {o.customer.name} | {o.get_status_display()} | {o.net_total:,.2f} ج.م"
+                f"  • #{o.order_number} — {o.customer.name} | {o.get_status_display()} | {o.net_total:,.2f} {_sym()}"
                 for o in open_orders
             )
             return {
@@ -245,11 +246,11 @@ def _query_business_data(query, request=None):
             )
             return {
                 'intent': 'stock',
-                'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} ج.م\n\nتنبيهات نقص:\n{alerts}",
+                'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} {_sym()}\n\nتنبيهات نقص:\n{alerts}",
             }
         return {
             'intent': 'stock',
-            'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} ج.م\nلا توجد تنبيهات نقص ✅",
+            'context': f"إجمالي الخامات: {total_materials} | قيمة المخزون: {stock_value:,.2f} {_sym()}\nلا توجد تنبيهات نقص ✅",
         }
 
     # ============ 9. مصممين / أداء ============
@@ -273,7 +274,7 @@ def _query_business_data(query, request=None):
         machines = MachineProfile.objects.filter(is_active=True)
         if machines:
             details = "\n".join(
-                f"  • {m.name} ({m.get_machine_type_display()}) — تكلفة/ساعة: {m.hourly_operating_cost:,.2f} ج.م"
+                f"  • {m.name} ({m.get_machine_type_display()}) — تكلفة/ساعة: {m.hourly_operating_cost:,.2f} {_sym()}"
                 for m in machines
             )
             return {'intent': 'machines', 'context': f"الماكينات النشطة ({machines.count()}):\n{details}"}
@@ -398,10 +399,10 @@ def _get_live_context_printing():
     return (
         f"## البيانات الحية الآن:\n"
         f"📅 التاريخ: {now.strftime('%Y-%m-%d %H:%M')}\n"
-        f"💰 إيرادات اليوم: {income_today:,.2f} ج.م | إيرادات الشهر: {income_month:,.2f} ج.م\n"
-        f"💸 مصروفات اليوم: {expenses_today:,.2f} ج.م | مصروفات الشهر: {expenses_month:,.2f} ج.م\n"
-        f"📊 صافي ربح الشهر: {float(income_month) - float(expenses_month):,.2f} ج.م\n"
-        f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} ج.م\n"
+        f"💰 إيرادات اليوم: {income_today:,.2f} {_sym()} | إيرادات الشهر: {income_month:,.2f} {_sym()}\n"
+        f"💸 مصروفات اليوم: {expenses_today:,.2f} {_sym()} | مصروفات الشهر: {expenses_month:,.2f} {_sym()}\n"
+        f"📊 صافي ربح الشهر: {float(income_month) - float(expenses_month):,.2f} {_sym()}\n"
+        f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} {_sym()}\n"
         f"📋 طلبات مفتوحة: {open_orders} | طلبات اليوم: {today_orders}\n"
         f"👥 إجمالي العملاء: {total_customers} | آخر العملاء: {customers_list}\n"
         f"📦 تنبيهات مخزون: {low_stock_items or 'لا يوجد نقص ✅'}\n"

@@ -74,7 +74,7 @@
                 <div class="text-xs text-purple-300 uppercase tracking-widest mb-2">السعر الشهري</div>
                 <div class="flex items-baseline gap-2">
                     <span class="text-6xl font-black text-white">{{ plan.monthly_price|floatformat:0 }}</span>
-                    <span class="text-2xl font-bold text-purple-300">ج.م</span>
+                    <span class="text-2xl font-bold text-purple-300">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 <div class="text-sm text-slate-400 mt-2">/ شهر — يتجدد تلقائياً</div>
                 <div class="mt-4 flex flex-wrap gap-2 text-xs">

@@ -563,7 +563,7 @@ body {
                 </div>
                 <div class="total-row grand">
                     <span>الإجمالي للعميل</span>
-                    <span class="num">{{ billable_total|floatformat:2 }} ج.م</span>
+                    <span class="num">{{ billable_total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 <button type="submit" class="btn">
@@ -640,7 +640,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             .map(d => `<span class="dtc-tag">${d}</span>`).join('');
         const productId = part.product_id || '';
         const price = part.retail_price
-            ? `${part.retail_price.toFixed(2)} ج.م`
+            ? `${part.retail_price.toFixed(2)} {{ tenant_currency_symbol|default:'ج.م' }}`
             : '—';
 
         // Action button switches based on stock state:
@@ -782,7 +782,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                   <i class="fa-solid fa-phone-slash"></i> بدون رقم
                </span>`;
         const priceLabel = responded
-            ? `${msg.quoted_price} ج.م · ${msg.quoted_eta_days ?? '?'} يوم`
+            ? `${msg.quoted_price} {{ tenant_currency_symbol|default:'ج.م' }} · ${msg.quoted_eta_days ?? '?'} يوم`
             : '';
         return `
         <div class="vendor-row" data-quote-id="${msg.quote_id}">
@@ -796,7 +796,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                 ${responded ? 'عدّل العرض' : 'سجّل الرد'}
             </button>
             <div class="quote-form" data-quote-id="${msg.quote_id}">
-                <input type="number" class="q-price" placeholder="السعر (ج.م)"
+                <input type="number" class="q-price" placeholder="السعر ({{ tenant_currency_symbol|default:'ج.م' }})"
                        value="${msg.quoted_price || ''}" step="0.01" min="0.01">
                 <input type="number" class="q-eta" placeholder="أيام"
                        value="${msg.quoted_eta_days || ''}" min="0" max="365">
@@ -917,7 +917,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                 statusEl.className = 'v-status responded';
                 vrow.querySelector('.v-phone').after(statusEl);
             }
-            statusEl.textContent = `📝 ${data.price} ج.م · ${data.eta_days ?? '?'} يوم`;
+            statusEl.textContent = `📝 ${data.price} {{ tenant_currency_symbol|default:'ج.م' }} · ${data.eta_days ?? '?'} يوم`;
         } catch (err) {
             alert(`خطأ: ${err.message}`);
         }
@@ -938,7 +938,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
             poSuccessEl.innerHTML = `
                 <strong>✅ تم إنشاء أمر شراء Draft</strong><br>
                 المورد: <strong>${data.vendor_name}</strong> ·
-                الإجمالي: <strong>${data.total.toFixed(2)} ج.م</strong><br>
+                الإجمالي: <strong>${data.total.toFixed(2)} {{ tenant_currency_symbol|default:'ج.م' }}</strong><br>
                 <small>PurchaseInvoice #${data.purchase_invoice_id} في حالة <em>${data.status}</em> — افتح شاشة المخزون لتسجيل الاستلام.</small>
             `;
             poSuccessEl.classList.add('visible');

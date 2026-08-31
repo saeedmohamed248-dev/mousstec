@@ -546,7 +546,7 @@ async function openCustTopupModal() {
                 + (p.badge ? '<div style="display:inline-block;background:#ec4899;color:#fff;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:800;margin-bottom:10px;">' + escapeHtmlFlux(p.badge) + '</div>' : '')
                 + '<p style="color:#fff;font-weight:900;font-size:24px;margin:4px 0;">' + p.designs + '</p>'
                 + '<p style="color:#94a3b8;font-size:11px;margin-bottom:8px;">تصميم</p>'
-                + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' ج.م</p>'
+                + '<p style="color:#fbbf24;font-weight:900;font-size:18px;margin-bottom:12px;">' + p.price_egp + ' {{ tenant_currency_symbol|default:'ج.م' }}</p>'
                 + '<button onclick="purchaseCustTopup(\'' + p.slug + '\')" style="width:100%;padding:10px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;"><i class="fas fa-shopping-cart"></i> اشتري دلوقتي</button>'
                 + '</div>'
             ).join('')

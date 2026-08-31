@@ -159,7 +159,7 @@
             </div>
         </div>
         <div class="stat">
-            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> ج.م</span></div>
+            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl">إجمالي المدفوع</div>
         </div>
         <div class="stat">
@@ -203,7 +203,7 @@
             <div class="card">
                 <h3>
                     <i class="fas fa-file-invoice-dollar"></i> الفواتير (آخر 20)
-                    <span class="more">المدفوع: <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} ج.م</strong> · المستحق: <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} ج.م</strong></span>
+                    <span class="more">المدفوع: <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> · المستحق: <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></span>
                 </h3>
                 {% if invoices %}
                     <table>

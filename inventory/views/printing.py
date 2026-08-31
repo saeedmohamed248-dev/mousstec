@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from erp_core.localization import current_tenant_symbol as _sym
 
 
 # Invoice printing (A4 / thermal / PDF), WhatsApp share, digital signature.
@@ -90,11 +91,14 @@ def print_invoice_a4(request, invoice_id):
 
     template = ('inventory/invoice_print_detailed.html' if mode == 'detailed'
                 else 'inventory/invoice_print_a4.html')
-    return render(request, template, {
+    from erp_core.einvoice import build_tax_invoice_context
+    ctx = {
         'invoice': invoice,
         'print_date': timezone.now(),
         'mode': mode,
-    })
+    }
+    ctx.update(build_tax_invoice_context(invoice, getattr(request, 'tenant', None)))
+    return render(request, template, ctx)
 
 
 @login_required(login_url='/login/')
@@ -115,11 +119,14 @@ def export_invoice_pdf(request, invoice_id):
         return HttpResponseForbidden("لا تملك صلاحية لتصدير فواتير من فروع أخرى.")
 
     from django.template.loader import render_to_string
-    html_string = render_to_string('inventory/invoice_print_a4.html', {
+    from erp_core.einvoice import build_tax_invoice_context
+    _pdf_ctx = {
         'invoice': invoice,
         'print_date': timezone.now(),
         'pdf_mode': True,
-    })
+    }
+    _pdf_ctx.update(build_tax_invoice_context(invoice, getattr(request, 'tenant', None)))
+    html_string = render_to_string('inventory/invoice_print_a4.html', _pdf_ctx)
 
     try:
         from weasyprint import HTML, CSS
@@ -182,7 +189,7 @@ def share_invoice_whatsapp(request, invoice_id):
     msg = (
         f"مرحباً بك أستاذ {invoice.customer.name} 🚗\n"
         f"تم إصدار مستندكم رقم #{invoice.id}.\n"
-        f"الإجمالي: {amount_str} ج.م\n"
+        f"الإجمالي: {amount_str} {_sym()}\n"
         "شكراً لتعاملكم معنا. (Mouss Tec Ecosystem)"
     )
     return redirect(f"https://wa.me/{invoice.customer.phone}?text={urllib.parse.quote(msg)}")
@@ -195,9 +202,16 @@ def capture_digital_signature(request, invoice_id):
         return _json_response_safe({"error": "POST Only"}, 400)
     try:
         data = json.loads(request.body)
-        if not data.get('signature_data'):
+        signature = data.get('signature_data')
+        if not signature:
             return _json_response_safe({"error": "بيانات التوقيع فارغة"}, 400)
-        # TODO: حفظ الـ base64 في حقل model مخصص
+        # حدّ أمان: نرفض أي payload ضخم (canvas data-URI معقول < ~1MB)
+        if len(signature) > 1_000_000:
+            return _json_response_safe({"error": "حجم التوقيع كبير جداً"}, 413)
+        invoice = get_object_or_404(SaleInvoice, id=invoice_id)
+        invoice.digital_signature = signature
+        invoice.signature_captured_at = timezone.now()
+        invoice.save(update_fields=['digital_signature', 'signature_captured_at'])
         return _json_response_safe({"status": "success", "message": "تم حفظ التوقيع الإلكتروني."})
     except Exception as e:
         logger.error(f"[SIGNATURE API] {e}")

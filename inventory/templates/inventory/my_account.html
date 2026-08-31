@@ -31,7 +31,7 @@
     <div class="grid sm:grid-cols-3 gap-3 pt-2">
       <div class="bg-emerald-900/30 border border-emerald-800 rounded-xl p-4 text-center">
         <p class="text-xs text-slate-400 mb-1">رصيد العمولات المستحقة</p>
-        <p class="text-xl font-black text-emerald-300">{{ profile.commission_balance|floatformat:2 }} ج.م</p>
+        <p class="text-xl font-black text-emerald-300">{{ profile.commission_balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</p>
       </div>
       <div class="bg-slate-800/60 rounded-xl p-4 text-center">
         <p class="text-xs text-slate-400 mb-1">نسبة عمولتي</p>

@@ -50,7 +50,7 @@
         </div>
         <div class="info-block">
             <label>الرصيد الحالي</label>
-            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} ج.م</span>
+            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
         </div>
         <div class="info-block">
             <label>تاريخ الطباعة</label>
@@ -96,7 +96,7 @@
 
     <div class="balance-box">
         <div>الرصيد {% if entity_type == 'customer' %}المستحق على العميل{% else %}المستحق للمورد{% endif %}</div>
-        <div class="amount">{{ entity.balance|floatformat:2 }} ج.م</div>
+        <div class="amount">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
     </div>
 
     <div class="footer">
