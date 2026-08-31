@@ -1532,3 +1532,423 @@ msgstr "Arabic"
 
 msgid "English"
 msgstr "English"
+
+msgid "Paymob (Visa/Mastercard)"
+msgstr "Paymob (Visa/Mastercard)"
+
+msgid "Print Basic — للمطابع الصغيرة واستوديوهات التصميم"
+msgstr "Print Basic — for small print shops and design studios"
+
+msgid "Print Enterprise — للمطابع الكبيرة ومجموعات التصميم"
+msgstr "Print Enterprise — for large print shops and design groups"
+
+msgid "Print Pro — للمطابع المتوسطة ومكاتب التصميم"
+msgstr "Print Pro — for mid-size print shops and design offices"
+
+msgid "أخرى"
+msgstr "Other"
+
+msgid "إرسال رسالة واتساب"
+msgstr "Send WhatsApp message"
+
+msgid "إنستاباي"
+msgstr "InstaPay"
+
+msgid "إنشاء فاتورة"
+msgstr "Invoice created"
+
+msgid "إيداع في المحفظة"
+msgstr "Wallet deposit"
+
+msgid "استرداد أموال (إلغاء/نزاع)"
+msgstr "Refund (cancellation/dispute)"
+
+msgid "استوديو تصميم جرافيك"
+msgstr "Graphic design studio"
+
+msgid "استيراد / تقطيع"
+msgstr "Import / salvage"
+
+msgid "اشتراك ينتهي خلال 14 يوم"
+msgstr "Subscription expiring within 14 days"
+
+msgid "الشركات النشطة فقط"
+msgstr "Active companies only"
+
+msgid "القطعة مختلفة عن المعروض"
+msgstr "Item differs from the listing"
+
+msgid "القطعة معيبة"
+msgstr "Item is defective"
+
+msgid "المالك الأعلى"
+msgstr "Super owner"
+
+msgid "المساعد الذكي"
+msgstr "AI assistant"
+
+msgid "المشتري"
+msgstr "Buyer"
+
+msgid "باقة Empire — لتجار القطع والشركات الكبيرة"
+msgstr "Empire plan — for parts dealers and large companies"
+
+msgid "باقة جولد — لمراكز الصيانة وتجار قطع الغيار الشامل"
+msgstr "Gold plan — for service centers and full-range parts dealers"
+
+msgid "باقة سيلفر — لمراكز الصيانة وتجار قطع الغيار"
+msgstr "Silver plan — for service centers and parts dealers"
+
+msgid "بانتظار الدفع"
+msgstr "Awaiting payment"
+
+msgid "بانتظار رد العميل"
+msgstr "Awaiting customer reply"
+
+msgid "بانتظار موافقة الإدارة"
+msgstr "Awaiting admin approval"
+
+msgid "بريد إلكتروني"
+msgstr "Email"
+
+msgid "بوت تلقائي"
+msgstr "Automated bot"
+
+msgid "تاجر قطع غيار (مبيعات تجزئة وجملة)"
+msgstr "Parts dealer (retail and wholesale)"
+
+msgid "تالف قابل للتجديد (Core)"
+msgstr "Refurbishable core (Core)"
+
+msgid "تجميد أموال (دخول مزاد)"
+msgstr "Funds hold (auction entry)"
+
+msgid "تحرير أموال (استلام البضاعة)"
+msgstr "Funds release (goods received)"
+
+msgid "تسجيل دخول"
+msgstr "Login"
+
+msgid "تسجيل شركة جديدة"
+msgstr "New company signup"
+
+msgid "تعليق حساب"
+msgstr "Account suspension"
+
+msgid "تعليم احتيال"
+msgstr "Fraud flag"
+
+msgid "تفعيل اشتراك"
+msgstr "Subscription activation"
+
+msgid "تم استهلاكها بالكامل"
+msgstr "Fully consumed"
+
+msgid "تم الإرجاع للمشتري"
+msgstr "Refunded to buyer"
+
+msgid "تم الإفراج — أُرسلت للبائع"
+msgstr "Released — sent to seller"
+
+msgid "تم البيع"
+msgstr "Sold"
+
+msgid "تم التحويل للبائع"
+msgstr "Transferred to seller"
+
+msgid "تم الترسية (الفلوس في الضمان)"
+msgstr "Awarded (funds in escrow)"
+
+msgid "تم التسليم — في فترة الضمان"
+msgstr "Delivered — within warranty period"
+
+msgid "تم الرد للمشتري"
+msgstr "Refunded to buyer"
+
+msgid "تم الشحن / جاري الاستلام"
+msgstr "Shipped / in delivery"
+
+msgid "تم الشراء"
+msgstr "Purchased"
+
+msgid "تم قبول عرض"
+msgstr "Offer accepted"
+
+msgid "توكيل شامل (صيانة + تجارة + استيراد)"
+msgstr "Full dealership (service + trade + import)"
+
+msgid "توليد صورة بالذكاء الاصطناعي"
+msgstr "AI image generation"
+
+msgid "جاري الإرسال"
+msgstr "Sending"
+
+msgid "جاري الترسية الآلية"
+msgstr "Auto-awarding"
+
+msgid "جاري الحل"
+msgstr "In progress"
+
+msgid "جديد (أصلي/بديل)"
+msgstr "New (original/replacement)"
+
+msgid "جديد بالضمانة"
+msgstr "New with warranty"
+
+msgid "خصم عمولة المنصة"
+msgstr "Platform fee deduction"
+
+msgid "خطأ في النظام"
+msgstr "System error"
+
+msgid "رفضه المشتري"
+msgstr "Rejected by buyer"
+
+msgid "زائر"
+msgstr "Visitor"
+
+msgid "سحب للأرباح خارج المنصة"
+msgstr "Withdrawal of profits off-platform"
+
+msgid "سحبه البائع"
+msgstr "Withdrawn by seller"
+
+msgid "سوء استخدام من المشتري"
+msgstr "Buyer misuse"
+
+msgid "شات خارج أوقات العمل"
+msgstr "Off-hours chat"
+
+msgid "شركات في خطر churn"
+msgstr "Companies at churn risk"
+
+msgid "طارئة"
+msgstr "Urgent"
+
+msgid "طلب إرجاع"
+msgstr "Return requested"
+
+msgid "عاجلة"
+msgstr "High"
+
+msgid "عادية"
+msgstr "Normal"
+
+msgid "علامة مائية ذكية"
+msgstr "Smart watermark"
+
+msgid "عملية دفع"
+msgstr "Payment"
+
+msgid "غير أصلية / تقليد"
+msgstr "Counterfeit / fake"
+
+msgid "غير مطابق للوصف / الصور"
+msgstr "Not as described / photos"
+
+msgid "غير مطابقة للوصف"
+msgstr "Not as described"
+
+msgid "فترة تجريبية"
+msgstr "Trial"
+
+msgid "فشلت المعالجة"
+msgstr "Processing failed"
+
+msgid "فلتر مخصص"
+msgstr "Custom filter"
+
+msgid "فودافون كاش"
+msgstr "Vodafone Cash"
+
+msgid "فورم اتصل بنا"
+msgstr "Contact-us form"
+
+msgid "في الشحن"
+msgstr "In shipping"
+
+msgid "في انتظار الدفع"
+msgstr "Awaiting payment"
+
+msgid "قبله المشتري"
+msgstr "Accepted by buyer"
+
+msgid "قطعة مختلفة"
+msgstr "Wrong item"
+
+msgid "قيد المراجعة"
+msgstr "Under review"
+
+msgid "لم تصل القطعة"
+msgstr "Item not received"
+
+msgid "مبيعات"
+msgstr "Sales"
+
+msgid "متنازع عليه (صورة غير مطابقة)"
+msgstr "Disputed (image mismatch)"
+
+msgid "متوسطة"
+msgstr "Medium"
+
+msgid "مجدد"
+msgstr "Refurbished"
+
+msgid "محاسبة ومالية"
+msgstr "Accounting & finance"
+
+msgid "محجوز"
+msgstr "Held"
+
+msgid "محلولة — تحرير للبائع"
+msgstr "Resolved — released to seller"
+
+msgid "محلولة — تسوية جزئية"
+msgstr "Resolved — partial settlement"
+
+msgid "محلولة — رد للمشتري"
+msgstr "Resolved — refunded to buyer"
+
+msgid "مدفوع — في الـ Escrow"
+msgstr "Paid — in Escrow"
+
+msgid "مدفوعة"
+msgstr "Paid"
+
+msgid "مدفوعة — جاهزة للاستخدام"
+msgstr "Paid — ready to use"
+
+msgid "مدير تقني"
+msgstr "Technical manager"
+
+msgid "مردودة"
+msgstr "Refunded"
+
+msgid "مرسل — بانتظار رد المشتري"
+msgstr "Sent — awaiting buyer reply"
+
+msgid "مرفوض"
+msgstr "Rejected"
+
+msgid "مركز صيانة متكامل"
+msgstr "Full-service center"
+
+msgid "مستعمل — جيد"
+msgstr "Used — good"
+
+msgid "مستعمل — مقبول"
+msgstr "Used — fair"
+
+msgid "مستعمل — ممتاز"
+msgstr "Used — excellent"
+
+msgid "مستورد تقطيع وأنصاف (محرك الـ Scrap)"
+msgstr "Salvage & halves importer (Scrap engine)"
+
+msgid "مسودة"
+msgstr "Draft"
+
+msgid "مشكلة في الدفع"
+msgstr "Payment issue"
+
+msgid "مصدرة (لم تُدفع بعد)"
+msgstr "Issued (not yet paid)"
+
+msgid "مطبعة (طباعة رقمية وأوفست)"
+msgstr "Print shop (digital and offset)"
+
+msgid "مطبعة + تصميم (شامل)"
+msgstr "Print shop + design (full)"
+
+msgid "معتمد"
+msgstr "Approved"
+
+msgid "معلق (لعدم الدفع)"
+msgstr "Suspended (non-payment)"
+
+msgid "معلق بواسطة الإدارة"
+msgstr "Suspended by admin"
+
+msgid "مفتوح لتلقي العروض"
+msgstr "Open for offers"
+
+msgid "مفتوح — بانتظار عروض"
+msgstr "Open — awaiting offers"
+
+msgid "مقاس / تركيب خطأ من المشتري"
+msgstr "Wrong size / fit by buyer"
+
+msgid "مقسوم — جزئي"
+msgstr "Split — partial"
+
+msgid "مكالمة هاتفية"
+msgstr "Phone call"
+
+msgid "مكتمل (تم تحويل الأموال للتاجر)"
+msgstr "Completed (funds transferred to merchant)"
+
+msgid "ملغاة"
+msgstr "Cancelled"
+
+msgid "ملغاة من مقدّمها"
+msgstr "Cancelled by its opener"
+
+msgid "ملغي"
+msgstr "Cancelled"
+
+msgid "ملغي (محذوف سوفت)"
+msgstr "Cancelled (soft-deleted)"
+
+msgid "ملغي بواسطة المشتري"
+msgstr "Cancelled by buyer"
+
+msgid "منتهي الصلاحية"
+msgstr "Expired"
+
+msgid "منتهية الصلاحية"
+msgstr "Expired"
+
+msgid "منحة إدارية"
+msgstr "Administrative grant"
+
+msgid "موظف دعم"
+msgstr "Support agent"
+
+msgid "نزاع — قيد المراجعة"
+msgstr "Dispute — under review"
+
+msgid "نشط (مدفوع)"
+msgstr "Active (paid)"
+
+msgid "نظام"
+msgstr "System"
+
+msgid "وصلت تالفة"
+msgstr "Arrived damaged"
+
+msgid "🎨 Printing — مطابع"
+msgstr "🎨 Printing — print shops"
+
+msgid "🎨 طباعة وتصميم جرافيك"
+msgstr "🎨 Printing & graphic design"
+
+msgid "🏛️ Core — أساسية"
+msgstr "🏛️ Core — essentials"
+
+msgid "📊 Analytics — تقارير"
+msgstr "📊 Analytics — reports"
+
+msgid "🔌 Integrations — تكاملات"
+msgstr "🔌 Integrations"
+
+msgid "🚗 Workshop — مراكز صيانة"
+msgstr "🚗 Workshop — service centers"
+
+msgid "🚗 سيارات — صيانة وقطع غيار"
+msgstr "🚗 Automotive — service and spare parts"
+
+msgid "🛒 Marketplace — أسواق"
+msgstr "🛒 Marketplace"
+
+msgid "🛟 Support — دعم"
+msgstr "🛟 Support"

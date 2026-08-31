@@ -103,7 +103,7 @@
                                     <label class="toggle">
                                         <input type="checkbox" name="feat_{{ row.feature.code }}_enabled" {% if row.enabled %}checked{% endif %}>
                                         <span>
-                                            <span class="fname">{{ row.feature.name_ar }}</span><br>
+                                            <span class="fname">{% if LANGUAGE_CODE == 'en' and row.feature.name_en %}{{ row.feature.name_en }}{% else %}{{ row.feature.name_ar }}{% endif %}</span><br>
                                             <span class="fcode">{{ row.feature.code }}</span>
                                         </span>
                                     </label>
