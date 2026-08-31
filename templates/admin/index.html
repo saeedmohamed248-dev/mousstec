@@ -216,6 +216,36 @@
             min-height: 44px;  /* WCAG/Apple recommended min */
         }
     }
+
+    /* ================================================================= */
+    /* 🎨 كروت الإحصائيات — تصميم محايد فاتح (Light Enterprise KPI)        */
+    /*    كارت أبيض + رقم غامق كبير + أيقونة في شريحة كحلي. يطغى على       */
+    /*    التدرّجات الملوّنة القديمة (inline) عبر !important.               */
+    /* ================================================================= */
+    :root{ --mt-brand:#1E2A57; --mt-brand-soft:#EBEEF7; --mt-ink:#131722; --mt-muted:#6B7480; --mt-line:#E4E7EC; }
+    .saas-stat-card{
+        background:#fff !important; color:var(--mt-ink) !important;
+        border:1px solid var(--mt-line) !important; border-radius:16px !important;
+        box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 14px -10px rgba(16,24,40,.16) !important;
+        padding:16px 16px 15px !important; min-height:104px;
+    }
+    .saas-stat-card:hover{ transform:translateY(-2px); box-shadow:0 10px 22px -14px rgba(16,24,40,.30) !important; }
+    .saas-stat-card::before, .saas-stat-card::after{ display:none !important; }
+    .saas-stat-card h3{ color:var(--mt-ink) !important; font-size:26px !important; font-weight:800 !important;
+        letter-spacing:-.4px; font-variant-numeric:tabular-nums; margin:2px 0 4px !important; }
+    .saas-stat-card h3 sup, .saas-stat-card h3 small{ color:var(--mt-muted) !important; font-weight:700; }
+    .saas-stat-card p{ color:var(--mt-muted) !important; opacity:1 !important; font-size:13px !important; font-weight:600 !important; }
+    /* الأيقونة: من زخرفة كبيرة باهتة إلى شريحة صغيرة كحلي في أعلى الكارت */
+    .saas-stat-card .bg-icon,
+    html[dir="rtl"] .saas-stat-card .bg-icon{
+        position:absolute !important; top:14px !important; bottom:auto !important;
+        inset-inline-end:14px !important; left:auto !important; right:auto !important;
+        width:36px !important; height:36px !important; display:flex !important; align-items:center; justify-content:center;
+        font-size:16px !important; opacity:1 !important; transform:none !important;
+        border-radius:10px !important; background:var(--mt-brand-soft) !important; color:var(--mt-brand) !important;
+    }
+    /* بطاقة المستشار الذكي: نفس الشكل المحايد */
+    .saas-stat-card.glow-btn{ box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 14px -10px rgba(16,24,40,.16) !important; }
 </style>
 
 <input type="hidden" id="rawChartLabels" value="{{ chart_labels|default:'[]' }}">
