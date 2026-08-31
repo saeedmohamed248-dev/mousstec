@@ -1,0 +1,165 @@
+/* =====================================================================
+ * Mouss Tec — Smart Sidebar (Command Center) — Styling
+ * نظام كروت مرتّب + بحث فوري فوق قائمة Jazzmin الجانبية.
+ * ===================================================================== */
+
+/* ---------- شريط البحث ---------- */
+.mt-search-item { padding: 10px 12px 6px; }
+.mt-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .10);
+  border-radius: 12px;
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+.mt-search:focus-within {
+  background: rgba(255, 255, 255, .12);
+  border-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, .25);
+}
+.mt-search-ico {
+  position: absolute; right: 12px;
+  font-size: 13px; color: rgba(255, 255, 255, .55);
+  pointer-events: none;
+}
+.mt-search input {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #fff;
+  font-size: 13.5px;
+  padding: 9px 36px 9px 34px;
+  font-family: inherit;
+}
+.mt-search input::placeholder { color: rgba(255, 255, 255, .45); }
+.mt-search-clear {
+  position: absolute; left: 8px;
+  background: transparent; border: 0;
+  color: rgba(255, 255, 255, .55);
+  font-size: 20px; line-height: 1;
+  cursor: pointer; padding: 0 6px;
+  opacity: 0; transition: opacity .15s;
+}
+.mt-search input:not(:placeholder-shown) + .mt-search-clear { opacity: 1; }
+
+/* ---------- كارت التصنيف ---------- */
+.mt-cat {
+  margin: 6px 10px !important;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(255, 255, 255, .06);
+  overflow: hidden;
+  transition: background .2s, border-color .2s, box-shadow .25s;
+}
+.mt-cat:hover { background: rgba(255, 255, 255, .06); }
+.mt-cat.mt-open {
+  background: rgba(255, 255, 255, .05);
+  border-color: rgba(168, 85, 247, .28);
+  box-shadow: 0 6px 22px -12px rgba(0, 0, 0, .55);
+}
+
+/* رأس الكارت */
+.mt-cat-head.nav-link {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px !important;
+  border-radius: 14px;
+  cursor: pointer;
+  border-right: 3px solid transparent;
+  transition: background .18s;
+}
+.mt-cat.mt-open .mt-cat-head.nav-link { border-right-color: var(--mt-cat, #a855f7); }
+.mt-cat-head.nav-link:hover { background: rgba(255, 255, 255, .05); }
+
+.mt-cat-emoji {
+  width: 34px; height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  border-radius: 10px;
+  background: rgba(168, 85, 247, .18);
+  background: color-mix(in srgb, var(--mt-cat, #a855f7) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--mt-cat, #a855f7) 40%, transparent);
+}
+.mt-cat-title {
+  margin: 0 !important;
+  flex: 1;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13.5px; font-weight: 700;
+  color: #f8fafc;
+}
+.mt-cat-count {
+  font-size: 11px; font-weight: 700;
+  min-width: 20px; height: 20px;
+  padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(168, 85, 247, .55);
+  background: color-mix(in srgb, var(--mt-cat, #a855f7) 55%, transparent);
+}
+.mt-cat-caret {
+  margin-right: auto;
+  transition: transform .25s ease;
+  font-size: 13px; opacity: .7;
+}
+.mt-cat.mt-open .mt-cat-caret { transform: rotate(-90deg); }
+
+/* جسم الكارت (المجموعات جوّه) */
+.mt-cat-body {
+  display: none;
+  padding: 2px 6px 8px;
+  animation: mtFade .22s ease;
+}
+.mt-cat.mt-open > .mt-cat-body { display: block; }
+@keyframes mtFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* المجموعات الأصلية (تطبيقات) جوّه الكارت */
+.mt-cat-body > .nav-item > .nav-link {
+  border-radius: 9px;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.mt-cat-body > .nav-item > .nav-link:hover { background: rgba(255, 255, 255, .06); }
+.mt-cat-body .nav-treeview .nav-link {
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+.mt-cat-body .nav-icon { opacity: .85; }
+
+/* الحالة النشطة تبان بوضوح */
+.mt-cat-body .nav-link.active {
+  background: rgba(168, 85, 247, .28) !important;
+  background: linear-gradient(90deg,
+      color-mix(in srgb, var(--mt-cat, #a855f7) 30%, transparent), transparent) !important;
+  color: #fff !important;
+  box-shadow: inset 3px 0 0 var(--mt-cat, #a855f7);
+}
+
+/* ---------- وضع البحث ---------- */
+body.mt-searching .mt-cat { border-color: rgba(255, 255, 255, .06); }
+body.mt-searching .mt-cat-head .mt-cat-count { display: none; }
+
+/* سكرول بار أنيق للقائمة */
+.mt-cat-body::-webkit-scrollbar,
+.os-content::-webkit-scrollbar { width: 6px; }
+
+/* على الموبايل: هوامش أقل عشان مساحة أكبر */
+@media (max-width: 767px) {
+  .mt-cat { margin: 5px 8px !important; }
+  .mt-search-item { padding: 8px; }
+}
+
+/* احترام تفضيل تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+  .mt-cat, .mt-cat-caret, .mt-cat-body { transition: none !important; animation: none !important; }
+}

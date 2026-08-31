@@ -617,6 +617,9 @@ JAZZMIN_SETTINGS = {
     "language_chooser": False,
     "show_ui_builder": False,
     "related_modal_active": True,
+    # 🗂️ القائمة الجانبية الذكية (نظام كروت + بحث فوري) — Mouss Tec Command Center
+    "custom_css": "admin/mousstec_nav.css",
+    "custom_js": "admin/mousstec_nav.js",
 }
 
 JAZZMIN_UI_TWEAKS = {
