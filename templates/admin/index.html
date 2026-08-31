@@ -43,30 +43,38 @@
     body { font-family: 'Cairo', sans-serif !important; background-color: #f8fafc; }
 
     .saas-quick-btn {
-        transition: all 0.3s ease; border-radius: 10px; font-weight: 700; padding: 12px 24px; border: none;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
-        text-decoration: none; cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease; border-radius: 12px; font-weight: 700; padding: 11px 18px; border: none;
+        box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.25); display: inline-flex; align-items: center; gap: 8px; color: #fff !important;
+        text-decoration: none; cursor: pointer; font-size: 14px; letter-spacing: 0.2px;
     }
-    .saas-quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); filter: brightness(1.1); color: #fff;}
+    .saas-quick-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 16px -6px rgba(0, 0, 0, 0.35); filter: brightness(1.05); color: #fff;}
 
-    .glow-btn { animation: neon-glow 2s infinite alternate; }
+    /* لمسة هادية بدل الوميض النيون المتحرّك (أهدأ واحترافي أكتر) */
+    .glow-btn { box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.22), 0 6px 18px -8px rgba(236, 72, 153, 0.5); }
+    /* مُستخدَم في حالة تسجيل الصوت فقط (voice-recording-glow) */
     @keyframes neon-glow {
-        0% { box-shadow: 0 0 5px rgba(236, 72, 153, 0.4); }
-        100% { box-shadow: 0 0 15px rgba(236, 72, 153, 0.8); }
+        0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
+        100% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.85); }
     }
 
     .saas-stat-card {
-        border-radius: 16px; color: white; padding: 20px; position: relative; overflow: hidden;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; height: 100%; cursor: pointer;
+        border-radius: 18px; color: white; padding: 18px 20px; position: relative; overflow: hidden;
+        box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.45); transition: transform 0.25s ease, box-shadow 0.25s ease; height: 100%; cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.10);
     }
-    .saas-stat-card:hover { transform: translateY(-5px); }
+    .saas-stat-card:hover { transform: translateY(-3px); box-shadow: 0 16px 30px -16px rgba(0, 0, 0, 0.55); }
+    /* غطاء رقيق يهدّي التدرّجات الفاقعة ويحسّن وضوح النص */
+    .saas-stat-card::before {
+        content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background: linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.22) 100%);
+    }
     .saas-stat-card::after {
         content: ''; position: absolute; top: -50%; right: -50%; width: 200px; height: 200px;
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%); border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%); border-radius: 50%;
     }
-    .saas-stat-card h3 { font-size: 28px; font-weight: 800; margin-bottom: 5px; z-index: 2; position: relative; }
-    .saas-stat-card p { font-size: 15px; font-weight: 600; opacity: 0.9; margin: 0; z-index: 2; position: relative; }
-    .saas-stat-card .bg-icon { position: absolute; bottom: -15px; left: -15px; font-size: 90px; opacity: 0.15; z-index: 1; transform: rotate(-15deg); }
+    .saas-stat-card h3 { font-size: 26px; font-weight: 800; margin-bottom: 4px; z-index: 2; position: relative; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+    .saas-stat-card p { font-size: 13.5px; font-weight: 600; opacity: 0.92; margin: 0; z-index: 2; position: relative; }
+    .saas-stat-card .bg-icon { position: absolute; bottom: -15px; left: -15px; font-size: 84px; opacity: 0.13; z-index: 1; transform: rotate(-15deg); }
     html[dir="rtl"] .saas-stat-card .bg-icon { left: auto; right: -15px; transform: rotate(15deg); }
 
     .insight-card {
