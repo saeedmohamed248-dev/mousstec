@@ -1,8 +1,8 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>تقرير فني مفصّل #{{ invoice.id }}</title>
+    <title>{% trans "تقرير فني مفصّل" %} #{{ invoice.id }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,10 +17,10 @@
         .info-box p { font-size:12.5px; color:#334155; margin:2px 0; }
 
         .section { margin:18px 0; }
-        .section-title { font-size:14px; font-weight:900; color:#0ea5e9; border-right:4px solid #0ea5e9; padding:4px 10px; margin-bottom:8px; background:#f0f9ff; }
+        .section-title { font-size:14px; font-weight:900; color:#0ea5e9; border-inline-start:4px solid #0ea5e9; padding:4px 10px; margin-bottom:8px; background:#f0f9ff; }
 
         table { width:100%; border-collapse:collapse; margin-bottom:10px; }
-        thead th { background:#0ea5e9; color:#fff; padding:8px; font-size:11px; text-align:right; }
+        thead th { background:#0ea5e9; color:#fff; padding:8px; font-size:11px; text-align:start; }
         tbody td { padding:7px 8px; border-bottom:1px solid #e2e8f0; font-size:12px; vertical-align:top; }
         tbody tr:nth-child(even) { background:#f8fafc; }
 
@@ -39,7 +39,7 @@
         .tag-issue  { background:#ef4444; }
 
         .log-meta { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:#475569; margin:2px 0 6px; }
-        .totals { margin-right:auto; width:300px; margin-top:10px; }
+        .totals { margin-inline-start:auto; width:300px; margin-top:10px; }
         .totals .row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #eee; }
         .totals .row.grand { border-top:2px solid #0ea5e9; border-bottom:none; font-weight:900; font-size:16px; color:#0ea5e9; padding-top:10px; }
         .footer { text-align:center; margin-top:25px; padding-top:12px; border-top:1px solid #eee; color:#999; font-size:10px; }
@@ -55,10 +55,10 @@
 <body onload="window.print()">
 
 <div class="switcher no-print">
-    <a href="?mode=summary">📄 ملخص</a>
-    <a href="?mode=detailed" class="active">🔧 تقرير فني مفصّل</a>
+    <a href="?mode=summary">📄 {% trans "ملخص" %}</a>
+    <a href="?mode=detailed" class="active">🔧 {% trans "تقرير فني مفصّل" %}</a>
     {% if invoice.feedback %}
-      <a class="feedback" href="{{ invoice.feedback.public_url }}" target="_blank">⭐ رابط تقييم العميل</a>
+      <a class="feedback" href="{{ invoice.feedback.public_url }}" target="_blank">⭐ {% trans "رابط تقييم العميل" %}</a>
     {% endif %}
 </div>
 
@@ -66,34 +66,34 @@
     <div>
         <h1>{{ invoice.branch.name|default:"Mouss Tec" }}</h1>
         <p style="font-size:11px;color:#94a3b8;">{{ print_date|date:"Y/m/d - H:i" }}</p>
-        <span class="badge">تقرير فني مفصّل — DETAILED REPORT</span>
+        <span class="badge">{% trans "تقرير فني مفصّل" %} — DETAILED REPORT</span>
     </div>
-    <div style="text-align:left;">
-        <p>فاتورة رقم: <strong>#{{ invoice.id }}</strong></p>
+    <div style="text-align:end;">
+        <p>{% trans "فاتورة رقم:" %} <strong>#{{ invoice.id }}</strong></p>
         <p style="font-size:11px;color:#888;">{{ invoice.get_invoice_type_display }} | {{ invoice.get_status_display }}</p>
     </div>
 </div>
 
 <div class="info-grid">
     <div class="info-box">
-        <h4>👤 بيانات العميل</h4>
+        <h4>👤 {% trans "بيانات العميل" %}</h4>
         <p><strong>{{ invoice.customer.name }}</strong></p>
         <p>{{ invoice.customer.phone }}</p>
     </div>
     <div class="info-box">
-        <h4>🚗 بيانات المركبة</h4>
+        <h4>🚗 {% trans "بيانات المركبة" %}</h4>
         {% if invoice.vehicle %}
         <p><strong>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name|default:"" }}</strong></p>
-        <p>لوحة: {{ invoice.vehicle.car_plate|default:"-" }}</p>
-        <p>شاسيه: <span style="font-family:monospace;">{{ invoice.vehicle.chassis_number|default:"-" }}</span></p>
-        {% if invoice.mileage %}<p>العداد: {{ invoice.mileage }} كم</p>{% endif %}
-        {% else %}<p>غير محدد</p>{% endif %}
+        <p>{% trans "لوحة:" %} {{ invoice.vehicle.car_plate|default:"-" }}</p>
+        <p>{% trans "شاسيه:" %} <span style="font-family:monospace;">{{ invoice.vehicle.chassis_number|default:"-" }}</span></p>
+        {% if invoice.mileage %}<p>{% blocktrans with m=invoice.mileage %}العداد: {{ m }} كم{% endblocktrans %}</p>{% endif %}
+        {% else %}<p>{% trans "غير محدد" %}</p>{% endif %}
     </div>
 </div>
 
 {% if invoice.notes %}
 <div class="section">
-    <div class="section-title">📝 شكوى العميل</div>
+    <div class="section-title">📝 {% trans "شكوى العميل" %}</div>
     <div style="padding:10px;background:#fef3c7;border-radius:6px;font-size:12px;">{{ invoice.notes }}</div>
 </div>
 {% endif %}
@@ -101,7 +101,7 @@
 <!-- 🛠️ TECHNICAL WORK LOGS -->
 {% if invoice.repair_logs.all %}
 <div class="section">
-    <div class="section-title">🛠️ سجل أعمال الفنيين</div>
+    <div class="section-title">🛠️ {% trans "سجل أعمال الفنيين" %}</div>
     {% for log in invoice.repair_logs.all %}
       <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -110,7 +110,7 @@
         </div>
         <div class="log-meta">
           <span>👨‍🔧 {{ log.technician.user.get_full_name|default:log.technician.user.username }}</span>
-          <span>⏱️ {{ log.duration_minutes }} دقيقة</span>
+          <span>⏱️ {% blocktrans with n=log.duration_minutes %}{{ n }} دقيقة{% endblocktrans %}</span>
           <span>🗓️ {{ log.started_at|date:"d/m H:i" }}{% if log.ended_at %} → {{ log.ended_at|date:"H:i" }}{% endif %}</span>
         </div>
         {% if log.tech_notes %}
@@ -118,15 +118,16 @@
         {% endif %}
         {% if log.needs_extra_parts %}
           <div style="background:#fee2e2;padding:6px 10px;border-radius:6px;font-size:11px;color:#991b1b;margin-top:6px;">
-            ⚠️ طلب قطع إضافية: {{ log.extra_parts_note }}
+            ⚠️ {% trans "طلب قطع إضافية:" %} {{ log.extra_parts_note }}
           </div>
         {% endif %}
 
         {% if log.media.all %}
         <div class="photo-grid">
+          {% trans "صورة" as photo_alt %}
           {% for m in log.media.all %}
             <figure>
-              <img src="{{ m.image.url }}" alt="{{ m.caption|default:'صورة' }}">
+              <img src="{{ m.image.url }}" alt="{{ m.caption|default:photo_alt }}">
               <figcaption>
                 <span class="photo-tag tag-{{ m.kind }}">{{ m.get_kind_display }}</span>
                 {{ m.caption|default:"" }}
@@ -144,43 +145,43 @@
 {% if invoice.diagnostic_reports.all %}
 <div class="section">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <span>🤖 نتائج التشخيص الذكي (AI Findings)</span>
+        <span>🤖 {% trans "نتائج التشخيص الذكي (AI Findings)" %}</span>
         <a href="{% url 'inventory:ai_diag_print' invoice.id %}" target="_blank"
            style="font-size:11px;background:#0ea5e9;color:#fff;padding:6px 14px;border-radius:6px;text-decoration:none;font-weight:700;"
            class="no-print">
-            🖨️ اطبع تقرير العميل
+            🖨️ {% trans "اطبع تقرير العميل" %}
         </a>
     </div>
     {% for r in invoice.diagnostic_reports.all %}
-      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;{% if r.source == 'diag_room' %}border-right:4px solid #8b5cf6;background:#faf5ff;{% endif %}">
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;{% if r.source == 'diag_room' %}border-inline-start:4px solid #8b5cf6;background:#faf5ff;{% endif %}">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center;">
           <div>
             <strong>{{ r.get_scan_type_display }}</strong>
-            <span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:6px;
+            <span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-inline-start:6px;
                         {% if r.source == 'diag_room' %}background:#ede9fe;color:#6d28d9;{% else %}background:#dbeafe;color:#1d4ed8;{% endif %}">
                 {{ r.get_source_display }}
             </span>
           </div>
-          <span style="font-size:11px;color:#64748b;">{{ r.scanned_at|date:"d/m/Y H:i" }} · شدة: {{ r.severity_score }}/100</span>
+          <span style="font-size:11px;color:#64748b;">{{ r.scanned_at|date:"d/m/Y H:i" }} · {% trans "شدة:" %} {{ r.severity_score }}/100</span>
         </div>
-        {% if r.engineer %}<p style="font-size:11px;color:#475569;margin-top:4px;">👨‍🔬 المهندس: {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}</p>{% endif %}
+        {% if r.engineer %}<p style="font-size:11px;color:#475569;margin-top:4px;">👨‍🔬 {% trans "المهندس:" %} {{ r.engineer.user.get_full_name|default:r.engineer.user.username }}</p>{% endif %}
 
         {% if r.ai_summary %}
-          <div style="margin-top:10px;padding:10px 14px;background:#fff;border:1px solid #ddd6fe;border-right:3px solid #8b5cf6;border-radius:6px;">
-            <div style="font-size:11px;font-weight:700;color:#6d28d9;margin-bottom:6px;">📋 تحليل الذكاء الاصطناعي:</div>
+          <div style="margin-top:10px;padding:10px 14px;background:#fff;border:1px solid #ddd6fe;border-inline-start:3px solid #8b5cf6;border-radius:6px;">
+            <div style="font-size:11px;font-weight:700;color:#6d28d9;margin-bottom:6px;">📋 {% trans "تحليل الذكاء الاصطناعي:" %}</div>
             <div style="font-size:12px;line-height:1.8;color:#1e293b;white-space:pre-wrap;">{{ r.ai_summary }}</div>
           </div>
         {% endif %}
 
         {% if r.fault_codes %}
-          <p style="font-size:11px;margin-top:8px;"><b>أكواد الأعطال (DTCs):</b></p>
+          <p style="font-size:11px;margin-top:8px;"><b>{% trans "أكواد الأعطال (DTCs):" %}</b></p>
           <div>
             {% for code in r.fault_codes %}<span class="dtc-chip">{{ code }}</span>{% endfor %}
           </div>
         {% endif %}
 
         {% if r.photos.all %}
-          <p style="font-size:11px;margin-top:10px;"><b>📷 صور التشخيص ({{ r.photos.count }}):</b></p>
+          <p style="font-size:11px;margin-top:10px;"><b>📷 {% blocktrans with n=r.photos.count %}صور التشخيص ({{ n }}):{% endblocktrans %}</b></p>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-top:6px;">
             {% for photo in r.photos.all %}
               <a href="{{ photo.image.url }}" target="_blank" style="display:block;aspect-ratio:1;overflow:hidden;border-radius:6px;border:1px solid #e2e8f0;">
@@ -192,7 +193,7 @@
         {% endif %}
 
         {% if r.live_data %}
-          <p style="font-size:11px;margin-top:10px;"><b>القراءات الحية:</b></p>
+          <p style="font-size:11px;margin-top:10px;"><b>{% trans "القراءات الحية:" %}</b></p>
           <div class="live-grid">
             {% for k, v in r.live_data.items %}
               <div><b>{{ k }}</b><br>{{ v }}</div>
@@ -207,9 +208,9 @@
 <!-- 📦 PARTS -->
 {% if invoice.items.exists %}
 <div class="section">
-    <div class="section-title">📦 القطع المستبدلة</div>
+    <div class="section-title">📦 {% trans "القطع المستبدلة" %}</div>
     <table>
-        <thead><tr><th>#</th><th>القطعة</th><th>P/N</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+        <thead><tr><th>#</th><th>{% trans "القطعة" %}</th><th>P/N</th><th>{% trans "الكمية" %}</th><th>{% trans "السعر" %}</th><th>{% trans "الإجمالي" %}</th></tr></thead>
         <tbody>
         {% for item in invoice.items.all %}
         <tr>
@@ -229,9 +230,9 @@
 <!-- 🧰 SERVICES -->
 {% if invoice.service_items.exists %}
 <div class="section">
-    <div class="section-title">🧰 الخدمات والمصنعية</div>
+    <div class="section-title">🧰 {% trans "الخدمات والمصنعية" %}</div>
     <table>
-        <thead><tr><th>#</th><th>الخدمة</th><th>الفني</th><th>الساعات</th><th>المبلغ</th></tr></thead>
+        <thead><tr><th>#</th><th>{% trans "الخدمة" %}</th><th>{% trans "الفني" %}</th><th>{% trans "الساعات" %}</th><th>{% trans "المبلغ" %}</th></tr></thead>
         <tbody>
         {% for srv in invoice.service_items.all %}
         <tr>
@@ -248,16 +249,16 @@
 {% endif %}
 
 <div class="totals">
-    {% if invoice.discount > 0 %}<div class="row"><span>الخصم</span><span>- {{ invoice.discount|floatformat:2 }} ج.م</span></div>{% endif %}
-    {% if invoice.tax_percentage > 0 %}<div class="row"><span>ضريبة ({{ invoice.tax_percentage }}%)</span><span>محسوبة</span></div>{% endif %}
-    {% if invoice.total_core_charge > 0 %}<div class="row"><span>تأمين التوالف</span><span>{{ invoice.total_core_charge|floatformat:2 }} ج.م</span></div>{% endif %}
-    <div class="row grand"><span>الإجمالي النهائي</span><span>{{ invoice.total_amount|floatformat:2 }} ج.م</span></div>
-    <div class="row"><span>المدفوع</span><span>{{ invoice.paid_amount|floatformat:2 }} ج.م</span></div>
-    {% if invoice.due_amount > 0 %}<div class="row" style="color:#e74c3c;font-weight:700;"><span>المتبقي</span><span>{{ invoice.due_amount|floatformat:2 }} ج.م</span></div>{% endif %}
+    {% if invoice.discount > 0 %}<div class="row"><span>{% trans "الخصم" %}</span><span>- {{ invoice.discount|floatformat:2 }} {% trans "ج.م" %}</span></div>{% endif %}
+    {% if invoice.tax_percentage > 0 %}<div class="row"><span>{% blocktrans with p=invoice.tax_percentage %}ضريبة ({{ p }}%){% endblocktrans %}</span><span>{% trans "محسوبة" %}</span></div>{% endif %}
+    {% if invoice.total_core_charge > 0 %}<div class="row"><span>{% trans "تأمين التوالف" %}</span><span>{{ invoice.total_core_charge|floatformat:2 }} {% trans "ج.م" %}</span></div>{% endif %}
+    <div class="row grand"><span>{% trans "الإجمالي النهائي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>
+    <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>
+    {% if invoice.due_amount > 0 %}<div class="row" style="color:#e74c3c;font-weight:700;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>{% endif %}
 </div>
 
 <div class="footer">
-    <p>Mouss Tec Ecosystem &copy; 2026 — تقرير فني داخلي / Internal Technical Report</p>
+    <p>Mouss Tec Ecosystem &copy; 2026 — {% trans "تقرير فني داخلي / Internal Technical Report" %}</p>
 </div>
 
 </body>
