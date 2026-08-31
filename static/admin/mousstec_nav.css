@@ -122,7 +122,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* المجموعات الأصلية (تطبيقات) جوّه الكارت */
+/* العناصر (الموديلات) جوّه الكارت */
 .mt-cat-body > .nav-item > .nav-link {
   border-radius: 9px;
   font-size: 13px;
@@ -135,6 +135,19 @@
   border-radius: 8px;
 }
 .mt-cat-body .nav-icon { opacity: .85; }
+
+/* العنوان الفرعي (اسم التطبيق الأصلي) جوّه الكارت */
+.mt-cat-body > .mt-subhead {
+  padding: 8px 10px 4px !important;
+  margin: 4px 0 2px !important;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .42) !important;
+  border-top: 1px solid rgba(255, 255, 255, .06);
+}
+.mt-cat-body > .mt-subhead:first-child { border-top: 0; margin-top: 0 !important; }
 
 /* الحالة النشطة تبان بوضوح */
 .mt-cat-body .nav-link.active {
