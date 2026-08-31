@@ -1,23 +1,24 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوق B2B المركزي | Mouss Tec</title>
+    <title>{% trans "سوق B2B المركزي" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }</style>
 </head>
 <body class="text-slate-200 min-h-screen flex flex-col">
+{% include "inventory/_lang_switch.html" %}
 
     <nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="bg-gradient-to-tr from-pink-600 to-purple-600 p-2 rounded-xl"><i class="fas fa-store text-white"></i></div>
-                <span class="text-lg font-black bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">سوق B2B المركزي</span>
+                <span class="text-lg font-black bg-gradient-to-r from-pink-400 to-purple-400 bg-clip-text text-transparent">{% trans "سوق B2B المركزي" %}</span>
             </div>
-            <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+            <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>{% trans "العودة" %}</a>
         </div>
     </nav>
 
@@ -26,38 +27,38 @@
         <!-- Search Section -->
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-6">
             <h2 class="text-xl font-black text-white mb-2 flex items-center gap-2">
-                <i class="fas fa-search text-pink-400"></i> ابحث في السوق المشترك
+                <i class="fas fa-search text-pink-400"></i> {% trans "ابحث في السوق المشترك" %}
             </h2>
-            <p class="text-sm text-slate-500 mb-4">ابحث برقم القطعة أو اسم المنتج للعثور على أفضل الأسعار من التجار المعتمدين</p>
+            <p class="text-sm text-slate-500 mb-4">{% trans "ابحث برقم القطعة أو اسم المنتج للعثور على أفضل الأسعار من التجار المعتمدين" %}</p>
             <div class="flex gap-3">
                 <div class="relative flex-1">
-                    <input type="text" id="b2b-search" placeholder="رقم القطعة أو اسم المنتج (مثال: 11787589121 أو فلتر زيت)..."
+                    <input type="text" id="b2b-search" placeholder="{% trans 'رقم القطعة أو اسم المنتج (مثال: 11787589121 أو فلتر زيت)...' %}"
                         class="w-full bg-slate-800/60 border border-slate-700 focus:border-pink-500 rounded-xl px-4 py-3 pl-10 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50"
                         onkeypress="if(event.key==='Enter') searchMarket()"
                         oninput="document.getElementById('clear-search').classList.toggle('hidden', !this.value)">
-                    <button type="button" id="clear-search" onclick="clearSearch()" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-pink-400 transition" title="مسح"><i class="fas fa-times-circle"></i></button>
+                    <button type="button" id="clear-search" onclick="clearSearch()" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-pink-400 transition" title="{% trans 'مسح' %}"><i class="fas fa-times-circle"></i></button>
                 </div>
                 <button onclick="searchMarket()" class="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-bold px-8 py-3 rounded-xl text-sm transition shadow-lg shadow-pink-500/20">
-                    <i class="fas fa-search ml-1"></i> بحث
+                    <i class="fas fa-search ml-1"></i> {% trans "بحث" %}
                 </button>
             </div>
         </div>
 
         <!-- Quick Categories -->
         <div class="flex flex-wrap gap-2 mb-6">
-            <button onclick="quickSearch('فلتر')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">فلاتر</button>
-            <button onclick="quickSearch('بوجيه')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">بوجيهات</button>
-            <button onclick="quickSearch('تيل فرامل')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">فرامل</button>
-            <button onclick="quickSearch('زيت')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">زيوت</button>
-            <button onclick="quickSearch('كويل')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">كويلات</button>
-            <button onclick="quickSearch('سير')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">سيور</button>
+            <button onclick="quickSearch('فلتر')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "فلاتر" %}</button>
+            <button onclick="quickSearch('بوجيه')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "بوجيهات" %}</button>
+            <button onclick="quickSearch('تيل فرامل')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "فرامل" %}</button>
+            <button onclick="quickSearch('زيت')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "زيوت" %}</button>
+            <button onclick="quickSearch('كويل')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "كويلات" %}</button>
+            <button onclick="quickSearch('سير')" class="bg-slate-800/60 border border-slate-700 hover:border-pink-500/40 text-slate-400 hover:text-pink-400 text-xs font-bold px-4 py-2 rounded-xl transition">{% trans "سيور" %}</button>
         </div>
 
         <!-- Loading -->
         <div id="loading" class="hidden text-center py-10">
             <div class="inline-flex items-center gap-3 bg-slate-900/60 border border-slate-800 rounded-2xl px-6 py-4">
                 <i class="fas fa-spinner fa-spin text-pink-400 text-xl"></i>
-                <span class="text-sm text-slate-400 font-bold">جاري البحث في السوق المركزي...</span>
+                <span class="text-sm text-slate-400 font-bold">{% trans "جاري البحث في السوق المركزي..." %}</span>
             </div>
         </div>
 
@@ -67,17 +68,17 @@
         <!-- Empty State -->
         <div id="empty-state" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-10 text-center">
             <i class="fas fa-store text-5xl text-slate-700 mb-4"></i>
-            <h3 class="text-lg font-black text-slate-500 mb-2">مرحباً بك في السوق المركزي</h3>
-            <p class="text-sm text-slate-600 max-w-md mx-auto">ابحث عن قطع الغيار التي تحتاجها وقارن الأسعار من جميع التجار المعتمدين في شبكة Mouss Tec</p>
+            <h3 class="text-lg font-black text-slate-500 mb-2">{% trans "مرحباً بك في السوق المركزي" %}</h3>
+            <p class="text-sm text-slate-600 max-w-md mx-auto">{% trans "ابحث عن قطع الغيار التي تحتاجها وقارن الأسعار من جميع التجار المعتمدين في شبكة Mouss Tec" %}</p>
         </div>
 
         <!-- No Results State -->
         <div id="no-results" class="hidden bg-slate-900/60 border border-slate-800 rounded-2xl p-10 text-center">
             <i class="fas fa-search text-5xl text-slate-700 mb-4"></i>
-            <h3 class="text-lg font-black text-slate-500 mb-2">لا توجد نتائج</h3>
-            <p class="text-sm text-slate-600 mb-4">لم يتم العثور على منتجات مطابقة. يمكنك طلب تسعير من التجار عبر مزاد عكسي.</p>
+            <h3 class="text-lg font-black text-slate-500 mb-2">{% trans "لا توجد نتائج" %}</h3>
+            <p class="text-sm text-slate-600 mb-4">{% trans "لم يتم العثور على منتجات مطابقة. يمكنك طلب تسعير من التجار عبر مزاد عكسي." %}</p>
             <button onclick="openBidModal()" class="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm transition">
-                <i class="fas fa-gavel ml-1"></i> طلب مزاد عكسي (RFQ)
+                <i class="fas fa-gavel ml-1"></i> {% trans "طلب مزاد عكسي (RFQ)" %}
             </button>
         </div>
 
@@ -87,18 +88,18 @@
     <div id="bidModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-black text-white"><i class="fas fa-gavel text-amber-400 ml-2"></i>مزاد عكسي</h3>
+                <h3 class="text-lg font-black text-white"><i class="fas fa-gavel text-amber-400 ml-2"></i>{% trans "مزاد عكسي" %}</h3>
                 <button onclick="closeBidModal()" class="text-slate-500 hover:text-red-400 transition"><i class="fas fa-times text-xl"></i></button>
             </div>
-            <p class="text-xs text-slate-500 mb-4">أرسل طلب تسعير للتجار المعتمدين. سيتم إخطارك عند ورود العروض.</p>
+            <p class="text-xs text-slate-500 mb-4">{% trans "أرسل طلب تسعير للتجار المعتمدين. سيتم إخطارك عند ورود العروض." %}</p>
             <div class="space-y-3">
-                <input type="text" id="bid-part" placeholder="رقم القطعة أو الوصف..." class="w-full bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
+                <input type="text" id="bid-part" placeholder="{% trans 'رقم القطعة أو الوصف...' %}" class="w-full bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
                 <div class="flex gap-3">
-                    <input type="number" id="bid-qty" placeholder="الكمية" value="1" min="1" class="w-1/2 bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
-                    <input type="number" id="bid-price" placeholder="السعر المستهدف (اختياري)" class="w-1/2 bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
+                    <input type="number" id="bid-qty" placeholder="{% trans 'الكمية' %}" value="1" min="1" class="w-1/2 bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
+                    <input type="number" id="bid-price" placeholder="{% trans 'السعر المستهدف (اختياري)' %}" class="w-1/2 bg-slate-800/60 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none">
                 </div>
                 <button onclick="submitBid()" class="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-6 py-3 rounded-xl text-sm transition">
-                    <i class="fas fa-paper-plane ml-1"></i> إرسال طلب التسعير
+                    <i class="fas fa-paper-plane ml-1"></i> {% trans "إرسال طلب التسعير" %}
                 </button>
             </div>
             <div id="bid-result" class="mt-3 text-sm"></div>
@@ -108,6 +109,21 @@
     <footer class="text-center py-4 text-slate-700 text-xs border-t border-slate-900">&copy; 2026 Mouss Tec Ecosystem</footer>
 
 <script>
+const T = {
+  connErr: "{% trans 'حدث خطأ في الاتصال بالسوق المركزي' %}",
+  resultsFor: "{% trans 'نتائج البحث عن' %}",
+  oneOffer: "{% trans 'عرض واحد' %}",
+  offers: "{% trans 'عرض' %}",
+  verified: "{% trans 'معتمد' %}",
+  notVerified: "{% trans 'غير معتمد' %}",
+  availQty: "{% trans 'الكمية المتوفرة:' %}",
+  egp: "{% trans 'ج.م' %}",
+  wholesale: "{% trans 'سعر الجملة' %}",
+  enterPart: "{% trans 'يرجى إدخال رقم القطعة أو الوصف' %}",
+  sending: "{% trans 'جاري الإرسال...' %}",
+  rfqOk: "{% trans 'تم إرسال طلب التسعير بنجاح! سيتم إخطارك عند ورود العروض.' %}",
+  serverErr: "{% trans 'خطأ في الاتصال بالخادم' %}",
+};
 function getCookie(n){let v=document.cookie.match('(^|;)\\s*'+n+'=([^;]*)');return v?decodeURIComponent(v[2]):'';}
 
 function quickSearch(term) {
@@ -154,25 +170,26 @@ async function searchMarket() {
         document.getElementById('results-container').innerHTML = `
             <div class="bg-red-900/20 border border-red-800/40 rounded-2xl p-6 text-center">
                 <i class="fas fa-exclamation-triangle text-red-400 text-2xl mb-2"></i>
-                <p class="text-sm text-red-400 font-bold">حدث خطأ في الاتصال بالسوق المركزي</p>
+                <p class="text-sm text-red-400 font-bold">${T.connErr}</p>
             </div>`;
     }
 }
 
 function renderResults(results, query) {
     const container = document.getElementById('results-container');
+    const countLabel = results.length === 1 ? T.oneOffer : results.length + ' ' + T.offers;
     let html = `
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-bold text-slate-500 flex items-center gap-2">
-                <i class="fas fa-list text-pink-400"></i> نتائج البحث عن "${query}" (${results.length === 1 ? 'عرض واحد' : results.length + ' عرض'})
+                <i class="fas fa-list text-pink-400"></i> ${T.resultsFor} "${query}" (${countLabel})
             </h3>
         </div>
         <div class="space-y-3">`;
 
     results.forEach((item, idx) => {
         const verified = item.is_verified ?
-            '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-emerald-500/20"><i class="fas fa-shield-check"></i> معتمد</span>' :
-            '<span class="bg-slate-700/50 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-lg">غير معتمد</span>';
+            `<span class="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-lg border border-emerald-500/20"><i class="fas fa-shield-check"></i> ${T.verified}</span>` :
+            `<span class="bg-slate-700/50 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded-lg">${T.notVerified}</span>`;
 
         const ratingNum = Number(item.rating || 0);
         const stars = ratingNum > 0 ? '&#9733;'.repeat(Math.round(ratingNum)) : '';
@@ -186,7 +203,7 @@ function renderResults(results, query) {
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-black text-white truncate">${item.product_name}</p>
-                        <p class="text-xs text-slate-500">P/N: ${item.part_number} | الكمية المتوفرة: ${item.available_qty}</p>
+                        <p class="text-xs text-slate-500">P/N: ${item.part_number} | ${T.availQty} ${item.available_qty}</p>
                         <div class="flex items-center gap-2 mt-1">
                             ${verified}
                             <span class="text-amber-400 text-[10px]">${stars}</span>
@@ -194,9 +211,9 @@ function renderResults(results, query) {
                         </div>
                     </div>
                 </div>
-                <div class="text-left sm:text-right shrink-0">
-                    <p class="text-lg font-black text-emerald-400">${Number(item.wholesale_price).toLocaleString('en-US')} <span class="text-xs">ج.م</span></p>
-                    <p class="text-[10px] text-slate-600">سعر الجملة</p>
+                <div class="text-start sm:text-end shrink-0">
+                    <p class="text-lg font-black text-emerald-400">${Number(item.wholesale_price).toLocaleString('en-US')} <span class="text-xs">${T.egp}</span></p>
+                    <p class="text-[10px] text-slate-600">${T.wholesale}</p>
                 </div>
             </div>
         </div>`;
@@ -223,11 +240,11 @@ async function submitBid() {
     const price = document.getElementById('bid-price').value || null;
 
     if (!part) {
-        document.getElementById('bid-result').innerHTML = '<span class="text-red-400">يرجى إدخال رقم القطعة أو الوصف</span>';
+        document.getElementById('bid-result').innerHTML = `<span class="text-red-400">${T.enterPart}</span>`;
         return;
     }
 
-    document.getElementById('bid-result').innerHTML = '<span class="text-slate-500"><i class="fas fa-spinner fa-spin ml-1"></i>جاري الإرسال...</span>';
+    document.getElementById('bid-result').innerHTML = `<span class="text-slate-500"><i class="fas fa-spinner fa-spin ml-1"></i>${T.sending}</span>`;
 
     try {
         const res = await fetch('/system/api/v1/b2b/bidding/create/', {
@@ -239,10 +256,10 @@ async function submitBid() {
         if (data.error) {
             document.getElementById('bid-result').innerHTML = `<span class="text-red-400">${data.error}</span>`;
         } else {
-            document.getElementById('bid-result').innerHTML = '<span class="text-emerald-400"><i class="fas fa-check-circle ml-1"></i>تم إرسال طلب التسعير بنجاح! سيتم إخطارك عند ورود العروض.</span>';
+            document.getElementById('bid-result').innerHTML = `<span class="text-emerald-400"><i class="fas fa-check-circle ml-1"></i>${T.rfqOk}</span>`;
         }
     } catch (err) {
-        document.getElementById('bid-result').innerHTML = '<span class="text-red-400">خطأ في الاتصال بالخادم</span>';
+        document.getElementById('bid-result').innerHTML = `<span class="text-red-400">${T.serverErr}</span>`;
     }
 }
 </script>
