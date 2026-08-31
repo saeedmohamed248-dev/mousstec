@@ -626,16 +626,17 @@ JAZZMIN_SETTINGS = {
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "darkly",
+    # 🎨 هوية فاتحة احترافية موحّدة (Light Enterprise) — لون أساسي كحلي هادئ
+    "theme": "flatly",
     "dark_mode_theme": None,
     "navbar_fixed": True,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-purple",
-    "accent": "accent-purple",
-    "navbar": "navbar-dark",
+    "sidebar": "sidebar-light-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
     "no_navbar_border": True,
     "body_small_text": False,
-    "brand_colour": "navbar-purple",
+    "brand_colour": "navbar-white",
     "actions_sticky_top": True,
 }
 
