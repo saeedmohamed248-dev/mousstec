@@ -246,6 +246,34 @@
     }
     /* بطاقة المستشار الذكي: نفس الشكل المحايد */
     .saas-stat-card.glow-btn{ box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 14px -10px rgba(16,24,40,.16) !important; }
+
+    /* ================================================================= */
+    /* 🎨 أزرار الوصول السريع — بطاقات بيضاء بأيقونة ملوّنة (زي المعاينة)   */
+    /* ================================================================= */
+    .saas-quick-btn{
+        background:#fff !important; color:var(--mt-ink) !important;
+        border:1px solid var(--mt-line) !important; border-radius:12px !important;
+        box-shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 12px -10px rgba(16,24,40,.18) !important;
+        justify-content:flex-start !important; gap:11px !important; padding:11px 13px !important;
+        font-weight:700 !important;
+    }
+    .saas-quick-btn:hover{ transform:translateY(-2px); border-color:var(--mt-border-2,#D6DAE1) !important;
+        box-shadow:0 8px 18px -12px rgba(16,24,40,.30) !important; filter:none !important; color:var(--mt-ink) !important; }
+    .saas-quick-btn.glow-btn{ animation:none !important; }
+    /* الأيقونة تتحول لشريحة ملوّنة صغيرة */
+    .saas-quick-btn > i{
+        width:34px; height:34px; flex:0 0 34px; display:inline-flex; align-items:center; justify-content:center;
+        border-radius:9px; font-size:15px; background:var(--mt-brand-soft); color:var(--mt-brand);
+    }
+    /* ألوان دلالية حسب نوع الأيقونة */
+    .saas-quick-btn > i.fa-truck-loading, .saas-quick-btn > i.fa-truck,
+    .saas-quick-btn > i.fa-wallet, .saas-quick-btn > i.fa-coins, .saas-quick-btn > i.fa-boxes{ background:#E7F6EF; color:#0E9F6E; }
+    .saas-quick-btn > i.fa-chart-bar, .saas-quick-btn > i.fa-chart-pie, .saas-quick-btn > i.fa-chart-line{ background:#E8F0FB; color:#2266C9; }
+    .saas-quick-btn > i.fa-store, .saas-quick-btn > i.fa-store-alt, .saas-quick-btn > i.fa-store-alt{ background:#FBF0E2; color:#B45309; }
+    .saas-quick-btn > i.fa-cash-register, .saas-quick-btn > i.fa-user-tie{ background:#F0EDFB; color:#5B3FBF; }
+    .saas-quick-btn > i.fa-car-crash, .saas-quick-btn > i.fa-heart-pulse{ background:#FBEBEB; color:#D14343; }
+    /* الشارة الحمراء فوق زر السوق تفضل ظاهرة */
+    .saas-quick-btn > span[id^="mpFeedBadge"]{ color:#fff !important; }
 </style>
 
 <input type="hidden" id="rawChartLabels" value="{{ chart_labels|default:'[]' }}">
