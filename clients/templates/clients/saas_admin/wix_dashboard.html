@@ -1,0 +1,176 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ربط Wix — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:flex; gap:14px; margin-bottom:22px; flex-wrap:wrap; }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px 20px; }
+        .stat .n { font-size:26px; font-weight:900; color:#22c55e; }
+        .stat .l { font-size:12px; color:#94a3b8; }
+        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:14px; vertical-align:middle; }
+        th { background:#0f172a; color:#a78bfa; font-weight:900; }
+        tr:hover { background:#293548; }
+        .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:11px; font-weight:700; }
+        .badge.ok { background:#22c55e; color:#fff; }
+        .badge.off { background:#64748b; color:#fff; }
+        .badge.err { background:#ef4444; color:#fff; }
+        .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; text-decoration:none; display:inline-block; margin:2px; font-family:inherit; }
+        .btn-connect { background:#0ea5e9; color:#fff; }
+        .btn-ok { background:#22c55e; color:#fff; }
+        .btn-warn { background:#f59e0b; color:#0f172a; }
+        .btn-danger { background:#ef4444; color:#fff; }
+        .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:99; }
+        .modal { background:#1e293b; max-width:520px; margin:60px auto; padding:26px; border-radius:14px; border:2px solid #0ea5e9; }
+        .modal h3 { color:#7dd3fc; margin-top:0; }
+        .modal label { display:block; font-size:13px; color:#cbd5e1; margin:14px 0 4px; font-weight:700; }
+        .modal input { width:100%; padding:9px; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:6px; box-sizing:border-box; }
+        .modal .hint { font-size:11px; color:#94a3b8; margin-top:4px; }
+        .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#1e293b; border:1px solid #22c55e; color:#e2e8f0; padding:12px 20px; border-radius:10px; display:none; z-index:200; }
+        .muted { color:#64748b; font-size:12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">🏠 لوحة السوبر أدمن</a> / ربط Wix</div>
+    <h1>🔌 ربط المتاجر مع Wix</h1>
+    <p class="sub">اربط كل شركة بموقع Wix بتاعها — المنتجات تتزامن لمتجر Wix، والمبيعات تترجّع كفواتير في Mousstec تلقائياً.</p>
+
+    <div class="stats">
+        <div class="stat"><div class="n">{{ connected_count }}</div><div class="l">شركات مربوطة</div></div>
+        <div class="stat"><div class="n">{{ total_tenants }}</div><div class="l">إجمالي الشركات</div></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>الشركة</th>
+                <th>حالة الربط</th>
+                <th>Site ID</th>
+                <th>آخر مزامنة</th>
+                <th>إحصائيات</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+            <tr>
+                <td>
+                    <strong>{{ row.tenant.name }}</strong><br>
+                    <span class="muted">{{ row.tenant.schema_name }}</span>
+                </td>
+                <td>
+                    {% if row.conn and row.conn.is_active and row.conn.last_test_ok %}
+                        <span class="badge ok">✅ متصل</span>
+                    {% elif row.conn and row.conn.is_active %}
+                        <span class="badge err">⚠️ يحتاج اختبار</span>
+                    {% elif row.conn %}
+                        <span class="badge off">مفصول</span>
+                    {% else %}
+                        <span class="badge off">غير مربوط</span>
+                    {% endif %}
+                    {% if row.conn.last_error %}<br><span class="muted" title="{{ row.conn.last_error }}">⚠️ آخر خطأ</span>{% endif %}
+                </td>
+                <td class="muted">{{ row.conn.site_id|default:"—" }}</td>
+                <td class="muted">
+                    {% if row.conn.last_product_sync_at %}🛍️ {{ row.conn.last_product_sync_at|date:"m/d H:i" }}<br>{% endif %}
+                    {% if row.conn.last_order_sync_at %}🧾 {{ row.conn.last_order_sync_at|date:"m/d H:i" }}{% endif %}
+                    {% if not row.conn.last_product_sync_at and not row.conn.last_order_sync_at %}—{% endif %}
+                </td>
+                <td class="muted">
+                    {% if row.conn %}🛍️ {{ row.conn.products_pushed }} · 🧾 {{ row.conn.orders_imported }}{% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if row.conn %}
+                        <button class="btn btn-ok" onclick="syncNow({{ row.conn.id }})">🔄 مزامنة الآن</button>
+                        <button class="btn btn-warn" onclick="testConn({{ row.conn.id }})">🧪 اختبار</button>
+                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id }}, '{{ row.tenant.name|escapejs }}')">✏️ تعديل</button>
+                        <button class="btn btn-danger" onclick="disconnect({{ row.conn.id }})">🔌 فصل</button>
+                    {% else %}
+                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id }}, '{{ row.tenant.name|escapejs }}')">➕ ربط بـ Wix</button>
+                    {% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">لا توجد شركات نشطة.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Connect modal -->
+<div class="modal-bg" id="connectModal">
+    <div class="modal">
+        <h3>🔌 ربط <span id="connTenantName"></span> بـ Wix</h3>
+        <p class="muted">هات الـ API Key و الـ Site ID من حساب Wix بتاع الشركة.</p>
+        <form id="connectForm" onsubmit="submitConnect(event)">
+            <label>Wix API Key</label>
+            <input type="text" name="api_key" required autocomplete="off" placeholder="IST.eyJ...">
+            <div class="hint">من manage.wix.com → Account Settings → API Keys → Generate API Key.</div>
+            <label>Site ID</label>
+            <input type="text" name="site_id" required autocomplete="off" placeholder="xxxxxxxx-xxxx-...">
+            <div class="hint">من لوحة الموقع في Wix (Settings → Business Info)، أو من رابط الـ dashboard.</div>
+            <label>Account ID <span class="muted">(اختياري)</span></label>
+            <input type="text" name="account_id" autocomplete="off" placeholder="">
+            <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn btn-danger" onclick="closeConnect()">إلغاء</button>
+                <button type="submit" class="btn btn-ok">💾 حفظ واختبار</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    let currentTenantId = null;
+    function getCookie(name){const m=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');return m?decodeURIComponent(m.pop()):'';}
+    function hdrs(){return {'X-CSRFToken':getCookie('mt_csrf'),'X-Requested-With':'XMLHttpRequest'};}
+    function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',4000);}
+
+    function openConnect(tenantId, name){
+        currentTenantId = tenantId;
+        document.getElementById('connTenantName').textContent = name;
+        document.getElementById('connectForm').reset();
+        document.getElementById('connectModal').style.display='block';
+    }
+    function closeConnect(){document.getElementById('connectModal').style.display='none';}
+
+    function submitConnect(e){
+        e.preventDefault();
+        const fd = new FormData(document.getElementById('connectForm'));
+        fetch(`/superadmin/wix/${currentTenantId}/connect/`, {method:'POST', headers:hdrs(), credentials:'same-origin', body:fd})
+            .then(r=>r.json()).then(d=>{
+                closeConnect();
+                toast(d.message || (d.ok?'تم':'فشل'));
+                if(d.ok) setTimeout(()=>location.reload(), 1500);
+            }).catch(()=>toast('خطأ في الاتصال'));
+    }
+    function testConn(id){
+        toast('⏳ جاري الاختبار...');
+        fetch(`/superadmin/wix/conn/${id}/test/`, {method:'POST', headers:hdrs(), credentials:'same-origin'})
+            .then(r=>r.json()).then(d=>{ toast(d.ok?'✅ الاتصال سليم':'⚠️ '+(d.error||'فشل')); if(d.ok) setTimeout(()=>location.reload(),1200); });
+    }
+    function syncNow(id){
+        fetch(`/superadmin/wix/conn/${id}/sync/`, {method:'POST', headers:hdrs(), credentials:'same-origin', body:new URLSearchParams({mode:'both'})})
+            .then(r=>r.json()).then(d=>toast(d.message || 'بدأت المزامنة'));
+    }
+    function disconnect(id){
+        if(!confirm('متأكد إنك عايز تفصل الربط ده؟')) return;
+        fetch(`/superadmin/wix/conn/${id}/disconnect/`, {method:'POST', headers:hdrs(), credentials:'same-origin'})
+            .then(r=>r.json()).then(d=>{ toast(d.message||'تم'); setTimeout(()=>location.reload(),1000); });
+    }
+</script>
+</body>
+</html>

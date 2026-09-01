@@ -717,3 +717,47 @@ def audit_design_storage_daily():
         out['error'] = str(exc)
 
     return out
+
+
+# =====================================================================
+# 🔌 Wix integration — periodic product push + order pull
+# =====================================================================
+
+@shared_task(name='clients.tasks.wix_sync_all')
+def wix_sync_all():
+    """يزامن كل روابط Wix النشطة (منتجات + طلبات). بيتجدول دورياً."""
+    from clients.models import WixConnection
+    from clients.services import wix_sync
+
+    conns = WixConnection.objects.filter(is_active=True, last_test_ok=True)
+    out = {'connections': 0, 'products': 0, 'orders': 0}
+    for conn in conns:
+        out['connections'] += 1
+        try:
+            if conn.sync_products:
+                r = wix_sync.push_products(conn)
+                out['products'] += r.get('created', 0) + r.get('updated', 0)
+            if conn.sync_orders:
+                r = wix_sync.pull_orders(conn)
+                out['orders'] += r.get('imported', 0)
+        except Exception as exc:
+            logger.exception('[WIX sync_all] conn=%s failed: %s', conn.pk, exc)
+    logger.info('🔌 [WIX sync_all] %s', out)
+    return out
+
+
+@shared_task(name='clients.tasks.wix_sync_one')
+def wix_sync_one(connection_id, mode='both'):
+    """يزامن ربط Wix واحد عند الطلب (من زرار السوبر أدمن)."""
+    from clients.models import WixConnection
+    from clients.services import wix_sync
+
+    conn = WixConnection.objects.filter(pk=connection_id).first()
+    if conn is None:
+        return {'error': 'connection_not_found'}
+    out = {}
+    if mode in ('both', 'products') and conn.sync_products:
+        out['products'] = wix_sync.push_products(conn)
+    if mode in ('both', 'orders') and conn.sync_orders:
+        out['orders'] = wix_sync.pull_orders(conn)
+    return out

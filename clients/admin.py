@@ -1275,3 +1275,25 @@ class PlatformInvoiceAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
 
 # 🛡️ God Mode — يسجّل MarketplaceCustomer admin مع الـ actions + impersonation
 from . import admin_god_mode  # noqa: F401, E402
+
+# =====================================================================
+# 🔌 Wix integration connections
+# =====================================================================
+from .models import WixConnection as _WixConnection  # noqa: E402
+
+
+@admin.register(_WixConnection)
+class WixConnectionAdmin(admin.ModelAdmin):
+    list_display = ('client', 'site_id', 'is_active', 'last_test_ok',
+                    'sync_products', 'sync_orders', 'products_pushed',
+                    'orders_imported', 'last_order_sync_at')
+    list_filter = ('is_active', 'last_test_ok', 'sync_products', 'sync_orders')
+    search_fields = ('client__name', 'client__schema_name', 'site_id')
+    readonly_fields = ('masked_api_key', 'last_product_sync_at', 'last_order_sync_at',
+                       'products_pushed', 'orders_imported', 'last_error',
+                       'last_test_ok', 'created_at', 'updated_at')
+    exclude = ('api_key',)  # الـ key حسّاس — يظهر مقنّع في masked_api_key
+
+    def masked_api_key(self, obj):
+        return obj.masked_api_key
+    masked_api_key.short_description = 'API Key (مقنّع)'
