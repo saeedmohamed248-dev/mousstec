@@ -128,6 +128,9 @@ msgstr "* (Core charge): This amount is fully refunded through the platform as s
 msgid "1. اختر مجالك"
 msgstr "1. Choose your industry"
 
+msgid "10 تصاميم هدية"
+msgstr "10 free designs"
+
 msgid "2. حساب المدير المسؤول (Root Admin)"
 msgstr "2. Root admin account"
 
@@ -259,6 +262,9 @@ msgstr "silver/gold/empire, etc."
 
 msgid "status=active بس"
 msgstr "status=active only"
+
+msgid "© 2026 Mouss Tec — برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم"
+msgstr "© 2026 Mouss Tec — online accounting software for service centers, print shops, and design studios"
 
 msgid "© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة"
 msgstr "© 2026 Mouss Tec — Smart workshop management | All rights reserved"
@@ -488,6 +494,9 @@ msgstr "Who are you? Pick what fits you:"
 msgid "أنشئ أمر شغل جديد ←"
 msgstr "Create a new job order ←"
 
+msgid "أنشئ حسابك الآن"
+msgstr "Create your account now"
+
 msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
 msgstr "Create a print order with sizes, quantities and copies — pricing is calculated automatically."
 
@@ -647,6 +656,9 @@ msgstr "Organized management of customer and supplier data"
 msgid "إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio للتصاميم — كله من نظام واحد."
 msgstr "Manage your whole business + reach new customers every day + use AI Studio for designs — all from one system."
 
+msgid "إدارة شركتك بالكامل، والتواصل مع عملاء جدد كل يوم، واستوديو تصميم بالذكاء الاصطناعي — كله من نظام واحد."
+msgstr "Run your whole business, reach new customers every day, and an AI design studio — all from one system."
+
 msgid "إدارة طلبات التسعير"
 msgstr "Manage quotation requests"
 
@@ -658,6 +670,9 @@ msgstr "General management"
 
 msgid "إدارة كاش، بنوك، فيزا ومحافظ إلكترونية مع تسوية مالية آلية"
 msgstr "Manage cash, banks, cards and e-wallets with automatic reconciliation"
+
+msgid "إدارة كاملة لشركتك — اختار قطاعك"
+msgstr "Full management for your business — choose your sector"
 
 msgid "إدارة كاملة لشركتك — اختار قطاعك:"
 msgstr "Full management for your business — choose your sector:"
@@ -860,8 +875,14 @@ msgstr "Search the shared marketplace"
 msgid "ابدأ تجربتك المجانية الآن"
 msgstr "Start your free trial now"
 
+msgid "ابدأ تجربتك مع AI Studio"
+msgstr "Start your AI Studio trial"
+
 msgid "ابدأ مجانا"
 msgstr "Start free"
+
+msgid "ابدأ مجاناً"
+msgstr "Start for free"
 
 msgid "ابعت إعلان أو إشعار صيانة لكل الشركات أو شريحة محددة. الإرسال sync — للأحجام الكبيرة هنعمل Celery لاحقاً."
 msgstr "Send an announcement or maintenance notice to all companies or a specific segment. Sending is sync — for large volumes we'll add Celery later."
@@ -971,6 +992,9 @@ msgstr "Refund (cancellation/dispute)"
 msgid "استعادة"
 msgstr "Restore"
 
+msgid "استكشف جميع المميزات"
+msgstr "Explore all features"
+
 msgid "استلم عروض من التجار"
 msgstr "Receive offers from merchants"
 
@@ -1055,6 +1079,12 @@ msgstr "Print the report"
 msgid "اطبع تقرير العميل"
 msgstr "Print customer report"
 
+msgid "اطلب الآن مجاناً"
+msgstr "Order now for free"
+
+msgid "اطلب قطعة غيار، فحص شامل، صيانة دورية، أو تشخيص أعطال — وكل مراكز الصيانة المعتمدة هتقدمك عروض في دقائق."
+msgstr "Request a spare part, a full inspection, routine service, or fault diagnosis — and all certified service centers will send you offers within minutes."
+
 msgid "اطلب من المورد"
 msgstr "Order from supplier"
 
@@ -1105,6 +1135,9 @@ msgstr "Read fault codes and live engine data instantly — no software download
 
 msgid "اكتب اسم الشركة بالحرف"
 msgstr "Type the company name exactly"
+
+msgid "اكتب اللي عاوزه بالعربي — 'كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم' — والـ AI يولّد التصميم بأحدث المحركات في دقائق. ارفع لوجو الشركة وهيدمجه تلقائياً."
+msgstr "Write what you want in Arabic — 'a business card for a print shop called Al-Nour, luxurious gold and black' — and the AI generates the design with the latest engines in minutes. Upload the company logo and it merges automatically."
 
 msgid "اكتب اللي محتاجه"
 msgstr "Write what you need"
@@ -1237,6 +1270,9 @@ msgstr "Seller"
 
 msgid "الباقات"
 msgstr "Plans"
+
+msgid "الباقات والأسعار"
+msgstr "Plans & pricing"
 
 msgid "الباقة"
 msgstr "Plan"
@@ -1543,6 +1579,9 @@ msgstr "Marketplace (B2B)"
 
 msgid "السوق المفتوح"
 msgstr "Open marketplace"
+
+msgid "السوق المفتوح — اطلب واستلم عروض"
+msgstr "Open marketplace — request and receive offers"
 
 msgid "السوق المفتوح — المعروضات النشطة"
 msgstr "Open marketplace — active listings"
@@ -3230,6 +3269,9 @@ msgstr "Ready for review"
 msgid "جاهز:"
 msgstr "ready:"
 
+msgid "جاهزية الشبكة"
+msgstr "Network Uptime"
+
 msgid "جاهزية الشبكة:"
 msgstr "Network Uptime:"
 
@@ -3244,6 +3286,9 @@ msgstr "New (original/replacement)"
 
 msgid "جديد بالضمانة"
 msgstr "New with warranty"
+
+msgid "جديد — مجاني للعملاء"
+msgstr "New — free for customers"
 
 msgid "جديد ⚡"
 msgstr "New ⚡"
@@ -3914,6 +3959,9 @@ msgstr "Register your face ID first"
 msgid "سجّل دخولك لبدء تتبع ساعات العمل والإنتاجية"
 msgstr "Sign in to start tracking work hours and productivity"
 
+msgid "سجّل شركتك في دقائق وابدأ تدير كل حاجة من مكان واحد — مجاناً."
+msgstr "Register your business in minutes and start managing everything from one place — free."
+
 msgid "سجّل شركتك واستخدم النظام كامل"
 msgstr "Register your business and use the full system"
 
@@ -3988,6 +4036,9 @@ msgstr "Buyer misuse"
 
 msgid "سوق B2B المركزي"
 msgstr "Central B2B marketplace"
+
+msgid "سوق B2B بين الشركات"
+msgstr "B2B marketplace between businesses"
 
 msgid "سوق P2P بضمان"
 msgstr "Escrow-backed P2P marketplace"
@@ -4066,6 +4117,9 @@ msgstr "Share any comment with us..."
 
 msgid "شاسيه:"
 msgstr "Chassis:"
+
+msgid "شاهد المميزات"
+msgstr "See the features"
 
 msgid "شحن تشخيص (30 استخدام)"
 msgstr "Diagnostics top-up (30 uses)"
@@ -4235,6 +4289,12 @@ msgstr "Secure deals"
 msgid "صلاحية مرفوضة"
 msgstr "Access denied"
 
+msgid "صمم احترافياً بالذكاء الاصطناعي"
+msgstr "Design professionally with AI"
+
+msgid "صمم وأطبع الآن"
+msgstr "Design and print now"
+
 msgid "صندوق الدعم"
 msgstr "Support inbox"
 
@@ -4399,6 +4459,9 @@ msgstr "Print orders + auto pricing"
 
 msgid "طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية"
 msgstr "Print orders, machine tracking, designer work log, and real operating-cost calculation"
+
+msgid "طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، وحساب تكلفة التشغيل الفعلية."
+msgstr "Print orders, machine tracking, designers' work log, and real operating-cost calculation."
 
 msgid "طلبات غير محدودة"
 msgstr "Unlimited orders"
@@ -4846,6 +4909,9 @@ msgstr "Sales & purchase invoices + print and WhatsApp"
 
 msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير أرباح"
 msgstr "Sales & purchase invoices, spare-parts inventory, repair cards, customer and supplier statements, profit reports"
+
+msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباح."
+msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and profit reports."
 
 msgid "فواتير ذكية"
 msgstr "Smart invoices"
@@ -5366,6 +5432,12 @@ msgstr "To confirm, type"
 msgid "للتحديث الفوري."
 msgstr "for an instant refresh."
 
+msgid "للشركات والتجار"
+msgstr "For companies and dealers"
+
+msgid "للشركات والمراكز"
+msgstr "For companies and centers"
+
 msgid "للشركات والمراكز:"
 msgstr "For companies and centers:"
 
@@ -5380,6 +5452,9 @@ msgstr "For large print shops and design groups"
 
 msgid "للمطابع المتوسطة ومكاتب التصميم"
 msgstr "For mid-size print shops and design offices"
+
+msgid "للمطابع المشتركة"
+msgstr "For print shops"
 
 msgid "لم تتم إضافة قطع"
 msgstr "No parts added"
@@ -5431,6 +5506,9 @@ msgstr "If not registered"
 
 msgid "لوجو / Brand Mark"
 msgstr "Logo / brand mark"
+
+msgid "لوجو، كروت بزنس، فلاير، بوستر، تيشرتات، ماجات — اطلب اللي تتخيله، شوف عينات قبل الاختيار، واطبع باللي يناسبك."
+msgstr "Logos, business cards, flyers, posters, t-shirts, mugs — order whatever you imagine, preview samples before choosing, and print at what suits you."
 
 msgid "لوحة"
 msgstr "Plate"
@@ -5614,6 +5692,9 @@ msgstr "Certified accounting · each company in its own schema"
 
 msgid "محاسبة ومالية"
 msgstr "Accounting & finance"
+
+msgid "محتاج صيانة لعربيتك أو تصميم لشركتك؟ اكتب طلبك بكلمتين، وأفضل التجار والمطابع المسجلين هيتنافسوا يقدموا لك عروض — أنت تختار الأرخص والأقرب والأفضل."
+msgstr "Need service for your car or a design for your business? Write your request in a couple of words, and the best registered dealers and print shops will compete to send you offers — you choose the cheapest, nearest, and best."
 
 msgid "محتاج قطعة أو صيانة لعربيتك؟"
 msgstr "Need a part or a repair for your car?"
@@ -5951,6 +6032,9 @@ msgstr "Print shop (digital and offset)"
 msgid "مطبعة + تصميم (شامل)"
 msgstr "Print shop + design (full)"
 
+msgid "مطبعة محتاجة 10,000 تيشرت من مصنع؟ ورشة محتاجة شحنة قطع غيار؟ اطلب من تجار تانيين داخل المنصة بنفس نظام المناقصات المجهولة."
+msgstr "A print shop needing 10,000 t-shirts from a factory? A workshop needing a shipment of spare parts? Order from other dealers inside the platform with the same anonymous-bidding system."
+
 msgid "مطبعة واستوديو"
 msgstr "print shops & studios"
 
@@ -6256,6 +6340,9 @@ msgstr "A world-class platform: AI, PWA, escrow, and double-entry accounting —
 
 msgid "منصة سحابية شاملة لإدارة مراكز صيانة السيارات وتجارة قطع الغيار بتقنيات الذكاء الاصطناعي"
 msgstr "A comprehensive cloud platform for managing auto service centers and spare-parts trading with AI"
+
+msgid "منصة متكاملة"
+msgstr "An integrated platform"
 
 msgid "منصة واحدة لكل الأنشطة"
 msgstr "One platform for every business"
