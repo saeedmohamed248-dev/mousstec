@@ -20,7 +20,7 @@
         <input type="radio" name="package_slug" value="{{ p.slug }}" required style="margin-left:6px;">
         <strong style="color:#0f172a;">{{ p.name }}</strong><br>
         <span style="color:#7c3aed;font-weight:800;">{{ p.designs }} تصميم</span><br>
-        <span style="color:#64748b;font-size:11px;">(قيمة فعلية: {{ p.price }} ج.م)</span>
+        <span style="color:#64748b;font-size:11px;">(قيمة فعلية: {{ p.price }} {{ tenant_currency_symbol|default:'ج.م' }})</span>
       </label>
       {% endfor %}
     </div>

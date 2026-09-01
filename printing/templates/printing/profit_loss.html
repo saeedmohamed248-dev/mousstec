@@ -131,17 +131,17 @@
     <div class="head-grid">
         <div class="head-card income">
             <div class="lbl"><i class="fas fa-arrow-down"></i> الإيرادات</div>
-            <div class="val">{{ total_income|floatformat:2 }} ج.م</div>
+            <div class="val">{{ total_income|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             <div class="meta">{{ in_count }} حركة</div>
         </div>
         <div class="head-card expense">
             <div class="lbl"><i class="fas fa-arrow-up"></i> المصروفات</div>
-            <div class="val">{{ total_expense|floatformat:2 }} ج.م</div>
+            <div class="val">{{ total_expense|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             <div class="meta">{{ out_count }} حركة</div>
         </div>
         <div class="head-card net {% if is_profit %}profit{% else %}loss{% endif %}">
             <div class="lbl">{% if is_profit %}<i class="fas fa-circle-check"></i> صافي الربح{% else %}<i class="fas fa-circle-xmark"></i> صافي الخسارة{% endif %}</div>
-            <div class="val">{{ net_profit|floatformat:2 }} ج.م</div>
+            <div class="val">{{ net_profit|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             <div class="margin-pill">هامش الربح: {{ profit_margin|floatformat:1 }}%</div>
         </div>
     </div>
@@ -158,8 +158,8 @@
                     {{ t.net|floatformat:0 }}
                 </div>
                 <div class="bars">
-                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="إيرادات: {{ t.income|floatformat:0 }} ج.م"></div>
-                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="مصروفات: {{ t.expense|floatformat:0 }} ج.م"></div>
+                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="إيرادات: {{ t.income|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}"></div>
+                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="مصروفات: {{ t.expense|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}"></div>
                 </div>
                 <div class="label">{{ t.label }}</div>
             </div>
@@ -179,7 +179,7 @@
             <div class="label">{{ cat.name }}</div>
             <div class="bar"><div class="bar-fill" style="width: {{ cat.percent|floatformat:0 }}%; background: {{ cat.color }};"></div></div>
             <div class="pct">{{ cat.percent|floatformat:1 }}%</div>
-            <div class="amount">{{ cat.total|floatformat:2 }} ج.م</div>
+            <div class="amount">{{ cat.total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
         </div>
         {% empty %}
         <div class="empty">لا توجد مصروفات في هذا الشهر</div>
@@ -196,15 +196,15 @@
             </div>
             <div class="ord-tile">
                 <div class="lbl">إجمالي قيمة الفواتير</div>
-                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|floatformat:2 }} ج.م</div>
+                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">المحصّل</div>
-                <div class="val" style="color:#6ee7b7;">{{ orders_paid|floatformat:2 }} ج.م</div>
+                <div class="val" style="color:#6ee7b7;">{{ orders_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">المتبقي على العملاء</div>
-                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|floatformat:2 }} ج.م</div>
+                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
         </div>
     </div>

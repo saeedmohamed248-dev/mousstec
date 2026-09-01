@@ -173,7 +173,7 @@
 
                 {% if o.quoted_price %}
                 <div class="order-quote">
-                    <i class="fas fa-coins"></i> سعر مقترح: <strong>{{ o.quoted_price|floatformat:0 }} ج.م</strong>
+                    <i class="fas fa-coins"></i> سعر مقترح: <strong>{{ o.quoted_price|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
                 </div>
                 {% endif %}
 

@@ -73,7 +73,7 @@
                     <td><code style="color:#a78bfa;">{{ row.plan.slug }}</code></td>
                     <td><b>{{ row.plan.name }}</b></td>
                     <td><span class="badge industry-{{ row.plan.industry }}">{{ row.plan.get_industry_display }}</span></td>
-                    <td><span class="price">{{ row.plan.monthly_price|floatformat:2 }} {% trans "ج.م" %}</span></td>
+                    <td><span class="price">{{ row.plan.monthly_price|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></td>
                     <td><b style="color:#0ea5e9;">{{ row.subscribers_count }}</b></td>
                     <td>{{ row.features_count }} entitlements</td>
                     <td>

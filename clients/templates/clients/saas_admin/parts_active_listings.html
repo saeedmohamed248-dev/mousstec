@@ -85,7 +85,7 @@
                     {% elif l.seller_customer %}👤 {{ l.seller_customer.full_name|default:l.seller_customer.phone }}
                     {% else %}—{% endif %}
                 </td>
-                <td><b>{{ l.price_egp }}</b> {% trans "ج.م" %}</td>
+                <td><b>{{ l.price_egp }}</b> {{ tenant_currency_symbol|default:'ج.م' }}</td>
                 <td>{{ l.get_condition_display|default:l.condition }}</td>
                 <td>{{ l.created_at|date:"Y-m-d" }}</td>
                 <td class="actions">

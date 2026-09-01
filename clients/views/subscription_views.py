@@ -31,6 +31,7 @@ from clients.models import (
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
 from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
+from erp_core.localization import current_tenant_symbol as _sym
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -98,13 +99,23 @@ def saas_pricing_page(request):
     plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
 
+    # 🌍 لغة العرض الحالية — تحدد أسماء الباقات والمزايا (عربي/إنجليزي)
+    from django.utils.translation import get_language
+    _is_en = (get_language() or 'ar').startswith('en')
+
     try:
-        feature_labels = dict(
-            Feature.objects.filter(is_active=True).values_list('code', 'name_ar')
-        )
+        # على الموقع الإنجليزي نعرض name_en للمزايا (fallback للعربي لو فارغ)
+        feature_labels = {}
+        for code, name_ar, name_en in Feature.objects.filter(is_active=True).values_list('code', 'name_ar', 'name_en'):
+            feature_labels[code] = (name_en or name_ar) if _is_en else name_ar
     except Exception:
         logger.exception("[PRICING] failed to load Feature catalog — rendering without labels")
         feature_labels = {}
+
+    # 🌐 منطقة الموقع (مصري/إماراتي) من الدومين — تحدد عملة وأسعار العرض.
+    from erp_core.regions import region_from_request
+    region = region_from_request(request)
+    _is_ae = region['country'] == 'AE'
 
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
@@ -115,11 +126,18 @@ def saas_pricing_page(request):
                     code for code, cfg in ents.items()
                     if isinstance(cfg, dict) and cfg.get('enabled')
                 ]
+                # سعر العرض: على الموقع الإماراتي نعرض سعر الدرهم إن وُجد،
+                # وإلا نسقط للسعر المصري.
+                _aed = getattr(p, 'monthly_price_aed', 0) or 0
+                display_price = _aed if (_is_ae and _aed > 0) else p.monthly_price
+                # اسم الباقة حسب اللغة (name_en على الموقع الإنجليزي، fallback للعربي)
+                display_name = (p.name_en or p.name) if _is_en else p.name
                 plans_by_industry.setdefault(p.industry, []).append({
                     'slug': p.slug,
                     'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
-                    'name': p.name,
-                    'monthly_price': p.monthly_price,
+                    'name': display_name,
+                    'monthly_price': display_price,
+                    'display_price': display_price,
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -142,6 +160,7 @@ def saas_pricing_page(request):
     try:
         return render(request, 'clients/pricing.html', {
             'tenant': tenant, 'shop': shop_schema,
+            'platform_region': region,
             'plans_by_industry': plans_by_industry,
             'pricing': {
                 'addon_price': 125,
@@ -464,10 +483,10 @@ def manage_subscription(request):
                 t.save()
                 EscrowLedger.objects.create(
                     client=t, transaction_type='fee_deduction', amount=total_cost,
-                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
                 )
             tenant.refresh_from_db()
-            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} {_sym()}"
 
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
@@ -547,7 +566,7 @@ def purchase_addon_api(request):
             t.save()
             EscrowLedger.objects.create(
                 client=t, transaction_type='fee_deduction', amount=total_cost,
-                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} ج.م/وحدة (تناسبي)"
+                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
             )
 
         remaining_days = 0
@@ -558,7 +577,7 @@ def purchase_addon_api(request):
             "status": "success", "addon_type": addon_type, "quantity": qty,
             "cost_per_unit": float(prorated), "total_cost": float(total_cost),
             "remaining_days": remaining_days,
-            "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} ج.م"
+            "message": f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} {_sym()}"
         })
     except Exception as e:
         logger.error("[ADDON] purchase_addon_api error: %s", e)

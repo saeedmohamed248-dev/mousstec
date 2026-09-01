@@ -81,8 +81,8 @@ class TreasuryAdmin(FinanceRoleMixin, BranchIsolationMixin, SecureImportExportAd
         return format_html(
             '<div style="background:{}; border:2px solid {}; border-radius:12px; padding:8px 16px; display:inline-block; min-width:160px; text-align:center;">'
             '<span style="color:{}; font-size:20px; font-weight:900; letter-spacing:-0.5px;">{}</span>'
-            '<span style="color:{}; font-size:12px; font-weight:600; margin-right:4px;"> ج.م</span></div>',
-            bg, border, color, f"{bal:,.2f}", color
+            '<span style="color:{}; font-size:12px; font-weight:600; margin-right:4px;"> {}</span></div>',
+            bg, border, color, f"{bal:,.2f}", color, _cur_sym()
         )
     balance_styled.short_description = "الرصيد الفعلي"
 
@@ -128,12 +128,12 @@ class ExpenseCategoryAdmin(FinanceRoleMixin, SecureImportExportAdmin):
         total = obj.financialtransaction_set.filter(
             transaction_type='out', date__date__gte=first_day
         ).aggregate(Sum('amount'))['amount__sum'] or 0
-        return format_html('<b style="color:#f59e0b;">{} ج.م</b>', f"{float(total):,.2f}")
+        return format_html('<b style="color:#f59e0b;">{} {}</b>', f"{float(total):,.2f}", _cur_sym())
     get_month_expenses.short_description = "مصروفات الشهر الحالي"
 
     def get_total_expenses(self, obj):
         total = obj.financialtransaction_set.filter(transaction_type='out').aggregate(Sum('amount'))['amount__sum'] or 0
-        return format_html('<b style="color:#dc3545;">{} ج.م</b>', f"{float(total):,.2f}")
+        return format_html('<b style="color:#dc3545;">{} {}</b>', f"{float(total):,.2f}", _cur_sym())
     get_total_expenses.short_description = "إجمالي المنصرف"
 
     def save_formset(self, request, form, formset, change):

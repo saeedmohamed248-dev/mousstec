@@ -304,11 +304,11 @@
             <div class="pkg-price-row">
                 <div>
                     <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="pkg-price-cur">ج.م</span>
+                    <span class="pkg-price-cur">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 <div class="pkg-per-design">
                     <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                    · {{ pkg.price_per_design|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}/تصميم
                 </div>
                 {% if pkg.savings_vs_starter > 0 %}
                 <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
@@ -351,11 +351,11 @@
             <div class="pkg-price-row">
                 <div>
                     <span class="pkg-price">{{ pkg.price_egp|floatformat:0 }}</span>
-                    <span class="pkg-price-cur">ج.م</span>
+                    <span class="pkg-price-cur">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 <div class="pkg-per-design">
                     <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|floatformat:0 }} ج.م/تصميم
+                    · {{ pkg.price_per_design|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}/تصميم
                 </div>
                 {% if pkg.savings_vs_starter > 0 %}
                 <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
@@ -411,7 +411,7 @@
 <div class="modal" id="buyModal">
     <div class="modal-box">
         <h3>تأكيد الشراء</h3>
-        <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> ج.م — <span id="modalPkgCount"></span> تصميم</p>
+        <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> {{ tenant_currency_symbol|default:'ج.م' }} — <span id="modalPkgCount"></span> تصميم</p>
         <div class="payment-options">
             <label class="payment-opt">
                 <input type="radio" name="pm" value="vodafone_cash" checked>

@@ -87,8 +87,8 @@
         <div class="grid-2">
             <div>
                 <div class="panel">
-                    <h3><i class="fas fa-tag"></i> {% trans "السعر" %}</h3>
-                    <label for="monthly_price">{% trans "السعر الشهري (ج.م)" %}</label>
+                    <h3><i class="fas fa-tag"></i> السعر</h3>
+                    <label for="monthly_price">السعر الشهري ({{ tenant_currency_symbol|default:'ج.م' }})</label>
                     <input type="text" id="monthly_price" name="monthly_price" value="{{ plan.monthly_price }}" required>
                 </div>
 
@@ -162,9 +162,9 @@
                     {% for r in revisions %}
                         <div class="revision">
                             <span class="when">{{ r.effective_from|date:"Y-m-d H:i" }}</span>
-                            <span class="price">{{ r.monthly_price }} {% trans "ج.م" %}</span><br>
-                            <span class="reason">{{ r.change_reason|default:no_reason_txt }}</span>
-                            {% if r.changed_by %}<br><small>{% trans "بواسطة" %} {{ r.changed_by.username }}</small>{% endif %}
+                            <span class="price">{{ r.monthly_price }} {{ tenant_currency_symbol|default:'ج.م' }}</span><br>
+                            <span class="reason">{{ r.change_reason|default:"بدون سبب" }}</span>
+                            {% if r.changed_by %}<br><small>بواسطة {{ r.changed_by.username }}</small>{% endif %}
                         </div>
                     {% empty %}
                         <p style="color:#94a3b8;font-size:12px;">{% trans "مفيش revisions لسة." %}</p>

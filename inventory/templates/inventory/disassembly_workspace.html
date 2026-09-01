@@ -25,7 +25,7 @@
           <option value="">{% trans "— اختار عنصر —" %}</option>
           {% for p in parents %}
           <option value="{{ p.id }}" data-cost="{{ p.cost }}" data-est="{{ p.estimated_sales_price }}">
-            {{ p.name }} [{{ p.sku }}] — {% blocktrans with c=p.cost %}تكلفة {{ c }} ج.م{% endblocktrans %}
+            {{ p.name }} [{{ p.sku }}] — تكلفة {{ p.cost }} {{ tenant_currency_symbol|default:'ج.م' }}
           </option>
           {% endfor %}
         </select>
@@ -46,7 +46,7 @@
     </div>
     <div class="grid md:grid-cols-2 gap-4 mt-4 items-end">
       <div>
-        <label class="block text-xs font-bold text-slate-400 mb-1">{% trans "إيراد الخردة (ج.م)" %}</label>
+        <label class="block text-xs font-bold text-slate-400 mb-1">إيراد الخردة ({{ tenant_currency_symbol|default:'ج.م' }})</label>
         <input id="scrapInput" type="number" min="0" step="0.01" value="0"
                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
       </div>
@@ -272,7 +272,7 @@ function applyEvent(data) {
 $('parentSelect').addEventListener('change', (e) => {
   const opt = e.target.selectedOptions[0];
   $('parentInfo').textContent = opt && opt.value
-    ? `${T.cost} ${fmt(opt.dataset.cost)} ${T.egp} — ${T.estPrice} ${fmt(opt.dataset.est || 0)} ${T.egp}` : '';
+    ? `التكلفة: ${fmt(opt.dataset.cost)} {{ tenant_currency_symbol|default:'ج.م' }} — سعر البيع التقديري: ${fmt(opt.dataset.est || 0)} {{ tenant_currency_symbol|default:'ج.م' }}` : '';
 });
 // اختيار القالب → ملء إيراد الخردة الافتراضي
 $('templateSelect').addEventListener('change', (e) => {
@@ -308,14 +308,14 @@ $('executeBtn').addEventListener('click', async () => {
       `<tr class="border-b border-emerald-900/40">
         <td class="py-1 text-white">${c.name}</td>
         <td class="py-1 text-slate-400 text-xs">${c.sku}</td>
-        <td class="py-1 text-emerald-300 font-bold">${fmt(c.allocated_cost)} ${T.egp}</td>
+        <td class="py-1 text-emerald-300 font-bold">${fmt(c.allocated_cost)} {{ tenant_currency_symbol|default:'ج.م' }}</td>
       </tr>`).join('');
     $('resultBody').innerHTML = `
       <p class="mb-2">${T.parentCost} <b>${fmt(rep.parent_cost)}</b> − ${T.scrap} <b>${fmt(rep.scrap_revenue)}</b>
          = <b>${fmt(rep.adjusted_parent_cost)}</b> ${T.distributed} ${rep.children ? rep.children.length : 0} ${T.pieces}.</p>
       <table class="w-full text-sm mt-2"><tbody>${rows}</tbody></table>
       <p class="mt-3 text-emerald-400 font-bold"><i class="fas fa-scale-balanced ml-1"></i>
-        ${T.sumChildren} ${fmt(rep.total_allocated)} ${T.egp} — ${T.balanced}</p>`;
+        Σ الأبناء = ${fmt(rep.total_allocated)} {{ tenant_currency_symbol|default:'ج.م' }} — الدفتر متوازن بالمليم ✅</p>`;
     $('resultCard').classList.remove('hidden');
     $('resultCard').scrollIntoView({behavior: 'smooth'});
   } catch (e) { toast(e.message); $('executeBtn').disabled = false; }

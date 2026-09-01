@@ -384,21 +384,21 @@
     function fmtD(n) { return Number(n||0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
 
     // ── Cards ──
-    document.getElementById('todayRevenue').textContent = fmt(todaySummary.revenue) + ' ج.م';
+    document.getElementById('todayRevenue').textContent = fmt(todaySummary.revenue) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     document.getElementById('todayCount').textContent = todaySummary.count + ' فاتورة';
-    document.getElementById('monthRevenue').textContent = fmt(monthSummary.revenue) + ' ج.م';
-    document.getElementById('monthProfit').textContent = 'ربح: ' + fmt(monthSummary.profit) + ' ج.م';
-    document.getElementById('yearRevenue').textContent = fmt(yearSummary.revenue) + ' ج.م';
-    document.getElementById('yearProfit').textContent = 'ربح: ' + fmt(yearSummary.profit) + ' ج.م';
-    document.getElementById('netPL').textContent = fmt(netPL) + ' ج.م';
+    document.getElementById('monthRevenue').textContent = fmt(monthSummary.revenue) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('monthProfit').textContent = 'ربح: ' + fmt(monthSummary.profit) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('yearRevenue').textContent = fmt(yearSummary.revenue) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('yearProfit').textContent = 'ربح: ' + fmt(yearSummary.profit) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('netPL').textContent = fmt(netPL) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
 
     // ── Period summary ──
-    document.getElementById('pRevenue').textContent = fmtD(periodSummary.revenue) + ' ج.م';
-    document.getElementById('pCost').textContent = fmtD(periodSummary.cost) + ' ج.م';
-    document.getElementById('pGross').textContent = fmtD(periodSummary.profit) + ' ج.م';
-    document.getElementById('pExpenses').textContent = fmtD(totalExpenses) + ' ج.م';
+    document.getElementById('pRevenue').textContent = fmtD(periodSummary.revenue) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('pCost').textContent = fmtD(periodSummary.cost) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('pGross').textContent = fmtD(periodSummary.profit) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
+    document.getElementById('pExpenses').textContent = fmtD(totalExpenses) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     var netEl = document.getElementById('pNet');
-    netEl.textContent = fmtD(netPL) + ' ج.م';
+    netEl.textContent = fmtD(netPL) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     netEl.style.color = netPL >= 0 ? '#10b981' : '#ef4444';
     document.getElementById('pCount').textContent = periodSummary.count;
 
@@ -423,14 +423,14 @@
     // ── Top Products ──
     var pb = document.getElementById('topProductsBody');
     topProducts.forEach(function(p, i) {
-        pb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+p.product__name+'</td><td>'+p.product__part_number+'</td><td>'+p.total_qty+'</td><td>'+fmtD(p.total_revenue)+' ج.م</td><td style="color:'+(p.total_profit>=0?'#10b981':'#ef4444')+';">'+fmtD(p.total_profit)+' ج.م</td></tr>';
+        pb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+p.product__name+'</td><td>'+p.product__part_number+'</td><td>'+p.total_qty+'</td><td>'+fmtD(p.total_revenue)+' {{ tenant_currency_symbol|default:'ج.م' }}</td><td style="color:'+(p.total_profit>=0?'#10b981':'#ef4444')+';">'+fmtD(p.total_profit)+' {{ tenant_currency_symbol|default:'ج.م' }}</td></tr>';
     });
     if (!topProducts.length) pb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
 
     // ── Top Customers ──
     var cb = document.getElementById('topCustomersBody');
     topCustomers.forEach(function(c, i) {
-        cb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+c.customer__name+'</td><td>'+(c.customer__phone||'-')+'</td><td>'+fmtD(c.total_spent)+' ج.م</td><td>'+c.invoice_count+'</td></tr>';
+        cb.innerHTML += '<tr><td>'+(i+1)+'</td><td>'+c.customer__name+'</td><td>'+(c.customer__phone||'-')+'</td><td>'+fmtD(c.total_spent)+' {{ tenant_currency_symbol|default:'ج.م' }}</td><td>'+c.invoice_count+'</td></tr>';
     });
     if (!topCustomers.length) cb.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8;">لا توجد بيانات للفترة المحددة</td></tr>';
 
@@ -460,7 +460,7 @@
         html += '<h3 style="font-size:16px; font-weight:800; margin:20px 0 10px; color:#1e293b;">المدفوعات</h3>';
         html += '<table class="rpt-table"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الخزنة</th><th>البيان</th></tr></thead><tbody>';
         customerDetail.payments.forEach(function(pay) {
-            html += '<tr><td>' + pay.date + '</td><td style="color:#10b981; font-weight:800;">' + fmtD(pay.amount) + ' ج.م</td><td>' + (pay['treasury__name']||'-') + '</td><td>' + (pay.description||'-') + '</td></tr>';
+            html += '<tr><td>' + pay.date + '</td><td style="color:#10b981; font-weight:800;">' + fmtD(pay.amount) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td>' + (pay['treasury__name']||'-') + '</td><td>' + (pay.description||'-') + '</td></tr>';
         });
         if (!customerDetail.payments.length) html += '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">لا توجد مدفوعات</td></tr>';
         html += '</tbody></table>';
@@ -480,10 +480,10 @@
     expenseBreakdown.forEach(function(e) { expTotal += e.total; expTotalCount += e.count; });
     expenseBreakdown.forEach(function(e) {
         var pct = expTotal > 0 ? ((e.total / expTotal) * 100).toFixed(1) : '0';
-        eb.innerHTML += '<tr><td>' + e['category__name'] + '</td><td>' + fmtD(e.total) + ' ج.م</td><td>' + e.count + '</td><td>' + pct + '%</td></tr>';
+        eb.innerHTML += '<tr><td>' + e['category__name'] + '</td><td>' + fmtD(e.total) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td>' + e.count + '</td><td>' + pct + '%</td></tr>';
     });
     if (!expenseBreakdown.length) eb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">لا توجد مصروفات للفترة المحددة</td></tr>';
-    document.getElementById('expenseTotal').textContent = fmtD(expTotal) + ' ج.م';
+    document.getElementById('expenseTotal').textContent = fmtD(expTotal) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     document.getElementById('expenseTotalCount').textContent = expTotalCount;
 
     // Expense pie chart
@@ -509,14 +509,14 @@
     var prb = document.getElementById('payrollRunsBody');
     payrollRuns.forEach(function(pr) {
         var badgeClass = pr.status === 'paid' ? 'badge-paid' : pr.status === 'approved' ? 'badge-approved' : 'badge-pending';
-        prb.innerHTML += '<tr><td style="font-weight:800;">' + pr.period_label + '</td><td><span class="' + badgeClass + '">' + pr.status_display + '</span></td><td>' + pr.total_employees + '</td><td>' + fmtD(pr.total_gross) + ' ج.م</td><td style="color:#ef4444;">' + fmtD(pr.total_deductions) + ' ج.م</td><td style="color:#10b981; font-weight:800;">' + fmtD(pr.total_net) + ' ج.م</td></tr>';
+        prb.innerHTML += '<tr><td style="font-weight:800;">' + pr.period_label + '</td><td><span class="' + badgeClass + '">' + pr.status_display + '</span></td><td>' + pr.total_employees + '</td><td>' + fmtD(pr.total_gross) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td style="color:#ef4444;">' + fmtD(pr.total_deductions) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td style="color:#10b981; font-weight:800;">' + fmtD(pr.total_net) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td></tr>';
     });
     if (!payrollRuns.length) prb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#94a3b8;">لا توجد دورات رواتب</td></tr>';
 
     // Payroll Detail
     var pdb = document.getElementById('payrollDetailBody');
     latestPayrollEntries.forEach(function(e) {
-        pdb.innerHTML += '<tr><td>' + e.employee_name + '</td><td>' + e.dept + '</td><td>' + fmtD(e.base_salary) + '</td><td style="color:#f59e0b;">' + fmtD(e.late_deduction) + '</td><td style="color:#ef4444;">' + fmtD(e.absence_deduction) + '</td><td style="color:#f97316;">' + fmtD(e.advance_deduction) + '</td><td style="color:#10b981;">' + fmtD(e.bonuses) + '</td><td style="font-weight:800;">' + fmtD(e.net_salary) + ' ج.م</td></tr>';
+        pdb.innerHTML += '<tr><td>' + e.employee_name + '</td><td>' + e.dept + '</td><td>' + fmtD(e.base_salary) + '</td><td style="color:#f59e0b;">' + fmtD(e.late_deduction) + '</td><td style="color:#ef4444;">' + fmtD(e.absence_deduction) + '</td><td style="color:#f97316;">' + fmtD(e.advance_deduction) + '</td><td style="color:#10b981;">' + fmtD(e.bonuses) + '</td><td style="font-weight:800;">' + fmtD(e.net_salary) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td></tr>';
     });
     if (!latestPayrollEntries.length) pdb.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#94a3b8;">لا توجد بيانات</td></tr>';
 
@@ -538,7 +538,7 @@
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { labels: { font: { family: 'Cairo', weight: 'bold' }}}},
-                scales: { y: { beginAtZero: true, ticks: { callback: function(v){return fmt(v) + ' ج.م';}}}}
+                scales: { y: { beginAtZero: true, ticks: { callback: function(v){return fmt(v) + ' {{ tenant_currency_symbol|default:'ج.م' }}';}}}}
             }
         });
     }
@@ -562,14 +562,14 @@
     var aab = document.getElementById('empAdvancesBody');
     activeAdvances.forEach(function(a) {
         var pct = a.amount > 0 ? ((a.paid / a.amount) * 100).toFixed(0) : 0;
-        aab.innerHTML += '<tr><td>' + a.employee_name + '</td><td>' + fmtD(a.amount) + ' ج.م</td><td style="color:#10b981;">' + fmtD(a.paid) + ' ج.م (' + pct + '%)</td><td style="color:#ef4444; font-weight:800;">' + fmtD(a.remaining_amount) + ' ج.م</td><td>' + a.installments_count + '</td><td><span class="badge-approved">' + a.status_display + '</span></td></tr>';
+        aab.innerHTML += '<tr><td>' + a.employee_name + '</td><td>' + fmtD(a.amount) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td style="color:#10b981;">' + fmtD(a.paid) + ' {{ tenant_currency_symbol|default:'ج.م' }} (' + pct + '%)</td><td style="color:#ef4444; font-weight:800;">' + fmtD(a.remaining_amount) + ' {{ tenant_currency_symbol|default:'ج.م' }}</td><td>' + a.installments_count + '</td><td><span class="badge-approved">' + a.status_display + '</span></td></tr>';
     });
     if (!activeAdvances.length) aab.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#10b981;">لا توجد سلف نشطة</td></tr>';
 
     // ── Debt Aging ──
     var ab = document.getElementById('agingBody');
     debtAging.forEach(function(d) {
-        ab.innerHTML += '<tr><td>'+d.customer_name+'</td><td>'+(d.phone||'-')+'</td><td style="font-weight:800;">'+fmtD(d.total_balance)+' ج.م</td>'
+        ab.innerHTML += '<tr><td>'+d.customer_name+'</td><td>'+(d.phone||'-')+'</td><td style="font-weight:800;">'+fmtD(d.total_balance)+' {{ tenant_currency_symbol|default:'ج.م' }}</td>'
             +'<td class="aging-0-30">'+fmtD(d['0_30'])+'</td><td class="aging-31-60">'+fmtD(d['31_60'])+'</td>'
             +'<td class="aging-61-90">'+fmtD(d['61_90'])+'</td><td class="aging-90-plus">'+fmtD(d['90_plus'])+'</td></tr>';
     });
@@ -578,7 +578,7 @@
     // ── Slow Moving ──
     var sb = document.getElementById('slowBody');
     slowMoving.forEach(function(s) {
-        sb.innerHTML += '<tr><td>'+s.product_name+'</td><td>'+s.part_number+'</td><td>'+s.branch+'</td><td>'+s.quantity+'</td><td>'+fmtD(s.stock_value)+' ج.م</td><td>'+(s.last_sale_date)+'</td></tr>';
+        sb.innerHTML += '<tr><td>'+s.product_name+'</td><td>'+s.part_number+'</td><td>'+s.branch+'</td><td>'+s.quantity+'</td><td>'+fmtD(s.stock_value)+' {{ tenant_currency_symbol|default:'ج.م' }}</td><td>'+(s.last_sale_date)+'</td></tr>';
     });
     if (!slowMoving.length) sb.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#10b981;">كل المخزون متحرك — ممتاز!</td></tr>';
 

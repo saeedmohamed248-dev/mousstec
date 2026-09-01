@@ -146,7 +146,7 @@
                     <span class="text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10">{% trans "اليوم" %}</span>
                 </div>
                 <p class="text-2xl font-black text-white">{{ stats.total_sales_today|floatformat:0 }}</p>
-                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي المبيعات (ج.م)" %}</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المبيعات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -163,7 +163,7 @@
                     {{ stats.net_profit_today|floatformat:0 }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "صافي الربح (ج.م)" %}</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">صافي الربح ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -180,7 +180,7 @@
                     {{ stats.total_expenses_today|floatformat:0 }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي المصروفات (ج.م)" %}</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المصروفات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             {# 💰 Treasury card — same source as /secure-portal/ via ReportingService #}
@@ -198,7 +198,7 @@
                     {{ stats.total_treasury|floatformat:0 }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي الخزينة (ج.م)" %}</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي الخزينة ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">

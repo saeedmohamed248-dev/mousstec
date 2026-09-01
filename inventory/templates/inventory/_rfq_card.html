@@ -29,7 +29,7 @@
         <thead>
             <tr>
                 <th style="width: 30%;">{% trans "المورد" %}</th>
-                <th style="width: 22%;">{% trans "السعر (ج.م)" %}</th>
+                <th style="width: 22%;">{% blocktrans with cur=tenant_currency_symbol|default:'ج.م' %}السعر ({{ cur }}){% endblocktrans %}</th>
                 <th style="width: 14%;">{% trans "أيام" %}</th>
                 <th style="width: 34%;">{% trans "إجراء" %}</th>
             </tr>

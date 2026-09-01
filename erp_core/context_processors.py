@@ -78,4 +78,41 @@ def tenant_context(request):
     except Exception:
         pass
 
+    # 🌍 توطين المستأجر — يتيح للـ templates عرض العملة/الرمز/الضريبة الصحيحة
+    #    بدل "ج.م" الثابتة. آمن على public schema (يسقط للافتراضي المصري).
+    try:
+        from erp_core.localization import (
+            resolve_tenant_localization,
+            currency_symbol,
+            country_config,
+            DEFAULT_COUNTRY,
+        )
+        tenant = getattr(request, 'tenant', None)
+        if tenant is not None and getattr(tenant, 'schema_name', 'public') != 'public':
+            # صفحات مستأجر → عملة المستأجر نفسه
+            loc = resolve_tenant_localization(tenant)
+        else:
+            # الصفحات العامة (public) → عملة المنطقة حسب الدومين
+            # (mousstec.com → EGP، ae.mousstec.com → AED). ده بيخلّي كل
+            # صفحات التسويق تعرض عملة الدولة الصح تلقائياً بدون تعديل قوالب.
+            from erp_core.regions import region_from_request, region_links
+            region = region_from_request(request)
+            _cfg = country_config(region['country'])
+            loc = {
+                'country': region['country'],
+                'currency': region['currency'],
+                'vat_rate': region['vat_rate'],
+                'timezone': _cfg['timezone'],
+                'language': region['language'],
+            }
+            ctx['platform_region'] = region
+            # روابط تبديل الدولة (مصر 🇪🇬 / الإمارات 🇦🇪) لمبدّل الهيدر
+            ctx['platform_regions'] = region_links(request)
+        ctx['tenant_localization'] = loc
+        ctx['tenant_currency'] = loc['currency']
+        ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], loc['language'])
+        ctx['tenant_vat_rate'] = loc['vat_rate']
+    except Exception:
+        pass
+
     return ctx

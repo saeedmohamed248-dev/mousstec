@@ -109,7 +109,7 @@
     <div class="offer-card {% if offer.status == 'accepted' %}winner{% endif %}">
         <div class="d-flex justify-content-between align-items-start flex-wrap">
             <div>
-                <div class="offer-price">{{ offer.price }} <small>ج.م</small></div>
+                <div class="offer-price">{{ offer.price }} <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
                 <p style="color:var(--muted); font-size:0.9rem; margin:8px 0;">{{ offer.description|truncatechars:200 }}</p>
             </div>
             {% if svc_request.status == 'open' or svc_request.status == 'reviewing' %}

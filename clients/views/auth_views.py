@@ -117,6 +117,12 @@ def register_new_tenant_saas(request):
                         # عشان يجرّبوا كل features. لما يدفعوا، بيختاروا الباقة اللي تناسبهم.
                         default_plan = 'print_enterprise' if industry == 'printing' else 'empire'
 
+                        # 🌐 دولة المستأجر تُشتق من موقع التسجيل: من يسجّل عبر
+                        #    ae.mousstec.com يطلع حساب إماراتي (AED) تلقائياً،
+                        #    وأي دومين آخر → مصري (EGP). العملة/الضريبة تُشتق منها.
+                        from erp_core.regions import region_from_request
+                        signup_country = region_from_request(request)['country']
+
                         tenant = Client.objects.create(
                             schema_name=schema_name,
                             name=company_name,
@@ -126,6 +132,7 @@ def register_new_tenant_saas(request):
                             industry=industry,
                             business_type=business_type,
                             plan=default_plan,
+                            country=signup_country,
                             # 🔒 Email-verification gate: لازم العميل يأكد إيميله
                             # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
                             is_active=False,
@@ -353,9 +360,10 @@ def _find_user_across_tenants(identifier: str):
                 schema_name=cached['schema_name'], status__in=['active', 'trial']
             ).only('id', 'schema_name', 'name', 'status').first()
             if t:
-                with schema_context(t.schema_name):
-                    if User.objects.filter(pk=cached['user_id'], is_active=True).exists():
-                        return {'tenant': t, 'user_id': cached['user_id']}
+                with transaction.atomic():
+                    with schema_context(t.schema_name):
+                        if User.objects.filter(pk=cached['user_id'], is_active=True).exists():
+                            return {'tenant': t, 'user_id': cached['user_id']}
         except Exception:
             pass
         cache.delete(cache_key)
@@ -367,14 +375,18 @@ def _find_user_across_tenants(identifier: str):
     )
     for t in tenants:
         try:
-            with schema_context(t.schema_name):
-                u = (
-                    User.objects.filter(email__iexact=identifier, is_active=True).first()
-                    or User.objects.filter(username__iexact=identifier, is_active=True).first()
-                )
-                if u:
-                    cache.set(cache_key, {'schema_name': t.schema_name, 'user_id': u.id}, timeout=43200)
-                    return {'tenant': t, 'user_id': u.id}
+            # 🛡️ atomic لكل مستأجر: لو schema شركة تالفة/نص-مهاجَرة رمت خطأ،
+            # الـ savepoint بيترول-باك ويسيب الاتصال سليم للمستأجر اللي بعده،
+            # فمحاولة الدخول ماتنكسرش بسبب شركة واحدة معطوبة.
+            with transaction.atomic():
+                with schema_context(t.schema_name):
+                    u = (
+                        User.objects.filter(email__iexact=identifier, is_active=True).first()
+                        or User.objects.filter(username__iexact=identifier, is_active=True).first()
+                    )
+                    if u:
+                        cache.set(cache_key, {'schema_name': t.schema_name, 'user_id': u.id}, timeout=43200)
+                        return {'tenant': t, 'user_id': u.id}
         except Exception:
             continue
     return None
@@ -395,6 +407,57 @@ def _build_login_url_for_tenant(request, tenant) -> str | None:
 
 
 def client_login_finder(request):
+    """غلاف آمن لصفحة الدخول — يمنع أي استثناء غير متوقع من تحويلها لصفحة 500.
+
+    صفحة الدخول نقطة حرجة؛ أي عطل عابر (قاعدة بيانات، كاش، schema شركة تالفة،
+    خطأ في lookup بين المستأجرين… إلخ) كان بيطلّع للمستخدم صفحة "500 - Internal
+    Server Error" الجافة. هنا بنمسك أي استثناء، نسجّله في اللوج بالـ traceback
+    الكامل (عشان السوبر أدمن يشوف السبب الحقيقي في SystemErrorLog/اللوج)،
+    ونرجّع للمستخدم رسالة ودّية يقدر يعيد المحاولة بعدها.
+    """
+    try:
+        return _client_login_finder_impl(request)
+    except Exception:
+        logger.exception("🚨 [LOGIN] client_login_finder crashed — serving safe fallback page")
+        friendly = 'حدث خطأ مؤقت أثناء محاولة تسجيل الدخول. برجاء المحاولة مرة أخرى بعد لحظات، ولو استمرت المشكلة تواصل مع الدعم.'
+        try:
+            last_email = request.POST.get('email', '').strip().lower()
+        except Exception:
+            last_email = ''
+        # المستوى الأول: نحاول نرجّع نفس صفحة الدخول برسالة ودّية.
+        try:
+            return render(request, 'clients/login_finder.html', {
+                'error': friendly,
+                'last_email': last_email,
+            })
+        except Exception:
+            # المستوى الثاني: لو القالب نفسه هو مصدر العطل (زي خطأ صياغة/
+            # {% trans %} من غير load) — القالب مش هيتصيّر تاني، فبنرجّع صفحة
+            # HTML بسيطة قائمة بذاتها بلا أي اعتماد على template engine.
+            # ده بيضمن إن صفحة الدخول ما تطلّعش 500 أبداً مهما حصل.
+            logger.exception("🚨 [LOGIN] login_finder.html itself failed to render — using template-free fallback")
+            from django.utils.html import escape
+            from django.http import HttpResponse
+            html = (
+                '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+                '<title>تسجيل الدخول | Mouss Tec</title>'
+                '<style>body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;'
+                'background:#0f172a;color:#e2e8f0;display:flex;min-height:100vh;margin:0;'
+                'align-items:center;justify-content:center;text-align:center;padding:24px}'
+                '.card{max-width:420px;background:#1e293b;border:1px solid #334155;'
+                'border-radius:16px;padding:32px}a.btn{display:inline-block;margin-top:20px;'
+                'background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;text-decoration:none;'
+                'padding:12px 28px;border-radius:10px;font-weight:800}</style></head>'
+                '<body><div class="card"><h1 style="font-size:20px;margin:0 0 12px">تسجيل الدخول</h1>'
+                f'<p style="color:#f59e0b;font-weight:700">{escape(friendly)}</p>'
+                '<a class="btn" href="/login/">إعادة المحاولة</a></div></body></html>'
+            )
+            # 200 (مش 500) عشان المستخدم يشوف صفحة سليمة ويعيد المحاولة.
+            return HttpResponse(html)
+
+
+def _client_login_finder_impl(request):
     """
     صفحة دخول موحّدة بأسلوب Odoo:
     - يدخل المستخدم email + password → النظام يلاقي شركته ويسجّل دخوله مباشرة

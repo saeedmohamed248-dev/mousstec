@@ -99,9 +99,9 @@
                             <p class="text-xs text-slate-500">{{ inv.date_created|date:"Y/m/d" }} | {{ inv.branch.name }}</p>
                         </div>
                     </div>
-                    <div class="text-end">
-                        <p class="text-sm font-black text-emerald-400">{{ inv.total_amount|floatformat:0 }} {% trans "ج.م" %}</p>
-                        {% if inv.mileage %}<p class="text-xs text-slate-600">{% blocktrans with km=inv.mileage %}{{ km }} كم{% endblocktrans %}</p>{% endif %}
+                    <div class="text-left">
+                        <p class="text-sm font-black text-emerald-400">{{ inv.total_amount|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</p>
+                        {% if inv.mileage %}<p class="text-xs text-slate-600">{{ inv.mileage }} كم</p>{% endif %}
                     </div>
                 </div>
                 {% if inv.notes %}<p class="text-xs text-slate-600 mt-2 border-t border-slate-800 pt-2">{{ inv.notes|truncatewords:20 }}</p>{% endif %}

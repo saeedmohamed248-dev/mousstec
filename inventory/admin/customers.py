@@ -99,10 +99,10 @@ class CustomerAdmin(SecureImportExportAdmin):
         """🚀 حساب حجم العميل (Whale vs Regular) بناءً على إجمالي مسحوباته التاريخية"""
         ltv = float(getattr(obj, 'lifetime_value', 0) or 0)
         if ltv > 50000:
-            return format_html('<b style="color: #6f42c1;" title="عميل استراتيجي - Whale">🌟 {} ج.م</b>', f"{ltv:,.0f}")
+            return format_html('<b style="color: #6f42c1;" title="عميل استراتيجي - Whale">🌟 {} {}</b>', f"{ltv:,.0f}", _cur_sym())
         elif ltv > 10000:
-            return format_html('<b style="color: #007bff;">{} ج.م</b>', f"{ltv:,.0f}")
-        return format_html('<span style="color: #6c757d;">{} ج.م</span>', f"{ltv:,.0f}")
+            return format_html('<b style="color: #007bff;">{} {}</b>', f"{ltv:,.0f}", _cur_sym())
+        return format_html('<span style="color: #6c757d;">{} {}</span>', f"{ltv:,.0f}", _cur_sym())
     ltv_styled.short_description = "إجمالي المسحوبات (LTV)"
 
     def get_vip_tier(self, obj):
@@ -118,13 +118,13 @@ class CustomerAdmin(SecureImportExportAdmin):
     def balance_styled(self, obj):
         val = f"{float(obj.balance or 0):,.2f}"
         color = "#dc3545" if obj.balance > 0 else "#28a745"
-        return format_html('<b style="color: {};">{} ج.م</b>', color, val)
+        return format_html('<b style="color: {};">{} {}</b>', color, val, _cur_sym())
     balance_styled.short_description = "المديونية"
 
     def whatsapp_billing(self, obj):
         if obj.phone and obj.balance > 0:
             val = f"{float(obj.balance):,.2f}"
-            msg = f"مرحباً بك أستاذ {obj.name}. نود تذكيركم بلطف أن رصيد المديونية المتبقي لسيارتكم بمركزنا هو {val} ج.م. نسعد دائماً بخدمتكم وتواجدكم معنا."
+            msg = f"مرحباً بك أستاذ {obj.name}. نود تذكيركم بلطف أن رصيد المديونية المتبقي لسيارتكم بمركزنا هو {val} {_cur_sym()}. نسعد دائماً بخدمتكم وتواجدكم معنا."
             target_phone = self._normalize_phone(obj.phone)
             url = f"https://wa.me/{target_phone}?text={urllib.parse.quote(msg)}"
             return format_html('<a href="{}" target="_blank" style="background-color:#25D366; color:white; padding:4px 8px; border-radius:4px; font-size:11px; text-decoration:none; font-weight:700;"><i class="fab fa-whatsapp"></i> مطالبة</a>', url)

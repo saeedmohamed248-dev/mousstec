@@ -52,9 +52,9 @@
     <div class="divider"></div>
 
     {% if invoice.discount > 0 %}<div class="row"><span>{% trans "خصم" %}</span><span>- {{ invoice.discount|floatformat:0 }}</span></div>{% endif %}
-    <div class="row total"><span>{% trans "الإجمالي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>
-    <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>
-    {% if invoice.due_amount > 0 %}<div class="row bold" style="color:red;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {% trans "ج.م" %}</span></div>{% endif %}
+    <div class="row total"><span>{% trans "الإجمالي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    {% if invoice.due_amount > 0 %}<div class="row bold" style="color:red;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
 
     <div class="divider"></div>
 

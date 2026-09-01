@@ -70,7 +70,7 @@ class ChartOfAccountAdmin(FinanceRoleMixin, admin.ModelAdmin):
     def balance_display(self, obj):
         bal = obj.balance
         color = "#28a745" if bal >= 0 else "#dc3545"
-        return format_html('<b style="color:{};">{} ج.م</b>', color, f"{float(bal):,.2f}")
+        return format_html('<b style="color:{};">{} {}</b>', color, f"{float(bal):,.2f}", _cur_sym())
     balance_display.short_description = "الرصيد"
 
 

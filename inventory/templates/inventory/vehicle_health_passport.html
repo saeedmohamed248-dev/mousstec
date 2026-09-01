@@ -470,7 +470,7 @@ body {
                                             {% trans "بطاقة الإصلاح" %} <strong style="color:#e2e8f0;">#{{ ev.invoice.id }}</strong>
                                         </span>
                                         <div style="display:flex;align-items:center;gap:10px;">
-                                            <span class="total">{{ ev.total|floatformat:2 }} {% trans "ج.م" %}</span>
+                                            <span class="total">{{ ev.total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                                             <a class="open-jc" href="{% url 'inventory:job_card_review' ev.invoice.id %}" target="_blank">
                                                 {% trans "افتح البطاقة" %}
                                             </a>

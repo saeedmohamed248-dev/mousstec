@@ -105,10 +105,10 @@
             </div>
             <div class="order-amount">
                 {% if mode == 'seller' %}
-                صافيك: {{ o.seller_payout|floatformat:0 }} ج.م
+                صافيك: {{ o.seller_payout|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
                 <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|floatformat:0 }})</span>
                 {% else %}
-                {{ o.amount_paid|floatformat:0 }} ج.م
+                {{ o.amount_paid|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
                 {% endif %}
             </div>
         </div>

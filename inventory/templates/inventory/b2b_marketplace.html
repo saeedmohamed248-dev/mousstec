@@ -211,9 +211,9 @@ function renderResults(results, query) {
                         </div>
                     </div>
                 </div>
-                <div class="text-start sm:text-end shrink-0">
-                    <p class="text-lg font-black text-emerald-400">${Number(item.wholesale_price).toLocaleString('en-US')} <span class="text-xs">${T.egp}</span></p>
-                    <p class="text-[10px] text-slate-600">${T.wholesale}</p>
+                <div class="text-left sm:text-right shrink-0">
+                    <p class="text-lg font-black text-emerald-400">${Number(item.wholesale_price).toLocaleString('en-US')} <span class="text-xs">{{ tenant_currency_symbol|default:'ج.م' }}</span></p>
+                    <p class="text-[10px] text-slate-600">سعر الجملة</p>
                 </div>
             </div>
         </div>`;

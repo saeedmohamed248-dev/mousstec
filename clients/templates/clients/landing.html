@@ -1,9 +1,12 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mouss Tec | برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم</title>
+    <title>{% trans "Mouss Tec | برنامج حسابات أونلاين لمراكز الصيانة والمطابع واستوديوهات التصميم" %}</title>
     <meta name="description" content="برنامج حسابات أونلاين لمراكز صيانة السيارات وتجار قطع الغيار والمطابع واستوديوهات التصميم — فواتير، مخزون، خزينة، عملاء، موردين، وتقارير أرباح من أي مكان.">
 
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -91,20 +94,22 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+            {% include "clients/_region_switcher.html" %}
+            {% include "clients/_language_switcher.html" %}
             <a href="#marketplace-public" class="hidden md:inline-flex text-amber-300 hover:text-amber-200 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5 bg-amber-500/10 border border-amber-500/20">
-                <i class="fas fa-store"></i> السوق
+                <i class="fas fa-store"></i> {% trans "السوق" %}
             </a>
             <a href="#ai-studio-section" class="hidden md:inline-flex text-purple-300 hover:text-purple-200 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5 bg-purple-500/10 border border-purple-500/20">
                 <i class="fas fa-wand-magic-sparkles"></i> AI Studio
             </a>
             <a href="{% url 'features_page' %}" class="hidden lg:inline-flex text-slate-400 hover:text-purple-400 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5">
-                <i class="fas fa-star"></i> المميزات
+                <i class="fas fa-star"></i> {% trans "المميزات" %}
             </a>
             <a href="{% url 'saas_pricing' %}" class="hidden lg:inline-flex text-slate-400 hover:text-purple-400 font-bold px-3 py-2 rounded-lg transition text-xs items-center gap-1.5">
-                <i class="fas fa-tags"></i> الباقات
+                <i class="fas fa-tags"></i> {% trans "الباقات" %}
             </a>
             <a href="{% url 'client_login_finder' %}" class="bg-slate-800/80 hover:bg-slate-700/80 text-white font-bold px-4 py-2 rounded-lg border border-slate-700 transition text-xs flex items-center gap-1.5 backdrop-blur-sm">
-                <i class="fas fa-lock text-purple-400"></i> دخول
+                <i class="fas fa-lock text-purple-400"></i> {% trans "دخول" %}
             </a>
         </div>
     </header>
@@ -114,19 +119,19 @@
 
         <div class="text-center mb-10">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-4">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Network Uptime: {{ system_uptime|default:"99.99%" }}
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> {% trans "جاهزية الشبكة:" %} {{ system_uptime|default:"99.99%" }}
             </span>
             <h1 class="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
-                منصة <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">Mouss Tec</span><br>
-                <span class="text-2xl lg:text-3xl text-slate-300">شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد</span>
+                {% trans "منصة" %} <span class="bg-gradient-to-r from-purple-400 via-indigo-400 to-pink-400 bg-clip-text text-transparent">Mouss Tec</span><br>
+                <span class="text-2xl lg:text-3xl text-slate-300">{% trans "شركتك + سوقك + ذكاءك الاصطناعي في مكان واحد" %}</span>
             </h1>
             <p class="text-slate-400 text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed mb-6">
-                إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio للتصاميم — كله من نظام واحد.
+                {% trans "إدارة شركتك بالكامل + التواصل مع عملاء جدد كل يوم + استخدام AI Studio للتصاميم — كله من نظام واحد." %}
             </p>
 
             <!-- ⚡ Quick Action Bar — "أنت مين؟" -->
             <div class="max-w-3xl mx-auto bg-slate-900/70 border border-slate-700 rounded-2xl p-5 backdrop-blur-md">
-                <p class="text-slate-300 font-bold mb-4 text-sm"><i class="fas fa-circle-question text-amber-400"></i> أنت مين؟ اختار اللي يناسبك:</p>
+                <p class="text-slate-300 font-bold mb-4 text-sm"><i class="fas fa-circle-question text-amber-400"></i> {% trans "أنت مين؟ اختار اللي يناسبك:" %}</p>
 
                 <!-- 🎨 Featured: AI Designs Store -->
                 <a href="/marketplace/design-store/" class="block mb-3 bg-gradient-to-r from-pink-500/15 via-fuchsia-500/15 to-violet-500/15 hover:from-pink-500/25 hover:via-fuchsia-500/25 hover:to-violet-500/25 border border-pink-500/40 hover:border-pink-400 rounded-xl p-4 transition group">
@@ -134,11 +139,11 @@
                         <div class="flex items-center gap-3">
                             <span class="text-3xl">🎨</span>
                             <div class="text-right">
-                                <div class="text-white font-black text-sm">متجر تصاميم AI الفوري</div>
-                                <div class="text-pink-200/70 text-xs">25 تصميم بـ 32 جنيه — لوجو، فلاير، تيشرت، أي تصميم تتخيله</div>
+                                <div class="text-white font-black text-sm">{% trans "متجر تصاميم AI الفوري" %}</div>
+                                <div class="text-pink-200/70 text-xs">{% trans "25 تصميم بـ 32 جنيه — لوجو، فلاير، تيشرت، أي تصميم تتخيله" %}</div>
                             </div>
                         </div>
-                        <span class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-full">جديد ⚡</span>
+                        <span class="bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-full">{% trans "جديد ⚡" %}</span>
                     </div>
                 </a>
 
@@ -146,23 +151,23 @@
                     <a href="#marketplace-public" class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-400 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-user text-amber-400 text-xl"></i>
-                            <span class="text-white font-black text-sm">عميل عاوز يطلب</span>
+                            <span class="text-white font-black text-sm">{% trans "عميل عاوز يطلب" %}</span>
                         </div>
-                        <p class="text-amber-200/60 text-xs">قطعة، صيانة، تصميم، أو طباعة</p>
+                        <p class="text-amber-200/60 text-xs">{% trans "قطعة، صيانة، تصميم، أو طباعة" %}</p>
                     </a>
                     <a href="#industry-cards" class="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 hover:border-purple-400 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-building text-purple-400 text-xl"></i>
-                            <span class="text-white font-black text-sm">صاحب شركة أو مركز</span>
+                            <span class="text-white font-black text-sm">{% trans "صاحب شركة أو مركز" %}</span>
                         </div>
-                        <p class="text-purple-200/60 text-xs">سجّل شركتك واستخدم النظام كامل</p>
+                        <p class="text-purple-200/60 text-xs">{% trans "سجّل شركتك واستخدم النظام كامل" %}</p>
                     </a>
                     <a href="{% url 'client_login_finder' %}" class="bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600 hover:border-slate-500 rounded-xl p-4 transition text-right group">
                         <div class="flex items-center gap-3 mb-1">
                             <i class="fas fa-key text-slate-300 text-xl"></i>
-                            <span class="text-white font-black text-sm">عندي حساب</span>
+                            <span class="text-white font-black text-sm">{% trans "عندي حساب" %}</span>
                         </div>
-                        <p class="text-slate-400 text-xs">ادخل على حسابك مباشرة</p>
+                        <p class="text-slate-400 text-xs">{% trans "ادخل على حسابك مباشرة" %}</p>
                     </a>
                 </div>
             </div>
@@ -173,38 +178,38 @@
 
         <!-- 🏭 كروت اختيار القطاع -->
         <div class="text-center mb-6 mt-8">
-            <h2 class="text-2xl lg:text-3xl font-black text-white mb-2">للشركات والمراكز: <span class="bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent">سجّل واستخدم نظام Mouss Tec</span></h2>
-            <p class="text-slate-400 text-sm">إدارة كاملة لشركتك — اختار قطاعك:</p>
+            <h2 class="text-2xl lg:text-3xl font-black text-white mb-2">{% trans "للشركات والمراكز:" %} <span class="bg-gradient-to-r from-blue-400 to-pink-400 bg-clip-text text-transparent">{% trans "سجّل واستخدم نظام Mouss Tec" %}</span></h2>
+            <p class="text-slate-400 text-sm">{% trans "إدارة كاملة لشركتك — اختار قطاعك:" %}</p>
         </div>
         <div class="flex flex-col md:flex-row gap-6 max-w-4xl mx-auto mb-12">
 
             <a href="{% url 'automotive_landing' %}" class="industry-hero-card auto-card group">
                 <div class="text-6xl mb-4">🚗</div>
-                <h2 class="text-2xl font-black text-white mb-2">مراكز الصيانة وقطع الغيار</h2>
-                <p class="text-slate-400 text-sm mb-6 leading-relaxed">فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير أرباح</p>
+                <h2 class="text-2xl font-black text-white mb-2">{% trans "مراكز الصيانة وقطع الغيار" %}</h2>
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed">{% trans "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، تقارير أرباح" %}</p>
                 <ul class="text-right text-xs text-slate-500 space-y-2 mb-6">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> فواتير بيع وشراء + طباعة وواتساب</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> مخزون وقطع غيار + باركود</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> كروت صيانة + تتبع المركبات</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> خزينة ومصروفات + تقارير أرباح</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% trans "فواتير بيع وشراء + طباعة وواتساب" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% trans "مخزون وقطع غيار + باركود" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% trans "كروت صيانة + تتبع المركبات" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-blue-400"></i> {% trans "خزينة ومصروفات + تقارير أرباح" %}</li>
                 </ul>
                 <div class="bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold py-3 px-6 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition text-sm">
-                    <i class="fas fa-arrow-left ml-2"></i> اعرف أكتر وابدأ مجاناً
+                    <i class="fas fa-arrow-left ml-2"></i> {% trans "اعرف أكتر وابدأ مجاناً" %}
                 </div>
             </a>
 
             <a href="{% url 'printing_landing' %}" class="industry-hero-card print-card group">
                 <div class="text-6xl mb-4">🎨</div>
-                <h2 class="text-2xl font-black text-white mb-2">المطابع واستوديوهات التصميم</h2>
-                <p class="text-slate-400 text-sm mb-6 leading-relaxed">طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية</p>
+                <h2 class="text-2xl font-black text-white mb-2">{% trans "المطابع واستوديوهات التصميم" %}</h2>
+                <p class="text-slate-400 text-sm mb-6 leading-relaxed">{% trans "طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية" %}</p>
                 <ul class="text-right text-xs text-slate-500 space-y-2 mb-6">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> طلبات طباعة + تسعير تلقائي</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> ماكينات + حساب تكلفة CMYK</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> سجل أعمال المصممين + تقييمات</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> مخزون خامات + خزينة ومصروفات</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة + تسعير تلقائي" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "ماكينات + حساب تكلفة CMYK" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "سجل أعمال المصممين + تقييمات" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "مخزون خامات + خزينة ومصروفات" %}</li>
                 </ul>
                 <div class="bg-pink-500/10 border border-pink-500/20 text-pink-400 font-bold py-3 px-6 rounded-xl group-hover:bg-pink-600 group-hover:text-white transition text-sm">
-                    <i class="fas fa-arrow-left ml-2"></i> اعرف أكتر وابدأ مجاناً
+                    <i class="fas fa-arrow-left ml-2"></i> {% trans "اعرف أكتر وابدأ مجاناً" %}
                 </div>
             </a>
 
@@ -219,12 +224,12 @@
             </span>
             <h2 class="text-3xl lg:text-4xl font-black text-white mb-3">
                 🛍️ السوق المفتوح
-                <span class="bg-gradient-to-r from-amber-400 to-pink-400 bg-clip-text text-transparent">— اطلب واستلم عروض</span>
+                <span class="bg-gradient-to-r from-amber-400 to-pink-400 bg-clip-text text-transparent">{% trans "— اطلب واستلم عروض" %}</span>
             </h2>
             <p class="text-slate-400 text-base max-w-2xl mx-auto leading-relaxed">
-                محتاج صيانة لعربيتك أو تصميم لشركتك؟ <strong class="text-white">اكتب طلبك بكلمتين</strong>،
+                محتاج صيانة لعربيتك أو تصميم لشركتك؟ <strong class="text-white">{% trans "اكتب طلبك بكلمتين" %}</strong>،
                 وأفضل التجار والمطابع المسجلين في Mouss Tec هيتنافسوا يقدموا لك عروض —
-                <strong class="text-amber-400">أنت تختار الأرخص والأقرب والأفضل</strong>.
+                <strong class="text-amber-400">{% trans "أنت تختار الأرخص والأقرب والأفضل" %}</strong>.
             </p>
         </div>
 
@@ -234,16 +239,16 @@
             <a href="/marketplace/automotive/" class="group block bg-gradient-to-br from-amber-900/40 via-orange-900/30 to-red-900/20 border border-amber-500/30 rounded-3xl p-7 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 transition-all">
                 <div class="flex items-center justify-between mb-4">
                     <div class="text-5xl">🚗</div>
-                    <span class="bg-amber-500/20 text-amber-300 text-xs font-black px-3 py-1 rounded-full border border-amber-500/30">سيارات</span>
+                    <span class="bg-amber-500/20 text-amber-300 text-xs font-black px-3 py-1 rounded-full border border-amber-500/30">{% trans "سيارات" %}</span>
                 </div>
-                <h3 class="text-xl font-black text-white mb-2">محتاج قطعة أو صيانة لعربيتك؟</h3>
+                <h3 class="text-xl font-black text-white mb-2">{% trans "محتاج قطعة أو صيانة لعربيتك؟" %}</h3>
                 <p class="text-amber-200/70 text-sm mb-4 leading-relaxed">
                     اطلب قطعة غيار، فحص شامل، صيانة دورية، أو تشخيص أعطال — وكل مراكز الصيانة المعتمدة هتقدمك عروض في دقائق.
                 </p>
                 <ul class="text-right text-xs text-slate-400 space-y-1.5 mb-5">
-                    <li class="flex items-center gap-2"><i class="fas fa-shield-halved text-amber-400"></i> هويتك مخفية — مفيش مكالمات إزعاج</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-percent text-amber-400"></i> توفير حتى <strong class="text-amber-300">35%</strong> على متوسط السوق</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-star text-amber-400"></i> تقييمات حقيقية + ضمان على كل عرض</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-shield-halved text-amber-400"></i> {% trans "هويتك مخفية — مفيش مكالمات إزعاج" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-percent text-amber-400"></i> {% trans "توفير حتى" %} <strong class="text-amber-300">35%</strong> {% trans "على متوسط السوق" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-star text-amber-400"></i> {% trans "تقييمات حقيقية + ضمان على كل عرض" %}</li>
                 </ul>
                 <div class="bg-amber-500 group-hover:bg-amber-400 text-slate-900 font-black py-3 px-6 rounded-xl text-center text-sm transition">
                     اطلب الآن مجاناً <i class="fas fa-arrow-left mr-2"></i>
@@ -254,16 +259,16 @@
             <a href="/marketplace/printing/" class="group block bg-gradient-to-br from-pink-900/40 via-fuchsia-900/30 to-purple-900/20 border border-pink-500/30 rounded-3xl p-7 hover:border-pink-400 hover:shadow-2xl hover:shadow-pink-500/20 transition-all">
                 <div class="flex items-center justify-between mb-4">
                     <div class="text-5xl">🎨</div>
-                    <span class="bg-pink-500/20 text-pink-300 text-xs font-black px-3 py-1 rounded-full border border-pink-500/30">طباعة وتصميم</span>
+                    <span class="bg-pink-500/20 text-pink-300 text-xs font-black px-3 py-1 rounded-full border border-pink-500/30">{% trans "طباعة وتصميم" %}</span>
                 </div>
-                <h3 class="text-xl font-black text-white mb-2">محتاج لوجو أو طباعة لبراندك؟</h3>
+                <h3 class="text-xl font-black text-white mb-2">{% trans "محتاج لوجو أو طباعة لبراندك؟" %}</h3>
                 <p class="text-pink-200/70 text-sm mb-4 leading-relaxed">
                     لوجو، كروت بزنس، فلاير، بوستر، تيشرتات، ماجات — اطلب اللي تتخيله، شوف عينات قبل الاختيار، واطبع باللي يناسبك.
                 </p>
                 <ul class="text-right text-xs text-slate-400 space-y-1.5 mb-5">
-                    <li class="flex items-center gap-2"><i class="fas fa-eye text-pink-400"></i> شوف عينات تصميم قبل الموافقة</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-clock text-pink-400"></i> تسليم <strong class="text-pink-300">خلال 48 ساعة</strong></li>
-                    <li class="flex items-center gap-2"><i class="fas fa-wand-magic-sparkles text-pink-400"></i> 420+ مطبعة ومصمم معتمد</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-eye text-pink-400"></i> {% trans "شوف عينات تصميم قبل الموافقة" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-clock text-pink-400"></i> {% trans "تسليم" %} <strong class="text-pink-300">{% trans "خلال 48 ساعة" %}</strong></li>
+                    <li class="flex items-center gap-2"><i class="fas fa-wand-magic-sparkles text-pink-400"></i> {% trans "420+ مطبعة ومصمم معتمد" %}</li>
                 </ul>
                 <div class="bg-pink-500 group-hover:bg-pink-400 text-white font-black py-3 px-6 rounded-xl text-center text-sm transition">
                     صمم وأطبع الآن <i class="fas fa-arrow-left mr-2"></i>
@@ -274,23 +279,23 @@
 
         <!-- شريط شرح بسيط -->
         <div class="max-w-4xl mx-auto mt-10 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
-            <h4 class="text-white font-black text-center mb-5 text-lg"><i class="fas fa-circle-info text-amber-400"></i> إزاي يشتغل؟</h4>
+            <h4 class="text-white font-black text-center mb-5 text-lg"><i class="fas fa-circle-info text-amber-400"></i> {% trans "إزاي يشتغل؟" %}</h4>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
                 <div>
                     <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">1</div>
-                    <p class="text-xs text-slate-400 font-bold">سجّل برقم موبايلك<br><span class="text-slate-500 font-normal">30 ثانية فقط</span></p>
+                    <p class="text-xs text-slate-400 font-bold">{% trans "سجّل برقم موبايلك" %}<br><span class="text-slate-500 font-normal">{% trans "30 ثانية فقط" %}</span></p>
                 </div>
                 <div>
                     <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">2</div>
-                    <p class="text-xs text-slate-400 font-bold">اكتب اللي محتاجه<br><span class="text-slate-500 font-normal">بتفاصيلك أنت</span></p>
+                    <p class="text-xs text-slate-400 font-bold">{% trans "اكتب اللي محتاجه" %}<br><span class="text-slate-500 font-normal">{% trans "بتفاصيلك أنت" %}</span></p>
                 </div>
                 <div>
                     <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-xl mb-2">3</div>
-                    <p class="text-xs text-slate-400 font-bold">استلم عروض من التجار<br><span class="text-slate-500 font-normal">في خلال دقائق</span></p>
+                    <p class="text-xs text-slate-400 font-bold">{% trans "استلم عروض من التجار" %}<br><span class="text-slate-500 font-normal">{% trans "في خلال دقائق" %}</span></p>
                 </div>
                 <div>
                     <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black text-xl mb-2">✓</div>
-                    <p class="text-xs text-slate-400 font-bold">اختار الأفضل وادفع<br><span class="text-slate-500 font-normal">بأمان كامل</span></p>
+                    <p class="text-xs text-slate-400 font-bold">{% trans "اختار الأفضل وادفع" %}<br><span class="text-slate-500 font-normal">{% trans "بأمان كامل" %}</span></p>
                 </div>
             </div>
         </div>
@@ -310,17 +315,17 @@
                     </span>
                     <h2 class="text-3xl lg:text-4xl font-black text-white mb-4 leading-tight">
                         صمم احترافياً بـ
-                        <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">الذكاء الاصطناعي</span>
+                        <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{% trans "الذكاء الاصطناعي" %}</span>
                     </h2>
                     <p class="text-slate-300 text-sm lg:text-base mb-6 leading-relaxed">
-                        اكتب اللي عاوزه بالعربي — <em class="text-purple-300">"كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم"</em> —
+                        اكتب اللي عاوزه بالعربي — <em class="text-purple-300">{% trans "'كارت بزنس لمطبعة اسمها النور، ذهبي وأسود فخم'" %}</em> —
                         والـ AI يولّد التصميم بأحدث محركات FLUX و Ideogram في دقائق. ارفع لوجو الشركة وهيدمجه تلقائياً.
                     </p>
                     <div class="space-y-3 mb-6">
-                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">دمج لوجو الشركة في التصميم</span></div>
-                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">علامة مائية تلقائية لحماية تصميمك</span></div>
-                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">سجل كل التصاميم — ترجعله أي وقت</span></div>
-                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">ربط مباشر بفواتير العملاء</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">{% trans "دمج لوجو الشركة في التصميم" %}</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">{% trans "علامة مائية تلقائية لحماية تصميمك" %}</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">{% trans "سجل كل التصاميم — ترجعله أي وقت" %}</span></div>
+                        <div class="flex items-center gap-3"><i class="fas fa-circle-check text-purple-400"></i> <span class="text-sm text-slate-300">{% trans "ربط مباشر بفواتير العملاء" %}</span></div>
                     </div>
                     <div class="flex flex-wrap gap-3">
                         <a href="{% url 'printing_landing' %}" class="bg-purple-500 hover:bg-purple-400 text-white font-black px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-purple-500/30">
@@ -340,8 +345,8 @@
                                 <i class="fas fa-images"></i>
                             </div>
                             <div>
-                                <h4 class="text-white font-black mb-1 text-sm">سجل التصاميم</h4>
-                                <p class="text-slate-400 text-xs leading-relaxed">كل تصميم بيتحفظ بالـ prompt والـ category — ترجع لأي تصميم وتحمّله أو تعدّله</p>
+                                <h4 class="text-white font-black mb-1 text-sm">{% trans "سجل التصاميم" %}</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">{% trans "كل تصميم بيتحفظ بالـ prompt والـ category — ترجع لأي تصميم وتحمّله أو تعدّله" %}</p>
                             </div>
                         </div>
                     </div>
@@ -352,8 +357,8 @@
                                 <i class="fas fa-gift"></i>
                             </div>
                             <div>
-                                <h4 class="text-white font-black mb-1 text-sm">🎁 10 تصاميم هدية</h4>
-                                <p class="text-slate-400 text-xs leading-relaxed">كل شركة جديدة تتسجل تاخد 10 تصاميم + 5 رسائل واتساب + 5 علامات مائية مجاناً</p>
+                                <h4 class="text-white font-black mb-1 text-sm">{% trans "🎁 10 تصاميم هدية" %}</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">{% trans "كل شركة جديدة تتسجل تاخد 10 تصاميم + 5 رسائل واتساب + 5 علامات مائية مجاناً" %}</p>
                             </div>
                         </div>
                     </div>
@@ -364,8 +369,8 @@
                                 <i class="fab fa-whatsapp"></i>
                             </div>
                             <div>
-                                <h4 class="text-white font-black mb-1 text-sm">إرسال مباشر للعميل</h4>
-                                <p class="text-slate-400 text-xs leading-relaxed">بعد ما تخلص التصميم، اضغط زرار "إرسال للعميل" وهيوصله على واتساب فوراً</p>
+                                <h4 class="text-white font-black mb-1 text-sm">{% trans "إرسال مباشر للعميل" %}</h4>
+                                <p class="text-slate-400 text-xs leading-relaxed">{% trans "بعد ما تخلص التصميم، اضغط زرار 'إرسال للعميل' وهيوصله على واتساب فوراً" %}</p>
                             </div>
                         </div>
                     </div>
@@ -385,7 +390,7 @@
             </h2>
             <p class="text-slate-400 text-sm max-w-2xl mx-auto leading-relaxed">
                 مطبعة محتاجة 10,000 تيشرت من مصنع؟ ورشة محتاجة شحنة قطع غيار؟
-                <strong class="text-emerald-400">اطلب من تجار تانيين</strong> داخل المنصة بنفس نظام المناقصات المجهولة.
+                <strong class="text-emerald-400">{% trans "اطلب من تجار تانيين" %}</strong> داخل المنصة بنفس نظام المناقصات المجهولة.
             </p>
         </div>
 
@@ -393,18 +398,18 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div>
                     <i class="fas fa-shield-halved text-3xl text-emerald-400 mb-2"></i>
-                    <h4 class="text-white font-black text-sm mb-1">صفقات آمنة</h4>
-                    <p class="text-slate-400 text-xs">ضمان Escrow حتى التسليم</p>
+                    <h4 class="text-white font-black text-sm mb-1">{% trans "صفقات آمنة" %}</h4>
+                    <p class="text-slate-400 text-xs">{% trans "ضمان Escrow حتى التسليم" %}</p>
                 </div>
                 <div>
                     <i class="fas fa-bell text-3xl text-emerald-400 mb-2"></i>
-                    <h4 class="text-white font-black text-sm mb-1">إشعارات فورية</h4>
-                    <p class="text-slate-400 text-xs">كل طلب جديد يوصلك في ثوان</p>
+                    <h4 class="text-white font-black text-sm mb-1">{% trans "إشعارات فورية" %}</h4>
+                    <p class="text-slate-400 text-xs">{% trans "كل طلب جديد يوصلك في ثوان" %}</p>
                 </div>
                 <div>
                     <i class="fas fa-chart-line text-3xl text-emerald-400 mb-2"></i>
-                    <h4 class="text-white font-black text-sm mb-1">نمو حقيقي</h4>
-                    <p class="text-slate-400 text-xs">اوصل لعملاء جدد بدون تسويق</p>
+                    <h4 class="text-white font-black text-sm mb-1">{% trans "نمو حقيقي" %}</h4>
+                    <p class="text-slate-400 text-xs">{% trans "اوصل لعملاء جدد بدون تسويق" %}</p>
                 </div>
             </div>
         </div>
@@ -412,8 +417,8 @@
 
     <!-- ===== المميزات المشتركة ===== -->
     <section id="features" class="container mx-auto px-6 py-12 z-10 relative">
-        <h2 class="text-center text-2xl font-black text-white mb-3">مميزات مشتركة في كل القطاعات</h2>
-        <p class="text-center text-slate-400 text-sm mb-8 max-w-2xl mx-auto">منصة بمعايير عالمية: ذكاء اصطناعي، PWA، Escrow، ومحاسبة مزدوجة — كل ده في مكان واحد.</p>
+        <h2 class="text-center text-2xl font-black text-white mb-3">{% trans "مميزات مشتركة في كل القطاعات" %}</h2>
+        <p class="text-center text-slate-400 text-sm mb-8 max-w-2xl mx-auto">{% trans "منصة بمعايير عالمية: ذكاء اصطناعي، PWA، Escrow، ومحاسبة مزدوجة — كل ده في مكان واحد." %}</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
             {# 🚀 Phase 3 #4 — flagship differentiators row #}
@@ -423,8 +428,8 @@
                     <span class="text-xs font-bold text-fuchsia-300 bg-fuchsia-500/10 px-2.5 py-1 rounded-md border border-fuchsia-500/20">AI · RAG</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">دعم ذكي بالـ RAG</h3>
-                    <p class="text-slate-400 text-xs font-bold">مساعد عربي مدرَّب على بياناتك — رد فوري 24/7</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "دعم ذكي بالـ RAG" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "مساعد عربي مدرَّب على بياناتك — رد فوري 24/7" %}</p>
                 </div>
             </div>
 
@@ -434,8 +439,8 @@
                     <span class="text-xs font-bold text-cyan-300 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">PWA · LIVE</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">تشخيص OBD مباشر</h3>
-                    <p class="text-slate-400 text-xs font-bold">من المتصفح · بدون أجهزة إضافية · يعمل أوفلاين</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "تشخيص OBD مباشر" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "من المتصفح · بدون أجهزة إضافية · يعمل أوفلاين" %}</p>
                 </div>
             </div>
 
@@ -445,8 +450,8 @@
                     <span class="text-xs font-bold text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">P2P · Escrow</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">سوق P2P بضمان</h3>
-                    <p class="text-slate-400 text-xs font-bold">Escrow · مؤشرات ثقة · تجار موثقين</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "سوق P2P بضمان" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "Escrow · مؤشرات ثقة · تجار موثقين" %}</p>
                 </div>
             </div>
 
@@ -456,8 +461,8 @@
                     <span class="text-xs font-bold text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">Enterprise</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">قيد مزدوج · عزل تام</h3>
-                    <p class="text-slate-400 text-xs font-bold">محاسبة معتمدة · كل شركة في schema مستقل</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "قيد مزدوج · عزل تام" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "محاسبة معتمدة · كل شركة في schema مستقل" %}</p>
                 </div>
             </div>
 
@@ -469,11 +474,11 @@
                     <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-xl font-bold border border-purple-500/20">
                         <i class="fas fa-file-invoice-dollar"></i>
                     </div>
-                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">فوترة ذكية</span>
+                    <span class="text-xs font-bold text-purple-400 bg-purple-500/5 px-2.5 py-1 rounded-md border border-purple-500/10">{% trans "فوترة ذكية" %}</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">فواتير بيع وشراء</h3>
-                    <p class="text-slate-400 text-xs font-bold">إصدار فاتورة · طباعة · إرسال واتساب</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "فواتير بيع وشراء" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "إصدار فاتورة · طباعة · إرسال واتساب" %}</p>
                 </div>
             </div>
 
@@ -482,11 +487,11 @@
                     <div class="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 text-xl font-bold border border-indigo-500/20">
                         <i class="fas fa-vault"></i>
                     </div>
-                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">خزينة وحسابات</span>
+                    <span class="text-xs font-bold text-indigo-400 bg-indigo-500/5 px-2.5 py-1 rounded-md border border-indigo-500/10">{% trans "خزينة وحسابات" %}</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">خزينة ومصروفات</h3>
-                    <p class="text-slate-400 text-xs font-bold">رصيد الخزنة · بنود المصروفات · تقرير شهري</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "خزينة ومصروفات" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "رصيد الخزنة · بنود المصروفات · تقرير شهري" %}</p>
                 </div>
             </div>
 
@@ -495,11 +500,11 @@
                     <div class="w-12 h-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-xl font-bold border border-pink-500/20">
                         <i class="fas fa-boxes"></i>
                     </div>
-                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">مخزون ذكي</span>
+                    <span class="text-xs font-bold text-pink-400 bg-pink-500/5 px-2.5 py-1 rounded-md border border-pink-500/10">{% trans "مخزون ذكي" %}</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">إدارة المخزون</h3>
-                    <p class="text-slate-400 text-xs font-bold">باركود · جرد · تنبيه نفاد · تحويل بين الفروع</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "إدارة المخزون" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "باركود · جرد · تنبيه نفاد · تحويل بين الفروع" %}</p>
                 </div>
             </div>
 
@@ -508,11 +513,11 @@
                     <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xl font-bold border border-emerald-500/20">
                         <i class="fas fa-chart-pie"></i>
                     </div>
-                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">تقارير لحظية</span>
+                    <span class="text-xs font-bold text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">{% trans "تقارير لحظية" %}</span>
                 </div>
                 <div>
-                    <h3 class="text-lg font-black text-white mb-1">تقارير وأرباح</h3>
-                    <p class="text-slate-400 text-xs font-bold">أرباح يومية · كشف حساب · تحليل المبيعات</p>
+                    <h3 class="text-lg font-black text-white mb-1">{% trans "تقارير وأرباح" %}</h3>
+                    <p class="text-slate-400 text-xs font-bold">{% trans "أرباح يومية · كشف حساب · تحليل المبيعات" %}</p>
                 </div>
             </div>
 
@@ -529,7 +534,7 @@
     <div class="fixed bottom-6 right-6 z-50">
         <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700 shadow-2xl rounded-full py-2 px-4 flex items-center gap-3 text-xs font-bold text-slate-300">
             <div class="w-2.5 h-2.5 bg-green-500 rounded-full live-pulse"></div>
-            <span id="live-ticker">نبض السوق: <span class="text-emerald-400">متصل وآمن</span></span>
+            <span id="live-ticker">{% trans "نبض السوق:" %} <span class="text-emerald-400">{% trans "متصل وآمن" %}</span></span>
         </div>
     </div>
 
@@ -570,9 +575,9 @@
 
             // Live ticker
             const tickerMsgs = [
-                `حالة النظام: <span class="text-emerald-400">شغّال ومتصل 24/7</span>`,
-                `<span class="text-indigo-400">سيارات + طباعة</span> — منصة واحدة لكل الأنشطة`,
-                `حساباتك: <span class="text-purple-400">محمية ومشفرة بالكامل</span>`
+                `{% trans "حالة النظام:" %} <span class="text-emerald-400">{% trans "شغّال ومتصل 24/7" %}</span>`,
+                `<span class="text-indigo-400">{% trans "سيارات + طباعة" %}</span> — {% trans "منصة واحدة لكل الأنشطة" %}`,
+                `{% trans "حساباتك:" %} <span class="text-purple-400">{% trans "محمية ومشفرة بالكامل" %}</span>`
             ];
             let tickIdx = 0;
             const tickerEl = document.getElementById('live-ticker');

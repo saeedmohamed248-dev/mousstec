@@ -142,18 +142,18 @@
         <div class="totals">
             <div class="item">
                 <div class="label">إجمالي الفواتير</div>
-                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} ج.م</div>
+                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="item">
                 <div class="label">إجمالي المدفوعات</div>
-                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} ج.م</div>
+                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
         </div>
         <div class="final {% if final_balance > 0 %}due{% elif final_balance < 0 %}paid{% else %}balanced{% endif %}">
             <div class="label">
                 {% if final_balance > 0 %}<i class="fas fa-arrow-up"></i> مستحق للمطبعة{% elif final_balance < 0 %}<i class="fas fa-arrow-down"></i> مستحق للعميل{% else %}<i class="fas fa-circle-check"></i> الحساب متطابق{% endif %}
             </div>
-            <div class="value">{{ final_balance|floatformat:2 }} ج.م</div>
+            <div class="value">{{ final_balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
         </div>
     </div>
 

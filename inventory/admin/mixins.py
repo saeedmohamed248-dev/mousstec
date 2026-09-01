@@ -17,7 +17,21 @@ from import_export.admin import ImportExportModelAdmin
 from django.utils.translation import gettext_lazy as _ 
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django_tenants.utils import schema_context 
+from django_tenants.utils import schema_context
+
+
+def _cur_sym():
+    """رمز عملة المستأجر الحالي لعرض الـ admin — يفكّ القفل المصري.
+    يقرأ عملة الـ tenant من الـ connection ويسقط للافتراضي بأمان."""
+    try:
+        from erp_core.localization import resolve_tenant_localization, currency_symbol
+        tenant = getattr(connection, 'tenant', None)
+        if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+            tenant = None
+        loc = resolve_tenant_localization(tenant)
+        return currency_symbol(loc['currency'], loc['language'])
+    except Exception:
+        return 'ج.م'
 
 # 🟢 استدعاء الجداول الأساسية للمنظومة التشغيلية
 from ..models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,

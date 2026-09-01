@@ -53,7 +53,7 @@ class ServiceCatalogAdmin(SecureImportExportAdmin):
     search_fields = ('name',)
     
     def labor_price_styled(self, obj):
-        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{obj.labor_price:,.2f}")
+        return format_html('<b style="color:#007bff;">{} {}</b>', f"{obj.labor_price:,.2f}", _cur_sym())
     labor_price_styled.short_description = "سعر المصنعية"
 
 
@@ -106,7 +106,7 @@ class ProductAdmin(SecureImportExportAdmin):
     display_image.short_description = "الصورة"
 
     def retail_price_styled(self, obj):
-        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{float(obj.retail_price or 0):,.2f}")
+        return format_html('<b style="color:#007bff;">{} {}</b>', f"{float(obj.retail_price or 0):,.2f}", _cur_sym())
     retail_price_styled.short_description = "سعر البيع"
 
     def current_total_stock(self, obj):
@@ -238,7 +238,7 @@ class ScrapDismantlingJobAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     job_ref_short.short_description = "كود العملية"
 
     def total_purchase_cost_styled(self, obj):
-        return format_html('<b style="color:#007bff;">{} ج.م</b>', f"{float(obj.total_purchase_cost or 0):,.2f}")
+        return format_html('<b style="color:#007bff;">{} {}</b>', f"{float(obj.total_purchase_cost or 0):,.2f}", _cur_sym())
     total_purchase_cost_styled.short_description = "تكلفة الشراء الكلية"
 
     def completion_badge(self, obj):
@@ -264,7 +264,7 @@ class VendorAdmin(SecureImportExportAdmin):
 
     def balance_styled(self, obj):
         val = f"{float(obj.balance or 0):,.2f}"
-        return format_html('<b style="color: #dc3545;">{} ج.م</b>', val)
+        return format_html('<b style="color: #dc3545;">{} {}</b>', val, _cur_sym())
     balance_styled.short_description = "مستحقات المورد (علينا)"
 
     def has_delete_permission(self, request, obj=None):
@@ -294,7 +294,7 @@ class InventoryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
         # 🚀 [FIX BY QA]: حماية من average_cost=None لمنع انهيار الصفحة
         cost = obj.product.average_cost or Decimal('0.00')
         val = f"{float(obj.quantity * cost):,.2f}"
-        return format_html('<b style="color: #007bff;">{} ج.م</b>', val)
+        return format_html('<b style="color: #007bff;">{} {}</b>', val, _cur_sym())
     stock_value.short_description = "قيمة الأصول الرأسمالية"
 
 

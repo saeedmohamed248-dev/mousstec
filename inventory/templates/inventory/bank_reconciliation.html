@@ -65,7 +65,7 @@
                     {% if s.is_reconciled %}<i class="fas fa-check-circle"></i> {% trans "تمت المطابقة" %}{% else %}<i class="fas fa-clock"></i> {% trans "في الانتظار" %}{% endif %}
                 </span>
                 <span style="color:#94a3b8; font-size:0.85rem;">
-                    {% trans "رصيد ختامي:" %} <strong>{{ s.closing_balance }}</strong> {% trans "ج.م" %}
+                    رصيد ختامي: <strong>{{ s.closing_balance }}</strong> {{ tenant_currency_symbol|default:'ج.م' }}
                 </span>
             </div>
         </div>

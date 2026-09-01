@@ -49,8 +49,8 @@
             <span>{{ entity.phone|default:"-" }}</span>
         </div>
         <div class="info-block">
-            <label>{% trans "الرصيد الحالي" %}</label>
-            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} {% trans "ج.م" %}</span>
+            <label>الرصيد الحالي</label>
+            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
         </div>
         <div class="info-block">
             <label>{% trans "تاريخ الطباعة" %}</label>
@@ -95,8 +95,8 @@
     </table>
 
     <div class="balance-box">
-        <div>{% if entity_type == 'customer' %}{% trans "الرصيد المستحق على العميل" %}{% else %}{% trans "الرصيد المستحق للمورد" %}{% endif %}</div>
-        <div class="amount">{{ entity.balance|floatformat:2 }} {% trans "ج.م" %}</div>
+        <div>الرصيد {% if entity_type == 'customer' %}المستحق على العميل{% else %}المستحق للمورد{% endif %}</div>
+        <div class="amount">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
     </div>
 
     <div class="footer">
