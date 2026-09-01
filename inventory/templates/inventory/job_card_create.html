@@ -1,5 +1,6 @@
 {% extends "inventory/_base_portal.html" %}
-{% block title %}📋 أمر شغل جديد{% endblock %}
+{% load i18n %}
+{% block title %}📋 {% trans "أمر شغل جديد" %}{% endblock %}
 {% block extra_head %}
 <style>
   .panel { background:rgba(30,41,59,0.55); backdrop-filter: blur(8px); border:1px solid rgba(71,85,105,0.4); border-radius:1rem; padding:1rem; }
@@ -22,13 +23,13 @@
 <header class="flex items-center justify-between mb-4 flex-wrap gap-3">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-emerald-400"><i class="fas fa-clipboard-list"></i></span>
-    أمر شغل جديد
+    {% trans "أمر شغل جديد" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
   {% if branches %}
   <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
     <i class="fas fa-code-branch text-amber-300"></i>
-    <label class="text-xs font-bold text-amber-300">الفرع:</label>
+    <label class="text-xs font-bold text-amber-300">{% trans "الفرع:" %}</label>
     <select id="branch-picker" class="bg-slate-900 text-white text-sm px-2 py-1 rounded border border-slate-700">
       {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
     </select>
@@ -41,8 +42,8 @@
   <div id="type-sale" class="type-card active" onclick="setInvoiceType('sale')">
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-base font-black text-white"><i class="fas fa-boxes text-purple-400"></i> فاتورة قطع غيار فقط</p>
-        <p class="text-xs text-slate-400 mt-1">بيع قطع للعميل بدون فحص أو خدمات صيانة.</p>
+        <p class="text-base font-black text-white"><i class="fas fa-boxes text-purple-400"></i> {% trans "فاتورة قطع غيار فقط" %}</p>
+        <p class="text-xs text-slate-400 mt-1">{% trans "بيع قطع للعميل بدون فحص أو خدمات صيانة." %}</p>
       </div>
       <i class="fas fa-check-circle text-purple-400 text-xl check-icon"></i>
     </div>
@@ -50,8 +51,8 @@
   <div id="type-maintenance" class="type-card" onclick="setInvoiceType('maintenance')">
     <div class="flex items-center justify-between">
       <div>
-        <p class="text-base font-black text-white"><i class="fas fa-screwdriver-wrench text-emerald-400"></i> أمر شغل وصيانة</p>
-        <p class="text-xs text-slate-400 mt-1">قطع + مصنعيات + فحص DVI كامل للمركبة.</p>
+        <p class="text-base font-black text-white"><i class="fas fa-screwdriver-wrench text-emerald-400"></i> {% trans "أمر شغل وصيانة" %}</p>
+        <p class="text-xs text-slate-400 mt-1">{% trans "قطع + مصنعيات + فحص DVI كامل للمركبة." %}</p>
       </div>
       <i class="fas fa-check-circle text-emerald-400 text-xl check-icon hidden"></i>
     </div>
@@ -65,30 +66,30 @@
     <!-- ============================================== -->
     <section class="space-y-4 xl:col-span-1">
       <div class="panel">
-        <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> العميل</h3>
+        <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> {% trans "العميل" %}</h3>
         <div class="relative">
-          <input id="cust-search" placeholder="ابحث بالاسم أو رقم الهاتف..." class="inp pl-8">
+          <input id="cust-search" placeholder="{% trans 'ابحث بالاسم أو رقم الهاتف...' %}" class="inp pl-8">
           <i class="fas fa-search absolute left-3 top-3 text-slate-500"></i>
         </div>
         <div id="cust-results" class="mt-2 max-h-44 overflow-y-auto space-y-1"></div>
         <div class="grid grid-cols-2 gap-2 mt-3">
-          <div><label class="lbl">اسم العميل</label><input id="cust-name" class="inp"></div>
-          <div><label class="lbl">الهاتف</label><input id="cust-phone" class="inp"></div>
+          <div><label class="lbl">{% trans "اسم العميل" %}</label><input id="cust-name" class="inp"></div>
+          <div><label class="lbl">{% trans "الهاتف" %}</label><input id="cust-phone" class="inp"></div>
         </div>
-        <p id="cust-status" class="text-xs text-slate-500 mt-2">سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً.</p>
+        <p id="cust-status" class="text-xs text-slate-500 mt-2">{% trans "سيتم إنشاء عميل جديد أو ربط فاتورة بعميل موجود تلقائياً." %}</p>
       </div>
 
       <div class="panel">
-        <h3 class="text-sm font-black text-blue-300 mb-3"><i class="fas fa-car"></i> المركبة</h3>
+        <h3 class="text-sm font-black text-blue-300 mb-3"><i class="fas fa-car"></i> {% trans "المركبة" %}</h3>
         <div id="cust-vehicles" class="space-y-1 mb-3"></div>
         <div class="grid grid-cols-2 gap-2">
-          <div class="col-span-2"><label class="lbl">رقم الشاسيه (VIN)</label><input id="veh-chassis" maxlength="17" class="inp font-mono"></div>
-          <div><label class="lbl">رقم اللوحة</label><input id="veh-plate" class="inp"></div>
-          <div><label class="lbl">العداد (كم)</label><input id="veh-mileage" type="number" class="inp"></div>
-          <div><label class="lbl">الماركة</label><input id="veh-brand" value="BMW" class="inp"></div>
-          <div><label class="lbl">الموديل</label><input id="veh-model" placeholder="F30 / X5..." class="inp"></div>
+          <div class="col-span-2"><label class="lbl">{% trans "رقم الشاسيه (VIN)" %}</label><input id="veh-chassis" maxlength="17" class="inp font-mono"></div>
+          <div><label class="lbl">{% trans "رقم اللوحة" %}</label><input id="veh-plate" class="inp"></div>
+          <div><label class="lbl">{% trans "العداد (كم)" %}</label><input id="veh-mileage" type="number" class="inp"></div>
+          <div><label class="lbl">{% trans "الماركة" %}</label><input id="veh-brand" value="BMW" class="inp"></div>
+          <div><label class="lbl">{% trans "الموديل" %}</label><input id="veh-model" placeholder="F30 / X5..." class="inp"></div>
         </div>
-        <p class="text-xs text-slate-500 mt-2">اختياري — اتركه فارغاً للبيع بدون ربط مركبة.</p>
+        <p class="text-xs text-slate-500 mt-2">{% trans "اختياري — اتركه فارغاً للبيع بدون ربط مركبة." %}</p>
       </div>
     </section>
 
@@ -97,22 +98,22 @@
     <!-- ============================================== -->
     <section class="space-y-4 xl:col-span-1">
       <div class="panel">
-        <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-cogs"></i> القطع</h3>
+        <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-cogs"></i> {% trans "القطع" %}</h3>
         <div class="relative">
-          <input id="part-search" placeholder="SKU أو باركود أو اسم..." class="inp pl-8">
+          <input id="part-search" placeholder="{% trans 'SKU أو باركود أو اسم...' %}" class="inp pl-8">
           <i class="fas fa-search absolute left-3 top-3 text-slate-500"></i>
         </div>
         <div id="part-results" class="mt-2 max-h-40 overflow-y-auto space-y-1"></div>
         <div class="mt-3 max-h-60 overflow-y-auto">
           <table class="w-full text-xs">
-            <thead class="text-slate-500"><tr><th class="text-right py-1">SKU</th><th class="text-right py-1">القطعة</th><th class="text-center">الكمية</th><th class="text-left">السعر</th><th></th></tr></thead>
-            <tbody id="parts-body"><tr><td colspan="5" class="text-center py-4 text-slate-600">لم تتم إضافة قطع</td></tr></tbody>
+            <thead class="text-slate-500"><tr><th class="text-start py-1">SKU</th><th class="text-start py-1">{% trans "القطعة" %}</th><th class="text-center">{% trans "الكمية" %}</th><th class="text-end">{% trans "السعر" %}</th><th></th></tr></thead>
+            <tbody id="parts-body"><tr><td colspan="5" class="text-center py-4 text-slate-600">{% trans "لم تتم إضافة قطع" %}</td></tr></tbody>
           </table>
         </div>
       </div>
 
       <div class="panel">
-        <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tools"></i> المصنعيات / الخدمات</h3>
+        <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tools"></i> {% trans "المصنعيات / الخدمات" %}</h3>
         <div class="flex gap-2 mb-2">
           <select id="svc-select" class="inp flex-1">
             <option value="">— اختر خدمة من الكتالوج —</option>
@@ -122,8 +123,8 @@
         </div>
         <div class="max-h-44 overflow-y-auto">
           <table class="w-full text-xs">
-            <thead class="text-slate-500"><tr><th class="text-right py-1">الخدمة</th><th class="text-left">السعر</th><th></th></tr></thead>
-            <tbody id="svc-body"><tr><td colspan="3" class="text-center py-4 text-slate-600">لم تُضَف خدمات</td></tr></tbody>
+            <thead class="text-slate-500"><tr><th class="text-start py-1">{% trans "الخدمة" %}</th><th class="text-end">{% trans "السعر" %}</th><th></th></tr></thead>
+            <tbody id="svc-body"><tr><td colspan="3" class="text-center py-4 text-slate-600">{% trans "لم تُضَف خدمات" %}</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -134,48 +135,48 @@
     <!-- ============================================== -->
     <section class="space-y-4 xl:col-span-1">
       <div class="panel dvi-section" id="dvi-section">
-        <h3 class="text-sm font-black text-rose-300 mb-3"><i class="fas fa-shield-halved"></i> فحص المركبة (DVI)</h3>
-        <p class="text-xs text-slate-500 mb-3">يُحفظ فقط إذا تم ربط مركبة.</p>
+        <h3 class="text-sm font-black text-rose-300 mb-3"><i class="fas fa-shield-halved"></i> {% trans "فحص المركبة (DVI)" %}</h3>
+        <p class="text-xs text-slate-500 mb-3">{% trans "يُحفظ فقط إذا تم ربط مركبة." %}</p>
         {% for f, label in dvi_fields %}{% endfor %}
         <div id="dvi-grid" class="space-y-3">
           <!-- rows injected by JS -->
         </div>
-        <label class="lbl mt-3">ملاحظات الفني</label>
+        <label class="lbl mt-3">{% trans "ملاحظات الفني" %}</label>
         <textarea id="dvi-notes" rows="2" class="inp"></textarea>
       </div>
 
       <div class="panel">
-        <h3 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-note-sticky"></i> الشكوى والإجمالي</h3>
-        <label class="lbl">شكوى العميل / ملاحظات</label>
+        <h3 class="text-sm font-black text-slate-300 mb-3"><i class="fas fa-note-sticky"></i> {% trans "الشكوى والإجمالي" %}</h3>
+        <label class="lbl">{% trans "شكوى العميل / ملاحظات" %}</label>
         <textarea id="inv-notes" rows="2" class="inp mb-3"></textarea>
         <div class="grid grid-cols-3 gap-2">
-          <div><label class="lbl">خصم</label><input id="discount" type="number" step="0.01" value="0" class="inp"></div>
-          <div><label class="lbl">مصنعية إضافية</label><input id="labor-extra" type="number" step="0.01" value="0" class="inp"></div>
-          <div><label class="lbl">ضريبة %</label><input id="tax" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "خصم" %}</label><input id="discount" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "مصنعية إضافية" %}</label><input id="labor-extra" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "ضريبة %" %}</label><input id="tax" type="number" step="0.01" value="0" class="inp"></div>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mt-3">
           <div class="col-span-2">
-            <label class="lbl"><i class="fas fa-cash-register text-sky-300"></i> الخزنة (للسداد)</label>
+            <label class="lbl"><i class="fas fa-cash-register text-sky-300"></i> {% trans "الخزنة (للسداد)" %}</label>
             <select id="treasury" class="inp">
-              <option value="">— تأجيل الدفع (آجل) —</option>
+              <option value="">{% trans "— تأجيل الدفع (آجل) —" %}</option>
               {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
             </select>
           </div>
-          <div><label class="lbl">المدفوع الآن</label><input id="paid" type="number" step="0.01" min="0" value="0" class="inp"></div>
-          <div><label class="lbl">المتبقي</label><input id="due-display" readonly class="inp bg-slate-800 text-red-400 font-bold"></div>
+          <div><label class="lbl">{% trans "المدفوع الآن" %}</label><input id="paid" type="number" step="0.01" min="0" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "المتبقي" %}</label><input id="due-display" readonly class="inp bg-slate-800 text-red-400 font-bold"></div>
         </div>
 
         <div class="mt-4 bg-gradient-to-br from-emerald-900/30 to-purple-900/30 rounded-xl p-3 border border-emerald-500/30">
-          <div class="flex justify-between text-xs text-slate-300"><span>قطع</span><span id="t-parts">0.00</span></div>
-          <div class="flex justify-between text-xs text-slate-300"><span>خدمات</span><span id="t-svc">0.00</span></div>
-          <div class="flex justify-between text-xs text-slate-300"><span>ضريبة تقديرية</span><span id="t-tax">0.00</span></div>
-          <div class="flex justify-between mt-1"><span class="font-bold">الإجمالي</span><span id="t-total" class="text-2xl font-black text-emerald-400">0.00</span></div>
-          <button type="button" onclick="payFull()" class="w-full mt-2 text-xs font-bold text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 rounded-lg py-1.5">دفع كامل الإجمالي ⏎</button>
+          <div class="flex justify-between text-xs text-slate-300"><span>{% trans "قطع" %}</span><span id="t-parts">0.00</span></div>
+          <div class="flex justify-between text-xs text-slate-300"><span>{% trans "خدمات" %}</span><span id="t-svc">0.00</span></div>
+          <div class="flex justify-between text-xs text-slate-300"><span>{% trans "ضريبة تقديرية" %}</span><span id="t-tax">0.00</span></div>
+          <div class="flex justify-between mt-1"><span class="font-bold">{% trans "الإجمالي" %}</span><span id="t-total" class="text-2xl font-black text-emerald-400">0.00</span></div>
+          <button type="button" onclick="payFull()" class="w-full mt-2 text-xs font-bold text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 rounded-lg py-1.5">{% trans "دفع كامل الإجمالي ⏎" %}</button>
         </div>
 
         <button id="save-btn" onclick="saveJobCard()" class="w-full mt-4 bg-gradient-to-r from-emerald-600 to-purple-600 hover:from-emerald-500 hover:to-purple-500 text-white text-lg font-black py-3 rounded-xl disabled:opacity-40">
-          <i class="fas fa-paper-plane"></i> حفظ أمر الشغل
+          <i class="fas fa-paper-plane"></i> {% trans "حفظ أمر الشغل" %}
         </button>
         <p id="msg" class="text-xs text-center mt-2"></p>
       </div>
@@ -190,6 +191,21 @@ const URLS = {
   custSearch: "{% url 'inventory:job_card_customer_search' %}",
   partSearch: "{% url 'inventory:lightning_pos_search' %}",
   save:       "{% url 'inventory:job_card_save' %}",
+};
+const T = {
+  noResults:  "{% trans 'لا توجد نتائج' %}",
+  linkedCust: "{% trans 'تم ربط العميل' %}",
+  noVehicles: "{% trans 'لا توجد مركبات مسجلة — أدخل واحدة جديدة بالأسفل.' %}",
+  stock:      "{% trans 'مخزون' %}",
+  noStock:    "{% trans 'بدون مخزون.' %}",
+  maxStock:   "{% trans 'وصلت الحد الأقصى.' %}",
+  noParts:    "{% trans 'لم تتم إضافة قطع' %}",
+  noServices: "{% trans 'لم تُضَف خدمات' %}",
+  saving:     "{% trans 'جارٍ الحفظ...' %}",
+  saveFail:   "{% trans 'فشل الحفظ.' %}",
+  savedJob:   "{% trans 'تم! أمر الشغل' %}",
+  opening:    "{% trans 'جارٍ فتح الطباعة' %}",
+  netErr:     "{% trans 'خطأ في الشبكة.' %}",
 };
 
 const state = {
@@ -219,12 +235,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 
 // ------ DVI builder
 const DVI = [
-  ['brakes_status', 'الفرامل', 'fa-stop-circle'],
-  ['engine_oil_status', 'زيت المحرك', 'fa-oil-can'],
-  ['tires_status', 'الإطارات', 'fa-circle-notch'],
-  ['battery_status', 'البطارية', 'fa-car-battery'],
+  ['brakes_status', '{% trans "الفرامل" %}', 'fa-stop-circle'],
+  ['engine_oil_status', '{% trans "زيت المحرك" %}', 'fa-oil-can'],
+  ['tires_status', '{% trans "الإطارات" %}', 'fa-circle-notch'],
+  ['battery_status', '{% trans "البطارية" %}', 'fa-car-battery'],
 ];
-const COLORS = [['green','ممتاز'], ['yellow','متابعة'], ['red','تغيير فوري']];
+const COLORS = [['green','{% trans "ممتاز" %}'], ['yellow','{% trans "متابعة" %}'], ['red','{% trans "تغيير فوري" %}']];
 $('dvi-grid').innerHTML = DVI.map(([key, label, icon]) => `
   <div>
     <div class="text-xs text-slate-400 mb-1"><i class="fas ${icon}"></i> ${label}</div>
@@ -257,16 +273,16 @@ async function doCustSearch(q) {
       <b>${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
       <span class="pill bg-slate-800 text-slate-300 mr-1">${esc(c.vip)}</span>
     </div>
-  `).join('') || '<p class="text-xs text-slate-500">لا توجد نتائج</p>';
+  `).join('') || `<p class="text-xs text-slate-500">${T.noResults}</p>`;
 }
 function pickCustomer(c) {
   state.customer_id = c.id; state.vehicle_id = null;
   $('cust-name').value = c.name; $('cust-phone').value = c.phone;
-  $('cust-status').textContent = `تم ربط العميل #${c.id}`;
+  $('cust-status').textContent = `${T.linkedCust} #${c.id}`;
   $('cust-results').innerHTML = '';
   $('cust-vehicles').innerHTML = c.vehicles.length
     ? c.vehicles.map(v => `<div class="cursor-pointer bg-slate-900/60 hover:bg-blue-900/30 rounded p-2 text-xs border border-slate-700/40" onclick="pickVehicle(${v.id}, '${esc(v.plate)}', '${esc(v.chassis)}', '${esc(v.model)}')"><b>${esc(v.plate)}</b> · ${esc(v.chassis)} · ${esc(v.model)}</div>`).join('')
-    : '<p class="text-xs text-slate-500">لا توجد مركبات مسجلة — أدخل واحدة جديدة بالأسفل.</p>';
+    : `<p class="text-xs text-slate-500">${T.noVehicles}</p>`;
 }
 function pickVehicle(id, plate, chassis, model) {
   state.vehicle_id = id;
@@ -288,14 +304,14 @@ async function doPartSearch(q) {
   const data = await r.json();
   $('part-results').innerHTML = (data.results || []).map(p => `
     <div class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/30 rounded p-2 text-sm border border-slate-700/40 flex justify-between" onclick='addPart(${JSON.stringify(p)})'>
-      <span><b>${esc(p.name)}</b> <span class="text-xs text-slate-400">· ${esc(p.sku)} · مخزون ${p.stock}</span></span>
+      <span><b>${esc(p.name)}</b> <span class="text-xs text-slate-400">· ${esc(p.sku)} · ${T.stock} ${p.stock}</span></span>
       <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
-    </div>`).join('') || '<p class="text-xs text-slate-500">لا توجد نتائج</p>';
+    </div>`).join('') || `<p class="text-xs text-slate-500">${T.noResults}</p>`;
 }
 function addPart(p) {
-  if (p.stock <= 0) { flash('بدون مخزون.', 'error'); return; }
+  if (p.stock <= 0) { flash(T.noStock, 'error'); return; }
   const ex = state.parts.get(p.id);
-  if (ex) { if (ex.qty + 1 > p.stock) { flash('وصلت الحد الأقصى.', 'error'); return; } ex.qty += 1; }
+  if (ex) { if (ex.qty + 1 > p.stock) { flash(T.maxStock, 'error'); return; } ex.qty += 1; }
   else { state.parts.set(p.id, { ...p, qty: 1 }); }
   renderParts();
 }
@@ -308,7 +324,7 @@ function setPartQty(id, q) {
 function renderParts() {
   const body = $('parts-body');
   if (!state.parts.size) {
-    body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-600">لم تتم إضافة قطع</td></tr>';
+    body.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-slate-600">${T.noParts}</td></tr>`;
   } else {
     body.innerHTML = [...state.parts.values()].map(it => `
       <tr class="border-b border-slate-700/30">
@@ -319,7 +335,7 @@ function renderParts() {
           <span class="px-2 font-bold">${it.qty}</span>
           <button onclick="setPartQty(${it.id}, ${it.qty + 1})" class="px-1.5">+</button>
         </td>
-        <td class="py-1.5 text-left text-emerald-400 font-bold">${(it.price * it.qty).toFixed(2)}</td>
+        <td class="py-1.5 text-end text-emerald-400 font-bold">${(it.price * it.qty).toFixed(2)}</td>
         <td><button onclick="setPartQty(${it.id}, 0)" class="text-red-400"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -344,12 +360,12 @@ function setSvcPrice(idx, v) { state.services[idx].price = parseFloat(v) || 0; r
 function renderServices() {
   const body = $('svc-body');
   if (!state.services.length) {
-    body.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-slate-600">لم تُضَف خدمات</td></tr>';
+    body.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-slate-600">${T.noServices}</td></tr>`;
   } else {
     body.innerHTML = state.services.map((s, i) => `
       <tr class="border-b border-slate-700/30">
         <td class="py-1.5">${esc(s.name)}</td>
-        <td class="py-1.5 text-left"><input type="number" step="0.01" value="${s.price.toFixed(2)}" onchange="setSvcPrice(${i}, this.value)" class="bg-slate-900 px-2 py-1 rounded w-24 text-left"></td>
+        <td class="py-1.5 text-end"><input type="number" step="0.01" value="${s.price.toFixed(2)}" onchange="setSvcPrice(${i}, this.value)" class="bg-slate-900 px-2 py-1 rounded w-24 text-end"></td>
         <td><button onclick="removeService(${i})" class="text-red-400"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -380,7 +396,7 @@ function payFull() { $('paid').value = $('t-total').textContent; recomputeTotals
 async function saveJobCard() {
   const btn = $('save-btn');
   btn.disabled = true;
-  flash('جارٍ الحفظ...', 'info');
+  flash(T.saving, 'info');
   const branchPicker = document.getElementById('branch-picker');
   const payload = {
     invoice_type: state.invoice_type,
@@ -410,12 +426,12 @@ async function saveJobCard() {
       body: JSON.stringify(payload),
     });
     const data = await r.json();
-    if (!r.ok || !data.ok) { flash(data.error || 'فشل الحفظ.', 'error'); btn.disabled = false; return; }
-    flash(`تم! أمر الشغل #${data.invoice_id} — جارٍ فتح الطباعة`, 'success');
+    if (!r.ok || !data.ok) { flash(data.error || T.saveFail, 'error'); btn.disabled = false; return; }
+    flash(`${T.savedJob} #${data.invoice_id} — ${T.opening}`, 'success');
     window.open(data.print_url, '_blank');
     setTimeout(() => window.location.reload(), 1500);
   } catch {
-    flash('خطأ في الشبكة.', 'error');
+    flash(T.netErr, 'error');
     btn.disabled = false;
   }
 }

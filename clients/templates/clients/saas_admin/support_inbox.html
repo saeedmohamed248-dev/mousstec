@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>صندوق الدعم — Mouss Tec Super Admin</title>
+    <title>{% trans "صندوق الدعم" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,7 +16,7 @@
         h1 { color:#86efac; font-weight:900; margin:0 0 6px; }
         .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
-        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #22c55e; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #22c55e; }
         .stat.urgent { border-color:#ef4444; }
         .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
         .stat .label { color:#94a3b8; font-size:12px; }
@@ -22,7 +24,7 @@
         .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
         .tab.active { background:#16a34a; color:#fff; border-color:#86efac; }
         table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
         th { background:#0f172a; color:#86efac; font-weight:900; }
         tr:hover { background:#293548; cursor:pointer; }
         .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
@@ -40,33 +42,34 @@
     <meta http-equiv="refresh" content="60">
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / صندوق الدعم</div>
-    <h1>📨 صندوق تذاكر الدعم</h1>
-    <p class="sub">كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها على بريدك المسجل سراً.</p>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "صندوق الدعم" %}</div>
+    <h1>📨 {% trans "صندوق تذاكر الدعم" %}</h1>
+    <p class="sub">{% trans "كل رسالة من فورم اتصل بنا أو الشات خارج الدوام تظهر هنا، وتتبعث نسخة منها على بريدك المسجل سراً." %}</p>
 
     <div class="stats">
-        <div class="stat urgent"><h2>{{ count_urgent }}</h2><div class="label">🚨 تذاكر عاجلة مفتوحة</div></div>
-        <div class="stat"><h2>{{ count_open }}</h2><div class="label">📋 إجمالي مفتوح</div></div>
+        <div class="stat urgent"><h2>{{ count_urgent }}</h2><div class="label">🚨 {% trans "تذاكر عاجلة مفتوحة" %}</div></div>
+        <div class="stat"><h2>{{ count_open }}</h2><div class="label">📋 {% trans "إجمالي مفتوح" %}</div></div>
     </div>
 
     <div class="tabs">
-        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">مفتوحة</a>
-        <a class="tab {% if show == 'closed' %}active{% endif %}" href="?show=closed">مغلقة</a>
-        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">الكل</a>
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open">{% trans "مفتوحة" %}</a>
+        <a class="tab {% if show == 'closed' %}active{% endif %}" href="?show=closed">{% trans "مغلقة" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">{% trans "الكل" %}</a>
     </div>
 
     <table>
         <thead>
         <tr>
             <th>#</th>
-            <th>الوقت</th>
-            <th>المرسل</th>
-            <th>المستأجر</th>
-            <th>الموضوع</th>
-            <th>المصدر</th>
-            <th>الأولوية</th>
-            <th>الحالة</th>
+            <th>{% trans "الوقت" %}</th>
+            <th>{% trans "المرسل" %}</th>
+            <th>{% trans "المستأجر" %}</th>
+            <th>{% trans "الموضوع" %}</th>
+            <th>{% trans "المصدر" %}</th>
+            <th>{% trans "الأولوية" %}</th>
+            <th>{% trans "الحالة" %}</th>
             <th>📧</th>
         </tr>
         </thead>
@@ -82,13 +85,13 @@
             <td><span class="badge pri-{{ t.priority }}">{{ t.get_priority_display }}</span></td>
             <td><span class="badge b-{{ t.status|cut:'_' }}">{{ t.get_status_display }}</span></td>
             <td>
-                {% if t.email_delivered %}<span class="mail-mark" title="تم الإرسال">✓</span>
+                {% if t.email_delivered %}<span class="mail-mark" title="{% trans 'تم الإرسال' %}">✓</span>
                 {% elif t.email_error %}<span class="mail-fail" title="{{ t.email_error }}">✗</span>
                 {% else %}<small>...</small>{% endif %}
             </td>
         </tr>
         {% empty %}
-            <tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">📭 لا توجد تذاكر في هذا التصنيف</td></tr>
+            <tr><td colspan="9" style="text-align:center; padding:40px; color:#94a3b8;">📭 {% trans "لا توجد تذاكر في هذا التصنيف" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>

@@ -1,0 +1,14 @@
+{% load i18n %}
+{% get_current_language as CURRENT_LANG %}
+<form class="saas-lang-switch" action="{% url 'set_language' %}" method="post">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <button type="submit" name="language" value="ar" class="{% if CURRENT_LANG == 'ar' %}active{% endif %}">ع</button>
+    <button type="submit" name="language" value="en" class="{% if CURRENT_LANG == 'en' %}active{% endif %}">EN</button>
+</form>
+<style>
+    .saas-lang-switch { position:fixed; top:14px; inset-inline-end:14px; z-index:9999; display:flex; gap:4px;
+        background:rgba(15,23,42,.85); padding:4px; border-radius:8px; border:1px solid #334155; backdrop-filter:blur(4px); }
+    .saas-lang-switch button { background:transparent; color:#94a3b8; border:none; border-radius:6px;
+        padding:5px 10px; font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; min-width:32px; }
+    .saas-lang-switch button.active { background:#7c3aed; color:#fff; }
+</style>

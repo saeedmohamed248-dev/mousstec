@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>سجل التدقيق — Mouss Tec Super Admin</title>
+    <title>{% trans "سجل التدقيق" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -49,7 +51,7 @@
 
         /* Events table */
         table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
+        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
         th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; letter-spacing:0.5px; }
         tr:hover { background:#293548; }
         td.desc { color:#e2e8f0; max-width:480px; }
@@ -102,30 +104,31 @@
     </style>
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb">
-        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / سجل التدقيق
+        <a href="/superadmin/"><i class="fas fa-home"></i> {% trans "السوبر أدمن" %}</a> / {% trans "سجل التدقيق" %}
     </div>
-    <h1>📜 سجل التدقيق (Audit Log)</h1>
-    <p class="sub">كل أحداث المنصة الحساسة في مكان واحد — لمن، ومتى، وعلى أي شركة. اعمل فلتر، صدّر، حلّل.</p>
+    <h1>📜 {% trans "سجل التدقيق (Audit Log)" %}</h1>
+    <p class="sub">{% trans "كل أحداث المنصة الحساسة في مكان واحد — لمن، ومتى، وعلى أي شركة. اعمل فلتر، صدّر، حلّل." %}</p>
 
     <!-- Stats strip -->
     <div class="stats">
         <div class="stat">
             <div class="num">{{ total }}</div>
-            <div class="lbl">إجمالي الأحداث</div>
+            <div class="lbl">{% trans "إجمالي الأحداث" %}</div>
         </div>
         <div class="stat">
             <div class="num">{{ filtered_count }}</div>
-            <div class="lbl">بعد الفلتر</div>
+            <div class="lbl">{% trans "بعد الفلتر" %}</div>
         </div>
         <div class="stat">
             <div class="num">{{ top_tenants|length }}</div>
-            <div class="lbl">شركات لها أحداث</div>
+            <div class="lbl">{% trans "شركات لها أحداث" %}</div>
         </div>
         <div class="stat">
             <div class="num">{{ top_users|length }}</div>
-            <div class="lbl">مستخدمون نشطون</div>
+            <div class="lbl">{% trans "مستخدمون نشطون" %}</div>
         </div>
     </div>
 
@@ -136,38 +139,38 @@
                 <form method="get" id="filterForm">
                     <div class="filters">
                         <div>
-                            <label>نوع الحدث</label>
+                            <label>{% trans "نوع الحدث" %}</label>
                             <select name="event_type">
-                                <option value="">كل الأنواع</option>
+                                <option value="">{% trans "كل الأنواع" %}</option>
                                 {% for code, label in event_types %}
                                     <option value="{{ code }}" {% if filters.event_type == code %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div>
-                            <label>الشركة (schema)</label>
+                            <label>{% trans "الشركة (schema)" %}</label>
                             <input type="text" name="tenant" value="{{ filters.tenant }}" placeholder="qatest, fixit_new_cairo …">
                         </div>
                         <div>
-                            <label>المستخدم</label>
+                            <label>{% trans "المستخدم" %}</label>
                             <input type="text" name="user" value="{{ filters.user }}" placeholder="username">
                         </div>
                         <div>
-                            <label>من تاريخ</label>
+                            <label>{% trans "من تاريخ" %}</label>
                             <input type="date" name="from" value="{{ filters.from }}">
                         </div>
                         <div>
-                            <label>إلى تاريخ</label>
+                            <label>{% trans "إلى تاريخ" %}</label>
                             <input type="date" name="to" value="{{ filters.to }}">
                         </div>
                         <div>
-                            <label>بحث في الوصف</label>
-                            <input type="text" name="q" value="{{ filters.q }}" placeholder="كلمة …">
+                            <label>{% trans "بحث في الوصف" %}</label>
+                            <input type="text" name="q" value="{{ filters.q }}" placeholder="{% trans 'كلمة …' %}">
                         </div>
                     </div>
                     <div class="filters-actions">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> تطبيق</button>
-                        <a href="?" class="btn btn-ghost"><i class="fas fa-rotate-left"></i> إعادة تعيين</a>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> {% trans "تطبيق" %}</button>
+                        <a href="?" class="btn btn-ghost"><i class="fas fa-rotate-left"></i> {% trans "إعادة تعيين" %}</a>
                     </div>
                 </form>
             </div>
@@ -176,11 +179,11 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:140px;">الوقت</th>
-                            <th style="width:130px;">النوع</th>
-                            <th style="width:160px;">الشركة</th>
-                            <th style="width:130px;">المستخدم</th>
-                            <th>الوصف</th>
+                            <th style="width:140px;">{% trans "الوقت" %}</th>
+                            <th style="width:130px;">{% trans "النوع" %}</th>
+                            <th style="width:160px;">{% trans "الشركة" %}</th>
+                            <th style="width:130px;">{% trans "المستخدم" %}</th>
+                            <th>{% trans "الوصف" %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -211,7 +214,7 @@
                         {% empty %}
                             <tr><td colspan="5"><div class="empty">
                                 <i class="fas fa-clipboard" style="font-size:32px; color:#475569;"></i>
-                                <p>لا توجد أحداث مطابقة للفلاتر الحالية.</p>
+                                <p>{% trans "لا توجد أحداث مطابقة للفلاتر الحالية." %}</p>
                             </div></td></tr>
                         {% endfor %}
                     </tbody>
@@ -240,7 +243,7 @@
         <!-- ─── Side panel: aggregates ─── -->
         <div>
             <div class="card" style="margin-bottom:14px;">
-                <h3>📊 توزيع الأنواع</h3>
+                <h3>📊 {% trans "توزيع الأنواع" %}</h3>
                 <ul class="side-list">
                     {% for row in by_type %}
                         <li>
@@ -250,13 +253,13 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">لا توجد بيانات</li>
+                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>
 
             <div class="card" style="margin-bottom:14px;">
-                <h3>🏢 أنشط الشركات</h3>
+                <h3>🏢 {% trans "أنشط الشركات" %}</h3>
                 <ul class="side-list">
                     {% for row in top_tenants %}
                         <li>
@@ -266,13 +269,13 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">لا توجد بيانات</li>
+                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>
 
             <div class="card">
-                <h3>👤 أنشط المستخدمين</h3>
+                <h3>👤 {% trans "أنشط المستخدمين" %}</h3>
                 <ul class="side-list">
                     {% for row in top_users %}
                         <li>
@@ -280,7 +283,7 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">لا توجد بيانات</li>
+                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>

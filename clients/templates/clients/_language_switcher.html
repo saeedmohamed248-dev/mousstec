@@ -1,9 +1,9 @@
-{# 🌐 مبدّل اللغة (ع / EN) — inline styles ليعمل على أي صفحة #}
+{# 🌐 مبدّل اللغة (ع / EN) — inline styles ليعمل على أي صفحة (فاتح) #}
 {% load i18n %}
 {% get_current_language as CUR_LANG %}
-<form action="{% url 'set_language' %}" method="post" style="display:inline-flex;align-items:center;gap:2px;background:rgba(30,41,59,.6);border:1px solid rgba(71,85,105,.6);border-radius:9px;padding:3px;">
+<form action="{% url 'set_language' %}" method="post" style="display:inline-flex;align-items:center;gap:2px;background:#F5F6F8;border:1px solid #E4E7EC;border-radius:10px;padding:3px;">
     {% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">
-    <button type="submit" name="language" value="ar" style="padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;border:0;cursor:pointer;{% if CUR_LANG == 'ar' %}background:#7c3aed;color:#fff;{% else %}background:transparent;color:#94a3b8;{% endif %}">ع</button>
-    <button type="submit" name="language" value="en" style="padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;border:0;cursor:pointer;{% if CUR_LANG == 'en' %}background:#7c3aed;color:#fff;{% else %}background:transparent;color:#94a3b8;{% endif %}">EN</button>
+    <button type="submit" name="language" value="ar" style="padding:5px 10px;border-radius:7px;font-size:12px;font-weight:800;border:0;cursor:pointer;{% if CUR_LANG == 'ar' %}background:#1E2A57;color:#fff;{% else %}background:transparent;color:#6B7480;{% endif %}">ع</button>
+    <button type="submit" name="language" value="en" style="padding:5px 10px;border-radius:7px;font-size:12px;font-weight:800;border:0;cursor:pointer;{% if CUR_LANG == 'en' %}background:#1E2A57;color:#fff;{% else %}background:transparent;color:#6B7480;{% endif %}">EN</button>
 </form>

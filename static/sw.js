@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.5.0-sensor-sweep';
+const SW_VERSION   = 'v4.6.0-redirect-fix';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -42,7 +42,8 @@ self.addEventListener('install', (event) => {
             })
         );
     })());
-    // Don't auto skipWaiting — let the client decide via SKIP_WAITING message.
+    // فعّل النسخة الجديدة فورًا (إصلاح حرِج للصفحة البيضاء) بدل انتظار قفل كل التابات.
+    self.skipWaiting();
 });
 
 /* ---------- ACTIVATE ---------- */
@@ -96,12 +97,35 @@ self.addEventListener('fetch', (event) => {
         event.respondWith((async () => {
             try {
                 const fresh = await fetch(req);
-                const cache = await caches.open(RUNTIME);
-                cache.put(req, fresh.clone());
+
+                // 🚑 إصلاح الصفحة البيضاء: طلب التنقّل بيكون redirect:'manual'، فلو
+                // السيرفر عمل redirect (كوكيز الدولة/المنطقة، تسجيل دخول…) بترجع
+                // استجابة opaqueredirect غير قابلة للعرض → المتصفح يطلّع صفحة بيضا.
+                // نتابع الـ redirect ونرجّع المستند النهائي نظيف (بدون علم redirected).
+                if (fresh.type === 'opaqueredirect' || fresh.redirected) {
+                    const followed = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
+                    const buf = await followed.clone().arrayBuffer();
+                    const h = new Headers(followed.headers);
+                    h.delete('content-encoding');
+                    h.delete('content-length');
+                    return new Response(buf, {
+                        status: followed.status || 200,
+                        statusText: followed.statusText || 'OK',
+                        headers: h,
+                    });
+                }
+
+                // كاش النسخ الناجحة فقط (مش الـ redirects)
+                if (fresh.status === 200) {
+                    const cache = await caches.open(RUNTIME);
+                    cache.put(req, fresh.clone()).catch(() => {});
+                }
                 return fresh;
             } catch (_) {
                 const cached = await caches.match(req);
                 if (cached) return cached;
+                const home = await caches.match('/');
+                if (home) return home;
                 const offline = await caches.match(OFFLINE_URL);
                 return offline || new Response('Offline', { status: 503 });
             }

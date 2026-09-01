@@ -526,7 +526,10 @@ JAZZMIN_SETTINGS = {
     "site_brand": "MOUSS TEC",
     "welcome_sign": "مرحباً بك في منصة Mouss Tec — سجل بالبريد الإلكتروني",
     "copyright": "© 2026 Mouss Tec Ecosystem",
-    "search_model": ["inventory.Product", "clients.Client", "inventory.Customer"],
+    # 🔎 موديل واحد فقط في بحث الشريط العلوي — Jazzmin بيرسم مربع بحث لكل
+    #    موديل، فالقايمة كانت بتطلّع 3 مربعات. البحث الشامل متعدد الكيانات
+    #    موجود في لوحة الأوامر (Ctrl+K) داخل الداشبورد.
+    "search_model": "inventory.Product",
     "user_avatar": None,
     "show_sidebar": True,
     "navigation_expanded": True,
@@ -617,19 +620,23 @@ JAZZMIN_SETTINGS = {
     "language_chooser": False,
     "show_ui_builder": False,
     "related_modal_active": True,
+    # 🗂️ القائمة الجانبية الذكية (نظام كروت + بحث فوري) — Mouss Tec Command Center
+    "custom_css": "admin/mousstec_nav.css",
+    "custom_js": "admin/mousstec_nav.js",
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "darkly",
+    # 🎨 هوية فاتحة احترافية موحّدة (Light Enterprise) — لون أساسي كحلي هادئ
+    "theme": "flatly",
     "dark_mode_theme": None,
     "navbar_fixed": True,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-purple",
-    "accent": "accent-purple",
-    "navbar": "navbar-dark",
+    "sidebar": "sidebar-light-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
     "no_navbar_border": True,
     "body_small_text": False,
-    "brand_colour": "navbar-purple",
+    "brand_colour": "navbar-white",
     "actions_sticky_top": True,
 }
 

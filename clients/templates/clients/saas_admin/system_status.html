@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>صحة النظام — Mouss Tec Super Admin</title>
+    <title>{% trans "صحة النظام" %} — Mouss Tec Super Admin</title>
     <meta http-equiv="refresh" content="30">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -33,7 +35,7 @@
         .hero.degraded .hero-text h2 { color:#fcd34d; }
         .hero.down     .hero-text h2 { color:#fca5a5; }
         .hero-text p { margin:4px 0 0; color:#cbd5e1; font-size:13px; }
-        .hero-meta { margin-right:auto; text-align:left; font-size:11px; color:#94a3b8; }
+        .hero-meta { margin-inline-start:auto; text-align:start; font-size:11px; color:#94a3b8; }
         .hero-meta .now { font-size:18px; color:#e2e8f0; font-weight:700; }
 
         /* Checks grid */
@@ -79,7 +81,7 @@
         .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; }
         .card h3 { margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px; }
         table { width:100%; border-collapse:collapse; }
-        th, td { padding:10px 12px; text-align:right; border-bottom:1px solid #334155; font-size:12px; }
+        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #334155; font-size:12px; }
         th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
         tr:hover { background:#293548; }
         .chip {
@@ -94,12 +96,13 @@
     </style>
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb">
-        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / صحة النظام
+        <a href="/superadmin/"><i class="fas fa-home"></i> {% trans "السوبر أدمن" %}</a> / {% trans "صحة النظام" %}
     </div>
-    <h1>⚙️ صحة النظام (System Status)</h1>
-    <p class="sub">لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً.</p>
+    <h1>⚙️ {% trans "صحة النظام (System Status)" %}</h1>
+    <p class="sub">{% trans "لقطة لحظية لكل المكونات. الصفحة بتـ refresh نفسها كل 30 ثانية تلقائياً." %}</p>
 
     <!-- ─── Overall status ─── -->
     <div class="hero {{ overall }}">
@@ -110,18 +113,18 @@
         </div>
         <div class="hero-text">
             <h2>
-                {% if overall == 'ok' %}كل الأنظمة شغّالة
-                {% elif overall == 'degraded' %}في تدهور أداء
-                {% else %}🚨 يوجد عُطل{% endif %}
+                {% if overall == 'ok' %}{% trans "كل الأنظمة شغّالة" %}
+                {% elif overall == 'degraded' %}{% trans "في تدهور أداء" %}
+                {% else %}{% trans "🚨 يوجد عُطل" %}{% endif %}
             </h2>
             <p>
-                {% if overall == 'ok' %}مفيش حاجة محتاجة تدخل دلوقتي.
-                {% elif overall == 'degraded' %}بعض المكونات بتشتغل ببطء — شيك على التفاصيل تحت.
-                {% else %}مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً.{% endif %}
+                {% if overall == 'ok' %}{% trans "مفيش حاجة محتاجة تدخل دلوقتي." %}
+                {% elif overall == 'degraded' %}{% trans "بعض المكونات بتشتغل ببطء — شيك على التفاصيل تحت." %}
+                {% else %}{% trans "مكوّن واحد على الأقل واقف — راجع كل العناصر فوراً." %}{% endif %}
             </p>
         </div>
         <div class="hero-meta">
-            آخر فحص<br>
+            {% trans "آخر فحص" %}<br>
             <span class="now">{{ now|date:"H:i:s" }}</span><br>
             {{ now|date:"Y-m-d" }}
         </div>
@@ -137,10 +140,10 @@
                     <div class="detail">{{ c.detail }}</div>
                 </div>
                 <span class="pill {{ c.status }}">
-                    {% if c.status == 'ok' %}شغّال
-                    {% elif c.status == 'degraded' %}بطيء
-                    {% elif c.status == 'down' %}واقف
-                    {% else %}غير معروف{% endif %}
+                    {% if c.status == 'ok' %}{% trans "شغّال" %}
+                    {% elif c.status == 'degraded' %}{% trans "بطيء" %}
+                    {% elif c.status == 'down' %}{% trans "واقف" %}
+                    {% else %}{% trans "غير معروف" %}{% endif %}
                 </span>
             </div>
         {% endfor %}
@@ -150,41 +153,41 @@
     <div class="metrics">
         <div class="metric">
             <div class="num {% if reqs_hour > 1000 %}ok{% elif reqs_hour > 100 %}warn{% endif %}">{{ reqs_hour|default:0 }}</div>
-            <div class="lbl">طلبات في آخر ساعة</div>
+            <div class="lbl">{% trans "طلبات في آخر ساعة" %}</div>
         </div>
         <div class="metric">
             <div class="num {% if avg_resp_hour < 200 %}ok{% elif avg_resp_hour < 800 %}warn{% else %}bad{% endif %}">{{ avg_resp_hour|default:0 }}<span style="font-size:14px;color:#64748b;">ms</span></div>
-            <div class="lbl">متوسط زمن الاستجابة</div>
+            <div class="lbl">{% trans "متوسط زمن الاستجابة" %}</div>
         </div>
         <div class="metric">
             <div class="num ok">{{ active_5m|default:0 }}</div>
-            <div class="lbl">زوار نشطون (آخر 5 دقايق)</div>
+            <div class="lbl">{% trans "زوار نشطون (آخر 5 دقايق)" %}</div>
         </div>
         <div class="metric">
             <div class="num {% if errors_hour and errors_hour > 5 %}bad{% elif errors_hour and errors_hour > 0 %}warn{% endif %}">{{ errors_hour|default:0 }}</div>
-            <div class="lbl">أخطاء في آخر ساعة</div>
+            <div class="lbl">{% trans "أخطاء في آخر ساعة" %}</div>
         </div>
     </div>
 
     {% if unresolved_errors %}
     <div style="background:#dc262611; border:1px solid #dc262644; padding:12px 16px; border-radius:10px; margin-bottom:18px;">
         <i class="fas fa-bell" style="color:#fca5a5;"></i>
-        <strong style="color:#fca5a5;">{{ unresolved_errors }}</strong> خطأ غير محلول في
-        <a href="/superadmin/errors/" style="color:#a78bfa;">سجل الأخطاء</a> — راجعهم.
+        <strong style="color:#fca5a5;">{{ unresolved_errors }}</strong> {% trans "خطأ غير محلول في" %}
+        <a href="/superadmin/errors/" style="color:#a78bfa;">{% trans "سجل الأخطاء" %}</a> — {% trans "راجعهم." %}
     </div>
     {% endif %}
 
     <!-- ─── Slowest requests last hour ─── -->
     <div class="card">
-        <h3>🐢 أبطأ 10 طلبات (آخر ساعة)</h3>
+        <h3>🐢 {% trans "أبطأ 10 طلبات (آخر ساعة)" %}</h3>
         <table>
             <thead>
                 <tr>
-                    <th style="width:90px;">الوقت</th>
-                    <th>المسار</th>
-                    <th style="width:120px;">الشركة</th>
-                    <th style="width:80px;">الحالة</th>
-                    <th style="width:100px;">المدة</th>
+                    <th style="width:90px;">{% trans "الوقت" %}</th>
+                    <th>{% trans "المسار" %}</th>
+                    <th style="width:120px;">{% trans "الشركة" %}</th>
+                    <th style="width:80px;">{% trans "الحالة" %}</th>
+                    <th style="width:100px;">{% trans "المدة" %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -201,13 +204,13 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">لا توجد بيانات في آخر ساعة.</td></tr>
+                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">{% trans "لا توجد بيانات في آخر ساعة." %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <p class="auto-refresh"><i class="fas fa-rotate"></i> الصفحة بتـ refresh تلقائياً كل 30 ثانية</p>
+    <p class="auto-refresh"><i class="fas fa-rotate"></i> {% trans "الصفحة بتـ refresh تلقائياً كل 30 ثانية" %}</p>
 </div>
 </body>
 </html>

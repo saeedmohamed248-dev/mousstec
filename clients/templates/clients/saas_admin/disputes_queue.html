@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>مركز النزاعات — Mouss Tec Super Admin</title>
+    <title>{% trans "مركز النزاعات" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,7 +16,7 @@
         h1 { color:#f472b6; font-weight:900; margin:0 0 6px; }
         .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
-        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #f472b6; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #f472b6; }
         .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
         .stat .label { color:#94a3b8; font-size:12px; }
         .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
@@ -22,7 +24,7 @@
         .tab.active { background:#ec4899; color:#fff; border-color:#f472b6; }
         .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
         .alert.err { background:#dc2626; }
-        .ticket { background:#1e293b; border-radius:12px; padding:18px; margin-bottom:14px; border-right:4px solid #ec4899; }
+        .ticket { background:#1e293b; border-radius:12px; padding:18px; margin-bottom:14px; border-inline-end:4px solid #ec4899; }
         .ticket-head { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:10px; }
         .ticket-code { font-family:monospace; font-size:11px; color:#94a3b8; }
         .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; }
@@ -52,10 +54,11 @@
     </style>
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / مركز النزاعات</div>
-    <h1>⚖️ مركز فضّ النزاعات</h1>
-    <p class="sub">المبلغ مجمّد في الـ Escrow لحين قرارك. اختر "رد للمشتري"، "تحرير للبائع"، أو "تسوية جزئية".</p>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "مركز النزاعات" %}</div>
+    <h1>⚖️ {% trans "مركز فضّ النزاعات" %}</h1>
+    <p class="sub">{% trans 'المبلغ مجمّد في الـ Escrow لحين قرارك. اختر "رد للمشتري"، "تحرير للبائع"، أو "تسوية جزئية".' %}</p>
 
     {% if messages %}
         {% for m in messages %}
@@ -64,13 +67,13 @@
     {% endif %}
 
     <div class="stats">
-        <div class="stat"><h2>{{ count_open }}</h2><div class="label">⏳ نزاعات مفتوحة</div></div>
+        <div class="stat"><h2>{{ count_open }}</h2><div class="label">⏳ {% trans "نزاعات مفتوحة" %}</div></div>
     </div>
 
     <div class="filters">
-        <a class="tab {% if show == 'open' %}active{% endif %}"     href="?show=open">⏳ مفتوحة</a>
-        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">✅ محلولة</a>
-        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📋 الكل</a>
+        <a class="tab {% if show == 'open' %}active{% endif %}"     href="?show=open">⏳ {% trans "مفتوحة" %}</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved">✅ {% trans "محلولة" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📋 {% trans "الكل" %}</a>
     </div>
 
     {% if tickets %}
@@ -79,7 +82,7 @@
             <div class="ticket-head">
                 <div>
                     <span class="badge b-{{ t.status }}">{{ t.get_status_display }}</span>
-                    <span class="opener"> فتحه: {{ t.get_opened_by_role_display }} —
+                    <span class="opener"> {% trans "فتحه:" %} {{ t.get_opened_by_role_display }} —
                         {% if t.opened_by_customer %}
                             {{ t.opened_by_customer.full_name }}
                         {% elif t.opened_by_tenant %}
@@ -91,12 +94,12 @@
             </div>
 
             <div class="meta">
-                <div><label>الطلب:</label> <strong>{{ t.order.order_code }}</strong></div>
-                <div><label>المبلغ:</label> <strong>{{ t.order.amount_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></div>
-                <div><label>الفئة:</label> <strong>{{ t.get_category_display }}</strong></div>
-                <div><label>حالة الطلب وقت الفتح:</label> <strong>{{ t.order_status_at_open|default:"—" }}</strong></div>
-                <div><label>القطعة:</label> <strong>{{ t.order.listing.title|truncatechars:40 }}</strong></div>
-                <div><label>تاريخ الفتح:</label> <strong>{{ t.opened_at|date:"Y-m-d H:i" }}</strong></div>
+                <div><label>{% trans "الطلب:" %}</label> <strong>{{ t.order.order_code }}</strong></div>
+                <div><label>{% trans "المبلغ:" %}</label> <strong>{{ t.order.amount_paid }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></div>
+                <div><label>{% trans "الفئة:" %}</label> <strong>{{ t.get_category_display }}</strong></div>
+                <div><label>{% trans "حالة الطلب وقت الفتح:" %}</label> <strong>{{ t.order_status_at_open|default:"—" }}</strong></div>
+                <div><label>{% trans "القطعة:" %}</label> <strong>{{ t.order.listing.title|truncatechars:40 }}</strong></div>
+                <div><label>{% trans "تاريخ الفتح:" %}</label> <strong>{{ t.opened_at|date:"Y-m-d H:i" }}</strong></div>
             </div>
 
             <div class="desc">{{ t.description }}</div>
@@ -106,47 +109,47 @@
                 <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="refund">
-                    <label>سبب الإرجاع:</label>
+                    <label>{% trans "سبب الإرجاع:" %}</label>
                     <select name="return_reason">
-                        <option value="defective">معيبة</option>
-                        <option value="incorrect">مختلفة</option>
-                        <option value="not_as_described">غير مطابق</option>
-                        <option value="never_arrived">لم تصل</option>
-                        <option value="buyer_remorse">تراجع المشتري</option>
+                        <option value="defective">{% trans "معيبة" %}</option>
+                        <option value="incorrect">{% trans "مختلفة" %}</option>
+                        <option value="not_as_described">{% trans "غير مطابق" %}</option>
+                        <option value="never_arrived">{% trans "لم تصل" %}</option>
+                        <option value="buyer_remorse">{% trans "تراجع المشتري" %}</option>
                     </select>
-                    <input type="text" name="notes" placeholder="ملاحظات" maxlength="500">
-                    <button class="btn btn-refund" type="submit"><i class="fa fa-undo"></i> رد للمشتري</button>
+                    <input type="text" name="notes" placeholder="{% trans 'ملاحظات' %}" maxlength="500">
+                    <button class="btn btn-refund" type="submit"><i class="fa fa-undo"></i> {% trans "رد للمشتري" %}</button>
                 </form>
 
                 <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="release">
-                    <input type="text" name="notes" placeholder="ملاحظات" maxlength="500">
-                    <button class="btn btn-release" type="submit"><i class="fa fa-check"></i> تحرير للبائع</button>
+                    <input type="text" name="notes" placeholder="{% trans 'ملاحظات' %}" maxlength="500">
+                    <button class="btn btn-release" type="submit"><i class="fa fa-check"></i> {% trans "تحرير للبائع" %}</button>
                 </form>
 
                 <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="split">
-                    <label>مبلغ الإرجاع:</label>
+                    <label>{% trans "مبلغ الإرجاع:" %}</label>
                     <input type="number" name="refund_amount" step="0.01" min="0.01" max="{{ t.order.amount_paid }}" required>
                     <select name="return_reason">
-                        <option value="not_as_described">غير مطابق</option>
-                        <option value="defective">معيبة</option>
+                        <option value="not_as_described">{% trans "غير مطابق" %}</option>
+                        <option value="defective">{% trans "معيبة" %}</option>
                     </select>
-                    <button class="btn btn-split" type="submit"><i class="fa fa-scale-balanced"></i> تسوية جزئية</button>
+                    <button class="btn btn-split" type="submit"><i class="fa fa-scale-balanced"></i> {% trans "تسوية جزئية" %}</button>
                 </form>
 
                 <form method="post" action="{% url 'saas_dispute_resolve' t.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="cancel">
-                    <button class="btn btn-cancel" type="submit"><i class="fa fa-times"></i> إلغاء</button>
+                    <button class="btn btn-cancel" type="submit"><i class="fa fa-times"></i> {% trans "إلغاء" %}</button>
                 </form>
             </div>
             {% elif t.resolution_notes %}
-                <div class="desc" style="border-right:3px solid #22c55e">
-                    <strong>قرار الإدارة:</strong> {{ t.resolution_notes }}
-                    {% if t.resolved_at %}<br><small>تم في: {{ t.resolved_at|date:"Y-m-d H:i" }}</small>{% endif %}
+                <div class="desc" style="border-inline-end:3px solid #22c55e">
+                    <strong>{% trans "قرار الإدارة:" %}</strong> {{ t.resolution_notes }}
+                    {% if t.resolved_at %}<br><small>{% trans "تم في:" %} {{ t.resolved_at|date:"Y-m-d H:i" }}</small>{% endif %}
                 </div>
             {% endif %}
         </div>
@@ -154,7 +157,7 @@
     {% else %}
         <div class="empty">
             <i class="fa fa-peace" style="font-size:48px;color:#22c55e"></i>
-            <p>لا توجد نزاعات في هذه القائمة.</p>
+            <p>{% trans "لا توجد نزاعات في هذه القائمة." %}</p>
         </div>
     {% endif %}
 </div>

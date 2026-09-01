@@ -1,4 +1,5 @@
 {% extends "inventory/_base_portal.html" %}
+{% load i18n %}
 {% block title %}⚡ Lightning POS{% endblock %}
 {% block extra_head %}
 <style>
@@ -17,7 +18,7 @@
   {% if branches %}
   <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2">
     <i class="fas fa-code-branch text-amber-300"></i>
-    <label class="text-xs font-bold text-amber-300">الفرع:</label>
+    <label class="text-xs font-bold text-amber-300">{% trans "الفرع:" %}</label>
     <select id="branch-picker" class="bg-slate-900 text-white text-sm px-2 py-1 rounded border border-slate-700">
       {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
     </select>
@@ -30,25 +31,25 @@
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
       <div class="relative">
         <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
-        <input id="search" autofocus type="text" placeholder="ابحث برقم القطعة (SKU) أو الباركود أو الاسم..."
+        <input id="search" autofocus type="text" placeholder="{% trans 'ابحث برقم القطعة (SKU) أو الباركود أو الاسم...' %}"
                class="w-full bg-slate-900 text-white text-lg font-bold px-12 py-4 rounded-xl border-2 border-purple-500/40 focus:border-purple-400 focus:outline-none pulse-ring">
       </div>
       <div id="results" class="mt-3 max-h-72 overflow-y-auto space-y-2"></div>
     </div>
 
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
-      <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-shopping-cart"></i> السلة</h3>
+      <h3 class="text-sm font-black text-purple-300 mb-3"><i class="fas fa-shopping-cart"></i> {% trans "السلة" %}</h3>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="text-slate-400 text-xs">
             <tr class="border-b border-slate-700/50">
-              <th class="text-right py-2">SKU</th><th class="text-right py-2">القطعة</th>
-              <th class="text-center py-2">الكمية</th><th class="text-left py-2">السعر</th>
-              <th class="text-left py-2">الإجمالي</th><th></th>
+              <th class="text-start py-2">SKU</th><th class="text-start py-2">{% trans "القطعة" %}</th>
+              <th class="text-center py-2">{% trans "الكمية" %}</th><th class="text-end py-2">{% trans "السعر" %}</th>
+              <th class="text-end py-2">{% trans "الإجمالي" %}</th><th></th>
             </tr>
           </thead>
           <tbody id="cart-body">
-            <tr><td colspan="6" class="text-center py-8 text-slate-600">السلة فارغة — ابدأ بالبحث عن قطعة</td></tr>
+            <tr><td colspan="6" class="text-center py-8 text-slate-600">{% trans "السلة فارغة — ابدأ بالبحث عن قطعة" %}</td></tr>
           </tbody>
         </table>
       </div>
@@ -57,33 +58,33 @@
 
   <aside class="space-y-4">
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
-      <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> العميل</h3>
-      <input id="cust-name" type="text" placeholder="اسم العميل (اختياري)" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
-      <input id="cust-phone" type="tel" placeholder="رقم الهاتف (اختياري)" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
-      <p class="text-xs text-slate-500 mt-2">اتركهما فارغين للبيع كـ "عميل نقدي".</p>
+      <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> {% trans "العميل" %}</h3>
+      <input id="cust-name" type="text" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
+      <input id="cust-phone" type="tel" placeholder="{% trans 'رقم الهاتف (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+      <p class="text-xs text-slate-500 mt-2">{% trans 'اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
     </div>
 
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
-      <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> الدفع</h3>
-      <label class="block text-xs font-bold text-slate-300 mb-1">الخزنة</label>
+      <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> {% trans "الدفع" %}</h3>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الخزنة" %}</label>
       <select id="treasury" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-3 focus:border-sky-400 focus:outline-none">
-        <option value="">— تأجيل الدفع (آجل) —</option>
+        <option value="">{% trans "— تأجيل الدفع (آجل) —" %}</option>
         {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
       </select>
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="block text-xs font-bold text-slate-300 mb-1">خصم</label><input id="discount" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
-        <div><label class="block text-xs font-bold text-slate-300 mb-1">المدفوع</label><input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
+        <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "خصم" %}</label><input id="discount" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
+        <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المدفوع" %}</label><input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 focus:border-sky-400"></div>
       </div>
     </div>
 
     <div class="bg-gradient-to-br from-purple-900/40 to-emerald-900/30 rounded-2xl p-5 border border-purple-500/30">
-      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>عدد القطع</span><span id="cart-count">0</span></div>
-      <div class="flex justify-between text-slate-300 text-xs mb-1"><span>الإجمالي قبل الخصم</span><span id="t-sub">0.00</span></div>
-      <div class="flex justify-between items-baseline mb-2"><span class="text-slate-300 text-sm">الإجمالي بعد الخصم</span><span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span></div>
-      <div class="flex justify-between text-xs"><span class="text-slate-400">المدفوع</span><span id="t-paid" class="text-emerald-300 font-bold">0.00</span></div>
-      <div class="flex justify-between text-xs mb-4"><span class="text-slate-400">المتبقي على العميل</span><span id="t-due" class="text-red-400 font-bold">0.00</span></div>
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد القطع" %}</span><span id="cart-count">0</span></div>
+      <div class="flex justify-between text-slate-300 text-xs mb-1"><span>{% trans "الإجمالي قبل الخصم" %}</span><span id="t-sub">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-2"><span class="text-slate-300 text-sm">{% trans "الإجمالي بعد الخصم" %}</span><span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span></div>
+      <div class="flex justify-between text-xs"><span class="text-slate-400">{% trans "المدفوع" %}</span><span id="t-paid" class="text-emerald-300 font-bold">0.00</span></div>
+      <div class="flex justify-between text-xs mb-4"><span class="text-slate-400">{% trans "المتبقي على العميل" %}</span><span id="t-due" class="text-red-400 font-bold">0.00</span></div>
       <button id="checkout" class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>
-        <i class="fas fa-print"></i> اعتماد وطباعة
+        <i class="fas fa-print"></i> {% trans "اعتماد وطباعة" %}
       </button>
       <p id="msg" class="text-xs text-center mt-3"></p>
     </div>
@@ -111,14 +112,14 @@ async function doSearch(q) {
   const data = await r.json();
   $('results').innerHTML = (data.results || []).map(p => `
     <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${JSON.stringify(p)})'>
-      <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">مخزون: ${p.stock}</span></p></div>
+      <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">{% trans "مخزون:" %} ${p.stock}</span></p></div>
       <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
-    </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">لا توجد نتائج</p>';
+    </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">{% trans "لا توجد نتائج" %}</p>';
 }
 function addToCart(p) {
-  if (p.stock <= 0) { flash('هذه القطعة بدون مخزون.', 'error'); return; }
+  if (p.stock <= 0) { flash('{% trans "هذه القطعة بدون مخزون." %}', 'error'); return; }
   const ex = cart.get(p.id);
-  if (ex) { if (ex.qty + 1 > p.stock) { flash('وصلت الحد الأقصى للمخزون.', 'error'); return; } ex.qty += 1; }
+  if (ex) { if (ex.qty + 1 > p.stock) { flash('{% trans "وصلت الحد الأقصى للمخزون." %}', 'error'); return; } ex.qty += 1; }
   else { cart.set(p.id, { ...p, qty: 1 }); }
   renderCart();
 }
@@ -131,15 +132,15 @@ function setQty(id, qty) {
 function renderCart() {
   const body = $('cart-body');
   if (!cart.size) {
-    body.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-600">السلة فارغة</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-600">{% trans "السلة فارغة" %}</td></tr>';
   } else {
     body.innerHTML = [...cart.values()].map(it => `
       <tr class="border-b border-slate-700/30">
         <td class="py-2 font-mono text-xs text-slate-400">${esc(it.sku)}</td>
         <td class="py-2 font-bold">${esc(it.name)}</td>
         <td class="py-2 text-center"><div class="inline-flex items-center bg-slate-900 rounded-lg overflow-hidden"><button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty - 1})">−</button><span class="px-3 font-bold">${it.qty}</span><button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty + 1})">+</button></div></td>
-        <td class="py-2 text-left">${it.price.toFixed(2)}</td>
-        <td class="py-2 text-left font-bold text-emerald-400">${(it.price * it.qty).toFixed(2)}</td>
+        <td class="py-2 text-end">${it.price.toFixed(2)}</td>
+        <td class="py-2 text-end font-bold text-emerald-400">${(it.price * it.qty).toFixed(2)}</td>
         <td class="py-2"><button class="text-red-400 hover:text-red-300" onclick="setQty(${it.id}, 0)"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -161,7 +162,7 @@ function recomputeTotals() {
 $('cart-total').addEventListener('click', () => { $('paid').value = $('cart-total').textContent; recomputeTotals(); });
 $('checkout').addEventListener('click', async () => {
   $('checkout').disabled = true;
-  flash('جارٍ الاعتماد...', 'info');
+  flash('{% trans "جارٍ الاعتماد..." %}', 'info');
   const branchPicker = document.getElementById('branch-picker');
   const payload = { customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
     branch_id: branchPicker ? branchPicker.value : null,
@@ -172,12 +173,12 @@ $('checkout').addEventListener('click', async () => {
   try {
     const r = await fetch(URLS.checkout, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });
     const data = await r.json();
-    if (!r.ok || !data.ok) { flash(data.error || 'فشل الاعتماد.', 'error'); $('checkout').disabled = false; return; }
-    flash(`تم! فاتورة #${data.invoice_id} — جارٍ الطباعة`, 'success');
+    if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الاعتماد." %}', 'error'); $('checkout').disabled = false; return; }
+    flash(`{% trans "تم! فاتورة" %} #${data.invoice_id} — {% trans "جارٍ الطباعة" %}`, 'success');
     window.open(data.print_url, '_blank');
     cart.clear(); renderCart();
     $('cust-name').value = ''; $('cust-phone').value = ''; $('search').focus();
-  } catch { flash('خطأ في الشبكة.', 'error'); $('checkout').disabled = false; }
+  } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('checkout').disabled = false; }
 });
 function flash(msg, type) { const el = $('msg'); el.textContent = msg; el.className = 'text-xs text-center mt-3 ' + ({error:'text-red-400',success:'text-emerald-400',info:'text-slate-300'}[type] || ''); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
