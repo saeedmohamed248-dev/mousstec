@@ -872,8 +872,14 @@ msgstr "Find the spare parts you need and compare prices from all approved deale
 msgid "ابحث في السوق المشترك"
 msgstr "Search the shared marketplace"
 
+msgid "ابدأ تجربتك المجانية"
+msgstr "Start your free trial"
+
 msgid "ابدأ تجربتك المجانية الآن"
 msgstr "Start your free trial now"
+
+msgid "ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تدير مركزك بكفاءة"
+msgstr "Start your free trial today and see how we can help you run your center efficiently"
 
 msgid "ابدأ تجربتك مع AI Studio"
 msgstr "Start your AI Studio trial"
@@ -1339,6 +1345,9 @@ msgstr "Changes to prices/features are controlled by the Rollout option below."
 
 msgid "التفاصيل"
 msgstr "Details"
+
+msgid "التقارير"
+msgstr "Reports"
 
 msgid "التقارير الذكية"
 msgstr "Smart reports"
@@ -3307,6 +3316,9 @@ msgstr "Diagnostic session without a card"
 
 msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً %(days)s ايام ثم اختر باقتك."
 msgstr "Every plan includes full accounting, smart reports, and invoicing. Try %(days)s days free, then pick your plan."
+
+msgid "جميع المميزات التي تحتاجها"
+msgstr "All the features you need"
 
 msgid "جنيه / شهر"
 msgstr "per month"
@@ -5915,6 +5927,9 @@ msgstr "AI-assisted (AI + manual edit)"
 msgid "مساعد ذكي مدرَّب على قاعدة معرفتك وكتالوجات الصيانة — إجابات فورية بالعربي عن أي عطل أو قطعة، بدون انتظار توكيلات الخارج."
 msgstr "A smart assistant trained on your knowledge base and repair catalogs — instant Arabic answers about any fault or part, no waiting on overseas dealers."
 
+msgid "مساعد ذكي يحلل بياناتك ويعطيك توصيات بناءً على الذكاء الاصطناعي لتحسين أداء مركزك."
+msgstr "A smart assistant that analyzes your data and gives AI-based recommendations to improve your center's performance."
+
 msgid "مساعد ذكي يرد على عملاء المطبعة فوراً 24/7 — معرفة كاملة بكتالوجك وأسعارك وأوقات التسليم."
 msgstr "A smart assistant that answers print-shop customers instantly 24/7 — full knowledge of your catalog, prices and delivery times."
 
@@ -6281,6 +6296,9 @@ msgstr "From"
 msgid "من إجمالي الشركات في الـ DB"
 msgstr "of total companies in the DB"
 
+msgid "من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه لإدارة مركزك بكفاءة"
+msgstr "From invoices and inventory to financial reports and AI — everything you need to run your center efficiently"
+
 msgid "من المتصفح · بدون أجهزة إضافية · يعمل أوفلاين"
 msgstr "From the browser · no extra hardware · works offline"
 
@@ -6485,8 +6503,23 @@ msgstr "System"
 msgid "نظام إدارة مراكز الصيانة وتجار قطع الغيار"
 msgstr "Management system for service centers and spare-parts dealers"
 
+msgid "نظام إدارة ورش ذكي"
+msgstr "Smart workshop management system"
+
 msgid "نظام الاضافات المرنة"
 msgstr "Flexible add-ons"
+
+msgid "نظام تقارير متطور يعطيك رؤية شاملة عن نشاطك مع رسوم بيانية وتصدير سهل."
+msgstr "An advanced reporting system that gives you a full view of your business with charts and easy export."
+
+msgid "نظام فواتير متطور يدعم المبيعات والمشتريات والمذكرات الدائنة والمدينة مع حسابات ضريبية دقيقة وترقيم آلي منظم."
+msgstr "An advanced invoicing system supporting sales, purchases, and credit and debit notes with accurate tax calculations and organized automatic numbering."
+
+msgid "نظام محاسبة متقدم يتبع معايير المحاسبة الدولية مع دعم حسابات مقابلة وموازنات شاملة."
+msgstr "An advanced accounting system that follows international accounting standards, with contra accounts and comprehensive balances."
+
+msgid "نظام مخزون متقدم يتابع الرصيد الحالي، يحذرك من الأصناف الناقصة، ويدعم التصنيفات المتعددة والباركود."
+msgstr "An advanced inventory system that tracks current stock, alerts you to low items, and supports multiple categories and barcodes."
 
 msgid "نفاد تام"
 msgstr "Out of stock"

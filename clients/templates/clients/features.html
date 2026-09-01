@@ -45,36 +45,36 @@
         <!-- Hero Section -->
         <div class="text-center mb-16 pt-8">
             <span class="inline-flex items-center gap-2 bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
-                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> جميع المميزات التي تحتاجها
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> {% trans \"جميع المميزات التي تحتاجها\" %}
             </span>
             <h1 class="text-5xl lg:text-6xl font-black text-white leading-tight mb-4">
-                نظام إدارة ورش ذكي
+                {% trans \"نظام إدارة ورش ذكي\" %}
                 <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> {% trans "متكامل" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-3xl mx-auto mb-8">
-                من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه لإدارة مركزك بكفاءة
+                {% trans \"من الفواتير والمخزون إلى التقارير المالية والذكاء الاصطناعي — كل ما تحتاجه لإدارة مركزك بكفاءة\" %}
             </p>
             <a href="/pricing/" class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/30">
-                <i class="fas fa-check-circle"></i> ابدأ تجربتك المجانية
+                <i class="fas fa-check-circle"></i> {% trans \"ابدأ تجربتك المجانية\" %}
             </a>
         </div>
 
         <!-- Sections Navigation -->
         <div class="flex justify-center items-center gap-3 mb-16 flex-wrap">
             <a href="#invoices" class="px-4 py-2 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25 transition text-sm font-bold">
-                <i class="fas fa-receipt ml-1"></i> الفواتير
+                <i class="fas fa-receipt ml-1"></i> {% trans \"الفواتير\" %}
             </a>
             <a href="#inventory" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
-                <i class="fas fa-boxes ml-1"></i> المخزون
+                <i class="fas fa-boxes ml-1"></i> {% trans \"المخزون\" %}
             </a>
             <a href="#accounting" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
-                <i class="fas fa-book ml-1"></i> المحاسبة
+                <i class="fas fa-book ml-1"></i> {% trans \"المحاسبة\" %}
             </a>
             <a href="#reports" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
-                <i class="fas fa-chart-line ml-1"></i> التقارير
+                <i class="fas fa-chart-line ml-1"></i> {% trans \"التقارير\" %}
             </a>
             <a href="#ai" class="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600 transition text-sm font-bold">
-                <i class="fas fa-brain ml-1"></i> الذكاء الاصطناعي
+                <i class="fas fa-brain ml-1"></i> {% trans \"الذكاء الاصطناعي\" %}
             </a>
         </div>
 
@@ -93,7 +93,7 @@
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
-                    نظام فواتير متطور يدعم المبيعات والمشتريات والمذكرات الدائنة والمدينة مع حسابات ضريبية دقيقة وترقيم آلي منظم.
+                    {% trans \"نظام فواتير متطور يدعم المبيعات والمشتريات والمذكرات الدائنة والمدينة مع حسابات ضريبية دقيقة وترقيم آلي منظم.\" %}
                 </p>
             </div>
 
@@ -146,7 +146,7 @@
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
-                    نظام مخزون متقدم يتابع الرصيد الحالي، يحذرك من الأصناف الناقصة، ويدعم التصنيفات المتعددة والباركود.
+                    {% trans \"نظام مخزون متقدم يتابع الرصيد الحالي، يحذرك من الأصناف الناقصة، ويدعم التصنيفات المتعددة والباركود.\" %}
                 </p>
             </div>
 
@@ -199,7 +199,7 @@
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
-                    نظام محاسبة متقدم يتبع معايير المحاسبة الدولية مع دعم حسابات مقابلة وموازنات شاملة.
+                    {% trans \"نظام محاسبة متقدم يتبع معايير المحاسبة الدولية مع دعم حسابات مقابلة وموازنات شاملة.\" %}
                 </p>
             </div>
 
@@ -252,7 +252,7 @@
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
-                    نظام تقارير متطور يعطيك رؤية شاملة عن نشاطك مع رسوم بيانية وتصدير سهل.
+                    {% trans \"نظام تقارير متطور يعطيك رؤية شاملة عن نشاطك مع رسوم بيانية وتصدير سهل.\" %}
                 </p>
             </div>
 
@@ -305,7 +305,7 @@
                     </div>
                 </div>
                 <p class="text-slate-300 text-lg mb-8 leading-relaxed">
-                    مساعد ذكي يحلل بياناتك ويعطيك توصيات بناءً على الذكاء الاصطناعي لتحسين أداء مركزك.
+                    {% trans \"مساعد ذكي يحلل بياناتك ويعطيك توصيات بناءً على الذكاء الاصطناعي لتحسين أداء مركزك.\" %}
                 </p>
             </div>
 
@@ -495,14 +495,14 @@
         <section class="section-glow rounded-3xl p-12 text-center mb-0">
             <h2 class="text-4xl font-black text-white mb-4">{% trans "جاهز لتجربة Mouss Tec؟" %}</h2>
             <p class="text-slate-400 text-lg mb-8 max-w-2xl mx-auto">
-                ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تدير مركزك بكفاءة
+                {% trans \"ابدأ تجربتك المجانية اليوم وشوف كيف نقدر نساعدك تدير مركزك بكفاءة\" %}
             </p>
             <div class="flex items-center justify-center gap-4 flex-wrap">
                 <a href="/pricing/" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black px-8 py-3 rounded-xl transition shadow-lg shadow-purple-500/30">
-                    <i class="fas fa-check-circle ml-2"></i> ابدأ مجاناً
+                    <i class="fas fa-check-circle ml-2"></i> {% trans \"ابدأ مجاناً\" %}
                 </a>
                 <a href="/secure-portal/login/" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 rounded-xl transition">
-                    <i class="fas fa-sign-in-alt ml-2"></i> دخول
+                    <i class="fas fa-sign-in-alt ml-2"></i> {% trans \"دخول\" %}
                 </a>
             </div>
         </section>
