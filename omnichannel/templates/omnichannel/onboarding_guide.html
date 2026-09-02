@@ -1,0 +1,252 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل تفعيل الرد الآلي (واتساب + ماسنجر) | Mouss Tec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
+  body { font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
+  .step-num { background:var(--navy); }
+  .prose-guide h3 { color:var(--navy); }
+  .tip { border-inline-start:4px solid var(--gold); background:#fff8ec; }
+  .warn { border-inline-start:4px solid #dc2626; background:#fef2f2; }
+  .ok { border-inline-start:4px solid #16a34a; background:#f0fdf4; }
+  code, .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .copybox { background:#0f2c4c; color:#e2e8f0; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Hero -->
+<header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <div class="max-w-4xl mx-auto px-6 py-12">
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · الأتمتة متعددة القنوات</p>
+    <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
+      خلّي مساعدك الذكي يرد على عملائك تلقائياً على واتساب وماسنجر 🤖💬
+    </h1>
+    <p class="mt-4 text-lg opacity-90 leading-relaxed">
+      هذا الدليل يشرح — خطوة بخطوة وبالصور المبسّطة — كيف تربط رقم واتساب بيزنس وصفحة ماسنجر
+      الخاصة بشركتك بنظام Mouss Tec، بحيث يقرأ المساعد مخزونك وأسعارك ويرد على استفسارات
+      عملائك بشكل فوري ودقيق، على مدار الساعة.
+    </p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a href="{{ settings_url }}" class="bg-white text-[#0f2c4c] font-bold px-5 py-3 rounded-xl hover:bg-slate-100 transition">
+        ← الذهاب لشاشة الإعدادات
+      </a>
+      <span class="bg-white/10 border border-white/20 px-5 py-3 rounded-xl">⏱️ وقت التنفيذ التقريبي: 20 دقيقة</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-10 prose-guide">
+
+  <!-- What you'll need -->
+  <section class="bg-white rounded-2xl shadow-sm p-6 mb-8">
+    <h2 class="text-xl font-black text-[#0f2c4c] mb-4">🧾 قبل أن نبدأ — ماذا ستحتاج؟</h2>
+    <ul class="space-y-2 text-slate-700 leading-relaxed">
+      <li>✅ حساب على <strong>Facebook</strong> (يُفضّل حساب مسؤول الشركة).</li>
+      <li>✅ رقم هاتف <strong>غير مسجّل حالياً على تطبيق واتساب العادي</strong> (سيصبح رقم واتساب بيزنس الرسمي).</li>
+      <li>✅ صفحة <strong>فيسبوك</strong> لنشاطك التجاري (لتفعيل ماسنجر).</li>
+      <li>✅ بطاقة ائتمانية (Visa/Mastercard) لربطها بحساب Meta للفوترة.</li>
+    </ul>
+    <div class="tip rounded-xl p-4 mt-5 text-sm leading-relaxed">
+      <strong>💡 نموذج «مفتاحك الخاص» (BYOK):</strong>
+      أنت من ينشئ تطبيق Meta الخاص بشركتك وتربط بطاقتك، لذلك تُحتسب تكلفة محادثات واتساب
+      عليك مباشرةً من Meta وبأسعارها الرسمية — <strong>Mouss Tec لا تأخذ أي عمولة على رسائلك</strong>،
+      نحن فقط نوفّر الذكاء الاصطناعي والربط بمخزونك.
+    </div>
+  </section>
+
+  <!-- Step 1 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">1</span>
+      <h3 class="text-lg font-black">إنشاء تطبيق على منصة Meta for Developers</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3 text-slate-700 leading-relaxed">
+      <ol class="list-decimal ps-6 space-y-2">
+        <li>افتح الرابط: <a class="text-[#16457a] font-semibold underline" href="https://developers.facebook.com/" target="_blank" rel="noopener">developers.facebook.com</a> وسجّل الدخول بحساب فيسبوك.</li>
+        <li>من القائمة العلوية اختر <strong>«My Apps»</strong> ثم اضغط <strong>«Create App»</strong> (إنشاء تطبيق).</li>
+        <li>عند سؤالك عن نوع التطبيق (Use case) اختر <strong>«Other»</strong> ثم <strong>«Business»</strong>.</li>
+        <li>اكتب اسماً للتطبيق (مثل: <span class="mono">MyShop Automation</span>) وأدخل بريدك الإلكتروني، ثم <strong>«Create App»</strong>.</li>
+      </ol>
+      <div class="tip rounded-xl p-4 text-sm">💡 قد يطلب منك إدخال كلمة المرور لتأكيد هويتك عند الإنشاء.</div>
+    </div>
+  </section>
+
+  <!-- Step 2 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">2</span>
+      <h3 class="text-lg font-black">إضافة منتجات: WhatsApp و Messenger</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3 text-slate-700 leading-relaxed">
+      <p>داخل لوحة تحكم التطبيق، ستجد قائمة <strong>«Add products to your app»</strong>:</p>
+      <ol class="list-decimal ps-6 space-y-2">
+        <li>ابحث عن <strong>WhatsApp</strong> واضغط <strong>«Set up»</strong>.</li>
+        <li>اربط التطبيق بـ <strong>حساب Meta Business</strong> الخاص بك (أو أنشئ واحداً جديداً إذا طُلب منك).</li>
+        <li>كرّر نفس الخطوة مع منتج <strong>Messenger</strong> واضغط <strong>«Set up»</strong>.</li>
+      </ol>
+      <div class="ok rounded-xl p-4 text-sm">
+        ✅ بعد هذه الخطوة سيُنشئ لك واتساب <strong>رقم تجريبي (Test Number)</strong> ومعرّفات مبدئية تظهر في صفحة
+        <em>WhatsApp → API Setup</em>. سنستخدمها بعد قليل.
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">3</span>
+      <h3 class="text-lg font-black">ربط بطاقتك وتفعيل الفوترة (وأول 1000 محادثة مجاناً)</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3 text-slate-700 leading-relaxed">
+      <ol class="list-decimal ps-6 space-y-2">
+        <li>من قائمة التطبيق اذهب إلى <strong>WhatsApp → Configuration</strong> أو افتح
+          <a class="text-[#16457a] font-semibold underline" href="https://business.facebook.com/billing" target="_blank" rel="noopener">business.facebook.com/billing</a>.</li>
+        <li>اختر <strong>«Payment Settings»</strong> ثم <strong>«Add Payment Method»</strong> وأدخل بيانات بطاقتك.</li>
+        <li>حدّد <strong>حساب واتساب التجاري (WABA)</strong> الذي ستُخصم منه التكاليف واربطه بالبطاقة.</li>
+      </ol>
+      <div class="ok rounded-xl p-4 text-sm leading-relaxed">
+        🎁 <strong>أول 1000 محادثة خدمة (Service Conversations) شهرياً مجانية بالكامل</strong> من Meta.
+        «محادثة الخدمة» هي أي محادثة يبدأها العميل معك خلال نافذة الـ 24 ساعة — وهي النوع الذي يستخدمه
+        الرد الآلي. أي محادثة بعد الألف الأولى تُحسب بسعر رمزي حسب دولتك، وتُخصم من بطاقتك أنت مباشرةً.
+      </div>
+      <div class="warn rounded-xl p-4 text-sm">
+        ⚠️ بدون وسيلة دفع مفعّلة، سيتوقف إرسال الرسائل بعد استهلاك الحصة المجانية. تأكّد من أن البطاقة سارية.
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">4</span>
+      <h3 class="text-lg font-black">توليد رمز وصول دائم (Permanent Access Token)</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-3 text-slate-700 leading-relaxed">
+      <p>الرمز التجريبي ينتهي كل 24 ساعة، لذا نحتاج رمزاً دائماً عبر «مستخدم النظام»:</p>
+      <ol class="list-decimal ps-6 space-y-2">
+        <li>افتح <a class="text-[#16457a] font-semibold underline" href="https://business.facebook.com/settings" target="_blank" rel="noopener">إعدادات Business (business.facebook.com/settings)</a>.</li>
+        <li>من <strong>«Users → System Users»</strong> اضغط <strong>«Add»</strong> وأنشئ مستخدم نظام بدور <strong>Admin</strong>.</li>
+        <li>اضغط <strong>«Assign Assets»</strong> واربط به تطبيقك وحساب واتساب (WABA) وصفحتك، بصلاحية <strong>«Full Control»</strong>.</li>
+        <li>اضغط <strong>«Generate New Token»</strong>، واختر تطبيقك، ثم فعّل الصلاحيتين:
+          <span class="mono bg-slate-100 px-1 rounded">whatsapp_business_messaging</span> و
+          <span class="mono bg-slate-100 px-1 rounded">whatsapp_business_management</span>
+          (وأضِف <span class="mono bg-slate-100 px-1 rounded">pages_messaging</span> لتفعيل ماسنجر).</li>
+        <li>اضغط <strong>«Generate Token»</strong> ثم <strong>انسخ الرمز فوراً واحفظه</strong> — لن يظهر مرة أخرى.</li>
+      </ol>
+      <div class="warn rounded-xl p-4 text-sm">
+        🔒 هذا الرمز يعادل مفتاح حسابك — لا تشاركه مع أحد. Mouss Tec تخزّنه <strong>مشفّراً</strong> ولا يظهر أبداً بعد الحفظ.
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 5 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">5</span>
+      <h3 class="text-lg font-black">نسخ المعرّفات ولصقها في إعدادات Mouss Tec</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4 text-slate-700 leading-relaxed">
+      <p>من صفحة <strong>WhatsApp → API Setup</strong> انسخ القيم التالية، والصقها في
+        <a href="{{ settings_url }}" class="text-[#16457a] font-semibold underline">شاشة إعدادات الأتمتة</a>:</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+          <thead class="bg-slate-50 text-[#0f2c4c]">
+            <tr><th class="text-start p-3">القيمة في Meta</th><th class="text-start p-3">أين تجدها</th><th class="text-start p-3">الحقل في Mouss Tec</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr><td class="p-3 font-semibold">Access Token</td><td class="p-3">الرمز الدائم من الخطوة 4</td><td class="p-3 mono">Meta Access Token</td></tr>
+            <tr><td class="p-3 font-semibold">Phone number ID</td><td class="p-3">WhatsApp → API Setup</td><td class="p-3 mono">WhatsApp Phone Number ID</td></tr>
+            <tr><td class="p-3 font-semibold">WhatsApp Business Account ID</td><td class="p-3">أعلى صفحة API Setup</td><td class="p-3 mono">WABA ID</td></tr>
+            <tr><td class="p-3 font-semibold">Page ID</td><td class="p-3">صفحتك → About → Page ID</td><td class="p-3 mono">Facebook Page ID</td></tr>
+            <tr><td class="p-3 font-semibold">App Secret</td><td class="p-3">App → Settings → Basic</td><td class="p-3 mono">Meta App Secret</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>ثم اضغط <strong>«حفظ»</strong>. بعدها اضبط نبرة الحوار وسياسة الخصومات لتناسب أسلوب شركتك.</p>
+    </div>
+  </section>
+
+  <!-- Step 6 -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="step-num text-white w-9 h-9 rounded-full grid place-items-center font-black">6</span>
+      <h3 class="text-lg font-black">ضبط رابط Webhook داخل تطبيق Meta</h3>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6 space-y-4 text-slate-700 leading-relaxed">
+      <p>هذه الخطوة تجعل Meta ترسل رسائل عملائك إلى نظام Mouss Tec. من <strong>WhatsApp → Configuration</strong>
+         (وكذلك <strong>Messenger → Settings</strong>) اضغط <strong>«Edit»</strong> بجانب Webhook، والصق:</p>
+
+      <div>
+        <p class="text-sm font-bold mb-1">Callback URL (رابط الاستدعاء):</p>
+        <div class="copybox rounded-xl p-3 mono text-sm flex items-center justify-between gap-3">
+          <span id="wh-url" class="break-all">{{ webhook_url }}</span>
+          <button onclick="copyVal('wh-url')" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-sm font-bold mb-1">Verify Token (رمز التحقق):</p>
+        <div class="copybox rounded-xl p-3 mono text-sm flex items-center justify-between gap-3">
+          <span id="wh-token" class="break-all">{{ platform_verify_token }}</span>
+          <button onclick="copyVal('wh-token')" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-lg text-xs shrink-0">نسخ</button>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">يمكنك بدلاً من ذلك اختيار رمز تحقق خاص بك من شاشة الإعدادات ولصقه هنا.</p>
+      </div>
+
+      <ol class="list-decimal ps-6 space-y-2 pt-2">
+        <li>اضغط <strong>«Verify and Save»</strong> — يجب أن تظهر علامة ✔️ خضراء.</li>
+        <li>في قسم <strong>Webhook fields</strong> فعّل حقل <strong>«messages»</strong> بالضغط على <strong>«Subscribe»</strong>.</li>
+        <li>لصفحة ماسنجر: من <strong>Messenger → Settings → Webhooks</strong> اربط صفحتك وفعّل حقلي
+          <span class="mono bg-slate-100 px-1 rounded">messages</span> و
+          <span class="mono bg-slate-100 px-1 rounded">messaging_postbacks</span>.</li>
+      </ol>
+      <div class="ok rounded-xl p-4 text-sm">
+        ✅ تمام! أرسل رسالة تجريبية من رقم آخر إلى واتساب البيزنس، وستصلك ردّة المساعد خلال ثوانٍ.
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="bg-white rounded-2xl shadow-sm p-6 mb-10">
+    <h2 class="text-xl font-black text-[#0f2c4c] mb-4">❓ أسئلة شائعة</h2>
+    <div class="space-y-4 text-slate-700 leading-relaxed text-sm">
+      <div><p class="font-bold">هل يمكنني إيقاف الرد الآلي مؤقتاً؟</p>
+        <p>نعم — من شاشة الإعدادات أوقف خيار «الرد الآلي بالذكاء الاصطناعي» وستُحوَّل المحادثات لموظف بشري دون إلغاء الاشتراك.</p></div>
+      <div><p class="font-bold">هل يرى المساعد أسعاري ومخزوني الحقيقي؟</p>
+        <p>نعم، يقرأ المساعد بيانات مخزونك وأسعارك الحيّة من داخل حسابك لحظة كل رسالة، ولا يخترع أي سعر غير موجود.</p></div>
+      <div><p class="font-bold">من يتحمّل تكلفة رسائل واتساب؟</p>
+        <p>أنت مباشرةً عبر Meta (نموذج BYOK). Mouss Tec لا تفرض أي رسوم على المحادثات.</p></div>
+      <div><p class="font-bold">هل بياناتي آمنة؟</p>
+        <p>رموز الوصول والمفاتيح تُخزَّن مشفّرة بمعيار Fernet، وكل Webhook يُتحقّق من توقيعه رقمياً قبل معالجته.</p></div>
+    </div>
+  </section>
+
+  <div class="text-center pb-12">
+    <a href="{{ settings_url }}" class="inline-block text-white font-bold px-8 py-4 rounded-xl shadow-lg" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+      ابدأ الإعداد الآن ←
+    </a>
+    <p class="text-xs text-slate-400 mt-4">تحتاج مساعدة؟ فريق دعم Mouss Tec جاهز لمساعدتك في التفعيل.</p>
+  </div>
+</main>
+
+<script>
+  function copyVal(id){
+    var el = document.getElementById(id);
+    var txt = (el && el.textContent || '').trim();
+    if(!txt) return;
+    navigator.clipboard.writeText(txt).then(function(){
+      var b = event.target; var old = b.textContent; b.textContent = 'تم النسخ ✓';
+      setTimeout(function(){ b.textContent = old; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>

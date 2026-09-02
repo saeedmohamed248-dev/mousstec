@@ -594,6 +594,12 @@ urlpatterns = [
     # 💬 Mousstec Facebook Messenger bot (Meta verification + inbound messages)
     path('api/webhooks/', include('messenger_bot.urls', namespace='messenger_bot')),
 
+    # 💬 Omnichannel AI Automation add-on — public webhook + tenant dashboard.
+    #   /api/webhooks/omnichannel/  → Meta WhatsApp + Messenger webhook (BYOK)
+    #   /omnichannel/settings/      → tenant connects credentials + tunes AI
+    #   /omnichannel/guide/         → Arabic onboarding tutorial
+    path('', include('omnichannel.urls')),
+
     # ==============================================================
     # 🤝 4. بوابة واجهات برمجة سوق Mouss Tec المركزي (B2B API Gateway)
     # ==============================================================
