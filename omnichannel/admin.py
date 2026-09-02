@@ -18,12 +18,12 @@ from .models import ChannelMessageLog, TenantChannelConfig
 @admin.register(TenantChannelConfig)
 class TenantChannelConfigAdmin(admin.ModelAdmin):
     list_display = (
-        "tenant", "subscription_state", "ai_enabled",
+        "tenant", "subscription_state", "standalone_mode", "ai_enabled",
         "whatsapp_phone_number_id", "facebook_page_id",
         "token_set", "llm_provider", "subscription_expires_at", "updated_at",
     )
-    list_filter = ("is_subscription_active", "ai_enabled", "llm_provider",
-                   "whatsapp_enabled", "messenger_enabled")
+    list_filter = ("is_subscription_active", "standalone_mode", "ai_enabled",
+                   "llm_provider", "whatsapp_enabled", "messenger_enabled")
     search_fields = ("tenant__name", "tenant__schema_name",
                      "whatsapp_phone_number_id", "facebook_page_id",
                      "whatsapp_business_account_id")
