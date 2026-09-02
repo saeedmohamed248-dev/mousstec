@@ -10,6 +10,7 @@ unrelated ERP modules.
 """
 from __future__ import annotations
 
+import csv
 import logging
 from datetime import timedelta
 from functools import wraps
@@ -17,9 +18,12 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from .dashboard_views import _current_tenant
 from .models import ChannelMessageLog, TenantChannelConfig
@@ -53,11 +57,27 @@ def _nav(active: str, config) -> dict:
         "nav_home": reverse("omnichannel_console"),
         "nav_inbox": reverse("omnichannel_console_inbox"),
         "nav_contacts": reverse("omnichannel_console_contacts"),
+        "nav_test": reverse("omnichannel_console_test"),
         "nav_settings": reverse("omnichannel_settings"),
         "nav_guide": reverse("omnichannel_guide"),
         "nav_overview": reverse("omnichannel_overview"),
         "standalone": bool(getattr(config, "standalone_mode", False)),
     }
+
+
+def _daily_series(tenant, days=14):
+    """Return [(label, count), ...] of messages per day for the last `days`."""
+    start = (timezone.now() - timedelta(days=days - 1)).date()
+    rows = (
+        ChannelMessageLog.objects.filter(tenant=tenant, created_at__date__gte=start)
+        .annotate(day=TruncDate("created_at")).values("day").annotate(c=Count("id"))
+    )
+    by_day = {r["day"]: r["c"] for r in rows}
+    series = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        series.append({"label": d.strftime("%m-%d"), "count": by_day.get(d, 0)})
+    return series
 
 
 def _conversations(tenant, *, limit=None, search=""):
@@ -104,21 +124,95 @@ def console_home(request):
     now = timezone.now()
     last_7 = now - timedelta(days=7)
     convs = _conversations(tenant)
+    total = logs.count()
+    replied = logs.filter(status=ChannelMessageLog.Status.REPLIED).count()
     kpis = {
         "conversations": len(convs),
-        "messages_total": logs.count(),
-        "replied": logs.filter(status=ChannelMessageLog.Status.REPLIED).count(),
+        "messages_total": total,
+        "replied": replied,
         "last7": logs.filter(created_at__gte=last_7).count(),
+        "response_rate": round((replied / total) * 100) if total else 0,
     }
+    series = _daily_series(tenant, days=14)
+    max_count = max((p["count"] for p in series), default=0) or 1
     ctx = _nav("home", config)
     ctx.update({
         "tenant": tenant,
         "kpis": kpis,
         "recent": convs[:8],
+        "series": series,
+        "series_max": max_count,
         "sub_state": config.subscription_state,
         "days_left": config.subscription_days_left,
     })
     return render(request, "omnichannel/console/home.html", ctx)
+
+
+# ── CSV export ─────────────────────────────────────────────────────────
+def _csv_response(filename):
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.write("﻿")  # BOM so Excel reads Arabic correctly
+    return resp
+
+
+@_console_guard
+def console_export_contacts(request):
+    tenant = request.omni_tenant
+    resp = _csv_response("omnichannel_contacts.csv")
+    w = csv.writer(resp)
+    w.writerow(["الاسم", "القناة", "المعرّف", "عدد الرسائل", "آخر تواصل"])
+    for c in _conversations(tenant):
+        w.writerow([c["name"], c["channel"], c["sender_id"], c["count"],
+                    c["last_at"].strftime("%Y-%m-%d %H:%M")])
+    return resp
+
+
+@_console_guard
+def console_export_conversations(request):
+    tenant = request.omni_tenant
+    resp = _csv_response("omnichannel_messages.csv")
+    w = csv.writer(resp)
+    w.writerow(["الوقت", "القناة", "العميل", "المعرّف", "رسالة العميل", "رد المساعد", "الحالة"])
+    for m in (ChannelMessageLog.objects.filter(tenant=tenant)
+              .order_by("-created_at")[:5000]):
+        w.writerow([m.created_at.strftime("%Y-%m-%d %H:%M"), m.channel,
+                    m.contact_name or "", m.sender_id, m.inbound_text,
+                    m.outbound_text, m.get_status_display()])
+    return resp
+
+
+# ── Live "test the assistant" ──────────────────────────────────────────
+@_console_guard
+def console_test(request):
+    tenant = request.omni_tenant
+    config = request.omni_config
+    ctx = _nav("test", config)
+    ctx["tenant"] = tenant
+    sample = "السلام عليكم، عايز أعرف الأسعار المتوفرة عندكم"
+
+    if request.method == "POST":
+        from .services.inventory_context import build_catalog_context
+        from .services.llm import generate_reply
+
+        message = (request.POST.get("message") or sample).strip()
+        currency = ""
+        try:
+            currency = tenant.effective_currency
+        except Exception:
+            pass
+        catalog = ""
+        try:
+            with schema_context(tenant.schema_name):
+                catalog = build_catalog_context(message, currency=currency)
+        except Exception as exc:
+            logger.warning("omnichannel test: catalog read failed: %s", exc)
+        reply = generate_reply(config, message, catalog) or config.fallback_message
+        ctx.update({"message": message, "reply": reply, "catalog": catalog})
+    else:
+        ctx["message"] = sample
+
+    return render(request, "omnichannel/console/test.html", ctx)
 
 
 @_console_guard
