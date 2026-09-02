@@ -76,12 +76,21 @@ gated on `subscription_is_valid` (active AND not expired).
 
 Two activation paths (both supported):
 
-1. **Self-serve** — the tenant admin clicks *اشترك الآن* on `/omnichannel/`
-   (`subscribe` view). One month (`MONTHLY_PRICE`) is debited atomically from the
-   tenant's platform wallet (`EscrowLedger` + `wallet_balance` F() debit) and the
-   subscription is granted 30 days. Insufficient balance → the tenant tops up the
-   wallet via the platform's existing Paymob flow, then subscribes.
-2. **Manual grant** — the super-admin grants/extends/revokes per tenant from:
+1. **Self-serve by card (Paymob)** — the tenant admin clicks *ادفع بالبطاقة*
+   on `/omnichannel/` (`pay_with_card` view → Paymob iframe). After payment,
+   Paymob calls `paymob_callback` (HMAC-verified, idempotent) which activates
+   30 days. Metadata is resolved from the cache keyed by the Paymob order id
+   (`paymob_omni_{order_id}`), mirroring the parts-marketplace flow.
+
+   > ⚠️ **Operator step:** set the Paymob dashboard *Transaction Processed
+   > Callback* to `https://<your-domain>/omnichannel/paymob-callback/` (or route
+   > your central Paymob callback to it) so card payments auto-activate.
+
+2. **Self-serve from wallet** — clicking *الخصم من رصيد المحفظة* debits one
+   month atomically from the tenant's platform wallet (`EscrowLedger` +
+   `wallet_balance` F() debit) and grants 30 days. Insufficient balance → the
+   tenant tops up the wallet (existing Paymob top-up), then subscribes.
+3. **Manual grant** — the super-admin grants/extends/revokes per tenant from:
    - the dedicated dashboard `/superadmin/omnichannel/`
      (`omnichannel/saas_admin_views.py`, mirrors OBD grant/revoke), or
    - Django admin actions on `TenantChannelConfig`
@@ -94,7 +103,13 @@ Two activation paths (both supported):
 | `/omnichannel/` | Dedicated feature/landing page: what it does, price, live subscription status, subscribe/renew button |
 | `/omnichannel/settings/` | Connect Meta credentials, tune AI, view recent conversations |
 | `/omnichannel/guide/` | Step-by-step Arabic setup tutorial **+ daily-usage guide** |
+| `/omnichannel/pay/` | POST-only card checkout (redirects to Paymob) |
+| `/omnichannel/paymob-callback/` | Paymob server-to-server activation (HMAC) |
 | `/omnichannel/subscribe/` | POST-only self-serve purchase (wallet debit) |
+
+The add-on is also surfaced on the public **pricing page** (`clients/pricing.html`)
+and the **landing page** (`clients/landing.html`) as a 250 EGP/month add-on card
+linking to `/omnichannel/`.
 
 A sidebar link (*الرد الآلي*) is added to the tenant portal
 (`inventory/_base_portal.html`), and a super-admin nav card
