@@ -1,0 +1,78 @@
+{# ===================================================================
+   🎨 Mouss Tec — طبقة الهوية الفاتحة المشتركة (Light Enterprise)
+   تُضمّن في صفحات الموقع العامة (features / pricing / auto / print)
+   لتوحيد الشكل مع صفحة الهبوط: خلفية فاتحة، كروت بيضاء، لون كحلي،
+   وإزالة النيون/التدرّجات الغامقة — من غير لمس بنية كل صفحة.
+   تُحمّل بعد Tailwind فتتغلّب عليه بـ !important.
+=================================================================== #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --mtl-bg:#F4F6F9; --mtl-panel:#FFFFFF; --mtl-panel-2:#F7F8FA;
+    --mtl-border:#E4E7EC; --mtl-ink:#131722; --mtl-muted:#6B7480;
+    --mtl-brand:#1E2A57; --mtl-brand-2:#33427F; --mtl-brand-soft:#EBEEF7;
+    --mtl-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px -10px rgba(16,24,40,.14);
+  }
+
+  html, body{ background:var(--mtl-bg) !important; color:var(--mtl-ink) !important;
+              font-family:'IBM Plex Sans Arabic','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif !important; }
+
+  /* الطبقات الغامقة/الإشعاعية في الخلفية */
+  [class*="radial-gradient"], .hero-glow{ background:transparent !important; display:none !important; }
+  .section-glow{ background:var(--mtl-panel-2) !important; }
+
+  /* الشريط العلوي */
+  header{ background:rgba(255,255,255,.9) !important; border-color:var(--mtl-border) !important;
+          -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+
+  /* الأسطح الغامقة (slate-700/800/900/950 + تدرّجات -900/-800) → أبيض */
+  [class*="bg-slate-7"], [class*="bg-slate-8"], [class*="bg-slate-9"],
+  [class*="-900/"], [class*="-800/"], [class*="bg-gradient-to"]{
+    background-color:var(--mtl-panel) !important;
+    background-image:none !important;
+    border-color:var(--mtl-border) !important;
+  }
+  .feature-card, .plan-card, .card-hover{
+    background:var(--mtl-panel) !important; border:1px solid var(--mtl-border) !important;
+    box-shadow:var(--mtl-shadow) !important; color:var(--mtl-ink) !important;
+  }
+
+  /* النصوص */
+  [class*="text-white"]{ color:var(--mtl-ink) !important; }
+  [class*="text-slate-2"], [class*="text-slate-3"], [class*="text-slate-4"], [class*="text-slate-5"]{ color:var(--mtl-muted) !important; }
+  /* العناوين المتدرّجة (bg-clip-text) → كحلي صريح */
+  [class*="text-transparent"]{ -webkit-text-fill-color:var(--mtl-brand) !important; color:var(--mtl-brand) !important; background:none !important; }
+
+  /* الحدود */
+  [class*="border-slate-"]{ border-color:var(--mtl-border) !important; }
+
+  /* إزالة توهّج النيون */
+  .glow-effect, .popular-glow, .section-glow,
+  [class*="shadow-purple"], [class*="shadow-fuchsia"], [class*="shadow-pink"], [class*="shadow-indigo"],
+  [class*="shadow-blue"], [class*="shadow-cyan"], [class*="shadow-amber"], [class*="shadow-emerald"]{
+    box-shadow:var(--mtl-shadow) !important;
+  }
+
+  /* شعار الهيدر (كان تدرّج بنفسجي) → كحلي */
+  header [class*="from-purple-6"], header [class*="from-indigo-6"]{ background:var(--mtl-brand) !important; }
+
+  /* أزرار الدعوة الأساسية (بنفسجي/نيلي/أزرق/وردي) → كحلي موحّد */
+  [class*="from-purple-6"], [class*="from-indigo-6"], [class*="from-purple-5"],
+  [class*="bg-purple-6"], [class*="bg-purple-5"], [class*="bg-indigo-6"], [class*="bg-indigo-5"],
+  .btn-blue, .btn-pink{
+    background-image:none !important; background-color:var(--mtl-brand) !important; color:#fff !important;
+    box-shadow:0 10px 24px -12px rgba(30,42,87,.7) !important; border-color:transparent !important;
+  }
+  .btn-blue *, .btn-pink *,
+  [class*="from-purple-6"] *, [class*="bg-purple-6"] *, [class*="bg-purple-5"] *{ color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+  /* شرائح ملوّنة خفيفة تفضل مقروءة على الأبيض */
+  [class*="bg-purple-5/1"], [class*="bg-purple-6/1"]{ background-color:var(--mtl-brand-soft) !important; }
+
+  /* حقول الإدخال */
+  input, select, textarea{ background:var(--mtl-panel) !important; color:var(--mtl-ink) !important; border-color:var(--mtl-border) !important; }
+
+  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+</style>
