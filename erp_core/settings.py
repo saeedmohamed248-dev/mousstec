@@ -438,6 +438,7 @@ META_GRAPH_VERSION = env.str('META_GRAPH_VERSION', 'v19.0')
 # Falls back to OBD_DEVICE_SECRET_KEK, then a SECRET_KEY-derived key (dev only).
 OMNICHANNEL_SECRET_KEK = env.str('OMNICHANNEL_SECRET_KEK', '')
 # Default Gemini model for the platform (fallback) LLM provider.
+# Empty → the code default `gemini-flash-latest` (always the current stable Flash).
 OMNICHANNEL_GEMINI_MODEL = env.str('OMNICHANNEL_GEMINI_MODEL', '') or None
 
 # =====================================================================
