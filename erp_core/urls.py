@@ -16,8 +16,10 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import chat_views as chat_views
+from clients.views import wix_views as wix_views
 from django.http import FileResponse
 from erp_core.ai import advisor_views as advisor_views
 from erp_core.ai import copilot_views as copilot_views
@@ -418,6 +420,14 @@ urlpatterns = [
     path('superadmin/customer/<int:customer_id>/gift/',   client_views.super_admin_customer_gift,   name='super_admin_customer_gift'),
     path('superadmin/customer/<int:customer_id>/notify/', client_views.super_admin_customer_notify, name='super_admin_customer_notify'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
+    # 🔌 Wix integration — super-admin control
+    path('superadmin/wix/', wix_views.wix_dashboard, name='wix_dashboard'),
+    path('superadmin/wix/<int:tenant_id>/connect/', wix_views.wix_connect, name='wix_connect'),
+    path('superadmin/wix/conn/<int:conn_id>/test/', wix_views.wix_test, name='wix_test'),
+    path('superadmin/wix/conn/<int:conn_id>/sync/', wix_views.wix_sync_now, name='wix_sync_now'),
+    path('superadmin/wix/conn/<int:conn_id>/disconnect/', wix_views.wix_disconnect, name='wix_disconnect'),
+    # 🔌 Wix real-time order webhook (Wix → us)
+    path('api/webhooks/wix/orders/', wix_views.wix_order_webhook, name='wix_order_webhook'),
     path('superadmin/gift-diagnostics/', client_views.super_admin_gift_diagnostics, name='super_admin_gift_diagnostics'),
     path('superadmin/tenant/<int:tenant_id>/obd-grant/', client_views.super_admin_obd_quick_grant, name='super_admin_obd_quick_grant'),
     path('superadmin/tenant/<int:tenant_id>/diag-topup-grant/', client_views.super_admin_diag_topup_grant, name='super_admin_diag_topup_grant'),
@@ -507,6 +517,11 @@ urlpatterns = [
     path('superadmin/obd-access/<int:tenant_id>/grant/',      saas_admin_views.obd_access_grant,  name='saas_obd_access_grant'),
     path('superadmin/obd-access/<int:tenant_id>/revoke/',     saas_admin_views.obd_access_revoke, name='saas_obd_access_revoke'),
 
+    # 💬 Omnichannel AI Automation add-on — subscription management per tenant
+    path('superadmin/omnichannel/',                          omnichannel_saas_views.subscription_list,   name='saas_omnichannel_list'),
+    path('superadmin/omnichannel/<int:tenant_id>/grant/',    omnichannel_saas_views.subscription_grant,  name='saas_omnichannel_grant'),
+    path('superadmin/omnichannel/<int:tenant_id>/revoke/',   omnichannel_saas_views.subscription_revoke, name='saas_omnichannel_revoke'),
+
     # 🛍️ Marketplace requests — full management (all statuses, search, actions)
     path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),
 
@@ -584,6 +599,12 @@ urlpatterns = [
 
     # 💬 Mousstec Facebook Messenger bot (Meta verification + inbound messages)
     path('api/webhooks/', include('messenger_bot.urls', namespace='messenger_bot')),
+
+    # 💬 Omnichannel AI Automation add-on — public webhook + tenant dashboard.
+    #   /api/webhooks/omnichannel/  → Meta WhatsApp + Messenger webhook (BYOK)
+    #   /omnichannel/settings/      → tenant connects credentials + tunes AI
+    #   /omnichannel/guide/         → Arabic onboarding tutorial
+    path('', include('omnichannel.urls')),
 
     # ==============================================================
     # 🤝 4. بوابة واجهات برمجة سوق Mouss Tec المركزي (B2B API Gateway)

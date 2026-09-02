@@ -66,12 +66,12 @@
 
         <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-4 py-3 text-xs text-slate-400 text-center">
             <i class="fas fa-info-circle text-indigo-400 ml-1"></i>
-            سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك
+            {% trans "سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك" %}
         </div>
 
         <div class="text-center mt-5">
             <a href="{% url 'client_login_finder' %}" class="text-xs text-slate-500 hover:text-purple-400 transition">
-                <i class="fas fa-arrow-right ml-1"></i> البحث ببريد مختلف
+                <i class="fas fa-arrow-right ml-1"></i> {% trans "البحث ببريد مختلف" %}
             </a>
         </div>
 
@@ -94,13 +94,13 @@
         {% if verification_required %}
         <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-4 mb-5">
             <div class="text-amber-300 text-xs font-black mb-2">
-                <i class="fas fa-envelope-circle-check ml-1"></i>إيميلك لسه مش متفعّل
+                <i class="fas fa-envelope-circle-check ml-1"></i>{% trans "إيميلك لسه مش متفعّل" %}
             </div>
             <form method="post" action="/account/verify-email/resend/" class="flex gap-2">
                 {% csrf_token %}
                 <input type="hidden" name="email" value="{{ verify_email }}">
                 <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-2 rounded-lg text-xs transition">
-                    <i class="fas fa-paper-plane ml-1"></i>ابعت لي رابط التأكيد تاني
+                    <i class="fas fa-paper-plane ml-1"></i>{% trans "ابعت لي رابط التأكيد تاني" %}
                 </button>
             </form>
         </div>
@@ -128,13 +128,13 @@
                     dir="ltr">
                 <p class="text-[11px] text-slate-500 mt-1.5">
                     <i class="fas fa-info-circle ml-1"></i>
-                    اتركها فاضية لو عايز تلاقي رابط شركتك بس
+                    {% trans "اتركها فاضية لو عايز تلاقي رابط شركتك بس" %}
                 </p>
             </div>
             <button type="submit"
                 class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-purple-500/20 transition duration-300 flex items-center justify-center gap-2">
                 <i class="fas fa-sign-in-alt"></i>
-                دخول
+                {% trans "دخول" %}
             </button>
         </form>
 
@@ -142,13 +142,13 @@
             <a href="{% url 'account_recovery' %}"
                class="inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 font-bold text-sm transition">
                 <i class="fas fa-key text-xs"></i>
-                نسيت كلمة السر؟ استرجع حسابك
+                {% trans "نسيت كلمة السر؟ استرجع حسابك" %}
             </a>
             <p class="text-sm text-slate-500">{% trans "مستخدم جديد؟" %}</p>
             <a href="{% url 'saas_customer_signup' %}"
                class="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 font-bold text-sm transition">
                 <i class="fas fa-rocket text-xs"></i>
-                أنشئ حسابك مجاناً — 7 أيام بكل المزايا
+                {% trans "أنشئ حسابك مجاناً — 7 أيام بكل المزايا" %}
             </a>
         </div>
         {% endif %}

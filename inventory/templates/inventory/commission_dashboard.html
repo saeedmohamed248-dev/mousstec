@@ -1,5 +1,6 @@
 {% extends "inventory/_base_portal.html" %}
-{% block title %}صرف العمولات | Mouss Tec{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "صرف العمولات" %} | Mouss Tec{% endblock %}
 {% block content %}
 <main class="container mx-auto px-4 py-6 flex-1 space-y-6">
 
@@ -8,14 +9,14 @@
         <div>
             <h1 class="text-xl font-black text-white flex items-center gap-2">
                 <i class="fas fa-hand-holding-dollar text-amber-400"></i>
-                صرف العمولات المستحقة
+                {% trans "صرف العمولات المستحقة" %}
             </h1>
             <p class="text-sm text-slate-500 mt-1">
-                اختر الموظفين والخزنة، ودوس "صرف العمولات" — كل عملية بتتسجل في الحركات المالية.
+                {% trans 'اختر الموظفين والخزنة، ودوس "صرف العمولات" — كل عملية بتتسجل في الحركات المالية.' %}
             </p>
         </div>
         <a href="{% url 'inventory:dashboard' %}" class="text-xs font-bold text-slate-400 hover:text-white transition px-3 py-1.5 rounded-lg border border-slate-700">
-            <i class="fas fa-arrow-right ml-1"></i>رجوع للوحة التحكم
+            <i class="fas fa-arrow-right ml-1"></i>{% trans "رجوع للوحة التحكم" %}
         </a>
     </div>
 
@@ -41,7 +42,7 @@
                     <i class="fas fa-coins"></i>
                 </div>
                 <span class="text-xs text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                    {{ rows|length }} موظف
+                    {% blocktrans with n=rows|length %}{{ n }} موظف{% endblocktrans %}
                 </span>
             </div>
             <p class="text-2xl font-black text-white">{{ total_outstanding|floatformat:2 }}</p>
@@ -55,7 +56,7 @@
                 </div>
             </div>
             <p class="text-2xl font-black text-white">{{ treasuries|length }}</p>
-            <p class="text-xs text-slate-500 font-bold mt-1">خزائن متاحة للصرف</p>
+            <p class="text-xs text-slate-500 font-bold mt-1">{% trans "خزائن متاحة للصرف" %}</p>
         </div>
 
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -65,7 +66,7 @@
                 </div>
             </div>
             <p class="text-xs text-slate-400 font-bold leading-relaxed">
-                كل عملية صرف مربوطة بحركة مالية في الخزنة وموظف معرّف — للـ audit trail.
+                {% trans "كل عملية صرف مربوطة بحركة مالية في الخزنة وموظف معرّف — للـ audit trail." %}
             </p>
         </div>
     </div>
@@ -79,11 +80,11 @@
         {# Treasury picker #}
         <div>
             <label class="block text-xs font-bold text-slate-400 mb-2">
-                <i class="fas fa-vault ml-1 text-purple-400"></i>صرف من خزنة:
+                <i class="fas fa-vault ml-1 text-purple-400"></i>{% trans "صرف من خزنة:" %}
             </label>
             <select name="treasury_id" required
                     class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold text-white focus:border-purple-500 focus:outline-none">
-                <option value="">— اختر الخزنة —</option>
+                <option value="">{% trans "— اختر الخزنة —" %}</option>
                 {% for t in treasuries %}
                 <option value="{{ t.pk }}">
                     {{ t.name }} ({{ t.get_type_display }})
@@ -99,14 +100,14 @@
             <table class="w-full text-sm">
                 <thead>
                     <tr class="bg-slate-800/60 text-slate-400 font-bold text-xs">
-                        <th class="py-3 px-4 text-right">
+                        <th class="py-3 px-4 text-start">
                             <input type="checkbox" id="select-all" onclick="toggleAll(this)"
                                    class="w-4 h-4 rounded border-slate-600 bg-slate-700 accent-purple-500">
                         </th>
-                        <th class="py-3 px-4 text-right">الموظف</th>
-                        <th class="py-3 px-4 text-right">الدور</th>
-                        <th class="py-3 px-4 text-right">الفرع</th>
-                        <th class="py-3 px-4 text-left">المستحق ({{ tenant_currency_symbol|default:'ج.م' }})</th>
+                        <th class="py-3 px-4 text-start">{% trans "الموظف" %}</th>
+                        <th class="py-3 px-4 text-start">{% trans "الدور" %}</th>
+                        <th class="py-3 px-4 text-start">{% trans "الفرع" %}</th>
+                        <th class="py-3 px-4 text-end">{% blocktrans with cur=tenant_currency_symbol|default:'ج.م' %}المستحق ({{ cur }}){% endblocktrans %}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
@@ -120,16 +121,16 @@
                         <td class="py-3 px-4 text-white font-bold">{{ row.name }}</td>
                         <td class="py-3 px-4 text-slate-300">{{ row.role }}</td>
                         <td class="py-3 px-4 text-slate-400">{{ row.branch }}</td>
-                        <td class="py-3 px-4 text-left text-amber-300 font-black">{{ row.balance|floatformat:2 }}</td>
+                        <td class="py-3 px-4 text-end text-amber-300 font-black">{{ row.balance|floatformat:2 }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="bg-slate-800/40 font-black">
-                        <td colspan="4" class="py-3 px-4 text-left text-slate-400">
-                            المحدد: <span id="selected-count">0</span> موظف
+                        <td colspan="4" class="py-3 px-4 text-end text-slate-400">
+                            {% trans "المحدد:" %} <span id="selected-count">0</span> {% trans "موظف" %}
                         </td>
-                        <td class="py-3 px-4 text-left text-amber-300">
+                        <td class="py-3 px-4 text-end text-amber-300">
                             <span id="selected-total">0.00</span>
                         </td>
                     </tr>
@@ -141,7 +142,7 @@
         <div class="flex justify-end gap-3">
             <button type="submit"
                     class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black text-sm transition shadow-lg shadow-amber-500/20">
-                <i class="fas fa-hand-holding-dollar ml-2"></i>صرف العمولات
+                <i class="fas fa-hand-holding-dollar ml-2"></i>{% trans "صرف العمولات" %}
             </button>
         </div>
     </form>
@@ -150,8 +151,8 @@
         <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-3xl mb-3">
             <i class="fas fa-check"></i>
         </div>
-        <p class="text-lg font-black text-white">مفيش عمولات مستحقة دلوقتي</p>
-        <p class="text-sm text-slate-500 mt-2">كل الموظفين رصيد عمولتهم = 0. لما تتراكم عمولات على فاتورة بيع، هتبان هنا.</p>
+        <p class="text-lg font-black text-white">{% trans "مفيش عمولات مستحقة دلوقتي" %}</p>
+        <p class="text-sm text-slate-500 mt-2">{% trans "كل الموظفين رصيد عمولتهم = 0. لما تتراكم عمولات على فاتورة بيع، هتبان هنا." %}</p>
     </div>
     {% endif %}
 </main>
@@ -176,9 +177,9 @@
     function confirmPayout() {
         const count = document.querySelectorAll('.emp-check:checked').length;
         const treasury = document.querySelector('select[name="treasury_id"]').value;
-        if (!treasury) { alert('اختر الخزنة أولاً.'); return false; }
-        if (count === 0) { alert('اختر موظف واحد على الأقل.'); return false; }
-        return confirm(`متأكد إنك تصرف عمولات ${count} موظف؟ العملية مش هتقدر تـ undo.`);
+        if (!treasury) { alert('{% trans "اختر الخزنة أولاً." %}'); return false; }
+        if (count === 0) { alert('{% trans "اختر موظف واحد على الأقل." %}'); return false; }
+        return confirm(`{% trans "متأكد إنك تصرف عمولات" %} ${count} {% trans "موظف؟ العملية مش هتقدر تـ undo." %}`);
     }
 </script>
 {% endblock %}

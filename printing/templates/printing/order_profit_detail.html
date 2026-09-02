@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -202,7 +203,7 @@
                         <th class="num">حبر</th>
                         <th class="num">أجر مصمم</th>
                         <th class="num">إجمالي تكلفة</th>
-                        <th class="num">السعر</th>
+                        <th class="num">{% trans "السعر" %}</th>
                         <th class="num">الربح</th>
                         <th class="num">هامش</th>
                     </tr>
@@ -237,7 +238,7 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="4">الإجمالي</td>
+                        <td colspan="4">{% trans "الإجمالي" %}</td>
                         <td class="num">{{ sum_machine|floatformat:2 }}</td>
                         <td class="num">{{ sum_ink|floatformat:2 }}</td>
                         <td class="num">{{ sum_designer|floatformat:2 }}</td>

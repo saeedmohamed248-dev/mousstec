@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>صحة الشركات — Mouss Tec Super Admin</title>
+    <title>{% trans "صحة الشركات" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -70,7 +72,7 @@
         .tenant-meta { font-size:11px; color:#94a3b8; margin-bottom:8px; }
         .chip {
             display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-left:4px;
+            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-inline-end:4px;
         }
         .chip.plan { color:#c4b5fd; border-color:#a78bfa55; }
         .chip.status-active    { color:#86efac; border-color:#22c55e55; }
@@ -100,37 +102,38 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb">
-        <a href="/superadmin/"><i class="fas fa-home"></i> السوبر أدمن</a> / 🩺 صحة الشركات
+        <a href="/superadmin/"><i class="fas fa-home"></i> {% trans "السوبر أدمن" %}</a> / 🩺 {% trans "صحة الشركات" %}
     </div>
-    <h1>🩺 صحة الشركات (Tenant Health & Churn Risk)</h1>
-    <p class="sub">تصنيف كل الشركات بدرجة 0-100 بناءً على الاشتراك + النشاط + العمر + الدعم + الثقة. ركّز على الـ critical &amp; high أولاً.</p>
+    <h1>🩺 {% trans "صحة الشركات (Tenant Health & Churn Risk)" %}</h1>
+    <p class="sub">{% trans "تصنيف كل الشركات بدرجة 0-100 بناءً على الاشتراك + النشاط + العمر + الدعم + الثقة. ركّز على الـ critical & high أولاً." %}</p>
 
     <!-- Risk buckets -->
     <div class="buckets">
         <div class="bucket critical">
             <a href="?risk=critical">
                 <div class="n">{{ buckets.critical }}</div>
-                <div class="lbl">🚨 خطر حرج</div>
+                <div class="lbl">🚨 {% trans "خطر حرج" %}</div>
             </a>
         </div>
         <div class="bucket high">
             <a href="?risk=high">
                 <div class="n">{{ buckets.high }}</div>
-                <div class="lbl">⚠️ خطر مرتفع</div>
+                <div class="lbl">⚠️ {% trans "خطر مرتفع" %}</div>
             </a>
         </div>
         <div class="bucket medium">
             <a href="?risk=medium">
                 <div class="n">{{ buckets.medium }}</div>
-                <div class="lbl">🟡 خطر متوسط</div>
+                <div class="lbl">🟡 {% trans "خطر متوسط" %}</div>
             </a>
         </div>
         <div class="bucket low">
             <a href="?risk=low">
                 <div class="n">{{ buckets.low }}</div>
-                <div class="lbl">✅ آمن</div>
+                <div class="lbl">✅ {% trans "آمن" %}</div>
             </a>
         </div>
     </div>
@@ -140,39 +143,39 @@
         <form method="get">
             <div class="filters">
                 <div>
-                    <label>الخطر</label>
+                    <label>{% trans "الخطر" %}</label>
                     <select name="risk">
-                        <option value="">الكل</option>
-                        <option value="critical" {% if filters.risk == 'critical' %}selected{% endif %}>حرج</option>
-                        <option value="high"     {% if filters.risk == 'high' %}selected{% endif %}>مرتفع</option>
-                        <option value="medium"   {% if filters.risk == 'medium' %}selected{% endif %}>متوسط</option>
-                        <option value="low"      {% if filters.risk == 'low' %}selected{% endif %}>منخفض</option>
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="critical" {% if filters.risk == 'critical' %}selected{% endif %}>{% trans "حرج" %}</option>
+                        <option value="high"     {% if filters.risk == 'high' %}selected{% endif %}>{% trans "مرتفع" %}</option>
+                        <option value="medium"   {% if filters.risk == 'medium' %}selected{% endif %}>{% trans "متوسط" %}</option>
+                        <option value="low"      {% if filters.risk == 'low' %}selected{% endif %}>{% trans "منخفض" %}</option>
                     </select>
                 </div>
                 <div>
-                    <label>الدرجة</label>
+                    <label>{% trans "الدرجة" %}</label>
                     <select name="grade">
-                        <option value="">الكل</option>
+                        <option value="">{% trans "الكل" %}</option>
                         {% for g in "ABCDF" %}
                             <option value="{{ g }}" {% if filters.grade == g %}selected{% endif %}>{{ g }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label>بحث</label>
-                    <input type="text" name="q" value="{{ filters.q }}" placeholder="اسم أو schema …">
+                    <label>{% trans "بحث" %}</label>
+                    <input type="text" name="q" value="{{ filters.q }}" placeholder="{% trans 'اسم أو schema …' %}">
                 </div>
                 <div>
-                    <label>الترتيب</label>
+                    <label>{% trans "الترتيب" %}</label>
                     <select name="sort">
-                        <option value="score"  {% if filters.sort == 'score' %}selected{% endif %}>الأسوأ أولاً</option>
-                        <option value="-score" {% if filters.sort == '-score' %}selected{% endif %}>الأفضل أولاً</option>
-                        <option value="name"   {% if filters.sort == 'name' %}selected{% endif %}>اسم الشركة</option>
+                        <option value="score"  {% if filters.sort == 'score' %}selected{% endif %}>{% trans "الأسوأ أولاً" %}</option>
+                        <option value="-score" {% if filters.sort == '-score' %}selected{% endif %}>{% trans "الأفضل أولاً" %}</option>
+                        <option value="name"   {% if filters.sort == 'name' %}selected{% endif %}>{% trans "اسم الشركة" %}</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:6px;">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> تطبيق</button>
-                    <a href="?" class="btn btn-ghost">إعادة</a>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> {% trans "تطبيق" %}</button>
+                    <a href="?" class="btn btn-ghost">{% trans "إعادة" %}</a>
                 </div>
             </div>
         </form>
@@ -194,15 +197,15 @@
                         </div>
 
                         <div class="signals">
-                            <span class="signal">اشتراك: <b>{{ row.signals.subscription }}</b></span>
-                            <span class="signal">نشاط: <b>{{ row.signals.activity }}</b></span>
-                            <span class="signal">عمر: <b>{{ row.signals.tenure }}</b></span>
-                            <span class="signal">دعم: <b>{{ row.signals.support }}</b></span>
-                            <span class="signal">ثقة: <b>{{ row.signals.trust }}</b></span>
+                            <span class="signal">{% trans "اشتراك:" %} <b>{{ row.signals.subscription }}</b></span>
+                            <span class="signal">{% trans "نشاط:" %} <b>{{ row.signals.activity }}</b></span>
+                            <span class="signal">{% trans "عمر:" %} <b>{{ row.signals.tenure }}</b></span>
+                            <span class="signal">{% trans "دعم:" %} <b>{{ row.signals.support }}</b></span>
+                            <span class="signal">{% trans "ثقة:" %} <b>{{ row.signals.trust }}</b></span>
                         </div>
 
                         {% if row.reasons %}
-                            <ul class="reasons" style="margin:6px 0 0; padding-right:18px;">
+                            <ul class="reasons" style="margin:6px 0 0; padding-inline-start:18px;">
                                 {% for r in row.reasons %}<li>{{ r }}</li>{% endfor %}
                             </ul>
                         {% endif %}
@@ -212,10 +215,10 @@
                                 <i class="fas fa-binoculars"></i> 360 view
                             </a>
                             <a href="/superadmin/enter/{{ row.tenant.schema_name }}/" target="_blank" class="action-btn">
-                                <i class="fas fa-arrow-right-to-bracket"></i> دخول
+                                <i class="fas fa-arrow-right-to-bracket"></i> {% trans "دخول" %}
                             </a>
                             <a href="/superadmin/audit-log/?tenant={{ row.tenant.schema_name }}" target="_blank" class="action-btn">
-                                <i class="fas fa-clipboard-list"></i> سجل التدقيق
+                                <i class="fas fa-clipboard-list"></i> {% trans "سجل التدقيق" %}
                             </a>
                         </div>
                     </div>
@@ -225,7 +228,7 @@
     {% else %}
         <div class="empty">
             <i class="fas fa-circle-check" style="font-size:32px; color:#475569;"></i>
-            <p>لا توجد شركات مطابقة. {% if filters.risk or filters.grade or filters.q %}جرّب تغيير الفلاتر.{% endif %}</p>
+            <p>{% trans "لا توجد شركات مطابقة." %} {% if filters.risk or filters.grade or filters.q %}{% trans "جرّب تغيير الفلاتر." %}{% endif %}</p>
         </div>
     {% endif %}
 </div>

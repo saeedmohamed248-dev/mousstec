@@ -1,0 +1,123 @@
+"""
+Celery task: process a single inbound customer message end-to-end.
+
+Flow:
+  1. Load the tenant's TenantChannelConfig (public schema).
+  2. Gate on subscription + ai_enabled.
+  3. Switch into the tenant schema and read the live priced catalogue.
+  4. Ask the LLM (tenant BYO key, else platform Gemini) for a grounded reply.
+  5. Send the reply back through the correct Meta channel using the tenant's token.
+  6. Log everything to ChannelMessageLog.
+
+The webhook view acks Meta in <1s and hands off here, so nothing in this task is
+time-critical to the HTTP response. All failures are contained: a bad tenant
+config or a Meta outage logs an error and (best-effort) sends the fallback
+message, but never crashes the worker.
+"""
+from __future__ import annotations
+
+import logging
+
+from celery import shared_task
+from django_tenants.utils import schema_context
+
+from .services import meta_api
+from .services.inventory_context import build_catalog_context
+from .services.llm import generate_reply
+from .services.routing import CHANNEL_MESSENGER, CHANNEL_WHATSAPP
+
+logger = logging.getLogger("mouss_tec_core")
+
+
+@shared_task(
+    name="omnichannel.process_inbound_message",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=10,
+    acks_late=True,
+)
+def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
+                            text: str, message_id: str = "", sender_name: str = ""):
+    from .models import ChannelMessageLog, TenantChannelConfig
+
+    try:
+        config = TenantChannelConfig.objects.select_related("tenant").get(pk=config_id)
+    except TenantChannelConfig.DoesNotExist:
+        logger.warning("omnichannel: config %s vanished before processing", config_id)
+        return
+
+    tenant = config.tenant
+
+    def _log(status, outbound="", error=""):
+        try:
+            ChannelMessageLog.objects.create(
+                tenant=tenant, channel=channel, sender_id=sender_id,
+                inbound_text=text, outbound_text=outbound, status=status,
+                error=error, meta_message_id=message_id,
+            )
+        except Exception:
+            logger.exception("omnichannel: failed to write ChannelMessageLog")
+
+    # ── Subscription / enablement gate ────────────────────────────────
+    if not config.is_operational:
+        logger.info("omnichannel: skipping — config %s not operational", config_id)
+        _log(ChannelMessageLog.Status.SKIPPED, error="subscription/AI disabled")
+        return
+
+    # ── Read tenant catalogue inside the tenant schema ────────────────
+    currency = ""
+    catalog_context = ""
+    try:
+        currency = tenant.effective_currency
+    except Exception:
+        currency = ""
+    try:
+        with schema_context(tenant.schema_name):
+            catalog_context = build_catalog_context(text, currency=currency)
+    except Exception as exc:
+        logger.warning("omnichannel: catalogue read failed for %s: %s", tenant.schema_name, exc)
+        catalog_context = ""
+
+    # ── Generate reply ────────────────────────────────────────────────
+    reply = generate_reply(config, text, catalog_context)
+    used_fallback = False
+    if not reply:
+        reply = config.fallback_message
+        used_fallback = True
+
+    if config.max_reply_chars and len(reply) > config.max_reply_chars:
+        reply = reply[: config.max_reply_chars].rstrip() + "…"
+
+    # ── Deliver via the right channel ─────────────────────────────────
+    token = config.meta_access_token
+    try:
+        if channel == CHANNEL_WHATSAPP:
+            meta_api.send_whatsapp_text(
+                access_token=token,
+                phone_number_id=config.whatsapp_phone_number_id,
+                recipient_id=sender_id,
+                text=reply,
+            )
+        elif channel == CHANNEL_MESSENGER:
+            meta_api.send_messenger_text(
+                access_token=token, recipient_id=sender_id, text=reply,
+            )
+        else:
+            logger.error("omnichannel: unknown channel %r", channel)
+            _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=f"unknown channel {channel}")
+            return
+    except meta_api.MetaSendError as exc:
+        logger.error("omnichannel: send failed for tenant=%s: %s", tenant.schema_name, exc)
+        _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=str(exc))
+        # Transient Meta issues are worth one bounded retry.
+        raise self.retry(exc=exc)
+    except Exception as exc:  # never crash the worker
+        logger.exception("omnichannel: unhandled send error: %s", exc)
+        _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=repr(exc))
+        return
+
+    _log(
+        ChannelMessageLog.Status.REPLIED,
+        outbound=reply,
+        error="fallback_used" if used_fallback else "",
+    )

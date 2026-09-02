@@ -1,0 +1,219 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إعدادات الأتمتة متعددة القنوات | Mouss Tec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{ --navy:#0f2c4c; --navy2:#16457a; }
+  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
+  label{ font-weight:600; font-size:.85rem; color:#334155; }
+  input[type=text],input[type=password],input[type=number],textarea,select{
+    width:100%; border:1px solid #cbd5e1; border-radius:.6rem; padding:.55rem .75rem;
+    background:#fff; font-size:.9rem; margin-top:.25rem;
+  }
+  input:focus,textarea:focus,select:focus{ outline:none; border-color:var(--navy2); box-shadow:0 0 0 3px rgba(22,69,122,.12); }
+  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .help{ font-size:.72rem; color:#64748b; margin-top:.2rem; }
+  .errlist{ color:#dc2626; font-size:.75rem; margin-top:.2rem; }
+  .copybox{ background:#0f2c4c; color:#e2e8f0; font-family:ui-monospace,monospace; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <div class="max-w-4xl mx-auto px-6 py-8 flex items-center justify-between flex-wrap gap-4">
+    <div>
+      <h1 class="text-2xl font-black">💬 إعدادات الأتمتة متعددة القنوات</h1>
+      <p class="opacity-80 text-sm mt-1">اربط واتساب بيزنس وماسنجر، واضبط سلوك المساعد الذكي.</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{{ overview_url }}" class="bg-white/10 border border-white/20 text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-white/20">↩︎ نظرة عامة</a>
+      <a href="{{ guide_url }}" class="bg-white text-[#0f2c4c] font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-100">📘 دليل التفعيل خطوة بخطوة</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-8">
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="mb-4 rounded-xl px-4 py-3 text-sm {% if m.tags == 'success' %}bg-green-50 text-green-700 border border-green-200{% elif m.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+        {{ m }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Subscription status -->
+  <div class="card p-5 mb-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <p class="text-sm text-slate-500">حالة اشتراك الأتمتة</p>
+      {% if config.is_subscription_active %}
+        <p class="text-lg font-black text-green-600">● فعّال</p>
+      {% else %}
+        <p class="text-lg font-black text-slate-400">● غير مفعّل — تواصل مع إدارة Mouss Tec للتفعيل</p>
+      {% endif %}
+    </div>
+    <div class="text-sm">
+      {% if config.is_operational %}
+        <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full">✅ المساعد يرد على العملاء الآن</span>
+      {% else %}
+        <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full">⏸️ الرد الآلي متوقف</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Webhook info -->
+  <div class="card p-5 mb-6">
+    <h2 class="font-black text-[#0f2c4c] mb-3">🔗 بيانات الـ Webhook (الصقها داخل تطبيق Meta)</h2>
+    <p class="text-sm text-slate-600 mb-2">Callback URL:</p>
+    <div class="copybox rounded-lg p-3 text-sm break-all">{{ webhook_url }}</div>
+    <p class="text-sm text-slate-600 mt-3 mb-2">Verify Token (المنصة):</p>
+    <div class="copybox rounded-lg p-3 text-sm break-all">{{ platform_verify_token }}</div>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="errlist mb-3">{{ form.non_field_errors }}</div>{% endif %}
+
+    <!-- Meta credentials -->
+    <div class="card p-5 mb-6">
+      <h2 class="font-black text-[#0f2c4c] mb-4">🔑 بيانات الربط مع Meta (BYOK)</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label>{{ form.meta_access_token.label }}</label>
+          {{ form.meta_access_token }}
+          <div class="help">{{ form.meta_access_token.help_text }}</div>
+          {% if form.meta_access_token.errors %}<div class="errlist">{{ form.meta_access_token.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label>{{ form.whatsapp_phone_number_id.label }}</label>
+          {{ form.whatsapp_phone_number_id }}
+          {% if form.whatsapp_phone_number_id.errors %}<div class="errlist">{{ form.whatsapp_phone_number_id.errors }}</div>{% endif %}
+        </div>
+        <div>
+          <label>{{ form.whatsapp_business_account_id.label }}</label>
+          {{ form.whatsapp_business_account_id }}
+        </div>
+        <div>
+          <label>{{ form.facebook_page_id.label }}</label>
+          {{ form.facebook_page_id }}
+        </div>
+        <div>
+          <label>{{ form.app_secret.label }}</label>
+          {{ form.app_secret }}
+          <div class="help">{{ form.app_secret.help_text }}</div>
+        </div>
+        <div>
+          <label>{{ form.webhook_verify_token.label }}</label>
+          {{ form.webhook_verify_token }}
+          <div class="help">{{ form.webhook_verify_token.help_text }}</div>
+        </div>
+        <div class="flex items-center gap-6 pt-6">
+          <label class="flex items-center gap-2 cursor-pointer">{{ form.whatsapp_enabled }} قناة واتساب</label>
+          <label class="flex items-center gap-2 cursor-pointer">{{ form.messenger_enabled }} قناة ماسنجر</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI behaviour -->
+    <div class="card p-5 mb-6">
+      <h2 class="font-black text-[#0f2c4c] mb-4">🤖 سلوك المساعد الذكي</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label>{{ form.business_display_name.label }}</label>
+          {{ form.business_display_name }}
+        </div>
+        <div>
+          <label>{{ form.tone_of_voice.label }}</label>
+          {{ form.tone_of_voice }}
+        </div>
+        <div class="md:col-span-2">
+          <label>{{ form.discount_policy.label }}</label>
+          {{ form.discount_policy }}
+          <div class="help">{{ form.discount_policy.help_text }}</div>
+        </div>
+        <div class="md:col-span-2">
+          <label>{{ form.custom_instructions.label }}</label>
+          {{ form.custom_instructions }}
+          <div class="help">{{ form.custom_instructions.help_text }}</div>
+        </div>
+        <div class="md:col-span-2">
+          <label>{{ form.fallback_message.label }}</label>
+          {{ form.fallback_message }}
+          <div class="help">{{ form.fallback_message.help_text }}</div>
+        </div>
+        <div>
+          <label>{{ form.max_reply_chars.label }}</label>
+          {{ form.max_reply_chars }}
+        </div>
+        <div class="pt-6">
+          <label class="flex items-center gap-2 cursor-pointer">{{ form.ai_enabled }} تفعيل الرد الآلي</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- LLM provider (advanced) -->
+    <div class="card p-5 mb-6">
+      <h2 class="font-black text-[#0f2c4c] mb-1">⚙️ مزوّد الذكاء الاصطناعي (اختياري)</h2>
+      <p class="text-xs text-slate-500 mb-4">اتركه على «مزوّد المنصة» ليعمل تلقائياً، أو استخدم مفتاح شركتك الخاص (OpenAI / Gemini).</p>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div>
+          <label>{{ form.llm_provider.label }}</label>
+          {{ form.llm_provider }}
+        </div>
+        <div>
+          <label>{{ form.llm_model.label }}</label>
+          {{ form.llm_model }}
+          <div class="help">{{ form.llm_model.help_text }}</div>
+        </div>
+        <div>
+          <label>{{ form.llm_api_key.label }}</label>
+          {{ form.llm_api_key }}
+          <div class="help">{{ form.llm_api_key.help_text }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3 mb-10">
+      <a href="{{ guide_url }}" class="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold">إلغاء</a>
+      <button type="submit" class="px-8 py-3 rounded-xl text-white font-bold" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">💾 حفظ الإعدادات</button>
+    </div>
+  </form>
+
+  <!-- Recent conversations -->
+  {% if recent_logs %}
+  <div class="card p-5 mb-12">
+    <h2 class="font-black text-[#0f2c4c] mb-4">📨 آخر المحادثات</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-slate-500 border-b border-slate-200">
+          <tr><th class="text-start py-2">الوقت</th><th class="text-start py-2">القناة</th><th class="text-start py-2">العميل</th><th class="text-start py-2">الرسالة</th><th class="text-start py-2">الحالة</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for log in recent_logs %}
+          <tr>
+            <td class="py-2 text-slate-500 whitespace-nowrap">{{ log.created_at|date:"m-d H:i" }}</td>
+            <td class="py-2">{{ log.get_channel_display }}</td>
+            <td class="py-2 mono text-xs">{{ log.sender_id|truncatechars:14 }}</td>
+            <td class="py-2">{{ log.inbound_text|truncatechars:40 }}</td>
+            <td class="py-2">
+              {% if log.status == 'replied' %}<span class="text-green-600">تم الرد</span>
+              {% elif log.status == 'failed' %}<span class="text-red-600">فشل</span>
+              {% elif log.status == 'skipped' %}<span class="text-slate-400">تجاوز</span>
+              {% else %}{{ log.get_status_display }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</main>
+</body>
+</html>

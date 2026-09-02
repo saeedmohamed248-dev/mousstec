@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
     <script src="/static/js/pwa-init.js" defer></script>
-    <title>نقطة البيع السريعة | Mouss Tec POS</title>
+    <title>{% trans "نقطة البيع السريعة" %} | Mouss Tec POS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
@@ -25,6 +25,7 @@
     </style>
 </head>
 <body class="text-slate-200 min-h-screen flex flex-col">
+{% include "inventory/_lang_switch.html" %}
 
     <nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -32,10 +33,10 @@
                 <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2 rounded-xl">
                     <i class="fas fa-cash-register text-white"></i>
                 </div>
-                <span class="text-lg font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">نقطة البيع</span>
+                <span class="text-lg font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">{% trans "نقطة البيع" %}</span>
             </div>
             <div class="flex items-center gap-3">
-                <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>العودة</a>
+                <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>{% trans "العودة" %}</a>
             </div>
         </div>
     </nav>
@@ -46,33 +47,33 @@
             <!-- Search & Products -->
             <div class="lg:col-span-2 space-y-4">
                 <div class="relative">
-                    <input type="text" id="barcode-input" placeholder="امسح الباركود أو ابحث باسم القطعة..."
+                    <input type="text" id="barcode-input" placeholder="{% trans 'امسح الباركود أو ابحث باسم القطعة...' %}"
                         class="w-full bg-slate-900/60 border border-slate-700 focus:border-purple-500 rounded-2xl px-5 py-4 text-white placeholder-slate-500 text-sm"
                         autofocus>
                     <button onclick="searchProduct()" class="absolute left-3 top-1/2 -translate-y-1/2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition">
-                        <i class="fas fa-search ml-1"></i>بحث
+                        <i class="fas fa-search ml-1"></i>{% trans "بحث" %}
                     </button>
                 </div>
 
                 <div id="search-results" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 min-h-[200px]">
-                    <p class="text-center text-slate-600 py-10"><i class="fas fa-barcode text-4xl mb-3 block"></i>امسح الباركود أو ابحث عن قطعة غيار</p>
+                    <p class="text-center text-slate-600 py-10"><i class="fas fa-barcode text-4xl mb-3 block"></i>{% trans "امسح الباركود أو ابحث عن قطعة غيار" %}</p>
                 </div>
             </div>
 
             <!-- Cart -->
             <div class="space-y-4">
                 <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                    <h3 class="text-sm font-black text-white mb-4 flex items-center gap-2"><i class="fas fa-shopping-cart text-purple-400"></i> سلة الفاتورة</h3>
+                    <h3 class="text-sm font-black text-white mb-4 flex items-center gap-2"><i class="fas fa-shopping-cart text-purple-400"></i> {% trans "سلة الفاتورة" %}</h3>
                     <div id="cart-items" class="space-y-2 min-h-[150px]">
-                        <p class="text-center text-slate-600 py-6 text-sm">السلة فارغة</p>
+                        <p class="text-center text-slate-600 py-6 text-sm">{% trans "السلة فارغة" %}</p>
                     </div>
                     <hr class="border-slate-800 my-4">
                     <div class="flex justify-between items-center mb-4">
-                        <span class="text-sm font-bold text-slate-400">الإجمالي</span>
+                        <span class="text-sm font-bold text-slate-400">{% trans "الإجمالي" %}</span>
                         <span id="cart-total" class="text-2xl font-black text-emerald-400">0.00 {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     </div>
                     <button onclick="submitInvoice()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black py-3 rounded-xl text-sm transition shadow-lg shadow-emerald-500/20">
-                        <i class="fas fa-check-circle ml-2"></i>اعتماد الفاتورة
+                        <i class="fas fa-check-circle ml-2"></i>{% trans "اعتماد الفاتورة" %}
                     </button>
                 </div>
             </div>
@@ -80,6 +81,14 @@
     </main>
 
 <script>
+const T = {
+  egp: "{% trans 'ج.م' %}",
+  avail: "{% trans 'المتاح:' %}",
+  connErr: "{% trans 'خطأ في الاتصال' %}",
+  emptyCart: "{% trans 'السلة فارغة' %}",
+  savedOffline: "{% trans 'تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.' %}",
+  wip: "{% trans 'سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.' %}",
+};
 function searchProduct() {
     const code = document.getElementById('barcode-input').value.trim();
     if (!code) return;
@@ -94,7 +103,7 @@ function searchProduct() {
                     <div class="flex items-center gap-3"><span class="text-emerald-400 font-black">${data.price} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     <button onclick="addToCart('${data.id}','${data.name}',${data.price})" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas fa-plus"></i></button></div>
                 </div>`;
-        }).catch(() => { document.getElementById('search-results').innerHTML = '<p class="text-center text-red-400 py-10">خطأ في الاتصال</p>'; });
+        }).catch(() => { document.getElementById('search-results').innerHTML = `<p class="text-center text-red-400 py-10">${T.connErr}</p>`; });
 }
 document.getElementById('barcode-input').addEventListener('keydown', e => { if (e.key === 'Enter') searchProduct(); });
 let cart = [];
@@ -114,11 +123,11 @@ function submitInvoice() {
         const queue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
         queue.push({type: 'pos_invoice', data: payload, timestamp: new Date().toISOString()});
         localStorage.setItem('mousstec_offline_queue', JSON.stringify(queue));
-        alert('تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.');
+        alert(T.savedOffline);
         cart = []; renderCart();
         return;
     }
-    alert('سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.');
+    alert(T.wip);
 }
 
 // SW registration handled centrally by /static/js/pwa-init.js

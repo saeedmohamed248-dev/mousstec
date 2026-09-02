@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -517,7 +518,7 @@
                 <h4><i class="fas fa-coins"></i> رصيد تصاميمي</h4>
                 <div class="credit-row"><span>رصيد مجاني</span><span class="num">{{ side_widgets.credits.free }}</span></div>
                 <div class="credit-row"><span>رصيد مدفوع</span><span class="num">{{ side_widgets.credits.paid }}</span></div>
-                <div class="credit-row" style="padding-top:10px;"><span style="font-weight:800;">الإجمالي</span><span class="num" style="font-size:1.2rem;">{{ side_widgets.credits.total }}</span></div>
+                <div class="credit-row" style="padding-top:10px;"><span style="font-weight:800;">{% trans "الإجمالي" %}</span><span class="num" style="font-size:1.2rem;">{{ side_widgets.credits.total }}</span></div>
                 <a href="/marketplace/design-store/" class="side-link" style="margin-top:12px;">
                     <i class="fas fa-cart-shopping lead"></i> شراء رصيد <i class="fas fa-arrow-left tail"></i>
                 </a>

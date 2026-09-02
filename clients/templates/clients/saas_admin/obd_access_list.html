@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>وصول غرفة التشخيص (OBD) — Mouss Tec Super Admin</title>
+    <title>{% trans "وصول غرفة التشخيص (OBD)" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -16,13 +18,13 @@
         .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
         .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
         .tab.active { background:#0891b2; color:#fff; border-color:#67e8f9; }
-        .badge { display:inline-block; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-right:6px; font-weight:700; }
+        .badge { display:inline-block; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-inline-start:6px; font-weight:700; }
         .badge.lifetime { background:#8b5cf6; }
         .badge.active   { background:#22c55e; }
         .badge.expired  { background:#ef4444; }
         .badge.inactive { background:#64748b; }
         table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
         th { background:#0f172a; color:#67e8f9; font-weight:900; }
         tr:hover { background:#293548; }
         .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:11px; text-decoration:none; display:inline-block; margin:1px; }
@@ -45,31 +47,32 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / وصول غرفة التشخيص</div>
-    <h1>🔧 وصول غرفة التشخيص (OBD)</h1>
-    <p class="sub">هذه الميزة <b>إضافة مدفوعة</b> منفصلة عن الباقة الأساسية. امنح/اسحب الوصول لكل مستأجر بضغطة زر.</p>
+    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / {% trans "وصول غرفة التشخيص" %}</div>
+    <h1>🔧 {% trans "وصول غرفة التشخيص (OBD)" %}</h1>
+    <p class="sub">{% blocktrans %}هذه الميزة <b>إضافة مدفوعة</b> منفصلة عن الباقة الأساسية. امنح/اسحب الوصول لكل مستأجر بضغطة زر.{% endblocktrans %}</p>
 
     {% if messages %}<div class="messages">
         {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
     </div>{% endif %}
 
     <div class="tabs">
-        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📜 الكل</a>
-        <a class="tab {% if show == 'active' %}active{% endif %}"   href="?show=active">✅ نشط</a>
-        <a class="tab {% if show == 'expiring' %}active{% endif %}" href="?show=expiring">⏳ ينتهي خلال أسبوع</a>
-        <a class="tab {% if show == 'inactive' %}active{% endif %}" href="?show=inactive">🚫 غير نشط</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📜 {% trans "الكل" %}</a>
+        <a class="tab {% if show == 'active' %}active{% endif %}"   href="?show=active">✅ {% trans "نشط" %}</a>
+        <a class="tab {% if show == 'expiring' %}active{% endif %}" href="?show=expiring">⏳ {% trans "ينتهي خلال أسبوع" %}</a>
+        <a class="tab {% if show == 'inactive' %}active{% endif %}" href="?show=inactive">🚫 {% trans "غير نشط" %}</a>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>المستأجر</th>
-                <th>القطاع</th>
-                <th>الحالة</th>
-                <th>تاريخ الانتهاء</th>
-                <th>مَنح وصول</th>
-                <th>إجراء</th>
+                <th>{% trans "المستأجر" %}</th>
+                <th>{% trans "القطاع" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "تاريخ الانتهاء" %}</th>
+                <th>{% trans "مَنح وصول" %}</th>
+                <th>{% trans "إجراء" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -78,40 +81,40 @@
                 <td><b>{{ r.client.name }}</b><br><span style="color:#94a3b8;font-size:11px;">{{ r.client.schema_name }}</span></td>
                 <td>{{ r.client.get_industry_display }}</td>
                 <td>
-                    {% if r.state == 'lifetime' %}<span class="badge lifetime">♾️ مدى الحياة</span>
-                    {% elif r.state == 'active' %}<span class="badge active">✅ نشط</span>
-                    {% elif r.state == 'expired' %}<span class="badge expired">⏰ منتهي</span>
-                    {% else %}<span class="badge inactive">🚫 غير مفعّل</span>{% endif %}
+                    {% if r.state == 'lifetime' %}<span class="badge lifetime">♾️ {% trans "مدى الحياة" %}</span>
+                    {% elif r.state == 'active' %}<span class="badge active">✅ {% trans "نشط" %}</span>
+                    {% elif r.state == 'expired' %}<span class="badge expired">⏰ {% trans "منتهي" %}</span>
+                    {% else %}<span class="badge inactive">🚫 {% trans "غير مفعّل" %}</span>{% endif %}
                 </td>
                 <td>{% if r.client.obd_access_expiry %}{{ r.client.obd_access_expiry|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
                 <td class="actions">
                     {% for key, label in durations %}{% endfor %}
                     <form method="post" action="{% url 'saas_obd_access_grant' tenant_id=r.client.id %}">
                         {% csrf_token %}
-                        <button class="btn btn-1d" name="duration" value="1d">+1 يوم</button>
-                        <button class="btn btn-1w" name="duration" value="1w">+1 أسبوع</button>
-                        <button class="btn btn-1m" name="duration" value="1m">+1 شهر</button>
-                        <button class="btn btn-3m" name="duration" value="3m">+3 شهور</button>
-                        <button class="btn btn-6m" name="duration" value="6m">+6 شهور</button>
-                        <button class="btn btn-1y" name="duration" value="1y">+1 سنة</button>
-                        <button class="btn btn-lifetime" name="duration" value="lifetime" onclick="return confirm('منح وصول مدى الحياة لـ {{ r.client.name|escapejs }}؟')">♾️ مدى الحياة</button>
+                        <button class="btn btn-1d" name="duration" value="1d">+1 {% trans "يوم" %}</button>
+                        <button class="btn btn-1w" name="duration" value="1w">+1 {% trans "أسبوع" %}</button>
+                        <button class="btn btn-1m" name="duration" value="1m">+1 {% trans "شهر" %}</button>
+                        <button class="btn btn-3m" name="duration" value="3m">+3 {% trans "شهور" %}</button>
+                        <button class="btn btn-6m" name="duration" value="6m">+6 {% trans "شهور" %}</button>
+                        <button class="btn btn-1y" name="duration" value="1y">+1 {% trans "سنة" %}</button>
+                        <button class="btn btn-lifetime" name="duration" value="lifetime" onclick="return confirm('{% blocktrans with name=r.client.name|escapejs %}منح وصول مدى الحياة لـ {{ name }}؟{% endblocktrans %}')">♾️ {% trans "مدى الحياة" %}</button>
                     </form>
                 </td>
                 <td>
                     {% if r.client.has_obd_access %}
-                    <form method="post" action="{% url 'saas_obd_access_revoke' tenant_id=r.client.id %}" onsubmit="return confirm('تأكيد سحب الوصول من {{ r.client.name|escapejs }}؟')">
+                    <form method="post" action="{% url 'saas_obd_access_revoke' tenant_id=r.client.id %}" onsubmit="return confirm('{% blocktrans with name=r.client.name|escapejs %}تأكيد سحب الوصول من {{ name }}؟{% endblocktrans %}')">
                         {% csrf_token %}
-                        <button class="btn btn-revoke">🚫 سحب</button>
+                        <button class="btn btn-revoke">🚫 {% trans "سحب" %}</button>
                     </form>
                     {% else %}—{% endif %}
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">لا يوجد مستأجرون في هذا الفلتر.</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">{% trans "لا يوجد مستأجرون في هذا الفلتر." %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
-    <p class="legend">⏰ تحديث الوقت الحالي: {{ now|date:"Y-m-d H:i" }} · أزرار المنح تضيف للمدة المتبقية (Stacking).</p>
+    <p class="legend">⏰ {% blocktrans with t=now|date:"Y-m-d H:i" %}تحديث الوقت الحالي: {{ t }} · أزرار المنح تضيف للمدة المتبقية (Stacking).{% endblocktrans %}</p>
 </div>
 </body>
 </html>

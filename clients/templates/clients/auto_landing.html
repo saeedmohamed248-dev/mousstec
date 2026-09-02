@@ -39,13 +39,13 @@
         <div class="flex items-center gap-3">
             {% include "clients/_region_switcher.html" %}
             <a href="{% url 'saas_pricing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
-                <i class="fas fa-tags"></i> الباقات
+                <i class="fas fa-tags"></i> {% trans "الباقات" %}
             </a>
             <a href="{% url 'client_login_finder' %}" class="text-slate-400 hover:text-white font-bold px-4 py-2 rounded-xl text-sm transition">
-                <i class="fas fa-lock"></i> دخول
+                <i class="fas fa-lock"></i> {% trans "دخول" %}
             </a>
             <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
-                <i class="fas fa-rocket"></i> ابدأ مجانا
+                <i class="fas fa-rocket"></i> {% trans "ابدأ مجانا" %}
             </a>
         </div>
     </header>
@@ -55,18 +55,18 @@
         <div class="max-w-4xl mx-auto text-center">
             <span class="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold px-4 py-1.5 rounded-full text-xs tracking-wider mb-6">
                 <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                لمراكز الصيانة وتجار قطع الغيار
+                {% trans "لمراكز الصيانة وتجار قطع الغيار" %}
             </span>
             <h1 class="text-4xl md:text-6xl font-black text-white leading-tight mb-6">
-                أدِر شركتك أو مركز الصيانة <br>
+                {% trans "أدِر شركتك أو مركز الصيانة" %} <br>
                 <span class="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">{% trans "من الموبايل" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-                فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا.
+                {% trans "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا." %}
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-8 py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
-                    <i class="fas fa-bolt"></i> سجّل مجاناً — 7 أيام بكل المزايا
+                    <i class="fas fa-bolt"></i> {% trans "سجّل مجاناً — 7 أيام بكل المزايا" %}
                 </a>
             </div>
         </div>
@@ -196,7 +196,7 @@
             <h2 class="text-3xl font-black text-white mb-4">{% trans "جاهز تبدأ؟" %}</h2>
             <p class="text-slate-400 mb-8">{% trans "سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع." %}</p>
             <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-10 py-4 rounded-2xl text-lg inline-flex items-center gap-3">
-                <i class="fas fa-rocket"></i> ابدأ الآن مجانا
+                <i class="fas fa-rocket"></i> {% trans "ابدأ الآن مجانا" %}
             </a>
         </div>
     </div>

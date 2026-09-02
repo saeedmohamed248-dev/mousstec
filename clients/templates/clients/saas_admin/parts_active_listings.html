@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>السوق المفتوح — المعروضات النشطة</title>
+    <title>{% trans "السوق المفتوح — المعروضات النشطة" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -22,7 +24,7 @@
         form.search input { flex:1; padding:10px 14px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:8px; font-family:inherit; }
         form.search button { padding:10px 20px; background:#22c55e; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; }
         table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:10px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th, td { padding:10px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
         th { background:#0f172a; color:#86efac; font-weight:900; }
         tr:hover { background:#293548; }
         .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:11px; text-decoration:none; display:inline-block; margin:1px; }
@@ -39,35 +41,36 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / السوق المفتوح / المعروضات النشطة</div>
-    <h1>🛒 المعروضات النشطة على السوق</h1>
-    <p class="sub">كل المعروضات المعتمدة والمرئية للمشترين الآن. الـ Suspend يخفيها فوراً من الصفحات العامة بدون حذف.</p>
+    <div class="breadcrumb"><a href="/secure-portal/">⚙️ Admin</a> / {% trans "السوق المفتوح" %} / {% trans "المعروضات النشطة" %}</div>
+    <h1>🛒 {% trans "المعروضات النشطة على السوق" %}</h1>
+    <p class="sub">{% trans "كل المعروضات المعتمدة والمرئية للمشترين الآن. الـ Suspend يخفيها فوراً من الصفحات العامة بدون حذف." %}</p>
 
     {% if messages %}<div class="messages">
         {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
     </div>{% endif %}
 
     <div class="stats">
-        <div class="stat ok"><div class="n">{{ total_active }}</div><div>نشطة</div></div>
-        <div class="stat warn"><div class="n">{{ total_suspended }}</div><div>معلقة</div></div>
+        <div class="stat ok"><div class="n">{{ total_active }}</div><div>{% trans "نشطة" %}</div></div>
+        <div class="stat warn"><div class="n">{{ total_suspended }}</div><div>{% trans "معلقة" %}</div></div>
     </div>
 
     <form class="search" method="get">
-        <input type="text" name="q" placeholder="🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع..." value="{{ q }}">
-        <button type="submit">بحث</button>
+        <input type="text" name="q" placeholder="{% trans '🔍 ابحث بالاسم، رقم القطعة، أو اسم البائع...' %}" value="{{ q }}">
+        <button type="submit">{% trans "بحث" %}</button>
     </form>
 
     <table>
         <thead>
             <tr>
-                <th>القطعة</th>
-                <th>الماركة/الموديل</th>
-                <th>البائع</th>
-                <th>السعر</th>
-                <th>الحالة</th>
-                <th>تاريخ النشر</th>
-                <th>الإجراءات</th>
+                <th>{% trans "القطعة" %}</th>
+                <th>{% trans "الماركة/الموديل" %}</th>
+                <th>{% trans "البائع" %}</th>
+                <th>{% trans "السعر" %}</th>
+                <th>{% trans "الحالة" context "condition" %}</th>
+                <th>{% trans "تاريخ النشر" %}</th>
+                <th>{% trans "الإجراءات" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -87,20 +90,20 @@
                 <td>{{ l.get_condition_display|default:l.condition }}</td>
                 <td>{{ l.created_at|date:"Y-m-d" }}</td>
                 <td class="actions">
-                    <a class="btn btn-edit" href="{% url 'saas_parts_listing_edit' listing_id=l.id %}"><i class="fas fa-pen"></i> تعديل</a>
-                    <form method="post" action="{% url 'saas_parts_listing_suspend' listing_id=l.id %}" onsubmit="return confirm('تعليق المعروضة «{{ l.title|escapejs }}»؟ ستُخفى فوراً من المشترين.')">
+                    <a class="btn btn-edit" href="{% url 'saas_parts_listing_edit' listing_id=l.id %}"><i class="fas fa-pen"></i> {% trans "تعديل" %}</a>
+                    <form method="post" action="{% url 'saas_parts_listing_suspend' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}تعليق المعروضة «{{ title }}»؟ ستُخفى فوراً من المشترين.{% endblocktrans %}')">
                         {% csrf_token %}
                         <input type="hidden" name="reason" value="Admin suspension via active-listings table">
-                        <button class="btn btn-suspend"><i class="fas fa-pause"></i> تعليق</button>
+                        <button class="btn btn-suspend"><i class="fas fa-pause"></i> {% trans "تعليق" %}</button>
                     </form>
-                    <form method="post" action="{% url 'saas_parts_listing_soft_delete' listing_id=l.id %}" onsubmit="return confirm('حذف المعروضة «{{ l.title|escapejs }}»؟ (Soft Delete — يمكن استعادتها لاحقاً)')">
+                    <form method="post" action="{% url 'saas_parts_listing_soft_delete' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}حذف المعروضة «{{ title }}»؟ (Soft Delete — يمكن استعادتها لاحقاً){% endblocktrans %}')">
                         {% csrf_token %}
-                        <button class="btn btn-delete"><i class="fas fa-trash"></i> حذف</button>
+                        <button class="btn btn-delete"><i class="fas fa-trash"></i> {% trans "حذف" %}</button>
                     </form>
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">لا توجد معروضات نشطة بهذا الفلتر.</td></tr>
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:#94a3b8;">{% trans "لا توجد معروضات نشطة بهذا الفلتر." %}</td></tr>
         {% endfor %}
         </tbody>
     </table>

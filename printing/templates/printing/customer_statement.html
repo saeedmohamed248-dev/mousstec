@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -209,7 +210,7 @@
             {% if events %}
             <tfoot style="background:rgba(255,255,255,0.03);">
                 <tr style="font-weight:900;">
-                    <td colspan="4" style="text-align:left;">الإجمالي</td>
+                    <td colspan="4" style="text-align:left;">{% trans "الإجمالي" %}</td>
                     <td class="num debit" style="text-align:left;">{{ total_invoiced|floatformat:2 }}</td>
                     <td class="num credit" style="text-align:left;">{{ total_paid|floatformat:2 }}</td>
                     <td class="num balance" style="text-align:left;">{{ final_balance|floatformat:2 }}</td>

@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>الشات الحي — Mouss Tec Super Admin</title>
+    <title>{% trans "الشات الحي" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
@@ -13,14 +15,14 @@
         h1 { color:#60a5fa; font-weight:900; margin:0 0 6px; }
         .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
-        .stat { background:#1e293b; padding:18px; border-radius:12px; border-right:4px solid #60a5fa; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #60a5fa; }
         .stat.waiting { border-color:#f59e0b; }
         .stat.active { border-color:#22c55e; }
         .stat.closed-now { border-color:#ef4444; }
         .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
         .stat .label { color:#94a3b8; font-size:12px; }
         table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:right; border-bottom:1px solid #334155; font-size:13px; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
         th { background:#0f172a; color:#60a5fa; font-weight:900; }
         tr:hover { background:#293548; cursor:pointer; }
         .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
@@ -35,42 +37,44 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
-    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / الشات الحي</div>
-    <h1>💬 الشات الحي</h1>
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "الشات الحي" %}</div>
+    <h1>💬 {% trans "الشات الحي" %}</h1>
     <p class="sub">
-        كل الجلسات الجارية بانتظار رد موظفي الدعم.
+        {% trans "كل الجلسات الجارية بانتظار رد موظفي الدعم." %}
         {% if is_open %}
-            <span class="status-pill open">🟢 داخل أوقات العمل</span>
+            <span class="status-pill open">🟢 {% trans "داخل أوقات العمل" %}</span>
         {% else %}
-            <span class="status-pill closed">🔴 خارج أوقات العمل — الزوار يشوفون الفورم</span>
+            <span class="status-pill closed">🔴 {% trans "خارج أوقات العمل — الزوار يشوفون الفورم" %}</span>
         {% endif %}
     </p>
 
     <div class="stats">
-        <div class="stat waiting"><h2>{{ count_waiting }}</h2><div class="label">⏳ بانتظار رد</div></div>
-        <div class="stat active"><h2>{{ count_active }}</h2><div class="label">🟢 جارية</div></div>
+        <div class="stat waiting"><h2>{{ count_waiting }}</h2><div class="label">⏳ {% trans "بانتظار رد" %}</div></div>
+        <div class="stat active"><h2>{{ count_active }}</h2><div class="label">🟢 {% trans "جارية" %}</div></div>
     </div>
 
     <table>
         <thead>
         <tr>
             <th>#</th>
-            <th>بدأت</th>
-            <th>الزائر</th>
-            <th>المستأجر</th>
-            <th>آخر نشاط</th>
-            <th>الحالة</th>
-            <th>غير مقروء</th>
-            <th>الموظف</th>
+            <th>{% trans "بدأت" %}</th>
+            <th>{% trans "الزائر" %}</th>
+            <th>{% trans "المستأجر" %}</th>
+            <th>{% trans "آخر نشاط" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th>{% trans "غير مقروء" %}</th>
+            <th>{% trans "الموظف" %}</th>
         </tr>
         </thead>
         <tbody>
+        {% trans "ضيف" as guest_txt %}
         {% for s in sessions %}
         <tr onclick="window.location='{% url 'saas_chat_session_detail' s.id %}'">
             <td>#{{ s.id }}</td>
             <td>{{ s.started_at|date:"m-d H:i" }}</td>
-            <td><strong>{{ s.visitor_name|default:"ضيف" }}</strong><br><small style="color:#94a3b8;">{{ s.visitor_email|default:s.ip_address }}</small></td>
+            <td><strong>{{ s.visitor_name|default:guest_txt }}</strong><br><small style="color:#94a3b8;">{{ s.visitor_email|default:s.ip_address }}</small></td>
             <td>{{ s.tenant.name|default:"—" }}</td>
             <td><small>{{ s.last_activity_at|date:"H:i:s" }}</small></td>
             <td><span class="badge b-{{ s.status }}">{{ s.get_status_display }}</span></td>
@@ -78,7 +82,7 @@
             <td>{{ s.agent|default:"—" }}</td>
         </tr>
         {% empty %}
-            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">📭 لا توجد جلسات شات جارية</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">📭 {% trans "لا توجد جلسات شات جارية" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>

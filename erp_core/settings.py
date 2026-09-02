@@ -164,6 +164,13 @@ SHARED_APPS = (
     # the public domain, not any tenant subdomain; the bot's knowledge base
     # (SystemUpdate / ConversationLog) is global, not per-tenant.
     'messenger_bot',
+
+    # 💬 Omnichannel AI Automation (subscription add-on). SHARED because Meta
+    # delivers every tenant's WhatsApp/Messenger webhook to the public domain —
+    # the routing table (phone_number_id / page_id → tenant) must be queryable
+    # before any schema is active. Tenant inventory/prices are read per-schema
+    # inside the Celery task. BYOK: each tenant uses their own Meta app + billing.
+    'omnichannel',
 )
 
 TENANT_APPS = (
@@ -417,6 +424,22 @@ MESSENGER_VECTOR_STORE_PATH = env.str(
     'MESSENGER_VECTOR_STORE_PATH',
     str(BASE_DIR / 'media' / 'messenger_bot' / 'kb.pkl'),
 )
+
+# =====================================================================
+# 💬 Omnichannel AI Automation add-on (per-tenant WhatsApp + Messenger, BYOK)
+# =====================================================================
+# Platform-level Webhook verify token — this is the token Mouss Tec hands each
+# tenant to paste into their Meta app's webhook config. Tenants may instead set
+# their own per-tenant token (TenantChannelConfig.webhook_verify_token).
+OMNICHANNEL_VERIFY_TOKEN = env.str('OMNICHANNEL_VERIFY_TOKEN', 'mousstec_omnichannel_verify_2026')
+# Meta Graph API version used for all outbound sends.
+META_GRAPH_VERSION = env.str('META_GRAPH_VERSION', 'v19.0')
+# Dedicated Fernet key (Fernet.generate_key()) encrypting tenant Meta tokens.
+# Falls back to OBD_DEVICE_SECRET_KEK, then a SECRET_KEY-derived key (dev only).
+OMNICHANNEL_SECRET_KEK = env.str('OMNICHANNEL_SECRET_KEK', '')
+# Default Gemini model for the platform (fallback) LLM provider.
+# Empty → the code default `gemini-flash-latest` (always the current stable Flash).
+OMNICHANNEL_GEMINI_MODEL = env.str('OMNICHANNEL_GEMINI_MODEL', '') or None
 
 # =====================================================================
 # 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)
@@ -705,12 +728,22 @@ CELERY_TASK_ROUTES = {
     # ── Design storage — async persistence + nightly audit ───────────
     'clients.tasks.persist_design_image_async':         {'queue': 'heavy_ai_tasks'},
     'clients.tasks.audit_design_storage_daily':         {'queue': 'heavy_ai_tasks'},
+    # ── Omnichannel AI auto-reply (WhatsApp/Messenger inbound) ────────
+    'omnichannel.process_inbound_message':              {'queue': 'heavy_ai_tasks'},
+    # ── Wix integration (runs on the default worker) ─────────────────
+    'clients.tasks.wix_sync_all':                       {'queue': 'default'},
+    'clients.tasks.wix_sync_one':                       {'queue': 'default'},
 }
 
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
 CELERY_QUEUES_LIST = ['default', 'notifications', 'heavy_ai_tasks', 'urgent_fintech_tasks', 'b2b_sync']
 
 CELERY_BEAT_SCHEDULE = {
+    # ── Wix integration: sync products + pull orders every 15 min ──
+    'wix_sync_all': {
+        'task': 'clients.tasks.wix_sync_all',
+        'schedule': crontab(minute='*/15'),
+    },
     # ── Billing & Subscription ───────────────────────────────────────
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',

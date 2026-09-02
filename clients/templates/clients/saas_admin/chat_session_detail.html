@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>شات #{{ session.id }} — {{ session.visitor_name }}</title>
+    <title>{% trans "شات" %} #{{ session.id }} — {{ session.visitor_name }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
@@ -33,19 +35,21 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb">
         <a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> /
-        <a href="{% url 'saas_chat_inbox' %}">الشات الحي</a> / #{{ session.id }}
+        <a href="{% url 'saas_chat_inbox' %}">{% trans "الشات الحي" %}</a> / #{{ session.id }}
     </div>
-    <h1>💬 {{ session.visitor_name|default:"ضيف" }}</h1>
+    {% trans "ضيف" as guest_txt %}
+    <h1>💬 {{ session.visitor_name|default:guest_txt }}</h1>
 
     <div class="info">
         <strong>📧</strong> {{ session.visitor_email|default:"—" }} •
         <strong>🌐</strong> {{ session.tenant.name|default:"—" }} •
         <strong>📍 IP:</strong> {{ session.ip_address|default:"—" }} •
-        <strong>⏱️ بدأت:</strong> {{ session.started_at|date:"Y-m-d H:i" }} •
-        <strong>الحالة:</strong> {{ session.get_status_display }}
+        <strong>⏱️ {% trans "بدأت:" %}</strong> {{ session.started_at|date:"Y-m-d H:i" }} •
+        <strong>{% trans "الحالة:" %}</strong> {{ session.get_status_display }}
     </div>
 
     {% if messages %}{% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}{% endif %}
@@ -63,15 +67,15 @@
 
     {% if session.status != 'closed' %}
     <form method="post" id="reply-form">{% csrf_token %}
-        <textarea name="body" rows="2" placeholder="اكتب ردك..." required></textarea>
-        <button type="submit" class="btn-send">📤 إرسال</button>
+        <textarea name="body" rows="2" placeholder="{% trans 'اكتب ردك...' %}" required></textarea>
+        <button type="submit" class="btn-send">📤 {% trans "إرسال" %}</button>
     </form>
 
     <form method="post" action="{% url 'saas_chat_admin_close' session.id %}" style="margin-top:12px;">{% csrf_token %}
-        <button type="submit" class="btn-close" onclick="return confirm('غلق الجلسة؟')">🔒 إنهاء الجلسة</button>
+        <button type="submit" class="btn-close" onclick="return confirm('{% trans "غلق الجلسة؟" %}')">🔒 {% trans "إنهاء الجلسة" %}</button>
     </form>
     {% else %}
-    <p style="text-align:center; color:#94a3b8;">🔒 هذه الجلسة مغلقة</p>
+    <p style="text-align:center; color:#94a3b8;">🔒 {% trans "هذه الجلسة مغلقة" %}</p>
     {% endif %}
 
     <script>

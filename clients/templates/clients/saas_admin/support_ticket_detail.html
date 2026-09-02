@@ -1,9 +1,11 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>تذكرة #{{ ticket.id }} — {{ ticket.subject }}</title>
+    <title>{% trans "تذكرة" %} #{{ ticket.id }} — {{ ticket.subject }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
@@ -32,11 +34,12 @@
     {% include "clients/_theme_light.html" %}
 </head>
 <body>
+{% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb">
         <a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> /
-        <a href="{% url 'saas_support_inbox' %}">صندوق الدعم</a> /
-        تذكرة #{{ ticket.id }}
+        <a href="{% url 'saas_support_inbox' %}">{% trans "صندوق الدعم" %}</a> /
+        {% trans "تذكرة" %} #{{ ticket.id }}
     </div>
     <h1>📨 {{ ticket.subject }}</h1>
     <p style="color:#94a3b8;">#{{ ticket.id }} • {{ ticket.created_at|date:"Y-m-d H:i" }} • <span class="badge b-{{ ticket.status|cut:'_' }}">{{ ticket.get_status_display }}</span></p>
@@ -46,60 +49,60 @@
     <div class="grid">
         <div>
             <div class="card">
-                <div class="label">المرسل</div>
+                <div class="label">{% trans "المرسل" %}</div>
                 <div class="value">{{ ticket.name }} &lt;{{ ticket.email }}&gt; {% if ticket.phone %} • 📞 {{ ticket.phone }}{% endif %}</div>
-                <div class="label">الرسالة</div>
+                <div class="label">{% trans "الرسالة" %}</div>
                 <div class="msg">{{ ticket.message }}</div>
             </div>
 
             <div class="card">
-                <h3>📝 ملاحظات داخلية</h3>
-                {% if ticket.admin_notes %}<div class="notes">{{ ticket.admin_notes }}</div>{% else %}<p style="color:#94a3b8;">لا توجد ملاحظات</p>{% endif %}
+                <h3>📝 {% trans "ملاحظات داخلية" %}</h3>
+                {% if ticket.admin_notes %}<div class="notes">{{ ticket.admin_notes }}</div>{% else %}<p style="color:#94a3b8;">{% trans "لا توجد ملاحظات" %}</p>{% endif %}
                 <form method="post">{% csrf_token %}
                     <input type="hidden" name="action" value="add_note">
-                    <textarea name="note" rows="3" placeholder="أضف ملاحظة..." required></textarea>
-                    <button type="submit" class="btn btn-ok">➕ إضافة ملاحظة</button>
+                    <textarea name="note" rows="3" placeholder="{% trans 'أضف ملاحظة...' %}" required></textarea>
+                    <button type="submit" class="btn btn-ok">➕ {% trans "إضافة ملاحظة" %}</button>
                 </form>
             </div>
         </div>
 
         <div>
             <div class="card">
-                <h3>⚙️ إجراءات</h3>
+                <h3>⚙️ {% trans "إجراءات" %}</h3>
                 <form method="post" style="margin-bottom:16px;">{% csrf_token %}
                     <input type="hidden" name="action" value="update_status">
-                    <div class="label">الحالة</div>
+                    <div class="label">{% trans "الحالة" %}</div>
                     <select name="status">
                         {% for v, lbl in ticket.STATUS_CHOICES %}
                             <option value="{{ v }}" {% if ticket.status == v %}selected{% endif %}>{{ lbl }}</option>
                         {% endfor %}
                     </select>
-                    <button type="submit" class="btn btn-ok">حفظ الحالة</button>
+                    <button type="submit" class="btn btn-ok">{% trans "حفظ الحالة" %}</button>
                 </form>
 
                 <form method="post">{% csrf_token %}
                     <input type="hidden" name="action" value="set_priority">
-                    <div class="label">الأولوية</div>
+                    <div class="label">{% trans "الأولوية" %}</div>
                     <select name="priority">
                         {% for v, lbl in ticket.PRIORITY_CHOICES %}
                             <option value="{{ v }}" {% if ticket.priority == v %}selected{% endif %}>{{ lbl }}</option>
                         {% endfor %}
                     </select>
-                    <button type="submit" class="btn btn-warn">حفظ الأولوية</button>
+                    <button type="submit" class="btn btn-warn">{% trans "حفظ الأولوية" %}</button>
                 </form>
             </div>
 
             <div class="card">
-                <h3>📋 تفاصيل</h3>
-                <div class="label">المستأجر</div><div class="value">{{ ticket.tenant.name|default:"—" }}</div>
-                <div class="label">المصدر</div><div class="value">{{ ticket.get_source_display }}</div>
-                <div class="label">معيّن لـ</div><div class="value">{{ ticket.assigned_to|default:"—" }}</div>
+                <h3>📋 {% trans "تفاصيل" %}</h3>
+                <div class="label">{% trans "المستأجر" %}</div><div class="value">{{ ticket.tenant.name|default:"—" }}</div>
+                <div class="label">{% trans "المصدر" %}</div><div class="value">{{ ticket.get_source_display }}</div>
+                <div class="label">{% trans "معيّن لـ" %}</div><div class="value">{{ ticket.assigned_to|default:"—" }}</div>
                 <div class="label">IP</div><div class="value">{{ ticket.ip_address|default:"—" }}</div>
-                <div class="label">الإيميل المرسَل</div>
+                <div class="label">{% trans "الإيميل المرسَل" %}</div>
                 <div class="value">
-                    {% if ticket.email_delivered %}✅ تم{% elif ticket.email_error %}❌ فشل — {{ ticket.email_error }}{% else %}⏳ بانتظار{% endif %}
+                    {% if ticket.email_delivered %}✅ {% trans "تم" %}{% elif ticket.email_error %}❌ {% trans "فشل" %} — {{ ticket.email_error }}{% else %}⏳ {% trans "بانتظار" %}{% endif %}
                 </div>
-                <div class="label">تاريخ الإغلاق</div><div class="value">{{ ticket.closed_at|date:"Y-m-d H:i"|default:"—" }}</div>
+                <div class="label">{% trans "تاريخ الإغلاق" %}</div><div class="value">{{ ticket.closed_at|date:"Y-m-d H:i"|default:"—" }}</div>
             </div>
         </div>
     </div>
