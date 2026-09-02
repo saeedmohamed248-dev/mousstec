@@ -70,7 +70,7 @@
             {% if tenant %}
             <div class="inline-flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold px-5 py-3 rounded-xl mt-6 text-sm">
                 <i class="fas fa-building"></i>
-                تجديد اشتراك: <strong>{{ tenant.name }}</strong>
+                {% trans "تجديد اشتراك:" %} <strong>{{ tenant.name }}</strong>
                 {% if tenant.subscription_end_date %}
                 — ينتهي في: {{ tenant.subscription_end_date }}
                 {% endif %}
@@ -90,11 +90,11 @@
         <div class="flex justify-center items-center gap-3 mb-8">
             <button onclick="setIndustryTab('automotive')" id="tab_automotive"
                 class="industry-tab active-tab flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black border transition duration-300 cursor-pointer">
-                <i class="fas fa-car"></i> باقات السيارات والورش
+                <i class="fas fa-car"></i> {% trans "باقات السيارات والورش" %}
             </button>
             <button onclick="setIndustryTab('printing')" id="tab_printing"
                 class="industry-tab flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black border transition duration-300 cursor-pointer">
-                <i class="fas fa-print"></i> باقات المطابع والتصميم
+                <i class="fas fa-print"></i> {% trans "باقات المطابع والتصميم" %}
             </button>
         </div>
         <style>
@@ -109,16 +109,16 @@
         </style>
         <div class="flex justify-center items-center gap-2 mb-10 flex-wrap">
             <button onclick="setBilling('monthly')" id="btn_monthly" class="billing-btn active px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                شهري
+                {% trans "شهري" %}
             </button>
             <button onclick="setBilling('quarterly')" id="btn_quarterly" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                ربع سنوي <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 9%" %}</span>
+                {% trans "ربع سنوي" %} <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 9%" %}</span>
             </button>
             <button onclick="setBilling('semi_annual')" id="btn_semi_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                نصف سنوي <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 12.5%" %}</span>
+                {% trans "نصف سنوي" %} <span class="text-emerald-400 text-xs mr-1">{% trans "وفّر 12.5%" %}</span>
             </button>
             <button onclick="setBilling('annual')" id="btn_annual" class="billing-btn px-5 py-2.5 rounded-xl text-sm font-bold border transition duration-300">
-                سنوي <span class="text-amber-400 text-xs mr-1">{% trans "وفّر 25%" %}</span>
+                {% trans "سنوي" %} <span class="text-amber-400 text-xs mr-1">{% trans "وفّر 25%" %}</span>
             </button>
         </div>
 
@@ -136,7 +136,7 @@
                 {% if plan.is_popular %}
                 <div class="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span class="price-badge bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black px-4 py-1.5 rounded-full">
-                        <i class="fas fa-fire ml-1"></i> الاكثر طلباً
+                        <i class="fas fa-fire ml-1"></i> {% trans "الاكثر طلباً" %}
                     </span>
                 </div>
                 {% endif %}
@@ -190,7 +190,7 @@
             </div>
             {% empty %}
             <div class="col-span-3 text-center text-slate-500 py-12">
-                <i class="fas fa-info-circle ml-2"></i> لا توجد باقات متاحة حالياً لهذا القطاع.
+                <i class="fas fa-info-circle ml-2"></i> {% trans "لا توجد باقات متاحة حالياً لهذا القطاع." %}
             </div>
             {% endfor %}
         </div>
@@ -203,8 +203,8 @@
                 <span class="text-indigo-400 font-black text-base">{% trans "نظام الاضافات المرنة" %}</span>
             </div>
             <p class="text-slate-400 text-sm leading-relaxed">
-                اضف موظفين او فروع او خزائن اضافية في اي وقت بـ <strong class="text-white">{{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong> للاضافة الواحدة.
-                <br>النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع فقط على الايام الفعلية.
+                {% trans "اضف موظفين او فروع او خزائن اضافية في اي وقت بـ" %} <strong class="text-white">{{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong> {% trans "للاضافة الواحدة." %}
+                <br>{% trans "النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع فقط على الايام الفعلية." %}
             </p>
         </div>
 
@@ -248,7 +248,7 @@
                 </div>
                 <button onclick="payWithVodafone()"
                         class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-red-500/20">
-                    <i class="fas fa-mobile-screen-button ml-1"></i> ادفع بفودافون كاش — ارفع الإيصال
+                    <i class="fas fa-mobile-screen-button ml-1"></i> {% trans "ادفع بفودافون كاش — ارفع الإيصال" %}
                 </button>
             </div>
 
@@ -267,7 +267,7 @@
                 </div>
                 <button onclick="payWithInstapay()"
                         class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-blue-500/20">
-                    <i class="fas fa-money-bill-transfer ml-1"></i> ادفع بإنستاباي — ارفع الإيصال
+                    <i class="fas fa-money-bill-transfer ml-1"></i> {% trans "ادفع بإنستاباي — ارفع الإيصال" %}
                 </button>
             </div>
 
@@ -282,7 +282,7 @@
                     <span class="ml-auto text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-full">{% trans "قريباً" %}</span>
                 </div>
                 <button disabled class="w-full bg-slate-700/50 text-slate-400 font-bold py-3 rounded-xl text-sm cursor-not-allowed">
-                    <i class="fas fa-clock ml-1"></i> قريباً — استخدم فودافون كاش الآن
+                    <i class="fas fa-clock ml-1"></i> {% trans "قريباً — استخدم فودافون كاش الآن" %}
                 </button>
             </div>
 
@@ -299,7 +299,7 @@
     </div>
 
     <footer class="text-center py-8 text-slate-600 text-xs mt-8">
-        &copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة
+        {% trans "&copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة" %}
     </footer>
 
 <script>

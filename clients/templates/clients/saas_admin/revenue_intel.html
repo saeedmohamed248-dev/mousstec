@@ -131,7 +131,7 @@
     <!-- ─── Hero metrics ─── -->
     <div class="hero">
         <div class="metric">
-            <div class="lbl"><i class="fas fa-chart-line"></i> MRR الحالي</div>
+            <div class="lbl"><i class="fas fa-chart-line"></i> {% trans "MRR الحالي" %}</div>
             <div class="big">{{ current_mrr|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="sub-val">ARR ≈ {{ arr|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
         </div>
@@ -143,7 +143,7 @@
         <div class="metric alt">
             <div class="lbl"><i class="fas fa-coins"></i> ARPU</div>
             <div class="big">{{ arpu|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub-val">متوسط الإيراد لكل شركة (شهرياً)</div>
+            <div class="sub-val">{% trans "متوسط الإيراد لكل شركة (شهرياً)" %}</div>
         </div>
         <div class="metric warn">
             <div class="lbl"><i class="fas fa-arrow-down"></i> {% trans "Churn (الشهر الحالي)" %}</div>
