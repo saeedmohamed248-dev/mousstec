@@ -94,6 +94,25 @@ def onboarding_guide(request):
     return render(request, "omnichannel/onboarding_guide.html", context)
 
 
+def public_page(request):
+    """PUBLIC marketing page for the add-on — no login required.
+
+    Served on the public domain so prospective customers can learn about the
+    feature and start subscribing. Actual purchase happens inside a tenant
+    account, so the CTAs route to login / signup (and to /omnichannel/ for
+    already-logged-in tenant admins).
+    """
+    tenant = _current_tenant()
+    context = {
+        "price": TenantChannelConfig.MONTHLY_PRICE,
+        "login_url": "/login/?next=/omnichannel/",
+        "signup_url": reverse("saas_customer_signup"),
+        "is_logged_in_tenant": tenant is not None and request.user.is_authenticated,
+        "overview_url": reverse("omnichannel_overview"),
+    }
+    return render(request, "omnichannel/public.html", context)
+
+
 @login_required
 def overview(request):
     """Dedicated landing/overview page for the add-on (feature page + subscribe)."""

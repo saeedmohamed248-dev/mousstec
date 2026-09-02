@@ -13,6 +13,7 @@ from .dashboard_views import (
     overview,
     pay_with_card,
     paymob_callback,
+    public_page,
     settings_screen,
     subscribe,
 )
@@ -21,6 +22,9 @@ from .views import OmnichannelWebhookView
 urlpatterns = [
     # Public webhook — this is the URL tenants paste into their Meta app.
     path("api/webhooks/omnichannel/", OmnichannelWebhookView.as_view(), name="omnichannel_webhook"),
+
+    # Public marketing page (no login) — shown on the main site.
+    path("omnichannel-ai/", public_page, name="omnichannel_public"),
 
     # Tenant dashboard.
     path("omnichannel/", overview, name="omnichannel_overview"),
