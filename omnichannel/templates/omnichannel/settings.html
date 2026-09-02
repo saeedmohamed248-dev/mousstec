@@ -153,6 +153,14 @@
         <div class="pt-6">
           <label class="flex items-center gap-2 cursor-pointer">{{ form.ai_enabled }} تفعيل الرد الآلي</label>
         </div>
+        <div>
+          <label>{{ form.notify_email.label }}</label>
+          {{ form.notify_email }}
+          <div class="help">{{ form.notify_email.help_text }}</div>
+        </div>
+        <div class="pt-6">
+          <label class="flex items-center gap-2 cursor-pointer">{{ form.notify_on_handoff }} تنبيهي عند حاجة العميل لموظف بشري</label>
+        </div>
       </div>
     </div>
 

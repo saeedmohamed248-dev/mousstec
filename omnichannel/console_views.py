@@ -250,6 +250,55 @@ def console_conversation(request, channel, sender_id):
 
 
 @_console_guard
+def console_reply(request, channel, sender_id):
+    """Human takeover: send a manual reply to a customer via the tenant's Meta token."""
+    tenant = request.omni_tenant
+    config = request.omni_config
+    back = reverse("omnichannel_console_conversation", kwargs={"channel": channel, "sender_id": sender_id})
+
+    if request.method != "POST":
+        return redirect(back)
+    text = (request.POST.get("text") or "").strip()
+    if not text:
+        messages.error(request, "اكتب رسالة أولاً.")
+        return redirect(back)
+
+    token = config.meta_access_token
+    if not token:
+        messages.error(request, "لا يمكن الإرسال — لم يتم ربط حساب Meta بعد. أكمل الإعدادات.")
+        return redirect(back)
+
+    from .services import meta_api
+
+    error = ""
+    try:
+        if channel == CHANNEL_WHATSAPP:
+            meta_api.send_whatsapp_text(
+                access_token=token, phone_number_id=config.whatsapp_phone_number_id,
+                recipient_id=sender_id, text=text)
+        elif channel == CHANNEL_MESSENGER:
+            meta_api.send_messenger_text(access_token=token, recipient_id=sender_id, text=text)
+        else:
+            messages.error(request, "قناة غير معروفة.")
+            return redirect(back)
+    except Exception as exc:
+        error = str(exc)
+        logger.warning("omnichannel manual reply failed for %s: %s", tenant.schema_name, exc)
+
+    ChannelMessageLog.objects.create(
+        tenant=tenant, channel=channel, sender_id=sender_id,
+        outbound_text=text, is_human=True,
+        status=(ChannelMessageLog.Status.FAILED if error else ChannelMessageLog.Status.REPLIED),
+        error=error,
+    )
+    if error:
+        messages.error(request, f"تعذّر الإرسال: {error} — قد يكون خارج نافذة 24 ساعة المسموح بها من واتساب.")
+    else:
+        messages.success(request, "تم إرسال ردك للعميل ✅")
+    return redirect(back)
+
+
+@_console_guard
 def console_contacts(request):
     tenant = request.omni_tenant
     config = request.omni_config

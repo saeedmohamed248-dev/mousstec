@@ -156,6 +156,18 @@ class TenantChannelConfig(models.Model):
         default=900, verbose_name=_("أقصى طول للرد (حرف)"),
     )
 
+    # ── Notifications ─────────────────────────────────────────────────
+    notify_on_handoff = models.BooleanField(
+        default=False,
+        verbose_name=_("تنبيهي عند حاجة العميل لتدخّل بشري؟"),
+        help_text=_("يُرسَل إيميل عند تعذّر رد المساعد آلياً (يحتاج ضبط SMTP)."),
+    )
+    notify_email = models.EmailField(
+        blank=True, default="",
+        verbose_name=_("بريد الإشعارات"),
+        help_text=_("اتركه فارغاً لاستخدام بريد إدارة الشركة."),
+    )
+
     # ── BYO LLM (optional) ────────────────────────────────────────────
     llm_provider = models.CharField(
         max_length=16, choices=LLMProvider.choices, default=LLMProvider.PLATFORM,
@@ -315,6 +327,7 @@ class ChannelMessageLog(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.RECEIVED)
     error = models.TextField(blank=True, default="")
     meta_message_id = models.CharField(max_length=128, blank=True, default="")
+    is_human = models.BooleanField(default=False)  # True = reply sent manually by a human agent
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
     class Meta:
