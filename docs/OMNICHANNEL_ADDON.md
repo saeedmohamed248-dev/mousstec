@@ -100,7 +100,8 @@ Two activation paths (both supported):
 
 | URL | Purpose |
 |---|---|
-| `/omnichannel/` | Dedicated feature/landing page: what it does, price, live subscription status, subscribe/renew button |
+| `/omnichannel-ai/` | **PUBLIC** marketing page (no login) — shown on the main site; CTAs to login/signup. Pricing & landing cards link here |
+| `/omnichannel/` | Dedicated feature page **inside a tenant account** (login required): live subscription status, subscribe/renew |
 | `/omnichannel/settings/` | Connect Meta credentials, tune AI, view recent conversations |
 | `/omnichannel/guide/` | Step-by-step Arabic setup tutorial **+ daily-usage guide** |
 | `/omnichannel/pay/` | POST-only card checkout (redirects to Paymob) |

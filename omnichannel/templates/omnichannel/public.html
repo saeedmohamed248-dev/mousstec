@@ -1,0 +1,135 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الرد الآلي على واتساب وماسنجر | Mouss Tec</title>
+<meta name="description" content="مساعد ذكي يرد على عملائك تلقائياً على واتساب وماسنجر بأسعارك ومخزونك الحقيقي — 250 ج.م/شهر.">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{ --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
+  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
+  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .btn-primary{ background:linear-gradient(135deg,var(--navy),var(--navy2)); }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Top bar -->
+<div class="bg-white border-b border-slate-200">
+  <div class="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+    <a href="/" class="font-black text-[#0f2c4c] text-lg">MOUSS TEC</a>
+    <div class="flex items-center gap-3 text-sm">
+      <a href="/pricing/" class="text-slate-600 hover:text-[#0f2c4c] font-bold">الباقات</a>
+      <a href="{{ login_url }}" class="text-slate-600 hover:text-[#0f2c4c] font-bold">دخول</a>
+      <a href="{{ signup_url }}" class="btn-primary text-white font-bold px-4 py-2 rounded-xl">ابدأ مجاناً</a>
+    </div>
+  </div>
+</div>
+
+<!-- Hero -->
+<header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <div class="max-w-5xl mx-auto px-6 py-14 text-center">
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
+    <h1 class="text-3xl md:text-5xl font-black mt-3 leading-snug">
+      مساعد ذكي يرد على عملائك تلقائياً<br>على واتساب وماسنجر 🤖
+    </h1>
+    <p class="mt-5 text-lg opacity-90 leading-relaxed max-w-2xl mx-auto">
+      اربط رقم واتساب بيزنس وصفحة ماسنجر الخاصة بشركتك، وخلّي الذكاء الاصطناعي يرد على
+      استفسارات عملائك عن الأسعار والتوفر — مستنداً إلى مخزونك وأسعارك الحقيقية، على مدار الساعة.
+    </p>
+    <div class="mt-8 flex flex-wrap gap-3 justify-center">
+      {% if is_logged_in_tenant %}
+        <a href="{{ overview_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">
+          <i class="fas fa-bolt ml-1"></i> اذهب لصفحة الاشتراك
+        </a>
+      {% else %}
+        <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">
+          <i class="fas fa-rocket ml-1"></i> أنشئ حساباً واشترك
+        </a>
+        <a href="{{ login_url }}" class="bg-white/10 border border-white/25 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition">
+          لديك حساب؟ سجّل الدخول
+        </a>
+      {% endif %}
+    </div>
+    <p class="mt-5 text-white/80 text-sm">
+      <span class="text-2xl font-black text-white">{{ price }}</span> ج.م / شهر — إضافة منفصلة عن الباقة
+    </p>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-6 py-12">
+
+  <!-- Value props -->
+  <div class="grid md:grid-cols-3 gap-5 mb-12">
+    <div class="card p-6 text-center">
+      <div class="text-3xl mb-3">💬</div>
+      <h3 class="font-black text-[#0f2c4c] mb-2">قناتان في مكان واحد</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">واتساب بيزنس وماسنجر معاً — كل رسائل عملائك يرد عليها مساعد واحد ذكي.</p>
+    </div>
+    <div class="card p-6 text-center">
+      <div class="text-3xl mb-3">📦</div>
+      <h3 class="font-black text-[#0f2c4c] mb-2">يعرف مخزونك وأسعارك</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">يقرأ الأصناف والأسعار والتوفر من حسابك لحظياً، ولا يخترع أي سعر غير موجود.</p>
+    </div>
+    <div class="card p-6 text-center">
+      <div class="text-3xl mb-3">🔑</div>
+      <h3 class="font-black text-[#0f2c4c] mb-2">حسابك الخاص (BYOK)</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">تكلفة رسائل واتساب من Meta على حسابك مباشرة — بدون أي عمولة من Mouss Tec.</p>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card p-8 mb-12">
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-6 text-center">إزاي بيشتغل؟</h2>
+    <div class="grid md:grid-cols-4 gap-6 text-center">
+      <div>
+        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">1</div>
+        <p class="text-sm text-slate-600">العميل يبعت رسالة على واتساب أو ماسنجر بتاع شركتك.</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">2</div>
+        <p class="text-sm text-slate-600">النظام يعرف إنها ليك ويقرأ مخزونك وأسعارك الحالية.</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">3</div>
+        <p class="text-sm text-slate-600">الذكاء الاصطناعي يصيغ رداً دقيقاً بنبرة شركتك.</p>
+      </div>
+      <div>
+        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">4</div>
+        <p class="text-sm text-slate-600">الرد يوصل العميل خلال ثوانٍ، وكل محادثة تتسجّل لك.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing / CTA -->
+  <div class="card p-8 text-center max-w-2xl mx-auto">
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-1">ابدأ اليوم</h2>
+    <p class="text-slate-500 mb-4">إضافة اشتراكية منفصلة — فعّلها في دقائق</p>
+    <div class="text-5xl font-black text-[#0f2c4c] mb-1">{{ price }} <span class="text-lg font-bold text-slate-400">ج.م/شهر</span></div>
+    <ul class="text-slate-600 text-sm my-6 space-y-2 inline-block text-right">
+      <li><i class="fas fa-check text-green-500 ml-2"></i> قناتان: واتساب بيزنس + ماسنجر</li>
+      <li><i class="fas fa-check text-green-500 ml-2"></i> ردود مبنية على مخزونك وأسعارك الحيّة</li>
+      <li><i class="fas fa-check text-green-500 ml-2"></i> ضبط نبرة الحوار وسياسة الخصومات</li>
+      <li><i class="fas fa-check text-green-500 ml-2"></i> دفع بالبطاقة (Paymob) أو من رصيد المحفظة</li>
+    </ul>
+    <div class="flex flex-wrap gap-3 justify-center">
+      {% if is_logged_in_tenant %}
+        <a href="{{ overview_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">اذهب لصفحة الاشتراك ←</a>
+      {% else %}
+        <a href="{{ signup_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">أنشئ حساباً واشترك ←</a>
+        <a href="{{ login_url }}" class="border border-slate-300 text-slate-700 font-bold px-8 py-4 rounded-xl">سجّل الدخول</a>
+      {% endif %}
+    </div>
+    <p class="text-xs text-slate-400 mt-4">التفعيل يتم داخل حساب شركتك بعد الدخول.</p>
+  </div>
+
+</main>
+
+<footer class="text-center py-8 text-slate-500 text-xs">
+  © Mouss Tec — <a href="/pricing/" class="underline">كل الباقات</a>
+</footer>
+</body>
+</html>
