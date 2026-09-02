@@ -41,6 +41,7 @@
         <a href="{% url 'inventory:sale_invoice_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition"><i class="fas fa-file-invoice ml-1"></i>{% trans "الفواتير" %}</a>
         <a href="{% url 'inventory:product_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"><i class="fas fa-boxes-stacked ml-1"></i>{% trans "القطع" %}</a>
         <a href="{% url 'inventory:disassembly_workspace' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-orange-300 hover:bg-orange-500/10 transition"><i class="fas fa-screwdriver-wrench ml-1"></i>{% trans "الفك" %}</a>
+        <a href="{% url 'omnichannel_overview' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-green-300 hover:bg-green-500/10 transition"><i class="fas fa-comment-dots ml-1"></i>{% trans "الرد الآلي" %}</a>
       </div>
       <div class="flex items-center gap-2">
         <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">{% csrf_token %}

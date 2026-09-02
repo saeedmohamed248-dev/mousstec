@@ -16,6 +16,9 @@ Mouss Tec.
 """
 from __future__ import annotations
 
+from datetime import timedelta
+from decimal import Decimal
+
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -48,10 +51,25 @@ class TenantChannelConfig(models.Model):
     )
 
     # ── Subscription gate ─────────────────────────────────────────────
+    #   This is a SEPARATE, independently-billed add-on (250 EGP/month by
+    #   default). A tenant can self-subscribe from their wallet, or the
+    #   super-admin can grant/extend/revoke it manually. Activation state is:
+    #     is_subscription_active=True + subscription_expires_at=None   → lifetime
+    #     is_subscription_active=True + future expiry                  → timed
+    #     is_subscription_active=False  (or past expiry)               → inactive
+    MONTHLY_PRICE = Decimal("250.00")
+
     is_subscription_active = models.BooleanField(
         default=False,
         verbose_name=_("اشتراك الأتمتة فعّال؟"),
         help_text=_("يتحكم في تشغيل/إيقاف الردود الآلية بالكامل لهذا المستأجر."),
+    )
+    subscription_started_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ بدء الاشتراك"),
+    )
+    subscription_expires_at = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("تاريخ انتهاء الاشتراك"),
+        help_text=_("اتركه فارغاً مع تفعيل الاشتراك للوصول مدى الحياة."),
     )
     ai_enabled = models.BooleanField(
         default=True,
@@ -174,12 +192,76 @@ class TenantChannelConfig(models.Model):
     def llm_api_key(self, value: str) -> None:
         self._llm_api_key = crypto.encrypt(value or "")
 
+    # ── Subscription lifecycle ────────────────────────────────────────
+    @property
+    def subscription_is_valid(self) -> bool:
+        """True iff the paid add-on is currently live (active and not expired)."""
+        if not self.is_subscription_active:
+            return False
+        if self.subscription_expires_at is None:
+            return True  # lifetime grant
+        return timezone.now() < self.subscription_expires_at
+
+    @property
+    def subscription_is_lifetime(self) -> bool:
+        return self.is_subscription_active and self.subscription_expires_at is None
+
+    @property
+    def subscription_days_left(self):
+        """Whole days remaining, None for lifetime, 0 if expired/inactive."""
+        if not self.is_subscription_active:
+            return 0
+        if self.subscription_expires_at is None:
+            return None
+        delta = self.subscription_expires_at - timezone.now()
+        return max(delta.days, 0)
+
+    @property
+    def subscription_state(self) -> str:
+        """One of: lifetime | active | expired | inactive — for UI badges."""
+        if self.subscription_is_lifetime:
+            return "lifetime"
+        if self.subscription_is_valid:
+            return "active"
+        if self.is_subscription_active and self.subscription_expires_at:
+            return "expired"
+        return "inactive"
+
+    def grant_subscription(self, duration: timedelta | None = None, *, by_user=None):
+        """Activate or extend the subscription.
+
+        `duration` is added to the later of now() and the current expiry (so
+        stacking months accumulates). `duration=None` means a lifetime grant.
+        """
+        self.is_subscription_active = True
+        if self.subscription_started_at is None:
+            self.subscription_started_at = timezone.now()
+        if duration is None:
+            self.subscription_expires_at = None
+        else:
+            base = self.subscription_expires_at if (
+                self.subscription_expires_at
+                and self.subscription_expires_at > timezone.now()
+            ) else timezone.now()
+            self.subscription_expires_at = base + duration
+        self.save(update_fields=[
+            "is_subscription_active", "subscription_started_at",
+            "subscription_expires_at", "updated_at",
+        ])
+
+    def revoke_subscription(self, *, by_user=None):
+        self.is_subscription_active = False
+        self.subscription_expires_at = timezone.now()
+        self.save(update_fields=[
+            "is_subscription_active", "subscription_expires_at", "updated_at",
+        ])
+
     # ── Convenience ───────────────────────────────────────────────────
     @property
     def is_operational(self) -> bool:
         """Are we allowed to auto-reply right now?"""
         return bool(
-            self.is_subscription_active
+            self.subscription_is_valid
             and self.ai_enabled
             and self.meta_access_token
         )
