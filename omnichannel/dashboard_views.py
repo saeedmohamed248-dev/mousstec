@@ -9,6 +9,7 @@ schema because django-tenants keeps `public` on the search_path.
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import timedelta
 from decimal import Decimal
@@ -16,19 +17,23 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.db import connection, transaction
 from django.db.models import F
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django_tenants.utils import schema_context
 
 from .forms import TenantChannelConfigForm
 from .models import ChannelMessageLog, TenantChannelConfig
 
 logger = logging.getLogger("mouss_tec_core")
 
-# One self-serve purchase grants 30 days.
+# One purchase grants 30 days.
 _SUBSCRIPTION_PERIOD = timedelta(days=30)
 
 
@@ -107,6 +112,7 @@ def overview(request):
         "settings_url": reverse("omnichannel_settings"),
         "guide_url": reverse("omnichannel_guide"),
         "subscribe_url": reverse("omnichannel_subscribe"),
+        "pay_url": reverse("omnichannel_pay"),
         "can_manage": request.user.is_superuser,
     }
     return render(request, "omnichannel/overview.html", context)
@@ -173,3 +179,106 @@ def _currency(tenant) -> str:
         return tenant.effective_currency
     except Exception:
         return "ج.م"
+
+
+# =====================================================================
+# 💳 Direct card payment via Paymob (in addition to wallet debit)
+# =====================================================================
+@login_required
+@require_POST
+def pay_with_card(request):
+    """Start a Paymob card checkout for one month of the add-on.
+
+    Mirrors the platform's other Paymob checkouts (diagnostics/parts): build an
+    iframe URL with the subscription metadata and redirect. Activation happens
+    server-to-server in `paymob_callback` after Paymob confirms payment.
+    """
+    tenant = _current_tenant()
+    if tenant is None:
+        messages.error(request, "هذه الصفحة متاحة داخل حساب الشركة فقط.")
+        return redirect("/")
+    if not request.user.is_superuser:
+        messages.error(request, "فقط المدير المسؤول عن الحساب يمكنه تفعيل الاشتراك.")
+        return redirect("omnichannel_overview")
+
+    # Ensure a config row exists so the callback can always find/activate it.
+    TenantChannelConfig.objects.get_or_create(tenant=tenant)
+
+    price = TenantChannelConfig.MONTHLY_PRICE
+    callback_url = request.build_absolute_uri(reverse("omnichannel_paymob_callback"))
+    try:
+        from clients.services.paymob import create_iframe_url
+
+        iframe_url = create_iframe_url(
+            amount_egp=price,
+            customer_phone=getattr(tenant, "phone", "") or "",
+            customer_name=getattr(tenant, "name", "") or "",
+            customer_email=getattr(tenant, "email", "") or "",
+            order_ref=f"omni-{tenant.pk}",
+            callback_url=callback_url,
+            item_name="Mouss Tec Omnichannel AI (1 month)",
+            metadata={"client_pk": tenant.pk, "kind": "omnichannel_sub"},
+            cache_key_prefix="paymob_omni",
+        )
+    except Exception as exc:  # RuntimeError with an Arabic message, or network
+        logger.error("omnichannel: paymob iframe failed for %s: %s", tenant.schema_name, exc)
+        messages.error(request, f"تعذّر فتح بوابة الدفع: {exc}")
+        return redirect("omnichannel_overview")
+
+    return redirect(iframe_url)
+
+
+@csrf_exempt
+def paymob_callback(request):
+    """Server-to-server payment confirmation from Paymob → activate 30 days.
+
+    HMAC verification is mandatory (fail-closed): without it anyone could grant
+    themselves a paid subscription by POSTing a forged success payload.
+    """
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "invalid_json"}, status=400)
+
+    from clients.services.paymob import verify_paymob_hmac
+
+    ok, reason = verify_paymob_hmac(request, body_data=data)
+    if not ok:
+        logger.warning("omnichannel: paymob callback HMAC failed: %s", reason)
+        return JsonResponse({"error": "hmac_failed", "reason": reason}, status=403)
+
+    obj = data.get("obj", {}) or {}
+    if not obj.get("success"):
+        return JsonResponse({"status": "ignored"})
+
+    # Resolve our metadata. Primary: the cache keyed by the Paymob order id
+    # (create_iframe_url stores it under 'paymob_omni_{order_id}'). Fallback:
+    # payment_key_claims.extra, if the integration echoes it.
+    order_id = str((obj.get("order", {}) or {}).get("id") or "")
+    metadata = cache.get(f"paymob_omni_{order_id}") or {}
+    if not metadata:
+        metadata = (obj.get("payment_key_claims", {}) or {}).get("extra", {}) or {}
+
+    if metadata.get("kind") != "omnichannel_sub":
+        # Not ours — another feature's callback. Ack without acting.
+        return JsonResponse({"status": "ignored"})
+    client_pk = metadata.get("client_pk")
+    if not client_pk:
+        logger.error("omnichannel: paymob callback missing client_pk — %s", metadata)
+        return JsonResponse({"error": "metadata"}, status=400)
+
+    paymob_id = obj.get("id", "")
+    # Idempotency — Paymob may retry the callback.
+    guard = f"omni_paymob_{paymob_id}"
+    if paymob_id and cache.get(guard):
+        return JsonResponse({"status": "duplicate"})
+
+    with schema_context("public"):
+        config, _created = TenantChannelConfig.objects.get_or_create(tenant_id=client_pk)
+        config.grant_subscription(_SUBSCRIPTION_PERIOD)
+
+    if paymob_id:
+        cache.set(guard, "processed", timeout=86400)
+    logger.info("omnichannel: paymob subscription activated client=%s paymob_id=%s",
+                client_pk, paymob_id)
+    return JsonResponse({"status": "ok"})
