@@ -582,7 +582,7 @@ body {
                     <span class="num">−{{ excluded_total|floatformat:2 }}</span>
                 </div>
                 <div class="total-row grand">
-                    <span>الإجمالي للعميل</span>
+                    <span>{% trans "الإجمالي للعميل" %}</span>
                     <span class="num">{{ billable_total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 

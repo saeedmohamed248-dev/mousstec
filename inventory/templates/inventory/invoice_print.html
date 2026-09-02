@@ -168,8 +168,8 @@
             <thead>
                 <tr>
                     <th width="5%">#</th>
-                    <th width="65%">وصف الخدمة / الصيانة المنفذة</th>
-                    <th width="15%" class="td-center">الفني المختص</th>
+                    <th width="65%">{% trans "وصف الخدمة / الصيانة المنفذة" %}</th>
+                    <th width="15%" class="td-center">{% trans "الفني المختص" %}</th>
                     <th width="15%">القيمة ({{ tenant_currency_symbol|default:'ج.م' }})</th>
                 </tr>
             </thead>
@@ -227,25 +227,25 @@
 
             <div class="totals-box">
                 <div class="totals-row">
-                    <span>إجمالي قطع الغيار:</span>
+                    <span>{% trans "إجمالي قطع الغيار:" %}</span>
                     <span>{{ invoice.total_cost|default:"0.00" }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 <div class="totals-row">
-                    <span>صافي أرباح الخدمات والمصنعيات:</span>
+                    <span>{% trans "صافي أرباح الخدمات والمصنعيات:" %}</span>
                     <span>{{ invoice.net_profit|default:"0.00" }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 {% if invoice.discount > 0 %}
                 <div class="totals-row discount">
-                    <span>الخصم الممنوح:</span>
+                    <span>{% trans "الخصم الممنوح:" %}</span>
                     <span>- {{ invoice.discount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}
 
                 {% if invoice.total_core_charge > 0 %}
                 <div class="totals-row core-charge">
-                    <span>تأمين التوالف (Core Charge)*:</span>
+                    <span>{% trans "تأمين التوالف (Core Charge)*:" %}</span>
                     <span>+ {{ invoice.total_core_charge }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}
@@ -269,7 +269,7 @@
 
                 {% if invoice.due_amount > 0 %}
                 <div class="totals-row due">
-                    <span>المديونية المتبقية:</span>
+                    <span>{% trans "المديونية المتبقية:" %}</span>
                     <span>{{ invoice.due_amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
                 {% endif %}

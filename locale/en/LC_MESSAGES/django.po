@@ -107,6 +107,9 @@ msgstr "%(n)s days"
 msgid "%(t)s مضت"
 msgstr "%(t)s ago"
 
+msgid "&copy; 2026 Mouss Tec Ecosystem — جميع الحقوق محفوظة"
+msgstr "&copy; 2026 Mouss Tec Ecosystem — all rights reserved"
+
 msgid "&copy; 2026 Mousstec. جميع الحقوق محفوظة."
 msgstr "&copy; 2026 Mousstec. All rights reserved."
 
@@ -269,6 +272,9 @@ msgstr "© 2026 Mouss Tec — online accounting software for service centers, pr
 msgid "© 2026 Mouss Tec — نظام إدارة ورش ذكي | جميع الحقوق محفوظة"
 msgstr "© 2026 Mouss Tec — Smart workshop management | All rights reserved"
 
+msgid "· المستحق:"
+msgstr "· Due:"
+
 msgid "Σ الأبناء ="
 msgstr "Σ children ="
 
@@ -392,6 +398,12 @@ msgstr "Integrated tools to run your workshop and spare-parts store — from the
 msgid "أدوار وصلاحيات مختلفة لكل موظف"
 msgstr "Different roles and permissions per employee"
 
+msgid "أدِر شركتك أو مركز الصيانة"
+msgstr "Run your company or service center"
+
+msgid "أدِر مطبعتك"
+msgstr "Run your print shop"
+
 msgid "أرباح يومية · كشف حساب · تحليل المبيعات"
 msgstr "Daily profit · statements · sales analysis"
 
@@ -488,6 +500,9 @@ msgstr "Storekeeper"
 msgid "أنت تختار الأرخص والأقرب والأفضل"
 msgstr "You pick the cheapest, closest and best"
 
+msgid "أنت على الصفحة الرئيسية. يرجى"
+msgstr "You're on the home page. Please"
+
 msgid "أنت مين؟ اختار اللي يناسبك:"
 msgstr "Who are you? Pick what fits you:"
 
@@ -496,6 +511,9 @@ msgstr "Create a new job order ←"
 
 msgid "أنشئ حسابك الآن"
 msgstr "Create your account now"
+
+msgid "أنشئ حسابك مجاناً — 7 أيام بكل المزايا"
+msgstr "Create your account free — 7 days with all features"
 
 msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
 msgstr "Create a print order with sizes, quantities and copies — pricing is calculated automatically."
@@ -743,6 +761,9 @@ msgstr "Add note"
 msgid "إضافة موظف جديد"
 msgstr "Add a new employee"
 
+msgid "إطلاق وتأسيس الخادم المعزول"
+msgstr "Launching and provisioning the isolated server"
+
 msgid "إعادة"
 msgstr "Reset"
 
@@ -845,6 +866,9 @@ msgstr "Pause"
 msgid "إيميل"
 msgstr "Email"
 
+msgid "إيميلك لسه مش متفعّل"
+msgstr "Your email isn't activated yet"
+
 msgid "إيه اللي هتنجزه النهاردة؟ اختار من الإجراءات السريعة:"
 msgstr "What will you get done today? Pick from the quick actions:"
 
@@ -872,6 +896,9 @@ msgstr "Find the spare parts you need and compare prices from all approved deale
 msgid "ابحث في السوق المشترك"
 msgstr "Search the shared marketplace"
 
+msgid "ابدأ الآن مجانا"
+msgstr "Start now for free"
+
 msgid "ابدأ تجربتك المجانية"
 msgstr "Start your free trial"
 
@@ -893,8 +920,14 @@ msgstr "Start for free"
 msgid "ابعت إعلان أو إشعار صيانة لكل الشركات أو شريحة محددة. الإرسال sync — للأحجام الكبيرة هنعمل Celery لاحقاً."
 msgstr "Send an announcement or maintenance notice to all companies or a specific segment. Sending is sync — for large volumes we'll add Celery later."
 
+msgid "ابعت لي رابط التأكيد تاني"
+msgstr "Resend me the confirmation link"
+
 msgid "اتجاه الإيرادات الشهرية (آخر 6 شهور)"
 msgstr "Monthly revenue trend (last 6 months)"
+
+msgid "اتركها فاضية لو عايز تلاقي رابط شركتك بس"
+msgstr "Leave it empty if you just want to find your company's link"
 
 msgid "اتركهما فارغين للبيع كـ \"عميل نقدي\"."
 msgstr "Leave them empty to sell as a «cash customer»."
@@ -973,6 +1006,15 @@ msgstr "Manage deposits and withdrawals, operating expenses, customer and suppli
 
 msgid "ادخل على حسابك مباشرة"
 msgstr "Sign in to your account"
+
+msgid "ادخل متجر التصميم"
+msgstr "Enter the design store"
+
+msgid "ادفع بإنستاباي — ارفع الإيصال"
+msgstr "Pay with InstaPay — upload the receipt"
+
+msgid "ادفع بفودافون كاش — ارفع الإيصال"
+msgstr "Pay with Vodafone Cash — upload the receipt"
 
 msgid "ارفع أول كشف من البنك لتبدأ المطابقة"
 msgstr "Upload the first bank statement to start reconciliation"
@@ -1075,6 +1117,9 @@ msgstr "Issue your invoice in seconds — barcode support, thermal and A4 printi
 
 msgid "اضغط على عدد النجوم"
 msgstr "Tap the number of stars"
+
+msgid "اضف موظفين او فروع او خزائن اضافية في اي وقت بـ"
+msgstr "Add extra employees, branches, or treasuries anytime for"
 
 msgid "اطبع البطاقة التفصيلية"
 msgstr "Print the detailed card"
@@ -1271,6 +1316,9 @@ msgstr "Name:"
 msgid "الاشتراك"
 msgstr "Subscription"
 
+msgid "الاكثر طلباً"
+msgstr "Most popular"
+
 msgid "البائع"
 msgstr "Seller"
 
@@ -1288,6 +1336,12 @@ msgstr "Broadcast"
 
 msgid "البث الجماعي (Email Broadcast)"
 msgstr "Broadcast (Email Broadcast)"
+
+msgid "البحث ببريد مختلف"
+msgstr "Search with a different email"
+
+msgid "البحث عن حسابك أولاً"
+msgstr "search for your account first"
 
 msgid "البريد الإلكتروني"
 msgstr "Email"
@@ -1522,6 +1576,9 @@ msgstr "Balance due to the supplier"
 
 msgid "الرقم"
 msgstr "Number"
+
+msgid "الرقم الضريبي للبائع (TRN):"
+msgstr "Seller's tax number (TRN):"
 
 msgid "الرقم الضريبي:"
 msgstr "Tax number:"
@@ -2078,6 +2135,9 @@ msgstr "Activity"
 msgid "النظام"
 msgstr "System"
 
+msgid "النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع فقط على الايام الفعلية."
+msgstr "The system calculates the cost automatically, prorated to the days remaining in your subscription — you pay only for the actual days."
+
 msgid "النوع"
 msgstr "Type"
 
@@ -2176,6 +2236,9 @@ msgstr "Barcode · stock-take · low-stock alerts · branch transfers"
 
 msgid "باقات Mouss Tec | اختر خطتك"
 msgstr "Mouss Tec Plans | Choose your plan"
+
+msgid "باقات السيارات والورش"
+msgstr "Automotive & workshop plans"
 
 msgid "باقات العملاء"
 msgstr "Customer plans"
@@ -2497,6 +2560,9 @@ msgstr "Dismiss for this cycle"
 
 msgid "تجديد اشتراك"
 msgstr "Renew subscription"
+
+msgid "تجديد اشتراك:"
+msgstr "Renew subscription:"
 
 msgid "تجديد الاشتراك"
 msgstr "Renew subscription"
@@ -3302,6 +3368,9 @@ msgstr "New — free for customers"
 msgid "جديد ⚡"
 msgstr "New ⚡"
 
+msgid "جديد: AI Studio — توليد تصاميم بالذكاء الاصطناعي"
+msgstr "New: AI Studio — generate designs with AI"
+
 msgid "جريء مرح"
 msgstr "Bold and playful"
 
@@ -3719,6 +3788,9 @@ msgstr "review them."
 msgid "ربط مباشر بفواتير العملاء"
 msgstr "Direct link to customer invoices"
 
+msgid "ربع سنوي"
+msgstr "Quarterly"
+
 msgid "رجوع"
 msgstr "Back"
 
@@ -3980,6 +4052,9 @@ msgstr "Register your business and use the full system"
 msgid "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها."
 msgstr "Log every machine's power and ink usage — the hourly cost is computed automatically."
 
+msgid "سجّل مجاناً — 7 أيام بكل المزايا"
+msgstr "Sign up free — 7 days with all features"
+
 msgid "سجّل واستخدم نظام Mouss Tec"
 msgstr "Register and use Mouss Tec"
 
@@ -4040,6 +4115,9 @@ msgstr "Payment voucher"
 msgid "سند قبض"
 msgstr "Receipt voucher"
 
+msgid "سنوي"
+msgstr "Annual"
+
 msgid "سنوية"
 msgstr "Annual"
 
@@ -4093,6 +4171,9 @@ msgstr "A new customer will be created or the invoice linked to an existing cust
 
 msgid "سيتم تجاهل هذا التذكير لهذه الدورة. متابعة؟"
 msgstr "This reminder will be dismissed for this cycle. Continue?"
+
+msgid "سيتم توجيهك لرابط تسجيل الدخول الخاص بشركتك"
+msgstr "You'll be directed to your company's login link"
 
 msgid "سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي."
 msgstr "This button will be linked to the automatic invoicing system."
@@ -4234,6 +4315,9 @@ msgstr "month"
 
 msgid "شهر واحد"
 msgstr "One month"
+
+msgid "شهري"
+msgstr "Monthly"
 
 msgid "شهور"
 msgstr "months"
@@ -4474,6 +4558,9 @@ msgstr "Print orders, machine tracking, designer work log, and real operating-co
 
 msgid "طلبات طباعة، تتبع ماكينات، سجل أعمال المصممين، وحساب تكلفة التشغيل الفعلية."
 msgstr "Print orders, machine tracking, designers' work log, and real operating-cost calculation."
+
+msgid "طلبات طباعة، تسعير تلقائي، تتبع ماكينات، سجل أعمال المصممين، حساب تكلفة التشغيل الفعلية، خزينة ومصروفات."
+msgstr "Print orders, automatic pricing, machine tracking, designers' work log, real operating-cost calculation, treasury and expenses."
 
 msgid "طلبات غير محدودة"
 msgstr "Unlimited orders"
@@ -4736,6 +4823,9 @@ msgstr "invoices / month"
 msgid "فاتورة صيانة"
 msgstr "Service invoice"
 
+msgid "فاتورة ضريبية · TAX INVOICE"
+msgstr "Tax invoice · TAX INVOICE"
+
 msgid "فاتورة طباعة"
 msgstr "Print invoice"
 
@@ -4925,6 +5015,9 @@ msgstr "Sales & purchase invoices, spare-parts inventory, repair cards, customer
 msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباح."
 msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and profit reports."
 
+msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا."
+msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and real-time profit reports. Start free for 7 days with all features."
+
 msgid "فواتير ذكية"
 msgstr "Smart invoices"
 
@@ -5026,6 +5119,9 @@ msgstr "Soon — within 3 days"
 
 msgid "قريباً"
 msgstr "Coming soon"
+
+msgid "قريباً — استخدم فودافون كاش الآن"
+msgstr "Coming soon — use Vodafone Cash now"
 
 msgid "قريباً — بقي ≤ 45 يوم"
 msgstr "Soon — ≤ 45 days left"
@@ -5279,6 +5375,9 @@ msgstr "No departments."
 msgid "لا توجد اشتراكات نشطة."
 msgstr "No active subscriptions."
 
+msgid "لا توجد باقات متاحة حالياً لهذا القطاع."
+msgstr "No plans available for this sector right now."
+
 msgid "لا توجد بطاقات نشطة."
 msgstr "No active cards."
 
@@ -5438,6 +5537,9 @@ msgstr "A live snapshot of all components. The page auto-refreshes itself every 
 msgid "للأفراد والشركات اللي عايزين تصاميم جاهزة"
 msgstr "For individuals and businesses who want ready-made designs"
 
+msgid "للاضافة الواحدة."
+msgstr "per add-on."
+
 msgid "للتأكيد، اكتب"
 msgstr "To confirm, type"
 
@@ -5467,6 +5569,12 @@ msgstr "For mid-size print shops and design offices"
 
 msgid "للمطابع المشتركة"
 msgstr "For print shops"
+
+msgid "للمطابع واستوديوهات التصميم"
+msgstr "For print shops and design studios"
+
+msgid "للوصول لرابط الدخول الخاص بمؤسستك."
+msgstr "to reach your organization's login link."
 
 msgid "لم تتم إضافة قطع"
 msgstr "No parts added"
@@ -5506,6 +5614,9 @@ msgstr "Not recorded yet"
 
 msgid "لم يُقدَّم"
 msgstr "Not submitted"
+
+msgid "لمراكز الصيانة وتجار قطع الغيار"
+msgstr "For service centers and spare-parts dealers"
 
 msgid "لنشاطك"
 msgstr "for your business"
@@ -5614,6 +5725,9 @@ msgstr "Sure?"
 
 msgid "متابعة"
 msgstr "Continue"
+
+msgid "متجر التصميم بالذكاء الاصطناعي"
+msgstr "AI design store"
 
 msgid "متجر تصاميم AI الفوري"
 msgstr "Instant AI design store"
@@ -6476,6 +6590,12 @@ msgstr "My commission rate"
 msgid "نسخ الرابط"
 msgstr "Copy the link"
 
+msgid "نسيت كلمة السر؟ استرجع حسابك"
+msgstr "Forgot your password? Recover your account"
+
+msgid "نسيت كلمة المرور؟"
+msgstr "Forgot your password?"
+
 msgid "نشاط:"
 msgstr "Activity:"
 
@@ -6496,6 +6616,9 @@ msgstr "Message body"
 
 msgid "نصايح"
 msgstr "Tips"
+
+msgid "نصف سنوي"
+msgstr "Semi-annual"
 
 msgid "نظام"
 msgstr "System"
