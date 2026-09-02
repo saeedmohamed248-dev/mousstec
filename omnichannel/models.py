@@ -76,6 +76,12 @@ class TenantChannelConfig(models.Model):
         verbose_name=_("الرد الآلي بالذكاء الاصطناعي مفعّل؟"),
         help_text=_("أوقفه مؤقتاً لتسليم المحادثات لموظف بشري دون إلغاء الاشتراك."),
     )
+    standalone_mode = models.BooleanField(
+        default=False,
+        verbose_name=_("شركة أتمتة فقط (بدون ERP)"),
+        help_text=_("عند التفعيل، يهبط مستخدمو هذه الشركة على لوحة تحكم الأتمتة "
+                    "مباشرة بعد الدخول بدلاً من بوابة النظام الكامل."),
+    )
 
     # ── Meta / WhatsApp Business Cloud API credentials (BYOK) ─────────
     #   These belong to the TENANT's own Meta Developer App.

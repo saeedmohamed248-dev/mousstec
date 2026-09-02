@@ -39,7 +39,12 @@
         {% elif config.subscription_state == 'expired' %}الاشتراك منتهٍ
         {% else %}غير مفعّل{% endif %}
       </div>
-      <a href="/system/dashboard/" class="side-link text-xs"><i class="fas fa-arrow-right-from-bracket w-5"></i> عودة للنظام</a>
+      {% if standalone %}
+        <a href="/account/change-password/" class="side-link text-xs"><i class="fas fa-user-gear w-5"></i> حسابي</a>
+        <a href="/system/logout/" class="side-link text-xs"><i class="fas fa-sign-out-alt w-5"></i> تسجيل الخروج</a>
+      {% else %}
+        <a href="/system/dashboard/" class="side-link text-xs"><i class="fas fa-arrow-right-from-bracket w-5"></i> عودة للنظام</a>
+      {% endif %}
     </div>
   </aside>
 

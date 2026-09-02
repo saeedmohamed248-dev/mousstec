@@ -55,6 +55,8 @@ def _nav(active: str, config) -> dict:
         "nav_contacts": reverse("omnichannel_console_contacts"),
         "nav_settings": reverse("omnichannel_settings"),
         "nav_guide": reverse("omnichannel_guide"),
+        "nav_overview": reverse("omnichannel_overview"),
+        "standalone": bool(getattr(config, "standalone_mode", False)),
     }
 
 

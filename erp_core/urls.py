@@ -120,6 +120,20 @@ def smart_root_router(request):
     if not hasattr(request, 'tenant') or request.tenant.schema_name == 'public':
         return client_views.mousstec_landing_page(request)
 
+    # 💬 شركات «الأتمتة فقط» → لوحة تحكم الأتمتة مباشرة (تتجاوز بوابة الـ ERP).
+    try:
+        from omnichannel.models import TenantChannelConfig
+        _omni = TenantChannelConfig.objects.filter(
+            tenant=request.tenant, standalone_mode=True,
+        ).first()
+        if _omni is not None:
+            target = '/omnichannel/console/' if _omni.subscription_is_valid else '/omnichannel/'
+            if not request.user.is_authenticated:
+                return redirect(f'/login/?next={target}')
+            return redirect(target)
+    except Exception:
+        pass  # never let the add-on break the main router
+
     # المطابع → لوحة الأدمن مباشرة (لا يوجد لها dashboard مستقل)
     industry = getattr(request.tenant, 'industry', 'automotive')
     if industry == 'printing':
