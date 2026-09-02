@@ -16,6 +16,7 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import chat_views as chat_views
 from clients.views import wix_views as wix_views
@@ -515,6 +516,11 @@ urlpatterns = [
     path('superadmin/obd-access/',                            saas_admin_views.obd_access_list,   name='saas_obd_access_list'),
     path('superadmin/obd-access/<int:tenant_id>/grant/',      saas_admin_views.obd_access_grant,  name='saas_obd_access_grant'),
     path('superadmin/obd-access/<int:tenant_id>/revoke/',     saas_admin_views.obd_access_revoke, name='saas_obd_access_revoke'),
+
+    # 💬 Omnichannel AI Automation add-on — subscription management per tenant
+    path('superadmin/omnichannel/',                          omnichannel_saas_views.subscription_list,   name='saas_omnichannel_list'),
+    path('superadmin/omnichannel/<int:tenant_id>/grant/',    omnichannel_saas_views.subscription_grant,  name='saas_omnichannel_grant'),
+    path('superadmin/omnichannel/<int:tenant_id>/revoke/',   omnichannel_saas_views.subscription_revoke, name='saas_omnichannel_revoke'),
 
     # 🛍️ Marketplace requests — full management (all statuses, search, actions)
     path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),

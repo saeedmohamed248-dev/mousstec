@@ -67,11 +67,38 @@ OMNICHANNEL_SECRET_KEK=     # Fernet.generate_key() — REQUIRED in production
 OMNICHANNEL_GEMINI_MODEL=   # optional platform fallback model
 ```
 
-## Enabling for a tenant
+## Separate subscription (250 EGP/month)
 
-Ops flips `TenantChannelConfig.is_subscription_active = True` (Django admin) after
-billing. The tenant then connects credentials at `/omnichannel/settings/` and
-follows `/omnichannel/guide/`.
+This is an independently-billed add-on, gated by the subscription lifecycle on
+`TenantChannelConfig` (`is_subscription_active` + `subscription_expires_at`,
+mirroring the OBD add-on). `is_operational` — and therefore any auto-reply — is
+gated on `subscription_is_valid` (active AND not expired).
+
+Two activation paths (both supported):
+
+1. **Self-serve** — the tenant admin clicks *اشترك الآن* on `/omnichannel/`
+   (`subscribe` view). One month (`MONTHLY_PRICE`) is debited atomically from the
+   tenant's platform wallet (`EscrowLedger` + `wallet_balance` F() debit) and the
+   subscription is granted 30 days. Insufficient balance → the tenant tops up the
+   wallet via the platform's existing Paymob flow, then subscribes.
+2. **Manual grant** — the super-admin grants/extends/revokes per tenant from:
+   - the dedicated dashboard `/superadmin/omnichannel/`
+     (`omnichannel/saas_admin_views.py`, mirrors OBD grant/revoke), or
+   - Django admin actions on `TenantChannelConfig`
+     (activate month / extend month / lifetime / revoke).
+
+## Tenant-facing pages
+
+| URL | Purpose |
+|---|---|
+| `/omnichannel/` | Dedicated feature/landing page: what it does, price, live subscription status, subscribe/renew button |
+| `/omnichannel/settings/` | Connect Meta credentials, tune AI, view recent conversations |
+| `/omnichannel/guide/` | Step-by-step Arabic setup tutorial **+ daily-usage guide** |
+| `/omnichannel/subscribe/` | POST-only self-serve purchase (wallet debit) |
+
+A sidebar link (*الرد الآلي*) is added to the tenant portal
+(`inventory/_base_portal.html`), and a super-admin nav card
+(*أتمتة القنوات*) to `clients/super_admin.html`.
 
 ## Deploy steps
 
