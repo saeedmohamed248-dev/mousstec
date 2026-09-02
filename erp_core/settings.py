@@ -729,12 +729,20 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.audit_design_storage_daily':         {'queue': 'heavy_ai_tasks'},
     # ── Omnichannel AI auto-reply (WhatsApp/Messenger inbound) ────────
     'omnichannel.process_inbound_message':              {'queue': 'heavy_ai_tasks'},
+    # ── Wix integration (runs on the default worker) ─────────────────
+    'clients.tasks.wix_sync_all':                       {'queue': 'default'},
+    'clients.tasks.wix_sync_one':                       {'queue': 'default'},
 }
 
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
 CELERY_QUEUES_LIST = ['default', 'notifications', 'heavy_ai_tasks', 'urgent_fintech_tasks', 'b2b_sync']
 
 CELERY_BEAT_SCHEDULE = {
+    # ── Wix integration: sync products + pull orders every 15 min ──
+    'wix_sync_all': {
+        'task': 'clients.tasks.wix_sync_all',
+        'schedule': crontab(minute='*/15'),
+    },
     # ── Billing & Subscription ───────────────────────────────────────
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',

@@ -116,7 +116,7 @@
         <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tools"></i> {% trans "المصنعيات / الخدمات" %}</h3>
         <div class="flex gap-2 mb-2">
           <select id="svc-select" class="inp flex-1">
-            <option value="">— اختر خدمة من الكتالوج —</option>
+            <option value="">{% trans "— اختر خدمة من الكتالوج —" %}</option>
             {% for s in services %}<option value="{{ s.id }}" data-price="{{ s.labor_price }}">{{ s.name }} ({{ s.labor_price }} {{ tenant_currency_symbol|default:'ج.م' }})</option>{% endfor %}
           </select>
           <button onclick="addService()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 rounded-lg"><i class="fas fa-plus"></i></button>

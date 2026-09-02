@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -145,6 +146,15 @@
             </div>
         </a>
 
+        <a href="/superadmin/wix/" class="group flex items-center gap-3 p-4 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-blue-500/5 hover:from-sky-500/20 hover:to-blue-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-plug"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">ربط Wix</div>
+                <div class="text-slate-400 text-xs">مزامنة المنتجات والمبيعات مع متجر Wix</div>
+            </div>
+        </a>
         <a href="/superadmin/plans/" class="group flex items-center gap-3 p-4 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-cyan-500/5 hover:from-sky-500/20 hover:to-cyan-500/15 transition">
             <div class="w-11 h-11 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 text-lg group-hover:scale-110 transition">
                 <i class="fas fa-gem"></i>
@@ -733,7 +743,7 @@
                     <!-- إدارة الباقة -->
                     <a href="/pricing/?shop={{ t.obj.schema_name }}"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 transition">
-                        <i class="fas fa-crown ml-1"></i>الباقات
+                        <i class="fas fa-crown ml-1"></i>{% trans "الباقات" %}
                     </a>
 
                     <!-- احتيال -->
@@ -1677,19 +1687,19 @@
                 <label class="text-xs font-bold text-slate-400 block mb-2">فترة الاشتراك</label>
                 <div class="grid grid-cols-2 gap-2" id="period-btns">
                     <button type="button" data-period="monthly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">شهري</span>
+                        <span class="text-xs font-black block">{% trans "شهري" %}</span>
                         <span class="text-xs text-slate-500">بدون خصم</span>
                     </button>
                     <button type="button" data-period="quarterly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">ربع سنوي</span>
+                        <span class="text-xs font-black block">{% trans "ربع سنوي" %}</span>
                         <span class="text-xs text-green-400">خصم 9%</span>
                     </button>
                     <button type="button" data-period="semi_annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">نصف سنوي</span>
+                        <span class="text-xs font-black block">{% trans "نصف سنوي" %}</span>
                         <span class="text-xs text-green-400">خصم 12.5%</span>
                     </button>
                     <button type="button" data-period="annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <span class="text-xs font-black block">سنوي</span>
+                        <span class="text-xs font-black block">{% trans "سنوي" %}</span>
                         <span class="text-xs text-green-400">خصم 25%</span>
                     </button>
                 </div>

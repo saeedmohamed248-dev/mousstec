@@ -240,7 +240,7 @@
                     <tbody id="expenseBreakdownBody"></tbody>
                     <tfoot>
                         <tr style="font-weight:800; background:#f8fafc;">
-                            <td>الإجمالي</td><td id="expenseTotal"></td><td id="expenseTotalCount"></td><td>100%</td>
+                            <td>{% trans "الإجمالي" %}</td><td id="expenseTotal"></td><td id="expenseTotalCount"></td><td>100%</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -327,7 +327,7 @@
         <h2>&#x23F0; تقادم ديون العملاء</h2>
         <table class="rpt-table">
             <thead>
-                <tr><th>العميل</th><th>الهاتف</th><th>الإجمالي</th><th class="aging-0-30">0-30 يوم</th><th class="aging-31-60">31-60</th><th class="aging-61-90">61-90</th><th class="aging-90-plus">+90</th></tr>
+                <tr><th>العميل</th><th>الهاتف</th><th>{% trans "الإجمالي" %}</th><th class="aging-0-30">0-30 يوم</th><th class="aging-31-60">31-60</th><th class="aging-61-90">61-90</th><th class="aging-90-plus">+90</th></tr>
             </thead>
             <tbody id="agingBody"></tbody>
         </table>
@@ -448,7 +448,7 @@
 
         // Invoices table
         html += '<h3 style="font-size:16px; font-weight:800; margin:16px 0 10px; color:#1e293b;">الفواتير</h3>';
-        html += '<table class="rpt-table"><thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>';
+        html += '<table class="rpt-table"><thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>{% trans "الإجمالي" %}</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>';
         customerDetail.invoices.forEach(function(inv) {
             var typeLabel = inv.is_return ? '<span style="color:#ef4444;">مرتجع</span>' : 'بيع';
             html += '<tr><td>' + inv.id + '</td><td>' + inv.date_created + '</td><td>' + typeLabel + '</td><td>' + fmtD(inv.total_amount) + '</td><td>' + fmtD(inv.paid_amount) + '</td><td style="color:' + (inv.due > 0 ? '#ef4444' : '#10b981') + '; font-weight:800;">' + fmtD(inv.due) + '</td></tr>';

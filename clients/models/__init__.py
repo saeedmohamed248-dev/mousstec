@@ -35,3 +35,5 @@ from .billing import *  # noqa: F401, F403
 # Imported here so Django registers them under the `clients` app.
 from clients.obd_device_models import OBDDevice, OBDDeviceNonce  # noqa: E402, F401
 
+# 🔌 Wix integration — per-tenant connection config
+from clients.wix_models import WixConnection  # noqa: E402, F401

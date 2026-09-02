@@ -1,3 +1,4 @@
+{% load i18n %}
 {% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -57,7 +58,7 @@
               <th class="px-3 py-2 text-center font-semibold">OBD</th>
               <th class="px-3 py-2 text-center font-semibold">🎁 هدية OBD</th>
               <th class="px-3 py-2 text-center font-semibold">⚡ شحن فحوصات</th>
-              <th class="px-3 py-2 text-center font-semibold">دخول</th>
+              <th class="px-3 py-2 text-center font-semibold">{% trans "دخول" %}</th>
             </tr>
           </thead>
           <tbody id="companies-tbody">
@@ -200,7 +201,7 @@
             {% endfor %}
           </div>
           <div id="price-preview" class="hidden mt-3 p-3 rounded-xl bg-indigo-900/20 border border-indigo-500/30 text-center">
-            <div class="text-xs text-slate-400 mb-0.5">الإجمالي</div>
+            <div class="text-xs text-slate-400 mb-0.5">{% trans "الإجمالي" %}</div>
             <div id="price-value" class="text-2xl font-black text-indigo-300"></div>
           </div>
           <button onclick="goStep(4)" id="to-step4" class="hidden w-full mt-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition text-sm">
@@ -221,7 +222,7 @@
             <div class="flex justify-between"><span class="text-slate-400">الباقة</span><span id="sum-tier" class="text-white font-bold"></span></div>
             <div class="flex justify-between"><span class="text-slate-400">المدة</span><span id="sum-dur"  class="text-white font-bold"></span></div>
             <div class="flex justify-between border-t border-slate-700 pt-2 mt-1">
-              <span class="text-slate-400">الإجمالي</span>
+              <span class="text-slate-400">{% trans "الإجمالي" %}</span>
               <span id="sum-price" class="text-indigo-300 font-black"></span>
             </div>
           </div>

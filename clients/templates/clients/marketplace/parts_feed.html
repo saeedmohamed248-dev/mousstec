@@ -1,3 +1,4 @@
+{% load i18n %}
 {% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -102,7 +103,7 @@
         <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
         <a href="/marketplace/parts/sell/" class="primary"><i class="fas fa-plus"></i> اعرض قطعة</a>
         {% else %}
-        <a href="/marketplace/login/" class="primary"><i class="fas fa-sign-in-alt"></i> دخول</a>
+        <a href="/marketplace/login/" class="primary"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
         {% endif %}
     </div>
 </div>

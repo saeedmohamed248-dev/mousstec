@@ -5,9 +5,18 @@ GET  → Meta subscription handshake (verify token echo).
 POST → entry-point for inbound messages. We respond 200 to Meta immediately
        and process each message inside a thread so the webhook never blocks
        past Meta's 20-second timeout, no matter how slow Gemini is.
+
+POST payloads are authenticated via Meta's ``X-Hub-Signature-256`` header
+(HMAC-SHA256 of the raw body with the app secret). Without this check anyone
+who finds the public URL can pump fake events through the bot — each one costs
+a Gemini call and lets the attacker make the page message arbitrary PSIDs.
+Verification is enforced whenever ``FB_APP_SECRET`` is configured; if the
+secret is unset we accept but log a warning so existing deployments keep
+working until the secret is provisioned.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import logging
@@ -51,6 +60,8 @@ class MessengerWebhookView(View):
 
     # -------- POST: inbound messages --------
     def post(self, request, *args, **kwargs):
+        if not self._signature_ok(request):
+            return HttpResponse("Invalid signature", status=403)
         try:
             payload = json.loads(request.body.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
@@ -72,6 +83,30 @@ class MessengerWebhookView(View):
 
         # Ack Meta immediately — actual reply happens in a worker thread.
         return JsonResponse({"status": "ok"})
+
+    # -------- signature check --------
+    @staticmethod
+    def _signature_ok(request) -> bool:
+        secret = getattr(settings, "FB_APP_SECRET", "")
+        if not secret:
+            logger.warning(
+                "messenger_bot: FB_APP_SECRET unset — accepting webhook POST "
+                "without signature verification. Configure it in production."
+            )
+            return True
+
+        header = request.META.get("HTTP_X_HUB_SIGNATURE_256", "")
+        if not header.startswith("sha256="):
+            logger.warning("messenger_bot: POST missing X-Hub-Signature-256 — rejected")
+            return False
+        received = header[len("sha256="):]
+        computed = hmac.new(
+            secret.encode("utf-8"), request.body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(computed, received):
+            logger.warning("messenger_bot: X-Hub-Signature-256 mismatch — rejected")
+            return False
+        return True
 
     # -------- worker --------
     def _dispatch(self, sender_id: str, user_text: str) -> None:

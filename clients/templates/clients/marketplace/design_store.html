@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -230,7 +231,7 @@
             <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
             <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
         {% else %}
-            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> دخول</a>
+            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
         {% endif %}
     </div>
 </div>
