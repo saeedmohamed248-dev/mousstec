@@ -296,7 +296,7 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default='postgres://postgres:123@localhost:5432/erp_db')
 }
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
-DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=300)  # 5 دقائق — أمثل لـ 4GB RAM
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)  # ثانية — أقل ضغط على اتصالات PostgreSQL (كان 300)
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 DATABASES['default']['OPTIONS'] = {
     'connect_timeout': 10,          # timeout لمنع انتظار اتصال ميت
@@ -440,6 +440,10 @@ OMNICHANNEL_SECRET_KEK = env.str('OMNICHANNEL_SECRET_KEK', '')
 # Default Gemini model for the platform (fallback) LLM provider.
 # Empty → the code default `gemini-flash-latest` (always the current stable Flash).
 OMNICHANNEL_GEMINI_MODEL = env.str('OMNICHANNEL_GEMINI_MODEL', '') or None
+# Region-aware monthly subscription price for the add-on (displayed + billed
+# from the tenant wallet in the tenant's own currency).
+OMNICHANNEL_PRICE_EGP = env.str('OMNICHANNEL_PRICE_EGP', '250')
+OMNICHANNEL_PRICE_AED = env.str('OMNICHANNEL_PRICE_AED', '25')
 
 # =====================================================================
 # 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)

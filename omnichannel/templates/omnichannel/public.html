@@ -1,10 +1,12 @@
-{% load static i18n %}<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}
+{% with EN=LANGUAGE_CODE|slice:":2" %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الرد الآلي على واتساب وماسنجر | Mouss Tec</title>
-<meta name="description" content="مساعد ذكي يرد على عملائك تلقائياً على واتساب وماسنجر بأسعارك ومخزونك الحقيقي — 250 ج.م/شهر.">
+<title>{% if EN == 'en' %}AI Auto-Reply for WhatsApp & Messenger{% else %}الرد الآلي على واتساب وماسنجر{% endif %} | Mouss Tec</title>
+<meta name="description" content="{% if EN == 'en' %}An AI assistant that replies to your customers on WhatsApp & Messenger using your live prices and stock.{% else %}مساعد ذكي يرد على عملائك على واتساب وماسنجر بأسعارك ومخزونك الحقيقي.{% endif %}">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -13,18 +15,22 @@
   body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
   .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
   .btn-primary{ background:linear-gradient(135deg,var(--navy),var(--navy2)); }
+  .tip{ border-inline-start:4px solid var(--gold); background:#fff8ec; }
+  .ok{ border-inline-start:4px solid #16a34a; background:#f0fdf4; }
 </style>
 </head>
 <body class="min-h-screen">
 
 <!-- Top bar -->
 <div class="bg-white border-b border-slate-200">
-  <div class="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+  <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
     <a href="/" class="font-black text-[#0f2c4c] text-lg">MOUSS TEC</a>
-    <div class="flex items-center gap-3 text-sm">
-      <a href="/pricing/" class="text-slate-600 hover:text-[#0f2c4c] font-bold">الباقات</a>
-      <a href="{{ login_url }}" class="text-slate-600 hover:text-[#0f2c4c] font-bold">دخول</a>
-      <a href="{{ signup_url }}" class="btn-primary text-white font-bold px-4 py-2 rounded-xl">ابدأ مجاناً</a>
+    <div class="flex items-center gap-2 flex-wrap text-sm">
+      {% include "clients/_region_switcher.html" %}
+      {% include "clients/_language_switcher.html" %}
+      <a href="/pricing/" class="text-slate-600 hover:text-[#0f2c4c] font-bold px-2">{% if EN == 'en' %}Plans{% else %}الباقات{% endif %}</a>
+      <a href="{{ login_url }}" class="text-slate-600 hover:text-[#0f2c4c] font-bold px-2">{% if EN == 'en' %}Log in{% else %}دخول{% endif %}</a>
+      <a href="{{ signup_url }}" class="btn-primary text-white font-bold px-4 py-2 rounded-xl">{% if EN == 'en' %}Start free{% else %}ابدأ مجاناً{% endif %}</a>
     </div>
   </div>
 </div>
@@ -32,30 +38,25 @@
 <!-- Hero -->
 <header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
   <div class="max-w-5xl mx-auto px-6 py-14 text-center">
-    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · {% if EN == 'en' %}Subscription add-on{% else %}إضافة اشتراكية{% endif %}</p>
     <h1 class="text-3xl md:text-5xl font-black mt-3 leading-snug">
-      مساعد ذكي يرد على عملائك تلقائياً<br>على واتساب وماسنجر 🤖
+      {% if EN == 'en' %}An AI assistant that replies to your customers<br>automatically on WhatsApp & Messenger 🤖
+      {% else %}مساعد ذكي يرد على عملائك تلقائياً<br>على واتساب وماسنجر 🤖{% endif %}
     </h1>
     <p class="mt-5 text-lg opacity-90 leading-relaxed max-w-2xl mx-auto">
-      اربط رقم واتساب بيزنس وصفحة ماسنجر الخاصة بشركتك، وخلّي الذكاء الاصطناعي يرد على
-      استفسارات عملائك عن الأسعار والتوفر — مستنداً إلى مخزونك وأسعارك الحقيقية، على مدار الساعة.
+      {% if EN == 'en' %}Connect your own WhatsApp Business number and Messenger page, and let AI answer your customers' questions about prices and availability — grounded in your real stock and prices, around the clock.
+      {% else %}اربط رقم واتساب بيزنس وصفحة ماسنجر الخاصة بشركتك، وخلّي الذكاء الاصطناعي يرد على استفسارات عملائك عن الأسعار والتوفر — مستنداً إلى مخزونك وأسعارك الحقيقية، على مدار الساعة.{% endif %}
     </p>
     <div class="mt-8 flex flex-wrap gap-3 justify-center">
       {% if is_logged_in_tenant %}
-        <a href="{{ overview_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">
-          <i class="fas fa-bolt ml-1"></i> اذهب لصفحة الاشتراك
-        </a>
+        <a href="{{ overview_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">{% if EN == 'en' %}Go to subscription →{% else %}اذهب لصفحة الاشتراك ←{% endif %}</a>
       {% else %}
-        <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">
-          <i class="fas fa-rocket ml-1"></i> أنشئ حساباً واشترك
-        </a>
-        <a href="{{ login_url }}" class="bg-white/10 border border-white/25 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition">
-          لديك حساب؟ سجّل الدخول
-        </a>
+        <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">{% if EN == 'en' %}Create account & subscribe{% else %}أنشئ حساباً واشترك{% endif %}</a>
+        <a href="{{ login_url }}" class="bg-white/10 border border-white/25 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition">{% if EN == 'en' %}Have an account? Log in{% else %}لديك حساب؟ سجّل الدخول{% endif %}</a>
       {% endif %}
     </div>
-    <p class="mt-5 text-white/80 text-sm">
-      <span class="text-2xl font-black text-white">{{ price }}</span> ج.م / شهر — إضافة منفصلة عن الباقة
+    <p class="mt-5 text-white/85 text-sm">
+      <span class="text-2xl font-black text-white">{{ price }}</span> {{ tenant_currency_symbol|default:'ج.م' }} / {% if EN == 'en' %}month — a separate add-on{% else %}شهر — إضافة منفصلة عن الباقة{% endif %}
     </p>
   </div>
 </header>
@@ -66,70 +67,126 @@
   <div class="grid md:grid-cols-3 gap-5 mb-12">
     <div class="card p-6 text-center">
       <div class="text-3xl mb-3">💬</div>
-      <h3 class="font-black text-[#0f2c4c] mb-2">قناتان في مكان واحد</h3>
-      <p class="text-sm text-slate-600 leading-relaxed">واتساب بيزنس وماسنجر معاً — كل رسائل عملائك يرد عليها مساعد واحد ذكي.</p>
+      <h3 class="font-black text-[#0f2c4c] mb-2">{% if EN == 'en' %}Two channels, one place{% else %}قناتان في مكان واحد{% endif %}</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">{% if EN == 'en' %}WhatsApp Business + Messenger together — one smart assistant answers them all.{% else %}واتساب بيزنس وماسنجر معاً — مساعد واحد ذكي يرد عليهم كلهم.{% endif %}</p>
     </div>
     <div class="card p-6 text-center">
       <div class="text-3xl mb-3">📦</div>
-      <h3 class="font-black text-[#0f2c4c] mb-2">يعرف مخزونك وأسعارك</h3>
-      <p class="text-sm text-slate-600 leading-relaxed">يقرأ الأصناف والأسعار والتوفر من حسابك لحظياً، ولا يخترع أي سعر غير موجود.</p>
+      <h3 class="font-black text-[#0f2c4c] mb-2">{% if EN == 'en' %}Knows your stock & prices{% else %}يعرف مخزونك وأسعارك{% endif %}</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">{% if EN == 'en' %}Reads your items, prices and availability live — and never invents a price.{% else %}يقرأ الأصناف والأسعار والتوفر لحظياً، ولا يخترع أي سعر غير موجود.{% endif %}</p>
     </div>
     <div class="card p-6 text-center">
       <div class="text-3xl mb-3">🔑</div>
-      <h3 class="font-black text-[#0f2c4c] mb-2">حسابك الخاص (BYOK)</h3>
-      <p class="text-sm text-slate-600 leading-relaxed">تكلفة رسائل واتساب من Meta على حسابك مباشرة — بدون أي عمولة من Mouss Tec.</p>
+      <h3 class="font-black text-[#0f2c4c] mb-2">{% if EN == 'en' %}Your own account (BYOK){% else %}حسابك الخاص (BYOK){% endif %}</h3>
+      <p class="text-sm text-slate-600 leading-relaxed">{% if EN == 'en' %}WhatsApp costs are billed by Meta directly to you — with zero commission from Mouss Tec.{% else %}تكلفة رسائل واتساب من Meta على حسابك مباشرة — بدون أي عمولة من Mouss Tec.{% endif %}</p>
     </div>
   </div>
 
   <!-- How it works -->
   <div class="card p-8 mb-12">
-    <h2 class="text-2xl font-black text-[#0f2c4c] mb-6 text-center">إزاي بيشتغل؟</h2>
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-6 text-center">{% if EN == 'en' %}How it works{% else %}إزاي بيشتغل؟{% endif %}</h2>
     <div class="grid md:grid-cols-4 gap-6 text-center">
-      <div>
-        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">1</div>
-        <p class="text-sm text-slate-600">العميل يبعت رسالة على واتساب أو ماسنجر بتاع شركتك.</p>
-      </div>
-      <div>
-        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">2</div>
-        <p class="text-sm text-slate-600">النظام يعرف إنها ليك ويقرأ مخزونك وأسعارك الحالية.</p>
-      </div>
-      <div>
-        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">3</div>
-        <p class="text-sm text-slate-600">الذكاء الاصطناعي يصيغ رداً دقيقاً بنبرة شركتك.</p>
-      </div>
-      <div>
-        <div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">4</div>
-        <p class="text-sm text-slate-600">الرد يوصل العميل خلال ثوانٍ، وكل محادثة تتسجّل لك.</p>
-      </div>
+      <div><div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">1</div>
+        <p class="text-sm text-slate-600">{% if EN == 'en' %}A customer messages your WhatsApp or Messenger.{% else %}العميل يبعت رسالة على واتساب أو ماسنجر بتاع شركتك.{% endif %}</p></div>
+      <div><div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">2</div>
+        <p class="text-sm text-slate-600">{% if EN == 'en' %}The system identifies you and reads your current stock & prices.{% else %}النظام يعرف إنها ليك ويقرأ مخزونك وأسعارك الحالية.{% endif %}</p></div>
+      <div><div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">3</div>
+        <p class="text-sm text-slate-600">{% if EN == 'en' %}AI drafts an accurate reply in your brand's tone.{% else %}الذكاء الاصطناعي يصيغ رداً دقيقاً بنبرة شركتك.{% endif %}</p></div>
+      <div><div class="w-12 h-12 rounded-full btn-primary text-white grid place-items-center font-black mx-auto mb-3">4</div>
+        <p class="text-sm text-slate-600">{% if EN == 'en' %}The reply reaches the customer in seconds — every chat is logged.{% else %}الرد يوصل العميل خلال ثوانٍ، وكل محادثة تتسجّل لك.{% endif %}</p></div>
     </div>
   </div>
 
-  <!-- Pricing / CTA -->
+  <!-- 💰 WhatsApp cost details -->
+  <div class="card p-8 mb-12">
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-2 text-center">{% if EN == 'en' %}What does WhatsApp cost?{% else %}تكلفة رسائل واتساب — بالتفصيل{% endif %}</h2>
+    <p class="text-center text-slate-500 text-sm mb-6 max-w-2xl mx-auto">
+      {% if EN == 'en' %}Messaging fees are set by Meta and billed to your own account (BYOK). Mouss Tec only charges the {{ price }} {{ tenant_currency_symbol|default:'EGP' }}/month subscription — no commission on messages.
+      {% else %}رسوم الرسائل تحدّدها Meta وتُخصم من حسابك أنت مباشرة (نموذج BYOK). Mouss Tec تأخذ فقط اشتراك {{ price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر — بدون أي عمولة على الرسائل.{% endif %}
+    </p>
+
+    <div class="ok rounded-xl p-4 mb-5 text-sm leading-relaxed">
+      🎁 <strong>{% if EN == 'en' %}Free tier:{% else %}الحصة المجانية:{% endif %}</strong>
+      {% if EN == 'en' %}Meta gives every business <strong>{{ free_conversations }} free service conversations per month</strong> (conversations started by the customer within a 24-hour window — exactly what auto-reply uses). Beyond that, service conversations are charged at Meta's rate for your country.
+      {% else %}Meta بتمنح كل نشاط <strong>{{ free_conversations }} محادثة خدمة مجانية شهرياً</strong> (المحادثات التي يبدؤها العميل خلال نافذة 24 ساعة — وهي بالضبط ما يستخدمه الرد الآلي). بعد الحصة، تُحتسب محادثات الخدمة بسعر Meta في دولتك.{% endif %}
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+        <thead class="bg-slate-50 text-[#0f2c4c]">
+          <tr>
+            <th class="text-start p-3">{% if EN == 'en' %}Message type{% else %}نوع الرسالة{% endif %}</th>
+            <th class="text-start p-3">{% if EN == 'en' %}Who starts it{% else %}من يبدؤها{% endif %}</th>
+            <th class="text-start p-3">{% if EN == 'en' %}Cost{% else %}التكلفة{% endif %}</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr>
+            <td class="p-3 font-semibold">{% if EN == 'en' %}Service (replies){% else %}خدمة (ردود){% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}The customer{% else %}العميل{% endif %}</td>
+            <td class="p-3 text-green-600 font-bold">{% if EN == 'en' %}Free up to {{ free_conversations }}/mo, then Meta rate{% else %}مجاناً حتى {{ free_conversations }}/شهر ثم سعر Meta{% endif %}</td>
+          </tr>
+          <tr>
+            <td class="p-3 font-semibold">{% if EN == 'en' %}Utility (order updates){% else %}خدمية (تحديثات الطلب){% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Your business{% else %}نشاطك{% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Per-message, Meta rate{% else %}لكل رسالة، سعر Meta{% endif %}</td>
+          </tr>
+          <tr>
+            <td class="p-3 font-semibold">{% if EN == 'en' %}Marketing (offers){% else %}تسويقية (عروض){% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Your business{% else %}نشاطك{% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Per-message, Meta rate (highest){% else %}لكل رسالة، سعر Meta (الأعلى){% endif %}</td>
+          </tr>
+          <tr>
+            <td class="p-3 font-semibold">{% if EN == 'en' %}Authentication (OTP){% else %}مصادقة (رمز تحقق){% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Your business{% else %}نشاطك{% endif %}</td>
+            <td class="p-3">{% if EN == 'en' %}Per-message, Meta rate{% else %}لكل رسالة، سعر Meta{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip rounded-xl p-4 mt-5 text-sm leading-relaxed">
+      💡 {% if EN == 'en' %}The auto-reply feature almost always uses <strong>service messages</strong> (you're replying to a customer), so most shops stay within the free tier. Exact per-message rates depend on your country and change over time — see Meta's official pricing.
+      {% else %}ميزة الرد الآلي تستخدم غالباً <strong>رسائل الخدمة</strong> (لأنك ترد على عميل)، فمعظم المحلات تبقى داخل الحصة المجانية. الأسعار الدقيقة لكل رسالة تعتمد على دولتك وتتغير مع الوقت — راجع أسعار Meta الرسمية.{% endif %}
+      <a href="https://developers.facebook.com/docs/whatsapp/pricing" target="_blank" rel="noopener" class="text-[#16457a] font-bold underline">{% if EN == 'en' %}Meta WhatsApp pricing ↗{% else %}أسعار واتساب من Meta ↗{% endif %}</a>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="card p-8 mb-12">
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-5 text-center">{% if EN == 'en' %}FAQ{% else %}أسئلة شائعة{% endif %}</h2>
+    <div class="space-y-4 text-sm text-slate-700 leading-relaxed max-w-3xl mx-auto">
+      <div><p class="font-bold text-[#0f2c4c]">{% if EN == 'en' %}Who pays for WhatsApp messages?{% else %}من يدفع تكلفة رسائل واتساب؟{% endif %}</p>
+        <p>{% if EN == 'en' %}You do, directly to Meta (BYOK). Mouss Tec charges only the monthly subscription and takes no commission on messages.{% else %}أنت مباشرةً لـ Meta (نموذج BYOK). Mouss Tec تأخذ فقط الاشتراك الشهري وبدون أي عمولة على الرسائل.{% endif %}</p></div>
+      <div><p class="font-bold text-[#0f2c4c]">{% if EN == 'en' %}Does the assistant see my real prices?{% else %}هل يرى المساعد أسعاري الحقيقية؟{% endif %}</p>
+        <p>{% if EN == 'en' %}Yes — it reads your live stock and prices at the moment of every message and never invents a price.{% else %}نعم — يقرأ مخزونك وأسعارك الحيّة لحظة كل رسالة ولا يخترع أي سعر.{% endif %}</p></div>
+      <div><p class="font-bold text-[#0f2c4c]">{% if EN == 'en' %}Can I pause the auto-reply?{% else %}هل أقدر أوقف الرد الآلي؟{% endif %}</p>
+        <p>{% if EN == 'en' %}Anytime — turn it off and conversations hand over to a human, without cancelling the subscription.{% else %}في أي وقت — أوقفه وتُحوَّل المحادثات لموظف بشري دون إلغاء الاشتراك.{% endif %}</p></div>
+      <div><p class="font-bold text-[#0f2c4c]">{% if EN == 'en' %}How do I pay for the subscription?{% else %}إزاي أدفع الاشتراك؟{% endif %}</p>
+        <p>{% if EN == 'en' %}By card via Paymob, or from your Mouss Tec wallet balance.{% else %}بالبطاقة عبر Paymob، أو من رصيد محفظتك في Mouss Tec.{% endif %}</p></div>
+    </div>
+  </div>
+
+  <!-- Final CTA -->
   <div class="card p-8 text-center max-w-2xl mx-auto">
-    <h2 class="text-2xl font-black text-[#0f2c4c] mb-1">ابدأ اليوم</h2>
-    <p class="text-slate-500 mb-4">إضافة اشتراكية منفصلة — فعّلها في دقائق</p>
-    <div class="text-5xl font-black text-[#0f2c4c] mb-1">{{ price }} <span class="text-lg font-bold text-slate-400">ج.م/شهر</span></div>
-    <ul class="text-slate-600 text-sm my-6 space-y-2 inline-block text-right">
-      <li><i class="fas fa-check text-green-500 ml-2"></i> قناتان: واتساب بيزنس + ماسنجر</li>
-      <li><i class="fas fa-check text-green-500 ml-2"></i> ردود مبنية على مخزونك وأسعارك الحيّة</li>
-      <li><i class="fas fa-check text-green-500 ml-2"></i> ضبط نبرة الحوار وسياسة الخصومات</li>
-      <li><i class="fas fa-check text-green-500 ml-2"></i> دفع بالبطاقة (Paymob) أو من رصيد المحفظة</li>
-    </ul>
-    <div class="flex flex-wrap gap-3 justify-center">
+    <h2 class="text-2xl font-black text-[#0f2c4c] mb-1">{% if EN == 'en' %}Start today{% else %}ابدأ اليوم{% endif %}</h2>
+    <div class="text-5xl font-black text-[#0f2c4c] my-3">{{ price }} <span class="text-lg font-bold text-slate-400">{{ tenant_currency_symbol|default:'ج.م' }}/{% if EN == 'en' %}mo{% else %}شهر{% endif %}</span></div>
+    <div class="flex flex-wrap gap-3 justify-center mt-4">
       {% if is_logged_in_tenant %}
-        <a href="{{ overview_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">اذهب لصفحة الاشتراك ←</a>
+        <a href="{{ overview_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">{% if EN == 'en' %}Go to subscription →{% else %}اذهب لصفحة الاشتراك ←{% endif %}</a>
       {% else %}
-        <a href="{{ signup_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">أنشئ حساباً واشترك ←</a>
-        <a href="{{ login_url }}" class="border border-slate-300 text-slate-700 font-bold px-8 py-4 rounded-xl">سجّل الدخول</a>
+        <a href="{{ signup_url }}" class="btn-primary text-white font-black px-8 py-4 rounded-xl">{% if EN == 'en' %}Create account & subscribe →{% else %}أنشئ حساباً واشترك ←{% endif %}</a>
+        <a href="{{ login_url }}" class="border border-slate-300 text-slate-700 font-bold px-8 py-4 rounded-xl">{% if EN == 'en' %}Log in{% else %}سجّل الدخول{% endif %}</a>
       {% endif %}
     </div>
-    <p class="text-xs text-slate-400 mt-4">التفعيل يتم داخل حساب شركتك بعد الدخول.</p>
+    <p class="text-xs text-slate-400 mt-4">{% if EN == 'en' %}Activation happens inside your company account after login.{% else %}التفعيل يتم داخل حساب شركتك بعد الدخول.{% endif %}</p>
   </div>
 
 </main>
 
 <footer class="text-center py-8 text-slate-500 text-xs">
-  © Mouss Tec — <a href="/pricing/" class="underline">كل الباقات</a>
+  © Mouss Tec — <a href="/pricing/" class="underline">{% if EN == 'en' %}All plans{% else %}كل الباقات{% endif %}</a>
 </footer>
 </body>
 </html>
+{% endwith %}
