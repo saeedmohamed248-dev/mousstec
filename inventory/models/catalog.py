@@ -37,6 +37,7 @@ class Product(models.Model):
     ai_calculated_min_stock = models.IntegerField(default=2, verbose_name=_("حد التنبيه الديناميكي (AI)"))
     
     shopify_product_id = models.CharField(max_length=100, blank=True, null=True, verbose_name="Shopify ID")
+    wix_product_id = models.CharField(max_length=100, blank=True, null=True, db_index=True, verbose_name="Wix Product ID")
     warranty_months = models.IntegerField(default=0, verbose_name=_("فترة الضمان (بالأشهر)"))
     
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("آخر سعر شراء"))

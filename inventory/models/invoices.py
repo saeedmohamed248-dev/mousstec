@@ -108,6 +108,10 @@ class SaleInvoice(models.Model):
 
     # ✍️ التوقيع الإلكتروني للعميل عند الاستلام (base64 data-URI من canvas).
     digital_signature = models.TextField(blank=True, default='', editable=False, verbose_name=_("التوقيع الإلكتروني"))
+
+    # 🔌 Wix — لو الفاتورة اتولّدت من طلب Wix، بنخزّن رقم الطلب لمنع الاستيراد المكرر.
+    wix_order_id = models.CharField(max_length=100, blank=True, null=True, db_index=True,
+        verbose_name="Wix Order ID")
     signature_captured_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("وقت التوقيع"))
 
     @property

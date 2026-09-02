@@ -48,6 +48,22 @@ _PAYMOB_HMAC_FIELDS = (
 )
 
 
+def _hmac_value(v) -> str:
+    """Render one HMAC field exactly as Paymob concatenated it.
+
+    Paymob signs the raw JSON representation: booleans are lowercase
+    ``true``/``false`` and null is the empty string. ``json.loads`` gives us
+    Python ``True``/``False``/``None``, so a plain ``str()`` would produce
+    ``"True"``/``"None"`` and every POST callback would fail verification.
+    GET params arrive as strings already and pass through unchanged.
+    """
+    if v is None:
+        return ''
+    if isinstance(v, bool):
+        return 'true' if v else 'false'
+    return str(v)
+
+
 def _is_production() -> bool:
     """True unless explicitly running in a non-production environment.
     Defaults to production so HMAC enforcement is strict by default."""
@@ -165,7 +181,7 @@ def verify_paymob_hmac(request, body_data: Optional[dict] = None) -> tuple[bool,
         return False, 'no_hmac_param'
 
     fields = _extract_paymob_fields(body_data, request.GET.dict() if request.method == 'GET' else {})
-    concatenated = ''.join(str(fields[k]) for k in _PAYMOB_HMAC_FIELDS)
+    concatenated = ''.join(_hmac_value(fields[k]) for k in _PAYMOB_HMAC_FIELDS)
     computed = hmac.new(
         secret.encode('utf-8'),
         concatenated.encode('utf-8'),
@@ -320,3 +336,244 @@ def create_iframe_url(
     except http_requests.RequestException as exc:
         logger.exception("[PAYMOB] network error: %s", exc)
         raise RuntimeError("تعذر الاتصال ببوابة الدفع.")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Card tokenization (TOKEN callback) + charge-with-saved-token
+# ─────────────────────────────────────────────────────────────────────
+
+# Paymob's documented HMAC field order for the type=TOKEN callback
+# (alphabetical, same scheme as the transaction callback but different keys).
+_PAYMOB_TOKEN_HMAC_FIELDS = (
+    'card_subtype', 'created_at', 'email', 'id',
+    'masked_pan', 'merchant_id', 'order_id', 'token',
+)
+
+
+def verify_paymob_token_hmac(request, body_data: dict) -> tuple[bool, str]:
+    """🛡️ Verify the HMAC of a ``type=TOKEN`` (card-saved) callback.
+
+    Same fail-closed matrix as ``verify_paymob_hmac`` — unset secret rejects
+    in production, accepts with a warning in dev.
+    """
+    secret = (
+        getattr(settings, 'PAYMOB_HMAC_SECRET', '')
+        or os.getenv('PAYMOB_HMAC_SECRET', '')
+    )
+    if not secret:
+        if _is_production():
+            logger.critical("🚨 [PAYMOB TOKEN HMAC] secret not configured — rejecting")
+            return False, 'hmac_secret_missing'
+        logger.warning("⚠️ [PAYMOB TOKEN HMAC] secret unset — accepting (dev only)")
+        return True, 'dev_skip'
+
+    received = request.GET.get('hmac', '') or body_data.get('hmac', '')
+    if not received:
+        return False, 'no_hmac_param'
+
+    obj = body_data.get('obj') if isinstance(body_data.get('obj'), dict) else {}
+    concatenated = ''.join(_hmac_value(obj.get(k, '')) for k in _PAYMOB_TOKEN_HMAC_FIELDS)
+    computed = hmac.new(secret.encode('utf-8'), concatenated.encode('utf-8'),
+                        hashlib.sha512).hexdigest()
+    if not hmac.compare_digest(computed, received):
+        logger.critical("🚨 [PAYMOB TOKEN HMAC MISMATCH] IP=%s",
+                        request.META.get('REMOTE_ADDR', '?'))
+        return False, 'hmac_mismatch'
+    return True, 'ok'
+
+
+def charge_with_saved_token(
+    card_token: str,
+    amount_egp,
+    *,
+    order_ref: str,
+    item_name: str = 'Mouss Tec Subscription Renewal',
+    metadata: Optional[dict] = None,
+    cache_key_prefix: Optional[str] = None,
+    customer_email: str = 'customer@mousstec.com',
+) -> tuple[bool, str]:
+    """💳 Charge a previously-saved Paymob card token (MOTO / recurring).
+
+    Mirrors ``create_iframe_url``'s auth → order → payment-key handshake, then
+    hits ``/api/acceptance/payments/pay`` with ``source={identifier: token,
+    subtype: 'TOKEN'}`` instead of returning an iframe.
+
+    Paymob still fires the normal transaction-processed webhook afterwards, so
+    the existing callback (with its cached ``{cache_key_prefix}_{order_id}``
+    metadata) finalizes the subscription exactly like an interactive payment.
+
+    Returns ``(ok, detail)`` — ``detail`` is the Paymob transaction id on
+    success or a machine-readable failure token. Never raises.
+    """
+    import requests as http_requests
+
+    api_key, integration_id, _ = _resolve_credentials()
+    if not api_key or not integration_id:
+        return False, 'gateway_not_configured'
+    try:
+        integration_id_int = int(integration_id)
+    except (TypeError, ValueError):
+        return False, 'bad_integration_id'
+    try:
+        amount_cents = int(Decimal(str(amount_egp)) * 100)
+    except Exception:
+        return False, 'invalid_amount'
+    if amount_cents <= 0 or not card_token:
+        return False, 'invalid_charge_args'
+
+    merchant_order_id = f"{order_ref}_{uuid.uuid4().hex[:10]}"
+    try:
+        auth_token = _fetch_auth_token()
+
+        order_res = http_requests.post(
+            'https://accept.paymob.com/api/ecommerce/orders',
+            json={
+                'auth_token': auth_token, 'delivery_needed': 'false',
+                'amount_cents': amount_cents, 'currency': 'EGP',
+                'items': [{'name': item_name, 'amount_cents': amount_cents, 'quantity': '1'}],
+                'merchant_order_id': merchant_order_id,
+            }, timeout=15,
+        )
+        if order_res.status_code not in (200, 201):
+            logger.error("[PAYMOB TOKEN-CHARGE] order failed: %s — %s",
+                         order_res.status_code, order_res.text[:200])
+            return False, 'order_failed'
+        paymob_order_id = order_res.json().get('id')
+        if not paymob_order_id:
+            return False, 'order_no_id'
+
+        key_res = http_requests.post(
+            'https://accept.paymob.com/api/acceptance/payment_keys',
+            json={
+                'auth_token': auth_token, 'amount_cents': amount_cents,
+                'expiration': 3600, 'order_id': paymob_order_id,
+                'billing_data': {
+                    'first_name': 'Subscriber', 'last_name': 'MoussTec',
+                    'email': customer_email, 'phone_number': '01000000000',
+                    'apartment': 'NA', 'floor': 'NA', 'street': 'NA', 'building': 'NA',
+                    'shipping_method': 'NA', 'postal_code': 'NA', 'city': 'Cairo',
+                    'country': 'EG', 'state': 'Cairo',
+                },
+                'currency': 'EGP', 'integration_id': integration_id_int,
+            }, timeout=15,
+        )
+        if key_res.status_code not in (200, 201):
+            logger.error("[PAYMOB TOKEN-CHARGE] key failed: %s — %s",
+                         key_res.status_code, key_res.text[:200])
+            return False, 'payment_key_failed'
+        payment_token = key_res.json().get('token')
+        if not payment_token:
+            return False, 'payment_key_no_token'
+
+        # Metadata FIRST — the webhook can arrive before the pay call returns.
+        if metadata and cache_key_prefix:
+            cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
+
+        pay_res = http_requests.post(
+            'https://accept.paymob.com/api/acceptance/payments/pay',
+            json={
+                'source': {'identifier': card_token, 'subtype': 'TOKEN'},
+                'payment_token': payment_token,
+            }, timeout=30,
+        )
+        if pay_res.status_code not in (200, 201):
+            logger.error("[PAYMOB TOKEN-CHARGE] pay failed: %s — %s",
+                         pay_res.status_code, pay_res.text[:300])
+            return False, f'pay_rejected_{pay_res.status_code}'
+        body = pay_res.json()
+        txn_id = body.get('id', '')
+        success = str(body.get('success', '')).lower() == 'true' or body.get('success') is True
+        if not success:
+            logger.warning("[PAYMOB TOKEN-CHARGE] declined: txn=%s order=%s",
+                           txn_id, paymob_order_id)
+            return False, f'declined_txn_{txn_id}'
+        logger.info("[PAYMOB TOKEN-CHARGE] ok: txn=%s order=%s amount=%s EGP",
+                    txn_id, paymob_order_id, amount_egp)
+        return True, str(txn_id)
+
+    except RuntimeError as exc:
+        return False, str(exc)
+    except http_requests.RequestException as exc:
+        logger.exception("[PAYMOB TOKEN-CHARGE] network error: %s", exc)
+        return False, 'network_error'
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Refunds — return money to the card through the gateway
+# ─────────────────────────────────────────────────────────────────────
+
+def _fetch_auth_token() -> str:
+    """Authenticate against Paymob; raises RuntimeError on any failure."""
+    import requests as http_requests
+
+    api_key, _, _ = _resolve_credentials()
+    if not api_key:
+        raise RuntimeError("بوابة الدفع غير مهيّأة (PAYMOB_API_KEY مفقود).")
+    try:
+        res = http_requests.post(
+            'https://accept.paymob.com/api/auth/tokens',
+            json={'api_key': api_key}, timeout=15,
+        )
+    except http_requests.RequestException as exc:
+        logger.exception("[PAYMOB] auth network error: %s", exc)
+        raise RuntimeError("تعذر الاتصال ببوابة الدفع.")
+    token = res.json().get('token') if res.status_code in (200, 201) else None
+    if not token:
+        logger.error("[PAYMOB] auth failed: %s — %s", res.status_code, res.text[:200])
+        raise RuntimeError("فشل المصادقة مع بوابة الدفع.")
+    return token
+
+
+def refund_transaction(transaction_id, amount_egp) -> tuple[bool, str]:
+    """💸 Refund a captured Paymob transaction back to the customer's card.
+
+    Parameters
+    ----------
+    transaction_id : the Paymob transaction id captured at payment time
+        (e.g. ``PartOrder.paymob_txn_id``).
+    amount_egp : Decimal | str | float — amount to refund in EGP (full or
+        partial; Paymob rejects amounts above the original charge).
+
+    Returns ``(ok, detail)``. Never raises — refund is always attempted from
+    an admin flow that must be able to fall back to a manual transfer, so the
+    caller branches on ``ok`` and logs ``detail`` either way.
+    """
+    import requests as http_requests
+
+    try:
+        amount_cents = int(Decimal(str(amount_egp)) * 100)
+    except Exception:
+        return False, 'invalid_amount'
+    if amount_cents <= 0 or not transaction_id:
+        return False, 'invalid_refund_args'
+
+    try:
+        auth_token = _fetch_auth_token()
+        res = http_requests.post(
+            'https://accept.paymob.com/api/acceptance/void_refund/refund',
+            json={
+                'auth_token': auth_token,
+                'transaction_id': str(transaction_id),
+                'amount_cents': amount_cents,
+            },
+            timeout=20,
+        )
+    except RuntimeError as exc:
+        return False, str(exc)
+    except http_requests.RequestException as exc:
+        logger.exception("[PAYMOB REFUND] network error: %s", exc)
+        return False, 'network_error'
+
+    if res.status_code not in (200, 201):
+        logger.error("[PAYMOB REFUND] failed: txn=%s status=%s body=%s",
+                     transaction_id, res.status_code, res.text[:300])
+        return False, f'gateway_rejected_{res.status_code}'
+
+    try:
+        body = res.json()
+    except ValueError:
+        body = {}
+    refund_txn_id = body.get('id', '')
+    logger.info("[PAYMOB REFUND] ok: original_txn=%s refund_txn=%s amount=%s EGP",
+                transaction_id, refund_txn_id, amount_egp)
+    return True, str(refund_txn_id)
