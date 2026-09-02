@@ -1,0 +1,70 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}نظرة عامة{% endblock %}
+{% block heading %}نظرة عامة{% endblock %}
+{% block content %}
+
+<!-- Subscription banner -->
+<div class="card p-5 mb-6 flex items-center justify-between flex-wrap gap-3">
+  <div>
+    <p class="text-sm text-slate-500">حالة الاشتراك</p>
+    {% if sub_state == 'lifetime' %}<p class="text-lg font-black text-green-600">● مدى الحياة</p>
+    {% elif sub_state == 'active' %}<p class="text-lg font-black text-green-600">● فعّال{% if days_left is not None %} — متبقٍ {{ days_left }} يوم{% endif %}</p>
+    {% elif sub_state == 'expired' %}<p class="text-lg font-black text-amber-600">● منتهٍ</p>
+    {% else %}<p class="text-lg font-black text-slate-400">● غير مفعّل</p>{% endif %}
+  </div>
+  <div class="text-sm">
+    {% if config.is_operational %}
+      <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full">✅ المساعد يرد على العملاء الآن</span>
+    {% else %}
+      <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full">⏸️ الرد الآلي متوقف — أكمل الإعدادات</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  <div class="card p-5">
+    <div class="text-slate-400 text-sm mb-1">المحادثات</div>
+    <div class="text-3xl font-black text-[#0f2c4c]">{{ kpis.conversations }}</div>
+  </div>
+  <div class="card p-5">
+    <div class="text-slate-400 text-sm mb-1">إجمالي الرسائل</div>
+    <div class="text-3xl font-black text-[#0f2c4c]">{{ kpis.messages_total }}</div>
+  </div>
+  <div class="card p-5">
+    <div class="text-slate-400 text-sm mb-1">تم الرد عليها</div>
+    <div class="text-3xl font-black text-green-600">{{ kpis.replied }}</div>
+  </div>
+  <div class="card p-5">
+    <div class="text-slate-400 text-sm mb-1">آخر 7 أيام</div>
+    <div class="text-3xl font-black text-[#16457a]">{{ kpis.last7 }}</div>
+  </div>
+</div>
+
+<!-- Recent conversations -->
+<div class="card p-5">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-black text-[#0f2c4c]">أحدث المحادثات</h2>
+    <a href="{{ nav_inbox }}" class="text-sm text-[#16457a] font-bold">عرض الكل ←</a>
+  </div>
+  {% if recent %}
+    <div class="divide-y divide-slate-100">
+      {% for c in recent %}
+      <a href="{% url 'omnichannel_console_conversation' channel=c.channel sender_id=c.sender_id %}" class="flex items-center gap-3 py-3 hover:bg-slate-50 rounded-lg px-2 -mx-2">
+        <div class="w-10 h-10 rounded-full bg-[#0f2c4c]/10 grid place-items-center text-[#0f2c4c]">
+          {% if c.channel == 'whatsapp' %}<i class="fab fa-whatsapp"></i>{% else %}<i class="fab fa-facebook-messenger"></i>{% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm text-slate-800 truncate">{{ c.name }}</div>
+          <div class="text-xs text-slate-500 truncate">{{ c.last_text|default:"—" }}</div>
+        </div>
+        <div class="text-xs text-slate-400 whitespace-nowrap">{{ c.last_at|date:"m-d H:i" }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-slate-400 text-sm text-center py-8">لا توجد محادثات بعد. بمجرد أن يراسلك عميل على واتساب أو ماسنجر ستظهر هنا.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

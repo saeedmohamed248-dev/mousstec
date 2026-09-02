@@ -8,6 +8,7 @@ directly: `omnichannel_webhook`, `omnichannel_settings`, `omnichannel_guide`.
 """
 from django.urls import path
 
+from . import console_views
 from .dashboard_views import (
     onboarding_guide,
     overview,
@@ -33,4 +34,11 @@ urlpatterns = [
     path("omnichannel/paymob-callback/", paymob_callback, name="omnichannel_paymob_callback"),
     path("omnichannel/settings/", settings_screen, name="omnichannel_settings"),
     path("omnichannel/guide/", onboarding_guide, name="omnichannel_guide"),
+
+    # Dedicated console (subscribers only) — overview / inbox / contacts.
+    path("omnichannel/console/", console_views.console_home, name="omnichannel_console"),
+    path("omnichannel/console/inbox/", console_views.console_inbox, name="omnichannel_console_inbox"),
+    path("omnichannel/console/contacts/", console_views.console_contacts, name="omnichannel_console_contacts"),
+    path("omnichannel/console/c/<str:channel>/<path:sender_id>/",
+         console_views.console_conversation, name="omnichannel_console_conversation"),
 ]

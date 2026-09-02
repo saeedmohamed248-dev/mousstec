@@ -154,6 +154,7 @@ class Command(BaseCommand):
         # 9) Log
         ChannelMessageLog.objects.create(
             tenant=tenant, channel=channel, sender_id=opts["sender"],
+            contact_name="عميل تجريبي",
             inbound_text=opts["message"], outbound_text=reply,
             status=ChannelMessageLog.Status.REPLIED, meta_message_id="selftest",
         )

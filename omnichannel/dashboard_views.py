@@ -132,6 +132,7 @@ def overview(request):
         "guide_url": reverse("omnichannel_guide"),
         "subscribe_url": reverse("omnichannel_subscribe"),
         "pay_url": reverse("omnichannel_pay"),
+        "console_url": reverse("omnichannel_console"),
         "can_manage": request.user.is_superuser,
     }
     return render(request, "omnichannel/overview.html", context)

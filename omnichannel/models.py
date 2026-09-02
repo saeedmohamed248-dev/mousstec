@@ -295,6 +295,7 @@ class ChannelMessageLog(models.Model):
     )
     channel = models.CharField(max_length=16, choices=Channel.choices)
     sender_id = models.CharField(max_length=128, db_index=True)
+    contact_name = models.CharField(max_length=128, blank=True, default="")
     inbound_text = models.TextField(blank=True, default="")
     outbound_text = models.TextField(blank=True, default="")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.RECEIVED)

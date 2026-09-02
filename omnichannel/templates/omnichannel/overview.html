@@ -65,9 +65,10 @@
         <div class="text-3xl font-black text-[#0f2c4c]">{{ price }} <span class="text-base font-bold">{{ currency }}</span></div>
         <div class="text-sm text-slate-500 mb-3">شهرياً</div>
         {% if config.subscription_state in 'active,lifetime' %}
-          <a href="{{ settings_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
-            <i class="fas fa-sliders-h ml-1"></i> إدارة الإعدادات
+          <a href="{{ console_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+            <i class="fas fa-gauge-high ml-1"></i> افتح لوحة التحكم
           </a>
+          <a href="{{ settings_url }}" class="block mt-2 text-sm text-[#16457a] underline">إدارة الإعدادات</a>
           {% if config.subscription_state == 'active' %}
           <form method="post" action="{{ pay_url }}" class="mt-2">
             {% csrf_token %}
