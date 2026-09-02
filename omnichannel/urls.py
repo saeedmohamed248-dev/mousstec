@@ -42,6 +42,8 @@ urlpatterns = [
     path("omnichannel/console/test/", console_views.console_test, name="omnichannel_console_test"),
     path("omnichannel/console/export/contacts.csv", console_views.console_export_contacts, name="omnichannel_console_export_contacts"),
     path("omnichannel/console/export/messages.csv", console_views.console_export_conversations, name="omnichannel_console_export_conversations"),
-    path("omnichannel/console/c/<str:channel>/<path:sender_id>/",
+    path("omnichannel/console/c/<str:channel>/<str:sender_id>/reply/",
+         console_views.console_reply, name="omnichannel_console_reply"),
+    path("omnichannel/console/c/<str:channel>/<str:sender_id>/",
          console_views.console_conversation, name="omnichannel_console_conversation"),
 ]

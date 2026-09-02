@@ -122,3 +122,27 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         outbound=reply,
         error="fallback_used" if used_fallback else "",
     )
+
+    # ── Smart handoff notification ────────────────────────────────────
+    # Alert the shop only when the AI couldn't answer confidently (fallback),
+    # so the owner can take over — not on every message.
+    if used_fallback and config.notify_on_handoff:
+        _notify_handoff(config, tenant, channel, sender_id, text)
+
+
+def _notify_handoff(config, tenant, channel, sender_id, customer_text):
+    """Best-effort email alert when a customer needs a human. Never raises."""
+    to_email = (config.notify_email or getattr(tenant, "email", "") or "").strip()
+    if not to_email:
+        return
+    try:
+        from django.core.mail import send_mail
+        subject = f"[{tenant.name}] عميل يحتاج ردّاً بشرياً — {channel}"
+        body = (
+            f"وصلت رسالة لم يستطع المساعد الآلي الرد عليها بثقة:\n\n"
+            f"العميل: {sender_id}\nالقناة: {channel}\n\nالرسالة:\n{customer_text}\n\n"
+            f"افتح لوحة التحكم للرد يدوياً: /omnichannel/console/inbox/"
+        )
+        send_mail(subject, body, None, [to_email], fail_silently=True)
+    except Exception:
+        logger.warning("omnichannel: handoff notification failed (SMTP?)", exc_info=True)
