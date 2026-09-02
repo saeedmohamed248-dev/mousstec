@@ -219,28 +219,28 @@
         <!-- 💬 Omnichannel AI Automation add-on -->
         <div class="max-w-4xl mx-auto mt-10">
             <div class="text-center mb-5">
-                <span class="text-purple-300 font-black text-lg">{% trans "إضافات ذكية اختيارية" %}</span>
+                <span class="text-purple-300 font-black text-lg">{% if LANGUAGE_CODE == 'en' %}Optional smart add-ons{% else %}إضافات ذكية اختيارية{% endif %}</span>
             </div>
             <div class="bg-gradient-to-br from-green-500/10 to-emerald-500/5 border border-green-500/25 rounded-2xl px-6 py-6">
                 <div class="flex items-start justify-between flex-wrap gap-5">
                     <div class="flex-1 min-w-[260px]">
                         <div class="flex items-center gap-3 mb-2">
                             <div class="w-11 h-11 rounded-xl bg-green-500/15 flex items-center justify-center text-green-400 text-xl"><i class="fab fa-whatsapp"></i></div>
-                            <h3 class="text-white font-black text-lg">{% trans "الرد الآلي على واتساب وماسنجر (ذكاء اصطناعي)" %}</h3>
+                            <h3 class="text-white font-black text-lg">{% if LANGUAGE_CODE == 'en' %}AI Auto-Reply for WhatsApp & Messenger{% else %}الرد الآلي على واتساب وماسنجر (ذكاء اصطناعي){% endif %}</h3>
                         </div>
                         <p class="text-slate-400 text-sm leading-relaxed">
-                            {% trans "مساعد ذكي يرد على عملائك تلقائياً على واتساب وماسنجر، يعرف مخزونك وأسعارك الحقيقية، على مدار الساعة. تربط حسابك الخاص على Meta (الرسائل على حسابك مباشرة بدون عمولة)." %}
+                            {% if LANGUAGE_CODE == 'en' %}An AI assistant that replies to your customers automatically on WhatsApp & Messenger, knows your real stock and prices, around the clock. Connect your own Meta account (messages billed to you directly, no commission).{% else %}مساعد ذكي يرد على عملائك تلقائياً على واتساب وماسنجر، يعرف مخزونك وأسعارك الحقيقية، على مدار الساعة. تربط حسابك الخاص على Meta (الرسائل على حسابك مباشرة بدون عمولة).{% endif %}
                         </p>
                         <ul class="text-slate-400 text-xs mt-3 space-y-1">
-                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% trans "قناتان: واتساب بيزنس + ماسنجر" %}</li>
-                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% trans "ردود مبنية على مخزونك وأسعارك الحيّة" %}</li>
-                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% trans "ضبط نبرة الحوار وسياسة الخصومات" %}</li>
+                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% if LANGUAGE_CODE == 'en' %}Two channels: WhatsApp Business + Messenger{% else %}قناتان: واتساب بيزنس + ماسنجر{% endif %}</li>
+                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% if LANGUAGE_CODE == 'en' %}Replies grounded in your live stock & prices{% else %}ردود مبنية على مخزونك وأسعارك الحيّة{% endif %}</li>
+                            <li class="flex items-center gap-2"><i class="fas fa-check text-green-400"></i> {% if LANGUAGE_CODE == 'en' %}1000 free WhatsApp service conversations/month{% else %}1000 محادثة خدمة مجانية على واتساب شهرياً{% endif %}</li>
                         </ul>
                     </div>
                     <div class="text-center">
-                        <div class="text-3xl font-black text-white">250 <span class="text-base text-slate-400">{% trans "ج.م/شهر" %}</span></div>
-                        <p class="text-slate-500 text-xs mt-1 mb-3">{% trans "إضافة منفصلة عن الباقة" %}</p>
-                        <a href="/omnichannel-ai/" class="inline-block bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-3 rounded-xl transition"><i class="fas fa-bolt ml-1"></i> {% trans "اعرف المزيد / اشترك" %}</a>
+                        <div class="text-3xl font-black text-white">{% if platform_region.country == 'AE' %}25{% else %}250{% endif %} <span class="text-base text-slate-400">{{ tenant_currency_symbol|default:'ج.م' }}/{% if LANGUAGE_CODE == 'en' %}mo{% else %}شهر{% endif %}</span></div>
+                        <p class="text-slate-500 text-xs mt-1 mb-3">{% if LANGUAGE_CODE == 'en' %}A separate add-on{% else %}إضافة منفصلة عن الباقة{% endif %}</p>
+                        <a href="/omnichannel-ai/" class="inline-block bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-3 rounded-xl transition"><i class="fas fa-bolt ml-1"></i> {% if LANGUAGE_CODE == 'en' %}Learn more / Subscribe{% else %}اعرف المزيد / اشترك{% endif %}</a>
                     </div>
                 </div>
             </div>

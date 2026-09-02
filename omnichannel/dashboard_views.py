@@ -103,8 +103,11 @@ def public_page(request):
     already-logged-in tenant admins).
     """
     tenant = _current_tenant()
+    country = _region_country(request)
     context = {
-        "price": TenantChannelConfig.MONTHLY_PRICE,
+        "price": TenantChannelConfig.price_for_country(country),
+        "country": country,
+        "free_conversations": 1000,
         "login_url": "/login/?next=/omnichannel/",
         "signup_url": reverse("saas_customer_signup"),
         "is_logged_in_tenant": tenant is not None and request.user.is_authenticated,
@@ -125,7 +128,8 @@ def overview(request):
     context = {
         "config": config,
         "tenant": tenant,
-        "price": TenantChannelConfig.MONTHLY_PRICE,
+        "price": TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG")),
+        "free_conversations": 1000,
         "wallet_balance": getattr(tenant, "wallet_balance", Decimal("0")),
         "currency": _currency(tenant),
         "settings_url": reverse("omnichannel_settings"),
@@ -154,7 +158,7 @@ def subscribe(request):
         messages.error(request, "فقط المدير المسؤول عن الحساب يمكنه تفعيل الاشتراك.")
         return redirect("omnichannel_overview")
 
-    price = TenantChannelConfig.MONTHLY_PRICE
+    price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     config, _created = TenantChannelConfig.objects.get_or_create(tenant=tenant)
 
     try:
@@ -194,6 +198,15 @@ def subscribe(request):
     return redirect("omnichannel_settings")
 
 
+def _region_country(request) -> str:
+    """Resolve the marketing region (EG/AE) from the request host."""
+    try:
+        from erp_core.regions import region_from_request
+        return region_from_request(request).get("country", "EG")
+    except Exception:
+        return "EG"
+
+
 def _currency(tenant) -> str:
     try:
         return tenant.effective_currency
@@ -224,7 +237,7 @@ def pay_with_card(request):
     # Ensure a config row exists so the callback can always find/activate it.
     TenantChannelConfig.objects.get_or_create(tenant=tenant)
 
-    price = TenantChannelConfig.MONTHLY_PRICE
+    price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("omnichannel_paymob_callback"))
     try:
         from clients.services.paymob import create_iframe_url

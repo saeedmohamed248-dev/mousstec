@@ -57,7 +57,15 @@ class TenantChannelConfig(models.Model):
     #     is_subscription_active=True + subscription_expires_at=None   → lifetime
     #     is_subscription_active=True + future expiry                  → timed
     #     is_subscription_active=False  (or past expiry)               → inactive
-    MONTHLY_PRICE = Decimal("250.00")
+    MONTHLY_PRICE = Decimal("250.00")  # EGP default (backward-compatible)
+
+    @classmethod
+    def price_for_country(cls, country: str = "EG") -> Decimal:
+        """Region-aware monthly price in the region's own currency."""
+        from django.conf import settings as _s
+        if (country or "EG").upper() == "AE":
+            return Decimal(str(getattr(_s, "OMNICHANNEL_PRICE_AED", "25")))
+        return Decimal(str(getattr(_s, "OMNICHANNEL_PRICE_EGP", "250")))
 
     is_subscription_active = models.BooleanField(
         default=False,

@@ -318,8 +318,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <a href="/omnichannel-ai/" class="mt-card" style="padding:18px; display:block; text-decoration:none; color:inherit; border-top:3px solid var(--good);">
                 <div class="mt-ic" style="width:42px;height:42px;font-size:17px;margin-bottom:12px;background:var(--good-soft);color:var(--good);"><i class="fab fa-whatsapp"></i></div>
-                <h3 style="font-size:15px; font-weight:700; margin:0 0 5px;">{% trans "رد آلي على واتساب وماسنجر" %} <span style="font-size:10px;background:var(--good-soft);color:var(--good);padding:1px 6px;border-radius:99px;">{% trans "إضافة" %}</span></h3>
-                <p style="color:var(--muted); font-size:12.5px; margin:0;">{% trans "ذكاء اصطناعي يرد على عملائك بأسعارك ومخزونك — 250 ج.م/شهر" %}</p>
+                <h3 style="font-size:15px; font-weight:700; margin:0 0 5px;">{% if LANGUAGE_CODE == 'en' %}AI reply on WhatsApp & Messenger{% else %}رد آلي على واتساب وماسنجر{% endif %} <span style="font-size:10px;background:var(--good-soft);color:var(--good);padding:1px 6px;border-radius:99px;">{% if LANGUAGE_CODE == 'en' %}Add-on{% else %}إضافة{% endif %}</span></h3>
+                <p style="color:var(--muted); font-size:12.5px; margin:0;">{% if LANGUAGE_CODE == 'en' %}AI replies to customers with your prices & stock — from {% if platform_region.country == 'AE' %}25 AED{% else %}250 EGP{% endif %}/mo{% else %}ذكاء اصطناعي يرد على عملائك بأسعارك ومخزونك — من {% if platform_region.country == 'AE' %}25 د.إ{% else %}250 ج.م{% endif %}/شهر{% endif %}</p>
             </a>
             <div class="mt-card" style="padding:18px;">
                 <div class="mt-ic" style="width:42px;height:42px;font-size:17px;margin-bottom:12px;"><i class="fas fa-robot"></i></div>
