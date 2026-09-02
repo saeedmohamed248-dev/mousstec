@@ -1,0 +1,44 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}{{ contact_name }}{% endblock %}
+{% block heading %}<a href="{{ nav_inbox }}" class="text-slate-400 hover:text-[#0f2c4c]"><i class="fas fa-arrow-right"></i></a> {{ contact_name }}{% endblock %}
+{% block header_actions %}
+  <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full">
+    {% if channel == 'whatsapp' %}<i class="fab fa-whatsapp text-green-500"></i> واتساب{% else %}<i class="fab fa-facebook-messenger text-blue-500"></i> ماسنجر{% endif %}
+    · {{ sender_id }}
+  </span>
+{% endblock %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto space-y-4">
+  {% for m in messages %}
+    <!-- customer (inbound) -->
+    {% if m.inbound_text %}
+    <div class="flex justify-start">
+      <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%] shadow-sm">
+        <p class="text-sm text-slate-800 whitespace-pre-wrap">{{ m.inbound_text }}</p>
+        <p class="text-[10px] text-slate-400 mt-1">{{ m.created_at|date:"m-d H:i" }}</p>
+      </div>
+    </div>
+    {% endif %}
+    <!-- assistant (outbound) -->
+    {% if m.outbound_text %}
+    <div class="flex justify-end">
+      <div class="text-white rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%] shadow-sm" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">
+        <p class="text-sm whitespace-pre-wrap">{{ m.outbound_text }}</p>
+        <p class="text-[10px] text-white/60 mt-1">
+          🤖 المساعد الآلي · {{ m.created_at|date:"m-d H:i" }}
+          {% if m.status == 'failed' %}<span class="text-red-300">· فشل الإرسال</span>{% endif %}
+        </p>
+      </div>
+    </div>
+    {% endif %}
+  {% empty %}
+    <p class="text-slate-400 text-sm text-center py-16">لا توجد رسائل في هذه المحادثة.</p>
+  {% endfor %}
+</div>
+
+<p class="text-center text-xs text-slate-400 mt-8">
+  <i class="fas fa-info-circle"></i> الردود آلية بالكامل. لإيقاف الرد الآلي مؤقتاً استخدم «الإعدادات».
+</p>
+
+{% endblock %}

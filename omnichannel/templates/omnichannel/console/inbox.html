@@ -1,0 +1,41 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}صندوق الوارد{% endblock %}
+{% block heading %}صندوق الوارد{% endblock %}
+{% block header_actions %}
+  <form method="get" class="flex items-center gap-2">
+    <input name="q" value="{{ search }}" placeholder="بحث بالاسم أو الرقم…" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-56">
+    <button class="bg-[#0f2c4c] text-white px-3 py-1.5 rounded-lg text-sm">بحث</button>
+  </form>
+{% endblock %}
+{% block content %}
+
+<div class="card overflow-hidden">
+  {% if conversations %}
+    <div class="divide-y divide-slate-100">
+      {% for c in conversations %}
+      <a href="{% url 'omnichannel_console_conversation' channel=c.channel sender_id=c.sender_id %}" class="flex items-center gap-4 py-4 px-5 hover:bg-slate-50">
+        <div class="w-11 h-11 rounded-full grid place-items-center text-white shrink-0" style="background:{% if c.channel == 'whatsapp' %}#25D366{% else %}#0084FF{% endif %};">
+          {% if c.channel == 'whatsapp' %}<i class="fab fa-whatsapp"></i>{% else %}<i class="fab fa-facebook-messenger"></i>{% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-800 truncate">{{ c.name }}</span>
+            <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{{ c.count }} رسالة</span>
+          </div>
+          <div class="text-sm text-slate-500 truncate mt-0.5">{{ c.last_text|default:"—" }}</div>
+        </div>
+        <div class="text-left shrink-0">
+          <div class="text-xs text-slate-400">{{ c.last_at|date:"Y-m-d" }}</div>
+          <div class="text-xs text-slate-400">{{ c.last_at|date:"H:i" }}</div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-slate-400 text-sm text-center py-16">
+      {% if search %}لا نتائج للبحث «{{ search }}».{% else %}لا توجد محادثات بعد.{% endif %}
+    </p>
+  {% endif %}
+</div>
+
+{% endblock %}

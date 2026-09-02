@@ -102,6 +102,9 @@ Two activation paths (both supported):
 |---|---|
 | `/omnichannel-ai/` | **PUBLIC** marketing page (no login) — shown on the main site; CTAs to login/signup. Pricing & landing cards link here |
 | `/omnichannel/` | Dedicated feature page **inside a tenant account** (login required): live subscription status, subscribe/renew |
+| `/omnichannel/console/` | **Dedicated console (subscribers only):** overview KPIs, inbox, per-contact threads, contacts — a feature-focused dashboard with no unrelated ERP modules. Gated on a valid subscription |
+| `/omnichannel/console/inbox/` | Conversations inbox (grouped by contact) |
+| `/omnichannel/console/contacts/` | Contacts who messaged |
 | `/omnichannel/settings/` | Connect Meta credentials, tune AI, view recent conversations |
 | `/omnichannel/guide/` | Step-by-step Arabic setup tutorial **+ daily-usage guide** |
 | `/omnichannel/pay/` | POST-only card checkout (redirects to Paymob) |

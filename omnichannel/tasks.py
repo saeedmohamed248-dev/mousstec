@@ -52,6 +52,7 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         try:
             ChannelMessageLog.objects.create(
                 tenant=tenant, channel=channel, sender_id=sender_id,
+                contact_name=sender_name or "",
                 inbound_text=text, outbound_text=outbound, status=status,
                 error=error, meta_message_id=message_id,
             )

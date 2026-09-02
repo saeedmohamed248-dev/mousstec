@@ -1,0 +1,46 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}جهات الاتصال{% endblock %}
+{% block heading %}جهات الاتصال{% endblock %}
+{% block header_actions %}
+  <form method="get" class="flex items-center gap-2">
+    <input name="q" value="{{ search }}" placeholder="بحث…" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-56">
+    <button class="bg-[#0f2c4c] text-white px-3 py-1.5 rounded-lg text-sm">بحث</button>
+  </form>
+{% endblock %}
+{% block content %}
+
+<div class="card overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-right">
+      <tr>
+        <th class="p-4 font-bold">جهة الاتصال</th>
+        <th class="p-4 font-bold">القناة</th>
+        <th class="p-4 font-bold">عدد الرسائل</th>
+        <th class="p-4 font-bold">آخر تواصل</th>
+        <th class="p-4"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for c in contacts %}
+      <tr class="hover:bg-slate-50">
+        <td class="p-4 font-bold text-slate-800">{{ c.name }}</td>
+        <td class="p-4">
+          {% if c.channel == 'whatsapp' %}<span class="text-green-600"><i class="fab fa-whatsapp"></i> واتساب</span>
+          {% else %}<span class="text-blue-600"><i class="fab fa-facebook-messenger"></i> ماسنجر</span>{% endif %}
+        </td>
+        <td class="p-4 text-slate-600">{{ c.count }}</td>
+        <td class="p-4 text-slate-500">{{ c.last_at|date:"Y-m-d H:i" }}</td>
+        <td class="p-4 text-left">
+          <a href="{% url 'omnichannel_console_conversation' channel=c.channel sender_id=c.sender_id %}" class="text-[#16457a] font-bold">عرض المحادثة ←</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="p-16 text-center text-slate-400">
+        {% if search %}لا نتائج للبحث «{{ search }}».{% else %}لا توجد جهات اتصال بعد.{% endif %}
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
