@@ -1,0 +1,56 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}جرّب المساعد{% endblock %}
+{% block heading %}جرّب المساعد{% endblock %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto">
+  <div class="card p-6 mb-6">
+    <p class="text-slate-600 text-sm mb-4">
+      اكتب رسالة كأنك عميل، واضغط «جرّب» لترى رد المساعد الفعلي المبني على مخزونك وأسعارك وإعداداتك — بدون إرسال أي شيء لعميل حقيقي.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <textarea name="message" rows="3" class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm" placeholder="اكتب رسالة العميل هنا…">{{ message }}</textarea>
+      <div class="flex justify-end mt-3">
+        <button type="submit" class="text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">
+          <i class="fas fa-flask ml-1"></i> جرّب
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if reply %}
+  <div class="space-y-4">
+    <!-- customer bubble -->
+    <div class="flex justify-start">
+      <div class="bg-white border border-slate-200 rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%] shadow-sm">
+        <p class="text-sm text-slate-800 whitespace-pre-wrap">{{ message }}</p>
+        <p class="text-[10px] text-slate-400 mt-1">أنت (كعميل)</p>
+      </div>
+    </div>
+    <!-- assistant bubble -->
+    <div class="flex justify-end">
+      <div class="text-white rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%] shadow-sm" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">
+        <p class="text-sm whitespace-pre-wrap">{{ reply }}</p>
+        <p class="text-[10px] text-white/60 mt-1">🤖 رد المساعد</p>
+      </div>
+    </div>
+  </div>
+
+  {% if not config.is_operational %}
+  <div class="mt-6 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm px-4 py-3">
+    ⚠️ ملاحظة: المساعد غير مفعّل للردود الحقيقية بعد (الاشتراك/الربط ناقص). هذا اختبار داخلي فقط.
+    <a href="{{ nav_settings }}" class="underline font-bold">أكمل الإعدادات</a>
+  </div>
+  {% endif %}
+
+  {% if catalog %}
+  <details class="mt-6">
+    <summary class="text-sm text-slate-500 cursor-pointer">عرض بيانات الكتالوج التي استند إليها المساعد</summary>
+    <pre class="mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs whitespace-pre-wrap text-slate-600">{{ catalog }}</pre>
+  </details>
+  {% endif %}
+  {% endif %}
+</div>
+
+{% endblock %}

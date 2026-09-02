@@ -2,10 +2,13 @@
 {% block title %}صندوق الوارد{% endblock %}
 {% block heading %}صندوق الوارد{% endblock %}
 {% block header_actions %}
-  <form method="get" class="flex items-center gap-2">
-    <input name="q" value="{{ search }}" placeholder="بحث بالاسم أو الرقم…" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-56">
-    <button class="bg-[#0f2c4c] text-white px-3 py-1.5 rounded-lg text-sm">بحث</button>
-  </form>
+  <div class="flex items-center gap-2">
+    <form method="get" class="flex items-center gap-2">
+      <input name="q" value="{{ search }}" placeholder="بحث بالاسم أو الرقم…" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-56">
+      <button class="bg-[#0f2c4c] text-white px-3 py-1.5 rounded-lg text-sm">بحث</button>
+    </form>
+    <a href="{% url 'omnichannel_console_export_conversations' %}" class="border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg text-sm"><i class="fas fa-file-csv"></i> تصدير</a>
+  </div>
 {% endblock %}
 {% block content %}
 
