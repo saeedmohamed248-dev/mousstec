@@ -77,9 +77,10 @@ def generate_reply(config, user_message: str, catalog_context: str) -> Optional[
 
 
 def _default_gemini_model() -> str:
-    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or getattr(
-        settings, "GEMINI_REFINER_MODEL", "gemini-2.0-flash"
-    )
+    # `gemini-flash-latest` always resolves to the current stable Flash model,
+    # so deployments don't break when a specific version (e.g. gemini-2.0-flash)
+    # is retired. Override per-environment with OMNICHANNEL_GEMINI_MODEL.
+    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "gemini-flash-latest"
 
 
 def _call_platform_gemini(system_prompt: str, user_message: str, model: str) -> Optional[str]:
