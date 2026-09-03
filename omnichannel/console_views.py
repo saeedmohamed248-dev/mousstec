@@ -32,6 +32,7 @@ from django.db.models import F
 
 from .dashboard_views import _current_tenant
 from .models import ChannelMessageLog, TenantChannelConfig, TenantChannelNumber
+from .services.routing import CHANNEL_MESSENGER, CHANNEL_WHATSAPP
 
 logger = logging.getLogger("mouss_tec_core")
 

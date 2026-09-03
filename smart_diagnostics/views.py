@@ -145,6 +145,7 @@ def device_register(request):
 
     vehicle = None
     if vin:
+        from inventory.models import Vehicle  # per-tenant table; lazy import mirrors device_detail above
         vehicle = Vehicle.objects.filter(chassis_number=vin).first()
         if vehicle is None:
             messages.error(request, f"رقم الشاسيه {vin} غير موجود في سجل المركبات.")
