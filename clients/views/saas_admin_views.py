@@ -1406,6 +1406,7 @@ def tenant_360(request, tenant_id):
     # ─── Users count (read inside tenant schema) ───
     try:
         from django.contrib.auth import get_user_model
+        from django_tenants.utils import schema_context
         U = get_user_model()
         with schema_context(tenant.schema_name):
             users_total = U.objects.count()

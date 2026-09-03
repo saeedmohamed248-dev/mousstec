@@ -520,7 +520,7 @@ def design_generate(request):
             from .logo_overlay import composite_logo_on_image_url
             # Prefer the original ImageField (handles private storage,
             # SVG-via-FieldFile better than the public URL).
-            logo_src: Any = brand_logo_url
+            logo_src = brand_logo_url
             if customer is not None:
                 try:
                     bp_ref = getattr(customer, 'brand_profile', None)
@@ -1007,9 +1007,9 @@ def design_print_spec_pdf(request, log_id: int):
             '<style>body{font-family:sans-serif;text-align:center;padding:40px;color:#475569;}</style>'
             '</head><body>'
             '<h2>⚠️ التصميم المطلوب غير موجود</h2>'
-            '<p>الـ design log رقم {} مش متوفر — يمكن اتحذف، أو الـ link قديم.</p>'
+            '<p>الـ design log رقم ' + str(log_id) + ' مش متوفر — يمكن اتحذف، أو الـ link قديم.</p>'
             '<p><a href="/marketplace/design-store/my-designs/">← رجوع لتصاميمي</a></p>'
-            '</body></html>'.format(log_id)
+            '</body></html>'
         )
 
     # Access check
