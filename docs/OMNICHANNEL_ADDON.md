@@ -135,3 +135,18 @@ python manage.py test omnichannel
 `test_routing.py` and `test_signature_and_prompt.py` are `SimpleTestCase`s (no DB)
 covering payload parsing, echo/status filtering, HMAC verification, and the
 crypto round-trip.
+
+## Multi-number (additional numbers/pages)
+
+The base subscription includes 1 number. Tenants buy extra capacity as a package:
++2 numbers (450 EGP / 45 AED), +4 numbers (850 EGP / 85 AED) — region-priced,
+charged from the wallet. Managed at `/omnichannel/console/numbers/`.
+
+- `TenantChannelConfig.extra_numbers` holds the purchased extra count; capacity =
+  1 + extra_numbers (`number_capacity`).
+- `TenantChannelNumber` (migration 0006) stores each additional number/page with
+  its own encrypted Meta token + app secret.
+- Routing: `services/routing.resolve_target()` resolves an inbound message to the
+  matching number (primary or additional) and returns the exact token to reply
+  with; the webhook passes it to the Celery task (`access_token`,
+  `phone_number_id`). Same webhook URL for all numbers.

@@ -59,6 +59,10 @@ class TenantChannelConfig(models.Model):
     #     is_subscription_active=False  (or past expiry)               → inactive
     MONTHLY_PRICE = Decimal("250.00")  # EGP default (backward-compatible)
 
+    # Additional-number packages: how many EXTRA numbers each package grants,
+    # and its monthly price (region-aware via settings). Base plan = 1 number.
+    NUMBER_PACKAGES = (2, 4)
+
     @classmethod
     def price_for_country(cls, country: str = "EG") -> Decimal:
         """Region-aware monthly price in the region's own currency."""
@@ -66,6 +70,19 @@ class TenantChannelConfig(models.Model):
         if (country or "EG").upper() == "AE":
             return Decimal(str(getattr(_s, "OMNICHANNEL_PRICE_AED", "25")))
         return Decimal(str(getattr(_s, "OMNICHANNEL_PRICE_EGP", "250")))
+
+    @classmethod
+    def number_package_price(cls, extra: int, country: str = "EG") -> Decimal:
+        """Price for an additional-numbers package (extra=2 or 4)."""
+        from django.conf import settings as _s
+        ae = (country or "EG").upper() == "AE"
+        table = {
+            2: getattr(_s, "OMNICHANNEL_NUMBERS2_AED" if ae else "OMNICHANNEL_NUMBERS2_EGP",
+                       "45" if ae else "450"),
+            4: getattr(_s, "OMNICHANNEL_NUMBERS4_AED" if ae else "OMNICHANNEL_NUMBERS4_EGP",
+                       "85" if ae else "850"),
+        }
+        return Decimal(str(table.get(int(extra), "0")))
 
     is_subscription_active = models.BooleanField(
         default=False,
@@ -125,6 +142,13 @@ class TenantChannelConfig(models.Model):
     # ── Channel enable flags ──────────────────────────────────────────
     whatsapp_enabled = models.BooleanField(default=True, verbose_name=_("قناة واتساب مفعّلة؟"))
     messenger_enabled = models.BooleanField(default=True, verbose_name=_("قناة ماسنجر مفعّلة؟"))
+
+    # ── Multi-number capacity ─────────────────────────────────────────
+    #   Base plan includes 1 number (the primary fields above). `extra_numbers`
+    #   is the count granted by an additional-numbers package (0 / 2 / 4).
+    extra_numbers = models.PositiveSmallIntegerField(
+        default=0, verbose_name=_("أرقام إضافية مشتراة"),
+    )
 
     # ── Custom AI behaviour ───────────────────────────────────────────
     business_display_name = models.CharField(
@@ -297,6 +321,77 @@ class TenantChannelConfig(models.Model):
 
     def has_messenger(self) -> bool:
         return bool(self.messenger_enabled and self.facebook_page_id)
+
+    @property
+    def number_capacity(self) -> int:
+        """Total numbers allowed = 1 (base) + purchased extras."""
+        return 1 + int(self.extra_numbers or 0)
+
+    @property
+    def numbers_used(self) -> int:
+        """Primary (if configured) + active additional numbers."""
+        primary = 1 if (self.whatsapp_phone_number_id or self.facebook_page_id) else 0
+        return primary + self.extra_channel_numbers.filter(is_active=True).count()
+
+
+class TenantChannelNumber(models.Model):
+    """An ADDITIONAL WhatsApp number / Messenger page beyond the primary one.
+
+    Each row carries its own Meta credentials so a single tenant can run several
+    numbers/pages (bought via an additional-numbers package). Routing resolves an
+    inbound message to the matching row and uses its token to reply.
+    """
+
+    class Channel(models.TextChoices):
+        WHATSAPP = "whatsapp", "WhatsApp"
+        MESSENGER = "messenger", "Messenger"
+
+    config = models.ForeignKey(
+        TenantChannelConfig, on_delete=models.CASCADE,
+        related_name="extra_channel_numbers",
+    )
+    label = models.CharField(max_length=120, blank=True, default="",
+                             verbose_name=_("اسم الرقم/الصفحة"))
+    channel = models.CharField(max_length=16, choices=Channel.choices,
+                               default=Channel.WHATSAPP)
+    whatsapp_phone_number_id = models.CharField(
+        max_length=64, blank=True, default="", db_index=True,
+        verbose_name=_("WhatsApp Phone Number ID"),
+    )
+    whatsapp_business_account_id = models.CharField(
+        max_length=64, blank=True, default="", verbose_name=_("WABA ID"),
+    )
+    facebook_page_id = models.CharField(
+        max_length=64, blank=True, default="", db_index=True,
+        verbose_name=_("Facebook Page ID"),
+    )
+    _meta_access_token = models.TextField(blank=True, default="", db_column="meta_access_token_enc")
+    _app_secret = models.TextField(blank=True, default="", db_column="app_secret_enc")
+    is_active = models.BooleanField(default=True, verbose_name=_("مفعّل؟"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("رقم/صفحة إضافية")
+        verbose_name_plural = _("أرقام/صفحات إضافية")
+
+    def __str__(self) -> str:
+        return f"{self.label or self.whatsapp_phone_number_id or self.facebook_page_id} ({self.channel})"
+
+    @property
+    def meta_access_token(self) -> str:
+        return crypto.decrypt(self._meta_access_token)
+
+    @meta_access_token.setter
+    def meta_access_token(self, value: str) -> None:
+        self._meta_access_token = crypto.encrypt(value or "")
+
+    @property
+    def app_secret(self) -> str:
+        return crypto.decrypt(self._app_secret)
+
+    @app_secret.setter
+    def app_secret(self, value: str) -> None:
+        self._app_secret = crypto.encrypt(value or "")
 
 
 class ChannelMessageLog(models.Model):

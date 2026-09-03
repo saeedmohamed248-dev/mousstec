@@ -444,6 +444,11 @@ OMNICHANNEL_GEMINI_MODEL = env.str('OMNICHANNEL_GEMINI_MODEL', '') or None
 # from the tenant wallet in the tenant's own currency).
 OMNICHANNEL_PRICE_EGP = env.str('OMNICHANNEL_PRICE_EGP', '250')
 OMNICHANNEL_PRICE_AED = env.str('OMNICHANNEL_PRICE_AED', '25')
+# Additional-numbers packages (extra 2 / extra 4 numbers) monthly price per region.
+OMNICHANNEL_NUMBERS2_EGP = env.str('OMNICHANNEL_NUMBERS2_EGP', '450')
+OMNICHANNEL_NUMBERS4_EGP = env.str('OMNICHANNEL_NUMBERS4_EGP', '850')
+OMNICHANNEL_NUMBERS2_AED = env.str('OMNICHANNEL_NUMBERS2_AED', '45')
+OMNICHANNEL_NUMBERS4_AED = env.str('OMNICHANNEL_NUMBERS4_AED', '85')
 
 # =====================================================================
 # 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)

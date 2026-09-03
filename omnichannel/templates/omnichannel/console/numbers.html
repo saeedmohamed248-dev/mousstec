@@ -1,0 +1,119 @@
+{% extends "omnichannel/console/base.html" %}
+{% block title %}الأرقام والصفحات{% endblock %}
+{% block heading %}الأرقام والصفحات{% endblock %}
+{% block content %}
+
+<!-- Capacity -->
+<div class="card p-5 mb-6 flex items-center justify-between flex-wrap gap-3">
+  <div>
+    <p class="text-sm text-slate-500">سعة الأرقام في باقتك</p>
+    <p class="text-2xl font-black text-[#0f2c4c]">{{ used }} / {{ capacity }}</p>
+    <p class="text-xs text-slate-400 mt-1">رقم أساسي واحد مشمول + الأرقام الإضافية المشتراة.</p>
+  </div>
+  <div class="text-sm">
+    {% if remaining > 0 %}
+      <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full">متاح إضافة {{ remaining }} رقم</span>
+    {% else %}
+      <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full">وصلت الحد الأقصى</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Buy capacity packages -->
+<div class="card p-6 mb-8">
+  <h2 class="font-black text-[#0f2c4c] mb-1">باقات الأرقام الإضافية</h2>
+  <p class="text-sm text-slate-500 mb-4">أضف أرقام واتساب أو صفحات ماسنجر إضافية لنفس الحساب.</p>
+  <div class="grid sm:grid-cols-2 gap-4">
+    {% for p in packages %}
+    <div class="border border-slate-200 rounded-2xl p-5 flex items-center justify-between">
+      <div>
+        <div class="font-black text-[#0f2c4c] text-lg">{{ p.extra }} أرقام إضافية</div>
+        <div class="text-sm text-slate-500">إجمالي السعة يصبح {{ p.extra|add:1 }} أرقام</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-black text-[#0f2c4c]">{{ p.price }} <span class="text-sm text-slate-400">{{ currency }}</span></div>
+        <form method="post" action="{{ buy_url }}" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="extra" value="{{ p.extra }}">
+          <button class="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-lg text-sm">اشترِ</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="text-xs text-slate-400 mt-3">يُخصم المبلغ من رصيد محفظتك. اشحن المحفظة أولاً لو غير كافٍ.</p>
+</div>
+
+<!-- Existing additional numbers -->
+<div class="card p-6 mb-8">
+  <h2 class="font-black text-[#0f2c4c] mb-4">أرقامك الإضافية</h2>
+  {% if numbers %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 border-b border-slate-200 text-right">
+        <tr><th class="py-2">الاسم</th><th class="py-2">القناة</th><th class="py-2">المعرّف</th><th class="py-2">الحالة</th><th class="py-2"></th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for n in numbers %}
+        <tr>
+          <td class="py-2 font-bold">{{ n.label|default:"—" }}</td>
+          <td class="py-2">{% if n.channel == 'whatsapp' %}<span class="text-green-600">واتساب</span>{% else %}<span class="text-blue-600">ماسنجر</span>{% endif %}</td>
+          <td class="py-2 mono text-xs">{{ n.whatsapp_phone_number_id|default:n.facebook_page_id }}</td>
+          <td class="py-2">{% if n.is_active %}<span class="text-green-600">مفعّل</span>{% else %}<span class="text-slate-400">موقوف</span>{% endif %}</td>
+          <td class="py-2 text-left">
+            <form method="post" action="{% url 'omnichannel_console_number_delete' pk=n.pk %}" onsubmit="return confirm('حذف هذا الرقم؟')">
+              {% csrf_token %}<button class="text-red-500 text-xs">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-slate-400 text-sm text-center py-6">لا توجد أرقام إضافية بعد.</p>
+  {% endif %}
+</div>
+
+<!-- Add number form -->
+{% if used < capacity %}
+<div class="card p-6">
+  <h2 class="font-black text-[#0f2c4c] mb-4">إضافة رقم / صفحة</h2>
+  <form method="post" class="grid md:grid-cols-2 gap-4">
+    {% csrf_token %}
+    <div>
+      <label class="text-sm font-bold text-slate-600">اسم مميّز</label>
+      <input name="label" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" placeholder="فرع القاهرة">
+    </div>
+    <div>
+      <label class="text-sm font-bold text-slate-600">القناة</label>
+      <select name="channel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
+        <option value="whatsapp">واتساب</option>
+        <option value="messenger">ماسنجر</option>
+      </select>
+    </div>
+    <div>
+      <label class="text-sm font-bold text-slate-600">WhatsApp Phone Number ID</label>
+      <input name="whatsapp_phone_number_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
+    </div>
+    <div>
+      <label class="text-sm font-bold text-slate-600">Facebook Page ID (لماسنجر)</label>
+      <input name="facebook_page_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1">
+    </div>
+    <div>
+      <label class="text-sm font-bold text-slate-600">Meta Access Token</label>
+      <input name="meta_access_token" type="password" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" placeholder="اتركه فارغاً لاستخدام توكن الحساب الأساسي">
+    </div>
+    <div>
+      <label class="text-sm font-bold text-slate-600">App Secret</label>
+      <input name="app_secret" type="password" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-1" placeholder="اتركه فارغاً لاستخدام سر الحساب الأساسي">
+    </div>
+    <div class="md:col-span-2 flex justify-end">
+      <button type="submit" class="text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">إضافة الرقم</button>
+    </div>
+  </form>
+  <p class="text-xs text-slate-400 mt-3">استخدم نفس رابط الـ Webhook: <span class="mono">/api/webhooks/omnichannel/</span> — التوجيه يتعرّف على الرقم تلقائياً.</p>
+</div>
+{% endif %}
+
+{% endblock %}
