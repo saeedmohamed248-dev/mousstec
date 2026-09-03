@@ -37,7 +37,8 @@ logger = logging.getLogger("mouss_tec_core")
     acks_late=True,
 )
 def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
-                            text: str, message_id: str = "", sender_name: str = ""):
+                            text: str, message_id: str = "", sender_name: str = "",
+                            access_token: str = "", phone_number_id: str = ""):
     from .models import ChannelMessageLog, TenantChannelConfig
 
     try:
@@ -47,6 +48,10 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         return
 
     tenant = config.tenant
+    # Per-number credentials (multi-number). Fall back to the account primary so
+    # messages queued before this change still work.
+    send_token = access_token or config.meta_access_token
+    send_phone_id = phone_number_id or config.whatsapp_phone_number_id
 
     def _log(status, outbound="", error=""):
         try:
@@ -60,7 +65,7 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
             logger.exception("omnichannel: failed to write ChannelMessageLog")
 
     # ── Subscription / enablement gate ────────────────────────────────
-    if not config.is_operational:
+    if not (config.subscription_is_valid and config.ai_enabled and send_token):
         logger.info("omnichannel: skipping — config %s not operational", config_id)
         _log(ChannelMessageLog.Status.SKIPPED, error="subscription/AI disabled")
         return
@@ -89,19 +94,18 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
     if config.max_reply_chars and len(reply) > config.max_reply_chars:
         reply = reply[: config.max_reply_chars].rstrip() + "…"
 
-    # ── Deliver via the right channel ─────────────────────────────────
-    token = config.meta_access_token
+    # ── Deliver via the right channel (using this number's credentials) ─
     try:
         if channel == CHANNEL_WHATSAPP:
             meta_api.send_whatsapp_text(
-                access_token=token,
-                phone_number_id=config.whatsapp_phone_number_id,
+                access_token=send_token,
+                phone_number_id=send_phone_id,
                 recipient_id=sender_id,
                 text=reply,
             )
         elif channel == CHANNEL_MESSENGER:
             meta_api.send_messenger_text(
-                access_token=token, recipient_id=sender_id, text=reply,
+                access_token=send_token, recipient_id=sender_id, text=reply,
             )
         else:
             logger.error("omnichannel: unknown channel %r", channel)

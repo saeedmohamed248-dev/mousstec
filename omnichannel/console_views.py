@@ -25,8 +25,13 @@ from django.urls import reverse
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import F
+
 from .dashboard_views import _current_tenant
-from .models import ChannelMessageLog, TenantChannelConfig
+from .models import ChannelMessageLog, TenantChannelConfig, TenantChannelNumber
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -58,6 +63,7 @@ def _nav(active: str, config) -> dict:
         "nav_inbox": reverse("omnichannel_console_inbox"),
         "nav_contacts": reverse("omnichannel_console_contacts"),
         "nav_test": reverse("omnichannel_console_test"),
+        "nav_numbers": reverse("omnichannel_console_numbers"),
         "nav_settings": reverse("omnichannel_settings"),
         "nav_guide": reverse("omnichannel_guide"),
         "nav_overview": reverse("omnichannel_overview"),
@@ -247,6 +253,111 @@ def console_conversation(request, channel, sender_id):
         "channel": channel,
     })
     return render(request, "omnichannel/console/conversation.html", ctx)
+
+
+@_console_guard
+def console_numbers(request):
+    """Manage additional WhatsApp numbers / Messenger pages, and buy capacity."""
+    tenant = request.omni_tenant
+    config = request.omni_config
+
+    if request.method == "POST":
+        used = config.numbers_used
+        if used >= config.number_capacity:
+            messages.error(request, "وصلت الحد الأقصى لعدد الأرقام في باقتك — اشترِ باقة أرقام إضافية.")
+            return redirect("omnichannel_console_numbers")
+        num = TenantChannelNumber(
+            config=config,
+            label=(request.POST.get("label") or "").strip(),
+            channel=request.POST.get("channel") or "whatsapp",
+            whatsapp_phone_number_id=(request.POST.get("whatsapp_phone_number_id") or "").strip(),
+            whatsapp_business_account_id=(request.POST.get("whatsapp_business_account_id") or "").strip(),
+            facebook_page_id=(request.POST.get("facebook_page_id") or "").strip(),
+        )
+        num.meta_access_token = (request.POST.get("meta_access_token") or "").strip()
+        num.app_secret = (request.POST.get("app_secret") or "").strip()
+        num.save()
+        messages.success(request, "تمت إضافة الرقم/الصفحة ✅")
+        return redirect("omnichannel_console_numbers")
+
+    country = getattr(tenant, "country", "EG")
+    packages = [
+        {"extra": 2, "price": TenantChannelConfig.number_package_price(2, country)},
+        {"extra": 4, "price": TenantChannelConfig.number_package_price(4, country)},
+    ]
+    ctx = _nav("numbers", config)
+    ctx.update({
+        "tenant": tenant,
+        "numbers": config.extra_channel_numbers.all().order_by("-created_at"),
+        "capacity": config.number_capacity,
+        "used": config.numbers_used,
+        "remaining": max(config.number_capacity - config.numbers_used, 0),
+        "currency": _tenant_currency(tenant),
+        "packages": packages,
+        "buy_url": reverse("omnichannel_console_buy_numbers"),
+    })
+    return render(request, "omnichannel/console/numbers.html", ctx)
+
+
+@_console_guard
+def console_number_delete(request, pk):
+    if request.method == "POST":
+        TenantChannelNumber.objects.filter(pk=pk, config=request.omni_config).delete()
+        messages.success(request, "تم حذف الرقم.")
+    return redirect("omnichannel_console_numbers")
+
+
+@_console_guard
+def console_buy_numbers(request):
+    """Buy an additional-numbers package (wallet debit), region-priced."""
+    tenant = request.omni_tenant
+    config = request.omni_config
+    if request.method != "POST":
+        return redirect("omnichannel_console_numbers")
+    if not request.user.is_superuser:
+        messages.error(request, "فقط المدير المسؤول عن الحساب يمكنه شراء الباقات.")
+        return redirect("omnichannel_console_numbers")
+
+    try:
+        extra = int(request.POST.get("extra") or 0)
+    except ValueError:
+        extra = 0
+    if extra not in TenantChannelConfig.NUMBER_PACKAGES:
+        messages.error(request, "باقة غير معروفة.")
+        return redirect("omnichannel_console_numbers")
+
+    country = getattr(tenant, "country", "EG")
+    price = TenantChannelConfig.number_package_price(extra, country)
+    try:
+        with transaction.atomic():
+            from clients.models import Client, EscrowLedger
+            locked = Client.objects.select_for_update().get(pk=tenant.pk)
+            if locked.wallet_balance < price:
+                messages.error(
+                    request,
+                    f"رصيد محفظتك ({locked.wallet_balance} {_tenant_currency(tenant)}) لا يكفي "
+                    f"لشراء الباقة ({price} {_tenant_currency(tenant)}). برجاء شحن المحفظة.")
+                return redirect("omnichannel_console_numbers")
+            Client.objects.filter(pk=locked.pk).update(wallet_balance=F("wallet_balance") - price)
+            EscrowLedger.objects.create(
+                client=locked, transaction_type="fee_deduction", amount=price,
+                description=f"باقة أرقام إضافية (Omnichannel) — {extra} أرقام ({price} {_tenant_currency(tenant)})")
+            config.extra_numbers = extra
+            config.save(update_fields=["extra_numbers", "updated_at"])
+    except Exception as exc:
+        logger.exception("omnichannel: buy numbers failed for %s: %s", tenant.schema_name, exc)
+        messages.error(request, "تعذّر شراء الباقة. حاول مرة أخرى أو تواصل مع الدعم.")
+        return redirect("omnichannel_console_numbers")
+
+    messages.success(request, f"تم تفعيل باقة {extra} أرقام إضافية ✅ يمكنك الآن إضافة أرقامك.")
+    return redirect("omnichannel_console_numbers")
+
+
+def _tenant_currency(tenant) -> str:
+    try:
+        return tenant.effective_currency
+    except Exception:
+        return "ج.م"
 
 
 @_console_guard

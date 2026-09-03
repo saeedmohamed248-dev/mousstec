@@ -23,7 +23,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .services import meta_api
-from .services.routing import extract_inbound_messages, resolve_config
+from .services.routing import extract_inbound_messages, resolve_target
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -73,19 +73,19 @@ class OmnichannelWebhookView(View):
         return JsonResponse({"status": "ok"})
 
     def _route_and_dispatch(self, message, raw_body: bytes, signature: str) -> None:
-        config = resolve_config(message)
-        if config is None:
+        target = resolve_target(message)
+        if target is None:
             logger.info(
                 "omnichannel: no tenant for %s route_key=%s (unconfigured/disabled)",
                 message.channel, message.route_key,
             )
             return
+        config = target.config
 
-        # Per-tenant signature verification. If the tenant has set an app secret
-        # we REQUIRE a valid signature; if not, we allow (dev) but warn.
-        app_secret = config.app_secret
-        if app_secret:
-            if not meta_api.verify_signature(app_secret, raw_body, signature):
+        # Per-number signature verification. If an app secret is configured we
+        # REQUIRE a valid signature; if not, we allow (dev) but warn.
+        if target.app_secret:
+            if not meta_api.verify_signature(target.app_secret, raw_body, signature):
                 logger.warning(
                     "omnichannel: bad signature for tenant=%s — dropping message",
                     config.tenant.schema_name,
@@ -97,7 +97,8 @@ class OmnichannelWebhookView(View):
                 config.tenant.schema_name,
             )
 
-        if not config.is_operational:
+        # Gate on subscription + AI toggle + a usable token for this number.
+        if not (config.subscription_is_valid and config.ai_enabled and target.access_token):
             logger.info(
                 "omnichannel: tenant=%s not operational — ignoring inbound",
                 config.tenant.schema_name,
@@ -112,4 +113,6 @@ class OmnichannelWebhookView(View):
             text=message.text,
             message_id=message.message_id,
             sender_name=message.sender_name,
+            access_token=target.access_token,
+            phone_number_id=target.phone_number_id,
         )

@@ -122,6 +122,59 @@ def _extract_messenger(payload: dict) -> list[InboundMessage]:
     return out
 
 
+@dataclass
+class RouteTarget:
+    config: object            # TenantChannelConfig
+    access_token: str         # token to reply with (number-specific or account primary)
+    app_secret: str           # for signature verification
+    phone_number_id: str      # WhatsApp sending id (empty for Messenger)
+    page_id: str              # Messenger page id (empty for WhatsApp)
+
+
+def resolve_target(message: "InboundMessage"):
+    """Resolve an inbound message to its owning config + the exact credentials to
+    reply with — supporting the primary number AND additional numbers.
+
+    Returns a RouteTarget or None.
+    """
+    from omnichannel.models import TenantChannelConfig, TenantChannelNumber
+
+    rk = message.route_key
+    if message.channel == CHANNEL_WHATSAPP:
+        cfg = (TenantChannelConfig.objects
+               .filter(whatsapp_phone_number_id=rk, whatsapp_enabled=True)
+               .select_related("tenant").first())
+        if cfg:
+            return RouteTarget(cfg, cfg.meta_access_token, cfg.app_secret, rk, "")
+        num = (TenantChannelNumber.objects
+               .filter(whatsapp_phone_number_id=rk, is_active=True)
+               .select_related("config", "config__tenant").first())
+        if num:
+            cfg = num.config
+            return RouteTarget(
+                cfg, num.meta_access_token or cfg.meta_access_token,
+                num.app_secret or cfg.app_secret, rk, "")
+        return None
+
+    if message.channel == CHANNEL_MESSENGER:
+        cfg = (TenantChannelConfig.objects
+               .filter(facebook_page_id=rk, messenger_enabled=True)
+               .select_related("tenant").first())
+        if cfg:
+            return RouteTarget(cfg, cfg.meta_access_token, cfg.app_secret, "", rk)
+        num = (TenantChannelNumber.objects
+               .filter(facebook_page_id=rk, is_active=True)
+               .select_related("config", "config__tenant").first())
+        if num:
+            cfg = num.config
+            return RouteTarget(
+                cfg, num.meta_access_token or cfg.meta_access_token,
+                num.app_secret or cfg.app_secret, "", rk)
+        return None
+
+    return None
+
+
 def resolve_config(message: "InboundMessage"):
     """Look up the TenantChannelConfig that owns the receiving number/page.
 

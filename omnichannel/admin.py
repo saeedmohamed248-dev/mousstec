@@ -12,14 +12,14 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import ChannelMessageLog, TenantChannelConfig
+from .models import ChannelMessageLog, TenantChannelConfig, TenantChannelNumber
 
 
 @admin.register(TenantChannelConfig)
 class TenantChannelConfigAdmin(admin.ModelAdmin):
     list_display = (
         "tenant", "subscription_state", "standalone_mode", "ai_enabled",
-        "whatsapp_phone_number_id", "facebook_page_id",
+        "extra_numbers", "whatsapp_phone_number_id", "facebook_page_id",
         "token_set", "llm_provider", "subscription_expires_at", "updated_at",
     )
     list_filter = ("is_subscription_active", "standalone_mode", "ai_enabled",
@@ -74,6 +74,16 @@ class TenantChannelConfigAdmin(admin.ModelAdmin):
             cfg.revoke_subscription(by_user=request.user)
             n += 1
         self.message_user(request, _("تم سحب الاشتراك من %(n)d مستأجر.") % {"n": n})
+
+
+@admin.register(TenantChannelNumber)
+class TenantChannelNumberAdmin(admin.ModelAdmin):
+    list_display = ("config", "label", "channel", "whatsapp_phone_number_id",
+                    "facebook_page_id", "is_active", "created_at")
+    list_filter = ("channel", "is_active")
+    search_fields = ("label", "whatsapp_phone_number_id", "facebook_page_id",
+                     "config__tenant__name", "config__tenant__schema_name")
+    exclude = ("_meta_access_token", "_app_secret")
 
 
 @admin.register(ChannelMessageLog)
