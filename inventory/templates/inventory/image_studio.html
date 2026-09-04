@@ -1,0 +1,273 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🎨 {% trans "استوديو الصور الذكي" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+      <span class="text-purple-400"><i class="fas fa-wand-magic-sparkles"></i></span>
+      {% trans "استوديو الصور الذكي" %}
+    </h1>
+    <p class="text-sm text-slate-400 mt-1">{% trans "غيّر خلفية صورة أي قطعة تلقائياً بالذكاء الاصطناعي — من غير ما تلمس القطعة نفسها." %}</p>
+  </div>
+  <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition"><i class="fas fa-boxes-stacked ml-1"></i> {% trans "المخزون" %}</a>
+</header>
+
+<!-- Search -->
+<form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+  <div class="flex gap-3 flex-wrap">
+    <div class="flex-1 min-w-[220px] relative">
+      <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
+      <input name="q" value="{{ q }}" placeholder="{% trans 'ابحث بالاسم، SKU، الماركة، أو الموديل...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-purple-400 focus:outline-none">
+    </div>
+    {% if q %}<a href="{% url 'inventory:image_studio' %}" class="text-xs text-slate-400 hover:text-white px-3 py-2.5">{% trans "إلغاء" %}</a>{% endif %}
+    <button class="bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg"><i class="fas fa-filter ml-1"></i> {% trans "بحث" %}</button>
+  </div>
+</form>
+
+<!-- Product grid -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+  {% for p in products %}
+  <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden card-hover flex flex-col">
+    <div class="relative aspect-square bg-slate-900/60">
+      <img src="{{ p.image.url }}" alt="{{ p.name }}" class="w-full h-full object-contain">
+      {% if p.image_ai_bg_applied %}
+      <span class="absolute top-2 right-2 text-[10px] font-bold px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/40"><i class="fas fa-wand-magic-sparkles"></i> AI</span>
+      {% endif %}
+    </div>
+    <div class="p-3 flex-1 flex flex-col">
+      <b class="text-white text-sm leading-tight line-clamp-2">{{ p.name }}</b>
+      <span class="text-xs text-slate-500 font-mono mt-1">{{ p.part_number }}</span>
+      <button
+        class="mt-3 w-full text-sm font-bold px-3 py-2 rounded-lg bg-purple-600/15 border border-purple-500/40 text-purple-200 hover:bg-purple-600 hover:text-white transition open-studio"
+        data-id="{{ p.id }}"
+        data-name="{{ p.name|escapejs }}"
+        data-sku="{{ p.part_number|escapejs }}"
+        data-image="{{ p.image.url }}"
+        data-has-backup="{% if p.image_original_backup %}1{% else %}0{% endif %}">
+        <i class="fas fa-wand-magic-sparkles ml-1"></i> {% trans "تغيير الخلفية" %}
+      </button>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-span-full text-center py-16 text-slate-600 bg-slate-800/40 rounded-2xl border border-slate-700/40">
+    <i class="fas fa-image text-4xl mb-3 opacity-40"></i>
+    <p>{% trans "لا توجد قطع لها صور بعد." %}</p>
+    <p class="text-xs mt-2">{% trans "ارفع صورة للقطعة من شاشة تعديل القطعة، ثم ارجع هنا لتغيير خلفيتها." %}</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="flex justify-center items-center gap-2 py-6 text-sm">
+  {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+  <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+  {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+</div>
+{% endif %}
+
+<!-- ============================ Studio Modal ============================ -->
+<div id="studioModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-y-auto shadow-2xl">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
+      <div>
+        <h3 id="mName" class="font-black text-white text-lg"></h3>
+        <span id="mSku" class="text-xs text-slate-500 font-mono"></span>
+      </div>
+      <button id="closeStudio" class="text-slate-400 hover:text-white text-xl w-9 h-9 rounded-lg hover:bg-slate-800"><i class="fas fa-xmark"></i></button>
+    </div>
+
+    <div class="p-5 grid md:grid-cols-2 gap-5">
+      <!-- Preview column -->
+      <div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <p class="text-xs text-slate-400 mb-1 font-bold">{% trans "الأصلية" %}</p>
+            <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+              <img id="mOriginal" src="" class="w-full h-full object-contain">
+            </div>
+          </div>
+          <div>
+            <p class="text-xs text-purple-300 mb-1 font-bold">{% trans "بعد المعالجة" %}</p>
+            <div class="aspect-square bg-slate-800 rounded-xl overflow-hidden border border-purple-500/40 relative">
+              <img id="mResult" src="" class="w-full h-full object-contain hidden">
+              <div id="mResultEmpty" class="w-full h-full flex items-center justify-center text-slate-600 text-xs text-center px-3">{% trans "اختر خلفية واضغط توليد" %}</div>
+              <div id="mSpinner" class="absolute inset-0 hidden items-center justify-center bg-slate-900/70">
+                <div class="text-center">
+                  <i class="fas fa-spinner fa-spin text-2xl text-purple-400"></i>
+                  <p class="text-xs text-slate-300 mt-2">{% trans "جاري توليد الخلفية..." %}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p id="mMsg" class="text-xs mt-3 hidden"></p>
+      </div>
+
+      <!-- Controls column -->
+      <div>
+        <p class="text-sm font-bold text-slate-300 mb-2">{% trans "اختر خلفية جاهزة" %}</p>
+        <div id="presetGrid" class="grid grid-cols-2 gap-2 mb-4">
+          {% for preset in presets %}
+          <button type="button" class="preset-btn text-start text-sm px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:border-purple-500 transition" data-preset="{{ preset.key }}">
+            <i class="fas {{ preset.icon }} ml-1 text-purple-400"></i> {{ preset.label }}
+          </button>
+          {% endfor %}
+        </div>
+
+        <p class="text-sm font-bold text-slate-300 mb-2">{% trans "أو صف خلفية مخصّصة" %}</p>
+        <input id="customPrompt" type="text" placeholder="{% trans 'مثال: خلفية سوداء مع إضاءة حمراء' %}" class="w-full bg-slate-800 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-purple-400 focus:outline-none text-sm mb-4">
+
+        <button id="btnGenerate" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-4 py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
+          <i class="fas fa-wand-magic-sparkles ml-1"></i> {% trans "توليد معاينة" %}
+        </button>
+
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button id="btnApply" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+            <i class="fas fa-check ml-1"></i> {% trans "اعتماد الصورة" %}
+          </button>
+          <button id="btnRevert" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-bold px-4 py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
+            <i class="fas fa-rotate-left ml-1"></i> {% trans "استرجاع الأصل" %}
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">{% trans "المعالجة تحافظ على القطعة كما هي وتغيّر الخلفية فقط. يمكنك الاسترجاع للأصل في أي وقت." %}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const URLS = {
+  generate: "{% url 'inventory:image_studio_generate' %}",
+  apply:    "{% url 'inventory:image_studio_apply' %}",
+  revert:   "{% url 'inventory:image_studio_revert' %}",
+};
+
+const modal = document.getElementById('studioModal');
+const el = (id) => document.getElementById(id);
+const state = { productId: null, preset: null, previewPath: null, hasBackup: false };
+
+async function post(url, body) {
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify(body),
+  });
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  return { ok: r.ok, data };
+}
+
+function showMsg(text, kind) {
+  const m = el('mMsg');
+  m.textContent = text;
+  m.className = 'text-xs mt-3 ' + (kind === 'error' ? 'text-red-400' : 'text-emerald-400');
+  m.classList.remove('hidden');
+}
+function clearMsg() { el('mMsg').classList.add('hidden'); }
+
+function openStudio(btn) {
+  state.productId = btn.dataset.id;
+  state.preset = null;
+  state.previewPath = null;
+  state.hasBackup = btn.dataset.hasBackup === '1';
+  el('mName').textContent = btn.dataset.name;
+  el('mSku').textContent = btn.dataset.sku;
+  el('mOriginal').src = btn.dataset.image;
+  el('mResult').src = '';
+  el('mResult').classList.add('hidden');
+  el('mResultEmpty').classList.remove('hidden');
+  el('btnApply').disabled = true;
+  el('btnRevert').disabled = !state.hasBackup;
+  el('customPrompt').value = '';
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('border-purple-500', 'bg-purple-600/20'));
+  clearMsg();
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeStudio() {
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+document.querySelectorAll('.open-studio').forEach(b => b.addEventListener('click', () => openStudio(b)));
+el('closeStudio').addEventListener('click', closeStudio);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeStudio(); });
+
+document.querySelectorAll('.preset-btn').forEach(b => b.addEventListener('click', () => {
+  state.preset = b.dataset.preset;
+  el('customPrompt').value = '';
+  document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('border-purple-500', 'bg-purple-600/20'));
+  b.classList.add('border-purple-500', 'bg-purple-600/20');
+}));
+
+el('customPrompt').addEventListener('input', () => {
+  if (el('customPrompt').value.trim()) {
+    state.preset = null;
+    document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('border-purple-500', 'bg-purple-600/20'));
+  }
+});
+
+el('btnGenerate').addEventListener('click', async () => {
+  const custom = el('customPrompt').value.trim();
+  if (!state.preset && !custom) { showMsg("{% trans 'اختر خلفية أو اكتب وصفاً أولاً.' %}", 'error'); return; }
+  clearMsg();
+  el('btnGenerate').disabled = true;
+  el('mSpinner').classList.remove('hidden');
+  el('mSpinner').classList.add('flex');
+  el('mResultEmpty').classList.add('hidden');
+  const { ok, data } = await post(URLS.generate, {
+    product_id: state.productId, preset: state.preset || '', custom_prompt: custom,
+  });
+  el('mSpinner').classList.add('hidden');
+  el('mSpinner').classList.remove('flex');
+  el('btnGenerate').disabled = false;
+  if (!ok || data.error) {
+    el('mResultEmpty').classList.remove('hidden');
+    showMsg(data.error || "{% trans 'فشل التوليد.' %}", 'error');
+    return;
+  }
+  state.previewPath = data.preview_path;
+  el('mResult').src = data.preview_url + '?t=' + Date.now();
+  el('mResult').classList.remove('hidden');
+  el('btnApply').disabled = false;
+  showMsg("{% trans 'تم التوليد. راجع النتيجة ثم اعتمدها.' %}", 'ok');
+});
+
+el('btnApply').addEventListener('click', async () => {
+  if (!state.previewPath) return;
+  el('btnApply').disabled = true;
+  const { ok, data } = await post(URLS.apply, {
+    product_id: state.productId, preview_path: state.previewPath, preset: state.preset || 'custom',
+  });
+  if (!ok || data.error) { showMsg(data.error || "{% trans 'فشل الاعتماد.' %}", 'error'); el('btnApply').disabled = false; return; }
+  showMsg("{% trans 'تم اعتماد الصورة الجديدة بنجاح ✅' %}", 'ok');
+  setTimeout(() => location.reload(), 900);
+});
+
+el('btnRevert').addEventListener('click', async () => {
+  if (!confirm("{% trans 'استرجاع الصورة الأصلية والتخلي عن خلفية الـ AI؟' %}")) return;
+  el('btnRevert').disabled = true;
+  const { ok, data } = await post(URLS.revert, { product_id: state.productId });
+  if (!ok || data.error) { showMsg(data.error || "{% trans 'فشل الاسترجاع.' %}", 'error'); el('btnRevert').disabled = false; return; }
+  showMsg("{% trans 'تم استرجاع الصورة الأصلية ✅' %}", 'ok');
+  setTimeout(() => location.reload(), 800);
+});
+
+// Auto-open editor if a specific product was requested (?product=<id>)
+{% if focus and focus.image %}
+document.addEventListener('DOMContentLoaded', () => {
+  const virtual = document.createElement('button');
+  virtual.dataset.id = "{{ focus.id }}";
+  virtual.dataset.name = "{{ focus.name|escapejs }}";
+  virtual.dataset.sku = "{{ focus.part_number|escapejs }}";
+  virtual.dataset.image = "{{ focus.image.url }}";
+  virtual.dataset.hasBackup = "{% if focus.image_original_backup %}1{% else %}0{% endif %}";
+  openStudio(virtual);
+});
+{% endif %}
+</script>
+{% endblock %}

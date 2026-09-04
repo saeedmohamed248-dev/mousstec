@@ -71,6 +71,12 @@ urlpatterns = [
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('products/', views_lightning.product_list, name='product_list'),
 
+    # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي
+    path('image-studio/', views.image_studio, name='image_studio'),
+    path('image-studio/generate/', views.image_studio_generate, name='image_studio_generate'),
+    path('image-studio/apply/', views.image_studio_apply, name='image_studio_apply'),
+    path('image-studio/revert/', views.image_studio_revert, name='image_studio_revert'),
+
     # 👨‍🔧 واجهة كشك الفنيين (Tablet UI) لضبط وقت المهام والإنتاجية
     path('mechanic-bay/', views.mechanic_kiosk_interface, name='mechanic_kiosk'),
 

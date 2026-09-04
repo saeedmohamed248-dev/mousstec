@@ -64,9 +64,9 @@ class ServiceCatalogAdmin(SecureImportExportAdmin):
 class ProductAdmin(SecureImportExportAdmin):
     list_display = ('display_image', 'part_number', 'name', 'brand', 'retail_price_styled', 'current_total_stock', 'stock_health_bar', 'days_to_stockout')
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
-    list_filter = ('brand', 'car_model', 'condition')
+    list_filter = ('brand', 'car_model', 'condition', 'image_ai_bg_applied')
     filter_horizontal = ('alternatives',)
-    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai']
+    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white']
 
     def add_view(self, request, form_url='', extra_context=None):
         # Redirect the admin "Add Product" entry-point to our custom Quick Product
@@ -94,6 +94,8 @@ class ProductAdmin(SecureImportExportAdmin):
                 'oem_cross_reference',
                 'alternatives',
                 'image',
+                ('image_ai_bg_applied', 'image_ai_bg_preset'),
+                'image_original_backup',
                 ('ai_suggested_price', 'ai_calculated_min_stock'),
                 ('is_b2b_published', 'shopify_product_id'),
             ),
@@ -101,8 +103,26 @@ class ProductAdmin(SecureImportExportAdmin):
     )
 
     def display_image(self, obj):
-        if obj.image: return format_html('<img src="{}" width="50" height="50" style="border-radius: 6px; border:1px solid #e2e8f0;" />', obj.image.url)
-        return format_html('<span style="color: #ccc; font-size:11px;">بدون صورة</span>')
+        # 🎨 صورة القطعة + زرار "استوديو الخلفية" (يفتح واجهة الـ AI للقطعة دي)
+        # + شارة تبيّن إن الخلفية اتعالجت بالذكاء الاصطناعي.
+        studio_url = f"{reverse('inventory:image_studio')}?product={obj.pk}"
+        if obj.image:
+            badge = ('<span style="display:block;font-size:9px;color:#7c3aed;font-weight:bold;">✨ AI</span>'
+                     if obj.image_ai_bg_applied else '')
+            return format_html(
+                '<div style="text-align:center;">'
+                '<img src="{}" width="50" height="50" style="border-radius: 6px; border:1px solid #e2e8f0; object-fit:contain;" />'
+                '{}'
+                '<a href="{}" style="display:block;font-size:10px;color:#7c3aed;margin-top:2px;" title="تغيير الخلفية بالـ AI">🎨 خلفية AI</a>'
+                '</div>',
+                obj.image.url, mark_safe(badge), studio_url,
+            )
+        return format_html(
+            '<div style="text-align:center;">'
+            '<span style="color: #ccc; font-size:11px;">بدون صورة</span>'
+            '<a href="{}" style="display:block;font-size:10px;color:#7c3aed;margin-top:2px;">🎨 استوديو</a>'
+            '</div>', studio_url,
+        )
     display_image.short_description = "الصورة"
 
     def retail_price_styled(self, obj):
@@ -156,6 +176,47 @@ class ProductAdmin(SecureImportExportAdmin):
                     p.save(update_fields=['retail_price'])
                     updated += 1
         self.message_user(request, f"تمت تسوية وتحديث الأسعار بالذكاء الاصطناعي لعدد {updated} صنف بنجاح.", messages.SUCCESS)
+
+    @admin.action(description='🎨 استوديو الصور (AI): استبدال الخلفية باستوديو أبيض للأصناف المحددة')
+    def ai_replace_background_white(self, request, queryset):
+        """يستبدل خلفية صور الأصناف المحددة بخلفية استوديو بيضاء دفعة واحدة.
+
+        بيحافظ على القطعة نفسها ويحفظ نسخة أصلية للرجوع. للتحكم التفصيلي
+        (اختيار خلفية / معاينة قبل الاعتماد) استخدم صفحة "استوديو الصور".
+        """
+        from inventory.services import image_studio as _studio
+
+        done, skipped, failed = 0, 0, 0
+        for product in queryset:
+            if not product.image:
+                skipped += 1
+                continue
+            gen = _studio.generate_preview(product, preset_key='studio_white')
+            if not gen.get('ok'):
+                failed += 1
+                continue
+            applied = _studio.apply_preview(
+                product, gen['preview_path'], preset_key='studio_white')
+            if applied.get('ok'):
+                done += 1
+            else:
+                failed += 1
+
+        if done:
+            self.message_user(
+                request,
+                f"✅ تم استبدال خلفية {done} صنف بخلفية استوديو بيضاء (يمكن الرجوع للأصل من صفحة الاستوديو).",
+                messages.SUCCESS)
+        if skipped:
+            self.message_user(
+                request, f"تم تخطي {skipped} صنف بدون صورة.", messages.WARNING)
+        if failed:
+            self.message_user(
+                request,
+                f"⚠️ فشلت معالجة {failed} صنف (تأكد من إعداد مفتاح TOGETHER_API_KEY).",
+                messages.ERROR)
+        if not (done or skipped or failed):
+            self.message_user(request, "لم يتم تحديد أي أصناف.", messages.INFO)
 
     @admin.action(description='🔄 تحليل الارتباط السلعي والبيع المتقاطع (AI Cross-Sell Radar)')
     def suggest_cross_sell_ai(self, request, queryset):

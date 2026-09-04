@@ -49,7 +49,21 @@ class Product(models.Model):
     is_b2b_published = models.BooleanField(default=False, verbose_name=_("طرح في سوق Mouss Tec العام"))
     
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_("صورة القطعة"))
-    is_active = models.BooleanField(default=True, verbose_name=_("نشط")) 
+
+    # 🎨 استوديو الصور الذكي — معالجة خلفية الصورة بالـ AI (FLUX.1-Kontext).
+    # image_original_backup: نسخة الصورة الأصلية قبل استبدال الخلفية — تسمح
+    # بالرجوع (Revert) في أي وقت. image_ai_bg_applied: علامة إن الصورة الحالية
+    # اتعالجت. image_ai_bg_preset: مفتاح الخلفية المطبّقة (studio_white ...).
+    image_original_backup = models.ImageField(
+        upload_to='products/originals/', blank=True, null=True,
+        verbose_name=_("النسخة الأصلية للصورة (قبل معالجة AI)"))
+    image_ai_bg_applied = models.BooleanField(
+        default=False, verbose_name=_("تمت معالجة الخلفية بالذكاء الاصطناعي"))
+    image_ai_bg_preset = models.CharField(
+        max_length=40, blank=True, default='',
+        verbose_name=_("خلفية AI المطبّقة"))
+
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
     alternatives = models.ManyToManyField('self', blank=True, verbose_name=_("البدائل المتوافقة"))
     
     ai_suggested_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر السوق المقترح (AI)"))

@@ -55,6 +55,7 @@ from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  #
 # imports (`from inventory.views import X`) keep working unchanged.
 from .ai_agents import *  # noqa: F401, F403
 from .business_ops import *  # noqa: F401, F403
+from .image_studio import *  # noqa: F401, F403
 from .dashboards import *  # noqa: F401, F403
 from .printing import *  # noqa: F401, F403
 from .reports import *  # noqa: F401, F403
