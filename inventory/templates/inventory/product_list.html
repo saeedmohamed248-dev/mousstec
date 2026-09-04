@@ -60,7 +60,8 @@
             {% else %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">{{ row.stock }}</span>{% endif %}
             <p class="text-xs text-slate-600 mt-1">{% trans "حد التنبيه:" %} {{ row.product.min_stock_level }}</p>
           </td>
-          <td class="py-3 px-4 text-center">
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
             {% if user.is_superuser %}
             <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل تفصيلي (Admin)' %}"><i class="fas fa-pen"></i></a>
             {% endif %}
