@@ -414,6 +414,15 @@ GEMINI_API_KEY = env.str('GEMINI_API_KEY', '') or AI_VISION_API_KEY
 GEMINI_REFINER_MODEL = env.str('GEMINI_REFINER_MODEL', 'gemini-2.0-flash')
 GEMINI_REASONING_MODEL = env.str('GEMINI_REASONING_MODEL', 'gemini-2.5-flash')
 
+# 🎨 AI Image Studio — محرك تعديل خلفيات صور القطع.
+#   • IMAGE_STUDIO_ENGINE = 'gemini' (افتراضي، مجاني بمفتاح Gemini الحالي) أو
+#     'together' (FLUX.1-Kontext المدفوع). المحرك الأساسي يُجرَّب أولاً والتاني
+#     كـ fallback تلقائي.
+#   • GEMINI_IMAGE_MODEL: override اختياري لموديل صور Gemini (فاضي = القائمة
+#     المدمجة: gemini-2.5-flash-image ثم بدائلها).
+IMAGE_STUDIO_ENGINE = env.str('IMAGE_STUDIO_ENGINE', 'gemini')
+GEMINI_IMAGE_MODEL = env.str('GEMINI_IMAGE_MODEL', '')
+
 # =====================================================================
 # 💬 Mousstec Messenger Bot (Facebook Page → Gemini RAG)
 # =====================================================================

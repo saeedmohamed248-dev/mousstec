@@ -55,7 +55,11 @@ def _fake_kontext_fail(*args, **kwargs):
     return {'success': False, 'error': 'kontext_http_500'}
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+# Together as the active engine keeps these tests deterministic (Gemini needs a
+# real key + network); the Gemini path is covered separately below.
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(),
+                   IMAGE_STUDIO_ENGINE='together',
+                   TOGETHER_API_KEY='test-key', GEMINI_API_KEY='')
 class ImageStudioServiceTests(ERPTenantTestCase):
     def setUp(self):
         self.branch = make_branch()
@@ -105,6 +109,24 @@ class ImageStudioServiceTests(ERPTenantTestCase):
         copilot._gen_via_flux_kontext = _fake_kontext_fail
         res = studio.generate_preview(self.product, 'studio_white')
         self.assertFalse(res['ok'])
+
+    @override_settings(IMAGE_STUDIO_ENGINE='gemini',
+                       GEMINI_API_KEY='test-gemini', TOGETHER_API_KEY='')
+    def test_generate_preview_gemini_engine(self):
+        """المحرك الافتراضي المجاني (Gemini) — نطبع الاستدعاء عبر _run_engines."""
+        import base64 as _b64
+        orig = studio._gen_via_gemini
+        studio._gen_via_gemini = lambda jpeg, instr: {
+            'success': True, 'engine': 'gemini', 'model': 'test',
+            'b64_json': _b64.b64encode(_png_bytes(color=(0, 80, 0))).decode('ascii'),
+            'url': None, 'cost_estimate_egp': 0.0,
+        }
+        try:
+            res = studio.generate_preview(self.product, 'studio_white')
+        finally:
+            studio._gen_via_gemini = orig
+        self.assertTrue(res['ok'], res)
+        self.assertEqual(res['engine'], 'gemini')
 
     # ── apply_preview ────────────────────────────────────────────────
     def test_apply_preview_backs_up_and_applies(self):
@@ -164,7 +186,9 @@ def _wire(user, tenant, method='get', path='/', body=None):
     return req
 
 
-@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp(),
+                   IMAGE_STUDIO_ENGINE='together',
+                   TOGETHER_API_KEY='test-key', GEMINI_API_KEY='')
 class ImageStudioViewTests(ERPTenantTestCase):
     def setUp(self):
         self.branch = make_branch()

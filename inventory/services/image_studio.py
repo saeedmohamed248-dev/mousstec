@@ -28,6 +28,7 @@ from io import BytesIO
 from typing import Any, Optional
 
 import requests
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
@@ -38,10 +39,38 @@ logger = logging.getLogger('mouss_tec_core')
 PREVIEW_DIR = 'products/ai_previews/'
 ORIGINAL_BACKUP_DIR = 'products/originals/'
 
-# أقصى بُعد للصورة المصدر قبل ما نبعتها كـ data-URI — بيقلل حجم الـ payload
-# وبيماشي مقاس مخرجات Kontext (1024²) من غير ما نضيّع تفاصيل القطعة.
+# أقصى بُعد للصورة المصدر قبل ما نبعتها للمحرك — بيقلل حجم الـ payload
+# وبيماشي مقاس المخرجات (1024²) من غير ما نضيّع تفاصيل القطعة.
 _MAX_SOURCE_DIM = 1024
 _DOWNLOAD_TIMEOUT = 45
+_GEMINI_TIMEOUT = 60
+
+# 🆓 محرك Gemini للصور (Nano Banana) — مجاني على مفتاح Google AI Studio الحالي.
+# ده المحرك الافتراضي؛ لو فشل بنرجع لـ FLUX.1-Kontext (Together) لو مفتاحه موجود.
+# قائمة موديلات مرتّبة بالأفضلية — نجرّبها بالترتيب لأن التسميات بتتغيّر.
+_GEMINI_IMAGE_URL = (
+    'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}'
+)
+_GEMINI_IMAGE_MODELS = (
+    'gemini-2.5-flash-image',
+    'gemini-2.5-flash-image-preview',
+    'gemini-2.0-flash-preview-image-generation',
+)
+
+
+def _gemini_api_key() -> str:
+    return str(
+        getattr(settings, 'GEMINI_API_KEY', '')
+        or getattr(settings, 'AI_VISION_API_KEY', '')
+        or ''
+    ).strip()
+
+
+def _gemini_image_models() -> tuple[str, ...]:
+    override = str(getattr(settings, 'GEMINI_IMAGE_MODEL', '') or '').strip()
+    if override:
+        return (override,) + tuple(m for m in _GEMINI_IMAGE_MODELS if m != override)
+    return _GEMINI_IMAGE_MODELS
 
 
 # =====================================================================
@@ -173,8 +202,8 @@ def _read_field_bytes(image_field) -> Optional[bytes]:
         return None
 
 
-def _to_source_data_uri(raw: bytes) -> Optional[str]:
-    """يصغّر الصورة لـ <=1024px ويحوّلها لـ data-URI (JPEG) لإرسالها لـ Kontext."""
+def _downscaled_jpeg(raw: bytes) -> Optional[bytes]:
+    """يصغّر الصورة لـ <=1024px ويرجّع بايتات JPEG (مصدر موحّد لكل المحركات)."""
     Image = _load_pillow()
     try:
         img = Image.open(BytesIO(raw))
@@ -182,11 +211,94 @@ def _to_source_data_uri(raw: bytes) -> Optional[str]:
         img.thumbnail((_MAX_SOURCE_DIM, _MAX_SOURCE_DIM), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format='JPEG', quality=90)
-        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
-        return f'data:image/jpeg;base64,{b64}'
+        return buf.getvalue()
     except Exception as exc:  # noqa: BLE001
         logger.warning('[IMAGE STUDIO] failed encoding source image: %s', exc)
         return None
+
+
+def _to_source_data_uri(jpeg_bytes: bytes) -> str:
+    """يحوّل بايتات JPEG لـ data-URI (تستخدمه FLUX.1-Kontext)."""
+    b64 = base64.b64encode(jpeg_bytes).decode('ascii')
+    return f'data:image/jpeg;base64,{b64}'
+
+
+# =====================================================================
+# 🆓 محرك Gemini للصور (Nano Banana) — image editing عبر Google AI Studio
+# =====================================================================
+def _gen_via_gemini(jpeg_bytes: bytes, edit_instruction: str) -> dict[str, Any]:
+    """يعدّل الصورة بـ Gemini (استبدال الخلفية) بمفتاح Google AI Studio المجاني.
+
+    بيرجّع نفس شكل ناتج FLUX.1-Kontext:
+      {success, b64_json|url, engine, model, cost_estimate_egp}
+    """
+    key = _gemini_api_key()
+    if not key:
+        return {'success': False, 'error': 'gemini_key_missing'}
+    if not jpeg_bytes or not edit_instruction:
+        return {'success': False, 'error': 'missing_input'}
+
+    b64 = base64.b64encode(jpeg_bytes).decode('ascii')
+    payload = {
+        'contents': [{
+            'role': 'user',
+            'parts': [
+                {'text': edit_instruction[:1800]},
+                {'inline_data': {'mime_type': 'image/jpeg', 'data': b64}},
+            ],
+        }],
+        # موديلات توليد الصور في Gemini بتطلب IMAGE ضمن الـ modalities.
+        'generationConfig': {'responseModalities': ['TEXT', 'IMAGE']},
+    }
+    headers = {'Content-Type': 'application/json'}
+
+    last_error = 'gemini_failed'
+    for model in _gemini_image_models():
+        url = _GEMINI_IMAGE_URL.format(model=model, key=key)
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=_GEMINI_TIMEOUT)
+        except requests.Timeout:
+            last_error = 'gemini_timeout'
+            continue
+        except Exception as exc:  # noqa: BLE001
+            logger.warning('[IMAGE STUDIO] gemini request failed: %s', exc)
+            last_error = 'gemini_request_error'
+            continue
+
+        if resp.status_code in (400, 403, 404):
+            # الموديل مش متاح للحساب/المفتاح — جرّب اللي بعده.
+            last_error = f'gemini_{model}_{resp.status_code}'
+            continue
+        if resp.status_code != 200:
+            last_error = f'gemini_http_{resp.status_code}'
+            continue
+
+        out_b64 = _extract_gemini_image(resp.json())
+        if out_b64:
+            return {
+                'success': True,
+                'b64_json': out_b64,
+                'url': None,
+                'engine': 'gemini',
+                'model': model,
+                'cost_estimate_egp': 0.0,   # ضمن الـ free tier
+            }
+        last_error = 'gemini_no_image'
+
+    return {'success': False, 'error': last_error}
+
+
+def _extract_gemini_image(data: dict) -> Optional[str]:
+    """يستخرج أول جزء صورة (base64) من رد Gemini (v1beta REST → inlineData)."""
+    try:
+        for cand in data.get('candidates', []) or []:
+            for part in (cand.get('content', {}) or {}).get('parts', []) or []:
+                inline = part.get('inlineData') or part.get('inline_data')
+                if inline and inline.get('data'):
+                    return inline['data']
+    except Exception as exc:  # noqa: BLE001
+        logger.warning('[IMAGE STUDIO] gemini parse failed: %s', exc)
+    return None
 
 
 def _result_to_bytes(result: dict[str, Any]) -> Optional[bytes]:
@@ -208,6 +320,42 @@ def _result_to_bytes(result: dict[str, Any]) -> Optional[bytes]:
         except Exception as exc:  # noqa: BLE001
             logger.warning('[IMAGE STUDIO] result download failed: %s', exc)
     return None
+
+
+# =====================================================================
+# 🔀 اختيار المحرك: Gemini (مجاني) أولاً ثم FLUX.1-Kontext كـ fallback
+# =====================================================================
+def _run_engines(jpeg_bytes: bytes, instruction: str, *, use_pro: bool = False) -> dict[str, Any]:
+    """يشغّل محركات تعديل الصورة بالترتيب ويرجّع أول نجاح.
+
+    الترتيب الافتراضي: Gemini (مجاني بمفتاحك الحالي) → Together FLUX.1-Kontext.
+    قابل للعكس عبر settings.IMAGE_STUDIO_ENGINE = 'together'.
+    """
+    order = str(getattr(settings, 'IMAGE_STUDIO_ENGINE', 'gemini') or 'gemini').strip().lower()
+    engines = ['together', 'gemini'] if order == 'together' else ['gemini', 'together']
+
+    last = {'success': False, 'error': 'no_engine_configured'}
+    for name in engines:
+        if name == 'gemini':
+            if not _gemini_api_key():
+                continue
+            res = _gen_via_gemini(jpeg_bytes, instruction)
+        else:  # together / kontext
+            if not str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip():
+                continue
+            # 🔁 إعادة استخدام محرك التعديل الموجود (FLUX.1-Kontext) — image-to-image.
+            from erp_core.ai.printing_copilot import _gen_via_flux_kontext
+            res = _gen_via_flux_kontext(
+                image_url=_to_source_data_uri(jpeg_bytes),
+                edit_instruction=instruction,
+                size='1024x1024',
+                use_pro=use_pro,
+            )
+        if res.get('success'):
+            return res
+        logger.warning('[IMAGE STUDIO] engine %s failed: %s', name, res.get('error'))
+        last = res
+    return last
 
 
 # =====================================================================
@@ -240,25 +388,17 @@ def generate_preview(
         return {'ok': False, 'error': 'source_unreadable',
                 'detail': 'تعذّر قراءة صورة القطعة الأصلية.'}
 
-    data_uri = _to_source_data_uri(raw)
-    if not data_uri:
+    jpeg = _downscaled_jpeg(raw)
+    if not jpeg:
         return {'ok': False, 'error': 'source_encode_failed',
                 'detail': 'تعذّر تجهيز الصورة الأصلية للمعالجة.'}
 
-    # 🔁 إعادة استخدام محرك التعديل الموجود (FLUX.1-Kontext) — image-to-image.
-    from erp_core.ai.printing_copilot import _gen_via_flux_kontext
-
-    result = _gen_via_flux_kontext(
-        image_url=data_uri,
-        edit_instruction=instruction,
-        size='1024x1024',
-        use_pro=use_pro,
-    )
+    result = _run_engines(jpeg, instruction, use_pro=use_pro)
     if not result.get('success'):
-        logger.warning('[IMAGE STUDIO] kontext failed: %s', result.get('error'))
+        logger.warning('[IMAGE STUDIO] all engines failed: %s', result.get('error'))
         return {'ok': False, 'error': result.get('error', 'generation_failed'),
-                'detail': 'فشل توليد الخلفية الجديدة. تأكد من إعداد مفتاح الـ AI '
-                          'وحاول مرة أخرى.'}
+                'detail': 'فشل توليد الخلفية الجديدة. تأكد من إعداد مفتاح Gemini '
+                          '(GEMINI_API_KEY) أو Together (TOGETHER_API_KEY) وحاول مرة أخرى.'}
 
     out_bytes = _result_to_bytes(result)
     if not out_bytes:
