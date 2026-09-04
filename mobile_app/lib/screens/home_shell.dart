@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
 import 'inventory_screen.dart';
-import 'settings_screen.dart';
+import 'modules_screen.dart';
 import 'work_orders_screen.dart';
 
 /// الهيكل الرئيسي مع شريط تنقّل سفلي.
@@ -20,7 +20,7 @@ class _HomeShellState extends State<HomeShell> {
     DashboardScreen(),
     WorkOrdersScreen(),
     InventoryScreen(),
-    SettingsScreen(),
+    ModulesScreen(),
   ];
 
   @override
@@ -34,7 +34,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'الرئيسية'),
           NavigationDestination(icon: Icon(Icons.build_outlined), selectedIcon: Icon(Icons.build), label: 'أوامر الشغل'),
           NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'المخزون'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'الإعدادات'),
+          NavigationDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: 'المزيد'),
         ],
       ),
     );

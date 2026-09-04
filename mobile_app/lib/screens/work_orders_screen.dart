@@ -2,10 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants.dart';
+import '../core/field_spec.dart';
+import '../core/modules.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
+import 'generic_form_screen.dart';
 import 'work_order_detail_screen.dart';
+
+/// تعريف نموذج إنشاء أمر شغل صيانة جديد (يُعاد استخدام محرك النماذج العام).
+const _newWorkOrderModule = ModuleDef(
+  key: 'work-order-create', title: 'أمر شغل', icon: Icons.build, group: 'الورشة',
+  endpoint: '/work-orders/', titleKey: 'id', canCreate: true,
+  fields: [
+    FieldSpec('customer', 'العميل', type: FieldType.fk, fkEndpoint: '/customers/', required: true),
+    FieldSpec('vehicle', 'المركبة', type: FieldType.fk, fkEndpoint: '/vehicles/', fkLabelKey: 'car_plate'),
+    FieldSpec('branch', 'الفرع', type: FieldType.fk, fkEndpoint: '/branches/', required: true),
+    FieldSpec('mileage', 'قراءة العداد', type: FieldType.integer),
+    FieldSpec('notes', 'الشكوى / ملاحظات', type: FieldType.multiline),
+  ],
+);
 
 class WorkOrdersScreen extends StatefulWidget {
   const WorkOrdersScreen({super.key});
@@ -49,6 +65,17 @@ class _WorkOrdersScreenState extends State<WorkOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('أوامر الشغل')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const GenericFormScreen(module: _newWorkOrderModule)),
+          );
+          if (created == true) _refresh();
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('أمر شغل جديد'),
+      ),
       body: Column(
         children: [
           Padding(

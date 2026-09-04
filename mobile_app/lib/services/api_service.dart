@@ -73,4 +73,42 @@ class ApiService {
     final data = await _api.get('/customers/$id/');
     return Customer.fromJson(data as Map<String, dynamic>);
   }
+
+  // ── CRUD عام (لمحرك الموديولات) ───────────────────────────────────
+  /// يُرجع صفحة DRF خام: {count, next, results:[...]} أو قائمة مباشرة.
+  Future<Map<String, dynamic>> rawList(String endpoint, {Map<String, dynamic>? query}) async {
+    final data = await _api.get(endpoint, query: query);
+    if (data is List) {
+      return {'count': data.length, 'next': null, 'results': data};
+    }
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> rawGet(String endpoint, int id) async {
+    final data = await _api.get('$endpoint$id/');
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> rawCreate(String endpoint, Map<String, dynamic> body) async {
+    final data = await _api.post(endpoint, body: body);
+    return data as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> rawUpdate(String endpoint, int id, Map<String, dynamic> body) async {
+    final data = await _api.patch('$endpoint$id/', body: body);
+    return data as Map<String, dynamic>;
+  }
+
+  Future<void> rawDelete(String endpoint, int id) async {
+    await _api.delete('$endpoint$id/');
+  }
+
+  /// تحميل خيارات علاقة (fk) — نجلب أول صفحة فقط لعرضها في القائمة المنسدلة.
+  Future<List<Map<String, dynamic>>> fkOptions(String endpoint) async {
+    final page = await rawList(endpoint, query: {'page_size': 100});
+    final results = page['results'];
+    return (results is List ? results : const [])
+        .map((e) => e as Map<String, dynamic>)
+        .toList();
+  }
 }

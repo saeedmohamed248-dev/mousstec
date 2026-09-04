@@ -60,6 +60,23 @@ class ApiClient {
     );
   }
 
+  Future<dynamic> patch(String endpoint, {Object? body, bool auth = true}) {
+    return _send(
+      () async => _http.patch(await _uri(endpoint),
+          headers: await _headers(auth: auth), body: jsonEncode(body ?? {})),
+      auth: auth,
+      retryOn401: auth,
+    );
+  }
+
+  Future<dynamic> delete(String endpoint, {bool auth = true}) {
+    return _send(
+      () async => _http.delete(await _uri(endpoint), headers: await _headers(auth: auth)),
+      auth: auth,
+      retryOn401: auth,
+    );
+  }
+
   Future<dynamic> _send(
     Future<http.Response> Function() run, {
     required bool auth,

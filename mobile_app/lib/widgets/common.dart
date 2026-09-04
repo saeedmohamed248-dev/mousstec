@@ -6,6 +6,22 @@ import '../core/theme.dart';
 final _money = NumberFormat.currency(locale: 'ar_EG', symbol: 'ج.م ', decimalDigits: 2);
 String formatMoney(num v) => _money.format(v);
 
+/// تنسيق قيمة خام قادمة من JSON لعرضها كنص.
+String displayValue(dynamic v) {
+  if (v == null || v == '') return '—';
+  if (v is bool) return v ? 'نعم' : 'لا';
+  if (v is String && v.length > 19 && v.contains('T') && v.contains('-')) {
+    // ISO datetime → نعرض التاريخ فقط.
+    return v.substring(0, 10);
+  }
+  return '$v';
+}
+
+String moneyOrDash(dynamic v) {
+  final n = v is num ? v : num.tryParse('$v');
+  return n == null ? '—' : formatMoney(n);
+}
+
 /// بطاقة مؤشر رقمي في لوحة المعلومات.
 class MetricCard extends StatelessWidget {
   const MetricCard({

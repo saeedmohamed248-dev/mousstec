@@ -63,6 +63,11 @@ class DashboardSummary {
   final int lowStockAlerts;
   final int totalCustomers;
   final int totalProducts;
+  final int totalVehicles;
+  final int pendingPurchases;
+  final int unresolvedFaults;
+  final int activeEmployees;
+  final int pendingLeaves;
 
   factory DashboardSummary.fromJson(Map<String, dynamic> j) => DashboardSummary(
         openWorkOrders: _toInt(j['open_work_orders']),
@@ -74,6 +79,11 @@ class DashboardSummary {
         lowStockAlerts: _toInt(j['low_stock_alerts']),
         totalCustomers: _toInt(j['total_customers']),
         totalProducts: _toInt(j['total_products']),
+        totalVehicles: _toInt(j['total_vehicles']),
+        pendingPurchases: _toInt(j['pending_purchases']),
+        unresolvedFaults: _toInt(j['unresolved_faults']),
+        activeEmployees: _toInt(j['active_employees']),
+        pendingLeaves: _toInt(j['pending_leaves']),
       );
 }
 

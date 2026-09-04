@@ -197,6 +197,74 @@ class CustomerTests(MobileApiTestBase):
         self.assertEqual(len(resp.data['vehicles']), 1)
 
 
+class CreateFlowTests(MobileApiTestBase):
+    def test_create_customer(self):
+        self.authenticate()
+        resp = self.post('/api/mobile/v1/customers/', {
+            'name': 'عميل جديد', 'phone': '01234567890', 'is_b2b_company': False,
+        })
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data['name'], 'عميل جديد')
+
+    def test_create_work_order_defaults_to_maintenance(self):
+        customer = f.make_customer()
+        self.authenticate()
+        resp = self.post('/api/mobile/v1/work-orders/', {
+            'customer': customer.id, 'branch': self.branch.id, 'notes': 'صوت غريب بالموتور',
+        })
+        self.assertEqual(resp.status_code, 201, resp.content)
+        # يظهر في قائمة أوامر الصيانة.
+        listed = self.get('/api/mobile/v1/work-orders/')
+        self.assertEqual(listed.data['count'], 1)
+
+    def test_record_cash_transaction(self):
+        treasury = f.make_treasury(self.branch)
+        self.authenticate()
+        resp = self.post('/api/mobile/v1/transactions/', {
+            'treasury': treasury.id, 'transaction_type': 'in',
+            'amount': '250.00', 'description': 'دفعة عميل',
+        })
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+    def test_reject_non_positive_amount(self):
+        treasury = f.make_treasury(self.branch)
+        self.authenticate()
+        resp = self.post('/api/mobile/v1/transactions/', {
+            'treasury': treasury.id, 'transaction_type': 'in', 'amount': '0',
+        })
+        self.assertEqual(resp.status_code, 400)
+
+
+class ModuleListingTests(MobileApiTestBase):
+    """كل الموديولات الجديدة تُرجع 200 وقائمة مُرقّمة للمستخدم المصادَق."""
+
+    def test_all_module_endpoints_ok(self):
+        f.make_vendor()
+        f.make_treasury(self.branch)
+        self.authenticate()
+        for url in [
+            '/api/mobile/v1/vendors/',
+            '/api/mobile/v1/purchase-invoices/',
+            '/api/mobile/v1/services/',
+            '/api/mobile/v1/treasuries/',
+            '/api/mobile/v1/transactions/',
+            '/api/mobile/v1/branches/',
+            '/api/mobile/v1/vehicles/',
+            '/api/mobile/v1/employees/',
+            '/api/mobile/v1/attendance/',
+            '/api/mobile/v1/leave-requests/',
+            '/api/mobile/v1/advances/',
+            '/api/mobile/v1/payroll-runs/',
+            '/api/mobile/v1/fault-logs/',
+            '/api/mobile/v1/diag-scans/',
+            '/api/mobile/v1/stock-transfers/',
+            '/api/mobile/v1/inventory-movements/',
+        ]:
+            resp = self.get(url)
+            self.assertEqual(resp.status_code, 200, f'{url} -> {resp.status_code}: {resp.content[:200]}')
+            self.assertIn('results', resp.data)
+
+
 class SecurityTests(MobileApiTestBase):
     def test_all_resource_endpoints_require_auth(self):
         for url in [
@@ -205,6 +273,9 @@ class SecurityTests(MobileApiTestBase):
             '/api/mobile/v1/products/',
             '/api/mobile/v1/stock-alerts/',
             '/api/mobile/v1/customers/',
+            '/api/mobile/v1/treasuries/',
+            '/api/mobile/v1/employees/',
+            '/api/mobile/v1/vendors/',
         ]:
             resp = self.get(url)
             self.assertEqual(resp.status_code, 401, f'{url} should require auth')
