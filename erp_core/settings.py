@@ -190,6 +190,7 @@ TENANT_APPS = (
     'repair_atlas',    # 🔧 أطلس الإصلاح والضفائر — Repair coach (disassembly/install/wiring) + Vision feedback
     'bmw_ecu',         # 🔧 BMW/Mini ECU subsystem — DoIP/UDS/ISN + 450 EGP pay-per-success ledger (per-workshop tables)
     'import_export',
+    'mobile_api',      # 📱 Mobile REST API لتطبيقات الأندرويد و iOS (Flutter)
     'rest_framework',
     'simple_history',
     'axes',

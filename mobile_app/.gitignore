@@ -1,0 +1,28 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Generated native shells (recreate with: flutter create .)
+# نلتزم بلجنة الكود عبر lib/ فقط؛ القشرة الأصلية تُولَّد محلياً.
+# احذف السطور التالية لو قرّرت الالتزام بمجلدات المنصّة.
+/android/
+/ios/
+/web/
+/macos/
+/linux/
+/windows/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Misc
+*.log
+.DS_Store
