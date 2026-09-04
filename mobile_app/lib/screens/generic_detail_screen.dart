@@ -50,6 +50,57 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
     }
   }
 
+  Future<void> _runAction(ModuleAction a) async {
+    String? reason;
+    if (a.needsReason) {
+      final ctrl = TextEditingController();
+      reason = await showDialog<String>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(a.label),
+          content: TextField(
+            controller: ctrl,
+            decoration: const InputDecoration(hintText: 'السبب (اختياري)'),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+            TextButton(onPressed: () => Navigator.pop(context, ctrl.text), child: Text(a.label)),
+          ],
+        ),
+      );
+      if (reason == null) return; // أُلغي
+    } else if (a.confirm) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(a.label),
+          content: Text('تأكيد: ${a.label}؟'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: Text(a.label)),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    try {
+      await context.read<AuthProvider>().apiService.rawAction(
+            m.endpoint, widget.itemId, a.slug,
+            body: reason != null && reason.isNotEmpty ? {'notes': reason} : null,
+          );
+      if (!mounted) return;
+      _changed = true;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم: ${a.label}')));
+      _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e'), backgroundColor: Colors.redAccent),
+      );
+    }
+  }
+
   Future<void> _delete() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -138,6 +189,24 @@ class _GenericDetailScreenState extends State<GenericDetailScreen> {
             ),
           ),
         ),
+        if (m.actions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final a in m.actions) ...[
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: a.color),
+                    onPressed: () => _runAction(a),
+                    icon: Icon(a.icon, size: 18),
+                    label: Text(a.label),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ],
       ],
     );
   }

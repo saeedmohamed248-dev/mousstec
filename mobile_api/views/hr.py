@@ -1,7 +1,10 @@
 """HR views — الموظفون، الحضور، الإجازات، السلف، الرواتب."""
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from hr.models import (
     Employee,
@@ -72,6 +75,24 @@ class LeaveRequestViewSet(
             qs = qs.filter(status=params['status'])
         return qs
 
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        leave = self.get_object()
+        leave.status = 'approved'
+        leave.reviewed_at = timezone.now()
+        leave.review_notes = request.data.get('notes', '') or leave.review_notes
+        leave.save(update_fields=['status', 'reviewed_at', 'review_notes'])
+        return Response(LeaveRequestSerializer(leave).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        leave = self.get_object()
+        leave.status = 'rejected'
+        leave.reviewed_at = timezone.now()
+        leave.review_notes = request.data.get('notes', '') or leave.review_notes
+        leave.save(update_fields=['status', 'reviewed_at', 'review_notes'])
+        return Response(LeaveRequestSerializer(leave).data)
+
 
 class AdvanceViewSet(
     mixins.ListModelMixin, mixins.RetrieveModelMixin,
@@ -85,6 +106,23 @@ class AdvanceViewSet(
         if self.request.query_params.get('employee'):
             qs = qs.filter(employee_id=self.request.query_params['employee'])
         return qs
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        advance = self.get_object()
+        advance.status = 'approved'
+        advance.approved_at = timezone.now()
+        advance.remaining_amount = advance.amount
+        advance.save(update_fields=['status', 'approved_at', 'remaining_amount'])
+        return Response(AdvanceSerializer(advance).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        advance = self.get_object()
+        advance.status = 'rejected'
+        advance.rejection_reason = request.data.get('notes', '') or advance.rejection_reason
+        advance.save(update_fields=['status', 'rejection_reason'])
+        return Response(AdvanceSerializer(advance).data)
 
 
 class PayrollRunViewSet(ReadOnlyViewSet):

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
+import 'barcode_scanner_screen.dart';
 import 'product_detail_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   late Future<Paginated<Product>> _future;
+  final _searchCtrl = TextEditingController();
   String _search = '';
   bool _lowOnly = false;
 
@@ -22,6 +24,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _scan() async {
+    final code = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
+    );
+    if (code != null && code.isNotEmpty) {
+      _search = code;
+      _searchCtrl.text = code;
+      if (_lowOnly) _lowOnly = false;
+      _refresh();
+    }
   }
 
   void _load() {
@@ -41,6 +62,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         title: const Text('المخزون'),
         actions: [
           IconButton(
+            tooltip: 'مسح باركود',
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: _scan,
+          ),
+          IconButton(
             tooltip: 'نقص المخزون فقط',
             icon: Icon(_lowOnly ? Icons.warning_amber : Icons.warning_amber_outlined),
             color: _lowOnly ? Colors.amberAccent : null,
@@ -57,6 +83,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             Padding(
               padding: const EdgeInsets.all(12),
               child: TextField(
+                controller: _searchCtrl,
                 decoration: InputDecoration(
                   hintText: 'ابحث بالاسم / رقم القطعة / الباركود',
                   prefixIcon: const Icon(Icons.search),
@@ -65,6 +92,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _search = '';
+                            _searchCtrl.clear();
                             _refresh();
                             FocusScope.of(context).unfocus();
                           })

@@ -2,6 +2,25 @@ import 'package:flutter/material.dart';
 
 import 'field_spec.dart';
 
+/// إجراء مخصّص على سجل (مثل موافقة/رفض) — يُنفّذ كـ POST على `‹endpoint›‹id›/‹slug›/`.
+class ModuleAction {
+  const ModuleAction({
+    required this.slug,
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.needsReason = false,
+    this.confirm = true,
+  });
+
+  final String slug;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool needsReason;
+  final bool confirm;
+}
+
 /// تعريف موديول كامل — يقود القوائم والتفاصيل والنماذج تلقائياً.
 class ModuleDef {
   const ModuleDef({
@@ -20,6 +39,7 @@ class ModuleDef {
     this.canEdit = false,
     this.canDelete = false,
     this.fields = const [],
+    this.actions = const [],
     this.color = const Color(0xFF1565C0),
   });
 
@@ -40,10 +60,17 @@ class ModuleDef {
   final bool canEdit;
   final bool canDelete;
   final List<FieldSpec> fields;
+  final List<ModuleAction> actions;
   final Color color;
 
   bool get isEditable => canCreate || canEdit || canDelete;
 }
+
+/// إجراءات الموافقة/الرفض القياسية (تُعاد استخدامها في الإجازات والسلف).
+const _approveReject = [
+  ModuleAction(slug: 'approve', label: 'موافقة', icon: Icons.check_circle, color: Colors.green),
+  ModuleAction(slug: 'reject', label: 'رفض', icon: Icons.cancel, color: Colors.red, needsReason: true),
+];
 
 // خيارات ثابتة مشتركة
 const _txTypes = [Choice('in', 'قبض / إيراد'), Choice('out', 'صرف / مصروف')];
@@ -292,7 +319,7 @@ final List<ModuleDef> moduleRegistry = [
     key: 'leave-requests', title: 'طلبات الإجازة', icon: Icons.event_busy, group: 'الموارد البشرية',
     endpoint: '/leave-requests/', titleKey: 'employee_name',
     subtitleKeys: ['leave_type_display', 'from_date', 'to_date'], statusKey: 'status',
-    canCreate: true, color: Colors.orange,
+    canCreate: true, color: Colors.orange, actions: _approveReject,
     fields: [
       FieldSpec('employee', 'الموظف', type: FieldType.fk, fkEndpoint: '/employees/', fkLabelKey: 'full_name', required: true),
       FieldSpec('leave_type', 'نوع الإجازة', type: FieldType.choice, choices: _leaveTypes, required: true),
@@ -305,7 +332,7 @@ final List<ModuleDef> moduleRegistry = [
     key: 'advances', title: 'السلف', icon: Icons.savings, group: 'الموارد البشرية',
     endpoint: '/advances/', titleKey: 'employee_name', subtitleKeys: ['reason'],
     trailingKey: 'amount', trailingMoney: true, statusKey: 'status',
-    canCreate: true, color: Colors.deepPurple,
+    canCreate: true, color: Colors.deepPurple, actions: _approveReject,
     fields: [
       FieldSpec('employee', 'الموظف', type: FieldType.fk, fkEndpoint: '/employees/', fkLabelKey: 'full_name', required: true),
       FieldSpec('amount', 'المبلغ', type: FieldType.decimal, required: true),

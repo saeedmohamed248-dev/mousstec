@@ -103,6 +103,17 @@ class ApiService {
     await _api.delete('$endpoint$id/');
   }
 
+  /// تنفيذ إجراء مخصّص على سجل، مثل الموافقة/الرفض.
+  Future<Map<String, dynamic>> rawAction(
+    String endpoint,
+    int id,
+    String slug, {
+    Map<String, dynamic>? body,
+  }) async {
+    final data = await _api.post('$endpoint$id/$slug/', body: body ?? {});
+    return data as Map<String, dynamic>;
+  }
+
   /// تحميل خيارات علاقة (fk) — نجلب أول صفحة فقط لعرضها في القائمة المنسدلة.
   Future<List<Map<String, dynamic>>> fkOptions(String endpoint) async {
     final page = await rawList(endpoint, query: {'page_size': 100});

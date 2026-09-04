@@ -265,6 +265,33 @@ class ModuleListingTests(MobileApiTestBase):
             self.assertIn('results', resp.data)
 
 
+class HrWorkflowTests(MobileApiTestBase):
+    def _employee(self):
+        user = f.make_user(username='emp_hr', password='x')
+        from hr.models import Employee
+        return Employee.objects.create(user=user, employee_id='E-100', hire_date='2024-01-01')
+
+    def test_approve_leave_request(self):
+        emp = self._employee()
+        from hr.models import LeaveRequest
+        leave = LeaveRequest.objects.create(
+            employee=emp, leave_type='annual', from_date='2026-09-10', to_date='2026-09-12',
+        )
+        self.authenticate()
+        resp = self.post(f'/api/mobile/v1/leave-requests/{leave.id}/approve/', {})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['status'], 'approved')
+
+    def test_reject_advance_with_reason(self):
+        emp = self._employee()
+        from hr.models import Advance
+        adv = Advance.objects.create(employee=emp, amount='500.00')
+        self.authenticate()
+        resp = self.post(f'/api/mobile/v1/advances/{adv.id}/reject/', {'notes': 'الرصيد لا يسمح'})
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['status'], 'rejected')
+
+
 class SecurityTests(MobileApiTestBase):
     def test_all_resource_endpoints_require_auth(self):
         for url in [
