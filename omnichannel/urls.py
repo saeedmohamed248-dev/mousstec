@@ -17,12 +17,18 @@ from .dashboard_views import (
     public_page,
     settings_screen,
     subscribe,
+    web_chat,
+    web_widget_js,
 )
 from .views import OmnichannelWebhookView
 
 urlpatterns = [
     # Public webhook — this is the URL tenants paste into their Meta app.
     path("api/webhooks/omnichannel/", OmnichannelWebhookView.as_view(), name="omnichannel_webhook"),
+
+    # 🌐 Website chat widget (public, cross-origin).
+    path("omnichannel/api/web/<str:key>/", web_chat, name="omnichannel_web_chat"),
+    path("omnichannel/widget/<str:key>.js", web_widget_js, name="omnichannel_web_widget_js"),
 
     # Public marketing page (no login) — shown on the main site.
     path("omnichannel-ai/", public_page, name="omnichannel_public"),

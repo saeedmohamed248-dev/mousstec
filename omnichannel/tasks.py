@@ -24,7 +24,7 @@ from django_tenants.utils import schema_context
 from .services import meta_api
 from .services.inventory_context import build_catalog_context
 from .services.llm import generate_reply
-from .services.routing import CHANNEL_MESSENGER, CHANNEL_WHATSAPP
+from .services.routing import CHANNEL_INSTAGRAM, CHANNEL_MESSENGER, CHANNEL_WHATSAPP
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -103,7 +103,8 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
                 recipient_id=sender_id,
                 text=reply,
             )
-        elif channel == CHANNEL_MESSENGER:
+        elif channel in (CHANNEL_MESSENGER, CHANNEL_INSTAGRAM):
+            # Instagram Direct uses the same Send API (page token → /me/messages).
             meta_api.send_messenger_text(
                 access_token=send_token, recipient_id=sender_id, text=reply,
             )

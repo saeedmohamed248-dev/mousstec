@@ -32,7 +32,12 @@ from django.db.models import F
 
 from .dashboard_views import _current_tenant
 from .models import ChannelMessageLog, TenantChannelConfig, TenantChannelNumber
-from .services.routing import CHANNEL_MESSENGER, CHANNEL_WHATSAPP
+from .services.routing import (
+    CHANNEL_INSTAGRAM,
+    CHANNEL_MESSENGER,
+    CHANNEL_WEBSITE,
+    CHANNEL_WHATSAPP,
+)
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -274,6 +279,7 @@ def console_numbers(request):
             whatsapp_phone_number_id=(request.POST.get("whatsapp_phone_number_id") or "").strip(),
             whatsapp_business_account_id=(request.POST.get("whatsapp_business_account_id") or "").strip(),
             facebook_page_id=(request.POST.get("facebook_page_id") or "").strip(),
+            instagram_account_id=(request.POST.get("instagram_account_id") or "").strip(),
         )
         num.meta_access_token = (request.POST.get("meta_access_token") or "").strip()
         num.app_secret = (request.POST.get("app_secret") or "").strip()
@@ -388,8 +394,11 @@ def console_reply(request, channel, sender_id):
             meta_api.send_whatsapp_text(
                 access_token=token, phone_number_id=config.whatsapp_phone_number_id,
                 recipient_id=sender_id, text=text)
-        elif channel == CHANNEL_MESSENGER:
+        elif channel in (CHANNEL_MESSENGER, CHANNEL_INSTAGRAM):
             meta_api.send_messenger_text(access_token=token, recipient_id=sender_id, text=text)
+        elif channel == CHANNEL_WEBSITE:
+            messages.error(request, "لا يمكن الرد يدوياً على شات الموقع (رد فوري تلقائي فقط).")
+            return redirect(back)
         else:
             messages.error(request, "قناة غير معروفة.")
             return redirect(back)

@@ -103,6 +103,11 @@
           {{ form.facebook_page_id }}
         </div>
         <div>
+          <label>{{ form.instagram_account_id.label }}</label>
+          {{ form.instagram_account_id }}
+          <div class="help">{{ form.instagram_account_id.help_text }}</div>
+        </div>
+        <div>
           <label>{{ form.app_secret.label }}</label>
           {{ form.app_secret }}
           <div class="help">{{ form.app_secret.help_text }}</div>
@@ -112,11 +117,21 @@
           {{ form.webhook_verify_token }}
           <div class="help">{{ form.webhook_verify_token.help_text }}</div>
         </div>
-        <div class="flex items-center gap-6 pt-6">
+        <div class="md:col-span-2 flex items-center gap-6 pt-2 flex-wrap">
           <label class="flex items-center gap-2 cursor-pointer">{{ form.whatsapp_enabled }} قناة واتساب</label>
           <label class="flex items-center gap-2 cursor-pointer">{{ form.messenger_enabled }} قناة ماسنجر</label>
+          <label class="flex items-center gap-2 cursor-pointer">{{ form.instagram_enabled }} قناة إنستجرام</label>
         </div>
       </div>
+    </div>
+
+    <!-- Website chat widget -->
+    <div class="card p-5 mb-6">
+      <h2 class="font-black text-[#0f2c4c] mb-3">🌐 شات الموقع الإلكتروني</h2>
+      <label class="flex items-center gap-2 cursor-pointer mb-3">{{ form.web_widget_enabled }} تفعيل شات الموقع</label>
+      <p class="text-sm text-slate-600 mb-2">انسخ الكود التالي وضعه قبل <span class="mono">&lt;/body&gt;</span> في موقعك ليظهر زر شات ذكي:</p>
+      <div class="copybox rounded-lg p-3 text-xs break-all">&lt;script src="{{ widget_src }}" async&gt;&lt;/script&gt;</div>
+      <p class="help mt-2">يعمل الشات فوراً بمجرد تفعيل الاشتراك وربط أي قناة — يرد على زوّار موقعك بنفس ذكاء الأتمتة.</p>
     </div>
 
     <!-- AI behaviour -->

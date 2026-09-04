@@ -24,9 +24,12 @@ from typing import Iterable, Optional
 # Envelope object types
 WHATSAPP_OBJECT = "whatsapp_business_account"
 MESSENGER_OBJECT = "page"
+INSTAGRAM_OBJECT = "instagram"
 
 CHANNEL_WHATSAPP = "whatsapp"
 CHANNEL_MESSENGER = "messenger"
+CHANNEL_INSTAGRAM = "instagram"
+CHANNEL_WEBSITE = "website"
 
 
 @dataclass
@@ -54,6 +57,8 @@ def extract_inbound_messages(payload: dict) -> list[InboundMessage]:
         return _extract_whatsapp(payload)
     if obj == MESSENGER_OBJECT:
         return _extract_messenger(payload)
+    if obj == INSTAGRAM_OBJECT:
+        return _extract_messenger(payload, channel=CHANNEL_INSTAGRAM)
     return []
 
 
@@ -95,7 +100,12 @@ def _extract_whatsapp(payload: dict) -> list[InboundMessage]:
     return out
 
 
-def _extract_messenger(payload: dict) -> list[InboundMessage]:
+def _extract_messenger(payload: dict, channel: str = CHANNEL_MESSENGER) -> list[InboundMessage]:
+    """Parse a Messenger OR Instagram webhook (identical envelope shape).
+
+    For Instagram the object is "instagram" and entry.id is the IG account id;
+    the messaging/message structure is otherwise the same as Messenger.
+    """
     out: list[InboundMessage] = []
     for entry in payload.get("entry", []) or []:
         route_key = (entry or {}).get("id") or ""
@@ -112,7 +122,7 @@ def _extract_messenger(payload: dict) -> list[InboundMessage]:
                 continue
             out.append(
                 InboundMessage(
-                    channel=CHANNEL_MESSENGER,
+                    channel=channel,
                     route_key=route_key,
                     sender_id=sender,
                     text=text,
@@ -164,6 +174,22 @@ def resolve_target(message: "InboundMessage"):
             return RouteTarget(cfg, cfg.meta_access_token, cfg.app_secret, "", rk)
         num = (TenantChannelNumber.objects
                .filter(facebook_page_id=rk, is_active=True)
+               .select_related("config", "config__tenant").first())
+        if num:
+            cfg = num.config
+            return RouteTarget(
+                cfg, num.meta_access_token or cfg.meta_access_token,
+                num.app_secret or cfg.app_secret, "", rk)
+        return None
+
+    if message.channel == CHANNEL_INSTAGRAM:
+        cfg = (TenantChannelConfig.objects
+               .filter(instagram_account_id=rk, instagram_enabled=True)
+               .select_related("tenant").first())
+        if cfg:
+            return RouteTarget(cfg, cfg.meta_access_token, cfg.app_secret, "", rk)
+        num = (TenantChannelNumber.objects
+               .filter(instagram_account_id=rk, is_active=True)
                .select_related("config", "config__tenant").first())
         if num:
             cfg = num.config
