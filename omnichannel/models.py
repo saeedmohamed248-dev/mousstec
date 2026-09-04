@@ -128,6 +128,11 @@ class TenantChannelConfig(models.Model):
         verbose_name=_("Facebook Page ID"),
         help_text=_("معرّف صفحة ماسنجر المُستقبِلة — يُستخدم لتوجيه رسائل ماسنجر."),
     )
+    instagram_account_id = models.CharField(
+        max_length=64, blank=True, default="", db_index=True,
+        verbose_name=_("Instagram Account ID"),
+        help_text=_("معرّف حساب إنستجرام المرتبط بالصفحة — لتوجيه رسائل إنستجرام."),
+    )
     _app_secret = models.TextField(
         blank=True, default="", db_column="app_secret_enc",
         verbose_name=_("Meta App Secret (مشفّر)"),
@@ -142,6 +147,15 @@ class TenantChannelConfig(models.Model):
     # ── Channel enable flags ──────────────────────────────────────────
     whatsapp_enabled = models.BooleanField(default=True, verbose_name=_("قناة واتساب مفعّلة؟"))
     messenger_enabled = models.BooleanField(default=True, verbose_name=_("قناة ماسنجر مفعّلة؟"))
+    instagram_enabled = models.BooleanField(default=True, verbose_name=_("قناة إنستجرام مفعّلة؟"))
+
+    # ── Website chat widget ───────────────────────────────────────────
+    web_widget_enabled = models.BooleanField(default=False, verbose_name=_("شات الموقع الإلكتروني مفعّل؟"))
+    web_widget_key = models.CharField(
+        max_length=48, blank=True, default="", db_index=True,
+        verbose_name=_("مفتاح شات الموقع"),
+        help_text=_("مفتاح عام يُضمَّن في كود الـ Widget على موقع الشركة."),
+    )
 
     # ── Multi-number capacity ─────────────────────────────────────────
     #   Base plan includes 1 number (the primary fields above). `extra_numbers`
@@ -322,6 +336,14 @@ class TenantChannelConfig(models.Model):
     def has_messenger(self) -> bool:
         return bool(self.messenger_enabled and self.facebook_page_id)
 
+    def ensure_web_widget_key(self) -> str:
+        """Return the website-widget key, generating one on first use."""
+        if not self.web_widget_key:
+            import secrets
+            self.web_widget_key = "wid_" + secrets.token_urlsafe(24)
+            self.save(update_fields=["web_widget_key", "updated_at"])
+        return self.web_widget_key
+
     @property
     def number_capacity(self) -> int:
         """Total numbers allowed = 1 (base) + purchased extras."""
@@ -345,6 +367,7 @@ class TenantChannelNumber(models.Model):
     class Channel(models.TextChoices):
         WHATSAPP = "whatsapp", "WhatsApp"
         MESSENGER = "messenger", "Messenger"
+        INSTAGRAM = "instagram", "Instagram"
 
     config = models.ForeignKey(
         TenantChannelConfig, on_delete=models.CASCADE,
@@ -364,6 +387,10 @@ class TenantChannelNumber(models.Model):
     facebook_page_id = models.CharField(
         max_length=64, blank=True, default="", db_index=True,
         verbose_name=_("Facebook Page ID"),
+    )
+    instagram_account_id = models.CharField(
+        max_length=64, blank=True, default="", db_index=True,
+        verbose_name=_("Instagram Account ID"),
     )
     _meta_access_token = models.TextField(blank=True, default="", db_column="meta_access_token_enc")
     _app_secret = models.TextField(blank=True, default="", db_column="app_secret_enc")
@@ -404,6 +431,8 @@ class ChannelMessageLog(models.Model):
     class Channel(models.TextChoices):
         WHATSAPP = "whatsapp", "WhatsApp"
         MESSENGER = "messenger", "Messenger"
+        INSTAGRAM = "instagram", "Instagram"
+        WEBSITE = "website", "Website"
 
     class Status(models.TextChoices):
         RECEIVED = "received", _("وردت")

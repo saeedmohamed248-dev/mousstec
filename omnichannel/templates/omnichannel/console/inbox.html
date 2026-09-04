@@ -17,8 +17,8 @@
     <div class="divide-y divide-slate-100">
       {% for c in conversations %}
       <a href="{% url 'omnichannel_console_conversation' channel=c.channel sender_id=c.sender_id %}" class="flex items-center gap-4 py-4 px-5 hover:bg-slate-50">
-        <div class="w-11 h-11 rounded-full grid place-items-center text-white shrink-0" style="background:{% if c.channel == 'whatsapp' %}#25D366{% else %}#0084FF{% endif %};">
-          {% if c.channel == 'whatsapp' %}<i class="fab fa-whatsapp"></i>{% else %}<i class="fab fa-facebook-messenger"></i>{% endif %}
+        <div class="w-11 h-11 rounded-full grid place-items-center text-white shrink-0" style="background:{% if c.channel == 'whatsapp' %}#25D366{% elif c.channel == 'instagram' %}#E1306C{% elif c.channel == 'website' %}#0f2c4c{% else %}#0084FF{% endif %};">
+          {% if c.channel == 'whatsapp' %}<i class="fab fa-whatsapp"></i>{% elif c.channel == 'instagram' %}<i class="fab fa-instagram"></i>{% elif c.channel == 'website' %}<i class="fas fa-globe"></i>{% else %}<i class="fab fa-facebook-messenger"></i>{% endif %}
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">

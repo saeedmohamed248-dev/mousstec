@@ -20,7 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import connection, transaction
 from django.db.models import F
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -70,12 +70,16 @@ def settings_screen(request):
         form = TenantChannelConfigForm(instance=config)
 
     recent_logs = ChannelMessageLog.objects.filter(tenant=tenant)[:20]
+    widget_key = config.ensure_web_widget_key()
+    widget_src = request.build_absolute_uri(
+        reverse("omnichannel_web_widget_js", kwargs={"key": widget_key}))
 
     context = {
         "form": form,
         "config": config,
         "webhook_url": _webhook_url(request),
         "platform_verify_token": getattr(settings, "OMNICHANNEL_VERIFY_TOKEN", ""),
+        "widget_src": widget_src,
         "recent_logs": recent_logs,
         "guide_url": reverse("omnichannel_guide"),
         "overview_url": reverse("omnichannel_overview"),
@@ -196,6 +200,114 @@ def subscribe(request):
         "تم تفعيل اشتراك الأتمتة لمدة 30 يوماً ✅ اربط حسابك الآن من شاشة الإعدادات.",
     )
     return redirect("omnichannel_settings")
+
+
+# =====================================================================
+# 🌐 Website chat widget — inbound endpoint + embeddable script
+# =====================================================================
+def _cors(resp):
+    resp["Access-Control-Allow-Origin"] = "*"
+    resp["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    resp["Access-Control-Allow-Headers"] = "Content-Type"
+    return resp
+
+
+@csrf_exempt
+def web_chat(request, key):
+    """Public website-widget endpoint: {visitor_id, message} → synchronous AI reply.
+
+    Cross-origin (runs on the tenant's own site), so CORS is open and CSRF exempt.
+    Gated on the widget key + subscription; replies synchronously (no webhook).
+    """
+    if request.method == "OPTIONS":
+        return _cors(JsonResponse({}))
+    if request.method != "POST":
+        return _cors(JsonResponse({"error": "POST only"}, status=405))
+    try:
+        data = json.loads(request.body or "{}")
+    except (ValueError, UnicodeDecodeError):
+        data = {}
+    message = (data.get("message") or "").strip()[:2000]
+    visitor = (data.get("visitor_id") or "").strip()[:64] or "web_anon"
+    if not message:
+        return _cors(JsonResponse({"error": "empty"}, status=400))
+
+    config = (TenantChannelConfig.objects
+              .filter(web_widget_key=key, web_widget_enabled=True)
+              .select_related("tenant").first())
+    if config is None:
+        return _cors(JsonResponse({"reply": "خدمة الشات غير متاحة حالياً."}))
+
+    # Light per-visitor throttle to curb abuse of the open endpoint.
+    throttle = f"omni_web_{key}_{visitor}"
+    n = cache.get(throttle, 0)
+    if n and n > 20:
+        return _cors(JsonResponse({"reply": "لقد أرسلت رسائل كثيرة، برجاء المحاولة بعد قليل."}))
+    cache.set(throttle, n + 1, timeout=60)
+
+    tenant = config.tenant
+    if not (config.subscription_is_valid and config.ai_enabled):
+        return _cors(JsonResponse({"reply": config.fallback_message}))
+
+    from .services.inventory_context import build_catalog_context
+    from .services.llm import generate_reply
+
+    currency = _currency(tenant)
+    catalog = ""
+    try:
+        with schema_context(tenant.schema_name):
+            catalog = build_catalog_context(message, currency=currency)
+    except Exception as exc:
+        logger.warning("omnichannel web_chat: catalog read failed: %s", exc)
+    reply = generate_reply(config, message, catalog) or config.fallback_message
+
+    try:
+        from .models import ChannelMessageLog
+        ChannelMessageLog.objects.create(
+            tenant=tenant, channel="website", sender_id=visitor,
+            contact_name=(data.get("name") or "").strip()[:120],
+            inbound_text=message, outbound_text=reply,
+            status=ChannelMessageLog.Status.REPLIED,
+        )
+    except Exception:
+        logger.exception("omnichannel web_chat: log failed")
+
+    return _cors(JsonResponse({"reply": reply}))
+
+
+def web_widget_js(request, key):
+    """Serve the embeddable chat-widget JavaScript for a tenant."""
+    endpoint = request.build_absolute_uri(reverse("omnichannel_web_chat", kwargs={"key": key}))
+    js = _WIDGET_JS_TEMPLATE.replace("__ENDPOINT__", endpoint)
+    resp = HttpResponse(js, content_type="application/javascript; charset=utf-8")
+    resp["Cache-Control"] = "public, max-age=300"
+    return resp
+
+
+_WIDGET_JS_TEMPLATE = r"""
+(function(){
+  var ENDPOINT="__ENDPOINT__";
+  try{ if(window.__mtOmniLoaded) return; window.__mtOmniLoaded=true; }catch(e){}
+  var vid=""; try{ vid=localStorage.getItem("mt_omni_vid")||""; if(!vid){ vid="v"+Date.now()+Math.random().toString(36).slice(2,8); localStorage.setItem("mt_omni_vid",vid);} }catch(e){ vid="v"+Date.now(); }
+  var C="#0f2c4c";
+  var st=document.createElement("style");
+  st.textContent=".mtw-b{position:fixed;bottom:20px;inset-inline-end:20px;width:58px;height:58px;border-radius:50%;background:"+C+";color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:2147483000;font-size:26px}.mtw-p{position:fixed;bottom:88px;inset-inline-end:20px;width:340px;max-width:92vw;height:460px;max-height:72vh;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden;z-index:2147483000;font-family:system-ui,'Segoe UI',Tahoma,sans-serif}.mtw-h{background:"+C+";color:#fff;padding:14px 16px;font-weight:700}.mtw-m{flex:1;overflow-y:auto;padding:12px;background:#f5f7fb}.mtw-row{display:flex;margin:6px 0}.mtw-c{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 12px;max-width:78%;font-size:14px;white-space:pre-wrap}.mtw-u{margin-inline-start:auto}.mtw-u .mtw-c{background:"+C+";color:#fff;border:0}.mtw-f{display:flex;gap:6px;padding:10px;border-top:1px solid #eee}.mtw-i{flex:1;border:1px solid #cbd5e1;border-radius:10px;padding:8px 10px;font-size:14px;outline:none}.mtw-s{background:"+C+";color:#fff;border:0;border-radius:10px;padding:0 14px;cursor:pointer}";
+  document.head.appendChild(st);
+  var b=document.createElement("div"); b.className="mtw-b"; b.innerHTML="&#128172;"; document.body.appendChild(b);
+  var p=document.createElement("div"); p.className="mtw-p";
+  p.innerHTML='<div class="mtw-h">تحدث معنا</div><div class="mtw-m" id="mtwM"></div><div class="mtw-f"><input class="mtw-i" id="mtwI" placeholder="اكتب رسالتك..."><button class="mtw-s" id="mtwS">إرسال</button></div>';
+  document.body.appendChild(p);
+  var M=p.querySelector("#mtwM"),I=p.querySelector("#mtwI"),S=p.querySelector("#mtwS");
+  function add(t,who){ var r=document.createElement("div"); r.className="mtw-row"+(who=="u"?" mtw-u":""); var c=document.createElement("div"); c.className="mtw-c"; c.textContent=t; r.appendChild(c); M.appendChild(r); M.scrollTop=M.scrollHeight; return c; }
+  var greeted=false;
+  b.onclick=function(){ var o=p.style.display==="flex"; p.style.display=o?"none":"flex"; if(!o&&!greeted){ greeted=true; add("أهلاً بك! كيف أقدر أساعدك؟","a"); I.focus(); } };
+  function send(){ var t=(I.value||"").trim(); if(!t) return; add(t,"u"); I.value=""; var w=add("...","a");
+    fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({visitor_id:vid,message:t})})
+      .then(function(r){return r.json();}).then(function(d){ w.textContent=(d&&d.reply)||"—"; })
+      .catch(function(){ w.textContent="تعذّر الاتصال، حاول مرة أخرى."; }); }
+  S.onclick=send; I.addEventListener("keydown",function(e){ if(e.key==="Enter") send(); });
+})();
+"""
 
 
 def _region_country(request) -> str:

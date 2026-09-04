@@ -34,9 +34,10 @@ class TenantChannelConfigForm(forms.ModelForm):
     class Meta:
         model = TenantChannelConfig
         fields = [
-            "whatsapp_enabled", "messenger_enabled",
+            "whatsapp_enabled", "messenger_enabled", "instagram_enabled",
             "whatsapp_phone_number_id", "whatsapp_business_account_id",
-            "facebook_page_id", "webhook_verify_token",
+            "facebook_page_id", "instagram_account_id", "web_widget_enabled",
+            "webhook_verify_token",
             "business_display_name", "tone_of_voice", "discount_policy",
             "custom_instructions", "fallback_message", "max_reply_chars",
             "notify_on_handoff", "notify_email",

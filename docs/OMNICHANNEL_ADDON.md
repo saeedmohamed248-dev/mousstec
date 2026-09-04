@@ -150,3 +150,20 @@ charged from the wallet. Managed at `/omnichannel/console/numbers/`.
   matching number (primary or additional) and returns the exact token to reply
   with; the webhook passes it to the Celery task (`access_token`,
   `phone_number_id`). Same webhook URL for all numbers.
+
+## More channels: Instagram + Website widget
+
+- **Instagram Direct** — same Meta pipeline. Webhook `object: "instagram"` is parsed
+  like Messenger; routing matches `instagram_account_id` (on the config or an
+  additional `TenantChannelNumber`); replies go through the Send API (page token →
+  `/me/messages`). Fields on config: `instagram_account_id`, `instagram_enabled`.
+- **Website chat widget** — a self-contained embeddable script:
+  `<script src="/omnichannel/widget/<key>.js" async></script>`. The widget POSTs
+  to `/omnichannel/api/web/<key>/` (CORS-open, CSRF-exempt) which runs the AI
+  **synchronously** and returns the reply (no webhook). Gated on `web_widget_enabled`
+  + subscription; per-visitor throttle. Config: `web_widget_key`, `web_widget_enabled`.
+  Website conversations are AI-only (no human-reply push channel).
+
+Migration `0007` adds these fields + the `instagram`/`website` channel choices.
+Calls (voice) are **not** included — they require a telephony provider (Twilio),
+STT/TTS, and real-time media, which is a separate project.
