@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/common.dart';
+import 'analytics_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,7 +35,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     return Scaffold(
-      appBar: AppBar(title: const Text('الرئيسية')),
+      appBar: AppBar(
+        title: const Text('الرئيسية'),
+        actions: [
+          IconButton(
+            tooltip: 'التحليلات',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<DashboardSummary>(

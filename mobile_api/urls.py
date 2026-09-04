@@ -62,8 +62,9 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/me/', views.MeView.as_view(), name='me'),
 
-    # 📊 لوحة المعلومات
+    # 📊 لوحة المعلومات والتحليلات
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    path('analytics/', views.AnalyticsView.as_view(), name='analytics'),
 
     # الموارد
     path('', include(router.urls)),

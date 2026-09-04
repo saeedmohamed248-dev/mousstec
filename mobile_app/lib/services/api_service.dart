@@ -24,6 +24,11 @@ class ApiService {
     return DashboardSummary.fromJson(data as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> analytics() async {
+    final data = await _api.get('/analytics/');
+    return data as Map<String, dynamic>;
+  }
+
   // ── أوامر الشغل ──────────────────────────────────────────────────
   Future<Paginated<WorkOrder>> workOrders({String? status, String? search}) async {
     final data = await _api.get('/work-orders/', query: {

@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
+import '../services/pdf_service.dart';
 import '../widgets/common.dart';
 
 class WorkOrderDetailScreen extends StatefulWidget {
@@ -139,6 +140,21 @@ class _WorkOrderDetailScreenState extends State<WorkOrderDetailScreen> {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    await WorkOrderPdf.printOrder(o);
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تعذّرت الطباعة: $e'), backgroundColor: Colors.redAccent),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.print),
+                label: const Text('طباعة / مشاركة PDF'),
               ),
               const SizedBox(height: 8),
               const Text('تغيير حالة أمر الشغل',

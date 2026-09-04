@@ -265,6 +265,23 @@ class ModuleListingTests(MobileApiTestBase):
             self.assertIn('results', resp.data)
 
 
+class AnalyticsTests(MobileApiTestBase):
+    def test_analytics_shape(self):
+        customer = f.make_customer()
+        product = f.make_product()
+        f.make_inventory(product, self.branch, quantity=10)
+        f.make_sale_invoice(
+            customer, self.branch, items=[(product, 2, '100.00')],
+            status='posted', invoice_type='sale',
+        )
+        self.authenticate()
+        resp = self.get('/api/mobile/v1/analytics/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(len(resp.data['revenue_last_7_days']), 7)
+        self.assertIn('work_order_status', resp.data)
+        self.assertIn('top_products', resp.data)
+
+
 class HrWorkflowTests(MobileApiTestBase):
     def _employee(self):
         user = f.make_user(username='emp_hr', password='x')

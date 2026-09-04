@@ -1,4 +1,5 @@
-"""Core views — المصادقة، المستخدم، لوحة المعلومات، الفروع."""
+"""Core views — المصادقة، المستخدم، لوحة المعلومات، التحليلات، الفروع."""
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import Sum, Count
@@ -85,6 +86,56 @@ class DashboardView(APIView):
             data['pending_leaves'] = 0
 
         return Response(data)
+
+
+class AnalyticsView(APIView):
+    """بيانات الرسوم البيانية للتطبيق: إيراد الأسبوع، توزيع الحالات، الأكثر مبيعاً."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+
+        # إيراد آخر 7 أيام (الفواتير المُسلّمة/المعتمدة).
+        revenue_series = []
+        for i in range(6, -1, -1):
+            day = today - timedelta(days=i)
+            total = (
+                SaleInvoice.objects.filter(status='posted', date_created__date=day)
+                .aggregate(t=Sum('total_amount'))['t'] or Decimal('0.00')
+            )
+            revenue_series.append({'date': day.isoformat(), 'total': total})
+
+        # توزيع حالات أوامر الشغل (صيانة).
+        status_dist = {
+            row['status']: row['c']
+            for row in SaleInvoice.objects.filter(invoice_type='maintenance')
+            .values('status').annotate(c=Count('id'))
+        }
+
+        # الأكثر مبيعاً خلال 30 يوماً (بالكمية).
+        top_products = []
+        try:
+            from inventory.models.invoices import SaleInvoiceItem
+            since = today - timedelta(days=30)
+            rows = (
+                SaleInvoiceItem.objects
+                .filter(invoice__date_created__date__gte=since)
+                .values('product__name')
+                .annotate(qty=Sum('quantity'))
+                .order_by('-qty')[:5]
+            )
+            top_products = [
+                {'name': r['product__name'], 'quantity': r['qty'] or 0} for r in rows
+            ]
+        except Exception:
+            top_products = []
+
+        return Response({
+            'revenue_last_7_days': revenue_series,
+            'work_order_status': status_dist,
+            'top_products': top_products,
+        })
 
 
 class BranchViewSet(FullCrudViewSet):

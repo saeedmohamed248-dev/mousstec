@@ -3,6 +3,7 @@ from .core import (  # noqa: F401
     MobileTokenObtainPairView,
     MeView,
     DashboardView,
+    AnalyticsView,
     BranchViewSet,
 )
 from .crm import (  # noqa: F401
