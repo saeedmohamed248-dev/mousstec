@@ -105,6 +105,33 @@ def run_learning():
     return {"tenants_learned": learned}
 
 
+@shared_task(name="social_ads.send_weekly_reports")
+def send_weekly_reports():
+    """Email each operational tenant a weekly performance summary."""
+    from .services import reports
+
+    sent = 0
+    for config in _operational_configs():
+        to_email = (config.notify_email or getattr(config.tenant, "email", "") or "").strip()
+        if not to_email:
+            continue
+        try:
+            report = reports.build_weekly_report(config)
+            if not report:
+                continue
+            subject, text_body, html_body = reports.render_report_email(report)
+            from django.core.mail import EmailMultiAlternatives
+            msg = EmailMultiAlternatives(subject, text_body, None, [to_email])
+            if html_body:
+                msg.attach_alternative(html_body, "text/html")
+            msg.send(fail_silently=True)
+            sent += 1
+        except Exception:
+            logger.exception("social_ads: weekly report failed for %s", config.tenant.schema_name)
+    logger.info("social_ads: sent %d weekly reports", sent)
+    return {"sent": sent}
+
+
 @shared_task(name="social_ads.optimize_all_ads")
 def optimize_all_ads():
     """Rebalance live ad budgets for every tenant that enabled auto-optimize."""

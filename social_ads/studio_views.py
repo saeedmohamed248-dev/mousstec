@@ -64,6 +64,7 @@ def _nav(active: str) -> dict:
         "nav_ready": True,
         "active": active,
         "home_url": reverse("social_ads_studio"),
+        "calendar_url": reverse("social_ads_calendar"),
         "campaigns_url": reverse("social_ads_campaigns"),
         "settings_url": reverse("social_ads_settings"),
         "guide_url": reverse("social_ads_guide"),
@@ -140,6 +141,75 @@ def _currency(tenant) -> str:
         return tenant.effective_currency
     except Exception:
         return "ج.م"
+
+
+# =====================================================================
+# Content calendar
+# =====================================================================
+@_studio_guard
+def studio_calendar(request):
+    """A month grid of scheduled + published posts, grouped by day."""
+    config = request.social_config
+
+    # Resolve the month to show (?m=YYYY-MM), default current month.
+    now = timezone.localtime(timezone.now())
+    year, month = now.year, now.month
+    m = (request.GET.get("m") or "").strip()
+    if m:
+        try:
+            year, month = (int(x) for x in m.split("-")[:2])
+        except (ValueError, TypeError):
+            year, month = now.year, now.month
+
+    import calendar as _cal
+    from datetime import date
+
+    first = date(year, month, 1)
+    _, days_in_month = _cal.monthrange(year, month)
+    last = date(year, month, days_in_month)
+
+    posts = SocialPost.objects.filter(
+        config=config,
+        status__in=[SocialPost.Status.SCHEDULED, SocialPost.Status.PUBLISHED,
+                    SocialPost.Status.DRAFT, SocialPost.Status.FAILED],
+    ).filter(
+        scheduled_at__date__gte=first, scheduled_at__date__lte=last,
+    ).order_by("scheduled_at")
+
+    by_day: dict[int, list] = {}
+    for p in posts:
+        if not p.scheduled_at:
+            continue
+        d = timezone.localtime(p.scheduled_at).day
+        by_day.setdefault(d, []).append(p)
+
+    # Build week rows (Saturday-first to match Arabic calendars) with ready cells.
+    _cal.setfirstweekday(_cal.SATURDAY)
+    today = now.day if (now.year == year and now.month == month) else 0
+    weeks = []
+    for week in _cal.monthcalendar(year, month):  # day numbers, 0 = padding
+        row = []
+        for day in week:
+            row.append({
+                "day": day or None,
+                "posts": by_day.get(day, []) if day else [],
+                "is_today": bool(day and day == today),
+            })
+        weeks.append(row)
+
+    prev_month = (first.replace(day=1) - timedelta(days=1))
+    next_first = last + timedelta(days=1)
+
+    context = {
+        **_nav("calendar"),
+        "config": config,
+        "month_name": first.strftime("%B %Y"),
+        "calendar_weeks": weeks,
+        "prev_m": f"{prev_month.year}-{prev_month.month:02d}",
+        "next_m": f"{next_first.year}-{next_first.month:02d}",
+        "weekday_names": ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"],
+    }
+    return render(request, "social_ads/calendar.html", context)
 
 
 # =====================================================================

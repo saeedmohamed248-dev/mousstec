@@ -23,6 +23,7 @@ urlpatterns = [
 
     # Studio console (subscribers only).
     path("social-studio/studio/", studio_views.studio_home, name="social_ads_studio"),
+    path("social-studio/calendar/", studio_views.studio_calendar, name="social_ads_calendar"),
     path("social-studio/studio/generate/", studio_views.generate_now, name="social_ads_generate"),
     path("social-studio/studio/learn/", studio_views.run_learning_now, name="social_ads_learn"),
     path("social-studio/studio/post/<int:pk>/edit/", studio_views.post_edit, name="social_ads_post_edit"),

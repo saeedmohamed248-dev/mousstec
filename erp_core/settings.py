@@ -779,6 +779,7 @@ CELERY_TASK_ROUTES = {
     'social_ads.run_autopilot':                         {'queue': 'heavy_ai_tasks'},
     'social_ads.run_learning':                          {'queue': 'heavy_ai_tasks'},
     'social_ads.optimize_all_ads':                      {'queue': 'default'},
+    'social_ads.send_weekly_reports':                   {'queue': 'notifications'},
     # ── Wix integration (runs on the default worker) ─────────────────
     'clients.tasks.wix_sync_all':                       {'queue': 'default'},
     'clients.tasks.wix_sync_one':                       {'queue': 'default'},
@@ -886,6 +887,11 @@ CELERY_BEAT_SCHEDULE = {
     'social_ads_optimize_ads': {
         'task': 'social_ads.optimize_all_ads',
         'schedule': crontab(minute=20, hour='*/6'),
+    },
+    # ── Social Studio: weekly performance report email (Sun 08:00) ──
+    'social_ads_weekly_reports': {
+        'task': 'social_ads.send_weekly_reports',
+        'schedule': crontab(day_of_week=0, hour=8, minute=0),
     },
 }
 
