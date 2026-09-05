@@ -1,0 +1,76 @@
+{% extends "social_ads/_base.html" %}
+{% block title %}استوديو التسويق الذكي — فيسبوك وإنستجرام | Mouss Tec{% endblock %}
+{% block content %}
+
+<header class="text-white -mx-4 -mt-6 mb-8 px-6 py-12" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <div class="max-w-5xl mx-auto">
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
+    <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
+      بوت تسويق ذكي يكتب بوستاتك، يجدولها، ويعمل إعلاناتك — ويتعلّم لوحده 🤖📈
+    </h1>
+    <p class="mt-4 text-lg opacity-90 leading-relaxed max-w-3xl">
+      اربط صفحة فيسبوك وحساب إنستجرام، وخلّي الذكاء الاصطناعي يجهّز محتوى احترافياً على مدار الأسبوع،
+      ينشره في أفضل الأوقات، يطلق حملات ممولة، ثم يقرأ النتائج ويحسّن نفسه تلقائياً.
+    </p>
+  </div>
+</header>
+
+<div class="card p-6 mb-8">
+  <div class="flex items-start justify-between flex-wrap gap-6">
+    <div class="flex-1 min-w-[240px]">
+      <h2 class="text-xl font-black text-[#0f2c4c] mb-2">حالة اشتراكك</h2>
+      {% if config.subscription_state == 'lifetime' %}
+        <p class="text-lg font-black text-green-600">● مفعّل — مدى الحياة</p>
+      {% elif config.subscription_state == 'active' %}
+        <p class="text-lg font-black text-green-600">● مفعّل</p>
+        {% if config.subscription_days_left is not None %}
+          <p class="text-sm text-slate-500 mt-1">متبقٍ {{ config.subscription_days_left }} يوم</p>
+        {% endif %}
+      {% elif config.subscription_state == 'expired' %}
+        <p class="text-lg font-black text-amber-600">● منتهٍ — جدّد الاشتراك للاستمرار</p>
+      {% else %}
+        <p class="text-lg font-black text-slate-400">● غير مفعّل</p>
+      {% endif %}
+      <p class="text-sm text-slate-500 mt-3">رصيد محفظتك: <strong>{{ wallet_balance }} {{ currency }}</strong></p>
+    </div>
+
+    <div class="text-center">
+      <div class="text-3xl font-black text-[#0f2c4c]">{{ price }} <span class="text-base font-bold">{{ currency }}</span></div>
+      <div class="text-sm text-slate-500 mb-3">شهرياً</div>
+      {% if config.subscription_state == 'active' or config.subscription_state == 'lifetime' %}
+        <a href="{{ studio_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl btn-primary">
+          <i class="fas fa-gauge-high ml-1"></i> افتح الاستوديو
+        </a>
+        <a href="{{ settings_url }}" class="block mt-2 text-sm text-[#16457a] underline">إدارة الإعدادات</a>
+      {% else %}
+        <form method="post" action="{{ subscribe_url }}">
+          {% csrf_token %}
+          <button type="submit" class="text-white font-bold px-6 py-3 rounded-xl btn-primary w-full">
+            <i class="fas fa-wallet ml-1"></i> اشترك من المحفظة
+          </button>
+        </form>
+        <form method="post" action="{{ pay_url }}" class="mt-2">
+          {% csrf_token %}
+          <button type="submit" class="text-sm text-[#16457a] underline">أو ادفع بالبطاقة</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-3 gap-5 mb-8">
+  <div class="card p-5"><div class="text-2xl mb-2">✍️</div><h3 class="font-black text-[#0f2c4c] mb-1">كتابة محتوى احترافي</h3><p class="text-sm text-slate-600">بوستات وكابشنات وهاشتاجات مبنية على نشاطك وجمهورك ونبرة علامتك.</p></div>
+  <div class="card p-5"><div class="text-2xl mb-2">📅</div><h3 class="font-black text-[#0f2c4c] mb-1">جدولة ونشر تلقائي</h3><p class="text-sm text-slate-600">ينشر على فيسبوك وإنستجرام في أفضل الأوقات — بدون تدخّل منك.</p></div>
+  <div class="card p-5"><div class="text-2xl mb-2">📢</div><h3 class="font-black text-[#0f2c4c] mb-1">إعلانات ممولة</h3><p class="text-sm text-slate-600">ينشئ حملات مستهدفة ويحسّن الميزانية نحو الأفضل أداءً ضمن سقف تحدده.</p></div>
+  <div class="card p-5"><div class="text-2xl mb-2">🧠</div><h3 class="font-black text-[#0f2c4c] mb-1">يتعلّم ويصحّح</h3><p class="text-sm text-slate-600">يقرأ نتائج كل بوست وحملة ويطوّر استراتيجيته لتحقيق تفاعل أعلى.</p></div>
+  <div class="card p-5"><div class="text-2xl mb-2">🔒</div><h3 class="font-black text-[#0f2c4c] mb-1">حسابك ملكك (BYOK)</h3><p class="text-sm text-slate-600">تكلفة الإعلانات تُخصم من حسابك على Meta مباشرة — نحن نأخذ الاشتراك فقط.</p></div>
+  <div class="card p-5"><div class="text-2xl mb-2">🎛️</div><h3 class="font-black text-[#0f2c4c] mb-1">أنت المتحكم</h3><p class="text-sm text-slate-600">وضع «اقتراح» تراجع فيه كل بوست، أو «تلقائي كامل» يشتغل وحده.</p></div>
+</div>
+
+<div class="card p-6 text-center">
+  <h3 class="font-black text-[#0f2c4c] text-lg mb-2">جاهز تبدأ؟</h3>
+  <p class="text-sm text-slate-600 mb-4">فعّل الاشتراك، اربط صفحتك في دقائق من دليل الربط، وسيبدأ البوت في تجهيز محتواك.</p>
+  <a href="{{ guide_url }}" class="inline-block text-[#16457a] font-bold underline">📖 دليل ربط فيسبوك وإنستجرام</a>
+</div>
+
+{% endblock %}

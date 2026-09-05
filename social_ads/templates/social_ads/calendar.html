@@ -1,0 +1,54 @@
+{% extends "social_ads/_base.html" %}
+{% block title %}تقويم المحتوى | Mouss Tec{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+  <h1 class="text-2xl font-black text-[#0f2c4c]">تقويم المحتوى</h1>
+  <div class="flex items-center gap-3">
+    <a href="?m={{ prev_m }}" class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-1.5">‹ السابق</a>
+    <span class="font-bold text-[#0f2c4c]">{{ month_name }}</span>
+    <a href="?m={{ next_m }}" class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-1.5">التالي ›</a>
+  </div>
+</div>
+
+<div class="flex flex-wrap gap-3 mb-4 text-xs text-slate-500">
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#16a34a"></span> منشور</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#16457a"></span> مجدول</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#c8952f"></span> مسودة</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#ef4444"></span> فشل</span>
+</div>
+
+<div class="card p-3 overflow-x-auto">
+  <table class="w-full" style="min-width:820px;border-collapse:separate;border-spacing:4px;">
+    <thead>
+      <tr>
+        {% for wd in weekday_names %}<th class="text-xs text-slate-400 font-bold pb-2">{{ wd }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in calendar_weeks %}
+      <tr>
+        {% for cell in week %}
+        <td class="align-top rounded-lg {% if cell.day %}bg-slate-50{% endif %}" style="width:14.28%;height:112px;padding:6px;{% if cell.is_today %}outline:2px solid #c8952f;{% endif %}">
+          {% if cell.day %}
+            <div class="text-xs font-bold {% if cell.is_today %}text-[#c8952f]{% else %}text-slate-400{% endif %} mb-1">{{ cell.day }}</div>
+            <div class="space-y-1">
+              {% for p in cell.posts %}
+              <a href="{% url 'social_ads_post_edit' p.id %}" title="{{ p.caption|truncatechars:120 }}"
+                 class="block text-[11px] leading-tight text-white rounded px-1.5 py-1 truncate"
+                 style="background:{% if p.status == 'published' %}#16a34a{% elif p.status == 'scheduled' %}#16457a{% elif p.status == 'failed' %}#ef4444{% else %}#c8952f{% endif %};">
+                {{ p.scheduled_at|date:"H:i" }} · {{ p.caption|truncatechars:22 }}
+              </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-xs text-slate-400 mt-3">اضغط على أي بوست لتعديله. البوستات التلقائية تُجدول حسب أوقات النشر المفضّلة وما تعلّمه البوت.</p>
+{% endblock %}

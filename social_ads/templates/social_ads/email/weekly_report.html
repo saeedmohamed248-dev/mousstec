@@ -1,0 +1,53 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;background:#f5f7fb;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#1e293b;">
+<div style="max-width:600px;margin:0 auto;padding:16px;">
+  <div style="background:linear-gradient(135deg,#0f2c4c,#16457a);border-radius:14px;padding:24px;color:#fff;">
+    <div style="font-size:13px;opacity:.8;">Mouss Tec · استوديو التسويق</div>
+    <div style="font-size:22px;font-weight:800;margin-top:6px;">📊 تقريرك الأسبوعي</div>
+    <div style="font-size:14px;opacity:.9;margin-top:4px;">{{ tenant_name }}</div>
+  </div>
+
+  <div style="background:#fff;border-radius:14px;padding:20px;margin-top:16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;text-align:center;">
+      <tr>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#0f2c4c;">{{ published_count }}</div><div style="font-size:12px;color:#64748b;">بوست منشور</div></td>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#0f2c4c;">{{ reach }}</div><div style="font-size:12px;color:#64748b;">وصول</div></td>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#16a34a;">{{ avg_engagement }}%</div><div style="font-size:12px;color:#64748b;">متوسط التفاعل</div></td>
+      </tr>
+      <tr>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#0f2c4c;">{{ interactions }}</div><div style="font-size:12px;color:#64748b;">تفاعلات</div></td>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#0f2c4c;">{{ upcoming_count }}</div><div style="font-size:12px;color:#64748b;">قادم/مسودة</div></td>
+        <td style="padding:10px;"><div style="font-size:24px;font-weight:800;color:#0f2c4c;">{{ active_campaigns }}</div><div style="font-size:12px;color:#64748b;">حملة نشطة</div></td>
+      </tr>
+    </table>
+  </div>
+
+  {% if active_campaigns %}
+  <div style="background:#fff;border-radius:14px;padding:20px;margin-top:16px;">
+    <div style="font-weight:800;color:#0f2c4c;margin-bottom:8px;">📢 الإعلانات</div>
+    <div style="font-size:14px;color:#334155;">الإنفاق: <b>{{ ad_spend }}</b> · النتائج: <b>{{ ad_results }}</b></div>
+  </div>
+  {% endif %}
+
+  {% if top_post %}
+  <div style="background:#fff;border-radius:14px;padding:20px;margin-top:16px;">
+    <div style="font-weight:800;color:#0f2c4c;margin-bottom:8px;">🏆 أفضل بوست هذا الأسبوع ({{ top_post.engagement_rate }}%)</div>
+    <div style="font-size:14px;color:#334155;white-space:pre-line;">{{ top_post.caption|truncatechars:200 }}</div>
+  </div>
+  {% endif %}
+
+  {% if learned_brief %}
+  <div style="background:#fff;border-radius:14px;padding:20px;margin-top:16px;border-inline-start:4px solid #c8952f;">
+    <div style="font-weight:800;color:#0f2c4c;margin-bottom:8px;">🧠 ما تعلّمه البوت</div>
+    <div style="font-size:14px;color:#334155;white-space:pre-line;">{{ learned_brief }}</div>
+  </div>
+  {% endif %}
+
+  <div style="text-align:center;color:#94a3b8;font-size:12px;margin-top:20px;">
+    استوديو التسويق الذكي — Mouss Tec · يعمل تلقائياً على مدار الأسبوع
+  </div>
+</div>
+</body>
+</html>

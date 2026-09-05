@@ -1,0 +1,43 @@
+{% extends "social_ads/_base.html" %}
+{% block title %}دليل ربط فيسبوك وإنستجرام | Mouss Tec{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-2xl font-black text-[#0f2c4c] mb-2">دليل ربط استوديو التسويق بحساباتك</h1>
+  <p class="text-sm text-slate-500 mb-6">اتبع الخطوات لمرة واحدة. لو احتجت مساعدة، فريق الدعم جاهز.</p>
+
+  <ol class="space-y-4">
+    <li class="card p-5">
+      <h3 class="font-black text-[#0f2c4c] mb-1">1) جهّز صفحتك وحساب إنستجرام</h3>
+      <p class="text-sm text-slate-600">تأكد أن لديك <b>صفحة فيسبوك</b> للنشاط، وأن حساب <b>إنستجرام محترف (Business)</b> مربوط بالصفحة من إعدادات إنستجرام.</p>
+    </li>
+    <li class="card p-5">
+      <h3 class="font-black text-[#0f2c4c] mb-1">2) أنشئ تطبيقاً على Meta for Developers</h3>
+      <p class="text-sm text-slate-600">ادخل <span dir="ltr">developers.facebook.com</span> → أنشئ App من نوع «Business»، وأضف منتجات <b>Facebook Login</b> و<b>Marketing API</b>.</p>
+    </li>
+    <li class="card p-5">
+      <h3 class="font-black text-[#0f2c4c] mb-1">3) استخرج البيانات المطلوبة</h3>
+      <ul class="text-sm text-slate-600 list-disc pr-5 space-y-1">
+        <li><b>Facebook Page ID</b> — من «حول الصفحة».</li>
+        <li><b>Instagram Business Account ID</b> — المرتبط بالصفحة.</li>
+        <li><b>Page Access Token</b> — بصلاحيات <span dir="ltr">pages_manage_posts, pages_read_engagement, instagram_basic, instagram_content_publish, ads_management</span>.</li>
+        <li><b>Meta Ad Account ID</b> — يبدأ بـ <span dir="ltr">act_</span> (للإعلانات الممولة).</li>
+        <li><b>App Secret</b> (اختياري) — لأعلى درجات الأمان.</li>
+      </ul>
+      <p class="text-xs text-slate-400 mt-2">إصدار Graph API المستخدم: <span dir="ltr">{{ graph_version }}</span></p>
+    </li>
+    <li class="card p-5">
+      <h3 class="font-black text-[#0f2c4c] mb-1">4) أدخل البيانات في الإعدادات</h3>
+      <p class="text-sm text-slate-600">افتح <a href="{{ settings_url }}" class="text-[#16457a] underline font-bold">شاشة الإعدادات</a>، الصق البيانات، واملأ ملف علامتك التجارية (المنتجات، الجمهور، النبرة، الأهداف).</p>
+    </li>
+    <li class="card p-5">
+      <h3 class="font-black text-[#0f2c4c] mb-1">5) اختر وضع الطيار الآلي وابدأ</h3>
+      <p class="text-sm text-slate-600"><b>اقتراح:</b> يجهّز مسودات وأنت تعتمدها. <b>تلقائي كامل:</b> يكتب وينشر ويعلن ويحسّن وحده. غيّرها في أي وقت.</p>
+    </li>
+  </ol>
+
+  <div class="mt-6 flex gap-3">
+    <a href="{{ settings_url }}" class="text-white font-bold px-6 py-3 rounded-xl btn-primary">اذهب للإعدادات</a>
+    <a href="{{ overview_url }}" class="text-[#16457a] underline self-center">رجوع للنظرة العامة</a>
+  </div>
+</div>
+{% endblock %}

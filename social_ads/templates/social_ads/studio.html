@@ -1,0 +1,136 @@
+{% extends "social_ads/_base.html" %}
+{% load i18n %}
+{% block title %}الاستوديو | Mouss Tec{% endblock %}
+{% block content %}
+{{ chart|json_script:"chartData" }}
+<script>try{ window.__chart = JSON.parse(document.getElementById('chartData').textContent); }catch(e){ window.__chart = {labels:[],engagement:[],reach:[]}; }</script>
+
+<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+  <h1 class="text-2xl font-black text-[#0f2c4c]">لوحة استوديو التسويق</h1>
+  <div class="flex gap-2">
+    <form method="post" action="{% url 'social_ads_learn' %}">{% csrf_token %}
+      <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-brain ml-1"></i> تعلّم الآن</button>
+    </form>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.published }}</div><div class="text-xs text-slate-500">منشور</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.scheduled }}</div><div class="text-xs text-slate-500">مجدول</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-amber-600">{{ kpis.drafts }}</div><div class="text-xs text-slate-500">مسودة</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-green-600">{{ kpis.avg_engagement }}%</div><div class="text-xs text-slate-500">متوسط التفاعل</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.total_reach }}</div><div class="text-xs text-slate-500">إجمالي الوصول</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.ad_spend_month }}</div><div class="text-xs text-slate-500">إنفاق إعلاني/شهر ({{ currency }})</div></div>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-5">
+  <!-- Left: generate + chart -->
+  <div class="lg:col-span-2 space-y-5">
+    <div class="card p-5">
+      <h2 class="font-black text-[#0f2c4c] mb-3"><i class="fas fa-wand-magic-sparkles ml-1 text-[#c8952f]"></i> أنشئ بوست جديد بالذكاء الاصطناعي</h2>
+      <form method="post" action="{% url 'social_ads_generate' %}" class="flex flex-wrap gap-2 items-end">
+        {% csrf_token %}
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">زاوية المحتوى</label>
+          <select name="angle" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+            <option value="">— تلقائي (يختار البوت الأفضل) —</option>
+            {% for key,label in angles %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-xs text-slate-500 mb-1">مناسبة / تلميح (اختياري)</label>
+          <input name="occasion" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="مثال: عرض نهاية الأسبوع">
+        </div>
+        <button class="text-white font-bold px-5 py-2 rounded-lg btn-primary text-sm">توليد</button>
+      </form>
+    </div>
+
+    <div class="card p-5">
+      <h2 class="font-black text-[#0f2c4c] mb-3">التفاعل آخر 14 يوم</h2>
+      <canvas id="erChart" height="90"></canvas>
+    </div>
+
+    <!-- Upcoming / drafts -->
+    <div class="card p-5">
+      <h2 class="font-black text-[#0f2c4c] mb-3">القادم والمسودات</h2>
+      {% if upcoming_posts %}
+      <div class="space-y-3">
+        {% for p in upcoming_posts %}
+        <div class="border border-slate-100 rounded-xl p-3">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="text-xs px-2 py-0.5 rounded-full {% if p.status == 'draft' %}bg-amber-50 text-amber-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ p.get_status_display }}</span>
+            <span class="text-xs text-slate-400">{{ p.strategy_angle }} · {% if p.scheduled_at %}{{ p.scheduled_at|date:"m/d H:i" }}{% endif %}</span>
+          </div>
+          <p class="text-sm text-slate-700 whitespace-pre-line line-clamp-3">{{ p.caption|truncatechars:180 }}</p>
+          <p class="text-xs text-slate-400 mt-1">{{ p.hashtags }}</p>
+          <div class="flex gap-2 mt-2 text-xs">
+            <a href="{% url 'social_ads_post_edit' p.id %}" class="text-[#16457a] underline">تعديل</a>
+            {% if p.status == 'draft' %}
+            <form method="post" action="{% url 'social_ads_post_approve' p.id %}">{% csrf_token %}<button class="text-green-600 underline">اعتماد وجدولة</button></form>
+            {% endif %}
+            <form method="post" action="{% url 'social_ads_post_publish' p.id %}">{% csrf_token %}<button class="text-[#c8952f] underline">نشر الآن</button></form>
+            <form method="post" action="{% url 'social_ads_post_delete' p.id %}" onsubmit="return confirm('حذف البوست؟')">{% csrf_token %}<button class="text-red-500 underline">حذف</button></form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-500">لا توجد بوستات قادمة بعد. سيبدأ البوت في تجهيزها تلقائياً حسب إعداداتك، أو أنشئ واحداً الآن من الأعلى.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right: strategy memory + recent published -->
+  <div class="space-y-5">
+    <div class="card p-5">
+      <h2 class="font-black text-[#0f2c4c] mb-2"><i class="fas fa-brain ml-1 text-[#c8952f]"></i> ما تعلّمه البوت</h2>
+      {% if memory.learned_brief %}
+        <p class="text-sm text-slate-700 whitespace-pre-line">{{ memory.learned_brief }}</p>
+        <p class="text-xs text-slate-400 mt-3">حُلِّل {{ memory.posts_analyzed }} بوست · متوسط تفاعل {{ memory.avg_engagement_rate }}%
+          {% if memory.last_learned_at %}· آخر تحديث {{ memory.last_learned_at|date:"m/d H:i" }}{% endif %}</p>
+      {% else %}
+        <p class="text-sm text-slate-500">لسه البوت بيجمع بيانات. بعد نشر عدة بوستات هيبدأ يتعلّم أفضل الزوايا والأوقات لنشاطك.</p>
+      {% endif %}
+    </div>
+
+    <div class="card p-5">
+      <h2 class="font-black text-[#0f2c4c] mb-3">أحدث المنشورات وأداؤها</h2>
+      {% if recent_posts %}
+      <div class="space-y-3">
+        {% for p in recent_posts %}
+        <div class="border-b border-slate-100 pb-2">
+          <p class="text-sm text-slate-700 line-clamp-2">{{ p.caption|truncatechars:100 }}</p>
+          <div class="flex gap-3 text-xs text-slate-400 mt-1">
+            <span>👁 {{ p.reach }}</span><span>👍 {{ p.likes }}</span><span>💬 {{ p.comments }}</span><span>🔁 {{ p.shares }}</span>
+            <span class="text-green-600 font-bold">{{ p.engagement_rate }}%</span>
+            {% if p.permalink %}<a href="{{ p.permalink }}" target="_blank" class="text-[#16457a] underline">فتح</a>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-500">لا توجد منشورات بعد.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var c = window.__chart || {labels:[],engagement:[],reach:[]};
+  var el = document.getElementById('erChart');
+  if(!el || !window.Chart) return;
+  new Chart(el, {
+    type:'line',
+    data:{ labels:c.labels, datasets:[
+      { label:'معدل التفاعل %', data:c.engagement, borderColor:'#c8952f', backgroundColor:'rgba(200,149,47,.1)', tension:.35, fill:true, yAxisID:'y' },
+      { label:'الوصول', data:c.reach, borderColor:'#16457a', backgroundColor:'rgba(22,69,122,.08)', tension:.35, fill:true, yAxisID:'y1' }
+    ]},
+    options:{ responsive:true, plugins:{legend:{labels:{font:{family:'Cairo'}}}},
+      scales:{ y:{position:'right',beginAtZero:true}, y1:{position:'left',beginAtZero:true,grid:{drawOnChartArea:false}} } }
+  });
+})();
+</script>
+{% endblock %}
