@@ -178,8 +178,10 @@ def plan_week(config, *, force: bool = False) -> dict:
         except Exception as exc:  # never let one bad generation kill the batch
             logger.warning("social_ads: generate_post failed for %s: %s", config.tenant.schema_name, exc)
             continue
-        image_url = _maybe_generate_image(config, content.get("image_prompt", ""))
-        platform = _resolve_platform(config, has_image=bool(image_url))
+        # Image is generated LAZILY at publish time (fresh signed URL for Meta) —
+        # here we only decide the target platform from the tenant's intent.
+        will_have_image = bool(config.generate_images and content.get("image_prompt"))
+        platform = _resolve_platform(config, has_image=will_have_image)
         if platform is None:
             logger.info("social_ads: no publishable channel for %s — stopping batch", config.tenant.schema_name)
             break
@@ -192,7 +194,7 @@ def plan_week(config, *, force: bool = False) -> dict:
             caption=content["caption"],
             hashtags=content["hashtags"],
             image_prompt=content.get("image_prompt", ""),
-            image_url=image_url,
+            image_url="",
             strategy_angle=content.get("strategy_angle", angle),
             ai_rationale=content.get("rationale", ""),
             scheduled_at=slots[i],
@@ -280,12 +282,13 @@ def _resolve_platform(config, *, has_image: bool):
 
 
 def _maybe_generate_image(config, prompt: str) -> str:
-    """Best-effort image generation.
+    """Best-effort image generation via the configured SOCIAL_ADS_IMAGE_HOOK.
 
-    The platform's premium image pipeline (design_store / printing copilot) can
-    be wired in here. Until an operator enables it, we return "" and the post is
-    published as a text post on Facebook (Instagram is skipped when no image is
-    available). Never raises.
+    Called lazily at publish time (tasks.publish_post) so the returned URL is
+    fresh when Meta fetches it. Defaults to the built-in hook that reuses the
+    platform's FLUX/Ideogram pipeline. Returns "" (never raises) when disabled or
+    on any failure — the publisher then posts text-only to Facebook and skips
+    Instagram (which requires an image).
     """
     if not (config.generate_images and prompt):
         return ""

@@ -153,6 +153,15 @@ def publish_post(self, post_id: int):
     post.publish_attempts = (post.publish_attempts or 0) + 1
     post.save(update_fields=["status", "publish_attempts", "updated_at"])
 
+    # Generate the image LAZILY now (fresh, publicly-fetchable URL for Meta) if the
+    # post has a visual brief but no image yet and the tenant wants images.
+    if config.generate_images and post.image_prompt and not post.image_url:
+        from .services.strategist import _maybe_generate_image
+        img_url = _maybe_generate_image(config, post.image_prompt)
+        if img_url:
+            post.image_url = img_url
+            post.save(update_fields=["image_url", "updated_at"])
+
     token = config.page_access_token
     want_fb = post.platform in (SocialPost.Platform.FACEBOOK, SocialPost.Platform.BOTH) and config.has_facebook()
     want_ig = post.platform in (SocialPost.Platform.INSTAGRAM, SocialPost.Platform.BOTH) and config.has_instagram()

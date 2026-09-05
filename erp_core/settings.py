@@ -466,10 +466,17 @@ OMNICHANNEL_NUMBERS4_AED = env.str('OMNICHANNEL_NUMBERS4_AED', '85')
 # tenant's own ad account (BYOK) — Mouss Tec only charges this flat fee.
 SOCIAL_ADS_PRICE_EGP = env.str('SOCIAL_ADS_PRICE_EGP', '250')
 SOCIAL_ADS_PRICE_AED = env.str('SOCIAL_ADS_PRICE_AED', '25')
-# Optional dotted path to an image-generation callable `fn(config, prompt) -> url`
-# used to attach a generated image to each post (enables Instagram publishing and
-# richer Facebook posts). Empty → posts publish as text on Facebook only.
-SOCIAL_ADS_IMAGE_HOOK = env.str('SOCIAL_ADS_IMAGE_HOOK', '') or None
+# Dotted path to an image-generation callable `fn(config, prompt) -> url`, called
+# lazily at publish time to attach a generated image to each post (enables
+# Instagram publishing + richer Facebook posts). Defaults to the built-in hook
+# that reuses the premium FLUX/Ideogram pipeline (erp_core.ai.printing_copilot).
+# Set to '' to disable → posts publish as text on Facebook only.
+SOCIAL_ADS_IMAGE_HOOK = env.str(
+    'SOCIAL_ADS_IMAGE_HOOK', 'social_ads.services.image_gen.generate_social_image'
+) or None
+# Base URL used to absolutize a relative storage path when the media backend is
+# local (no S3). Defaults to https://<BASE_DOMAIN>. Meta must be able to fetch it.
+SOCIAL_ADS_PUBLIC_BASE_URL = env.str('SOCIAL_ADS_PUBLIC_BASE_URL', '')
 # Secrets (page token / app secret / BYO LLM key) reuse OMNICHANNEL_SECRET_KEK.
 # The content generator reuses OMNICHANNEL_GEMINI_MODEL + GEMINI_API_KEY.
 

@@ -1,7 +1,7 @@
 """Pure-logic tests for the strategist + content helpers (no DB, no network)."""
 from django.test import SimpleTestCase
 
-from social_ads.services import content_ai, strategist
+from social_ads.services import content_ai, image_gen, strategist
 
 
 class _FakeMemory:
@@ -50,3 +50,25 @@ class ContentParseTests(SimpleTestCase):
     def test_clean_truncates(self):
         self.assertEqual(content_ai._clean("  hello  ", 100), "hello")
         self.assertEqual(len(content_ai._clean("x" * 50, 10)), 10)
+
+
+class ImageGenHelperTests(SimpleTestCase):
+    def test_absolute_passthrough_for_http(self):
+        self.assertEqual(image_gen._absolute("https://x.s3.amazonaws.com/a.png"),
+                         "https://x.s3.amazonaws.com/a.png")
+
+    def test_absolute_prefixes_relative(self):
+        url = image_gen._absolute("/media/social_ads/a.png")
+        self.assertTrue(url.startswith("https://"))
+        self.assertTrue(url.endswith("/media/social_ads/a.png"))
+
+    def test_absolute_empty(self):
+        self.assertEqual(image_gen._absolute(""), "")
+
+    def test_to_bytes_from_b64(self):
+        import base64
+        payload = base64.b64encode(b"PNGDATA").decode()
+        self.assertEqual(image_gen._to_bytes({"b64_json": payload}), b"PNGDATA")
+
+    def test_to_bytes_none_when_empty(self):
+        self.assertIsNone(image_gen._to_bytes({}))

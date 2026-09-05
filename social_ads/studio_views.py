@@ -163,7 +163,8 @@ def generate_now(request):
     slots = strategist._next_slots(config, count=1)
     SocialPost.objects.create(
         config=config, tenant=config.tenant,
-        platform=strategist._resolve_platform(config, has_image=bool(content.get("image_prompt")))
+        platform=strategist._resolve_platform(
+            config, has_image=bool(config.generate_images and content.get("image_prompt")))
         or SocialPost.Platform.FACEBOOK,
         status=SocialPost.Status.DRAFT, source=SocialPost.Source.MANUAL,
         caption=content["caption"], hashtags=content["hashtags"],
