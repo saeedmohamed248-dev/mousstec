@@ -470,27 +470,14 @@ window.addEventListener('appinstalled', () => {
 });
 
 // =============================================
-// Offline Sync — SW registration handled by /static/js/pwa-init.js
+// Offline Sync — طابور الأوفلاين والمزامنة التلقائية يديرهما محرك MTOffline
+// المركزي في /static/js/pwa-init.js (online event + SYNC_READY + إعادة محاولة
+// دورية). نكتفي هنا بعرض إشعار عند اكتمال المزامنة.
 // =============================================
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'SYNC_READY') {
-            const offlineQueue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
-            if (offlineQueue.length > 0) {
-                fetch('/system/api/v1/inventory/offline-sync/', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('mt_csrf')},
-                    body: JSON.stringify({operations: offlineQueue})
-                }).then(r => r.json()).then(data => {
-                    if (data.status === 'success') {
-                        localStorage.removeItem('mousstec_offline_queue');
-                        console.log('Offline data synced successfully');
-                    }
-                }).catch(() => {});
-            }
-        }
-    });
-}
-function getCookie(n){let v=document.cookie.match('(^|;)\\s*'+n+'=([^;]*)');return v?decodeURIComponent(v[2]):'';}
+window.addEventListener('mt-offline-sync', (e) => {
+    if (e.detail && e.detail.event === 'synced' && e.detail.synced) {
+        console.log(`[MTOffline] synced ${e.detail.synced} operation(s)`);
+    }
+});
 </script>
 {% endblock %}

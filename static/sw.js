@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.6.0-redirect-fix';
+const SW_VERSION   = 'v4.7.0-offline-sync';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';

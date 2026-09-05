@@ -139,10 +139,27 @@ def offline_pos_sync_api(request):
         return _json_response_safe({"error": "POST Only"}, 400)
     try:
         data = json.loads(request.body)
-        invoices_data = data.get('invoices', [])
+
+        # نقبل عدة أشكال للحمولة حفاظاً على التوافق مع النسخ القديمة من العميل:
+        #   {"invoices": [...]}   — الشكل القانوني
+        #   {"operations": [...]} — الاسم القديم المستخدم في لوحة التحكم
+        #   {"queue": [...]}      — احتياطي
+        raw_list = (
+            data.get('invoices')
+            or data.get('operations')
+            or data.get('queue')
+            or []
+        )
+        invoices_data = [_normalize_offline_invoice(x) for x in raw_list]
+        invoices_data = [x for x in invoices_data if x is not None]
 
         if not invoices_data:
-            return _json_response_safe({"status": "success", "message": "لا توجد فواتير للمزامنة."})
+            return _json_response_safe({
+                "status": "success",
+                "message": "لا توجد فواتير للمزامنة.",
+                "synced": 0,
+                "skipped": 0,
+            })
 
         branch = _get_branch_for_user(request.user)
 
@@ -238,10 +255,67 @@ def offline_pos_sync_api(request):
         return _json_response_safe({
             "status": "success",
             "message": msg,
+            "synced": synced_count,
+            "skipped": skipped_count,
         })
     except Exception as e:
         logger.error(f"[OFFLINE SYNC] {e}")
         return _json_response_safe({"error": "فشل المزامنة وإدخال البيانات"}, 500)
+
+
+def _normalize_offline_invoice(entry):
+    """
+    يوحّد شكل الفاتورة القادمة من العميل مهما كانت نسخته.
+
+    يقبل:
+      • الشكل القانوني: {local_id, customer_id, total_amount,
+                         items:[{product_id, quantity, unit_price}]}
+      • الشكل القديم للطابور: {type:'pos_invoice', local_id?,
+                         data:{items:[{id, qty, price}], total}, timestamp}
+
+    ويُرجع دائماً الشكل القانوني، أو None لو الحمولة غير صالحة.
+    """
+    if not isinstance(entry, dict):
+        return None
+
+    # فك التغليف القديم إن وُجد ({type, data:{...}})
+    body = entry.get('data') if isinstance(entry.get('data'), dict) else entry
+
+    local_id = entry.get('local_id') or body.get('local_id')
+
+    raw_items = body.get('items') or []
+    items = []
+    for it in raw_items:
+        if not isinstance(it, dict):
+            continue
+        product_id = it.get('product_id', it.get('id'))
+        if product_id in (None, ''):
+            continue
+        items.append({
+            'product_id': product_id,
+            'quantity':  it.get('quantity', it.get('qty', 1)),
+            'unit_price': it.get('unit_price', it.get('price', 0)),
+        })
+
+    if not items:
+        return None
+
+    total_amount = body.get('total_amount', body.get('total'))
+    if total_amount in (None, ''):
+        # اشتقاق الإجمالي من البنود إن لم يُرسل
+        try:
+            total_amount = sum(
+                Decimal(str(i['unit_price'])) * int(i['quantity']) for i in items
+            )
+        except Exception:
+            total_amount = 0
+
+    return {
+        'local_id': local_id,
+        'customer_id': body.get('customer_id'),
+        'total_amount': total_amount,
+        'items': items,
+    }
 
 
 @login_required(login_url='/login/')
