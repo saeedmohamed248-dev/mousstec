@@ -144,6 +144,46 @@ def publish_instagram_post(*, access_token: str, ig_user_id: str, image_url: str
     )
 
 
+def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 25) -> list[dict]:
+    """List the page's recent published posts (for backfill/analysis).
+
+    Returns a list of normalized dicts: {id, message, created_time, permalink,
+    picture, likes, comments, shares}. Insights (reach/impressions/clicks) are
+    fetched separately per post via fetch_post_insights. Returns [] on failure.
+    """
+    if not access_token or not page_id:
+        return []
+    try:
+        data = _request(
+            "GET", f"{_graph_base()}/{page_id}/posts",
+            params={
+                "fields": (
+                    "id,message,created_time,permalink_url,full_picture,"
+                    "shares,likes.summary(true),comments.summary(true)"
+                ),
+                "limit": max(1, min(int(limit), 100)),
+                "access_token": access_token,
+            },
+        )
+    except MetaMarketingError as exc:
+        logger.info("social_ads: fetch_page_posts failed for %s: %s", page_id, exc)
+        return []
+
+    out = []
+    for row in data.get("data", []) or []:
+        out.append({
+            "id": row.get("id", ""),
+            "message": row.get("message", "") or "",
+            "created_time": row.get("created_time", ""),
+            "permalink": row.get("permalink_url", "") or "",
+            "picture": row.get("full_picture", "") or "",
+            "likes": int((row.get("likes", {}).get("summary", {}) or {}).get("total_count", 0)),
+            "comments": int((row.get("comments", {}).get("summary", {}) or {}).get("total_count", 0)),
+            "shares": int((row.get("shares", {}) or {}).get("count", 0)),
+        })
+    return out
+
+
 def get_post_permalink(*, access_token: str, post_id: str) -> str:
     try:
         data = _request("GET", f"{_graph_base()}/{post_id}",

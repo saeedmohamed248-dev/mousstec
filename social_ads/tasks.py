@@ -313,6 +313,25 @@ def sync_campaign_insights(campaign_id: int):
     )
 
 
+@shared_task(name="social_ads.import_page_posts")
+def import_page_posts(config_id: int, limit: int = 25):
+    """Backfill a tenant's existing page posts + insights, then learn."""
+    from .models import SocialAdsConfig
+    from .services import page_analysis
+
+    try:
+        config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
+    except SocialAdsConfig.DoesNotExist:
+        return
+    if not config.subscription_is_valid:
+        return
+    res = page_analysis.backfill_page(config, limit=limit)
+    if res.get("imported") and config.notify_email:
+        _notify(config, f"تم تحليل صفحتك ✅ استوردنا {res['imported']} بوست "
+                        f"وبدأ البوت يتعلّم منها.")
+    return res
+
+
 @shared_task(name="social_ads.launch_campaign", bind=True, max_retries=1, default_retry_delay=30)
 def launch_campaign(self, campaign_id: int, *, activate: bool = False):
     """Create a campaign → ad set → ad on Meta. Starts PAUSED unless `activate`.

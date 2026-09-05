@@ -358,6 +358,7 @@ class SocialPost(models.Model):
     class Source(models.TextChoices):
         AUTOPILOT = "autopilot", _("طيار آلي")
         MANUAL = "manual", _("يدوي")
+        IMPORTED = "imported", _("مستورد من الصفحة")
 
     config = models.ForeignKey(SocialAdsConfig, on_delete=models.CASCADE, related_name="posts")
     tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="social_posts", db_index=True)

@@ -8,6 +8,9 @@
 <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
   <h1 class="text-2xl font-black text-[#0f2c4c]">لوحة استوديو التسويق</h1>
   <div class="flex gap-2">
+    <form method="post" action="{% url 'social_ads_analyze_page' %}" onsubmit="return confirm('نستورد آخر بوستات صفحتك ونحلّل أداءها ليتعلّم منها البوت — تكمل؟')">{% csrf_token %}
+      <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-magnifying-glass-chart ml-1"></i> حلّل صفحتي</button>
+    </form>
     <form method="post" action="{% url 'social_ads_learn' %}">{% csrf_token %}
       <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-brain ml-1"></i> تعلّم الآن</button>
     </form>
@@ -90,7 +93,10 @@
         <p class="text-xs text-slate-400 mt-3">حُلِّل {{ memory.posts_analyzed }} بوست · متوسط تفاعل {{ memory.avg_engagement_rate }}%
           {% if memory.last_learned_at %}· آخر تحديث {{ memory.last_learned_at|date:"m/d H:i" }}{% endif %}</p>
       {% else %}
-        <p class="text-sm text-slate-500">لسه البوت بيجمع بيانات. بعد نشر عدة بوستات هيبدأ يتعلّم أفضل الزوايا والأوقات لنشاطك.</p>
+        <p class="text-sm text-slate-500 mb-3">لسه البوت بيجمع بيانات. تقدر تبدأ فوراً بتحليل بوستات صفحتك الحالية بدل انتظار النشر.</p>
+        <form method="post" action="{% url 'social_ads_analyze_page' %}">{% csrf_token %}
+          <button class="text-sm text-white font-bold px-4 py-2 rounded-lg btn-primary"><i class="fas fa-magnifying-glass-chart ml-1"></i> حلّل صفحتي الآن</button>
+        </form>
       {% endif %}
     </div>
 
