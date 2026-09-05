@@ -36,7 +36,15 @@ class CaddyTLSCheckMiddleware:
             if not domain:
                 return HttpResponseNotFound('no domain')
             base = (_BASE_DOMAIN or '').lower()
-            if base and (domain == base or domain == f'www.{base}'):
+            # الدومين الأساسي و www + دومينات المناطق (مصر/الإمارات) مسموحين دائماً.
+            # region hosts (REGION_AE_HOSTS) هي نسخ المنصة حسب الدولة — ملكنا، ويجب
+            # أن تحصل على شهادة HTTPS تلقائياً حتى لو لم تكن فرعاً في جدول Domain.
+            region_hosts = {
+                str(h).strip().lower()
+                for h in getattr(settings, 'REGION_AE_HOSTS', []) or []
+                if str(h).strip()
+            }
+            if base and (domain == base or domain == f'www.{base}' or domain in region_hosts):
                 return HttpResponse('ok')
             try:
                 from django_tenants.utils import schema_context
