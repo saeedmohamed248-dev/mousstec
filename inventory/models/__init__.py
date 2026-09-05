@@ -21,6 +21,7 @@ from .catalog import *  # noqa: F401, F403
 from .customers import *  # noqa: F401, F403
 from .finance import *  # noqa: F401, F403
 from .invoices import *  # noqa: F401, F403
+from .accounting import *  # noqa: F401, F403  # 🏛️ Full accrual accounting cycle
 from .operations import *  # noqa: F401, F403
 from .diagnostics import *  # noqa: F401, F403
 from .returns import *  # noqa: F401, F403

@@ -262,6 +262,16 @@ urlpatterns = [
         path('reports/balance-sheet/', views.balance_sheet_api, name='v1_balance_sheet'),
         path('accounting/ledger/<int:account_id>/', views.account_ledger_api, name='v1_account_ledger'),
 
+        # 🏛️ Full accrual accounting cycle — financial statements
+        path('accounting/income-statement/', views.income_statement_api, name='v1_income_statement'),
+        path('accounting/balance-sheet/', views.balance_sheet_v2_api, name='v1_balance_sheet_accrual'),
+        path('accounting/trial-balance/', views.trial_balance_v2_api, name='v1_trial_balance_accrual'),
+        path('accounting/cash-flow/', views.cash_flow_api, name='v1_cash_flow'),
+        path('accounting/general-ledger/<str:code>/', views.general_ledger_api, name='v1_general_ledger'),
+        path('accounting/aging/receivables/', views.receivables_aging_api, name='v1_ar_aging'),
+        path('accounting/aging/payables/', views.payables_aging_api, name='v1_ap_aging'),
+        path('accounting/journal/', views.journal_entries_api, name='v1_journal_entries'),
+
         # 🏦 Bank Reconciliation
         path('bank/upload/', views.bank_statement_upload, name='v1_bank_upload'),
         path('bank/<int:statement_id>/auto-match/', views.bank_reconciliation_auto_match, name='v1_bank_auto_match'),
