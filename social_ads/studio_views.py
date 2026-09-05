@@ -315,6 +315,24 @@ def post_delete(request, pk):
 
 @_studio_guard
 @require_POST
+def analyze_page(request):
+    """Import the tenant's existing page posts + insights and learn from them."""
+    config = request.social_config
+    if not config.has_facebook():
+        messages.error(request, "اربط صفحة فيسبوك و Page Access Token من الإعدادات أولاً.")
+        return redirect("social_ads_settings")
+    from .tasks import import_page_posts
+    import_page_posts.delay(config.id, 25)
+    messages.success(
+        request,
+        "جارٍ تحليل صفحتك… سنستورد آخر بوستاتك ونقرأ أداءها ويبدأ البوت يتعلّم منها. "
+        "حدّث الصفحة بعد دقيقة لرؤية النتائج.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
 def run_learning_now(request):
     config = request.social_config
     res = strategist.learn(config)
