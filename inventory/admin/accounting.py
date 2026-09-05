@@ -29,7 +29,8 @@ from ..models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      AuditLog, ChartOfAccount, AccountingEntry,
                      InventoryMovement, StockAlert, ImportSession,
                      ScrapDismantlingJob, ScrapDismantlingYield,
-                     B2BListingRequest)
+                     B2BListingRequest,
+                     FiscalYear, AccountingPeriod, JournalEntry, TaxRate)
 
 # استدعاء جداول الإمبراطورية لربط سوق التجار المركزي (B2B)
 try:
@@ -117,6 +118,93 @@ class AccountingEntryAdmin(FinanceRoleMixin, admin.ModelAdmin):
             return format_html('<a href="{}">حركة مالية #{}</a>', url, obj.financial_transaction.pk)
         return '-'
     linked_doc.short_description = "المستند"
+
+
+# =====================================================================
+# 🏛️ 13.5 الدورة المحاسبية الكاملة (Full Accounting Cycle)
+# =====================================================================
+class JournalLineInline(admin.TabularInline):
+    model = AccountingEntry
+    extra = 0
+    can_delete = False
+    fields = ('account', 'description', 'debit', 'credit')
+    readonly_fields = ('account', 'description', 'debit', 'credit')
+    autocomplete_fields = ['account']
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(JournalEntry)
+class JournalEntryAdmin(FinanceRoleMixin, admin.ModelAdmin):
+    list_display = ('number', 'date', 'journal_type', 'description_short',
+                    'total_debit_display', 'total_credit_display', 'balanced_badge', 'status')
+    list_filter = ('journal_type', 'status', 'date')
+    search_fields = ('number', 'reference', 'description')
+    date_hierarchy = 'date'
+    inlines = [JournalLineInline]
+    readonly_fields = ('number', 'date', 'journal_type', 'reference', 'description',
+                       'status', 'period', 'sale_invoice', 'purchase_invoice',
+                       'financial_transaction', 'reversal_of', 'created_by', 'created_at', 'posted_at')
+
+    def has_add_permission(self, request):
+        # Journal entries are posted by the engine, never hand-keyed in admin.
+        return False
+
+    def description_short(self, obj):
+        text = obj.description or ''
+        return text[:60] + '…' if len(text) > 60 else text
+    description_short.short_description = "البيان"
+
+    def total_debit_display(self, obj):
+        return format_html('<b style="color:#dc3545;">{}</b>', f"{float(obj.total_debit):,.2f}")
+    total_debit_display.short_description = "مدين"
+
+    def total_credit_display(self, obj):
+        return format_html('<b style="color:#28a745;">{}</b>', f"{float(obj.total_credit):,.2f}")
+    total_credit_display.short_description = "دائن"
+
+    def balanced_badge(self, obj):
+        if obj.is_balanced:
+            return format_html('<span style="color:#28a745; font-weight:bold;">✅ متوازن</span>')
+        return format_html('<span style="color:#dc3545; font-weight:bold;">⛔ غير متوازن</span>')
+    balanced_badge.short_description = "التوازن"
+
+
+@admin.register(FiscalYear)
+class FiscalYearAdmin(FinanceRoleMixin, admin.ModelAdmin):
+    list_display = ('code', 'name', 'start_date', 'end_date', 'is_closed')
+    list_filter = ('is_closed',)
+    search_fields = ('code', 'name')
+
+
+@admin.register(AccountingPeriod)
+class AccountingPeriodAdmin(FinanceRoleMixin, admin.ModelAdmin):
+    list_display = ('name', 'fiscal_year', 'start_date', 'end_date', 'is_closed', 'closed_at')
+    list_filter = ('is_closed', 'fiscal_year')
+    search_fields = ('name',)
+    actions = ['close_selected_periods']
+
+    @admin.action(description='🔒 إقفال الفترات المحددة (قيود الإقفال)')
+    def close_selected_periods(self, request, queryset):
+        from ..services.accounting_service import AccountingService
+        closed = 0
+        for period in queryset.filter(is_closed=False):
+            try:
+                AccountingService.close_period(period, created_by=request.user)
+                closed += 1
+            except Exception as exc:
+                self.message_user(request, f"تعذّر إقفال {period.name}: {exc}", messages.ERROR)
+        if closed:
+            self.message_user(request, f"تم إقفال {closed} فترة بنجاح.", messages.SUCCESS)
+
+
+@admin.register(TaxRate)
+class TaxRateAdmin(FinanceRoleMixin, admin.ModelAdmin):
+    list_display = ('name', 'rate', 'account', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    autocomplete_fields = ['account']
 
 
 # =====================================================================

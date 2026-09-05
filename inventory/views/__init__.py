@@ -59,6 +59,7 @@ from .image_studio import *  # noqa: F401, F403
 from .dashboards import *  # noqa: F401, F403
 from .printing import *  # noqa: F401, F403
 from .reports import *  # noqa: F401, F403
+from .accounting import *  # noqa: F401, F403  # 🏛️ Financial statements APIs
 from .service import *  # noqa: F401, F403
 from .stock_ops import *  # noqa: F401, F403
 from .vehicles import *  # noqa: F401, F403

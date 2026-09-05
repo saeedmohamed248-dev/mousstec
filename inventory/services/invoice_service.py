@@ -54,6 +54,16 @@ class InvoiceService:
 
             logger.info("[PURCHASE] Starting execution for PO #%s", instance.id)
 
+            # --- 0. Accrual recognition (capitalise goods to inventory) ---
+            # Debit Inventory / Credit Accounts Payable for the full bill so the
+            # ledger carries the payable even when the bill is paid later. The
+            # treasury payment in step 1 then *settles* that payable.
+            try:
+                from inventory.services.accounting_service import AccountingService
+                AccountingService.post_purchase_invoice(instance)
+            except Exception as _ae:
+                logger.error("[PURCHASE] Accrual posting failed for PO #%s: %s", instance.id, _ae)
+
             # --- 1. Treasury payment ---
             if (instance.treasury
                     and instance.paid_amount > Decimal('0.00')
@@ -171,6 +181,17 @@ class InvoiceService:
 
             logger.info("[SALE] Starting execution for INV #%s", instance.id)
 
+            # --- 0. Accrual recognition (revenue + COGS / returns) ---
+            # Recognise revenue and cost of goods sold at posting time so the
+            # general ledger reflects the FULL sale (incl. any credit/آجل
+            # portion), independent of when cash is collected. The treasury
+            # payment created in step 1 then merely *settles* the receivable.
+            try:
+                from inventory.services.accounting_service import AccountingService
+                AccountingService.post_sale_invoice(instance)
+            except Exception as _ae:
+                logger.error("[SALE] Accrual posting failed for INV #%s: %s", instance.id, _ae)
+
             # --- 1. Treasury ---
             is_return = getattr(instance, 'is_return', False)
             if (instance.treasury
@@ -283,38 +304,45 @@ class InvoiceService:
 
                     # Double-entry: Debit commission expense / Credit commission payable
                     try:
-                        from inventory.services.treasury_service import TreasuryService
                         from inventory.models import ChartOfAccount, AccountingEntry
-                        commission_expense = TreasuryService._get_or_create_account(
-                            '5200', 'عمولات الفنيين', 'expense'
-                        )
-                        commission_payable = TreasuryService._get_or_create_account(
-                            '2100', 'عمولات مستحقة للموظفين', 'liability'
-                        )
+                        from inventory.services.accounting_service import AccountingService
+                        # 🛠️ Distinct codes (5210 / 2110) so technician commission
+                        # never pollutes the seeded rent account (5200) or the
+                        # vendor payables account (2100).
+                        commission_expense = AccountingService.account('commission_expense')
+                        commission_payable = AccountingService.account('commission_payable')
                         ref = f"COMM-INV{instance.pk}-EMP{service_item.technician.pk}"
+                        # 🛡️ Idempotency — never post a technician's commission for
+                        # the same invoice twice (guards re-post / signal re-fire).
+                        if AccountingEntry.objects.filter(reference=ref).exists():
+                            continue
                         # Use individual create() so AccountingEntry.clean() runs on each entry.
                         # bulk_create() skips model validation entirely.
-                        debit_entry = AccountingEntry(
-                            reference=ref,
-                            description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
-                            account=commission_expense,
-                            debit=base_commission,
-                            credit=Decimal('0'),
-                            sale_invoice=instance,
-                        )
-                        debit_entry.clean()
-                        debit_entry.save()
-                        credit_entry = AccountingEntry(
-                            reference=ref,
-                            description=f"عمولة مستحقة لـ {service_item.technician}",
-                            account=commission_payable,
-                            debit=Decimal('0'),
-                            credit=base_commission,
-                            sale_invoice=instance,
-                        )
-                        credit_entry.clean()
-                        credit_entry.save()
-                        AccountingEntry.validate_balanced(ref)
+                        # 🛡️ Atomicity — post both legs inside one savepoint so a
+                        # failure on the credit leg can never leave a lone debit
+                        # (unbalanced) entry committed to the ledger.
+                        with transaction.atomic():
+                            debit_entry = AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
+                                account=commission_expense,
+                                debit=base_commission,
+                                credit=Decimal('0'),
+                                sale_invoice=instance,
+                            )
+                            debit_entry.clean()
+                            debit_entry.save()
+                            credit_entry = AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة مستحقة لـ {service_item.technician}",
+                                account=commission_payable,
+                                debit=Decimal('0'),
+                                credit=base_commission,
+                                sale_invoice=instance,
+                            )
+                            credit_entry.clean()
+                            credit_entry.save()
+                            AccountingEntry.validate_balanced(ref)
                     except Exception as _ce:
                         import logging as _l
                         _l.getLogger('mouss_tec_core').warning("[COMMISSION] ledger entry failed: %s", _ce)

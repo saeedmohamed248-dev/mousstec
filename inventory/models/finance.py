@@ -115,6 +115,12 @@ class ChartOfAccount(models.Model):
 
 class AccountingEntry(models.Model):
     entry_date = models.DateTimeField(default=timezone.now, db_index=True, verbose_name=_("تاريخ القيد"))
+    # 📒 Grouping document — the balanced JournalEntry this line belongs to.
+    # Nullable for backward compatibility with legacy reference-grouped entries.
+    journal_entry = models.ForeignKey(
+        'inventory.JournalEntry', null=True, blank=True, on_delete=models.CASCADE,
+        related_name='lines', verbose_name=_("قيد اليومية"),
+    )
     reference = models.CharField(max_length=100, db_index=True, verbose_name=_("المرجع"))
     description = models.CharField(max_length=255, verbose_name=_("البيان"))
     account = models.ForeignKey(ChartOfAccount, on_delete=models.PROTECT, related_name='entries', verbose_name=_("الحساب"))

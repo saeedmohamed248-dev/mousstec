@@ -123,97 +123,32 @@ class TreasuryService:
     @staticmethod
     def generate_accounting_entries(financial_transaction):
         """
-        Create double-entry accounting journal entries for a new FinancialTransaction.
-        IN  → Debit cash account / Credit revenue account
-        OUT → Debit expense account / Credit cash account
+        Post the general-ledger effect of a FinancialTransaction.
+
+        This is now a thin wrapper over the accrual posting engine
+        (:class:`AccountingService`). The engine routes the cash movement to
+        the correct counter-account:
+
+        * customer payment / refund  → settles Accounts Receivable
+        * vendor payment / refund    → settles Accounts Payable
+        * direct income (no sale)    → Debit Cash / Credit Other Revenue
+        * direct expense (no bill)   → Debit Expense / Credit Cash
+
+        Revenue and COGS are recognised at *invoice posting time* (accrual),
+        not here, so a credit sale collected in installments is never counted
+        as revenue twice. Failures are logged, never raised, so a treasury
+        movement is never blocked by a ledger hiccup; ``AccountingService`` can
+        re-post any gap later.
         """
-        from inventory.models import ChartOfAccount, AccountingEntry
+        from inventory.services.accounting_service import AccountingService
         from inventory.services.audit_service import AuditService
 
         instance = financial_transaction
-        ref = f"FT-{instance.pk}"
         user = AuditService.get_request_user()
-
         try:
-            if instance.transaction_type == 'in':
-                # Debit: Cash (asset)
-                cash_account = TreasuryService._get_or_create_account(
-                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
-                )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'إيداع نقدي',
-                    account=cash_account,
-                    debit=instance.amount,
-                    credit=Decimal('0'),
-                    financial_transaction=instance,
-                    sale_invoice=instance.sale_invoice,
-                    created_by=user,
-                )
-                # Credit: Revenue
-                if instance.sale_invoice:
-                    revenue_account = TreasuryService._get_or_create_account(
-                        _get_account_code('sales_revenue'), 'إيرادات المبيعات', 'revenue'
-                    )
-                else:
-                    revenue_account = TreasuryService._get_or_create_account(
-                        _get_account_code('other_revenue'), 'إيرادات أخرى', 'revenue'
-                    )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'إيراد',
-                    account=revenue_account,
-                    debit=Decimal('0'),
-                    credit=instance.amount,
-                    financial_transaction=instance,
-                    sale_invoice=instance.sale_invoice,
-                    created_by=user,
-                )
-            else:  # out
-                # Debit: Expense
-                if instance.purchase_invoice:
-                    expense_account = TreasuryService._get_or_create_account(
-                        _get_account_code('purchase_cost'), 'تكلفة المشتريات', 'expense'
-                    )
-                elif instance.category:
-                    expense_account = TreasuryService._get_or_create_account(
-                        f'5{instance.category.pk:03d}',
-                        f'مصروفات — {instance.category.name}',
-                        'expense',
-                    )
-                else:
-                    expense_account = TreasuryService._get_or_create_account(
-                        _get_account_code('general_expense'), 'مصروفات عمومية', 'expense'
-                    )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'صرف نقدي',
-                    account=expense_account,
-                    debit=instance.amount,
-                    credit=Decimal('0'),
-                    financial_transaction=instance,
-                    purchase_invoice=instance.purchase_invoice,
-                    created_by=user,
-                )
-                # Credit: Cash
-                cash_account = TreasuryService._get_or_create_account(
-                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
-                )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'سحب نقدي',
-                    account=cash_account,
-                    debit=Decimal('0'),
-                    credit=instance.amount,
-                    financial_transaction=instance,
-                    purchase_invoice=instance.purchase_invoice,
-                    created_by=user,
-                )
-
-            logger.info("[ACCOUNTING] Generated entries for %s (amount=%s)", ref, instance.amount)
-
+            AccountingService.post_payment(instance, created_by=user)
         except Exception as e:
-            logger.error("[ACCOUNTING] Failed to generate entries for FT #%s: %s", instance.pk, e)
+            logger.error("[ACCOUNTING] Failed to post FT #%s: %s", instance.pk, e)
 
     # ------------------------------------------------------------------
     # Technician Commission Payout — batch pay with atomic guard
