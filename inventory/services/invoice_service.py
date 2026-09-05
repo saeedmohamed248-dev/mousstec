@@ -292,29 +292,37 @@ class InvoiceService:
                             '2100', 'عمولات مستحقة للموظفين', 'liability'
                         )
                         ref = f"COMM-INV{instance.pk}-EMP{service_item.technician.pk}"
+                        # 🛡️ Idempotency — never post a technician's commission for
+                        # the same invoice twice (guards re-post / signal re-fire).
+                        if AccountingEntry.objects.filter(reference=ref).exists():
+                            continue
                         # Use individual create() so AccountingEntry.clean() runs on each entry.
                         # bulk_create() skips model validation entirely.
-                        debit_entry = AccountingEntry(
-                            reference=ref,
-                            description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
-                            account=commission_expense,
-                            debit=base_commission,
-                            credit=Decimal('0'),
-                            sale_invoice=instance,
-                        )
-                        debit_entry.clean()
-                        debit_entry.save()
-                        credit_entry = AccountingEntry(
-                            reference=ref,
-                            description=f"عمولة مستحقة لـ {service_item.technician}",
-                            account=commission_payable,
-                            debit=Decimal('0'),
-                            credit=base_commission,
-                            sale_invoice=instance,
-                        )
-                        credit_entry.clean()
-                        credit_entry.save()
-                        AccountingEntry.validate_balanced(ref)
+                        # 🛡️ Atomicity — post both legs inside one savepoint so a
+                        # failure on the credit leg can never leave a lone debit
+                        # (unbalanced) entry committed to the ledger.
+                        with transaction.atomic():
+                            debit_entry = AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
+                                account=commission_expense,
+                                debit=base_commission,
+                                credit=Decimal('0'),
+                                sale_invoice=instance,
+                            )
+                            debit_entry.clean()
+                            debit_entry.save()
+                            credit_entry = AccountingEntry(
+                                reference=ref,
+                                description=f"عمولة مستحقة لـ {service_item.technician}",
+                                account=commission_payable,
+                                debit=Decimal('0'),
+                                credit=base_commission,
+                                sale_invoice=instance,
+                            )
+                            credit_entry.clean()
+                            credit_entry.save()
+                            AccountingEntry.validate_balanced(ref)
                     except Exception as _ce:
                         import logging as _l
                         _l.getLogger('mouss_tec_core').warning("[COMMISSION] ledger entry failed: %s", _ce)

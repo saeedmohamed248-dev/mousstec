@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.db.models import Sum as models_Sum
 
 from inventory.models import (
     AccountingEntry, ChartOfAccount, FinancialTransaction, SaleInvoice,
@@ -278,6 +279,56 @@ class DoubleEntryIntegrityTests(ERPTenantTestCase):
         credit_entry = entries.get(credit__gt=0)
         self.assertIn(debit_entry.account.account_type, ('expense',))
         self.assertEqual(credit_entry.account.account_type, 'asset')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Ledger posting is idempotent + atomic (2026-09 review)
+# ──────────────────────────────────────────────────────────────────────────────
+class LedgerIdempotencyTests(ERPTenantTestCase):
+    """
+    generate_accounting_entries must never double-post, and the general
+    ledger as a whole must always net to zero (total debit == total credit).
+
+    These guard the fixes made in the 2026-09 database/accounting review:
+    the debit and credit legs are now posted inside one savepoint (no lone
+    unbalanced entry can survive a mid-way failure), and a re-run is a no-op.
+    """
+
+    def setUp(self):
+        self.branch = make_branch()
+        self.treasury = make_treasury(self.branch, balance='10000.00')
+
+    def test_regenerating_entries_does_not_duplicate(self):
+        """Re-running the generator for the same transaction is a no-op."""
+        txn = make_financial_transaction(self.treasury, '1200.00', txn_type='in')
+        # Signal already posted the pair on create.
+        self.assertEqual(
+            AccountingEntry.objects.filter(financial_transaction=txn).count(), 2
+        )
+        # Manual re-run must not add a second pair.
+        TreasuryService.generate_accounting_entries(txn)
+        self.assertEqual(
+            AccountingEntry.objects.filter(financial_transaction=txn).count(), 2,
+            "Ledger posting must be idempotent — no duplicate entries",
+        )
+
+    def test_ledger_is_globally_balanced_after_mixed_transactions(self):
+        """After a mix of income and expense transactions the whole ledger
+        (every posted entry) must still have total debit == total credit."""
+        cat = make_expense_category()
+        make_financial_transaction(self.treasury, '2500.00', txn_type='in')
+        make_financial_transaction(self.treasury, '400.00', txn_type='out', category=cat)
+        make_financial_transaction(self.treasury, '150.75', txn_type='in')
+
+        agg = AccountingEntry.objects.aggregate(
+            total_debit=models_Sum('debit'),
+            total_credit=models_Sum('credit'),
+        )
+        self.assertEqual(
+            agg['total_debit'] or Decimal('0'),
+            agg['total_credit'] or Decimal('0'),
+            "General ledger must always net to zero (double-entry invariant)",
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

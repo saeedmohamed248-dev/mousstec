@@ -135,80 +135,96 @@ class TreasuryService:
         user = AuditService.get_request_user()
 
         try:
-            if instance.transaction_type == 'in':
-                # Debit: Cash (asset)
-                cash_account = TreasuryService._get_or_create_account(
-                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
-                )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'إيداع نقدي',
-                    account=cash_account,
-                    debit=instance.amount,
-                    credit=Decimal('0'),
-                    financial_transaction=instance,
-                    sale_invoice=instance.sale_invoice,
-                    created_by=user,
-                )
-                # Credit: Revenue
-                if instance.sale_invoice:
-                    revenue_account = TreasuryService._get_or_create_account(
-                        _get_account_code('sales_revenue'), 'إيرادات المبيعات', 'revenue'
+            # 🛡️ Idempotency guard — never post the same transaction twice.
+            # Protects against signal re-fire / manual re-run leaving duplicate
+            # (and therefore double-counted) journal entries in the ledger.
+            if AccountingEntry.objects.filter(financial_transaction=instance).exists():
+                logger.info("[ACCOUNTING] Entries for %s already exist — skipping", ref)
+                return
+
+            # 🛡️ Atomicity guard — the debit and credit legs are posted inside a
+            # single savepoint so a failure on the second leg can NEVER leave a
+            # lone, unbalanced entry committed to the general ledger. Either both
+            # legs land or neither does. The final validate_balanced() is a
+            # belt-and-braces assertion that the pair nets to zero before commit.
+            with transaction.atomic():
+                if instance.transaction_type == 'in':
+                    # Debit: Cash (asset)
+                    cash_account = TreasuryService._get_or_create_account(
+                        _get_account_code('cash'), 'الخزينة النقدية', 'asset'
                     )
-                else:
-                    revenue_account = TreasuryService._get_or_create_account(
-                        _get_account_code('other_revenue'), 'إيرادات أخرى', 'revenue'
+                    AccountingEntry.objects.create(
+                        reference=ref,
+                        description=instance.description or 'إيداع نقدي',
+                        account=cash_account,
+                        debit=instance.amount,
+                        credit=Decimal('0'),
+                        financial_transaction=instance,
+                        sale_invoice=instance.sale_invoice,
+                        created_by=user,
                     )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'إيراد',
-                    account=revenue_account,
-                    debit=Decimal('0'),
-                    credit=instance.amount,
-                    financial_transaction=instance,
-                    sale_invoice=instance.sale_invoice,
-                    created_by=user,
-                )
-            else:  # out
-                # Debit: Expense
-                if instance.purchase_invoice:
-                    expense_account = TreasuryService._get_or_create_account(
-                        _get_account_code('purchase_cost'), 'تكلفة المشتريات', 'expense'
+                    # Credit: Revenue
+                    if instance.sale_invoice:
+                        revenue_account = TreasuryService._get_or_create_account(
+                            _get_account_code('sales_revenue'), 'إيرادات المبيعات', 'revenue'
+                        )
+                    else:
+                        revenue_account = TreasuryService._get_or_create_account(
+                            _get_account_code('other_revenue'), 'إيرادات أخرى', 'revenue'
+                        )
+                    AccountingEntry.objects.create(
+                        reference=ref,
+                        description=instance.description or 'إيراد',
+                        account=revenue_account,
+                        debit=Decimal('0'),
+                        credit=instance.amount,
+                        financial_transaction=instance,
+                        sale_invoice=instance.sale_invoice,
+                        created_by=user,
                     )
-                elif instance.category:
-                    expense_account = TreasuryService._get_or_create_account(
-                        f'5{instance.category.pk:03d}',
-                        f'مصروفات — {instance.category.name}',
-                        'expense',
+                else:  # out
+                    # Debit: Expense
+                    if instance.purchase_invoice:
+                        expense_account = TreasuryService._get_or_create_account(
+                            _get_account_code('purchase_cost'), 'تكلفة المشتريات', 'expense'
+                        )
+                    elif instance.category:
+                        expense_account = TreasuryService._get_or_create_account(
+                            f'5{instance.category.pk:03d}',
+                            f'مصروفات — {instance.category.name}',
+                            'expense',
+                        )
+                    else:
+                        expense_account = TreasuryService._get_or_create_account(
+                            _get_account_code('general_expense'), 'مصروفات عمومية', 'expense'
+                        )
+                    AccountingEntry.objects.create(
+                        reference=ref,
+                        description=instance.description or 'صرف نقدي',
+                        account=expense_account,
+                        debit=instance.amount,
+                        credit=Decimal('0'),
+                        financial_transaction=instance,
+                        purchase_invoice=instance.purchase_invoice,
+                        created_by=user,
                     )
-                else:
-                    expense_account = TreasuryService._get_or_create_account(
-                        _get_account_code('general_expense'), 'مصروفات عمومية', 'expense'
+                    # Credit: Cash
+                    cash_account = TreasuryService._get_or_create_account(
+                        _get_account_code('cash'), 'الخزينة النقدية', 'asset'
                     )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'صرف نقدي',
-                    account=expense_account,
-                    debit=instance.amount,
-                    credit=Decimal('0'),
-                    financial_transaction=instance,
-                    purchase_invoice=instance.purchase_invoice,
-                    created_by=user,
-                )
-                # Credit: Cash
-                cash_account = TreasuryService._get_or_create_account(
-                    _get_account_code('cash'), 'الخزينة النقدية', 'asset'
-                )
-                AccountingEntry.objects.create(
-                    reference=ref,
-                    description=instance.description or 'سحب نقدي',
-                    account=cash_account,
-                    debit=Decimal('0'),
-                    credit=instance.amount,
-                    financial_transaction=instance,
-                    purchase_invoice=instance.purchase_invoice,
-                    created_by=user,
-                )
+                    AccountingEntry.objects.create(
+                        reference=ref,
+                        description=instance.description or 'سحب نقدي',
+                        account=cash_account,
+                        debit=Decimal('0'),
+                        credit=instance.amount,
+                        financial_transaction=instance,
+                        purchase_invoice=instance.purchase_invoice,
+                        created_by=user,
+                    )
+
+                # Assert the pair balances before the savepoint commits.
+                AccountingEntry.validate_balanced(ref)
 
             logger.info("[ACCOUNTING] Generated entries for %s (amount=%s)", ref, instance.amount)
 
