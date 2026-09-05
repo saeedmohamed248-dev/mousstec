@@ -21,8 +21,15 @@ def caddy_tls_check(request):
         return HttpResponseNotFound('no domain')
 
     base = str(getattr(settings, 'BASE_DOMAIN', '') or '').lower()
-    # الدومين الأساسي و www مسموحين دايماً
-    if base and (domain == base or domain == f'www.{base}'):
+    # الدومين الأساسي و www + دومينات المناطق (مصر/الإمارات) مسموحين دايماً.
+    # region hosts (REGION_AE_HOSTS) هي نسخ المنصة حسب الدولة — ليست فروعاً في
+    # جدول Domain، لكنها ملكنا ويجب أن تحصل على شهادة HTTPS تلقائياً.
+    region_hosts = {
+        str(h).strip().lower()
+        for h in getattr(settings, 'REGION_AE_HOSTS', []) or []
+        if str(h).strip()
+    }
+    if base and (domain == base or domain == f'www.{base}' or domain in region_hosts):
         return HttpResponse('ok')
 
     # غير كده لازم يكون فرع مسجّل في جدول الدومينات (على السكيمة العامة)
